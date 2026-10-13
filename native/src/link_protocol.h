@@ -17,8 +17,12 @@ inline std::string lobby_tag(uint32_t build) { return std::to_string(kProtocol) 
 
 // Untrusted text (a peer's name) made safe for one line of our status file: no control bytes, bounded.
 inline std::string clean(std::string text, size_t max) {
-  if (text.size() > max)
-    text.resize(max);
+  if (text.size() > max) { // Cut before a UTF-8 continuation byte, never inside a character.
+    size_t n = max;
+    while (n && (static_cast<unsigned char>(text[n]) & 0xC0) == 0x80)
+      --n;
+    text.resize(n);
+  }
   for (char &c : text)
     if (static_cast<unsigned char>(c) < 0x20 || c == 0x7f)
       c = '?';

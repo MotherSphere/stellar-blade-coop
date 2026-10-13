@@ -19,7 +19,7 @@ end
 local commands={
     puppet=puppet.toggle, host=ask('host'), invite=ask('invite'), leave=ask('leave'),
     join=function(lobby)
-        if lobby and not (link and link.valid_lobby(lobby)) then return false,'a lobby id is digits only' end
+        if lobby and link and not link.valid_lobby(lobby) then return false,'a lobby id is digits only' end
         return ask(lobby and 'join '..lobby or 'join')()
     end,
     status=function()
@@ -41,8 +41,10 @@ assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread
 LoopInGameThreadWithDelay(1,function()
     local ok,message=puppet.tick()
     if message then report(ok,message) end
-    if link then
-        for _,line in ipairs(link.changes()) do log('link: '..line) end
-    end
 end)
+if link then
+    LoopInGameThreadWithDelay(250,function()
+        for _,line in ipairs(link.changes()) do log('link: '..line) end
+    end)
+end
 log('Loaded. '..USAGE)

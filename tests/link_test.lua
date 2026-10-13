@@ -32,6 +32,10 @@ lines=link.changes()
 assert(#lines==2 and lines[1]=='role=host lobby=7' and lines[2]=='last=hosting lobby 7')
 files[STATUS]='steamid=1 relay=100\nrole=none lobby=0\nlast=Steam ready\n'
 assert(#link.changes()==2,'A line seen before, then gone, is new again')
+files[STATUS]='steamid=1 relay=100\nrole=host lobby=7\npeer=2 name=Bob rtt_ms=40\nlast=#3 Bob is in the lobby\n'
+lines=link.changes()
+assert(#lines==2 and lines[1]=='role=host lobby=7' and lines[2]=='last=#3 Bob is in the lobby','Peer lines stay out of the log')
+assert(link.status():find('peer=2 name=Bob',1,true),'coop status still shows them')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 print('link_test ok')

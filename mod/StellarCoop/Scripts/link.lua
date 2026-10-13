@@ -1,6 +1,6 @@
 -- The Steam link's Lua side. A console request becomes one line in coop-request.txt for the native part (written
 -- beside, then renamed, so it is never read half-written); each line of its coop-status.txt that changed is
--- returned once, for the log.
+-- returned once, for the log. Peer lines change with every ping: they stay in coop status, out of the log.
 local Link={}
 local files={
     read=function(path) local f=io.open(path,'rb'); if not f then return nil end; local text=f:read('a'); f:close(); return text end,
@@ -27,7 +27,7 @@ function Link.new(folder,fs)
         if not text then return new end
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
-            if not seen[line] then new[#new+1]=line end
+            if not seen[line] and not line:find('^peer=') then new[#new+1]=line end
         end
         seen=now
         return new

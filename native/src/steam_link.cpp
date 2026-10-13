@@ -1,7 +1,7 @@
 // StellarCoop's native part, loaded by its Lua script (package.loadlib). It links two players over Steam, through the
 // Steamworks API the game loaded and started (never its own SteamAPI_Init), flat API of the SDK the game ships (1.59):
 // a friends-only lobby, the overlay invite, then hello and ping messages over ISteamNetworkingMessages (Valve relays).
-// Lua asks through coop-request.txt; this part answers in coop-status.txt and appends events to coop-state.log, all in
+// Lua asks through coop-request.txt; this part answers in coop-status.txt and appends events to coop-link.log, all in
 // the mod folder. One worker thread makes every Steam call; the game's callback thread only stores what Steam posts.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -53,7 +53,7 @@ static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(L
               "Steamworks 1.59 layouts");
 constexpr int kFriendsOnly = 1, kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505;
-constexpr int kReliable = 8 | 32, kUnreliable = 1; // Reliable|AutoRestartBrokenSession; Unreliable|NoNagle.
+constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kMaxMembers = 2;
 
 std::atomic<uint64_t> join_requested{0}; // Set by the callback, taken by the worker.
@@ -202,13 +202,14 @@ std::string take_text(const std::wstring &path) {
 }
 
 std::string last_event;
+int events = 0;
 void event(const std::string &line) {
   SYSTEMTIME t;
   GetLocalTime(&t);
   char stamp[16];
   wsprintfA(stamp, "%02u:%02u:%02u.%03u ", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
-  last_event = line;
-  HANDLE f = CreateFileW((folder + L"coop-state.log").c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
+  last_event = "#" + std::to_string(++events) + " " + line; // Numbered: a repeated event is still news.
+  HANDLE f = CreateFileW((folder + L"coop-link.log").c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
                          FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
     return;
@@ -220,8 +221,9 @@ void event(const std::string &line) {
 
 struct Peer {
   uint64_t id = 0;
-  std::string name; // From Steam, then from their hello; cleaned.
+  std::string name; // From Steam, never from the peer's own hello; cleaned.
   bool hello_sent = false, hello_received = false, compatible = false;
+  int invalid = 0; // Junk messages received; only the first is logged.
   uint64_t build = 0, ping_seq = 0, next_ping = 0, last_heard = 0;
   int64_t rtt_ms = -1;
   int session_state = 0, session_ping = -1;
@@ -235,6 +237,7 @@ struct Link {
   std::string tag, my_name;
   bool registered = false;
   uint64_t create_call = 0, join_call = 0, joining = 0; // Pending call results, and the lobby being joined.
+  bool cancel = false;                                 // coop leave while a call was pending.
   uint64_t lobby = 0;
   bool host = false;
   std::vector<Peer> peers;
@@ -290,6 +293,10 @@ void join(uint64_t lobby, const std::string &how) {
   leave("joining another lobby");
   state.joining = lobby;
   state.join_call = api.join_lobby(state.mm, lobby);
+  if (!state.join_call) {
+    state.joining = 0;
+    return event("Steam refused to join lobby " + std::to_string(lobby));
+  }
   event("joining lobby " + std::to_string(lobby) + " (" + how + ")");
 }
 
@@ -316,7 +323,7 @@ void handle(const coop::Request &r) {
     } else {
       leave("hosting instead");
       state.create_call = api.create_lobby(state.mm, kFriendsOnly, kMaxMembers);
-      event("creating a friends-only lobby");
+      event(state.create_call ? "creating a friends-only lobby" : "Steam refused to create a lobby");
     }
     break;
   case coop::Command::invite:
@@ -334,10 +341,14 @@ void handle(const coop::Request &r) {
       join_friend();
     break;
   case coop::Command::leave:
-    if (state.lobby)
+    if (state.create_call || state.join_call) {
+      state.cancel = true;
+      event("leave queued: a lobby call is pending");
+    } else if (state.lobby) {
       leave("asked");
-    else
+    } else {
       event("not in a lobby");
+    }
     break;
   case coop::Command::none:
     event("unknown request");
@@ -357,10 +368,15 @@ void poll_calls() {
     } else {
       state.lobby = r.lobby;
       state.host = true;
-      api.set_lobby_data(state.mm, state.lobby, coop::kLobbyKey, state.tag.c_str());
-      api.invite_dialog(state.friends, state.lobby);
-      event("hosting lobby " + std::to_string(state.lobby) + ": invite dialog opened");
+      if (state.cancel) {
+        leave("leave asked while it was being created");
+      } else {
+        api.set_lobby_data(state.mm, state.lobby, coop::kLobbyKey, state.tag.c_str());
+        api.invite_dialog(state.friends, state.lobby);
+        event("hosting lobby " + std::to_string(state.lobby) + ": invite dialog opened");
+      }
     }
+    state.cancel = false;
   }
   failed = false;
   if (state.join_call && api.call_done(state.utils, state.join_call, &failed)) {
@@ -369,12 +385,16 @@ void poll_calls() {
     state.join_call = 0;
     uint64_t lobby = state.joining;
     state.joining = 0;
+    bool cancel = state.cancel;
+    state.cancel = false;
     if (!got || failed || r.response != kEnterSuccess || r.lobby != lobby) {
       event("joining lobby " + std::to_string(lobby) + " failed (response " + std::to_string(r.response) + ")");
       return;
     }
     state.lobby = lobby;
     state.host = api.lobby_owner(state.mm, lobby) == state.me;
+    if (cancel)
+      return leave("leave asked while joining");
     const char *tag = api.lobby_data(state.mm, lobby, coop::kLobbyKey);
     std::string theirs = coop::clean(tag ? tag : "", 32);
     if (theirs != state.tag) {
@@ -400,6 +420,8 @@ void poll_members(uint64_t now) {
   state.next_members = now + 500;
   std::vector<uint64_t> members;
   int n = api.member_count(state.mm, state.lobby);
+  if (n > kMaxMembers) // Only a lobby made elsewhere can be bigger: greet nobody there.
+    return leave("more than 2 players in it");
   for (int i = 0; i < n; ++i)
     if (uint64_t id = api.member(state.mm, state.lobby, i); id && id != state.me)
       members.push_back(id);
@@ -452,11 +474,13 @@ void receive(uint64_t now) {
     peer->last_heard = now;
     switch (message.kind) {
     case coop::Kind::hello:
+      if (!peer->hello_received || peer->build != message.a)
+        event("hello from " + name_of(from) +
+              (message.a == state.build ? "" : ", other game build " + std::to_string(message.a)));
       peer->hello_received = true;
       peer->build = message.a;
-      peer->name = message.text;
+      peer->name = name_of(from); // Steam's name, refreshed: a non-friend's may have been unknown at first.
       peer->compatible = message.a == state.build;
-      event("hello from " + peer->name + (peer->compatible ? "" : ", other game build " + std::to_string(message.a)));
       if (!peer->hello_sent) {
         send(*peer, coop::hello(state.build, state.my_name), kReliable);
         peer->hello_sent = true;
@@ -470,7 +494,8 @@ void receive(uint64_t now) {
         peer->rtt_ms = static_cast<int64_t>(now - message.b);
       break;
     case coop::Kind::invalid:
-      event("invalid message from " + peer->name);
+      if (++peer->invalid == 1)
+        event("invalid message from " + peer->name);
       break;
     }
   }
@@ -491,6 +516,10 @@ void ping_peers(uint64_t now) {
     Identity who = identity(peer.id);
     peer.session_state = api.session_info(state.msgs, &who, nullptr, quick);
     peer.session_ping = *reinterpret_cast<int32_t *>(quick + 4);
+    // A first connection that failed (4 closed by peer, 5 problem detected) took both hellos with it: greet again,
+    // which restarts the session (kReliable has AutoRestartBrokenSession).
+    if (!peer.hello_received && (peer.session_state == 4 || peer.session_state == 5))
+      peer.hello_sent = false;
   }
   state.relay = api.relay_status(state.nu, nullptr);
 }
@@ -504,7 +533,7 @@ std::string status() {
        " lobby=" + std::to_string(state.lobby) + (state.create_call || state.join_call ? " pending=1" : "") + "\n";
   for (auto &p : state.peers)
     s += "peer=" + std::to_string(p.id) + " name=" + p.name + " hello=" + (p.hello_received ? "1" : "0") +
-         " compatible=" + (p.compatible ? "1" : "0") + " rtt_ms=" + std::to_string(p.rtt_ms) +
+         " compatible=" + (p.compatible ? "1" : "0") + " invalid=" + std::to_string(p.invalid) + " rtt_ms=" + std::to_string(p.rtt_ms) +
          " session=" + std::to_string(p.session_state) + " session_ping=" + std::to_string(p.session_ping) + "\n";
   s += "last=" + last_event + "\n";
   return s;
@@ -531,8 +560,14 @@ bool ready(const std::wstring &command_line) {
   state.tag = coop::lobby_tag(state.build);
   const char *name = api.persona(state.friends);
   state.my_name = coop::clean(name ? name : "", coop::kMaxName);
+  // Known race, accepted: steam_api inserts into its callback map without a lock while the game's Steam thread may be
+  // dispatching. Two inserts, once per run; never register or unregister anywhere else.
   api.register_callback(&on_join, kJoinRequestedId);
   api.register_callback(&on_data, kDataUpdateId);
+  // Pinned: a call in flight while the game shuts Steam down at exit then returns into mapped code (see guarded()).
+  HMODULE pinned = nullptr;
+  GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, L"steam_api64.dll", &pinned);
+  GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, L"steamclient64.dll", &pinned);
   api.init_relay(state.nu);
   state.registered = true;
   event("Steam ready: " + state.my_name + ", app " + std::to_string(state.app) + ", build " + std::to_string(state.build));
@@ -541,43 +576,68 @@ bool ready(const std::wstring &command_line) {
   return true;
 }
 
+std::wstring command_line;
+bool loaded = false;
+std::string written;
+
+// One pass of the worker; false stops it for good.
+bool step() {
+  try {
+    HMODULE dll = GetModuleHandleW(L"steam_api64.dll");
+    if (dll && !loaded) {
+      std::string missing = load(dll);
+      if (!missing.empty()) {
+        write_text(folder + L"coop-status.txt", "missing=" + missing + "\n");
+        return false; // Another Steamworks build: never call it.
+      }
+      loaded = true;
+    }
+    if (!loaded || !ready(command_line))
+      return true;
+    uint64_t now = now_ms();
+    std::string request = take_text(folder + L"coop-request.txt");
+    if (!request.empty())
+      handle(coop::parse_request(request));
+    if (uint64_t lobby = join_requested.exchange(0))
+      join(lobby, "invite accepted");
+    poll_calls();
+    if (state.lobby) {
+      poll_members(now);
+      receive(now);
+      ping_peers(now);
+    }
+    std::string text = status();
+    if (text != written && write_text(folder + L"coop-status.txt", text))
+      written = text;
+    api.release_memory(); // Valve's advice for threads other than the game's.
+  } catch (...) {
+    // A C++ exception (out of memory) skips one pass.
+  }
+  return true;
+}
+
+// Access violations are SEH, which catch(...) never sees under /EHsc. A fault inside Steam (a call racing the game's
+// SteamAPI_Shutdown at exit, or a wrong layout) stops the link for good instead of taking the game down.
+int guarded() {
+  __try {
+    return step() ? 1 : 0;
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    return -1;
+  }
+}
+
 DWORD WINAPI worker(void *) {
-  const std::wstring command_line = GetCommandLineW();
-  MoveFileExW((folder + L"coop-state.log").c_str(), (folder + L"coop-state.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
+  command_line = GetCommandLineW();
+  MoveFileExW((folder + L"coop-link.log").c_str(), (folder + L"coop-link.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request left from a previous run is stale.
-  bool loaded = false;
-  std::string written;
+  write_text(folder + L"coop-status.txt", "steam=waiting\n"); // Never show the previous run's state as current.
   for (;;) {
-    try {
-      HMODULE dll = GetModuleHandleW(L"steam_api64.dll");
-      if (dll && !loaded) {
-        std::string missing = load(dll);
-        if (!missing.empty()) {
-          write_text(folder + L"coop-status.txt", "missing=" + missing + "\n");
-          return 0; // Another Steamworks build: never call it.
-        }
-        loaded = true;
-      }
-      if (loaded && ready(command_line)) {
-        uint64_t now = now_ms();
-        std::string request = take_text(folder + L"coop-request.txt");
-        if (!request.empty())
-          handle(coop::parse_request(request));
-        if (uint64_t lobby = join_requested.exchange(0))
-          join(lobby, "invite accepted");
-        poll_calls();
-        if (state.lobby) {
-          poll_members(now);
-          receive(now);
-          ping_peers(now);
-        }
-        std::string text = status();
-        if (text != written && write_text(folder + L"coop-status.txt", text))
-          written = text;
-        api.release_memory(); // Valve's advice for threads other than the game's.
-      }
-    } catch (...) {
-      // The link must never take the game down.
+    int result = guarded();
+    if (result == 0)
+      return 0;
+    if (result < 0) {
+      write_text(folder + L"coop-status.txt", "stopped=fault\n");
+      return 0; // Steam may be gone or a lock held: never call it again.
     }
     Sleep(50);
   }

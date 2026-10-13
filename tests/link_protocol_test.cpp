@@ -33,6 +33,10 @@ int main() {
   m = parse_text("SBC1 hello 1 " + std::string(100, 'z'));
   assert(m.kind == Kind::hello && m.text == std::string(kMaxName, 'z'));
   assert(parse_text("SBC1 hello 1 " + std::string(kMaxMessage, 'w')).kind == Kind::invalid); // Too long.
+  std::string hangul;
+  for (int i = 0; i < 22; ++i)
+    hangul += "\xed\x95\x9c"; // U+D55C, 3 bytes: 66 bytes in all.
+  assert(clean(hangul, kMaxName) == hangul.substr(0, 63)); // 21 whole characters, no half one.
 
   // Anything else is invalid: other protocols, unknown kinds, bad or missing numbers, junk.
   for (const char *bad : {"", "SBC", "SBC1", "SBC2 ping 1 2", "SBC1 dance 1 2", "SBC1 ping", "SBC1 ping 1",
