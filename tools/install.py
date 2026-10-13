@@ -29,6 +29,12 @@ def main():
     if not mods.is_dir(): sys.exit(f'No UE4SS Mods folder at {mods}')
     for test in sorted((ROOT / 'tests').glob('*_test.lua')):
         subprocess.run(['lua', test.relative_to(ROOT)], cwd=ROOT, check=True)
+    for test in sorted((ROOT / 'tests').glob('*_test.cpp')):  # Platform-free native code, run on this machine.
+        exe = ROOT / 'build/host' / test.stem
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['c++', '-std=c++17', '-Wall', '-Wextra', '-Werror', '-I', ROOT / 'native/src', test, '-o', exe],
+                       check=True)
+        subprocess.run([exe], check=True)
     build = ROOT / 'build/windows'
     subprocess.run(['cmake', '-S', ROOT / 'native', '-B', build, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',
                     f'-DCMAKE_TOOLCHAIN_FILE={TOOLCHAIN}'], check=True, stdout=subprocess.DEVNULL)
