@@ -5,6 +5,8 @@
 //   SBC hello <protocol> <mod version> <game build>, then SBC accept, or SBC reject <reason>.
 // Every other message carries the protocol number and is dropped by a peer that runs another one:
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>.
+// All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
+// (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h).
 #pragma once
 
 #include <cstddef>
@@ -13,8 +15,8 @@
 #include <string_view>
 
 namespace coop {
-constexpr int kProtocol = 3; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
-                             // 3 carries the component table (SBT) beside the pose (SBP).
+constexpr int kProtocol = 4; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+                             // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;

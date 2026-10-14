@@ -1,6 +1,8 @@
 // The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
-// the handshake and its rejects, the host leaving (D1), a lost peer, strangers, session requests, relay, the journal.
+// the handshake and its rejects, the host leaving (D1), a lost peer, strangers, session requests, relay, the journal;
+// and two Links through it: the handshake both ways and channel 1 with its checks.
 #include "link_core.h"
+#include "pose_table.h"
 
 #include <algorithm>
 #include <cassert>
@@ -9,10 +11,14 @@
 #include <functional>
 #include <iterator>
 #include <map>
+#include <new>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace coop;
+
+static_assert(kMaxBinary == pose::kMaxTable, "channel 1 carries a whole component table");
 
 namespace {
 constexpr uint64_t kMe = 1001, kFriend = 2002, kOther = 3003, kStranger = 9009;
@@ -54,6 +60,7 @@ struct Fake {
   std::map<uint64_t, std::string> names = {{kFriend, "Kaanta"}, {kOther, "Third"}, {kStranger, "Stranger"}};
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
   int invites = 0, released = 0, relay = 100, session_state = 3, session_ping = 42;
+  int send_result = 1; // Anything but 1: Steam refuses the send, which is neither recorded nor delivered.
 } F;
 
 int dummy;
@@ -156,6 +163,8 @@ template <int N> Api make_api() {
   a.member_count = [](void *, uint64_t lobby) { return static_cast<int>(F.members[lobby].size()); };
   a.member = [](void *, uint64_t lobby, int i) { return F.members[lobby].at(static_cast<size_t>(i)); };
   a.send = [](void *, const Identity *who, const void *data, uint32_t size, int flags, int channel) {
+    if (F.send_result != 1)
+      return F.send_result;
     uint64_t from = F.client[N].id, to = steam_id_of(*who);
     std::string text(static_cast<const char *>(data), size);
     F.sent.push_back({from, to, channel, flags, text});
@@ -193,6 +202,13 @@ template <int N> Api make_api() {
     assert(!info);
     std::memcpy(quick, &F.session_state, 4);
     std::memcpy(static_cast<char *>(quick) + 4, &F.session_ping, 4);
+    // The log-only fields, each distinct, so a wrong offset shows in the 60 s line.
+    const float quality[2] = {0.75f, 0.5f};
+    const int32_t rate_pending[2] = {262144, 4096};
+    const int64_t queue_us = 25000;
+    std::memcpy(static_cast<char *>(quick) + 8, quality, 8);
+    std::memcpy(static_cast<char *>(quick) + 32, rate_pending, 8);
+    std::memcpy(static_cast<char *>(quick) + 48, &queue_us, 8);
     return F.session_state;
   };
   a.release_message = [](NetMessage *m) {
@@ -239,9 +255,49 @@ struct World {
   std::string status() const { return link.status(Counters{}); }
 };
 
+// Two players, A (client 0, us) and B (client 1, Kaanta), each with her own Steam and a sink for what her channel 1
+// hands on. Their events are told apart by "A: " and "B: ".
+std::vector<std::string> sink[2];
+// "throw" stands for the pose path running out of memory; event_throws, for A's next log line doing so.
+bool event_throws = false;
+void take(int side, const uint8_t *data, size_t size) {
+  std::string bytes(reinterpret_cast<const char *>(data), size);
+  if (bytes == "throw")
+    throw std::bad_alloc();
+  sink[side].push_back(bytes);
+}
+struct Two {
+  Api api[2] = {make_api<0>(), make_api<1>()};
+  Link a{api[0], "v1.2-dev",
+         [](const std::string &e) {
+           if (std::exchange(event_throws, false))
+             throw std::bad_alloc();
+           events.push_back("A: " + e);
+         },
+         [](const uint8_t *d, size_t n) { take(0, d, n); }};
+  Link b{api[1], "v1.2-dev", [](const std::string &e) { events.push_back("B: " + e); },
+         [](const uint8_t *d, size_t n) { take(1, d, n); }};
+  uint64_t now = 1000;
+  void tick(Link &link, uint64_t step, const std::string &request = "") {
+    now += step;
+    link.tick(now, request, 0, 0);
+  }
+};
+void send_binary(Link &link, const std::string &bytes, bool reliable) {
+  link.send_binary(reinterpret_cast<const uint8_t *>(bytes.data()), bytes.size(), reliable);
+}
+int count(const std::string &part) {
+  int n = 0;
+  for (auto &e : events)
+    n += e.find(part) != std::string::npos;
+  return n;
+}
+
 void reset() {
   F = Fake{};
   events.clear();
+  sink[0].clear();
+  sink[1].clear();
 }
 
 // A host with a lobby and Kaanta inside, after both hellos and accepts: the common start of several tests.
@@ -505,6 +561,138 @@ int main() {
     F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " nonsense"});
     w.tick();
     assert(w.status().find("invalid=2") != std::string::npos);
+  }
+
+  // Two Links: A hosts, B joins by id. Channel 1 hands on only a handshaken member's bytes, within the size bound and
+  // the rate limit; the 60 s line counts both ways; a leave unlinks both.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me"; // So B can name A.
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    // a. Alternate passes 600 ms apart: both pass the handshake.
+    t.tick(t.a, 600);
+    t.tick(t.b, 600);
+    // b. Her hello reaches A a pass before her accept: A is compatible, not accepted. Her bytes are dropped, A is not
+    // linked and sends her nothing on channel 1.
+    auto early = std::find(inbox(0, kChannel).begin(), inbox(0, kChannel).end(), Inbox::value_type{kFriend, accept()});
+    assert(early != inbox(0, kChannel).end());
+    inbox(0, kChannel).erase(early);
+    inbox(0, kPoseChannel).push_back({kFriend, "SBT early"});
+    int by_hand = 0; // Pushed by hand, less erased: the early message in, her accept out.
+    t.tick(t.a, 600);
+    size_t sends = F.sent.size();
+    send_binary(t.a, "SBT early", true);
+    assert(t.a.peers()[0].compatible && !t.a.linked() && F.sent.size() == sends);
+    assert(saw("A: dropped pose data from Kaanta: before the handshake") && sink[0].empty());
+    int rounds = 0; // Her next accept answers A's next hello.
+    while (!(t.a.linked() && t.b.linked()) && rounds < 6) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+      ++rounds;
+    }
+    assert(t.a.linked() && t.b.linked() && saw("B: joined lobby 5000 hosted by Me"));
+
+    // c. A table at the size bound (reliable) and 20 poses (unreliable) each way: the same bytes in the same order,
+    // over two passes (a batch is 16), on channel 1 only.
+    std::vector<std::string> sent[2];
+    for (int side = 0; side < 2; ++side) {
+      sent[side].push_back("SBT " + std::string(kMaxBinary - 4, side ? 'b' : 'a')); // Its real start, for sent_to.
+      for (int i = 0; i < 20; ++i)
+        sent[side].push_back(std::string(side ? 7494 : 4704, static_cast<char>('0' + i)));
+      for (size_t i = 0; i < sent[side].size(); ++i)
+        send_binary(side ? t.b : t.a, sent[side][i], i == 0);
+    }
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    assert(sink[0].size() == 16 && sink[1].size() == 16);
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    assert(sink[0] == sent[1] && sink[1] == sent[0]);
+    int reliable = 0, unreliable = 0;
+    for (auto &s : F.sent)
+      if (s.channel == kPoseChannel) {
+        reliable += s.flags == 40;
+        unreliable += s.flags == 33;
+      }
+    assert(reliable == 2 && unreliable == 40 && sent_to(kFriend, "SBT") == 0 && sent_to(kMe, "SBT") == 0);
+
+    // g. The 60 s line, on each side.
+    t.tick(t.a, 60000);
+    t.tick(t.b, 0);
+    assert(saw("A: Kaanta, last 60 s: in 21 (3.5 KB/s), out 21 (2.6 KB/s), 1 dropped, 0 failed (last result 1); rtt "
+               "avg 601 max 601 ms, 2 pings 1 pongs; quality 0.75/0.50, send rate 262144 B/s, pending 4096 B, queue "
+               "25.0 ms"));
+    assert(saw("B: Me, last 60 s: in 21 (2.6 KB/s), out 21 (3.5 KB/s), 0 dropped, 0 failed (last result 1); rtt avg "));
+
+    // e. 70 messages of 100 B over 5 passes 1 ms apart: 64 pass, the rest are over the rate limit. A new second lets
+    // them through again.
+    sink[0].clear();
+    for (int i = 0; i < 70; ++i)
+      send_binary(t.b, std::string(100, 'p'), false);
+    for (int i = 0; i < 5; ++i)
+      t.tick(t.a, 1);
+    assert(sink[0].size() == 64 && saw("A: dropped pose data from Kaanta: over the rate limit"));
+    send_binary(t.b, std::string(100, 'q'), false);
+    t.tick(t.a, 1000);
+    assert(sink[0].size() == 65 && sink[0].back() == std::string(100, 'q'));
+    // 17 messages at the size bound in a new second: 16 make 1 MiB and pass, the 17th is over the rate limit.
+    for (int i = 0; i < 17; ++i)
+      send_binary(t.b, std::string(kMaxBinary, 'm'), false);
+    t.tick(t.a, 1000);
+    t.tick(t.a, 1);
+    assert(sink[0].size() == 81);
+    // A send Steam refuses is a failure with its EResult, never counted as out.
+    F.send_result = 25;
+    send_binary(t.a, "SBT refused", false);
+    F.send_result = 1;
+    t.tick(t.a, 60000);
+    assert(saw("A: Kaanta, last 60 s: in 81 (17.2 KB/s), out 0 (0.0 KB/s), 7 dropped, 1 failed (last result 25)"));
+
+    // d. Past the bound, or empty: a bad size, logged once a 60 s line. A throw in the pose path is a drop too, and
+    // its message is still released (i).
+    send_binary(t.b, std::string(kMaxBinary + 1, 'x'), true);
+    send_binary(t.b, "", true);
+    send_binary(t.b, "throw", true);
+    t.tick(t.a, 1);
+    assert(saw("A: dropped pose data from Kaanta: bad size") && sink[0].size() == 81);
+    assert(t.a.peers()[0].dropped == 3 && count("A: dropped pose data from Kaanta") == 3);
+
+    // f. A stranger on channel 1: ignored, logged once. A log line out of memory is lost, never the release of the
+    // batch's other messages (i).
+    inbox(0, kPoseChannel).push_back({kOther, "junk"});
+    inbox(0, kPoseChannel).push_back({kStranger, "junk"});
+    inbox(0, kPoseChannel).push_back({kStranger, "junk"});
+    by_hand += 3;
+    event_throws = true;
+    t.tick(t.a, 1);
+    assert(count("A: ignored pose data from 9009: not in our lobby") == 1 && !saw("from 3003") && sink[0].size() == 81);
+
+    // i. Every message pushed is released, once both read what is left.
+    auto all_read = [] {
+      return F.inbox.empty() && inbox(0, kPoseChannel).empty() && inbox(1, kChannel).empty() &&
+             inbox(1, kPoseChannel).empty();
+    };
+    for (int i = 0; i < 10 && !all_read(); ++i) {
+      t.tick(t.a, 1);
+      t.tick(t.b, 1);
+    }
+    assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
+
+    // h. She leaves: neither is linked any more, and a late message of hers is a stranger's.
+    t.tick(t.b, 1, "leave");
+    t.tick(t.a, 1);
+    assert(!t.a.linked() && !t.b.linked() && saw("A: Kaanta left the lobby") && saw("B: left lobby 5000: asked"));
+    inbox(0, kPoseChannel).push_back({kFriend, "late"});
+    ++by_hand;
+    t.tick(t.a, 1);
+    assert(saw("A: ignored pose data from 2002: not in our lobby") && sink[0].size() == 81);
+    assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
   }
 
   // coop report is passed to the caller once.

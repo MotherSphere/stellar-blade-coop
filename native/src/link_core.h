@@ -1,10 +1,13 @@
-// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status. Every Steam call goes
-// through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the build machine, and
-// steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
+// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, and channel 1,
+// where the pose path's tables and poses travel. Every Steam call goes through the Api table, so
+// tests/link_core_test.cpp drives this file with a fake Steam on the build machine, and steam_link.cpp fills the table
+// from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <set>
@@ -52,7 +55,9 @@ static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(L
 constexpr int kFriendsOnly = 1, kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
-constexpr int kChannel = 0, kMaxMembers = 2;
+constexpr int kChannel = 0, kPoseChannel = 1, kMaxMembers = 2;
+constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
+constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~21/s, ~170 KB/s expected
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 
 // The SteamID in a SessionRequest's identity, or 0. Read in place: the callback thread must not call Steam.
@@ -218,6 +223,16 @@ struct Peer {
   uint64_t build = 0, ping_seq = 0, next_ping = 0, last_heard = 0;
   int64_t rtt_ms = -1;
   int session_state = 0, session_ping = -1;
+  uint64_t window_at = 0, window_count = 0, window_bytes = 0; // Channel-1 receive, 1 s window.
+  // Counted for the 60 s line, then restarted.
+  uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
+  int64_t rtt_sum = 0, rtt_max = 0;
+  int last_result = 1;      // The last failed send's EResult.
+  bool drop_logged = false; // One drop line per 60 s line.
+  // Steam's view of the session, read once a second, logged only.
+  float quality_local = -1, quality_remote = -1;
+  int32_t send_rate = 0, pending = 0;
+  int64_t queue_us = 0;
 };
 
 // Callback counters, kept by the caller (they are bumped on the game's Steam thread).
@@ -227,8 +242,10 @@ struct Counters {
 
 class Link {
 public:
-  Link(const Api &api, std::string mod_version, std::function<void(const std::string &)> event)
-      : api_(api), mod_(token(std::move(mod_version))), event_(std::move(event)) {}
+  // binary: a handshaken member's channel-1 message (her table or pose), called from tick().
+  Link(const Api &api, std::string mod_version, std::function<void(const std::string &)> event,
+       std::function<void(const uint8_t *, size_t)> binary = nullptr)
+      : api_(api), mod_(token(std::move(mod_version))), event_(std::move(event)), binary_(std::move(binary)) {}
 
   enum class Ready { no, now, yes };
   // Once the game has started Steam: interfaces each pass, identity and relays once, then a lobby from the command
@@ -276,10 +293,40 @@ public:
       poll_members();
       if (lobby_) {
         receive();
+        if (lobby_) // A reject may have made us leave.
+          receive_binary();
         ping_peers();
       }
     }
+    log_peers();
     poll_relay();
+  }
+
+  // A friend passed the handshake both ways.
+  bool linked() const {
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        return true;
+    return false;
+  }
+
+  // The pose path's table (reliable) or pose (unreliable), on channel 1 to every friend past the handshake only.
+  // Worker thread, like tick().
+  // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
+  // line's queue). Over 100 ms, add NoDelay (4) or SendRateMin/Max through SetConfigValue.
+  void send_binary(const uint8_t *data, size_t size, bool reliable) {
+    for (auto &p : peers_) {
+      if (!p.compatible || !p.accepted)
+        continue;
+      int r = send(p, data, size, reliable ? kReliable : kUnreliable, kPoseChannel);
+      if (r == kResultOk) {
+        ++p.out;
+        p.out_bytes += size;
+      } else {
+        ++p.failed;
+        p.last_result = r; // 25 LimitExceeded: Steam's send buffer is full.
+      }
+    }
   }
 
   bool take_report() {
@@ -323,10 +370,12 @@ private:
     return who;
   }
 
-  void send(const Peer &peer, const std::string &text, int flags) {
+  // Steam's EResult: 1 sent (queued), anything else not.
+  int send(const Peer &peer, const void *data, size_t size, int flags, int channel = kChannel) {
     Identity who = identity(peer.id);
-    api_.send(msgs_, &who, text.data(), static_cast<uint32_t>(text.size()), flags, kChannel);
+    return api_.send(msgs_, &who, data, static_cast<uint32_t>(size), flags, channel);
   }
+  void send(const Peer &peer, const std::string &text, int flags) { send(peer, text.data(), text.size(), flags); }
 
   std::string name_of(uint64_t id) const {
     const char *name = api_.friend_persona(friends_, id);
@@ -588,6 +637,62 @@ private:
     }
   }
 
+  // Channel 1: bytes the link never reads, handed on only from a member past the handshake, within kMaxBinary and the
+  // rate limit. A friend's flood or a stranger's junk stops here. Liveness stays channel 0's.
+  void receive_binary() {
+    NetMessage *batch[16];
+    int n = api_.receive(msgs_, kPoseChannel, batch, 16);
+    for (int i = 0; i < n; ++i) {
+      NetMessage *m = batch[i];
+      uint64_t from = api_.get_steam_id(&m->peer);
+      size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
+      Peer *peer = find_peer(from);
+      const char *why = !peer                                 ? "not in our lobby"
+                        : !peer->compatible || !peer->accepted ? "before the handshake"
+                        : size == 0 || size > kMaxBinary       ? "bad size"
+                        : over_rate(*peer, size)               ? "over the rate limit"
+                                                               : nullptr;
+      if (!why) {
+        ++peer->in;
+        peer->in_bytes += size;
+        try {
+          if (binary_)
+            binary_(static_cast<const uint8_t *>(m->data), size);
+        } catch (...) { // Out of memory in the pose path: this message is lost, never the release below.
+          ++peer->dropped;
+        }
+      }
+      api_.release_message(m); // Before any logging, which allocates.
+      try {
+        if (!peer) {
+          if (strangers_.insert(from).second)
+            event("ignored pose data from " + std::to_string(from) + ": " + why);
+        } else if (why) {
+          ++peer->dropped;
+          if (!peer->drop_logged) {
+            peer->drop_logged = true;
+            event("dropped pose data from " + peer->name + ": " + why);
+          }
+        }
+      } catch (...) { // Out of memory: a lost line, never the release of the batch's other messages.
+      }
+    }
+  }
+
+  // Per member, one window a second: 64 messages and 1 MiB, about three times her 20 Hz stream with its table. Only
+  // what passes is counted.
+  bool over_rate(Peer &peer, size_t size) {
+    if (now_ - peer.window_at >= 1000) {
+      peer.window_at = now_;
+      peer.window_count = peer.window_bytes = 0;
+    }
+    if (peer.window_count >= kBinaryPerSecond || peer.window_bytes + size > kBinaryBytesPerSecond)
+      return true;
+    ++peer.window_count;
+    peer.window_bytes += size;
+    return false;
+  }
+
   void on_message(Peer &peer, const Message &message) {
     switch (message.kind) {
     case Kind::hello: {
@@ -626,8 +731,13 @@ private:
       send(peer, pong(message.a, message.b), kUnreliable);
       break;
     case Kind::pong:
-      if (message.a == peer.ping_seq && message.b <= now_)
+      if (message.a == peer.ping_seq && message.b <= now_) {
         peer.rtt_ms = static_cast<int64_t>(now_ - message.b);
+        ++peer.pongs;
+        peer.rtt_sum += peer.rtt_ms;
+        if (peer.rtt_ms > peer.rtt_max)
+          peer.rtt_max = peer.rtt_ms;
+      }
       break;
     case Kind::invalid:
       if (++peer.invalid == 1)
@@ -641,6 +751,7 @@ private:
       if (peer.compatible && peer.accepted && now_ >= peer.next_ping) {
         peer.next_ping = now_ + kPingEveryMs;
         send(peer, ping(++peer.ping_seq, now_), kUnreliable);
+        ++peer.pings;
       }
       if (!peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
         peer.lost = true;
@@ -658,10 +769,45 @@ private:
       for (int b = 3; b >= 0; --b)
         ping_ms = static_cast<int32_t>((static_cast<uint32_t>(ping_ms) << 8) | quick[4 + b]);
       peer.session_ping = ping_ms;
+      // Log-only, as the SDK 1.59 layout puts them: quality local and remote, send rate, pending unreliable bytes,
+      // queue time in us.
+      std::memcpy(&peer.quality_local, quick + 8, 4);
+      std::memcpy(&peer.quality_remote, quick + 12, 4);
+      std::memcpy(&peer.send_rate, quick + 32, 4);
+      std::memcpy(&peer.pending, quick + 36, 4);
+      std::memcpy(&peer.queue_us, quick + 48, 8);
       // A first connection that failed (4 closed by peer, 5 problem detected) took both hellos with it: greet again,
       // which restarts the session (kReliable has AutoRestartBrokenSession).
       if (!peer.hello_received && (peer.session_state == 4 || peer.session_state == 5))
         peer.hello_sent = false;
+    }
+  }
+
+  // Every 60 s from the first pass, per friend past the handshake: channel 1 both ways, drops, send failures, RTT, ping
+  // loss and Steam's view of the session; T1 and T4 read their exit criteria here. Then the counts start over.
+  void log_peers() {
+    if (now_ < next_peers_line_)
+      return;
+    next_peers_line_ = now_ + 60000;
+    using ull = unsigned long long;
+    for (auto &p : peers_) {
+      if (p.compatible && p.accepted) {
+        char line[512];
+        std::snprintf(line, sizeof line,
+                      "%s, last 60 s: in %llu (%.1f KB/s), out %llu (%.1f KB/s), %llu dropped, %llu failed (last "
+                      "result %d); rtt avg %lld max %lld ms, %llu pings %llu pongs; quality %.2f/%.2f, send rate %d "
+                      "B/s, pending %d B, queue %.1f ms",
+                      p.name.c_str(), ull(p.in), p.in_bytes / 60.0 / 1024, ull(p.out), p.out_bytes / 60.0 / 1024,
+                      ull(p.dropped), ull(p.failed), p.last_result,
+                      static_cast<long long>(p.pongs ? p.rtt_sum / static_cast<int64_t>(p.pongs) : 0),
+                      static_cast<long long>(p.rtt_max), ull(p.pings), ull(p.pongs), double(p.quality_local),
+                      double(p.quality_remote), int(p.send_rate), int(p.pending), p.queue_us / 1000.0);
+        event(line);
+      }
+      p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
+      p.rtt_sum = p.rtt_max = 0;
+      p.last_result = kResultOk;
+      p.drop_logged = false;
     }
   }
 
@@ -678,6 +824,7 @@ private:
   const Api &api_;
   const std::string mod_;
   std::function<void(const std::string &)> event_;
+  std::function<void(const uint8_t *, size_t)> binary_;
   void *user_ = nullptr, *friends_ = nullptr, *utils_ = nullptr, *mm_ = nullptr, *msgs_ = nullptr, *nu_ = nullptr;
   uint64_t me_ = 0, now_ = 0;
   uint32_t app_ = 0, build_ = 0;
@@ -689,7 +836,7 @@ private:
   bool host_ = false;
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
-  uint64_t next_info_ = 0, next_relay_ = 0;
+  uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;
 };
