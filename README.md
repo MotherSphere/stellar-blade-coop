@@ -3,8 +3,9 @@
 Experimental co-op for Stellar Blade (PC), as a UE4SS mod. Nothing else is needed: no Minecraft, no bridge.
 Installing it by hand: see [INSTALL.md](INSTALL.md).
 
-Status: the ghost of an EVE runs on one PC (loopback, record and replay). Two players can link over Steam, but poses
-do not travel over it yet (Phase 4).
+Status: two players linked over Steam see each other's ghost (Phase 4, not yet tried between two PCs). On one PC the
+ghost also runs through the loopback, a recording and its replay. `coop where` prints coordinates to compare between
+the two PCs.
 
 - `coop off` stops everything (the ghost, her capture, the loopback, a recording, which is written, a replay, the
   native tick, engine reads, the link) until the game restarts, even across a Lua reload.
@@ -12,16 +13,18 @@ do not travel over it yet (Phase 4).
   thread. It checks the game's exe against the pinned build (Steam build 24463856) before it reads any engine memory,
   runs once per engine frame (GFrameCounter), and stops for the run at the first fault. Every 60 s the log gives the
   tick's cost and, while poses flow, the stream's counts: poses sent, tables in and refused, poses received, foreign
-  (of no table or of one the ghost is not built on yet), malformed and rejected, losses, stalls, the one-way delay,
-  poses drawn and written. A write the engine's gate refuses is logged once each time the native part takes a new
-  ghost or a new capture generation (`write refused: ...`).
+  (of no table or of one the ghost is not built on yet), malformed and rejected, losses, stalls, the one-way delay
+  (between two PCs it includes the offset between their clocks, so it says nothing there), poses drawn and written.
+  A write the engine's gate refuses is logged once each time the native part takes a new ghost or a new capture
+  generation (`write refused: ...`).
 - The native part also watches the save folder (names, sizes and write times every 5 s, never opening a file) and logs
   every change in `coop-link.log`; `coop report` sums them up. `tools/save_guard.py backup|check|restore` keeps copies
   of the saves outside the game (it refuses while the game runs; restore needs `--yes`).
 - Nothing reads or writes a save, the inventory, unlocks or equipment, and nothing is copied between two players'
   games: the ghost is display only.
 - `coop puppet` (UE4SS console) turns the ghost on or off. On its own it shows nothing: it publishes EVE's capture for
-  the native part, and a ghost is drawn once a table comes back, through the loopback or a replay.
+  the native part, and a ghost is drawn once a table comes back: a linked friend's (she runs `coop puppet` too), or
+  yours through the loopback or a replay.
   - The capture starts once EVE has been in the world 2 s (never on the title screen or a menu pawn) and only reads.
     It names each skeletal mesh part: its mesh path, the part it follows, the part and socket it hangs from, its
     placement there, whether it is shown, a leader's bone names, and the map she is on (the package path of her world,
@@ -48,6 +51,23 @@ do not travel over it yet (Phase 4).
     world 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is found and removed at the next load.
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
+- `coop where` prints one line to compare between the two PCs, with or without a link or a ghost:
+  `where map=<map> eve=<x,y,z> yaw=<yaw> mesh=<x,y,z> camp=<id>:<class>@<x,y,z> camp_m=<m> origin=<x,y,z>
+  composition=<flag> rebasing=<flag> ghost=<...>`.
+  - `eve=` is her actor's location; `mesh=` and `yaw=` are her main mesh's, which is what a friend's ghost is placed
+    from. Positions are in centimetres, distances in metres.
+  - `camp=` is the nearest object of the four camp classes `Env_VendingMachine_C`, `Env_VendingMachine_Simple_C`,
+    `Env_Camp_TeleportMachine_C` and `Env_Camp_TeleportMachine_Tetrapod_C` (vending machines and phone booths): its
+    data id (`EnvActorName`), class, position and distance, or `none`. Camps are placed in the levels, so the same id
+    should give the same position on both PCs. Finding them walks every object, so it runs only when asked.
+  - `origin=` is the world origin (`GetWorldOriginLocation`); `composition=` and `rebasing=` are the world settings'
+    world composition and origin rebasing flags.
+  - `ghost=` is `<source>@<x,y,z> ghost_yaw=<yaw> ghost_m=<m> ghost_age=<s>`: where the main mesh of the ghost's EVE
+    last was (before the loopback's 2 m offset), its yaw, its distance from your mesh and the seconds since that pose.
+    Otherwise `waiting` (a table for your map, no pose placed yet), `elsewhere:<her map>` or `none`.
+  - If the camp search, the world origin or the world settings fail, that field reads `?(<why>)` and the rest of the
+    line still prints. The map, EVE's position and her mesh are read without a guard: if one of them fails, the
+    command prints `STOP:` with the error instead of the line.
 - `coop loopback <delay ms> <jitter ms> <loss %>` (0 to 1000, 0 to 500, 0 to 100; needs `coop puppet`) runs the whole
   ghost pipeline on one PC, as a friend's EVE would arrive over the network. The native part sends EVE's capture as
   the table, then reads her pose 20 times a second and encodes it (about 4.7 KB in the outfit measured: quantized local
@@ -58,12 +78,13 @@ do not travel over it yet (Phase 4).
   yours, so it walks 2 m to your right; `coop loopback 0 0 0` shows it with no delay. New settings drop what is in
   flight and send the table again. `coop loopback off` removes the remote table, and the ghost with it.
 - `coop record` (needs `coop puppet` and her capture) records what is sent, the table and her poses, with or without
-  the loopback, for up to 120 s or 24 MiB, or until `coop record off`. It is kept in memory and written at the stop to
-  `coop-record.bin` in the mod folder, if it holds a pose. The name is fixed, so a new recording replaces the last one:
-  rename the file by hand to keep it.
+  the loopback or a linked friend, for up to 120 s or 24 MiB, or until `coop record off`. It is kept in memory and
+  written at the stop to `coop-record.bin` in the mod folder, if it holds a pose. The name is fixed, so a new
+  recording replaces the last one: rename the file by hand to keep it.
 - `coop replay` (needs `coop puppet`; not while the loopback runs, and the loopback not while it runs) checks the whole
-  of `coop-record.bin` before anything plays, and refuses a file that fails with the reason. It then plays it in a
-  loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which removes the ghost.
+  of `coop-record.bin` before anything plays, and refuses a file that fails with the reason (`protocol` for one made
+  under another protocol, so any made before protocol 4). It then plays it in a loop as the remote side, each pose
+  re-stamped as if sent now, until `coop replay off`, which removes the ghost.
   Generation, map and positions stay as recorded: the ghost wears the outfit recorded, walks where she walked with no
   offset, and the map gate applies.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
@@ -74,17 +95,42 @@ do not travel over it yet (Phase 4).
   - The host leads the session: when the host leaves, the guest leaves too. A lobby with more than 2 players is left.
   - Once both are in the lobby, the two games exchange a hello (protocol, mod version, game build). Each answers
     `accept` or `reject <reason>`, so a mismatch is explained instead of silently ignored; a lobby from another
-    protocol or game build is refused on joining, with both versions in the joiner's log. The protocol is 3 (the
-    component table beside the pose), so an older StellarCoop is refused. Accepted peers ping every 2 s over Steam's
-    relayed P2P messages; a peer silent for 10 s is marked lost until it is heard again.
+    protocol or game build is refused on joining, with both versions in the joiner's log. The protocol is 4 (the
+    component table and the pose on Steam channel 1), so an older StellarCoop is refused. Accepted peers ping every
+    2 s over Steam's relayed P2P messages on channel 0; a peer silent there for 10 s is marked lost until it is heard
+    again.
+  - A friend who passed the handshake both ways is linked (`peer linked: poses and tables go over Steam` in
+    `coop-link.log`), while the native pose path is on (`engine=on`). Each side's table and poses then travel on
+    channel 1 as the loopback carries them: the table reliable, a pose unreliable, 20 a second. Each side needs
+    `coop puppet` on, which publishes EVE's capture and builds the ghost. The ghost stands where her main mesh is, with
+    no offset, and wears her outfit (display only, as above); the map gate applies.
+  - Your table goes to her at once and again every 5 s, which heals one lost with a broken session or sent before her
+    accept; an identical table is ignored. A changed capture (a new outfit, the blade drawn) goes at once. A table of
+    hers that needs a new ghost (a new generation or layout) is taken at most once per 2 s: one that comes sooner is
+    refused (the stream line's `tables: ... refused`) and her next resend brings it.
+  - Channel 1 hands on only what comes from a lobby member past the handshake, at most 64 KiB a message, 64 messages
+    and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
+    (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`); a non-member's is
+    logged once (`ignored pose data from <id>: not in our lobby`). Channel 1 never counts as hearing from her.
+  - Every 60 s, one line per linked friend (`<name>, last 60 s: ...`): messages and KB/s in and out on channel 1,
+    drops, failed sends with the last Steam result (25: its send buffer is full), the ping's RTT average and maximum,
+    pings sent and pongs received (the difference is ping loss), and Steam's view of the session: quality local and
+    remote, send rate, pending unreliable bytes and queue time.
+  - If she goes silent, her ghost hides after a second without a pose and comes back with the next one. Marked lost
+    (`<name> silent for 10 s: lost`), she stays linked and her table is kept. Once she is out of the lobby (`<name>
+    left the lobby`), or you left it (`coop leave`, or the host left), the log says `peer unlinked`, her table goes
+    and the ghost with it (`Ghost <generation> removed (her table is gone).`).
+  - A loopback or a replay started by hand takes over from her until it is off: meanwhile nothing is sent to her, what
+    she sends is ignored, and her ghost goes. Then she is linked again, your table goes to her at once and hers comes
+    back with her next resend. A recording runs beside her.
   - `coop leave` leaves the lobby. `coop report` writes `coop-report.txt`: versions, the save folder, DLLs from other
     mods, the status and the last 100 events.
   - If Steam faults under the link (for example at game exit), it stops itself: `stopped=fault <code>`. The log's last
     line says why the worker stopped.
 - `coop status` prints the current state: the link, the pose path (`engine=on`, then `loopback=on <delay> <jitter>
   <loss>` or `loopback=waiting` until her capture comes, `record=on`, `replay=on`, `remote=<generation> <count>
-  <loopback|replay>`) and the ghost (`ghost=on parts=... leaders=... basesuit=... left_out=... table=... source=...`,
-  `ghost=waiting`, `ghost=hidden map` or `ghost=off`).
+  <loopback|replay|peer>`) and the ghost (`ghost=on parts=... leaders=... basesuit=... left_out=... table=...
+  source=...`, `ghost=waiting`, `ghost=hidden map` or `ghost=off`).
 - Files in the mod folder:
   - `coop-status.txt` (current state; each changed line except the per-peer ones also goes to `UE4SS.log` as
     `[StellarCoop] link: ...`), `coop-link.log` (this run's header and numbered events, in UTC like `UE4SS.log`,
@@ -102,18 +148,19 @@ do not travel over it yet (Phase 4).
   `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/unreal.lua` (helpers over UE4SS objects),
   `enabled.txt`). The installer adds `Scripts/version.lua`.
 - `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
-  (the link's logic), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (limits, one part, hex addresses),
-  `src/pose_table.h` (the component table, the mesh path rule and the display file), `src/pose_engine.h` (engine
-  memory reads and writes, and the build pin), `src/pose_codec.h` (the pose's wire format), `src/pose_stream.h` (the
-  loopback's delay line, the receiving clock and interpolation), `src/pose_record.h` (the recording, its check and its
-  replay) and `src/save_watch.h`. The Windows side:
+  (the link's logic, channel 1 included), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (limits, one
+  part, hex addresses), `src/pose_table.h` (the component table, the mesh path rule and the display file),
+  `src/pose_engine.h` (engine memory reads and writes, and the build pin), `src/pose_codec.h` (the pose's wire
+  format), `src/pose_stream.h` (the loopback's delay line, the receiving clock and interpolation),
+  `src/pose_record.h` (the recording, its check and its replay) and `src/save_watch.h`. The Windows side:
   `src/steam_link.cpp` (Steam callbacks, worker thread, files, faults) and `src/pose_tick.cpp` (`coop_tick`, and the
   worker's side of the pose path: what is sent and received, the files shared with Lua).
 - `tests/`: Lua checks with fake UE4SS objects (`lua5.4 tests/puppet_test.lua` from the repository root; the
   capture's fake EVE only reads, so any write to her fails), C++ checks built and run on the build machine (the
-  protocol with a fuzz loop, the link against a fake Steam, the pose path against fake memory, the codec's round trips
-  and a decoder fuzz, the component table and display file with a parser fuzz, the recording's reader with a fuzz and
-  its replay, the loopback pipeline in simulated time, the save watcher) and a Python check of `save_guard.py`.
+  protocol with a fuzz loop, the link against a fake Steam, two links through it with the handshake both ways and
+  channel 1's checks, the pose path against fake memory, the codec's round trips and a decoder fuzz, the component
+  table and display file with a parser fuzz, the recording's reader with a fuzz and its replay, the loopback pipeline
+  in simulated time, the save watcher) and a Python check of `save_guard.py`.
   `tools/wine_smoke.py` loads the DLL under Proton's wine in a scratch prefix.
 - `tools/install.py`: runs the checks, builds the DLL with the clang-cl/xwin toolchain (`STELLAR_WINDOWS_TOOLCHAIN`)
   and copies the mod into `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
