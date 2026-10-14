@@ -5,6 +5,15 @@ Installing it by hand: see [INSTALL.md](INSTALL.md).
 
 Status: probes only.
 
+- `coop off` stops everything (puppet, native tick, engine reads, the link) until the game restarts.
+- Native pose path, read-only for now: the DLL exports `coop_tick`, which the Lua loop calls once per frame on the game
+  thread. It checks the game's exe against the pinned build (Steam build 24463856) before it reads any engine memory,
+  runs once per engine frame (GFrameCounter), and stops for the run at the first fault. `coop probe` (with the puppet
+  out) checks, part by part, that the bone memory the puppet copied matches EVE's: `offsets_ok`, or what differs. The
+  puppet publishes its parts in `coop-components.txt`, and each Lua load writes a new `coop-session.txt` token.
+- The native part also watches the save folder (names, sizes and write times every 5 s, never opening a file) and logs
+  every change in `coop-link.log`; `coop report` sums them up. `tools/save_guard.py backup|check|restore` keeps copies
+  of the saves outside the game (it refuses while the game runs; restore needs `--yes`).
 - `coop puppet` (UE4SS console) shows or removes a second EVE 2 m to her right that copies her pose every frame. The
   log says how much each frame cost when it is removed.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
@@ -29,10 +38,14 @@ Status: probes only.
 
 - `mod/StellarCoop/`: the UE4SS mod folder (`Scripts/main.lua`, `Scripts/puppet.lua`, `Scripts/link.lua`,
   `enabled.txt`). The installer adds `Scripts/version.lua`.
-- `native/`: the DLL (CMake, clang-cl or MSVC). `src/link_core.h` is the link's logic and `src/link_protocol.h` its text
-  protocol, both free of Windows; `src/steam_link.cpp` is the Windows side (callbacks, worker thread, files, faults).
-- `tests/`: Lua checks with fake UE4SS objects (`lua5.4 tests/puppet_test.lua` from the repository root) and C++ checks
-  built and run on the build machine: the protocol (with a fuzz loop) and the link's logic against a fake Steam.
+- `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
+  (the link's logic), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (component table, delay ring),
+  `src/pose_engine.h` (engine memory reads and the build pin) and `src/save_watch.h`. The Windows side:
+  `src/steam_link.cpp` (Steam callbacks, worker thread, files, faults) and `src/pose_tick.cpp` (`coop_tick`).
+- `tests/`: Lua checks with fake UE4SS objects (`lua5.4 tests/puppet_test.lua` from the repository root), C++ checks
+  built and run on the build machine (the protocol with a fuzz loop, the link against a fake Steam, the pose path
+  against fake memory, the save watcher) and a Python check of `save_guard.py`. `tools/wine_smoke.py` loads the DLL
+  under Proton's wine in a scratch prefix.
 - `tools/install.py`: runs the checks, builds the DLL with the clang-cl/xwin toolchain (`STELLAR_WINDOWS_TOOLCHAIN`)
   and copies the mod into `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
   `--zip` writes a package for a friend instead.

@@ -89,6 +89,7 @@ int main() {
   assert(parse_request("invite").command == Command::invite);
   assert(parse_request("leave").command == Command::leave);
   assert(parse_request("report\r\n").command == Command::report);
+  assert(parse_request("probe").command == Command::probe && parse_request("off\n").command == Command::off);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0);
   r = parse_request("join 109775241234567890\n");

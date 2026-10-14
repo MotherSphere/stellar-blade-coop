@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "link_core.h"
+#include "pose_tick.h"
+#include "save_watch.h"
 
 #ifndef STELLARCOOP_VERSION
 #define STELLARCOOP_VERSION "dev"
@@ -158,6 +160,7 @@ std::string exe_stamp() {
 
 // Run id, versions, exe, the save folder (for backups) and DLLs from other mods that can change test results.
 std::vector<std::string> header_lines;
+std::wstring saves_dir; // %LOCALAPPDATA%\SB\Saved\SaveGames, or empty.
 void write_header() {
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
@@ -165,7 +168,9 @@ void write_header() {
   wsprintfA(run, "%08lx", static_cast<unsigned long>(counter.LowPart ^ (GetCurrentProcessId() << 16)));
   wchar_t local[MAX_PATH];
   DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", local, MAX_PATH);
-  std::string saves = n && n < MAX_PATH ? utf8(std::wstring(local, n)) + "\\SB\\Saved\\SaveGames" : "unknown";
+  if (n && n < MAX_PATH)
+    saves_dir = std::wstring(local, n) + L"\\SB\\Saved\\SaveGames";
+  std::string saves = saves_dir.empty() ? "unknown" : utf8(saves_dir);
   header_lines = {
       "run " + std::string(run) + " mod " + coop::token(STELLARCOOP_VERSION) + " protocol " +
           std::to_string(coop::kProtocol) + " exe " + module_path(nullptr) + " stamp " + exe_stamp(),
@@ -179,8 +184,42 @@ void write_header() {
     append(utc_stamp() + " " + line);
 }
 
+// The save watcher: every 5 s, the name, size and write time of every file under the save folder (never opened).
+coop::SaveWatch save_watch;
+uint64_t next_save_watch = 0;
+void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<coop::SaveWatch::Entry> &out, int depth) {
+  WIN32_FIND_DATAW f;
+  HANDLE h = FindFirstFileW((dir + L"\\*").c_str(), &f);
+  if (h == INVALID_HANDLE_VALUE)
+    return;
+  do {
+    std::wstring name = f.cFileName;
+    if (name == L"." || name == L"..")
+      continue;
+    std::string rel = prefix + utf8(name);
+    if (f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      if (depth < 3)
+        list_saves(dir + L"\\" + name, rel + "\\", out, depth + 1);
+    } else {
+      out.push_back({rel, (uint64_t(f.nFileSizeHigh) << 32) | f.nFileSizeLow,
+                     (uint64_t(f.ftLastWriteTime.dwHighDateTime) << 32) | f.ftLastWriteTime.dwLowDateTime});
+    }
+  } while (FindNextFileW(h, &f));
+  FindClose(h);
+}
+void watch_saves(uint64_t now_ms) {
+  if (saves_dir.empty() || now_ms < next_save_watch)
+    return;
+  next_save_watch = now_ms + 5000;
+  std::vector<coop::SaveWatch::Entry> files;
+  list_saves(saves_dir, "", files, 0);
+  for (auto &line : save_watch.update(files, utc_stamp()))
+    append(line);
+}
+
 coop::Api api;
 std::unique_ptr<coop::Link> link;
+bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
 bool loaded = false;
 std::string written;
@@ -189,7 +228,7 @@ std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
-  return head + "last=" + journal.last() + "\n";
+  return head + coop::pose::status() + "\n" + "last=" + journal.last() + "\n";
 }
 
 void write_report() {
@@ -203,6 +242,14 @@ void write_report() {
     if (end == std::string::npos)
       end = status.size();
     text += status.substr(at, end - at) + "\r\n";
+  }
+  std::string saves = save_watch.summary();
+  text += "\r\n";
+  for (size_t at = 0, end; at < saves.size(); at = end + 1) {
+    end = saves.find('\n', at);
+    if (end == std::string::npos)
+      end = saves.size();
+    text += saves.substr(at, end - at) + "\r\n";
   }
   text += "\r\nlast events:\r\n";
   for (auto &line : journal.recent())
@@ -227,6 +274,32 @@ bool step() {
       link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event);
     }
     std::string request = take_text(folder + L"coop-request.txt");
+    coop::Command command = coop::parse_request(request).command;
+    if (switched_off && !request.empty() && command != coop::Command::report) {
+      event("coop off is active until the game restarts: request ignored");
+      request.clear();
+    }
+    switch (request.empty() ? coop::Command::none : command) { // The pose path's requests never reach the link.
+    case coop::Command::probe:
+      if (coop::pose::status().rfind("engine=on", 0) == 0) {
+        coop::pose::ask_probe();
+        event("probe asked");
+      } else {
+        event("probe not run: " + coop::pose::status());
+      }
+      request.clear();
+      break;
+    case coop::Command::off:
+      coop::pose::block();
+      switched_off = true;
+      event("coop off: engine access and the link stop until the game restarts");
+      request = "leave";
+      break;
+    default:
+      break;
+    }
+    coop::pose::worker_poll(folder, GetTickCount64(), event);
+    watch_saves(GetTickCount64());
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
     if (ready == coop::Link::Ready::no && !request.empty()) {
       // Before Steam is ready: a report still helps (it tells why); anything else is said, never silently dropped.
@@ -248,7 +321,10 @@ bool step() {
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, L"steamclient64.dll", &pinned);
       }
       if (ready != coop::Link::Ready::no) {
-        link->tick(GetTickCount64(), request, join_requested.exchange(0), session_requested.exchange(0));
+        uint64_t join = join_requested.exchange(0), session = session_requested.exchange(0);
+        if (switched_off) // Invites accepted in the overlay and session requests are dropped too.
+          join = session = 0;
+        link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
         api.release_memory(); // Valve's advice for threads other than the game's.
@@ -278,6 +354,7 @@ DWORD WINAPI worker(void *) {
   MoveFileExW((folder + L"coop-link.log").c_str(), (folder + L"coop-link.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
   DeleteFileW((folder + L"coop-report.txt").c_str());
+  DeleteFileW((folder + L"coop-components.txt").c_str()); // Addresses from a previous run mean nothing now.
   write_header();
   log_open = true;
   write_text(folder + L"coop-status.txt", status_text()); // Never show the previous run's state as current.

@@ -135,9 +135,9 @@ inline Message parse(const char *data, size_t size) {
   return m;
 }
 
-// A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby) or
-// "join <lobby id>".
-enum class Command { none, host, invite, join, leave, report };
+// A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
+// "join <lobby id>", and for the pose path "probe" and "off".
+enum class Command { none, host, invite, join, leave, report, probe, off };
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
@@ -155,6 +155,10 @@ inline Request parse_request(std::string text) {
     r.command = Command::leave;
   else if (text == "report")
     r.command = Command::report;
+  else if (text == "probe")
+    r.command = Command::probe;
+  else if (text == "off")
+    r.command = Command::off;
   else if (text == "join")
     r.command = Command::join;
   else if (split(text, f, 2, nullptr) && f[0] == "join" && number(f[1], r.lobby) && r.lobby)

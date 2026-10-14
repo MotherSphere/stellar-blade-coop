@@ -55,10 +55,28 @@ local function parts_of(eve)
     table.sort(list,function(a,b) return a.leader==nil and b.leader~=nil end) -- Leaders first: followers find theirs.
     return list
 end
-function Puppet.new()
+local generation=0 -- Of the component table; the native part also gets a new session token per Lua load.
+local function address(object) return string.format('0x%x',value_of(object):GetAddress()) end
+-- The table the native part reads (native/src/pose_core.h, parse_table): EVE's parts and the puppet's, index for index.
+local function component_table(puppet)
+    generation=generation+1
+    local lines={'generation '..generation,'root '..address(puppet.actor:K2_GetRootComponent())}
+    for i,part in ipairs(puppet.parts) do
+        local flag=part.leader and 1 or 0
+        lines[#lines+1]=string.format('part eve %d %s %s %s %d %d',i-1,address(part.source),
+            address(part.source:GetClass()),address(part.mesh),part.source:GetNumBones(),flag)
+        lines[#lines+1]=string.format('part puppet %d %s %s %s %d %d',i-1,address(part.target),
+            address(part.target:GetClass()),address(part.mesh),part.target:GetNumBones(),flag)
+    end
+    return table.concat(lines,'\n')..'\n'
+end
+-- publish(text) hands the component table to the native part, publish(nil) withdraws it; it returns ok, why.
+function Puppet.new(publish)
+    publish=publish or function() return false,'no native part' end
     local self,puppet={},nil
     local function clear(why)
         local p=puppet; puppet=nil
+        if p then publish(nil) end
         if p and valid(p.actor) then p.actor:K2_DestroyActor() end
         return string.format('Puppet removed (%s) after %d frames, %.2f ms per frame.',why,p and p.frames or 0,
             p and p.frames>0 and p.seconds*1000/p.frames or 0)
@@ -86,14 +104,16 @@ function Puppet.new()
                 target:SetVisibility(c.handle:IsVisible(),false)
                 target:SetHiddenInGame(c.handle.bHiddenInGame==true,false)
                 if leader then target:SetMasterPoseComponent(leader.target,false) else leaders=leaders+1 end
-                local part={source=c.handle,target=target,leader=not leader}
+                local part={source=c.handle,target=target,mesh=c.mesh,leader=not leader}
                 by_name[c.name]=part
                 puppet.parts[#puppet.parts+1]=part
             end
         end
-        return string.format('Puppet spawned 2 m to her right: %d parts (%d leaders), %d skipped without a leader; coop puppet removes it.',
-            #puppet.parts,leaders,skipped)
+        local published,why=publish(component_table(puppet))
+        return string.format('Puppet spawned 2 m to her right: %d parts (%d leaders), %d skipped without a leader; %s; coop puppet removes it.',
+            #puppet.parts,leaders,skipped,published and 'component table '..generation..' published' or 'component table not published: '..tostring(why))
     end
+    function self.active() return puppet~=nil end
     function self.toggle()
         if puppet then return true,clear('coop puppet') end
         local ok,message=pcall(build)

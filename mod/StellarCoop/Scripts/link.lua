@@ -1,6 +1,7 @@
--- The Steam link's Lua side. A console request becomes one line in coop-request.txt for the native part (written
--- beside, then renamed, so it is never read half-written); each line of its coop-status.txt that changed is
--- returned once, for the log. Peer lines change with every ping: they stay in coop status, out of the log.
+-- The Lua side of the files shared with the native part. Lua writes whole files beside and renames them, so the native
+-- part never reads one half-written: coop-request.txt (a console request), coop-session.txt (a token per Lua load) and
+-- coop-components.txt (the puppet's component table). Each line of the native coop-status.txt that changed is returned
+-- once, for the log; peer lines change with every ping, so they stay in coop status, out of the log.
 local Link={}
 local files={
     read=function(path) local f=io.open(path,'rb'); if not f then return nil end; local text=f:read('a'); f:close(); return text end,
@@ -10,16 +11,30 @@ local files={
 }
 function Link.new(folder,fs)
     fs=fs or files
-    local request_path,status_path=folder..'\\coop-request.txt',folder..'\\coop-status.txt'
+    local function path(name) return folder..'\\'..name end
+    local status_path=path('coop-status.txt')
     local seen={}
     local self={}
+    local function put(name,text)
+        local final=path(name)
+        local temp=final..'.tmp'
+        if not fs.write(temp,text) then return false,'cannot write '..temp end
+        fs.remove(final) -- An untaken file: the newest wins (rename never replaces on Windows).
+        local ok,why=fs.rename(temp,final)
+        if not ok then return false,'cannot write '..name..': '..tostring(why) end
+        return true
+    end
     function self.request(line)
-        local temp=request_path..'.tmp'
-        if not fs.write(temp,line..'\n') then return false,'cannot write '..temp end
-        fs.remove(request_path) -- An untaken request: the newest wins (rename never replaces on Windows).
-        local ok,why=fs.rename(temp,request_path)
-        if not ok then return false,'cannot write the request: '..tostring(why) end
+        local ok,why=put('coop-request.txt',line..'\n')
+        if not ok then return false,why end
         return true,'asked the native part: '..line
+    end
+    function self.session(token) return put('coop-session.txt',token..'\n') end
+    -- The puppet's component table, or nil when it is gone.
+    function self.components(text)
+        if text then return put('coop-components.txt',text) end
+        fs.remove(path('coop-components.txt'))
+        return true
     end
     function self.status() return fs.read(status_path) end
     function self.changes()

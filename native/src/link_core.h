@@ -435,6 +435,9 @@ private:
       report_ = true;
       event("report asked");
       break;
+    case Command::probe: // The pose path's: the caller handles them.
+    case Command::off:
+      break;
     case Command::none:
       event("unknown request");
       break;
