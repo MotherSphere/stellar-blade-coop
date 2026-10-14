@@ -118,6 +118,13 @@ std::atomic<uint64_t> window_sent{0}, window_sent_bytes{0}, window_clamped{0}, w
 std::atomic<int64_t> window_lag_us{0}, window_behind_us{0};
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
 
+// The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing.
+void give_out() {
+  std::swap(out_back, out_mid);
+  out_fresh = true;
+  out_ready = false;
+}
+
 uint64_t micros_between(LARGE_INTEGER a, LARGE_INTEGER b) {
   return frequency.QuadPart ? uint64_t((b.QuadPart - a.QuadPart) * 1000000 / frequency.QuadPart) : 0;
 }
@@ -252,7 +259,11 @@ void stream(uint64_t now_us) {
       uint32_t clamped = 0;
       out_back.size = encode_pose(live.table, h, live.capture_root, live.capture.data(), out_back.data.data(), clamped);
       out_back.time = now_us;
-      out_ready = true; // Replaces one the worker was not handed yet: the receiver counts it missing.
+      out_ready = true;
+      if (m.try_lock()) { // At once, not at the next frame's hand-over: one frame less of delay.
+        give_out();
+        m.unlock();
+      }
       ++window_sent;
       window_sent_bytes += out_back.size;
       window_clamped += clamped;
@@ -340,11 +351,8 @@ void game_tick() {
     }
     if (outbox.empty())
       outbox.swap(pending);
-    if (out_ready) {
-      std::swap(out_back, out_mid);
-      out_fresh = true;
-      out_ready = false;
-    }
+    if (out_ready) // A pose whose own hand-over found the lock busy.
+      give_out();
     if (inbox_count) { // game_inbox_count is 0: every tick ends by emptying it.
       inbox.swap(game_inbox);
       std::swap(inbox_count, game_inbox_count);

@@ -189,8 +189,9 @@ suit.SkeletalMesh=object('NewSuitMesh')
 clock=clock+1
 puppet.tick()
 assert(actor.destroyed and tables[#tables]=='withdrawn','The old puppet goes')
-puppet.tick()
+local _,outfit_message=puppet.tick()
 assert(#spawned==before+1 and tables[#tables]:find('^generation 100002\n'),'Rebuilt with the new outfit at once')
+assert(outfit_message=='Puppet back in her new outfit.',tostring(outfit_message))
 actor=spawned[#spawned]
 suit.SkeletalMesh=old_mesh
 clock=clock+1

@@ -98,7 +98,7 @@ end
 function Puppet.new(publish,store)
     publish=publish or function() return false,'no native part' end
     store=store or {save=function() end,load=function() end,clear=function() end}
-    local self,puppet,wanted,back_since={},nil,false,nil
+    local self,puppet,wanted,back_since,back_why={},nil,false,nil,'after a level change'
     local mirror_table,mirror_mode=nil,nil -- The table generation the native part drives, and how, from its status.
     local function clear(why)
         local p=puppet; puppet=nil
@@ -246,7 +246,9 @@ function Puppet.new(publish,store)
             if os.clock()-back_since<2 then return end
             back_since=nil
             local ok,why=pcall(build)
-            if ok then return true,'Puppet back after a level change.' end
+            local why_back=back_why
+            back_why='after a level change'
+            if ok then return true,'Puppet back '..why_back..'.' end
             clear('setup failed'); wanted=false
             return false,'Puppet not rebuilt: '..tostring(why)
         end
@@ -284,7 +286,7 @@ function Puppet.new(publish,store)
         end)
         if ok and why=='outfit' then -- A new mesh on one of her parts: a new puppet (and table) at once.
             clear('her outfit changed')
-            back_since=os.clock()-2
+            back_since,back_why=os.clock()-2,'in her new outfit'
             return
         end
         if not ok then wanted=false; return false,clear('stopped: '..tostring(why)) end
