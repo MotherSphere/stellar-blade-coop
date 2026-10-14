@@ -54,7 +54,7 @@ function Link.new(folder,fs)
     end
     -- The remote table the native part holds, from its status ("remote=<generation> <count> <source>") as of the last
     -- changes(): its generation, how many times it wrote coop-remote.txt (a new count: read it again) and where it came
-    -- from ('loopback' or 'replay'); all nil when there is none.
+    -- from ('loopback', 'replay' or 'peer'); all nil when there is none.
     function self.remote() return remote[1],remote[2],remote[3] end
     function self.changes()
         local text,now,new=fs.read(status_path),{},{}

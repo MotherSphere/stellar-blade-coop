@@ -1,5 +1,5 @@
 -- The ghost: a render-only EVE drawn from a component table (native/src/pose_table.h) the native part received, hers
--- back through the loopback or a replayed recording today, a friend's in Phase 4. A plain actor with one
+-- back through the loopback or a replayed recording, or a friend's over Steam. A plain actor with one
 -- PoseableMeshComponent per part and no collision: not a Pawn, so lock-on, AI and saves never see it, and nothing of it
 -- is written to a save, an inventory or an unlock. Each part loads the mesh the table names (LoadAsset only brings a
 -- cooked asset into memory: display only, nothing is worn) with its own default materials, so the ghost wears her
@@ -302,7 +302,8 @@ function Puppet.new(link,capture)
         end
         wanted,failed=true,nil -- A table whose build failed is tried again.
         return true,(swept and swept..' ' or '')..'Ghost on: her capture goes to the native part, and a ghost is drawn '
-            ..'once a table comes back (coop loopback 0 0 0 shows yours, coop replay a recording); coop puppet again ends it.'
+            ..'once a table comes back (a linked friend\'s, she runs coop puppet too; coop loopback 0 0 0 shows yours, '
+            ..'coop replay a recording); coop puppet again ends it.'
     end
     -- Every part on the base suit where it has one (body and hair), or each on its own mesh again: rebuilt at once.
     function self.basesuit()
@@ -343,6 +344,7 @@ function Puppet.new(link,capture)
             if stamp>1 and stamp~=g.stamp then
                 g.stamp,g.stamp_at=stamp,os.clock()
                 local at,rotation=value_of(box.RelativeLocation),value_of(box.RelativeRotation)
+                g.seen={x=at.X,y=at.Y,z=at.Z,yaw=rotation.Yaw,at=os.clock()} -- For coop where: hers, before any offset.
                 local x,y=at.X,at.Y
                 if source=='loopback' then -- Her right: Unreal is left-handed.
                     local yaw=math.rad(rotation.Yaw+capture.yaw_delta())
@@ -359,6 +361,57 @@ function Puppet.new(link,capture)
         if not ok then failed=g.generation; return false,clear('stopped: '..tostring(why)) end
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
+    local CAMPS={'Env_VendingMachine_C','Env_VendingMachine_Simple_C','Env_Camp_TeleportMachine_C',
+        'Env_Camp_TeleportMachine_Tetrapod_C'} -- Leaf classes: exact whether FindAllOf returns subclasses or not.
+    local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end
+    local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+    -- One field that fails says why in place ('?(...)'), without the error's file and line (in the game a path that
+    -- alone fills the 60 characters): the rest of the line still prints.
+    local function try(f)
+        local ok,v=pcall(f)
+        return ok and v or '?('..tostring(v):gsub('^.-:%d+: ',''):sub(1,60)..')'
+    end
+    -- coop where: one line to compare between the two PCs (camps are placed in the levels, so their ids and positions
+    -- match on both). FindAllOf walks every object: on demand only, never per tick. Needs neither a link nor a ghost.
+    function self.where()
+        local eve=her(valid(UE.GetPlayer()))
+        if not eve then return false,'no EVE in the world' end
+        local at,map=value_of(eve:K2_GetActorLocation()),U.map_of(eve)
+        -- The mailbox holds her main mesh's transform, not her actor's: yaw= is the mesh's too, comparable with ghost_yaw=
+        -- (her actor's differs by capture's yaw_delta).
+        local body=valid(eve.Mesh)
+        local mesh=value_of(body:K2_GetComponentLocation())
+        local camp=try(function()
+            local best,line=nil,'none'
+            for _,class in ipairs(CAMPS) do
+                each(FindAllOf(class) or {},function(_,a)
+                    a=valid(a)
+                    if not a then return end
+                    local p=value_of(a:K2_GetActorLocation())
+                    local d=metres(p,at)
+                    if not best or d<best then
+                        best,line=d,string.format('%s:%s@%s camp_m=%.1f',text(a.EnvActorName),class,xyz(p),d)
+                    end
+                end)
+            end
+            return line
+        end)
+        local origin=try(function()
+            local o=value_of(find('/Script/Engine.Default__GameplayStatics'):GetWorldOriginLocation(eve))
+            return string.format('%d,%d,%d',o.X,o.Y,o.Z)
+        end)
+        local flags=try(function()
+            local ws=eve:GetWorld():K2_GetWorldSettings()
+            return 'composition='..tostring(ws.bEnableWorldComposition)
+                ..' rebasing='..tostring(ws.bEnableWorldOriginRebasing)
+        end)
+        local s=ghost and ghost.seen
+        local other=s and string.format('%s@%.1f,%.1f,%.1f ghost_yaw=%.1f ghost_m=%.2f ghost_age=%.1f',tostring(source),
+            s.x,s.y,s.z,s.yaw,metres({X=s.x,Y=s.y,Z=s.z},mesh),os.clock()-s.at)
+            or remote and (remote.map==map and 'waiting' or 'elsewhere:'..remote.map) or 'none'
+        return true,string.format('where map=%s eve=%s yaw=%.1f mesh=%s camp=%s origin=%s %s ghost=%s',map,xyz(at),
+            value_of(body:K2_GetComponentRotation()).Yaw,xyz(mesh),camp,origin,flags,other)
+    end
     -- Once per game-thread tick: nothing while the ghost is off. A level change removes the ghost; it is built again
     -- (or for a new table) once EVE has been in the world 2 s and she is on the table's map.
     function self.tick()

@@ -2,7 +2,8 @@
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
 -- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
 -- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
--- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read.
+-- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read;
+-- a friend's ghost exactly at the mailbox, and coop where's line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -97,7 +98,8 @@ local world={SpawnActor=function(_,class,at)
     function a:GetFullName() return 'Actor /Game/Map.Map:PersistentLevel.Actor_'..#spawned end
     spawned[#spawned+1]=a
     return a
-end,GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end}
+end,GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end,
+K2_GetWorldSettings=function() return {bEnableWorldComposition=false,bEnableWorldOriginRebasing=false} end}
 -- EVE reads only: the ghost never writes to her.
 local function eve_of(name,map_world,at)
     local e=object(name)
@@ -105,6 +107,9 @@ local function eve_of(name,map_world,at)
     function e:IsA(class) return class.path=='/Script/SB.SBCharacter' end
     function e:GetWorld() return map_world or world end
     function e:K2_GetActorLocation() return {X=1,Y=2,Z=3} end
+    function e:K2_GetActorRotation() return {Pitch=0,Yaw=90,Roll=0} end
+    e.Mesh=object('CharacterMesh0',{K2_GetComponentLocation=function() return {X=1,Y=2,Z=-87} end,
+        K2_GetComponentRotation=function() return {Pitch=0,Yaw=0,Roll=0} end}) -- Her actor's yaw minus 90.
     return setmetatable({},{__index=e,__newindex=function(_,key) error('the ghost wrote '..key..' on EVE',2) end})
 end
 local eve=eve_of('EVE')
@@ -470,4 +475,54 @@ ghost.toggle()
 ghost.toggle()
 ok,message=build()
 assert(message:find('^Ghost 606 built'),message)
+
+-- A friend's ghost (source peer): no offset, the root exactly where her mesh is.
+send(607,her_parts(),'peer')
+build()
+actor=spawned[#spawned]
+root,box=actor.parts[1],actor.mailbox
+box.RelativeScale3D.Z=9
+box.RelativeLocation={X=1,Y=402,Z=-87}
+box.RelativeRotation={Pitch=1,Yaw=45,Roll=2}
+ghost.place()
+assert(root.at.X==1 and root.at.Y==402 and root.at.Z==-87 and root.rot.Yaw==45 and root.rot.Pitch==1 and
+    root.rot.Roll==2 and actor.hidden==false,'Exactly at the mailbox')
+
+-- coop where: the nearest camp of the leaf classes (an invalid one skipped; the nearest neither first nor last, so
+-- neither the first nor the last found passes for it), the world origin and flags, her ghost.
+local function camp(id,at) return object('Camp',{EnvActorName=fname(id),K2_GetActorLocation=function() return at end}) end
+local camps={Env_VendingMachine_C={camp('Xion_10_EnvS_007',{X=1,Y=-498,Z=3})},Env_VendingMachine_Simple_C={invalid},
+    Env_Camp_TeleportMachine_C={camp('Xion_10_EnvS_016',{X=301,Y=2,Z=3})},
+    Env_Camp_TeleportMachine_Tetrapod_C={camp('Xion_10_EnvS_020',{X=1,Y=2,Z=903})}}
+FindAllOf=function(class) return camps[class] end -- nil for a class with no object, as UE4SS does.
+local STATICS='/Script/Engine.Default__GameplayStatics'
+found_by_path[STATICS]=invalid -- Not in this build: that field says why, the rest of the line stays.
+clock=clock+0.5
+ok,message=ghost.where()
+assert(ok and message:find(' origin=?(/Script/Engine.Default__GameplayStatics is unavailable in th) composition=false ',1,true),
+    message)
+found_by_path[STATICS]=object('GameplayStatics',{GetWorldOriginLocation=function(_,context)
+    assert(context==player,'Asked for her world'); return {X=0,Y=0,Z=0}
+end})
+ok,message=ghost.where()
+assert(ok and message=='where map=/game/art/bg/worldmap/level_p/e04 eve=1.0,2.0,3.0 yaw=0.0 mesh=1.0,2.0,-87.0 '
+    ..'camp=Xion_10_EnvS_016:Env_Camp_TeleportMachine_C@301.0,2.0,3.0 camp_m=3.0 origin=0,0,0 composition=false '
+    ..'rebasing=false ghost=peer@1.0,402.0,-87.0 ghost_yaw=45.0 ghost_m=4.00 ghost_age=0.5',message)
+-- In loopback: where her mesh is, before the 2 m offset.
+ghost.remote(607,count,'loopback') -- The same count: only the source changes.
+box.RelativeScale3D.Z=10
+ghost.place()
+assert(root.at.Y~=402 and select(2,ghost.where()):find(' ghost=loopback@1.0,402.0,-87.0 ',1,true),'Hers, not offset')
+-- No ghost: her table on this map (waiting), on another, or none.
+send(608,her_parts(),'peer')
+assert(select(2,ghost.where()):find(' ghost=waiting$'))
+send(609,her_parts(),'peer','/game/art/bg/worldmap/level_p/f01')
+assert(select(2,ghost.where()):find(' ghost=elsewhere:/game/art/bg/worldmap/level_p/f01$'))
+ghost.remote(nil,nil,nil)
+ghost.toggle()
+ok,message=ghost.where()
+assert(ok and message:find(' ghost=none$') and message:find(' camp=Xion_10_EnvS_016:'),'No link, no ghost: still a line')
+player=menu
+ok,message=ghost.where()
+assert(ok==false and message=='no EVE in the world',message)
 print('puppet_test ok')

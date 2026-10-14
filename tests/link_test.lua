@@ -61,6 +61,10 @@ files[STATUS]='mod=v\nengine=on replay=on remote=1798 4 replay\nlast=#6 replay o
 link.changes()
 g,n,source=link.remote()
 assert(g==1798 and n==4 and source=='replay')
+files[STATUS]='mod=v\nengine=on remote=5 2 peer\nlast=#7 peer linked: poses and tables go over Steam\n'
+link.changes()
+g,n,source=link.remote()
+assert(g==5 and n==2 and source=='peer','A linked friend\'s table')
 -- A peer's Steam name is hers to choose: only the pose path's line is read.
 files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=on 0 0 0 remote=1799 5 loopback\n'
 link.changes()

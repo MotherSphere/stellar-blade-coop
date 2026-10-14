@@ -27,14 +27,15 @@ package.loaded.capture={new=function(publish)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
     return fake_capture
 end}
-local toggles,active,basesuits=0,false,0
+local toggles,active,basesuits,wheres=0,false,0,0
 package.loaded.puppet={new=function(link,capture)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
     return {toggle=function() toggles=toggles+1; active=not active; return true,'ghost' end,tick=function() end,
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
-        basesuit=function() basesuits=basesuits+1; return true,'base suit' end}
+        basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
+        where=function() wheres=wheres+1; return true,'where map=/game/e04' end}
 end}
 package.loaded.link={new=function() return fake_link end}
 package.loaded.version='v9-test'
@@ -90,6 +91,7 @@ for _,gone in ipairs({'probe','mirror'}) do -- Phase 3a's, deleted.
 end
 assert(#asked==before,'Nothing asked on bad input')
 coop('basesuit'); assert(basesuits==1 and last():find('OK: base suit',1,true),last())
+coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true),last())
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
 loops[2].f()
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
@@ -100,7 +102,7 @@ loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after 
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 loops[1].f(); assert(ticks==2,'No native tick after coop off')
-coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off',1,true),last())
+coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off',1,true),last())
 coop(); assert(last():find('Use: coop',1,true))
 
 -- coop off survives a Lua reload: the native part still reports it.
@@ -130,4 +132,5 @@ assert(#loops==1,'No link loop without the native part')
 coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the native part',1,true),last())
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())
 coop('status'); assert(last():find('STOP: no Steam link status yet',1,true),last())
+coop('where'); assert(wheres==2 and last():find('OK: where',1,true),'coop where needs no Steam link')
 io.stdout:write('main_test ok\n')

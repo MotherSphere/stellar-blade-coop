@@ -1,8 +1,9 @@
 -- StellarCoop: co-op for Stellar Blade. For now the ghost of an EVE (console: coop puppet), drawn by the native part
--- from a table and poses that come back to you: yours through an in-process loopback that stands in for the network
+-- from a table and poses that come back to you: a linked friend's over Steam, yours through an in-process loopback
 -- (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record [off], coop replay [off]),
--- in the outfit it was captured in (coop basesuit: on the base suit instead); and the Steam link between two players
--- (coop host, invite, join, leave, status, report). coop off stops everything until the game restarts.
+-- in the outfit it was captured in (coop basesuit: on the base suit instead); the Steam link between two players
+-- (coop host, invite, join, leave, status, report); and coop where, a line of coordinates to compare between the two
+-- PCs. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -30,7 +31,7 @@ local puppet=require('puppet').new(link,capture)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -57,7 +58,7 @@ local commands={
         if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
         return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
     end,
-    basesuit=puppet.basesuit,
+    basesuit=puppet.basesuit, where=puppet.where,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
