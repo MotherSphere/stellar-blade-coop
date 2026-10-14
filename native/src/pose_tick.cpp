@@ -5,14 +5,14 @@
 // logged with its code, the DLL offset, the address and the part.
 //
 // The ghost (Phase 3b), one path whatever its source. Lua publishes EVE's capture (coop-components.txt); the worker
-// sends it as the wire table (pose_table.h), and while the loopback runs or a recording is made the game thread reads
-// EVE every 50 ms and encodes her pose (pose_codec.h) for the worker to send. All that is sent goes through wire_send:
-// into the loopback's delay line (pose_stream.h) and into the recording (pose_record.h). All that is received comes
-// back through wire_receive, from the delay line or a replayed recording: a table is checked and handed to Lua as
-// coop-remote.txt, Lua builds the ghost from it and names what it built in coop-display.txt; a pose is decoded with
-// that table into the playback, whose pose for each frame the game thread writes into the ghost's leaders, and the
-// main mesh's world transform into its mailbox for Lua to place it. Phase 4 puts Steam behind wire_send and
-// wire_receive.
+// sends it as the wire table (pose_table.h), and while the loopback runs, a recording is made or a friend is linked the
+// game thread reads EVE every 50 ms and encodes her pose (pose_codec.h) for the worker to send. All that is sent goes
+// through wire_send: into the loopback's delay line (pose_stream.h), into the recording (pose_record.h) and to the
+// linked friend over Steam (Phase 4, steam_link.cpp). All that is received comes back through wire_receive, from the
+// delay line, a replayed recording or the friend: a table is checked and handed to Lua as coop-remote.txt, Lua builds
+// the ghost from it and names what it built in coop-display.txt; a pose is decoded with that table into the playback,
+// whose pose for each frame the game thread writes into the ghost's leaders, and the main mesh's world transform into
+// its mailbox for Lua to place it.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -41,9 +41,9 @@ std::atomic<uint64_t> ticks{0}, doubles{0};
 std::atomic<uint64_t> fault_code{0}, fault_rva{0}, fault_address{0};
 std::atomic<int> current_part{-1}; // The part being read or written, for the fault line.
 
-// What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings) or while a
-// recording is made.
-std::atomic<bool> loopback_on{false}, record_on{false};
+// What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings), while a
+// recording is made or while a friend is linked.
+std::atomic<bool> loopback_on{false}, record_on{false}, peer_on{false};
 std::atomic<uint32_t> loopback_delay{0}, loopback_jitter{0}, loopback_loss{0};
 std::atomic<uint32_t> loopback_epoch{0}; // Bumped by every settings change: the playback's clock starts again.
 
@@ -223,7 +223,7 @@ void stream(uint64_t now_us) {
     seen_epoch = epoch; // New settings: the poses in flight were dropped, and the old delay must not pass for a step.
     live.playback.clear();
   }
-  if ((loopback_on || record_on) && live.capture.generation && now_us >= next_capture) {
+  if ((loopback_on || record_on || peer_on) && live.capture.generation && now_us >= next_capture) {
     Io r = read_eve(live.capture, live.capture_root, live.capture_bones.data());
     if (r == Io::ok) {
       next_capture = (next_capture && now_us - next_capture < kSendUs ? next_capture : now_us) + kSendUs;
@@ -390,7 +390,13 @@ Display display;
 std::string session_text, capture_text = "\x01", sent_table, remote_text, display_text = "\x01";
 bool remote_unwritten = false; // The write failed (Lua had the file open): tried again at each pass.
 uint64_t remote_count = 0;
+const char kPeer[] = "peer";
 const char *remote_source = "loopback";
+void (*peer_send)(const uint8_t *, size_t, bool) = nullptr; // Set by peer() each pass, before peer_on can be true.
+uint64_t next_table_ms = 0, last_renewal_us = 0;
+// One remote source at a time: a loopback or replay started by hand takes over from her until it is off.
+// engine_on also means the inbox buffers are sized.
+bool peer_open() { return engine_on && !blocked && !loopback_on && !replay.on(); }
 
 void pin_inner(std::string &reason) { reason = check_build(base); }
 // __try may not hold objects with destructors itself, so the string lives in pin_inner.
@@ -433,11 +439,13 @@ std::string stop_record(const char *why, uint64_t now_us) {
   return line;
 }
 
-// The only way out (Phase 4 adds Steam here): into the loopback's delay line while it runs (a table reliable: never
-// lost), and into the recording while one is made.
+// The only way out: into the loopback's delay line while it runs (a table reliable: never lost), to the linked friend
+// (a table reliable), and into the recording while one is made.
 void wire_send(const uint8_t *data, size_t size, bool reliable, uint64_t now_us) {
   if (loopback_on && !delay_line.send(data, size, now_us, reliable))
     ++window_line_lost;
+  if (peer_on && peer_send)
+    peer_send(data, size, reliable);
   if (recorder && !recorder->add(data, size))
     say(stop_record("full", now_us));
 }
@@ -467,9 +475,19 @@ void take_table(const uint8_t *data, size_t size) {
   if (text == remote_text)
     return;
   bool renewed = t->generation != remote.generation || !same_layout(*t, remote);
+  const char *source = replay.on() ? "replay" : loopback_on ? "loopback" : kPeer; // The sources exclude each other.
+  // ROADMAP 4.7: one new ghost per 2 s from her at most (a LoadAsset hitch and new FNames each); her resend every 5 s
+  // brings the newest table later.
+  uint64_t now = clock_us();
+  if (renewed && source == kPeer && now - last_renewal_us < 2'000'000) {
+    ++window_tables_refused;
+    return;
+  }
+  if (renewed)
+    last_renewal_us = now;
   remote = std::move(*t);
   remote_text = std::move(text);
-  remote_source = replay.on() ? "replay" : "loopback";
+  remote_source = source;
   remote_unwritten = true;
   write_remote();
   say("remote table " + std::to_string(remote.generation) + (renewed ? " from the " : " again from the ") +
@@ -500,7 +518,7 @@ void wire_receive(const uint8_t *data, size_t size, uint64_t now_us) {
   }
 }
 
-// The remote table is gone with its source (loopback off, replay off): so is the ghost.
+// The remote table is gone with its source (loopback off, replay off, her unlink): so is the ghost.
 void drop_remote() {
   if (!remote.generation)
     return;
@@ -709,7 +727,33 @@ bool worker_stream() {
   auto receive = [now_us](const uint8_t *data, size_t size) { wire_receive(data, size, now_us); };
   delay_line.deliver(now_us, receive);
   replay.deliver(now_us, receive);
-  return loopback_on || record_on || replay.on(); // Every 5 ms only while something streams.
+  return loopback_on || record_on || replay.on() || peer_on; // Every 5 ms only while something streams.
+}
+
+void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool)) {
+  peer_send = send;
+  bool on = linked && peer_open(), was = peer_on.exchange(on);
+  if (was != on)
+    say(on ? "peer linked: poses and tables go over Steam" : "peer unlinked");
+  if (was && !on && remote_source == kPeer)
+    drop_remote(); // She left, or a loopback or replay took over.
+  if (!on) {
+    next_table_ms = 0;
+    return;
+  }
+  // At once, then every 5 s: heals a table lost with a broken session, sent before her accept, or refused as too soon.
+  // To her only: never looped back or recorded. She ignores an identical text.
+  if (now_ms >= next_table_ms && !sent_table.empty()) {
+    send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true);
+    next_table_ms = now_ms + 5000;
+  }
+}
+
+// Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
+// before this pass's peer(), and the link already checked the handshake.
+void peer_receive(const uint8_t *data, size_t size) {
+  if (peer_open())
+    wire_receive(data, size, clock_us());
 }
 
 std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_t loss_percent) {

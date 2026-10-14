@@ -224,7 +224,7 @@ coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
-bool loaded = false, streaming = false; // streaming: the loopback, a recording or a replay runs: a pass every 5 ms.
+bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
 std::string written;
 
 std::string status_text() {
@@ -274,7 +274,8 @@ bool step() {
         return false; // Another Steamworks build: never call it.
       }
       loaded = true;
-      link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event);
+      link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event,
+                                          [](const uint8_t *d, size_t n) { coop::pose::peer_receive(d, n); });
     }
     std::string request = take_text(folder + L"coop-request.txt");
     coop::Command command = coop::parse_request(request).command;
@@ -340,6 +341,12 @@ bool step() {
         api.release_memory(); // Valve's advice for threads other than the game's.
       }
     }
+    bool linked = loaded && ready != coop::Link::Ready::no && !switched_off && link->linked();
+    // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
+    coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {
+      if (api.user_handle())
+        link->send_binary(d, n, reliable);
+    });
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))
       written = text;
