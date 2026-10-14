@@ -39,9 +39,10 @@ public:
     queue_.clear();
     last_due_ = 0;
   }
-  // A message sent at now (µs): queued, or false when the loss model dropped it.
-  bool send(const uint8_t *data, size_t size, uint64_t now) {
-    for (size_t segment = 0; segment < (size + kSegment - 1) / kSegment; ++segment)
+  // A message sent at now (µs): queued, or false when the loss model dropped it. A reliable message (the table, which
+  // Steam would resend until acknowledged) is never lost, but still waits its turn behind the poses sent before it.
+  bool send(const uint8_t *data, size_t size, uint64_t now, bool reliable = false) {
+    for (size_t segment = 0; !reliable && segment < (size + kSegment - 1) / kSegment; ++segment)
       if (next() % 100 < s_.loss_percent)
         return false;
     uint64_t jitter = uint64_t(s_.jitter_ms) * 1000, late = uint64_t(s_.delay_ms) * 1000 + jitter;

@@ -252,5 +252,27 @@ int main() {
     p.scratch().publication = 1'050'000;
     assert(!p.accept(1'150'000) && p.take().stale == 1);
   }
+
+  // A reliable message (the table) survives any loss, and keeps its place in the line: behind the poses sent before
+  // it, ahead of those sent after, even when its jitter draw would put it earlier.
+  {
+    DelayLine line;
+    std::vector<uint8_t> pose(4700), table(5000); // 4 and 5 segments.
+    line.set({120, 30, 100}, 7);
+    for (int k = 0; k < 100; ++k)
+      assert(!line.send(pose.data(), pose.size(), 0) && line.send(table.data(), table.size(), 0, true));
+    assert(line.queued() == 100);
+    line.set({120, 30, 0}, 7);
+    std::vector<uint8_t> sent, got;
+    for (uint8_t k = 0; k < 40; ++k) { // 5 ms apart, well inside the ±30 ms jitter.
+      bool reliable = k % 10 == 5;
+      std::vector<uint8_t> &m = reliable ? table : pose;
+      m[0] = k;
+      assert(line.send(m.data(), m.size(), k * 5000, reliable));
+      sent.push_back(k);
+    }
+    line.deliver(std::numeric_limits<uint64_t>::max(), [&](const uint8_t *data, size_t) { got.push_back(data[0]); });
+    assert(got == sent);
+  }
   std::puts("pose_stream_test: all passed");
 }
