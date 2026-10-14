@@ -1,6 +1,7 @@
-// Reads of the game's memory for the native pose path: the build pin, object liveness and the published-component
-// checks, and the read-only offset probe. Plain reads of addresses only; the caller runs every one of them under an
-// SEH guard on the game thread. No Windows types, so tests/pose_engine_test.cpp drives it with fake memory.
+// The game's memory for the native pose path: the build pin, object liveness and the published-component checks, EVE's
+// pose read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only; the caller runs every
+// one of them under an SEH guard on the game thread. No Windows types, so tests/pose_engine_test.cpp drives it with
+// fake memory.
 // Offsets are for Stellar Blade's Steam build 24463856 (UE 4.26), pinned by check_build().
 #pragma once
 
@@ -68,7 +69,7 @@ inline bool alive(uintptr_t objects, uintptr_t object) {
 }
 
 // USkinnedMeshComponent::SkeletalMesh; the poses (decompile of CopyPoseFromSkeletalComponent 0x1448e0f80 and
-// GetBoneSpaceTransforms 0x144119140; verified live by coop probe before any write):
+// GetBoneSpaceTransforms 0x144119140; verified live by the Phase 2a probe before any write):
 //   source (USkeletalMeshComponent): BoneSpaceTransforms array at +0x8c0, count at +0x8c8; GetBoneSpaceTransforms waits
 //   on two parallel tasks first, at +0x1180 and +0xf80 (PHASE2-RE.md), so a read needs both null;
 //   target (UPoseableMeshComponent): BoneSpaceTransforms array at +0x878, count at +0x880, refresh flag at +0x9d0.
@@ -84,63 +85,7 @@ inline bool published(uintptr_t objects, const Part &p) {
   return alive(objects, object) && at<uint64_t>(object + kClass) == p.cls && at<uint64_t>(object + kMesh) == p.mesh;
 }
 
-// The read-only probe of one leader pair, right after Lua copied EVE's pose into the puppet (CopyPose): both arrays
-// must hold the published bone count and the same bytes, and CopyPose must have left its marks on the puppet (refresh
-// flag set, write-gate fields as its gate needs them). The anim task references are only recorded: CopyPose has just
-// waited on them, so they say nothing about a native read at another moment (2b counts that itself).
-struct ProbeResult {
-  enum Kind { ok, eve_gone, puppet_gone, eve_count, puppet_count, null_array, differs, gate } kind = ok;
-  int32_t eve_count_seen = 0, puppet_count_seen = 0, gate_count = 0;
-  uint32_t first_difference = 0;
-  uint8_t refresh = 0;
-  uint64_t task = 0, task2 = 0, gate_pointer = 0;
-};
-inline const char *describe(ProbeResult::Kind k) {
-  switch (k) {
-  case ProbeResult::ok: return "offsets_ok";
-  case ProbeResult::eve_gone: return "EVE part not live, wrong class or mesh";
-  case ProbeResult::puppet_gone: return "puppet part not live, wrong class or mesh";
-  case ProbeResult::eve_count: return "EVE bone count differs at +0x8c8";
-  case ProbeResult::puppet_count: return "puppet bone count differs at +0x880";
-  case ProbeResult::null_array: return "a bone array pointer is null";
-  case ProbeResult::differs: return "bone bytes differ";
-  case ProbeResult::gate: return "CopyPose marks missing (+0x9d0 refresh, +0x8d0, +0x890)";
-  }
-  return "?";
-}
-inline ProbeResult probe_pair(uintptr_t objects, const Part &eve, const Part &puppet) {
-  ProbeResult r;
-  if (!published(objects, eve))
-    return r.kind = ProbeResult::eve_gone, r;
-  if (!published(objects, puppet))
-    return r.kind = ProbeResult::puppet_gone, r;
-  auto src = static_cast<uintptr_t>(eve.object), dst = static_cast<uintptr_t>(puppet.object);
-  r.eve_count_seen = at<int32_t>(src + kSourceCount);
-  r.puppet_count_seen = at<int32_t>(dst + kTargetCount);
-  if (r.eve_count_seen != int32_t(eve.bones))
-    return r.kind = ProbeResult::eve_count, r;
-  if (r.puppet_count_seen != int32_t(puppet.bones))
-    return r.kind = ProbeResult::puppet_count, r;
-  r.task = at<uintptr_t>(src + kAnimTask);
-  r.task2 = at<uintptr_t>(src + kAnimTask2);
-  r.refresh = at<uint8_t>(dst + kRefresh);
-  r.gate_pointer = at<uintptr_t>(dst + kGatePointer);
-  r.gate_count = at<int32_t>(dst + kGateCount);
-  auto a = at<uintptr_t>(src + kSourceArray), b = at<uintptr_t>(dst + kTargetArray);
-  if (!a || !b)
-    return r.kind = ProbeResult::null_array, r;
-  for (uint32_t i = 0; i < eve.bones; ++i)
-    if (std::memcmp(reinterpret_cast<const void *>(a + i * kTransformBytes),
-                    reinterpret_cast<const void *>(b + i * kTransformBytes), kTransformBytes) != 0) {
-      r.first_difference = i;
-      return r.kind = ProbeResult::differs, r;
-    }
-  if (r.refresh != 1 || !r.gate_pointer || r.gate_count < 1)
-    return r.kind = ProbeResult::gate, r;
-  return r;
-}
-
-// The delayed mirror's reads and writes (Phase 2b). The game thread calls them once per frame for each leader pair.
+// The pose path's reads of EVE and writes into the ghost. The game thread calls them for each leader part.
 
 constexpr size_t kItemSerial = 0x10, kWorldTransform = 0x1f0, kRelativeLocation = 0x13c, kRelativeRotation = 0x148,
                  kRelativeScale = 0x154;
@@ -260,10 +205,12 @@ inline void quat_to_rotator(float x, float y, float z, float w, float *pyr) {
   pyr[2] = float(roll);
 }
 
-// The mailbox gets a world transform (10 floats as read_world gives them) as relative location and rotation, and a
-// stamp in its relative scale (1, 1, stamp; the default is 1, stamps are 2 and up) so Lua knows a value has arrived.
+// The mailbox (N17), a scene component of the ghost, gets a world transform (10 floats as read_world gives them) as
+// relative location and rotation, and a stamp in its relative scale (1, 1, stamp; the default is 1, stamps are 2 and
+// up) so Lua knows a value has arrived. It cannot be the ghost's root itself: K2_SetWorldLocationAndRotation does
+// nothing when the value equals the root's own relative fields (PHASE2-RE.md).
 // Nothing ever moves the mailbox, so the engine never rewrites these fields. It must be live, of the published class
-// and owned by the same actor as the puppet's live root (UObject outer +0x20): a stale table can never reach another
+// and owned by the same actor as the ghost's live root (UObject outer +0x20): a stale table can never reach another
 // actor's scene component, the most common class in the game.
 constexpr size_t kOuter = 0x20;
 inline Io write_mailbox(uintptr_t objects, uint64_t mailbox, uint64_t cls, const Part &puppet_root, const float *world,

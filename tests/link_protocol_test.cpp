@@ -89,11 +89,15 @@ int main() {
   assert(parse_request("invite").command == Command::invite);
   assert(parse_request("leave").command == Command::leave);
   assert(parse_request("report\r\n").command == Command::report);
-  assert(parse_request("probe").command == Command::probe && parse_request("off\n").command == Command::off);
-  Request mirror = parse_request("mirror 500\n");
-  assert(mirror.command == Command::mirror && mirror.ms == 500);
-  mirror = parse_request("mirror off");
-  assert(mirror.command == Command::mirror && mirror.ms == 0 && mirror.off);
+  assert(parse_request("off\n").command == Command::off);
+  Request record = parse_request("record\n");
+  assert(record.command == Command::record && !record.off);
+  record = parse_request("record off");
+  assert(record.command == Command::record && record.off);
+  Request replay = parse_request("replay\r\n");
+  assert(replay.command == Command::replay && !replay.off);
+  replay = parse_request("replay off");
+  assert(replay.command == Command::replay && replay.off);
   Request loopback = parse_request("loopback 120 30 1\r\n");
   assert(loopback.command == Command::loopback && loopback.ms == 120 && loopback.jitter == 30 && loopback.loss == 1 &&
          !loopback.off);
@@ -107,7 +111,8 @@ int main() {
                           "loopback 0 0 101", "loopback 120 30 1 9", "loopback 120  30 1", "loopback -1 0 0",
                           "loopback on"})
     assert(parse_request(bad).command == Command::none);
-  for (const char *bad : {"mirror", "mirror 0", "mirror 2001", "mirror x", "mirror -5"})
+  for (const char *bad : {"record x", "replay now", "record on", "replay off now", "record  off", "recordoff",
+                          "probe", "mirror 500", "mirror off"}) // Phase 3a's probe and mirror are gone.
     assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0);

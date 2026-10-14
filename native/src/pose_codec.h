@@ -10,7 +10,7 @@
 //   count (u8): the table's components; then per component a status byte (kWorld on component 0 only, kBones on the
 //   leaders only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3 i16 scale) and 18 bytes per
 //   bone when kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
-// A bone travels in local space (N3), as the Ring holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
+// A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.
 #pragma once
 

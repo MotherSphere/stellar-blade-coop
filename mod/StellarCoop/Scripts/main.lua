@@ -1,7 +1,8 @@
--- StellarCoop: co-op for Stellar Blade. For now a puppet EVE beside her (console: coop puppet), the Steam link between
--- two players (coop host, invite, join, leave, status, report), and the native pose path run by the native part: a
--- probe of the bone memory (coop probe), a delayed mirror (coop mirror <ms> | off) and the ghost pipeline in loopback
--- (coop loopback <delay ms> <jitter ms> <loss %> | off). coop off stops everything until the game restarts.
+-- StellarCoop: co-op for Stellar Blade. For now the ghost of an EVE (console: coop puppet), drawn by the native part
+-- from a table and poses that come back to you: yours through an in-process loopback that stands in for the network
+-- (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record [off], coop replay [off]),
+-- in the outfit it was captured in (coop basesuit: on the base suit instead); and the Steam link between two players
+-- (coop host, invite, join, leave, status, report). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -21,12 +22,15 @@ local link=loaded and require('link').new(folder) or nil
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
     link.components(nil)
+    link.display(nil)
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
-local puppet=require('puppet').new(link and link.components or nil,link and link.store() or nil)
+local capture=require('capture').new(link and link.components or nil)
+local puppet=require('puppet').new(link,capture)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
-local off=link~=nil and (link.status() or ''):find('reason=coop_off',1,true)~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | probe | mirror <1-2000 ms>|off | loopback <delay ms> <jitter ms> <loss %>|off | off'
+-- Read from the pose path's line only, as a peer's Steam name could say the same.
+local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -43,19 +47,6 @@ local commands={
         if lobby and link and not link.valid_lobby(lobby) then return false,'a lobby id is digits only' end
         return ask(lobby and 'join '..lobby or 'join')()
     end,
-    probe=function()
-        if not native_tick then return false,'the native tick is unavailable' end
-        if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
-        return ask('probe')()
-    end,
-    mirror=function(delay)
-        if not native_tick then return false,'the native tick is unavailable' end
-        if delay=='off' then return ask('mirror off')() end
-        local ms=delay and delay:match('^%d+$') and tonumber(delay)
-        if not ms or ms<1 or ms>2000 then return false,'Use: coop mirror <1-2000 ms> | off' end
-        if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
-        return ask('mirror '..ms)()
-    end,
     loopback=function(delay,jitter,loss)
         if not native_tick then return false,'the native tick is unavailable' end
         if delay=='off' then return ask('loopback off')() end
@@ -63,9 +54,10 @@ local commands={
         if not (delay and jitter and loss) then
             return false,'Use: coop loopback <delay 0-1000 ms> <jitter 0-500 ms> <segment loss 0-100 %> | off'
         end
-        if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
+        if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
         return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
     end,
+    basesuit=puppet.basesuit,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
@@ -78,6 +70,16 @@ local commands={
         return true,text:gsub('[\r\n]+',' | ')..puppet.status()
     end,
 }
+-- coop record and coop replay: on (with the ghost on, which publishes her capture) or off.
+for _,name in ipairs({'record','replay'}) do
+    commands[name]=function(arg)
+        if not native_tick then return false,'the native tick is unavailable' end
+        if arg=='off' then return ask(name..' off')() end
+        if arg~=nil then return false,'Use: coop '..name..' [off]' end
+        if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
+        return ask(name)()
+    end
+end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     local command=commands[parameters[1] or '']
@@ -97,14 +99,17 @@ LoopInGameThreadWithDelay(1,function()
     if off then return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
-    if native_tick then native_tick() end -- After the puppet's copy: coop probe compares within the same frame.
-    ok,message=puppet.place() -- Mirror mode: the root takes the mailbox this native tick just wrote.
+    if native_tick then native_tick() end
+    ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
     if message then report(ok,message) end
 end)
 if link then
     LoopInGameThreadWithDelay(250,function()
         for _,line in ipairs(link.changes()) do log('link: '..line) end
-        puppet.set_mirror(link.mirror_table())
+        local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
+        if message then report(ok,message) end
+        ok,message=puppet.remote(link.remote())
+        if message then report(ok,message) end
     end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)

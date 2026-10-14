@@ -42,21 +42,40 @@ assert(link.status():find('peer=2 name=Bob',1,true),'coop status still shows the
 assert(link.session('42-7') and files['C:\\Mod\\coop-session.txt']=='42-7\n')
 assert(link.components('generation 1\n') and files['C:\\Mod\\coop-components.txt']=='generation 1\n')
 assert(link.components('generation 2\n') and files['C:\\Mod\\coop-components.txt']=='generation 2\n','Replaced, not refused')
-assert(link.components(nil) and files['C:\\Mod\\coop-components.txt']==nil,'Removed with the puppet')
+assert(link.components(nil) and files['C:\\Mod\\coop-components.txt']==nil,'Withdrawn with the ghost')
+-- The display file goes the same way; the remote table is the native part's, only read.
+local DISPLAY,REMOTE='C:\\Mod\\coop-display.txt','C:\\Mod\\coop-remote.txt'
+assert(link.display('display 7\n') and files[DISPLAY]=='display 7\n' and not files[DISPLAY..'.tmp'])
+assert(link.display('display 8\n') and files[DISPLAY]=='display 8\n')
+assert(link.display(nil) and files[DISPLAY]==nil)
+assert(link.remote_table()==nil)
+files[REMOTE]='SBT 3\ngeneration 7\n'
+assert(link.remote_table()=='SBT 3\ngeneration 7\n' and files[REMOTE],'Read, never removed')
 
--- The table the native part drives, and how, from the status as of the last changes().
-files[STATUS]='mod=v\nengine=on mirror=on 500 table 1797\nlast=#5 mirror on\n'
+-- The remote table the native part holds, from the status as of the last changes().
+files[STATUS]='mod=v\nengine=on loopback=on 120 30 1 remote=1797 3 loopback\nlast=#5 remote table\n'
 link.changes()
-local t,mode=link.mirror_table()
-assert(t==1797 and mode=='mirror',tostring(t))
-files[STATUS]='mod=v\nengine=on loopback=on 120 30 1 table 1798\nlast=#6 loopback on\n'
+local g,n,source=link.remote()
+assert(g==1797 and n==3 and source=='loopback',tostring(g))
+files[STATUS]='mod=v\nengine=on replay=on remote=1798 4 replay\nlast=#6 replay on\n'
 link.changes()
-t,mode=link.mirror_table()
-assert(t==1798 and mode=='loopback',tostring(t))
-files[STATUS]='mod=v\nengine=on loopback=waiting\nlast=#7 loopback asked\n'
+g,n,source=link.remote()
+assert(g==1798 and n==4 and source=='replay')
+-- A peer's Steam name is hers to choose: only the pose path's line is read.
+files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=on 0 0 0 remote=1799 5 loopback\n'
 link.changes()
-t,mode=link.mirror_table()
-assert(t==nil and mode==nil,'Waiting: Lua still copies')
+g,n,source=link.remote()
+assert(g==1799 and n==5 and source=='loopback',tostring(g))
+files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=waiting\nlast=remote=2 2 replay\n'
+link.changes()
+assert(link.remote()==nil,'Nor from the last line')
+files[STATUS]='mod=v\nengine=on loopback=waiting\nlast=#7 loopback on\n'
+link.changes()
+g,n,source=link.remote()
+assert(g==nil and n==nil and source==nil,'No remote table: all nil')
+files[STATUS]=nil
+link.changes()
+assert(link.remote()==nil,'No status: none either')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 print('link_test ok')

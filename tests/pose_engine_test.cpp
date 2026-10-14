@@ -1,5 +1,5 @@
-// The pose path's memory reads against fake memory laid out like the pinned build: the build pin, liveness, published
-// components and every probe outcome.
+// The pose path's memory accesses against fake memory laid out like the pinned build: the build pin, liveness,
+// published components, EVE's read, the ghost's write gate (direct and remapped) and the mailbox.
 #include "pose_engine.h"
 
 #include <algorithm>
@@ -85,7 +85,7 @@ int main() {
   assert(published(objs, e) && published(objs, p));
   assert(!published(objs, Part{addr(eve), poseable_class, mesh, 3, true}) && !published(objs, Part{addr(eve), eve_class, 0x1, 3, true}));
 
-  // Probe: three bones each side.
+  // Three bones each side, and the write gate's fields as CopyPose leaves them.
   std::vector<uint8_t> src(3 * kTransformBytes), dst(3 * kTransformBytes);
   for (size_t i = 0; i < src.size(); ++i)
     src[i] = dst[i] = static_cast<uint8_t>(i * 7);
@@ -93,42 +93,10 @@ int main() {
   put<int32_t>(eve, kSourceCount, 3);
   put(puppet, kTargetArray, addr(dst));
   put<int32_t>(puppet, kTargetCount, 3);
-  put<uint8_t>(puppet, kRefresh, 1); // CopyPose's marks.
   put<uintptr_t>(puppet, kGatePointer, 0x77);
   put<int32_t>(puppet, kGateCount, 1);
-  assert(probe_pair(objs, e, p).kind == ProbeResult::ok && std::string(describe(ProbeResult::ok)) == "offsets_ok");
-  for (size_t field : {kRefresh, kGatePointer, kGateCount}) { // Each mark missing on its own fails the probe.
-    std::vector<uint8_t> saved(puppet.begin() + field, puppet.begin() + field + 8);
-    put<uint64_t>(puppet, field, 0);
-    assert(probe_pair(objs, e, p).kind == ProbeResult::gate);
-    std::copy(saved.begin(), saved.end(), puppet.begin() + field);
-  }
-  assert(probe_pair(objs, e, p).kind == ProbeResult::ok);
-  dst[2 * kTransformBytes + 5] ^= 0xff;
-  auto r = probe_pair(objs, e, p);
-  assert(r.kind == ProbeResult::differs && r.first_difference == 2);
-  dst[2 * kTransformBytes + 5] ^= 0xff;
-  put<uintptr_t>(eve, kAnimTask, 0x1234); // Recorded, never a verdict: CopyPose has just waited on them.
-  put<uintptr_t>(eve, kAnimTask2, 0x5678);
-  r = probe_pair(objs, e, p);
-  assert(r.kind == ProbeResult::ok && r.task == 0x1234 && r.task2 == 0x5678);
-  put<uintptr_t>(eve, kAnimTask, 0);
-  put<uintptr_t>(eve, kAnimTask2, 0);
-  put<int32_t>(puppet, kTargetCount, 4);
-  r = probe_pair(objs, e, p);
-  assert(r.kind == ProbeResult::puppet_count && r.puppet_count_seen == 4);
-  put<int32_t>(puppet, kTargetCount, 3);
-  put<int32_t>(eve, kSourceCount, 2);
-  assert(probe_pair(objs, e, p).kind == ProbeResult::eve_count);
-  put<int32_t>(eve, kSourceCount, 3);
-  put<uintptr_t>(puppet, kTargetArray, 0);
-  assert(probe_pair(objs, e, p).kind == ProbeResult::null_array);
-  put(puppet, kTargetArray, addr(dst));
-  assert(probe_pair(objs, Part{addr(dead), eve_class, mesh, 3, true}, p).kind == ProbeResult::eve_gone);
-  assert(probe_pair(objs, e, Part{addr(puppet), eve_class, mesh, 3, true}).kind == ProbeResult::puppet_gone);
-  assert(probe_pair(objs, e, p).kind == ProbeResult::ok);
 
-  // The mirror (2b): weak pointer, leader read and write, mailbox, rotator.
+  // Weak pointer, leader read and write, mailbox, rotator.
   {
     std::vector<uint8_t> skeleton(0x100);
     objects.add(skeleton, 0, 42);

@@ -34,11 +34,6 @@ public:
     queue_.clear();
     last_due_ = 0;
   }
-  // Drops every message in flight; the settings stay.
-  void flush() {
-    queue_.clear();
-    last_due_ = 0;
-  }
   // A message sent at now (µs): queued, or false when the loss model dropped it. A reliable message (the table, which
   // Steam would resend until acknowledged) is never lost, but still waits its turn behind the poses sent before it.
   bool send(const uint8_t *data, size_t size, uint64_t now, bool reliable = false) {
@@ -98,7 +93,7 @@ inline void blend_transform(const float *a, const float *b, float alpha, float *
 // spread is the recent peak of lag above the floor (jitter), decaying 10 ms a second and capped at 250 ms: without
 // jitter she is drawn 1.5 intervals back, as in the sister repository; with jitter far enough back that a late pose is
 // still ahead of her. Between two poses the pose is interpolated; past the newest it is extrapolated at most half an
-// interval. Game thread; reset() allocates and runs on the worker (with the Session), so no frame ever allocates.
+// interval. Game thread; reset() allocates and runs on the worker (with the Live), so no frame ever allocates.
 class Playback {
 public:
   static constexpr size_t kFrames = 8;

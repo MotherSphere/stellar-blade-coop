@@ -257,13 +257,13 @@ int main() {
     World w;
     F.user_handle = 0;
     assert(w.link.ready(L"SB.exe") == Link::Ready::no);
-    assert(w.status() == "mod=v1.2-dev proto=2 steam=waiting\n"); // No Steam call before Steam is ready.
+    assert(w.status() == "mod=v1.2-dev proto=3 steam=waiting\n"); // No Steam call before Steam is ready.
     F.user_handle = 1;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now && w.link.ready(L"SB.exe") == Link::Ready::yes);
-    assert(saw("Steam ready: Me, app 3489700, game build 24463856, mod v1.2-dev, protocol 2"));
+    assert(saw("Steam ready: Me, app 3489700, game build 24463856, mod v1.2-dev, protocol 3"));
     assert(w.status().find("relay=unknown") != std::string::npos);
     w.tick();
-    assert(w.status().find("relay=100") != std::string::npos && w.status().find("mod=v1.2-dev proto=2") == 0);
+    assert(w.status().find("relay=100") != std::string::npos && w.status().find("mod=v1.2-dev proto=3") == 0);
     F.relay = 3; // Outside a lobby the relay is read every 5 s.
     w.tick("", 0, 0, 1000);
     assert(w.status().find("relay=100") != std::string::npos);
@@ -280,9 +280,9 @@ int main() {
     assert(w.link.host() && F.invites == 1 && F.data[lobby][kLobbyKey] == lobby_tag(kBuild));
     assert(saw("hosting lobby 5000: invite dialog opened") && saw("Kaanta is in the lobby"));
     // Our hello on her arrival, sent again with our accept since hers had not come yet; one accept per hello of hers.
-    assert(sent_to(kFriend, "SBC hello 2 v1.2-dev 24463856") == 2 && sent_to(kFriend, "SBC accept") == 1);
+    assert(sent_to(kFriend, "SBC hello 3 v1.2-dev 24463856") == 2 && sent_to(kFriend, "SBC accept") == 1);
     assert(saw("hello from Kaanta (mod v1.2-dev)") && saw("Kaanta accepted our hello"));
-    assert(sent_to(kFriend, "SBC2 ping 1 ") == 1);
+    assert(sent_to(kFriend, "SBC3 ping 1 ") == 1);
     F.inbox.push_back({kFriend, pong(1, w.now - 30)});
     w.tick("", 0, 0, 30);
     w.tick("", 0, 0, 1000); // Session state and ping are read once a second.
@@ -298,7 +298,7 @@ int main() {
   }
 
   // A peer on another protocol or game build gets a typed reject, and both sides leave.
-  for (const std::string &their : {hello(1, "old", kBuild), hello(3, "new", kBuild), hello(kProtocol, "v", 123)}) {
+  for (const std::string &their : {hello(1, "old", kBuild), hello(4, "new", kBuild), hello(kProtocol, "v", 123)}) {
     reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
@@ -369,7 +369,7 @@ int main() {
     assert(saw("joining lobby 7000 (invite accepted)"));
     finish_all();
     w.tick();
-    assert(saw("lobby 7000 runs protocol 1, build 24463856, this game runs protocol 2, build 24463856"));
+    assert(saw("lobby 7000 runs protocol 1, build 24463856, this game runs protocol 3, build 24463856"));
     assert(saw("left lobby 7000: incompatible lobby"));
   }
 
@@ -419,7 +419,7 @@ int main() {
     assert(saw("Kaanta silent for 10 s: lost") && w.status().find("lost=1") != std::string::npos);
     F.inbox.push_back({kFriend, ping(5, 5)});
     w.tick();
-    assert(saw("Kaanta is back") && sent_to(kFriend, "SBC2 pong 5 5") == 1);
+    assert(saw("Kaanta is back") && sent_to(kFriend, "SBC3 pong 5 5") == 1);
   }
   reset();
   {
@@ -452,7 +452,7 @@ int main() {
     assert(!saw("ignored messages from 2002"));
     F.inbox.push_back({kFriend, accept()});
     w.tick();
-    assert(sent_to(kFriend, "SBC2 ping 1 ") == 1);
+    assert(sent_to(kFriend, "SBC3 ping 1 ") == 1);
     // A second session after a broken one: her new hello is answered again, so she can finish too.
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
     w.tick();
@@ -477,8 +477,8 @@ int main() {
     assert(F.accepted.size() == 1 && F.accepted[0] == kFriend && saw("accepted a session from Kaanta"));
     for (auto id : F.closed)
       assert(id != kStranger); // Never closed because of a stranger.
-    F.inbox.push_back({kFriend, "SBC2 nonsense"});
-    F.inbox.push_back({kFriend, "SBC2 nonsense"});
+    F.inbox.push_back({kFriend, "SBC3 nonsense"});
+    F.inbox.push_back({kFriend, "SBC3 nonsense"});
     w.tick();
     assert(w.status().find("invalid=2") != std::string::npos);
   }

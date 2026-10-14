@@ -321,6 +321,18 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   return t;
 }
 
+// Whether a ghost built for one table fits the other: the same parts, each with the same leader, bones and mesh path,
+// as puppet.lua's layout() compares. Lua builds a new ghost for another layout even under the same generation, and a
+// display checked against one layout must never be paired with another (write_puppet indexes it by the remote parts).
+inline bool same_layout(const Table &a, const Table &b) {
+  if (a.eve.size() != b.eve.size() || a.look.size() != a.eve.size() || b.look.size() != b.eve.size())
+    return false;
+  for (size_t i = 0; i < a.eve.size(); ++i)
+    if (a.eve[i].bones != b.eve[i].bones || a.look[i].lead != b.look[i].lead || a.look[i].path != b.look[i].path)
+      return false;
+  return true;
+}
+
 // Lua's display file for a remote table (coop-display.txt), every line ending in '\n':
 //   display <the remote generation>
 //   mailbox 0x<object> 0x<class>

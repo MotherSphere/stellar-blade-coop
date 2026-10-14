@@ -322,6 +322,17 @@ int main() {
        })
     assert(!parse_display(bad, *wire));
 
+  // A display fits only the layout it was checked against. A part hung elsewhere, shown, hidden or placed elsewhere
+  // keeps the ghost; a part more, a leader's bones, a follower's leader or a mesh is a new ghost, generation or not.
+  assert(same_layout(*wire, wire_table(with(kWire, "SC_SwordingPoint 1", "SC_Back 0"))));
+  assert(same_layout(*wire, wire_table(with(kWire, "1.5 -2 0.25", "3 -2 0.25"))));
+  assert(!same_layout(*wire, wire_table(kWire + "part 5 0 0 - 1 0 Extra -\nplace 5" + flat)));
+  assert(!same_layout(*wire, wire_table(with(with(kWire, " 1 2 SBHair", " 1 1 SBHair"), "Bip001-Head Hair_01\n",
+                                             "Bip001-Head\n"))));
+  assert(!same_layout(*wire, wire_table(with(kWire, "part 3 2 2", "part 3 0 2"))));
+  assert(!same_layout(*wire, wire_table(with(kWire, "SBPonytail " + kNier, "SBPonytail " + kNikke))));
+  assert(!same_layout(*wire, Table()));
+
   // Fuzz: mutated wire tables and capture files never crash, and whatever is accepted formats to a wire form that
   // reads back to the same table and the same bytes, with only allowed paths in it.
   std::mt19937_64 rng(11);

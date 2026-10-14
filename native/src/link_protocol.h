@@ -13,7 +13,8 @@
 #include <string_view>
 
 namespace coop {
-constexpr int kProtocol = 2; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject).
+constexpr int kProtocol = 3; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+                             // 3 carries the component table (SBT) beside the pose (SBP).
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -137,17 +138,15 @@ inline Message parse(const char *data, size_t size) {
 }
 
 // A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
-// "join <lobby id>", and for the pose path "probe", "off", "mirror <ms>" (1 to 2000), "mirror off",
-// "loopback <one-way delay ms> <jitter ms> <segment loss %>" and "loopback off".
-enum class Command { none, host, invite, join, leave, report, probe, off, mirror, loopback };
-constexpr uint64_t kMaxMirrorMs = 2000; // The delay ring keeps 2 s.
+// "join <lobby id>", and for the pose path "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>",
+// "loopback off", "record", "record off", "replay" and "replay off".
+enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500;
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
-  uint64_t ms = 0;            // mirror: the delay, 0 for off. loopback: the one-way delay.
-  uint64_t jitter = 0, loss = 0; // loopback.
-  bool off = false;           // mirror off, loopback off.
+  uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %.
+  bool off = false;                      // loopback off, record off, replay off.
 };
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
@@ -162,22 +161,20 @@ inline Request parse_request(std::string text) {
     r.command = Command::leave;
   else if (text == "report")
     r.command = Command::report;
-  else if (text == "probe")
-    r.command = Command::probe;
   else if (text == "off")
     r.command = Command::off;
   else if (text == "join")
     r.command = Command::join;
   else if (split(text, f, 2, nullptr) && f[0] == "join" && number(f[1], r.lobby) && r.lobby)
     r.command = Command::join;
-  else if (text == "mirror off" || text == "loopback off") {
-    r.command = text[0] == 'm' ? Command::mirror : Command::loopback;
+  else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
+    r.command = text[2] == 'c' ? Command::record : Command::replay;
+    r.off = text.size() > 6;
+  } else if (text == "loopback off") {
+    r.command = Command::loopback;
     r.off = true;
-  }
-  else if (split(text, f, 2, nullptr) && f[0] == "mirror" && number(f[1], r.ms) && r.ms >= 1 && r.ms <= kMaxMirrorMs)
-    r.command = Command::mirror;
-  else if (split(text, f, 4, nullptr) && f[0] == "loopback" && number(f[1], r.ms) && r.ms <= kMaxLoopbackMs &&
-           number(f[2], r.jitter) && r.jitter <= kMaxJitterMs && number(f[3], r.loss) && r.loss <= 100)
+  } else if (split(text, f, 4, nullptr) && f[0] == "loopback" && number(f[1], r.ms) && r.ms <= kMaxLoopbackMs &&
+             number(f[2], r.jitter) && r.jitter <= kMaxJitterMs && number(f[3], r.loss) && r.loss <= 100)
     r.command = Command::loopback;
   return r;
 }

@@ -1,19 +1,18 @@
 // The native pose path's Windows side. coop_tick runs on the game thread, called once per frame by the Lua loop; the
-// worker thread (steam_link.cpp) calls worker_poll. They share only atomics and a mutex the game thread never waits on
-// (try_lock: a busy lock skips the hand-over until the next frame; only swaps happen under it, never allocations).
-// Every engine access runs under SEH; the first fault latches the feature off for the run and is logged with its code,
-// the DLL offset, the address and the part.
+// worker thread (steam_link.cpp) calls worker_poll and worker_stream. They share only atomics and a mutex the game
+// thread never waits on (try_lock: a busy lock skips the hand-over until the next frame; only swaps happen under it,
+// never allocations). Every engine access runs under SEH; the first fault latches the feature off for the run and is
+// logged with its code, the DLL offset, the address and the part.
 //
-// The delayed mirror (coop mirror <ms>): on each new component table it first probes every leader pair right after
-// Lua's CopyPose (Lua keeps copying until this side reports the mirror on for that table). Once the probe passes, each
-// frame records EVE's main mesh world transform and her leaders' local poses into the session's ring, plays back the
-// frame from <ms> ago into the puppet's leaders behind CopyPose's own gate, and writes the main mesh transform into
-// the mailbox, which Lua reads back to place the puppet.
-//
-// The loopback (coop loopback <delay> <jitter> <loss %>, Phase 3): the whole ghost pipeline on one PC. After the same
-// probe, the game thread reads EVE every 50 ms and encodes her pose (pose_codec.h); the worker sends it into the delay
-// line (pose_stream.h) and hands what comes out back; the game thread decodes it into the playback and writes the
-// playback's pose for each frame into the puppet, as the mirror does. Phase 4 swaps the delay line for Steam.
+// The ghost (Phase 3b), one path whatever its source. Lua publishes EVE's capture (coop-components.txt); the worker
+// sends it as the wire table (pose_table.h), and while the loopback runs or a recording is made the game thread reads
+// EVE every 50 ms and encodes her pose (pose_codec.h) for the worker to send. All that is sent goes through wire_send:
+// into the loopback's delay line (pose_stream.h) and into the recording (pose_record.h). All that is received comes
+// back through wire_receive, from the delay line or a replayed recording: a table is checked and handed to Lua as
+// coop-remote.txt, Lua builds the ghost from it and names what it built in coop-display.txt; a pose is decoded with
+// that table into the playback, whose pose for each frame the game thread writes into the ghost's leaders, and the
+// main mesh's world transform into its mailbox for Lua to place it. Phase 4 puts Steam behind wire_send and
+// wire_receive.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -21,6 +20,7 @@
 #include <array>
 #include <atomic>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -28,41 +28,48 @@
 
 #include "pose_codec.h"
 #include "pose_engine.h"
+#include "pose_record.h"
 #include "pose_stream.h"
 #include "pose_tick.h"
 
 namespace coop::pose {
 namespace {
 uintptr_t base = 0, objects = 0;
-std::atomic<bool> engine_on{false}, blocked{false}, probe_asked{false}, faulted{false};
+std::atomic<bool> engine_on{false}, blocked{false}, faulted{false};
 std::string engine_reason = "not checked yet"; // Worker only.
 std::atomic<uint64_t> ticks{0}, doubles{0};
 std::atomic<uint64_t> fault_code{0}, fault_rva{0}, fault_address{0};
-std::atomic<int> probing_part{-1}; // The part being read or written, for the fault line.
+std::atomic<int> current_part{-1}; // The part being read or written, for the fault line.
 
-// Mirror: requested delay (0 off) from the worker; the table generation it runs on (0 none) for the status.
-std::atomic<uint32_t> mirror_ms{0};
-std::atomic<uint64_t> mirror_generation{0};
-// Loopback: on and its settings, from the worker (never both with the mirror); the table generation it runs on.
-std::atomic<bool> loopback_on{false};
+// What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings) or while a
+// recording is made.
+std::atomic<bool> loopback_on{false}, record_on{false};
 std::atomic<uint32_t> loopback_delay{0}, loopback_jitter{0}, loopback_loss{0};
 std::atomic<uint32_t> loopback_epoch{0}; // Bumped by every settings change: the playback's clock starts again.
-std::atomic<uint64_t> loopback_generation{0};
 
-// A Session with the pose stream's memory, all sized by the worker for its table: the playback, EVE's pose as read
-// for sending, and the pose drawn this frame.
-struct Live : Session {
-  Table layout; // What the codec reads (pose_table.h): the mirror table's generation and EVE's parts.
+size_t leader_bytes(const Table &t) {
+  size_t bytes = 0;
+  for (const Part &p : t.eve)
+    bytes += p.leader ? size_t(p.bones) * kTransformBytes : 0;
+  return bytes;
+}
+
+// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose as read for
+// sending; the remote table (the layout poses arrive in) with the playback and the pose drawn this frame; and the
+// ghost Lua built for the remote table, drawn only when it is of the remote generation.
+struct Live {
+  Table capture, remote;
+  Display display;
   Playback playback;
-  std::vector<uint8_t> capture, draw;
+  std::vector<uint8_t> capture_bones, draw;
   float capture_root[10] = {}, draw_root[10] = {};
-  explicit Live(Mirror t) : Session(std::move(t)) {
-    layout.generation = table.generation;
-    layout.eve = table.eve;
-    playback.reset(ring.bytes());
-    capture.assign(ring.bytes(), 0);
-    draw.assign(ring.bytes(), 0);
+  bool refusal_logged = false; // Game thread: only the first refused write on this ghost is logged.
+  Live(Table c, Table r, Display d) : capture(std::move(c)), remote(std::move(r)), display(std::move(d)) {
+    capture_bones.assign(leader_bytes(capture), 0);
+    playback.reset(leader_bytes(remote));
+    draw.assign(leader_bytes(remote), 0);
   }
+  bool drawn() const { return display.generation && display.generation == remote.generation; }
 };
 
 // An encoded pose on its way: bytes (sized kMaxPose once, by the worker, before the engine goes on; only swapped after
@@ -74,7 +81,7 @@ struct Message {
 };
 constexpr size_t kInbox = 8;
 
-// Hand-over, guarded by m: the worker's newest session (or a withdrawal) for the game thread, and the game thread's
+// Hand-over, guarded by m: the worker's newest Live (or a withdrawal) for the game thread, and the game thread's
 // result lines for the worker to log; the newest encoded pose for the worker (out_fresh), and the poses the worker got
 // back for the game thread.
 std::mutex m;
@@ -90,8 +97,7 @@ size_t inbox_count = 0;
 std::unique_ptr<Live> session;
 std::vector<std::string> pending; // Results not handed over yet (the lock was busy, or the worker had not read them).
 LARGE_INTEGER frequency{}, last_call{};
-uint64_t last_frame = 0, checked_generation = 0, next_capture = 0;
-int checked_mode = 0;
+uint64_t last_frame = 0, next_capture = 0;
 uint32_t sequence = 0; // Of the poses sent: never restarts in a run, so a pose still in flight is always the older.
 uint32_t seen_epoch = 0;
 float stamp = 1; // The mailbox's scale Z: the engine default is 1, our stamps run from 2 up.
@@ -100,25 +106,19 @@ bool out_ready = false; // out_back holds a pose the worker has not been handed 
 std::array<Message, kInbox> game_inbox;
 size_t game_inbox_count = 0;
 constexpr uint64_t kSendUs = 50'000; // 20 poses a second (N4).
-
-// Worker only: the encoded pose taken from the game thread, and the loopback's delay line.
-Message worker_out;
-DelayLine delay_line;
-bool buffers_ready = false;
 // GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
 // "different from the last call", never "last + 1".
 constexpr uint32_t kFrameCounterRva = 0x706b508;
 
 // Cost counters, game thread writes, worker reads and resets every 60 s.
-std::atomic<uint64_t> window_ticks{0}, window_us{0}, window_max_us{0}, window_max_gap_us{0}, window_long_gaps{0},
-    window_recorded{0}, window_written{0}, window_record_refused{0}, window_write_refused{0};
-std::atomic<int> last_refusal{0}; // An Io value, for the counter line.
-// The loopback's, the same way (the worker's own two included).
+std::atomic<uint64_t> window_ticks{0}, window_us{0}, window_max_us{0}, window_max_gap_us{0}, window_long_gaps{0};
+// The stream's, the same way (the worker's own among them).
 std::atomic<uint64_t> window_sent{0}, window_sent_bytes{0}, window_clamped{0}, window_capture_refused{0},
-    window_line_lost{0}, window_inbox_full{0}, window_rejected{0}, window_poses{0}, window_stale{0}, window_missing{0},
-    window_stalls{0}, window_steps{0}, window_drawn{0}, window_extrapolated{0}, window_drawn_written{0},
-    window_drawn_refused{0};
+    window_line_lost{0}, window_inbox_full{0}, window_tables_in{0}, window_tables_refused{0}, window_rejected{0},
+    window_foreign{0}, window_malformed{0}, window_poses{0}, window_stale{0}, window_missing{0}, window_stalls{0},
+    window_steps{0}, window_drawn{0}, window_extrapolated{0}, window_drawn_written{0}, window_drawn_refused{0};
 std::atomic<int64_t> window_lag_us{0}, window_behind_us{0};
+std::atomic<int> last_refusal{0};              // An Io value, for the counter line.
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
 
 // The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing.
@@ -136,132 +136,103 @@ uint64_t micros_now(LARGE_INTEGER now) {
                                        now.QuadPart % frequency.QuadPart * 1000000 / frequency.QuadPart)
                             : 0;
 }
+uint64_t clock_us() {
+  LARGE_INTEGER now;
+  QueryPerformanceCounter(&now);
+  return micros_now(now);
+}
 void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
   uint64_t seen = slot.load();
   while (value > seen && !slot.compare_exchange_weak(seen, value))
     ;
 }
 
-// Probes every leader pair; true when all are offsets_ok. Lines go to pending (all of them when verbose, else only
-// the failures and the summary).
-bool probe(bool verbose) {
-  const Mirror &table = session->table;
-  int ok = 0, leaders = 0;
-  for (size_t i = 0; i < table.eve.size(); ++i) {
-    if (!table.eve[i].leader)
-      continue;
-    ++leaders;
-    probing_part = static_cast<int>(i);
-    ProbeResult r = probe_pair(objects, table.eve[i], table.puppet[i]);
-    probing_part = -1;
-    ok += r.kind == ProbeResult::ok;
-    if (!verbose && r.kind == ProbeResult::ok)
-      continue;
-    char line[320];
-    std::snprintf(line, sizeof line,
-                  "probe part %d (%u bones): %s (eve count %d, puppet count %d, first difference %u; after CopyPose: "
-                  "refresh %u, gate pointer %s, gate count %d, anim tasks 0x%llx 0x%llx)",
-                  static_cast<int>(i), table.eve[i].bones, describe(r.kind), r.eve_count_seen, r.puppet_count_seen,
-                  r.first_difference, r.refresh, r.gate_pointer ? "set" : "null", r.gate_count,
-                  static_cast<unsigned long long>(r.task), static_cast<unsigned long long>(r.task2));
-    pending.push_back(line);
-  }
-  char line[96];
-  std::snprintf(line, sizeof line, "probe: %d of %d leader parts offsets_ok (table %llu)", ok, leaders,
-                static_cast<unsigned long long>(table.generation));
-  pending.push_back(line);
-  return leaders > 0 && ok == leaders;
-}
-
 // EVE now: her main mesh's world transform and her leaders' local poses, back to back.
-Io read_eve(float *root, uint8_t *bones) {
-  const Mirror &table = session->table;
-  if (!published(objects, table.eve[0]))
+Io read_eve(const Table &capture, float *root, uint8_t *bones) {
+  if (!published(objects, capture.eve[0]))
     return Io::gone;
-  read_world(static_cast<uintptr_t>(table.eve[0].object), root);
+  read_world(static_cast<uintptr_t>(capture.eve[0].object), root);
   size_t offset = 0;
-  for (size_t i = 0; i < table.eve.size(); ++i) {
-    if (!table.eve[i].leader)
+  for (size_t i = 0; i < capture.eve.size(); ++i) {
+    if (!capture.eve[i].leader)
       continue;
-    probing_part = static_cast<int>(i);
-    Io r = read_leader(objects, table.eve[i], bones + offset);
-    probing_part = -1;
+    current_part = static_cast<int>(i);
+    Io r = read_leader(objects, capture.eve[i], bones + offset);
+    current_part = -1;
     if (r != Io::ok)
       return r;
-    offset += size_t(table.eve[i].bones) * kTransformBytes;
+    offset += size_t(capture.eve[i].bones) * kTransformBytes;
   }
   return Io::ok;
 }
 
-// A pose into the puppet's leaders and the mailbox; true when every write passed its checks.
-bool write_puppet(const uint8_t *bones, const float *root) {
-  const Mirror &table = session->table;
+// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox).
+void refused(Live &live, int part, Io r) {
+  last_refusal = static_cast<int>(r);
+  if (live.refusal_logged)
+    return;
+  live.refusal_logged = true;
+  char line[160];
+  char what[24] = "mailbox";
+  if (part >= 0)
+    std::snprintf(what, sizeof what, "part %d", part);
+  std::snprintf(line, sizeof line, "write refused: %s %s (table %llu)", what, describe(r),
+                static_cast<unsigned long long>(live.remote.generation));
+  pending.push_back(line);
+}
+
+// The pose drawn this frame into the ghost: each remote leader Lua built a part for, as it came or through its remap,
+// then the mailbox. True when every write passed its checks.
+bool write_puppet(Live &live) {
+  const Table &remote = live.remote;
+  const Display &d = live.display;
   size_t offset = 0;
   bool all = true;
-  for (size_t i = 0; i < table.puppet.size(); ++i) {
-    if (!table.puppet[i].leader)
+  for (size_t i = 0; i < remote.eve.size(); ++i) {
+    if (!remote.eve[i].leader)
       continue;
-    probing_part = static_cast<int>(i);
-    Io r = write_leader(objects, table.puppet[i], bones + offset);
-    probing_part = -1;
-    if (r != Io::ok) {
-      all = false;
-      last_refusal = static_cast<int>(r);
+    const Part &p = d.puppet[i];
+    if (p.object) { // Else left out: its bytes are skipped.
+      const uint8_t *bones = live.draw.data() + offset;
+      current_part = static_cast<int>(i);
+      Io r = d.remap[i].empty() ? write_leader(objects, p, bones)
+                                : write_leader_mapped(objects, p, bones, d.remap[i].data(), remote.eve[i].bones);
+      current_part = -1;
+      if (r != Io::ok) {
+        all = false;
+        refused(live, static_cast<int>(i), r);
+      }
     }
-    offset += size_t(table.puppet[i].bones) * kTransformBytes;
+    offset += size_t(remote.eve[i].bones) * kTransformBytes;
   }
   stamp = stamp >= 1e6f ? 2.f : stamp + 1.f;
-  if (write_mailbox(objects, table.mailbox, table.mailbox_class, table.puppet[0], root, stamp) != Io::ok) {
+  if (write_mailbox(objects, d.mailbox, d.mailbox_class, d.puppet[0], live.draw_root, stamp) != Io::ok) {
     all = false;
-    last_refusal = static_cast<int>(Io::gone);
+    refused(live, -1, Io::gone);
   }
   return all;
 }
 
-// Records EVE's frame now into the ring (at most every kMinSpacingUs, so the ring always covers 2 s).
-void record(uint64_t now_us) {
-  Ring &ring = session->ring;
-  uint64_t newest = ring.newest();
-  if (newest && now_us - newest < Ring::kMinSpacingUs)
-    return;
-  Ring::Frame &f = ring.begin(now_us);
-  Io r = read_eve(f.root, f.bones.data());
-  if (r != Io::ok) {
-    ++window_record_refused;
-    last_refusal = static_cast<int>(r);
-    ring.cancel();
-    return;
-  }
-  ring.commit();
-  ++window_recorded;
-}
-
-// Plays the frame from the delay ago into the puppet's leaders and the mailbox.
-void play_back(uint64_t now_us, uint32_t delay_ms) {
-  const Ring::Frame *play = session->ring.at_delay(now_us, uint64_t(delay_ms) * 1000);
-  if (play) // Else not enough history yet, or a gap in recording.
-    ++(write_puppet(play->bones.data(), play->root) ? window_written : window_write_refused);
-}
-
-// The loopback, each frame: EVE's pose every 50 ms, encoded for the worker; the poses the worker got back, decoded
-// into the playback; the playback's pose for now, written into the puppet.
+// Each frame: EVE's pose every 50 ms, encoded for the worker, while it sends; the poses the worker got back, decoded
+// with the remote table into the playback, once Lua built the ghost for it; the playback's pose for now, written into
+// the ghost.
 void stream(uint64_t now_us) {
   Live &live = *session;
   if (uint32_t epoch = loopback_epoch.load(); epoch != seen_epoch) {
     seen_epoch = epoch; // New settings: the poses in flight were dropped, and the old delay must not pass for a step.
     live.playback.clear();
   }
-  if (now_us >= next_capture) {
-    Io r = read_eve(live.capture_root, live.capture.data());
+  if ((loopback_on || record_on) && live.capture.generation && now_us >= next_capture) {
+    Io r = read_eve(live.capture, live.capture_root, live.capture_bones.data());
     if (r == Io::ok) {
       next_capture = (next_capture && now_us - next_capture < kSendUs ? next_capture : now_us) + kSendUs;
       PoseHeader h;
-      h.generation = live.table.generation;
+      h.generation = live.capture.generation;
       h.publication = now_us;
       h.sequence = ++sequence;
       uint32_t clamped = 0;
       out_back.size =
-          encode_pose(live.layout, h, live.capture_root, live.capture.data(), out_back.data.data(), clamped);
+          encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), out_back.data.data(), clamped);
       out_back.time = now_us;
       out_ready = true;
       if (m.try_lock()) { // At once, not at the next frame's hand-over: one frame less of delay.
@@ -277,20 +248,28 @@ void stream(uint64_t now_us) {
     }
   }
   for (size_t i = 0; i < game_inbox_count; ++i) {
+    if (!live.drawn()) { // No ghost for the remote table yet, or no remote table.
+      ++window_foreign;
+      continue;
+    }
     Playback::Frame &f = live.playback.scratch();
     PoseHeader h;
     const Message &in = game_inbox[i];
-    if (const char *why = decode_pose(live.layout, in.data.data(), in.size, h, f.root, f.bones.data())) {
-      ++window_rejected;
-      last_reject = why;
+    if (const char *why = decode_pose(live.remote, in.data.data(), in.size, h, f.root, f.bones.data())) {
+      if (!std::strcmp(why, "generation")) { // Of a table the ghost is not built on (yet): an outfit in flight.
+        ++window_foreign;
+      } else {
+        ++window_rejected;
+        last_reject = why;
+      }
       continue;
     }
     f.sequence = h.sequence;
     f.publication = h.publication;
     live.playback.accept(in.time);
   }
-  if (live.playback.sample(now_us, live.draw_root, live.draw.data()))
-    ++(write_puppet(live.draw.data(), live.draw_root) ? window_drawn_written : window_drawn_refused);
+  if (live.drawn() && live.playback.sample(now_us, live.draw_root, live.draw.data()))
+    ++(write_puppet(live) ? window_drawn_written : window_drawn_refused);
   Playback::Stats s = live.playback.take();
   window_poses += s.poses;
   window_stale += s.stale;
@@ -301,33 +280,6 @@ void stream(uint64_t now_us) {
   window_extrapolated += s.extrapolated;
   window_lag_us += int64_t(s.lag_ms * 1000);
   window_behind_us += int64_t(s.behind_ms * 1000);
-}
-
-// Starts the mirror (mode 1) or the loopback (mode 2) on the current table, once its probe passed.
-void start(int mode, uint32_t delay, uint64_t generation) {
-  char line[200];
-  const char *name = mode == 1 ? "mirror" : "loopback";
-  size_t pose_bytes = pose_size(session->layout);
-  if (mode == 2 && !pose_bytes) {
-    std::snprintf(line, sizeof line, "loopback refused on table %llu: one pose would be over %zu bytes",
-                  static_cast<unsigned long long>(generation), kMaxPose);
-  } else if (!probe(false)) {
-    std::snprintf(line, sizeof line, "%s refused on this table: the probe above failed; Lua keeps copying", name);
-  } else if (mode == 1) {
-    session->ring.clear(); // Never play back a moment from before this start.
-    mirror_generation = generation;
-    std::snprintf(line, sizeof line, "mirror on: %u ms behind, table %llu", delay,
-                  static_cast<unsigned long long>(generation));
-  } else {
-    session->playback.clear(); // A new stream: the clock starts again.
-    seen_epoch = loopback_epoch.load();
-    next_capture = 0;
-    loopback_generation = generation;
-    std::snprintf(line, sizeof line, "loopback on: %u ms one way, %u ms jitter, %u %% segment loss, table %llu, %zu "
-                  "bytes a pose", loopback_delay.load(), loopback_jitter.load(), loopback_loss.load(),
-                  static_cast<unsigned long long>(generation), pose_bytes);
-  }
-  pending.push_back(line);
 }
 
 void game_tick() {
@@ -363,36 +315,11 @@ void game_tick() {
     }
     m.unlock();
   }
-  if (probe_asked.exchange(false)) {
-    if (session)
-      probe(true);
-    else
-      pending.push_back("probe: no component table (spawn the puppet with coop puppet)");
-  }
-  uint32_t delay = mirror_ms.load();
-  int mode = !session ? 0 : delay ? 1 : loopback_on ? 2 : 0; // The worker never asks for both.
-  uint64_t generation = session ? session->table.generation : 0;
-  if (mode != 1)
-    mirror_generation = 0;
-  if (mode != 2)
-    loopback_generation = 0;
-  if (!mode) {
-    checked_generation = 0;
-  } else if ((mode == 1 ? mirror_generation : loopback_generation).load() != generation) {
-    // A new table (or a new request): Lua still copied this frame, so the probe checks this table first, once.
-    if (checked_generation != generation || checked_mode != mode) {
-      checked_generation = generation;
-      checked_mode = mode;
-      start(mode, delay, generation);
-    }
-  } else if (mode == 1) {
-    uint64_t now_us = micros_now(now);
-    record(now_us);
-    play_back(now_us, delay);
-  } else {
+  if (session)
     stream(micros_now(now));
-  }
-  game_inbox_count = 0; // Poses the loopback did not run for are dropped.
+  else
+    window_foreign += game_inbox_count; // No table at all: nothing to decode them with.
+  game_inbox_count = 0;
   LARGE_INTEGER done;
   QueryPerformanceCounter(&done);
   uint64_t us = micros_between(now, done);
@@ -403,11 +330,11 @@ void game_tick() {
 
 extern "C" IMAGE_DOS_HEADER __ImageBase; // This DLL: every instruction the native tick runs is ours.
 int fault_filter(EXCEPTION_POINTERS *info) {
-  auto *record = info->ExceptionRecord;
-  fault_code = record->ExceptionCode;
-  fault_rva = reinterpret_cast<uintptr_t>(record->ExceptionAddress) - reinterpret_cast<uintptr_t>(&__ImageBase);
-  if (record->NumberParameters >= 2) // Access violations: the address read or written.
-    fault_address = record->ExceptionInformation[1];
+  auto *exception = info->ExceptionRecord;
+  fault_code = exception->ExceptionCode;
+  fault_rva = reinterpret_cast<uintptr_t>(exception->ExceptionAddress) - reinterpret_cast<uintptr_t>(&__ImageBase);
+  if (exception->NumberParameters >= 2) // Access violations: the address read or written.
+    fault_address = exception->ExceptionInformation[1];
   return EXCEPTION_EXECUTE_HANDLER;
 }
 void guarded_tick() {
@@ -416,12 +343,12 @@ void guarded_tick() {
   } __except (fault_filter(GetExceptionInformation())) {
     faulted = true;
     engine_on = false;
-    mirror_generation = 0;
-    loopback_generation = 0;
   }
 }
 
-std::string read_file(const std::wstring &path, bool &exists) {
+// At most about max bytes of the file (read on in 4 KB steps while under it): Lua's files and the remote table are
+// under 64 KB, a recording under 24 MiB, so a longer file reads past its cap and is refused by its parser.
+std::string read_file(const std::wstring &path, bool &exists, size_t max) {
   // Shared for delete too: Lua removes and renames these files while the worker may be reading them.
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -431,16 +358,32 @@ std::string read_file(const std::wstring &path, bool &exists) {
   std::string text;
   char buffer[4096];
   DWORD n = 0;
-  while (text.size() < (1 << 16) && ReadFile(f, buffer, sizeof buffer, &n, nullptr) && n)
+  while (text.size() < max && ReadFile(f, buffer, sizeof buffer, &n, nullptr) && n)
     text.append(buffer, n);
   CloseHandle(f);
   return text;
 }
 
-// Worker-thread memory of what it last handed over.
-std::string last_session_text, last_table_text = "\x01"; // Never equal to a real file at first.
-bool pin_checked = false, fault_logged = false;
+// Worker thread only from here.
+std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
+std::wstring dir;                                                            // The mod folder.
+bool pin_checked = false, fault_logged = false, buffers_ready = false;
 uint64_t next_poll = 0, next_counters = 0;
+Message worker_out; // The encoded pose taken from the game thread.
+DelayLine delay_line;
+Replay replay;
+std::unique_ptr<Recorder> recorder; // While coop record runs: reserved at its start, freed at its stop.
+uint64_t record_start_us = 0;
+constexpr uint64_t kRecordUs = 120'000'000;
+// EVE's capture (Lua's file) and the wire text sent for it; the remote table (from the wire) and its text, written
+// to coop-remote.txt (remote_count times so far, by its source); the ghost Lua built for it. Each *_text is the file or
+// message as last taken; "\x01" is never equal to a real one, so the next one is taken whatever it is.
+Table capture, remote;
+Display display;
+std::string session_text, capture_text = "\x01", sent_table, remote_text, display_text = "\x01";
+bool remote_unwritten = false; // The write failed (Lua had the file open): tried again at each pass.
+uint64_t remote_count = 0;
+const char *remote_source = "loopback";
 
 void pin_inner(std::string &reason) { reason = check_build(base); }
 // __try may not hold objects with destructors itself, so the string lives in pin_inner.
@@ -458,11 +401,177 @@ void hand_over(std::unique_ptr<Live> next) {
   incoming = std::move(next); // Frees what the game thread swapped back last time.
   incoming_set = true;
 }
+
+// The game thread's next Live from the worker's tables. Only when the capture generation, the remote generation or
+// the ghost changes: a new Live starts the ghost's playback again.
+// ponytail: a new capture generation (her outfit, in loopback) also restarts the ghost's playback, about 75 ms frozen;
+// swap the playback across when the remote table and the ghost stay, if T4 shows it.
+void rebuild() {
+  std::unique_ptr<Live> next;
+  if (capture.generation || remote.generation)
+    next = std::make_unique<Live>(capture, remote, display.generation == remote.generation ? display : Display());
+  hand_over(std::move(next));
+}
+
+// Ends the recording: written to coop-record.bin when it holds a pose (else an older good one stays), then freed.
+std::string stop_record(const char *why, uint64_t now_us) {
+  record_on = false;
+  const record::Rules &r = recorder->rules();
+  bool written = r.poses && write_text(dir + L"coop-record.bin", recorder->bytes());
+  char line[200];
+  std::snprintf(line, sizeof line, "record stopped: %zu poses, %zu tables, %.1f MB, %.0f s (%s); %s", r.poses,
+                r.tables, double(recorder->bytes().size()) / (1 << 20), double(now_us - record_start_us) / 1e6, why,
+                written ? "written to coop-record.bin" : r.poses ? "coop-record.bin not written" : "nothing written");
+  recorder.reset();
+  return line;
+}
+
+// The only way out (Phase 4 adds Steam here): into the loopback's delay line while it runs (a table reliable: never
+// lost), and into the recording while one is made.
+void wire_send(const uint8_t *data, size_t size, bool reliable, uint64_t now_us) {
+  if (loopback_on && !delay_line.send(data, size, now_us, reliable))
+    ++window_line_lost;
+  if (recorder && !recorder->add(data, size))
+    say(stop_record("full", now_us));
+}
+void send_table() {
+  wire_send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true, clock_us());
+}
+
+void write_remote() {
+  if (remote_unwritten && write_text(dir + L"coop-remote.txt", remote_text)) {
+    remote_unwritten = false;
+    ++remote_count; // Lua reads the file again when the count in the status changes.
+  }
+}
+
+// A table from the wire: refused whole, or the same as the remote one (sent again), or the new remote table, in its
+// canonical form for Lua. A new generation, or another layout under the same one, waits for Lua's new ghost; else it
+// is a part hung elsewhere or shown or hidden, which Lua applies to the ghost it has.
+void take_table(const uint8_t *data, size_t size) {
+  ++window_tables_in;
+  auto t = parse_table(std::string(reinterpret_cast<const char *>(data), size), false);
+  if (!t) {
+    ++window_tables_refused;
+    say("remote table refused: malformed");
+    return;
+  }
+  std::string text = format_table(*t);
+  if (text == remote_text)
+    return;
+  bool renewed = t->generation != remote.generation || !same_layout(*t, remote);
+  remote = std::move(*t);
+  remote_text = std::move(text);
+  remote_source = replay.on() ? "replay" : "loopback";
+  remote_unwritten = true;
+  write_remote();
+  say("remote table " + std::to_string(remote.generation) + (renewed ? " from the " : " again from the ") +
+      remote_source + ": " + std::to_string(remote.eve.size()) + " parts, map " + remote.map);
+  if (!renewed)
+    return;
+  display = Display();
+  display_text = "\x01";
+  rebuild();
+}
+
+// The only way in: a table to take_table, a pose of this protocol to the game thread's inbox, anything else counted.
+void wire_receive(const uint8_t *data, size_t size, uint64_t now_us) {
+  if (size >= 3 && !std::memcmp(data, "SBT", 3)) {
+    take_table(data, size);
+  } else if (size >= kPoseHeader && size <= kMaxPose && !std::memcmp(data, "SBP", 3) && data[3] == kProtocol) {
+    std::lock_guard<std::mutex> lock(m);
+    if (inbox_count == kInbox) {
+      ++window_inbox_full;
+      return;
+    }
+    Message &in = inbox[inbox_count++];
+    std::memcpy(in.data.data(), data, size);
+    in.size = size;
+    in.time = now_us;
+  } else {
+    ++window_malformed;
+  }
+}
+
+// The remote table is gone with its source (loopback off, replay off): so is the ghost.
+void drop_remote() {
+  if (!remote.generation)
+    return;
+  remote = Table();
+  remote_text.clear();
+  remote_unwritten = false;
+  display = Display();
+  display_text = "\x01";
+  DeleteFileW((dir + L"coop-remote.txt").c_str());
+  rebuild();
+}
+
+// coop-components.txt, when it changed: EVE's capture, sent on whenever its wire form changes (a part hung elsewhere
+// keeps the generation and the Live); a new generation, or none, is a new Live.
+void take_capture() {
+  bool exists = false;
+  std::string text = read_file(dir + L"coop-components.txt", exists, kMaxTable);
+  if (text == capture_text)
+    return;
+  capture_text = text;
+  Table t;
+  if (!text.empty()) {
+    if (auto got = parse_table(text, true))
+      t = std::move(*got);
+    else
+      say("component table refused: malformed");
+  }
+  bool renewed = t.generation != capture.generation;
+  capture = std::move(t);
+  std::string wire = capture.generation ? format_table(capture) : std::string();
+  if (wire != sent_table) {
+    sent_table = std::move(wire);
+    if (!sent_table.empty())
+      send_table();
+  }
+  if (!renewed)
+    return;
+  say(capture.generation ? "component table " + std::to_string(capture.generation) + ": " +
+                               std::to_string(capture.eve.size()) + " parts"
+                         : std::string("component table withdrawn"));
+  rebuild();
+}
+
+// coop-display.txt, when it changed: the ghost Lua built for the remote table, or none.
+void take_display() {
+  bool exists = false;
+  std::string text = read_file(dir + L"coop-display.txt", exists, kMaxTable);
+  if (text == display_text)
+    return;
+  display_text = text;
+  Display d;
+  if (auto got = parse_display(text, remote)) {
+    d = std::move(*got);
+    int leaders = 0, drawn = 0, mapped = 0;
+    for (size_t i = 0; i < remote.eve.size(); ++i) {
+      leaders += remote.eve[i].leader;
+      drawn += d.puppet[i].object != 0;
+      mapped += !d.remap[i].empty();
+    }
+    char line[160];
+    std::snprintf(line, sizeof line, "ghost of table %llu drawn: %d of %d leaders (%d on a fallback mesh), %zu bytes "
+                  "a pose", static_cast<unsigned long long>(d.generation), drawn, leaders, mapped, pose_size(remote));
+    say(line);
+  } else if (remote.generation && text.rfind("display " + std::to_string(remote.generation) + "\n", 0) == 0) {
+    say("ghost of table " + std::to_string(remote.generation) + " refused: its display file is malformed");
+  } // Else none yet, or an older table's, which Lua replaces.
+  if (!d.generation && !display.generation)
+    return;
+  display = std::move(d);
+  rebuild();
+}
 } // namespace
 
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event) {
   if (!pin_checked) {
     pin_checked = true;
+    say = event;
+    dir = folder;
     QueryPerformanceFrequency(&frequency);
     for (Message *each : {&out_mid, &out_back, &worker_out})
       each->data.resize(kMaxPose); // Before the engine goes on: the game thread only swaps them.
@@ -484,45 +593,33 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     fault_logged = true;
     char text[160];
     char text_part[32] = "";
-    if (probing_part >= 0)
-      std::snprintf(text_part, sizeof text_part, " at part %d", probing_part.load());
+    if (current_part >= 0)
+      std::snprintf(text_part, sizeof text_part, " at part %d", current_part.load());
     std::snprintf(text, sizeof text, "engine off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx%s",
                   static_cast<unsigned long long>(fault_code.load()), static_cast<unsigned long long>(fault_rva.load()),
                   static_cast<unsigned long long>(fault_address.load()), text_part);
     engine_reason = text;
     event(text);
   }
+  write_remote();
+  if (remote.generation && display.generation != remote.generation)
+    take_display(); // At every pass while the ghost for the remote table is awaited.
   if (now_ms < next_poll)
     return;
   next_poll = now_ms + 250;
   bool exists = false;
-  std::string token = read_file(folder + L"coop-session.txt", exists);
-  if (exists && token != last_session_text) { // A new Lua load: what an older one published is stale.
-    last_session_text = token;
-    last_table_text = "\x01";
-    hand_over(nullptr);
-    event("new Lua session: component table dropped");
+  std::string token = read_file(folder + L"coop-session.txt", exists, kMaxTable);
+  if (exists && token != session_text) { // A new Lua load: what an older one published is stale.
+    session_text = token;
+    capture = Table();
+    display = Display();
+    sent_table.clear();
+    capture_text = display_text = "\x01";
+    rebuild();
+    event("new Lua session: capture and ghost dropped");
   }
-  std::string text = read_file(folder + L"coop-components.txt", exists);
-  if (!exists)
-    text.clear();
-  if (text != last_table_text) {
-    last_table_text = text;
-    std::unique_ptr<Live> next;
-    if (!text.empty()) {
-      if (auto t = parse_table(text))
-        next = std::make_unique<Live>(std::move(*t)); // Sized here, off the game thread.
-      else
-        event("component table refused: malformed");
-    }
-    if (next)
-      event("component table " + std::to_string(next->table.generation) + ": " +
-            std::to_string(next->table.eve.size()) + " parts");
-    else if (text.empty())
-      event("component table withdrawn");
-    hand_over(std::move(next));
-    delay_line.flush(); // Poses in flight belong to the old table.
-  }
+  take_capture();
+  take_display();
   {
     std::vector<std::string> lines;
     {
@@ -536,50 +633,47 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     bool first = next_counters == 0;
     next_counters = now_ms + 60000;
     uint64_t n = window_ticks.exchange(0), us = window_us.exchange(0), max_us = window_max_us.exchange(0),
-             max_gap = window_max_gap_us.exchange(0), long_gaps = window_long_gaps.exchange(0),
-             recorded = window_recorded.exchange(0), written = window_written.exchange(0),
-             record_refused = window_record_refused.exchange(0), write_refused = window_write_refused.exchange(0);
+             max_gap = window_max_gap_us.exchange(0), long_gaps = window_long_gaps.exchange(0);
     uint64_t sent = window_sent.exchange(0), sent_bytes = window_sent_bytes.exchange(0),
              clamped = window_clamped.exchange(0), capture_refused = window_capture_refused.exchange(0),
              line_lost = window_line_lost.exchange(0), inbox_full = window_inbox_full.exchange(0),
-             rejected = window_rejected.exchange(0), poses = window_poses.exchange(0), stale = window_stale.exchange(0),
-             missing = window_missing.exchange(0), stalls = window_stalls.exchange(0),
+             tables_in = window_tables_in.exchange(0), tables_refused = window_tables_refused.exchange(0),
+             rejected = window_rejected.exchange(0), foreign = window_foreign.exchange(0),
+             malformed = window_malformed.exchange(0), poses = window_poses.exchange(0),
+             stale = window_stale.exchange(0), missing = window_missing.exchange(0), stalls = window_stalls.exchange(0),
              steps = window_steps.exchange(0), drawn = window_drawn.exchange(0),
              extrapolated = window_extrapolated.exchange(0), drawn_written = window_drawn_written.exchange(0),
              drawn_refused = window_drawn_refused.exchange(0);
     int64_t lag_us = window_lag_us.exchange(0), behind_us = window_behind_us.exchange(0);
     if (!first && n) {
-      char line[640];
-      int at = std::snprintf(line, sizeof line,
-                             "native tick, last 60 s: %llu ticks, mean %llu us, max %llu us, max gap %llu ms, %llu gaps "
-                             "over 100 ms, %llu doubles",
-                             static_cast<unsigned long long>(n), static_cast<unsigned long long>(us / n),
-                             static_cast<unsigned long long>(max_us), static_cast<unsigned long long>(max_gap / 1000),
-                             static_cast<unsigned long long>(long_gaps), static_cast<unsigned long long>(doubles.load()));
-      if (recorded || record_refused || written || write_refused)
-        std::snprintf(line + at, sizeof line - size_t(at),
-                      "; mirror: %llu recorded, %llu written, %llu not recorded, %llu not written (last: %s)",
-                      static_cast<unsigned long long>(recorded), static_cast<unsigned long long>(written),
-                      static_cast<unsigned long long>(record_refused), static_cast<unsigned long long>(write_refused),
-                      describe(static_cast<Io>(last_refusal.load())));
+      char line[900];
+      std::snprintf(line, sizeof line,
+                    "native tick, last 60 s: %llu ticks, mean %llu us, max %llu us, max gap %llu ms, %llu gaps over "
+                    "100 ms, %llu doubles",
+                    static_cast<unsigned long long>(n), static_cast<unsigned long long>(us / n),
+                    static_cast<unsigned long long>(max_us), static_cast<unsigned long long>(max_gap / 1000),
+                    static_cast<unsigned long long>(long_gaps), static_cast<unsigned long long>(doubles.load()));
       event(line);
-      if (sent || capture_refused || poses || rejected || drawn) {
+      if (sent || capture_refused || tables_in || poses || rejected || foreign || malformed || drawn) {
         std::snprintf(line, sizeof line,
-                      "loopback, last 60 s: %llu sent (%.1f a second, %llu bytes each, %.1f KB/s, %llu values cut, "
-                      "%llu reads refused), %llu lost on the line, %llu over the inbox, %llu received, %llu rejected "
-                      "(last: %s), %llu stale, %llu missing, %llu stalls, %llu clock steps, one way %.1f ms; %llu drawn, "
-                      "%llu past the newest pose, %.1f ms behind it; %llu written, %llu not written (last: %s)",
+                      "stream, last 60 s: %llu sent (%.1f a second, %llu bytes each, %.1f KB/s, %llu values cut, "
+                      "%llu reads refused), %llu lost on the line, %llu over the inbox; tables: %llu in, %llu refused; "
+                      "poses: %llu received, %llu foreign, %llu malformed, %llu rejected (last: %s), %llu stale, %llu "
+                      "missing, %llu stalls, %llu clock steps, one way %.1f ms; %llu drawn, %llu past the newest pose, "
+                      "%.1f ms behind it; %llu written, %llu not written (last: %s)",
                       static_cast<unsigned long long>(sent), sent / 60.0,
                       static_cast<unsigned long long>(sent ? sent_bytes / sent : 0), sent_bytes / 60.0 / 1024,
                       static_cast<unsigned long long>(clamped), static_cast<unsigned long long>(capture_refused),
                       static_cast<unsigned long long>(line_lost), static_cast<unsigned long long>(inbox_full),
-                      static_cast<unsigned long long>(poses), static_cast<unsigned long long>(rejected),
+                      static_cast<unsigned long long>(tables_in), static_cast<unsigned long long>(tables_refused),
+                      static_cast<unsigned long long>(poses), static_cast<unsigned long long>(foreign),
+                      static_cast<unsigned long long>(malformed), static_cast<unsigned long long>(rejected),
                       last_reject.load(), static_cast<unsigned long long>(stale),
                       static_cast<unsigned long long>(missing), static_cast<unsigned long long>(stalls),
-                      static_cast<unsigned long long>(steps), poses ? lag_us / 1000.0 / double(poses) : 0.0, static_cast<unsigned long long>(drawn),
-                      static_cast<unsigned long long>(extrapolated), drawn ? behind_us / 1000.0 / double(drawn) : 0.0,
-                      static_cast<unsigned long long>(drawn_written), static_cast<unsigned long long>(drawn_refused),
-                      describe(static_cast<Io>(last_refusal.load())));
+                      static_cast<unsigned long long>(steps), poses ? lag_us / 1000.0 / double(poses) : 0.0,
+                      static_cast<unsigned long long>(drawn), static_cast<unsigned long long>(extrapolated),
+                      drawn ? behind_us / 1000.0 / double(drawn) : 0.0, static_cast<unsigned long long>(drawn_written),
+                      static_cast<unsigned long long>(drawn_refused), describe(static_cast<Io>(last_refusal.load())));
         event(line);
       }
     }
@@ -589,10 +683,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
 bool worker_stream() {
   if (!buffers_ready)
     return false;
-  LARGE_INTEGER now;
-  QueryPerformanceCounter(&now);
-  uint64_t now_us = micros_now(now);
-  bool on = loopback_on.load();
+  uint64_t now_us = clock_us();
   {
     std::lock_guard<std::mutex> lock(m);
     if (out_fresh) {
@@ -601,46 +692,31 @@ bool worker_stream() {
     }
   }
   if (worker_out.size) {
-    if (on && !delay_line.send(worker_out.data.data(), worker_out.size, now_us))
-      ++window_line_lost;
+    wire_send(worker_out.data.data(), worker_out.size, false, now_us);
     worker_out.size = 0;
   }
-  delay_line.deliver(now_us, [&](const uint8_t *data, size_t size) {
-    std::lock_guard<std::mutex> lock(m);
-    if (inbox_count == kInbox || size > kMaxPose) {
-      ++window_inbox_full;
-      return;
-    }
-    Message &in = inbox[inbox_count++];
-    std::memcpy(in.data.data(), data, size);
-    in.size = size;
-    in.time = now_us;
-  });
-  return on && loopback_generation.load(); // Every 5 ms only while a stream actually runs.
+  if (recorder && (blocked || now_us - record_start_us >= kRecordUs))
+    say(stop_record(blocked ? "coop off" : "120 s", now_us));
+  if (blocked && replay.on())
+    replay.stop();
+  auto receive = [now_us](const uint8_t *data, size_t size) { wire_receive(data, size, now_us); };
+  delay_line.deliver(now_us, receive);
+  replay.deliver(now_us, receive);
+  return loopback_on || record_on || replay.on(); // Every 5 ms only while something streams.
 }
 
-void ask_probe() { probe_asked = true; }
-std::string ask_mirror(uint32_t ms) {
-  if (!ms) // Off works even with the engine off (after a fault), like the loopback's.
-    return mirror_ms.exchange(0) ? "mirror off: Lua copies the pose again" : "mirror is not on";
-  if (!engine_on)
-    return "mirror not started: " + status();
-  if (loopback_on)
-    return "mirror not started while the loopback runs: coop loopback off first";
-  mirror_ms = ms;
-  return "mirror asked: " + std::to_string(ms) + " ms behind, after a probe of the current table";
-}
 std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_t loss_percent) {
-  if (!on) {
+  if (!on) { // Off works even with the engine off (after a fault).
     if (!loopback_on.exchange(false))
       return "loopback is not on";
     delay_line.set({}, 1);
-    return "loopback off: Lua copies the pose again";
+    drop_remote();
+    return "loopback off: the ghost goes";
   }
   if (!engine_on)
     return "loopback not started: " + status();
-  if (mirror_ms)
-    return "loopback not started while the mirror runs: coop mirror off first";
+  if (replay.on())
+    return "loopback not started while the replay runs: coop replay off first";
   LARGE_INTEGER seed;
   QueryPerformanceCounter(&seed);
   delay_line.set({delay_ms, jitter_ms, loss_percent}, uint64_t(seed.QuadPart));
@@ -649,20 +725,69 @@ std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_
   loopback_loss = loss_percent;
   ++loopback_epoch;
   bool was_on = loopback_on.exchange(true);
-  char text[160];
+  if (!sent_table.empty())
+    send_table(); // set() dropped what was in flight, the table with it.
+  char text[200];
   std::snprintf(text, sizeof text, "loopback %s: %u ms one way, %u ms jitter, %u %% segment loss%s",
-                was_on ? "settings changed" : "asked", delay_ms, jitter_ms, loss_percent,
-                was_on ? "" : ", after a probe of the current table");
+                was_on ? "settings changed" : "on", delay_ms, jitter_ms, loss_percent,
+                sent_table.empty() ? ", waiting for her capture (coop puppet)" : "");
   return text;
 }
-bool driving() { return mirror_ms || loopback_on; }
+
+std::string ask_record(bool on) {
+  if (!on)
+    return recorder ? stop_record("coop record off", clock_us()) : "record is not on";
+  if (!engine_on)
+    return "record not started: " + status();
+  if (recorder)
+    return "record is already on";
+  if (sent_table.empty())
+    return "record refused: no capture";
+  recorder = std::make_unique<Recorder>();
+  recorder->start(sent_table);
+  record_start_us = clock_us();
+  record_on = true;
+  return "record on: her poses into coop-record.bin for up to 120 s (or 24 MiB), until coop record off";
+}
+
+std::string ask_replay(bool on) {
+  if (!on) {
+    if (!replay.on())
+      return "replay is not on";
+    replay.stop();
+    drop_remote();
+    return "replay off: the ghost goes";
+  }
+  if (!engine_on)
+    return "replay not started: " + status();
+  if (loopback_on)
+    return "replay not started while the loopback runs: coop loopback off first";
+  if (replay.on())
+    return "replay is already on";
+  bool exists = false;
+  std::string file = read_file(dir + L"coop-record.bin", exists, kMaxRecording + 1);
+  if (!exists)
+    return "replay refused: no coop-record.bin (coop record makes one)";
+  Recording r;
+  if (const char *why = parse_recording(std::move(file), r))
+    return std::string("replay refused: coop-record.bin fails its check (") + why + ")";
+  size_t poses = 0;
+  uint64_t last = 0;
+  for (const Recording::Entry &e : r.entries)
+    if (e.kind == 'P')
+      ++poses, last = e.publication;
+  char text[200];
+  std::snprintf(text, sizeof text, "replay on: %zu poses and %zu tables, %.1f s a loop, until coop replay off", poses,
+                r.entries.size() - poses, double(last - r.first) / 1e6);
+  replay.start(std::move(r), clock_us());
+  return text;
+}
+
 void block() {
   blocked = true;
   engine_on = false;
-  mirror_ms = 0;
-  mirror_generation = 0;
   loopback_on = false;
-  loopback_generation = 0;
+  record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
 
 std::string status() {
@@ -671,20 +796,20 @@ std::string status() {
     s += " reason=coop_off";
   else if (!engine_on)
     s += " reason=" + engine_reason;
-  uint32_t delay = mirror_ms.load();
-  uint64_t generation = mirror_generation.load();
-  if (engine_on && delay)
-    s += generation ? " mirror=on " + std::to_string(delay) + " table " + std::to_string(generation)
-                    : std::string(" mirror=waiting");
-  generation = loopback_generation.load();
   if (engine_on && loopback_on)
-    s += generation ? " loopback=on " + std::to_string(loopback_delay) + " " + std::to_string(loopback_jitter) + " " +
-                          std::to_string(loopback_loss) + " table " + std::to_string(generation)
-                    : std::string(" loopback=waiting");
+    s += capture.generation ? " loopback=on " + std::to_string(loopback_delay) + " " + std::to_string(loopback_jitter) +
+                                  " " + std::to_string(loopback_loss)
+                            : std::string(" loopback=waiting");
+  if (engine_on && recorder)
+    s += " record=on " + std::to_string((clock_us() - record_start_us) / 1000000) + "s";
+  if (engine_on && replay.on())
+    s += " replay=on";
+  if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.
+    s += " remote=" + std::to_string(remote.generation) + " " + std::to_string(remote_count) + " " + remote_source;
   for (char &c : s)
     if (c == '\n' || c == '\r')
       c = ' ';
-  return s; // Stable between events: the tick counts change every frame and go into the 60 s counter line instead.
+  return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
 } // namespace coop::pose
 

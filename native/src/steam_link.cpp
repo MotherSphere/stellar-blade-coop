@@ -21,7 +21,22 @@
 #define STELLARCOOP_VERSION "dev"
 #endif
 
+namespace coop::pose {
+// Shared with the pose path (pose_tick.h): binary-safe, for the recording too.
+bool write_text(const std::wstring &path, const std::string &bytes) {
+  auto temp = path + L".tmp";
+  HANDLE f = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (f == INVALID_HANDLE_VALUE)
+    return false;
+  DWORD n = 0;
+  bool ok = WriteFile(f, bytes.data(), static_cast<DWORD>(bytes.size()), &n, nullptr) && n == bytes.size();
+  CloseHandle(f);
+  return ok && MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING);
+}
+} // namespace coop::pose
+
 namespace {
+using coop::pose::write_text;
 std::wstring folder;           // This DLL's folder, with its trailing separator.
 wchar_t log_path[MAX_PATH];    // coop-link.log, kept for the last line written at process exit.
 std::atomic<bool> log_open{false}, faulted{false};
@@ -79,18 +94,6 @@ std::string utc_stamp() {
   wsprintfA(stamp, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
             t.wMilliseconds);
   return stamp;
-}
-
-// A complete file: written beside it, then renamed over it.
-bool write_text(const std::wstring &path, const std::string &bytes) {
-  auto temp = path + L".tmp";
-  HANDLE f = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (f == INVALID_HANDLE_VALUE)
-    return false;
-  DWORD n = 0;
-  bool ok = WriteFile(f, bytes.data(), static_cast<DWORD>(bytes.size()), &n, nullptr) && n == bytes.size();
-  CloseHandle(f);
-  return ok && MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING);
 }
 
 // The whole file, then deleted; empty when there is none. Lua writes it beside and renames it, so it is complete.
@@ -221,7 +224,7 @@ coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
-bool loaded = false, streaming = false; // streaming: the loopback runs, so the worker passes every 5 ms.
+bool loaded = false, streaming = false; // streaming: the loopback, a recording or a replay runs: a pass every 5 ms.
 std::string written;
 
 std::string status_text() {
@@ -280,21 +283,6 @@ bool step() {
       request.clear();
     }
     switch (request.empty() ? coop::Command::none : command) { // The pose path's requests never reach the link.
-    case coop::Command::probe:
-      if (coop::pose::driving()) {
-        event("probe not run while the mirror or the loopback is on (the puppet shows another pose): turn it off first");
-      } else if (coop::pose::status().rfind("engine=on", 0) == 0) {
-        coop::pose::ask_probe();
-        event("probe asked");
-      } else {
-        event("probe not run: " + coop::pose::status());
-      }
-      request.clear();
-      break;
-    case coop::Command::mirror:
-      event(coop::pose::ask_mirror(static_cast<uint32_t>(coop::parse_request(request).ms)));
-      request.clear();
-      break;
     case coop::Command::loopback: {
       coop::Request r = coop::parse_request(request);
       event(coop::pose::ask_loopback(!r.off, static_cast<uint32_t>(r.ms), static_cast<uint32_t>(r.jitter),
@@ -302,6 +290,14 @@ bool step() {
       request.clear();
       break;
     }
+    case coop::Command::record:
+      event(coop::pose::ask_record(!coop::parse_request(request).off));
+      request.clear();
+      break;
+    case coop::Command::replay:
+      event(coop::pose::ask_replay(!coop::parse_request(request).off));
+      request.clear();
+      break;
     case coop::Command::off:
       coop::pose::block();
       switched_off = true;
@@ -368,7 +364,8 @@ DWORD WINAPI worker(void *) {
   MoveFileExW((folder + L"coop-link.log").c_str(), (folder + L"coop-link.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
   DeleteFileW((folder + L"coop-report.txt").c_str());
-  DeleteFileW((folder + L"coop-components.txt").c_str()); // Addresses from a previous run mean nothing now.
+  for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt"})
+    DeleteFileW((folder + stale).c_str()); // Tables and addresses from a previous run mean nothing now.
   write_header();
   log_open = true;
   write_text(folder + L"coop-status.txt", status_text()); // Never show the previous run's state as current.

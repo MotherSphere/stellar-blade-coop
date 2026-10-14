@@ -435,10 +435,10 @@ private:
       report_ = true;
       event("report asked");
       break;
-    case Command::probe: // The pose path's: the caller handles them.
-    case Command::off:
-    case Command::mirror:
+    case Command::off: // The pose path's: the caller handles them.
     case Command::loopback:
+    case Command::record:
+    case Command::replay:
       break;
     case Command::none:
       event("unknown request");
