@@ -90,6 +90,12 @@ int main() {
   assert(parse_request("leave").command == Command::leave);
   assert(parse_request("report\r\n").command == Command::report);
   assert(parse_request("probe").command == Command::probe && parse_request("off\n").command == Command::off);
+  Request mirror = parse_request("mirror 500\n");
+  assert(mirror.command == Command::mirror && mirror.ms == 500);
+  mirror = parse_request("mirror off");
+  assert(mirror.command == Command::mirror && mirror.ms == 0);
+  for (const char *bad : {"mirror", "mirror 0", "mirror 2001", "mirror x", "mirror -5"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0);
   r = parse_request("join 109775241234567890\n");

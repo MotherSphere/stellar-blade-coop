@@ -1,6 +1,7 @@
 -- StellarCoop: co-op for Stellar Blade. For now a puppet EVE beside her (console: coop puppet), the Steam link between
--- two players (coop host, invite, join, leave, status, report) and the native pose path's read-only probe (coop probe),
--- run by the native part. coop off stops everything until the game restarts.
+-- two players (coop host, invite, join, leave, status, report), and the native pose path run by the native part: a
+-- probe of the bone memory (coop probe) and a delayed mirror (coop mirror <ms> | off). coop off stops everything until
+-- the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -22,10 +23,10 @@ if link then
     link.components(nil)
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
-local puppet=require('puppet').new(link and link.components or nil)
+local puppet=require('puppet').new(link and link.components or nil,link and link.store() or nil)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 local off=link~=nil and (link.status() or ''):find('reason=coop_off',1,true)~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | probe | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | probe | mirror <1-2000 ms>|off | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -43,6 +44,14 @@ local commands={
         if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
         return ask('probe')()
     end,
+    mirror=function(delay)
+        if not native_tick then return false,'the native tick is unavailable' end
+        if delay=='off' then return ask('mirror off')() end
+        local ms=delay and delay:match('^%d+$') and tonumber(delay)
+        if not ms or ms<1 or ms>2000 then return false,'Use: coop mirror <1-2000 ms> | off' end
+        if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
+        return ask('mirror '..ms)()
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
@@ -51,7 +60,8 @@ local commands={
     end,
     status=function()
         local text=link and link.status()
-        return text~=nil,text and text:gsub('[\r\n]+',' | ') or 'no Steam link status yet'
+        if not text then return false,'no Steam link status yet; '..puppet.status() end
+        return true,text:gsub('[\r\n]+',' | ')..puppet.status()
     end,
 }
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
@@ -73,10 +83,13 @@ LoopInGameThreadWithDelay(1,function()
     local ok,message=puppet.tick()
     if message then report(ok,message) end
     if native_tick then native_tick() end -- After the puppet's copy: coop probe compares within the same frame.
+    ok,message=puppet.place() -- Mirror mode: the root takes the mailbox this native tick just wrote.
+    if message then report(ok,message) end
 end)
 if link then
     LoopInGameThreadWithDelay(250,function()
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        puppet.set_mirror(link.mirror_table())
     end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)

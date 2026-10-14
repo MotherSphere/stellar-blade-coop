@@ -281,7 +281,9 @@ bool step() {
     }
     switch (request.empty() ? coop::Command::none : command) { // The pose path's requests never reach the link.
     case coop::Command::probe:
-      if (coop::pose::status().rfind("engine=on", 0) == 0) {
+      if (coop::pose::status().find("mirror=on") != std::string::npos) {
+        event("probe not run while the mirror is on (the puppet shows the past): coop mirror off first");
+      } else if (coop::pose::status().rfind("engine=on", 0) == 0) {
         coop::pose::ask_probe();
         event("probe asked");
       } else {
@@ -289,6 +291,18 @@ bool step() {
       }
       request.clear();
       break;
+    case coop::Command::mirror: {
+      uint64_t ms = coop::parse_request(request).ms;
+      if (coop::pose::status().rfind("engine=on", 0) != 0) {
+        event("mirror not started: " + coop::pose::status());
+      } else {
+        coop::pose::ask_mirror(static_cast<uint32_t>(ms));
+        event(ms ? "mirror asked: " + std::to_string(ms) + " ms behind, after a probe of the current table"
+                 : std::string("mirror off: Lua copies the pose again"));
+      }
+      request.clear();
+      break;
+    }
     case coop::Command::off:
       coop::pose::block();
       switched_off = true;
@@ -365,6 +379,7 @@ DWORD WINAPI worker(void *) {
       break;
     if (result < 0) {
       faulted = true;
+      coop::pose::block(); // The pose path never outlives its control channel (table withdrawals, coop off).
       char hex[16];
       wsprintfA(hex, "0x%08lx", static_cast<unsigned long>(code));
       write_text(folder + L"coop-status.txt", std::string("stopped=fault ") + hex + "\n");
@@ -373,6 +388,7 @@ DWORD WINAPI worker(void *) {
     }
     Sleep(50);
   }
+  coop::pose::block();
   append(utc_stamp() + " worker stopped: Steam exports missing");
   return 0;
 }

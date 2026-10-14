@@ -6,16 +6,23 @@ Installing it by hand: see [INSTALL.md](INSTALL.md).
 Status: probes only.
 
 - `coop off` stops everything (puppet, native tick, engine reads, the link) until the game restarts.
-- Native pose path, read-only for now: the DLL exports `coop_tick`, which the Lua loop calls once per frame on the game
+- Native pose path: the DLL exports `coop_tick`, which the Lua loop calls once per frame on the game
   thread. It checks the game's exe against the pinned build (Steam build 24463856) before it reads any engine memory,
   runs once per engine frame (GFrameCounter), and stops for the run at the first fault. `coop probe` (with the puppet
-  out) checks, part by part, that the bone memory the puppet copied matches EVE's: `offsets_ok`, or what differs. The
+  out, mirror off) checks, part by part, that the bone memory the puppet copied matches EVE's: `offsets_ok`, or what
+  differs. Every 60 s the log gives the tick's cost and the mirror's recorded, written and refused frames. The
   puppet publishes its parts in `coop-components.txt`, and each Lua load writes a new `coop-session.txt` token.
 - The native part also watches the save folder (names, sizes and write times every 5 s, never opening a file) and logs
   every change in `coop-link.log`; `coop report` sums them up. `tools/save_guard.py backup|check|restore` keeps copies
   of the saves outside the game (it refuses while the game runs; restore needs `--yes`).
-- `coop puppet` (UE4SS console) shows or removes a second EVE 2 m to her right that copies her pose every frame. The
-  log says how much each frame cost when it is removed.
+- `coop puppet` (UE4SS console) shows or removes a second EVE 2 m to her right that copies her pose every frame. Its
+  parts hang as hers do (same parent part, socket and placement: the blade stays in its hand), its visibility follows
+  hers, and after a level change it comes back on its own. A puppet left standing by a Lua reload (Ctrl+R) is found
+  and removed at the next load. The log says how much each frame cost when it is removed.
+- `coop mirror <ms>` (1 to 2000) makes the puppet repeat her moves that many milliseconds late, written natively: the
+  native part first probes the puppet's table, then each frame records her pose and writes the delayed one into the
+  puppet's bones behind the engine's own CopyPose gate; it hands the delayed placement to Lua through a mailbox
+  component. `coop mirror off` goes back to copying.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
   copy the game loaded. It never starts Steam itself and changes nothing in the game or the saves.
   - `coop host` creates a friends-only lobby (2 players) and opens the Steam invite dialog. `coop invite` reopens it.

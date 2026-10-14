@@ -1,6 +1,6 @@
 -- The Lua side of the files shared with the native part. Lua writes whole files beside and renames them, so the native
--- part never reads one half-written: coop-request.txt (a console request), coop-session.txt (a token per Lua load) and
--- coop-components.txt (the puppet's component table). Each line of the native coop-status.txt that changed is returned
+-- part never reads one half-written: coop-request.txt (a console request), coop-session.txt (a token per Lua load),
+-- coop-components.txt (the puppet's component table) and coop-puppet.txt (the puppet's object path, for the next load). Each line of the native coop-status.txt that changed is returned
 -- once, for the log; peer lines change with every ping, so they stay in coop status, out of the log.
 local Link={}
 local files={
@@ -13,7 +13,7 @@ function Link.new(folder,fs)
     fs=fs or files
     local function path(name) return folder..'\\'..name end
     local status_path=path('coop-status.txt')
-    local seen={}
+    local seen,mirror={},nil
     local self={}
     local function put(name,text)
         local final=path(name)
@@ -37,8 +37,20 @@ function Link.new(folder,fs)
         return true
     end
     function self.status() return fs.read(status_path) end
+    -- The puppet's object path, kept across Lua loads so a reload can sweep a puppet left standing.
+    function self.store()
+        local name='coop-puppet.txt'
+        return {
+            save=function(object_path) return put(name,object_path..'\n') end,
+            load=function() local text=fs.read(path(name)); return text and text:match('^[^\r\n]+') end,
+            clear=function() fs.remove(path(name)) end,
+        }
+    end
+    -- The table generation the native mirror runs on (status "mirror=on <ms> table <n>"), as of the last changes().
+    function self.mirror_table() return mirror end
     function self.changes()
         local text,now,new=fs.read(status_path),{},{}
+        mirror=text and tonumber(text:match('mirror=on %d+ table (%d+)')) or nil
         if not text then return new end
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true

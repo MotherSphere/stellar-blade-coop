@@ -136,11 +136,13 @@ inline Message parse(const char *data, size_t size) {
 }
 
 // A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
-// "join <lobby id>", and for the pose path "probe" and "off".
-enum class Command { none, host, invite, join, leave, report, probe, off };
+// "join <lobby id>", and for the pose path "probe", "off", "mirror <ms>" (1 to 2000) and "mirror off".
+enum class Command { none, host, invite, join, leave, report, probe, off, mirror };
+constexpr uint64_t kMaxMirrorMs = 2000; // The delay ring keeps 2 s.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
+  uint64_t ms = 0; // mirror: the delay, 0 for off.
 };
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
@@ -163,6 +165,10 @@ inline Request parse_request(std::string text) {
     r.command = Command::join;
   else if (split(text, f, 2, nullptr) && f[0] == "join" && number(f[1], r.lobby) && r.lobby)
     r.command = Command::join;
+  else if (text == "mirror off")
+    r.command = Command::mirror;
+  else if (split(text, f, 2, nullptr) && f[0] == "mirror" && number(f[1], r.ms) && r.ms >= 1 && r.ms <= kMaxMirrorMs)
+    r.command = Command::mirror;
   return r;
 }
 

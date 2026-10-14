@@ -437,6 +437,7 @@ private:
       break;
     case Command::probe: // The pose path's: the caller handles them.
     case Command::off:
+    case Command::mirror:
       break;
     case Command::none:
       event("unknown request");

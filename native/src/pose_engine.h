@@ -4,6 +4,7 @@
 // Offsets are for Stellar Blade's Steam build 24463856 (UE 4.26), pinned by check_build().
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -137,6 +138,125 @@ inline ProbeResult probe_pair(uintptr_t objects, const Part &eve, const Part &pu
   if (r.refresh != 1 || !r.gate_pointer || r.gate_count < 1)
     return r.kind = ProbeResult::gate, r;
   return r;
+}
+
+// The delayed mirror's reads and writes (Phase 2b). The game thread calls them once per frame for each leader pair.
+
+constexpr size_t kItemSerial = 0x10, kWorldTransform = 0x1f0, kRelativeLocation = 0x13c, kRelativeRotation = 0x148,
+                 kRelativeScale = 0x154;
+
+// A FWeakObjectPtr (index, serial) as the engine resolves it (0x2ba3ab0; the sister repository's weak_object): valid
+// while the object's item keeps the serial and is neither pending kill nor unreachable.
+inline bool weak_valid(uintptr_t objects, uintptr_t weak) {
+  auto item = object_item(objects, at<int32_t>(weak));
+  auto serial = at<int32_t>(weak + 4);
+  return item && serial && at<int32_t>(item + kItemSerial) == serial && at<uintptr_t>(item) &&
+         !(at<int32_t>(item + kItemFlags) & (kPendingKill | kUnreachable));
+}
+
+enum class Io { ok, gone, count, null_array, busy, gate };
+inline const char *describe(Io r) {
+  switch (r) {
+  case Io::ok: return "ok";
+  case Io::gone: return "not live, wrong class or mesh";
+  case Io::count: return "bone count differs";
+  case Io::null_array: return "bone array null";
+  case Io::busy: return "anim task busy";
+  case Io::gate: return "write gate closed";
+  }
+  return "?";
+}
+
+// EVE's main mesh world transform (ComponentToWorld) as 10 floats: rotation xyzw, translation xyz, scale xyz.
+inline void read_world(uintptr_t component, float *out) {
+  float raw[12];
+  std::memcpy(raw, reinterpret_cast<const void *>(component + kWorldTransform), sizeof raw);
+  std::memcpy(out, raw, 7 * sizeof(float));
+  std::memcpy(out + 7, raw + 8, 3 * sizeof(float));
+}
+
+// EVE's local bone transforms of one leader, as GetBoneSpaceTransforms gives them: only when no parallel anim task
+// holds them (+0x1180, +0xf80).
+inline Io read_leader(uintptr_t objects, const Part &eve, uint8_t *out) {
+  if (!published(objects, eve))
+    return Io::gone;
+  auto src = static_cast<uintptr_t>(eve.object);
+  if (at<int32_t>(src + kSourceCount) != int32_t(eve.bones))
+    return Io::count;
+  if (at<uintptr_t>(src + kAnimTask) || at<uintptr_t>(src + kAnimTask2))
+    return Io::busy;
+  auto data = at<uintptr_t>(src + kSourceArray);
+  if (!data)
+    return Io::null_array;
+  std::memcpy(out, reinterpret_cast<const void *>(data), size_t(eve.bones) * kTransformBytes);
+  return Io::ok;
+}
+
+// The puppet's leader takes those transforms, behind CopyPose's own gate (+0x8b8 a live weak pointer, +0x8d0 set,
+// +0x890 at least 1, +0x880 the published count); the +0x878 array is read again each time (CopyPose replaces it), and
+// the refresh flag +0x9d0 is set as CopyPose sets it.
+inline Io write_leader(uintptr_t objects, const Part &puppet, const uint8_t *in) {
+  if (!published(objects, puppet))
+    return Io::gone;
+  auto dst = static_cast<uintptr_t>(puppet.object);
+  if (at<int32_t>(dst + kTargetCount) != int32_t(puppet.bones))
+    return Io::count;
+  if (!weak_valid(objects, dst + kGateWeak) || !at<uintptr_t>(dst + kGatePointer) || at<int32_t>(dst + kGateCount) < 1)
+    return Io::gate;
+  auto data = at<uintptr_t>(dst + kTargetArray);
+  if (!data)
+    return Io::null_array;
+  std::memcpy(reinterpret_cast<void *>(data), in, size_t(puppet.bones) * kTransformBytes);
+  *reinterpret_cast<uint8_t *>(dst + kRefresh) = 1;
+  return Io::ok;
+}
+
+// FQuat::Rotator, as UE 4.26 computes it: pitch, yaw, roll in degrees.
+inline void quat_to_rotator(float x, float y, float z, float w, float *pyr) {
+  const double kToDegrees = 180.0 / 3.14159265358979323846, kSingularity = 0.4999995;
+  double singularity = double(z) * x - double(w) * y;
+  double yaw_y = 2.0 * (double(w) * z + double(x) * y), yaw_x = 1.0 - 2.0 * (double(y) * y + double(z) * z);
+  double yaw = std::atan2(yaw_y, yaw_x) * kToDegrees, pitch, roll;
+  auto normalize = [](double angle) {
+    angle = std::fmod(angle, 360.0);
+    if (angle < 0)
+      angle += 360.0;
+    return angle > 180.0 ? angle - 360.0 : angle;
+  };
+  if (singularity < -kSingularity) {
+    pitch = -90.0;
+    roll = normalize(-yaw - 2.0 * std::atan2(double(x), double(w)) * kToDegrees);
+  } else if (singularity > kSingularity) {
+    pitch = 90.0;
+    roll = normalize(yaw - 2.0 * std::atan2(double(x), double(w)) * kToDegrees);
+  } else {
+    pitch = std::asin(2.0 * singularity) * kToDegrees;
+    roll = std::atan2(-2.0 * (double(w) * x + double(y) * z), 1.0 - 2.0 * (double(x) * x + double(y) * y)) * kToDegrees;
+  }
+  pyr[0] = float(pitch);
+  pyr[1] = float(yaw);
+  pyr[2] = float(roll);
+}
+
+// The mailbox gets a world transform (10 floats as read_world gives them) as relative location and rotation, and a
+// stamp in its relative scale (1, 1, stamp; the default is 1, stamps are 2 and up) so Lua knows a value has arrived.
+// Nothing ever moves the mailbox, so the engine never rewrites these fields. It must be live, of the published class
+// and owned by the same actor as the puppet's live root (UObject outer +0x20): a stale table can never reach another
+// actor's scene component, the most common class in the game.
+constexpr size_t kOuter = 0x20;
+inline Io write_mailbox(uintptr_t objects, uint64_t mailbox, uint64_t cls, const Part &puppet_root, const float *world,
+                        float stamp) {
+  auto box = static_cast<uintptr_t>(mailbox);
+  if (!alive(objects, box) || at<uint64_t>(box + kClass) != cls || !published(objects, puppet_root) ||
+      at<uintptr_t>(box + kOuter) != at<uintptr_t>(static_cast<uintptr_t>(puppet_root.object) + kOuter) ||
+      !at<uintptr_t>(box + kOuter))
+    return Io::gone;
+  float location[3] = {world[4], world[5], world[6]}, rotation[3], scale[3] = {1.f, 1.f, stamp};
+  quat_to_rotator(world[0], world[1], world[2], world[3], rotation);
+  std::memcpy(reinterpret_cast<void *>(box + kRelativeLocation), location, sizeof location);
+  std::memcpy(reinterpret_cast<void *>(box + kRelativeRotation), rotation, sizeof rotation);
+  std::memcpy(reinterpret_cast<void *>(box + kRelativeScale), scale, sizeof scale);
+  return Io::ok;
 }
 
 } // namespace coop::pose

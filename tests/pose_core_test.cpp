@@ -8,13 +8,13 @@ using namespace coop::pose;
 
 int main() {
   const std::string good = "generation 7\r\n"
-                           "root 0x2000\n"
+                           "mailbox 0x2000 0x5c0\n"
                            "part eve 0 0x1000 0xC1A55 0xAE5 466 1\n"
                            "part eve 1 0x1100 0xc1a55 0xae6 466 0\n"
                            "part puppet 1 0x3100 0xc2 0xae6 466 0\n"
                            "part puppet 0 0x3000 0xc2 0xae5 466 1\n";
   auto t = parse_table(good);
-  assert(t && t->generation == 7 && t->root == 0x2000 && t->eve.size() == 2 && t->puppet.size() == 2);
+  assert(t && t->generation == 7 && t->mailbox == 0x2000 && t->mailbox_class == 0x5c0 && t->eve.size() == 2 && t->puppet.size() == 2);
   assert(t->eve[0].object == 0x1000 && t->eve[0].cls == 0xc1a55 && t->eve[0].bones == 466 && t->eve[0].leader);
   assert(t->puppet[0].object == 0x3000 && t->puppet[1].object == 0x3100 && !t->puppet[1].leader);
 
@@ -27,8 +27,9 @@ int main() {
   };
   for (const std::string &bad : {
            with("generation 7\r\n", ""),                                   // no generation
-           with("root 0x2000\n", ""),                                       // no root
-           with("root 0x2000", "root 0x12345678901234567"),                 // root too long for 64 bits
+           with("mailbox 0x2000 0x5c0\n", ""),                              // no mailbox
+           with("mailbox 0x2000 0x5c0", "mailbox 0x12345678901234567 0x5c0"), // mailbox too long for 64 bits
+           with("mailbox 0x2000 0x5c0", "mailbox 0x2000"),                   // mailbox class missing
            with("part puppet 1 0x3100 0xc2 0xae6 466 0\n", ""),             // a puppet part missing
            with("part puppet 0 0x3000 0xc2 0xae5 466 1", "part puppet 0 0x3000 0xc2 0xae5 467 1"), // bone counts differ
            with("part puppet 0 0x3000 0xc2 0xae5 466 1", "part puppet 0 0x3000 0xc2 0xae5 466 0"), // leader flags differ
@@ -62,6 +63,8 @@ int main() {
   assert(ring.at_delay(now, 0)->bones[0] == 99);
   assert(!ring.at_delay(now, 3'000'000)); // Further back than the ring keeps.
   assert(!ring.at_delay(now, 2'000'000)); // Older than the first frame.
+  assert(!ring.at_delay(now + 300'000, 0)); // The newest frame is 300 ms older than wanted: stale, not played.
+  assert(ring.newest() == now);
   // An uncommitted slot is never returned, and the pool wraps without growing.
   auto &open = ring.begin(now + 16'000);
   open.bones[0] = 200;
@@ -71,8 +74,16 @@ int main() {
     ring.commit();
   }
   assert(ring.bytes() == 466 * kTransformBytes);
+  ring.clear();
+  assert(!ring.at_delay(now, 0) && ring.newest() == 0 && ring.bytes() == 466 * kTransformBytes); // Kept its pool.
+  ring.begin(now);
+  ring.commit();
   ring.reset(*t);
   assert(!ring.at_delay(now, 0)); // A new table drops every frame.
+
+  // A session sizes its ring off the game thread.
+  Session session(*t);
+  assert(session.ring.bytes() == 466 * kTransformBytes && session.table.generation == 7);
 
   std::puts("pose_core_test: ok");
 }
