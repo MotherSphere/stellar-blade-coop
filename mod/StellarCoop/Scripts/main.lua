@@ -1,7 +1,7 @@
 -- StellarCoop: co-op for Stellar Blade. For now a puppet EVE beside her (console: coop puppet), the Steam link between
 -- two players (coop host, invite, join, leave, status, report), and the native pose path run by the native part: a
--- probe of the bone memory (coop probe) and a delayed mirror (coop mirror <ms> | off). coop off stops everything until
--- the game restarts.
+-- probe of the bone memory (coop probe), a delayed mirror (coop mirror <ms> | off) and the ghost pipeline in loopback
+-- (coop loopback <delay ms> <jitter ms> <loss %> | off). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -26,7 +26,11 @@ end
 local puppet=require('puppet').new(link and link.components or nil,link and link.store() or nil)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 local off=link~=nil and (link.status() or ''):find('reason=coop_off',1,true)~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | probe | mirror <1-2000 ms>|off | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | probe | mirror <1-2000 ms>|off | loopback <delay ms> <jitter ms> <loss %>|off | off'
+local function whole(text,max) -- A whole number from 0 to max, or nil.
+    local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
+    return n and n<=max and n or nil
+end
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -52,6 +56,16 @@ local commands={
         if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
         return ask('mirror '..ms)()
     end,
+    loopback=function(delay,jitter,loss)
+        if not native_tick then return false,'the native tick is unavailable' end
+        if delay=='off' then return ask('loopback off')() end
+        delay,jitter,loss=whole(delay,1000),whole(jitter,500),whole(loss,100)
+        if not (delay and jitter and loss) then
+            return false,'Use: coop loopback <delay 0-1000 ms> <jitter 0-500 ms> <segment loss 0-100 %> | off'
+        end
+        if not puppet.active() then return false,'spawn the puppet first: coop puppet' end
+        return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
@@ -66,13 +80,14 @@ local commands={
 }
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
-    local command,argument=commands[parameters[1] or ''],parameters[2]
+    local command=commands[parameters[1] or '']
+    local a,b,c=parameters[2],parameters[3],parameters[4]
     ExecuteInGameThread(function()
         if not command then return log(USAGE) end
         if off and command~=commands.status and command~=commands.report then
             return report(false,'coop off is active until the game restarts')
         end
-        local ran,ok,message=pcall(command,argument)
+        local ran,ok,message=pcall(command,a,b,c)
         if ran then report(ok,message) else report(false,ok) end
     end)
     return true

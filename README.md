@@ -10,7 +10,7 @@ Status: probes only.
   thread. It checks the game's exe against the pinned build (Steam build 24463856) before it reads any engine memory,
   runs once per engine frame (GFrameCounter), and stops for the run at the first fault. `coop probe` (with the puppet
   out, mirror off) checks, part by part, that the bone memory the puppet copied matches EVE's: `offsets_ok`, or what
-  differs. Every 60 s the log gives the tick's cost and the mirror's recorded, written and refused frames. The
+  differs. Every 60 s the log gives the tick's cost and the mirror's or the loopback's counts. The
   puppet publishes its parts in `coop-components.txt`, and each Lua load writes a new `coop-session.txt` token.
 - The native part also watches the save folder (names, sizes and write times every 5 s, never opening a file) and logs
   every change in `coop-link.log`; `coop report` sums them up. `tools/save_guard.py backup|check|restore` keeps copies
@@ -23,6 +23,13 @@ Status: probes only.
   native part first probes the puppet's table, then each frame records her pose and writes the delayed one into the
   puppet's bones behind the engine's own CopyPose gate; it hands the delayed placement to Lua through a mailbox
   component. `coop mirror off` goes back to copying.
+- `coop loopback <delay ms> <jitter ms> <loss %>` (0 to 1000, 0 to 500, 0 to 100) runs the whole ghost pipeline on one
+  PC, as a friend's EVE would arrive over the network: after the same probe, the native part reads her pose 20 times a
+  second, encodes it (about 4.7 KB: quantized local bones, the world transform as floats), sends it through an
+  in-process delay line (that one-way delay, plus or minus the jitter, each 1200-byte segment lost at that rate),
+  decodes what comes back and draws it into the puppet, interpolated between received poses on a clock that absorbs
+  transit and jitter. `coop loopback off` goes back to copying; the mirror and the loopback never run together. Every
+  60 s the log gives poses sent and received, bytes, losses, stalls, the one-way delay, extrapolated frames and writes.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
   copy the game loaded. It never starts Steam itself and changes nothing in the game or the saves.
   - `coop host` creates a friends-only lobby (2 players) and opens the Steam invite dialog. `coop invite` reopens it.
@@ -47,11 +54,14 @@ Status: probes only.
   `enabled.txt`). The installer adds `Scripts/version.lua`.
 - `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
   (the link's logic), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (component table, delay ring),
-  `src/pose_engine.h` (engine memory reads and the build pin) and `src/save_watch.h`. The Windows side:
+  `src/pose_engine.h` (engine memory reads and the build pin), `src/pose_codec.h` (the pose's wire format),
+  `src/pose_stream.h` (the loopback's delay line, the receiving clock and interpolation) and `src/save_watch.h`. The
+  Windows side:
   `src/steam_link.cpp` (Steam callbacks, worker thread, files, faults) and `src/pose_tick.cpp` (`coop_tick`).
 - `tests/`: Lua checks with fake UE4SS objects (`lua5.4 tests/puppet_test.lua` from the repository root), C++ checks
   built and run on the build machine (the protocol with a fuzz loop, the link against a fake Steam, the pose path
-  against fake memory, the save watcher) and a Python check of `save_guard.py`. `tools/wine_smoke.py` loads the DLL
+  against fake memory, the codec's round trips and a decoder fuzz, the loopback pipeline in simulated time, the save
+  watcher) and a Python check of `save_guard.py`. `tools/wine_smoke.py` loads the DLL
   under Proton's wine in a scratch prefix.
 - `tools/install.py`: runs the checks, builds the DLL with the clang-cl/xwin toolchain (`STELLAR_WINDOWS_TOOLCHAIN`)
   and copies the mod into `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.

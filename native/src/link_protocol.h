@@ -136,19 +136,23 @@ inline Message parse(const char *data, size_t size) {
 }
 
 // A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
-// "join <lobby id>", and for the pose path "probe", "off", "mirror <ms>" (1 to 2000) and "mirror off".
-enum class Command { none, host, invite, join, leave, report, probe, off, mirror };
+// "join <lobby id>", and for the pose path "probe", "off", "mirror <ms>" (1 to 2000), "mirror off",
+// "loopback <one-way delay ms> <jitter ms> <segment loss %>" and "loopback off".
+enum class Command { none, host, invite, join, leave, report, probe, off, mirror, loopback };
 constexpr uint64_t kMaxMirrorMs = 2000; // The delay ring keeps 2 s.
+constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500;
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
-  uint64_t ms = 0; // mirror: the delay, 0 for off.
+  uint64_t ms = 0;            // mirror: the delay, 0 for off. loopback: the one-way delay.
+  uint64_t jitter = 0, loss = 0; // loopback.
+  bool off = false;           // mirror off, loopback off.
 };
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
     text.pop_back();
   Request r;
-  std::string f[2];
+  std::string f[4];
   if (text == "host")
     r.command = Command::host;
   else if (text == "invite")
@@ -165,10 +169,15 @@ inline Request parse_request(std::string text) {
     r.command = Command::join;
   else if (split(text, f, 2, nullptr) && f[0] == "join" && number(f[1], r.lobby) && r.lobby)
     r.command = Command::join;
-  else if (text == "mirror off")
-    r.command = Command::mirror;
+  else if (text == "mirror off" || text == "loopback off") {
+    r.command = text[0] == 'm' ? Command::mirror : Command::loopback;
+    r.off = true;
+  }
   else if (split(text, f, 2, nullptr) && f[0] == "mirror" && number(f[1], r.ms) && r.ms >= 1 && r.ms <= kMaxMirrorMs)
     r.command = Command::mirror;
+  else if (split(text, f, 4, nullptr) && f[0] == "loopback" && number(f[1], r.ms) && r.ms <= kMaxLoopbackMs &&
+           number(f[2], r.jitter) && r.jitter <= kMaxJitterMs && number(f[3], r.loss) && r.loss <= 100)
+    r.command = Command::loopback;
   return r;
 }
 

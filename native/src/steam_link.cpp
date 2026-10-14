@@ -221,7 +221,7 @@ coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
-bool loaded = false;
+bool loaded = false, streaming = false; // streaming: the loopback runs, so the worker passes every 5 ms.
 std::string written;
 
 std::string status_text() {
@@ -281,8 +281,8 @@ bool step() {
     }
     switch (request.empty() ? coop::Command::none : command) { // The pose path's requests never reach the link.
     case coop::Command::probe:
-      if (coop::pose::status().find("mirror=on") != std::string::npos) {
-        event("probe not run while the mirror is on (the puppet shows the past): coop mirror off first");
+      if (coop::pose::driving()) {
+        event("probe not run while the mirror or the loopback is on (the puppet shows another pose): turn it off first");
       } else if (coop::pose::status().rfind("engine=on", 0) == 0) {
         coop::pose::ask_probe();
         event("probe asked");
@@ -291,15 +291,14 @@ bool step() {
       }
       request.clear();
       break;
-    case coop::Command::mirror: {
-      uint64_t ms = coop::parse_request(request).ms;
-      if (coop::pose::status().rfind("engine=on", 0) != 0) {
-        event("mirror not started: " + coop::pose::status());
-      } else {
-        coop::pose::ask_mirror(static_cast<uint32_t>(ms));
-        event(ms ? "mirror asked: " + std::to_string(ms) + " ms behind, after a probe of the current table"
-                 : std::string("mirror off: Lua copies the pose again"));
-      }
+    case coop::Command::mirror:
+      event(coop::pose::ask_mirror(static_cast<uint32_t>(coop::parse_request(request).ms)));
+      request.clear();
+      break;
+    case coop::Command::loopback: {
+      coop::Request r = coop::parse_request(request);
+      event(coop::pose::ask_loopback(!r.off, static_cast<uint32_t>(r.ms), static_cast<uint32_t>(r.jitter),
+                                     static_cast<uint32_t>(r.loss)));
       request.clear();
       break;
     }
@@ -313,6 +312,7 @@ bool step() {
       break;
     }
     coop::pose::worker_poll(folder, GetTickCount64(), event);
+    streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64());
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
     if (ready == coop::Link::Ready::no && !request.empty()) {
@@ -386,7 +386,7 @@ DWORD WINAPI worker(void *) {
       append(utc_stamp() + " worker stopped: fault " + hex);
       return 0; // Steam may be gone or a lock held: never call it again.
     }
-    Sleep(50);
+    Sleep(streaming ? 5 : 50);
   }
   coop::pose::block();
   append(utc_stamp() + " worker stopped: Steam exports missing");

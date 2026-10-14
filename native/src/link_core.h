@@ -438,6 +438,7 @@ private:
     case Command::probe: // The pose path's: the caller handles them.
     case Command::off:
     case Command::mirror:
+    case Command::loopback:
       break;
     case Command::none:
       event("unknown request");

@@ -44,5 +44,19 @@ assert(link.components('generation 1\n') and files['C:\\Mod\\coop-components.txt
 assert(link.components('generation 2\n') and files['C:\\Mod\\coop-components.txt']=='generation 2\n','Replaced, not refused')
 assert(link.components(nil) and files['C:\\Mod\\coop-components.txt']==nil,'Removed with the puppet')
 
+-- The table the native part drives, and how, from the status as of the last changes().
+files[STATUS]='mod=v\nengine=on mirror=on 500 table 1797\nlast=#5 mirror on\n'
+link.changes()
+local t,mode=link.mirror_table()
+assert(t==1797 and mode=='mirror',tostring(t))
+files[STATUS]='mod=v\nengine=on loopback=on 120 30 1 table 1798\nlast=#6 loopback on\n'
+link.changes()
+t,mode=link.mirror_table()
+assert(t==1798 and mode=='loopback',tostring(t))
+files[STATUS]='mod=v\nengine=on loopback=waiting\nlast=#7 loopback asked\n'
+link.changes()
+t,mode=link.mirror_table()
+assert(t==nil and mode==nil,'Waiting: Lua still copies')
+
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 print('link_test ok')

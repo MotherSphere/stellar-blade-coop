@@ -143,7 +143,9 @@ assert(puppet.status()=='puppet=on parts=3 mode=copy table=100001')
 -- Mirror mode for this table: no copying; place() (after the native tick) waits for a native stamp (the engine
 -- default scale Z is 1), then follows the mailbox.
 assert(puppet.place()==nil and root.moves==1,'place() does nothing in copy mode')
-puppet.set_mirror(100001)
+puppet.set_mirror(100001,'loopback')
+assert(puppet.status()=='puppet=on parts=3 mode=loopback table=100001','The native mode shows in coop status')
+puppet.set_mirror(100001,'mirror')
 assert(puppet.status()=='puppet=on parts=3 mode=mirror table=100001')
 puppet.tick()
 puppet.place()

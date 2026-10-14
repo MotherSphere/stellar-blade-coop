@@ -12,7 +12,7 @@ local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function() return true end,
     store=function() return 'store' end,
-    mirror_table=function() return 3 end,
+    mirror_table=function() return 3,'loopback' end,
     request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
@@ -20,13 +20,13 @@ local fake_link={
 }
 local toggles,active=0,false
 local native_ok
-local mirrored
+local mirrored,mirrored_mode
 package.loaded.puppet={new=function(publish,store)
     assert(publish==(native_ok and fake_link.components or nil),'The puppet publishes through the link, if any')
     assert(store==(native_ok and 'store' or nil),'The puppet keeps its path through the link, if any')
     return {toggle=function() toggles=toggles+1; active=not active; return true,'puppet' end,tick=function() end,
         active=function() return active end,status=function() return 'puppet='..(active and 'on' or 'off') end,
-        set_mirror=function(t) mirrored=t end,place=function() end}
+        set_mirror=function(t,mode) mirrored,mirrored_mode=t,mode end,place=function() end}
 end}
 package.loaded.link={new=function() return fake_link end}
 package.loaded.version='v9-test'
@@ -66,6 +66,14 @@ for _,bad in ipairs({'0','2001','x'}) do
     coop('mirror',bad); assert(last():find('STOP: Use: coop mirror',1,true),last())
 end
 coop('mirror'); assert(last():find('STOP: Use: coop mirror',1,true),last())
+coop('loopback','120','30','1'); assert(asked[#asked]=='loopback 120 30 1','All three numbers reach the native part')
+coop('loopback','0','0','0'); assert(asked[#asked]=='loopback 0 0 0')
+coop('loopback','off'); assert(asked[#asked]=='loopback off')
+local before=#asked
+for _,bad in ipairs({{'120','30'},{'1001','0','0'},{'0','501','0'},{'0','0','101'},{'x','0','0'},{'-1','0','0'},{}}) do
+    coop('loopback',table.unpack(bad)); assert(last():find('STOP: Use: coop loopback',1,true),last())
+end
+assert(#asked==before,'Nothing asked on bad input')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the puppet and tells the native part')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
@@ -74,7 +82,7 @@ coop('dance'); assert(last():find('Use: coop puppet | host',1,true),last())
 coop(); assert(last():find('Use: coop',1,true))
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'puppet every frame, link every 250 ms')
 loops[2].f(); assert(last()=='[StellarCoop] link: link=host lobby=7\n',last())
-assert(mirrored==3,'The puppet learns the native mirror table every 250 ms')
+assert(mirrored==3 and mirrored_mode=='loopback','The puppet learns the native table and mode every 250 ms')
 
 -- coop off survives a Lua reload: the native part still reports it.
 status_text='mod=v proto=2 steam=ready\nlink=none lobby=0\nengine=off reason=coop_off\nlast=#9 coop off\n'

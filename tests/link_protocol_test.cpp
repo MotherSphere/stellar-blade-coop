@@ -93,7 +93,20 @@ int main() {
   Request mirror = parse_request("mirror 500\n");
   assert(mirror.command == Command::mirror && mirror.ms == 500);
   mirror = parse_request("mirror off");
-  assert(mirror.command == Command::mirror && mirror.ms == 0);
+  assert(mirror.command == Command::mirror && mirror.ms == 0 && mirror.off);
+  Request loopback = parse_request("loopback 120 30 1\r\n");
+  assert(loopback.command == Command::loopback && loopback.ms == 120 && loopback.jitter == 30 && loopback.loss == 1 &&
+         !loopback.off);
+  loopback = parse_request("loopback 0 0 0");
+  assert(loopback.command == Command::loopback && loopback.ms == 0 && !loopback.off);
+  loopback = parse_request("loopback 1000 500 100");
+  assert(loopback.command == Command::loopback && loopback.ms == 1000 && loopback.jitter == 500 && loopback.loss == 100);
+  loopback = parse_request("loopback off");
+  assert(loopback.command == Command::loopback && loopback.off);
+  for (const char *bad : {"loopback", "loopback 120", "loopback 120 30", "loopback 1001 0 0", "loopback 0 501 0",
+                          "loopback 0 0 101", "loopback 120 30 1 9", "loopback 120  30 1", "loopback -1 0 0",
+                          "loopback on"})
+    assert(parse_request(bad).command == Command::none);
   for (const char *bad : {"mirror", "mirror 0", "mirror 2001", "mirror x", "mirror -5"})
     assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");

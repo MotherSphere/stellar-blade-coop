@@ -4,10 +4,12 @@
 -- the same relative placement (a weapon in a hand socket follows the puppet's hand). Followers follow their puppet
 -- leader as hers follow theirs. No cloth or morphs: a rigid ponytail and a neutral face.
 --
--- Two modes, chosen by the native part (status "mirror=on <ms> table <n>" for this puppet's table):
+-- Two modes, chosen by the native part (status "mirror=on <ms> table <n>" or "loopback=on ... table <n>" for this
+-- puppet's table):
 -- copy: each frame Lua places the root 2 m to her right and copies her leaders' poses (CopyPoseFromSkeletalComponent);
--- mirror: the native part writes the leaders' bones from <ms> ago and her main mesh transform into the mailbox, a
--- scene component nothing moves; Lua only places the root from it, after the native tick of the same frame (place()).
+-- native (mirror or loopback): the native part writes the leaders' bones (hers from <ms> ago, or the pose that came
+-- back through the loopback) and the main mesh transform into the mailbox, a scene component nothing moves; Lua only
+-- places the root from it, 2 m to the side, after the native tick of the same frame (place()).
 -- Once a second: her visibility, her outfit (a new mesh rebuilds the puppet) and her attachments (a blade moving from
 -- hand to back is hung again).
 -- The puppet's path is kept in a file, so the next Lua load (a hot reload) finds and destroys a puppet left standing.
@@ -97,7 +99,7 @@ function Puppet.new(publish,store)
     publish=publish or function() return false,'no native part' end
     store=store or {save=function() end,load=function() end,clear=function() end}
     local self,puppet,wanted,back_since={},nil,false,nil
-    local mirror_table=nil -- The table generation the native mirror runs on, from its status.
+    local mirror_table,mirror_mode=nil,nil -- The table generation the native part drives, and how, from its status.
     local function clear(why)
         local p=puppet; puppet=nil
         if p then publish(nil); store.clear() end
@@ -191,8 +193,8 @@ function Puppet.new(publish,store)
         wanted=true
         return true,(swept and swept..' ' or '')..message
     end
-    -- The native mirror's table, from its status: the puppet stops copying when it is this puppet's table.
-    function self.set_mirror(table_generation) mirror_table=table_generation end
+    -- The native part's table and mode, from its status: the puppet stops copying when it is this puppet's table.
+    function self.set_mirror(table_generation,mode) mirror_table,mirror_mode=table_generation,mode end
     -- Puppet parts in the world that are not this Lua load's puppet (a puppet the game restored would show here).
     local function strays()
         local count,ours=0,puppet and valid(puppet.actor) and address(puppet.actor)
@@ -208,7 +210,7 @@ function Puppet.new(publish,store)
         if not wanted then return 'puppet=off'..tail end
         if not puppet then return 'puppet=waiting (EVE not in the world)'..tail end
         return string.format('puppet=on parts=%d mode=%s table=%d',#puppet.parts,
-            mirror_table==puppet.generation and 'mirror' or 'copy',puppet.generation or 0)..tail
+            mirror_table==puppet.generation and (mirror_mode or 'mirror') or 'copy',puppet.generation or 0)..tail
     end
     local function place(root,at,rotation,yaw)
         local dx,dy=-math.sin(yaw)*RIGHT,math.cos(yaw)*RIGHT -- Her right: Unreal is left-handed.

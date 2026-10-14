@@ -13,7 +13,7 @@ function Link.new(folder,fs)
     fs=fs or files
     local function path(name) return folder..'\\'..name end
     local status_path=path('coop-status.txt')
-    local seen,mirror={},nil
+    local seen,mirror,mode={},nil,nil
     local self={}
     local function put(name,text)
         local final=path(name)
@@ -46,11 +46,20 @@ function Link.new(folder,fs)
             clear=function() fs.remove(path(name)) end,
         }
     end
-    -- The table generation the native mirror runs on (status "mirror=on <ms> table <n>"), as of the last changes().
-    function self.mirror_table() return mirror end
+    -- The table generation the native part drives the puppet on, and how ('mirror' or 'loopback'), from its status
+    -- ("mirror=on <ms> table <n>", "loopback=on <delay> <jitter> <loss> table <n>"), as of the last changes().
+    function self.mirror_table() return mirror,mode end
     function self.changes()
         local text,now,new=fs.read(status_path),{},{}
-        mirror=text and tonumber(text:match('mirror=on %d+ table (%d+)')) or nil
+        mirror,mode=nil,nil
+        if text then
+            mirror=tonumber(text:match('mirror=on %d+ table (%d+)'))
+            mode=mirror and 'mirror' or nil
+            if not mirror then
+                mirror=tonumber(text:match('loopback=on %d+ %d+ %d+ table (%d+)'))
+                mode=mirror and 'loopback' or nil
+            end
+        end
         if not text then return new end
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
