@@ -25,12 +25,19 @@ struct Call {
   std::function<void()> on_done;
 };
 struct Sent {
-  uint64_t to;
+  uint64_t from, to;
+  int channel, flags;
   std::string text;
-  int flags;
+};
+using Inbox = std::vector<std::pair<uint64_t, std::string>>; // Sender and text.
+// One player's own Steam: who she is and what waits for her on each channel.
+struct Client {
+  uint64_t id;
+  Inbox inbox[2];
 };
 
-// The fake Steam's whole state.
+// The fake Steam's whole state. Lobbies, calls and names are shared; each client (0 is us, 1 is Kaanta) has its own id
+// and inboxes, so two Links can talk through it.
 struct Fake {
   int user_handle = 1;
   int build = kBuild;
@@ -41,7 +48,8 @@ struct Fake {
   std::map<uint64_t, uint64_t> owner;
   std::map<uint64_t, std::map<std::string, std::string>> data;
   std::vector<Sent> sent;
-  std::vector<std::pair<uint64_t, std::string>> inbox;
+  Inbox inbox; // Client 0's channel 0, filled by hand in the one-Link tests.
+  Client client[2] = {{kMe, {}}, {kFriend, {}}};
   std::vector<uint64_t> accepted, closed, left;
   std::map<uint64_t, std::string> names = {{kFriend, "Kaanta"}, {kOther, "Third"}, {kStranger, "Stranger"}};
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
@@ -66,14 +74,19 @@ template <class T> void store(Call &c, const T &value) {
   c.result.resize(sizeof value);
   std::memcpy(c.result.data(), &value, sizeof value);
 }
+Inbox &inbox(int client, int channel) {
+  assert(channel == 0 || channel == 1);
+  return client == 0 && channel == kChannel ? F.inbox : F.client[client].inbox[channel];
+}
 
-Api make_api() {
+// Client N's Steam. Captureless lambdas, as the Api holds plain function pointers: N picks the client.
+template <int N> Api make_api() {
   Api a{};
   a.user_handle = [] { return F.user_handle; };
   a.release_memory = [] {};
   a.register_callback = [](void *, int) {};
   a.user = a.friends = a.utils = a.matchmaking = a.messages = a.net_utils = a.apps = iface;
-  a.steam_id = [](void *) { return kMe; };
+  a.steam_id = [](void *) { return F.client[N].id; };
   a.app_id = [](void *) { return 3489700u; };
   a.overlay = [](void *) { return true; };
   a.build_id = [](void *) { return F.build; };
@@ -113,8 +126,8 @@ Api make_api() {
     c.id = kCreatedId;
     store(c, LobbyCreated{kResultOk, lobby});
     c.on_done = [lobby] {
-      F.members[lobby] = {kMe};
-      F.owner[lobby] = kMe;
+      F.members[lobby] = {F.client[N].id};
+      F.owner[lobby] = F.client[N].id;
     };
     return call;
   };
@@ -123,12 +136,12 @@ Api make_api() {
     Call &c = F.calls[call];
     c.id = kEnterId;
     store(c, LobbyEnter{lobby, 0, false, static_cast<uint32_t>(kEnterSuccess)});
-    c.on_done = [lobby] { F.members[lobby].push_back(kMe); };
+    c.on_done = [lobby] { F.members[lobby].push_back(F.client[N].id); };
     return call;
   };
   a.leave_lobby = [](void *, uint64_t lobby) {
     auto &m = F.members[lobby];
-    m.erase(std::remove(m.begin(), m.end(), kMe), m.end());
+    m.erase(std::remove(m.begin(), m.end(), F.client[N].id), m.end());
     F.left.push_back(lobby);
   };
   a.set_lobby_data = [](void *, uint64_t lobby, const char *k, const char *v) {
@@ -143,16 +156,20 @@ Api make_api() {
   a.member_count = [](void *, uint64_t lobby) { return static_cast<int>(F.members[lobby].size()); };
   a.member = [](void *, uint64_t lobby, int i) { return F.members[lobby].at(static_cast<size_t>(i)); };
   a.send = [](void *, const Identity *who, const void *data, uint32_t size, int flags, int channel) {
-    assert(channel == kChannel);
-    F.sent.push_back({steam_id_of(*who), std::string(static_cast<const char *>(data), size), flags});
+    uint64_t from = F.client[N].id, to = steam_id_of(*who);
+    std::string text(static_cast<const char *>(data), size);
+    F.sent.push_back({from, to, channel, flags, text});
+    for (int i = 0; i < 2; ++i)
+      if (F.client[i].id == to)
+        inbox(i, channel).push_back({from, text});
     return 1;
   };
   a.receive = [](void *, int channel, NetMessage **out, int max) {
-    assert(channel == kChannel);
+    Inbox &box = inbox(N, channel);
     int n = 0;
-    while (n < max && !F.inbox.empty()) {
-      auto [from, text] = F.inbox.front();
-      F.inbox.erase(F.inbox.begin());
+    while (n < max && !box.empty()) {
+      auto [from, text] = box.front();
+      box.erase(box.begin());
       auto *m = new NetMessage{};
       auto *copy = new std::string(text);
       m->data = copy->data();
@@ -203,15 +220,16 @@ bool saw(const std::string &part) {
       return true;
   return false;
 }
+// Control messages only: the handshake, pings and pongs must go on channel 0, as a joiner reads them there.
 int sent_to(uint64_t id, const std::string &prefix) {
   int n = 0;
   for (auto &s : F.sent)
-    n += s.to == id && s.text.rfind(prefix, 0) == 0;
+    n += s.to == id && s.channel == kChannel && s.text.rfind(prefix, 0) == 0;
   return n;
 }
 
 struct World {
-  Api api = make_api();
+  Api api = make_api<0>();
   Link link{api, "v1.2-dev", [](const std::string &e) { events.push_back(e); }};
   uint64_t now = 1000;
   void tick(const std::string &request = "", uint64_t join = 0, uint64_t session = 0, uint64_t step = 50) {
@@ -257,13 +275,16 @@ int main() {
     World w;
     F.user_handle = 0;
     assert(w.link.ready(L"SB.exe") == Link::Ready::no);
-    assert(w.status() == "mod=v1.2-dev proto=3 steam=waiting\n"); // No Steam call before Steam is ready.
+    // No Steam call before Steam is ready.
+    assert(w.status() == "mod=v1.2-dev proto=" + std::to_string(kProtocol) + " steam=waiting\n");
     F.user_handle = 1;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now && w.link.ready(L"SB.exe") == Link::Ready::yes);
-    assert(saw("Steam ready: Me, app 3489700, game build 24463856, mod v1.2-dev, protocol 3"));
+    assert(
+        saw("Steam ready: Me, app 3489700, game build 24463856, mod v1.2-dev, protocol " + std::to_string(kProtocol)));
     assert(w.status().find("relay=unknown") != std::string::npos);
     w.tick();
-    assert(w.status().find("relay=100") != std::string::npos && w.status().find("mod=v1.2-dev proto=3") == 0);
+    assert(w.status().find("relay=100") != std::string::npos &&
+           w.status().find("mod=v1.2-dev proto=" + std::to_string(kProtocol)) == 0);
     F.relay = 3; // Outside a lobby the relay is read every 5 s.
     w.tick("", 0, 0, 1000);
     assert(w.status().find("relay=100") != std::string::npos);
@@ -280,9 +301,10 @@ int main() {
     assert(w.link.host() && F.invites == 1 && F.data[lobby][kLobbyKey] == lobby_tag(kBuild));
     assert(saw("hosting lobby 5000: invite dialog opened") && saw("Kaanta is in the lobby"));
     // Our hello on her arrival, sent again with our accept since hers had not come yet; one accept per hello of hers.
-    assert(sent_to(kFriend, "SBC hello 3 v1.2-dev 24463856") == 2 && sent_to(kFriend, "SBC accept") == 1);
+    assert(sent_to(kFriend, "SBC hello " + std::to_string(kProtocol) + " v1.2-dev 24463856") == 2 &&
+           sent_to(kFriend, "SBC accept") == 1);
     assert(saw("hello from Kaanta (mod v1.2-dev)") && saw("Kaanta accepted our hello"));
-    assert(sent_to(kFriend, "SBC3 ping 1 ") == 1);
+    assert(sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " ping 1 ") == 1);
     F.inbox.push_back({kFriend, pong(1, w.now - 30)});
     w.tick("", 0, 0, 30);
     w.tick("", 0, 0, 1000); // Session state and ping are read once a second.
@@ -298,7 +320,8 @@ int main() {
   }
 
   // A peer on another protocol or game build gets a typed reject, and both sides leave.
-  for (const std::string &their : {hello(1, "old", kBuild), hello(4, "new", kBuild), hello(kProtocol, "v", 123)}) {
+  for (const std::string &their :
+       {hello(1, "old", kBuild), hello(kProtocol + 1, "new", kBuild), hello(kProtocol, "v", 123)}) {
     reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
@@ -369,7 +392,8 @@ int main() {
     assert(saw("joining lobby 7000 (invite accepted)"));
     finish_all();
     w.tick();
-    assert(saw("lobby 7000 runs protocol 1, build 24463856, this game runs protocol 3, build 24463856"));
+    assert(saw("lobby 7000 runs protocol 1, build 24463856, this game runs protocol " + std::to_string(kProtocol) +
+               ", build 24463856"));
     assert(saw("left lobby 7000: incompatible lobby"));
   }
 
@@ -419,7 +443,7 @@ int main() {
     assert(saw("Kaanta silent for 10 s: lost") && w.status().find("lost=1") != std::string::npos);
     F.inbox.push_back({kFriend, ping(5, 5)});
     w.tick();
-    assert(saw("Kaanta is back") && sent_to(kFriend, "SBC3 pong 5 5") == 1);
+    assert(saw("Kaanta is back") && sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " pong 5 5") == 1);
   }
   reset();
   {
@@ -452,7 +476,7 @@ int main() {
     assert(!saw("ignored messages from 2002"));
     F.inbox.push_back({kFriend, accept()});
     w.tick();
-    assert(sent_to(kFriend, "SBC3 ping 1 ") == 1);
+    assert(sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " ping 1 ") == 1);
     // A second session after a broken one: her new hello is answered again, so she can finish too.
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
     w.tick();
@@ -477,8 +501,8 @@ int main() {
     assert(F.accepted.size() == 1 && F.accepted[0] == kFriend && saw("accepted a session from Kaanta"));
     for (auto id : F.closed)
       assert(id != kStranger); // Never closed because of a stranger.
-    F.inbox.push_back({kFriend, "SBC3 nonsense"});
-    F.inbox.push_back({kFriend, "SBC3 nonsense"});
+    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " nonsense"});
+    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " nonsense"});
     w.tick();
     assert(w.status().find("invalid=2") != std::string::npos);
   }
