@@ -175,6 +175,51 @@ int main() {
     put<uintptr_t>(puppet, kTargetArray, 0);
     assert(write_leader(objs, p, pose.data()) == Io::null_array);
 
+    // A leader on a fallback mesh: bone k takes source bone remap[k]; -1, and an index past the source's bones, keep
+    // the bytes the puppet holds.
+    std::vector<uint8_t> four(4 * kTransformBytes);
+    for (size_t i = 0; i < four.size(); ++i)
+      four[i] = static_cast<uint8_t>(i % 251 + 1);
+    const int16_t remap[3] = {3, -1, 0};
+    const std::vector<uint8_t> kept(kTransformBytes, 0x11);
+    auto bone = [](const std::vector<uint8_t> &v, size_t k) {
+      return std::vector<uint8_t>(v.begin() + k * kTransformBytes, v.begin() + (k + 1) * kTransformBytes);
+    };
+    put(puppet, kTargetArray, addr(replaced));
+    std::fill(replaced.begin(), replaced.end(), 0x11);
+    put<uint8_t>(puppet, kRefresh, 0);
+    assert(write_leader_mapped(objs, p, four.data(), remap, 4) == Io::ok && puppet[kRefresh] == 1);
+    assert(bone(replaced, 0) == bone(four, 3) && bone(replaced, 1) == kept && bone(replaced, 2) == bone(four, 0));
+    std::vector<uint8_t> three(four.begin(), four.begin() + 3 * kTransformBytes); // ASan sees any read past bone 2.
+    std::fill(replaced.begin(), replaced.end(), 0x11);
+    assert(write_leader_mapped(objs, p, three.data(), remap, 3) == Io::ok);
+    assert(bone(replaced, 0) == kept && bone(replaced, 1) == kept && bone(replaced, 2) == bone(three, 0));
+
+    // Its gate is write_leader's: nothing written and no refresh flag past any closed part of it.
+    auto refused = [&](Io want, const Part &part) {
+      std::fill(replaced.begin(), replaced.end(), 0x11);
+      put<uint8_t>(puppet, kRefresh, 0);
+      return write_leader_mapped(objs, part, four.data(), remap, 4) == want &&
+             replaced == std::vector<uint8_t>(replaced.size(), 0x11) && puppet[kRefresh] == 0;
+    };
+    assert(refused(Io::gone, Part{addr(dead), poseable_class, mesh, 3, true}));
+    assert(refused(Io::gone, Part{addr(puppet), poseable_class, 0x1, 3, true})); // Another mesh.
+    put<int32_t>(puppet, kGateWeak + 4, 41);
+    assert(refused(Io::gate, p));
+    put<int32_t>(puppet, kGateWeak + 4, 42);
+    put<uintptr_t>(puppet, kGatePointer, 0);
+    assert(refused(Io::gate, p));
+    put<uintptr_t>(puppet, kGatePointer, 0x77);
+    put<int32_t>(puppet, kGateCount, 0);
+    assert(refused(Io::gate, p));
+    put<int32_t>(puppet, kGateCount, 3);
+    put<int32_t>(puppet, kTargetCount, 2);
+    assert(refused(Io::count, p));
+    put<int32_t>(puppet, kTargetCount, 3);
+    put<uintptr_t>(puppet, kTargetArray, 0);
+    put<uint8_t>(puppet, kRefresh, 0);
+    assert(write_leader_mapped(objs, p, four.data(), remap, 4) == Io::null_array && puppet[kRefresh] == 0);
+
     // Mailbox: location, rotation and stamp land in its relative fields; a dead or foreign object is refused.
     std::vector<uint8_t> box(0x200);
     objects.add(box);

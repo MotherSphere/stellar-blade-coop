@@ -195,7 +195,7 @@ inline Io read_leader(uintptr_t objects, const Part &eve, uint8_t *out) {
 // The puppet's leader takes those transforms, behind CopyPose's own gate (+0x8b8 a live weak pointer, +0x8d0 set,
 // +0x890 at least 1, +0x880 the published count); the +0x878 array is read again each time (CopyPose replaces it), and
 // the refresh flag +0x9d0 is set as CopyPose sets it.
-inline Io write_leader(uintptr_t objects, const Part &puppet, const uint8_t *in) {
+inline Io open_leader(uintptr_t objects, const Part &puppet, uintptr_t &data) {
   if (!published(objects, puppet))
     return Io::gone;
   auto dst = static_cast<uintptr_t>(puppet.object);
@@ -203,11 +203,33 @@ inline Io write_leader(uintptr_t objects, const Part &puppet, const uint8_t *in)
     return Io::count;
   if (!weak_valid(objects, dst + kGateWeak) || !at<uintptr_t>(dst + kGatePointer) || at<int32_t>(dst + kGateCount) < 1)
     return Io::gate;
-  auto data = at<uintptr_t>(dst + kTargetArray);
-  if (!data)
-    return Io::null_array;
+  data = at<uintptr_t>(dst + kTargetArray);
+  return data ? Io::ok : Io::null_array;
+}
+inline Io write_leader(uintptr_t objects, const Part &puppet, const uint8_t *in) {
+  uintptr_t data;
+  Io r = open_leader(objects, puppet, data);
+  if (r != Io::ok)
+    return r;
   std::memcpy(reinterpret_cast<void *>(data), in, size_t(puppet.bones) * kTransformBytes);
-  *reinterpret_cast<uint8_t *>(dst + kRefresh) = 1;
+  *reinterpret_cast<uint8_t *>(static_cast<uintptr_t>(puppet.object) + kRefresh) = 1;
+  return Io::ok;
+}
+
+// The same write for a leader drawn on a fallback mesh (another skeleton): bone k takes source bone remap[k]
+// (puppet.bones entries) of the src_bones the sender's leader has. A bone with -1, or an index past src_bones, keeps
+// the bytes it holds (the reference pose of a fresh puppet), so a bad remap can never read past the source.
+inline Io write_leader_mapped(uintptr_t objects, const Part &puppet, const uint8_t *src, const int16_t *remap,
+                              uint32_t src_bones) {
+  uintptr_t data;
+  Io r = open_leader(objects, puppet, data);
+  if (r != Io::ok)
+    return r;
+  for (uint32_t k = 0; k < puppet.bones; ++k)
+    if (remap[k] >= 0 && uint32_t(remap[k]) < src_bones)
+      std::memcpy(reinterpret_cast<void *>(data + k * kTransformBytes), src + size_t(remap[k]) * kTransformBytes,
+                  kTransformBytes);
+  *reinterpret_cast<uint8_t *>(static_cast<uintptr_t>(puppet.object) + kRefresh) = 1;
   return Io::ok;
 }
 
