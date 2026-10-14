@@ -8,6 +8,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "link_protocol.h" // number(), split()
@@ -26,13 +27,13 @@ struct Part {
 // EVE's parts and the puppet's, index for index, plus the mailbox (N17): a scene component of the puppet that nothing
 // ever moves, whose relative location and rotation the native mirror writes and Lua reads back each frame. It cannot be
 // the puppet's root itself: K2_SetWorldLocationAndRotation does nothing when the value equals the root's own relative
-// fields (PHASE2-RE.md).
-struct Table {
+// fields (PHASE2-RE.md). The 3a mirror's table until the 3b switch; the wire's Table is in pose_table.h.
+struct Mirror {
   uint64_t generation = 0, mailbox = 0, mailbox_class = 0;
   std::vector<Part> eve, puppet;
 };
 
-inline bool hex(const std::string &text, uint64_t &out) {
+inline bool hex(std::string_view text, uint64_t &out) {
   if (text.size() < 3 || text.size() > 18 || text[0] != '0' || (text[1] != 'x' && text[1] != 'X'))
     return false;
   uint64_t value = 0;
@@ -53,8 +54,8 @@ inline bool hex(const std::string &text, uint64_t &out) {
 //   part eve|puppet <index> 0x<object> 0x<class> 0x<mesh> <bones> <leader 0|1>
 // Part 0 is the main mesh on both sides: the mirror records EVE's and places the puppet's through the mailbox.
 // Every part index from 0 up to the count, for both sides, same bones and leader flags side by side.
-inline std::optional<Table> parse_table(const std::string &text) {
-  Table t;
+inline std::optional<Mirror> parse_table(const std::string &text) {
+  Mirror t;
   bool has_generation = false;
   std::vector<std::pair<size_t, Part>> eve, puppet;
   size_t at = 0;
@@ -116,7 +117,7 @@ public:
   static constexpr uint64_t kKeepUs = 2'000'000;
 
   // Sizes the pool for a table: the byte count of all leader bones. Drops every stored frame.
-  void reset(const Table &t) {
+  void reset(const Mirror &t) {
     bytes_ = 0;
     for (auto &p : t.eve)
       if (p.leader)
@@ -183,9 +184,9 @@ private:
 // What the worker hands the game thread for one table: the table and a ring already sized for it, so the game thread
 // never allocates.
 struct Session {
-  Table table;
+  Mirror table;
   Ring ring;
-  explicit Session(Table t) : table(std::move(t)) { ring.reset(table); }
+  explicit Session(Mirror t) : table(std::move(t)) { ring.reset(table); }
 };
 
 } // namespace coop::pose

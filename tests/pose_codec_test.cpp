@@ -15,9 +15,8 @@ namespace {
 Table table() {
   Table t;
   t.generation = 42;
-  t.mailbox = t.mailbox_class = 1;
   Part leader{1, 1, 1, 5, true}, follower{1, 1, 1, 5, false}, small{1, 1, 1, 3, true};
-  t.eve = t.puppet = {leader, follower, small};
+  t.eve = {leader, follower, small};
   return t;
 }
 constexpr size_t kLeaderBones = 8; // 5 + 3: the follower carries none.
@@ -223,7 +222,7 @@ int main() {
 
   // A table over 16 KB has no pose size: the caller refuses to stream it.
   Table big = t;
-  big.eve[0].bones = big.puppet[0].bones = 1000;
+  big.eve[0].bones = 1000;
   assert(pose_size(big) == 0 && encode_pose(big, h, root, bones.data(), wire.data(), clamped) == 0);
   std::puts("pose_codec_test: all passed");
 }

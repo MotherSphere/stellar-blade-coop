@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace coop {
 constexpr int kProtocol = 2; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject).
@@ -66,7 +67,7 @@ inline std::string ping(uint64_t seq, uint64_t ms) { return versioned("ping", se
 inline std::string pong(uint64_t seq, uint64_t ms) { return versioned("pong", seq, ms); }
 
 // Digits only, no sign, no overflow.
-inline bool number(const std::string &text, uint64_t &out) {
+inline bool number(std::string_view text, uint64_t &out) {
   if (text.empty() || text.size() > 20)
     return false;
   uint64_t value = 0;

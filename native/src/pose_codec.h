@@ -20,11 +20,10 @@
 #include <cstring>
 
 #include "link_protocol.h" // kProtocol
-#include "pose_core.h"     // Table, kTransformBytes
+#include "pose_table.h"    // Table, pose_size, kMaxPose, kTransformBytes
 
 namespace coop::pose {
 
-constexpr size_t kMaxPose = 16384, kPoseHeader = 29, kWorldBytes = 24, kBoneBytes = 18;
 constexpr uint8_t kWorld = 1, kBones = 2;
 constexpr float kMaxWorld = 1e7f; // cm: UE4's world is ±1048576; a farther (or non-finite) position is refused.
 
@@ -115,14 +114,6 @@ inline void get_rotation(const uint8_t *&in, float *q) {
       q[k] = float(q[k] / std::sqrt(sum));
 }
 } // namespace codec
-
-// The bytes a pose of this table takes (every message of a table has this one size), or 0 above kMaxPose.
-inline size_t pose_size(const Table &t) {
-  size_t size = kPoseHeader;
-  for (size_t i = 0; i < t.eve.size(); ++i)
-    size += 1 + (i == 0 ? kWorldBytes : 0) + (t.eve[i].leader ? kBoneBytes * t.eve[i].bones : 0);
-  return t.eve.empty() || t.eve.size() > 255 || size > kMaxPose ? 0 : size;
-}
 
 // One pose into out (at least pose_size(t) bytes): root is the main mesh's world transform (10 floats: rotation xyzw,
 // translation xyz, scale xyz), bones the leaders' local transforms back to back in table order. Returns the size, 0

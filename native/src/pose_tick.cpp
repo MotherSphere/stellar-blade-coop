@@ -52,10 +52,13 @@ std::atomic<uint64_t> loopback_generation{0};
 // A Session with the pose stream's memory, all sized by the worker for its table: the playback, EVE's pose as read
 // for sending, and the pose drawn this frame.
 struct Live : Session {
+  Table layout; // What the codec reads (pose_table.h): the mirror table's generation and EVE's parts.
   Playback playback;
   std::vector<uint8_t> capture, draw;
   float capture_root[10] = {}, draw_root[10] = {};
-  explicit Live(Table t) : Session(std::move(t)) {
+  explicit Live(Mirror t) : Session(std::move(t)) {
+    layout.generation = table.generation;
+    layout.eve = table.eve;
     playback.reset(ring.bytes());
     capture.assign(ring.bytes(), 0);
     draw.assign(ring.bytes(), 0);
@@ -142,7 +145,7 @@ void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
 // Probes every leader pair; true when all are offsets_ok. Lines go to pending (all of them when verbose, else only
 // the failures and the summary).
 bool probe(bool verbose) {
-  const Table &table = session->table;
+  const Mirror &table = session->table;
   int ok = 0, leaders = 0;
   for (size_t i = 0; i < table.eve.size(); ++i) {
     if (!table.eve[i].leader)
@@ -172,7 +175,7 @@ bool probe(bool verbose) {
 
 // EVE now: her main mesh's world transform and her leaders' local poses, back to back.
 Io read_eve(float *root, uint8_t *bones) {
-  const Table &table = session->table;
+  const Mirror &table = session->table;
   if (!published(objects, table.eve[0]))
     return Io::gone;
   read_world(static_cast<uintptr_t>(table.eve[0].object), root);
@@ -192,7 +195,7 @@ Io read_eve(float *root, uint8_t *bones) {
 
 // A pose into the puppet's leaders and the mailbox; true when every write passed its checks.
 bool write_puppet(const uint8_t *bones, const float *root) {
-  const Table &table = session->table;
+  const Mirror &table = session->table;
   size_t offset = 0;
   bool all = true;
   for (size_t i = 0; i < table.puppet.size(); ++i) {
@@ -257,7 +260,8 @@ void stream(uint64_t now_us) {
       h.publication = now_us;
       h.sequence = ++sequence;
       uint32_t clamped = 0;
-      out_back.size = encode_pose(live.table, h, live.capture_root, live.capture.data(), out_back.data.data(), clamped);
+      out_back.size =
+          encode_pose(live.layout, h, live.capture_root, live.capture.data(), out_back.data.data(), clamped);
       out_back.time = now_us;
       out_ready = true;
       if (m.try_lock()) { // At once, not at the next frame's hand-over: one frame less of delay.
@@ -276,7 +280,7 @@ void stream(uint64_t now_us) {
     Playback::Frame &f = live.playback.scratch();
     PoseHeader h;
     const Message &in = game_inbox[i];
-    if (const char *why = decode_pose(live.table, in.data.data(), in.size, h, f.root, f.bones.data())) {
+    if (const char *why = decode_pose(live.layout, in.data.data(), in.size, h, f.root, f.bones.data())) {
       ++window_rejected;
       last_reject = why;
       continue;
@@ -303,7 +307,7 @@ void stream(uint64_t now_us) {
 void start(int mode, uint32_t delay, uint64_t generation) {
   char line[200];
   const char *name = mode == 1 ? "mirror" : "loopback";
-  size_t pose_bytes = pose_size(session->table);
+  size_t pose_bytes = pose_size(session->layout);
   if (mode == 2 && !pose_bytes) {
     std::snprintf(line, sizeof line, "loopback refused on table %llu: one pose would be over %zu bytes",
                   static_cast<unsigned long long>(generation), kMaxPose);

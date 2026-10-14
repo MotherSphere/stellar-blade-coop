@@ -18,8 +18,7 @@ namespace {
 Table table() {
   Table t;
   t.generation = 9;
-  t.mailbox = t.mailbox_class = 1;
-  t.eve = t.puppet = {Part{1, 1, 1, 164, true}, Part{1, 1, 1, 7, true}, Part{1, 1, 1, 21, true}, Part{1, 1, 1, 54, true},
+  t.eve = {Part{1, 1, 1, 164, true}, Part{1, 1, 1, 7, true}, Part{1, 1, 1, 21, true}, Part{1, 1, 1, 54, true},
                       Part{1, 1, 1, 12, true}, Part{1, 1, 1, 30, false}}; // EVE's leaders as T2a measured them.
   return t;
 }
