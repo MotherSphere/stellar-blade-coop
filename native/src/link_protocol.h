@@ -1,5 +1,10 @@
 // What two StellarCoop players send each other, and what Lua asks the native part. Plain text, so a log shows it as
 // it is. No Windows or Steam types here: tests/link_protocol_test.cpp checks this file on the build machine.
+//
+// The handshake reads the same in every protocol version, so a mismatch is always answered, never silently dropped:
+//   SBC hello <protocol> <mod version> <game build>, then SBC accept, or SBC reject <reason>.
+// Every other message carries the protocol number and is dropped by a peer that runs another one:
+//   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>.
 #pragma once
 
 #include <cstddef>
@@ -7,17 +12,18 @@
 #include <string>
 
 namespace coop {
-constexpr int kProtocol = 1;          // Bump on any change below; peers with another number cannot talk.
+constexpr int kProtocol = 2; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject).
 constexpr char kLobbyKey[] = "stellarcoop";
-constexpr size_t kMaxMessage = 512;   // Longer messages are junk.
-constexpr size_t kMaxName = 64;
+constexpr size_t kMaxMessage = 512; // Longer messages are junk.
+constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
 
 // Lobby data under kLobbyKey: protocol and Steam build of the game, both must match to join.
 inline std::string lobby_tag(uint32_t build) { return std::to_string(kProtocol) + ":" + std::to_string(build); }
 
-// Untrusted text (a peer's name) made safe for one line of our status file: no control bytes, bounded.
+// Untrusted text made safe for one line of our status file: no control bytes, bounded, never cut inside a UTF-8
+// character.
 inline std::string clean(std::string text, size_t max) {
-  if (text.size() > max) { // Cut before a UTF-8 continuation byte, never inside a character.
+  if (text.size() > max) {
     size_t n = max;
     while (n && (static_cast<unsigned char>(text[n]) & 0xC0) == 0x80)
       --n;
@@ -29,24 +35,35 @@ inline std::string clean(std::string text, size_t max) {
   return text;
 }
 
-enum class Kind { invalid, hello, ping, pong };
+// One word: cleaned, spaces turned into '_', "dev" when empty.
+inline std::string token(std::string text) {
+  text = clean(std::move(text), kMaxToken);
+  for (char &c : text)
+    if (c == ' ')
+      c = '_';
+  return text.empty() ? "dev" : text;
+}
+
+enum class Kind { invalid, hello, accept, reject, ping, pong };
 struct Message {
   Kind kind = Kind::invalid;
-  uint64_t a = 0, b = 0; // hello: game build. ping/pong: sequence, sender's clock in ms.
-  std::string text;      // hello: the sender's Steam name, cleaned.
+  uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms.
+  std::string text;      // hello: mod version. reject: the reason. Cleaned.
 };
 
-inline std::string header(const char *kind) { return "SBC" + std::to_string(kProtocol) + " " + kind; }
-inline std::string hello(uint32_t build, const std::string &name) {
-  auto safe = clean(name, kMaxName);
-  return header("hello") + " " + std::to_string(build) + " " + (safe.empty() ? "?" : safe);
+inline std::string hello(int protocol, const std::string &mod, uint32_t build) {
+  return "SBC hello " + std::to_string(protocol) + " " + token(mod) + " " + std::to_string(build);
 }
-inline std::string ping(uint64_t seq, uint64_t ms) {
-  return header("ping") + " " + std::to_string(seq) + " " + std::to_string(ms);
+inline std::string accept() { return "SBC accept"; }
+inline std::string reject(const std::string &reason) {
+  auto why = clean(reason, kMaxReason);
+  return "SBC reject " + (why.empty() ? std::string("?") : why);
 }
-inline std::string pong(uint64_t seq, uint64_t ms) {
-  return header("pong") + " " + std::to_string(seq) + " " + std::to_string(ms);
+inline std::string versioned(const char *kind, uint64_t a, uint64_t b) {
+  return "SBC" + std::to_string(kProtocol) + " " + kind + " " + std::to_string(a) + " " + std::to_string(b);
 }
+inline std::string ping(uint64_t seq, uint64_t ms) { return versioned("ping", seq, ms); }
+inline std::string pong(uint64_t seq, uint64_t ms) { return versioned("pong", seq, ms); }
 
 // Digits only, no sign, no overflow.
 inline bool number(const std::string &text, uint64_t &out) {
@@ -99,22 +116,28 @@ inline Message parse(const char *data, size_t size) {
   std::string text(data, size);
   if (text.find('\0') != std::string::npos)
     return m;
-  std::string f[4], rest;
-  auto expect = [&](const char *kind) { return f[0] == "SBC" + std::to_string(kProtocol) && f[1] == kind; };
-  if (split(text, f, 4, nullptr) && (expect("ping") || expect("pong"))) {
+  std::string f[5], rest;
+  const std::string versioned_tag = "SBC" + std::to_string(kProtocol);
+  if (split(text, f, 2, nullptr) && f[0] == "SBC" && f[1] == "accept") {
+    m.kind = Kind::accept;
+  } else if (split(text, f, 2, &rest) && f[0] == "SBC" && f[1] == "reject") {
+    m.kind = Kind::reject;
+    m.text = clean(rest, kMaxReason);
+  } else if (split(text, f, 5, nullptr) && f[0] == "SBC" && f[1] == "hello") {
+    if (number(f[2], m.a) && number(f[4], m.b)) {
+      m.kind = Kind::hello;
+      m.text = token(f[3]);
+    }
+  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && (f[1] == "ping" || f[1] == "pong")) {
     if (number(f[2], m.a) && number(f[3], m.b))
       m.kind = f[1] == "ping" ? Kind::ping : Kind::pong;
-  } else if (split(text, f, 3, &rest) && expect("hello")) {
-    if (number(f[2], m.a)) {
-      m.kind = Kind::hello;
-      m.text = clean(rest, kMaxName);
-    }
   }
   return m;
 }
 
-// A request from Lua (coop-request.txt): "host", "invite", "leave", "join" (a friend's lobby) or "join <lobby id>".
-enum class Command { none, host, invite, join, leave };
+// A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby) or
+// "join <lobby id>".
+enum class Command { none, host, invite, join, leave, report };
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
@@ -130,6 +153,8 @@ inline Request parse_request(std::string text) {
     r.command = Command::invite;
   else if (text == "leave")
     r.command = Command::leave;
+  else if (text == "report")
+    r.command = Command::report;
   else if (text == "join")
     r.command = Command::join;
   else if (split(text, f, 2, nullptr) && f[0] == "join" && number(f[1], r.lobby) && r.lobby)
