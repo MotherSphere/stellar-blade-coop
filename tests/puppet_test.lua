@@ -1,7 +1,8 @@
 -- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
 -- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
--- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep.
+-- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
+-- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -36,6 +37,7 @@ local meshes,in_memory={},{[BODY]=true}
 local function mesh(path,bones,skeletal)
     meshes[path]=object(path,{path=path,bones=bones or {}})
     meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.SkeletalMesh' and skeletal~=false end
+    meshes[path].GetFullName=function() return (skeletal~=false and 'SkeletalMesh ' or 'StaticMesh ')..path end
 end
 mesh(BODY,{'Root','Bip001','Bip001-Pelvis'})
 mesh(FACE)
@@ -48,7 +50,12 @@ mesh(STATIC,{},false)
 mesh(LONG_HAIR,{'a','b','c','d','e'})
 mesh(TWO_BLADE,{'Root','Tip'})
 local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
-LoadAsset=function(path) loads[#loads+1]=path; return meshes[path] or invalid end
+local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
+LoadAsset=function(path)
+    loads[#loads+1]=path
+    if meshes[path] then meshes[path].resolved_at=frame end
+    return meshes[path] or invalid
+end
 
 local spawned={}
 local function poseable(actor)
@@ -56,7 +63,7 @@ local function poseable(actor)
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
         p[f]=function(self,a) self.calls[f]=a end
     end
-    function p:SetSkeletalMesh(m) self.mesh=m end
+    function p:SetSkeletalMesh(m) self.mesh,self.added_at=m,frame end
     function p:GetNumBones() return #self.mesh.bones end
     function p:GetBoneName(j) return fname(self.mesh.bones[j+1]) end
     function p:SetVisibility(v) self.visible=v end
@@ -102,13 +109,15 @@ local function eve_of(name,map_world,at)
 end
 local eve=eve_of('EVE')
 local player=eve
-package.loaded.UEHelpers={GetPlayer=function() return player end}
+package.loaded.UEHelpers={GetPlayer=function() frame=frame+1; return player end}
 local found_by_path={}
 StaticFindObject=function(path)
     if found_by_path[path] then return found_by_path[path] end
     if path:find('^/Game/') then
         lookups=lookups+1
-        return in_memory[path] and meshes[path] or invalid
+        if not in_memory[path] then return invalid end
+        meshes[path].resolved_at=frame
+        return meshes[path]
     end
     local c=object(path,{path=path})
     if path=='/Script/Engine.Default__KismetMathLibrary' then c.MakeTransform=function() return 'identity' end end
@@ -190,6 +199,11 @@ assert(table.concat(loads,' ')==table.concat({FACE,HAIR,PONY,BLADE},' '),table.c
 local actor=spawned[1]
 assert(actor.hidden==true,'Hidden until the first pose')
 local root,face,hair,pony,blade,scabbard=table.unpack(actor.parts)
+-- Each mesh is added in the frame it was found or loaded in, one frame after the other: nothing holds a fresh mesh
+-- between two frames. The scabbard's is the ponytail's, cached.
+for k,p in ipairs({root,face,hair,pony,blade}) do
+    assert(p.added_at==p.mesh.resolved_at and p.added_at==root.added_at+k-1,'Resolved and added in the same frame: '..k)
+end
 assert(root.mesh==meshes[BODY] and root.calls.SetForcedLOD==1 and root.attached==nil and root.visible==true)
 assert(face.calls.SetMasterPoseComponent==root and face.bUseBoundsFromMasterPoseComponent==true)
 assert(face.attached.parent==root and face.attached.socket=='None' and face.relative.Rotation.W==1)
@@ -232,6 +246,11 @@ assert(send(500,her_parts({socket='SC_Back',blade_shown=false}))==nil)
 assert(#spawned==1 and not actor.destroyed and #displays==displays_before,'No rebuild, the display stays')
 assert(blade.attached.socket=='SC_Back' and blade.visible==false and hair.attached.socket=='Bip001-Head')
 assert(ghost.tick()==nil,'Nothing to build')
+-- One change at a time: the socket alone hangs the blade elsewhere, shown alone shows it.
+send(500,her_parts({socket='SC_Hip',blade_shown=false}))
+assert(blade.attached.socket=='SC_Hip' and blade.visible==false,'The socket alone')
+send(500,her_parts({socket='SC_Hip'}))
+assert(blade.visible==true and blade.attached.socket=='SC_Hip','Shown alone')
 
 -- A replay: placed where it was, no offset.
 send(500,her_parts({socket='SC_Back',blade_shown=false}),'replay')
@@ -253,6 +272,9 @@ assert(message:find('; CharacterMesh0: %- missing, drawn as '..BASE_BODY:gsub('%
 assert(message:find('; SBHair: '..NIER:gsub('%p','%%%0')..' missing, drawn as '..BASE_HAIR:gsub('%p','%%%0')..' %(2 of 3 bones follow%)'),message)
 assert(table.concat(loads,' ')==table.concat({BASE_BODY,NIER,BASE_HAIR,TWO_BLADE},' '),table.concat(loads,' '))
 actor=spawned[#spawned]
+assert(actor.parts[1].mesh==meshes[BASE_BODY] and actor.parts[3].mesh==meshes[BASE_HAIR])
+assert(actor.parts[1].added_at==meshes[BASE_BODY].resolved_at and actor.parts[3].added_at==meshes[BASE_HAIR].resolved_at,
+    'A fallback mesh too is resolved and added in the same frame')
 local destroyed=0
 for _,p in ipairs(actor.parts) do destroyed=destroyed+(p.destroyed and 1 or 0) end
 assert(destroyed==1,'The blade on 2 bones was added, found wrong and destroyed, never re-pointed')
@@ -375,4 +397,77 @@ function stranger:K2_DestroyActor() self.destroyed=true end
 found_by_path['/Game/Map.Map:PersistentLevel.Actor_9']=stranger
 new('/Game/Map.Map:PersistentLevel.Actor_9').tick()
 assert(not stranger.destroyed and stored==nil,'Not ours: left alone')
+
+-- A cached mesh collected since, its address reused, is never drawn: the path is resolved again, whether the address
+-- now holds another skeletal mesh or an object of another class (its name alone would pass).
+send(600,her_parts())
+ghost.tick()
+clock=clock+2
+build()
+local stale=meshes[FACE]
+stale.GetFullName=function() return 'SkeletalMesh '..PONY end
+mesh(FACE)
+loads={}
+send(601,her_parts())
+build()
+assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another skeletal mesh there')
+stale=meshes[FACE]
+stale.IsA=function() return false end
+stale.GetFullName=function() return 'Texture2D '..FACE end
+mesh(FACE)
+loads={}
+send(602,her_parts())
+build()
+assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another class there')
+
+-- A built part whose parent part was left out hangs on part 0, at its socket.
+local charmed=her_parts({blade=TWO_BLADE})
+charmed[7]={name='Charm',parent=4,socket='SC_Tip',path=BLADE,names={'Root'},place='0 0 0 1 2 0 0 1 1 1'}
+send(603,charmed)
+ok,message=build()
+assert(ok and message:find('^Ghost 603 built: 5 parts %(3 leaders%), .*, 2 left out'),message)
+actor=spawned[#spawned]
+local charm=actor.parts[#actor.parts]
+assert(charm.mesh==meshes[BLADE] and charm.attached.parent==actor.parts[1] and charm.attached.socket=='SC_Tip')
+
+-- A table with no generation line is refused, never raised on.
+remote_file=remote_text(604,her_parts()):gsub('generation 604\n','')
+count=count+1
+local read,refused,why=pcall(ghost.remote,604,count,'loopback')
+assert(read and refused==false and why=='The remote table could not be read.',tostring(refused))
+
+-- A failed build is tried again with a new EVE, even with no ghost left to remove.
+send(605,her_parts())
+fail_add=true
+ok,message=build()
+assert(ok==false and message:find('^Ghost not built: '),message)
+fail_add=false
+assert(ghost.tick()==nil,'Not again on table 605')
+player=eve_of('EVE5')
+assert(ghost.tick()==nil,'Waits 2 s')
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 605 built'),message)
+-- A new EVE before her 2 s are up, no ghost yet: they start again.
+player=eve_of('EVE6')
+ghost.tick()
+clock=clock+1.5
+player=eve_of('EVE7')
+ghost.tick()
+spawned_count=#spawned
+clock=clock+0.5
+assert(ghost.tick()==nil and #spawned==spawned_count,'The 2 s start again with each new EVE')
+clock=clock+1.5
+ok,message=build()
+assert(message:find('^Ghost 605 built'),message)
+-- Toggled off and on again: a failed table is tried again.
+send(606,her_parts())
+fail_add=true
+ok,message=build()
+assert(ok==false,message)
+fail_add=false
+ghost.toggle()
+ghost.toggle()
+ok,message=build()
+assert(message:find('^Ghost 606 built'),message)
 print('puppet_test ok')

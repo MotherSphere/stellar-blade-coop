@@ -1,6 +1,7 @@
 -- EVE's capture with fake UE4SS objects that only read (any write to EVE or her components fails): the table's text,
 -- names made safe and the map lowercased, a part hung from no lower part placed from her main mesh, the generation
--- (a new mesh bumps it, a new socket keeps it, a placement that drifts never republishes), the 2 s wait, the menu pawn.
+-- (a new mesh bumps it, a new socket keeps it, a placement that drifts never republishes), the 2 s wait, the menu pawn,
+-- the native part's caps.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -54,14 +55,14 @@ local blade=her('Weapon 7',BLADE,{parent=body,socket='SC_SwordingPoint',bones=1,
 local stray=her('Stray','/Game/Art/Character/PC/S/S.S',{leader=part('Elsewhere',BODY,{}),parent=body}) -- No leader of hers.
 local function world_named(full) return {GetFullName=function() return full end} end
 local world=world_named('World /Game/Art/BG/WorldMap/Level_P/E04.E04')
-local function eve_of(name)
+local function eve_of(name,components)
     local e=object(name,{Mesh=body})
     function e:IsA(class) return class.path=='/Script/SB.SBCharacter' end
     function e:GetWorld() return world end
     function e:K2_GetActorRotation() return {Pitch=0,Yaw=100,Roll=0} end
     function e:K2_GetComponentsByClass(class)
         assert(class.path=='/Script/Engine.SkeletalMeshComponent')
-        return {face,stray,blade,hair,body} -- Not in rank order.
+        return components or {face,stray,blade,hair,body} -- Not in rank order.
     end
     return read_only(e,'EVE')
 end
@@ -153,4 +154,32 @@ tick(false)
 assert(published[#published]=='withdrawn')
 tick(); step(2)
 assert(published[#published]:find('^generation 100004\n'))
+
+-- The native part's caps: at most 16 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
+-- with its followers; her main mesh outside them, no table at all.
+local many={body}
+for k=1,20 do many[#many+1]=her('Extra'..k,'/Game/X/X'..k..'.X'..k,{parent=body,bones=1}) end
+player=eve_of('EVE3',many)
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npart ',''))==16,tostring(message))
+assert(t:find(' Extra15 ',1,true) and not t:find(' Extra16 ',1,true),t)
+local zero=her('Zero','/Game/X/Zero.Zero',{parent=body})
+local huge=her('Huge','/Game/X/Huge.Huge',{parent=body,bones=1025})
+local full=her('Full','/Game/X/Full.Full',{parent=body,bones=1024})
+local on_zero=her('OnZero','/Game/X/OnZero.OnZero',{leader=zero,parent=zero})
+player=eve_of('EVE4',{body,zero,huge,full,on_zero})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: 2 parts, 1027 bone names, '),tostring(message))
+assert(t:find('\npart 1 - 0 - 1 1024 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
+body.state.bones=0
+player=eve_of('EVE5',{body,blade})
+tick()
+local before=#published
+step(2); step(1)
+assert(#published==before,'Her main mesh without bones: no table')
+body.state.bones=3
 print('capture_test ok')

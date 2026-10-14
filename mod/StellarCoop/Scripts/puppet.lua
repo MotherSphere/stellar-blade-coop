@@ -36,7 +36,8 @@ local function parse_remote(file)
         return table.unpack(found)
     end
     if not take('^SBT %d+$') then return nil end
-    local t={generation=tonumber(take('^generation (%d+)$')),map=take('^map (%S+)$'),parts={}}
+    local generation=take('^generation (%d+)$') -- tonumber() of no value at all raises: take it first.
+    local t={generation=tonumber(generation),map=take('^map (%S+)$'),parts={}}
     if not (t.generation and t.map) then return nil end
     while lines[at] do
         local i,lead,parent,socket,shown,bones,name,path=take('^part (%d+) (%S+) (%S+) (%S+) ([01]) (%d+) (%S+) (%S+)$')
@@ -79,7 +80,7 @@ function Puppet.new(link,capture)
     local self,wanted,basesuit={},false,false
     local remote,seen_count,source=nil,nil,nil -- The remote table, the status count it was read at, where it came from.
     local ghost,build=nil,nil -- The ghost (built or being built) and its build coroutine.
-    local back_since,failed,hidden_pair=nil,nil,nil
+    local back_since,failed,hidden_pair,her_at=nil,nil,nil,nil
     local cache={} -- Meshes by path; false: none this Lua load (a missing DLC stays missing).
     local function clear(why)
         local g=ghost
@@ -106,10 +107,14 @@ function Puppet.new(link,capture)
         swept='Removed a ghost left by an earlier Lua load.'
     end
     -- A skeletal mesh by its object path: in memory already (StaticFindObject), else loaded (LoadAsset, synchronous on
-    -- this thread); nil when neither gives a SkeletalMesh.
+    -- this thread); nil when neither gives a SkeletalMesh. A cached mesh nothing referenced may have been collected
+    -- since, and its address reused: it is used again only while it is still that mesh.
     local function resolve(path,counts)
+        if cache[path]==false then return nil end
         local mesh=valid(cache[path] or nil)
-        if mesh or cache[path]==false then return mesh end
+        if mesh and mesh:IsA(find('/Script/Engine.SkeletalMesh')) and mesh:GetFullName():match('^%S+ (.+)$')==path then
+            return mesh
+        end
         local started=os.clock()
         mesh=valid(StaticFindObject(path))
         if not mesh then
@@ -164,9 +169,11 @@ function Puppet.new(link,capture)
             local base,why=fallback(part),'missing'
             if basesuit and base then
                 why='replaced (basesuit)'
-            else
-                local mesh=part.path and resolve(part.path,counts)
+            elseif part.path then
+                -- One mesh a frame; resolved and added in the same frame, so a freshly loaded mesh nothing holds yet
+                -- cannot be collected in between.
                 coroutine.yield()
+                local mesh=resolve(part.path,counts)
                 if mesh then
                     local target=add(mesh)
                     if part.lead or target:GetNumBones()==part.bones then return target,mesh end
@@ -175,8 +182,8 @@ function Puppet.new(link,capture)
                 end
             end
             if not base then return nil end
-            local mesh=resolve(base,counts)
             coroutine.yield()
+            local mesh=resolve(base,counts)
             if not mesh then return nil end
             local target=add(mesh)
             if part.lead then
@@ -293,7 +300,7 @@ function Puppet.new(link,capture)
             wanted=false
             return true,clear('coop puppet') or 'Ghost off.'
         end
-        wanted=true
+        wanted,failed=true,nil -- A table whose build failed is tried again.
         return true,(swept and swept..' ' or '')..'Ghost on: her capture goes to the native part, and a ghost is drawn '
             ..'once a table comes back (coop loopback 0 0 0 shows yours, coop replay a recording); coop puppet again ends it.'
     end
@@ -358,9 +365,13 @@ function Puppet.new(link,capture)
         sweep()
         if not wanted then return end
         local eve=her(valid(UE.GetPlayer()))
-        if ghost and (not eve or address(eve)~=ghost.eve or not valid(ghost.actor)) then
+        local at=eve and address(eve) or nil
+        if at~=her_at then -- A new EVE (travel, a load) or none: the ghost goes, a failed table is tried again.
+            her_at,back_since,failed=at,nil,nil
+            if ghost then clear('level changed') end
+        elseif ghost and not valid(ghost.actor) then
             clear('level changed')
-            back_since,failed=nil,nil
+            back_since=nil
         end
         if build then return resume() end
         if ghost or not remote then return end

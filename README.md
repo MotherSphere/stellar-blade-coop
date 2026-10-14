@@ -82,7 +82,7 @@ do not travel over it yet (Phase 4).
   - If Steam faults under the link (for example at game exit), it stops itself: `stopped=fault <code>`. The log's last
     line says why the worker stopped.
 - `coop status` prints the current state: the link, the pose path (`engine=on`, then `loopback=on <delay> <jitter>
-  <loss>` or `loopback=waiting` until her capture comes, `record=on <s>s`, `replay=on`, `remote=<generation> <count>
+  <loss>` or `loopback=waiting` until her capture comes, `record=on`, `replay=on`, `remote=<generation> <count>
   <loopback|replay>`) and the ghost (`ghost=on parts=... leaders=... basesuit=... left_out=... table=... source=...`,
   `ghost=waiting`, `ghost=hidden map` or `ghost=off`).
 - Files in the mod folder:

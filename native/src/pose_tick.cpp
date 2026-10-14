@@ -64,6 +64,7 @@ struct Live {
   std::vector<uint8_t> capture_bones, draw;
   float capture_root[10] = {}, draw_root[10] = {};
   bool refusal_logged = false; // Game thread: only the first refused write on this ghost is logged.
+  bool ghost_gone = false;      // Game thread: Lua destroyed this ghost; nothing is drawn until its display is dropped.
   Live(Table c, Table r, Display d) : capture(std::move(c)), remote(std::move(r)), display(std::move(d)) {
     capture_bones.assign(leader_bytes(capture), 0);
     playback.reset(leader_bytes(remote));
@@ -268,8 +269,14 @@ void stream(uint64_t now_us) {
     f.publication = h.publication;
     live.playback.accept(in.time);
   }
-  if (live.drawn() && live.playback.sample(now_us, live.draw_root, live.draw.data()))
-    ++(write_puppet(live) ? window_drawn_written : window_drawn_refused);
+  if (live.drawn() && !live.ghost_gone) {
+    // Lua destroys the ghost (a level change, coop puppet, coop basesuit) and withdraws its display in the same frame,
+    // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
+    if (!alive(objects, static_cast<uintptr_t>(live.display.puppet[0].object)))
+      live.ghost_gone = true;
+    else if (live.playback.sample(now_us, live.draw_root, live.draw.data()))
+      ++(write_puppet(live) ? window_drawn_written : window_drawn_refused);
+  }
   Playback::Stats s = live.playback.take();
   window_poses += s.poses;
   window_stale += s.stale;
@@ -801,7 +808,7 @@ std::string status() {
                                   " " + std::to_string(loopback_loss)
                             : std::string(" loopback=waiting");
   if (engine_on && recorder)
-    s += " record=on " + std::to_string((clock_us() - record_start_us) / 1000000) + "s";
+    s += " record=on"; // No seconds: each changed status line goes to UE4SS.log (the stop line gives the length).
   if (engine_on && replay.on())
     s += " replay=on";
   if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.

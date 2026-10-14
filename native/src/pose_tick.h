@@ -21,7 +21,7 @@ std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_
 std::string ask_record(bool on);  // EVE's capture and poses into coop-record.bin, written at the stop.
 std::string ask_replay(bool on);  // coop-record.bin played in a loop as the remote side.
 void block(); // coop off: no engine access until the game restarts.
-// "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on <s>s", " replay=on",
+// "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay>") or "engine=off reason=...": no per-frame counters.
 std::string status();
 // A complete file: written beside it, then renamed over it (steam_link.cpp).
