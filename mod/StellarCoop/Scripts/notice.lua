@@ -29,7 +29,11 @@ function Notice.new()
     end
     local function step()
         local eve=valid(UE.GetPlayer())
-        if not (eve and eve:IsA(find('/Script/SB.SBCharacter'))) then queue,since={},nil; return hide() end
+        -- No EVE in a world (the title screen, whose map is the lobby, may still have an SBCharacter): nothing shows.
+        if not (eve and eve:IsA(find('/Script/SB.SBCharacter')) and U.map_of(eve)~='/game/lobby/lobby') then
+            queue,since={},nil
+            return hide()
+        end
         if since and os.clock()-since>=SECONDS then table.remove(queue,1); since=nil end
         if not queue[1] then return hide() end
         local at=value_of(eve:K2_GetActorLocation())

@@ -22,7 +22,8 @@ local function label_of()
     function l:K2_SetWorldLocationAndRotation(at,r) calls=calls+1; self.at,self.rot=at,r end
     return l
 end
-local world={SpawnActor=function(_,class,at)
+local map_name='World /Game/Art/BG/WorldMap/Level_P/E04.E04'
+local world={GetFullName=function() return map_name end,SpawnActor=function(_,class,at)
     calls=calls+1
     if fail_spawn then error('no spawn here') end
     assert(class.path=='/Script/Engine.Actor' and at.Z==120)
@@ -111,6 +112,11 @@ for _,pawn in ipairs({false,menu}) do
     player=eve; m.tick()
     assert(#spawned==before,'Nothing spawned, nothing left to show')
 end
+-- An EVE on the title screen's map (the lobby) counts as no world either.
+map_name='World /Game/Lobby/Lobby.LOBBY'
+m.say('title'); m.tick()
+assert(#spawned==before,'Nothing spawned on the title map')
+map_name='World /Game/Art/BG/WorldMap/Level_P/E04.E04'
 -- And a line on screen goes when EVE does.
 n.say('shown'); n.tick(); assert(actor.hidden==false and label.text=='shown')
 player=nil; n.tick(); assert(actor.hidden==true)
