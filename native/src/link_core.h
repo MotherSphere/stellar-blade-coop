@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "link_protocol.h"
@@ -276,9 +277,13 @@ public:
     event("Steam ready: " + my_name_ + ", app " + std::to_string(app_) + ", game build " + std::to_string(build_) +
           ", mod " + mod_ + ", protocol " + std::to_string(kProtocol));
     if (uint64_t lobby = connect_lobby(command_line))
-      join(lobby, "launched by an invite");
+      offer(lobby, "launched by an invite");
     return Ready::now;
   }
+
+  // Whether Lua sees a save loaded (coop-state.txt), set before each ready() and tick(). Held invites wait for it; its
+  // going away never leaves a lobby.
+  void world(bool loaded) { world_ = loaded; }
 
   // One pass: a Lua request (or empty), what Steam's callbacks stored (0 when nothing), then the polls.
   void tick(uint64_t now, const std::string &request, uint64_t join_request, uint64_t session_request) {
@@ -286,10 +291,15 @@ public:
     if (!request.empty())
       handle(parse_request(request));
     if (join_request)
-      join(join_request, "invite accepted");
+      offer(join_request, "invite accepted");
     if (session_request)
       on_session_request(session_request);
     poll_calls();
+    if (held_ && world_ && !create_call_ && !join_call_) {
+      uint64_t lobby = std::exchange(held_, 0);
+      event("releasing the held invite to lobby " + std::to_string(lobby));
+      join(lobby, held_how_);
+    }
     if (lobby_) {
       poll_members();
       if (lobby_) {
@@ -347,7 +357,7 @@ public:
                     " cb333=" + std::to_string(c.join_requested) + " cb505=" + std::to_string(c.data_update) +
                     " cb1251=" + std::to_string(c.session_request) + "\n";
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
-         (create_call_ || join_call_ ? " pending=1" : "") + "\n";
+         (create_call_ || join_call_ ? " pending=1" : "") + (held_ ? " held=" + std::to_string(held_) : "") + "\n";
     for (auto &p : peers_)
       s += "peer=" + std::to_string(p.id) + " name=" + p.name + " hello=" + (p.hello_received ? "1" : "0") +
            " accepted=" + (p.accepted ? "1" : "0") + " compatible=" + (p.compatible ? "1" : "0") +
@@ -448,6 +458,26 @@ private:
     event("joining lobby " + std::to_string(lobby) + " (" + how + ")");
   }
 
+  // An invite (callback 333, or +connect_lobby at launch): joined at once when a save is loaded and no lobby call is
+  // pending, else held until both hold, so a launch never joins from the title screen. A newer one replaces it. A
+  // console join is never held.
+  void offer(uint64_t lobby, const std::string &how) {
+    if (world_ && !create_call_ && !join_call_) {
+      held_ = 0; // Held in the pass the world loaded: its release would leave this newer lobby.
+      return join(lobby, how);
+    }
+    std::string id = std::to_string(lobby);
+    if (held_ && held_ != lobby)
+      event("newer invite to lobby " + id + " replaces the one held for lobby " + std::to_string(held_));
+    else
+      event("invite to lobby " + id + " held until " + (world_ ? "the pending lobby call ends" : "a world loads") +
+            " (" + how + ")");
+    held_ = lobby;
+    held_how_ = how;
+    if (!world_)
+      notice("Invite held: joining once your save has loaded.");
+  }
+
   // A friend playing this game in a joinable lobby: the fallback when an accepted invite never reaches us.
   void join_friend() {
     int n = api_.friend_count(friends_, kImmediateFriends);
@@ -461,6 +491,12 @@ private:
   }
 
   void handle(const Request &r) {
+    // The player chose: a held invite would undo it once the save loads.
+    bool dropped = held_ && (r.command == Command::host || r.command == Command::join || r.command == Command::leave);
+    if (dropped) {
+      const char *asked = r.command == Command::host ? "host" : r.command == Command::join ? "join" : "leave";
+      event("held invite to lobby " + std::to_string(std::exchange(held_, 0)) + " dropped (" + asked + " asked)");
+    }
     switch (r.command) {
     case Command::host:
       if (host_ && lobby_) {
@@ -503,7 +539,7 @@ private:
         notice("Left the session.");
       } else {
         event("not in a lobby");
-        notice("Not in a session.");
+        notice(dropped ? "Held invite dropped." : "Not in a session.");
       }
       break;
     case Command::report:
@@ -885,6 +921,9 @@ private:
   bool cancel_ = false, report_ = false;                  // coop leave while a call was pending; coop report.
   uint64_t lobby_ = 0, host_id_ = 0;
   bool host_ = false;
+  bool world_ = false; // A save is loaded (Lua's coop-state.txt).
+  uint64_t held_ = 0;  // An invite waiting for a world, or for the pending lobby call to end, and how it came.
+  std::string held_how_;
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;

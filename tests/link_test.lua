@@ -144,6 +144,20 @@ assert(files[SETTINGS]=='send_rate=30\n' and s.send_rate==20,'Not replaced eithe
 assert(notes[1]=='settings: cannot write coop-settings.txt (cannot write coop-settings.txt: exists): defaults used',notes[1])
 fs.read,fs.write=read,write
 
+-- coop-state.txt: written once per change; a failed write is not remembered, so the next call writes it.
+local STATE_FILE,state_writes='C:\\Mod\\coop-state.txt',0
+local function counted(path,text) if path==STATE_FILE..'.tmp' then state_writes=state_writes+1 end return write(path,text) end
+fs.write=counted
+assert(link.state(true,25)=='world=1 rate=25' and files[STATE_FILE]=='world=1 rate=25\n' and state_writes==1)
+assert(link.state(true,25)==nil and state_writes==1,'Unchanged: not written again')
+fs.write=function() return false end
+assert(link.state(false,25)==nil and files[STATE_FILE]=='world=1 rate=25\n','The write failed')
+fs.write=counted
+assert(link.state(false,25)=='world=0 rate=25' and state_writes==2,'Tried again')
+assert(files[STATE_FILE]=='world=0 rate=25\n' and not files[STATE_FILE..'.tmp'])
+assert(link.state(false,25)==nil and state_writes==2)
+fs.write=write
+
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
 local fresh=require('link').new('C:\\Mod',fs)
 local HEAD='mod=v proto=4 steam=ready steamid=1\nlink=host lobby=7000\n'
@@ -183,6 +197,11 @@ assert(summary(nil)=='Co-op: waiting for Steam.')
 assert(summary('mod=v proto=4 steam=waiting\nengine=off\nlast=started\n')=='Co-op: waiting for Steam.')
 assert(summary('mod=v steam=ready\nlink=none lobby=0\nlast=x\n')=='Co-op: not in a session.')
 assert(summary('mod=v steam=ready\nlink=none lobby=0 pending=1\n')=='Co-op: not in a session.')
+assert(summary('mod=v steam=ready\nlink=none lobby=0 held=7000\n')=='Co-op: invite held until your save has loaded.')
+assert(summary('mod=v steam=ready\nlink=guest lobby=7 pending=1 held=7000\nfriend=1 0 Kaanta\n')
+    =='Co-op: invite held until your save has loaded.')
+assert(summary('mod=v steam=ready\nlink=none lobby=0\nfriend=1 0 x held=7\nlast=held=7\n')=='Co-op: not in a session.',
+    'Only the link line says so')
 assert(summary('mod=v steam=ready\nlink=host lobby=7\nlast=link=guest\n')=='Co-op: hosting, no friend yet.')
 assert(fresh.mode()=='host')
 assert(summary(HEAD..'friend=0 0 Kaanta\n')=='Co-op: Kaanta is connecting.')

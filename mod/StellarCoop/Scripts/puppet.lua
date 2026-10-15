@@ -361,6 +361,14 @@ function Puppet.new(link,capture)
         if not ok then failed=g.generation; return false,clear('stopped: '..tostring(why)) end
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
+    -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
+    function self.world()
+        local ok,loaded=pcall(function()
+            local eve=her(valid(UE.GetPlayer()))
+            return eve~=nil and U.map_of(eve)~='/game/lobby/lobby'
+        end)
+        return ok and loaded
+    end
     local CAMPS={'Env_VendingMachine_C','Env_VendingMachine_Simple_C','Env_Camp_TeleportMachine_C',
         'Env_Camp_TeleportMachine_Tetrapod_C'} -- Leaf classes: exact whether FindAllOf returns subclasses or not.
     local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end

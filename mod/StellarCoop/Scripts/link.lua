@@ -1,10 +1,11 @@
 -- The Lua side of the files shared with the native part. Lua writes whole files beside and renames them, so the native
 -- part never reads one half-written: coop-request.txt (a console request), coop-session.txt (a token per Lua load),
--- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table) and coop-puppet.txt (the
--- ghost's object path, for the next load). The native part writes coop-remote.txt (the table the ghost is built from)
--- the same way. Each line of the native coop-status.txt that changed is returned once, for the log; peer lines change
--- with every ping, so they stay in coop status, out of the log. The same read gives the session's mode, the friend
--- and the notices for the screen, each from the start of its own line: a Steam name is never at the start of one.
+-- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table), coop-puppet.txt (the
+-- ghost's object path, for the next load) and coop-state.txt (a save loaded, the send rate). The native part writes
+-- coop-remote.txt (the table the ghost is built from) the same way. Each line of the native coop-status.txt that
+-- changed is returned once, for the log; peer lines change with every ping, so they stay in coop status, out of the
+-- log. The same read gives the session's mode, the friend and the notices for the screen, each from the start of its
+-- own line: a Steam name is never at the start of one.
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
 -- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
@@ -94,9 +95,9 @@ function Link.new(folder,fs)
     local function path(name) return folder..'\\'..name end
     local status_path=path('coop-status.txt')
     local seen,remote={},{}
-    -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); shown: the last
-    -- notice number handed out.
-    local mode,friend,listed,dead,shown=nil,nil,nil,false,nil
+    -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
+    -- invite waits for a save; shown: the last notice number handed out.
+    local mode,friend,listed,dead,held,shown=nil,nil,nil,false,nil,nil
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -113,6 +114,15 @@ function Link.new(folder,fs)
         return true,'asked the native part: '..line
     end
     function self.session(token) return put('coop-session.txt',token..'\n') end
+    -- coop-state.txt: whether a save is loaded (held invites wait for one) and the poses sent a second. Written when
+    -- its text changes, and remembered only once written, so a failed write is tried again; returns the line it wrote.
+    local state=nil
+    function self.state(world,rate)
+        local line=string.format('world=%d rate=%d',world and 1 or 0,rate)
+        if line==state or not put('coop-state.txt',line..'\n') then return nil end
+        state=line
+        return line
+    end
     local function put_or_remove(name,text)
         if text then return put(name,text) end
         fs.remove(path(name))
@@ -143,13 +153,13 @@ function Link.new(folder,fs)
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
-        mode,friend,listed,dead=nil,nil,nil,false
+        mode,friend,listed,dead,held=nil,nil,nil,false,nil
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
             if not seen[line] and not line:find('^peer=') then new[#new+1]=line end
-            mode=mode or line:match('^link=(%a+)')
+            if not mode and line:find('^link=') then mode,held=line:match('^link=(%a+)'),line:match(' held=(%d+)') end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
             if name then friend={name,linked=='1',lost=='1'} end
@@ -178,6 +188,7 @@ function Link.new(folder,fs)
     function self.summary()
         if dead then return 'Co-op: the Steam link stopped; coop status says why.' end
         if not mode then return 'Co-op: waiting for Steam.' end
+        if held then return 'Co-op: invite held until your save has loaded.' end
         if mode=='none' then return 'Co-op: not in a session.' end
         local name,linked,lost=self.friend()
         local text

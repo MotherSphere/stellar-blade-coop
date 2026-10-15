@@ -121,6 +121,27 @@ int main() {
   for (const char *bad : {"", "dance", "join x", "join 12 13", "hostile", "host now", "join 0"})
     assert(parse_request(bad).command == Command::none);
 
+  // coop-state.txt, from Lua: strict, so junk never passes for a loaded world; a refusal leaves the values alone.
+  for (const char *good : {"world=1 rate=25", "world=1 rate=25\n", "world=1 rate=25\r\n"}) {
+    bool world = false;
+    uint32_t rate = 0;
+    assert(parse_state(good, world, rate) && world && rate == 25);
+  }
+  bool world = true;
+  uint32_t rate = 7;
+  assert(parse_state("world=0 rate=10", world, rate) && !world && rate == 10);
+  assert(parse_state("world=0 rate=30\n", world, rate) && !world && rate == 30);
+  for (const std::string &bad :
+       {std::string(), std::string("world=2 rate=20"), std::string("world=1 rate=9"), std::string("world=1 rate=31"),
+        std::string("world=1 rate=20x"), std::string("world=1 rate=20 extra=1"), std::string("world=1"),
+        std::string("rate=20 world=1"), std::string("world=1  rate=20"), std::string("world=1 rate=20\r"),
+        std::string("world=1 rate=20\n\n"), std::string("world=1 rate=-20"), std::string("world=1 rate=020\n") + "x",
+        "world=1 rate=25\n" + std::string(49, '\n')}) { // The last is 65 bytes.
+    world = true;
+    rate = 7;
+    assert(!parse_state(bad, world, rate) && world && rate == 7);
+  }
+
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
   assert(connect_lobby(L"SB-Win64-Shipping.exe -DistributionPlatform=Steam +connect_lobby 109775241234567890") ==
          109775241234567890ull);

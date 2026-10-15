@@ -306,6 +306,19 @@ int count(const std::string &part) {
     n += e.find(part) != std::string::npos;
   return n;
 }
+// JoinLobby calls made so far.
+int joins() {
+  int n = 0;
+  for (auto &[id, c] : F.calls)
+    n += c.id == kEnterId;
+  return n;
+}
+// Kaanta hosts lobby L, of this protocol and build unless the tag says otherwise.
+void her_lobby(uint64_t lobby, const std::string &tag = lobby_tag(kBuild)) {
+  F.members[lobby] = {kFriend};
+  F.owner[lobby] = kFriend;
+  F.data[lobby][kLobbyKey] = tag;
+}
 
 void reset() {
   F = Fake{};
@@ -481,16 +494,26 @@ int main() {
     assert(noticed(w.status(), "Session ended: Kaanta left.") && !noticed(w.status(), "Kaanta left."));
   }
 
-  // Guest: a lobby from another protocol or build is refused with both versions spelled out.
+  // An invite accepted on the title screen (callback 333, no world) is held: no join, held= on the link line, the
+  // notice. Once a world loads, exactly one join. The lobby is from another protocol: refused with both versions.
   reset();
   {
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
-    F.members[7000] = {kFriend};
-    F.owner[7000] = kFriend;
-    F.data[7000][kLobbyKey] = "1:24463856";
+    her_lobby(7000, "1:24463856");
     w.tick("", 7000); // Through the invite callback.
-    assert(saw("joining lobby 7000 (invite accepted)"));
+    assert(joins() == 0 && saw("invite to lobby 7000 held until a world loads (invite accepted)"));
+    assert(w.status().find("\nlink=none lobby=0 held=7000\n") != std::string::npos);
+    assert(noticed(w.status(), "Invite held: joining once your save has loaded."));
+    w.tick();
+    assert(joins() == 0);
+    w.link.world(true);
+    w.tick();
+    assert(joins() == 1 && saw("releasing the held invite to lobby 7000") &&
+           saw("joining lobby 7000 (invite accepted)"));
+    assert(w.status().find("held=") == std::string::npos);
+    w.tick();
+    assert(joins() == 1);
     finish_all();
     w.tick();
     assert(saw("lobby 7000 runs protocol 1, build 24463856, this game runs protocol " + std::to_string(kProtocol) +
@@ -532,16 +555,112 @@ int main() {
     assert(noticed(w.status(), "Left the session.") && !noticed(w.status(), "Joined Kaanta's game."));
   }
 
-  // Launched by Steam with +connect_lobby; friend scan with and without a friend in a lobby.
+  // Launched by Steam with +connect_lobby: held the same way until a world loads, then joined.
   reset();
   {
     World w;
-    F.members[7100] = {kFriend};
-    F.owner[7100] = kFriend;
-    F.data[7100][kLobbyKey] = lobby_tag(kBuild);
+    her_lobby(7100);
     assert(w.link.ready(L"SB.exe -DistributionPlatform=Steam +connect_lobby 7100") == Link::Ready::now);
-    assert(saw("joining lobby 7100 (launched by an invite)"));
+    assert(joins() == 0 && saw("invite to lobby 7100 held until a world loads (launched by an invite)"));
+    assert(w.status().find("\nlink=none lobby=0 held=7100\n") != std::string::npos &&
+           noticed(w.status(), "Invite held: joining once your save has loaded."));
+    w.link.world(true);
+    w.tick();
+    assert(joins() == 1 && saw("joining lobby 7100 (launched by an invite)"));
+    finish_all();
+    w.tick();
+    assert(w.link.lobby() == 7100 && saw("joined lobby 7100 hosted by Kaanta"));
   }
+  // A newer invite replaces the held one: only the newest is joined.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    her_lobby(7100);
+    w.tick("", 7000);
+    w.tick("", 7100);
+    assert(saw("newer invite to lobby 7100 replaces the one held for lobby 7000"));
+    assert(w.status().find(" held=7100\n") != std::string::npos);
+    w.link.world(true);
+    w.tick();
+    assert(joins() == 1 && saw("joining lobby 7100 (invite accepted)") && !saw("joining lobby 7000"));
+  }
+  // A newer invite in the pass where the world loads is joined at once and drops the held one, whose release would
+  // otherwise leave it for the older lobby.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    her_lobby(7100);
+    w.tick("", 7000);
+    w.link.world(true);
+    w.tick("", 7100);
+    for (int i = 0; i < 2; ++i) {
+      finish_all();
+      w.tick();
+    }
+    assert(w.link.lobby() == 7100 && joins() == 1 && !saw("joining lobby 7000"));
+  }
+  // The player's own choice drops a held invite: leave (with its notice), host, and a console join, which is never held
+  // itself, even with no world.
+  for (const char *asked : {"leave", "host", "join 7100"}) {
+    reset();
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    her_lobby(7100);
+    w.tick("", 7000);
+    w.tick(asked);
+    std::string word = std::string(asked).substr(0, std::string(asked).find(' '));
+    assert(saw("held invite to lobby 7000 dropped (" + word + " asked)"));
+    assert(w.status().find("held=") == std::string::npos);
+    if (word == "leave")
+      assert(noticed(w.status(), "Held invite dropped.") && !noticed(w.status(), "Not in a session."));
+    if (word == "join")
+      assert(joins() == 1 && saw("joining lobby 7100 (console)"));
+    finish_all();
+    w.link.world(true);
+    w.tick();
+    w.tick();
+    assert(!saw("releasing the held invite") && !saw("joining lobby 7000") && joins() == (word == "join" ? 1 : 0));
+  }
+  // With a world loaded, an invite joins at once; the world going away mid-session never leaves the lobby.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    w.link.world(true);
+    w.tick("", 7000);
+    assert(joins() == 1 && saw("joining lobby 7000 (invite accepted)") && !saw("held"));
+    finish_all();
+    w.tick();
+    w.link.world(false); // To the title screen, and a save loaded again.
+    for (int i = 0; i < 4; ++i)
+      w.tick("", 0, 0, 600);
+    assert(w.status().find("\nlink=guest lobby=7000\n") != std::string::npos && F.left.empty());
+  }
+  // An invite while a lobby is being created waits for the call's result, then is joined.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    w.link.world(true);
+    w.tick("host");
+    w.tick("", 7000);
+    assert(saw("invite to lobby 7000 held until the pending lobby call ends (invite accepted)") && !saw("busy"));
+    assert(w.status().find(" pending=1 held=7000\n") != std::string::npos);
+    w.tick();
+    assert(joins() == 0);
+    finish_all();
+    w.tick();
+    assert(saw("hosting lobby 5000") && joins() == 1 && saw("left lobby 5000: joining another lobby"));
+    assert(saw("joining lobby 7000 (invite accepted)") && w.status().find("held=") == std::string::npos);
+  }
+  // Friend scan with and without a friend in a lobby.
   reset();
   {
     World w;

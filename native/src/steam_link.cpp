@@ -311,6 +311,8 @@ bool step() {
     coop::pose::worker_poll(folder, GetTickCount64(), event);
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64());
+    if (loaded) // Before ready(): a +connect_lobby there is held until a world loads.
+      link->world(coop::pose::world_loaded());
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
     if (ready == coop::Link::Ready::no && !request.empty()) {
       // Before Steam is ready: a report still helps (it tells why); anything else is said, never silently dropped.
@@ -371,7 +373,8 @@ DWORD WINAPI worker(void *) {
   MoveFileExW((folder + L"coop-link.log").c_str(), (folder + L"coop-link.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
   DeleteFileW((folder + L"coop-report.txt").c_str());
-  for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt"})
+  // And a previous run's world state, whose world=1 would release a held invite on the title screen.
+  for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables and addresses from a previous run mean nothing now.
   write_header();
   log_open = true;

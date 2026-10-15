@@ -1,6 +1,6 @@
 -- main.lua's console dispatch with UE4SS stubbed: every coop command reaches the right handler, bad input is refused,
--- the ghost's capture and remote table are fed every 250 ms, the keys only hand their action to the game thread, and
--- the link is optional (no native part, no Steam link, no keys).
+-- the ghost's capture and remote table are fed every 250 ms with the world state, the keys only hand their action to
+-- the game thread, and the link is optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -29,7 +29,7 @@ local function press(key) for _,bind in ipairs(binds) do if bind.key=='Key.'..ke
 local settings_text=''
 local Link=dofile('mod/StellarCoop/Scripts/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
-local asked,sessions,ticks,withdrawn={},{},0,{}
+local asked,sessions,ticks,withdrawn,states={},{},0,{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
@@ -45,6 +45,10 @@ local fake_link={
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     settings=function() return Link.parse_settings(settings_text) end,
+    state=function(world,rate) -- The real one writes on a change only (link_test): this one says each call.
+        states[#states+1]=string.format('world=%d rate=%d',world and 1 or 0,rate)
+        return states[#states]
+    end,
 }
 local native_ok
 local captured,remoted={},nil
@@ -53,7 +57,7 @@ package.loaded.capture={new=function(publish)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
     return fake_capture
 end}
-local toggles,active,basesuits,wheres=0,false,0,0
+local toggles,active,basesuits,wheres,in_world=0,false,0,0,false
 package.loaded.puppet={new=function(link,capture)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
@@ -61,7 +65,7 @@ package.loaded.puppet={new=function(link,capture)
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
-        where=function() wheres=wheres+1; return true,'where map=/game/e04' end}
+        where=function() wheres=wheres+1; return true,'where map=/game/e04' end,world=function() return in_world end}
 end}
 package.loaded.link={new=function() return fake_link end}
 local said,notice_ticks,notice_result,notice_stops={},0,nil,0
@@ -78,7 +82,7 @@ local function load_main(with_native)
         if name=='coop_tick' then return function() ticks=ticks+1; return 0 end end
         return true
     end
-    printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured={},nil,{},{},{},0,false,{},{}
+    printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
     queued,binds={},{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
@@ -148,10 +152,18 @@ assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',
 assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
 assert(captured[#captured]==true and last():find('OK: Capture 7',1,true),'The capture runs while the ghost is on')
 assert(remoted[1]==3 and remoted[2]==1 and remoted[3]=='loopback','The ghost learns the remote table every 250 ms')
+-- The world state every 250 ms, across a title round trip (a save loaded, the title, another save): never a request.
+assert(states[#states]=='world=0 rate=20' and logged('state: world=0 rate=20'),tostring(states[#states]))
+before=#asked
+in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and logged('state: world=1 rate=20'))
+in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=20')
+in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and #asked==before,'No request written')
 assert(notice_stops==0)
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 assert(notice_stops==1,'off hides the notice line on screen')
+local written=#states
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
+assert(#states==written,'No world state after coop off: no engine access')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 local lines
 before,lines=#asked,#printed
@@ -169,6 +181,7 @@ status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=off reason=coo
 load_main(true)
 coop('host'); assert(last():find('coop off is active until the game restarts',1,true),last())
 loops[1].f(); assert(ticks==0,'Still no native tick')
+loops[2].f(); assert(#states==0,'Nor a world state')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
 load_main(true)
@@ -181,6 +194,8 @@ load_main(true)
 assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays F5"))
 assert(logged('keys: host=F5 status=F6 leave=Ctrl+F8, name tag on, 25 poses a second'),table.concat(printed,'|'))
 assert(binds[3].key=='Key.F8' and #binds[3].modifiers==1 and binds[3].modifiers[1]==0x11 and not binds[1].modifiers)
+in_world=false
+loops[2].f(); assert(states[1]=='world=0 rate=25' and logged('state: world=0 rate=25'),'The settings\' rate in the state')
 press('F8'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
 settings_text=''
 

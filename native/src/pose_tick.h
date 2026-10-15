@@ -11,6 +11,9 @@ namespace coop::pose {
 // every pass while the ghost for a new remote table is awaited; logs what the game thread produced (write refusals,
 // faults, counters every 60 s) through event.
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event);
+// Worker thread: whether Lua last said a save is loaded (coop-state.txt, read every 250 ms; the send rate comes with
+// it).
+bool world_loaded();
 // Worker thread, every pass after worker_poll: sends the newest encoded pose, hands what the loopback's delay line and
 // the replay have due to the receiving side, and stops a recording at its cap. True while the loopback, a recording, a
 // replay or a linked friend runs (the worker then passes every 5 ms, not 50).

@@ -181,6 +181,27 @@ inline Request parse_request(std::string text) {
   return r;
 }
 
+// coop-state.txt, from Lua: "world=<0|1> rate=<10..30>", whether a save is loaded (held invites wait for one) and the
+// poses sent a second. One trailing \n or \r\n, at most 64 bytes; anything else is refused and changes nothing.
+constexpr size_t kMaxState = 64;
+inline bool parse_state(const std::string &text, bool &world, uint32_t &rate) {
+  if (text.size() > kMaxState)
+    return false;
+  std::string line = text;
+  if (line.size() >= 2 && line.compare(line.size() - 2, 2, "\r\n") == 0)
+    line.resize(line.size() - 2);
+  else if (!line.empty() && line.back() == '\n')
+    line.pop_back();
+  std::string f[2];
+  uint64_t n = 0;
+  if (!split(line, f, 2, nullptr) || (f[0] != "world=0" && f[0] != "world=1") || f[1].rfind("rate=", 0) != 0 ||
+      !number(std::string_view(f[1]).substr(5), n) || n < 10 || n > 30)
+    return false;
+  world = f[0] == "world=1";
+  rate = static_cast<uint32_t>(n);
+  return true;
+}
+
 // Steam starts the game with "+connect_lobby <id>" when a friend accepts an invite while it is closed.
 inline uint64_t connect_lobby(const std::wstring &command_line) {
   const std::wstring key = L"+connect_lobby";

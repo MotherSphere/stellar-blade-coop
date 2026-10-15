@@ -123,6 +123,10 @@ if link then
     LoopInGameThreadWithDelay(250,function()
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         for _,text in ipairs(link.notices()) do notice.say(text) end
+        if not off then -- Whether a save is loaded (an accepted invite waits for one) and the send rate.
+            local line=link.state(puppet.world(),settings.send_rate)
+            if line then log('state: '..line) end
+        end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end
         ok,message=puppet.remote(link.remote())

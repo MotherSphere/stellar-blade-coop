@@ -3,7 +3,7 @@
 -- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
 -- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read;
--- a friend's ghost exactly at the mailbox, and coop where's line.
+-- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -532,4 +532,17 @@ assert(select(2,ghost.where()):find(' spawn=none origin=',1,true),'No spawn poin
 player=menu
 ok,message=ghost.where()
 assert(ok==false and message=='no EVE in the world',message)
+
+-- A save is loaded once EVE stands on a map other than the title screen's: held invites wait for it.
+player=object('MenuPawn',{IsA=function() return false end,
+    GetWorld=function() return {GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end} end})
+assert(ghost.world()==false,'Not EVE, even on a world map')
+player=eve_of('EVE8',{GetFullName=function() return 'World /Game/Lobby/Lobby.Lobby' end})
+assert(ghost.world()==false,'EVE on the title map')
+player=eve_of('EVE9',{GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end})
+assert(ghost.world()==true,'EVE on Spire IV')
+player=nil
+assert(ghost.world()==false,'No pawn at all')
+player=eve_of('EVE10',{GetFullName=function() error('world gone') end})
+assert(ghost.world()==false,'An engine error is no world, never raised')
 print('puppet_test ok')

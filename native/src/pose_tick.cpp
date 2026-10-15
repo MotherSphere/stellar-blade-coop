@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "link_protocol.h"
 #include "pose_codec.h"
 #include "pose_engine.h"
 #include "pose_record.h"
@@ -106,7 +107,9 @@ Message out_back;
 bool out_ready = false; // out_back holds a pose the worker has not been handed yet.
 std::array<Message, kInbox> game_inbox;
 size_t game_inbox_count = 0;
-constexpr uint64_t kSendUs = 50'000; // 20 poses a second (N4).
+// The send interval: 20 poses a second (N4) until coop-state.txt says otherwise (send_rate, 10 to 30). The worker
+// stores it, the game thread reads it.
+std::atomic<uint64_t> send_us{50'000};
 // GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
 // "different from the last call", never "last + 1".
 constexpr uint32_t kFrameCounterRva = 0x706b508;
@@ -226,7 +229,8 @@ void stream(uint64_t now_us) {
   if ((loopback_on || record_on || peer_on) && live.capture.generation && now_us >= next_capture) {
     Io r = read_eve(live.capture, live.capture_root, live.capture_bones.data());
     if (r == Io::ok) {
-      next_capture = (next_capture && now_us - next_capture < kSendUs ? next_capture : now_us) + kSendUs;
+      uint64_t every = send_us.load(std::memory_order_relaxed);
+      next_capture = (next_capture && now_us - next_capture < every ? next_capture : now_us) + every;
       PoseHeader h;
       h.generation = live.capture.generation;
       h.publication = now_us;
@@ -376,6 +380,8 @@ std::function<void(const std::string &)> say = [](const std::string &) {}; // wo
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, buffers_ready = false;
 uint64_t next_poll = 0, next_counters = 0;
+bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
+uint32_t rate = 20;  // From coop-state.txt: poses sent a second.
 Message worker_out; // The encoded pose taken from the game thread.
 DelayLine delay_line;
 Replay replay;
@@ -645,6 +651,18 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   }
   take_capture();
   take_display();
+  // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
+  // so the worker can find none in between.
+  bool world_now = false;
+  uint32_t rate_now = 0;
+  if (parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), world_now, rate_now)) {
+    world = world_now;
+    if (rate_now != rate) {
+      rate = rate_now;
+      send_us = 1'000'000 / rate;
+      event("send rate " + std::to_string(rate) + " poses a second");
+    }
+  }
   {
     std::vector<std::string> lines;
     {
@@ -704,6 +722,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     }
   }
 }
+
+bool world_loaded() { return world; }
 
 bool worker_stream() {
   if (!buffers_ready)
