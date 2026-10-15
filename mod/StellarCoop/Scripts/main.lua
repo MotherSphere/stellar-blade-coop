@@ -4,7 +4,8 @@
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead); the Steam link
 -- between two players (coop host, invite, join, leave, status, report; host, status and leave on keys too, F5, F6 and
 -- F8 unless coop-settings.txt says otherwise), its notices on screen above your EVE; and coop where, a line of
--- coordinates to compare between the two PCs. coop off stops everything until the game restarts.
+-- coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night Operation probe of the T6
+-- test only (nightop.lua). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -41,7 +42,7 @@ local puppet=require('puppet').new(link,capture,notice.say,settings and settings
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | no [heal|rule|spawnpt|actor] | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -52,6 +53,9 @@ local function ask(line)
         return link.request(line)
     end
 end
+-- Its one entry, commands.no, is where the co-op slot check goes (Phase 7).
+local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
+    function(line) return ask(line)() end,function() return link and link.status() end)
 local commands={
     puppet=puppet.toggle, host=ask('host'), invite=ask('invite'), leave=ask('leave'), report=ask('report'),
     join=function(lobby)
@@ -68,7 +72,7 @@ local commands={
         if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
         return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
     end,
-    basesuit=puppet.basesuit, where=puppet.where,
+    basesuit=puppet.basesuit, where=puppet.where, no=nightop.run,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
@@ -118,6 +122,7 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     ok,message=notice.tick()
     if message then report(ok,message) end
+    nightop.tick() -- A due probe follow-up: it logs its own lines.
 end)
 if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.

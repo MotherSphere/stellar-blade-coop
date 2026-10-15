@@ -1,6 +1,7 @@
 -- main.lua's console dispatch with UE4SS stubbed: every coop command reaches the right handler, bad input is refused,
 -- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
--- the keys only hand their action to the game thread, and the link is optional (no native part, no Steam link, no keys).
+-- the keys only hand their action to the game thread, coop no reaches the Night Operation probe (ticked every frame
+-- until coop off), and the link is optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -79,6 +80,12 @@ package.loaded.notice={new=function()
         tick=function() notice_ticks=notice_ticks+1; if notice_result then return table.unpack(notice_result) end end}
     return the_notice
 end}
+local probe,probe_runs,probe_ticks=nil,{},0 -- What nightop.new got, coop no's arguments, its ticks.
+package.loaded.nightop={new=function(log,ask,status)
+    probe={log=log,ask=ask,status=status}
+    return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
+        tick=function() probe_ticks=probe_ticks+1 end}
+end}
 package.loaded.version='v9-test'
 
 local function load_main(with_native)
@@ -89,7 +96,7 @@ local function load_main(with_native)
         return true
     end
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
-    queued,binds,the_notice={},{},nil
+    queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -123,7 +130,16 @@ coop('join','109775241234567890'); assert(asked[6]=='join 109775241234567890')
 coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits only',1,true),last())
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
-loops[1].f(); loops[1].f(); assert(ticks==2 and notice_ticks==2,'The native tick and the notices run every frame')
+loops[1].f(); loops[1].f()
+assert(ticks==2 and notice_ticks==2 and probe_ticks==2,'The native tick, the notices and the probe run every frame')
+-- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status.
+coop('no','rule')
+assert(#probe_runs==1 and probe_runs[1][1]=='rule' and last()=='[StellarCoop] OK: probe rule\n',last())
+coop('no'); assert(#probe_runs==2 and probe_runs[2][1]==nil)
+probe.log('baseline: x'); assert(last()=='[StellarCoop][NO] baseline: x\n',last())
+local asked_ok,asked_text=probe.ask('nightop')
+assert(asked_ok and asked_text=='asked the native part: nightop' and asked[#asked]=='nightop')
+assert(probe.status()==status_text)
 notice_result={false,'Screen notices off: x; notices stay in UE4SS.log.'}
 loops[1].f(); assert(last()=='[StellarCoop] STOP: Screen notices off: x; notices stay in UE4SS.log.\n',last())
 notice_result=nil
@@ -178,9 +194,13 @@ press('F5'); flush()
 assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
     and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
-local drawn=notice_ticks
+local drawn,probed=notice_ticks,probe_ticks
 loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
-coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off',1,true),last())
+assert(probe_ticks==probed,'No probe follow-up after coop off')
+before=#probe_runs
+coop('no')
+assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())
+coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | no [heal|rule|spawnpt|actor] | off',1,true),last())
 coop(); assert(last():find('Use: coop',1,true))
 
 -- coop off survives a Lua reload: the native part still reports it.
@@ -251,4 +271,7 @@ coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the n
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())
 coop('status'); assert(last():find('STOP: no Steam link status yet',1,true),last())
 coop('where'); assert(wheres==2 and last():find('OK: where',1,true),'coop where needs no Steam link')
+local refused,refusal=probe.ask('nightop')
+assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
+loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
 io.stdout:write('main_test ok\n')
