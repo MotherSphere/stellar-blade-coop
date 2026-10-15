@@ -10,8 +10,9 @@ and on Linux with Proton.
 - Stellar Blade on Steam, game build 24463856. `coop status` reports the build as `build=...` in `UE4SS.log`.
 - UE4SS, as packaged in "Stellar Blade UE4SS 1.3" (UE4SS v3.0.1 Beta, git `08a0733`). The first lines of
   `UE4SS.log` show the version, for example `UE4SS - v3.0.1 Beta #0 - Git SHA #08a0733`.
-- ConsoleEnablerMod, which comes with that UE4SS package. It must be on: `Mods/mods.txt` has the line
-  `ConsoleEnablerMod : 1`. In game, it opens the console with `F10` or `~` (Tilde).
+- Optional: ConsoleEnablerMod, which comes with that UE4SS package, for the `coop` console commands. The keys (see
+  "Keys and settings") work without it. To use it, `Mods/mods.txt` has the line `ConsoleEnablerMod : 1`; in game, it
+  opens the console with `F10` or `~` (Tilde).
 
 ## Find the folders
 
@@ -28,13 +29,40 @@ and on Linux with Proton.
 4. Copy the whole `StellarCoop` folder (the one that holds `enabled.txt`) into the Mods folder. The result must be
    `SB/Binaries/Win64/ue4ss/Mods/StellarCoop/Scripts/main.lua`, with `StellarCoop.dll` and `enabled.txt` next to
    `Scripts/`.
-5. Start the game, load a save, open the console and type `coop status`. Nothing appears on the game screen: the
-   answer is written to `UE4SS.log`, in lines that contain `[StellarCoop]`.
+5. Start the game, load a save and press `F6`. A line of text above EVE answers, for example `Co-op: not in a
+   session.`, for 4 s. `UE4SS.log` has the same answer, in a line that contains `[StellarCoop] OK:`.
+   No line? Close the game and look in `UE4SS.log` for lines with `[StellarCoop]`: `Native part not loaded` means
+   `StellarCoop.dll` is missing or quarantined (see "Windows Defender and SmartScreen"); the keys need it.
 
 You do not need to edit `mods.txt`: UE4SS starts every mod folder that contains an `enabled.txt` file.
 
 To update, close the game, delete the old `StellarCoop` folder (first copy out any log you still want to send), then
-install the new one.
+install the new one. If you changed `coop-settings.txt`, keep it: copy it out of the old folder first and back into
+the new one after. The zip never holds that file; without it, the mod writes the defaults again.
+
+## Keys and settings
+
+- `F5`, host: opens a friends-only session and the Steam invite dialog; pick your friend there. While you host, it
+  opens the dialog again. A guest cannot host: leave first.
+- `F6`, status: one line above EVE and in `UE4SS.log`, for example `Co-op: hosting Kaanta.`
+- `F8`, leave the session. When the host leaves, the guest leaves too.
+
+Your friend accepts the invite in Steam; if her game is closed, Steam starts it. She joins once she has loaded a save,
+and both ghosts turn on by themselves. Session events (a friend joined or left, connection lost, a rejoin) show as a
+line above EVE for 4 s, and go to `UE4SS.log` too.
+
+The first start writes `Mods/StellarCoop/coop-settings.txt`. To change it, close the game, edit the file, then start
+the game again:
+
+- `host_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
+  `Shift+`, `Ctrl+` or `Alt+` in front, for example `host_key=Shift+F7`. Two actions on one key put all three keys
+  back to `F5`, `F6` and `F8`.
+- `name_tag`: `on` or `off`, your friend's Steam name above her ghost.
+- `send_rate`: poses sent to your friend a second, from 10 to 30 (20 by default).
+
+A value the mod refuses keeps its default, and `UE4SS.log` says why in a line that starts with
+`[StellarCoop] settings:`. The `[StellarCoop] keys:` line gives the keys in use. Delete the file to get the defaults
+back.
 
 ## Turn the mod off or on
 

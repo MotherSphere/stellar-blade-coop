@@ -3,12 +3,12 @@
 Experimental co-op for Stellar Blade (PC), as a UE4SS mod. Nothing else is needed: no Minecraft, no bridge.
 Installing it by hand: see [INSTALL.md](INSTALL.md).
 
-Status: two players linked over Steam see each other's ghost (Phase 4, not yet tried between two PCs). On one PC the
-ghost also runs through the loopback, a recording and its replay. `coop where` prints coordinates to compare between
-the two PCs.
+Status: release R1, a friends beta. Two players linked over Steam see each other's ghost, with keys to host, show the
+status and leave, and the session's notices on screen (not yet tried between two PCs). On one PC the ghost also runs
+through the loopback, a recording and its replay. `coop where` prints coordinates to compare between the two PCs.
 
-- `coop off` stops everything (the ghost, her capture, the loopback, a recording, which is written, a replay, the
-  native tick, engine reads, the link) until the game restarts, even across a Lua reload.
+- `coop off` stops everything (the ghost, her capture, the loopback, a recording, which is written, a replay, the native
+  tick, engine reads, the link, the screen notices) until the game restarts, even across a Lua reload.
 - Native pose path: the DLL exports `coop_tick`, which the Lua loop calls once per frame on the game
   thread. It checks the game's exe against the pinned build (Steam build 24463856) before it reads any engine memory,
   runs once per engine frame (GFrameCounter), and stops for the run at the first fault. Every 60 s the log gives the
@@ -22,9 +22,9 @@ the two PCs.
   of the saves outside the game (it refuses while the game runs; restore needs `--yes`).
 - Nothing reads or writes a save, the inventory, unlocks or equipment, and nothing is copied between two players'
   games: the ghost is display only.
-- `coop puppet` (UE4SS console) turns the ghost on or off. On its own it shows nothing: it publishes EVE's capture for
-  the native part, and a ghost is drawn once a table comes back: a linked friend's (she runs `coop puppet` too), or
-  yours through the loopback or a replay.
+- The ghost turns on by itself when a session starts (see the Steam link below); `coop puppet` (UE4SS console) turns it
+  on or off by hand. On its own it shows nothing: it publishes EVE's capture for the native part, and a ghost is drawn
+  once a table comes back: a linked friend's, or yours through the loopback or a replay.
   - The capture starts once EVE has been in the world 2 s (never on the title screen or a menu pawn) and only reads.
     It names each skeletal mesh part: its mesh path, the part it follows, the part and socket it hangs from, its
     placement there, whether it is shown, a leader's bone names, and the map she is on (the package path of her world,
@@ -91,10 +91,23 @@ the two PCs.
   offset, and the map gate applies.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
   copy the game loaded. It never starts Steam itself and changes nothing in the game or the saves.
-  - `coop host` creates a friends-only lobby (2 players) and opens the Steam invite dialog. `coop invite` reopens it.
-  - A friend who accepts the invite joins automatically, whether the game was running or Steam starts it.
-    `coop join` joins the first friend found in a Stellar Blade lobby; `coop join <lobby id>` joins that lobby.
-  - The host leads the session: when the host leaves, the guest leaves too. A lobby with more than 2 players is left.
+  - Keys, with or without the console: F5 hosts, F6 shows the status, F8 leaves (the defaults; `coop-settings.txt` below
+    changes them). A key hands its action to the game thread, where the console's checks apply (`coop off` included);
+    the log says `key F5: host` and then the usual `OK:` or `STOP:` line.
+  - `coop host` (F5) creates a friends-only lobby (2 players) and opens the Steam invite dialog; while hosting it opens
+    the dialog again, as `coop invite` does. A guest's host request is refused (`You are in <host>'s game: leave it
+    first.`), so one key press never ends her friend's session.
+  - A friend who accepts the invite joins automatically, whether the game was running or Steam starts it, once a save is
+    loaded (EVE in a world, not on the title screen). Until then the invite is held (`Invite held: joining once your
+    save has loaded.`); a newer invite replaces it, and host, join or leave drops it. `coop join` joins the first friend
+    found in a Stellar Blade lobby; `coop join <lobby id>` joins that lobby; neither waits.
+  - The host leads the session: when the host leaves, the guest leaves too (`Session ended: <host> left.`). A lobby with
+    more than 2 players is left.
+  - If the guest loses the host's lobby another way (Steam drops her, a network cut), her game rejoins it by itself:
+    tries at 2, 12 and 42 s, given up at 60 s (`Lost <host>'s game: rejoining.`, then `Rejoined <host>'s game.` or
+    `Session ended: ...`). The host still leads: a lobby that is gone, or that someone else owns by then, ends the
+    session. Leave, host, join or a new invite stops the rejoin. The host's lobby stays meanwhile; the ghost goes with
+    the link and comes back with it.
   - Once both are in the lobby, the two games exchange a hello (protocol, mod version, game build). Each answers
     `accept` or `reject <reason>`, so a mismatch is explained instead of silently ignored; a lobby from another
     protocol or game build is refused on joining, with both versions in the joiner's log. The protocol is 4 (the
@@ -103,9 +116,13 @@ the two PCs.
     again.
   - A friend who passed the handshake both ways is linked (`peer linked: poses and tables go over Steam` in
     `coop-link.log`), while the native pose path is on (`engine=on`). Each side's table and poses then travel on
-    channel 1 as the loopback carries them: the table reliable, a pose unreliable, 20 a second. Each side needs
-    `coop puppet` on, which publishes EVE's capture and builds the ghost. The ghost stands where her main mesh is, with
-    no offset, and wears her outfit (display only, as above); the map gate applies.
+    channel 1 as the loopback carries them: the table reliable, a pose unreliable, 20 a second (`send_rate`). The ghost
+    turns on with the session (the link going from none to host or guest), which publishes EVE's capture and builds the
+    ghost; `coop puppet` off holds until the next session. The ghost stands where her main mesh is, with no offset, and
+    wears her outfit (display only, as above); the map gate applies.
+  - Her Steam name stands above her ghost (`loopback` or `replay` for those), turned to the camera at each pose; a tag
+    that fails is left out and the ghost stays. When she is on another map, the screen says once `<name> is in <map>,
+    you are in <map>.`, by the maps' last segments (`b07`).
   - Your table goes to her at once and again every 5 s, which heals one lost with a broken session or sent before her
     accept; an identical table is ignored. A changed capture (a new outfit, the blade drawn) goes at once. A table of
     hers that needs a new ghost (a new generation or layout) is taken at most once per 2 s: one that comes sooner is
@@ -125,30 +142,49 @@ the two PCs.
   - A loopback or a replay started by hand takes over from her until it is off: meanwhile nothing is sent to her, what
     she sends is ignored, and her ghost goes. Then she is linked again, your table goes to her at once and hers comes
     back with her next resend. A recording runs beside her.
-  - `coop leave` leaves the lobby. `coop report` writes `coop-report.txt`: versions, the save folder, DLLs from other
-    mods, the status and the last 100 events.
+  - Notices: each session event (hosting, joined, a friend joined or left, connection lost or back, a version mismatch,
+    a refused link, an invite held, a rejoin, the session ended) shows as a line of text about 30 cm above your EVE,
+    turned to the camera, 4 s each in turn; at most 4 wait, and the oldest goes. `UE4SS.log` gets each once as
+    `[StellarCoop] link: notice=<n> <text>`. On the title screen they go to the log only. If the engine refuses the
+    line, screen notices stay off until the next Lua load (`Screen notices off: <why>; notices stay in UE4SS.log.`).
+  - The status key (F6) gives one line, in the log (`OK: ...`) and on screen: `Co-op: not in a session.`, `Co-op:
+    hosting, no friend yet.`, `Co-op: <name> is connecting.`, `Co-op: hosting <name>.` or `Co-op: in <name>'s game.`
+    (a lost friend adds `Connection lost.`), `Co-op: invite held until your save has loaded.`, `Co-op: rejoining your
+    friend's game (try <n>/3).`, `Co-op: waiting for Steam.` or `Co-op: the Steam link stopped; coop status says why.`
+    `coop status` keeps the full state.
+  - `coop leave` (F8) leaves the lobby. `coop report` writes `coop-report.txt`: versions, the save folder, DLLs from
+    other mods, the status and the last 100 events.
   - If Steam faults under the link (for example at game exit), it stops itself: `stopped=fault <code>`. The log's last
     line says why the worker stopped.
-- `coop status` prints the current state: the link, the pose path (`engine=on`, then `loopback=on <delay> <jitter>
-  <loss>` or `loopback=waiting` until her capture comes, `record=on`, `replay=on`, `remote=<generation> <count>
-  <loopback|replay|peer>`) and the ghost (`ghost=on parts=... leaders=... basesuit=... left_out=... table=...
-  source=...`, `ghost=waiting`, `ghost=hidden map` or `ghost=off`).
+- `coop status` prints the current state: the link (`link=<none|host|guest>`, with `held=<lobby>` for an invite held and
+  `rejoin=<n>/3` while rejoining; a `friend=<linked> <lost> <name>` line; the last 8 notices), the pose path
+  (`engine=on`, then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until her capture comes, `record=on`,
+  `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`) and the ghost (`ghost=on parts=... leaders=...
+  basesuit=... left_out=... table=... source=...`, `ghost=waiting`, `ghost=hidden map` or `ghost=off`).
 - Files in the mod folder:
+  - `coop-settings.txt` is yours: the keys, the name tag and the send rate. The mod writes it with the defaults when it
+    is missing and never overwrites it; neither the zip nor `tools/install.py` ships or removes it. It is read when the
+    mod loads (game start, or Ctrl+R). Keys: F1 to F12 except F10 (F10 and `~` open the console on AZERTY), with at most
+    one of `Shift+`, `Ctrl+` or `Alt+` in front. `name_tag` is `on` or `off`; `send_rate` is 10 to 30 poses a second (20
+    by default). A refused value keeps its default, with a `settings:` line in `UE4SS.log` saying why; two actions on
+    one key put all three keys back to the defaults. The `keys:` line gives what is in use, and another line says when a
+    mod loaded earlier binds the same key (both run).
   - `coop-status.txt` (current state; each changed line except the per-peer ones also goes to `UE4SS.log` as
     `[StellarCoop] link: ...`), `coop-link.log` (this run's header and numbered events, in UTC like `UE4SS.log`,
     capped at 1 MB, repeats counted; the previous run's is `coop-link.old.log`) and `coop-report.txt`.
   - Between Lua and the native part, each written whole beside and renamed over, so never read half-written:
-    `coop-request.txt` (the console's request), `coop-session.txt` (a token per Lua load), `coop-components.txt`
-    (EVE's capture), `coop-remote.txt` (the remote table the ghost is built from) and `coop-display.txt` (the ghost
-    Lua built for it). The native part deletes the capture, remote and display files when it starts. Lua alone keeps
-    `coop-puppet.txt` (the ghost's object path, for the next Lua load), written the same way.
+    `coop-request.txt` (the console's request), `coop-session.txt` (a token per Lua load), `coop-components.txt` (EVE's
+    capture), `coop-remote.txt` (the remote table the ghost is built from), `coop-display.txt` (the ghost Lua built for
+    it) and `coop-state.txt` (whether a save is loaded, and the send rate). The native part deletes the capture, remote,
+    display and state files when it starts. Lua alone keeps `coop-puppet.txt` (the ghost's object path, for the next Lua
+    load), written the same way.
   - `coop-record.bin` (the recording). `tools/install.py` never removes what the mod writes.
 
 ## Layout
 
 - `mod/StellarCoop/`: the UE4SS mod folder (`Scripts/main.lua`, `Scripts/capture.lua` (EVE's capture),
-  `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/unreal.lua` (helpers over UE4SS objects),
-  `enabled.txt`). The installer adds `Scripts/version.lua`.
+  `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/notice.lua` (notices on screen), `Scripts/unreal.lua`
+  (helpers over UE4SS objects), `enabled.txt`). The installer adds `Scripts/version.lua`.
 - `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
   (the link's logic, channel 1 included), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (limits, one
   part, hex addresses), `src/pose_table.h` (the component table, the mesh path rule and the display file),
