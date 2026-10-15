@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""tools/install.py backup, install and uninstall on a fake game folder in a temporary directory.
+Run: python3 tests/install_test.py"""
+import contextlib
+import io
+import re
+import shutil
+import signal
+import sys
+import tempfile
+import time
+import types
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
+import install  # noqa: E402
+
+install.running_game = lambda: False  # The real check would fail this test while Stellar Blade runs.
+SAVES_LINE = 'Saves, the co-op save slot and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op save slot).\n'
+CLOSE = 'Close Stellar Blade first: its mods must not change under it.'
+
+
+def run(fn, *args):
+    """(exit code or sys.exit message, stdout + stderr) of fn(*args)."""
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+        try:
+            code = fn(*args)
+        except SystemExit as stop:
+            code = stop.code
+    return code, out.getvalue()
+
+
+def uninstall(*extra):
+    # Never main() without --uninstall: the install path runs every test, this one included.
+    return run(install.main, ['--uninstall', *extra, '--game', str(install.GAME)])
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = Path(tmp)
+    assert not tmp.resolve().is_relative_to('/mnt')  # Never the real game folder.
+    install.GAME, install.BACKUPS = tmp / 'game', tmp / 'backups'
+    mods = install.GAME / 'SB/Binaries/Win64/ue4ss/Mods'
+    target = mods / 'StellarCoop'
+    mods.mkdir(parents=True)
+
+    def tree():
+        """Every path under the temporary root: a file's bytes, else whether it is a link."""
+        return {p.relative_to(tmp).as_posix(): p.read_bytes() if p.is_file() else p.is_symlink()
+                for p in sorted(tmp.rglob('*'))}
+
+    def backups():
+        return sorted(install.BACKUPS.iterdir()) if install.BACKUPS.exists() else []
+
+    def files_of(root):
+        return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+
+    # 1. A fresh install writes the files and a manifest equal to them, and backs up nothing.
+    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', 'Scripts/old.lua': b'old', 'StellarCoop.dll': b'dll 1'}
+    code, out = run(install.install_files, target, v1)
+    assert code is None and out == f'Installed 4 files into {target}\n', out
+    manifest = (target / install.MANIFEST).read_bytes()
+    assert manifest.decode().splitlines() == sorted(v1)
+    assert files_of(target) == {**v1, install.MANIFEST: manifest} and not backups()
+
+    # 2. A reinstall that drops a file removes it, keeps what the mod wrote in game, and backs up first exactly the
+    # files it replaces or removes, the manifest included.
+    (target / 'coop-host.log').write_bytes(b'log')
+    (target / 'coop-settings.txt').write_bytes(b'send_rate=20\n')
+    v2 = {'enabled.txt': b'', 'Scripts/main.lua': b'main 2', 'StellarCoop.dll': b'dll 2'}
+    code, out = run(install.install_files, target, v2)
+    first, = backups()
+    dest = first / 'StellarCoop'
+    assert code is None and re.fullmatch(r'\d{8}T\d{6}Z', first.name), out
+    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / "Scripts/old.lua"}\n'
+                   f'Installed 3 files into {target}\n'), out
+    assert files_of(dest) == {**v1, install.MANIFEST: manifest}  # Not the log or the settings.
+    assert files_of(target) == {**v2, install.MANIFEST: b''.join(f'{r}\n'.encode() for r in sorted(v2)),
+                                'coop-host.log': b'log', 'coop-settings.txt': b'send_rate=20\n'}
+
+    # 3. Two backups within one second get two folders: a later one never overwrites an earlier one.
+    clock = install.time
+    install.time = types.SimpleNamespace(strftime=time.strftime, gmtime=lambda: time.gmtime(0))
+    try:
+        a, b = (run(install.backup, target, ['StellarCoop.dll'])[0] for _ in range(2))
+    finally: install.time = clock
+    assert (a.parent.name, b.parent.name) == ('19700101T000000Z', '19700101T000000Z-1'), (a, b)
+    assert (a / 'StellarCoop.dll').read_bytes() == (b / 'StellarCoop.dll').read_bytes() == b'dll 2'
+    for made in (a, b): shutil.rmtree(made.parent)
+
+    # 3b. A backup folder that is a link to an unmounted disk fails at once, before install or uninstall changes
+    # anything. It once looped forever, so the alarm (default action: kill) turns a hang into a failure.
+    backups_root, install.BACKUPS = install.BACKUPS, tmp / 'backups-link'
+    install.BACKUPS.symlink_to(tmp / 'unmounted', target_is_directory=True)
+    before = tree()
+    signal.alarm(10)
+    for call in (lambda: install.install_files(target, v1), lambda: install.uninstall(target, False)):
+        try:
+            call()
+            raise AssertionError('no error')
+        except FileExistsError as error:
+            assert error.filename == str(install.BACKUPS), error
+    signal.alarm(0)
+    assert tree() == before
+    install.BACKUPS.unlink()
+    install.BACKUPS = backups_root
+
+    # 4. Refusals while the game runs change nothing, for install and uninstall.
+    install.running_game = lambda: True
+    before = tree()
+    assert run(install.install_files, target, v1) == (CLOSE, '')
+    assert uninstall() == (CLOSE, '') and tree() == before
+    install.running_game = lambda: False
+
+    # 5. An uninstall dry run changes nothing and says what it would do.
+    assert uninstall('--dry-run') == (None, f'Dry run: would back up 6 files into {install.BACKUPS} and remove '
+                                            f'{target}\n') and tree() == before
+
+    # 6. An uninstall backs up the whole folder, removes it, leaves mods.txt alone (another mod's line is no reason to
+    # name it) and always names the saves.
+    (mods / 'mods.txt').write_bytes(b'BPModLoaderMod : 1\n')
+    code, out = uninstall()
+    dest, = set(p / 'StellarCoop' for p in backups()) - {first / 'StellarCoop'}
+    assert code is None and out == f'Backed up 6 files into {dest}\nRemoved {target}\n{SAVES_LINE}', out
+    assert not target.exists() and (mods / 'mods.txt').read_bytes() == b'BPModLoaderMod : 1\n'
+    assert files_of(dest)['coop-host.log'] == b'log' and files_of(dest)['coop-settings.txt'] == b'send_rate=20\n'
+    assert len(files_of(dest)) == 6
+
+    # 7. Nothing left to uninstall: said, and nothing changes.
+    before = tree()
+    assert uninstall() == (None, f'Nothing to uninstall: no StellarCoop folder at {target}\n') and tree() == before
+
+    # 8. An install after an uninstall works, and has nothing to back up.
+    count = len(backups())
+    assert run(install.install_files, target, v2) == (None, f'Installed 3 files into {target}\n')
+    assert files_of(target) == {**v2, install.MANIFEST: b''.join(f'{r}\n'.encode() for r in sorted(v2))}
+    assert len(backups()) == count
+
+    # 9. A StellarCoop line in mods.txt is reported, never edited.
+    (mods / 'mods.txt').write_bytes(b'BPModLoaderMod : 1\nStellarCoop : 1\n')
+    code, out = uninstall()
+    assert code is None and out.endswith(f'Removed {target}\nmods.txt still names StellarCoop: remove that line by '
+                                         f'hand ({mods / "mods.txt"})\n{SAVES_LINE}'), out
+    assert (mods / 'mods.txt').read_bytes() == b'BPModLoaderMod : 1\nStellarCoop : 1\n'
+
+    # 10. A folder this tool did not install (no manifest, or a link to one) is left alone, even by the dry run.
+    left_alone = f'{target} was not installed by this tool (no install-manifest.txt, or a link): left alone'
+    target.mkdir()
+    (target / 'main.lua').write_bytes(b'by hand')
+    before = tree()
+    assert uninstall() == (left_alone, '') and uninstall('--dry-run') == (left_alone, '') and tree() == before
+    target.rename(tmp / 'checkout')
+    (tmp / 'checkout' / install.MANIFEST).write_bytes(b'main.lua\n')
+    target.symlink_to(tmp / 'checkout', target_is_directory=True)
+    before = tree()
+    assert uninstall() == (left_alone, '') and tree() == before
+
+print('install_test: ok')
