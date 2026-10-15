@@ -6,6 +6,8 @@ Installing it by hand: see [INSTALL.md](INSTALL.md).
 Status: release R1, a friends beta. Two players linked over Steam see each other's ghost, with keys to host, show the
 status and leave, and the session's notices on screen (not yet tried between two PCs). On one PC the ghost also runs
 through the loopback, a recording and its replay. `coop where` prints coordinates to compare between the two PCs.
+The ghost can also show her ponytail's cloth, her hair colour and her attack and skill effects, each off by default
+until it is tried in game (`coop look`, below).
 
 - `coop off` stops everything (the ghost, her capture, the loopback, a recording, which is written, a replay, the native
   tick, engine reads, the link, the screen notices) until the game restarts, even across a Lua reload.
@@ -38,17 +40,18 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
     lowercased). It looks again once a second: a new mesh (her outfit) is a new generation; a part hung elsewhere (the
     blade drawn or sheathed), shown or hidden is published again under the same one. The log gives a `Capture` line
     per generation.
-  - The ghost is a plain actor with one PoseableMeshComponent per part and no collision: not a Pawn, so lock-on, AI
-    and saves never see it. It is built from the table, one mesh a frame. Each part loads the mesh its path names
-    (LoadAsset only brings a cooked asset into memory; nothing is worn or unlocked) with the mesh's own materials, so
-    the ghost wears the outfit captured. Only `/Game/Art/Character/...` and `/Game/DLC_<n>/Art/Character/...` meshes
-    are loaded. A path refused by that rule, a mesh this PC cannot load (a DLC it does not own) or a leader with other
-    bones than the table's falls back to the base suit: the body on `CH_P_EVE_08`, the hair on `EVE_HR_01`, each
-    bone taking hers of the same name. A part with no fallback is left out, with the parts that follow it.
-  - Parts hang as the table says (parent part, socket, placement) and followers follow their leader. No cloth or
-    morphs: a rigid ponytail and a neutral face. Each frame the native part writes the leaders' bones behind the
-    engine's own CopyPose gate, and the main mesh's world transform into a mailbox component that Lua places the ghost
-    from. The ghost stays hidden until the first pose and after a second without one.
+  - The ghost is a plain actor with one PoseableMeshComponent per part and no collision: not a Pawn, so lock-on, AI and
+    saves never see it. It is built from the table, one mesh a frame. Each part loads the mesh its path names (LoadAsset
+    only brings a cooked asset into memory; nothing is worn or unlocked) with the mesh's own materials (unless the dyes
+    look is on), so the ghost wears the outfit captured. Only `/Game/Art/Character/...` and
+    `/Game/DLC_<n>/Art/Character/...` meshes are loaded. A path refused by that rule, a mesh this PC cannot load (a DLC
+    it does not own) or a leader with other bones than the table's falls back to the base suit: the body on
+    `CH_P_EVE_08`, the hair on `EVE_HR_01`, each bone taking hers of the same name. A part with no fallback is left out,
+    with the parts that follow it.
+  - Parts hang as the table says (parent part, socket, placement) and followers follow their leader. No morphs: a
+    neutral face; without the cloth look, a rigid ponytail. Each frame the native part writes the leaders' bones behind
+    the engine's own CopyPose gate, and the main mesh's world transform into a mailbox component that Lua places the
+    ghost from. The ghost stays hidden until the first pose and after a second without one.
   - The same generation with a part hung elsewhere, shown or hidden is applied to the ghost in place; a new generation
     is a new ghost. The `Ghost ... built` line gives the parts, the meshes loaded and their time, those on the base suit
     (with how many of its bones follow) and those left out.
@@ -58,6 +61,20 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
     world 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is found and removed at the next load.
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
+- What else the ghost shows: three looks, each `on` or `off` in `coop-settings.txt` (`cloth`, `dyes`, `effects`; off
+  by default, and the file written for you names them in a comment only). `coop look <cloth|dyes|effects> <on|off>`
+  changes one until the mod reloads (game start or Ctrl+R) and rebuilds the ghost; `coop look` alone answers the
+  `look:` line that each load logs. With one on, the `Ghost ... built` line ends with `; look: ...`.
+  - `cloth`: a follower part whose mesh has clothing assets (her ponytail) is a SkeletalMeshComponent whose cloth
+    simulates on its leader's bones; if that fails, it is a plain part, with a note. Only the viewer's setting counts.
+  - `dyes`: her capture also names each part's overridden materials (a dynamic instance as the asset it was made
+    from), and the ghost puts on each one this PC has, by the same path rule as the meshes. Not on a fallback mesh.
+  - `effects`: the native part reads which of 19 known Niagara systems are playing on her leaders, at most 4, into
+    four effect slots of each pose (an index into the list, never a path). The ghost starts each on the part it hangs
+    on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native
+    effect read or write turns effects off until the game restarts (`effects off: fault ...`); the ghost goes on. Every
+    60 s with any effect activity, an `effects, last 60 s:` line counts those started, over 4, unlisted and written.
+  - `dyes=off` and `effects=off` also stop sending yours, so the friend's ghost of you lacks them too.
 - `coop where` prints one line to compare between the two PCs, with or without a link or a ghost:
   `where map=<map> eve=<x,y,z> yaw=<yaw> mesh=<x,y,z> camp=<id>:<class>@<x,y,z> camp_m=<m>
   spawn=<id>:SBSpawnPoint@<x,y,z> spawn_m=<m> origin=<x,y,z> composition=<flag> rebasing=<flag> ghost=<...>`.
@@ -78,14 +95,14 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
     line still prints. The map, EVE's position and her mesh are read without a guard: if one of them fails, the
     command prints `STOP:` with the error instead of the line.
 - `coop loopback <delay ms> <jitter ms> <loss %>` (0 to 1000, 0 to 500, 0 to 100; needs `coop puppet`) runs the whole
-  ghost pipeline on one PC, as a friend's EVE would arrive over the network. The native part sends EVE's capture as
-  the table, then reads her pose 20 times a second and encodes it (about 4.7 KB in the outfit measured: quantized local
-  bones, the world transform as floats). Both go through an in-process delay line: that one-way delay, plus or minus
-  the jitter, each 1200-byte segment of a pose lost at that rate; the table is never lost. What comes back is the
-  remote side: the table is checked and the ghost built from it, the poses are decoded with it and drawn into the
-  ghost, interpolated between received poses on a clock that absorbs transit and jitter. In loopback the ghost is
-  yours, so it walks 2 m to your right; `coop loopback 0 0 0` shows it with no delay. New settings drop what is in
-  flight and send the table again. `coop loopback off` removes the remote table, and the ghost with it.
+  ghost pipeline on one PC, as a friend's EVE would arrive over the network. The native part sends EVE's capture as the
+  table, then reads her pose 20 times a second and encodes it (about 4.7 KB in the outfit measured: quantized local
+  bones, the world transform as floats, four effect slots). Both go through an in-process delay line: that one-way
+  delay, plus or minus the jitter, each 1200-byte segment of a pose lost at that rate; the table is never lost. What
+  comes back is the remote side: the table is checked and the ghost built from it, the poses are decoded with it and
+  drawn into the ghost, interpolated between received poses on a clock that absorbs transit and jitter. In loopback the
+  ghost is yours, so it walks 2 m to your right; `coop loopback 0 0 0` shows it with no delay. New settings drop what is
+  in flight and send the table again. `coop loopback off` removes the remote table, and the ghost with it.
 - `coop record` (needs `coop puppet` and her capture) records what is sent, the table and her poses, with or without
   the loopback or a linked friend, for up to 120 s or 24 MiB, or until `coop record off`. It is kept in memory and
   written at the stop to `coop-record.bin` in the mod folder, if it holds a pose. The name is fixed, so a new
@@ -96,19 +113,18 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   re-stamped as if sent now, until `coop replay off`, which removes the ghost.
   Generation, map and positions stay as recorded: the ghost wears the outfit recorded, walks where she walked with no
   offset, and the map gate applies.
-- `coop no` is the Night Operation probe, for the T6 test sheet only, with a `tools/save_guard.py backup` first. It
-  runs only on the co-op save slot: unless `coop status` has a `slot=coop` line, it refuses with `STOP: coop no runs
-  only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>` (`now no slot status`
-  without the native part). Each load logs the slot as `link: slot=...` in `UE4SS.log`. The ghost, the link and every
-  other command run on any save. A probe rule only ends with the game (`coop off` does not end it), so T6 ends by
-  killing the game. Bare `coop no` starts the native part's read-only poller and logs a baseline: every 100 ms it reads
-  the game's rule manager and a few of its neighbours into `nightop-probe.txt`, a line on each change and otherwise
-  once a second (`coop status` shows `nightop=on`). Each subcommand below refuses until the poller runs, and `coop off`
-  stops the poller. The probe fires only the zone events and the monster below (no achievement, no drop), kills
-  nothing, and calls no save, inventory, equip or quest function; no console argument reaches a game call. At the
-  `spawnpt` check (+3 s) and the `actor` checks (+3 s, +10 s), a new character within 20 m of EVE logs a `STOP` line:
-  kill the game. Nothing watches at other times: if a monster comes towards EVE, kill the game. Then, one command
-  each, in this order:
+- `coop no` is the Night Operation probe, a test run by hand only, after a `tools/save_guard.py backup`. It runs only on
+  the co-op save slot: unless `coop status` has a `slot=coop` line, it refuses with `STOP: coop no runs only with the
+  co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>` (`now no slot status` without the native
+  part). Each load logs the slot as `link: slot=...` in `UE4SS.log`. The ghost, the link and every other command run on
+  any save. A probe rule only ends with the game (`coop off` does not end it), so the test ends by killing the game.
+  Bare `coop no` starts the native part's read-only poller and logs a baseline: every 100 ms it reads the game's rule
+  manager and a few of its neighbours into `nightop-probe.txt`, a line on each change and otherwise once a second (`coop
+  status` shows `nightop=on`). Each subcommand below refuses until the poller runs, and `coop off` stops the poller. The
+  probe fires only the zone events and the monster below (no achievement, no drop), kills nothing, and calls no save,
+  inventory, equip or quest function; no console argument reaches a game call. At the `spawnpt` check (+3 s) and the
+  `actor` checks (+3 s, +10 s), a new character within 20 m of EVE logs a `STOP` line: kill the game. Nothing watches at
+  other times: if a monster comes towards EVE, kill the game. Then, one command each, in this order:
   - `coop no heal` fires the game's heal zone event `SE_10_E_ActorEff_011`: her health bar should refill.
   - `coop no rule` adds a probe row to the game's empty MultiPlayRuleTable (no achievement, quest or reward), reads it
     back field by field and sets it as the rule, once per game run (`nightop=rule`). 60 s later the native part writes
@@ -189,13 +205,14 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`) and the ghost (`ghost=on parts=... leaders=...
   basesuit=... left_out=... table=... source=...`, `ghost=waiting`, `ghost=hidden map` or `ghost=off`).
 - Files in the mod folder:
-  - `coop-settings.txt` is yours: the keys, the name tag and the send rate. The mod writes it with the defaults when it
-    is missing and never overwrites it; neither the zip nor `tools/install.py` ships or removes it. It is read when the
-    mod loads (game start, or Ctrl+R). Keys: F1 to F12 except F10 (F10 and `~` open the console on AZERTY), with at most
-    one of `Shift+`, `Ctrl+` or `Alt+` in front. `name_tag` is `on` or `off`; `send_rate` is 10 to 30 poses a second (20
-    by default). A refused value keeps its default, with a `settings:` line in `UE4SS.log` saying why; two actions on
-    one key put all three keys back to the defaults. The `keys:` line gives what is in use, and another line says when a
-    mod loaded earlier binds the same key (both run).
+  - `coop-settings.txt` is yours: the keys, the name tag, the send rate and the ghost's looks. The mod writes it with
+    the defaults when it is missing and never overwrites it; neither the zip nor an install ships or removes it
+    (`--uninstall` backs it up with the folder, then removes it). It is read when the mod loads (game start, or Ctrl+R).
+    Keys: F1 to F12 except F10 (F10 and `~` open the console on AZERTY), with at most one of `Shift+`, `Ctrl+` or `Alt+`
+    in front. `name_tag` is `on` or `off`; `send_rate` is 10 to 30 poses a second (20 by default); `cloth`, `dyes` and
+    `effects` are `on` or `off` (off by default). A refused value keeps its default, with a `settings:` line in
+    `UE4SS.log` saying why; two actions on one key put all three keys back to the defaults. The `keys:` line gives what
+    is in use, and another line says when a mod loaded earlier binds the same key (both run).
   - `coop-status.txt` (current state; each changed line except the per-peer ones also goes to `UE4SS.log` as
     `[StellarCoop] link: ...`), `coop-link.log` (this run's header and numbered events, in UTC like `UE4SS.log`,
     capped at 1 MB, repeats counted; the previous run's is `coop-link.old.log`) and `coop-report.txt`.
@@ -208,7 +225,7 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   - `nightop-probe.txt` (the `coop no` poller's lines, capped at 4 MB). An earlier run's last probe file is
     `nightop-probe.old.txt`, moved there when the native part starts and finds one; a run without `coop no` writes
     none, so it can be older than the previous run.
-  - `coop-record.bin` (the recording). `tools/install.py` never removes what the mod writes.
+  - `coop-record.bin` (the recording). An install never removes what the mod writes; `--uninstall` backs it up first.
 
 ## Layout
 
@@ -232,8 +249,19 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   channel 1's checks, the pose path against fake memory, the codec's round trips and a decoder fuzz, the component
   table and display file with a parser fuzz, the recording's reader with a fuzz and its replay, the loopback pipeline
   in simulated time, the save watcher, the slot line and marker against fake memory in `tests/save_slot_test.cpp`)
-  and a Python check of `save_guard.py`, its `slot` command included.
+  and Python checks of `save_guard.py`, its `slot` command included, and of `install.py`'s install, backup, uninstall
+  and zip, on temporary folders.
   `tools/wine_smoke.py` loads the DLL under Proton's wine in a scratch prefix.
 - `tools/install.py`: runs the checks, builds the DLL with the clang-cl/xwin toolchain (`STELLAR_WINDOWS_TOOLCHAIN`)
   and copies the mod into `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
-  `--zip` writes a package for a friend instead.
+  - It first backs up the files it replaces or removes into `~/StellarCoop-install-backups/<UTC time>/StellarCoop`,
+    outside the game folder (UE4SS would load a copy under `Mods`). Backups are never pruned.
+  - `--uninstall` backs up the whole folder there, then removes it. It runs no checks and no build, and leaves a
+    folder without `install-manifest.txt` alone. It never touches saves, `StellarCoopSlot.txt` or `mods.txt`; it
+    says if a `mods.txt` line still names StellarCoop. `--dry-run` with it changes nothing.
+  - `--zip` writes `build/StellarCoop-<version>.zip` for a friend instead, from a clean tree only: the mod folder
+    with `INSTALL.md`, a `CHANGELOG.md` generated from the commits' `feat` and `fix` subjects, and `SHA256SUMS.txt`
+    over them all. The same commit gives the same zip, dated from the commit. `CHANGELOG.md` is never committed.
+  - The DLL is reproducible (`/Brepro`, checkout paths mapped): building a commit through `tools/install.py` (which
+    bakes `git describe` into it; a plain CMake build bakes `dev`) with clang-cl 23.1.3 and xwin's SDK 10.0.26100 and
+    MSVC CRT 14.44.35220 (linked statically) gives the same `StellarCoop.dll` bytes.

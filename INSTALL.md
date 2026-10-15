@@ -1,7 +1,7 @@
 # Installing StellarCoop
 
-StellarCoop is an experimental co-op mod for Stellar Blade (PC). It runs inside UE4SS. These steps work on Windows
-and on Linux with Proton.
+StellarCoop is an experimental co-op mod for Stellar Blade (PC). It runs inside UE4SS. These steps are for Windows
+and for Linux with Proton. Not yet tested on Windows.
 
 **Close the game before you copy, change or delete any mod file.**
 
@@ -36,9 +36,22 @@ and on Linux with Proton.
 
 You do not need to edit `mods.txt`: UE4SS starts every mod folder that contains an `enabled.txt` file.
 
-To update, close the game, delete the old `StellarCoop` folder (first copy out any log you still want to send), then
-install the new one. If you changed `coop-settings.txt`, keep it: copy it out of the old folder first and back into
-the new one after. The zip never holds that file; without it, the mod writes the defaults again.
+On Linux, from the StellarCoop repository, `python3 tools/install.py` builds the mod and installs it instead (give
+`--game <Stellar Blade folder>` if the game is elsewhere). It first backs up the files it replaces into
+`~/StellarCoop-install-backups`.
+
+### Update
+
+`CHANGELOG.md` in the zip gives its version and the features and fixes, newest first. Both players update together:
+a friend whose StellarCoop speaks another protocol is refused: whoever joins sees `Version mismatch: that game runs
+protocol ..., build ...; yours runs ...`. StellarCoop versions before this one only write that to `UE4SS.log`.
+
+1. Close the game.
+2. Copy out of the old `Mods/StellarCoop` folder what you want to keep: `coop-settings.txt` if you changed it, and any
+   log you still want to send. The zip never holds `coop-settings.txt`; without it, the mod writes the defaults again.
+3. Delete the old `StellarCoop` folder, so no file of the old version stays.
+4. Install the new zip as above, steps 2 to 4, and put `coop-settings.txt` back into the new folder.
+5. Do install step 5, with your own status key if you changed it.
 
 ## Keys and settings
 
@@ -59,10 +72,22 @@ the game again:
   back to `F5`, `F6` and `F8`.
 - `name_tag`: `on` or `off`, your friend's Steam name above her ghost.
 - `send_rate`: poses sent to your friend a second, from 10 to 30 (20 by default).
+- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default: the file
+  names them in a comment only, so add a line such as `cloth=on` to turn one on.
+  - `cloth`: her ponytail swings as cloth. Off, it stays rigid.
+  - `dyes`: her hair colour and other material variants. Off, each part has its mesh's own colours.
+  - `effects`: her attack and skill effects (19 of EVE's effects, at most 4 at a time).
+  - `dyes=off` and `effects=off` each also stop sending yours, so your friend's ghost of you lacks them too.
 
 A value the mod refuses keeps its default, and `UE4SS.log` says why in a line that starts with
-`[StellarCoop] settings:`. The `[StellarCoop] keys:` line gives the keys in use. Delete the file to get the defaults
-back.
+`[StellarCoop] settings:`. The `[StellarCoop] keys:` line gives the keys in use, and the `[StellarCoop] look:` line
+what the ghost shows. Delete the file to get the defaults back.
+
+The three looks are not yet tried in game. Back up your saves before you turn one on (see "Saves and Steam Cloud").
+If the game crashes or the ghost looks wrong, turn it off again.
+
+With the console, `coop look <cloth|dyes|effects> <on|off>` turns one on or off until the mod reloads (game start or
+Ctrl+R) and builds the ghost again; `coop-settings.txt` stays as it is. `coop look` alone gives the three.
 
 ## Turn the mod off or on
 
@@ -70,7 +95,7 @@ back.
   it to `StellarCoop : 0` too.
 - On again: close the game and create an empty file named `enabled.txt` in `Mods/StellarCoop/`. If you changed the
   `StellarCoop` line in `mods.txt`, set it back to `StellarCoop : 1`.
-- Uninstall: close the game and delete the `Mods/StellarCoop` folder.
+- Uninstall: see "Uninstall" below.
 
 ## Saves and Steam Cloud
 
@@ -155,19 +180,38 @@ backup, then writes `StellarCoopSlot.txt` and the copy. Replacing the co-op slot
 
 ## Check the files
 
-`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder.
+`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, `INSTALL.md` and `CHANGELOG.md` included.
 
 - Linux: in the `StellarCoop` folder, run `sha256sum -c SHA256SUMS.txt`. Every file must pass (`OK`, or the same word in your
   language). A mismatch ends with a warning.
-- Windows: in PowerShell, in the `StellarCoop` folder, run `Get-FileHash StellarCoop.dll`. The hash must match the
-  `StellarCoop.dll` line of `SHA256SUMS.txt` (upper or lower case does not matter). Do the same for other files if
-  you wish.
+- Windows: in PowerShell, in the `StellarCoop` folder, run `Get-FileHash <file> -Algorithm SHA256` for each file, for
+  example `Get-FileHash StellarCoop.dll -Algorithm SHA256`. The hash must match that file's line of `SHA256SUMS.txt`
+  (upper or lower case does not matter). Check at least `StellarCoop.dll` and `CHANGELOG.md`.
+
+The build is reproducible: `python3 tools/install.py --zip` on a commit, with clang-cl 23.1.3 and xwin's Windows SDK
+10.0.26100 and MSVC CRT 14.44.35220, gives the same `StellarCoop.dll` bytes, so anyone with the repository can compare
+its sum. It bakes the commit's `git describe` into the DLL: the zip's name must show the same version.
 
 ## Windows Defender and SmartScreen
 
 `StellarCoop.dll` is not code-signed, so Windows Defender or SmartScreen may warn about it or quarantine it. Check its
 sum first (see above). If the sum matches and the file was quarantined, you can restore it from Windows Security,
 Protection history. Without the DLL the Steam link does not start, and `UE4SS.log` says so.
+
+## Uninstall
+
+Close the game first.
+
+- Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs and
+  `coop-settings.txt`, so first copy out what you want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`,
+  remove that line.
+- Installed with `tools/install.py` (Linux), from the StellarCoop repository: `python3 tools/install.py --uninstall`
+  (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is elsewhere). It
+  backs up the whole folder into `~/StellarCoop-install-backups` first, then removes it. It removes only a folder it
+  installed (one with `install-manifest.txt`): delete a folder copied from the zip by hand, as above. It never edits
+  `mods.txt`: it says if a line there still names StellarCoop, for you to remove.
+
+Your saves, the co-op save slot and `StellarCoopSlot.txt` stay. To stop using the co-op slot too, see "Recovery" above.
 
 ## Which logs to send
 
@@ -178,7 +222,7 @@ If something goes wrong, close the game and send these files before you start th
 - `Mods/StellarCoop/coop-link.log`
 - `Mods/StellarCoop/coop-link.old.log`
 - `ue4ss/UE4SS.log`
-- `Mods/StellarCoop/nightop-probe.txt`, only after the T6 test (`coop no`)
+- `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
 which may include your Windows user name.
