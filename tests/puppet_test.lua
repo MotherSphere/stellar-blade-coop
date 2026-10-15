@@ -5,7 +5,8 @@
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read;
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
 -- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip; with
--- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails.
+-- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails;
+-- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -52,6 +53,15 @@ mesh(BASE_HAIR,{'Bip001-Head','Other','Hair_01'})
 mesh(STATIC,{},false)
 mesh(LONG_HAIR,{'a','b','c','d','e'})
 mesh(TWO_BLADE,{'Root','Tip'})
+-- Materials: assets of another class, found by path the same way.
+local SKIN='/Game/Art/Character/PC/CH_P_EVE_52/MI_EVE_52_Skin.MI_EVE_52_Skin'
+local TYPE_B='/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeB.MI_EVE_HR_01_TypeB'
+local TYPE_C='/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeC.MI_EVE_HR_01_TypeC'
+for _,path in ipairs({SKIN,TYPE_B,TYPE_C}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.MaterialInterface' end
+    meshes[path].GetFullName=function() return 'MaterialInstanceConstant '..path end
+end
 -- Clothing assets: the ponytail, a follower, and her hair, a leader.
 meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
 meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
@@ -64,6 +74,7 @@ LoadAsset=function(path)
 end
 
 local spawned={}
+local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
 local function poseable(actor)
     local p=object('Poseable',{calls={}},0xc2)
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
@@ -79,7 +90,14 @@ local function poseable(actor)
     function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
     function p:IsA(class) return class.path=='/Script/Engine.PoseableMeshComponent' end
     function p:GetOwner() return actor end
-    return p -- No SetMaterial: a call fails the build, so the test.
+    if dyeable then
+        function p:GetNumMaterials() return 2 end
+        function p:SetMaterial(slot,m)
+            self.dyes=self.dyes or {}
+            self.dyes[#self.dyes+1]={slot=slot,material=m,at=frame}
+        end
+    end
+    return p -- No SetMaterial unless dyeable: a call fails the build, so the test.
 end
 -- A cloth part: a SkeletalMeshComponent with the same calls, plus the cloth reset; never bound to its leader's cloth.
 local fail_cloth,fail_reset,skeletal_adds=nil,false,0 -- fail_cloth: 'add' or 'set'.
@@ -184,10 +202,10 @@ end
 local function her_parts(o)
     o=o or {}
     return {
-        {name='CharacterMesh0',path=o.body or BODY,names={'Root','Bip001','Bip001-Pelvis'}},
+        {name='CharacterMesh0',path=o.body or BODY,names={'Root','Bip001','Bip001-Pelvis'},materials=o.body_materials},
         {name='Mesh_Face',lead=0,parent=0,path=FACE},
         {name='SBHair',parent=0,socket='Bip001-Head',path=o.hair or HAIR,names={'Bip001-Head','Hair_01'},
-            place='0 0 0.707106769 0.707106769 1.5 -2 0.25 1 1 1'},
+            place='0 0 0.707106769 0.707106769 1.5 -2 0.25 1 1 1',materials=o.hair_materials},
         {name='SBPonytail',lead=2,parent=2,shown=false,path=PONY},
         {name='SBSkeletalMeshComponent_7',parent=0,socket=o.socket or 'SC_SwordingPoint',shown=o.blade_shown,
             path=o.blade or BLADE,names={'Root'},place='0 0 0 1 10.25 0 1 1 1 1'},
@@ -200,6 +218,7 @@ local function remote_text(generation,parts,map)
         lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',i-1,p.lead or '-',p.parent or '-',p.socket or '-',
             p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')
         if i>1 then lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1') end
+        for _,m in ipairs(p.materials or {}) do lines[#lines+1]=string.format('material %d %d %s',i-1,m[1],m[2]) end
         if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
     end
     return table.concat(lines,'\n')..'\n'
@@ -780,4 +799,59 @@ fail_add=false
 assert(ghost.rebuild('look')==nil,'No ghost to remove')
 ok,message=build()
 assert(message:find('^Ghost 700 built: .*; look: cloth parts 1 %('),message)
+
+-- Dyes (look.dyes, read at each build). Off, a table's material lines are read and nothing is done with them: no
+-- material resolved, and no SetMaterial (these parts have none).
+local dyed={body_materials={{1,SKIN}},hair_materials={{0,TYPE_B},{1,FACE},{5,TYPE_C}}}
+look.cloth=false
+loads,before={},lookups
+send(800,her_parts(dyed))
+ok,message=build()
+assert(ok and message:find('^Ghost 800 built: 6 parts .* 0 left out %(%d+ ms in all%)%.$'),message)
+for _,path in ipairs(loads) do assert(not meshes[path]:IsA({path='/Script/Engine.MaterialInterface'}),path) end
+assert(spawned[#spawned].parts[1].SetMaterial==nil,'Dyes off: the fakes still have no SetMaterial')
+-- On: each part on its own mesh takes its slots below GetNumMaterials (2 here), one material a frame, resolved and set
+-- in the same frame; a path that is no MaterialInterface (a mesh) or a slot past the mesh's keeps the default, said.
+look.dyes,dyeable=true,true
+ghost.rebuild('look')
+ok,message=build()
+assert(ok and message:find('^Ghost 800 built: 6 parts %(3 leaders%), .* 0 left out; look: dyed slots 2; SBHair: slot 1 '
+    ..'material '..FACE:gsub('%p','%%%0')..' missing, default kept; SBHair: slot 5 material '..TYPE_C:gsub('%p','%%%0')
+    ..' missing, default kept %(%d+ ms in all%)%.$'),message)
+actor=spawned[#spawned]
+root,face,hair=actor.parts[1],actor.parts[2],actor.parts[3]
+assert(#root.dyes==1 and root.dyes[1].slot==1 and root.dyes[1].material==meshes[SKIN])
+assert(#hair.dyes==1 and hair.dyes[1].slot==0 and hair.dyes[1].material==meshes[TYPE_B])
+assert(root.dyes[1].at==meshes[SKIN].resolved_at and hair.dyes[1].at==meshes[TYPE_B].resolved_at,'Resolved, set: one frame')
+assert(not face.dyes and face.mesh==meshes[FACE],'The face is still its mesh')
+-- The face's path refused as a material is remembered as such only: the next build still draws the face on it.
+ghost.rebuild('look')
+build()
+assert(spawned[#spawned].parts[2].mesh==meshes[FACE],'A mesh named as a material spoils neither')
+-- A part on a fallback mesh is never dyed: its slots are another mesh's.
+send(801,her_parts({hair=NIER,hair_materials={{0,TYPE_B}}}))
+ok,message=build()
+actor=spawned[#spawned]
+assert(actor.parts[3].mesh==meshes[BASE_HAIR] and not actor.parts[3].dyes,'On the base suit')
+assert(message:find('; look: dyed slots 0; ') and not message:find('slot 0 material'),message)
+-- The table read stays strict: a material line of another part, a slot not rising, one over 63, a 17th, or an unknown
+-- line refuses the whole table.
+local good=remote_text(802,her_parts(dyed))
+for _,bad in ipairs({good:gsub('\nmaterial 2 0 ','\nmaterial 1 0 '),good:gsub('\nmaterial 2 1 ','\nmaterial 2 0 '),
+    good:gsub('\nmaterial 2 5 ','\nmaterial 2 64 '),good..'bogus\n'}) do
+    remote_file=bad
+    count=count+1
+    ok,message=ghost.remote(802,count,'loopback')
+    assert(ok==false and message=='The remote table could not be read.',bad)
+end
+local sixteen={}
+for k=1,17 do sixteen[k]={k,TYPE_B} end
+remote_file=remote_text(802,her_parts({hair_materials=sixteen}))
+count=count+1
+assert(select(2,ghost.remote(802,count,'loopback'))=='The remote table could not be read.','17 on one part')
+table.remove(sixteen)
+send(802,her_parts({hair_materials=sixteen}))
+ok,message=build()
+-- All 16 read: slot 1, below this mesh's 2, is set; the 15 above it are said.
+assert(message:find('^Ghost 802 built: .*; look: dyed slots 1; ') and select(2,message:gsub(' default kept',''))==15,message)
 print('puppet_test ok')

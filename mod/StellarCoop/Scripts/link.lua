@@ -19,12 +19,13 @@ leave_key=F8
 name_tag=on
 # Poses sent to your friend a second: 10 to 30.
 send_rate=20
-# What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings).
+# What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
+# material variants). dyes off also stops sending yours.
 # For example: cloth=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here.
-local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off'}
-local LOOKS={cloth=true} -- What the ghost shows (puppet.lua), each on or off.
+local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',dyes='off'}
+local LOOKS={cloth=true,dyes=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'host_key','status_key','leave_key'}
 local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
 -- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil, name='Shift+F7'}.

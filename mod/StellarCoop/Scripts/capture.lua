@@ -6,12 +6,15 @@
 -- (as indexes), its placement there, whether it is shown, a leader's bone names, and the map she is on. Once a second
 -- it looks again: a new mesh is a new generation; a part hung elsewhere (a blade drawn) or shown or hidden is published
 -- again under the same generation. Placement alone never is: a part placed relative to her main mesh moves with every
--- animation. Read-only: nothing here changes EVE or any of her components.
+-- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
+-- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation. Read-only:
+-- nothing here changes EVE or any of her components.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Capture={}
 local MAX_PARTS,MAX_BONES=16,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
+local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
 -- EVE's skeletal mesh components that have a mesh: her main mesh first, then leaders, then followers; each with the
 -- component it follows and the one it hangs from, by address.
 local function parts_of(eve)
@@ -42,15 +45,38 @@ local function place_of(transform)
     return table.concat({real(q.X),real(q.Y),real(q.Z),real(q.W),real(t.X),real(t.Y),real(t.Z),real(s.X),real(s.Y),
         real(s.Z)},' ')
 end
--- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why.
-function Capture.new(publish)
+-- A part's overridden materials, slots rising: {slot=, object=}, and how many were dynamic instances. A dynamic one
+-- (made at run time, so no peer can load it) goes as its parent, up to 4 levels.
+local function materials_of(component)
+    local list,dynamic={},0
+    local mid=find('/Script/Engine.MaterialInstanceDynamic')
+    each(component.OverrideMaterials,function(index,material)
+        material=valid(material)
+        if not material or #list==MAX_MATERIALS or index>MAX_SLOTS then return end
+        local made=material:IsA(mid)
+        for _=1,4 do
+            if not (material and material:IsA(mid)) then break end
+            material=valid(material.Parent)
+        end
+        if material then
+            list[#list+1]={slot=index-1,object=material}
+            dynamic=dynamic+(made and 1 or 0)
+        end
+    end)
+    return list,dynamic
+end
+-- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why. looks: what the
+-- ghost shows ({dyes=true|false}, read at each look; nil: nothing more).
+function Capture.new(publish,looks)
     publish=publish or function() return false,'no native part' end
+    looks=looks or {}
     local self={}
     -- Started from the clock, so a Lua reload never reuses a number the native part may still hold.
     local generation=os.time()*100
     local published=nil -- What was published: {generation, key (meshes), dress (hanging, shown), names, map}.
     local seen,since,next_look=nil,nil,0
     local yaw_delta=0
+    local unread -- Why materials could not be read, until said (then false): once per Lua load.
     local function withdraw()
         if published then publish(nil); published=nil end
     end
@@ -74,6 +100,7 @@ function Capture.new(publish)
         end
         if parts[1]~=list[1] then return end
         local key,dress={},{}
+        local slots,dynamic=0,0
         for i,c in ipairs(parts) do
             local parent=c.parent and by_address[c.parent]
             c.hung=i==1 or (parent~=nil and parent.index<c.index) -- Else at its offset from her main mesh.
@@ -83,6 +110,16 @@ function Capture.new(publish)
             c.shown=c.handle:IsVisible() and c.handle.bHiddenInGame~=true and 1 or 0
             key[i]=address(c.handle)..':'..address(c.mesh)
             dress[i]=c.parent_index..' '..c.socket..' '..c.shown
+            c.materials={}
+            if looks.dyes then -- Addresses only: a path is read when published.
+                local read,list,made=pcall(materials_of,c.handle)
+                if read then c.materials,dynamic=list,dynamic+made
+                elseif unread==nil then unread=tostring(list) end
+                local of={}
+                for k,m in ipairs(c.materials) do of[k]=m.slot..'='..address(m.object) end
+                key[i]=key[i]..'/'..table.concat(of,',')
+                slots=slots+#c.materials
+            end
         end
         key,dress=table.concat(key,' '),table.concat(dress,' ')
         local renewed=not published or published.key~=key
@@ -111,6 +148,13 @@ function Capture.new(publish)
                     value_of(c.handle:K2_GetComponentToWorld()),value_of(parts[1].handle:K2_GetComponentToWorld()))
                 lines[#lines+1]=string.format('place %d %s',c.index,place_of(relative))
             end
+            for _,m in ipairs(c.materials) do
+                local material=m.object:GetFullName():match('^%S+ (.+)$')
+                material=material and material:gsub('[^!-~]','_') or '-'
+                if #material<=255 then -- A longer one would refuse the whole table: never one of the game's.
+                    lines[#lines+1]=string.format('material %d %d %s',c.index,m.slot,material)
+                end
+            end
             if not c.lead then
                 lines[#lines+1]=string.format('names %d %s',c.index,names[c.index])
                 lines[#lines+1]=string.format('read %d %s %s %s',c.index,hex(c.handle),hex(c.handle:GetClass()),hex(c.mesh))
@@ -121,8 +165,9 @@ function Capture.new(publish)
         if not ok then return false,'Capture not published: '..tostring(why) end
         published={generation=generation,key=key,dress=dress,names=names,map=map}
         if renewed then
-            return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms',generation,#parts,count,map,
-                (os.clock()-started)*1000)
+            local tail=looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or ''
+            return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms%s',generation,#parts,count,
+                map,(os.clock()-started)*1000,tail)
         end
     end
     -- Every 250 ms from main.lua with on = the ghost is on; returns ok, message when there is something to say.
@@ -137,7 +182,9 @@ function Capture.new(publish)
         if at~=seen then seen,since=at,os.clock(); withdraw() end -- A new EVE: the old addresses mean nothing.
         if os.clock()-since<2 or os.clock()<next_look then return end
         next_look=os.clock()+1
-        return look(eve)
+        local ok,message=look(eve)
+        if message==nil and unread then ok,message,unread=false,'Capture: materials not read: '..unread,false end
+        return ok,message
     end
     return self
 end

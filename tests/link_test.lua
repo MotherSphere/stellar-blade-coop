@@ -127,10 +127,11 @@ local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
 assert(keys==3 and #notes==0 and s.host_key.name=='F5' and s.status_key.name=='F6' and s.leave_key.name=='F8')
-assert(s.cloth==false,'The looks are comments in the defaults: off, as the code says')
+assert(s.cloth==false and s.dyes==false,'The looks are comments in the defaults: off, as the code says')
 -- The ghost's looks: on or off, any case; a bad value keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)
 s,notes=Link.parse_settings('CLOTH=Off'); assert(#notes==0 and s.cloth==false)
+s,notes=Link.parse_settings('dyes=ON'); assert(#notes==0 and s.dyes==true and s.cloth==false)
 s,notes=Link.parse_settings('cloth=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays off"
     and s.cloth==false,notes[1])

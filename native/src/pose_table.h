@@ -10,12 +10,14 @@
 //   then for each part i from 0 (1 to kMaxParts parts):
 //   part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 //   place <i> qx qy qz qw tx ty tz sx sy sz           i >= 1 only: its transform relative to its parent
+//   material <i> <slot> <path>                        0 to 16, slots 0 to 63 strictly rising: a material it overrides
 //   names <i> <bone>...                               leaders only: one per bone, in the mesh's order
 //   read <i> 0x<object> 0x<class> 0x<mesh>            leaders only, in the capture file only
 // A leader has lead '-' and 1 to kMaxBones bones; part 0 is one, hung from nothing. A follower names a leader before
 // it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it. A word is 1
 // to 64 bytes of '!' to '~'. The path alone may be longer: then it, like any path path_allowed refuses, reads as '-',
-// and the viewer draws a fallback mesh instead of loading what a peer named.
+// and the viewer draws a fallback mesh instead of loading what a peer named. A material's path is 1 to 255 bytes, and
+// one path_allowed refuses is dropped: the viewer keeps the mesh's own material for that slot.
 #pragma once
 
 #include <charconv>
@@ -26,13 +28,14 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include "pose_core.h" // Part, hex(), kMaxParts, kMaxBones; number() and kProtocol from link_protocol.h
 
 namespace coop::pose {
 
-constexpr size_t kMaxTable = 65536, kMaxWord = 64, kMaxPath = 255, kMaxMap = 128;
+constexpr size_t kMaxTable = 65536, kMaxWord = 64, kMaxPath = 255, kMaxMap = 128, kMaxMaterials = 16, kMaxSlots = 64;
 constexpr uint64_t kMaxGeneration = uint64_t(1) << 53; // Exact as a double too.
 
 // What the ghost shows of one part, beside its Part in Table::eve.
@@ -42,6 +45,7 @@ struct Look {
   bool shown = true;
   float place[10]{};              // Relative to the parent: rotation xyzw, translation xyz, scale xyz. Not part 0's.
   std::vector<std::string> names; // A leader's bones.
+  std::vector<std::pair<uint8_t, std::string>> materials; // Overridden slots and their paths, slots rising.
 };
 
 struct Table {
@@ -227,6 +231,13 @@ inline std::string format_table(const Table &t) {
         real(v);
       s += '\n';
     }
+    for (const auto &[slot, path] : l.materials) {
+      s += "material";
+      integer(int64_t(i));
+      integer(slot);
+      word(path);
+      s += '\n';
+    }
     if (t.eve[i].leader) {
       s += "names";
       integer(int64_t(i));
@@ -296,6 +307,17 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
       for (int k = 4; k < 10; ++k)
         if (std::fabs(look.place[k]) > (k < 7 ? 1e5f : 100.f)) // cm, then scale.
           return std::nullopt;
+    }
+    // Every material line counts for the cap and the order, a dropped one too.
+    int64_t last = -1;
+    for (size_t n = 0; (f = in.take("material", 4)); ++n) {
+      uint64_t slot = 0;
+      if (n == kMaxMaterials || !index_is(*f, i) || !number((*f)[2], slot) || slot >= kMaxSlots ||
+          int64_t(slot) <= last || (*f)[3].size() > kMaxPath)
+        return std::nullopt;
+      last = int64_t(slot);
+      if (path_allowed((*f)[3]))
+        look.materials.emplace_back(uint8_t(slot), (*f)[3]);
     }
     if (part.leader) {
       if (!(f = in.take("names", 2 + bones)) || !index_is(*f, i))

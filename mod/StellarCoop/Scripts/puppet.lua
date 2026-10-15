@@ -8,7 +8,9 @@
 -- no fallback is left out, with its followers. Parts hang as the table says (parent part, socket, placement) and
 -- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (cloth=on in
 -- coop-settings.txt, or coop look), a follower whose mesh has clothing assets (her ponytail) is a SkeletalMeshComponent
--- whose cloth swings on its leader's bones; else it is a rigid Poseable like the rest.
+-- whose cloth swings on its leader's bones; else it is a rigid Poseable like the rest. With look.dyes, a part drawn on
+-- its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path rule as
+-- meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own.
 -- The build resolves one mesh a frame (a coroutine), then names what it built for the native part (coop-display.txt),
 -- which writes the leaders' bones each frame and the main mesh's world transform into the mailbox, a scene component
 -- nothing moves; place() puts the root there after the native tick. The ghost stays hidden until the first pose and
@@ -29,7 +31,7 @@ local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
 local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHair' and BASE_HAIR or nil end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
--- bones, name, place (its 10 numbers as written) and a leader's names.
+-- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising) and a leader's names.
 local function parse_remote(file)
     if type(file)~='string' then return nil end
     local lines,at={},1
@@ -52,6 +54,15 @@ local function parse_remote(file)
             local index,place=take('^place (%d+) (%S+ %S+ %S+ %S+ %S+ %S+ %S+ %S+ %S+ %S+)$')
             if tonumber(index)~=part.i then return nil end
             part.place=place
+        end
+        part.materials={}
+        while true do
+            local index,slot,path=take('^material (%d+) (%d+) (%S+)$')
+            if not index then break end
+            local last=part.materials[#part.materials]
+            slot=tonumber(slot)
+            if tonumber(index)~=part.i or slot>63 or last and slot<=last.slot or #part.materials==16 then return nil end
+            part.materials[#part.materials+1]={slot=slot,path=path}
         end
         if lead=='-' then
             local index,names=take('^names (%d+) (.+)$')
@@ -88,7 +99,7 @@ function Puppet.new(link,capture,say,name_tag,look)
     local ghost,build=nil,nil -- The ghost (built or being built) and its build coroutine.
     local back_since,failed,hidden_pair,her_at=nil,nil,nil,nil
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
-    local cache={} -- Meshes by path; false: none this Lua load (a missing DLC stays missing).
+    local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
     local function whose() return source=='peer' and files.friend() or tostring(source) end
     local function clear(why)
@@ -115,25 +126,25 @@ function Puppet.new(link,capture,say,name_tag,look)
         actor:K2_DestroyActor()
         swept='Removed a ghost left by an earlier Lua load.'
     end
-    -- A skeletal mesh by its object path: in memory already (StaticFindObject), else loaded (LoadAsset, synchronous on
-    -- this thread); nil when neither gives a SkeletalMesh. A cached mesh nothing referenced may have been collected
-    -- since, and its address reused: it is used again only while it is still that mesh.
-    local function resolve(path,counts)
-        if cache[path]==false then return nil end
-        local mesh=valid(cache[path] or nil)
-        if mesh and mesh:IsA(find('/Script/Engine.SkeletalMesh')) and mesh:GetFullName():match('^%S+ (.+)$')==path then
-            return mesh
-        end
+    -- An asset of a class (a SkeletalMesh unless said) by its object path: in memory already (StaticFindObject), else
+    -- loaded (LoadAsset, synchronous on this thread); nil when neither gives one of that class. A cached one nothing
+    -- referenced may have been collected since, and its address reused: it is used again only while it is still that.
+    local function resolve(path,counts,class)
+        class=class or '/Script/Engine.SkeletalMesh'
+        local key=class..' '..path -- A peer naming a mesh as a material spoils neither.
+        if cache[key]==false then return nil end
+        local asset=valid(cache[key] or nil)
+        if asset and asset:IsA(find(class)) and asset:GetFullName():match('^%S+ (.+)$')==path then return asset end
         local started=os.clock()
-        mesh=valid(StaticFindObject(path))
-        if not mesh then
+        asset=valid(StaticFindObject(path))
+        if not asset then
             local ok,loaded=pcall(LoadAsset,path)
-            mesh=ok and valid(loaded) or nil
+            asset=ok and valid(loaded) or nil
         end
-        if mesh and not mesh:IsA(find('/Script/Engine.SkeletalMesh')) then mesh=nil end
-        cache[path]=mesh or false
+        if asset and not asset:IsA(find(class)) then asset=nil end
+        cache[key]=asset or false
         counts.loaded,counts.ms=counts.loaded+1,counts.ms+(os.clock()-started)*1000
-        return mesh
+        return asset
     end
     -- Hangs a built part as the table says: its parent part (part 0 when that one was left out), socket and place;
     -- then shown or hidden.
@@ -159,7 +170,7 @@ function Puppet.new(link,capture,say,name_tag,look)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={}}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
@@ -190,8 +201,23 @@ function Puppet.new(link,capture,say,name_tag,look)
             local target=valid(actor:AddComponentByClass(poseable,false,identity,false)) -- The first is the root.
             assert(target,'a ghost part could not be added')
             target:SetCollisionEnabled(0)
-            target:SetSkeletalMesh(mesh,true) -- And no SetMaterial: the mesh's own materials.
+            target:SetSkeletalMesh(mesh,true) -- Its own materials, unless dyed below.
             return target
+        end
+        -- The table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): one a frame,
+        -- resolved and set in the same frame, as a mesh is.
+        local function dye(target,part)
+            for _,m in ipairs(part.materials) do
+                coroutine.yield()
+                local material=resolve(m.path,counts,'/Script/Engine.MaterialInterface')
+                if material and m.slot<target:GetNumMaterials() then
+                    target:SetMaterial(m.slot,material)
+                    g.dyed=g.dyed+1
+                else
+                    notes[#notes+1]=string.format('%s: slot %d material %s missing, default kept',part.name,m.slot,
+                        m.path)
+                end
+            end
         end
         -- One part's component and mesh: the table's, else its fallback's (then with true, and for a leader its remap);
         -- nil when it has neither.
@@ -206,7 +232,10 @@ function Puppet.new(link,capture,say,name_tag,look)
                 local mesh=resolve(part.path,counts)
                 if mesh then
                     local target=add(mesh,part)
-                    if part.lead or target:GetNumBones()==part.bones then return target,mesh end
+                    if part.lead or target:GetNumBones()==part.bones then
+                        if look.dyes then dye(target,part) end
+                        return target,mesh
+                    end
                     why=string.format('has %d bones, not %d',target:GetNumBones(),part.bones)
                     target:K2_DestroyComponent(actor) -- Never re-point it: a mesh of the same count would keep stale bones.
                 end
@@ -289,7 +318,10 @@ function Puppet.new(link,capture,say,name_tag,look)
         local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base suit, %d left out%s%s',
             t.generation,g.count,g.leaders,counts.loaded,counts.ms,g.base,g.left_out,
             published and '' or '; display not published: '..tostring(why),tag_off)
-        if look.cloth then line=line..string.format('; look: cloth parts %d',#g.cloth) end
+        local looks={}
+        if look.cloth then looks[#looks+1]=string.format('cloth parts %d',#g.cloth) end
+        if look.dyes then looks[#looks+1]=string.format('dyed slots %d',g.dyed) end
+        if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
         if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
         return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
     end

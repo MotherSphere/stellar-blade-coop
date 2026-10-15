@@ -1,5 +1,6 @@
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
-// the mesh path rule, and mutated tables, which must re-format to the same bytes whenever they are accepted.
+// the mesh path rule (material paths too), and mutated tables, which must re-format to the same bytes whenever they are
+// accepted.
 #include "pose_table.h"
 
 #include <cassert>
@@ -14,20 +15,28 @@ const std::string kBody = "/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.
                   kFace = "/Game/Art/Character/PC/CH_P_EVE_Head/CH_P_EVE_Face_Jali3.CH_P_EVE_Face_Jali3",
                   kNikke = "/Game/DLC_2/Art/Character/PC/EVE_HR_Nikke_02/EVE_HR_Nikke_02.EVE_HR_Nikke_02",
                   kNier = "/Game/DLC_1/Art/Character/PC/EVE_HR_Nier_01/EVE_HR_Nier_01.EVE_HR_Nier_01",
-                  kMods = "/Game/Mods/HD-ATOOL_P/data/cha/Eve/hair/CH_P_EVE_Hair_PonyTail_2.CH_P_EVE_Hair_PonyTail_2";
+                  kMods = "/Game/Mods/HD-ATOOL_P/data/cha/Eve/hair/CH_P_EVE_Hair_PonyTail_2.CH_P_EVE_Hair_PonyTail_2",
+                  kSkin = "/Game/Art/Character/PC/CH_P_EVE_52/MI_EVE_52_Skin.MI_EVE_52_Skin",
+                  kTypeB = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeB.MI_EVE_HR_01_TypeB",
+                  kTail = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_Tail_TypeB.MI_EVE_HR_01_Tail_TypeB";
 const std::string kSbt = "SBT " + std::to_string(coop::kProtocol) + "\n";
 
 // EVE as Lua captures her, cut down: the body, the face following it, the hair (a leader on the head socket) with the
-// ponytail following it, hidden, and the blade. The blade's mesh comes from a mod, so it travels as '-'.
+// ponytail following it, hidden, and the blade. The blade's mesh comes from a mod, so it travels as '-'. The body and
+// the hair are dyed; the hair's slot 1 material comes from a mod, so it does not travel at all.
 const std::string kLocal = "generation 100001\n"
                            "map /game/art/bg/worldmap/level_p/e04\n"
                            "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n"
+                           "material 0 2 " + kSkin + "\n"
                            "names 0 Root Bip001 Bip001-Pelvis\n"
                            "read 0 0x1000 0xC1A55 0xAE5\n"
                            "part 1 0 0 - 1 0 Mesh_Face " + kFace + "\n"
                            "place 1 0 0 0 1 0 0 0 1 1 1\n"
                            "part 2 - 0 Bip001-Head 1 2 SBHair " + kNikke + "\n"
                            "place 2 0 0 0.70710678 0.70710678 1.5 -2 0.25 1 1 1\n"
+                           "material 2 0 " + kTypeB + "\n"
+                           "material 2 1 /Game/Mods/X.X\n"
+                           "material 2 3 " + kTail + "\n"
                            "names 2 Bip001-Head Hair_01\n"
                            "read 2 0x1200 0xc1a55 0xae7\n"
                            "part 3 2 2 - 0 0 SBPonytail " + kNier + "\n"
@@ -36,16 +45,19 @@ const std::string kLocal = "generation 100001\n"
                            "place 4 0 0 0 -1 10.25 0 1e-05 1 1 1\n"
                            "names 4 Root\n"
                            "read 4 0x1400 0xc1a55 0xae8\n";
-// Its wire form: no read lines, floats as %.9g, the mod's path as '-'.
+// Its wire form: no read lines, floats as %.9g, the mod's mesh path as '-', its material left out.
 const std::string kWire = kSbt +
                           "generation 100001\n"
                           "map /game/art/bg/worldmap/level_p/e04\n"
                           "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n"
+                          "material 0 2 " + kSkin + "\n"
                           "names 0 Root Bip001 Bip001-Pelvis\n"
                           "part 1 0 0 - 1 0 Mesh_Face " + kFace + "\n"
                           "place 1 0 0 0 1 0 0 0 1 1 1\n"
                           "part 2 - 0 Bip001-Head 1 2 SBHair " + kNikke + "\n"
                           "place 2 0 0 0.707106769 0.707106769 1.5 -2 0.25 1 1 1\n"
+                          "material 2 0 " + kTypeB + "\n"
+                          "material 2 3 " + kTail + "\n"
                           "names 2 Bip001-Head Hair_01\n"
                           "part 3 2 2 - 0 0 SBPonytail " + kNier + "\n"
                           "place 3 0 0 0 1 0 0 0 1 1 1\n"
@@ -71,7 +83,7 @@ bool same(const Table &a, const Table &b, bool addresses) {
         (addresses && (p.object != q.object || p.cls != q.cls || p.mesh != q.mesh)))
       return false;
     if (l.name != m.name || l.path != m.path || l.socket != m.socket || l.lead != m.lead || l.parent != m.parent ||
-        l.shown != m.shown || l.names != m.names)
+        l.shown != m.shown || l.names != m.names || l.materials != m.materials)
       return false;
     for (int k = 0; k < 10; ++k)
       if (l.place[k] != m.place[k])
@@ -107,6 +119,9 @@ int main() {
   assert(hair.names == (std::vector<std::string>{"Bip001-Head", "Hair_01"}) && hair.place[2] == 0.70710678f);
   assert(tail.lead == 2 && tail.parent == 2 && tail.socket.empty() && !tail.shown && tail.path == kNier);
   assert(local->look[4].path.empty() && local->look[4].place[3] == -1 && local->look[4].place[9] == 1);
+  using Materials = std::vector<std::pair<uint8_t, std::string>>;
+  assert(local->look[0].materials == (Materials{{2, kSkin}}) && local->look[1].materials.empty());
+  assert(hair.materials == (Materials{{0, kTypeB}, {3, kTail}})); // The mod's slot 1 dropped, the hair's own kept.
 
   // Round trip: the capture formats to the wire form, which reads back to the same table without the addresses and
   // formats to the same bytes again.
@@ -126,6 +141,12 @@ int main() {
   for (int b = 0; b < 1000; ++b)
     names_1000 += " b";
   const std::string long_path = "/" + std::string(70000, 'x'); // Over 64 KiB with it, under without.
+  std::string materials_16, materials_17; // The cap with the last slot, and one line past the cap.
+  for (int k = 0; k < 17; ++k) {
+    if (k < 16)
+      materials_16 += "material 1 " + std::to_string(48 + k) + " " + kSkin + "\n";
+    materials_17 += "material 1 " + std::to_string(k) + " " + kSkin + "\n";
+  }
   for (const std::string &bad : {
            with(kWire, kSbt, ""),                                                                // no SBT line
            with(kWire, kSbt, "SBT " + std::to_string(coop::kProtocol + 1) + "\n"),               // another protocol
@@ -189,6 +210,18 @@ int main() {
            with(kWire, n0, "names 0 Root Bip001\n"),                                             // names short
            with(kWire, "place 1" + flat, "place 1" + flat + "names 1 Root\n"),                   // a follower's names
            with(kWire, n0, n0 + "read 0 0x1000 0xc1a55 0xae5\n"),                                // a read line
+           with(kWire, "material 2 3 ", "material 2 64 "),                                       // slot over 63
+           with(kWire, "material 2 3 ", "material 2 0 "),                                        // a repeated slot
+           with(kWire, "material 2 0 ", "material 2 5 "),                                        // a falling slot
+           with(kWire, "material 2 0 ", "material 1 0 "),                                        // material index
+           with(kWire, "material 2 0 ", "material 2 x "),                                        // slot not a number
+           with(kWire, "material 2 0 " + kTypeB, "material 2 0 " + kTypeB + " x"),               // a word too many
+           with(kWire, "material 2 0 " + kTypeB, "material 2 0"),                                // no path
+           with(kWire, "material 2 0 " + kTypeB, "material 2 0 /" + std::string(255, 'x')),      // path of 256
+           with(with(kWire, "material 2 3 " + kTail + "\n", ""), "Hair_01\n",
+                "Hair_01\nmaterial 2 3 " + kTail + "\n"),                                       // after names
+           with(kWire, "place 1" + flat, "material 1 0 " + kSkin + "\nplace 1" + flat),           // before place
+           with(kWire, "place 1" + flat, "place 1" + flat + materials_17),                       // 17 on one part
        })
     assert(!parse_table(bad, false));
   for (const std::string &bad : {
@@ -214,6 +247,17 @@ int main() {
   assert(parse_table(with(kWire, "1.5 -2", "100000 -2"), false));
   assert(parse_table(with(kWire, "place 1 0 0 0 1", "place 1 0 0 0 0.95"), false));
   assert(parse_table(with(kWire, "0.25 1 1 1", "0.25 1 -100 1"), false));
+  // Materials: 16 on a follower up to slot 63, a path of 255 bytes, one the rule refuses dropped from the wire form.
+  auto follower = wire_table(with(kWire, "place 1" + flat, "place 1" + flat + materials_16));
+  assert(follower.look[1].materials.size() == 16 && follower.look[1].materials.back().first == 63);
+  assert(format_table(follower) == with(kWire, "place 1" + flat, "place 1" + flat + materials_16));
+  const std::string p255_material = "/Game/Art/Character/" + std::string(33, 'F') + "/" + std::string(100, 'M') + "." +
+                                    std::string(100, 'M');
+  assert(wire_table(with(kWire, kTail, p255_material)).look[2].materials[1].second == p255_material);
+  auto dropped = wire_table(with(kWire, "material 2 0 " + kTypeB, "material 2 0 /Game/Mods/X.X"));
+  assert(dropped.look[2].materials == (Materials{{3, kTail}}));
+  assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
+  assert(kSbt == "SBT 5\n"); // Protocol 5 is the one with material lines.
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
@@ -332,6 +376,7 @@ int main() {
   assert(!same_layout(*wire, wire_table(with(kWire, "part 3 2 2", "part 3 0 2"))));
   assert(!same_layout(*wire, wire_table(with(kWire, "SBPonytail " + kNier, "SBPonytail " + kNikke))));
   assert(!same_layout(*wire, Table()));
+  assert(same_layout(*wire, dropped)); // Materials change only with a new generation, and never the layout.
 
   // Fuzz: mutated wire tables and capture files never crash, and whatever is accepted formats to a wire form that
   // reads back to the same table and the same bytes, with only allowed paths in it.
@@ -360,8 +405,11 @@ int main() {
     const std::string canonical = format_table(*t);
     auto again = parse_table(canonical, false);
     assert(again && same(*again, *t, false) && format_table(*again) == canonical);
-    for (const Look &l : t->look)
+    for (const Look &l : t->look) {
       assert(l.path.empty() || path_allowed(l.path));
+      for (const auto &[slot, path] : l.materials)
+        assert(slot < kMaxSlots && path_allowed(path));
+    }
   }
   std::printf("pose_table: fuzz accepted %zu of 200000 mutated tables, each re-formatted to the same bytes\n",
               accepted);

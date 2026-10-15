@@ -1,17 +1,22 @@
--- EVE's capture with fake UE4SS objects that only read (any write to EVE or her components fails): the table's text,
--- names made safe and the map lowercased, a part hung from no lower part placed from her main mesh, the generation
--- (a new mesh bumps it, a new socket keeps it, a placement that drifts never republishes), the 2 s wait, the menu pawn,
--- the native part's caps.
+-- EVE's capture with fake UE4SS objects that only read (any write to EVE or her components fails, and so does any Set*
+-- call): the table's text, names made safe and the map lowercased, a part hung from no lower part placed from her main
+-- mesh, the generation (a new mesh bumps it, a new socket keeps it, a placement that drifts never republishes), the 2 s
+-- wait, the menu pawn, the native part's caps; with dyes on, her overridden materials (a dynamic one as its parent).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
 os.time=function() return 1000 end -- Generations start at 1000 * 100.
 local function fname(text) return {type=function() return 'FName' end,ToString=function() return text end} end
 local next_address=0x1000
--- A proxy that reads through to o and refuses every write; o itself stays reachable for the test as raw[proxy].
-local raw={}
+-- A proxy that reads through to o and refuses every write and every Set* call; o itself stays reachable for the test as
+-- raw[proxy]. reads counts each field read by name.
+local raw,reads={},{}
 local function read_only(o,what)
-    local proxy=setmetatable({},{__index=o,__newindex=function(_,key) error('the capture wrote '..tostring(key)..' on '..what,2) end})
+    local proxy=setmetatable({},{__index=function(_,key)
+        if tostring(key):find('^Set') then error('the capture called '..key..' on '..what,2) end
+        reads[key]=(reads[key] or 0)+1
+        return o[key]
+    end,__newindex=function(_,key) error('the capture wrote '..tostring(key)..' on '..what,2) end})
     raw[proxy]=o
     return proxy
 end
@@ -182,4 +187,69 @@ local before=#published
 step(2); step(1)
 assert(#published==before,'Her main mesh without bones: no table')
 body.state.bones=3
+
+-- Dyes off (every capture above): her overridden materials are never read, so no material lines and the key as before.
+assert(not reads.OverrideMaterials and not published[#published]:find('\nmaterial '),'Dyes off: not read')
+-- Dyes on: each part's overridden slots after its place, before its names; a null or invalid entry skipped; a dynamic
+-- instance sent as its parent; and only a change of what they are made from is a new generation.
+local MID='/Script/Engine.MaterialInstanceDynamic'
+local function material(path) -- A material asset: its full name; read-only.
+    return read_only(object(path,{GetFullName=function() return 'MaterialInstanceConstant '..path end,
+        IsA=function() return false end}),path)
+end
+local function dynamic(parent) -- Made at run time from parent: never loadable by a peer.
+    return read_only(object('MID',{Parent=parent,IsA=function(_,class) return class.path==MID end,
+        GetFullName=function() return 'MaterialInstanceDynamic /Engine/Transient.MID' end}),'a MID')
+end
+local function slots(n,entries) -- A TArray of n slots, nil where entries has none, as UE4SS hands it over.
+    return {ForEach=function(_,f) for k=1,n do f(k,{get=function() return entries[k] end}) end end}
+end
+local SKIN='/Game/Art/Character/PC/CH_P_EVE_52/MI_EVE_52_Skin.MI_EVE_52_Skin'
+local TYPE_B='/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeB.MI_EVE_HR_01_TypeB'
+local TYPE_C='/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeC.MI_EVE_HR_01_TypeC'
+local skin,type_b=material(SKIN),material(TYPE_B)
+local gone=object('Gone')
+gone.IsValid=function() return false end
+raw[body].OverrideMaterials=slots(3,{[2]=dynamic(skin),[3]=gone})
+raw[hair].OverrideMaterials=slots(1,{type_b})
+local looks={dyes=true}
+published={}
+capture=require('capture').new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks)
+player=eve_of('EVE6',{body,hair})
+tick()
+ok,message=step(2)
+assert(ok and message:find('^Capture 100001: 2 parts, .* ms; dyes: 2 slots %(1 dynamic%)$'),tostring(message))
+t=published[1]
+assert(t:find(' CharacterMesh0 '..BODY..'\nmaterial 0 1 '..SKIN..'\nnames 0 ',1,true),t)
+assert(t:find('\nplace 1 [^\n]*\nmaterial 1 0 '..TYPE_B..'\nnames 1 '),t)
+assert(select(2,t:gsub('\nmaterial ',''))==2,'Slot 0 empty, slot 2 invalid: skipped')
+-- A new dynamic instance from the same asset (SB makes them again): the same key, nothing published.
+raw[body].OverrideMaterials=slots(2,{nil,dynamic(skin)})
+assert(step(1)==nil and #published==1,'The same parent: no new generation')
+-- Another hair colour: a new generation.
+raw[hair].OverrideMaterials=slots(1,{dynamic(dynamic(material(TYPE_C)))})
+ok,message=step(1)
+assert(ok and message:find('^Capture 100002: .*; dyes: 2 slots %(2 dynamic%)$') and #published==2,tostring(message))
+assert(published[2]:find('\nmaterial 1 0 '..TYPE_C..'\n',1,true),published[2])
+-- At most 16 slots, and none at 64 or above (the native part refuses the whole table past either).
+raw[hair].OverrideMaterials=slots(70,setmetatable({},{__index=function() return type_b end}))
+step(1)
+t=published[#published]
+assert(select(2,t:gsub('\nmaterial 1 ',''))==16 and t:find('\nmaterial 1 15 ',1,true),t)
+raw[hair].OverrideMaterials=slots(70,setmetatable({},{__index=function(_,k) return k>=62 and type_b or nil end}))
+step(1)
+t=published[#published]
+assert(select(2,t:gsub('\nmaterial 1 ',''))==3 and t:find('\nmaterial 1 61 ') and t:find('\nmaterial 1 63 '),t)
+-- Materials that cannot be read: that part sends none, the capture goes on, and why is said once, a look later.
+raw[hair].OverrideMaterials={ForEach=function() error('no such array') end}
+ok,message=step(1)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: ') and not t:find('\nmaterial 1 ') and t:find('\nmaterial 0 1 '),t)
+ok,message=step(1)
+assert(ok==false and message:find('^Capture: materials not read: .*no such array$'),tostring(message))
+assert(step(1)==nil,'Said once')
+-- Dyes off again (coop look dyes off): a new generation with no material lines, and the line without its tail.
+looks.dyes=false
+ok,message=step(1)
+assert(ok and message:find(' ms$') and not published[#published]:find('\nmaterial '),tostring(message))
 print('capture_test ok')
