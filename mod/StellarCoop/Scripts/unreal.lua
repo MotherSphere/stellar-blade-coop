@@ -58,4 +58,19 @@ function U.map_of(actor)
     if map:sub(1,1)~='/' then map='/'..map end
     return map:sub(1,128)
 end
+-- A line of text on an actor (a TextRenderComponent, its root when it is the first component): centred, white, size
+-- in cm. Its rotation is the world's, so it can be turned to the camera whatever its parent does.
+function U.label(actor,size)
+    local identity=U.find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform({X=0,Y=0,Z=0},
+        {Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
+    local label=U.valid(actor:AddComponentByClass(U.find('/Script/Engine.TextRenderComponent'),false,identity,false))
+    assert(label,'a text line could not be added')
+    label:SetWorldSize(size)
+    label:SetHorizontalAlignment(1) -- EHTA_Center
+    label:SetTextRenderColor({R=255,G=255,B=255,A=255})
+    label:SetAbsolute(false,true,false)
+    return label
+end
+-- The yaw in degrees that turns something at from towards to (a TextRender's text reads from its +X side).
+function U.yaw_to(from,to) return math.deg(math.atan(to.Y-from.Y,to.X-from.X)) end
 return U

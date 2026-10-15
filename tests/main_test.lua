@@ -41,6 +41,8 @@ local fake_link={
     request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
+    notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
+    summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     settings=function() return Link.parse_settings(settings_text) end,
 }
@@ -62,6 +64,11 @@ package.loaded.puppet={new=function(link,capture)
         where=function() wheres=wheres+1; return true,'where map=/game/e04' end}
 end}
 package.loaded.link={new=function() return fake_link end}
+local said,notice_ticks,notice_result,notice_stops={},0,nil,0
+package.loaded.notice={new=function()
+    return {say=function(text) said[#said+1]=text end,stop=function() notice_stops=notice_stops+1 end,
+        tick=function() notice_ticks=notice_ticks+1; if notice_result then return table.unpack(notice_result) end end}
+end}
 package.loaded.version='v9-test'
 
 local function load_main(with_native)
@@ -93,7 +100,9 @@ press('F5'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing r
 flush(); assert(executes==executed+1 and asked[1]=='host' and printed[#printed-1]=='[StellarCoop] key F5: host\n')
 assert(last():find('OK: asked the native part: host',1,true),last())
 press('F8'); assert(#asked==1); flush(); assert(executes==executed+2 and asked[2]=='leave' and logged('key F8: leave'))
-press('F6'); flush(); assert(#asked==2 and last():find('OK: mod=v proto=3',1,true),'Status, until step 3 summarises it')
+press('F6'); flush()
+assert(#asked==2 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
+assert(said[#said]=='Co-op: not in a session.','The summary on screen too')
 asked={}
 coop('host'); assert(asked[1]=='host' and last():find('OK: asked the native part: host',1,true),last())
 coop('invite'); coop('leave'); coop('report')
@@ -103,7 +112,10 @@ coop('join','109775241234567890'); assert(asked[6]=='join 109775241234567890')
 coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits only',1,true),last())
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
-loops[1].f(); loops[1].f(); assert(ticks==2,'The native tick runs every frame')
+loops[1].f(); loops[1].f(); assert(ticks==2 and notice_ticks==2,'The native tick and the notices run every frame')
+notice_result={false,'Screen notices off: x; notices stay in UE4SS.log.'}
+loops[1].f(); assert(last()=='[StellarCoop] STOP: Screen notices off: x; notices stay in UE4SS.log.\n',last())
+notice_result=nil
 -- The pose path's requests need the ghost on (it publishes her capture); their off forms never do.
 local before=#asked
 for _,line in ipairs({{'loopback','0','0','0'},{'record'},{'replay'}}) do
@@ -133,9 +145,12 @@ coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
 loops[2].f()
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
+assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
 assert(captured[#captured]==true and last():find('OK: Capture 7',1,true),'The capture runs while the ghost is on')
 assert(remoted[1]==3 and remoted[2]==1 and remoted[3]=='loopback','The ghost learns the remote table every 250 ms')
+assert(notice_stops==0)
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
+assert(notice_stops==1,'off hides the notice line on screen')
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 local lines
@@ -144,7 +159,8 @@ press('F5'); flush()
 assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
     and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
-loops[1].f(); assert(ticks==2,'No native tick after coop off')
+local drawn=notice_ticks
+loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off',1,true),last())
 coop(); assert(last():find('Use: coop',1,true))
 

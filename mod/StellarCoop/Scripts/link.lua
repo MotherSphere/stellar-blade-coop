@@ -3,7 +3,8 @@
 -- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table) and coop-puppet.txt (the
 -- ghost's object path, for the next load). The native part writes coop-remote.txt (the table the ghost is built from)
 -- the same way. Each line of the native coop-status.txt that changed is returned once, for the log; peer lines change
--- with every ping, so they stay in coop status, out of the log.
+-- with every ping, so they stay in coop status, out of the log. The same read gives the session's mode, the friend
+-- and the notices for the screen, each from the start of its own line: a Steam name is never at the start of one.
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
 -- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
@@ -93,6 +94,9 @@ function Link.new(folder,fs)
     local function path(name) return folder..'\\'..name end
     local status_path=path('coop-status.txt')
     local seen,remote={},{}
+    -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); shown: the last
+    -- notice number handed out.
+    local mode,friend,listed,dead,shown=nil,nil,nil,false,nil
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -139,13 +143,49 @@ function Link.new(folder,fs)
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
+        mode,friend,listed,dead=nil,nil,nil,false
         if not text then return new end
+        listed={}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
             if not seen[line] and not line:find('^peer=') then new[#new+1]=line end
+            mode=mode or line:match('^link=(%a+)')
+            dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
+            local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
+            if name then friend={name,linked=='1',lost=='1'} end
+            local n,notice=line:match('^notice=(%d+) (.*)$')
+            if n then listed[#listed+1]={tonumber(n),notice} end
         end
         seen=now
         return new
+    end
+    -- 'none', 'host' or 'guest'; nil before Steam is ready.
+    function self.mode() return mode end
+    -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
+    function self.friend() if friend then return friend[1],friend[2],friend[3] end end
+    -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a
+    -- Lua reload never shows old ones again (changes() already logged them). Only a status that was read primes it.
+    function self.notices()
+        if not listed then return {} end
+        local texts,top={},listed[#listed]
+        for _,item in ipairs(listed) do
+            if shown and item[1]>shown then texts[#texts+1]=item[2] end
+        end
+        shown=math.max(shown or 0,top and top[1] or 0)
+        return texts
+    end
+    -- The status key's line.
+    function self.summary()
+        if dead then return 'Co-op: the Steam link stopped; coop status says why.' end
+        if not mode then return 'Co-op: waiting for Steam.' end
+        if mode=='none' then return 'Co-op: not in a session.' end
+        local name,linked,lost=self.friend()
+        local text
+        if not name and mode=='host' then text='Co-op: hosting, no friend yet.'
+        elseif not linked then text='Co-op: '..(name or 'your friend')..' is connecting.'
+        elseif mode=='host' then text='Co-op: hosting '..name..'.'
+        else text='Co-op: in '..name.."'s game." end
+        return lost and text..' Connection lost.' or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
     function self.settings()

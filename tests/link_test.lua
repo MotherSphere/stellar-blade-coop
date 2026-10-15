@@ -143,4 +143,59 @@ s,notes=link.settings()
 assert(files[SETTINGS]=='send_rate=30\n' and s.send_rate==20,'Not replaced either')
 assert(notes[1]=='settings: cannot write coop-settings.txt (cannot write coop-settings.txt: exists): defaults used',notes[1])
 fs.read,fs.write=read,write
+
+-- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
+local fresh=require('link').new('C:\\Mod',fs)
+local HEAD='mod=v proto=4 steam=ready steamid=1\nlink=host lobby=7000\n'
+files[STATUS]=HEAD..'notice=1 Hosting: invite a friend from the Steam overlay (Shift+Tab).\nnotice=2 Kaanta joined.\n'
+fresh.changes()
+assert(#fresh.notices()==0,'The first call only primes: a reload never shows old notices again')
+assert(#fresh.notices()==0,'Nothing new since')
+files[STATUS]=HEAD..'notice=2 Kaanta joined.\nnotice=3 Kaanta: connection lost.\nnotice=4 Kaanta is back.\n'
+fresh.changes()
+local texts=fresh.notices()
+assert(#texts==2 and texts[1]=='Kaanta: connection lost.' and texts[2]=='Kaanta is back.','Each new one once, in order')
+assert(#fresh.notices()==0)
+-- A Steam name is hers to choose: only a line that starts with notice= or friend= counts.
+files[STATUS]=HEAD..'peer=2 name=x notice=99 fake hello=1\nfriend=1 0 x notice=99 fake\nnotice=4 Kaanta is back.\n'
+    ..'last=notice=98 fake\n'
+fresh.changes()
+assert(#fresh.notices()==0,'No notice from a name')
+assert(fresh.friend()=='x notice=99 fake')
+files[STATUS]=nil
+fresh.changes()
+assert(#fresh.notices()==0 and fresh.mode()==nil and fresh.friend()==nil,'No status: nothing')
+local primed=require('link').new('C:\\Mod',fs)
+primed.changes(); primed.notices() -- No status yet: this does not prime.
+files[STATUS]=HEAD..'notice=4 Kaanta is back.\n'
+primed.changes()
+assert(#primed.notices()==0,'Primed by the first status read, not by its absence')
+-- The friend line: the name last and whole; each new friend= or notice= line is logged once, peer lines never.
+files[STATUS]=HEAD..'peer=2 name=Ka anta hello=1 accepted=1\nfriend=1 0 Ka anta\nnotice=5 Ka anta joined.\n'
+lines=fresh.changes()
+local name,linked,lost=fresh.friend()
+assert(name=='Ka anta' and linked==true and lost==false,name)
+assert(#lines==2 and lines[1]=='friend=1 0 Ka anta' and lines[2]=='notice=5 Ka anta joined.',table.concat(lines,'|'))
+assert(#fresh.changes()==0,'Logged once')
+-- The status key's line, from the link line and the friend line.
+local function summary(status) files[STATUS]=status; fresh.changes(); return fresh.summary() end
+assert(summary(nil)=='Co-op: waiting for Steam.')
+assert(summary('mod=v proto=4 steam=waiting\nengine=off\nlast=started\n')=='Co-op: waiting for Steam.')
+assert(summary('mod=v steam=ready\nlink=none lobby=0\nlast=x\n')=='Co-op: not in a session.')
+assert(summary('mod=v steam=ready\nlink=none lobby=0 pending=1\n')=='Co-op: not in a session.')
+assert(summary('mod=v steam=ready\nlink=host lobby=7\nlast=link=guest\n')=='Co-op: hosting, no friend yet.')
+assert(fresh.mode()=='host')
+assert(summary(HEAD..'friend=0 0 Kaanta\n')=='Co-op: Kaanta is connecting.')
+assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.')
+assert(summary(HEAD..'friend=1 1 Kaanta\n')=='Co-op: hosting Kaanta. Connection lost.')
+local GUEST='mod=v steam=ready\nlink=guest lobby=7000\n'
+assert(summary(GUEST..'friend=1 0 Ka anta\n')=="Co-op: in Ka anta's game.")
+assert(summary(GUEST..'friend=1 1 Kaanta\n')=="Co-op: in Kaanta's game. Connection lost.")
+assert(summary(GUEST..'friend=0 1 Kaanta\n')=='Co-op: Kaanta is connecting. Connection lost.')
+assert(summary(GUEST)=='Co-op: your friend is connecting.')
+-- A worker stopped for good: a fault, or another Steamworks build.
+assert(summary('stopped=fault 0xc0000005\n')=='Co-op: the Steam link stopped; coop status says why.')
+assert(summary('missing=SteamAPI_ISteamMatchmaking_JoinLobby\n')=='Co-op: the Steam link stopped; coop status says why.')
+assert(summary(GUEST)=='Co-op: your friend is connecting.','Only as long as the status says so')
+files[STATUS]=nil
 print('link_test ok')

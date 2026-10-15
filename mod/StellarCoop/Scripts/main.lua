@@ -3,8 +3,8 @@
 -- (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record [off], coop replay [off]),
 -- in the outfit it was captured in (coop basesuit: on the base suit instead); the Steam link between two players
 -- (coop host, invite, join, leave, status, report; host, status and leave on keys too, F5, F6 and F8 unless
--- coop-settings.txt says otherwise); and coop where, a line of coordinates to compare between the two
--- PCs. coop off stops everything until the game restarts.
+-- coop-settings.txt says otherwise), its notices on screen above your EVE; and coop where, a line of coordinates to
+-- compare between the two PCs. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -37,6 +37,7 @@ if link then
 end
 local capture=require('capture').new(link and link.components or nil)
 local puppet=require('puppet').new(link,capture)
+local notice=require('notice').new()
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
@@ -71,6 +72,7 @@ local commands={
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
+        notice.stop()
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -114,10 +116,13 @@ LoopInGameThreadWithDelay(1,function()
     if native_tick then native_tick() end
     ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
     if message then report(ok,message) end
+    ok,message=notice.tick()
+    if message then report(ok,message) end
 end)
 if link then
     LoopInGameThreadWithDelay(250,function()
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        for _,text in ipairs(link.notices()) do notice.say(text) end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end
         ok,message=puppet.remote(link.remote())
@@ -125,7 +130,8 @@ if link then
     end)
 end
 -- Host/invite, status and leave on keys (N5), only with the Steam link. A key callback runs on UE4SS's key thread: it
--- only hands the action to the game thread, where the console's checks (coop off included) apply.
+-- only hands the action to the game thread, where the console's checks (coop off included) apply. The status key gives
+-- a one-line summary, in the log and on screen; coop status keeps the full status.
 if settings then
     for _,action in ipairs({'host','status','leave'}) do
         local key=settings[action..'_key']
@@ -135,7 +141,15 @@ if settings then
             if modifiers then taken=IsKeyBindRegistered(Key[key.key],modifiers) else taken=IsKeyBindRegistered(Key[key.key]) end
         end
         if taken then log('keys: '..key.name..' is also bound by a mod loaded earlier; both run') end
-        local function pressed() ExecuteInGameThread(function() log('key '..key.name..': '..action); run(action) end) end
+        local function pressed()
+            ExecuteInGameThread(function()
+                log('key '..key.name..': '..action)
+                if action~='status' then return run(action) end
+                local summary=link.summary()
+                report(true,summary)
+                notice.say(summary)
+            end)
+        end
         if modifiers then RegisterKeyBind(Key[key.key],modifiers,pressed) else RegisterKeyBind(Key[key.key],pressed) end
     end
 end
