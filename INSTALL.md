@@ -74,7 +74,8 @@ back.
 
 ## Saves and Steam Cloud
 
-Today the mod does not read or write saves. Back them up anyway before you play with any mod:
+The mod never reads or writes a save. It reads only `StellarCoopSlot.txt`, a text file beside the saves (see "Co-op
+save slot" below). Back the saves up anyway before you play with any mod:
 
 1. Close the game.
 2. Copy the save folder to a place outside the game and Steam folders.
@@ -84,6 +85,73 @@ Today the mod does not read or write saves. Back them up anyway before you play 
 Steam Cloud syncs this folder. If a save ever looks wrong, do not start the game again. First turn Steam Cloud off for
 Stellar Blade (right-click the game, Properties, General), so the bad save does not replace the good copy in the
 cloud. Then restore your backup.
+
+## Co-op save slot
+
+`coop no` (and the shared features of later versions) runs only on a copy of your save, the co-op save slot, never on
+your own slots. The ghost, the keys and the Steam link work on any save. Make the copy once, with the game closed,
+before the first co-op session. Nothing is ever copied back to your own slots.
+
+The game has five save slots: the files `StellarBladeSave00.sav` to `StellarBladeSave04.sav` in the save folder above.
+The co-op slot is the one that `StellarCoopSlot.txt`, in the same folder, names.
+
+### Windows
+
+With the game closed:
+
+1. Copy the whole `%LOCALAPPDATA%\SB\Saved\SaveGames` folder into your Documents folder, as a backup.
+2. In File Explorer, turn on View > Show > File name extensions.
+3. Open `%LOCALAPPDATA%\SB\Saved\SaveGames\<your Steam ID>`. Find a name from `StellarBladeSave00.sav` to
+   `StellarBladeSave04.sav` that no file has. If all five exist, move the one you need least into your backup folder.
+   Never delete it.
+4. Copy the save you play, paste it into the same folder, and rename the copy to the free name, for example
+   `StellarBladeSave04.sav`.
+5. In Notepad, type that name alone on one line, for example `StellarBladeSave04.sav`. Use File > Save As, in the
+   same folder: file name `StellarCoopSlot.txt`, Save as type `All files (*.*)`, Encoding `UTF-8`.
+6. Check in File Explorer that the file is named `StellarCoopSlot.txt`, not `StellarCoopSlot.txt.txt`.
+7. Start the game, use Load Game and pick the copy (it looks the same as the save it came from). `coop status` must
+   show `slot=coop index=N marker=N`, where N is the copy's number (4 for `StellarBladeSave04.sav`). Without the
+   console, `UE4SS.log` has the same at each load, in a line `[StellarCoop] link: slot=...`.
+
+If it shows something else:
+
+- `slot=main index=0 marker=4`: another slot is loaded (here file 00). Go back to the title and load the other entry.
+- `marker=none`: no `StellarCoopSlot.txt` in that folder, often because it is named `StellarCoopSlot.txt.txt`.
+- `marker=bad`: the file's text or encoding is wrong: one line with the name, saved as UTF-8.
+- `slot=none`: no save is loaded yet (the title screen).
+
+### Linux (Proton)
+
+`tools/save_guard.py` comes with the StellarCoop repository, not with the zip. From the repository, with the game
+closed:
+
+1. `python3 tools/save_guard.py backup`
+2. If all five slots exist, move the one you need least out of the save folder, into your backup folder. Never delete
+   it.
+3. `python3 tools/save_guard.py slot SOURCE TARGET --dry-run`, where SOURCE is the number of the save you play and
+   TARGET the free number (for example `slot 0 4` when you play `StellarBladeSave00.sav` and `StellarBladeSave04.sav`
+   is free). It checks the copy and writes nothing.
+4. The same command without `--dry-run`.
+
+`slot` refuses while the game runs and refuses an occupied slot that is not the co-op slot. It makes its own safety
+backup, then writes `StellarCoopSlot.txt` and the copy. Replacing the co-op slot with a new copy needs `--yes`.
+`--saves` gives another save folder (see `--help`). Then load the copy as in Windows step 7.
+
+### Recovery
+
+- The mod never writes your own saves, and nothing is ever copied back from the co-op slot.
+- To stop using the co-op slot, close the game and move `StellarCoopSlot.txt` out of the folder. The copy then counts
+  as an ordinary save. To get back a save you moved out, then, with `StellarCoopSlot.txt` already out, move the copy
+  into a different folder (or rename it), and move that save back in.
+- `save_guard.py restore` of a backup older than the co-op slot removes `StellarCoopSlot.txt`, and says so. If you
+  restore such a backup by hand, move `StellarCoopSlot.txt` out first: otherwise it names one of your own saves.
+- Continue loads whichever slot you played last. Load Game is clearer, and `coop status` says which slot is loaded.
+- New Game and New Game+ ask which slot to overwrite: that is the game's own behaviour.
+- Steam Cloud syncs the copied `.sav` but never `StellarCoopSlot.txt`. On another PC the copy counts as an ordinary
+  save, and `coop no` refuses there.
+- After any `coop no` subcommand, end the game by killing it (Linux: `pkill -9 -f SB-Win64-Shipping`; Windows: Task
+  Manager, End task), not by Quit from the menu, which saves. Never load another save in that run: the probe's changes
+  stay in the game until it ends.
 
 ## Check the files
 

@@ -17,10 +17,17 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   (between two PCs it includes the offset between their clocks, so it says nothing there), poses drawn and written.
   A write the engine's gate refuses is logged once each time the native part takes a new ghost or a new capture
   generation (`write refused: ...`).
-- The native part also watches the save folder (names, sizes and write times every 5 s, never opening a file) and logs
-  every change in `coop-link.log`; `coop report` sums them up. `tools/save_guard.py backup|check|restore` keeps copies
-  of the saves outside the game (it refuses while the game runs; restore needs `--yes`).
-- Nothing reads or writes a save, the inventory, unlocks or equipment, and nothing is copied between two players'
+- The native part also watches the save folder (names, sizes and write times every 5 s, never opening a save) and logs
+  every change in `coop-link.log`; `coop report` sums them up. It also reads the co-op marker `StellarCoopSlot.txt`
+  beside the saves (every 5 s) and, only on the pinned build and until `coop off`, the slot the game entered (every
+  250 ms), for the `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?>` line of `coop status`.
+- `tools/save_guard.py backup|check|restore` keeps copies of the saves outside the game (it refuses while the game
+  runs; restore needs `--yes`). `save_guard.py slot SOURCE TARGET` makes the co-op save slot (INSTALL.md: Co-op save
+  slot): it copies main slot SOURCE onto free slot TARGET and names TARGET in `StellarCoopSlot.txt`. Apart from a
+  restore putting a backup back, that copy is the only save anything here writes, with the game closed and after a
+  safety backup; it is never copied back. `--dry-run` writes nothing, replacing the co-op slot needs `--yes`, and a
+  restore of a backup older than the slot removes the marker.
+- The mod never reads or writes a save, the inventory, unlocks or equipment, and nothing is copied between two players'
   games: the ghost is display only.
 - The ghost turns on by itself when a session starts (see the Steam link below); `coop puppet` (UE4SS console) turns it
   on or off by hand. On its own it shows nothing: it publishes EVE's capture for the native part, and a ghost is drawn
@@ -89,8 +96,11 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   re-stamped as if sent now, until `coop replay off`, which removes the ghost.
   Generation, map and positions stay as recorded: the ghost wears the outfit recorded, walks where she walked with no
   offset, and the map gate applies.
-- `coop no` is the Night Operation probe, for the T6 test sheet only: on the co-op slot or a throwaway save, with a
-  `tools/save_guard.py backup` first. A probe rule only ends with the game (`coop off` does not end it), so T6 ends by
+- `coop no` is the Night Operation probe, for the T6 test sheet only, with a `tools/save_guard.py backup` first. It
+  runs only on the co-op save slot: unless `coop status` has a `slot=coop` line, it refuses with `STOP: coop no runs
+  only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>` (`now no slot status`
+  without the native part). Each load logs the slot as `link: slot=...` in `UE4SS.log`. The ghost, the link and every
+  other command run on any save. A probe rule only ends with the game (`coop off` does not end it), so T6 ends by
   killing the game. Bare `coop no` starts the native part's read-only poller and logs a baseline: every 100 ms it reads
   the game's rule manager and a few of its neighbours into `nightop-probe.txt`, a line on each change and otherwise
   once a second (`coop status` shows `nightop=on`). Each subcommand below refuses until the poller runs, and `coop off`
@@ -212,7 +222,8 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   `src/pose_engine.h` (engine memory reads and writes, and the build pin), `src/pose_codec.h` (the pose's wire
   format), `src/pose_stream.h` (the loopback's delay line, the receiving clock and interpolation),
   `src/pose_record.h` (the recording, its check and its replay), `src/nightop_probe.h` (the `coop no` poller's reads,
-  lines and verdict) and `src/save_watch.h`. The Windows side:
+  lines and verdict), `src/save_watch.h` and `src/save_slot.h` (the entered slot's read, the marker's grammar and the
+  `slot=` line). The Windows side:
   `src/steam_link.cpp` (Steam callbacks, worker thread, files, faults) and `src/pose_tick.cpp` (`coop_tick`, and the
   worker's side of the pose path: what is sent and received, the files shared with Lua).
 - `tests/`: Lua checks with fake UE4SS objects (`lua5.4 tests/puppet_test.lua` from the repository root; the
@@ -220,7 +231,8 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   protocol with a fuzz loop, the link against a fake Steam, two links through it with the handshake both ways and
   channel 1's checks, the pose path against fake memory, the codec's round trips and a decoder fuzz, the component
   table and display file with a parser fuzz, the recording's reader with a fuzz and its replay, the loopback pipeline
-  in simulated time, the save watcher) and a Python check of `save_guard.py`.
+  in simulated time, the save watcher, the slot line and marker against fake memory in `tests/save_slot_test.cpp`)
+  and a Python check of `save_guard.py`, its `slot` command included.
   `tools/wine_smoke.py` loads the DLL under Proton's wine in a scratch prefix.
 - `tools/install.py`: runs the checks, builds the DLL with the clang-cl/xwin toolchain (`STELLAR_WINDOWS_TOOLCHAIN`)
   and copies the mod into `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
