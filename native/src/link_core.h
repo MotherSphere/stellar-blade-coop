@@ -59,6 +59,7 @@ constexpr int kChannel = 0, kPoseChannel = 1, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
 constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~21/s, ~170 KB/s expected
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
+constexpr size_t kNotices = 8, kMaxNotice = 300;
 
 // The SteamID in a SessionRequest's identity, or 0. Read in place: the callback thread must not call Steam.
 inline uint64_t steam_id_of(const Identity &who) {
@@ -353,6 +354,15 @@ public:
            " lost=" + (p.lost ? "1" : "0") + " invalid=" + std::to_string(p.invalid) +
            " rtt_ms=" + std::to_string(p.rtt_ms) + " session=" + std::to_string(p.session_state) +
            " session_ping=" + std::to_string(p.session_ping) + "\n";
+    // The name last, so a space in it cannot shift the fields Lua reads.
+    if (!peers_.empty()) {
+      const Peer &p = peers_.front();
+      s += std::string("friend=") + (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
+           p.name + "\n";
+    }
+    uint64_t n = notice_count_ - notices_.size();
+    for (auto &text : notices_)
+      s += "notice=" + std::to_string(++n) + " " + text + "\n";
     return s;
   }
 
@@ -363,6 +373,14 @@ public:
 
 private:
   void event(const std::string &line) { event_(line); }
+  // A line for the player, numbered for the run so Lua shows each once; the last kNotices kept. No event: every site
+  // logs its own.
+  void notice(const std::string &text) {
+    notices_.push_back(clean(text, kMaxNotice));
+    ++notice_count_;
+    if (notices_.size() > kNotices)
+      notices_.pop_front();
+  }
 
   Identity identity(uint64_t id) const {
     Identity who{};
@@ -448,12 +466,18 @@ private:
       if (host_ && lobby_) {
         api_.invite_dialog(friends_, lobby_);
         event("already hosting: invite dialog opened");
+      } else if (lobby_) { // A guest: one key press must not end her friend's session.
+        std::string name = name_of(host_id_);
+        event("already a guest of " + name + ": host ignored");
+        notice("You are in " + name + "'s game: leave it first.");
       } else if (create_call_ || join_call_) {
         event("busy: a lobby call is still pending, host ignored");
       } else {
         leave("hosting instead");
         create_call_ = api_.create_lobby(mm_, kFriendsOnly, kMaxMembers);
         event(create_call_ ? "creating a friends-only lobby" : "Steam refused to create a lobby");
+        if (!create_call_)
+          notice("Could not host: Steam refused.");
       }
       break;
     case Command::invite:
@@ -476,8 +500,10 @@ private:
         event("leave queued: a lobby call is pending");
       } else if (lobby_) {
         leave("asked");
+        notice("Left the session.");
       } else {
         event("not in a lobby");
+        notice("Not in a session.");
       }
       break;
     case Command::report:
@@ -511,16 +537,19 @@ private:
       create_call_ = 0;
       if (!got || failed || r.result != kResultOk || !r.lobby) {
         event("lobby creation failed (result " + std::to_string(r.result) + ")");
+        notice("Could not host: Steam result " + std::to_string(r.result) + ".");
       } else {
         lobby_ = r.lobby;
         host_ = true;
         host_id_ = me_;
         if (cancel_) {
           leave("leave asked while it was being created");
+          notice("Left the session.");
         } else {
           api_.set_lobby_data(mm_, lobby_, kLobbyKey, tag_.c_str());
           api_.invite_dialog(friends_, lobby_);
           event("hosting lobby " + std::to_string(lobby_) + ": invite dialog opened");
+          notice("Hosting: invite a friend from the Steam overlay (Shift+Tab).");
         }
       }
       cancel_ = false;
@@ -534,22 +563,31 @@ private:
       joining_ = 0;
       bool cancel = cancel_;
       cancel_ = false;
-      if (!got || failed || r.response != kEnterSuccess || r.lobby != lobby)
-        return event("joining lobby " + std::to_string(lobby) + " failed (response " + std::to_string(r.response) +
-                     ")");
+      if (!got || failed || r.response != kEnterSuccess || r.lobby != lobby) {
+        event("joining lobby " + std::to_string(lobby) + " failed (response " + std::to_string(r.response) + ")");
+        // EChatRoomEnterResponse: 2 DoesntExist, 4 Full.
+        return notice(r.response == 2   ? "Could not join: that game no longer exists."
+                      : r.response == 4 ? "Could not join: that game is full."
+                                        : "Could not join: Steam response " + std::to_string(r.response) + ".");
+      }
       lobby_ = lobby;
       host_id_ = api_.lobby_owner(mm_, lobby);
       host_ = host_id_ == me_;
-      if (cancel)
-        return leave("leave asked while joining");
+      if (cancel) {
+        leave("leave asked while joining");
+        return notice("Left the session.");
+      }
       const char *tag = api_.lobby_data(mm_, lobby, kLobbyKey);
       std::string theirs = clean(tag ? tag : "", 32);
       if (theirs != tag_) {
         event("lobby " + std::to_string(lobby) + " runs " + describe_tag(theirs) + ", this game runs " +
               describe_tag(tag_));
+        notice("Version mismatch: that game runs " + describe_tag(theirs) + "; yours runs " + describe_tag(tag_) + ".");
         return leave("incompatible lobby");
       }
-      event("joined lobby " + std::to_string(lobby) + " hosted by " + name_of(host_id_));
+      std::string host = name_of(host_id_);
+      event("joined lobby " + std::to_string(lobby) + " hosted by " + host);
+      notice("Joined " + host + "'s game.");
     }
   }
 
@@ -558,8 +596,10 @@ private:
   // is always the host), even though Steam hands the lobby to the guest.
   void poll_members() {
     int n = api_.member_count(mm_, lobby_);
-    if (n > kMaxMembers) // Only a lobby made elsewhere can be bigger: greet nobody there.
-      return leave("more than 2 players in it");
+    if (n > kMaxMembers) { // Only a lobby made elsewhere can be bigger: greet nobody there.
+      leave("more than 2 players in it");
+      return notice("Left: the lobby has more than 2 players.");
+    }
     std::vector<uint64_t> members;
     for (int i = 0; i < n; ++i)
       if (uint64_t id = api_.member(mm_, lobby_, i); id && id != me_)
@@ -568,8 +608,11 @@ private:
       bool host_here = false;
       for (auto id : members)
         host_here = host_here || id == host_id_;
-      if (!host_here || api_.lobby_owner(mm_, lobby_) != host_id_)
-        return leave("host left, session ended");
+      if (!host_here || api_.lobby_owner(mm_, lobby_) != host_id_) {
+        std::string host = name_of(host_id_);
+        leave("host left, session ended");
+        return notice("Session ended: " + host + " left.");
+      }
     }
     for (size_t i = 0; i < peers_.size();) {
       bool still = false;
@@ -580,6 +623,8 @@ private:
         continue;
       }
       event(peers_[i].name + " left the lobby");
+      if (host_) // A guest's only other member is the host, whose leaving ends the session above.
+        notice(peers_[i].name + " left.");
       Identity who = identity(peers_[i].id);
       api_.close_session(msgs_, &who);
       peers_.erase(peers_.begin() + static_cast<std::ptrdiff_t>(i));
@@ -592,6 +637,8 @@ private:
         peer.last_heard = now_;
         peers_.push_back(peer);
         event(peer.name + " is in the lobby");
+        if (host_) // A guest has had her Joined line.
+          notice(peer.name + " joined.");
       }
       Peer &peer = *find_peer(id);
       if (!peer.hello_sent) {
@@ -632,6 +679,7 @@ private:
       if (peer->lost) {
         peer->lost = false;
         event(peer->name + " is back");
+        notice(peer->name + " is back.");
       }
       on_message(*peer, message);
     }
@@ -706,6 +754,7 @@ private:
                           std::to_string(build_) + " (mod " + mod_ + ")";
         send(peer, reject(why), kReliable);
         event("rejected " + peer.name + ": " + why);
+        notice("Version mismatch with " + peer.name + ": " + why + ".");
         leave("incompatible player", false);
         return;
       }
@@ -725,6 +774,7 @@ private:
       break;
     case Kind::reject:
       event(peer.name + " rejected us: " + message.text);
+      notice(peer.name + " refused the link: " + message.text);
       leave("rejected by " + peer.name);
       break;
     case Kind::ping:
@@ -756,6 +806,7 @@ private:
       if (!peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
         peer.lost = true;
         event(peer.name + " silent for 10 s: lost");
+        notice(peer.name + ": connection lost.");
       }
     }
     if (now_ < next_info_)
@@ -839,5 +890,7 @@ private:
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;
+  std::deque<std::string> notices_; // The last kNotices, oldest first; notice_count_ numbers the newest.
+  uint64_t notice_count_ = 0;
 };
 } // namespace coop

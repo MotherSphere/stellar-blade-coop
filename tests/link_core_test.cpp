@@ -1,6 +1,6 @@
 // The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
-// the handshake and its rejects, the host leaving (D1), a lost peer, strangers, session requests, relay, the journal;
-// and two Links through it: the handshake both ways and channel 1 with its checks.
+// the handshake and its rejects, the host leaving (D1), a lost peer, strangers, session requests, relay, the journal,
+// the player's notices; and two Links through it: the handshake both ways and channel 1 with its checks.
 #include "link_core.h"
 #include "pose_table.h"
 
@@ -61,6 +61,7 @@ struct Fake {
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
   int invites = 0, released = 0, relay = 100, session_state = 3, session_ping = 42;
   int send_result = 1; // Anything but 1: Steam refuses the send, which is neither recorded nor delivered.
+  uint32_t join_response = 1; // Anything but 1: the join fails with that EChatRoomEnterResponse, no member added.
 } F;
 
 int dummy;
@@ -142,8 +143,12 @@ template <int N> Api make_api() {
     uint64_t call = F.next_call++;
     Call &c = F.calls[call];
     c.id = kEnterId;
-    store(c, LobbyEnter{lobby, 0, false, static_cast<uint32_t>(kEnterSuccess)});
-    c.on_done = [lobby] { F.members[lobby].push_back(F.client[N].id); };
+    uint32_t response = F.join_response;
+    store(c, LobbyEnter{lobby, 0, false, response});
+    c.on_done = [lobby, response] {
+      if (response == kEnterSuccess)
+        F.members[lobby].push_back(F.client[N].id);
+    };
     return call;
   };
   a.leave_lobby = [](void *, uint64_t lobby) {
@@ -286,6 +291,15 @@ struct Two {
 void send_binary(Link &link, const std::string &bytes, bool reliable) {
   link.send_binary(reinterpret_cast<const uint8_t *>(bytes.data()), bytes.size(), reliable);
 }
+// A notice line of the status with exactly this text, whatever its number.
+bool noticed(const std::string &status, const std::string &text) {
+  for (size_t at = 0; (at = status.find("notice=", at)) != std::string::npos; ++at) {
+    size_t space = status.find(' ', at), end = status.find('\n', at);
+    if ((at == 0 || status[at - 1] == '\n') && status.compare(space + 1, end - space - 1, text) == 0)
+      return true;
+  }
+  return false;
+}
 int count(const std::string &part) {
   int n = 0;
   for (auto &e : events)
@@ -368,6 +382,11 @@ int main() {
     assert(s.find("link=host lobby=5000") != std::string::npos);
     assert(s.find("peer=2002 name=Kaanta hello=1 accepted=1 compatible=1 lost=0") != std::string::npos);
     assert(s.find("rtt_ms=60") != std::string::npos && s.find("session=3 session_ping=42") != std::string::npos);
+    // After the peer lines: her line, name last, then the notices, oldest first.
+    std::string tail = "\nfriend=1 0 Kaanta\nnotice=1 Hosting: invite a friend from the Steam overlay (Shift+Tab).\n"
+                       "notice=2 Kaanta joined.\n";
+    assert(s.size() > tail.size() && s.compare(s.size() - tail.size(), tail.size(), tail) == 0);
+    assert(s.find("peer=") < s.find("friend="));
     w.tick("host");
     assert(F.invites == 2 && saw("already hosting: invite dialog opened"));
     w.tick("invite");
@@ -376,8 +395,13 @@ int main() {
   }
 
   // A peer on another protocol or game build gets a typed reject, and both sides leave.
-  for (const std::string &their :
-       {hello(1, "old", kBuild), hello(kProtocol + 1, "new", kBuild), hello(kProtocol, "v", 123)}) {
+  struct Theirs {
+    uint64_t protocol;
+    std::string mod;
+    uint64_t build;
+  };
+  for (const Theirs &t : {Theirs{1, "old", kBuild}, Theirs{kProtocol + 1, "new", kBuild}, Theirs{kProtocol, "v", 123}}) {
+    std::string their = hello(t.protocol, t.mod, t.build);
     reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
@@ -390,6 +414,10 @@ int main() {
     w.tick();
     assert(sent_to(kFriend, "SBC reject protocol ") == 1 && saw("rejected Kaanta: protocol "));
     assert(saw("left lobby 5000: incompatible player") && w.link.lobby() == 0 && F.left.size() == 1);
+    assert(noticed(w.status(), "Version mismatch with Kaanta: protocol " + std::to_string(t.protocol) + " build " +
+                                   std::to_string(t.build) + " (mod " + t.mod + "), mine protocol " +
+                                   std::to_string(kProtocol) + " build 24463856 (mod v1.2-dev)."));
+    assert(!noticed(w.status(), "Left the session.")); // Only a leave the player asked for says so.
   }
   // A reject from the peer: we leave too, and say why.
   reset();
@@ -401,6 +429,7 @@ int main() {
     w.tick();
     assert(saw("Kaanta rejected us: protocol 3 build 1") && saw("left lobby 5000: rejected by Kaanta"));
     assert(w.link.lobby() == 0 && F.inbox.empty() && F.released == 4);
+    assert(noticed(w.status(), "Kaanta refused the link: protocol 3 build 1, mine protocol 9 build 1 (mod x)"));
   }
 
   // A third member: we leave before greeting anyone.
@@ -415,6 +444,7 @@ int main() {
     F.members[5000].push_back(kOther);
     w.tick("", 0, 0, 600);
     assert(saw("left lobby 5000: more than 2 players in it") && F.sent.empty());
+    assert(noticed(w.status(), "Left: the lobby has more than 2 players."));
   }
 
   // Guest: join by id; the host leaving ends the session (D1), even though Steam hands the lobby over.
@@ -430,10 +460,25 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("joined lobby 7000 hosted by Kaanta") && !w.link.host() && w.link.lobby() == 7000);
+    assert(noticed(w.status(), "Joined Kaanta's game.") && !noticed(w.status(), "Kaanta joined.")); // Host only.
+    // Host asked as a guest: refused, nothing created, the session goes on.
+    size_t calls = F.calls.size();
+    w.tick("host");
+    assert(F.calls.size() == calls && w.link.lobby() == 7000 && !w.link.host() && F.left.empty());
+    assert(saw("already a guest of Kaanta: host ignored") &&
+           noticed(w.status(), "You are in Kaanta's game: leave it first."));
+    // A member other than the host coming and going (only a Steam that does not list us could show one): host only.
+    F.members[7000] = {kFriend, kOther};
+    w.tick("", 0, 0, 600);
+    F.members[7000] = {kFriend};
+    w.tick("", 0, 0, 600);
+    assert(saw("Third left the lobby") && w.link.lobby() == 7000);
+    assert(!noticed(w.status(), "Third joined.") && !noticed(w.status(), "Third left."));
     F.members[7000] = {kMe};
     F.owner[7000] = kMe;
     w.tick("", 0, 0, 600);
     assert(saw("left lobby 7000: host left, session ended") && w.link.lobby() == 0);
+    assert(noticed(w.status(), "Session ended: Kaanta left.") && !noticed(w.status(), "Kaanta left."));
   }
 
   // Guest: a lobby from another protocol or build is refused with both versions spelled out.
@@ -451,6 +496,40 @@ int main() {
     assert(saw("lobby 7000 runs protocol 1, build 24463856, this game runs protocol " + std::to_string(kProtocol) +
                ", build 24463856"));
     assert(saw("left lobby 7000: incompatible lobby"));
+    assert(noticed(w.status(), "Version mismatch: that game runs protocol 1, build 24463856; yours runs protocol " +
+                                   std::to_string(kProtocol) + ", build 24463856."));
+  }
+
+  // A join Steam answers with a failure: the reason by response, and no lobby.
+  for (auto [response, text] : {std::pair<uint32_t, std::string>{2, "Could not join: that game no longer exists."},
+                                {4, "Could not join: that game is full."},
+                                {5, "Could not join: Steam response 5."}}) {
+    reset();
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    F.members[7000] = {kFriend};
+    F.owner[7000] = kFriend;
+    F.join_response = response;
+    w.tick("join 7000");
+    finish_all();
+    w.tick();
+    assert(saw("joining lobby 7000 failed (response " + std::to_string(response) + ")") && w.link.lobby() == 0);
+    assert(noticed(w.status(), text) && F.members[7000] == std::vector<uint64_t>{kFriend});
+  }
+  // Leave while the join is pending: the joined lobby is left at once, and the player hears it.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    F.members[7000] = {kFriend};
+    F.owner[7000] = kFriend;
+    F.data[7000][kLobbyKey] = lobby_tag(kBuild);
+    w.tick("join 7000");
+    w.tick("leave");
+    finish_all();
+    w.tick();
+    assert(saw("left lobby 7000: leave asked while joining") && w.link.lobby() == 0);
+    assert(noticed(w.status(), "Left the session.") && !noticed(w.status(), "Joined Kaanta's game."));
   }
 
   // Launched by Steam with +connect_lobby; friend scan with and without a friend in a lobby.
@@ -485,9 +564,35 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("left lobby 5000: leave asked while it was being created") && F.invites == 0 && w.link.lobby() == 0);
+    assert(noticed(w.status(), "Left the session.") && !noticed(w.status(), "Hosting: invite a friend from the Steam "
+                                                                             "overlay (Shift+Tab)."));
     F.refuse_create = true;
     w.tick("host");
     assert(saw("Steam refused to create a lobby") && w.status().find("pending=1") == std::string::npos);
+    assert(noticed(w.status(), "Could not host: Steam refused."));
+    F.refuse_create = false;
+    w.tick("host");
+    Call &c = F.calls.at(F.next_call - 1);
+    store(c, LobbyCreated{2, 0}); // k_EResultFail
+    c.on_done = nullptr;
+    finish_all();
+    w.tick();
+    assert(saw("lobby creation failed (result 2)") && noticed(w.status(), "Could not host: Steam result 2."));
+  }
+
+  // The notices: the last 8 kept, numbered for the run, oldest first; none writes an event of its own.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    for (int i = 0; i < 10; ++i)
+      w.tick("leave");
+    std::string s = w.status(), last;
+    for (int n = 3; n <= 10; ++n)
+      last += "notice=" + std::to_string(n) + " Not in a session.\n";
+    assert(count("not in a lobby") == 10 && count("Not in a session.") == 0);
+    assert(s.size() > last.size() && s.compare(s.size() - last.size(), last.size(), last) == 0);
+    assert(s.find("notice=") == s.size() - last.size() && s.find("friend=") == std::string::npos);
   }
 
   // A silent peer is lost after 10 s and back on its next message; a failed first session is greeted again.
@@ -495,11 +600,41 @@ int main() {
   {
     World w;
     linked_host(w);
+    assert(w.status().find("\nfriend=1 0 Kaanta\n") != std::string::npos);
     w.tick("", 0, 0, 10000);
     assert(saw("Kaanta silent for 10 s: lost") && w.status().find("lost=1") != std::string::npos);
+    assert(w.status().find("\nfriend=1 1 Kaanta\n") != std::string::npos &&
+           noticed(w.status(), "Kaanta: connection lost."));
     F.inbox.push_back({kFriend, ping(5, 5)});
     w.tick();
     assert(saw("Kaanta is back") && sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " pong 5 5") == 1);
+    assert(w.status().find("\nfriend=1 0 Kaanta\n") != std::string::npos && noticed(w.status(), "Kaanta is back."));
+  }
+  // A name with a space: last on her line, whole, so Lua's (.*) takes it all.
+  reset();
+  {
+    World w;
+    F.names[kFriend] = "Ka anta";
+    linked_host(w);
+    std::string s = w.status();
+    assert(s.find("\nfriend=1 0 Ka anta\nnotice=1 ") != std::string::npos && noticed(s, "Ka anta joined."));
+  }
+  // Her hello alone does not make her linked: only her accept of ours does.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    w.tick();
+    assert(w.status().find("\nfriend=0 0 Kaanta\n") != std::string::npos);
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(w.status().find("\nfriend=1 0 Kaanta\n") != std::string::npos);
   }
   reset();
   {
@@ -597,6 +732,8 @@ int main() {
       ++rounds;
     }
     assert(t.a.linked() && t.b.linked() && saw("B: joined lobby 5000 hosted by Me"));
+    assert(noticed(t.a.status(Counters{}), "Kaanta joined.") && noticed(t.b.status(Counters{}), "Joined Me's game."));
+    assert(!noticed(t.b.status(Counters{}), "Me joined."));
 
     // c. A table at the size bound (reliable) and 20 poses (unreliable) each way: the same bytes in the same order,
     // over two passes (a batch is 16), on channel 1 only.
@@ -688,6 +825,7 @@ int main() {
     t.tick(t.b, 1, "leave");
     t.tick(t.a, 1);
     assert(!t.a.linked() && !t.b.linked() && saw("A: Kaanta left the lobby") && saw("B: left lobby 5000: asked"));
+    assert(noticed(t.a.status(Counters{}), "Kaanta left.") && noticed(t.b.status(Counters{}), "Left the session."));
     inbox(0, kPoseChannel).push_back({kFriend, "late"});
     ++by_hand;
     t.tick(t.a, 1);
