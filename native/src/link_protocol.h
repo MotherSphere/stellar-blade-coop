@@ -141,14 +141,16 @@ inline Message parse(const char *data, size_t size) {
 
 // A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
 // "join <lobby id>", and for the pose path "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>",
-// "loopback off", "record", "record off", "replay" and "replay off".
-enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay };
+// "loopback off", "record", "record off", "replay" and "replay off"; for the Night Operation probe (Phase 6, T6 only)
+// "nightop" (start the read-only poller) and "nightop rule" (start it if needed and arm the verdict, once a run).
+enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay, nightop };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500;
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %.
   bool off = false;                      // loopback off, record off, replay off.
+  bool rule = false;                     // nightop rule.
 };
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
@@ -172,6 +174,9 @@ inline Request parse_request(std::string text) {
   else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;
+  } else if (text == "nightop" || text == "nightop rule") {
+    r.command = Command::nightop;
+    r.rule = text.size() > 7;
   } else if (text == "loopback off") {
     r.command = Command::loopback;
     r.off = true;

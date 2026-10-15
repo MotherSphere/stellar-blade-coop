@@ -114,6 +114,14 @@ int main() {
   for (const char *bad : {"record x", "replay now", "record on", "replay off now", "record  off", "recordoff",
                           "probe", "mirror 500", "mirror off"}) // Phase 3a's probe and mirror are gone.
     assert(parse_request(bad).command == Command::none);
+  // The Night Operation probe: exactly two forms, so a typo never starts the poller or arms the verdict.
+  for (const char *good : {"nightop", "nightop\r\n", "nightop rule"}) {
+    Request n = parse_request(good);
+    assert(n.command == Command::nightop && n.rule == (std::strcmp(good, "nightop rule") == 0));
+  }
+  for (const char *bad : {"nightop on", "nightop off", "nightop x", "nightop  rule", "nightop rule 1", "nightoprule",
+                          "probe"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0);
   r = parse_request("join 109775241234567890\n");

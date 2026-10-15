@@ -582,6 +582,7 @@ private:
     case Command::loopback:
     case Command::record:
     case Command::replay:
+    case Command::nightop:
       break;
     case Command::none:
       event("unknown request");

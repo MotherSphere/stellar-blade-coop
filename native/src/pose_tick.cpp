@@ -13,6 +13,9 @@
 // the ghost from it and names what it built in coop-display.txt; a pose is decoded with that table into the playback,
 // whose pose for each frame the game thread writes into the ghost's leaders, and the main mesh's world transform into
 // its mailbox for Lua to place it.
+//
+// The Night Operation probe (Phase 6) is the worker's alone: on the nightop request it reads the rule manager and its
+// neighbours through ReadProcessMemory (nightop_probe.h) into nightop-probe.txt, never touching a game pointer itself.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -27,6 +30,7 @@
 #include <vector>
 
 #include "link_protocol.h"
+#include "nightop_probe.h"
 #include "pose_codec.h"
 #include "pose_engine.h"
 #include "pose_record.h"
@@ -400,6 +404,60 @@ const char kPeer[] = "peer";
 const char *remote_source = "loopback";
 void (*peer_send)(const uint8_t *, size_t, bool) = nullptr; // Set by peer() each pass, before peer_on can be true.
 uint64_t next_table_ms = 0, last_renewal_us = 0;
+// Night Operation probe (Phase 6): read-only, its own latch (pinned && !blocked), so a pose fault leaves it running.
+bool pinned = false, nightop_on = false;
+nightop::Poller poller;
+uint64_t nightop_next = 0;
+size_t nightop_bytes = 0;
+constexpr size_t kProbeCap = 4 << 20; // About 30 min of lines at 10 a second (a field flickering every sample).
+// ReadProcessMemory fails on unmapped memory instead of faulting, and never trips a guard page.
+bool rpm(uint64_t address, void *out, size_t n) {
+  SIZE_T got = 0;
+  return ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<LPCVOID>(address), out, n, &got) && got == n;
+}
+
+// One line onto nightop-probe.txt, shared for delete too (it may be read or moved while open). Past 4 MB a last line
+// says so and the poller stops for the run.
+void append_probe(const std::string &line) {
+  if (!nightop_on)
+    return; // Capped earlier in this step: its other lines go nowhere.
+  std::string text = line + "\r\n";
+  if (nightop_bytes + text.size() > kProbeCap) {
+    text = "capped at 4 MB: the poller stops\r\n";
+    nightop_on = false;
+    nightop_bytes = kProbeCap; // ask_nightop refuses to start it again.
+    say("nightop poller off: nightop-probe.txt capped at 4 MB");
+  } else {
+    nightop_bytes += text.size();
+  }
+  HANDLE f = CreateFileW((dir + L"nightop-probe.txt").c_str(), FILE_APPEND_DATA,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_ALWAYS,
+                         FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (f == INVALID_HANDLE_VALUE)
+    return;
+  DWORD n = 0;
+  WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr);
+  CloseHandle(f);
+}
+
+// Every worker pass while on: a sample each 100 ms, its lines into the file, the verdict into the log as well.
+void poll_nightop(uint64_t now_ms) {
+  if (blocked) {
+    nightop_on = false;
+    say("nightop poller off: coop off");
+    return;
+  }
+  if (now_ms < nightop_next)
+    return;
+  nightop_next = now_ms + nightop::kSampleMs;
+  for (const std::string &line : poller.step(nightop::sample(base, rpm), now_ms)) {
+    append_probe(line);
+    size_t text = line.find(' ') + 1; // After "<t> ".
+    if (!line.compare(text, 8, "verdict "))
+      say("nightop " + line.substr(text));
+  }
+}
+
 // One remote source at a time: a loopback or replay started by hand takes over from her until it is off.
 // engine_on also means the inbox buffers are sized.
 bool peer_open() { return engine_on && !blocked && !loopback_on && !replay.on(); }
@@ -618,6 +676,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     objects = base + kObjectsRva; // Before engine_on: the game thread reads it once the engine is on.
     engine_reason = reason.empty() ? "pinned build 24463856" : reason;
     engine_on = reason.empty();
+    pinned = reason.empty();
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
   if (faulted && !fault_logged) {
@@ -632,6 +691,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     engine_reason = text;
     event(text);
   }
+  if (nightop_on)
+    poll_nightop(now_ms);
   write_remote();
   if (remote.generation && display.generation != remote.generation)
     take_display(); // At every pass while the ghost for the remote table is awaited.
@@ -854,6 +915,44 @@ std::string ask_replay(bool on) {
   return text;
 }
 
+std::string ask_nightop(bool rule, uint64_t now_ms) {
+  if (!pinned) // The offsets are this build's: another one is never read.
+    return "nightop poller off: " + engine_reason;
+  std::string text;
+  if (!nightop_on) {
+    if (nightop_bytes >= kProbeCap)
+      return "nightop poller off: nightop-probe.txt capped at 4 MB";
+    uint64_t start_us = clock_us();
+    nightop::Sample s = nightop::sample(base, rpm);
+    DWORD error = GetLastError(); // The globals read is the first and, when it fails, the only one.
+    uint64_t took_us = clock_us() - start_us;
+    if (!s.ok)
+      return "nightop poller off: ReadProcessMemory failed (error " + std::to_string(error) + ")";
+    poller.start(now_ms);
+    nightop_on = true;
+    nightop_next = now_ms + nightop::kSampleMs;
+    char head[160];
+    std::snprintf(head, sizeof head, "nightop probe, StellarCoop %s, base 0x%llx; t = seconds since this line",
+                  token(STELLARCOOP_VERSION).c_str(), static_cast<unsigned long long>(base));
+    append_probe(head);
+    for (const std::string &line : poller.step(s, now_ms))
+      append_probe(line);
+    // Every sample costs about this: above about 5 ms (wineserver reading through ptrace, which stops the game),
+    // kSampleMs goes to 250.
+    text = "nightop poller on: nightop-probe.txt every 100 ms; first sample " + std::to_string(took_us) +
+           " us; spawn registry " + (s.spawn_ok ? std::to_string(s.spawnreg) : std::string("?"));
+  } else if (!rule) {
+    return "nightop poller already on";
+  }
+  if (rule) {
+    if (!text.empty())
+      text += "; ";
+    text += poller.rule(now_ms) ? "nightop rule request: verdict in 60 s"
+                                : "nightop rule already asked this run: no second verdict";
+  }
+  return text;
+}
+
 void block() {
   blocked = true;
   engine_on = false;
@@ -877,6 +976,8 @@ std::string status() {
     s += " replay=on";
   if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.
     s += " remote=" + std::to_string(remote.generation) + " " + std::to_string(remote_count) + " " + remote_source;
+  if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
+    s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)
     if (c == '\n' || c == '\r')
       c = ' ';

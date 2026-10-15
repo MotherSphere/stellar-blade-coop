@@ -299,6 +299,10 @@ bool step() {
       event(coop::pose::ask_replay(!coop::parse_request(request).off));
       request.clear();
       break;
+    case coop::Command::nightop:
+      event(coop::pose::ask_nightop(coop::parse_request(request).rule, GetTickCount64()));
+      request.clear();
+      break;
     case coop::Command::off:
       coop::pose::block();
       switched_off = true;
@@ -371,6 +375,8 @@ int guarded(DWORD *code) {
 DWORD WINAPI worker(void *) {
   command_line = GetCommandLineW();
   MoveFileExW((folder + L"coop-link.log").c_str(), (folder + L"coop-link.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
+  MoveFileExW((folder + L"nightop-probe.txt").c_str(), (folder + L"nightop-probe.old.txt").c_str(),
+              MOVEFILE_REPLACE_EXISTING); // A relaunch before the files were sent keeps the last T6 probe.
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
