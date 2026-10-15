@@ -65,10 +65,16 @@ function U.label(actor,size)
         {Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
     local label=U.valid(actor:AddComponentByClass(U.find('/Script/Engine.TextRenderComponent'),false,identity,false))
     assert(label,'a text line could not be added')
-    label:SetWorldSize(size)
-    label:SetHorizontalAlignment(1) -- EHTA_Center
-    label:SetTextRenderColor({R=255,G=255,B=255,A=255})
-    label:SetAbsolute(false,true,false)
+    local ok,why=pcall(function()
+        label:SetWorldSize(size)
+        label:SetHorizontalAlignment(1) -- EHTA_Center
+        label:SetTextRenderColor({R=255,G=255,B=255,A=255})
+        label:SetAbsolute(false,true,false)
+    end)
+    if not ok then -- Else a half-made line stays on the actor, reading the engine's 'Text'.
+        pcall(function() label:K2_DestroyComponent(actor) end)
+        error(why,0)
+    end
     return label
 end
 -- The yaw in degrees that turns something at from towards to (a TextRender's text reads from its +X side).

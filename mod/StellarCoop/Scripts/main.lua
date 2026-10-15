@@ -1,10 +1,10 @@
--- StellarCoop: co-op for Stellar Blade. For now the ghost of an EVE (console: coop puppet), drawn by the native part
--- from a table and poses that come back to you: a linked friend's over Steam, yours through an in-process loopback
--- (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record [off], coop replay [off]),
--- in the outfit it was captured in (coop basesuit: on the base suit instead); the Steam link between two players
--- (coop host, invite, join, leave, status, report; host, status and leave on keys too, F5, F6 and F8 unless
--- coop-settings.txt says otherwise), its notices on screen above your EVE; and coop where, a line of coordinates to
--- compare between the two PCs. coop off stops everything until the game restarts.
+-- StellarCoop: co-op for Stellar Blade. For now the ghost of an EVE (on with each session; console: coop puppet), drawn
+-- by the native part from a table and poses that come back to you: a linked friend's over Steam, yours through an
+-- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
+-- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead); the Steam link
+-- between two players (coop host, invite, join, leave, status, report; host, status and leave on keys too, F5, F6 and
+-- F8 unless coop-settings.txt says otherwise), its notices on screen above your EVE; and coop where, a line of
+-- coordinates to compare between the two PCs. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -36,8 +36,8 @@ if link then
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
 local capture=require('capture').new(link and link.components or nil)
-local puppet=require('puppet').new(link,capture)
 local notice=require('notice').new()
+local puppet=require('puppet').new(link,capture,notice.say,settings and settings.name_tag)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
@@ -120,8 +120,16 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
 end)
 if link then
+    -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.
+    -- A status read with no mode (before Steam, or unreadable) is no leave.
+    local last_mode='none'
     LoopInGameThreadWithDelay(250,function()
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        local mode=link.mode()
+        if mode then
+            if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
+            last_mode=mode
+        end
         for _,text in ipairs(link.notices()) do notice.say(text) end
         if not off then -- Whether a save is loaded (an accepted invite waits for one) and the send rate.
             local line=link.state(puppet.world(),settings.send_rate)

@@ -3,7 +3,8 @@
 -- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
 -- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read;
--- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded.
+-- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
+-- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -73,28 +74,51 @@ local function poseable(actor)
     function p:K2_SetRelativeTransform(t) self.relative=t end
     function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
     function p:IsA(class) return class.path=='/Script/Engine.PoseableMeshComponent' end
+    function p:GetOwner() return actor end
     return p -- No SetMaterial: a call fails the build, so the test.
 end
-local fail_add=false
+local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua to either is unproven in the game.
+FText=function(text) if fail_text then error('no FText') end return {text=text} end
+local function text_render(actor)
+    local l=object('TextRender',{},0xc3)
+    for _,f in ipairs({'SetWorldSize','SetHorizontalAlignment','SetTextRenderColor','SetAbsolute'}) do
+        l[f]=function(self,a) if f=='SetTextRenderColor' and fail_color then error('no FColor') end self[f]=a end
+    end
+    function l:K2_AttachToComponent(parent,socket) self.attached={parent=parent,socket=socket:ToString()} end
+    function l:K2_SetRelativeLocation(at) self.relative=at end
+    function l:K2_SetText(t) self.text=t.text end
+    function l:K2_SetWorldRotation(r) self.rot=r; self.turns=(self.turns or 0)+1 end
+    function l:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
+    return l
+end
+local fail_add,fail_label=false,false
 local world={SpawnActor=function(_,class,at)
     assert(class.path=='/Script/Engine.Actor' and at.X==1)
-    local a=object('Ghost',{parts={}})
+    local a=object('Ghost',{parts={},components={}})
     function a:SetActorEnableCollision() end
     function a:SetActorHiddenInGame(hidden) self.hidden=hidden end
     function a:AddComponentByClass(c,manual)
         if fail_add then return nil end
+        local added
         if c.path=='/Script/Engine.SceneComponent' then
             assert(manual==true,'The mailbox is never attached')
-            local box=object('Mailbox',{RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},
+            added=object('Mailbox',{RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},
                 RelativeRotation={Pitch=0,Yaw=0,Roll=0}},0x5c0)
-            self.mailbox=box
-            return box
+            self.mailbox=added
+        elseif c.path=='/Script/Engine.TextRenderComponent' then
+            assert(manual==false)
+            if fail_label then return nil end
+            added=text_render(self)
+            self.label=added
+        else
+            assert(c.path=='/Script/Engine.PoseableMeshComponent' and manual==false)
+            added=poseable(self); self.parts[#self.parts+1]=added
         end
-        assert(c.path=='/Script/Engine.PoseableMeshComponent' and manual==false)
-        local p=poseable(self); self.parts[#self.parts+1]=p; return p
+        self.components[#self.components+1]=added
+        return added
     end
     function a:K2_DestroyActor() self.destroyed=true end
-    function a:K2_GetRootComponent() return self.parts[1] end
+    function a:K2_GetRootComponent() return self.components[1] end -- The first added, whatever its class.
     function a:GetFullName() return 'Actor /Game/Map.Map:PersistentLevel.Actor_'..#spawned end
     spawned[#spawned+1]=a
     return a
@@ -114,7 +138,11 @@ local function eve_of(name,map_world,at)
 end
 local eve=eve_of('EVE')
 local player=eve
-package.loaded.UEHelpers={GetPlayer=function() frame=frame+1; return player end}
+local camera,camera_fails={X=-100,Y=100,Z=0},false
+package.loaded.UEHelpers={GetPlayer=function() frame=frame+1; return player end,GetPlayerController=function()
+    if camera_fails then error('no player controller') end
+    return {PlayerCameraManager={GetCameraLocation=function() return camera end}}
+end}
 local found_by_path={}
 StaticFindObject=function(path)
     if found_by_path[path] then return found_by_path[path] end
@@ -153,15 +181,17 @@ local function remote_text(generation,parts,map)
     end
     return table.concat(lines,'\n')..'\n'
 end
-local remote_file,displays,stored=nil,{},nil
+local remote_file,displays,stored,requests,said=nil,{},nil,{},{}
 local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
 local link={remote_table=function() return remote_file end,store=function() return store end,
-    display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end}
+    display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
+    friend=function() return 'Kaanta',true,false end,
+    request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
-local function new(path_left)
+local function new(path_left,name_tag)
     stored=path_left
     package.loaded.puppet=nil
-    return require('puppet').new(link,capture)
+    return require('puppet').new(link,capture,function(text) said[#said+1]=text end,name_tag~=false)
 end
 local ghost=new(nil)
 local count=0
@@ -185,7 +215,7 @@ assert(ghost.tick()==nil and ghost.status()=='ghost=off','Off: nothing')
 send(500,her_parts())
 assert(ghost.tick()==nil and #spawned==0,'Off: no ghost, even with a table')
 local ok,message=ghost.toggle()
-assert(ok and message:find('^Ghost on: '),message)
+assert(ok and message:find('^Ghost on: ') and not message:find('runs coop puppet'),message)
 assert(ghost.status()=='ghost=waiting')
 assert(ghost.tick()==nil and #spawned==0,'EVE must have been in the world 2 s')
 clock=clock+2
@@ -225,6 +255,14 @@ assert(d=='display 500\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 
 assert(displays[#displays]:find('\nmailbox 0x%x+ 0x5c0\ndrive 0 '..string.format('0x%x',root.GetAddress())..' 0xc2 '
     ..string.format('0x%x',meshes[BODY].GetAddress())..' 3\n'),'The loaded mesh, not hers')
 assert(ghost.status()=='ghost=on parts=6 leaders=3 basesuit=0 left_out=0 table=500 source=loopback',ghost.status())
+-- The name tag: whose ghost (here her own, through the loopback), 2 m above the main mesh, never a part.
+local tag=actor.label
+assert(tag and tag.text=='loopback' and tag.attached.parent==root and tag.attached.socket=='None','Hung on the main mesh')
+assert(tag.relative.X==0 and tag.relative.Y==0 and tag.relative.Z==200 and tag.SetWorldSize==18 and not tag.destroyed)
+assert(actor.components[1]==root and actor.components[#actor.components]==actor.mailbox,'Before the mailbox, never root')
+FindAllOf=function(class) assert(class=='PoseableMeshComponent'); return actor.parts end
+assert(ghost.status():find('left_out=0 table=500 source=loopback$'),'No stray part: the tag is none')
+FindAllOf=nil
 
 -- Shown at the first pose, placed from the mailbox 2 m to her right in loopback; hidden a second after the last pose.
 assert(ghost.place()==nil and actor.hidden and not root.moves,'No stamp yet: nothing')
@@ -235,6 +273,7 @@ box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 ghost.place()
 assert(actor.hidden==false and root.moves==1,'Shown at the first stamp')
 assert(math.abs(root.at.X-(100-200))<1e-6 and math.abs(root.at.Y)<1e-6 and root.at.Z==30,'Her right: mesh yaw 0 plus 90')
+assert(tag.turns==1 and math.abs(tag.rot.Yaw-90)<1e-9 and tag.rot.Pitch==0 and tag.rot.Roll==0,'The tag faces the camera')
 clock=clock+0.9
 ghost.place()
 assert(actor.hidden==false and root.moves==1,'The same stamp: not moved again, still shown')
@@ -242,8 +281,10 @@ clock=clock+0.1
 ghost.place()
 assert(actor.hidden==true,'A second without a pose: hidden, never frozen in view')
 box.RelativeScale3D.Z=6
+camera={X=-100,Y=-100,Z=0}
 ghost.place()
 assert(actor.hidden==false and root.moves==2)
+assert(tag.turns==2 and math.abs(tag.rot.Yaw+90)<1e-9,'Turned again at each new pose, only then')
 
 -- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
 local displays_before=#displays
@@ -320,6 +361,20 @@ assert(ok and message=='Ghost hidden: she is on /game/art/bg/worldmap/level_p/f0
 local spawned_count=#spawned
 assert(ghost.tick()==nil and ghost.tick()==nil and #spawned==spawned_count,'Said once, never built')
 assert(ghost.status()=='ghost=hidden map',ghost.status())
+assert(#said==0,'Her own loopback: nothing on screen')
+-- A friend on another map: on screen too, once per pair of maps, by the maps' last segments.
+send(540,her_parts(),'peer','/game/art/bg/worldmap/level_p/f01')
+ok,message=ghost.tick()
+assert(ok and message:find('^Ghost hidden: she is on .*/f01, you are on .*/e04%.$'),message)
+assert(#said==1 and said[1]=='Kaanta is in f01, you are in e04.',tostring(said[1]))
+ghost.tick(); ghost.tick()
+assert(#said==1,'Once per pair')
+send(541,her_parts(),'peer','/game/art/bg/worldmap/level_p/b07')
+ghost.tick()
+assert(#said==2 and said[2]=='Kaanta is in b07, you are in e04.',tostring(said[2]))
+send(542,her_parts(),'peer','/game/art/bg/worldmap/level_p/b07') -- A new outfit, or a new EVE, on the same map.
+ghost.tick()
+assert(#said==2,'A new table on the same pair: not said again')
 send(505,her_parts())
 ok,message=build()
 assert(message:find('^Ghost 505 built'),message)
@@ -388,8 +443,10 @@ build()
 assert(not spawned[#spawned].destroyed)
 ghost.toggle()
 
--- The next Lua load sweeps a ghost left standing, once it checks it is ours; a stranger at that path is left alone.
+-- The next Lua load sweeps a ghost left standing, once it checks it is ours (its root, never its tag); a stranger at
+-- that path is left alone.
 local left=spawned[1]
+assert(left.label,'A tagged ghost')
 left.destroyed=false
 found_by_path['/Game/Map.Map:PersistentLevel.Actor_1']=left
 ghost=new('/Game/Map.Map:PersistentLevel.Actor_1')
@@ -476,11 +533,77 @@ ghost.toggle()
 ok,message=build()
 assert(message:find('^Ghost 606 built'),message)
 
--- A friend's ghost (source peer): no offset, the root exactly where her mesh is.
-send(607,her_parts(),'peer')
-build()
+-- A tag that cannot be added leaves the ghost built without one, and the build line says why; so does a text Lua cannot
+-- convert, and the tag made so far goes (it would read the engine's default text).
+send(650,her_parts())
+fail_label=true
+ok,message=build()
+fail_label=false
 actor=spawned[#spawned]
-root,box=actor.parts[1],actor.mailbox
+assert(ok and message:find('^Ghost 650 built: 6 parts .*; name tag off: .*a text line could not be added'),message)
+assert(not actor.destroyed and not actor.label and ghost.status():find('^ghost=on '),'The ghost stays')
+send(651,her_parts())
+fail_text=true
+ok,message=build()
+fail_text=false
+actor=spawned[#spawned]
+assert(ok and message:find('; name tag off: .*no FText') and actor.label.destroyed and not actor.destroyed,message)
+box=actor.mailbox
+box.RelativeScale3D.Z=8
+assert(ghost.place()==nil and actor.parts[1].moves==1 and not actor.label.turns,'No tag to turn')
+-- A setter that fails once the line is added (the colour): U.label takes the line off again.
+send(653,her_parts())
+fail_color=true
+ok,message=build()
+fail_color=false
+actor=spawned[#spawned]
+assert(ok and message:find('; name tag off: .*no FColor') and actor.label.destroyed and not actor.destroyed,message)
+-- With name_tag off in the settings: no tag at all.
+ghost.toggle()
+ghost=new(nil,false)
+ghost.toggle()
+send(652,her_parts(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 652 built') and not message:find('name tag') and not spawned[#spawned].label,message)
+ghost.toggle()
+ghost=new(nil)
+ghost.toggle()
+
+-- A friend's ghost (source peer): her Steam name above it.
+send(607,her_parts(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+assert(message:find('^Ghost 607 built') and actor.label.text=='Kaanta',message)
+-- A title round trip (Esc to the title, a save loaded): the ghost goes with her EVE and comes back with its tag, and
+-- no request is ever written (the link holds or keeps the session on its own).
+player=menu
+assert(ghost.tick()==nil and actor.destroyed and displays[#displays]=='withdrawn','Removed on the title')
+player=eve
+assert(ghost.tick()==nil)
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 607 built') and spawned[#spawned]~=actor and spawned[#spawned].label.text=='Kaanta',message)
+assert(#requests==0,'No request')
+-- A camera that cannot be read stops the tag turning, once, and never the ghost.
+actor=spawned[#spawned]
+tag,box=actor.label,actor.mailbox
+camera_fails=true
+box.RelativeScale3D.Z=8
+ok,message=ghost.place()
+assert(ok==false and message:find('^Name tag no longer turned to the camera: .*no player controller'),tostring(message))
+assert(not actor.destroyed and actor.hidden==false and actor.parts[1].moves==1 and not tag.turns,'The ghost stays, shown')
+box.RelativeScale3D.Z=8.5
+assert(ghost.place()==nil and actor.parts[1].moves==2,'Said once, the ghost still placed')
+camera_fails=false
+box.RelativeScale3D.Z=8.75
+ghost.place()
+assert(not tag.turns,'Turned no more on that ghost')
+-- No offset, the root exactly where her mesh is.
+root=actor.parts[1]
 box.RelativeScale3D.Z=9
 box.RelativeLocation={X=1,Y=402,Z=-87}
 box.RelativeRotation={Pitch=1,Yaw=45,Roll=2}

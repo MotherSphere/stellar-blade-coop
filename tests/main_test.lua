@@ -1,6 +1,6 @@
 -- main.lua's console dispatch with UE4SS stubbed: every coop command reaches the right handler, bad input is refused,
--- the ghost's capture and remote table are fed every 250 ms with the world state, the keys only hand their action to
--- the game thread, and the link is optional (no native part, no Steam link, no keys).
+-- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
+-- the keys only hand their action to the game thread, and the link is optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -31,6 +31,7 @@ local Link=dofile('mod/StellarCoop/Scripts/link.lua') -- The real parser behind 
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 local asked,sessions,ticks,withdrawn,states={},{},0,{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
+local link_mode='none' -- What link.mode() says, as of the last changes().
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -41,6 +42,7 @@ local fake_link={
     request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
+    mode=function() return link_mode end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -58,9 +60,12 @@ package.loaded.capture={new=function(publish)
     return fake_capture
 end}
 local toggles,active,basesuits,wheres,in_world=0,false,0,0,false
-package.loaded.puppet={new=function(link,capture)
+local the_notice,name_tag
+package.loaded.puppet={new=function(link,capture,say,tag)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
+    assert(the_notice and say==the_notice.say,'The map notice goes on screen')
+    name_tag=tag
     return {toggle=function() toggles=toggles+1; active=not active; return true,'ghost' end,tick=function() end,
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
@@ -70,8 +75,9 @@ end}
 package.loaded.link={new=function() return fake_link end}
 local said,notice_ticks,notice_result,notice_stops={},0,nil,0
 package.loaded.notice={new=function()
-    return {say=function(text) said[#said+1]=text end,stop=function() notice_stops=notice_stops+1 end,
+    the_notice={say=function(text) said[#said+1]=text end,stop=function() notice_stops=notice_stops+1 end,
         tick=function() notice_ticks=notice_ticks+1; if notice_result then return table.unpack(notice_result) end end}
+    return the_notice
 end}
 package.loaded.version='v9-test'
 
@@ -83,7 +89,7 @@ local function load_main(with_native)
         return true
     end
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
-    queued,binds={},{}
+    queued,binds,the_notice={},{},nil
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -96,6 +102,7 @@ assert(last():find('Loaded version v9-test',1,true),last())
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
 assert(logged('keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
+assert(name_tag==true,'The name tag setting reaches the ghost')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 assert(#binds==3 and binds[1].key=='Key.F5' and binds[2].key=='Key.F6' and binds[3].key=='Key.F8' and not binds[1].modifiers)
@@ -189,15 +196,41 @@ loops[1].f(); assert(ticks==1,'A peer name never switches the mod off')
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
-settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\n'
+settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\n'
 load_main(true)
+assert(name_tag==false,'name_tag=off reaches the ghost')
 assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays F5"))
-assert(logged('keys: host=F5 status=F6 leave=Ctrl+F8, name tag on, 25 poses a second'),table.concat(printed,'|'))
+assert(logged('keys: host=F5 status=F6 leave=Ctrl+F8, name tag off, 25 poses a second'),table.concat(printed,'|'))
 assert(binds[3].key=='Key.F8' and #binds[3].modifiers==1 and binds[3].modifiers[1]==0x11 and not binds[1].modifiers)
 in_world=false
 loops[2].f(); assert(states[1]=='world=0 rate=25' and logged('state: world=0 rate=25'),'The settings\' rate in the state')
 press('F8'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
 settings_text=''
+
+-- The ghost turns on when the link goes from none to a session (D5.1): once per session, so a manual off holds until
+-- the next one; a status read that gave no mode is no leave; never after coop off.
+load_main(true)
+toggles=0
+link_mode=nil; loops[2].f(); assert(toggles==0,'No mode yet: nothing')
+link_mode='host'; loops[2].f()
+assert(toggles==1 and active and logged('OK: ghost'),'none to host: the ghost on, reported')
+loops[2].f(); assert(toggles==1,'host to host: not again')
+coop('puppet'); assert(toggles==2 and not active)
+loops[2].f(); assert(toggles==2 and not active,'A manual off holds while the session lasts')
+link_mode=nil; loops[2].f(); link_mode='host'; loops[2].f(); assert(toggles==2,'A status with no mode is no leave')
+link_mode='none'; loops[2].f(); assert(toggles==2,'A leave turns nothing off')
+link_mode='guest'; loops[2].f(); assert(toggles==3 and active,'Leave, then a guest session: on again')
+-- A title round trip in a session (S6): only the world state changes; the lobby and the ghost are kept.
+before=#asked
+in_world=true; loops[2].f(); in_world=false; loops[2].f(); in_world=true; loops[2].f()
+assert(table.concat(states,' ',#states-2)=='world=1 rate=20 world=0 rate=20 world=1 rate=20',table.concat(states,' '))
+assert(#asked==before and toggles==3 and active,'No leave, no toggle')
+link_mode='none'; loops[2].f(); assert(active,'A leave leaves the ghost on')
+link_mode='host'; loops[2].f(); assert(toggles==3 and active,'Already on when the next session starts: left on')
+link_mode='none'; loops[2].f()
+coop('off'); assert(toggles==4 and not active)
+link_mode='host'; loops[2].f(); assert(toggles==4 and not active,'No toggle after coop off')
+link_mode='none'
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
@@ -212,6 +245,7 @@ end
 
 load_main(false)
 assert(#loops==1,'No link loop without the native part')
+assert(name_tag==nil,'No settings without the native part')
 assert(#binds==0 and not logged('keys: host'),'No keys without the native part')
 coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the native part',1,true),last())
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())

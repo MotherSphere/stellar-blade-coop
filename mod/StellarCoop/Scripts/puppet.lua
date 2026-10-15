@@ -10,7 +10,8 @@
 -- The build resolves one mesh a frame (a coroutine), then names what it built for the native part (coop-display.txt),
 -- which writes the leaders' bones each frame and the main mesh's world transform into the mailbox, a scene component
 -- nothing moves; place() puts the root there after the native tick. The ghost stays hidden until the first pose and
--- after a second without one, and is only built when she is on your map.
+-- after a second without one, and is only built when she is on your map (a friend on another map is said on screen).
+-- Above it, its name tag: whose ghost it is (her Steam name, or loopback, replay), turned to the camera at each pose.
 -- The same table again with a part hung elsewhere (a blade drawn) or shown or hidden is applied in place; a new
 -- generation (her outfit) is a new ghost. The ghost's path is kept in a file, so the next Lua load (a hot reload)
 -- finds and destroys one left standing; after a level change it comes back once EVE has been in the world 2 s.
@@ -19,6 +20,7 @@ local U=require('unreal')
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Puppet={}
 local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
+local TAG_SIZE,TAG_HEIGHT=18,200 -- cm: the name tag's letters, and its height above the main mesh (her feet).
 local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
@@ -72,16 +74,19 @@ local function transform(place)
     return {Rotation={X=v[1],Y=v[2],Z=v[3],W=v[4]},Translation={X=v[5],Y=v[6],Z=v[7]},Scale3D={X=v[8],Y=v[9],Z=v[10]}}
 end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
--- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear). capture gives
--- yaw_delta(), the loopback's offset.
-function Puppet.new(link,capture)
+-- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
+-- Steam name. capture gives yaw_delta(), the loopback's offset. say(text) puts a line on screen; name_tag: the tag.
+function Puppet.new(link,capture,say,name_tag)
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end}
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
     local remote,seen_count,source=nil,nil,nil -- The remote table, the status count it was read at, where it came from.
     local ghost,build=nil,nil -- The ghost (built or being built) and its build coroutine.
     local back_since,failed,hidden_pair,her_at=nil,nil,nil,nil
+    local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local cache={} -- Meshes by path; false: none this Lua load (a missing DLC stays missing).
+    -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
+    local function whose() return source=='peer' and files.friend() or tostring(source) end
     local function clear(why)
         local g=ghost
         ghost,build=nil,nil
@@ -225,6 +230,23 @@ function Puppet.new(link,capture)
         for _,part in ipairs(remote.parts) do -- The table now: a part hung elsewhere meanwhile comes in the same one.
             if g.parts[part.i] then hang(g,part) end
         end
+        -- The name tag, on the main mesh, so it moves, hides and goes with the ghost. A tag that fails is only left out.
+        local tag_off=''
+        if name_tag then
+            local tag
+            local made,why=pcall(function()
+                tag=U.label(actor,TAG_SIZE)
+                tag:K2_AttachToComponent(g.parts[0].target,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,KEEP_RELATIVE,false)
+                tag:K2_SetRelativeLocation({X=0,Y=0,Z=TAG_HEIGHT},false,{},true)
+                tag:K2_SetText(FText(whose()))
+            end)
+            if made then
+                g.tag=tag
+            else
+                if tag then pcall(function() tag:K2_DestroyComponent(actor) end) end -- Else it reads the engine's 'Text'.
+                tag_off='; name tag off: '..tostring(why)
+            end
+        end
         -- The mailbox: unattached, never moved; only the native part writes its relative fields.
         g.mailbox=valid(actor:AddComponentByClass(find('/Script/Engine.SceneComponent'),true,identity,false))
         assert(g.mailbox,'the mailbox could not be added')
@@ -239,9 +261,9 @@ function Puppet.new(link,capture)
         end
         local published,why=files.display(table.concat(lines,'\n')..'\n')
         g.built=true
-        local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base suit, %d left out%s',
+        local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base suit, %d left out%s%s',
             t.generation,g.count,g.leaders,counts.loaded,counts.ms,g.base,g.left_out,
-            published and '' or '; display not published: '..tostring(why))
+            published and '' or '; display not published: '..tostring(why),tag_off)
         if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
         return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
     end
@@ -273,7 +295,7 @@ function Puppet.new(link,capture)
         if not generation then
             seen_count=nil
             if not remote then return end
-            remote,hidden_pair=nil,nil
+            remote,hidden_pair,said_pair=nil,nil,nil
             local message=clear('her table is gone')
             return message and true,message
         end
@@ -302,8 +324,8 @@ function Puppet.new(link,capture)
         end
         wanted,failed=true,nil -- A table whose build failed is tried again.
         return true,(swept and swept..' ' or '')..'Ghost on: her capture goes to the native part, and a ghost is drawn '
-            ..'once a table comes back (a linked friend\'s, she runs coop puppet too; coop loopback 0 0 0 shows yours, '
-            ..'coop replay a recording); coop puppet again ends it.'
+            ..'once a table comes back (a linked friend\'s; coop loopback 0 0 0 shows yours, coop replay a recording); '
+            ..'coop puppet again ends it.'
     end
     -- Every part on the base suit where it has one (body and hair), or each on its own mesh again: rebuilt at once.
     function self.basesuit()
@@ -334,10 +356,11 @@ function Puppet.new(link,capture)
     end
     -- After the native tick of the same frame: a new stamp in the mailbox is a pose just written, so the root takes its
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
-    -- the native part refusing to draw), so it never stands frozen.
+    -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
     function self.place()
         local g=ghost
         if not (wanted and g and g.built) then return end
+        local tag_off
         local ok,why=pcall(function()
             local box=g.mailbox
             local stamp=value_of(box.RelativeScale3D).Z
@@ -353,12 +376,20 @@ function Puppet.new(link,capture)
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
                     {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},true)
                 if g.hidden then g.actor:SetActorHiddenInGame(false); g.hidden=false end
+                if g.tag then -- Its own pcall: a failure stops the turning only, for this ghost, and never the ghost.
+                    local turned,tag_why=pcall(function()
+                        local camera=value_of(UE.GetPlayerController().PlayerCameraManager:GetCameraLocation())
+                        g.tag:K2_SetWorldRotation({Pitch=0,Yaw=U.yaw_to({X=x,Y=y},camera),Roll=0},false,{},true)
+                    end)
+                    if not turned then g.tag,tag_off=nil,'Name tag no longer turned to the camera: '..tostring(tag_why) end
+                end
             elseif not g.hidden and os.clock()-g.stamp_at>=1 then
                 g.actor:SetActorHiddenInGame(true)
                 g.hidden=true
             end
         end)
         if not ok then failed=g.generation; return false,clear('stopped: '..tostring(why)) end
+        if tag_off then return false,tag_off end
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
     -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
@@ -449,9 +480,14 @@ function Puppet.new(link,capture)
             local pair=remote.map..' '..map
             if pair==hidden_pair then return end
             hidden_pair=pair
+            -- A friend away is said on screen too, by the maps' last segments ('b07').
+            if source=='peer' and pair~=said_pair then
+                said_pair=pair
+                say(string.format('%s is in %s, you are in %s.',whose(),remote.map:match('[^/]*$'),map:match('[^/]*$')))
+            end
             return true,string.format('Ghost hidden: she is on %s, you are on %s.',remote.map,map)
         end
-        hidden_pair=nil
+        hidden_pair,said_pair=nil,nil
         build=coroutine.create(build_ghost)
         return resume(eve)
     end
