@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Checks and builds StellarCoop, then copies it into Stellar Blade's UE4SS Mods folder (never while the game runs).
-What an install replaces or removes is backed up first; --uninstall backs up the whole folder, then removes it."""
+What an install replaces or removes is backed up first; --uninstall backs up the whole folder, then removes it.
+--zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits."""
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -30,10 +32,13 @@ def running_game():
     return False
 
 
+def git(*args):
+    return subprocess.run(['git', *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+
+
 def version():
     try:
-        return subprocess.run(['git', 'describe', '--tags', '--always', '--dirty'], cwd=ROOT, capture_output=True,
-                              text=True, check=True).stdout.strip() or 'dev'
+        return git('describe', '--tags', '--always', '--dirty').strip() or 'dev'
     except (OSError, subprocess.CalledProcessError):
         return 'dev'
 
@@ -128,14 +133,33 @@ def uninstall(target, dry_run):
     print('Saves, the co-op save slot and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op save slot).')
 
 
-def write_zip(path, files):
-    files = {**files, 'INSTALL.md': (ROOT / 'INSTALL.md').read_bytes()}
+def changelog(ver, when, subjects):
+    """CHANGELOG.md from the commit subjects, newest first: features and fixes only. It goes into the zip, never
+    into the repository."""
+    sections = {'feat': [], 'fix': []}
+    for subject in subjects:
+        if match := re.match(r'^(feat|fix)(\(([a-z-]+)\))?(!)?: (.+)$', subject):
+            kind, _, scope, breaking, text = match.groups()
+            sections[kind].append(f"- {f'{scope}: ' if scope else ''}{text}{' (breaking)' if breaking else ''}")
+    day = time.strftime('%Y-%m-%d', time.gmtime(when))
+    lines = [f'# StellarCoop {ver}', '', f'Built from the commit of {day}; generated from the commit history.']
+    for title, kind in (('Features', 'feat'), ('Fixes', 'fix')):
+        if sections[kind]: lines += ['', f'## {title}', *sections[kind]]
+    return '\n'.join(lines) + '\n'
+
+
+def write_zip(path, files, changelog_text, when):
+    """The same files, text and commit time give the same bytes: every entry gets the commit's time and one mode, in
+    sorted names (writestr with a bare name would stamp the current time)."""
+    files = {**files, 'INSTALL.md': (ROOT / 'INSTALL.md').read_bytes(), 'CHANGELOG.md': changelog_text.encode()}
     files['SHA256SUMS.txt'] = ''.join(f'{hashlib.sha256(data).hexdigest()}  {rel}\n'
                                       for rel, data in sorted(files.items())).encode()
     path.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(path, 'w') as archive:
         for rel, data in sorted(files.items()):
-            archive.writestr(f'StellarCoop/{rel}', data)
+            entry = zipfile.ZipInfo(f'StellarCoop/{rel}', time.gmtime(when)[:6])
+            entry.compress_type, entry.external_attr = zipfile.ZIP_DEFLATED, 0o100644 << 16
+            archive.writestr(entry, data)
 
 
 def main(argv=None):
@@ -145,12 +169,15 @@ def main(argv=None):
                         help='Check and build only (with --uninstall: change nothing)')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--zip', nargs='?', const=True, metavar='PATH',
-                      help='Check, build and write StellarCoop-<version>.zip (default: into build/) instead of '
-                           'installing. Needs no game folder.')
+                      help='Check, build and write StellarCoop-<version>.zip with INSTALL.md and CHANGELOG.md '
+                           '(default: into build/) instead of installing. Needs a clean tree, no game folder.')
     mode.add_argument('--uninstall', action='store_true',
                       help='Back up the StellarCoop folder into ~/StellarCoop-install-backups, then remove it. No '
                            'checks or build; saves are never touched.')
     args = parser.parse_args(argv)
+    # Only a committed tree: the zip, its version and its changelog all name one commit.
+    if args.zip and git('status', '--porcelain'):
+        sys.exit('A release zip needs a clean tree: commit first (git status is not empty).')
     mods = args.game / 'SB/Binaries/Win64/ue4ss/Mods'
     if not args.zip and not mods.is_dir(): sys.exit(f'No UE4SS Mods folder at {mods}')
     if args.uninstall: return uninstall(mods / 'StellarCoop', args.dry_run)
@@ -174,7 +201,8 @@ def main(argv=None):
     files = package(ver, build / 'StellarCoop.dll')
     if args.zip:
         path = ROOT / f'build/StellarCoop-{ver}.zip' if args.zip is True else Path(args.zip)
-        write_zip(path, files)
+        when = int(git('log', '-1', '--format=%ct'))
+        write_zip(path, files, changelog(ver, when, git('log', '--no-merges', '--format=%s').splitlines()), when)
         return print(f'Wrote {path}')
     target = mods / 'StellarCoop'
     if args.dry_run:

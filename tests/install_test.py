@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""tools/install.py backup, install and uninstall on a fake game folder in a temporary directory.
+"""tools/install.py backup, install, uninstall and the release zip on a fake game folder in a temporary directory.
 Run: python3 tests/install_test.py"""
 import contextlib
+import hashlib
 import io
 import re
 import shutil
@@ -10,6 +11,8 @@ import sys
 import tempfile
 import time
 import types
+import zipfile
+from fnmatch import fnmatch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
@@ -154,5 +157,41 @@ with tempfile.TemporaryDirectory() as tmp:
     target.symlink_to(tmp / 'checkout', target_is_directory=True)
     before = tree()
     assert uninstall() == (left_alone, '') and tree() == before
+
+    # 11. The package content check: the shipped files plus the three docs, nothing the mod writes in game, no save
+    # and no game file. A stray file in mod/StellarCoop fails here, so it fails the dry run.
+    dll = tmp / 'StellarCoop.dll'
+    dll.write_bytes(b'dll')
+    files = install.package('v', dll)
+    shipped = {'enabled.txt', 'StellarCoop.dll', 'INSTALL.md', 'CHANGELOG.md', 'SHA256SUMS.txt',
+               *(f'Scripts/{name}.lua'
+                 for name in ('capture', 'link', 'main', 'nightop', 'notice', 'puppet', 'unreal', 'version'))}
+    assert set(files) == shipped - {'INSTALL.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
+    assert not [rel for rel in files
+                if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
+
+    # 12. The release zip: the same inputs give the same bytes, with the commit's time and one mode on every entry,
+    # in sorted names, and SHA256SUMS.txt covers every other entry, the docs included.
+    when = 1760000000  # An even second: a zip stores times in two-second steps.
+    zips = [tmp / 'a/one.zip', tmp / 'b/two.zip']
+    for path in zips: install.write_zip(path, files, '# changes\n', when)
+    assert zips[0].read_bytes() == zips[1].read_bytes()
+    with zipfile.ZipFile(zips[0]) as archive:
+        entries = archive.infolist()
+        assert [e.filename for e in entries] == sorted(f'StellarCoop/{rel}' for rel in shipped)
+        for e in entries:
+            assert (e.date_time, e.external_attr, e.compress_type) == (time.gmtime(when)[:6], 0o100644 << 16,
+                                                                      zipfile.ZIP_DEFLATED), e
+        assert archive.read('StellarCoop/CHANGELOG.md') == b'# changes\n'
+        sums = archive.read('StellarCoop/SHA256SUMS.txt').decode()
+        assert sums == ''.join(f'{hashlib.sha256(archive.read(e)).hexdigest()}  {e.filename[len("StellarCoop/"):]}\n'
+                               for e in entries if e.filename != 'StellarCoop/SHA256SUMS.txt'), sums
+        assert '  CHANGELOG.md\n' in sums and '  INSTALL.md\n' in sums
+
+# 13. CHANGELOG.md: features and fixes from the commit subjects, newest first; other types and empty sections left out.
+head = '# StellarCoop v1\n\nBuilt from the commit of 2025-10-09; generated from the commit history.\n'
+assert install.changelog('v1', 1760000000, ['feat: a', 'feat(native)!: b', 'fix: c', 'docs: d', 'test: e']) == (
+    f'{head}\n## Features\n- a\n- native: b (breaking)\n\n## Fixes\n- c\n')
+assert install.changelog('v1', 1760000000, ['docs: d', 'fix(tools): c']) == f'{head}\n## Fixes\n- tools: c\n'
 
 print('install_test: ok')
