@@ -1,6 +1,7 @@
 // The native pose path's Windows side, between the worker thread (steam_link.cpp) and the game thread (coop_tick).
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -33,10 +34,16 @@ std::string ask_replay(bool on);  // coop-record.bin played in a loop as the rem
 // with rule, arms its verdict 60 s later, once a run. Returns the line for the log.
 std::string ask_nightop(bool rule, uint64_t now_ms);
 void block(); // coop off: no engine access until the game restarts.
+// Worker thread, every 250 ms: the save slot the game entered (client +0x54, save_slot.h), or slot::kUnread on another
+// build or after coop off, which read nothing.
+int loaded_slot();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " nightop=on" or
 // " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();
 // A complete file: written beside it, then renamed over it (steam_link.cpp).
 bool write_text(const std::wstring &path, const std::string &bytes);
+// At most about max bytes of a file, shared for delete; exists says whether it opened (pose_tick.cpp). Shared with
+// steam_link.cpp: the co-op marker.
+std::string read_file(const std::wstring &path, bool &exists, size_t max);
 } // namespace coop::pose

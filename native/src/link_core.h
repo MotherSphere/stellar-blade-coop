@@ -336,6 +336,9 @@ public:
     return false;
   }
 
+  // This account's SteamID: 0 until Steam is ready.
+  uint64_t me() const { return me_; }
+
   // The pose path's table (reliable) or pose (unreliable), on channel 1 to every friend past the handshake only.
   // Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s

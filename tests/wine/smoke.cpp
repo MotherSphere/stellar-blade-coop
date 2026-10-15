@@ -1,6 +1,8 @@
 // Wine smoke test for StellarCoop.dll, built and run by tools/wine_smoke.py. It loads the DLL where no
 // steam_api64.dll exists and checks that it attaches, that its link waits for Steam (coop-status.txt says
-// steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s), that coop_tick is exported
+// steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s; with no Steam and no pinned
+// build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
+// build's global, nor a marker), that coop_tick is exported
 // and one call returns 0, and that the nightop request is refused on an unpinned exe (coop-link.log, within 3 s). It
 // also checks ReadProcessMemory on its own process, as the Night Operation poller uses it: equal bytes from the stack,
 // false at 0x1000, no crash on a PAGE_NOACCESS page (whose result Wine may differ on, so it is only printed), and
@@ -58,6 +60,15 @@ int wmain(int argc, wchar_t **argv) {
   std::wstring status_path = folder + L"coop-status.txt";
   DeleteFileW(status_path.c_str()); // A previous run's status must not pass for this one.
 
+  // A plausible client at the pinned build's global, its +0x54 holding slot 3: a DLL that read the slot on this
+  // unpinned exe would print index=3, not index=?. 64 KB aligned, past smoke.exe's image.
+  auto *page = static_cast<char *>(VirtualAlloc(reinterpret_cast<char *>(GetModuleHandleW(nullptr)) + 0x7030000,
+                                                0x10000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+  if (page) {
+    *reinterpret_cast<uint64_t *>(page + 0x2520) = reinterpret_cast<uintptr_t>(page + 0x2800);
+    *reinterpret_cast<int32_t *>(page + 0x2854) = 3;
+  }
+
   HMODULE dll = LoadLibraryW((folder + L"StellarCoop.dll").c_str());
   if (!dll) {
     std::printf("smoke: FAIL load error=%lu\n", GetLastError());
@@ -67,7 +78,8 @@ int wmain(int argc, wchar_t **argv) {
   // smoke.exe (not the game) before coop_tick is called.
   auto settled = [](const std::string &text) {
     return text.find("steam=waiting") != std::string::npos &&
-           text.find("engine=off reason=build stamp") != std::string::npos;
+           text.find("engine=off reason=build stamp") != std::string::npos &&
+           text.find("\nslot=unknown index=? marker=?\n") != std::string::npos;
   };
   std::string status = read_text(status_path);
   for (ULONGLONG end = GetTickCount64() + 3000;
@@ -108,14 +120,16 @@ int wmain(int argc, wchar_t **argv) {
   double us = double(stop.QuadPart - start.QuadPart) * 1e6 / double(frequency.QuadPart) / 1000;
   bool rpm_ok = stack_read && !low_read;
 
-  bool ok = waiting && !steam && tick && ticked == 0 && nightop && rpm_ok; // coop_tick is required since Phase 2.
+  // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
+  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && rpm_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
-  std::printf("smoke: %s | load=ok | status: %s | steam_api64=%s | coop_tick: %s | nightop=%s | rpm=%s (stack %s, "
-              "0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
-              ok ? "PASS" : "FAIL", first.c_str(), steam ? "loaded" : "absent", tick ? tick_text : "absent",
+  std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
+              "rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
+              ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
+              tick ? tick_text : "absent",
               nightop ? "refused" : "FAIL", rpm_ok ? "ok" : "FAIL", stack_read ? "equal" : "FAIL",
               low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);

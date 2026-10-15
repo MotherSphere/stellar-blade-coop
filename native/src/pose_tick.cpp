@@ -36,6 +36,7 @@
 #include "pose_record.h"
 #include "pose_stream.h"
 #include "pose_tick.h"
+#include "save_slot.h"
 
 namespace coop::pose {
 namespace {
@@ -361,6 +362,8 @@ void guarded_tick() {
   }
 }
 
+} // namespace
+
 // At most about max bytes of the file (read on in 4 KB steps while under it): Lua's files and the remote table are
 // under 64 KB, a recording under 24 MiB, so a longer file reads past its cap and is refused by its parser.
 std::string read_file(const std::wstring &path, bool &exists, size_t max) {
@@ -379,6 +382,7 @@ std::string read_file(const std::wstring &path, bool &exists, size_t max) {
   return text;
 }
 
+namespace {
 // Worker thread only from here.
 std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
 std::wstring dir;                                                            // The mod folder.
@@ -952,6 +956,8 @@ std::string ask_nightop(bool rule, uint64_t now_ms) {
   }
   return text;
 }
+
+int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::kUnread; }
 
 void block() {
   blocked = true;

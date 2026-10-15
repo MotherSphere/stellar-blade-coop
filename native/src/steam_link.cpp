@@ -15,6 +15,7 @@
 
 #include "link_core.h"
 #include "pose_tick.h"
+#include "save_slot.h"
 #include "save_watch.h"
 
 #ifndef STELLARCOOP_VERSION
@@ -187,9 +188,13 @@ void write_header() {
     append(utc_stamp() + " " + line);
 }
 
-// The save watcher: every 5 s, the name, size and write time of every file under the save folder (never opened).
+// The save watcher: every 5 s, the name, size and write time of every file under the save folder (never opened), and
+// this account's co-op marker (the only file there that is read).
 coop::SaveWatch save_watch;
 uint64_t next_save_watch = 0;
+int coop_marker = coop::slot::kNotRead; // StellarCoopSlot.txt's slot, kNone or kBad, once the SteamID is known.
+int slot_index = coop::slot::kUnread;   // The slot the game entered, every 250 ms (pose::loaded_slot).
+uint64_t next_slot = 0;
 void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<coop::SaveWatch::Entry> &out, int depth) {
   WIN32_FIND_DATAW f;
   HANDLE h = FindFirstFileW((dir + L"\\*").c_str(), &f);
@@ -210,7 +215,8 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
   } while (FindNextFileW(h, &f));
   FindClose(h);
 }
-void watch_saves(uint64_t now_ms) {
+// steam_id: 0 until Steam is ready; the marker is then not looked up, as another account's folder never decides.
+void watch_saves(uint64_t now_ms, uint64_t steam_id) {
   if (saves_dir.empty() || now_ms < next_save_watch)
     return;
   next_save_watch = now_ms + 5000;
@@ -218,6 +224,12 @@ void watch_saves(uint64_t now_ms) {
   list_saves(saves_dir, "", files, 0);
   for (auto &line : save_watch.update(files, utc_stamp()))
     append(line);
+  if (steam_id) {
+    bool exists = false;
+    std::string text = coop::pose::read_file(saves_dir + L"\\" + std::to_wstring(steam_id) + L"\\StellarCoopSlot.txt",
+                                             exists, coop::slot::kMaxMarker + 1);
+    coop_marker = exists ? coop::slot::marker(text) : coop::slot::kNone;
+  }
 }
 
 coop::Api api;
@@ -231,7 +243,8 @@ std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
-  return head + coop::pose::status() + "\n" + "last=" + journal.last() + "\n";
+  return head + coop::pose::status() + "\n" +
+         coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded()) + "\n" + "last=" + journal.last() + "\n";
 }
 
 void write_report() {
@@ -313,8 +326,13 @@ bool step() {
       break;
     }
     coop::pose::worker_poll(folder, GetTickCount64(), event);
+    // After worker_poll, which pins the build. Two reads, so every 250 ms, not at every 5 ms pass.
+    if (uint64_t now = GetTickCount64(); now >= next_slot) {
+      next_slot = now + 250;
+      slot_index = coop::pose::loaded_slot();
+    }
     streaming = coop::pose::worker_stream();
-    watch_saves(GetTickCount64());
+    watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) // Before ready(): a +connect_lobby there is held until a world loads.
       link->world(coop::pose::world_loaded());
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
