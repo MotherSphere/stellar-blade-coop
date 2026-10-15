@@ -110,6 +110,7 @@ If something goes wrong, close the game and send these files before you start th
 - `Mods/StellarCoop/coop-link.log`
 - `Mods/StellarCoop/coop-link.old.log`
 - `ue4ss/UE4SS.log`
+- `Mods/StellarCoop/nightop-probe.txt`, only after the T6 test (`coop no`)
 
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
 which may include your Windows user name.

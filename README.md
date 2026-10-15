@@ -89,6 +89,23 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   re-stamped as if sent now, until `coop replay off`, which removes the ghost.
   Generation, map and positions stay as recorded: the ghost wears the outfit recorded, walks where she walked with no
   offset, and the map gate applies.
+- `coop no` is the Night Operation probe, for the T6 test sheet only: on the co-op slot or a throwaway save, with a
+  `tools/save_guard.py backup` first. A probe rule only ends with the game (`coop off` does not end it), so T6 ends by
+  killing the game. Bare `coop no` starts the native part's read-only poller and logs a baseline: every 100 ms it reads
+  the game's rule manager and a few of its neighbours into `nightop-probe.txt`, a line on each change and otherwise
+  once a second (`coop status` shows `nightop=on`). Each subcommand below refuses until the poller runs, and `coop off`
+  stops the poller. The probe fires only the zone events and the monster below (no achievement, no drop), kills
+  nothing, and calls no save, inventory, equip or quest function; no console argument reaches a game call. At the
+  `spawnpt` check (+3 s) and the `actor` checks (+3 s, +10 s), a new character within 20 m of EVE logs a `STOP` line:
+  kill the game. Nothing watches at other times: if a monster comes towards EVE, kill the game. Then, one command
+  each, in this order:
+  - `coop no heal` fires the game's heal zone event `SE_10_E_ActorEff_011`: her health bar should refill.
+  - `coop no rule` adds a probe row to the game's empty MultiPlayRuleTable (no achievement, quest or reward), reads it
+    back field by field and sets it as the rule, once per game run (`nightop=rule`). 60 s later the native part writes
+    its verdict to `nightop-probe.txt` and `coop-link.log`, and so to `UE4SS.log` as a `link:` line.
+  - `coop no spawnpt` fires one spawn row of the DLC02_20 area on a loaded spawn point 60 m or more from EVE, and logs
+    the new characters 3 s later.
+  - `coop no actor` asks the game for one M_Antlion 60 m ahead of EVE and logs it 3 s and 10 s later.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
   copy the game loaded. It never starts Steam itself and changes nothing in the game or the saves.
   - Keys, with or without the console: F5 hosts, F6 shows the status, F8 leaves (the defaults; `coop-settings.txt` below
@@ -178,19 +195,24 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
     it) and `coop-state.txt` (whether a save is loaded, and the send rate). The native part deletes the capture, remote,
     display and state files when it starts. Lua alone keeps `coop-puppet.txt` (the ghost's object path, for the next Lua
     load), written the same way.
+  - `nightop-probe.txt` (the `coop no` poller's lines, capped at 4 MB). An earlier run's last probe file is
+    `nightop-probe.old.txt`, moved there when the native part starts and finds one; a run without `coop no` writes
+    none, so it can be older than the previous run.
   - `coop-record.bin` (the recording). `tools/install.py` never removes what the mod writes.
 
 ## Layout
 
 - `mod/StellarCoop/`: the UE4SS mod folder (`Scripts/main.lua`, `Scripts/capture.lua` (EVE's capture),
-  `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/notice.lua` (notices on screen), `Scripts/unreal.lua`
-  (helpers over UE4SS objects), `enabled.txt`). The installer adds `Scripts/version.lua`.
+  `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/notice.lua` (notices on screen), `Scripts/nightop.lua`
+  (the `coop no` probe), `Scripts/unreal.lua` (helpers over UE4SS objects), `enabled.txt`). The installer adds
+  `Scripts/version.lua`.
 - `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
   (the link's logic, channel 1 included), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (limits, one
   part, hex addresses), `src/pose_table.h` (the component table, the mesh path rule and the display file),
   `src/pose_engine.h` (engine memory reads and writes, and the build pin), `src/pose_codec.h` (the pose's wire
   format), `src/pose_stream.h` (the loopback's delay line, the receiving clock and interpolation),
-  `src/pose_record.h` (the recording, its check and its replay) and `src/save_watch.h`. The Windows side:
+  `src/pose_record.h` (the recording, its check and its replay), `src/nightop_probe.h` (the `coop no` poller's reads,
+  lines and verdict) and `src/save_watch.h`. The Windows side:
   `src/steam_link.cpp` (Steam callbacks, worker thread, files, faults) and `src/pose_tick.cpp` (`coop_tick`, and the
   worker's side of the pose path: what is sent and received, the files shared with Lua).
 - `tests/`: Lua checks with fake UE4SS objects (`lua5.4 tests/puppet_test.lua` from the repository root; the
