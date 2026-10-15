@@ -2,7 +2,8 @@
 -- from a table and poses that come back to you: a linked friend's over Steam, yours through an in-process loopback
 -- (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record [off], coop replay [off]),
 -- in the outfit it was captured in (coop basesuit: on the base suit instead); the Steam link between two players
--- (coop host, invite, join, leave, status, report); and coop where, a line of coordinates to compare between the two
+-- (coop host, invite, join, leave, status, report; host, status and leave on keys too, F5, F6 and F8 unless
+-- coop-settings.txt says otherwise); and coop where, a line of coordinates to compare between the two
 -- PCs. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
@@ -20,6 +21,14 @@ if loaded then
     if type(f)=='function' then native_tick=f else log('Native tick unavailable: '..tostring(tick_why)) end
 end
 local link=loaded and require('link').new(folder) or nil
+local settings=nil
+if link then
+    local notes
+    settings,notes=link.settings()
+    for _,note in ipairs(notes) do log(note) end
+    log(string.format('keys: host=%s status=%s leave=%s, name tag %s, %d poses a second',settings.host_key.name,
+        settings.status_key.name,settings.leave_key.name,settings.name_tag and 'on' or 'off',settings.send_rate))
+end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
     link.components(nil)
@@ -82,17 +91,19 @@ for _,name in ipairs({'record','replay'}) do
     end
 end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
+-- A console command or a key, on the game thread.
+local function run(name,a,b,c)
+    local command=commands[name or '']
+    if not command then return log(USAGE) end
+    if off and command~=commands.status and command~=commands.report then
+        return report(false,'coop off is active until the game restarts')
+    end
+    local ran,ok,message=pcall(command,a,b,c)
+    if ran then report(ok,message) else report(false,ok) end
+end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
-    local command=commands[parameters[1] or '']
-    local a,b,c=parameters[2],parameters[3],parameters[4]
-    ExecuteInGameThread(function()
-        if not command then return log(USAGE) end
-        if off and command~=commands.status and command~=commands.report then
-            return report(false,'coop off is active until the game restarts')
-        end
-        local ran,ok,message=pcall(command,a,b,c)
-        if ran then report(ok,message) else report(false,ok) end
-    end)
+    local name,a,b,c=parameters[1],parameters[2],parameters[3],parameters[4]
+    ExecuteInGameThread(function() run(name,a,b,c) end)
     return true
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
@@ -112,5 +123,20 @@ if link then
         ok,message=puppet.remote(link.remote())
         if message then report(ok,message) end
     end)
+end
+-- Host/invite, status and leave on keys (N5), only with the Steam link. A key callback runs on UE4SS's key thread: it
+-- only hands the action to the game thread, where the console's checks (coop off included) apply.
+if settings then
+    for _,action in ipairs({'host','status','leave'}) do
+        local key=settings[action..'_key']
+        local modifiers=key.mod and {ModifierKey[key.mod]} or nil
+        local taken
+        if type(IsKeyBindRegistered)=='function' then
+            if modifiers then taken=IsKeyBindRegistered(Key[key.key],modifiers) else taken=IsKeyBindRegistered(Key[key.key]) end
+        end
+        if taken then log('keys: '..key.name..' is also bound by a mod loaded earlier; both run') end
+        local function pressed() ExecuteInGameThread(function() log('key '..key.name..': '..action); run(action) end) end
+        if modifiers then RegisterKeyBind(Key[key.key],modifiers,pressed) else RegisterKeyBind(Key[key.key],pressed) end
+    end
 end
 log('Loaded version '..VERSION..'. '..USAGE)

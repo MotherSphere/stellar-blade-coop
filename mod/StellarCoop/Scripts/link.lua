@@ -5,6 +5,83 @@
 -- the same way. Each line of the native coop-status.txt that changed is returned once, for the log; peer lines change
 -- with every ping, so they stay in coop status, out of the log.
 local Link={}
+-- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
+-- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
+Link.DEFAULT=[[
+# StellarCoop settings, read when the mod loads (game start, or Ctrl+R). Delete this file to get the defaults back.
+# Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7).
+host_key=F5
+status_key=F6
+leave_key=F8
+# Your friend's Steam name above her ghost: on or off.
+name_tag=on
+# Poses sent to your friend a second: 10 to 30.
+send_rate=20
+]]
+local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_rate='20'}
+local KEYS={'host_key','status_key','leave_key'}
+local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
+-- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil, name='Shift+F7'}.
+local function setting(name,text)
+    if name=='name_tag' then
+        text=text:lower()
+        if text=='on' or text=='off' then return text=='on' end
+        return nil,'use on or off'
+    elseif name=='send_rate' then
+        local rate=text:match('^%d+$') and tonumber(text)
+        if rate and rate>=10 and rate<=30 then return rate end
+        return nil,'use 10 to 30'
+    end
+    local prefix,number=text:upper():match('^(%a+)%+F([1-9]%d?)$')
+    if not prefix then number=text:upper():match('^F([1-9]%d?)$') end
+    number=tonumber(number)
+    if not number or number>12 or (prefix and not MODIFIERS[prefix]) then
+        return nil,'use F1 to F12, with at most one of Shift+, Ctrl+, Alt+'
+    end
+    if number==10 then return nil,'F10 opens the console' end -- And ~ never parses: both open it on AZERTY.
+    local shown=(prefix and prefix:sub(1,1)..prefix:sub(2):lower()..'+' or '')..'F'..number
+    return {key='F'..number,mod=MODIFIERS[prefix],name=shown}
+end
+-- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
+function Link.parse_settings(text)
+    local settings,notes,n={},{},0
+    for name,value in pairs(DEFAULTS) do settings[name]=setting(name,value) end
+    text=text:gsub('^\239\187\191','') -- Notepad's "UTF-8 with BOM".
+    if #text>4096 then -- Whole lines only: a cut F11 would read as F1.
+        text=text:sub(1,4096):match('^.*\n') or ''
+        notes[1]='settings: only the first 4096 bytes are read'
+    end
+    for line in ((text:gsub('\r',''))..'\n'):gmatch('([^\n]*)\n') do
+        n=n+1
+        if not line:find('^%s*$') and not line:find('^%s*#') then
+            local name,value=line:match('^%s*([%w_]+)%s*=%s*(.-)%s*$')
+            local key=name and name:lower()
+            if not DEFAULTS[key] then
+                notes[#notes+1]=string.format("settings: line %d: unknown setting '%s', ignored",n,name or line:match('^%s*(.-)%s*$'))
+            else
+                local parsed,why=setting(key,value)
+                if why then
+                    notes[#notes+1]=string.format("settings: line %d: '%s' is not allowed for %s (%s); %s stays %s",
+                        n,value,key,why,key,DEFAULTS[key])
+                else
+                    settings[key]=parsed
+                end
+            end
+        end
+    end
+    -- Two actions on one key would both run on each press: all three go back to the defaults.
+    local taken={}
+    for _,name in ipairs(KEYS) do
+        local shown=settings[name].name
+        if taken[shown] then
+            notes[#notes+1]='settings: '..shown..' is set for two actions: default keys used'
+            for _,key in ipairs(KEYS) do settings[key]=setting(key,DEFAULTS[key]) end
+            break
+        end
+        taken[shown]=true
+    end
+    return settings,notes
+end
 local files={
     read=function(path) local f=io.open(path,'rb'); if not f then return nil end; local text=f:read('a'); f:close(); return text end,
     write=function(path,text) local f=io.open(path,'wb'); if not f then return false end; f:write(text); f:close(); return true end,
@@ -17,11 +94,11 @@ function Link.new(folder,fs)
     local status_path=path('coop-status.txt')
     local seen,remote={},{}
     local self={}
-    local function put(name,text)
+    local function put(name,text,keep)
         local final=path(name)
         local temp=final..'.tmp'
         if not fs.write(temp,text) then return false,'cannot write '..temp end
-        fs.remove(final) -- An untaken file: the newest wins (rename never replaces on Windows).
+        if not keep then fs.remove(final) end -- An untaken file: the newest wins (rename never replaces on Windows).
         local ok,why=fs.rename(temp,final)
         if not ok then return false,'cannot write '..name..': '..tostring(why) end
         return true
@@ -69,6 +146,19 @@ function Link.new(folder,fs)
         end
         seen=now
         return new
+    end
+    -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
+    function self.settings()
+        local text,wrote=fs.read(path('coop-settings.txt')),nil
+        if not text then
+            text=Link.DEFAULT
+            local ok,why=put('coop-settings.txt',text,true)
+            wrote=ok and 'settings: coop-settings.txt written with the defaults'
+                or 'settings: cannot write coop-settings.txt ('..tostring(why)..'): defaults used'
+        end
+        local settings,notes=Link.parse_settings(text)
+        if wrote then table.insert(notes,1,wrote) end
+        return settings,notes
     end
     function self.valid_lobby(text) return text:match('^%d+$')~=nil and text:match('^0+$')==nil end
     return self

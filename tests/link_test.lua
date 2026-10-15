@@ -82,4 +82,65 @@ link.changes()
 assert(link.remote()==nil,'No status: none either')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
+
+-- coop-settings.txt (N5): free keys, never F10 or ~ (the console on AZERTY); a bad value keeps its default, with a line.
+local Link=require('link')
+local s,notes=Link.parse_settings('')
+assert(s.host_key.key=='F5' and s.host_key.mod==nil and s.status_key.key=='F6' and s.leave_key.key=='F8' and #notes==0)
+assert(s.name_tag==true and s.send_rate==20,'Empty text: the defaults')
+s,notes=Link.parse_settings('status_key=Shift+F7\n host_key = f6 \n')
+assert(s.status_key.key=='F7' and s.status_key.mod=='SHIFT' and s.status_key.name=='Shift+F7' and #notes==0)
+assert(s.host_key.key=='F6' and s.host_key.mod==nil and s.leave_key.key=='F8','Spaces and case do not matter')
+local ANY='use F1 to F12, with at most one of Shift+, Ctrl+, Alt+'
+for _,refused in ipairs({{'F10','F10 opens the console'},{'Ctrl+F10','F10 opens the console'},{'~',ANY},{'A',ANY},
+    {'F13',ANY},{'Ctrl+Alt+F5',ANY}}) do
+    s,notes=Link.parse_settings('# keys\nleave_key='..refused[1]..'\n')
+    local want="settings: line 2: '"..refused[1].."' is not allowed for leave_key ("..refused[2].."); leave_key stays F8"
+    assert(#notes==1 and notes[1]==want and s.leave_key.key=='F8' and s.leave_key.mod==nil,notes[1])
+end
+s,notes=Link.parse_settings('host_key=F2\nstatus_key=F3\nleave_key=F3\n')
+assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used',notes[1])
+assert(s.host_key.key=='F5' and s.status_key.key=='F6' and s.leave_key.key=='F8','A shared key: all three go back')
+s,notes=Link.parse_settings('status_key=Alt+F7\nleave_key=Ctrl+F7\n')
+assert(#notes==0 and s.status_key.mod=='ALT' and s.leave_key.mod=='CONTROL','Another modifier is another key')
+for _,rate in ipairs({'9','31','x'}) do
+    s,notes=Link.parse_settings('send_rate='..rate)
+    local want="settings: line 1: '"..rate.."' is not allowed for send_rate (use 10 to 30); send_rate stays 20"
+    assert(#notes==1 and notes[1]==want and s.send_rate==20,notes[1])
+end
+s,notes=Link.parse_settings('send_rate=30'); assert(#notes==0 and s.send_rate==30)
+s,notes=Link.parse_settings('name_tag=maybe')
+assert(notes[1]=="settings: line 1: 'maybe' is not allowed for name_tag (use on or off); name_tag stays on" and s.name_tag)
+s,notes=Link.parse_settings('NAME_TAG=Off'); assert(#notes==0 and s.name_tag==false)
+s,notes=Link.parse_settings('name_tag=off\r\nsend_rate=25\r\nhost_key=Shift+F2\r\n')
+assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.host_key.name=='Shift+F2','CRLF')
+s,notes=Link.parse_settings('colour=red\n\nnot a setting\n')
+assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', ignored"
+    and notes[2]=="settings: line 3: unknown setting 'not a setting', ignored",notes[1])
+local long='#'..string.rep('x',4088)..'\nsend_rate=25\n' -- The 4096th byte is the r of "send_r": the line is dropped.
+long=long..'#'..string.rep('x',5000-#long-2)..'\n'
+s,notes=Link.parse_settings(long)
+assert(#long==5000 and s.send_rate==20 and #notes==1 and notes[1]=='settings: only the first 4096 bytes are read',notes[1])
+s,notes=Link.parse_settings('\239\187\191host_key=F7\n')
+assert(#notes==0 and s.host_key.name=='F7','A UTF-8 BOM is skipped')
+local keys=0
+for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(keys==3 and #notes==0 and s.host_key.name=='F5' and s.status_key.name=='F6' and s.leave_key.name=='F8')
+
+-- The file is the user's: written with the defaults when absent, never written again.
+local SETTINGS,writes='C:\\Mod\\coop-settings.txt',0
+fs.write=function(path,text) writes=writes+1; return write(path,text) end
+s,notes=link.settings()
+assert(files[SETTINGS]==Link.DEFAULT and not files[SETTINGS..'.tmp'] and s.leave_key.key=='F8')
+assert(#notes==1 and notes[1]=='settings: coop-settings.txt written with the defaults',notes[1])
+files[SETTINGS],writes='send_rate=30\n',0
+s,notes=link.settings()
+assert(writes==0 and files[SETTINGS]=='send_rate=30\n' and s.send_rate==30 and #notes==0,'An existing file is never written')
+local read=fs.read
+fs.read=function(path) if path==SETTINGS then return nil end return read(path) end -- There but unreadable.
+s,notes=link.settings()
+assert(files[SETTINGS]=='send_rate=30\n' and s.send_rate==20,'Not replaced either')
+assert(notes[1]=='settings: cannot write coop-settings.txt (cannot write coop-settings.txt: exists): defaults used',notes[1])
+fs.read,fs.write=read,write
 print('link_test ok')

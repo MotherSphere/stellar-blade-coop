@@ -1,10 +1,33 @@
 -- main.lua's console dispatch with UE4SS stubbed: every coop command reaches the right handler, bad input is refused,
--- the ghost's capture and remote table are fed every 250 ms, and the link is optional (no native part, no Steam link).
+-- the ghost's capture and remote table are fed every 250 ms, the keys only hand their action to the game thread, and
+-- the link is optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
 RegisterConsoleCommandHandler=function(name,f) assert(name=='coop'); handler=f end
-ExecuteInGameThread=function(f) f() end
+local queued,executes,binds={},0,{}
+ExecuteInGameThread=function(f) executes=executes+1; queued[#queued+1]=f end
+local function flush() local now=queued; queued={}; for _,f in ipairs(now) do f() end end
+-- Values unlike the names, so a raw setting string never passes for UE4SS's code.
+Key=setmetatable({},{__index=function(_,name) return 'Key.'..name end})
+ModifierKey={SHIFT=0x10,CONTROL=0x11,ALT=0x12}
+-- As strict as UE4SS: (key, callback) or (key, table, callback), nothing else ("No overload found").
+RegisterKeyBind=function(key,...)
+    local modifiers,f=...
+    if select('#',...)==1 then modifiers,f=nil,modifiers
+    else assert(select('#',...)==2 and type(modifiers)=='table','No overload found for RegisterKeyBind') end
+    assert(type(f)=='function','No overload found for RegisterKeyBind')
+    binds[#binds+1]={key=key,modifiers=modifiers,f=f}
+end
+local function mod(modifiers) return modifiers and modifiers[1] end
+IsKeyBindRegistered=function(key,modifiers)
+    if key=='Key.F6' and modifiers==nil then return true end -- A mod loaded earlier holds F6.
+    for _,bind in ipairs(binds) do if bind.key==key and mod(bind.modifiers)==mod(modifiers) then return true end end
+    return false
+end
+local function press(key) for _,bind in ipairs(binds) do if bind.key=='Key.'..key then return bind.f() end end error(key) end
+local settings_text=''
+local Link=dofile('mod/StellarCoop/Scripts/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 local asked,sessions,ticks,withdrawn={},{},0,{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
@@ -19,6 +42,7 @@ local fake_link={
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
+    settings=function() return Link.parse_settings(settings_text) end,
 }
 local native_ok
 local captured,remoted={},nil
@@ -48,15 +72,29 @@ local function load_main(with_native)
         return true
     end
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured={},nil,{},{},{},0,false,{},{}
+    queued,binds={},{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
 local function last() return printed[#printed] end
-local function coop(...) assert(handler(nil,{...})==true) end
+local function coop(...) assert(handler(nil,{...})==true); flush() end
+local function logged(text) return table.concat(printed,'|'):find('[StellarCoop] '..text..'\n',1,true)~=nil end
 
 load_main(true)
 assert(last():find('Loaded version v9-test',1,true),last())
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
+-- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
+assert(logged('keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
+assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
+    and not logged('keys: F8 is also bound'),'Checked before our own bind')
+assert(#binds==3 and binds[1].key=='Key.F5' and binds[2].key=='Key.F6' and binds[3].key=='Key.F8' and not binds[1].modifiers)
+local executed=executes
+press('F5'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
+flush(); assert(executes==executed+1 and asked[1]=='host' and printed[#printed-1]=='[StellarCoop] key F5: host\n')
+assert(last():find('OK: asked the native part: host',1,true),last())
+press('F8'); assert(#asked==1); flush(); assert(executes==executed+2 and asked[2]=='leave' and logged('key F8: leave'))
+press('F6'); flush(); assert(#asked==2 and last():find('OK: mod=v proto=3',1,true),'Status, until step 3 summarises it')
+asked={}
 coop('host'); assert(asked[1]=='host' and last():find('OK: asked the native part: host',1,true),last())
 coop('invite'); coop('leave'); coop('report')
 assert(asked[2]=='invite' and asked[3]=='leave' and asked[4]=='report')
@@ -100,6 +138,11 @@ assert(remoted[1]==3 and remoted[2]==1 and remoted[3]=='loopback','The ghost lea
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
+local lines
+before,lines=#asked,#printed
+press('F5'); flush()
+assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
+    and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 loops[1].f(); assert(ticks==2,'No native tick after coop off')
 coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | off',1,true),last())
@@ -116,6 +159,15 @@ load_main(true)
 loops[1].f(); assert(ticks==1,'A peer name never switches the mod off')
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
+-- A modifier goes with its key; a refused setting is logged and keeps its default.
+settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\n'
+load_main(true)
+assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays F5"))
+assert(logged('keys: host=F5 status=F6 leave=Ctrl+F8, name tag on, 25 poses a second'),table.concat(printed,'|'))
+assert(binds[3].key=='Key.F8' and #binds[3].modifiers==1 and binds[3].modifiers[1]==0x11 and not binds[1].modifiers)
+press('F8'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
+settings_text=''
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end
@@ -129,6 +181,7 @@ end
 
 load_main(false)
 assert(#loops==1,'No link loop without the native part')
+assert(#binds==0 and not logged('keys: host'),'No keys without the native part')
 coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the native part',1,true),last())
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())
 coop('status'); assert(last():find('STOP: no Steam link status yet',1,true),last())
