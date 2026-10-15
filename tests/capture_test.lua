@@ -1,7 +1,8 @@
 -- EVE's capture with fake UE4SS objects that only read (any write to EVE or her components fails, and so does any Set*
 -- call): the table's text, names made safe and the map lowercased, a part hung from no lower part placed from her main
 -- mesh, the generation (a new mesh bumps it, a new socket keeps it, a placement that drifts never republishes), the 2 s
--- wait, the menu pawn, the native part's caps; with dyes on, her overridden materials (a dynamic one as its parent).
+-- wait, the menu pawn, the native part's caps; with dyes on, her overridden materials (a dynamic one as its parent);
+-- with effects on, the Niagara layout by reflection and the listed systems in memory, looked up one a tick.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -75,7 +76,12 @@ local eve=eve_of('EVE')
 local player=eve
 package.loaded.UEHelpers={GetPlayer=function() return player end}
 local relative_calls=0
+local fx_lookups,systems={},{} -- Niagara lookups (the class, the listed systems) in order; what each finds.
 StaticFindObject=function(path)
+    if path:find('Niagara',1,true) or path:find('^/Game/Art/FX/') then
+        fx_lookups[#fx_lookups+1]=path
+        if systems[path]~=nil or path:find('^/Game/') then return systems[path] end -- A system not in memory: nil.
+    end
     local c=object(path,{path=path})
     if path=='/Script/Engine.Default__KismetMathLibrary' then
         c.MakeRelativeTransform=function(_,a,b)
@@ -252,4 +258,91 @@ assert(step(1)==nil,'Said once')
 looks.dyes=false
 ok,message=step(1)
 assert(ok and message:find(' ms$') and not published[#published]:find('\nmaterial '),tostring(message))
+
+-- Effects off (every capture above): nothing of Niagara looked up, no effect line.
+assert(#fx_lookups==0 and not published[#published]:find('\neffect'),'Effects off: nothing looked up or sent')
+-- The list the wire's indexes name: the 19 Niagara systems, no Cascade trail.
+local E=require('capture').EFFECTS
+assert(#E==19 and E[1]=='/Game/Art/FX/Char/PC/Skill/Attack/NS_A_ParTrail_SwordDefaultAtk_01.NS_A_ParTrail_SwordDefaultAtk_01'
+    and E[19]=='/Game/Art/FX/Char/PC/Skill/Parry/NS_JustParry_02.NS_JustParry_02',E[1])
+for _,path in ipairs(E) do assert(not path:find('AnimTrail',1,true),path) end
+-- Effects on: the NiagaraComponent class and its Asset field's offset, found up its supers; then each listed system
+-- looked up, one a tick, and only then the capture, with the effect lines after the last part.
+local function property(name,offset)
+    return {GetFName=function() return fname(name) end,GetOffset_Internal=function() return offset end}
+end
+local asset_offset=0x5d8
+local super=object('FXSystemComponent',{GetSuperStruct=function() return nil end})
+super.ForEachProperty=function(_,f) f(property('Asset',asset_offset)) end
+local niagara=object('NiagaraComponent',{ForEachProperty=function(_,f) f(property('bAutoActivate',0x120)) end,
+    GetSuperStruct=function() return super end})
+systems['/Script/Niagara.NiagaraComponent']=niagara
+local function system(path) return object(path,{GetFullName=function() return 'NiagaraSystem '..path end}) end
+for _,k in ipairs({1,5,19}) do systems[E[k]]=system(E[k]) end -- In memory; the other 16 are not.
+local function looked_up() -- The systems looked up since the last call.
+    local list={}
+    for _,path in ipairs(fx_lookups) do if path:find('^/Game/') then list[#list+1]=path end end
+    fx_lookups={}
+    return list
+end
+local function fx_step() -- A 250 ms tick: one system looked up at most.
+    local ok_of,message_of=step(0.25)
+    assert(#looked_up()<=1,'One system a tick at most')
+    return ok_of,message_of
+end
+looks={effects=true}
+published={}
+capture=require('capture').new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks)
+player=eve_of('EVE7',{body,hair})
+assert(tick()==nil and fx_lookups[1]=='/Script/Niagara.NiagaraComponent' and fx_lookups[2]==E[1] and #fx_lookups==2,
+    'The layout, then the first system')
+looked_up()
+for _=1,17 do assert(fx_step()==nil and #published==0,'Nothing published before all 19 are looked up') end
+ok,message=fx_step()
+assert(ok and message:find('^Capture 100001: 2 parts, .* ms; effects: 3 of 19 found$') and #published==1,tostring(message))
+t=published[1]
+local lines=string.format('effects 0x%x 0x5d8\neffect 1 0x%x\neffect 5 0x%x\neffect 19 0x%x\n',niagara.GetAddress(),
+    systems[E[1]].GetAddress(),systems[E[5]].GetAddress(),systems[E[19]].GetAddress())
+assert(t:sub(-#lines)==lines and t:find('\nread 1 0x%x+ 0x%x+ 0x%x+\neffects '),t)
+assert(step(1)==nil and #published==1 and #looked_up()==0,'Looked up once: no new scan, nothing new')
+-- Off: a new generation without them; on again: a new scan (only what was not found), then a new generation with them.
+looks.effects=false
+ok,message=step(1)
+assert(ok and message:find('^Capture 100002: .* ms$') and not published[2]:find('\neffect'),tostring(message))
+looks.effects=true
+local scanned={}
+for _=1,16 do
+    assert(step(0.25)==nil and #published==2,'The old one stays until the scan ends')
+    for _,path in ipairs(looked_up()) do scanned[#scanned+1]=path end
+end
+ok,message=step(0.25)
+assert(ok and message:find('^Capture 100003: .*; effects: 3 of 19 found$') and #published==3,tostring(message))
+assert(#scanned==16 and published[3]:sub(-#lines)==lines,'Each system found and still itself is not looked up again')
+-- A new EVE: a new scan, where a system collected since, or another object at its address, is looked up again.
+systems[E[5]].IsValid=function() return false end
+systems[E[19]].GetFullName=function() return 'Texture2D /Game/Other.Other' end
+systems[E[5]],systems[E[19]]=system(E[5]),nil
+player=eve_of('EVE8',{body,hair})
+scanned={}
+for _=1,20 do
+    ok,message=step(0.25)
+    for _,path in ipairs(looked_up()) do scanned[#scanned+1]=path end
+    if message then break end
+end
+assert(ok and message:find('^Capture 100004: .*; effects: 2 of 19 found$'),tostring(message))
+assert(#scanned==18 and not table.concat(scanned,' '):find(E[1],1,true),'The first, still itself, is kept')
+assert(published[#published]:find('\neffect 5 '..string.format('0x%x',systems[E[5]].GetAddress())..'\n$'),'The new one')
+-- The layout not found, or out of the native part's bounds: said once, and the capture goes on without effects.
+super.ForEachProperty=function() end
+published={}
+capture=require('capture').new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks)
+ok,message=tick()
+assert(ok==false and message=='Effects not captured: NiagaraComponent has no Asset property',tostring(message))
+ok,message=step(2)
+assert(ok and message:find(' ms$') and #published==1 and not published[1]:find('\neffect'),tostring(message))
+assert(step(1)==nil and #looked_up()==0,'Said once, and nothing looked up')
+super.ForEachProperty=function(_,f) f(property('Asset',0x1008)) end
+capture=require('capture').new(function() return true end,looks)
+ok,message=tick()
+assert(ok==false and message:find('^Effects not captured: the Asset offset 0x1008 is outside '),tostring(message))
 print('capture_test ok')

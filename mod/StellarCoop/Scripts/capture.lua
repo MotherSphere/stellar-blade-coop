@@ -7,14 +7,31 @@
 -- it looks again: a new mesh is a new generation; a part hung elsewhere (a blade drawn) or shown or hidden is published
 -- again under the same generation. Placement alone never is: a part placed relative to her main mesh moves with every
 -- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
--- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation. Read-only:
--- nothing here changes EVE or any of her components.
+-- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation. With
+-- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
+-- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
+-- only once all are looked up, so the list never changes under one generation. Read-only: nothing here changes EVE or
+-- any of her components.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Capture={}
 local MAX_PARTS,MAX_BONES=16,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
 local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
+-- Stellar Blade's Niagara systems a ghost can show: EVE's own seen in combat (the Cascade trails are left out, as they
+-- need her animation's BeginTrails). The wire carries an entry's index (pose_codec.h's effect slots), never its path,
+-- so changing this list needs a protocol bump.
+Capture.EFFECTS={}
+for _,p in ipairs({'Skill/Attack/NS_A_ParTrail_SwordDefaultAtk_01','Skill/Attack/NS_A_ParTrail_SwordThrustAtk_01',
+    'Skill/HoldBurst/NS_A_HoldBurst_Signal','Skill/HoldBurst/NS_A_HoldBurst_SwordFX',
+    'WeaponFX/NS_A_Weapon_Signal_Sword','WeaponFX/NS_A_Weapon_Electric_01','WeaponFX/NS_A_WeaponFX_SwordFlame_01',
+    'WeaponFX/NS_A_Weapon_FastDraw_01','WeaponFX/NS_A_Weapon_Fold_02','Common/SkillFX/Wind/NS_PC_SpinTrail_01',
+    'Common/SkillFX/Wind/NS_MeshWind_02','Common/SkillFX/MeshTrails/NS_A_MeshTrail_03',
+    'Common/SkillFX/Kick/NS_PC_KickTrail_02','Skill/ShieldBreakKick/NS_A_KickCharge',
+    'Skill/ShieldBreakKick/NS_A_ChargeKickTrail','Skill/ChargeSlash/NS_ChargeSlash_MeshTrail_02',
+    'Skill/Evade/NS_A_EvadeBody_01','Skill/Evade/NS_A_EvadeParticle_02','Skill/Parry/NS_JustParry_02'}) do
+    Capture.EFFECTS[#Capture.EFFECTS+1]='/Game/Art/FX/Char/PC/'..p..'.'..p:match('[^/]+$')
+end
 -- EVE's skeletal mesh components that have a mesh: her main mesh first, then leaders, then followers; each with the
 -- component it follows and the one it hangs from, by address.
 local function parts_of(eve)
@@ -65,8 +82,27 @@ local function materials_of(component)
     end)
     return list,dynamic
 end
+-- The native effect read's layout: the NiagaraComponent class and its Asset field's offset, found up the class's supers
+-- (no SDK file covers Niagara). Raises when there is none within the native part's bounds, which would refuse the
+-- whole table.
+local function effect_layout()
+    local class=find('/Script/Niagara.NiagaraComponent')
+    local layout,offset={cls=class},nil
+    while class and not offset do
+        class:ForEachProperty(function(p)
+            if text(p:GetFName())=='Asset' then offset=tonumber(value_of(p:GetOffset_Internal())) end
+        end)
+        class=valid(class:GetSuperStruct())
+    end
+    if not offset then error('NiagaraComponent has no Asset property',0) end
+    if offset<0x100 or offset>0x1000 or offset%8~=0 then
+        error(string.format('the Asset offset 0x%x is outside 0x100 to 0x1000 or unaligned',offset),0)
+    end
+    layout.asset=offset
+    return layout
+end
 -- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why. looks: what the
--- ghost shows ({dyes=true|false}, read at each look; nil: nothing more).
+-- ghost shows ({dyes=,effects=true|false}, read at each look; nil: nothing more).
 function Capture.new(publish,looks)
     publish=publish or function() return false,'no native part' end
     looks=looks or {}
@@ -77,13 +113,28 @@ function Capture.new(publish,looks)
     local seen,since,next_look=nil,nil,0
     local yaw_delta=0
     local unread -- Why materials could not be read, until said (then false): once per Lua load.
+    local fx -- The effect read's layout: nil until effects are first on, false when it could not be found (this load).
+    local systems,scan,effects_were={},nil,false -- Capture.EFFECTS found, by index; the next index the scan looks up.
     local function withdraw()
         if published then publish(nil); published=nil end
     end
     -- Her actor's yaw minus her main mesh's, as of the last generation: the mailbox carries the mesh's yaw, her right
     -- (the loopback's offset) comes from the actor's.
     function self.yaw_delta() return yaw_delta end
-    local function look(eve)
+    -- One step of the scan: a system found before that is still itself is kept, then one path is looked up (about 4 ms
+    -- each). Never LoadAsset: a system that is not in memory cannot be playing on her.
+    local function scan_step()
+        while scan do
+            local k=scan
+            scan=k<#Capture.EFFECTS and k+1 or nil
+            local system=valid(systems[k])
+            if not (system and system:GetFullName():match('^%S+ (.+)$')==Capture.EFFECTS[k]) then
+                systems[k]=valid(StaticFindObject(Capture.EFFECTS[k]))
+                return
+            end
+        end
+    end
+    local function look(eve,effects)
         local started=os.clock()
         local list=parts_of(eve)
         if not (list[1] and list[1].main) then return end
@@ -121,7 +172,7 @@ function Capture.new(publish,looks)
                 slots=slots+#c.materials
             end
         end
-        key,dress=table.concat(key,' '),table.concat(dress,' ')
+        key,dress=table.concat(key,' ')..(effects and ' fx' or ''),table.concat(dress,' ')
         local renewed=not published or published.key~=key
         if not renewed and published.dress==dress then return end
         local names,map=published and published.names,published and published.map
@@ -161,11 +212,19 @@ function Capture.new(publish,looks)
                 count=count+c.bones
             end
         end
+        local found=0
+        if effects then
+            lines[#lines+1]=string.format('effects %s 0x%x',hex(effects.cls),effects.asset)
+            for k=1,#Capture.EFFECTS do
+                if systems[k] then lines[#lines+1]=string.format('effect %d %s',k,hex(systems[k])); found=found+1 end
+            end
+        end
         local ok,why=publish(table.concat(lines,'\n')..'\n')
         if not ok then return false,'Capture not published: '..tostring(why) end
         published={generation=generation,key=key,dress=dress,names=names,map=map}
         if renewed then
-            local tail=looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or ''
+            local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
+                ..(effects and string.format('; effects: %d of %d found',found,#Capture.EFFECTS) or '')
             return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms%s',generation,#parts,count,
                 map,(os.clock()-started)*1000,tail)
         end
@@ -179,10 +238,19 @@ function Capture.new(publish,looks)
             return
         end
         local at=address(eve)
-        if at~=seen then seen,since=at,os.clock(); withdraw() end -- A new EVE: the old addresses mean nothing.
-        if os.clock()-since<2 or os.clock()<next_look then return end
+        if at~=seen then seen,since,scan=at,os.clock(),1; withdraw() end -- A new EVE: the old addresses mean nothing.
+        if looks.effects and fx==nil then
+            local ok,layout=pcall(effect_layout)
+            fx=ok and layout
+            if not ok then return false,'Effects not captured: '..tostring(layout) end
+        end
+        local effects=looks.effects and fx or nil
+        if effects and not effects_were then scan=1 end
+        effects_were=effects~=nil
+        if effects then scan_step() end
+        if os.clock()-since<2 or os.clock()<next_look or effects and scan then return end -- Never half a scan.
         next_look=os.clock()+1
-        local ok,message=look(eve)
+        local ok,message=look(eve,effects)
         if message==nil and unread then ok,message,unread=false,'Capture: materials not read: '..unread,false end
         return ok,message
     end

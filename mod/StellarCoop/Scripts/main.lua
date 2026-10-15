@@ -2,11 +2,11 @@
 -- by the native part from a table and poses that come back to you: a linked friend's over Steam, yours through an
 -- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
--- cloth or dyes on or off until the mod reloads); the Steam link between two players (coop host, invite, join, leave,
--- status, report; host, status and leave on keys too, F5, F6 and F8 unless coop-settings.txt says otherwise), its
--- notices on screen above your EVE; and coop where, a line of coordinates to compare between the two PCs; coop no
--- [heal|rule|spawnpt|actor], the Night Operation probe of the T6 test only (nightop.lua), on the co-op save slot only.
--- coop off stops everything until the game restarts.
+-- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite,
+-- join, leave, status, report; host, status and leave on keys too, F5, F6 and F8 unless coop-settings.txt says
+-- otherwise), its notices on screen above your EVE; and coop where, a line of coordinates to compare between the two
+-- PCs; coop no [heal|rule|spawnpt|actor], the Night Operation probe of the T6 test only (nightop.lua), on the co-op
+-- save slot only. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -33,9 +33,11 @@ if link then
 end
 -- What the ghost shows: the settings', changed by coop look until the mod reloads (game start or Ctrl+R: the settings
 -- again). The ghost holds this same table.
-local look={cloth=settings~=nil and settings.cloth,dyes=settings~=nil and settings.dyes}
+local look={cloth=settings~=nil and settings.cloth,dyes=settings~=nil and settings.dyes,
+    effects=settings~=nil and settings.effects}
 local function looks()
-    return 'look: cloth='..(look.cloth and 'on' or 'off')..' dyes='..(look.dyes and 'on' or 'off')
+    return 'look: cloth='..(look.cloth and 'on' or 'off')..' dyes='..(look.dyes and 'on' or 'off')..' effects='
+        ..(look.effects and 'on' or 'off')
 end
 if settings then log(looks()) end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
@@ -50,7 +52,7 @@ local puppet=require('puppet').new(link,capture,notice.say,settings and settings
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes on|off] | no [heal|rule|spawnpt|actor] | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -92,11 +94,13 @@ local commands={
     basesuit=puppet.basesuit, where=puppet.where,
     look=function(feature,state)
         if feature==nil then
-            return true,looks()..' (coop look <cloth|dyes> <on|off> changes one until the mod reloads: game start or '
-                ..'Ctrl+R)'
+            return true,looks()..' (coop look <cloth|dyes|effects> <on|off> changes one until the mod reloads: game '
+                ..'start or Ctrl+R)'
         end
-        local named=({cloth='Cloth',dyes='Dyes'})[feature]
-        if not named or (state~='on' and state~='off') then return false,'Use: coop look [cloth|dyes on|off]' end
+        local named=({cloth='Cloth',dyes='Dyes',effects='Effects'})[feature]
+        if not named or (state~='on' and state~='off') then
+            return false,'Use: coop look [cloth|dyes|effects on|off]'
+        end
         look[feature]=state=='on'
         puppet.rebuild('look')
         return true,named..' '..state..' until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '

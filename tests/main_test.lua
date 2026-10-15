@@ -115,11 +115,11 @@ assert(logged('keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second'
 assert(name_tag==true,'The name tag setting reaches the ghost')
 for k,line in ipairs(printed) do
     if line:find('keys: host=',1,true) then
-        assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off\n','Right after the keys')
+        assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
     end
 end
-assert(look.cloth==false and look.dyes==false,'Off unless the settings say on')
-assert(capture_look==look,'The capture holds the same table: dyes off stops sending them')
+assert(look.cloth==false and look.dyes==false and look.effects==false,'Off unless the settings say on')
+assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 assert(#binds==3 and binds[1].key=='Key.F5' and binds[2].key=='Key.F6' and binds[3].key=='Key.F8' and not binds[1].modifiers)
@@ -196,17 +196,17 @@ assert(#asked==before,'Nothing asked on bad input')
 coop('basesuit'); assert(basesuits==1 and last():find('OK: base suit',1,true),last())
 coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true),last())
 -- coop look: what the ghost shows, changed in the table the ghost holds until the mod reloads, and the ghost built again.
-local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes on|off]\n'
+local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects on|off]\n'
 coop('look')
-assert(last()=='[StellarCoop] OK: look: cloth=off dyes=off (coop look <cloth|dyes> <on|off> changes one until the mod '
-    ..'reloads: game start or Ctrl+R)\n',last())
+assert(last()=='[StellarCoop] OK: look: cloth=off dyes=off effects=off (coop look <cloth|dyes|effects> <on|off> changes '
+    ..'one until the mod reloads: game start or Ctrl+R)\n',last())
 assert(#rebuilds==0,'Only said')
 coop('look','cloth','on')
 assert(last()=='[StellarCoop] OK: Cloth on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
 assert(look.cloth==true and #rebuilds==1 and rebuilds[1]=='look','The ghost is removed, to be built with cloth')
-coop('look'); assert(last():find('OK: look: cloth=on dyes=off (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=off (',1,true),last())
 coop('look','cloth','off')
 assert(last()=='[StellarCoop] OK: Cloth off until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
@@ -217,11 +217,18 @@ assert(last()=='[StellarCoop] OK: Dyes on until the mod reloads (game start or C
     ..'the ghost is built again.\n',
     last())
 assert(look.dyes==true and look.cloth==false and #rebuilds==3)
-coop('look'); assert(last():find('OK: look: cloth=off dyes=on (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=off dyes=on effects=off (',1,true),last())
 coop('look','dyes','off'); assert(look.dyes==false and #rebuilds==4,last())
-for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effects','on'},{'on'}}) do
+coop('look','effects','on')
+assert(last()=='[StellarCoop] OK: Effects on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
+    ..'the ghost is built again.\n',
+    last())
+assert(look.effects==true and look.cloth==false and look.dyes==false and #rebuilds==5)
+coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=on (',1,true),last())
+coop('look','effects','off'); assert(look.effects==false and #rebuilds==6,last())
+for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effects'},{'face','on'},{'on'}}) do
     coop('look',table.unpack(bad))
-    assert(last()==LOOK_USE and #rebuilds==4 and look.cloth==false and look.dyes==false,last())
+    assert(last()==LOOK_USE and #rebuilds==6 and look.cloth==false and look.dyes==false and look.effects==false,last())
 end
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
 loops[2].f()
@@ -254,7 +261,7 @@ assert(probe_ticks==probed,'No probe follow-up after coop off')
 before=#probe_runs
 coop('no')
 assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())
-coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes on|off] | no [heal|rule|spawnpt|actor] | off',1,true),last())
+coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | off',1,true),last())
 coop(); assert(last():find('Use: coop',1,true))
 
 -- coop off survives a Lua reload: the native part still reports it.
@@ -278,10 +285,11 @@ coop('no'); assert(#probe_runs==0 and last()==STOP..'slot=main index=0 marker=4\
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
-settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\ncloth=on\ndyes=on\n'
+settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\ncloth=on\ndyes=on\neffects=on\n'
 load_main(true)
 assert(name_tag==false,'name_tag=off reaches the ghost')
-assert(look.cloth==true and look.dyes==true and logged('look: cloth=on dyes=on'),'cloth=on and dyes=on reach the ghost')
+assert(look.cloth==true and look.dyes==true and look.effects==true and logged('look: cloth=on dyes=on effects=on'),
+    'cloth=on, dyes=on and effects=on reach the ghost')
 assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays F5"))
 assert(logged('keys: host=F5 status=F6 leave=Ctrl+F8, name tag off, 25 poses a second'),table.concat(printed,'|'))
 assert(binds[3].key=='Key.F8' and #binds[3].modifiers==1 and binds[3].modifiers[1]==0x11 and not binds[1].modifiers)
@@ -329,7 +337,7 @@ end
 load_main(false)
 assert(#loops==1,'No link loop without the native part')
 assert(name_tag==nil,'No settings without the native part')
-assert(look.cloth==false and look.dyes==false and capture_look==look and not logged('look: '),
+assert(look.cloth==false and look.dyes==false and look.effects==false and capture_look==look and not logged('look: '),
     'Nor looks: all off, unsaid')
 assert(#binds==0 and not logged('keys: host'),'No keys without the native part')
 coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the native part',1,true),last())

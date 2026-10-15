@@ -6,7 +6,9 @@
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
 -- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip; with
 -- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails;
--- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame.
+-- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
+-- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
+-- them in place(), within their budget.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -128,6 +130,14 @@ local function text_render(actor)
     return l
 end
 local fail_add,fail_label=false,false
+local box_reads=0 -- Reads of an effect box's relative fields: place() reads them only on a new effects stamp.
+local function effect_box()
+    local fields={RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},RelativeRotation={Pitch=0,Yaw=0,Roll=0}}
+    return setmetatable(object('EffectBox',{fields=fields},0x5c0),{__index=function(_,key)
+        if key:find('^Relative') then box_reads=box_reads+1 end
+        return fields[key]
+    end})
+end
 local world={SpawnActor=function(_,class,at)
     assert(class.path=='/Script/Engine.Actor' and at.X==1)
     local a=object('Ghost',{parts={},components={}})
@@ -137,10 +147,16 @@ local world={SpawnActor=function(_,class,at)
         if fail_add then return nil end
         local added
         if c.path=='/Script/Engine.SceneComponent' then
-            assert(manual==true,'The mailbox is never attached')
-            added=object('Mailbox',{RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},
-                RelativeRotation={Pitch=0,Yaw=0,Roll=0}},0x5c0)
-            self.mailbox=added
+            assert(manual==true,'The mailbox and the effect boxes are never attached')
+            if self.mailbox then -- After it: an effect box.
+                added=effect_box()
+                self.boxes=self.boxes or {}
+                self.boxes[#self.boxes+1]=added
+            else
+                added=object('Mailbox',{RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},
+                    RelativeRotation={Pitch=0,Yaw=0,Roll=0}},0x5c0)
+                self.mailbox=added
+            end
         elseif c.path=='/Script/Engine.TextRenderComponent' then
             assert(manual==false)
             if fail_label then return nil end
@@ -185,7 +201,9 @@ package.loaded.UEHelpers={GetPlayer=function() frame=frame+1; return player end,
     return {PlayerCameraManager={GetCameraLocation=function() return camera end}}
 end}
 local found_by_path={}
+local niagara_lookups=0 -- Lookups of anything of Niagara: its classes, its library, the listed systems.
 StaticFindObject=function(path)
+    if path:find('Niagara',1,true) or path:find('^/Game/Art/FX/') then niagara_lookups=niagara_lookups+1 end
     if found_by_path[path] then return found_by_path[path] end
     if path:find('^/Game/') then
         lookups=lookups+1
@@ -244,7 +262,7 @@ local function send(generation,parts,source,map) -- The native part writes a tab
 end
 -- Ticks until the build ends, checking that no frame resolves more than one mesh; returns its line.
 local function build()
-    for _=1,30 do
+    for _=1,60 do
         local before=lookups
         local ok,message=ghost.tick()
         assert(lookups-before<=1,'One mesh resolved a frame at most')
@@ -854,4 +872,145 @@ send(802,her_parts({hair_materials=sixteen}))
 ok,message=build()
 -- All 16 read: slot 1, below this mesh's 2, is set; the 15 above it are said.
 assert(message:find('^Ghost 802 built: .*; look: dyed slots 1; ') and select(2,message:gsub(' default kept',''))==15,message)
+
+-- Effects (look.effects, read at each build). Off, every ghost above: nothing of Niagara looked up, no effect box, and
+-- the display file and the build line as they were.
+assert(niagara_lookups==0,'Effects off: no Niagara lookup')
+for _,a in ipairs(spawned) do assert(not a.boxes,'Effects off: no effect box') end
+-- The listed systems, one this PC lacks; the library that starts them, each instance's calls in one list.
+local E=require('capture').EFFECTS
+for k,path in ipairs(E) do
+    if k~=7 then
+        meshes[path]=object(path,{path=path})
+        meshes[path].IsA=function(_,class) return class.path=='/Script/Niagara.NiagaraSystem' end
+        meshes[path].GetFullName=function() return 'NiagaraSystem '..path end
+    end
+end
+local LIBRARY='/Script/Niagara.Default__NiagaraFunctionLibrary'
+local events,spawns,spawn_fails={},{},false
+local library=object('NiagaraFunctionLibrary',{SpawnSystemAttached=function(_,...)
+    if spawn_fails then error('no Niagara on a Poseable') end
+    local fx=object('NiagaraComponent')
+    function fx:Deactivate() events[#events+1]='Deactivate'; self.stopped=true end
+    function fx:K2_SetRelativeLocationAndRotation(at,rotation,sweep,hit,teleport)
+        events[#events+1]='K2_SetRelativeLocationAndRotation'
+        self.moved={at=at,rotation=rotation,sweep=sweep,hit=hit,teleport=teleport}
+    end
+    events[#events+1]='SpawnSystemAttached'
+    spawns[#spawns+1]={args=table.pack(...),fx=fx}
+    return fx
+end})
+-- No library in this build: the ghost is built without effects, and says why.
+found_by_path[LIBRARY]=invalid
+look.dyes,look.effects=false,true
+send(900,her_parts())
+before=lookups
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 900 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 0 on the base suit, 0 left out; '
+    ..'look: effects off %(.*Default__NiagaraFunctionLibrary is unavailable in this game build%.%) %(%d+ ms in all%)%.$'),
+    message)
+assert(lookups-before>=19 and not actor.boxes and not actor.destroyed,'Each system looked up, one a frame; no box')
+d=displays[#displays]:gsub('0x%x+','0xX')
+assert(d=='display 900\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
+-- With it: four boxes after the mailbox, named in the display file right after it.
+found_by_path[LIBRARY]=library
+ghost.rebuild('look')
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 900 built: 6 parts .* 0 left out; look: effects loaded 18 of 19 %(%d+ ms in all%)%.$'),
+    message)
+assert(#actor.boxes==4,'Four boxes')
+d=displays[#displays]
+local named=string.format('\nmailbox 0x%x 0x5c0\neffects 0x%x 0x%x 0x%x 0x%x\ndrive 0 ',actor.mailbox.GetAddress(),
+    actor.boxes[1].GetAddress(),actor.boxes[2].GetAddress(),actor.boxes[3].GetAddress(),actor.boxes[4].GetAddress())
+assert(d:find(named,1,true),d)
+-- place(): the boxes are read only when the mailbox's effects stamp (its scale X) changes.
+root,hair=actor.parts[1],actor.parts[3]
+box=actor.mailbox
+box_reads=0
+box.RelativeScale3D.Z=30
+assert(ghost.place()==nil and actor.hidden==false and box_reads==0,'A pose alone: no box read')
+local function slot(n,asset,part,serial,at,rotation) -- As the native part writes a box.
+    local f=actor.boxes[n].fields
+    f.RelativeScale3D={X=asset+1,Y=part+1,Z=serial+1}
+    f.RelativeLocation=at or {X=0,Y=0,Z=0}
+    f.RelativeRotation=rotation or {Pitch=0,Yaw=0,Roll=0}
+end
+slot(1,2,2,1,{X=1,Y=2,Z=3},{Pitch=10,Yaw=20,Roll=30}) -- The second system, on her hair.
+box.RelativeScale3D.X=2
+assert(ghost.place()==nil and box_reads>0,'A new effects stamp: the boxes are read')
+local a=spawns[1].args
+assert(#spawns==1 and a.n==10 and a[1]==meshes[E[2]] and a[2]==hair and a[3]:ToString()=='None','Its system, its part')
+assert(a[4].X==1 and a[4].Y==2 and a[4].Z==3 and a[5].Pitch==10 and a[5].Yaw==20 and a[5].Roll==30,'At its place there')
+assert(a[6]==0 and a[7]==true and a[8]==true and a[9]==0 and a[10]==true,'Kept relative, auto destroyed, no pooling')
+box_reads=0
+box.RelativeScale3D.Z=31
+assert(ghost.place()==nil and box_reads==0 and #spawns==1,'The same effects stamp: nothing read again')
+-- A new key in that slot (a new instance): the old one stopped, then the new one started.
+events={}
+slot(1,3,0,2)
+box.RelativeScale3D.X=3
+ghost.place()
+assert(table.concat(events,' ')=='Deactivate SpawnSystemAttached' and spawns[1].fx.stopped and #spawns==2,
+    table.concat(events,' '))
+assert(spawns[2].args[1]==meshes[E[3]] and spawns[2].args[2]==root,'On her main mesh')
+-- The same key with a new place: the instance moves, nothing else.
+events={}
+slot(1,3,0,2,{X=5,Y=0,Z=0},{Pitch=0,Yaw=90,Roll=0})
+box.RelativeScale3D.X=4
+ghost.place()
+local moved=spawns[2].fx.moved
+assert(table.concat(events,' ')=='K2_SetRelativeLocationAndRotation' and #spawns==2,table.concat(events,' '))
+assert(moved.at.X==5 and moved.rotation.Yaw==90 and moved.sweep==false and moved.teleport==true,'Teleported there')
+-- At most 8 starts a second on a ghost: the 9th is refused, said once.
+clock=clock+1
+local function round(serial,stamp) -- Four new instances at once.
+    for n=1,4 do slot(n,n,0,serial) end
+    box.RelativeScale3D.X=stamp
+    return ghost.place()
+end
+assert(round(10,5)==nil and round(11,6)==nil and #spawns==10,'8 in a second')
+ok,message=round(12,7)
+assert(ok==false and message=='Effect not shown: over 8 a second' and #spawns==10,tostring(message))
+assert(round(13,8)==nil and #spawns==10,'Said once a ghost')
+clock=clock+1
+assert(round(14,9)==nil and #spawns==14,'A second later: started again')
+-- The same table changed while the build resolves its systems: the parts hang as it says once built.
+ghost.rebuild('look')
+for _=1,10 do assert(ghost.tick()==nil,'Still building') end
+assert(send(900,her_parts({socket='SC_Back',blade_shown=false}))==nil)
+build()
+actor=spawned[#spawned]
+assert(actor.parts[5].attached.socket=='SC_Back' and actor.parts[5].visible==false,'The blade as the table is now')
+-- A peer's index past the list, or a part this ghost did not draw: nothing started, one line; the slot after them
+-- in the same stamp still starts.
+box=actor.mailbox
+for n=1,4 do slot(n,0,0,0) end
+slot(2,40,0,1)
+slot(3,1,9,1)
+slot(4,1,0,1)
+box.RelativeScale3D.X=10
+ok,message=ghost.place()
+assert(ok==false and message=='Effect not shown: asset 40 is not in the list' and #spawns==15,tostring(message))
+assert(spawns[15].args[2]==actor.parts[1],'Slot 4 on her main mesh')
+slot(2,7,0,2)
+box.RelativeScale3D.X=11
+assert(ghost.place()==nil and #spawns==15,'This PC lacks the 7th: said once already')
+-- A spawn that raises: effects off on this ghost (its instances stopped), the ghost goes on.
+slot(1,1,0,5)
+box.RelativeScale3D.X=12
+assert(ghost.place()==nil and #spawns==16)
+spawn_fails=true
+slot(4,2,0,2)
+box.RelativeScale3D.X=13
+ok,message=ghost.place()
+assert(ok==false and message:find('^Effects off on this ghost: .*no Niagara on a Poseable$'),tostring(message))
+assert(spawns[15].fx.stopped and spawns[16].fx.stopped and not actor.destroyed and ghost.status():find('^ghost=on '),
+    'Stopped; the ghost stays')
+box_reads=0
+box.RelativeScale3D.X=14
+box.RelativeScale3D.Z=40
+assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
+spawn_fails=false
 print('puppet_test ok')

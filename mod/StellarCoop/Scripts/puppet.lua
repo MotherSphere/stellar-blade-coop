@@ -10,7 +10,10 @@
 -- coop-settings.txt, or coop look), a follower whose mesh has clothing assets (her ponytail) is a SkeletalMeshComponent
 -- whose cloth swings on its leader's bones; else it is a rigid Poseable like the rest. With look.dyes, a part drawn on
 -- its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path rule as
--- meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own.
+-- meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack and
+-- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
+-- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
+-- slot and stops it when the slot changes, at most 8 starts a second.
 -- The build resolves one mesh a frame (a coroutine), then names what it built for the native part (coop-display.txt),
 -- which writes the leaders' bones each frame and the main mesh's world transform into the mailbox, a scene component
 -- nothing moves; place() puts the root there after the native tick. The ghost stays hidden until the first pose and
@@ -29,6 +32,9 @@ local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
 local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHair' and BASE_HAIR or nil end
+local EFFECTS=require('capture').EFFECTS -- What the wire's effect indexes name, for both players.
+local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
+local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
 -- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising) and a leader's names.
@@ -89,7 +95,7 @@ end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
 -- Steam name. capture gives yaw_delta(), the loopback's offset. say(text) puts a line on screen; name_tag: the tag.
--- look: what else the ghost shows ({cloth=true|false}, read at each build; nil: nothing more).
+-- look: what else the ghost shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more).
 function Puppet.new(link,capture,say,name_tag,look)
     look=look or {}
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end}
@@ -158,8 +164,8 @@ function Puppet.new(link,capture,say,name_tag,look)
         end
         built.target:SetVisibility(part.shown,false)
     end
-    -- The coroutine: spawns the hidden actor, then dresses one part per resume (one mesh resolved a frame), hangs them
-    -- all, adds the mailbox and publishes the display file. Returns the build's line for the log.
+    -- The coroutine: spawns the hidden actor, then dresses one part per resume (one mesh resolved a frame), adds the
+    -- mailbox (and the effects), hangs them all and publishes the display file. Returns the build's line for the log.
     local function build_ghost(eve)
         local t=remote
         local started=os.clock()
@@ -170,7 +176,7 @@ function Puppet.new(link,capture,say,name_tag,look)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
@@ -281,9 +287,6 @@ function Puppet.new(link,capture,say,name_tag,look)
                 g.count=g.count+1
             end
         end
-        for _,part in ipairs(remote.parts) do -- The table now: a part hung elsewhere meanwhile comes in the same one.
-            if g.parts[part.i] then hang(g,part) end
-        end
         -- The name tag, on the main mesh, so it moves, hides and goes with the ghost. A tag that fails is only left out.
         local tag_off=''
         if name_tag then
@@ -304,7 +307,37 @@ function Puppet.new(link,capture,say,name_tag,look)
         -- The mailbox: unattached, never moved; only the native part writes its relative fields.
         g.mailbox=valid(actor:AddComponentByClass(find('/Script/Engine.SceneComponent'),true,identity,false))
         assert(g.mailbox,'the mailbox could not be added')
+        -- Her effects: the listed systems (one a frame, as meshes), the library that starts them, and four slot boxes
+        -- beside the mailbox that only the native part writes. Anything failing leaves the ghost without effects only.
+        local effects
+        if look.effects then
+            local made,why=pcall(function()
+                local loaded=0
+                for _,path in ipairs(EFFECTS) do
+                    coroutine.yield()
+                    loaded=loaded+(resolve(path,counts,NIAGARA_SYSTEM) and 1 or 0)
+                end
+                g.fx_lib=find('/Script/Niagara.Default__NiagaraFunctionLibrary')
+                local slots,scene={},find('/Script/Engine.SceneComponent')
+                for n=1,4 do
+                    local box=valid(actor:AddComponentByClass(scene,true,identity,false))
+                    assert(box,'an effect box could not be added')
+                    slots[n]={box=box}
+                end
+                g.slots,effects=slots,string.format('effects loaded %d of %d',loaded,#EFFECTS)
+            end)
+            if not made then effects='effects off ('..tostring(why)..')' end
+        end
+        -- The table now, after the last yield: a part hung elsewhere meanwhile comes in the same one.
+        for _,part in ipairs(remote.parts) do
+            if g.parts[part.i] then hang(g,part) end
+        end
         local lines={'display '..t.generation,'mailbox '..hex(g.mailbox)..' '..hex(g.mailbox:GetClass())}
+        if g.slots then
+            local boxes={}
+            for n,slot in ipairs(g.slots) do boxes[n]=hex(slot.box) end
+            lines[#lines+1]='effects '..table.concat(boxes,' ')
+        end
         for _,part in ipairs(t.parts) do
             local built=g.parts[part.i]
             if built and not part.lead then
@@ -321,6 +354,7 @@ function Puppet.new(link,capture,say,name_tag,look)
         local looks={}
         if look.cloth then looks[#looks+1]=string.format('cloth parts %d',#g.cloth) end
         if look.dyes then looks[#looks+1]=string.format('dyed slots %d',g.dyed) end
+        if look.effects then looks[#looks+1]=effects end
         if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
         if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
         return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
@@ -416,17 +450,56 @@ function Puppet.new(link,capture,say,name_tag,look)
         end
         return (hidden_pair and 'ghost=hidden map' or 'ghost=waiting')..tail
     end
+    -- A slot's effect started on its part, or why not (nil when started).
+    local function start(g,slot,asset,part,at,rotation)
+        local now=os.clock()
+        while g.fx_starts[1] and now-g.fx_starts[1]>=1 do table.remove(g.fx_starts,1) end
+        local built=g.parts[part]
+        if not EFFECTS[asset] then return string.format('asset %g is not in the list',asset) end
+        if not built then return string.format('part %g is not drawn',part) end
+        if #g.fx_starts>=MAX_STARTS then return 'over '..MAX_STARTS..' a second' end
+        local system=resolve(EFFECTS[asset],{loaded=0,ms=0},NIAGARA_SYSTEM) -- Cached, checked to be still itself.
+        if not system then return string.format('spawn failed: asset %g is missing',asset) end
+        g.fx_starts[#g.fx_starts+1]=now
+        slot.fx=valid(g.fx_lib:SpawnSystemAttached(system,built.target,FName('None'),at,rotation,
+            0 --[[KeepRelativeOffset]],true,true,0 --[[no pooling]],true))
+        if not slot.fx then return 'spawn failed: nothing spawned' end
+    end
+    -- Each slot as the native part wrote its box (scale: asset + 1, part + 1, serial + 1; location and rotation
+    -- relative to the part): a new key stops the slot's instance and starts the new one; the same key moves the one
+    -- playing, so an effect hung on a socket (a kick trail) follows. Returns why the first refused one was.
+    local function show_effects(g)
+        local refused
+        for _,slot in ipairs(g.slots) do
+            local s=value_of(slot.box.RelativeScale3D)
+            local asset,part=s.X-1,s.Y-1
+            local key=string.format('%g:%g:%g',asset,part,s.Z-1)
+            local l,r=value_of(slot.box.RelativeLocation),value_of(slot.box.RelativeRotation)
+            local at,rotation={X=l.X,Y=l.Y,Z=l.Z},{Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}
+            local playing=valid(slot.fx)
+            if key==slot.key then
+                if playing then playing:K2_SetRelativeLocationAndRotation(at,rotation,false,{},true) end
+            else
+                slot.key,slot.fx=key,nil
+                if playing then playing:Deactivate() end
+                if asset~=0 then local why=start(g,slot,asset,part,at,rotation); refused=refused or why end
+            end
+        end
+        return refused
+    end
     -- After the native tick of the same frame: a new stamp in the mailbox is a pose just written, so the root takes its
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
     -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
-    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was.
+    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was. A new
+    -- effects stamp in the mailbox is a slot box just written: only then are the boxes read.
     function self.place()
         local g=ghost
         if not (wanted and g and g.built) then return end
-        local said={} -- What stopped on this ghost (its cloth, its tag turning): each is said once.
+        local said={} -- What stopped on this ghost (its cloth, its tag turning, its effects): each is said once.
         local ok,why=pcall(function()
             local box=g.mailbox
-            local stamp=value_of(box.RelativeScale3D).Z
+            local s=value_of(box.RelativeScale3D)
+            local stamp=s.Z
             if stamp>1 and stamp~=g.stamp then
                 g.stamp,g.stamp_at=stamp,os.clock()
                 local at,rotation=value_of(box.RelativeLocation),value_of(box.RelativeRotation)
@@ -463,6 +536,20 @@ function Puppet.new(link,capture,say,name_tag,look)
             elseif not g.hidden and os.clock()-g.stamp_at>=1 then
                 g.actor:SetActorHiddenInGame(true)
                 g.hidden=true
+            end
+            if g.slots and s.X~=g.fx_stamp then
+                g.fx_stamp=s.X
+                local shown,fx_why=pcall(show_effects,g) -- Its own pcall: a failure stops effects, never the ghost.
+                if not shown then
+                    for _,slot in ipairs(g.slots) do -- None left looping.
+                        pcall(function() local fx=valid(slot.fx); if fx then fx:Deactivate() end end)
+                    end
+                    g.slots=nil
+                    said[#said+1]='Effects off on this ghost: '..tostring(fx_why)
+                elseif fx_why and not g.fx_said then
+                    g.fx_said=true
+                    said[#said+1]='Effect not shown: '..fx_why
+                end
             end
         end)
         if not ok then failed=g.generation; return false,clear('stopped: '..tostring(why)) end
