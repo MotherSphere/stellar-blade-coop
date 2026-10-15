@@ -202,6 +202,10 @@ assert(summary('mod=v steam=ready\nlink=guest lobby=7 pending=1 held=7000\nfrien
     =='Co-op: invite held until your save has loaded.')
 assert(summary('mod=v steam=ready\nlink=none lobby=0\nfriend=1 0 x held=7\nlast=held=7\n')=='Co-op: not in a session.',
     'Only the link line says so')
+assert(summary('mod=v steam=ready\nlink=none lobby=0 rejoin=0/3\n')=="Co-op: rejoining your friend's game (try 0/3).")
+assert(summary('mod=v steam=ready\nlink=none lobby=0 pending=1 rejoin=2/3\n')=="Co-op: rejoining your friend's game (try 2/3).")
+assert(summary('mod=v steam=ready\nlink=none lobby=0\nfriend=1 0 x rejoin=1/3\nlast=rejoin=1/3\n')=='Co-op: not in a session.',
+    'Only the link line says so')
 assert(summary('mod=v steam=ready\nlink=host lobby=7\nlast=link=guest\n')=='Co-op: hosting, no friend yet.')
 assert(fresh.mode()=='host')
 assert(summary(HEAD..'friend=0 0 Kaanta\n')=='Co-op: Kaanta is connecting.')

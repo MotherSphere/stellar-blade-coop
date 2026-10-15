@@ -1,6 +1,7 @@
 // The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
-// the handshake and its rejects, the host leaving (D1), a lost peer, strangers, session requests, relay, the journal,
-// the player's notices; and two Links through it: the handshake both ways and channel 1 with its checks.
+// the handshake and its rejects, the host leaving (D1), the guest's rejoin of a lost lobby, a lost peer, strangers,
+// session requests, relay, the journal, the player's notices; and two Links through it: the handshake both ways,
+// channel 1 with its checks, join and leave cycles, the host leaving, and a rejoin the host never saw.
 #include "link_core.h"
 #include "pose_table.h"
 
@@ -61,7 +62,9 @@ struct Fake {
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
   int invites = 0, released = 0, relay = 100, session_state = 3, session_ping = 42;
   int send_result = 1; // Anything but 1: Steam refuses the send, which is neither recorded nor delivered.
-  uint32_t join_response = 1; // Anything but 1: the join fails with that EChatRoomEnterResponse, no member added.
+  // Anything but 1: the join fails with that EChatRoomEnterResponse, no member added. A lobby with no members gets 2
+  // (DoesntExist) whatever it says: Steam drops an empty lobby.
+  uint32_t join_response = 1;
 } F;
 
 int dummy;
@@ -143,7 +146,7 @@ template <int N> Api make_api() {
     uint64_t call = F.next_call++;
     Call &c = F.calls[call];
     c.id = kEnterId;
-    uint32_t response = F.join_response;
+    uint32_t response = F.members[lobby].empty() ? 2 : F.join_response;
     store(c, LobbyEnter{lobby, 0, false, response});
     c.on_done = [lobby, response] {
       if (response == kEnterSuccess)
@@ -258,6 +261,7 @@ struct World {
     link.tick(now, request, join, session);
   }
   std::string status() const { return link.status(Counters{}); }
+  void to(uint64_t at) { tick("", 0, 0, at - now); } // One pass at this time.
 };
 
 // Two players, A (client 0, us) and B (client 1, Kaanta), each with her own Steam and a sink for what her channel 1
@@ -339,6 +343,18 @@ void linked_host(World &w) {
   F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
   F.inbox.push_back({kFriend, accept()});
   w.tick();
+}
+// A guest in Kaanta's lobby 7000, joined by id, after both hellos and accepts.
+void linked_guest(World &w) {
+  assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+  her_lobby(7000);
+  w.tick("join 7000");
+  finish_all();
+  w.tick();
+  F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+  F.inbox.push_back({kFriend, accept()});
+  w.tick();
+  assert(w.link.linked() && w.status().find("\nlink=guest lobby=7000\n") != std::string::npos && joins() == 1);
 }
 } // namespace
 
@@ -480,18 +496,220 @@ int main() {
     assert(F.calls.size() == calls && w.link.lobby() == 7000 && !w.link.host() && F.left.empty());
     assert(saw("already a guest of Kaanta: host ignored") &&
            noticed(w.status(), "You are in Kaanta's game: leave it first."));
-    // A member other than the host coming and going (only a Steam that does not list us could show one): host only.
-    F.members[7000] = {kFriend, kOther};
-    w.tick("", 0, 0, 600);
-    F.members[7000] = {kFriend};
-    w.tick("", 0, 0, 600);
-    assert(saw("Third left the lobby") && w.link.lobby() == 7000);
-    assert(!noticed(w.status(), "Third joined.") && !noticed(w.status(), "Third left."));
     F.members[7000] = {kMe};
     F.owner[7000] = kMe;
     w.tick("", 0, 0, 600);
     assert(saw("left lobby 7000: host left, session ended") && w.link.lobby() == 0);
     assert(noticed(w.status(), "Session ended: Kaanta left.") && !noticed(w.status(), "Kaanta left."));
+    // At once: no rejoin, then or later.
+    w.tick("", 0, 0, 70000);
+    assert(joins() == 1 && !saw("rejoin") && w.status().find("rejoin=") == std::string::npos);
+  }
+
+  // Guest dropped from her lobby (a network cut): we leave it and try again at +2, +12 and +42 s. Two tries fail, the
+  // third gets back in with the same host: a new hello, and linked again.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    assert(sent_to(kFriend, "SBC hello ") == 2);
+    F.members[7000] = {kFriend};
+    w.tick();
+    uint64_t lost = w.now;
+    assert(saw("lost the host's lobby 7000: rejoining within 60 s") &&
+           saw("left lobby 7000: lost the host's lobby, rejoining"));
+    assert(w.status().find("\nlink=none lobby=0 rejoin=0/3\n") != std::string::npos && !w.link.linked());
+    assert(noticed(w.status(), "Lost Kaanta's game: rejoining.") &&
+           !noticed(w.status(), "Session ended: Kaanta left."));
+    F.join_response = 5;
+    w.to(lost + 1999);
+    assert(joins() == 1);
+    w.to(lost + 2000);
+    assert(joins() == 2 && saw("joining lobby 7000 (rejoin, try 1/3)"));
+    assert(w.status().find("\nlink=none lobby=0 pending=1 rejoin=1/3\n") != std::string::npos);
+    finish_all();
+    w.tick();
+    assert(saw("rejoin of lobby 7000 failed (response 5), next try in 10 s"));
+    assert(!noticed(w.status(), "Could not join: Steam response 5."));
+    w.to(lost + 11999);
+    assert(joins() == 2);
+    w.to(lost + 12000);
+    finish_all();
+    w.tick();
+    assert(joins() == 3 && saw("joining lobby 7000 (rejoin, try 2/3)") &&
+           saw("rejoin of lobby 7000 failed (response 5), next try in 30 s"));
+    F.join_response = 1;
+    w.to(lost + 41999);
+    assert(joins() == 3);
+    w.to(lost + 42000);
+    finish_all();
+    w.tick();
+    assert(joins() == 4 && saw("joining lobby 7000 (rejoin, try 3/3)") &&
+           count("joined lobby 7000 hosted by Kaanta") == 2);
+    assert(noticed(w.status(), "Rejoined Kaanta's game.") &&
+           w.status().find("\nlink=guest lobby=7000\n") != std::string::npos);
+    assert(sent_to(kFriend, "SBC hello ") == 3);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(w.link.linked() && w.status().find("\nfriend=1 0 Kaanta\n") != std::string::npos);
+    w.to(lost + 70000);
+    assert(joins() == 4 && w.link.lobby() == 7000 && !saw("rejoin given up"));
+  }
+  // Her lobby empty (she quit): one try, the game no longer exists, the session ends.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    F.members[7000].clear();
+    w.tick();
+    uint64_t lost = w.now;
+    w.to(lost + 2000);
+    finish_all();
+    w.tick();
+    assert(joins() == 2 && saw("rejoin given up: lobby 7000 is gone"));
+    assert(noticed(w.status(), "Session ended: Kaanta's game is gone.") &&
+           !noticed(w.status(), "Could not join: that game no longer exists."));
+    w.to(lost + 70000);
+    assert(joins() == 2 && w.link.lobby() == 0 && w.status().find("rejoin=") == std::string::npos);
+  }
+  // Back in her lobby, but someone else owns it: she left, so the session ends (D1), with no further try.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    F.members[7000] = {kFriend};
+    w.tick();
+    uint64_t lost = w.now;
+    F.members[7000] = {kOther};
+    F.owner[7000] = kOther;
+    w.to(lost + 2000);
+    finish_all();
+    w.tick();
+    assert(saw("rejoin given up: Kaanta no longer hosts lobby 7000") &&
+           saw("left lobby 7000: host left, session ended"));
+    assert(noticed(w.status(), "Session ended: Kaanta left.") && !noticed(w.status(), "Rejoined Kaanta's game."));
+    assert(w.link.lobby() == 0 && F.members[7000] == std::vector<uint64_t>{kOther} && count("joined lobby") == 1);
+    w.to(lost + 70000);
+    assert(joins() == 2 && w.status().find("rejoin=") == std::string::npos);
+  }
+  // Three failed tries: given up after the third, before +60 s, and no fourth.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    F.members[7000] = {kFriend};
+    w.tick();
+    uint64_t lost = w.now;
+    F.join_response = 4;
+    for (uint64_t at : kRejoinAt) {
+      w.to(lost + at);
+      finish_all();
+      w.tick();
+    }
+    assert(joins() == 4 && saw("rejoin given up: 3 tries failed") && w.now < lost + kRejoinMs);
+    assert(noticed(w.status(), "Session ended: could not rejoin Kaanta's game.") &&
+           w.status().find("rejoin=") == std::string::npos);
+    w.to(lost + 70000);
+    assert(joins() == 4 && !saw("60 s are over"));
+  }
+  // Past +60 s, a try never starts late (here the worker was stalled): given up.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    F.members[7000] = {kFriend};
+    w.tick();
+    w.to(w.now + kRejoinMs);
+    assert(joins() == 1 && saw("rejoin given up: 60 s are over"));
+    assert(noticed(w.status(), "Session ended: could not rejoin Kaanta's game.") &&
+           w.status().find("rejoin=") == std::string::npos);
+  }
+  // The player's own choice while it waits cancels the rejoin: leave, host, join, or a new invite (callback 333).
+  for (std::string asked : {"leave", "host", "join 7100", "333"}) {
+    reset();
+    World w;
+    linked_guest(w);
+    w.link.world(true);
+    her_lobby(7100);
+    F.members[7000] = {kFriend};
+    w.tick();
+    uint64_t lost = w.now;
+    if (asked == "333")
+      w.tick("", 7100);
+    else
+      w.tick(asked);
+    std::string word = asked.substr(0, asked.find(' '));
+    assert(saw("rejoin of lobby 7000 cancelled (" + (asked == "333" ? "a new invite" : word + " asked") + ")"));
+    assert(w.status().find("rejoin=") == std::string::npos);
+    w.to(lost + 70000);
+    assert(!saw("rejoin, try") && !saw("rejoin given up") && joins() == (asked == "leave" || asked == "host" ? 1 : 2));
+    assert(asked != "333" || saw("joining lobby 7100 (invite accepted)"));
+    assert(word != "join" || saw("joining lobby 7100 (console)"));
+    assert(asked != "host" || saw("creating a friends-only lobby"));
+  }
+  // An invite held on the title screen, then the loss: once a world loads, the held invite's release cancels the
+  // rejoin too, so leaving that lobby later never takes her back to the old one.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    her_lobby(7100);
+    w.tick("", 7100);
+    F.members[7000] = {kFriend};
+    w.tick();
+    assert(saw("lost the host's lobby 7000") && w.status().find(" held=7100 rejoin=0/3\n") != std::string::npos);
+    w.link.world(true);
+    w.tick();
+    assert(saw("rejoin of lobby 7000 cancelled (a new invite)") && saw("releasing the held invite to lobby 7100"));
+    assert(w.status().find("\nlink=none lobby=0 pending=1\n") != std::string::npos && joins() == 2);
+  }
+  // Host or join pressed while a try's call is pending is ignored as busy and leaves the rejoin armed: that try fails,
+  // and the next still runs at +12 s.
+  for (const char *asked : {"host", "join 7100"}) {
+    reset();
+    World w;
+    linked_guest(w);
+    w.link.world(true);
+    her_lobby(7100);
+    F.members[7000] = {kFriend};
+    w.tick();
+    uint64_t lost = w.now;
+    F.join_response = 5;
+    w.to(lost + 2000);
+    w.tick(asked);
+    assert(saw("busy: a lobby call is still pending") && !saw("cancelled"));
+    finish_all();
+    w.tick();
+    assert(saw("rejoin of lobby 7000 failed (response 5), next try in 10 s") &&
+           !noticed(w.status(), "Could not join: Steam response 5."));
+    w.to(lost + 12000);
+    assert(joins() == 3 && saw("joining lobby 7000 (rejoin, try 2/3)"));
+  }
+  // A reject either way ends a guest's session for good: no rejoin.
+  for (bool theirs : {true, false}) {
+    reset();
+    World w;
+    linked_guest(w);
+    F.inbox.push_back({kFriend, theirs ? reject("protocol 3 build 1, mine protocol 9 build 1 (mod x)")
+                                       : hello(kProtocol + 1, "new", kBuild)});
+    w.tick();
+    assert(w.link.lobby() == 0 &&
+           saw(theirs ? "left lobby 7000: rejected by Kaanta" : "left lobby 7000: incompatible player"));
+    w.tick("", 0, 0, 70000);
+    assert(joins() == 1 && !saw("rejoin") && w.status().find("rejoin=") == std::string::npos);
+  }
+  // Her messages stop for 10 s with the lobby unchanged: lost, then back, still her guest; never a rejoin.
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    w.tick("", 0, 0, 10000);
+    assert(saw("Kaanta silent for 10 s: lost") && noticed(w.status(), "Kaanta: connection lost."));
+    F.inbox.push_back({kFriend, ping(5, 5)});
+    w.tick();
+    assert(saw("Kaanta is back") && w.status().find("\nlink=guest lobby=7000\n") != std::string::npos);
+    assert(joins() == 1 && !saw("rejoin"));
   }
 
   // An invite accepted on the title screen (callback 333, no world) is held: no join, held= on the link line, the
@@ -790,7 +1008,13 @@ int main() {
     // A second session after a broken one: her new hello is answered again, so she can finish too.
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
     w.tick();
-    assert(sent_to(kFriend, "SBC accept") == 2);
+    assert(sent_to(kFriend, "SBC accept") == 2 && sent_to(kFriend, "SBC hello ") == 2);
+    // The same 10 s after our last hello: she may have rejoined unseen and lost ours, so it goes again, once.
+    w.tick("", 0, 0, 10000);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    w.tick();
+    assert(sent_to(kFriend, "SBC accept") == 4 && sent_to(kFriend, "SBC hello ") == 3);
   }
 
   // Strangers: messages ignored and logged once per sender; session requests accepted only for live members.
@@ -950,6 +1174,83 @@ int main() {
     t.tick(t.a, 1);
     assert(saw("A: ignored pose data from 2002: not in our lobby") && sink[0].size() == 81);
     assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
+
+    // j. Ten more visits: she joins, links and leaves. A's lobby stays, B keeps nothing, and her asked leave never
+    // starts a rejoin. Every round ends on B's pass, so she has read all A sent.
+    for (int cycle = 0; cycle < 10; ++cycle) {
+      size_t left = F.left.size();
+      t.tick(t.b, 1, "join 5000");
+      finish_all();
+      for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+        t.tick(t.a, 600);
+        t.tick(t.b, 600);
+      }
+      assert(t.a.linked() && t.b.linked());
+      t.tick(t.b, 1, "leave");
+      t.tick(t.a, 1);
+      std::string b = t.b.status(Counters{});
+      assert(b.find("\nlink=none lobby=0\n") != std::string::npos && t.b.peers().empty() && !t.a.linked());
+      assert(t.a.lobby() == 5000 && F.left.size() == left + 1 && b.find("rejoin=") == std::string::npos);
+      assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
+    }
+    assert(!saw("B: lost the host's lobby") && !saw("rejoin"));
+  }
+
+  // Two Links: the host leaves, Steam hands her lobby to the guest, who ends the session at once (D1): no rejoin.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked());
+    t.tick(t.a, 1, "leave");
+    F.owner[5000] = kFriend;
+    t.tick(t.b, 1);
+    assert(saw("B: left lobby 5000: host left, session ended") &&
+           noticed(t.b.status(Counters{}), "Session ended: Me left."));
+    t.tick(t.b, 70000);
+    assert(joins() == 1 && !saw("rejoin") && t.b.lobby() == 0);
+  }
+
+  // Two Links: B is dropped and rejoins before A's member list ever shows her gone, so A keeps her old peer, linked.
+  // B's new hello gets A's hello again (at once after 10 s quiet, else on B's next greeting 10 s later): both relink.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked());
+    F.members[5000] = {kMe};
+    t.tick(t.b, 1);
+    assert(saw("B: lost the host's lobby 5000") && !t.b.linked());
+    t.tick(t.b, 2000);
+    finish_all();
+    t.tick(t.b, 1);
+    assert(saw("B: joined lobby 5000 hosted by Me") && noticed(t.b.status(Counters{}), "Rejoined Me's game."));
+    for (int round = 0; round < 20 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked() && t.b.status(Counters{}).find("\nfriend=1 0 Me\n") != std::string::npos);
+    assert(!saw("A: Kaanta left the lobby"));
   }
 
   // coop report is passed to the caller once.

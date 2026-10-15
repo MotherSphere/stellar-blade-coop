@@ -96,8 +96,9 @@ function Link.new(folder,fs)
     local status_path=path('coop-status.txt')
     local seen,remote={},{}
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
-    -- invite waits for a save; shown: the last notice number handed out.
-    local mode,friend,listed,dead,held,shown=nil,nil,nil,false,nil,nil
+    -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
+    -- handed out.
+    local mode,friend,listed,dead,held,rejoin,shown=nil,nil,nil,false,nil,nil,nil
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -153,13 +154,15 @@ function Link.new(folder,fs)
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
-        mode,friend,listed,dead,held=nil,nil,nil,false,nil
+        mode,friend,listed,dead,held,rejoin=nil,nil,nil,false,nil,nil
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
             if not seen[line] and not line:find('^peer=') then new[#new+1]=line end
-            if not mode and line:find('^link=') then mode,held=line:match('^link=(%a+)'),line:match(' held=(%d+)') end
+            if not mode and line:find('^link=') then
+                mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
+            end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
             if name then friend={name,linked=='1',lost=='1'} end
@@ -189,6 +192,7 @@ function Link.new(folder,fs)
         if dead then return 'Co-op: the Steam link stopped; coop status says why.' end
         if not mode then return 'Co-op: waiting for Steam.' end
         if held then return 'Co-op: invite held until your save has loaded.' end
+        if rejoin then return "Co-op: rejoining your friend's game (try "..rejoin..'/3).' end
         if mode=='none' then return 'Co-op: not in a session.' end
         local name,linked,lost=self.friend()
         local text

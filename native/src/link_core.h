@@ -60,6 +60,11 @@ constexpr int kChannel = 0, kPoseChannel = 1, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
 constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~21/s, ~170 KB/s expected
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
+// A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
+constexpr uint64_t kHelloAgainMs = 10000;
+// A guest who lost the host's lobby tries again this long after the loss, and gives up at kRejoinMs (D5.10).
+constexpr int kRejoinTries = 3;
+constexpr uint64_t kRejoinAt[kRejoinTries] = {2000, 12000, 42000}, kRejoinMs = 60000;
 constexpr size_t kNotices = 8, kMaxNotice = 300;
 
 // The SteamID in a SessionRequest's identity, or 0. Read in place: the callback thread must not call Steam.
@@ -223,6 +228,7 @@ struct Peer {
   bool hello_sent = false, hello_received = false, accepted = false, compatible = false, lost = false;
   int invalid = 0; // Junk messages received; only the first is logged.
   uint64_t build = 0, ping_seq = 0, next_ping = 0, last_heard = 0;
+  uint64_t next_hello = 0; // Our last hello to her plus kHelloAgainMs.
   int64_t rtt_ms = -1;
   int session_state = 0, session_ping = -1;
   uint64_t window_at = 0, window_count = 0, window_bytes = 0; // Channel-1 receive, 1 s window.
@@ -296,9 +302,18 @@ public:
       on_session_request(session_request);
     poll_calls();
     if (held_ && world_ && !create_call_ && !join_call_) {
+      cancel_rejoin("a new invite"); // Held from before the loss: the player's later choice wins.
       uint64_t lobby = std::exchange(held_, 0);
       event("releasing the held invite to lobby " + std::to_string(lobby));
       join(lobby, held_how_);
+    }
+    if (rejoin_.lobby && !lobby_ && !create_call_ && !join_call_) {
+      if (now_ - rejoin_.start >= kRejoinMs) {
+        give_up("60 s are over", "Session ended: could not rejoin " + rejoin_.name + "'s game.");
+      } else if (rejoin_.tries < kRejoinTries && now_ - rejoin_.start >= kRejoinAt[rejoin_.tries]) {
+        ++rejoin_.tries;
+        join(rejoin_.lobby, "rejoin, try " + std::to_string(rejoin_.tries) + "/3");
+      }
     }
     if (lobby_) {
       poll_members();
@@ -357,7 +372,8 @@ public:
                     " cb333=" + std::to_string(c.join_requested) + " cb505=" + std::to_string(c.data_update) +
                     " cb1251=" + std::to_string(c.session_request) + "\n";
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
-         (create_call_ || join_call_ ? " pending=1" : "") + (held_ ? " held=" + std::to_string(held_) : "") + "\n";
+         (create_call_ || join_call_ ? " pending=1" : "") + (held_ ? " held=" + std::to_string(held_) : "") +
+         (rejoin_.lobby ? " rejoin=" + std::to_string(rejoin_.tries) + "/3" : "") + "\n";
     for (auto &p : peers_)
       s += "peer=" + std::to_string(p.id) + " name=" + p.name + " hello=" + (p.hello_received ? "1" : "0") +
            " accepted=" + (p.accepted ? "1" : "0") + " compatible=" + (p.compatible ? "1" : "0") +
@@ -458,10 +474,22 @@ private:
     event("joining lobby " + std::to_string(lobby) + " (" + how + ")");
   }
 
+  // The rejoin ends: the player chose something else (no notice), or the host's game is over for us (D1).
+  void cancel_rejoin(const std::string &why) {
+    if (rejoin_.lobby)
+      event("rejoin of lobby " + std::to_string(std::exchange(rejoin_, {}).lobby) + " cancelled (" + why + ")");
+  }
+  void give_up(const std::string &why, const std::string &text) {
+    event("rejoin given up: " + why);
+    notice(text);
+    rejoin_ = {};
+  }
+
   // An invite (callback 333, or +connect_lobby at launch): joined at once when a save is loaded and no lobby call is
   // pending, else held until both hold, so a launch never joins from the title screen. A newer one replaces it. A
   // console join is never held.
   void offer(uint64_t lobby, const std::string &how) {
+    cancel_rejoin("a new invite");
     if (world_ && !create_call_ && !join_call_) {
       held_ = 0; // Held in the pass the world loaded: its release would leave this newer lobby.
       return join(lobby, how);
@@ -491,12 +519,16 @@ private:
   }
 
   void handle(const Request &r) {
-    // The player chose: a held invite would undo it once the save loads.
-    bool dropped = held_ && (r.command == Command::host || r.command == Command::join || r.command == Command::leave);
-    if (dropped) {
-      const char *asked = r.command == Command::host ? "host" : r.command == Command::join ? "join" : "leave";
+    // The player chose: a held invite would undo it once the save loads, and a rejoin once it gets back in.
+    const char *asked = r.command == Command::host    ? "host"
+                        : r.command == Command::join  ? "join"
+                        : r.command == Command::leave ? "leave"
+                                                      : nullptr;
+    bool dropped = held_ && asked;
+    if (dropped)
       event("held invite to lobby " + std::to_string(std::exchange(held_, 0)) + " dropped (" + asked + " asked)");
-    }
+    if (asked && (r.command == Command::leave || !(create_call_ || join_call_))) // A busy host or join changes nothing.
+      cancel_rejoin(std::string(asked) + " asked");
     switch (r.command) {
     case Command::host:
       if (host_ && lobby_) {
@@ -599,15 +631,34 @@ private:
       joining_ = 0;
       bool cancel = cancel_;
       cancel_ = false;
+      bool rejoin = rejoin_.lobby == lobby; // A leave asked meanwhile cancelled it.
+      std::string id = std::to_string(lobby);
       if (!got || failed || r.response != kEnterSuccess || r.lobby != lobby) {
-        event("joining lobby " + std::to_string(lobby) + " failed (response " + std::to_string(r.response) + ")");
+        std::string response = std::to_string(r.response);
+        event("joining lobby " + id + " failed (response " + response + ")");
         // EChatRoomEnterResponse: 2 DoesntExist, 4 Full.
+        if (rejoin && r.response == 2)
+          return give_up("lobby " + id + " is gone", "Session ended: " + rejoin_.name + "'s game is gone.");
+        if (rejoin && rejoin_.tries == kRejoinTries)
+          return give_up("3 tries failed", "Session ended: could not rejoin " + rejoin_.name + "'s game.");
+        if (rejoin) {
+          uint64_t due = rejoin_.start + kRejoinAt[rejoin_.tries];
+          return event("rejoin of lobby " + id + " failed (response " + response + "), next try in " +
+                       std::to_string(due > now_ ? (due - now_ + 999) / 1000 : 0) + " s");
+        }
         return notice(r.response == 2   ? "Could not join: that game no longer exists."
                       : r.response == 4 ? "Could not join: that game is full."
-                                        : "Could not join: Steam response " + std::to_string(r.response) + ".");
+                                        : "Could not join: Steam response " + response + ".");
       }
       lobby_ = lobby;
-      host_id_ = api_.lobby_owner(mm_, lobby);
+      uint64_t owner = api_.lobby_owner(mm_, lobby);
+      if (rejoin && owner != rejoin_.host) { // Steam gave her lobby to someone else: she left (D1).
+        std::string name = rejoin_.name;
+        give_up(name + " no longer hosts lobby " + id, "Session ended: " + name + " left.");
+        return leave("host left, session ended");
+      }
+      rejoin_ = {};
+      host_id_ = owner;
       host_ = host_id_ == me_;
       if (cancel) {
         leave("leave asked while joining");
@@ -622,14 +673,15 @@ private:
         return leave("incompatible lobby");
       }
       std::string host = name_of(host_id_);
-      event("joined lobby " + std::to_string(lobby) + " hosted by " + host);
-      notice("Joined " + host + "'s game.");
+      event("joined lobby " + id + " hosted by " + host);
+      notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game.");
     }
   }
 
   // Lobby members are the only peers: new ones get a hello, gone ones are dropped. Read every pass, before receive(),
   // so a member's first message always finds its peer. The host leaving ends the session for the guest (D1: the leader
-  // is always the host), even though Steam hands the lobby to the guest.
+  // is always the host), even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours (a
+  // network cut): the guest leaves and tries to get back in for 60 s.
   void poll_members() {
     int n = api_.member_count(mm_, lobby_);
     if (n > kMaxMembers) { // Only a lobby made elsewhere can be bigger: greet nobody there.
@@ -637,17 +689,26 @@ private:
       return notice("Left: the lobby has more than 2 players.");
     }
     std::vector<uint64_t> members;
-    for (int i = 0; i < n; ++i)
-      if (uint64_t id = api_.member(mm_, lobby_, i); id && id != me_)
+    bool me_here = false, host_here = false;
+    for (int i = 0; i < n; ++i) {
+      uint64_t id = api_.member(mm_, lobby_, i);
+      me_here = me_here || id == me_;
+      host_here = host_here || id == host_id_;
+      if (id && id != me_)
         members.push_back(id);
+    }
     if (!host_) {
-      bool host_here = false;
-      for (auto id : members)
-        host_here = host_here || id == host_id_;
-      if (!host_here || api_.lobby_owner(mm_, lobby_) != host_id_) {
+      uint64_t owner = api_.lobby_owner(mm_, lobby_);
+      if (me_here && owner == me_) { // Steam handed us the lobby: only her leaving does that.
+        notice("Session ended: " + name_of(host_id_) + " left.");
+        return leave("host left, session ended");
+      }
+      if (!me_here || !host_here || owner != host_id_) { // A rejoin's outcome tells which it was.
         std::string host = name_of(host_id_);
-        leave("host left, session ended");
-        return notice("Session ended: " + host + " left.");
+        rejoin_ = {lobby_, host_id_, now_, host, 0};
+        event("lost the host's lobby " + std::to_string(lobby_) + ": rejoining within 60 s");
+        notice("Lost " + host + "'s game: rejoining.");
+        return leave("lost the host's lobby, rejoining");
       }
     }
     for (size_t i = 0; i < peers_.size();) {
@@ -680,6 +741,7 @@ private:
       if (!peer.hello_sent) {
         send(peer, hello(kProtocol, mod_, build_), kReliable);
         peer.hello_sent = true;
+        peer.next_hello = now_ + kHelloAgainMs;
       }
     }
   }
@@ -796,8 +858,13 @@ private:
       }
       peer.compatible = true;
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
-      if (!peer.accepted)
-        send(peer, hello(kProtocol, mod_, build_), kReliable); // Ours may have been lost with that session.
+      // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
+      // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
+      // kHelloAgainMs after our last, so the two hellos each side sends in a handshake never ping-pong.
+      if (!peer.accepted || (!first && now_ >= peer.next_hello)) {
+        send(peer, hello(kProtocol, mod_, build_), kReliable);
+        peer.next_hello = now_ + kHelloAgainMs;
+      }
       if (first)
         event("hello from " + peer.name + " (mod " + message.text + ")");
       break;
@@ -864,8 +931,9 @@ private:
       std::memcpy(&peer.pending, quick + 36, 4);
       std::memcpy(&peer.queue_us, quick + 48, 8);
       // A first connection that failed (4 closed by peer, 5 problem detected) took both hellos with it: greet again,
-      // which restarts the session (kReliable has AutoRestartBrokenSession).
-      if (!peer.hello_received && (peer.session_state == 4 || peer.session_state == 5))
+      // which restarts the session (kReliable has AutoRestartBrokenSession). Still no hello of hers kHelloAgainMs after
+      // ours: greet again too, as a repeat she had to leave unanswered is answered once her wait is over.
+      if (!peer.hello_received && (peer.session_state == 4 || peer.session_state == 5 || now_ >= peer.next_hello))
         peer.hello_sent = false;
     }
   }
@@ -924,6 +992,12 @@ private:
   bool world_ = false; // A save is loaded (Lua's coop-state.txt).
   uint64_t held_ = 0;  // An invite waiting for a world, or for the pending lobby call to end, and how it came.
   std::string held_how_;
+  // The host's lobby a guest lost, when, her name, and the tries started (kRejoinAt); lobby 0 when none.
+  struct {
+    uint64_t lobby = 0, host = 0, start = 0;
+    std::string name;
+    int tries = 0;
+  } rejoin_;
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
