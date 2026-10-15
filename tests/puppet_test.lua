@@ -494,6 +494,10 @@ local function camp(id,at) return object('Camp',{EnvActorName=fname(id),K2_GetAc
 local camps={Env_VendingMachine_C={camp('Xion_10_EnvS_007',{X=1,Y=-498,Z=3})},Env_VendingMachine_Simple_C={invalid},
     Env_Camp_TeleportMachine_C={camp('Xion_10_EnvS_016',{X=301,Y=2,Z=3})},
     Env_Camp_TeleportMachine_Tetrapod_C={camp('Xion_10_EnvS_020',{X=1,Y=2,Z=903})}}
+-- Spawn points: the nearest is neither the first nor the last valid one either.
+local function spawn_point(id,at) return object('Spawn',{SpawnPointName=fname(id),K2_GetActorLocation=function() return at end}) end
+camps.SBSpawnPoint={invalid,spawn_point('Xion_SP_far',{X=1,Y=2,Z=2003}),spawn_point('Xion_10_Camp_SV1',{X=1,Y=2,Z=203}),
+    spawn_point('Xion_SP_mid',{X=1,Y=2,Z=1003})}
 FindAllOf=function(class) return camps[class] end -- nil for a class with no object, as UE4SS does.
 local STATICS='/Script/Engine.Default__GameplayStatics'
 found_by_path[STATICS]=invalid -- Not in this build: that field says why, the rest of the line stays.
@@ -506,7 +510,8 @@ found_by_path[STATICS]=object('GameplayStatics',{GetWorldOriginLocation=function
 end})
 ok,message=ghost.where()
 assert(ok and message=='where map=/game/art/bg/worldmap/level_p/e04 eve=1.0,2.0,3.0 yaw=0.0 mesh=1.0,2.0,-87.0 '
-    ..'camp=Xion_10_EnvS_016:Env_Camp_TeleportMachine_C@301.0,2.0,3.0 camp_m=3.0 origin=0,0,0 composition=false '
+    ..'camp=Xion_10_EnvS_016:Env_Camp_TeleportMachine_C@301.0,2.0,3.0 camp_m=3.0 '
+    ..'spawn=Xion_10_Camp_SV1:SBSpawnPoint@1.0,2.0,203.0 spawn_m=2.0 origin=0,0,0 composition=false '
     ..'rebasing=false ghost=peer@1.0,402.0,-87.0 ghost_yaw=45.0 ghost_m=4.00 ghost_age=0.5',message)
 -- In loopback: where her mesh is, before the 2 m offset.
 ghost.remote(607,count,'loopback') -- The same count: only the source changes.
@@ -522,6 +527,8 @@ ghost.remote(nil,nil,nil)
 ghost.toggle()
 ok,message=ghost.where()
 assert(ok and message:find(' ghost=none$') and message:find(' camp=Xion_10_EnvS_016:'),'No link, no ghost: still a line')
+camps.SBSpawnPoint=nil -- None loaded: the field says so, the line stays.
+assert(select(2,ghost.where()):find(' spawn=none origin=',1,true),'No spawn point')
 player=menu
 ok,message=ghost.where()
 assert(ok==false and message=='no EVE in the world',message)

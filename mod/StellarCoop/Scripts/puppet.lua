@@ -371,8 +371,23 @@ function Puppet.new(link,capture)
         local ok,v=pcall(f)
         return ok and v or '?('..tostring(v):gsub('^.-:%d+: ',''):sub(1,60)..')'
     end
-    -- coop where: one line to compare between the two PCs (camps are placed in the levels, so their ids and positions
-    -- match on both). FindAllOf walks every object: on demand only, never per tick. Needs neither a link nor a ghost.
+    -- The nearest valid object of these classes to at: '<id>:<class>@x,y,z <unit>=<metres>', or 'none'.
+    local function nearest(classes,at,id,unit)
+        local best,line=nil,'none'
+        for _,class in ipairs(classes) do
+            each(FindAllOf(class) or {},function(_,a)
+                a=valid(a)
+                if not a then return end
+                local p=value_of(a:K2_GetActorLocation())
+                local d=metres(p,at)
+                if not best or d<best then best,line=d,string.format('%s:%s@%s %s=%.1f',id(a),class,xyz(p),unit,d) end
+            end)
+        end
+        return line
+    end
+    -- coop where: one line to compare between the two PCs (camps and spawn points are placed in the levels, so their
+    -- ids and positions match on both; a map can stream every camp out, Spire IV does, while its spawn points stay
+    -- loaded). FindAllOf walks every object: on demand only, never per tick. Needs neither a link nor a ghost.
     function self.where()
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
@@ -381,20 +396,9 @@ function Puppet.new(link,capture)
         -- (her actor's differs by capture's yaw_delta).
         local body=valid(eve.Mesh)
         local mesh=value_of(body:K2_GetComponentLocation())
-        local camp=try(function()
-            local best,line=nil,'none'
-            for _,class in ipairs(CAMPS) do
-                each(FindAllOf(class) or {},function(_,a)
-                    a=valid(a)
-                    if not a then return end
-                    local p=value_of(a:K2_GetActorLocation())
-                    local d=metres(p,at)
-                    if not best or d<best then
-                        best,line=d,string.format('%s:%s@%s camp_m=%.1f',text(a.EnvActorName),class,xyz(p),d)
-                    end
-                end)
-            end
-            return line
+        local camp=try(function() return nearest(CAMPS,at,function(a) return text(a.EnvActorName) end,'camp_m') end)
+        local spawn=try(function()
+            return nearest({'SBSpawnPoint'},at,function(a) return text(a.SpawnPointName) end,'spawn_m')
         end)
         local origin=try(function()
             local o=value_of(find('/Script/Engine.Default__GameplayStatics'):GetWorldOriginLocation(eve))
@@ -409,8 +413,8 @@ function Puppet.new(link,capture)
         local other=s and string.format('%s@%.1f,%.1f,%.1f ghost_yaw=%.1f ghost_m=%.2f ghost_age=%.1f',tostring(source),
             s.x,s.y,s.z,s.yaw,metres({X=s.x,Y=s.y,Z=s.z},mesh),os.clock()-s.at)
             or remote and (remote.map==map and 'waiting' or 'elsewhere:'..remote.map) or 'none'
-        return true,string.format('where map=%s eve=%s yaw=%.1f mesh=%s camp=%s origin=%s %s ghost=%s',map,xyz(at),
-            value_of(body:K2_GetComponentRotation()).Yaw,xyz(mesh),camp,origin,flags,other)
+        return true,string.format('where map=%s eve=%s yaw=%.1f mesh=%s camp=%s spawn=%s origin=%s %s ghost=%s',map,
+            xyz(at),value_of(body:K2_GetComponentRotation()).Yaw,xyz(mesh),camp,spawn,origin,flags,other)
     end
     -- Once per game-thread tick: nothing while the ghost is off. A level change removes the ghost; it is built again
     -- (or for a new table) once EVE has been in the world 2 s and she is on the table's map.

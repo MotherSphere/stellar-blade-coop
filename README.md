@@ -52,20 +52,22 @@ the two PCs.
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
 - `coop where` prints one line to compare between the two PCs, with or without a link or a ghost:
-  `where map=<map> eve=<x,y,z> yaw=<yaw> mesh=<x,y,z> camp=<id>:<class>@<x,y,z> camp_m=<m> origin=<x,y,z>
-  composition=<flag> rebasing=<flag> ghost=<...>`.
+  `where map=<map> eve=<x,y,z> yaw=<yaw> mesh=<x,y,z> camp=<id>:<class>@<x,y,z> camp_m=<m>
+  spawn=<id>:SBSpawnPoint@<x,y,z> spawn_m=<m> origin=<x,y,z> composition=<flag> rebasing=<flag> ghost=<...>`.
   - `eve=` is her actor's location; `mesh=` and `yaw=` are her main mesh's, which is what a friend's ghost is placed
     from. Positions are in centimetres, distances in metres.
   - `camp=` is the nearest object of the four camp classes `Env_VendingMachine_C`, `Env_VendingMachine_Simple_C`,
     `Env_Camp_TeleportMachine_C` and `Env_Camp_TeleportMachine_Tetrapod_C` (vending machines and phone booths): its
     data id (`EnvActorName`), class, position and distance, or `none`. Camps are placed in the levels, so the same id
     should give the same position on both PCs. Finding them walks every object, so it runs only when asked.
+  - `spawn=` is the nearest `SBSpawnPoint` (its `SpawnPointName`), the same way. A map can stream every camp out
+    (Spire IV does) while its spawn points stay loaded, so this field gives a reference anywhere on such a map.
   - `origin=` is the world origin (`GetWorldOriginLocation`); `composition=` and `rebasing=` are the world settings'
     world composition and origin rebasing flags.
   - `ghost=` is `<source>@<x,y,z> ghost_yaw=<yaw> ghost_m=<m> ghost_age=<s>`: where the main mesh of the ghost's EVE
     last was (before the loopback's 2 m offset), its yaw, its distance from your mesh and the seconds since that pose.
     Otherwise `waiting` (a table for your map, no pose placed yet), `elsewhere:<her map>` or `none`.
-  - If the camp search, the world origin or the world settings fail, that field reads `?(<why>)` and the rest of the
+  - If the camp or spawn point search, the world origin or the world settings fail, that field reads `?(<why>)` and the rest of the
     line still prints. The map, EVE's position and her mesh are read without a guard: if one of them fails, the
     command prints `STOP:` with the error instead of the line.
 - `coop loopback <delay ms> <jitter ms> <loss %>` (0 to 1000, 0 to 500, 0 to 100; needs `coop puppet`) runs the whole
