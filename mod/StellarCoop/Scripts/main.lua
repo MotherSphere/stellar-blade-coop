@@ -5,7 +5,7 @@
 -- between two players (coop host, invite, join, leave, status, report; host, status and leave on keys too, F5, F6 and
 -- F8 unless coop-settings.txt says otherwise), its notices on screen above your EVE; and coop where, a line of
 -- coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night Operation probe of the T6
--- test only (nightop.lua). coop off stops everything until the game restarts.
+-- test only (nightop.lua), on the co-op save slot only. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -53,7 +53,16 @@ local function ask(line)
         return link.request(line)
     end
 end
--- Its one entry, commands.no, is where the co-op slot check goes (Phase 7).
+-- coop no (and the shared features of later phases) runs only with the co-op save slot loaded (D2, N9): the native
+-- part's slot= line, from the start of its own line (a Steam name never starts one). The ghost, the Steam link and
+-- every other command are never locked to it.
+local function coop_slot()
+    local line=('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)')
+    if line and line:find('^slot=coop ') then return true end
+    return false,'coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
+        ..(line or 'no slot status')
+end
+-- Its one entry, commands.no, runs only on the co-op save slot (coop_slot).
 local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
 local commands={
@@ -72,7 +81,12 @@ local commands={
         if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
         return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
     end,
-    basesuit=puppet.basesuit, where=puppet.where, no=nightop.run,
+    basesuit=puppet.basesuit, where=puppet.where,
+    no=function(sub,extra)
+        local ok,why=coop_slot()
+        if not ok then return false,why end
+        return nightop.run(sub,extra)
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end

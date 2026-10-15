@@ -1,7 +1,7 @@
 -- main.lua's console dispatch with UE4SS stubbed: every coop command reaches the right handler, bad input is refused,
 -- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
--- the keys only hand their action to the game thread, coop no reaches the Night Operation probe (ticked every frame
--- until coop off), and the link is optional (no native part, no Steam link, no keys).
+-- the keys only hand their action to the game thread, coop no reaches the Night Operation probe on the co-op save slot
+-- only (ticked every frame until coop off), and the link is optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -132,7 +132,10 @@ coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lo
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
 assert(ticks==2 and notice_ticks==2 and probe_ticks==2,'The native tick, the notices and the probe run every frame')
--- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status.
+-- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status, with the co-op slot loaded.
+local plain=status_text
+local function with_slot(line) return 'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=on\n'..line..'last=#1 ready\n' end
+status_text=with_slot('slot=coop index=4 marker=4\n')
 coop('no','rule')
 assert(#probe_runs==1 and probe_runs[1][1]=='rule' and last()=='[StellarCoop] OK: probe rule\n',last())
 coop('no'); assert(#probe_runs==2 and probe_runs[2][1]==nil)
@@ -140,6 +143,19 @@ probe.log('baseline: x'); assert(last()=='[StellarCoop][NO] baseline: x\n',last(
 local asked_ok,asked_text=probe.ask('nightop')
 assert(asked_ok and asked_text=='asked the native part: nightop' and asked[#asked]=='nightop')
 assert(probe.status()==status_text)
+-- Anything but a slot=coop line of its own refuses, and the probe never runs (D2, N9).
+local STOP='[StellarCoop] STOP: coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
+for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main index=0 marker=4'},
+        {with_slot('slot=none index=4 marker=4\n'),'slot=none index=4 marker=4'},
+        {with_slot('slot=unknown index=-1 marker=4\n'),'slot=unknown index=-1 marker=4'},
+        {with_slot(''),'no slot status'},
+        {with_slot('friend=1 0 slot=coop index=4 marker=4\n'),'no slot status'}, -- Not at a line start.
+        {'stopped=fault 0xc0000005\n','no slot status'}}) do
+    status_text=case[1]
+    local runs=#probe_runs
+    coop('no','rule'); assert(#probe_runs==runs and last()==STOP..case[2]..'\n',last())
+end
+status_text=plain
 notice_result={false,'Screen notices off: x; notices stay in UE4SS.log.'}
 loops[1].f(); assert(last()=='[StellarCoop] STOP: Screen notices off: x; notices stay in UE4SS.log.\n',last())
 notice_result=nil
@@ -213,6 +229,14 @@ loops[2].f(); assert(#states==0,'Nor a world state')
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
 load_main(true)
 loops[1].f(); assert(ticks==1,'A peer name never switches the mod off')
+-- On a main slot only coop no refuses: the ghost and the Steam link are never locked to the co-op slot.
+status_text=with_slot('slot=main index=0 marker=4\n')
+load_main(true)
+toggles=0
+coop('host'); assert(asked[#asked]=='host' and last():find('OK: asked the native part: host',1,true),last())
+coop('puppet'); assert(toggles==1 and active and last()=='[StellarCoop] OK: ghost\n',last())
+coop('puppet'); assert(toggles==2 and not active)
+coop('no'); assert(#probe_runs==0 and last()==STOP..'slot=main index=0 marker=4\n',last())
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
@@ -274,4 +298,5 @@ coop('where'); assert(wheres==2 and last():find('OK: where',1,true),'coop where 
 local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
+coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 io.stdout:write('main_test ok\n')
