@@ -4,7 +4,8 @@
 -- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read;
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
--- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip.
+-- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip; with
+-- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -51,6 +52,9 @@ mesh(BASE_HAIR,{'Bip001-Head','Other','Hair_01'})
 mesh(STATIC,{},false)
 mesh(LONG_HAIR,{'a','b','c','d','e'})
 mesh(TWO_BLADE,{'Root','Tip'})
+-- Clothing assets: the ponytail, a follower, and her hair, a leader.
+meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
+meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
 local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
 local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
 LoadAsset=function(path)
@@ -76,6 +80,20 @@ local function poseable(actor)
     function p:IsA(class) return class.path=='/Script/Engine.PoseableMeshComponent' end
     function p:GetOwner() return actor end
     return p -- No SetMaterial: a call fails the build, so the test.
+end
+-- A cloth part: a SkeletalMeshComponent with the same calls, plus the cloth reset; never bound to its leader's cloth.
+local fail_cloth,fail_reset,skeletal_adds=nil,false,0 -- fail_cloth: 'add' or 'set'.
+local function cloth_part(actor)
+    local s=poseable(actor)
+    s.cloth=true
+    function s:IsA(class) return class.path=='/Script/Engine.SkeletalMeshComponent' end
+    function s:SetSkeletalMesh(m) if fail_cloth=='set' then error('no cloth mesh') end self.mesh,self.added_at=m,frame end
+    function s:ForceClothNextUpdateTeleportAndReset()
+        if fail_reset then error('no reset') end
+        self.resets=(self.resets or 0)+1
+    end
+    function s:BindClothToMasterPoseComponent() error('a Poseable leader has no cloth to bind to') end
+    return s
 end
 local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua to either is unproven in the game.
 FText=function(text) if fail_text then error('no FText') end return {text=text} end
@@ -110,6 +128,11 @@ local world={SpawnActor=function(_,class,at)
             if fail_label then return nil end
             added=text_render(self)
             self.label=added
+        elseif c.path=='/Script/Engine.SkeletalMeshComponent' then
+            assert(manual==false)
+            skeletal_adds=skeletal_adds+1
+            if fail_cloth=='add' then return nil end
+            added=cloth_part(self); self.parts[#self.parts+1]=added
         else
             assert(c.path=='/Script/Engine.PoseableMeshComponent' and manual==false)
             added=poseable(self); self.parts[#self.parts+1]=added
@@ -188,10 +211,10 @@ local link={remote_table=function() return remote_file end,store=function() retu
     friend=function() return 'Kaanta',true,false end,
     request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
-local function new(path_left,name_tag)
+local function new(path_left,name_tag,look)
     stored=path_left
     package.loaded.puppet=nil
-    return require('puppet').new(link,capture,function(text) said[#said+1]=text end,name_tag~=false)
+    return require('puppet').new(link,capture,function(text) said[#said+1]=text end,name_tag~=false,look)
 end
 local ghost=new(nil)
 local count=0
@@ -668,4 +691,93 @@ player=nil
 assert(ghost.world()==false,'No pawn at all')
 player=eve_of('EVE10',{GetFullName=function() error('world gone') end})
 assert(ghost.world()==false,'An engine error is no world, never raised')
+
+-- Cloth (look.cloth, read at each build): a follower whose mesh has clothing assets, her ponytail, is a
+-- SkeletalMeshComponent that follows its Poseable leader, with no collision, simulated in its own space, never bound to
+-- the leader's cloth; a leader stays Poseable whatever its mesh, and a mesh whose assets cannot be read has none. Every
+-- ghost above was built with cloth off: none had one, though the ponytail and the hair have clothing assets.
+assert(skeletal_adds==0,'Cloth off: Poseables only')
+player=eve
+local look={cloth=true}
+ghost=new(nil,true,look)
+ghost.toggle()
+local clothed=her_parts()
+clothed[6].path=BLADE -- The scabbard on a mesh without cloth: the ponytail is the one cloth part.
+setmetatable(meshes[FACE],{__index=function(_,key) if key=='MeshClothingAssets' then error('no such property') end end})
+send(700,clothed)
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 700 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 0 on the base suit, 0 left out; '
+    ..'look: cloth parts 1 %(%d+ ms in all%)%.$'),message)
+actor=spawned[#spawned]
+root,face,hair,pony,blade,scabbard=table.unpack(actor.parts)
+assert(pony.cloth and pony.mesh==meshes[PONY] and pony.calls.SetCollisionEnabled==0 and pony.bLocalSpaceSimulation==true)
+assert(pony.calls.SetMasterPoseComponent==hair and pony.bUseBoundsFromMasterPoseComponent==true,'It follows its leader')
+assert(pony.attached.parent==hair and pony.visible==false,'Hung and shown as the table says')
+assert(not (root.cloth or face.cloth or hair.cloth or blade.cloth or scabbard.cloth),'The rest are Poseables')
+assert(hair.calls.SetForcedLOD==1 and face.calls.SetMasterPoseComponent==root)
+d=displays[#displays]:gsub('0x%x+','0xX')
+assert(d=='display 700\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
+-- Its cloth starts again from the pose each time the ghost shows: the first pose, and after a hide.
+box=actor.mailbox
+assert(ghost.place()==nil and actor.hidden and not pony.resets,'No pose yet: hidden, no reset')
+box.RelativeScale3D.Z=20
+assert(ghost.place()==nil and actor.hidden==false and pony.resets==1,'Reset as it first shows')
+box.RelativeScale3D.Z=21
+ghost.place()
+assert(pony.resets==1,'Shown already: not at each pose')
+clock=clock+1
+ghost.place()
+assert(actor.hidden==true and pony.resets==1)
+box.RelativeScale3D.Z=22
+ghost.place()
+assert(actor.hidden==false and pony.resets==2,'Again as it shows after a hide')
+-- A reset that fails is said once and leaves the ghost shown; its cloth is never reset again.
+fail_reset=true
+clock=clock+1
+ghost.place()
+box.RelativeScale3D.Z=23
+ok,message=ghost.place()
+assert(ok==false and message:find('^Cloth reset failed: .*no reset; this ghost\'s cloth still simulates but is never reset again '
+    ..'%(coop look cloth off removes it%)$'),tostring(message))
+assert(actor.hidden==false and not actor.destroyed,'The ghost stays, shown')
+clock=clock+1
+ghost.place()
+box.RelativeScale3D.Z=24
+assert(ghost.place()==nil and actor.hidden==false and pony.resets==2,'Said once')
+fail_reset=false
+-- coop look: the ghost removed and built again at once with what the look says now.
+look.cloth=false
+assert(ghost.rebuild('look')=='Ghost 700 removed (look).' and actor.destroyed and displays[#displays]=='withdrawn')
+ok,message=build()
+actor=spawned[#spawned]
+assert(message:find('^Ghost 700 built: 6 parts .* 0 left out %(%d+ ms in all%)%.$') and not actor.parts[4].cloth,message)
+-- A cloth part that cannot be added, or fails once added (then it goes): the ponytail is a plain part, and says why.
+look.cloth=true
+fail_cloth='add'
+ghost.rebuild('look')
+ok,message=build()
+actor=spawned[#spawned]
+pony=actor.parts[4]
+assert(ok and not pony.cloth and pony.calls.SetMasterPoseComponent==actor.parts[3] and #actor.parts==6,message)
+assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*a cloth part could not be added%), drawn as a '
+    ..'plain part %('),message)
+fail_cloth='set'
+ghost.rebuild('look')
+ok,message=build()
+actor=spawned[#spawned]
+assert(#actor.parts==7 and actor.parts[4].cloth and actor.parts[4].destroyed,'Added, failed, destroyed')
+assert(not actor.parts[5].cloth and actor.parts[5].mesh==meshes[PONY] and actor.parts[5].calls.SetMasterPoseComponent==actor.parts[3])
+assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*no cloth mesh%), drawn as a plain part %('),message)
+fail_cloth=nil
+-- A rebuild tries a failed table again at once.
+fail_add=true
+ghost.rebuild('look')
+ok,message=build()
+assert(ok==false and ghost.tick()==nil,'Not again on that table by itself')
+fail_add=false
+assert(ghost.rebuild('look')==nil,'No ghost to remove')
+ok,message=build()
+assert(message:find('^Ghost 700 built: .*; look: cloth parts 1 %('),message)
 print('puppet_test ok')

@@ -6,7 +6,9 @@
 -- outfit. A mesh this PC lacks (a DLC it does not own), one the path rule refused ('-'), or one with other bones than
 -- hers falls back to the base suit (body and hair), whose bones the native part drives by name (a remap); a part with
 -- no fallback is left out, with its followers. Parts hang as the table says (parent part, socket, placement) and
--- followers follow their leader (SetMasterPoseComponent). No cloth or morphs: a rigid ponytail and a neutral face.
+-- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (cloth=on in
+-- coop-settings.txt, or coop look), a follower whose mesh has clothing assets (her ponytail) is a SkeletalMeshComponent
+-- whose cloth swings on its leader's bones; else it is a rigid Poseable like the rest.
 -- The build resolves one mesh a frame (a coroutine), then names what it built for the native part (coop-display.txt),
 -- which writes the leaders' bones each frame and the main mesh's world transform into the mailbox, a scene component
 -- nothing moves; place() puts the root there after the native tick. The ghost stays hidden until the first pose and
@@ -76,7 +78,9 @@ end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
 -- Steam name. capture gives yaw_delta(), the loopback's offset. say(text) puts a line on screen; name_tag: the tag.
-function Puppet.new(link,capture,say,name_tag)
+-- look: what else the ghost shows ({cloth=true|false}, read at each build; nil: nothing more).
+function Puppet.new(link,capture,say,name_tag,look)
+    look=look or {}
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end}
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
@@ -155,13 +159,34 @@ function Puppet.new(link,capture,say,name_tag)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0}
+            hidden=true,stamp=1,stamp_at=0,cloth={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
         store.save(actor:GetFullName():match('^%S+ (.+)$'))
         local counts,notes={loaded=0,ms=0},{}
-        local function add(mesh)
+        local function clothed(mesh) -- A read that fails counts as no clothing assets.
+            local ok,n=pcall(function() local n=0; each(mesh.MeshClothingAssets,function() n=n+1 end); return n end)
+            return ok and n>0
+        end
+        local function add(mesh,part)
+            -- A follower with cloth is a SkeletalMeshComponent: NvCloth reads its master's component-space bones
+            -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, below).
+            -- Never BindClothToMasterPoseComponent: that binds to the leader's own cloth, and a Poseable has none.
+            if look.cloth and part.lead and clothed(mesh) then
+                local target
+                local made,why=pcall(function()
+                    target=valid(actor:AddComponentByClass(find('/Script/Engine.SkeletalMeshComponent'),false,identity,
+                        false))
+                    assert(target,'a cloth part could not be added')
+                    target:SetCollisionEnabled(0)
+                    target:SetSkeletalMesh(mesh,true)
+                    target.bLocalSpaceSimulation=true -- Its own space: place() moves the root by teleports.
+                end)
+                if made then g.cloth[#g.cloth+1]=target; return target end
+                if target then pcall(function() target:K2_DestroyComponent(actor) end) end
+                notes[#notes+1]=string.format('%s: cloth not used (%s), drawn as a plain part',part.name,tostring(why))
+            end
             local target=valid(actor:AddComponentByClass(poseable,false,identity,false)) -- The first is the root.
             assert(target,'a ghost part could not be added')
             target:SetCollisionEnabled(0)
@@ -180,7 +205,7 @@ function Puppet.new(link,capture,say,name_tag)
                 coroutine.yield()
                 local mesh=resolve(part.path,counts)
                 if mesh then
-                    local target=add(mesh)
+                    local target=add(mesh,part)
                     if part.lead or target:GetNumBones()==part.bones then return target,mesh end
                     why=string.format('has %d bones, not %d',target:GetNumBones(),part.bones)
                     target:K2_DestroyComponent(actor) -- Never re-point it: a mesh of the same count would keep stale bones.
@@ -190,7 +215,7 @@ function Puppet.new(link,capture,say,name_tag)
             coroutine.yield()
             local mesh=resolve(base,counts)
             if not mesh then return nil end
-            local target=add(mesh)
+            local target=add(mesh,part)
             if part.lead then
                 notes[#notes+1]=string.format('%s: %s %s, drawn as %s',part.name,part.path or '-',why,base)
                 return target,mesh,true
@@ -264,6 +289,7 @@ function Puppet.new(link,capture,say,name_tag)
         local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base suit, %d left out%s%s',
             t.generation,g.count,g.leaders,counts.loaded,counts.ms,g.base,g.left_out,
             published and '' or '; display not published: '..tostring(why),tag_off)
+        if look.cloth then line=line..string.format('; look: cloth parts %d',#g.cloth) end
         if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
         return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
     end
@@ -327,11 +353,15 @@ function Puppet.new(link,capture,say,name_tag)
             ..'once a table comes back (a linked friend\'s; coop loopback 0 0 0 shows yours, coop replay a recording); '
             ..'coop puppet again ends it.'
     end
+    -- The ghost removed to be built again at once (a failed table too): what it is drawn with changed.
+    function self.rebuild(why)
+        failed=nil
+        return clear(why)
+    end
     -- Every part on the base suit where it has one (body and hair), or each on its own mesh again: rebuilt at once.
     function self.basesuit()
         basesuit=not basesuit
-        failed=nil
-        clear('basesuit')
+        self.rebuild('basesuit')
         return true,basesuit and 'Base suit on: the body and hair are drawn on the base suit, driven by bone name.'
             or 'Base suit off: each part on its own mesh again.'
     end
@@ -357,10 +387,11 @@ function Puppet.new(link,capture,say,name_tag)
     -- After the native tick of the same frame: a new stamp in the mailbox is a pose just written, so the root takes its
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
     -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
+    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was.
     function self.place()
         local g=ghost
         if not (wanted and g and g.built) then return end
-        local tag_off
+        local said={} -- What stopped on this ghost (its cloth, its tag turning): each is said once.
         local ok,why=pcall(function()
             local box=g.mailbox
             local stamp=value_of(box.RelativeScale3D).Z
@@ -375,13 +406,27 @@ function Puppet.new(link,capture,say,name_tag)
                 end
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
                     {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},true)
-                if g.hidden then g.actor:SetActorHiddenInGame(false); g.hidden=false end
+                if g.hidden then
+                    g.actor:SetActorHiddenInGame(false)
+                    g.hidden=false
+                    local reset,reset_why=pcall(function()
+                        for _,part in ipairs(g.cloth) do part:ForceClothNextUpdateTeleportAndReset() end
+                    end)
+                    if not reset then -- Its cloth still simulates (only a rebuild removes it): said as it is.
+                        g.cloth={}
+                        said[#said+1]='Cloth reset failed: '..tostring(reset_why)..'; this ghost\'s cloth still '
+                            ..'simulates but is never reset again (coop look cloth off removes it)'
+                    end
+                end
                 if g.tag then -- Its own pcall: a failure stops the turning only, for this ghost, and never the ghost.
                     local turned,tag_why=pcall(function()
                         local camera=value_of(UE.GetPlayerController().PlayerCameraManager:GetCameraLocation())
                         g.tag:K2_SetWorldRotation({Pitch=0,Yaw=U.yaw_to({X=x,Y=y},camera),Roll=0},false,{},true)
                     end)
-                    if not turned then g.tag,tag_off=nil,'Name tag no longer turned to the camera: '..tostring(tag_why) end
+                    if not turned then
+                        g.tag=nil
+                        said[#said+1]='Name tag no longer turned to the camera: '..tostring(tag_why)
+                    end
                 end
             elseif not g.hidden and os.clock()-g.stamp_at>=1 then
                 g.actor:SetActorHiddenInGame(true)
@@ -389,7 +434,7 @@ function Puppet.new(link,capture,say,name_tag)
             end
         end)
         if not ok then failed=g.generation; return false,clear('stopped: '..tostring(why)) end
-        if tag_off then return false,tag_off end
+        if #said>0 then return false,table.concat(said,' ') end
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
     -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
