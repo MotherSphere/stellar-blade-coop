@@ -13,6 +13,11 @@
 //   material <i> <slot> <path>                        0 to 16, slots 0 to 63 strictly rising: a material it overrides
 //   names <i> <bone>...                               leaders only: one per bone, in the mesh's order
 //   read <i> 0x<object> 0x<class> 0x<mesh>            leaders only, in the capture file only
+//   then, in the capture file only, after the last part:
+//   effects 0x<class> 0x<offset>                      the NiagaraComponent class and its Asset field's offset
+//                                                     (0x100 to 0x1000, a multiple of 8): the native effect read
+//   effect <k> 0x<system>                             0 to 32 after effects, k 1 to 32 strictly rising: Lua's list
+//                                                     entry k is this NiagaraSystem object
 // A leader has lead '-' and 1 to kMaxBones bones; part 0 is one, hung from nothing. A follower names a leader before
 // it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it. A word is 1
 // to 64 bytes of '!' to '~'. The path alone may be longer: then it, like any path path_allowed refuses, reads as '-',
@@ -20,6 +25,8 @@
 // one path_allowed refuses is dropped: the viewer keeps the mesh's own material for that slot.
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
@@ -53,11 +60,18 @@ struct Table {
   std::string map;
   std::vector<Part> eve; // The pose layout: bones and leader always; addresses only from read lines.
   std::vector<Look> look;
+  // The capture file's effect lines: cls 0 means no effect read. assets[k] is list entry k's object, 0 when not found.
+  struct Fx {
+    uint64_t cls = 0;
+    uint32_t asset = 0; // UNiagaraComponent::Asset's offset.
+    std::array<uint64_t, kMaxEffectAssets + 1> assets{};
+  } fx;
 };
 
 // The ghost Lua built for a remote table, from its display file.
 struct Display {
   uint64_t generation = 0, mailbox = 0, mailbox_class = 0;
+  uint64_t effects[kEffectSlots] = {}; // The slot boxes, scene components of mailbox_class; all 0 without effects.
   std::vector<Part> puppet;                // Index for index with the remote parts; object 0: not drawn.
   std::vector<std::vector<int16_t>> remap; // Per bone of the loaded mesh, the remote bone it takes, -1 none; empty:
                                            // the remote bones as they are.
@@ -68,7 +82,7 @@ constexpr size_t kMaxPose = 16384, kPoseHeader = 29, kWorldBytes = 24, kBoneByte
 
 // The bytes a pose of this table takes (every message of a table has this one size), or 0 above kMaxPose.
 inline size_t pose_size(const Table &t) {
-  size_t size = kPoseHeader;
+  size_t size = kPoseHeader + kEffectSlots * kEffectBytes;
   for (size_t i = 0; i < t.eve.size(); ++i)
     size += 1 + (i == 0 ? kWorldBytes : 0) + (t.eve[i].leader ? kBoneBytes * t.eve[i].bones : 0);
   return t.eve.empty() || t.eve.size() > 255 || size > kMaxPose ? 0 : size;
@@ -191,8 +205,8 @@ inline bool map_allowed(std::string_view map) {
 }
 } // namespace grammar
 
-// The wire form: no read lines, floats as %.9g, so a table always reads back to the same bytes. The native side
-// sends and stores only this, never the text it received.
+// The wire form: no read or effect lines, floats as %.9g, so a table always reads back to the same bytes. The native
+// side sends and stores only this, never the text it received.
 inline std::string format_table(const Table &t) {
   std::string s;
   char text[32];
@@ -249,8 +263,8 @@ inline std::string format_table(const Table &t) {
   return s;
 }
 
-// Lua's capture file (local: no SBT line, a read line after each leader's names) or a table from the wire. Any line
-// unknown, out of order, repeated or missing refuses the whole table.
+// Lua's capture file (local: no SBT line, a read line after each leader's names, the effect lines last) or a table from
+// the wire. Any line unknown, out of order, repeated or missing refuses the whole table.
 inline std::optional<Table> parse_table(const std::string &text, bool local) {
   using namespace grammar;
   Lines in;
@@ -270,6 +284,20 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   t.map = (*f)[1];
   while (!in.done()) {
     const size_t i = t.eve.size();
+    if (local && (f = in.take("effects", 3))) { // After the last part: effect lines to the end.
+      uint64_t offset = 0;
+      if (!hex((*f)[1], t.fx.cls) || !t.fx.cls || !hex((*f)[2], offset) || offset < 0x100 || offset > 0x1000 ||
+          offset % 8)
+        return std::nullopt;
+      t.fx.asset = static_cast<uint32_t>(offset);
+      for (uint64_t k = 0, last = 0; (f = in.take("effect", 3)); last = k)
+        if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || !hex((*f)[2], t.fx.assets[k]) ||
+            !t.fx.assets[k])
+          return std::nullopt;
+      if (!in.done())
+        return std::nullopt;
+      break;
+    }
     if (i == kMaxParts || !(f = in.take("part", 9)) || !index_is(*f, i))
       return std::nullopt;
     const Words &p = *f;
@@ -358,6 +386,7 @@ inline bool same_layout(const Table &a, const Table &b) {
 // Lua's display file for a remote table (coop-display.txt), every line ending in '\n':
 //   display <the remote generation>
 //   mailbox 0x<object> 0x<class>
+//   effects 0x<box1> 0x<box2> 0x<box3> 0x<box4>              optional: the effect slots' boxes, of the mailbox's class
 //   drive <i> 0x<object> 0x<class> 0x<loaded mesh> <bones>   each remote leader it built, part 0 among them
 //   remap <i> <k0> ... <k(bones-1)>                           right after the drive line of a leader on a fallback
 //                                                             mesh: per bone of that mesh, the remote bone or -1
@@ -376,6 +405,11 @@ inline std::optional<Display> parse_display(const std::string &text, const Table
   if (!(f = in.take("mailbox", 3)) || !hex((*f)[1], d.mailbox) || !hex((*f)[2], d.mailbox_class) || !d.mailbox ||
       !d.mailbox_class)
     return std::nullopt;
+  if ((f = in.take("effects", 1 + kEffectSlots)))
+    for (size_t n = 0; n < kEffectSlots; ++n) // Each its own: one written twice would carry only the last slot.
+      if (!hex((*f)[1 + n], d.effects[n]) || !d.effects[n] || d.effects[n] == d.mailbox ||
+          std::find(d.effects, d.effects + n, d.effects[n]) != d.effects + n)
+        return std::nullopt;
   while (!in.done()) {
     uint64_t i = 0, bones = 0;
     Part p;

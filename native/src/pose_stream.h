@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-#include "pose_core.h" // kTransformBytes
+#include "pose_core.h" // kTransformBytes, Effect
 
 namespace coop::pose {
 
@@ -103,6 +103,7 @@ public:
     uint64_t publication = 0; // µs, the sender's clock.
     float root[10] = {};
     std::vector<uint8_t> bones;
+    Effect fx[kEffectSlots];
   };
   // Counts since the last take(), for the counter line.
   struct Stats {
@@ -166,9 +167,9 @@ public:
     stats_.lag_ms += lag;
     return true;
   }
-  // The pose to draw at now into root (10 floats) and bones (the scratch's size); false when there is none yet or the
-  // stream has been silent for kSilentMs.
-  bool sample(uint64_t now_us, float *root, uint8_t *bones) {
+  // The pose to draw at now into root (10 floats), bones (the scratch's size) and fx (kEffectSlots); false when there is
+  // none yet or the stream has been silent for kSilentMs. The effect slots are held, never blended: the older pose's.
+  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx) {
     double now = now_us / 1000.0;
     if (!count_ || now - last_arrival_ > kSilentMs)
       return false;
@@ -193,6 +194,7 @@ public:
       out[7] = out[11] = 0;
       std::memcpy(bones + at_byte, out, sizeof out);
     }
+    std::copy(fa.fx, fa.fx + kEffectSlots, fx);
     ++stats_.drawn;
     stats_.extrapolated += at > ms(newest_);
     stats_.behind_ms += ms(newest_) - at;

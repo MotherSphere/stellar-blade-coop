@@ -16,6 +16,7 @@ using namespace coop::pose;
 
 namespace {
 const std::string kHead = std::string("SBR") + char(coop::kProtocol);
+const coop::pose::Effect kNoEffects[coop::pose::kEffectSlots];
 constexpr uint32_t kMap = 0xA1B2C3D4; // Not 0, so a rewrite of the map field would show.
 
 // A wire table: the body (a leader of `bones` bones), the face following it, the hair (a leader of 2) on the head.
@@ -46,7 +47,8 @@ std::string pose(const Table &t, uint32_t sequence, uint64_t publication, float 
     std::memcpy(local.data() + b * kTransformBytes, identity, sizeof identity);
   const float root[10] = {0, 0, 0, 1, x, 0, 0, 1, 1, 1};
   uint32_t clamped = 0;
-  size_t n = encode_pose(t, {t.generation, publication, sequence, kMap}, root, local.data(), out.data(), clamped);
+  size_t n = encode_pose(t, {t.generation, publication, sequence, kMap}, root, local.data(), kNoEffects, out.data(),
+                         clamped);
   assert(n && !clamped);
   return std::string(reinterpret_cast<const char *>(out.data()), n);
 }
@@ -111,11 +113,12 @@ int main() {
     assert(rec.add(u8(p), p.size()));
   }
   assert(!rec.add(u8(p1), p1.size()) && rec.rules().entries == kMaxEntries && !parse(rec.bytes()));
-  // Full at kMaxRecording: the largest poses (16382 bytes) at 20 a second, 77 s of them.
-  const std::string big_table = table_text(7, 905);
+  // Full at kMaxRecording: the largest poses (16370 bytes, the effect slots' 60 among them) at 20 a second, 77 s of
+  // them. One bone more and the table has no pose size.
+  const std::string big_table = table_text(7, 901);
   const Table big = table_of(big_table);
   std::string big_pose = pose(big, 1, 1);
-  assert(big_pose.size() == 16382 && rec.start(big_table));
+  assert(big_pose.size() == 16370 && rec.start(big_table) && !parse_table(table_text(7, 902), false));
   uint64_t publication = 0;
   for (bool room = true; room;) {
     uint8_t *at = reinterpret_cast<uint8_t *>(&big_pose[16]);
@@ -134,8 +137,10 @@ int main() {
       at_entries = over_entries;
     over_entries += entry('P', pose(a, k, 1'000'000 + k * 10'000));
   }
-  std::string bad_protocol = good, bad_byte_3 = p1;
+  std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good;
   bad_protocol[3] = char(coop::kProtocol + 1);
+  assert(kHead == "SBR\x06");
+  protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   bad_byte_3[3] = char(coop::kProtocol + 1);
   const std::string span_end = pose(a, 2, 1'000'000 + kMaxSpanUs + 1);
   const std::pair<std::string, const char *> refused[] = {
@@ -144,6 +149,7 @@ int main() {
       {"SBR", "magic"},
       {"SBX" + good.substr(3), "magic"},
       {bad_protocol, "protocol"},
+      {protocol_5, "protocol"},
       {good + entry('X', p1), "kind"},
       {good + entry('p', p1), "kind"},
       {kHead + entry('X', t1) + entry('P', p1), "kind"},
@@ -279,7 +285,7 @@ int main() {
           assert(remote);
           PoseHeader h;
           Playback::Frame &f = playback.scratch();
-          assert(!decode_pose(*remote, data, size, h, f.root, f.bones.data()));
+          assert(!decode_pose(*remote, data, size, h, f.root, f.bones.data(), f.fx));
           f.sequence = h.sequence;
           f.publication = h.publication;
           playback.accept(now);
@@ -289,7 +295,8 @@ int main() {
       next_frame += 16'667;
       ++frames;
       float root[10];
-      if (!playback.sample(now, root, drawn_bones.data())) {
+      Effect fx[kEffectSlots];
+      if (!playback.sample(now, root, drawn_bones.data(), fx)) {
         assert(!drawn); // Not drawn only before the first pose.
         continue;
       }

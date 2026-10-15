@@ -92,7 +92,7 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
   recording replaces the last one: rename the file by hand to keep it.
 - `coop replay` (needs `coop puppet`; not while the loopback runs, and the loopback not while it runs) checks the whole
   of `coop-record.bin` before anything plays, and refuses a file that fails with the reason (`protocol` for one made
-  under another protocol, so any made before protocol 5). It then plays it in a loop as the remote side, each pose
+  under another protocol, so any made before protocol 6). It then plays it in a loop as the remote side, each pose
   re-stamped as if sent now, until `coop replay off`, which removes the ghost.
   Generation, map and positions stay as recorded: the ghost wears the outfit recorded, walks where she walked with no
   offset, and the map gate applies.
@@ -137,10 +137,10 @@ through the loopback, a recording and its replay. `coop where` prints coordinate
     the link and comes back with it.
   - Once both are in the lobby, the two games exchange a hello (protocol, mod version, game build). Each answers
     `accept` or `reject <reason>`, so a mismatch is explained instead of silently ignored; a lobby from another
-    protocol or game build is refused on joining, with both versions in the joiner's log. The protocol is 5 (the
-    component table, with its material lines, and the pose on Steam channel 1), so an older StellarCoop is refused.
-    Accepted peers ping every 2 s over Steam's relayed P2P messages on channel 0; a peer silent there for 10 s is
-    marked lost until it is heard again.
+    protocol or game build is refused on joining, with both versions in the joiner's log. The protocol is 6 (the
+    component table, with its material lines, and the pose, with its four effect slots, on Steam channel 1), so an
+    older StellarCoop is refused. Accepted peers ping every 2 s over Steam's relayed P2P messages on channel 0; a peer
+    silent there for 10 s is marked lost until it is heard again.
   - A friend who passed the handshake both ways is linked (`peer linked: poses and tables go over Steam` in
     `coop-link.log`), while the native pose path is on (`engine=on`). Each side's table and poses then travel on
     channel 1 as the loopback carries them: the table reliable, a pose unreliable, 20 a second (`send_rate`). The ghost

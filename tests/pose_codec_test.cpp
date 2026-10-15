@@ -1,5 +1,5 @@
-// Codec v1 on the build machine: round trips within NetPose's bounds, the decoder's refusals one defect at a time, and
-// fuzzed input (random and mutated messages) that must never crash or yield a non-finite value.
+// Codec v1 on the build machine: round trips within NetPose's bounds (effect slots too), the decoder's refusals one
+// defect at a time, and fuzzed input (random and mutated messages) that must never crash or yield a non-finite value.
 #include "pose_codec.h"
 
 #include <cassert>
@@ -48,16 +48,29 @@ void random_rotation(std::mt19937_64 &rng, float *q) {
 
 int main() {
   const Table t = table();
-  assert(pose_size(t) == kPoseHeader + 3 + kWorldBytes + kBoneBytes * kLeaderBones);
+  assert(pose_size(t) == kPoseHeader + 3 + kWorldBytes + kBoneBytes * kLeaderBones + 60); // 4 effect slots of 15.
   std::mt19937_64 rng(7);
   std::uniform_real_distribution<float> cm(-1000, 1000), scale(0.25f, 4), world(-4e5f, 4e5f);
   std::vector<uint8_t> wire(kMaxPose), bones(kLeaderBones * kTransformBytes), back(bones.size());
 
   // Round trips: rotation within 0.009 degrees (worst case: four components near 0.5, the largest rebuilt from the
-  // other three's errors, about 0.0086), translation within 1/64 cm, scale within 1/8192.
+  // other three's errors, about 0.0086), translation within 1/64 cm, scale within 1/8192. The effect slots too: one in
+  // four empty, the others any asset, part and serial.
   double worst_rotation = 0, worst_translation = 0, worst_scale = 0;
+  std::uniform_int_distribution<int> any_byte(0, 255);
   for (int round = 0; round < 2000; ++round) {
     float root[10], root_back[10];
+    Effect fx[kEffectSlots], fx_back[kEffectSlots];
+    for (Effect &e : fx) {
+      if (any_byte(rng) % 4 == 0)
+        continue;
+      e.asset = uint8_t(1 + any_byte(rng) % 32);
+      e.part = uint8_t(any_byte(rng) % 3);
+      e.serial = uint8_t(any_byte(rng));
+      random_rotation(rng, e.place);
+      for (int k = 4; k < 7; ++k)
+        e.place[k] = cm(rng);
+    }
     random_rotation(rng, root);
     for (int k = 4; k < 7; ++k)
       root[k] = world(rng);
@@ -74,9 +87,21 @@ int main() {
     }
     PoseHeader h{42, 1234567890123ull, uint32_t(round + 1), 0xabcdef01u}, got;
     uint32_t clamped = 0;
-    size_t n = encode_pose(t, h, root, bones.data(), wire.data(), clamped);
+    size_t n = encode_pose(t, h, root, bones.data(), fx, wire.data(), clamped);
     assert(n == pose_size(t) && clamped == 0);
-    assert(decode_pose(t, wire.data(), n, got, root_back, back.data()) == nullptr);
+    assert(decode_pose(t, wire.data(), n, got, root_back, back.data(), fx_back) == nullptr);
+    for (size_t k = 0; k < kEffectSlots; ++k) {
+      const Effect &e = fx[k], &g = fx_back[k];
+      assert(g.asset == e.asset && g.part == e.part && g.serial == e.serial);
+      if (!e.asset) {
+        for (float v : g.place)
+          assert(v == 0);
+        continue;
+      }
+      worst_rotation = std::fmax(worst_rotation, angle(e.place, g.place));
+      for (int c = 4; c < 7; ++c)
+        worst_translation = std::fmax(worst_translation, std::fabs(e.place[c] - g.place[c]));
+    }
     assert(got.generation == 42 && got.publication == h.publication && got.sequence == h.sequence && got.map == h.map);
     for (int k = 4; k < 7; ++k)
       assert(root_back[k] == root[k]); // World translations travel as f32.
@@ -107,30 +132,43 @@ int main() {
       std::memcpy(bones.data() + b * kTransformBytes, f, sizeof f);
     uint32_t clamped = 0;
     PoseHeader h{42, 5, 1, 0}, got;
-    size_t n = encode_pose(t, h, root, bones.data(), wire.data(), clamped);
-    assert(clamped == 3 * kLeaderBones);
-    assert(decode_pose(t, wire.data(), n, got, root_back, back.data()) == nullptr);
+    // An effect 2000 cm off its part is cut the same way; an empty slot is sent as zeros whatever else it holds.
+    Effect fx[kEffectSlots], fx_back[kEffectSlots];
+    fx[1] = {7, 2, 9, {0, 0, 0, 1, 2000, -2000, std::nanf("")}};
+    fx[2] = {0, 2, 9, {0, 0, 0, 1, 5, 5, 5}};
+    size_t n = encode_pose(t, h, root, bones.data(), fx, wire.data(), clamped);
+    assert(clamped == 3 * kLeaderBones + 3);
+    assert(decode_pose(t, wire.data(), n, got, root_back, back.data(), fx_back) == nullptr);
     assert(root_back[0] == 0 && root_back[1] == 0 && root_back[2] == 0 && root_back[3] == 1);
     float g[12];
     std::memcpy(g, back.data(), sizeof g);
     assert(std::fabs(g[4] - 32767.0 / 32) < 1e-3 && g[5] == -1024 && g[6] == -1024); // NaN cuts to the low edge.
+    const Effect &cut = fx_back[1];
+    assert(cut.asset == 7 && cut.part == 2 && cut.serial == 9 && cut.place[3] == 1);
+    assert(std::fabs(cut.place[4] - 32767.0 / 32) < 1e-3 && cut.place[5] == -1024 && cut.place[6] == -1024);
+    for (size_t at = n - 4 * kEffectBytes; at < n; ++at) // Slots 0, 2 and 3 empty: their 45 bytes all 0.
+      assert((at >= n - 3 * kEffectBytes && at < n - 2 * kEffectBytes) || wire[at] == 0);
+    assert(fx_back[2].asset == 0 && fx_back[2].part == 0 && fx_back[2].serial == 0 && fx_back[2].place[4] == 0);
   }
 
   // Refusals, one defect each, from a good message.
   float root[10] = {0, 0, 0, 1, 10, 20, 30, 1, 1, 1}, root_back[10];
   PoseHeader h{42, 99, 3, 0}, got;
   uint32_t clamped = 0;
-  const size_t n = encode_pose(t, h, root, bones.data(), wire.data(), clamped);
+  Effect fx[kEffectSlots] = {{3, 2, 200, {0, 0.6f, 0, 0.8f, 1, -2, 3}}, {}, {32, 0, 0, {0, 0, 0, 1, 0, 0, 0}}}, fx_back[4];
+  const size_t n = encode_pose(t, h, root, bones.data(), fx, wire.data(), clamped);
   const std::vector<uint8_t> good(wire.begin(), wire.begin() + long(n));
   const size_t follower_status = 29 + 1 + kWorldBytes + 5 * kBoneBytes; // After component 0's world and 5 bones.
+  const size_t slot0 = n - 4 * kEffectBytes, slot1 = slot0 + kEffectBytes;
   auto refused = [&](std::vector<uint8_t> bad, const char *why) {
-    const char *got_why = decode_pose(t, bad.data(), bad.size(), got, root_back, back.data());
+    const char *got_why = decode_pose(t, bad.data(), bad.size(), got, root_back, back.data(), fx_back);
     if (!got_why || std::string(got_why) != why) {
       std::printf("expected %s, got %s\n", why, got_why ? got_why : "ok");
       assert(false);
     }
   };
-  assert(decode_pose(t, good.data(), good.size(), got, root_back, back.data()) == nullptr);
+  assert(decode_pose(t, good.data(), good.size(), got, root_back, back.data(), fx_back) == nullptr);
+  assert(fx_back[0].asset == 3 && fx_back[0].part == 2 && fx_back[0].serial == 200 && fx_back[2].asset == 32);
   {
     auto bad = good;
     bad[1] = 'X';
@@ -171,6 +209,17 @@ int main() {
     float far = 3e38f; // finite, but blending two such poses would overflow
     std::memcpy(bad.data() + 34, &far, 4);
     refused(bad, "translation");
+    bad = good;
+    bad[slot0] = 33; // an asset past the list
+    refused(bad, "effect");
+    bad = good;
+    bad[slot0 + 1] = 3; // a part past the table's 3
+    refused(bad, "effect");
+    for (size_t k = 1; k < kEffectBytes; ++k) { // an empty slot with any other byte set
+      bad = good;
+      bad[slot1 + k] = 1;
+      refused(bad, "effect");
+    }
   }
 
   // Fuzz: random bytes and mutations of the good message never crash and never yield a non-finite value or a rotation
@@ -196,13 +245,23 @@ int main() {
       input[28] = good[28];
       for (size_t at : {size_t(29), follower_status, follower_status + 1}) // The statuses too: the bones get parsed.
         input[at] = good[at];
+      if (round % 8 == 3) // Plausible slots too, so their rotations and translations get decoded.
+        for (size_t at = slot0; at < n; at += kEffectBytes) {
+          input[at] %= 33;
+          input[at + 1] %= 3;
+        }
     } else {
       input = good;
       for (int flips = 1 + byte(rng) % 8; flips--;)
         input[size_t(byte(rng) * 131 + byte(rng)) % input.size()] = uint8_t(byte(rng));
     }
-    if (decode_pose(t, input.data(), input.size(), got, root_back, back.data()) == nullptr) {
+    if (decode_pose(t, input.data(), input.size(), got, root_back, back.data(), fx_back) == nullptr) {
       ++decoded;
+      for (const Effect &e : fx_back) { // Within the list and the table, unit and finite, or wholly empty.
+        assert(e.asset <= kMaxEffectAssets && (e.asset ? e.part < 3 && unit(e.place) : !e.part && !e.serial));
+        for (float v : e.place)
+          assert(std::isfinite(v) && (e.asset || v == 0));
+      }
       for (float v : root_back)
         assert(std::isfinite(v));
       assert(unit(root_back));
@@ -223,6 +282,6 @@ int main() {
   // A table over 16 KB has no pose size: the caller refuses to stream it.
   Table big = t;
   big.eve[0].bones = 1000;
-  assert(pose_size(big) == 0 && encode_pose(big, h, root, bones.data(), wire.data(), clamped) == 0);
+  assert(pose_size(big) == 0 && encode_pose(big, h, root, bones.data(), fx, wire.data(), clamped) == 0);
   std::puts("pose_codec_test: all passed");
 }

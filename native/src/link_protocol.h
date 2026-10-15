@@ -15,9 +15,9 @@
 #include <string_view>
 
 namespace coop {
-constexpr int kProtocol = 5; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 6; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
-                             // 5 adds the table's material lines (dyes).
+                             // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;

@@ -1,6 +1,6 @@
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
-// the mesh path rule (material paths too), and mutated tables, which must re-format to the same bytes whenever they are
-// accepted.
+// the mesh path rule (material paths too), the capture's effect lines and the display's effect boxes, and mutated
+// tables, which must re-format to the same bytes whenever they are accepted.
 #include "pose_table.h"
 
 #include <cassert>
@@ -23,7 +23,8 @@ const std::string kSbt = "SBT " + std::to_string(coop::kProtocol) + "\n";
 
 // EVE as Lua captures her, cut down: the body, the face following it, the hair (a leader on the head socket) with the
 // ponytail following it, hidden, and the blade. The blade's mesh comes from a mod, so it travels as '-'. The body and
-// the hair are dyed; the hair's slot 1 material comes from a mod, so it does not travel at all.
+// the hair are dyed; the hair's slot 1 material comes from a mod, so it does not travel at all. Two of Lua's effect
+// systems were found: entries 1 and 19.
 const std::string kLocal = "generation 100001\n"
                            "map /game/art/bg/worldmap/level_p/e04\n"
                            "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n"
@@ -44,8 +45,11 @@ const std::string kLocal = "generation 100001\n"
                            "part 4 - 0 SC_SwordingPoint 1 1 SBSkeletalMeshComponent_7 " + kMods + "\n"
                            "place 4 0 0 0 -1 10.25 0 1e-05 1 1 1\n"
                            "names 4 Root\n"
-                           "read 4 0x1400 0xc1a55 0xae8\n";
-// Its wire form: no read lines, floats as %.9g, the mod's mesh path as '-', its material left out.
+                           "read 4 0x1400 0xc1a55 0xae8\n"
+                           "effects 0xC0FF 0x2f8\n"
+                           "effect 1 0x5000\n"
+                           "effect 19 0x5100\n";
+// Its wire form: no read or effect lines, floats as %.9g, the mod's mesh path as '-', its material left out.
 const std::string kWire = kSbt +
                           "generation 100001\n"
                           "map /game/art/bg/worldmap/level_p/e04\n"
@@ -122,12 +126,16 @@ int main() {
   using Materials = std::vector<std::pair<uint8_t, std::string>>;
   assert(local->look[0].materials == (Materials{{2, kSkin}}) && local->look[1].materials.empty());
   assert(hair.materials == (Materials{{0, kTypeB}, {3, kTail}})); // The mod's slot 1 dropped, the hair's own kept.
+  assert(local->fx.cls == 0xc0ff && local->fx.asset == 0x2f8 && local->fx.assets[1] == 0x5000 &&
+         local->fx.assets[19] == 0x5100);
+  for (size_t k = 0; k <= kMaxEffectAssets; ++k)
+    assert(k == 1 || k == 19 || !local->fx.assets[k]);
 
   // Round trip: the capture formats to the wire form, which reads back to the same table without the addresses and
   // formats to the same bytes again.
   assert(format_table(*local) == kWire);
   auto wire = parse_table(kWire, false);
-  assert(wire && same(*wire, *local, false) && !wire->eve[0].object && format_table(*wire) == kWire);
+  assert(wire && same(*wire, *local, false) && !wire->eve[0].object && format_table(*wire) == kWire && !wire->fx.cls);
   assert(!parse_table(kWire, true) && !parse_table(kLocal, false)); // Each form only where it belongs.
 
   // Refused: the good wire table with exactly one defect each.
@@ -173,7 +181,7 @@ int main() {
            with(kWire, "part 3 2 2", "part 3 1 2"),                                              // lead a follower
            with(kWire, "part 1 0 0 - 1 0", "part 1 0 0 - 1 3"),                                  // a follower's bones
            with(with(kWire, "1 1 SBSkeletalMesh", "1 0 SBSkeletalMesh"), "names 4 Root", "names 4"), // a leader's 0
-           // pose_size refuses a leader over 907 bones, but not one whose names count, 2 + bones, wraps to 1.
+           // pose_size refuses a leader over 903 bones, but not one whose names count, 2 + bones, wraps to 1.
            with(with(kWire, "1 1 SBSkeletalMesh", "1 18446744073709551615 SBSkeletalMesh"), "names 4 Root",
                 "names"),                                                                        // > kMaxBones
            with(with(kWire, "1 3 CharacterMesh0", "1 1000 CharacterMesh0"), n0, names_1000 + "\n"), // pose > 16 KiB
@@ -222,6 +230,8 @@ int main() {
                 "Hair_01\nmaterial 2 3 " + kTail + "\n"),                                       // after names
            with(kWire, "place 1" + flat, "material 1 0 " + kSkin + "\nplace 1" + flat),           // before place
            with(kWire, "place 1" + flat, "place 1" + flat + materials_17),                       // 17 on one part
+           kWire + "effects 0xC0FF 0x2f8\n",                                                     // effects on the wire
+           kWire + "effects 0xC0FF 0x2f8\neffect 1 0x5000\n",                                   // and an effect
        })
     assert(!parse_table(bad, false));
   for (const std::string &bad : {
@@ -235,8 +245,35 @@ int main() {
            with(kLocal, "place 1 0 0 0 1 0 0 0 1 1 1\n",
                 "place 1 0 0 0 1 0 0 0 1 1 1\nread 1 0x1100 0xc1a55 0xae6\n"),      // a follower's read line
            kSbt + kLocal,                                                           // an SBT line
+           with(kLocal, "0xC0FF 0x2f8", "0x0 0x2f8"),                               // no effect class
+           with(kLocal, "0x2f8", "0xff"),                                           // an offset under 0x100
+           with(kLocal, "0x2f8", "0x1001"),                                         // over 0x1000
+           with(kLocal, "0x2f8", "0x104"),                                          // not a multiple of 8
+           with(kLocal, "0x2f8", "760"),                                            // not hex
+           with(kLocal, "effects 0xC0FF 0x2f8", "effects 0xC0FF"),                  // no offset
+           with(kLocal, "effect 1 ", "effect 0 "),                                  // k 0
+           with(kLocal, "effect 19 ", "effect 33 "),                                // k over 32
+           with(kLocal, "effect 1 0x5000\neffect 19 0x5100\n",
+                "effect 19 0x5100\neffect 1 0x5000\n"),                             // a falling k
+           with(kLocal, "effect 19 ", "effect 1 "),                                 // a repeated k
+           with(kLocal, "effect 1 0x5000", "effect 1 0x0"),                         // a null system
+           with(kLocal, "effect 1 0x5000", "effect 1 5000"),                        // not hex
+           with(kLocal, "effect 1 0x5000", "effect 1 0x5000 0x1"),                  // a word too many
+           with(kLocal, "effects 0xC0FF 0x2f8\n", ""),                              // effect without effects
+           kLocal + "effects 0xC0FF 0x2f8\n",                                       // effects twice
+           kLocal + "part 5 0 0 - 1 0 Extra -\nplace 5" + flat,                     // a part after them
+           with(kLocal, "part 4 ", "effects 0xC0FF 0x2f8\npart 4 "),                // effects before the last part
        })
     assert(!parse_table(bad, true));
+  // Effects at their edges: offsets 0x100 and 0x1000, entry 32, none found, and no effect lines at all.
+  const std::string no_effects = kLocal.substr(0, kLocal.find("effects "));
+  assert(parse_table(with(kLocal, "0x2f8", "0x100"), true)->fx.asset == 0x100);
+  assert(parse_table(with(kLocal, "0x2f8", "0x1000"), true)->fx.asset == 0x1000);
+  assert(parse_table(with(kLocal, "effect 19 ", "effect 32 "), true)->fx.assets[32] == 0x5100);
+  auto none_found = parse_table(no_effects + "effects 0xC0FF 0x2f8\n", true);
+  assert(none_found && none_found->fx.cls == 0xc0ff && none_found->fx.assets == decltype(none_found->fx.assets){});
+  auto no_read = parse_table(no_effects, true);
+  assert(no_read && !no_read->fx.cls && format_table(*no_read) == kWire);
   // The edges just inside, and the forms the rules allow.
   assert(parse_table(with(kWire, "generation 100001", "generation 9007199254740992"), false));
   const std::string map_128 = "/" + std::string(127, 'a');
@@ -257,7 +294,7 @@ int main() {
   auto dropped = wire_table(with(kWire, "material 2 0 " + kTypeB, "material 2 0 /Game/Mods/X.X"));
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
-  assert(kSbt == "SBT 5\n"); // Protocol 5 is the one with material lines.
+  assert(kSbt == "SBT 6\n"); // Protocol 6: the material lines (5) and the pose's effect slots.
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
@@ -337,6 +374,27 @@ int main() {
   assert(!d->puppet[1].object && !d->puppet[3].object && !d->puppet[4].object); // Followers, and the blade not drawn.
   auto direct = parse_display("display 100001\nmailbox 0x2000 0x5c0\ndrive 0 0x3000 0xc2 0xae5 3\n", *wire);
   assert(direct && direct->remap[0].empty());
+  for (uint64_t box : d->effects)
+    assert(!box); // No effects line: no boxes.
+  // The effect boxes, right after the mailbox: each its own, never 0 or the mailbox.
+  const std::string boxes = "effects 0x2100 0x2200 0x2300 0x2400\n",
+                    display_fx = with(display, "0x5c0\n", "0x5c0\n" + boxes);
+  auto fx = parse_display(display_fx, *wire);
+  assert(fx && fx->effects[0] == 0x2100 && fx->effects[1] == 0x2200 && fx->effects[2] == 0x2300 &&
+         fx->effects[3] == 0x2400 && fx->puppet[0].object == 0x3000);
+  for (const std::string &bad : {
+           with(display, "0x5c0\n", "0x5c0\n" + boxes + boxes),                   // twice
+           with(display, "display 100001\n", "display 100001\n" + boxes),         // before the mailbox
+           display + boxes,                                                       // after the drive lines
+           with(display, "drive 2 ", boxes + "drive 2 "),                         // between them
+           with(display_fx, "0x2300", "0x2100"),                                  // a repeated box
+           with(display_fx, "0x2400", "0x2000"),                                  // the mailbox
+           with(display_fx, "0x2200", "0x0"),                                     // a null box
+           with(display_fx, " 0x2400", ""),                                       // three boxes
+           with(display_fx, "0x2400", "0x2400 0x2500"),                           // five
+           with(display_fx, "0x2400", "2400"),                                    // not hex
+       })
+    assert(!parse_display(bad, *wire));
   for (const std::string &bad : {
            with(display, "display 100001", "display 100000"),                       // a stale generation
            with(display, "display 100001\n", ""),                                   // no display line
@@ -405,6 +463,9 @@ int main() {
     const std::string canonical = format_table(*t);
     auto again = parse_table(canonical, false);
     assert(again && same(*again, *t, false) && format_table(*again) == canonical);
+    assert(is_local || !t->fx.cls);
+    assert(!t->fx.assets[0] && (t->fx.cls ? t->fx.asset >= 0x100 && t->fx.asset <= 0x1000 && t->fx.asset % 8 == 0
+                                          : !t->fx.asset && t->fx.assets == decltype(t->fx.assets){}));
     for (const Look &l : t->look) {
       assert(l.path.empty() || path_allowed(l.path));
       for (const auto &[slot, path] : l.materials)
@@ -418,11 +479,16 @@ int main() {
   // as long as its mesh's bones, every entry a remote bone or -1.
   size_t drawn = 0;
   for (int round = 0; round < 100000; ++round) {
-    auto got = parse_display(mutate(display), *wire);
+    auto got = parse_display(mutate(round % 2 ? display_fx : display), *wire);
     if (!got)
       continue;
     ++drawn;
     assert(got->puppet.size() == 5 && got->remap.size() == 5 && got->puppet[0].object);
+    const uint64_t *box = got->effects; // None, or four of their own.
+    assert(!box[0] ? !box[1] && !box[2] && !box[3]
+                   : box[0] && box[1] && box[2] && box[3] && box[0] != box[1] && box[0] != box[2] && box[0] != box[3] &&
+                         box[1] != box[2] && box[1] != box[3] && box[2] != box[3] && box[3] != got->mailbox &&
+                         box[0] != got->mailbox && box[1] != got->mailbox && box[2] != got->mailbox);
     for (size_t i = 0; i < 5; ++i) {
       const Part &part = got->puppet[i];
       const std::vector<int16_t> &map = got->remap[i];

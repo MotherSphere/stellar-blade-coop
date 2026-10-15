@@ -2,7 +2,7 @@
 // every 50 ms, a 5 ms worker sends it into the delay line and hands what is due back, the game thread decodes it into
 // the playback and draws a pose every frame. The root's X is the publication time in ms, a straight line, so a drawn
 // pose that interpolates right lands exactly on the display time. Checks delay, jitter and loss against their
-// settings, tracking, stalls, a clock step both ways, silence and stale poses.
+// settings, tracking, stalls, a clock step both ways, silence and stale poses; and effect slots held, not blended.
 #include "pose_codec.h"
 #include "pose_stream.h"
 
@@ -58,6 +58,8 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   Playback playback;
   playback.reset(bone_bytes);
   std::vector<uint8_t> out(kMaxPose), sent_message;
+  const Effect no_fx[kEffectSlots];
+  Effect drawn_fx[kEffectSlots];
   std::vector<std::vector<uint8_t>> inbox;
   std::vector<uint64_t> inbox_arrival;
   Result r;
@@ -93,13 +95,13 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
                         (s.drift_from >= 0 && second > s.drift_from ? (second - s.drift_from) * s.drift_ms_per_s : 0);
       float root[10] = {0, 0, 0, 1, float(clock_ms - 10000), 0, 0, 1, 1, 1}; // X: publication ms (offset for precision).
       PoseHeader h{t.generation, uint64_t(clock_ms * 1000), ++sequence, 0};
-      size_t n = encode_pose(t, h, root, bones.data(), out.data(), clamped);
+      size_t n = encode_pose(t, h, root, bones.data(), no_fx, out.data(), clamped);
       sent_message.assign(out.begin(), out.begin() + long(n)); // Overwrites one the worker has not taken (counted lost).
     }
     for (size_t i = 0; i < inbox.size(); ++i) {
       Playback::Frame &f = playback.scratch();
       PoseHeader h;
-      if (decode_pose(t, inbox[i].data(), inbox[i].size(), h, f.root, f.bones.data())) {
+      if (decode_pose(t, inbox[i].data(), inbox[i].size(), h, f.root, f.bones.data(), f.fx)) {
         ++r.rejected;
         continue;
       }
@@ -115,7 +117,7 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
     inbox.clear();
     inbox_arrival.clear();
     float root[10];
-    bool drawn = playback.sample(now, root, drawn_bones.data());
+    bool drawn = playback.sample(now, root, drawn_bones.data(), drawn_fx);
     if (drawn_at)
       drawn_at->push_back(drawn);
     if (!drawn)
@@ -250,6 +252,28 @@ int main() {
     p.scratch().sequence = 5;
     p.scratch().publication = 1'050'000;
     assert(!p.accept(1'150'000) && p.take().stale == 1);
+  }
+
+  // Effect slots are held, never blended: between two poses, and past the newest, the older one's slots are drawn.
+  {
+    Playback p;
+    p.reset(kTransformBytes);
+    uint8_t bone[kTransformBytes];
+    float root[10];
+    Effect fx[kEffectSlots];
+    for (uint32_t k = 1; k <= 3; ++k) { // Published 50 ms apart, each arriving 100 ms later; slot 0 names the pose.
+      Playback::Frame &f = p.scratch();
+      f.sequence = k;
+      f.publication = 1'000'000 + 50'000 * k;
+      f.fx[0] = {uint8_t(k), 0, uint8_t(k), {0, 0, 0, 1, float(k), 0, 0}};
+      assert(p.accept(f.publication + 100'000));
+    }
+    // Drawn 175 ms back (the 100 ms floor, an interval and half of one): between poses 2 and 3, then past 3.
+    for (auto [now, slot] : {std::pair<uint64_t, uint8_t>{1'300'000, 2}, {1'340'000, 2}}) {
+      assert(p.sample(now, root, bone, fx));
+      assert(fx[0].asset == slot && fx[0].serial == slot && fx[0].place[4] == slot && !fx[1].asset);
+    }
+    assert(root[4] == 0 && p.take().extrapolated == 1); // The second sample was past the newest pose.
   }
 
   // A reliable message (the table) survives any loss, and keeps its place in the line: behind the poses sent before

@@ -10,6 +10,9 @@
 //   count (u8): the table's components; then per component a status byte (kWorld on component 0 only, kBones on the
 //   leaders only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3 i16 scale) and 18 bytes per
 //   bone when kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
+//   then kEffectSlots effect slots (protocol 6) of 15 bytes: asset (u8, 0 none, else 1 to kMaxEffectAssets: an entry of
+//   Lua's list of systems, never a path), part (u8, the table part it hangs on), serial (u8, a new instance in the
+//   slot), its rotation (6 B) and translation (3 i16) relative to the part; an empty slot is 15 zero bytes
 // A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.
 #pragma once
@@ -116,10 +119,10 @@ inline void get_rotation(const uint8_t *&in, float *q) {
 } // namespace codec
 
 // One pose into out (at least pose_size(t) bytes): root is the main mesh's world transform (10 floats: rotation xyzw,
-// translation xyz, scale xyz), bones the leaders' local transforms back to back in table order. Returns the size, 0
-// when the table is too large. clamped counts values cut to the fixed-point ranges.
-inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root, const uint8_t *bones, uint8_t *out,
-                          uint32_t &clamped) {
+// translation xyz, scale xyz), bones the leaders' local transforms back to back in table order, fx the kEffectSlots
+// slots. Returns the size, 0 when the table is too large. clamped counts values cut to the fixed-point ranges.
+inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root, const uint8_t *bones,
+                          const Effect *fx, uint8_t *out, uint32_t &clamped) {
   using namespace codec;
   size_t size = pose_size(t);
   if (!size)
@@ -155,13 +158,27 @@ inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root
         put_fixed(at, f[k], kScale, clamped);
     }
   }
+  for (size_t n = 0; n < kEffectSlots; ++n) {
+    const Effect &e = fx[n];
+    if (!e.asset) { // The one form of an empty slot, whatever else it holds.
+      std::memset(at, 0, kEffectBytes);
+      at += kEffectBytes;
+      continue;
+    }
+    *at++ = e.asset;
+    *at++ = e.part;
+    *at++ = e.serial;
+    put_rotation(at, e.place);
+    for (int k = 4; k < 7; ++k)
+      put_fixed(at, e.place[k], kTranslation, clamped);
+  }
   return size_t(at - out);
 }
 
-// Reads a pose of this table into root and bones (the layouts encode_pose takes; pads written as 0). Returns null when
-// it is good, else why not; on a refusal root and bones may hold part of it and must not be used.
+// Reads a pose of this table into root, bones and fx (the layouts encode_pose takes; pads written as 0). Returns null
+// when it is good, else why not; on a refusal root, bones and fx may hold part of it and must not be used.
 inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root,
-                               uint8_t *bones) {
+                               uint8_t *bones, Effect *fx) {
   using namespace codec;
   if (size < kPoseHeader || size > kMaxPose)
     return "size";
@@ -204,6 +221,24 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
         f[k] = get_fixed(in, kScale);
       std::memcpy(bones, f, sizeof f);
     }
+  }
+  for (size_t n = 0; n < kEffectSlots; ++n) {
+    Effect &e = fx[n];
+    e = Effect();
+    if (!*in) { // Empty: every byte 0, so a peer cannot hide anything in it.
+      for (size_t k = 0; k < kEffectBytes; ++k)
+        if (*in++)
+          return "effect";
+      continue;
+    }
+    e.asset = *in++;
+    e.part = *in++;
+    e.serial = *in++;
+    if (e.asset > kMaxEffectAssets || e.part >= t.eve.size())
+      return "effect";
+    get_rotation(in, e.place);
+    for (int k = 4; k < 7; ++k)
+      e.place[k] = get_fixed(in, kTranslation);
   }
   return nullptr; // in == data + size: pose_size(t) matched and every field above has a fixed width.
 }

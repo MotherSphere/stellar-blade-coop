@@ -12,7 +12,9 @@
 // delay line, a replayed recording or the friend: a table is checked and handed to Lua as coop-remote.txt, Lua builds
 // the ghost from it and names what it built in coop-display.txt; a pose is decoded with that table into the playback,
 // whose pose for each frame the game thread writes into the ghost's leaders, and the main mesh's world transform into
-// its mailbox for Lua to place it.
+// its mailbox for Lua to place it. With effect lines in her capture (protocol 6), her effects travel in the pose's four
+// slots too, and the drawn slots go into the ghost's effect boxes; they have their own SEH latch, so a fault there
+// turns effects off for the run and the ghost goes on.
 //
 // The Night Operation probe (Phase 6) is the worker's alone: on the nightop request it reads the rule manager and its
 // neighbours through ReadProcessMemory (nightop_probe.h) into nightop-probe.txt, never touching a game pointer itself.
@@ -46,6 +48,10 @@ std::string engine_reason = "not checked yet"; // Worker only.
 std::atomic<uint64_t> ticks{0}, doubles{0};
 std::atomic<uint64_t> fault_code{0}, fault_rva{0}, fault_address{0};
 std::atomic<int> current_part{-1}; // The part being read or written, for the fault line.
+// Effects' own latch (ROADMAP 4.8): the game thread turns them off at their first fault, the worker logs it once.
+std::atomic<bool> effects_on{true};
+std::atomic<uint64_t> fx_fault_code{0}, fx_fault_rva{0}, fx_fault_address{0};
+std::atomic<int> fx_fault_part{-1};
 
 // What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings), while a
 // recording is made or while a friend is linked.
@@ -71,10 +77,14 @@ struct Live {
   float capture_root[10] = {}, draw_root[10] = {};
   bool refusal_logged = false; // Game thread: only the first refused write on this ghost is logged.
   bool ghost_gone = false;      // Game thread: Lua destroyed this ghost; nothing is drawn until its display is dropped.
+  // Her effect slots as read for sending; the ghost's drawn this frame, and as last written into its boxes.
+  Effect capture_fx[kEffectSlots], draw_fx[kEffectSlots], fx_drawn[kEffectSlots];
   Live(Table c, Table r, Display d) : capture(std::move(c)), remote(std::move(r)), display(std::move(d)) {
     capture_bones.assign(leader_bytes(capture), 0);
     playback.reset(leader_bytes(remote));
     draw.assign(leader_bytes(remote), 0);
+    for (Effect &e : fx_drawn)
+      e.asset = 0xff; // No slot's: the first frame drawn writes every box.
   }
   bool drawn() const { return display.generation && display.generation == remote.generation; }
 };
@@ -108,6 +118,11 @@ uint64_t last_frame = 0, next_capture = 0;
 uint32_t sequence = 0; // Of the poses sent: never restarts in a run, so a pose still in flight is always the older.
 uint32_t seen_epoch = 0;
 float stamp = 1; // The mailbox's scale Z: the engine default is 1, our stamps run from 2 up.
+float fx_stamp = 1; // Its scale X, the same way: bumped by each frame that wrote an effect box.
+// Her effect slots across reads: never restarts in a run either, so a new Live (her friend's outfit, a new ghost)
+// does not send an effect still playing as a new instance; a slot no longer matched is freed at the next read.
+EffectState fx_state;
+EffectCounts fx_counts; // The effect read's, moved into the window counters after each read.
 Message out_back;
 bool out_ready = false; // out_back holds a pose the worker has not been handed yet.
 std::array<Message, kInbox> game_inbox;
@@ -126,6 +141,7 @@ std::atomic<uint64_t> window_sent{0}, window_sent_bytes{0}, window_clamped{0}, w
     window_line_lost{0}, window_inbox_full{0}, window_tables_in{0}, window_tables_refused{0}, window_rejected{0},
     window_foreign{0}, window_malformed{0}, window_poses{0}, window_stale{0}, window_missing{0}, window_stalls{0},
     window_steps{0}, window_drawn{0}, window_extrapolated{0}, window_drawn_written{0}, window_drawn_refused{0};
+std::atomic<uint64_t> window_fx_started{0}, window_fx_over{0}, window_fx_unlisted{0}, window_fx_written{0};
 std::atomic<int64_t> window_lag_us{0}, window_behind_us{0};
 std::atomic<int> last_refusal{0};              // An Io value, for the counter line.
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
@@ -156,6 +172,18 @@ void raise_max(std::atomic<uint64_t> &slot, uint64_t value) {
     ;
 }
 
+extern "C" IMAGE_DOS_HEADER __ImageBase; // This DLL: every instruction the native tick runs is ours.
+// A fault's code, offset in this DLL and address into the latch's own fields.
+int fault_filter(EXCEPTION_POINTERS *info, std::atomic<uint64_t> &code, std::atomic<uint64_t> &rva,
+                 std::atomic<uint64_t> &address) {
+  auto *exception = info->ExceptionRecord;
+  code = exception->ExceptionCode;
+  rva = reinterpret_cast<uintptr_t>(exception->ExceptionAddress) - reinterpret_cast<uintptr_t>(&__ImageBase);
+  if (exception->NumberParameters >= 2) // Access violations: the address read or written.
+    address = exception->ExceptionInformation[1];
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+
 // EVE now: her main mesh's world transform and her leaders' local poses, back to back.
 Io read_eve(const Table &capture, float *root, uint8_t *bones) {
   if (!published(objects, capture.eve[0]))
@@ -175,7 +203,7 @@ Io read_eve(const Table &capture, float *root, uint8_t *bones) {
   return Io::ok;
 }
 
-// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox).
+// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box).
 void refused(Live &live, int part, Io r) {
   last_refusal = static_cast<int>(r);
   if (live.refusal_logged)
@@ -183,15 +211,73 @@ void refused(Live &live, int part, Io r) {
   live.refusal_logged = true;
   char line[160];
   char what[24] = "mailbox";
-  if (part >= 0)
+  if (part == -2)
+    std::snprintf(what, sizeof what, "effect box");
+  else if (part >= 0)
     std::snprintf(what, sizeof what, "part %d", part);
   std::snprintf(line, sizeof line, "write refused: %s %s (table %llu)", what, describe(r),
                 static_cast<unsigned long long>(live.remote.generation));
   pending.push_back(line);
 }
 
+// Effects under their own latch. clang-cl catches a fault only in a function the __try calls, never in code inlined
+// into the __try's own frame, so the accesses stay out of line; the guarded functions hold plain data only.
+__declspec(noinline) void effects_read(Live &live) {
+  read_effects(objects, live.capture, fx_state, live.capture_fx, fx_counts);
+}
+// The boxes whose slot changed since last written; false when one was refused (written again next frame).
+__declspec(noinline) bool effects_write(Live &live, uint64_t &written) {
+  const Display &d = live.display;
+  bool all = true;
+  for (size_t n = 0; n < kEffectSlots; ++n) {
+    const Effect &e = live.draw_fx[n], &was = live.fx_drawn[n];
+    if (e.asset == was.asset && e.part == was.part && e.serial == was.serial &&
+        !std::memcmp(e.place, was.place, sizeof e.place))
+      continue;
+    if (write_effect_box(objects, d.effects[n], d.mailbox_class, d.puppet[0], e) != Io::ok) {
+      all = false;
+      continue;
+    }
+    live.fx_drawn[n] = e;
+    ++written;
+  }
+  return all;
+}
+// Her effects into capture_fx; the first fault empties them and turns effects off.
+void guarded_effects_read(Live &live) {
+  __try {
+    effects_read(live);
+  } __except (fault_filter(GetExceptionInformation(), fx_fault_code, fx_fault_rva, fx_fault_address)) {
+    fx_fault_part = fx_counts.part;
+    effects_on = false;
+    for (Effect &e : live.capture_fx)
+      e = Effect();
+  }
+  window_fx_started += fx_counts.started;
+  window_fx_over += fx_counts.over;
+  window_fx_unlisted += fx_counts.unlisted;
+  fx_counts = EffectCounts();
+}
+// The drawn slots into the ghost's effect boxes, then a new fx_stamp when one was written, so Lua reads them. False
+// when a box was refused or faulted.
+bool guarded_effects_write(Live &live) {
+  uint64_t written = 0;
+  bool all = false;
+  __try {
+    all = effects_write(live, written);
+  } __except (fault_filter(GetExceptionInformation(), fx_fault_code, fx_fault_rva, fx_fault_address)) {
+    fx_fault_part = -1; // A box, not a part.
+    effects_on = false;
+  }
+  if (written) {
+    fx_stamp = fx_stamp >= 1e6f ? 2.f : fx_stamp + 1.f;
+    window_fx_written += written;
+  }
+  return all;
+}
+
 // The pose drawn this frame into the ghost: each remote leader Lua built a part for, as it came or through its remap,
-// then the mailbox. True when every write passed its checks.
+// then its effect boxes and the mailbox. True when every write passed its checks.
 bool write_puppet(Live &live) {
   const Table &remote = live.remote;
   const Display &d = live.display;
@@ -214,8 +300,13 @@ bool write_puppet(Live &live) {
     }
     offset += size_t(remote.eve[i].bones) * kTransformBytes;
   }
+  if (effects_on && d.effects[0] && !guarded_effects_write(live)) {
+    all = false;
+    if (effects_on) // Refused, not faulted: a fault has its own line.
+      refused(live, -2, Io::gone);
+  }
   stamp = stamp >= 1e6f ? 2.f : stamp + 1.f;
-  if (write_mailbox(objects, d.mailbox, d.mailbox_class, d.puppet[0], live.draw_root, stamp) != Io::ok) {
+  if (write_mailbox(objects, d.mailbox, d.mailbox_class, d.puppet[0], live.draw_root, fx_stamp, stamp) != Io::ok) {
     all = false;
     refused(live, -1, Io::gone);
   }
@@ -236,13 +327,19 @@ void stream(uint64_t now_us) {
     if (r == Io::ok) {
       uint64_t every = send_us.load(std::memory_order_relaxed);
       next_capture = (next_capture && now_us - next_capture < every ? next_capture : now_us) + every;
+      if (effects_on && live.capture.fx.cls) // Only with effect lines: Lua sends none while effects are off.
+        guarded_effects_read(live);
+      else
+        for (Effect &e : live.capture_fx)
+          e = Effect();
       PoseHeader h;
       h.generation = live.capture.generation;
       h.publication = now_us;
       h.sequence = ++sequence;
       uint32_t clamped = 0;
       out_back.size =
-          encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), out_back.data.data(), clamped);
+          encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
+                      out_back.data.data(), clamped);
       out_back.time = now_us;
       out_ready = true;
       if (m.try_lock()) { // At once, not at the next frame's hand-over: one frame less of delay.
@@ -265,7 +362,7 @@ void stream(uint64_t now_us) {
     Playback::Frame &f = live.playback.scratch();
     PoseHeader h;
     const Message &in = game_inbox[i];
-    if (const char *why = decode_pose(live.remote, in.data.data(), in.size, h, f.root, f.bones.data())) {
+    if (const char *why = decode_pose(live.remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx)) {
       if (!std::strcmp(why, "generation")) { // Of a table the ghost is not built on (yet): an outfit in flight.
         ++window_foreign;
       } else {
@@ -283,7 +380,7 @@ void stream(uint64_t now_us) {
     // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
     if (!alive(objects, static_cast<uintptr_t>(live.display.puppet[0].object)))
       live.ghost_gone = true;
-    else if (live.playback.sample(now_us, live.draw_root, live.draw.data()))
+    else if (live.playback.sample(now_us, live.draw_root, live.draw.data(), live.draw_fx))
       ++(write_puppet(live) ? window_drawn_written : window_drawn_refused);
   }
   Playback::Stats s = live.playback.take();
@@ -344,19 +441,10 @@ void game_tick() {
   raise_max(window_max_us, us);
 }
 
-extern "C" IMAGE_DOS_HEADER __ImageBase; // This DLL: every instruction the native tick runs is ours.
-int fault_filter(EXCEPTION_POINTERS *info) {
-  auto *exception = info->ExceptionRecord;
-  fault_code = exception->ExceptionCode;
-  fault_rva = reinterpret_cast<uintptr_t>(exception->ExceptionAddress) - reinterpret_cast<uintptr_t>(&__ImageBase);
-  if (exception->NumberParameters >= 2) // Access violations: the address read or written.
-    fault_address = exception->ExceptionInformation[1];
-  return EXCEPTION_EXECUTE_HANDLER;
-}
 void guarded_tick() {
   __try {
     game_tick();
-  } __except (fault_filter(GetExceptionInformation())) {
+  } __except (fault_filter(GetExceptionInformation(), fault_code, fault_rva, fault_address)) {
     faulted = true;
     engine_on = false;
   }
@@ -386,7 +474,7 @@ namespace {
 // Worker thread only from here.
 std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
 std::wstring dir;                                                            // The mod folder.
-bool pin_checked = false, fault_logged = false, buffers_ready = false;
+bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false;
 uint64_t next_poll = 0, next_counters = 0;
 bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
 uint32_t rate = 20;  // From coop-state.txt: poses sent a second.
@@ -646,9 +734,10 @@ void take_display() {
       drawn += d.puppet[i].object != 0;
       mapped += !d.remap[i].empty();
     }
-    char line[160];
+    char line[180];
     std::snprintf(line, sizeof line, "ghost of table %llu drawn: %d of %d leaders (%d on a fallback mesh), %zu bytes "
-                  "a pose", static_cast<unsigned long long>(d.generation), drawn, leaders, mapped, pose_size(remote));
+                  "a pose%s", static_cast<unsigned long long>(d.generation), drawn, leaders, mapped, pose_size(remote),
+                  d.effects[0] ? ", 4 effect boxes" : "");
     say(line);
   } else if (remote.generation && text.rfind("display " + std::to_string(remote.generation) + "\n", 0) == 0) {
     say("ghost of table " + std::to_string(remote.generation) + " refused: its display file is malformed");
@@ -693,6 +782,17 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(fault_code.load()), static_cast<unsigned long long>(fault_rva.load()),
                   static_cast<unsigned long long>(fault_address.load()), text_part);
     engine_reason = text;
+    event(text);
+  }
+  if (!effects_on && !fx_fault_logged) { // Only a fault turns them off.
+    fx_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "effects off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx (part %d); the ghost goes on "
+                  "without effects until the game restarts",
+                  static_cast<unsigned long long>(fx_fault_code.load()),
+                  static_cast<unsigned long long>(fx_fault_rva.load()),
+                  static_cast<unsigned long long>(fx_fault_address.load()), fx_fault_part.load());
     event(text);
   }
   if (nightop_on)
@@ -753,6 +853,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
              extrapolated = window_extrapolated.exchange(0), drawn_written = window_drawn_written.exchange(0),
              drawn_refused = window_drawn_refused.exchange(0);
     int64_t lag_us = window_lag_us.exchange(0), behind_us = window_behind_us.exchange(0);
+    uint64_t fx_started = window_fx_started.exchange(0), fx_over = window_fx_over.exchange(0),
+             fx_unlisted = window_fx_unlisted.exchange(0), fx_written = window_fx_written.exchange(0);
     if (!first && n) {
       char line[900];
       std::snprintf(line, sizeof line,
@@ -782,6 +884,13 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(drawn), static_cast<unsigned long long>(extrapolated),
                       drawn ? behind_us / 1000.0 / double(drawn) : 0.0, static_cast<unsigned long long>(drawn_written),
                       static_cast<unsigned long long>(drawn_refused), describe(static_cast<Io>(last_refusal.load())));
+        event(line);
+      }
+      if (fx_started || fx_over || fx_unlisted || fx_written) {
+        std::snprintf(line, sizeof line,
+                      "effects, last 60 s: %llu started, %llu over 4, %llu unlisted reads; %llu boxes written",
+                      static_cast<unsigned long long>(fx_started), static_cast<unsigned long long>(fx_over),
+                      static_cast<unsigned long long>(fx_unlisted), static_cast<unsigned long long>(fx_written));
         event(line);
       }
     }

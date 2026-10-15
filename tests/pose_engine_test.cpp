@@ -1,5 +1,6 @@
 // The pose path's memory accesses against fake memory laid out like the pinned build: the build pin, liveness,
-// published components, EVE's read, the ghost's write gate (direct and remapped) and the mailbox.
+// published components, EVE's read, the ghost's write gate (direct and remapped), the mailbox, EVE's effect read into
+// sticky slots and the effect boxes.
 #include "pose_engine.h"
 
 #include <algorithm>
@@ -18,7 +19,7 @@ uintptr_t addr(std::vector<uint8_t> &mem, size_t at = 0) { return reinterpret_ca
 // A fake GUObjectArray with one chunk, and objects registered in it.
 struct Objects {
   std::vector<uint8_t> array = std::vector<uint8_t>(0x40), chunks = std::vector<uint8_t>(8),
-                       items = std::vector<uint8_t>(kItemBytes * 16);
+                       items = std::vector<uint8_t>(kItemBytes * 64);
   int32_t count = 0;
   Objects() {
     put(array, kChunkTable, addr(chunks));
@@ -197,21 +198,53 @@ int main() {
     put<uintptr_t>(puppet, kOuter, 0xac70);
     put<uintptr_t>(box, kOuter, 0xac70); // Both owned by the puppet actor.
     put(puppet, kTargetArray, addr(dst));
-    assert(write_mailbox(objs, addr(box), scene_class, p, world, 7.f) == Io::ok);
+    assert(write_mailbox(objs, addr(box), scene_class, p, world, 3.f, 7.f) == Io::ok);
     float location[3], rotation[3], scale[3];
     std::memcpy(location, box.data() + kRelativeLocation, 12);
     std::memcpy(rotation, box.data() + kRelativeRotation, 12);
     std::memcpy(scale, box.data() + kRelativeScale, 12);
     assert(location[0] == 100 && location[1] == 200 && location[2] == 300);
     assert(std::fabs(rotation[0]) < 1e-3 && std::fabs(rotation[1] - 90) < 1e-3 && std::fabs(rotation[2]) < 1e-3);
-    assert(scale[0] == 1 && scale[1] == 1 && scale[2] == 7);
-    assert(write_mailbox(objs, addr(box), 0x1, p, world, 8.f) == Io::gone); // Another class.
+    assert(scale[0] == 3 && scale[1] == 1 && scale[2] == 7); // (fx_stamp, 1, stamp)
+    assert(write_mailbox(objs, addr(box), 0x1, p, world, 1.f, 8.f) == Io::gone); // Another class.
     put<uintptr_t>(box, kOuter, 0xbeef); // Another actor's scene component: never written.
     std::memset(box.data() + kRelativeLocation, 0, 12);
-    assert(write_mailbox(objs, addr(box), scene_class, p, world, 9.f) == Io::gone && box[kRelativeLocation + 2] == 0);
+    assert(write_mailbox(objs, addr(box), scene_class, p, world, 1.f, 9.f) == Io::gone &&
+           box[kRelativeLocation + 2] == 0);
     put<uintptr_t>(box, kOuter, 0xac70);
-    assert(write_mailbox(objs, addr(box), scene_class, Part{addr(dead), poseable_class, mesh, 3, true}, world, 9.f) ==
-           Io::gone); // The puppet's root gone.
+    assert(write_mailbox(objs, addr(box), scene_class, Part{addr(dead), poseable_class, mesh, 3, true}, world, 1.f,
+                         9.f) == Io::gone); // The puppet's root gone.
+
+    // An effect box: the slot's place as relative location and rotation, (asset + 1, part + 1, serial + 1) as scale;
+    // an empty slot is (1, 1, 1). Behind the mailbox's gate: a dead box, another class or another actor's is never
+    // written.
+    std::vector<uint8_t> fx_box(0x200), dead_box(0x200);
+    objects.add(fx_box);
+    objects.add(dead_box, kPendingKill);
+    for (auto *b : {&fx_box, &dead_box}) {
+      put<uint64_t>(*b, kClass, scene_class);
+      put<uintptr_t>(*b, kOuter, 0xac70);
+    }
+    const Effect slot{5, 2, 7, {0, 0, std::sin(0.785398163f), std::cos(0.785398163f), 1, 2, 3}};
+    assert(write_effect_box(objs, addr(fx_box), scene_class, p, slot) == Io::ok);
+    std::memcpy(location, fx_box.data() + kRelativeLocation, 12);
+    std::memcpy(rotation, fx_box.data() + kRelativeRotation, 12);
+    std::memcpy(scale, fx_box.data() + kRelativeScale, 12);
+    assert(location[0] == 1 && location[1] == 2 && location[2] == 3 && std::fabs(rotation[1] - 90) < 1e-3);
+    assert(scale[0] == 6 && scale[1] == 3 && scale[2] == 8);
+    assert(write_effect_box(objs, addr(fx_box), scene_class, p, Effect()) == Io::ok);
+    std::memcpy(location, fx_box.data() + kRelativeLocation, 12);
+    std::memcpy(rotation, fx_box.data() + kRelativeRotation, 12);
+    std::memcpy(scale, fx_box.data() + kRelativeScale, 12);
+    assert(location[0] == 0 && location[2] == 0 && rotation[0] == 0 && rotation[1] == 0 && rotation[2] == 0);
+    assert(scale[0] == 1 && scale[1] == 1 && scale[2] == 1);
+    const std::vector<uint8_t> before = fx_box;
+    assert(write_effect_box(objs, addr(dead_box), scene_class, p, slot) == Io::gone);
+    assert(write_effect_box(objs, addr(fx_box), 0x1, p, slot) == Io::gone);
+    put<uintptr_t>(fx_box, kOuter, 0xbeef);
+    assert(write_effect_box(objs, addr(fx_box), scene_class, p, slot) == Io::gone);
+    put<uintptr_t>(fx_box, kOuter, 0xac70);
+    assert(fx_box == before && dead_box[kRelativeScale] == 0);
 
     // FQuat::Rotator against known rotations: pitch 30, roll 45, and the pitch singularity.
     auto quat = [](double pitch, double yaw, double roll, float *q) { // FRotator::Quaternion
@@ -233,6 +266,118 @@ int main() {
     quat(90, 30, 0, q);
     quat_to_rotator(q[0], q[1], q[2], q[3], pyr);
     assert(pyr[0] == 90.f);
+  }
+
+  // EVE's effects: the active Niagara components on a leader whose system is listed, in 4 slots held by component.
+  {
+    const uint64_t niagara = 0x9a6a;
+    const uint32_t asset_at = 0x240;
+    std::vector<uint8_t> leader(0x600);
+    objects.add(leader);
+    put<uint64_t>(leader, kClass, eve_class);
+    put<uint64_t>(leader, kMesh, mesh);
+    Table t;
+    t.eve = {Part{addr(leader), eve_class, mesh, 3, true}, Part{0, 0, 0, 0, false}}; // A follower is never walked.
+    t.fx.cls = niagara;
+    t.fx.asset = asset_at;
+    for (uint64_t k = 1; k <= 6; ++k)
+      t.fx.assets[k] = 0x5000 + k;
+    auto world = [](std::vector<uint8_t> &object, std::array<float, 4> q, std::array<float, 3> t) {
+      const float raw[12] = {q[0], q[1], q[2], q[3], t[0], t[1], t[2], 0, 1, 1, 1, 0};
+      std::memcpy(object.data() + kWorldTransform, raw, sizeof raw);
+    };
+    const float s45 = std::sin(0.785398163f), c45 = std::cos(0.785398163f);
+    world(leader, {0, 0, s45, c45}, {100, 200, 300}); // Yaw 90.
+    // Children 0-3 are skipped: dead, another class, inactive (another bit set), and an unlisted system; so is 9, with
+    // no system, never matched with an unused list entry (also 0). 4-8 are good.
+    std::vector<std::vector<uint8_t>> kid(10, std::vector<uint8_t>(0x260));
+    for (size_t k = 0; k < kid.size(); ++k) {
+      objects.add(kid[k], k == 0 ? kPendingKill : 0);
+      put<uint64_t>(kid[k], kClass, k == 1 ? 0x5c0 : niagara);
+      put<uint8_t>(kid[k], kActiveFlags, k == 2 ? 0xfd : 0x02);
+      put<uint64_t>(kid[k], asset_at, k == 3 ? 0xdead : k == 9 ? 0 : k < 4 ? 0x5001 : 0x5000 + k - 2); // 4-8: 2-6.
+    }
+    world(kid[4], {0, 0, 1, 0}, {100, 210, 300}); // Yaw 180, 10 cm along the leader's own Y.
+    std::vector<uintptr_t> attached;
+    auto attach = [&](std::initializer_list<int> which) {
+      attached.clear();
+      for (int k : which)
+        attached.push_back(k < 0 ? 0 : addr(kid[size_t(k)]));
+      put<uintptr_t>(leader, kAttachChildren, reinterpret_cast<uintptr_t>(attached.data()));
+      put<int32_t>(leader, kAttachCount, int32_t(attached.size()));
+    };
+    EffectState state;
+    Effect out[kEffectSlots];
+    auto read = [&](EffectCounts &counts) {
+      counts = {};
+      read_effects(objs, t, state, out, counts);
+      assert(counts.part == -1);
+    };
+    auto slot_is = [&](size_t n, uint8_t asset, uint8_t serial) {
+      return out[n].asset == asset && out[n].serial == serial && (!asset || out[n].part == 0);
+    };
+    EffectCounts c;
+
+    // The skipped ones, a null entry and the unlisted one twice: one slot taken, one unlisted read.
+    attach({-1, 0, 1, 2, 3, 3, 9, 4});
+    read(c);
+    assert(slot_is(0, 2, 1) && slot_is(1, 0, 0) && slot_is(2, 0, 0) && slot_is(3, 0, 0));
+    assert(c.started == 1 && c.over == 0 && c.unlisted == 1 && state.owner[0] == addr(kid[4]));
+    // Relative to the yawed leader: 10 cm on its X, and yawed 90 itself.
+    const float *q = out[0].place;
+    assert(std::fabs(q[0]) < 1e-6 && std::fabs(q[1]) < 1e-6 && std::fabs(q[2] - s45) < 1e-6 && std::fabs(q[3] - c45) < 1e-6);
+    assert(std::fabs(q[4] - 10) < 1e-4 && std::fabs(q[5]) < 1e-4 && std::fabs(q[6]) < 1e-4);
+    for (size_t n = 1; n < kEffectSlots; ++n)
+      for (float v : out[n].place)
+        assert(v == 0);
+    // Without the unlisted one, the one with no system still makes the read unlisted; slot 0 stays.
+    attach({9, 4});
+    read(c);
+    assert(slot_is(0, 2, 1) && slot_is(1, 0, 0) && c.started == 0 && c.unlisted == 1 && state.owner[0] == addr(kid[4]));
+    // A parent turned about Y and scaled 2, so the product order and the division by its scale show (a yaw alone
+    // commutes, a scale of 1 divides nothing): the child is the parent turned by a yaw of 90, (10, 0, 0) out.
+    {
+      const float parent[10] = {0, s45, 0, c45, 100, 200, 300, 2, 2, 2};
+      const float child[10] = {.5f, .5f, .5f, .5f, 100, 200, 280, 2, 2, 2}; // Its (20, 0, 0) turned to (0, 0, -20).
+      float rel[7];
+      relative(parent, child, rel);
+      assert(std::fabs(rel[0]) < 1e-6 && std::fabs(rel[1]) < 1e-6 && std::fabs(rel[2] - s45) < 1e-6 &&
+             std::fabs(rel[3] - c45) < 1e-6);
+      assert(std::fabs(rel[4] - 10) < 1e-4 && std::fabs(rel[5]) < 1e-4 && std::fabs(rel[6]) < 1e-4);
+    }
+
+    // A count over 256 skips the leader (nothing past the 7 entries is read: ASan would see it); its slot is freed.
+    put<int32_t>(leader, kAttachCount, 257);
+    read(c);
+    assert(slot_is(0, 0, 0) && c.started == 0 && c.unlisted == 0 && !state.owner[0]);
+    put<int32_t>(leader, kAttachCount, -1);
+    read(c);
+    assert(slot_is(0, 0, 0));
+
+    // Five listed and active: four kept, one over. Slot 0 was freed, so its new one takes serial 2.
+    attach({4, 5, 6, 7, 8});
+    read(c);
+    assert(slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
+    assert(c.started == 4 && c.over == 1);
+    // Sticky: in another order each keeps its slot and serial.
+    attach({8, 7, 6, 5, 4});
+    read(c);
+    assert(slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
+    assert(c.started == 0 && c.over == 1);
+    // One goes inactive: its slot is freed, and the one over takes it with serial + 1.
+    put<uint8_t>(kid[5], kActiveFlags, 0);
+    read(c);
+    assert(slot_is(0, 2, 2) && slot_is(1, 6, 2) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
+    assert(c.started == 1 && c.over == 0 && state.owner[1] == addr(kid[8]));
+    // The same component with another system: a new instance in its slot.
+    put<uint64_t>(kid[4], asset_at, 0x5001);
+    read(c);
+    assert(slot_is(0, 1, 3) && slot_is(1, 6, 2) && c.started == 1);
+    // A dead leader, or none with a read address: nothing read, every slot freed.
+    t.eve[0].mesh = 0x1;
+    read(c);
+    for (size_t n = 0; n < kEffectSlots; ++n)
+      assert(slot_is(n, 0, 0) && !state.owner[n]);
   }
 
   std::puts("pose_engine_test: ok");

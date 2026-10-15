@@ -1,7 +1,7 @@
 // The game's memory for the native pose path: the build pin, object liveness and the published-component checks, EVE's
-// pose read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only; the caller runs every
-// one of them under an SEH guard on the game thread. No Windows types, so tests/pose_engine_test.cpp drives it with
-// fake memory.
+// pose and effects read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only; the
+// caller runs every one of them under an SEH guard on the game thread. No Windows types, so tests/pose_engine_test.cpp
+// drives it with fake memory.
 // Offsets are for Stellar Blade's Steam build 24463856 (UE 4.26), pinned by check_build().
 #pragma once
 
@@ -12,7 +12,7 @@
 #include <cstring>
 #include <string>
 
-#include "pose_core.h"
+#include "pose_table.h" // Table (its effect read), and pose_core.h
 
 namespace coop::pose {
 
@@ -205,27 +205,169 @@ inline void quat_to_rotator(float x, float y, float z, float w, float *pyr) {
   pyr[2] = float(roll);
 }
 
-// The mailbox (N17), a scene component of the ghost, gets a world transform (10 floats as read_world gives them) as
-// relative location and rotation, and a stamp in its relative scale (1, 1, stamp; the default is 1, stamps are 2 and
-// up) so Lua knows a value has arrived. It cannot be the ghost's root itself: K2_SetWorldLocationAndRotation does
-// nothing when the value equals the root's own relative fields (PHASE2-RE.md).
-// Nothing ever moves the mailbox, so the engine never rewrites these fields. It must be live, of the published class
-// and owned by the same actor as the ghost's live root (UObject outer +0x20): a stale table can never reach another
-// actor's scene component, the most common class in the game.
+// The ghost's scene components the native part writes, the mailbox and the effect boxes, must be live, of the published
+// class and owned by the same actor as the ghost's live root (UObject outer +0x20): a stale table can never reach
+// another actor's scene component, the most common class in the game. Nothing ever moves them, so the engine never
+// rewrites the relative fields written here.
 constexpr size_t kOuter = 0x20;
-inline Io write_mailbox(uintptr_t objects, uint64_t mailbox, uint64_t cls, const Part &puppet_root, const float *world,
-                        float stamp) {
-  auto box = static_cast<uintptr_t>(mailbox);
-  if (!alive(objects, box) || at<uint64_t>(box + kClass) != cls || !published(objects, puppet_root) ||
-      at<uintptr_t>(box + kOuter) != at<uintptr_t>(static_cast<uintptr_t>(puppet_root.object) + kOuter) ||
-      !at<uintptr_t>(box + kOuter))
-    return Io::gone;
-  float location[3] = {world[4], world[5], world[6]}, rotation[3], scale[3] = {1.f, 1.f, stamp};
-  quat_to_rotator(world[0], world[1], world[2], world[3], rotation);
-  std::memcpy(reinterpret_cast<void *>(box + kRelativeLocation), location, sizeof location);
+inline bool box_ok(uintptr_t objects, uintptr_t box, uint64_t cls, const Part &puppet_root) {
+  return alive(objects, box) && at<uint64_t>(box + kClass) == cls && published(objects, puppet_root) &&
+         at<uintptr_t>(box + kOuter) == at<uintptr_t>(static_cast<uintptr_t>(puppet_root.object) + kOuter) &&
+         at<uintptr_t>(box + kOuter);
+}
+// Relative location, rotation (from the quaternion q, xyzw) and scale.
+inline void put_relative(uintptr_t box, const float *location, const float *q, const float *scale) {
+  float rotation[3];
+  quat_to_rotator(q[0], q[1], q[2], q[3], rotation);
+  std::memcpy(reinterpret_cast<void *>(box + kRelativeLocation), location, 3 * sizeof(float));
   std::memcpy(reinterpret_cast<void *>(box + kRelativeRotation), rotation, sizeof rotation);
-  std::memcpy(reinterpret_cast<void *>(box + kRelativeScale), scale, sizeof scale);
+  std::memcpy(reinterpret_cast<void *>(box + kRelativeScale), scale, 3 * sizeof(float));
+}
+
+// The mailbox (N17) gets a world transform (10 floats as read_world gives them) as relative location and rotation, and
+// two stamps in its relative scale (fx_stamp, 1, stamp; the default is 1, stamps are 2 and up): stamp for a pose, so
+// Lua knows a value has arrived, fx_stamp for effect boxes written, so Lua reads them only then. It cannot be the
+// ghost's root itself: K2_SetWorldLocationAndRotation does nothing when the value equals the root's own relative
+// fields (PHASE2-RE.md).
+inline Io write_mailbox(uintptr_t objects, uint64_t mailbox, uint64_t cls, const Part &puppet_root, const float *world,
+                        float fx_stamp, float stamp) {
+  auto box = static_cast<uintptr_t>(mailbox);
+  if (!box_ok(objects, box, cls, puppet_root))
+    return Io::gone;
+  const float scale[3] = {fx_stamp, 1.f, stamp};
+  put_relative(box, world + 4, world, scale);
   return Io::ok;
+}
+
+// An effect box (protocol 6) gets its slot: the effect's transform relative to its part, and (asset + 1, part + 1,
+// serial + 1) in its relative scale, so the default (1, 1, 1) reads as none and the scale is never 0.
+inline Io write_effect_box(uintptr_t objects, uint64_t box, uint64_t cls, const Part &puppet_root, const Effect &e) {
+  auto object = static_cast<uintptr_t>(box);
+  if (!box_ok(objects, object, cls, puppet_root))
+    return Io::gone;
+  const float scale[3] = {e.asset + 1.f, e.part + 1.f, e.serial + 1.f};
+  put_relative(object, e.place + 4, e.place, scale);
+  return Io::ok;
+}
+
+// A child's world transform relative to its parent's (10 floats each, as read_world gives them) into out: rotation
+// q = conj(qp) qc and translation conj(qp) (tc - tp) / sp, sp the parent's X scale (EVE's is 1), as UE composes
+// child = relative * parent.
+inline void relative(const float *parent, const float *child, float *out) {
+  const double x = -parent[0], y = -parent[1], z = -parent[2], w = parent[3]; // conj(qp), unit.
+  const double cx = child[0], cy = child[1], cz = child[2], cw = child[3];
+  out[0] = float(w * cx + x * cw + y * cz - z * cy);
+  out[1] = float(w * cy - x * cz + y * cw + z * cx);
+  out[2] = float(w * cz + x * cy - y * cx + z * cw);
+  out[3] = float(w * cw - x * cx - y * cy - z * cz);
+  const double v[3] = {double(child[4]) - parent[4], double(child[5]) - parent[5], double(child[6]) - parent[6]};
+  const double t[3] = {2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0])}; // 2 q x v
+  const double scale = std::fabs(parent[7]) > 1e-6f ? parent[7] : 1.0;
+  out[4] = float((v[0] + w * t[0] + y * t[2] - z * t[1]) / scale); // v + w t + q x t
+  out[5] = float((v[1] + w * t[1] + z * t[0] - x * t[2]) / scale);
+  out[6] = float((v[2] + w * t[2] + x * t[1] - y * t[0]) / scale);
+}
+
+// The effect slots across reads: each slot's component (0: free), and the asset and serial it was given.
+struct EffectState {
+  uint64_t owner[kEffectSlots] = {};
+  uint8_t asset[kEffectSlots] = {}, serial[kEffectSlots] = {};
+};
+// What read_effects saw, added up across reads: instances started in a slot, listed effects with no slot free, reads
+// that met an active Niagara component not in the list; and the leader being walked, for a fault line (-1 after).
+struct EffectCounts {
+  uint64_t started = 0, over = 0, unlisted = 0;
+  int part = -1;
+};
+
+// USceneComponent::AttachChildren (TArray: data, count at +8), UActorComponent::bIsActive (byte +0x9a, mask 0x02).
+constexpr size_t kAttachChildren = 0xe8, kAttachCount = 0xf0, kActiveFlags = 0x9a;
+constexpr int32_t kMaxChildren = 256; // EVE's main mesh holds every attached part, sound and effect.
+constexpr uint8_t kActive = 0x02;
+
+// The effects playing on EVE (protocol 6) into out's kEffectSlots slots: the active components of the capture's
+// Niagara class hung right on a leader part, whose system (the pointer at t.fx.asset: compared with the list, never
+// followed) is in the capture's list. A slot is held by its component's address: matched again, it keeps its serial
+// and takes the new transform; the same component with another system, or a new component in the first free slot,
+// takes the slot's serial + 1 (so the viewer starts it again); a slot whose component is not matched is freed. A
+// listed effect with no slot free is counted over. Fixed arrays only: the game thread calls it at the send rate.
+inline void read_effects(uintptr_t objects, const Table &t, EffectState &state, Effect *out, EffectCounts &counts) {
+  bool kept[kEffectSlots] = {}, unlisted = false;
+  Effect fresh[kEffectSlots]; // New components waiting for a free slot: more than kEffectSlots can never get one.
+  uint64_t fresh_owner[kEffectSlots] = {};
+  size_t fresh_count = 0;
+  for (size_t i = 0; i < t.eve.size(); ++i) {
+    const Part &p = t.eve[i];
+    if (!p.leader || !p.object || !published(objects, p))
+      continue;
+    counts.part = static_cast<int>(i);
+    auto leader = static_cast<uintptr_t>(p.object);
+    auto children = at<uintptr_t>(leader + kAttachChildren);
+    auto count = at<int32_t>(leader + kAttachCount);
+    if (!children || count < 0 || count > kMaxChildren)
+      continue;
+    float parent[10];
+    read_world(leader, parent);
+    for (int32_t c = 0; c < count; ++c) {
+      auto child = at<uintptr_t>(children + 8 * uintptr_t(c));
+      if (!alive(objects, child) || at<uint64_t>(child + kClass) != t.fx.cls ||
+          !(at<uint8_t>(child + kActiveFlags) & kActive))
+        continue;
+      auto system = at<uint64_t>(child + t.fx.asset);
+      uint8_t k = 1;
+      while (k <= kMaxEffectAssets && !(system && t.fx.assets[k] == system))
+        ++k;
+      if (k > kMaxEffectAssets) {
+        unlisted = true;
+        continue;
+      }
+      Effect e;
+      e.asset = k;
+      e.part = static_cast<uint8_t>(i);
+      float world[10];
+      read_world(child, world);
+      relative(parent, world, e.place);
+      size_t n = 0;
+      while (n < kEffectSlots && state.owner[n] != child)
+        ++n;
+      if (n < kEffectSlots) {
+        if (state.asset[n] != k) { // Another system in the same component: a new instance.
+          state.asset[n] = k;
+          ++state.serial[n];
+          ++counts.started;
+        }
+        e.serial = state.serial[n];
+        out[n] = e;
+        kept[n] = true;
+      } else if (fresh_count < kEffectSlots) {
+        fresh_owner[fresh_count] = child;
+        fresh[fresh_count++] = e;
+      } else {
+        ++counts.over;
+      }
+    }
+  }
+  counts.part = -1;
+  counts.unlisted += unlisted;
+  for (size_t n = 0; n < kEffectSlots; ++n)
+    if (!kept[n]) {
+      state.owner[n] = 0;
+      state.asset[n] = 0;
+      out[n] = Effect();
+    }
+  for (size_t f = 0, n = 0; f < fresh_count; ++f) {
+    while (n < kEffectSlots && state.owner[n])
+      ++n;
+    if (n == kEffectSlots) {
+      counts.over += fresh_count - f;
+      break;
+    }
+    state.owner[n] = fresh_owner[f];
+    state.asset[n] = fresh[f].asset;
+    fresh[f].serial = ++state.serial[n];
+    out[n] = fresh[f];
+    ++counts.started;
+  }
 }
 
 } // namespace coop::pose
