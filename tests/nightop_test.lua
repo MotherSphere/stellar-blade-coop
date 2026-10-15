@@ -444,4 +444,15 @@ local fired={}
 for _,c in ipairs(every) do if c.what=='BPL:CreateSBZoneEvent' then fired[#fired+1]=c end end
 assert(#fired==6,#fired) -- Two heals, four spawn rows.
 for _,c in ipairs(fired) do assert(NightOp.allowed(c.args[1],c.args[2]:ToString())) end
+-- Every kind a byte holds, so never 5 (despawn) or 15/16/19 (matchmaking), against the heal, the safe rows, the unsafe
+-- spawn row, the cut recruiter's Join row, a vanilla matchmaking row and two empty names.
+local names={HEAL,'DLC02_20_E_CharS_005','MultiplayTest_ZoneE_059','DED10_ZoneE_136','','None'}
+for name in pairs(NightOp.SAFE) do names[#names+1]=name end
+assert(#names==17)
+for kind=0,255 do
+    for _,name in ipairs(names) do
+        local want=(kind==2 and name==HEAL) or (kind==0 and NightOp.SAFE[name]==true)
+        assert(NightOp.allowed(kind,name)==want,kind..' '..name)
+    end
+end
 print('nightop_test ok')
