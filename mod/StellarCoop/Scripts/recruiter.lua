@@ -6,7 +6,10 @@
 -- game sends nothing), an unused test spawn row of a Xion guard pointed at the cut point with the recruiter's graph,
 -- and an unused test filter pointed at that row, so that SB's own Despawn event removes him. Rows are edited in place,
 -- field by field, and read back through a fresh FindRow; no row is added or removed. The two zone events go through one
--- guarded choke point, and no console argument reaches it or a table.
+-- guarded choke point, and no console argument reaches it or a table. Once the Join row reads back, the dialogue's 12
+-- text keys, and no other, are registered with the engine's localization in the game's 23 languages
+-- (recruiter_text.lua), in memory for the game run, after a Korean probe shows that non-ASCII text arrives intact; a
+-- text fault logs a STOP: text line and leaves him Korean.
 local U=require('unreal')
 local UE=require('UEHelpers')
 local Recruiter={}
@@ -23,6 +26,10 @@ local FILTER,FILTER_ID,FILTER_SHIPPED='LV_TempTestMap_LevelTargetFilter_002',660
 local POINT,ZONE='TeleportPoint_Xion_MultiPlay','Zone_Xion_10'
 local GRAPH='/Game/GameDesign/Level/ToolData/InteractionGraph/Xion/Xion01/Xion01_NPC_MultiPlay.Xion01_NPC_MultiPlay'
 local NEAR,FAR=1.5,50 -- metres: "at the point", and how far EVE may stand from it.
+local TEXT_LIBRARY='/Script/Engine.Default__KismetTextLibrary'
+local STRING_LIBRARY='/Script/Engine.Default__KismetStringLibrary'
+local LANGUAGE_LIBRARY='/Script/Engine.Default__KismetInternationalizationLibrary'
+local CHOICES='/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable'
 -- The only zone events this module may fire: the guard's spawn row (0, Spawn) and its despawn filter (5, Despawn).
 function Recruiter.allowed(kind,name) return (kind==0 and name==SPAWN) or (kind==5 and name==FILTER) end
 local function find_name(text) return FName(text,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -133,6 +140,67 @@ local function edit(path,key,known,writes,keep)
     for _,c in ipairs(keep or {}) do back[#back+1]=c end
     return check(key,dt:FindRow(key),back,DIFFERS),old
 end
+-- Engine text in a log line: printable ASCII, any other byte as \xNN, from at most 80 bytes, so the line reads the
+-- same whatever encoding the log gets under Proton, and a mangled string shows its bytes.
+local function ascii(s)
+    return (tostring(s):sub(1,80):gsub('[^ -~]',function(c) return string.format('\\x%02X',c:byte()) end))
+end
+local KOREAN=': nothing registered, his text stays Korean'
+-- His 12 text keys (recruiter_text.lua) registered with the engine's localization in the 23 game languages, in memory
+-- for the game run: the display string of those keys changes; no asset, row or other key does. Gives the text line.
+local function register_text()
+    -- Absent or broken, he stays Korean: deleting the installed file is the off switch.
+    local loaded,data=pcall(require,'recruiter_text')
+    if not loaded then
+        return 'STOP: text: recruiter_text.lua did not load ('..ascii(why(data))..')'..KOREAN..': TEXT=no'
+    end
+    local read,raw=pcall(function() return U.text(U.find(LANGUAGE_LIBRARY):GetCurrentLanguage()) end)
+    local c=data.culture(read and raw or nil)
+    local head=string.format('text: game language %s -> %s; ',read and U.word(raw,16) or '?('..ascii(why(raw))..')',c)
+    local function stop(detail) return 'STOP: '..head..detail..': TEXT=no' end
+    -- Lua strings are UTF-8, FString is UTF-16: the Korean "Cancel" (2 letters) is 2 units, 6 if UE4SS widened its
+    -- bytes. A mangled source never matches the asset's, so nothing is registered unless the engine measures 2.
+    local measured,units=pcall(function() return U.value_of(U.find(STRING_LIBRARY):Len('\u{CDE8}\u{C18C}')) end)
+    if not measured or units~=2 then
+        return stop('Len of a 2-letter Korean word reads '..(measured and ascii(units) or '?('..ascii(why(units))..')')
+            ..', not 2'..KOREAN)
+    end
+    -- The engine registers the data only while CachedText is empty: a constructed empty one, never zeroed memory.
+    local made,empty=pcall(FText,'')
+    if not made then return stop("FText('') failed ("..ascii(why(empty))..')'..KOREAN) end
+    local keys,wrong={},nil
+    for key in pairs(data.KEYS) do keys[#keys+1]=key end
+    table.sort(keys) -- A fixed order, so a STOP's n/12 always names the same keys.
+    for n,key in ipairs(keys) do
+        local line,source=data.KEYS[key][1],data.KEYS[key][2]
+        local strings={}
+        for culture,lines in pairs(data.TEXT) do strings[culture]=lines[line] end
+        local done,result=pcall(function()
+            return U.find(TEXT_LIBRARY):PolyglotDataToText({Category=0,NativeCulture='ko',Namespace='',Key=key,
+                NativeString=source,LocalizedStrings=strings,bIsMinimalPatch=false,CachedText=empty})
+        end)
+        if not done then -- A conversion fault would hit every key: stop at the first.
+            return stop(string.format('key %s (%s) raised (%s): %d/%d registered, the rest stays Korean',key,line,
+                ascii(why(result)),n-1,#keys))
+        end
+        local shown,reads=pcall(U.text,result)
+        if not wrong and not (shown and reads==data.TEXT[c][line]) then
+            wrong=string.format('key %s (%s) reads %s, not its %s line',key,line,
+                shown and '"'..ascii(reads)..'"' or '?('..ascii(why(reads))..')',c)
+        end
+    end
+    if wrong then return stop(#keys..'/'..#keys..' keys registered, but '..wrong) end
+    -- Copies loaded before the registration must follow it too: the two choice rows, read only.
+    for _,r in ipairs({{'TS_Xion01_MultiPlay_1','J'},{'TS_Xion01_MultiPlay_2','C'}}) do
+        local got,v=pcall(function() return U.text(U.find(CHOICES):FindRow(r[1]).DisplayText) end)
+        if not (got and v==data.TEXT[c][r[2]]) then
+            return stop(string.format('%d/%d keys registered and read back, but row %s reads %s, not its %s line',
+                #keys,#keys,r[1],got and '"'..ascii(v)..'"' or '?('..ascii(why(v))..')',c))
+        end
+    end
+    return string.format('%s%d/%d keys registered, each reads its %s line, and so do rows TS_Xion01_MultiPlay_1 and '
+        ..'_2: TEXT=yes',head,#keys,#keys,c)
+end
 -- log(text) writes an [RC] line.
 function Recruiter.new(log)
     local pending=nil -- The one follow-up: {sub=, at=os.clock() when due, f=}.
@@ -210,6 +278,10 @@ function Recruiter.new(log)
         end
         log(string.format('join row: %s #%d type %d->0, alias None; read back type 0; 1 zone event table in memory',
             JOIN,JOIN_ID,old))
+        -- His text, once the Join row reads back type 0 and never before. A text fault leaves him Korean, as in 8R,
+        -- and never stops the recruiter: text is not a safety path.
+        local fine,said=pcall(register_text)
+        log(fine and said or 'STOP: text: '..ascii(why(said))..': TEXT=no')
         local list=characters()
         local here=near(list,at,{})[1]
         if here then
@@ -253,7 +325,7 @@ function Recruiter.new(log)
             for k=1,math.min(#new,3) do
                 log(string.format('+3 s: %s@%s point_m=%.1f',class_of(new[k].c),xyz(new[k].at),new[k].d))
             end
-            if #new>0 then return log('RECRUITER=yes: talk to him (Korean text; Join does nothing in this preview)') end
+            if #new>0 then return log('RECRUITER=yes: talk to him (Join does nothing in this preview)') end
             log(string.format('STOP: +3 s: no new character within %.1f m of %s (RECRUITER=no; SB spawns a row once '
                 ..'per game run, so a second try may need a game restart)',NEAR,POINT))
         end)

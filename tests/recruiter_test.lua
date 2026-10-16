@@ -5,7 +5,10 @@
 -- made to read as another one after the first FindRow. Covered: the gates before any read of a
 -- table; the zone event table count; the Join row's checks, its write and read-back (a copy stops there); the happy
 -- path's exact writes, zone event and lines, and its +3 s check; a rerun with someone at the point; the condition,
--- spawn-row and filter faults; off and stop (also after Ctrl+R); one follow-up at a time; idle ticks; the guard.
+-- spawn-row and filter faults; off and stop (also after Ctrl+R); one follow-up at a time; idle ticks; the guard; the
+-- text step (no text call before the Join row reads back; on both paths, after the Join write and before the
+-- condition, the Korean Len probe, one FText(''), the 12 keys in sorted order with their exact fields, the choice rows'
+-- read-back and its line) and its faults, each one STOP: text line after which he still spawns.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -187,9 +190,77 @@ local eve=uobject('EVE','BP_PC_EVE_C /Game/Art/BG/WorldMap/Level_P/E04.E04:Persi
 local player=eve
 package.loaded.UEHelpers={GetPlayer=function() record('GetPlayer'); return player end}
 local bpl=uobject('BPL','SBBlueprintLibrary /Script/SB.Default__SBBlueprintLibrary',{CreateSBZoneEvent=function() end})
+-- The text step's engine side. DATA is the real module (recruiter_text_test checks it), kept so that the cases which
+-- replace package.loaded.recruiter_text can restore it. engine_culture, what the engine displays, is set apart from
+-- lang, what the game reports, so the verdict is not a tautology.
+local DATA=require('recruiter_text')
+local len_mode,lang,lang_raise,ktl_valid,kil_valid
+local engine_culture,raise_at,reads_override,korean_row,ftext_raise,choices_valid
+local function plain_text()
+    len_mode,lang,lang_raise,ktl_valid,kil_valid=nil,'fr',false,true,true
+    engine_culture,raise_at,reads_override,korean_row,ftext_raise,choices_valid='fr',nil,{},nil,false,true
+end
+plain_text()
+local registry,made={},nil -- registry: key -> the text the engine shows; made: this run's FText('').
+local function ftext(text)
+    return strict('FText',{type=function() return 'FText' end,ToString=function() return text end},nil,true)
+end
+FText=function(text)
+    record('FText',text)
+    if ftext_raise then error('no FText constructor') end
+    made=ftext(text)
+    return made
+end
+local ksl=uobject('KSL','KismetStringLibrary /Script/Engine.Default__KismetStringLibrary',{Len=function(_,text)
+    if len_mode=='raise' then error('Len failed') end
+    if len_mode=='nil' then return nil end
+    return len_mode=='widen' and #text or utf8.len(text)
+end})
+local kil=uobject('KIL','KismetInternationalizationLibrary /Script/Engine.Default__KismetInternationalizationLibrary',
+    {IsValid=function() return kil_valid end,GetCurrentLanguage=function()
+        if lang_raise then error('GetCurrentLanguage failed') end
+        return fstring(lang)
+    end})
+local POLYGLOT={Category=0,NativeCulture='ko',Namespace='',bIsMinimalPatch=false}
+local ktl=uobject('KTL','KismetTextLibrary /Script/Engine.Default__KismetTextLibrary',{IsValid=function()
+    return ktl_valid
+end,PolyglotDataToText=function(_,d)
+    local fields=0
+    for _ in pairs(d) do fields=fields+1 end
+    assert(fields==8,'8 fields')
+    for field,value in pairs(POLYGLOT) do assert(d[field]==value,field) end
+    -- UE 4.26 registers only while CachedText is empty: anything else would leave every key Korean in the game.
+    assert(made~=nil and d.CachedText==made and made:ToString()=='',"CachedText is this run's FText('')")
+    local entry=assert(DATA.KEYS[d.Key],'a recruiter key')
+    assert(d.NativeString==entry[2],'its Korean source')
+    local cultures=0
+    for culture,text in pairs(d.LocalizedStrings) do
+        cultures=cultures+1
+        assert(DATA.TEXT[culture] and text==DATA.TEXT[culture][entry[1]],culture)
+    end
+    assert(cultures==23,'23 cultures')
+    if count('KTL:PolyglotDataToText')==raise_at then error('struct conversion failed') end
+    registry[d.Key]=d.LocalizedStrings[engine_culture] or d.NativeString
+    local reads=reads_override[d.Key] or registry[d.Key] -- A string, or an FText given as is.
+    return type(reads)=='table' and reads or ftext(reads)
+end})
+local UNREADABLE=strict('FText',{type=function() return 'FText' end,ToString=function() error('unreadable FText') end},
+    nil,true)
+-- The choice rows, loaded before any registration: they show what the engine registered for their key, except the
+-- korean_row one (true: both), which reads its Korean source.
+local J_KEY,C_KEY='1EC542C44399E9B5B68A5281A10096DA','8684A0504021287B7FB80FA6BDE723B6'
+local choices=uobject('Choices','DataTable /Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable',{
+    IsValid=function() return choices_valid end,FindRow=function(_,key)
+        local text_key=assert(({TS_Xion01_MultiPlay_1=J_KEY,TS_Xion01_MultiPlay_2=C_KEY})[key],'FindRow '..key)
+        local korean=korean_row==true or korean_row==key
+        return strict('ChoiceRow',{},{DisplayText=ftext(korean and DATA.KEYS[text_key][2] or registry[text_key])})
+    end})
 local by_path={['/Script/SB.SBCharacter']=SBCharacter,['/Script/SB.Default__SBBlueprintLibrary']=bpl,
     ['/Game/Local/Data/ZoneEventTable.ZoneEventTable']=zt,['/Game/Local/Data/ConditionTable.ConditionTable']=ct,
-    ['/Game/Local/Data/EventSpawnTable.EventSpawnTable']=st,['/Game/Local/Data/LevelTargetFilter.LevelTargetFilter']=ft}
+    ['/Game/Local/Data/EventSpawnTable.EventSpawnTable']=st,['/Game/Local/Data/LevelTargetFilter.LevelTargetFilter']=ft,
+    ['/Script/Engine.Default__KismetTextLibrary']=ktl,['/Script/Engine.Default__KismetStringLibrary']=ksl,
+    ['/Script/Engine.Default__KismetInternationalizationLibrary']=kil,
+    ['/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable']=choices}
 StaticFindObject=function(path)
     record('StaticFindObject',path)
     return assert(by_path[path],'unexpected StaticFindObject '..path)
@@ -227,10 +298,14 @@ local Recruiter=require('recruiter')
 local lines={}
 local function log(text) lines[#lines+1]=text end
 local rc=Recruiter.new(log)
-local function reset() calls,lines={},{} end
+local function reset() calls,lines,made={},{},nil end
 local ok,message
 local function run(...) reset(); ok,message=rc.run(...) end
-local function stopped(text) assert(not ok and message==text,tostring(message)); assert(effects()=='',effects()) end
+local function textless() return count('PolyglotDataToText')==0 and count('^KSL:')==0 and count('^FText$')==0 end
+local function stopped(text)
+    assert(not ok and message==text,tostring(message)); assert(effects()=='',effects())
+    assert(textless(),'No text call before the Join row reads back')
+end
 
 -- 1. Gates: arguments, EVE, the map. Nothing reads a table, nothing is changed.
 local USE='Use: coop recruiter [off] (the Night Operation recruiter preview, in Xion only)'
@@ -320,6 +395,7 @@ run()
 assert(not ok and message=='MultiplayTest_ZoneE_059 reads type 15, alias #0 after the write (UE4SS gave a copy?): no '
     ..'recruiter',message)
 assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and store.zone[JOIN].Type==15 and #lines==0,effects())
+assert(textless(),'No text call')
 copy=false
 -- The fresh FindRow reads type 0 but an alias: a live Spawn of that alias, so the alias half of the read-back stops it.
 vanilla()
@@ -328,10 +404,12 @@ run()
 assert(not ok and message=='MultiplayTest_ZoneE_059 reads type 0, alias #'..known.Xion_10_E_CharS_084..' after the '
     ..'write (UE4SS gave a copy?): no recruiter',message)
 assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and #lines==0,effects())
+assert(textless(),'No text call')
 later,found={},{}
 
--- 6. The happy path: exactly these writes, then the spawn zone event last; the five lines and the OK line. The zone
--- event table listed twice is one table.
+-- 6. The happy path: exactly these writes, then the spawn zone event last; the six lines and the OK line. The zone
+-- event table listed twice is one table. The text step writes nothing and fires nothing: 12 registrations, once each,
+-- in sorted key order, after the Join row and before the condition.
 vanilla()
 loaded.CompositeDataTable={zt}
 local EDITS='MultiplayTest_Condition_001.ConditionEq=2,Test_Dialogue_01_E_CharS_021.SpawnType=1,'
@@ -341,8 +419,11 @@ local EDITS='MultiplayTest_Condition_001.ConditionEq=2,Test_Dialogue_01_E_CharS_
     ..'Test_Dialogue_01_E_CharS_021.Interaction='..GRAPH..','
     ..'LV_TempTestMap_LevelTargetFilter_002.EventSpawnAlias=#Test_Dialogue_01_E_CharS_021,'
     ..'BPL:CreateSBZoneEvent(0,Test_Dialogue_01_E_CharS_021)'
+local TEXT_YES='text: game language fr -> fr; 12/12 keys registered, each reads its fr line, and so do rows '
+    ..'TS_Xion01_MultiPlay_1 and _2: TEXT=yes'
 local LINES={'join row: MultiplayTest_ZoneE_059 #1296 type 15->0, alias None; read back type 0; 1 zone event table '
         ..'in memory',
+    TEXT_YES,
     'condition: MultiplayTest_Condition_001 #195 NetworkEnable Equal->NOT; read back NOT',
     'spawn row: Test_Dialogue_01_E_CharS_021 #75024021 N_XionGuardA -> ZoneEvent spawn at '
         ..'TeleportPoint_Xion_MultiPlay, zone Zone_Xion_10, save None, no path, graph Xion01_NPC_MultiPlay; read back',
@@ -350,12 +431,31 @@ local LINES={'join row: MultiplayTest_ZoneE_059 #1296 type 15->0, alias None; re
         ..'back',
     'spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 10.0 m from EVE'}
 local ASKED='recruiter asked: the +3 s line says whether he stands at TeleportPoint_Xion_MultiPlay'
+local ORDER={}
+for key in pairs(DATA.KEYS) do ORDER[#ORDER+1]=key end
+table.sort(ORDER)
+local function registered() -- The keys PolyglotDataToText got, in order, joined.
+    local list={}
+    for _,c in ipairs(calls) do if c.what=='KTL:PolyglotDataToText' then list[#list+1]=c.args[1].Key end end
+    return table.concat(list,',')
+end
 local t0=clock
 run()
 assert(ok and message==ASKED,message)
 assert(effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS,effects())
-assert(#lines==5,#lines)
+assert(#lines==6,#lines)
 for i,line in ipairs(LINES) do assert(lines[i]==line,lines[i]) end
+assert(#ORDER==12 and count('KTL:PolyglotDataToText')==12 and registered()==table.concat(ORDER,','),registered())
+assert(count('^KSL:Len$')==1 and count('^FText$')==1,'One probe, one CachedText for the 12 keys')
+local first,last_key={},nil
+for i,c in ipairs(calls) do
+    local what=c.what=='write' and c.args[1] or c.what
+    first[what]=first[what] or i
+    if what=='KTL:PolyglotDataToText' then last_key=i end
+end
+assert(first['MultiplayTest_ZoneE_059.Type=0']<first['KSL:Len'] and first['KSL:Len']<first.FText
+    and first.FText<first['KTL:PolyglotDataToText'] and first['KTL:PolyglotDataToText']<last_key
+    and last_key<first['MultiplayTest_Condition_001.ConditionEq=2'],'Join row, Len, FText, 12 keys, then the condition')
 local fired
 for _,c in ipairs(calls) do if c.what=='BPL:CreateSBZoneEvent' then fired=c end end
 assert(fired.args.n==2 and fired.args[1]==0 and fired.args[2]:GetComparisonIndex()==known[SPAWN])
@@ -375,17 +475,18 @@ clock=t0+2.9; reset(); rc.tick(); assert(#calls==0 and #lines==0,'Not due yet: n
 clock=t0+3; rc.tick()
 assert(#lines==2 and lines[1]==string.format('+3 s: BP_N_XionGuardA_C@%.1f,%.1f,%.1f point_m=0.3',P.X,P.Y+30,P.Z),
     lines[1])
-assert(lines[2]=='RECRUITER=yes: talk to him (Korean text; Join does nothing in this preview)' and effects()=='')
+assert(lines[2]=='RECRUITER=yes: talk to him (Join does nothing in this preview)' and effects()=='')
 clock=t0+20; reset(); rc.tick(); assert(#calls==0,'Done')
 
--- 7. A rerun with him at the point: the Join row again (0->0), then "already here" and nothing else.
+-- 7. A rerun with him at the point: the Join row again (0->0), the text again, then "already here" and nothing else.
 t0=clock
 run()
 assert(ok and message=='already here: BP_N_XionGuardA_C stands 0.3 m from TeleportPoint_Xion_MultiPlay; nothing was '
     ..'spawned',message)
-assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and #lines==1,effects())
+assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and #lines==2,effects())
 assert(lines[1]=='join row: MultiplayTest_ZoneE_059 #1296 type 0->0, alias None; read back type 0; 1 zone event table '
     ..'in memory',lines[1])
+assert(lines[2]==TEXT_YES and count('KTL:PolyglotDataToText')==12,lines[2])
 clock=t0+10; reset(); rc.tick(); assert(#calls==0,'No follow-up after "already here"')
 -- EVE at the point is nobody; the edited rows take the same values again (Equal is now NOT).
 loaded.SBCharacter={eve,roxanne}
@@ -393,10 +494,10 @@ eve_at=off(0,0,50)
 t0=clock
 run()
 assert(ok and message==ASKED and effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS,effects())
-assert(lines[1]:find('type 0->0',1,true) and lines[2]=='condition: MultiplayTest_Condition_001 #195 NetworkEnable '
-    ..'NOT->NOT; read back NOT',lines[2])
-assert(lines[5]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 0.5 m from EVE',
-    lines[5])
+assert(lines[1]:find('type 0->0',1,true) and lines[3]=='condition: MultiplayTest_Condition_001 #195 NetworkEnable '
+    ..'NOT->NOT; read back NOT',lines[3])
+assert(lines[6]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 0.5 m from EVE',
+    lines[6])
 clock=t0+3; reset(); rc.tick()
 assert(#lines==1 and lines[1]=='STOP: +3 s: no new character within 1.5 m of TeleportPoint_Xion_MultiPlay '
     ..'(RECRUITER=no; SB spawns a row once per game run, so a second try may need a game restart)',lines[1])
@@ -615,4 +716,68 @@ for _,c in ipairs(every) do
     end
 end
 assert(zone_events>=10,zone_events)
+
+-- 16. Text faults: one STOP: text line in place of the text line; the command goes on, he still spawns with every
+-- write of the happy path, and the other five lines are those of 6. Each case: the KTL and FText calls, the line.
+local function bytes(s) -- \xNN for each byte outside printable ASCII, from at most 80 bytes: apart from ascii().
+    local out={}
+    for i=1,math.min(#s,80) do
+        local b=s:byte(i)
+        out[i]=(b>=32 and b<=126) and string.char(b) or string.format('\\x%02X',b)
+    end
+    return table.concat(out)
+end
+local HEAD,KOREAN='STOP: text: game language fr -> fr; ',': nothing registered, his text stays Korean: TEXT=no'
+local T1,Q='1369C3D149FBA96B3A868A8DDB37F6DB','4ED6720D4C01A463E14958BA0EFD74F3'
+local Q_SOURCE,J_SOURCE=DATA.KEYS[Q][2],DATA.KEYS[J_KEY][2]
+assert(bytes(Q_SOURCE):sub(1,12)=='\\xEC\\x95\\xBC' and bytes(J_SOURCE):sub(1,5)=='(\\xEC')
+local UNREAD='?('..('/Script/Engine.Default__KismetInternationalizationLibrary is unavailable in this game build.')
+    :sub(1,80)..')'
+local NOT_EN='; 12/12 keys registered, but key '..T1..' (T) reads "Recruteur de Xion", not its en line: TEXT=no'
+for _,case in ipairs({
+        {function() len_mode='widen' end,0,0,HEAD..'Len of a 2-letter Korean word reads 6, not 2'..KOREAN},
+        {function() len_mode='nil' end,0,0,HEAD..'Len of a 2-letter Korean word reads nil, not 2'..KOREAN},
+        {function() len_mode='raise' end,0,0,HEAD..'Len of a 2-letter Korean word reads ?(Len failed), not 2'..KOREAN},
+        {function() ftext_raise=true end,0,1,HEAD.."FText('') failed (no FText constructor)"..KOREAN},
+        {function() ktl_valid=false end,0,1,HEAD..'key '..T1..' (T) raised (/Script/Engine.Default__KismetTextLibrary '
+            ..'is unavailable in this game build.): 0/12 registered, the rest stays Korean: TEXT=no'},
+        {function() raise_at=3 end,3,1,HEAD..'key 1D919BC54814EE9DEA9B86A353B9FB1A (T) raised (struct conversion '
+            ..'failed): 2/12 registered, the rest stays Korean: TEXT=no'},
+        {function() reads_override[Q]=Q_SOURCE end,12,1,HEAD..'12/12 keys registered, but key '..Q..' (Q) reads "'
+            ..bytes(Q_SOURCE)..'", not its fr line: TEXT=no'},
+        {function() engine_culture='en' end,12,1,HEAD..'12/12 keys registered, but key '..T1..' (T) reads "Xion '
+            ..'Recruiter", not its fr line: TEXT=no'},
+        {function() reads_override[Q]=UNREADABLE end,12,1,HEAD..'12/12 keys registered, but key '..Q..' (Q) reads '
+            ..'?(unreadable FText), not its fr line: TEXT=no'},
+        {function() korean_row=true end,12,1,HEAD..'12/12 keys registered and read back, but row '
+            ..'TS_Xion01_MultiPlay_1 reads "'..bytes(J_SOURCE)..'", not its fr line: TEXT=no'},
+        {function() korean_row='TS_Xion01_MultiPlay_2' end,12,1,HEAD..'12/12 keys registered and read back, but row '
+            ..'TS_Xion01_MultiPlay_2 reads "'..bytes(DATA.KEYS[C_KEY][2])..'", not its fr line: TEXT=no'},
+        {function() choices_valid=false end,12,1,HEAD..'12/12 keys registered and read back, but row '
+            ..'TS_Xion01_MultiPlay_1 reads ?('..('/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable is '
+            ..'unavailable in this game build.'):sub(1,80)..'), not its fr line: TEXT=no'},
+        {function() lang,engine_culture='en-US','en' end,12,1,'text: game language en-US -> en; 12/12 keys registered, '
+            ..'each reads its en line, and so do rows TS_Xion01_MultiPlay_1 and _2: TEXT=yes'},
+        {function() lang_raise=true end,12,1,'STOP: text: game language ?(GetCurrentLanguage failed) -> en'..NOT_EN},
+        {function() kil_valid=false end,12,1,'STOP: text: game language '..UNREAD..' -> en'..NOT_EN},
+        {function()
+            package.loaded.recruiter_text=nil
+            package.preload.recruiter_text=function() error('broken data') end
+        end,0,0,'STOP: text: recruiter_text.lua did not load (broken data)'..KOREAN},
+        {function()
+            package.loaded.recruiter_text={KEYS=DATA.KEYS,TEXT=DATA.TEXT,culture=function() error('no culture') end}
+        end,0,0,'STOP: text: no culture: TEXT=no'}}) do
+    vanilla()
+    loaded.SBCharacter={eve,roxanne}
+    case[1]()
+    run()
+    assert(ok and message==ASKED,message)
+    assert(effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS,effects())
+    assert(#lines==6 and lines[2]==case[4],lines[2])
+    for i,line in ipairs(LINES) do assert(i==2 or lines[i]==line,lines[i]) end
+    assert(count('KTL:PolyglotDataToText')==case[2] and count('^FText$')==case[3],case[4])
+    clock=clock+3; rc.tick()
+    plain_text()
+    package.preload.recruiter_text,package.loaded.recruiter_text=nil,DATA
+end
 print('recruiter_test ok')
