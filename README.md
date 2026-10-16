@@ -149,7 +149,12 @@ until it is tried in game (`coop look`, below).
   - The game's own Spawn event then places him; 3 s later a line says whether he stands at the point
     (`RECRUITER=yes`). If someone already stands there, it says so and spawns nothing. The game spawns a row once per
     game run, so after `coop recruiter off` another `coop recruiter` may need a game restart.
-  - His text is Korean in every game language.
+  - His lines (speaker title, question, Join and Cancel, the replies) show in your game language, any of the 23 the game
+    ships. Once the Join event reads back, the command registers the dialogue's 12 text keys, and no other text, with
+    the game's localization, in memory only (no game file is changed). A `text:` line ending `TEXT=yes` says they took.
+    A `STOP: text:` line says how far it got, and the command goes on: after `nothing registered` his text stays
+    Korean; otherwise the keys it registered may show another language, or a mix with Korean (a registration is never
+    undone). The language is the game's own setting, changed in the main menu only.
   - `coop recruiter off` despawns him through the game's own Despawn event and says 2 s later whether he is gone.
     `coop off` despawns him too. A map change removes him, and he does not come back by himself.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
@@ -251,8 +256,9 @@ until it is tried in game (`coop look`, below).
 
 - `mod/StellarCoop/`: the UE4SS mod folder (`Scripts/main.lua`, `Scripts/capture.lua` (EVE's capture),
   `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/notice.lua` (notices on screen), `Scripts/nightop.lua`
-  (the `coop no` probe), `Scripts/recruiter.lua` (the `coop recruiter` preview), `Scripts/unreal.lua` (helpers over
-  UE4SS objects), `enabled.txt`). The installer adds `Scripts/version.lua`.
+  (the `coop no` probe), `Scripts/recruiter.lua` (the `coop recruiter` preview), `Scripts/recruiter_text.lua` (the
+  recruiter's lines in the game's 23 languages), `Scripts/unreal.lua` (helpers over UE4SS objects), `enabled.txt`). The
+  installer adds `Scripts/version.lua`.
 - `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
   (the link's logic, channel 1 included), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (limits, one
   part, hex addresses), `src/pose_table.h` (the component table, the mesh path rule and the display file),

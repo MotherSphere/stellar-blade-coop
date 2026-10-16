@@ -9,7 +9,7 @@
 -- guarded choke point, and no console argument reaches it or a table. Once the Join row reads back, the dialogue's 12
 -- text keys, and no other, are registered with the engine's localization in the game's 23 languages
 -- (recruiter_text.lua), in memory for the game run, after a Korean probe shows that non-ASCII text arrives intact; a
--- text fault logs a STOP: text line and leaves him Korean.
+-- text fault logs a STOP: text line saying how many keys were registered (the others stay Korean).
 local U=require('unreal')
 local UE=require('UEHelpers')
 local Recruiter={}
@@ -278,8 +278,8 @@ function Recruiter.new(log)
         end
         log(string.format('join row: %s #%d type %d->0, alias None; read back type 0; 1 zone event table in memory',
             JOIN,JOIN_ID,old))
-        -- His text, once the Join row reads back type 0 and never before. A text fault leaves him Korean, as in 8R,
-        -- and never stops the recruiter: text is not a safety path.
+        -- His text, once the Join row reads back type 0 and never before. A text fault leaves the keys not registered
+        -- Korean, as in 8R, and never stops the recruiter: text is not a safety path.
         local fine,said=pcall(register_text)
         log(fine and said or 'STOP: text: '..ascii(why(said))..': TEXT=no')
         local list=characters()
