@@ -132,6 +132,26 @@ until it is tried in game (`coop look`, below).
   - `coop no spawnpt` fires one spawn row of the DLC02_20 area on a loaded spawn point 60 m or more from EVE, and logs
     the new characters 3 s later.
   - `coop no actor` asks the game for one M_Antlion 60 m ahead of EVE and logs it 3 s and 10 s later.
+- `coop recruiter` is a preview of the cut Night Operation recruiter: a Xion guard (the `N_XionGuardA` model) carrying
+  the recruiter's dialogue, so you can talk to him. It runs only on the co-op save slot (the same `STOP` as `coop no`,
+  naming `coop recruiter`), only in Xion (`/game/art/bg/worldmap/level_p/e04`), with EVE in the world within 50 m of
+  `TeleportPoint_Xion_MultiPlay`, the recruiter's cut spawn point near Roxanne in the Scrap Market. Otherwise it stops
+  with `STOP:` and changes nothing. He is never spawned automatically.
+  - In the game data, the dialogue's Join choice starts the cut online mode's matchmaking, a request to Shift Up's
+    servers. Before anything else, the command sets that zone event (`MultiplayTest_ZoneE_059`) to a harmless type and
+    reads it back; if a row is not the one expected, or a write does not read back, it stops with `STOP:` and nothing is
+    spawned. In this preview Join does nothing.
+  - What it changes, in memory only, until the game ends (never undone, never saved by the mod): that Join event, the
+    recruiter's network condition (flipped, so the question and its two choices show), one unused test spawn row (a
+    Xion guard at `TeleportPoint_Xion_MultiPlay` with the recruiter's dialogue, not marked for saving, no walking path)
+    and one unused test filter (pointed at that row, for the despawn). Rows are edited in place, field by field, and
+    read back; no row is added or removed.
+  - The game's own Spawn event then places him; 3 s later a line says whether he stands at the point
+    (`RECRUITER=yes`). If someone already stands there, it says so and spawns nothing. The game spawns a row once per
+    game run, so after `coop recruiter off` another `coop recruiter` may need a game restart.
+  - His text is Korean in every game language.
+  - `coop recruiter off` despawns him through the game's own Despawn event and says 2 s later whether he is gone.
+    `coop off` despawns him too. A map change removes him, and he does not come back by himself.
 - The Steam link (native part, `StellarCoop.dll`, loaded by the Lua script) connects two players through the Steamworks
   copy the game loaded. It never starts Steam itself and changes nothing in the game or the saves.
   - Keys, with or without the console: F5 hosts, F6 shows the status, F8 leaves (the defaults; `coop-settings.txt` below
@@ -231,8 +251,8 @@ until it is tried in game (`coop look`, below).
 
 - `mod/StellarCoop/`: the UE4SS mod folder (`Scripts/main.lua`, `Scripts/capture.lua` (EVE's capture),
   `Scripts/puppet.lua` (the ghost), `Scripts/link.lua`, `Scripts/notice.lua` (notices on screen), `Scripts/nightop.lua`
-  (the `coop no` probe), `Scripts/unreal.lua` (helpers over UE4SS objects), `enabled.txt`). The installer adds
-  `Scripts/version.lua`.
+  (the `coop no` probe), `Scripts/recruiter.lua` (the `coop recruiter` preview), `Scripts/unreal.lua` (helpers over
+  UE4SS objects), `enabled.txt`). The installer adds `Scripts/version.lua`.
 - `native/`: the DLL (CMake, clang-cl or MSVC). Free of Windows and tested on the build machine: `src/link_core.h`
   (the link's logic, channel 1 included), `src/link_protocol.h` (its text protocol), `src/pose_core.h` (limits, one
   part, hex addresses), `src/pose_table.h` (the component table, the mesh path rule and the display file),

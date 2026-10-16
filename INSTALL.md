@@ -113,9 +113,9 @@ cloud. Then restore your backup.
 
 ## Co-op save slot
 
-`coop no` (and the shared features of later versions) runs only on a copy of your save, the co-op save slot, never on
-your own slots. The ghost, the keys and the Steam link work on any save. Make the copy once, with the game closed,
-before the first co-op session. Nothing is ever copied back to your own slots.
+`coop no` and `coop recruiter` (and the shared features of later versions) run only on a copy of your save, the co-op
+save slot, never on your own slots. The ghost, the keys and the Steam link work on any save. Make the copy once, with
+the game closed, before the first co-op session. Nothing is ever copied back to your own slots.
 
 The game has five save slots: the files `StellarBladeSave00.sav` to `StellarBladeSave04.sav` in the save folder above.
 The co-op slot is the one that `StellarCoopSlot.txt`, in the same folder, names.
@@ -177,6 +177,19 @@ backup, then writes `StellarCoopSlot.txt` and the copy. Replacing the co-op slot
 - After any `coop no` subcommand, end the game by killing it (Linux: `pkill -9 -f SB-Win64-Shipping`; Windows: Task
   Manager, End task), not by Quit from the menu, which saves. Never load another save in that run: the probe's changes
   stay in the game until it ends.
+- After `coop recruiter`, the same: kill the game rather than Quit, and never load another save in that run (its
+  changes also stay in the game until it ends). It is not yet known whether the game saves the guard, so keep Steam
+  Cloud off, back the saves up before the run, and restore that backup once the game is closed. The restore also
+  undoes the co-op slot's progress of that run, but a guard the game may have saved never stays in the co-op slot.
+  - Linux, from the repository: `python3 tools/save_guard.py backup` before the run. After it,
+    `python3 tools/save_guard.py check`, then `python3 tools/save_guard.py restore <backup> --yes`, where `<backup>`
+    is the folder name that `backup` printed.
+  - Windows: copy the save folder before the run, as in "Saves and Steam Cloud". After it, see in File Explorer which
+    files have a newer modified time, then copy the backup back over the save folder.
+  - Only these may differ: the co-op slot and its `Backup/StellarBladeSave0N_Old.sav` copy, the game's own
+    `StellarBladeSetting.sav` and its `Backup/` copy, the `steam_autocloud.vdf` files and other mods' saves. Any other
+    `StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots: the restore puts it
+    back, and please send the logs (see "Which logs to send").
 
 ## Check the files
 
