@@ -12,11 +12,13 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = 'mod/StellarCoop/Scripts'
 NATIVE = ('native/src', 'tests/wine')
 # The one guarded CreateSBZoneEvent per file that has one, and what each file may hold of the rationed calls and names.
-SITES = {'nightop.lua'}
+SITES = {'nightop.lua', 'recruiter.lua'}
 ADD_ROWS = {'nightop.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor.
-RATIONED = {'MultiplayTest_ZoneE_059': {}, 'CreateSBZoneEvent': {'nightop.lua': 3}, 'AddRow': {'nightop.lua': 3},
+# The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
+RATIONED = {'MultiplayTest_ZoneE_059': {'recruiter.lua': 1},
+            'CreateSBZoneEvent': {'nightop.lua': 3, 'recruiter.lua': 4}, 'AddRow': {'nightop.lua': 3},
             'ServerRequest_': {'nightop.lua': 10}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
@@ -86,12 +88,19 @@ def scan_of(files):
 
 
 N, M, H, W = f'{SCRIPTS}/nightop.lua', f'{SCRIPTS}/main.lua', 'native/src/link_core.h', 'tests/wine/smoke.cpp'
+R = f'{SCRIPTS}/recruiter.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
-NIGHTOP = (GUARDED + "dt:AddRow(RULE,row)\npc:ServerRequest_MultiPlayChangeRule(name)\n"
-           "log('heal: CreateSBZoneEvent(2, x) called; no RemoveRow, EnterZone or AddRow here')\n")
-NIGHTOP += ''.join(f'-- {w}\n' * (n.get('nightop.lua', 0) - NIGHTOP.count(w)) for w, n in RATIONED.items())  # The rest.
-CLEAN = {N: NIGHTOP, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
+
+
+def padded(name, text):  # The rest of a file's rationed counts, as comments.
+    return text + ''.join(f'-- {w}\n' * (n.get(name, 0) - text.count(w)) for w, n in RATIONED.items())
+
+
+NIGHTOP = padded('nightop.lua', GUARDED + "dt:AddRow(RULE,row)\npc:ServerRequest_MultiPlayChangeRule(name)\n"
+                 "log('heal: CreateSBZoneEvent(2, x) called; no RemoveRow, EnterZone or AddRow here')\n")
+RECRUITER = padded('recruiter.lua', GUARDED.replace('NightOp', 'Recruiter') + "local JOIN='MultiplayTest_ZoneE_059'\n")
+CLEAN = {N: NIGHTOP, R: RECRUITER, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n'}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 
@@ -116,6 +125,9 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L1', 'L5'}, {N: NIGHTOP + GUARDED}),
           ({'L1', 'L5'}, {N: NIGHTOP.replace(GUARDED, '')}),
           ({'L1', 'L5'}, {M: GUARDED}),
+          ({'L1', 'L5'}, {R: RECRUITER.replace(GUARDED.replace('NightOp', 'Recruiter'), '')}),
+          ({'L1', 'L5'}, {R: None}),
+          ({'L1'}, {R: RECRUITER.replace('Recruiter.allowed(kind,name)', 'Recruiter.allowed(15,name)')}),
           ({'L1', 'L5'}, {M: 'bpl.CreateSBZoneEvent(bpl,15,n)\n'}),
           ({'L1', 'L5'}, {M: 'bpl: CreateSBZoneEvent(15,n)\n'}),
           *[({'L2'}, {M: f'{call}\n'}) for call in calls],
@@ -129,6 +141,8 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L4', 'L5'}, {N: NIGHTOP.replace('dt:AddRow(RULE,row)\n', '')}),
           ({'L4', 'L5'}, {M: 't.AddRow(t,n,row)\n'}),
           ({'L5'}, {M: "local JOIN='MultiplayTest_ZoneE_059'\n"}),
+          ({'L5'}, {R: RECRUITER + "log('join row: MultiplayTest_ZoneE_059')\n"}),
+          ({'L5'}, {R: RECRUITER.replace("local JOIN='MultiplayTest_ZoneE_059'\n", '')}),
           ({'L5'}, {M: "bpl['CreateSBZoneEvent'](bpl,15,n)\n"}),
           ({'L5'}, {M: "dt['AddRow'](dt,n,row)\n"}),
           ({'L5'}, {M: 'pc: ServerRequest_CreateActor (pc,1)\n'}),

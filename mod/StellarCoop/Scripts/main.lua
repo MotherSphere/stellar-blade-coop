@@ -6,7 +6,8 @@
 -- join, leave, status, report; host, status and leave on keys too, F5, F6 and F8 unless coop-settings.txt says
 -- otherwise), its notices on screen above your EVE; and coop where, a line of coordinates to compare between the two
 -- PCs; coop no [heal|rule|spawnpt|actor], the Night Operation probe of the T6 test only (nightop.lua), on the co-op
--- save slot only. coop off stops everything until the game restarts.
+-- save slot only; coop recruiter [off], the cut Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua),
+-- on the co-op save slot only. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -52,7 +53,7 @@ local puppet=require('puppet').new(link,capture,notice.say,settings and settings
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -63,18 +64,20 @@ local function ask(line)
         return link.request(line)
     end
 end
--- coop no (and the shared features of later phases) runs only with the co-op save slot loaded (D2, N9): the native
--- part's slot= line, from the start of its own line (a Steam name never starts one). The ghost, the Steam link and
--- every other command are never locked to it.
-local function coop_slot()
+-- coop no and coop recruiter (and the shared features of later phases) run only with the co-op save slot loaded (D2,
+-- N9): the native part's slot= line, from the start of its own line (a Steam name never starts one). The ghost, the
+-- Steam link and every other command are never locked to it.
+local function coop_slot(what)
     local line=('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)')
     if line and line:find('^slot=coop ') then return true end
-    return false,'coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
+    return false,what..' runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
         ..(line or 'no slot status')
 end
 -- Its one entry, commands.no, runs only on the co-op save slot (coop_slot).
 local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
+-- commands.recruiter runs only on the co-op save slot; coop off despawns on any slot (cleanup).
+local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local commands={
     puppet=puppet.toggle, host=ask('host'), invite=ask('invite'), leave=ask('leave'), report=ask('report'),
     join=function(lobby)
@@ -107,14 +110,22 @@ local commands={
             ..'the ghost is built again.'
     end,
     no=function(sub,extra)
-        local ok,why=coop_slot()
+        local ok,why=coop_slot('coop no')
         if not ok then return false,why end
         return nightop.run(sub,extra)
+    end,
+    recruiter=function(sub,extra)
+        local ok,why=coop_slot('coop recruiter')
+        if not ok then return false,why end
+        return recruiter.run(sub,extra)
     end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
         notice.stop()
+        -- A failing despawn is logged and never stops the rest of coop off.
+        local stopped,e=pcall(recruiter.stop)
+        if not stopped then log('recruiter: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -161,6 +172,7 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=notice.tick()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
+    recruiter.tick() -- Likewise for coop recruiter.
 end)
 if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.

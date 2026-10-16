@@ -1,8 +1,9 @@
 -- main.lua's console dispatch with UE4SS stubbed: every coop command reaches the right handler, bad input is refused,
 -- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
--- the keys only hand their action to the game thread, coop no reaches the Night Operation probe on the co-op save slot
--- only (ticked every frame until coop off), coop look changes what the ghost shows and builds it again, and the link
--- is optional (no native part, no Steam link, no keys).
+-- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
+-- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
+-- on any slot even when that raises), coop look changes what the ghost shows and builds it again, and the link is
+-- optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -89,7 +90,17 @@ package.loaded.nightop={new=function(log,ask,status)
     return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
         tick=function() probe_ticks=probe_ticks+1 end}
 end}
+local rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
+package.loaded.recruiter={new=function(log)
+    rc_log=log
+    return {run=function(sub,extra) rc_runs[#rc_runs+1]={sub,extra}; return true,'recruiter '..tostring(sub) end,
+        stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
+        tick=function() rc_ticks=rc_ticks+1 end}
+end}
 package.loaded.version='v9-test'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
+    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
+    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -100,6 +111,7 @@ local function load_main(with_native)
     end
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
+    rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -108,7 +120,7 @@ local function coop(...) assert(handler(nil,{...})==true); flush() end
 local function logged(text) return table.concat(printed,'|'):find('[StellarCoop] '..text..'\n',1,true)~=nil end
 
 load_main(true)
-assert(last():find('Loaded version v9-test',1,true),last())
+assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
 assert(logged('keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
@@ -141,7 +153,8 @@ coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
-assert(ticks==2 and notice_ticks==2 and probe_ticks==2,'The native tick, the notices and the probe run every frame')
+assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2,
+    'The native tick, the notices, the probe and the recruiter run every frame')
 -- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status, with the co-op slot loaded.
 local plain=status_text
 local function with_slot(line) return 'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=on\n'..line..'last=#1 ready\n' end
@@ -153,8 +166,18 @@ probe.log('baseline: x'); assert(last()=='[StellarCoop][NO] baseline: x\n',last(
 local asked_ok,asked_text=probe.ask('nightop')
 assert(asked_ok and asked_text=='asked the native part: nightop' and asked[#asked]=='nightop')
 assert(probe.status()==status_text)
+-- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
+coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
+assert(last()=='[StellarCoop] OK: recruiter off\n',last())
+coop('recruiter','off','x')
+assert(#rc_runs==2 and rc_runs[2][1]=='off' and rc_runs[2][2]=='x','It judges its own arguments')
+coop('recruiter'); assert(#rc_runs==3 and rc_runs[3][1]==nil and rc_runs[3][2]==nil)
+rc_log('join row: x'); assert(last()=='[StellarCoop][RC] join row: x\n',last())
+assert(rc_stops==0,'Only coop off despawns')
 -- Anything but a slot=coop line of its own refuses, and the probe never runs (D2, N9).
 local STOP='[StellarCoop] STOP: coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
+local RC_STOP='[StellarCoop] STOP: coop recruiter runs only with the co-op save slot loaded (INSTALL.md: Co-op save '
+    ..'slot); now '
 for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main index=0 marker=4'},
         {with_slot('slot=none index=4 marker=4\n'),'slot=none index=4 marker=4'},
         {with_slot('slot=unknown index=-1 marker=4\n'),'slot=unknown index=-1 marker=4'},
@@ -162,8 +185,10 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
         {with_slot('friend=1 0 slot=coop index=4 marker=4\n'),'no slot status'}, -- Not at a line start.
         {'stopped=fault 0xc0000005\n','no slot status'}}) do
     status_text=case[1]
-    local runs=#probe_runs
+    local runs,recruits=#probe_runs,#rc_runs
     coop('no','rule'); assert(#probe_runs==runs and last()==STOP..case[2]..'\n',last())
+    coop('recruiter'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
+    coop('recruiter','off'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
 end
 status_text=plain
 notice_result={false,'Screen notices off: x; notices stay in UE4SS.log.'}
@@ -245,6 +270,7 @@ in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and #aske
 assert(notice_stops==0)
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 assert(notice_stops==1,'off hides the notice line on screen')
+assert(rc_stops==1,'off despawns the recruiter, once')
 local written=#states
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(#states==written,'No world state after coop off: no engine access')
@@ -255,13 +281,16 @@ press('F5'); flush()
 assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
     and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
-local drawn,probed=notice_ticks,probe_ticks
+local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
-assert(probe_ticks==probed,'No probe follow-up after coop off')
+assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
 assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())
-coop('dance'); assert(last():find('Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | off',1,true),last())
+coop('recruiter','off')
+assert(#rc_runs==3 and rc_stops==1,'Neither run nor stop again')
+assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
+coop('dance'); assert(last()=='[StellarCoop] '..USAGE..'\n',last())
 coop(); assert(last():find('Use: coop',1,true))
 
 -- coop off survives a Lua reload: the native part still reports it.
@@ -282,6 +311,18 @@ coop('host'); assert(asked[#asked]=='host' and last():find('OK: asked the native
 coop('puppet'); assert(toggles==1 and active and last()=='[StellarCoop] OK: ghost\n',last())
 coop('puppet'); assert(toggles==2 and not active)
 coop('no'); assert(#probe_runs==0 and last()==STOP..'slot=main index=0 marker=4\n',last())
+coop('recruiter'); assert(#rc_runs==0 and last()==RC_STOP..'slot=main index=0 marker=4\n',last())
+coop('off'); assert(rc_stops==1 and asked[#asked]=='off','coop off despawns on any slot (cleanup)')
+-- A despawn that raises is logged; the ghost still goes and the native part is still told.
+rc_raise='FindRow: no table'
+load_main(true)
+toggles=0
+coop('puppet'); assert(active)
+local stops=notice_stops
+coop('off')
+assert(rc_stops==1 and toggles==2 and not active and asked[#asked]=='off' and notice_stops==stops+1)
+assert(logged('recruiter: FindRow: no table') and last()=='[StellarCoop] OK: asked the native part: off\n',last())
+rc_raise=nil
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
