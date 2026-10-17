@@ -2,8 +2,9 @@
 
 **Co-op for Stellar Blade on PC: see your friend's EVE in your game, linked over Steam.**
 
-> **Status: v0.1.0, an experimental pre-release.** It has not been tested between two PCs yet, nor on Windows (it is
-> developed on Linux with Proton). It runs on Stellar Blade's Steam build 24463856 only.
+> **Status: v0.1.1, an experimental pre-release.** The ghost co-op works between two PCs: first played on
+> 2026-10-17 between Linux with Proton and Windows, Belgium to Brazil, at about 240 ms ping. It runs on Stellar Blade's
+> Steam build 24463856 only.
 
 StellarCoop is a UE4SS mod: a few Lua scripts and a native DLL. It needs no other program and no server of its own. The Steam
 link goes through the Steam client that the game already runs.
@@ -68,7 +69,7 @@ save slot, is [INSTALL.md](INSTALL.md).
 
 ## Roadmap
 
-- First test sessions between two PCs, then on Windows.
+- More sessions between two PCs: longer play, level changes, the optional looks.
 - Night Operation with friends over Steam: the recruiter in the Scrap Market, Join starting a Steam friends match,
   identical waves and kills in sync, a shared timer and score, on the co-op save slot.
 - Larger groups: two players first, then up to six.

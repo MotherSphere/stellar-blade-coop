@@ -1,7 +1,7 @@
 # Troubleshooting
 
 This page lists common problems, what the mod says about them, and which logs to send when something goes wrong.
-Remember that StellarCoop is an experimental pre-release: it has not been tested between two PCs yet, nor on Windows.
+Remember that StellarCoop is an experimental pre-release, played in only a few sessions between two PCs so far.
 
 **Close the game before you copy, change or delete any mod file.**
 

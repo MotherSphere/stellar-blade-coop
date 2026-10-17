@@ -1,7 +1,7 @@
 # Installing StellarCoop
 
 StellarCoop is an experimental co-op mod for Stellar Blade (PC). It runs inside UE4SS. These steps are for Windows
-and for Linux with Proton. Not yet tested on Windows.
+and for Linux with Proton; both have been played together.
 Full documentation: [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the repository.
 
 **Close the game before you copy, change or delete any mod file.**
