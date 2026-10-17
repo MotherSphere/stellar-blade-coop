@@ -2,6 +2,7 @@
 
 StellarCoop is an experimental co-op mod for Stellar Blade (PC). It runs inside UE4SS. These steps are for Windows
 and for Linux with Proton. Not yet tested on Windows.
+Full documentation: [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the repository.
 
 **Close the game before you copy, change or delete any mod file.**
 
@@ -57,12 +58,12 @@ protocol ..., build ...; yours runs ...`. StellarCoop versions before this one o
 
 - `F5`, host: opens a friends-only session and the Steam invite dialog; pick your friend there. While you host, it
   opens the dialog again. A guest cannot host: leave first.
-- `F6`, status: one line above EVE and in `UE4SS.log`, for example `Co-op: hosting Kaanta.`
+- `F6`, status: one line above EVE and in `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8`, leave the session. When the host leaves, the guest leaves too.
 
-Your friend accepts the invite in Steam; if her game is closed, Steam starts it. She joins once she has loaded a save,
-and both ghosts turn on by themselves. Session events (a friend joined or left, connection lost, a rejoin) show as a
-line above EVE for 4 s, and go to `UE4SS.log` too.
+Your friend accepts the invite in Steam; if their game is closed, Steam starts it. They join once they have loaded a
+save, and both ghosts turn on by themselves. Session events (a friend joined or left, connection lost, a rejoin) show
+as a line above EVE for 4 s, and go to `UE4SS.log` too.
 
 The first start writes `Mods/StellarCoop/coop-settings.txt`. To change it, close the game, edit the file, then start
 the game again:
@@ -70,7 +71,7 @@ the game again:
 - `host_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
   `Shift+`, `Ctrl+` or `Alt+` in front, for example `host_key=Shift+F7`. Two actions on one key put all three keys
   back to `F5`, `F6` and `F8`.
-- `name_tag`: `on` or `off`, your friend's Steam name above her ghost.
+- `name_tag`: `on` or `off`, your friend's Steam name above their ghost.
 - `send_rate`: poses sent to your friend a second, from 10 to 30 (20 by default).
 - `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default: the file
   names them in a comment only, so add a line such as `cloth=on` to turn one on.

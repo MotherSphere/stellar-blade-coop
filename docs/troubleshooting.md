@@ -1,0 +1,134 @@
+# Troubleshooting
+
+This page lists common problems, what the mod says about them, and which logs to send when something goes wrong.
+Remember that StellarCoop is an experimental pre-release: it has not been tested between two PCs yet, nor on Windows.
+
+**Close the game before you copy, change or delete any mod file.**
+
+## Where to look
+
+- `ue4ss/UE4SS.log` (in `SB/Binaries/Win64/`): every line from the mod starts with `[StellarCoop]`. Answers to
+  commands and keys read `[StellarCoop] OK: ...` or `[StellarCoop] STOP: ...`; status changes read
+  `[StellarCoop] link: ...`.
+- `Mods/StellarCoop/coop-link.log`: the native part's numbered events, in UTC. The previous run's is
+  `coop-link.old.log`.
+- `coop status` (console) or F6: the current state. See [usage.md](usage.md#status-lines).
+- `coop report` (console): writes `coop-report.txt` with versions, the save folder, where `xinput1_3.dll`,
+  `dinput8.dll`, `dwmapi.dll` (UE4SS's loader) and `steam_api64.dll` were loaded from (other mods' DLLs can change
+  results), the status, a summary of save folder changes and the last 100 events.
+
+## Common problems
+
+### F6 does nothing, or no `[StellarCoop]` line at all
+
+- No `[StellarCoop]` line in `UE4SS.log`: UE4SS did not start the mod. Check that the folder is
+  `Mods/StellarCoop/Scripts/main.lua`, with `enabled.txt` and `StellarCoop.dll` next to `Scripts/` (Windows "Extract
+  All" may add one folder level). See [INSTALL.md](../INSTALL.md#install).
+- `Native part not loaded`: `StellarCoop.dll` is missing or was quarantined. The keys and the Steam link need it. See
+  [INSTALL.md: Windows Defender and SmartScreen](../INSTALL.md#windows-defender-and-smartscreen).
+- `Native tick unavailable`: the DLL loaded but its per-frame entry did not. Without it no pose is read or drawn, so
+  no ghost shows, and the loopback, record and replay refuse to start.
+- A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. Note that `F10` is never
+  allowed, and two actions on one key put all three keys back to `F5`, `F6` and `F8`. See
+  [usage.md](usage.md#coop-settingstxt).
+- `keys: <key> is also bound by a mod loaded earlier; both run`: another mod uses the same key. Pick another one.
+
+### `Co-op: waiting for Steam.` or `Co-op: the Steam link stopped; coop status says why.`
+
+- `steam=waiting` in `coop status`: the game has not started Steam yet. Meanwhile `coop-link.log` answers requests
+  with `Steam is not ready yet: request ignored`.
+- `missing=<name>`: the game's Steamworks build lacks a function the link needs. The native part stops for the run,
+  the link and the ghost with it, and `coop-link.log` says `worker stopped: Steam exports missing`.
+- `stopped=fault <code>`: Steam faulted under the link (for example at game exit), and the native part stopped the link
+  and the ghost to keep the game running. The last line of `coop-link.log` says why the worker stopped. Restart the
+  game.
+
+### My friend cannot join
+
+- `Version mismatch: ...`: you run different StellarCoop protocols or game builds. Both players update together:
+  see [INSTALL.md: Update](../INSTALL.md#update).
+- `Invite held: joining once your save has loaded.`: they join once their save has loaded. This is normal.
+- `Could not join: that game is full.`: a session holds 2 players. `Left: the lobby has more than 2 players.` means the
+  lobby was not made by StellarCoop (it holds more players than a StellarCoop lobby can), so the mod left it.
+- `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
+  invite, or use `coop join <lobby id>`.
+- `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
+
+### I do not see my friend's ghost
+
+- `ghost=off` in `coop status`: no session has started since the mod loaded, or the ghost was turned off with
+  `coop puppet`. It turns on again with the next session, or with `coop puppet`.
+- `ghost=hidden map`, or the notice `<name> is in <map>, you are in <map>.`: you are on different maps. The ghost
+  shows once you are on the same map.
+- `ghost=waiting`: no table has arrived yet, or the ghost is being built, or your EVE has been in the world for less
+  than 2 s. A table that needs a new ghost is taken at most once every 2 s; your friend's next resend (every 5 s)
+  brings it.
+- The ghost appears and disappears: it hides after a second without a pose, so poses are not arriving steadily. Look
+  at the `<name>, last 60 s:` line in `coop-link.log` (RTT, drops, Steam's session quality).
+- `engine=off reason=...` in `coop status`: the native pose path is off. On a game build other than 24463856 it never
+  reads game memory, so no ghost can be drawn. After a fault, `coop-link.log` has an `engine off: fault ...` line.
+- `Ghost not built: ...`: the build failed for that table. A new table, a level change or `coop basesuit` tries again.
+- `coop off` was used: everything stays off until the game restarts.
+
+### The ghost wears the base suit, or a part is missing
+
+A part falls back to the base suit when your PC cannot load its mesh (a DLC you do not own), when its path is outside
+the game's character folders, or when its bones differ. A part with no fallback is left out. The `Ghost ... built` line
+in `UE4SS.log` counts both and names each part drawn on the base suit. `coop basesuit` may also be on: run it again to go back.
+
+### A look misbehaves
+
+The cloth, dyes and effects looks are not yet tried in game. If the game crashes or the ghost looks wrong with one on,
+turn it off in `coop-settings.txt` (or with `coop look <look> off`). An `effects off: fault ...` line means a fault
+turned effects off until the game restarts; the ghost goes on without them.
+
+### Screen notices stopped
+
+`Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line. Screen notices stay off until
+the next Lua load (game start or Ctrl+R); the notices still go to `UE4SS.log`.
+
+### `coop no` or `coop recruiter` says `STOP`
+
+- `runs only with the co-op save slot loaded`: load the co-op slot, or make it first. See
+  [saves.md](saves.md#the-co-op-save-slot).
+- Most other `STOP:` lines from the previews say why the preview stopped, and many that nothing was changed. One is
+  urgent: the probe's
+  `STOP: a new character is ... m from EVE: kill the game now` means kill the game at once. See
+  [night-operation.md](night-operation.md).
+
+### A save looks wrong
+
+Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
+[saves.md](saves.md#steam-cloud) and [INSTALL.md: Recovery](../INSTALL.md#recovery).
+
+## Reading the 60 s lines
+
+Every 60 s, `coop-link.log` has lines that help with performance problems:
+
+- `native tick, last 60 s: ...`: the per-frame tick's count, mean and maximum cost, the largest gap between ticks and
+  the gaps over 100 ms.
+- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, size, KB/s), tables in and refused, poses
+  received, foreign (of no table, or of one the ghost is not built on yet), malformed and rejected, losses, stalls, the
+  one-way delay, and poses drawn and written. Between two PCs the one-way delay includes the offset between their
+  clocks, so it says nothing there.
+- `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
+  means its send buffer is full), ping RTT and loss, and Steam's view of the session.
+- `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
+
+A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.
+
+## Which logs to send
+
+If something goes wrong, close the game and send these files before you start the game again: each launch overwrites
+`UE4SS.log` and moves `coop-link.log` to `coop-link.old.log`. Some files may be missing, which is fine.
+
+- `Mods/StellarCoop/coop-report.txt`
+- `Mods/StellarCoop/coop-link.log`
+- `Mods/StellarCoop/coop-link.old.log`
+- `ue4ss/UE4SS.log`
+- `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
+
+They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
+which may include your Windows user name. They contain no passwords. Read them before you send them if you wish.
+
+This list is the same as in [INSTALL.md](../INSTALL.md#which-logs-to-send).
