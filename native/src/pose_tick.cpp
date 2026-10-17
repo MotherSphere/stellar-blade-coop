@@ -337,7 +337,7 @@ void stream(uint64_t now_us) {
       h.publication = now_us;
       h.sequence = ++sequence;
       uint32_t clamped = 0;
-      out_back.size =
+      size_t size = out_back.size =
           encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
                       out_back.data.data(), clamped);
       out_back.time = now_us;
@@ -347,7 +347,7 @@ void stream(uint64_t now_us) {
         m.unlock();
       }
       ++window_sent;
-      window_sent_bytes += out_back.size;
+      window_sent_bytes += size; // Not out_back.size: give_out() swapped another message in.
       window_clamped += clamped;
     } else {
       ++window_capture_refused; // Read again next frame.
