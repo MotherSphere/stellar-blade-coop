@@ -1,6 +1,6 @@
 // The pose path's memory accesses against fake memory laid out like the pinned build: the build pin, liveness,
 // published components, EVE's read, the ghost's write gate (direct and remapped), the mailbox, EVE's effect read into
-// sticky slots and the effect boxes.
+// sticky slots and the effect boxes; a destroyed object whose memory went back to the system.
 #include "pose_engine.h"
 
 #include <algorithm>
@@ -10,11 +10,20 @@
 #include <array>
 #include <vector>
 
+#include <sys/mman.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
 using namespace coop::pose;
 
 namespace {
 template <class T> void put(std::vector<uint8_t> &mem, size_t at, T value) { std::memcpy(mem.data() + at, &value, sizeof value); }
 uintptr_t addr(std::vector<uint8_t> &mem, size_t at = 0) { return reinterpret_cast<uintptr_t>(mem.data() + at); }
+// ReadProcessMemory's Linux twin: fails instead of faulting on memory it cannot read.
+bool read_self(uint64_t address, void *out, size_t n) {
+  iovec local{out, n}, remote{reinterpret_cast<void *>(address), n};
+  return process_vm_readv(getpid(), &local, 1, &remote, 1, 0) == ssize_t(n);
+}
 
 // A fake GUObjectArray with one chunk, and objects registered in it.
 struct Objects {
@@ -378,6 +387,29 @@ int main() {
     read(c);
     for (size_t n = 0; n < kEffectSlots; ++n)
       assert(slot_is(n, 0, 0) && !state.owner[n]);
+  }
+
+  // EVE re-created (a death, a fast travel, a load): her old component's memory went back to the system (here a page
+  // with no access: a plain read faults). alive() reads its index through safe_read, which fails, so nothing reads it:
+  // refused as gone, and the live puppet is never written for a dead root.
+  {
+    auto plain = safe_read;
+    safe_read = read_self;
+    void *page = mmap(nullptr, 4096, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(page != MAP_FAILED);
+    auto freed = reinterpret_cast<uintptr_t>(page);
+    const Part old{freed, eve_class, mesh, 3, true}, old_puppet{freed, poseable_class, mesh, 3, true};
+    std::vector<uint8_t> bones(3 * kTransformBytes);
+    const float world[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
+    assert(alive(objs, addr(eve)) && published(objs, e)); // safe_read still reads what is mapped.
+    assert(!alive(objs, freed) && !published(objs, old) && read_leader(objs, old, bones.data()) == Io::gone);
+    assert(write_leader(objs, old_puppet, bones.data()) == Io::gone);
+    assert(write_mailbox(objs, freed, poseable_class, p, world, 1.f, 2.f) == Io::gone);
+    const std::vector<uint8_t> before = puppet;
+    assert(write_mailbox(objs, addr(puppet), poseable_class, old_puppet, world, 1.f, 2.f) == Io::gone);
+    assert(puppet == before);
+    munmap(page, 4096);
+    safe_read = plain;
   }
 
   std::puts("pose_engine_test: ok");

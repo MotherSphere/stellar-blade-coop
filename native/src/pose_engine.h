@@ -1,7 +1,7 @@
 // The game's memory for the native pose path: the build pin, object liveness and the published-component checks, EVE's
-// pose and effects read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only; the
-// caller runs every one of them under an SEH guard on the game thread. No Windows types, so tests/pose_engine_test.cpp
-// drives it with fake memory.
+// pose and effects read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only, but for
+// alive()'s first read (safe_read); the caller runs every one of them under an SEH guard on the game thread. No
+// Windows types, so tests/pose_engine_test.cpp drives it with fake memory.
 // Offsets are for Stellar Blade's Steam build 24463856 (UE 4.26), pinned by check_build().
 #pragma once
 
@@ -61,10 +61,21 @@ inline uintptr_t object_item(uintptr_t objects, int32_t index) {
   auto chunk = chunks ? at<uintptr_t>(chunks + 8 * uintptr_t(index >> 16)) : 0;
   return chunk ? chunk + kItemBytes * uintptr_t(index & 0xffff) : 0;
 }
+// n bytes at address into out, false instead of a fault where they are not readable. pose_tick.cpp points it at
+// ReadProcessMemory before the engine goes on; the host tests' fake memory is always readable.
+inline bool (*safe_read)(uint64_t address, void *out, size_t n) = [](uint64_t address, void *out, size_t n) {
+  std::memcpy(out, reinterpret_cast<const void *>(address), n);
+  return true;
+};
+// A table's object may be long destroyed (EVE re-created by a death, a fast travel or a load) and its memory given back
+// to the system, so its index is read through safe_read. Once its item holds the same pointer, neither pending kill
+// nor unreachable, it is a live UObject, and plain reads of it are safe for the rest of the tick: GC runs on the game
+// thread, never during ours.
 inline bool alive(uintptr_t objects, uintptr_t object) {
-  if (!objects || !object)
+  int32_t index;
+  if (!objects || !object || !safe_read(object + kInternalIndex, &index, sizeof index))
     return false;
-  auto item = object_item(objects, at<int32_t>(object + kInternalIndex));
+  auto item = object_item(objects, index);
   return item && at<uintptr_t>(item) == object && !(at<int32_t>(item + kItemFlags) & (kPendingKill | kUnreachable));
 }
 

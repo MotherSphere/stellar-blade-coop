@@ -767,6 +767,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     if (!pin(reason))
       reason = "fault while reading the exe header";
     objects = base + kObjectsRva; // Before engine_on: the game thread reads it once the engine is on.
+    safe_read = rpm;              // The same: alive() reads a table's object through it, never directly.
     engine_reason = reason.empty() ? "pinned build 24463856" : reason;
     engine_on = reason.empty();
     pinned = reason.empty();
