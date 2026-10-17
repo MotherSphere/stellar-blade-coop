@@ -264,6 +264,7 @@ screen they go to the log only. If the engine refuses the line, screen notices s
 | Too many players | `Left: the lobby has more than 2 players.` |
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
+| Ghost failed 3 times on one table | `Ghost failed 3 times: the reason is in UE4SS.log.` |
 
 ## Status lines
 

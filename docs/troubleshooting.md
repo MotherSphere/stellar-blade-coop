@@ -67,7 +67,9 @@ Remember that StellarCoop is an experimental pre-release: it has not been tested
   at the `<name>, last 60 s:` line in `coop-link.log` (RTT, drops, Steam's session quality).
 - `engine=off reason=...` in `coop status`: the native pose path is off. On a game build other than 24463856 it never
   reads game memory, so no ghost can be drawn. After a fault, `coop-link.log` has an `engine off: fault ...` line.
-- `Ghost not built: ...`: the build failed for that table. A new table, a level change or `coop basesuit` tries again.
+- `Ghost not built: ...`: the build failed for that table. It is tried again 2 s later, up to 3 tries in all; after
+  the third failure the notice `Ghost failed 3 times: the reason is in UE4SS.log.` shows. Then a new table, a level
+  change or `coop basesuit` tries again.
 - `coop off` was used: everything stays off until the game restarts.
 
 ### The ghost wears the base suit, or a part is missing
