@@ -14,10 +14,11 @@
 -- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
--- The build resolves one mesh a frame (a coroutine), then names what it built for the native part (coop-display.txt),
--- which writes the leaders' bones each frame and the main mesh's world transform into the mailbox, a scene component
--- nothing moves; place() puts the root there after the native tick. The ghost stays hidden until the first pose and
--- after a second without one, and is only built when she is on your map (a friend on another map is said on screen).
+-- The build resolves one mesh a frame (a step a tick, never a coroutine), then names what it built for the native part
+-- (coop-display.txt), which writes the leaders' bones each frame and the main mesh's world transform into the mailbox,
+-- a scene component nothing moves; place() puts the root there after the native tick. A failed build is tried again
+-- 2 s later, up to 3 tries in all, then said on screen. The ghost stays hidden until the first pose and after a second
+-- without one, and is only built when she is on your map (a friend on another map is said on screen).
 -- Above it, its name tag: whose ghost it is (her Steam name, or loopback, replay), turned to the camera at each pose.
 -- The same table again with a part hung elsewhere (a blade drawn) or shown or hidden is applied in place; a new
 -- generation (her outfit) is a new ghost. The ghost's path is kept in a file, so the next Lua load (a hot reload)
@@ -102,15 +103,16 @@ function Puppet.new(link,capture,say,name_tag,look)
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
     local remote,seen_count,source=nil,nil,nil -- The remote table, the status count it was read at, where it came from.
-    local ghost,build=nil,nil -- The ghost (built or being built) and its build coroutine.
-    local back_since,failed,hidden_pair,her_at=nil,nil,nil,nil
+    local ghost -- The ghost, built or being built (then ghost.steps holds the steps left).
+    local back_since,hidden_pair,her_at=nil,nil,nil
+    local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
     local function whose() return source=='peer' and files.friend() or tostring(source) end
     local function clear(why)
         local g=ghost
-        ghost,build=nil,nil
+        ghost=nil
         if not g then return nil end
         files.display(nil)
         store.clear()
@@ -164,8 +166,11 @@ function Puppet.new(link,capture,say,name_tag,look)
         end
         built.target:SetVisibility(part.shown,false)
     end
-    -- The coroutine: spawns the hidden actor, then dresses one part per resume (one mesh resolved a frame), adds the
-    -- mailbox (and the effects), hangs them all and publishes the display file. Returns the build's line for the log.
+    -- The build's first frame: spawns the hidden actor and lists the steps, one per part (and per listed effect), each
+    -- resolving at most one mesh or material. tick() runs one step a frame, and g.finish() in the frame of the last
+    -- one: the name tag, the mailbox (and the effect boxes), the hanging and the display file; it returns the build's
+    -- line for the log. Never a coroutine: UE4SS refuses any call from a lua_State it did not create
+    -- (process_lua_function, lua_instances), and a coroutine is one.
     local function build_ghost(eve)
         local t=remote
         local started=os.clock()
@@ -176,12 +181,14 @@ function Puppet.new(link,capture,say,name_tag,look)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={}}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
         store.save(actor:GetFullName():match('^%S+ (.+)$'))
         local counts,notes={loaded=0,ms=0},{}
+        -- A step for the next frame (k: the k-th next), before the steps listed earlier.
+        local function soon(f,k) table.insert(g.steps,k or 1,f) end
         local function clothed(mesh) -- A read that fails counts as no clothing assets.
             local ok,n=pcall(function() local n=0; each(mesh.MeshClothingAssets,function() n=n+1 end); return n end)
             return ok and n>0
@@ -210,50 +217,43 @@ function Puppet.new(link,capture,say,name_tag,look)
             target:SetSkeletalMesh(mesh,true) -- Its own materials, unless dyed below.
             return target
         end
-        -- The table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): one a frame,
-        -- resolved and set in the same frame, as a mesh is.
-        local function dye(target,part)
-            for _,m in ipairs(part.materials) do
-                coroutine.yield()
-                local material=resolve(m.path,counts,'/Script/Engine.MaterialInterface')
-                if material and m.slot<target:GetNumMaterials() then
-                    target:SetMaterial(m.slot,material)
-                    g.dyed=g.dyed+1
-                else
-                    notes[#notes+1]=string.format('%s: slot %d material %s missing, default kept',part.name,m.slot,
-                        m.path)
-                end
+        -- One of the table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): a step
+        -- each, resolved and set in the same frame, as a mesh is.
+        local function dye(target,part,m)
+            local material=resolve(m.path,counts,'/Script/Engine.MaterialInterface')
+            if material and m.slot<target:GetNumMaterials() then
+                target:SetMaterial(m.slot,material)
+                g.dyed=g.dyed+1
+            else
+                notes[#notes+1]=string.format('%s: slot %d material %s missing, default kept',part.name,m.slot,m.path)
             end
         end
-        -- One part's component and mesh: the table's, else its fallback's (then with true, and for a leader its remap);
-        -- nil when it has neither.
-        local function dress(part)
-            local base,why=fallback(part),'missing'
-            if basesuit and base then
-                why='replaced (basesuit)'
-            elseif part.path then
-                -- One mesh a frame; resolved and added in the same frame, so a freshly loaded mesh nothing holds yet
-                -- cannot be collected in between.
-                coroutine.yield()
-                local mesh=resolve(part.path,counts)
-                if mesh then
-                    local target=add(mesh,part)
-                    if part.lead or target:GetNumBones()==part.bones then
-                        if look.dyes then dye(target,part) end
-                        return target,mesh
-                    end
-                    why=string.format('has %d bones, not %d',target:GetNumBones(),part.bones)
-                    target:K2_DestroyComponent(actor) -- Never re-point it: a mesh of the same count would keep stale bones.
-                end
+        -- A part drawn (based: on its fallback's mesh, remap: a leader's bones by name).
+        local function keep(part,target,mesh,based,remap)
+            local lead=part.lead and g.parts[part.lead]
+            if lead then
+                target:SetMasterPoseComponent(lead.target,false)
+                target.bUseBoundsFromMasterPoseComponent=true -- No culling pops apart from its leader.
+            else
+                target:SetForcedLOD(1) -- LOD 0 always: no pops as the ghost walks away.
+                g.leaders=g.leaders+1
             end
-            if not base then return nil end
-            coroutine.yield()
+            g.base=g.base+(based and 1 or 0)
+            g.parts[part.i]={target=target,mesh=mesh,remap=remap}
+            g.count=g.count+1
+        end
+        local function left_out(part)
+            assert(part.i>0,'her body could not be drawn, not even on the base suit')
+            g.left_out=g.left_out+1
+        end
+        -- A part on its fallback's mesh, for a leader with its remap; left out when that one is missing too.
+        local function on_base(part,base,why)
             local mesh=resolve(base,counts)
-            if not mesh then return nil end
+            if not mesh then return left_out(part) end
             local target=add(mesh,part)
             if part.lead then
                 notes[#notes+1]=string.format('%s: %s %s, drawn as %s',part.name,part.path or '-',why,base)
-                return target,mesh,true
+                return keep(part,target,mesh,true)
             end
             -- Each of the fallback's bones takes her bone of the same name, else keeps its reference pose.
             local of,remap,follow={},{},0
@@ -265,108 +265,138 @@ function Puppet.new(link,capture,say,name_tag,look)
             end
             notes[#notes+1]=string.format('%s: %s %s, drawn as %s (%d of %d bones follow)',part.name,part.path or '-',why,
                 base,follow,#remap)
-            return target,mesh,true,remap
+            keep(part,target,mesh,true,remap)
         end
-        for _,part in ipairs(t.parts) do
-            local lead=part.lead and g.parts[part.lead]
-            local target,mesh,based,remap
-            if not part.lead or lead then target,mesh,based,remap=dress(part) end
-            if not target then
-                assert(part.i>0,'her body could not be drawn, not even on the base suit')
-                g.left_out=g.left_out+1
-            else
-                if lead then
-                    target:SetMasterPoseComponent(lead.target,false)
-                    target.bUseBoundsFromMasterPoseComponent=true -- No culling pops apart from its leader.
-                else
-                    target:SetForcedLOD(1) -- LOD 0 always: no pops as the ghost walks away.
-                    g.leaders=g.leaders+1
+        -- One part's step: the table's mesh, then its dyes a step each; else its fallback's (a step of its own when the
+        -- table's was resolved in this one); left out with neither, or when its leader was.
+        local function dress(part)
+            if part.lead and not g.parts[part.lead] then return left_out(part) end
+            local base,why=fallback(part),'missing'
+            if basesuit and base then
+                why='replaced (basesuit)'
+            elseif part.path then
+                -- Resolved and added in the same frame, so a freshly loaded mesh nothing holds yet cannot be collected
+                -- in between.
+                local mesh=resolve(part.path,counts)
+                if mesh then
+                    local target=add(mesh,part)
+                    if part.lead or target:GetNumBones()==part.bones then
+                        if look.dyes then
+                            for k,m in ipairs(part.materials) do soon(function() dye(target,part,m) end,k) end
+                        end
+                        return keep(part,target,mesh)
+                    end
+                    why=string.format('has %d bones, not %d',target:GetNumBones(),part.bones)
+                    target:K2_DestroyComponent(actor) -- Never re-point it: a mesh of the same count would keep stale bones.
                 end
-                g.base=g.base+(based and 1 or 0)
-                g.parts[part.i]={target=target,mesh=mesh,remap=remap}
-                g.count=g.count+1
+                if base then return soon(function() on_base(part,base,why) end) end
             end
+            if base then on_base(part,base,why) else left_out(part) end
         end
-        -- The name tag, on the main mesh, so it moves, hides and goes with the ghost. A tag that fails is only left out.
-        local tag_off=''
-        if name_tag then
-            local tag
-            local made,why=pcall(function()
-                tag=U.label(actor,TAG_SIZE)
-                tag:K2_AttachToComponent(g.parts[0].target,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,KEEP_RELATIVE,false)
-                tag:K2_SetRelativeLocation({X=0,Y=0,Z=TAG_HEIGHT},false,{},true)
-                tag:K2_SetText(FText(whose()))
-            end)
-            if made then
-                g.tag=tag
-            else
-                if tag then pcall(function() tag:K2_DestroyComponent(actor) end) end -- Else it reads the engine's 'Text'.
-                tag_off='; name tag off: '..tostring(why)
-            end
-        end
-        -- The mailbox: unattached, never moved; only the native part writes its relative fields.
-        g.mailbox=valid(actor:AddComponentByClass(find('/Script/Engine.SceneComponent'),true,identity,false))
-        assert(g.mailbox,'the mailbox could not be added')
-        -- Her effects: the listed systems (one a frame, as meshes), the library that starts them, and four slot boxes
-        -- beside the mailbox that only the native part writes. Anything failing leaves the ghost without effects only.
-        local effects
+        for _,part in ipairs(t.parts) do g.steps[#g.steps+1]=function() dress(part) end end
+        -- Her effects: the listed systems, a step each. One failing ends the build there, without effects.
+        local fx_loaded,fx_why=0,nil
         if look.effects then
-            local made,why=pcall(function()
-                local loaded=0
-                for _,path in ipairs(EFFECTS) do
-                    coroutine.yield()
-                    loaded=loaded+(resolve(path,counts,NIAGARA_SYSTEM) and 1 or 0)
+            for _,path in ipairs(EFFECTS) do
+                g.steps[#g.steps+1]=function() -- Only effect steps are left: a failure drops them all.
+                    local ok,system=pcall(resolve,path,counts,NIAGARA_SYSTEM)
+                    if ok then fx_loaded=fx_loaded+(system and 1 or 0) else fx_why,g.steps=system,{} end
                 end
-                g.fx_lib=find('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                local slots,scene={},find('/Script/Engine.SceneComponent')
-                for n=1,4 do
-                    local box=valid(actor:AddComponentByClass(scene,true,identity,false))
-                    assert(box,'an effect box could not be added')
-                    slots[n]={box=box}
-                end
-                g.slots,effects=slots,string.format('effects loaded %d of %d',loaded,#EFFECTS)
-            end)
-            if not made then effects='effects off ('..tostring(why)..')' end
-        end
-        -- The table now, after the last yield: a part hung elsewhere meanwhile comes in the same one.
-        for _,part in ipairs(remote.parts) do
-            if g.parts[part.i] then hang(g,part) end
-        end
-        local lines={'display '..t.generation,'mailbox '..hex(g.mailbox)..' '..hex(g.mailbox:GetClass())}
-        if g.slots then
-            local boxes={}
-            for n,slot in ipairs(g.slots) do boxes[n]=hex(slot.box) end
-            lines[#lines+1]='effects '..table.concat(boxes,' ')
-        end
-        for _,part in ipairs(t.parts) do
-            local built=g.parts[part.i]
-            if built and not part.lead then
-                lines[#lines+1]=string.format('drive %d %s %s %s %d',part.i,hex(built.target),hex(built.target:GetClass()),
-                    hex(built.mesh),built.target:GetNumBones())
-                if built.remap then lines[#lines+1]='remap '..part.i..' '..table.concat(built.remap,' ') end
             end
         end
-        local published,why=files.display(table.concat(lines,'\n')..'\n')
-        g.built=true
-        local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base suit, %d left out%s%s',
-            t.generation,g.count,g.leaders,counts.loaded,counts.ms,g.base,g.left_out,
-            published and '' or '; display not published: '..tostring(why),tag_off)
-        local looks={}
-        if look.cloth then looks[#looks+1]=string.format('cloth parts %d',#g.cloth) end
-        if look.dyes then looks[#looks+1]=string.format('dyed slots %d',g.dyed) end
-        if look.effects then looks[#looks+1]=effects end
-        if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
-        if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
-        return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
-    end
-    local function resume(eve)
-        local ok,result=coroutine.resume(build,eve)
-        if not ok then
-            failed=remote.generation -- Not again on this table: a new one, a level change or basesuit tries again.
-            clear('build failed')
-            return false,'Ghost not built: '..tostring(result)
+        function g.finish()
+            -- The name tag, on the main mesh, so it moves, hides and goes with the ghost. A tag that fails is only left
+            -- out.
+            local tag_off=''
+            if name_tag then
+                local tag
+                local made,why=pcall(function()
+                    tag=U.label(actor,TAG_SIZE)
+                    tag:K2_AttachToComponent(g.parts[0].target,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,KEEP_RELATIVE,
+                        false)
+                    tag:K2_SetRelativeLocation({X=0,Y=0,Z=TAG_HEIGHT},false,{},true)
+                    tag:K2_SetText(FText(whose()))
+                end)
+                if made then
+                    g.tag=tag
+                else
+                    -- Else it reads the engine's 'Text'.
+                    if tag then pcall(function() tag:K2_DestroyComponent(actor) end) end
+                    tag_off='; name tag off: '..tostring(why)
+                end
+            end
+            -- The mailbox: unattached, never moved; only the native part writes its relative fields.
+            g.mailbox=valid(actor:AddComponentByClass(find('/Script/Engine.SceneComponent'),true,identity,false))
+            assert(g.mailbox,'the mailbox could not be added')
+            -- Her effects: the listed systems (resolved in the steps), the library that starts them, and four slot
+            -- boxes beside the mailbox that only the native part writes. Anything failing leaves the ghost without
+            -- effects only.
+            local effects
+            if look.effects then
+                local made,why=pcall(function()
+                    if fx_why then error(fx_why,0) end
+                    g.fx_lib=find('/Script/Niagara.Default__NiagaraFunctionLibrary')
+                    local slots,scene={},find('/Script/Engine.SceneComponent')
+                    for n=1,4 do
+                        local box=valid(actor:AddComponentByClass(scene,true,identity,false))
+                        assert(box,'an effect box could not be added')
+                        slots[n]={box=box}
+                    end
+                    g.slots,effects=slots,string.format('effects loaded %d of %d',fx_loaded,#EFFECTS)
+                end)
+                if not made then effects='effects off ('..tostring(why)..')' end
+            end
+            -- The table now, at the last step: a part hung elsewhere meanwhile comes in the same one.
+            for _,part in ipairs(remote.parts) do
+                if g.parts[part.i] then hang(g,part) end
+            end
+            local lines={'display '..t.generation,'mailbox '..hex(g.mailbox)..' '..hex(g.mailbox:GetClass())}
+            if g.slots then
+                local boxes={}
+                for n,slot in ipairs(g.slots) do boxes[n]=hex(slot.box) end
+                lines[#lines+1]='effects '..table.concat(boxes,' ')
+            end
+            for _,part in ipairs(t.parts) do
+                local built=g.parts[part.i]
+                if built and not part.lead then
+                    lines[#lines+1]=string.format('drive %d %s %s %s %d',part.i,hex(built.target),
+                        hex(built.target:GetClass()),hex(built.mesh),built.target:GetNumBones())
+                    if built.remap then lines[#lines+1]='remap '..part.i..' '..table.concat(built.remap,' ') end
+                end
+            end
+            local published,why=files.display(table.concat(lines,'\n')..'\n')
+            g.built=true
+            local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base '
+                ..'suit, %d left out%s%s',
+                t.generation,g.count,g.leaders,counts.loaded,counts.ms,g.base,g.left_out,
+                published and '' or '; display not published: '..tostring(why),tag_off)
+            local looks={}
+            if look.cloth then looks[#looks+1]=string.format('cloth parts %d',#g.cloth) end
+            if look.dyes then looks[#looks+1]=string.format('dyed slots %d',g.dyed) end
+            if look.effects then looks[#looks+1]=effects end
+            if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
+            if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
+            return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
         end
-        if coroutine.status(build)=='dead' then build=nil; return true,result end
+    end
+    -- A failed build or ghost: her table is built again 2 s later, 3 tries in all, then not by itself (said on screen).
+    -- A new table, a new EVE, coop puppet on or a rebuild tries again.
+    local function retry()
+        tries=tries+1
+        failed=tries<3 and os.clock()+2 or math.huge
+        if tries==3 then say('Ghost failed 3 times: the reason is in UE4SS.log.') end
+    end
+    -- One frame of the build, on the game thread: build_ghost(eve) first, then a step, and finish() after the last.
+    local function step(eve)
+        local ok,line=pcall(function()
+            if eve then return build_ghost(eve) end
+            table.remove(ghost.steps,1)()
+            if not ghost.steps[1] then ghost.steps=nil; return ghost.finish() end
+        end)
+        if ok then return line and true,line end
+        clear('build failed')
+        retry()
+        return false,'Ghost not built: '..tostring(line)
     end
     -- The same generation again: the parts hung elsewhere, shown or hidden are applied to the ghost in place.
     local function redress(old)
@@ -400,10 +430,10 @@ function Puppet.new(link,capture,say,name_tag,look)
             remote=t
             if not (ghost and ghost.built) then return end -- A build in progress hangs its parts from the new one.
             local ok,why=pcall(redress,old)
-            if not ok then failed=remote.generation; return false,clear('stopped: '..tostring(why)) end
+            if not ok then retry(); return false,clear('stopped: '..tostring(why)) end
             return
         end
-        remote,failed,hidden_pair=t,nil,nil
+        remote,failed,tries,hidden_pair=t,nil,0,nil
         local message=clear('a new table')
         return message and true,message
     end
@@ -414,14 +444,14 @@ function Puppet.new(link,capture,say,name_tag,look)
             wanted=false
             return true,clear('coop puppet') or 'Ghost off.'
         end
-        wanted,failed=true,nil -- A table whose build failed is tried again.
+        wanted,failed,tries=true,nil,0 -- A table whose build failed is tried again.
         return true,(swept and swept..' ' or '')..'Ghost on: her capture goes to the native part, and a ghost is drawn '
             ..'once a table comes back (a linked friend\'s; coop loopback 0 0 0 shows yours, coop replay a recording); '
             ..'coop puppet again ends it.'
     end
     -- The ghost removed to be built again at once (a failed table too): what it is drawn with changed.
     function self.rebuild(why)
-        failed=nil
+        failed,tries=nil,0
         return clear(why)
     end
     -- Every part on the base suit where it has one (body and hair), or each on its own mesh again: rebuilt at once.
@@ -552,7 +582,7 @@ function Puppet.new(link,capture,say,name_tag,look)
                 end
             end
         end)
-        if not ok then failed=g.generation; return false,clear('stopped: '..tostring(why)) end
+        if not ok then retry(); return false,clear('stopped: '..tostring(why)) end
         if #said>0 then return false,table.concat(said,' ') end
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
@@ -627,17 +657,17 @@ function Puppet.new(link,capture,say,name_tag,look)
         local eve=her(valid(UE.GetPlayer()))
         local at=eve and address(eve) or nil
         if at~=her_at then -- A new EVE (travel, a load) or none: the ghost goes, a failed table is tried again.
-            her_at,back_since,failed=at,nil,nil
+            her_at,back_since,failed,tries=at,nil,nil,0
             if ghost then clear('level changed') end
         elseif ghost and not valid(ghost.actor) then
             clear('level changed')
             back_since=nil
         end
-        if build then return resume() end
+        if ghost and ghost.steps then return step() end
         if ghost or not remote then return end
         if not eve then back_since=nil; return end
         back_since=back_since or os.clock()
-        if os.clock()-back_since<2 or failed==remote.generation then return end
+        if os.clock()-back_since<2 or os.clock()<(failed or 0) then return end
         -- Read each time, never kept by EVE's address: after travel her new EVE can stand where the freed one was.
         local map=U.map_of(eve)
         if remote.map~=map then
@@ -652,8 +682,7 @@ function Puppet.new(link,capture,say,name_tag,look)
             return true,string.format('Ghost hidden: she is on %s, you are on %s.',remote.map,map)
         end
         hidden_pair,said_pair=nil,nil
-        build=coroutine.create(build_ghost)
-        return resume(eve)
+        return step(eve)
     end
     return self
 end

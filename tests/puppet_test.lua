@@ -2,7 +2,8 @@
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
 -- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
 -- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
--- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again, the strict table read;
+-- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again (2 s apart, 3 times,
+-- then said on screen), the strict table read; every UE4SS call on UE4SS's own Lua state, never in a coroutine;
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
 -- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip; with
 -- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails;
@@ -12,11 +13,26 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
+-- UE4SS refuses any call from a lua_State it did not create (process_lua_function, lua_instances): a coroutine is one.
+-- The tests run on the main thread, which stands for UE4SS's own states (its hook thread's callbacks). Level 3: the
+-- error names the mod's line that called the fake, as the game's names unreal.lua:41.
+local function ue4ss()
+    local _,main=coroutine.running()
+    if main then return end
+    error('[process_lua_function] The lua state has no instance inside lua_instances unordered map',3)
+end
 local function fname(text) return {type=function() return 'FName' end,ToString=function() return text end} end
-FName=fname
+FName=function(text) ue4ss(); return fname(text) end
 local next_address=0x1000
+-- A fake UObject: each of its methods checks the Lua state first, whether given in fields, added or replaced later. The
+-- methods live in a table of their own, so every assignment of one goes through __newindex.
 local function object(name,fields,class_address)
-    local o=fields or {}
+    local methods={}
+    local o=setmetatable({},{__index=methods,__newindex=function(t,k,v)
+        if type(v)~='function' then return rawset(t,k,v) end
+        methods[k]=function(...) ue4ss(); return v(...) end
+    end})
+    for k,v in pairs(fields or {}) do o[k]=v end
     next_address=next_address+0x100
     local at=next_address
     o.type=function() return 'UObject' end
@@ -70,6 +86,7 @@ meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
 local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
 local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
 LoadAsset=function(path)
+    ue4ss()
     loads[#loads+1]=path
     if meshes[path] then meshes[path].resolved_at=frame end
     return meshes[path] or invalid
@@ -116,7 +133,7 @@ local function cloth_part(actor)
     return s
 end
 local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua to either is unproven in the game.
-FText=function(text) if fail_text then error('no FText') end return {text=text} end
+FText=function(text) ue4ss(); if fail_text then error('no FText') end return {text=text} end
 local function text_render(actor)
     local l=object('TextRender',{},0xc3)
     for _,f in ipairs({'SetWorldSize','SetHorizontalAlignment','SetTextRenderColor','SetAbsolute'}) do
@@ -133,12 +150,16 @@ local fail_add,fail_label=false,false
 local box_reads=0 -- Reads of an effect box's relative fields: place() reads them only on a new effects stamp.
 local function effect_box()
     local fields={RelativeScale3D={X=1,Y=1,Z=1},RelativeLocation={X=0,Y=0,Z=0},RelativeRotation={Pitch=0,Yaw=0,Roll=0}}
-    return setmetatable(object('EffectBox',{fields=fields},0x5c0),{__index=function(_,key)
-        if key:find('^Relative') then box_reads=box_reads+1 end
-        return fields[key]
-    end})
+    local box=object('EffectBox',{fields=fields},0x5c0)
+    local mt=getmetatable(box)
+    local methods=mt.__index
+    mt.__index=function(_,key)
+        if key:find('^Relative') then box_reads=box_reads+1; return fields[key] end
+        return methods[key]
+    end
+    return box
 end
-local world={SpawnActor=function(_,class,at)
+local world=object('World',{SpawnActor=function(_,class,at)
     assert(class.path=='/Script/Engine.Actor' and at.X==1)
     local a=object('Ghost',{parts={},components={}})
     function a:SetActorEnableCollision() end
@@ -180,9 +201,10 @@ local world={SpawnActor=function(_,class,at)
     spawned[#spawned+1]=a
     return a
 end,GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end,
-K2_GetWorldSettings=function() return {bEnableWorldComposition=false,bEnableWorldOriginRebasing=false} end}
+K2_GetWorldSettings=function() return {bEnableWorldComposition=false,bEnableWorldOriginRebasing=false} end})
 -- EVE reads only: the ghost never writes to her.
 local function eve_of(name,map_world,at)
+    map_world=map_world and object('World',map_world)
     local e=object(name)
     if at then e.GetAddress=function() return at end end -- Where a freed EVE was.
     function e:IsA(class) return class.path=='/Script/SB.SBCharacter' end
@@ -196,13 +218,15 @@ end
 local eve=eve_of('EVE')
 local player=eve
 local camera,camera_fails={X=-100,Y=100,Z=0},false
-package.loaded.UEHelpers={GetPlayer=function() frame=frame+1; return player end,GetPlayerController=function()
+package.loaded.UEHelpers={GetPlayer=function() ue4ss(); frame=frame+1; return player end,GetPlayerController=function()
+    ue4ss()
     if camera_fails then error('no player controller') end
     return {PlayerCameraManager={GetCameraLocation=function() return camera end}}
 end}
 local found_by_path={}
 local niagara_lookups=0 -- Lookups of anything of Niagara: its classes, its library, the listed systems.
 StaticFindObject=function(path)
+    ue4ss()
     if path:find('Niagara',1,true) or path:find('^/Game/Art/FX/') then niagara_lookups=niagara_lookups+1 end
     if found_by_path[path] then return found_by_path[path] end
     if path:find('^/Game/') then
@@ -269,6 +293,23 @@ local function build()
         if message then return ok,message end
     end
     error('the build never ended')
+end
+local GAVE_UP='Ghost failed 3 times: the reason is in UE4SS.log.'
+-- Fails the table's build 3 times, 2 s apart: then it is said on screen once and never tried again by itself.
+local function give_up()
+    local said_before=#said
+    fail_add=true
+    for k=1,3 do
+        local ok,message=build()
+        assert(ok==false and message:find('^Ghost not built: '),message)
+        clock=clock+2.5 -- Past the 2 s, never on their edge.
+        assert(#said==said_before+(k<3 and 0 or 1),'Said once, after the 3rd')
+    end
+    fail_add=false
+    assert(said[#said]==GAVE_UP,said[#said])
+    local spawned_before=#spawned
+    for _=1,5 do assert(ghost.tick()==nil); clock=clock+2 end
+    assert(#spawned==spawned_before,'Never a 4th time by itself')
 end
 
 assert(ghost.tick()==nil and ghost.status()=='ghost=off','Off: nothing')
@@ -482,13 +523,21 @@ assert(ok and message=='Ghost 505 removed (her table is gone).' and actor.destro
 assert(ghost.tick()==nil and ghost.status()=='ghost=waiting','No table: no ghost')
 assert(ghost.remote(nil,nil,nil)==nil,'Said once')
 
--- A failed build says why, leaves nothing behind and is not tried again on that table; a new table tries again.
+-- A failed build says why and leaves nothing behind; it is tried again 2 s later, never before.
 send(506,her_parts())
 fail_add=true
 ok,message=build()
 assert(ok==false and message:find('^Ghost not built: .*could not be added') and spawned[#spawned].destroyed,message)
-assert(ghost.tick()==nil,'Not again on table 506')
 fail_add=false
+spawned_count=#spawned
+clock=clock+1.5
+assert(ghost.tick()==nil and #spawned==spawned_count,'Not before 2 s')
+clock=clock+1
+ok,message=build()
+assert(message:find('^Ghost 506 built'),message)
+-- One failing each time: 3 tries in all, then said on screen once; a new table tries again at once.
+send(510,her_parts())
+give_up()
 send(507,her_parts())
 ok,message=build()
 assert(message:find('^Ghost 507 built'),message)
@@ -558,13 +607,9 @@ count=count+1
 local read,refused,why=pcall(ghost.remote,604,count,'loopback')
 assert(read and refused==false and why=='The remote table could not be read.',tostring(refused))
 
--- A failed build is tried again with a new EVE, even with no ghost left to remove.
+-- A table given up is tried again with a new EVE, even with no ghost left to remove.
 send(605,her_parts())
-fail_add=true
-ok,message=build()
-assert(ok==false and message:find('^Ghost not built: '),message)
-fail_add=false
-assert(ghost.tick()==nil,'Not again on table 605')
+give_up()
 player=eve_of('EVE5')
 assert(ghost.tick()==nil,'Waits 2 s')
 clock=clock+2
@@ -582,12 +627,9 @@ assert(ghost.tick()==nil and #spawned==spawned_count,'The 2 s start again with e
 clock=clock+1.5
 ok,message=build()
 assert(message:find('^Ghost 605 built'),message)
--- Toggled off and on again: a failed table is tried again.
+-- Toggled off and on again: a table given up is tried again at once.
 send(606,her_parts())
-fail_add=true
-ok,message=build()
-assert(ok==false,message)
-fail_add=false
+give_up()
 ghost.toggle()
 ghost.toggle()
 ok,message=build()
@@ -740,7 +782,11 @@ ghost=new(nil,true,look)
 ghost.toggle()
 local clothed=her_parts()
 clothed[6].path=BLADE -- The scabbard on a mesh without cloth: the ponytail is the one cloth part.
-setmetatable(meshes[FACE],{__index=function(_,key) if key=='MeshClothingAssets' then error('no such property') end end})
+local face_methods=getmetatable(meshes[FACE]).__index
+getmetatable(meshes[FACE]).__index=function(_,key)
+    if key=='MeshClothingAssets' then error('no such property') end
+    return face_methods[key]
+end
 send(700,clothed)
 ghost.tick()
 clock=clock+2
@@ -808,12 +854,9 @@ assert(#actor.parts==7 and actor.parts[4].cloth and actor.parts[4].destroyed,'Ad
 assert(not actor.parts[5].cloth and actor.parts[5].mesh==meshes[PONY] and actor.parts[5].calls.SetMasterPoseComponent==actor.parts[3])
 assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*no cloth mesh%), drawn as a plain part %('),message)
 fail_cloth=nil
--- A rebuild tries a failed table again at once.
-fail_add=true
+-- A rebuild tries a table given up again at once.
 ghost.rebuild('look')
-ok,message=build()
-assert(ok==false and ghost.tick()==nil,'Not again on that table by itself')
-fail_add=false
+give_up()
 assert(ghost.rebuild('look')==nil,'No ghost to remove')
 ok,message=build()
 assert(message:find('^Ghost 700 built: .*; look: cloth parts 1 %('),message)
@@ -1013,4 +1056,22 @@ box.RelativeScale3D.X=14
 box.RelativeScale3D.Z=40
 assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
 spawn_fails=false
+
+-- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
+local part=cloth_part(object('Owner'))
+for what,f in pairs({own=part.GetAddress,added=part.SetVisibility,replaced=part.IsA,given=world.GetFullName,
+    controller=package.loaded.UEHelpers.GetPlayerController}) do
+    local ok,why=coroutine.resume(coroutine.create(f),part,{path='x'})
+    assert(not ok and why:find('lua_instances',1,true),what..' answered from a coroutine')
+end
+-- No coroutine anywhere in the mod: UE4SS refuses every call made from one (ue4ss() above), and fakes of other
+-- modules may lack that check.
+local scripts=0
+for path in io.popen('ls mod/StellarCoop/Scripts/*.lua'):lines() do
+    local file=assert(io.open(path))
+    assert(not file:read('a'):find('coroutine%.'),path..' uses a coroutine')
+    file:close()
+    scripts=scripts+1
+end
+assert(scripts>=9,'The scripts were listed')
 print('puppet_test ok')
