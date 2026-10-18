@@ -38,6 +38,17 @@ int main() {
   std::string other = "SBC" + std::to_string(kProtocol + 1) + " ping 1 2";
   assert(parse_text(other).kind == Kind::invalid);
 
+  // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
+  // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
+  static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
+  assert(lobby_tag(24463856) != "6:24463856");
+  m = parse_text("SBC hello 6 v0.1.1 24463856");
+  assert(m.kind == Kind::hello && m.a == 6 && m.b == 24463856 && m.text == "v0.1.1");
+  assert(parse_text("SBC6 ping 1 2").kind == Kind::invalid && parse_text("SBC6 pong 1 2").kind == Kind::invalid);
+  assert(fight_tag() == "SBF" + std::to_string(kProtocol));
+  for (const std::string &line : {fight_tag() + " on", fight_tag() + " world 3", fight_tag() + " ping 1 2"})
+    assert(parse_text(line).kind == Kind::invalid);
+
   // A peer's text can never inject lines into our status file, and stays short.
   m = parse_text(reject("bad\nsteam=fake\r\x01"));
   assert(m.kind == Kind::reject && m.text == "bad?steam=fake??");

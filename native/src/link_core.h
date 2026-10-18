@@ -1,7 +1,7 @@
-// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, and channel 1,
-// where the pose path's tables and poses travel. Every Steam call goes through the Api table, so
-// tests/link_core_test.cpp drives this file with a fake Steam on the build machine, and steam_link.cpp fills the table
-// from the game's steam_api64.dll (flat API, SDK 1.59).
+// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, channel 1, where
+// the pose path's tables and poses travel, and channel 2, where the shared enemies' lines travel. Every Steam call goes
+// through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the build machine, and
+// steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <cstddef>
@@ -56,9 +56,14 @@ static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(L
 constexpr int kFriendsOnly = 1, kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
-constexpr int kChannel = 0, kPoseChannel = 1, kMaxMembers = 2;
+constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
 constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~21/s, ~170 KB/s expected
+// Channel 2, per member: lines a second (each within kMaxMessage), and lines waiting each way. The host's busiest
+// second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths); the guest paces her claims to
+// 41.
+constexpr uint64_t kFightPerSecond = 128, kFightBytesPerSecond = kFightPerSecond * kMaxMessage;
+constexpr size_t kFightQueue = 256;
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
@@ -222,6 +227,11 @@ private:
   std::deque<std::string> recent_;
 };
 
+// One second of a member's messages on a channel that passed the rate limit.
+struct Window {
+  uint64_t at = 0, count = 0, bytes = 0;
+};
+
 struct Peer {
   uint64_t id = 0;
   std::string name; // From Steam, never from the peer's own messages; cleaned.
@@ -231,12 +241,13 @@ struct Peer {
   uint64_t next_hello = 0; // Our last hello to her plus kHelloAgainMs.
   int64_t rtt_ms = -1;
   int session_state = 0, session_ping = -1;
-  uint64_t window_at = 0, window_count = 0, window_bytes = 0; // Channel-1 receive, 1 s window.
+  Window pose_window, fight_window; // Channels 1 and 2, received.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
   int last_result = 1;      // The last failed send's EResult.
-  bool drop_logged = false; // One drop line per 60 s line.
+  bool drop_logged = false;  // One drop line per 60 s line.
+  bool fight_logged = false; // The same for channel 2, whose lines the 60 s line does not count.
   // Steam's view of the session, read once a second, logged only.
   float quality_local = -1, quality_remote = -1;
   int32_t send_rate = 0, pending = 0;
@@ -317,12 +328,15 @@ public:
     }
     if (lobby_) {
       poll_members();
-      if (lobby_) {
+      if (lobby_)
         receive();
-        if (lobby_) // A reject may have made us leave.
-          receive_binary();
-        ping_peers();
-      }
+    }
+    fight_session();
+    if (lobby_) { // A reject may have made us leave.
+      receive_binary();
+      receive_fight();
+      send_fight_queue();
+      ping_peers();
     }
     log_peers();
     poll_relay();
@@ -357,6 +371,20 @@ public:
       }
     }
   }
+
+  // Channel 2 (Phase 11, shared enemies): a line for the friend past the handshake, sent by the next tick(), reliable
+  // (on, off, world, up, down, dead, hit) or not (hp). False when it cannot go: not linked, empty or past kMaxMessage,
+  // or kFightQueue lines already waiting. Both queues hold one session's lines: a session that starts or ends (linked()
+  // changes) empties them, so no line crosses into the next one, and the fight logic restarts at the same changes.
+  // Worker thread, like tick().
+  bool send_fight(const std::string &line, bool reliable) {
+    if (!linked() || line.empty() || line.size() > kMaxMessage || fight_out_.size() >= kFightQueue)
+      return false;
+    fight_out_.emplace_back(line, reliable);
+    return true;
+  }
+  // Her channel-2 lines since the last call, oldest first. The link never parses them: fight_sync.h does, strictly.
+  std::vector<std::string> take_fight() { return std::exchange(fight_in_, {}); }
 
   bool take_report() {
     bool asked = report_;
@@ -800,8 +828,9 @@ private:
       const char *why = !peer                                 ? "not in our lobby"
                         : !peer->compatible || !peer->accepted ? "before the handshake"
                         : size == 0 || size > kMaxBinary       ? "bad size"
-                        : over_rate(*peer, size)               ? "over the rate limit"
-                                                               : nullptr;
+                        : over_rate(peer->pose_window, size, kBinaryPerSecond, kBinaryBytesPerSecond)
+                            ? "over the rate limit"
+                            : nullptr;
       if (!why) {
         ++peer->in;
         peer->in_bytes += size;
@@ -829,18 +858,89 @@ private:
     }
   }
 
-  // Per member, one window a second: 64 messages and 1 MiB, about three times her 20 Hz stream with its table. Only
-  // what passes is counted.
-  bool over_rate(Peer &peer, size_t size) {
-    if (now_ - peer.window_at >= 1000) {
-      peer.window_at = now_;
-      peer.window_count = peer.window_bytes = 0;
+  // Per member and channel, one window a second. Channel 1: 64 messages and 1 MiB, about three times her 20 Hz stream
+  // with its table; channel 2: kFightPerSecond lines. Only what passes is counted.
+  bool over_rate(Window &w, size_t size, uint64_t count, uint64_t bytes) {
+    if (now_ - w.at >= 1000) {
+      w.at = now_;
+      w.count = w.bytes = 0;
     }
-    if (peer.window_count >= kBinaryPerSecond || peer.window_bytes + size > kBinaryBytesPerSecond)
+    if (w.count >= count || w.bytes + size > bytes)
       return true;
-    ++peer.window_count;
-    peer.window_bytes += size;
+    ++w.count;
+    w.bytes += size;
     return false;
+  }
+
+  // linked() changes only before this point of a pass (requests, calls, members, channel 0): a session that starts or
+  // ends empties channel 2's queues both ways.
+  void fight_session() {
+    if (linked() == fight_linked_)
+      return;
+    fight_linked_ = !fight_linked_;
+    fight_in_.clear();
+    fight_out_.clear();
+  }
+
+  // Channel 2: lines kept for take_fight(), only from a member past the handshake, within kMaxMessage and the rate
+  // limit, while fewer than kFightQueue wait. A friend's flood or a stranger's junk stops here.
+  void receive_fight() {
+    NetMessage *batch[16];
+    int n = api_.receive(msgs_, kFightChannel, batch, 16);
+    for (int i = 0; i < n; ++i) {
+      NetMessage *m = batch[i];
+      uint64_t from = api_.get_steam_id(&m->peer);
+      size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
+      Peer *peer = find_peer(from);
+      const char *why = !peer                                 ? "not in our lobby"
+                        : !peer->compatible || !peer->accepted ? "before the handshake"
+                        : size == 0 || size > kMaxMessage      ? "bad size"
+                        : fight_in_.size() >= kFightQueue      ? "inbox full"
+                        : over_rate(peer->fight_window, size, kFightPerSecond, kFightBytesPerSecond)
+                            ? "over the rate limit"
+                            : nullptr;
+      try {
+        if (!why)
+          fight_in_.emplace_back(static_cast<const char *>(m->data), size);
+      } catch (...) { // Out of memory: this line is lost, never the release below.
+        why = "out of memory";
+      }
+      api_.release_message(m); // Before any logging, which allocates.
+      try {
+        if (!peer) {
+          if (strangers_.insert(from).second)
+            event("ignored fight data from " + std::to_string(from) + ": " + why);
+        } else if (why && !peer->fight_logged) {
+          peer->fight_logged = true;
+          event("dropped fight data from " + peer->name + ": " + why);
+        }
+      } catch (...) { // Out of memory: a lost line, never the release of the batch's other messages.
+      }
+    }
+  }
+
+  // What send_fight() queued, in order, to the friend past the handshake on channel 2. A reliable line Steam refuses
+  // (25 LimitExceeded: the session's send buffer, shared with channel 1, is full) waits with the lines after it for the
+  // next pass, so none is lost or overtaken; a refused hp line is dropped, as the next values replace it. Each refusal
+  // is a failure of the 60 s line.
+  void send_fight_queue() {
+    size_t done = 0;
+    for (; done < fight_out_.size(); ++done) {
+      auto &[line, reliable] = fight_out_[done];
+      bool refused = false;
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted) {
+          int r = send(p, line.data(), line.size(), reliable ? kReliable : kUnreliable, kFightChannel);
+          if (r != kResultOk) {
+            ++p.failed;
+            p.last_result = r;
+            refused = true;
+          }
+        }
+      if (refused && reliable)
+        break;
+    }
+    fight_out_.erase(fight_out_.begin(), fight_out_.begin() + static_cast<std::ptrdiff_t>(done));
   }
 
   void on_message(Peer &peer, const Message &message) {
@@ -966,7 +1066,7 @@ private:
       p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
-      p.drop_logged = false;
+      p.drop_logged = p.fight_logged = false;
     }
   }
 
@@ -1009,5 +1109,9 @@ private:
   bool relay_known_ = false, overlay_ = false;
   std::deque<std::string> notices_; // The last kNotices, oldest first; notice_count_ numbers the newest.
   uint64_t notice_count_ = 0;
+  // Channel 2: her lines not taken yet, ours not sent yet with their delivery, and whether they belong to a session.
+  std::vector<std::string> fight_in_;
+  std::vector<std::pair<std::string, bool>> fight_out_;
+  bool fight_linked_ = false;
 };
 } // namespace coop

@@ -6,7 +6,8 @@
 // Every other message carries the protocol number and is dropped by a peer that runs another one:
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>.
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
-// (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h).
+// (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h). Channel 2 carries the shared enemies' text lines, which
+// start with fight_tag() (fight_sync.h parses them).
 #pragma once
 
 #include <cstddef>
@@ -15,9 +16,11 @@
 #include <string_view>
 
 namespace coop {
-constexpr int kProtocol = 6; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 7; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
-                             // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose.
+                             // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
+                             // channel 2 (shared enemies, SBF7). A v0.1.1 peer (6) is told why: the lobby tag, then
+                             // the hello's reject, name both protocols.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -69,6 +72,8 @@ inline std::string versioned(const char *kind, uint64_t a, uint64_t b) {
 }
 inline std::string ping(uint64_t seq, uint64_t ms) { return versioned("ping", seq, ms); }
 inline std::string pong(uint64_t seq, uint64_t ms) { return versioned("pong", seq, ms); }
+// Channel 2's tag, versioned like channel 0's: "SBF7".
+inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
 inline bool number(std::string_view text, uint64_t &out) {

@@ -1,7 +1,8 @@
 // The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
 // the handshake and its rejects, the host leaving (D1), the guest's rejoin of a lost lobby, a lost peer, strangers,
-// session requests, relay, the journal, the player's notices; and two Links through it: the handshake both ways,
-// channel 1 with its checks, join and leave cycles, the host leaving, and a rejoin the host never saw.
+// session requests, relay, the journal, the player's notices, a v0.1.1 friend (protocol 6); and two Links through it:
+// the handshake both ways, channel 1 with its checks, channel 2 with its checks and its session-long queues, join and
+// leave cycles, the host leaving, and a rejoin the host never saw.
 #include "link_core.h"
 #include "pose_table.h"
 
@@ -40,7 +41,7 @@ using Inbox = std::vector<std::pair<uint64_t, std::string>>; // Sender and text.
 // One player's own Steam: who she is and what waits for her on each channel.
 struct Client {
   uint64_t id;
-  Inbox inbox[2];
+  Inbox inbox[3]; // Channels 0, 1 and 2.
 };
 
 // The fake Steam's whole state. Lobbies, calls and names are shared; each client (0 is us, 1 is Kaanta) has its own id
@@ -86,7 +87,7 @@ template <class T> void store(Call &c, const T &value) {
   std::memcpy(c.result.data(), &value, sizeof value);
 }
 Inbox &inbox(int client, int channel) {
-  assert(channel == 0 || channel == 1);
+  assert(channel >= 0 && channel <= 2);
   return client == 0 && channel == kChannel ? F.inbox : F.client[client].inbox[channel];
 }
 
@@ -429,7 +430,10 @@ int main() {
     std::string mod;
     uint64_t build;
   };
-  for (const Theirs &t : {Theirs{1, "old", kBuild}, Theirs{kProtocol + 1, "new", kBuild}, Theirs{kProtocol, "v", 123}}) {
+  // Protocol 6 is v0.1.1's. A channel-2 line from such a member never gets through, nor can we send her one.
+  static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
+  for (const Theirs &t : {Theirs{1, "old", kBuild}, Theirs{6, "v0.1.1", kBuild}, Theirs{kProtocol + 1, "new", kBuild},
+                          Theirs{kProtocol, "v", 123}}) {
     std::string their = hello(t.protocol, t.mod, t.build);
     reset();
     World w;
@@ -439,9 +443,14 @@ int main() {
     w.tick();
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
+    inbox(0, kFightChannel).push_back({kFriend, fight_tag() + " on"});
+    w.tick();
+    assert(saw("dropped fight data from Kaanta: before the handshake"));
+    assert(!w.link.send_fight(fight_tag() + " on", true));
     F.inbox.push_back({kFriend, their});
     w.tick();
     assert(sent_to(kFriend, "SBC reject protocol ") == 1 && saw("rejected Kaanta: protocol "));
+    assert(w.link.take_fight().empty() && F.released == 2);
     assert(saw("left lobby 5000: incompatible player") && w.link.lobby() == 0 && F.left.size() == 1);
     assert(noticed(w.status(), "Version mismatch with Kaanta: protocol " + std::to_string(t.protocol) + " build " +
                                    std::to_string(t.build) + " (mod " + t.mod + "), mine protocol " +
@@ -459,6 +468,23 @@ int main() {
     assert(saw("Kaanta rejected us: protocol 3 build 1") && saw("left lobby 5000: rejected by Kaanta"));
     assert(w.link.lobby() == 0 && F.inbox.empty() && F.released == 4);
     assert(noticed(w.status(), "Kaanta refused the link: protocol 3 build 1, mine protocol 9 build 1 (mod x)"));
+  }
+
+  // A v0.1.1 friend's lobby carries her protocol in its tag: we leave it before greeting her, and say why with both
+  // protocols, never silently (her hello's reject, above, is the backstop). Her v0.1.1 joining ours does the same on
+  // her side: the same code with her protocol.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000, "6:24463856");
+    w.tick("join 7000");
+    finish_all();
+    w.tick();
+    assert(saw("lobby 7000 runs protocol 6, build 24463856, this game runs protocol " + std::to_string(kProtocol)));
+    assert(saw("left lobby 7000: incompatible lobby") && w.link.lobby() == 0 && F.sent.empty());
+    assert(noticed(w.status(), "Version mismatch: that game runs protocol 6, build 24463856; yours runs protocol " +
+                                   std::to_string(kProtocol) + ", build 24463856."));
   }
 
   // A third member: we leave before greeting anyone.
@@ -1194,6 +1220,180 @@ int main() {
       assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
     }
     assert(!saw("B: lost the host's lobby") && !saw("rejoin"));
+  }
+
+  // Two Links, channel 2: lines go only between friends past the handshake, reliable or not, in order, at the next
+  // pass, on channel 2 only; the size bound, the rate limit and both queues' caps hold; the end of a session empties
+  // both queues, and the next session starts empty.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    const std::string on = fight_tag() + " on", up = fight_tag() + " up 3 77 50110 2 15011001 1600",
+                      hp = fight_tag() + " hp 3 1 0 77:1600:100:200", hit = fight_tag() + " hit 3 1 77 120 5 30 400 0";
+    auto fight_sends = [] {
+      return std::count_if(F.sent.begin(), F.sent.end(), [](const Sent &s) { return s.channel == kFightChannel; });
+    };
+    auto reset_drop_lines = [&t] { // The 60 s line allows one drop line again.
+      t.tick(t.a, 60000);
+      t.tick(t.b, 0);
+    };
+
+    // a. Before the handshake: nothing can be queued either way, and her line is dropped.
+    assert(!t.a.send_fight(on, true) && !t.b.send_fight(on, true));
+    t.tick(t.a, 600);
+    inbox(0, kFightChannel).push_back({kFriend, on});
+    int by_hand = 1;
+    t.tick(t.a, 1);
+    assert(saw("A: dropped fight data from Kaanta: before the handshake") && t.a.take_fight().empty());
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked() && fight_sends() == 0);
+
+    // b. Linked: queued, sent at the sender's next pass, taken once, in order. Reliable lines (40) and hp (33) keep
+    // their delivery; none goes on channels 0 or 1.
+    size_t sends = F.sent.size();
+    assert(t.a.send_fight(up, true) && t.a.send_fight(hp, false) && t.b.send_fight(hit, true));
+    assert(F.sent.size() == sends);
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    assert(t.b.take_fight() == (std::vector<std::string>{up, hp}) && t.a.take_fight() == std::vector<std::string>{hit});
+    assert(t.a.take_fight().empty() && t.b.take_fight().empty());
+    int reliable = 0, unreliable = 0;
+    for (auto &s : F.sent)
+      if (s.channel == kFightChannel) {
+        reliable += s.flags == kReliable;
+        unreliable += s.flags == kUnreliable;
+      }
+    assert(reliable == 2 && unreliable == 1 && sent_to(kFriend, "SBF") == 0 && sent_to(kMe, "SBF") == 0);
+    assert(sink[0].empty() && sink[1].empty()); // Never handed to the pose path.
+
+    // c. Size: a line of kMaxMessage goes, a longer or empty one is refused; one longer or empty from her is dropped.
+    reset_drop_lines();
+    const std::string widest = fight_tag() + " off " + std::string(kMaxMessage - 9, 'r');
+    assert(widest.size() == kMaxMessage && t.b.send_fight(widest, true));
+    assert(!t.b.send_fight(widest + "r", true) && !t.b.send_fight("", true));
+    inbox(0, kFightChannel).push_back({kFriend, widest + "r"});
+    inbox(0, kFightChannel).push_back({kFriend, ""});
+    by_hand += 2;
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    assert(t.a.take_fight() == std::vector<std::string>{widest} && saw("A: dropped fight data from Kaanta: bad size"));
+
+    // d. 130 lines in a second: 128 pass (a batch is 16), the rest are over the rate limit. A new second lets one
+    // through again.
+    reset_drop_lines();
+    for (int i = 0; i < 130; ++i)
+      assert(t.b.send_fight(hp + " " + std::to_string(i), false));
+    t.tick(t.b, 1);
+    for (int i = 0; i < 9; ++i)
+      t.tick(t.a, 1);
+    std::vector<std::string> got = t.a.take_fight();
+    assert(got.size() == 128 && got.front() == hp + " 0" && got.back() == hp + " 127");
+    assert(saw("A: dropped fight data from Kaanta: over the rate limit"));
+    assert(t.b.send_fight(on, true));
+    t.tick(t.b, 1);
+    t.tick(t.a, 1000);
+    assert(t.a.take_fight() == std::vector<std::string>{on});
+
+    // e. Lines nobody takes: kFightQueue wait, the next is dropped; taken, they come in order.
+    reset_drop_lines();
+    for (int burst = 0; burst < 2; ++burst) {
+      for (int i = 0; i < 128; ++i)
+        assert(t.b.send_fight(hp + " " + std::to_string(burst * 128 + i), false));
+      t.tick(t.b, 1);
+      t.tick(t.a, 1000);
+      for (int i = 0; i < 7; ++i)
+        t.tick(t.a, 1);
+    }
+    assert(t.b.send_fight(on, true));
+    t.tick(t.b, 1);
+    t.tick(t.a, 1000);
+    assert(saw("A: dropped fight data from Kaanta: inbox full"));
+    got = t.a.take_fight();
+    assert(got.size() == kFightQueue && got.front() == hp + " 0" && got.back() == hp + " 255");
+
+    // f. Steam refuses: a reliable line waits, with the hp after it, for the next pass, so both arrive once and in
+    // order; a lone hp line refused is dropped. Each refusal is a failure of the 60 s line, whose in and out stay
+    // channel 1's.
+    reset_drop_lines();
+    F.send_result = 25;
+    assert(t.a.send_fight(up, true) && t.a.send_fight(hp, false));
+    t.tick(t.a, 1);
+    F.send_result = 1;
+    t.tick(t.b, 1);
+    assert(t.b.take_fight().empty());
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    assert(t.b.take_fight() == (std::vector<std::string>{up, hp}));
+    F.send_result = 25;
+    assert(t.a.send_fight(hp, false));
+    t.tick(t.a, 1);
+    F.send_result = 1;
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    assert(t.b.take_fight().empty());
+    t.tick(t.a, 60000);
+    assert(saw("A: Kaanta, last 60 s: in 0 (0.0 KB/s), out 0 (0.0 KB/s), 0 dropped, 2 failed (last result 25)"));
+
+    // g. A stranger's line: ignored, logged once.
+    inbox(0, kFightChannel).push_back({kStranger, on});
+    inbox(0, kFightChannel).push_back({kStranger, on});
+    by_hand += 2;
+    t.tick(t.a, 1);
+    assert(count("A: ignored fight data from 9009: not in our lobby") == 1 && t.a.take_fight().empty());
+
+    // h. The session ends with a line of hers not taken on A, A's queue full (kFightQueue, then refused) and a line
+    // queued on B: she leaves. Nothing is sent, nothing is kept, and nothing can be queued until the next session.
+    assert(t.b.send_fight(hit, true));
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    for (size_t i = 0; i < kFightQueue; ++i)
+      assert(t.a.send_fight(hp, false));
+    assert(!t.a.send_fight(hp, false) && t.b.send_fight(hit, true));
+    sends = static_cast<size_t>(fight_sends());
+    t.tick(t.b, 1, "leave");
+    t.tick(t.a, 1);
+    assert(!t.a.linked() && !t.b.linked() && static_cast<size_t>(fight_sends()) == sends);
+    assert(t.a.take_fight().empty() && t.b.take_fight().empty());
+    assert(!t.a.send_fight(on, true) && !t.b.send_fight(on, true));
+
+    // i. She comes back: the new session starts with empty queues, and lines flow again.
+    t.tick(t.b, 1, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked() && t.a.take_fight().empty() && t.b.take_fight().empty());
+    assert(t.a.send_fight(up, true) && t.b.send_fight(on, true));
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    assert(t.b.take_fight() == std::vector<std::string>{up} && t.a.take_fight() == std::vector<std::string>{on});
+
+    // j. Every message pushed is released, once both read what is left.
+    auto all_read = [] {
+      for (int side = 0; side < 2; ++side)
+        for (int channel = 0; channel < 3; ++channel)
+          if (!inbox(side, channel).empty())
+            return false;
+      return true;
+    };
+    for (int i = 0; i < 10 && !all_read(); ++i) {
+      t.tick(t.a, 1);
+      t.tick(t.b, 1);
+    }
+    assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
   }
 
   // Two Links: the host leaves, Steam hands her lobby to the guest, who ends the session at once (D1): no rejoin.

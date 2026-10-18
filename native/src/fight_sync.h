@@ -6,8 +6,9 @@
 // SB's ApplyStat), so tests/fight_sync_test.cpp drives this file with fake worlds on the build machine. No Windows
 // types.
 //
-// Channel 2, plain text, integers only (HP, Shield and Stamina are whole units in the game). An enemy is named by the
-// host's ActorGUID (hguid), which SB reuses only after 5,000,000 spawns; gen is the host's world generation.
+// Channel 2 (link_core.h), plain text after link_protocol.h's fight_tag(), integers only (HP, Shield and Stamina are
+// whole units in the game). An enemy is named by the host's ActorGUID (hguid), which SB reuses only after 5,000,000
+// spawns; gen is the host's world generation.
 //   SBF7 on, SBF7 off <reason>                                     both, reliable: the feature's state
 //   SBF7 world <gen>                                               both, reliable: a world change, all pairs dropped
 //   SBF7 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>         host, reliable: an enemy it arbitrates
@@ -30,7 +31,7 @@
 #include <utility>
 #include <vector>
 
-#include "link_protocol.h" // split, number, clean, kMaxMessage, kMaxReason
+#include "link_protocol.h" // split, number, clean, fight_tag, kMaxMessage, kMaxReason
 
 namespace coop::fight {
 
@@ -82,7 +83,7 @@ struct Message {
 // The text of a message; off carries reason (cleaned, "?" when empty).
 inline std::string format(const Message &m, const std::string &reason = std::string()) {
   auto n = [](uint64_t v) { return " " + std::to_string(v); };
-  const std::string t = "SBF7 ";
+  const std::string t = fight_tag() + " ";
   switch (m.type) {
   case Type::on: return t + "on";
   case Type::off: {
@@ -138,12 +139,12 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
   std::string text(data, size);
   if (text.find('\0') != std::string::npos)
     return Message();
-  if (text == "SBF7 on") {
+  if (text == fight_tag() + " on") {
     m.type = Type::on;
     return m;
   }
   std::string head[2], rest, f[8], tail;
-  if (!split(text, head, 2, &rest) || head[0] != "SBF7")
+  if (!split(text, head, 2, &rest) || head[0] != fight_tag())
     return Message();
   const std::string &kind = head[1];
   uint64_t v = 0;

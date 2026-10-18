@@ -110,8 +110,8 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number and is dropped by a peer that runs another one:
 
 ```
-SBC6 ping <seq> <ms>
-SBC6 pong <seq> <ms>
+SBC7 ping <seq> <ms>
+SBC7 pong <seq> <ms>
 ```
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
@@ -122,7 +122,7 @@ anything else is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes as they are: the component table as text starting `SBT 6` (sent reliable), and
+Channel 1 carries the pose path's bytes as they are: the component table as text starting `SBT 7` (sent reliable), and
 each pose as a binary message starting `SBP` and the protocol byte (sent unreliable, without Nagle delay).
 
 - Your table goes to them at once and again every 5 s, which heals one lost with a broken session or sent before

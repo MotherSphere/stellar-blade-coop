@@ -294,7 +294,7 @@ int main() {
   auto dropped = wire_table(with(kWire, "material 2 0 " + kTypeB, "material 2 0 /Game/Mods/X.X"));
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
-  assert(kSbt == "SBT 6\n"); // Protocol 6: the material lines (5) and the pose's effect slots.
+  assert(kSbt == "SBT 7\n"); // Protocol 7: the material lines (5), the pose's effect slots (6) and channel 2.
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
