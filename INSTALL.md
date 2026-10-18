@@ -194,7 +194,8 @@ backup, then writes `StellarCoopSlot.txt` and the copy. Replacing the co-op slot
 
 ## Check the files
 
-`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, `INSTALL.md` and `CHANGELOG.md` included.
+`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, `INSTALL.md`, `LICENSE` and `CHANGELOG.md`
+included.
 
 - Linux: in the `StellarCoop` folder, run `sha256sum -c SHA256SUMS.txt`. Every file must pass (`OK`, or the same word in your
   language). A mismatch ends with a warning.

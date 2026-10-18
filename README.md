@@ -78,4 +78,12 @@ save slot, is [INSTALL.md](INSTALL.md).
 
 StellarCoop is an unofficial fan mod. It is not affiliated with or endorsed by SHIFT UP or Sony Interactive
 Entertainment. Stellar Blade and its assets belong to their owners. This repository contains no game files: the mod
-uses the game you own. The source code is on GitHub.
+uses the game you own.
+
+## License
+
+[GPL-3.0-or-later](LICENSE) © 2026 StellarCoop contributors
+
+StellarCoop is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+version.

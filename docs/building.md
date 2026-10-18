@@ -58,8 +58,8 @@ folder, then removes it. It leaves alone a folder without `install-manifest.txt`
 symbolic link. It never touches saves, `StellarCoopSlot.txt` or `mods.txt`; it says if a `mods.txt` line still names
 StellarCoop.
 
-**The release zip.** `--zip` holds the mod folder with `INSTALL.md`, a `CHANGELOG.md` generated from the commits'
-`feat` and `fix` subjects (newest first), and `SHA256SUMS.txt` over every other file. It never holds
+**The release zip.** `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, a `CHANGELOG.md` generated from the
+commits' `feat` and `fix` subjects (newest first), and `SHA256SUMS.txt` over every other file. It never holds
 `coop-settings.txt`. `CHANGELOG.md` is generated for the zip and never committed. Commit subjects follow Conventional
 Commits; only `feat` and `fix` subjects reach the changelog, with their scope, and a `!` marks a breaking change.
 
@@ -137,6 +137,7 @@ tools/
   wine_smoke.py             loads the DLL under Wine
 docs/                       this documentation
 INSTALL.md                  the player install guide (shipped in the release zip)
+LICENSE                     GPL-3.0-or-later (shipped in the release zip)
 ```
 
 ### Native sources
