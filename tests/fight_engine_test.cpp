@@ -2,8 +2,9 @@
 // census over the actor map (free slots, inline and heap allocation bits, implausible pointers, players and dying
 // actors left out), the liveness test, implausible reads latching, the two phases (a write that summons an actor and
 // moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the job's guards, its arming and
-// re-arming, the ring and the latch; then two PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines
-// lost until every enemy died once in each world: the stage's exit criteria.
+// re-arming, the ring and the latch, a job that never runs; a guest restarting mid-fight; then two PCs linked through
+// channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once in each world: the stage's
+// exit criteria.
 #include "fight_engine.h"
 
 #include <algorithm>
@@ -84,6 +85,7 @@ struct Game {
   std::map<uint32_t, uint64_t> by_guid;         // The logic actor of each GUID.
   std::map<uint32_t, std::vector<Job *>> queue; // SB's job queue: turn -> jobs.
   bool processing = false;
+  uint32_t late = 0; // Game-thread pushes land this many turns back: on a key already drained, never run.
   struct Call {
     uint64_t la;
     int type;
@@ -292,7 +294,7 @@ struct Game {
   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify) {
     stat(la, type, delta, cause, notify, true);
   }
-  void push(Job *job) { queue[turn() + (processing ? 1 : 0)].push_back(job); }
+  void push(Job *job) { queue[processing ? turn() + 1 : turn() - late].push_back(job); }
   bool receive(Message &m) {
     if (inbox.empty())
       return false;
@@ -449,22 +451,22 @@ int main() {
       g.spawn(101 + i, 5001 + i, 0);
     g.inbox.push_back(msg("SBF7 on")); // The guest's on: the host's whole list.
     frame(g, *e, 0);
-    assert(lines(g) == "SBF7 world 1\nSBF7 up 1 101 5001 0 900 1600\nSBF7 up 1 102 5002 0 900 1600\n"
+    assert(lines(g) == "SBF7 on\nSBF7 world 1\nSBF7 up 1 101 5001 0 900 1600\nSBF7 up 1 102 5002 0 900 1600\n"
                        "SBF7 up 1 103 5003 0 900 1600\nSBF7 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
                        "103:1600:100:200\n");
     for (const char *hit : {"SBF7 hit 1 1 101 100 0 0 1600 0", "SBF7 hit 1 2 102 100 0 0 1600 0",
                             "SBF7 hit 1 3 103 100 0 0 1600 0"})
       g.inbox.push_back(msg(hit));
     const uint64_t old = g.data;
-    g.during = [&] { // The first claim's ApplyStat summons, and the elements move: the old block is gone.
-      g.spawn(150, 5050, 0);
+    g.during = [&] { // The first claim's ApplyStat summons, and the elements move: the old block is gone. The third
+      g.spawn(150, 5050, 0); // target starts dying meanwhile (a linked part), so its write is refused.
       g.grow(g.capacity * 2);
+      g.mem.put<uint8_t>(g.by_guid[103] + kPendingDeath, 1);
     };
     frame(g, *e, 16);
     assert(g.data != old && !g.mem.at(old, 1) && !e->latched());
-    assert(g.calls.size() == 3 && g.calls[0].la == g.by_guid[101] && g.calls[1].la == g.by_guid[102] &&
-           g.calls[2].la == g.by_guid[103]);
-    assert(g.hp(101) == 1500 && g.hp(102) == 1500 && g.hp(103) == 1500 && g.hp(150) == 1600);
+    assert(g.calls.size() == 2 && g.calls[0].la == g.by_guid[101] && g.calls[1].la == g.by_guid[102]);
+    assert(g.hp(101) == 1500 && g.hp(102) == 1500 && g.hp(103) == 1600 && g.hp(150) == 1600);
     // The next census walks the moved map: the summon is announced.
     for (uint64_t t = 32; t <= 16 * 16; t += 16)
       frame(g, *e, t);
@@ -496,6 +498,10 @@ int main() {
     frame(g, *e, t);
     assert(g.calls.size() == 1 && g.calls[0].la == la && g.calls[0].type == 1 && g.calls[0].delta == -600 &&
            !g.calls[0].cause && g.calls[0].notify && g.calls[0].ignore && g.hp(511) == 1000);
+    // A rise to the host's value shows no damage number (guest rule 2).
+    g.inbox.push_back(msg("SBF7 hp 1 2 0 101:1200:100:200"));
+    frame(g, *e, t + 16);
+    assert(g.calls.size() == 2 && g.calls[1].delta == 200 && !g.calls[1].notify && g.hp(511) == 1200);
   }
 
   // ---- Kills: our EVE as the cause (F3), the floors ----
@@ -543,6 +549,10 @@ int main() {
     g.mem.put<int32_t>(g.net + kNetMode, 4); // Not resolved yet.
     assert(!e->arm(g, t) && g.queue.empty());
     g.mem.put<int32_t>(g.net + kNetMode, 0);
+    const uint64_t world_at = rebased(coop::nightop::kGlobals) + kWorldAt;
+    g.mem.put<uint64_t>(world_at, 0); // No world loaded.
+    assert(!e->arm(g, t) && g.queue.empty());
+    g.mem.put(world_at, g.world);
     assert(e->arm(g, t) && g.queue.size() == 1 && g.queue[0].size() == 1);
     Job *first = g.queue[0][0];
     assert(first->vtable == &kVtable && first->type == 0xffff && first->generation == 1 && first->last_turn == kNever);
@@ -579,18 +589,20 @@ int main() {
       assert(!e->arm(g, t));
     assert(g.queue.size() == 1 && e->counts.arms == 2);
 
-    // A logic task in flight (+0x5c0 set): put off at each tick, then pushed anyway after 500 ms.
+    // A logic task in flight (+0x5c0 set): put off at each tick, then pushed anyway after 500 ms, with a logic slower
+    // than the frame rate (a turn every other tick): a tick where it stood still keeps the deferral's clock.
     g.reset();
     g.mem.put<uint64_t>(g.logic + kTask, 0x51ca);
     uint64_t first_try = 0;
-    while (e->counts.arms == 2) {
+    for (const uint64_t give_up = t + 3000; e->counts.arms == 2 && t < give_up; t += 16) {
       if (!first_try && e->counts.deferred)
         first_try = t - 16;
-      frame(g, *e, t);
-      t += 16;
+      e->arm(g, t);
+      if (t % 32)
+        g.tick(*e, t);
     }
-    assert(e->counts.forced == 1 && t - 16 >= first_try + 500 && t - 16 < first_try + 516);
-    assert(e->counts.deferred == (t - 16 - first_try) / 16);
+    assert(e->counts.forced == 1 && t - 16 >= first_try + 500 && t - 16 < first_try + 532);
+    assert(e->counts.deferred == (t - 16 - first_try) / 32);
     g.mem.put<uint64_t>(g.logic + kTask, 0);
 
     // Net mode 3: the job does nothing and stops; nothing arms until mode 0, then at once.
@@ -650,6 +662,60 @@ int main() {
     }
     assert(first->last_turn != kNever && e->counts.stale == 0 && !e->latched());
   }
+  // Every push lands on a key already drained, so the job never runs: a ring's worth of them, then the ninth arm turns
+  // the feature off instead of leaving SB's queue one more entry each second.
+  {
+    Game g;
+    auto e = engine(true, true);
+    g.late = 1;
+    uint64_t t = 0;
+    for (; !e->latched() && t < 60000; t += 16)
+      frame(g, *e, t);
+    assert(std::string(e->why()) == "job never runs" && e->counts.arms == kRing && e->counts.turns == 0);
+    assert(g.queue.size() == kRing && t < 5000);
+  }
+
+  // ---- A restart while on: the old session's last claim reaches the host after the worker's on ----
+  // The job says on again at the new session's first turn, behind that claim, so the host's claim numbers start over
+  // with the new guest's: none is taken for a lie.
+  {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    H.spawn(100, 7000, 0, kChar, 100000);
+    G.spawn(900, 7000, 0, kChar, 100000);
+    H.inbox.push_back(msg("SBF7 on")); // Each worker's on.
+    G.inbox.push_back(msg("SBF7 on"));
+    const auto relay = [](Game &from, Game &to) {
+      for (const Message &m : from.sent)
+        to.inbox.push_back(msg(format(m)));
+      from.sent.clear();
+    };
+    uint64_t t = 0;
+    const auto both = [&] {
+      G.hit(900, kHp, 10);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      relay(H, G);
+      relay(G, H);
+      t += 16;
+    };
+    for (const uint64_t end = t + 1000; t < end;)
+      both();
+    const uint64_t before = eh->host.counts.claims;
+    assert(before >= 5 && eh->host.counts.bad == 0);
+    // Her fight on again mid-fight: the worker's on goes out while a turn of the old guest still claims.
+    for (bool claimed = false; !claimed; t += 16) {
+      G.hit(900, kHp, 10);
+      frame(G, *eg, t);
+      claimed = !G.sent.empty() && G.sent.back().type == Type::hit;
+    }
+    H.inbox.push_back(msg("SBF7 on"));
+    eg->set(true, false);
+    relay(G, H);
+    for (const uint64_t end = t + 1000; t < end;)
+      both();
+    assert(eh->host.counts.bad == 0 && eh->host.counts.ignored == 0 && eh->host.counts.claims > before + 5);
+  }
 
   // ---- Two PCs through channel 2: 120 +/- 30 ms each way, 2 % of hp lines lost ----
   // Four enemies on each side, paired by key. Each is hit every 1.5 s by one player picked at random, until dead;
@@ -665,7 +731,7 @@ int main() {
     Wire to_host, to_guest;
     to_host.queue.emplace_back(120, "SBF7 on"); // Each worker sends its side's on.
     to_guest.queue.emplace_back(120, "SBF7 on");
-    std::mt19937 rng(5); // A run where both death paths happen and a lost hp line waits for the refresh.
+    std::mt19937 rng(1); // A run where both death paths happen and a lost hp line waits for the refresh.
     uint64_t next_hit[4], hits[4][2] = {}, died_h[4] = {}, died_g[4] = {};
     int64_t pending[4] = {-1, -1, -1, -1}, dealt = 0, claimed = 0; // HP her EVE took off her copies, and claimed.
     std::vector<uint64_t> fast, slow; // Hit to equal HP on both screens: within 250 ms + RTT (300), or not.

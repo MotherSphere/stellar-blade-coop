@@ -120,7 +120,7 @@ public:
   }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), so nothing carries over. off ends the job at its next
-  // turn; the worker sends our on and off lines.
+  // turn; the worker sends our on and off lines, and the job says on again at the session's first turn (simulate).
   void set(bool on, bool hosting) {
     if (on) {
       hosting_ = hosting;
@@ -150,8 +150,8 @@ public:
     uint64_t net = 0, logic = 0, world = 0, task = 0;
     int32_t mode = -1;
     uint32_t turn = 0;
-    if (!on_ || latched_ || !globals(g, net, logic, world) || !plausible(logic) || !plausible(net) ||
-        !get(g, net + kNetMode, mode) || mode != 0 || !get(g, logic + kTurn, turn)) {
+    if (!on_ || latched_ || !globals(g, net, logic, world) || !plausible(world) || !plausible(logic) ||
+        !plausible(net) || !get(g, net + kNetMode, mode) || mode != 0 || !get(g, logic + kTurn, turn)) {
       armed_ = waiting_ = false;
       return false;
     }
@@ -176,6 +176,12 @@ public:
       ++counts.forced;
     }
     waiting_ = false;
+    // A push runs at its turn unless it landed on a key already drained ([G] wrong at every try): each such push stays
+    // in SB's queue until a Logic Reset, so a ring's worth that never ran turns the feature off instead.
+    if (++idle_arms_ > kRing) {
+      latch("job never runs");
+      return false;
+    }
     // Turns start at 0 again after a reset or an init, so the reused object forgets its last turn; the bump makes every
     // older entry stale, whichever object it holds.
     Job &j = ring_[next_++ % kRing];
@@ -198,6 +204,7 @@ public:
       ++counts.stale;
       return;
     }
+    idle_arms_ = 0; // The live arm's push reached its turn.
     uint64_t net = 0, logic = 0, world = 0;
     uint32_t turn = 0;
     int32_t mode = -1;
@@ -220,10 +227,16 @@ public:
       new (&host) Host();
       new (&guest) Guest();
       session_seen_ = session;
+      hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
       census_turn_ = kNever;
       eve_ = 0;
+      // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
+      // from it (a late claim number would make the new guest's claims look like lies, and 16 of them ignore her).
+      Message on;
+      on.type = Type::on;
+      g.send(on);
     }
-    const bool hosting = hosting_;
+    const bool hosting = hosting_seen_;
     Io<Game> io{*this, g, logic};
     Message m;
     while (g.receive(m))
@@ -440,7 +453,7 @@ private:
   size_t chars_ = 0;
   std::atomic<bool> on_{false}, hosting_{false}, latched_{false};
   std::atomic<const char *> why_{nullptr};
-  std::atomic<uint32_t> generation_{0}, session_{0};
+  std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.
   std::atomic<uint64_t> heartbeat_ms_{0};
   // The game thread's.
   size_t next_ = 0;
@@ -449,6 +462,7 @@ private:
   uint64_t waiting_ms_ = 0;
   // The logic thread's.
   uint32_t session_seen_ = 0, census_turn_ = kNever, eve_ = 0;
+  bool hosting_seen_ = false; // The side of session_seen_.
   Found found_[kMaxCensus];
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
