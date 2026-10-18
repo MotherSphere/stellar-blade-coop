@@ -332,8 +332,9 @@ void reset() {
   sink[1].clear();
 }
 
-// A host with a lobby and Kaanta inside, after both hellos and accepts: the common start of several tests.
-void linked_host(World &w) {
+// A host with a lobby and Kaanta inside, after both hellos and accepts: the common start of several tests. A fight line
+// given arrives on channel 2 in the pass of her accept.
+void linked_host(World &w, const std::string &fight_line = "") {
   assert(w.link.ready(L"SB.exe") == Link::Ready::now);
   w.tick("host");
   finish_all();
@@ -343,6 +344,8 @@ void linked_host(World &w) {
   w.tick("", 0, 0, 600);
   F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
   F.inbox.push_back({kFriend, accept()});
+  if (!fight_line.empty())
+    inbox(0, kFightChannel).push_back({kFriend, fight_line});
   w.tick();
 }
 // A guest in Kaanta's lobby 7000, joined by id, after both hellos and accepts.
@@ -1289,17 +1292,27 @@ int main() {
     t.tick(t.a, 1);
     assert(t.a.take_fight() == std::vector<std::string>{widest} && saw("A: dropped fight data from Kaanta: bad size"));
 
-    // d. 130 lines in a second: 128 pass (a batch is 16), the rest are over the rate limit. A new second lets one
-    // through again.
+    // d. In one second, 64 poses and kFightPerSecond + 2 lines, queued kFightQueue at a time: the poses and
+    // kFightPerSecond lines pass (a batch is 16), the rest are over the rate limit. Each channel has its own window. A
+    // new second lets one through again.
     reset_drop_lines();
-    for (int i = 0; i < 130; ++i)
-      assert(t.b.send_fight(hp + " " + std::to_string(i), false));
-    t.tick(t.b, 1);
-    for (int i = 0; i < 9; ++i)
-      t.tick(t.a, 1);
-    std::vector<std::string> got = t.a.take_fight();
-    assert(got.size() == 128 && got.front() == hp + " 0" && got.back() == hp + " 127");
+    for (int i = 0; i < 64; ++i)
+      send_binary(t.b, std::string(100, 'p'), false);
+    std::vector<std::string> got;
+    for (uint64_t queued = 0, n; queued < kFightPerSecond + 2; queued += n) {
+      n = std::min<uint64_t>(kFightQueue, kFightPerSecond + 2 - queued);
+      for (uint64_t i = 0; i < n; ++i)
+        assert(t.b.send_fight(hp + " " + std::to_string(queued + i), false));
+      t.tick(t.b, 1);
+      for (size_t i = 0; i <= kFightQueue / 16; ++i)
+        t.tick(t.a, 1);
+      std::vector<std::string> taken = t.a.take_fight();
+      got.insert(got.end(), taken.begin(), taken.end());
+    }
+    assert(got.size() == kFightPerSecond && got.front() == hp + " 0");
+    assert(got.back() == hp + " " + std::to_string(kFightPerSecond - 1));
     assert(saw("A: dropped fight data from Kaanta: over the rate limit"));
+    assert(sink[0].size() == 64 && !saw("A: dropped pose data"));
     assert(t.b.send_fight(on, true));
     t.tick(t.b, 1);
     t.tick(t.a, 1000);
@@ -1322,19 +1335,27 @@ int main() {
     got = t.a.take_fight();
     assert(got.size() == kFightQueue && got.front() == hp + " 0" && got.back() == hp + " 255");
 
-    // f. Steam refuses: a reliable line waits, with the hp after it, for the next pass, so both arrive once and in
-    // order; a lone hp line refused is dropped. Each refusal is a failure of the 60 s line, whose in and out stay
-    // channel 1's.
+    // f. Steam refuses: a reliable line waits for the next pass as long as Steam refuses, with the reliable lines after
+    // it, so they arrive once and in order, a full queue of them within her rate limit. The hp lines behind it, queued
+    // before or while it waits, are dropped and never fill the queue; so is a lone hp line refused. Each refused line
+    // is one failure of the 60 s line, however many passes it waits; its in and out stay channel 1's.
     reset_drop_lines();
     F.send_result = 25;
     assert(t.a.send_fight(up, true) && t.a.send_fight(hp, false));
     t.tick(t.a, 1);
+    std::vector<std::string> waiting{up};
+    for (size_t i = 1; i < kFightQueue; ++i) {
+      waiting.push_back(fight_tag() + " dead 3 " + std::to_string(i));
+      assert(t.a.send_fight(waiting.back(), true) && t.a.send_fight(hp, false) == (i < kFightQueue - 1));
+      t.tick(t.a, 1);
+    }
     F.send_result = 1;
     t.tick(t.b, 1);
     assert(t.b.take_fight().empty());
     t.tick(t.a, 1);
-    t.tick(t.b, 1);
-    assert(t.b.take_fight() == (std::vector<std::string>{up, hp}));
+    for (size_t i = 0; i <= kFightQueue / 16; ++i)
+      t.tick(t.b, 1);
+    assert(t.b.take_fight() == waiting);
     F.send_result = 25;
     assert(t.a.send_fight(hp, false));
     t.tick(t.a, 1);
@@ -1394,6 +1415,24 @@ int main() {
       t.tick(t.b, 1);
     }
     assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
+  }
+
+  // Channel 2 at a session's edges, one Link: her first line, in the pass whose accept links us, is kept; a guest who
+  // leaves drops the lines she did not take.
+  reset();
+  {
+    World w;
+    linked_host(w, fight_tag() + " on");
+    assert(w.link.linked() && w.link.take_fight() == std::vector<std::string>{fight_tag() + " on"});
+  }
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    inbox(0, kFightChannel).push_back({kFriend, fight_tag() + " on"});
+    w.tick();
+    w.tick("leave");
+    assert(!w.link.linked() && w.link.take_fight().empty() && !w.link.send_fight(fight_tag() + " on", true));
   }
 
   // Two Links: the host leaves, Steam hands her lobby to the guest, who ends the session at once (D1): no rejoin.

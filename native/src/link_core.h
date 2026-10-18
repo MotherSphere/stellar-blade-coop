@@ -4,6 +4,7 @@
 // steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -59,11 +60,12 @@ constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliabl
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
 constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~21/s, ~170 KB/s expected
-// Channel 2, per member: lines a second (each within kMaxMessage), and lines waiting each way. The host's busiest
+// Channel 2, per member: lines waiting each way, and lines a second (each within kMaxMessage). The host's busiest
 // second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths); the guest paces her claims to
-// 41.
-constexpr uint64_t kFightPerSecond = 128, kFightBytesPerSecond = kFightPerSecond * kMaxMessage;
+// 41. A full outbox, sent at once when Steam takes lines again after refusing them, fits in one second with the
+// busiest.
 constexpr size_t kFightQueue = 256;
+constexpr uint64_t kFightPerSecond = 2 * kFightQueue, kFightBytesPerSecond = kFightPerSecond * kMaxMessage;
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
@@ -880,6 +882,7 @@ private:
     fight_linked_ = !fight_linked_;
     fight_in_.clear();
     fight_out_.clear();
+    fight_waiting_ = false;
   }
 
   // Channel 2: lines kept for take_fight(), only from a member past the handshake, within kMaxMessage and the rate
@@ -920,9 +923,10 @@ private:
   }
 
   // What send_fight() queued, in order, to the friend past the handshake on channel 2. A reliable line Steam refuses
-  // (25 LimitExceeded: the session's send buffer, shared with channel 1, is full) waits with the lines after it for the
-  // next pass, so none is lost or overtaken; a refused hp line is dropped, as the next values replace it. Each refusal
-  // is a failure of the 60 s line.
+  // (25 LimitExceeded: the session's send buffer, shared with channel 1, is full) waits with the reliable lines after
+  // it for the next pass, so none is lost or overtaken. An hp line refused, or behind a waiting line, is dropped, as
+  // the next values replace it: what waits stays small, and fits in the friend's rate limit once Steam takes it. Each
+  // refused line is one failure of the 60 s line, however many passes it waits.
   void send_fight_queue() {
     size_t done = 0;
     for (; done < fight_out_.size(); ++done) {
@@ -932,14 +936,20 @@ private:
         if (p.compatible && p.accepted) {
           int r = send(p, line.data(), line.size(), reliable ? kReliable : kUnreliable, kFightChannel);
           if (r != kResultOk) {
-            ++p.failed;
+            if (done > 0 || !fight_waiting_) // A line refused at an earlier pass was counted then.
+              ++p.failed;
             p.last_result = r;
             refused = true;
           }
         }
-      if (refused && reliable)
+      if (refused && reliable) {
+        auto behind = fight_out_.begin() + static_cast<std::ptrdiff_t>(done) + 1;
+        fight_out_.erase(std::remove_if(behind, fight_out_.end(), [](const auto &l) { return !l.second; }),
+                         fight_out_.end());
         break;
+      }
     }
+    fight_waiting_ = done < fight_out_.size();
     fight_out_.erase(fight_out_.begin(), fight_out_.begin() + static_cast<std::ptrdiff_t>(done));
   }
 
@@ -1113,5 +1123,6 @@ private:
   std::vector<std::string> fight_in_;
   std::vector<std::pair<std::string, bool>> fight_out_;
   bool fight_linked_ = false;
+  bool fight_waiting_ = false; // fight_out_'s first line was refused at an earlier pass.
 };
 } // namespace coop

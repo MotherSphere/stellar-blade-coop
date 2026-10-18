@@ -73,7 +73,7 @@ passes every 50 ms, and every 5 ms while poses flow (the loopback, a recording, 
 ### Lobby and invites
 
 - `coop host` creates a **friends-only lobby** with room for **2 players** and opens Steam's invite dialog. The lobby
-  carries a tag under the key `stellarcoop`: the protocol and the game's Steam build (`6:<build>`). A lobby from
+  carries a tag under the key `stellarcoop`: the protocol and the game's Steam build (`7:<build>`). A lobby from
   another protocol or game build is refused on joining, with both versions in the joiner's log and on screen.
 - An accepted invite arrives as a Steam callback, or as `+connect_lobby <id>` on the command line when Steam starts the
   game for it. Either way the game joins only once a save is loaded (Lua writes `world=1` in `coop-state.txt`), so a
@@ -137,7 +137,7 @@ each pose as a binary message starting `SBP` and the protocol byte (sent unrelia
 - Once they are out of the lobby (`<name> left the lobby`), or you left it, the log says `peer unlinked`, their table
   goes and the ghost with it (`Ghost <generation> removed (her table is gone).`).
 
-### Protocol 6
+### Protocol 7
 
 The protocol number goes up with any change to what travels between two games, so an older StellarCoop is refused
 instead of misread:
@@ -148,7 +148,8 @@ instead of misread:
 | 3 | The component table (`SBT`) beside the pose (`SBP`) |
 | 4 | Tables and poses carried on Steam channel 1 |
 | 5 | The table's material lines (dyes) |
-| 6 | Four effect slots in each pose (this version) |
+| 6 | Four effect slots in each pose |
+| 7 | Steam channel 2 for the shared enemies (this version) |
 
 ### Link health in the log
 
