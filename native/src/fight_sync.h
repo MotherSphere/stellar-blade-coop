@@ -12,10 +12,12 @@
 //   SBF7 world <gen>                                               both, reliable: a world change, all pairs dropped
 //   SBF7 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>         host, reliable: an enemy it arbitrates
 //   SBF7 down <gen> <hguid>, SBF7 dead <gen> <hguid>               host, reliable: gone without a death, or its death
-//   SBF7 hp <gen> <ack> <hguid>:<hp>:<sh>:<st> ...                 host, unreliable: values; ack: the last claim taken
+//   SBF7 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...             host, unreliable: values; n: the turn's number,
+//                                                                  rising, shared by its lines; ack: last claim taken
 //   SBF7 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>   guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
-// The host answers the guest's on and world with its whole list (world, then every up), so either side may restart.
+// The host answers the guest's on and world with its whole list (world, then every up), and the guest answers the
+// host's on with its own (hers may have come while the host was off), so either side may restart.
 #pragma once
 
 #include <algorithm>
@@ -41,6 +43,8 @@ constexpr size_t kHpPerMessage = 12;     // 12 entries of 10 + 3 x 8 digits fit 
 constexpr size_t kMaxPending = 32;       // Claims per pair the host has not answered yet.
 constexpr size_t kMaxClaims = 64;        // Claims the host holds until its next turn; the rates pass 60 a second.
 constexpr int32_t kMaxStat = 10'000'000; // The engine's plausibility bound: 0 <= HP <= MaxHP <= 10,000,000.
+// tracked()'s most: the guest's pairs, and as many dead ones that wait for its next step.
+constexpr size_t kMaxTracked = 2 * kMaxPairs;
 constexpr uint64_t kHpMs = 50, kRefreshMs = 1000; // hp: on change at most 20 Hz, every enemy once a second.
 // The guest spaces its claims so a steady stream stays well under the host's caps (R33): 50 ms per enemy is at most 21
 // in any second (cap 30), 25 ms in all at most 41 (cap 60). The drops wait in the meantime, so no hit is lost.
@@ -67,6 +71,7 @@ struct Message {
   uint32_t spawn = 0, chr = 0; // up: EventSpawnId and charId.
   uint8_t index = 0;           // up: SpawnIndex.
   int32_t max_hp = 0;          // up: MaxHP, rounded.
+  uint32_t batch = 0;          // hp: the host's turn of values, from 1; its lines share it.
   int32_t delta[kStats] = {};  // hit: the drops, each >= 0.
   int32_t pre_hp = 0;          // hit: the copy's HP before them.
   bool lethal = false;         // hit: the copy died of them.
@@ -89,7 +94,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::down: return t + "down" + n(m.gen) + n(m.guid);
   case Type::dead: return t + "dead" + n(m.gen) + n(m.guid);
   case Type::hp: {
-    std::string text = t + "hp" + n(m.gen) + n(m.seq);
+    std::string text = t + "hp" + n(m.gen) + n(m.batch) + n(m.seq);
     for (size_t i = 0; i < m.count && i < kHpPerMessage; ++i) {
       const Values &e = m.entries[i];
       text += n(e.guid) + ":" + std::to_string(e.value[kHp]) + ":" + std::to_string(e.value[kShield]) + ":" +
@@ -167,7 +172,7 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     m.lethal = f[7] == "1";
     type = Type::hit;
   } else if (kind == "hp") {
-    ok = split(rest, f, 2, &tail) && id(f[0], m.gen) && number(f[1], v) && v <= UINT32_MAX;
+    ok = split(rest, f, 3, &tail) && id(f[0], m.gen) && id(f[1], m.batch) && number(f[2], v) && v <= UINT32_MAX;
     m.seq = static_cast<uint32_t>(v);
     type = Type::hp;
     for (size_t at = 0; ok && (ok = m.count < kHpPerMessage);) { // One entry per space; an empty one fails split.
@@ -194,8 +199,11 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
 
 // ---- The game, as the engine hands it over ----
 
-// One enemy this pass: every eligible one on a census pass, and every one we follow (Host and Guest tracked()) on every
-// pass, dying or not. A followed GUID missing from the pass is gone.
+// One enemy this pass. Every pass starts with each GUID we follow (Host and Guest tracked()) that is still in the map,
+// dying or not; a census pass then adds every other eligible enemy. A followed GUID missing from the pass is gone, and
+// a pass is cut to kMaxSeen, so the followed ones must come first. Only census passes can pair and are fenced (Fence).
+// Step 2 must check in game that a killed actor is still in the next pass (remove-dead may take it first): otherwise a
+// kill reads as gone on both sides (the host sends down; the guest sends no lethal claim).
 struct Seen {
   uint32_t guid = 0, spawn = 0, chr = 0; // ActorGUID, EventSpawnId, charId.
   uint8_t index = 0;                     // SpawnIndex.
@@ -246,7 +254,7 @@ inline std::string line(const Event &e) {
 // The Io both sides take, the engine in the game and fake worlds in the tests:
 //   bool apply(const Write &w, int32_t &after): re-finds the actor by GUID, and when it is alive calls ApplyStat and
 //     reads the stat back into after (whole units); false, after untouched, when it is gone;
-//   void send(const Message &m): channel 2 (on/off are the caller's);
+//   void send(const Message &m): channel 2 (on/off are the caller's, but for the guest's answer to the host's on);
 //   void event(const Event &e): a log line.
 
 // Counters since the side started, for the stats line.
@@ -264,21 +272,27 @@ struct Counts {
   uint64_t ignored = 0;              // Host: lines from a peer ignored for bad lines.
 };
 
-// A world change: the logic turn went backwards (every load, network start and Logic Reset), or this pass shares no
-// GUID with the last one, both holding some (warps and camp travel reset nothing). Why, or null.
+// A world change: the logic turn went backwards (every load, network start and Logic Reset), or this census pass shares
+// no GUID with the last one, both holding some (warps and camp travel reset nothing). Only census passes are compared:
+// the others hold the followed enemies only, so a death between two would look like a new world. Why, or null.
 class Fence {
 public:
-  const char *changed(const Seen *seen, size_t n, uint32_t turn) {
-    bool back = started_ && turn < turn_, common = false;
-    for (size_t i = 0; i < n && !common; ++i)
-      for (size_t k = 0; k < count_ && !common; ++k)
-        common = seen[i].guid == guids_[k];
-    bool replaced = count_ && n && !common;
+  const char *changed(const Seen *seen, size_t n, uint32_t turn, bool census) {
+    bool back = started_ && turn < turn_, replaced = false;
     started_ = true;
     turn_ = turn;
-    count_ = n;
-    for (size_t i = 0; i < n; ++i)
-      guids_[i] = seen[i].guid;
+    if (back)
+      count_ = 0; // The next census starts the new world's set.
+    if (census) {
+      bool common = false;
+      for (size_t i = 0; i < n && !common; ++i)
+        for (size_t k = 0; k < count_ && !common; ++k)
+          common = seen[i].guid == guids_[k];
+      replaced = count_ && n && !common;
+      count_ = n;
+      for (size_t i = 0; i < n; ++i)
+        guids_[i] = seen[i].guid;
+    }
     return back ? "turn went back" : replaced ? "enemies replaced" : nullptr;
   }
   void clear() { started_ = false, count_ = 0; }
@@ -342,9 +356,9 @@ public:
 
   // One turn: the world fence, the enemies this pass, the claims, then the values. The engine's pass comes before the
   // claims are applied, and nothing else runs on the logic thread meanwhile, so seen plus our read-backs is current.
-  template <class Io> void step(const Seen *seen, size_t n, uint32_t turn, uint64_t now, Io &io) {
+  template <class Io> void step(const Seen *seen, size_t n, bool census, uint32_t turn, uint64_t now, Io &io) {
     n = std::min(n, kMaxSeen);
-    if (const char *why = fence_.changed(seen, n, turn)) {
+    if (const char *why = fence_.changed(seen, n, turn, census)) {
       ++gen_;
       count_ = claims_ = 0;
       announce_ = true;
@@ -441,7 +455,9 @@ private:
     }
   }
 
-  // R33. Every claim with a new number is acknowledged, taken or not: the guest then trusts our values over it.
+  // R33. Every claim with a new number is acknowledged, taken or not: the guest then trusts our values over it. Sizes
+  // past our maxes are clamped, not refused: pairing compares MaxHP only, so an honest guest's MaxShield or MaxStamina
+  // may be above ours, and the game stops each stat at 0 anyway.
   template <class Io> void take(const Message &m, uint64_t now, Io &io) {
     if (m.seq <= last_seq_) // The channel is reliable and in order: an old number is a lie.
       return bad("claim number", io);
@@ -451,11 +467,6 @@ private:
       ++counts.stale;
       return;
     }
-    for (int s = 0; s < kStats; ++s)
-      if (double(m.delta[s]) > double(e->max[s]) + 1) // + 1: the two copies' maxes may differ by a rounding.
-        return bad("claim size", io);
-    if (double(m.pre_hp) > double(e->max[kHp]) + 1)
-      return bad("claim size", io);
     if (now - window_ >= 1000)
       window_ = now, in_window_ = 0;
     if (now - e->window >= 1000)
@@ -467,8 +478,9 @@ private:
     ++in_window_, ++e->in_window;
     Claim &c = claim_[claims_++];
     c.guid = m.guid;
-    std::copy(m.delta, m.delta + kStats, c.delta);
-    c.pre_hp = m.pre_hp;
+    for (int s = 0; s < kStats; ++s)
+      c.delta[s] = std::min(m.delta[s], whole(e->max[s]));
+    c.pre_hp = std::min(m.pre_hp, whole(e->max[kHp]));
     c.lethal = m.lethal;
   }
 
@@ -527,6 +539,7 @@ private:
     m.type = Type::hp;
     m.gen = gen_;
     m.seq = last_seq_;
+    m.batch = batch_ + 1;
     for (size_t i = 0; i < count_; ++i) {
       Enemy &e = enemies_[i];
       if (!all && !e.claimed && std::equal(e.value, e.value + kStats, e.sent))
@@ -546,15 +559,17 @@ private:
       io.send(m);
       sent = true;
     }
-    if (sent)
+    if (sent) {
       next_hp_ = now + kHpMs;
+      ++batch_;
+    }
   }
 
   Enemy enemies_[kMaxPairs];
   size_t count_ = 0;
   Claim claim_[kMaxClaims];
   size_t claims_ = 0;
-  uint32_t gen_ = 1, last_seq_ = 0, in_window_ = 0;
+  uint32_t gen_ = 1, last_seq_ = 0, in_window_ = 0, batch_ = 0;
   uint64_t window_ = 0, next_hp_ = 0, next_refresh_ = 0;
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   Fence fence_;
@@ -581,7 +596,7 @@ public:
       n += pairs_[i].local && !pairs_[i].lethal;
     return n;
   }
-  // The copies' GUIDs the next pass must re-find.
+  // The copies' GUIDs the next pass must re-find, at most kMaxTracked.
   size_t tracked(uint32_t *guids) const {
     size_t n = 0;
     for (size_t i = 0; i < count_; ++i)
@@ -593,7 +608,12 @@ public:
   // A line from the host. Deaths and pairing wait for the next step, which has the copies.
   template <class Io> void receive(const Message &m, Io &io) {
     switch (m.type) {
-    case Type::on: // The host (re)started; its list follows.
+    case Type::on: { // The host (re)started. Our on may have come while it was off: we say it again; its list follows.
+      drop();
+      Message on;
+      on.type = Type::on;
+      return io.send(on);
+    }
     case Type::off: return drop();
     case Type::world:
       drop();
@@ -614,7 +634,10 @@ public:
     if (m.type == Type::up) {
       if (p) // Announced once a generation: a repeat changes nothing.
         return;
-      if (count_ == kMaxPairs)
+      size_t live = 0; // A dead one keeps its place only until our next step or census, so it takes none.
+      for (size_t i = 0; i < count_; ++i)
+        live += !pairs_[i].dead;
+      if (live == kMaxPairs || count_ == kMaxTracked)
         return io.event(Event{"unpaired", "cap", m.guid, m.spawn, m.index});
       Pair &q = pairs_[count_++] = Pair();
       q.hguid = m.guid, q.spawn = m.spawn, q.chr = m.chr, q.index = m.index, q.max_hp = m.max_hp;
@@ -625,21 +648,21 @@ public:
     } else if (m.type == Type::dead && p) {
       p->dead = true;
     } else if (m.type == Type::hp) {
-      if (m.seq < ack_) { // Unreliable lines may come out of order: an older one would undo newer values.
+      if (m.batch < batch_) { // Unreliable lines may come out of order: an older turn's would undo newer values.
         ++counts.stale;
         return;
       }
-      ack_ = m.seq;
+      batch_ = m.batch;
       for (size_t i = 0; i < m.count; ++i)
         if (Pair *q = find(m.entries[i].guid))
           answered(*q, m.entries[i].value, m.seq, io);
     }
   }
 
-  // One turn: the world fence, the host's deaths, each pair's claims and corrections, then new pairs.
-  template <class Io> void step(const Seen *seen, size_t n, uint32_t turn, uint64_t now, Io &io) {
+  // One turn: the world fence, each pair's claims and corrections, new pairs, then the host's deaths.
+  template <class Io> void step(const Seen *seen, size_t n, bool census, uint32_t turn, uint64_t now, Io &io) {
     n = std::min(n, kMaxSeen);
-    if (const char *why = fence_.changed(seen, n, turn)) {
+    if (const char *why = fence_.changed(seen, n, turn, census)) {
       drop();
       Message w;
       w.type = Type::world;
@@ -648,10 +671,25 @@ public:
       io.event(Event{"world", why});
       return;
     }
-    // The host's deaths: each kills our copy with our EVE as the cause, so this world gives her the kill (F3).
+    // From the pair after the last claim's, so steady drops on some enemies never take every turn of the shared pace.
+    for (size_t i = 0, first = next_; i < count_; ++i) {
+      Pair &p = pairs_[(first + i) % count_];
+      if (!p.local || p.lethal || p.dead) // Unpaired, our lethal claim waits for the host's answer, or it dies below.
+        continue;
+      if (const Seen *s = fight::find(seen, n, p.local))
+        follow(p, *s, now, io);
+      else {
+        io.event(Event{"unpaired", "gone", p.hguid, p.spawn, p.index});
+        unpair(p);
+      }
+    }
+    pair(seen, n, io);
+    // The host's deaths, after the pairing so an enemy killed right after its up dies here too: each kills our copy
+    // with our EVE as the cause, so this world gives her the kill (F3). An unpaired one waits for a census, the only
+    // pass that can pair it.
     for (size_t i = 0; i < count_;) {
       Pair &p = pairs_[i];
-      if (!p.dead) {
+      if (!p.dead || (!p.local && !census)) {
         ++i;
         continue;
       }
@@ -670,18 +708,6 @@ public:
         io.event(Event{"dead", "", p.hguid, p.spawn, p.index});
       p = pairs_[--count_];
     }
-    for (size_t i = 0; i < count_; ++i) {
-      Pair &p = pairs_[i];
-      if (!p.local || p.lethal) // Unpaired, or our lethal claim waits for the host's answer.
-        continue;
-      if (const Seen *s = fight::find(seen, n, p.local))
-        follow(p, *s, now, io);
-      else {
-        io.event(Event{"unpaired", "gone", p.hguid, p.spawn, p.index});
-        unpair(p);
-      }
-    }
-    pair(seen, n, io);
   }
 
 private:
@@ -709,7 +735,7 @@ private:
 
   void drop() {
     count_ = 0;
-    known_gen_ = ack_ = 0;
+    known_gen_ = batch_ = 0;
     logged_ = 0;
   }
   Pair *find(uint32_t hguid) {
@@ -787,6 +813,7 @@ private:
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.next_claim = now + kClaimMs;
     next_claim_ = now + kClaimsMs;
+    next_ = size_t(&p - pairs_) + 1;
     if (lethal)
       p.lethal = m.seq;
   }
@@ -860,9 +887,9 @@ private:
     }
   }
 
-  Pair pairs_[kMaxPairs];
-  size_t count_ = 0;
-  uint32_t known_gen_ = 0, own_gen_ = 0, seq_ = 0, ack_ = 0;
+  Pair pairs_[kMaxTracked];
+  size_t count_ = 0, next_ = 0; // next_: where the next turn's claims start.
+  uint32_t known_gen_ = 0, own_gen_ = 0, seq_ = 0, batch_ = 0;
   uint64_t next_claim_ = 0;
   struct Key {
     uint32_t spawn = 0;
