@@ -89,8 +89,9 @@ fault turned effects off until the game restarts; the ghost stays, without effec
 ### The game ignores its keys after the co-op menu or the chat
 
 Open the console (F10 or `~`) and type `coop ui reset`: the menu and the chat box close and the game gets its keys
-back. `UI off until the mod reloads: <why>` in `UE4SS.log` means that the on-screen UI hit an engine error and turned
-itself off; notices then show on the line above EVE. `coop ui off` turns the UI off the same way by hand.
+back. Without the console, press Ctrl+R or restart the game. `UI off until the mod reloads: <why>` in `UE4SS.log`
+means that the on-screen UI hit an engine error and turned itself off; notices then show on the line above EVE.
+`coop ui off` turns the UI off the same way by hand.
 
 ### Screen notices stopped
 

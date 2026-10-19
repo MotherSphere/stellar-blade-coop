@@ -51,9 +51,9 @@ together. Two games with different protocols cannot link, and the player who tri
 `Version mismatch: that game runs protocol ..., build ...; yours runs ...`.
 
 1. Close the game.
-2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed it, and
-   any log you still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the
-   defaults again.
+2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed a
+   setting, by hand or in the menu's Options, and any log you still want to send. The zip has no
+   `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
 4. Install the new zip with install steps 2 to 4, and put `coop-settings.txt` back into the new folder.
 5. Do install step 5, with your status key if you changed it.
@@ -70,8 +70,9 @@ together. Two games with different protocols cannot link, and the player who tri
 
 Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
 save, and both ghosts turn on automatically. Session events (a friend joined or left, connection lost, a rejoin)
-show for 8 s in the feed at the top left of the screen and also go to `UE4SS.log`. While the co-op UI is not up (in
-the first seconds after a load, or after an engine error), they show above EVE for 4 s instead.
+show for 8 s in the feed at the top left of the screen and also go to `UE4SS.log`. While the on-screen UI is not up (in
+the first seconds after a load or a map change, during your own photo mode, or after an engine error), they show
+above EVE for 4 s instead.
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
 changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as

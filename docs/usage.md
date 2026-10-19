@@ -110,9 +110,10 @@ box closes and what you typed is lost. Alt+Enter never opens it.
 - `chat=off` in [coop-settings.txt](#coop-settingstxt), or Options > Chat, hides your friend's lines and sends none.
   Enter then shows `Chat is off (Options > Chat).`
 - The history is kept in memory only, 50 lines at most. It is cleared when the session ends, at `coop off` and when
-  the mod reloads (game start or Ctrl+R). Chat text never goes into a log, a report, the console or a file that stays
-  on disk (see [Files in the mod folder](#files-in-the-mod-folder)). A crash dump holds the game's memory, so it may
-  hold lines of the session.
+  the mod reloads (game start or Ctrl+R). Chat text never goes into a log, a report or the console, and its two files
+  exist for a moment only (see [Files in the mod folder](#files-in-the-mod-folder)). A crash or a forced kill can leave
+  the last line in `coop-say.txt` or `coop-chat.txt` until the next game start, which deletes it. A crash dump holds
+  the game's memory, so it may hold lines of the session.
 - Key binds of other mods still run while you type.
 - The mod cannot tell when the game's console has the keyboard. During a session, the Enter that runs a console command
   other than `coop ...` also opens the box a moment later. Press Esc to close it.
