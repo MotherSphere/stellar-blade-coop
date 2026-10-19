@@ -190,9 +190,10 @@ function Link.new(folder,fs)
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
     function self.status() return fs.read(status_path) end
-    -- The ghost's object path, kept across Lua loads so a reload can sweep a ghost left standing.
-    function self.store()
-        local name='coop-puppet.txt'
+    -- An object path kept across Lua loads, so a reload can sweep what an earlier one left: the ghost's in
+    -- coop-puppet.txt unless named (the UI root's: coop-ui.txt).
+    function self.store(name)
+        name=name or 'coop-puppet.txt'
         return {
             save=function(object_path) return put(name,object_path..'\n') end,
             load=function() local text=fs.read(path(name)); return text and text:match('^[^\r\n]+') end,

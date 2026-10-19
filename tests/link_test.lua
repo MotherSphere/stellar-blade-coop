@@ -415,4 +415,12 @@ assert(fresh.chatting()==false,'Before Steam is ready, the native part would dro
 files[STATUS]=nil
 fresh.changes()
 assert(fresh.chatting()==nil and fresh.mate()==nil and fresh.ping()==nil,'Not read: nil, which ends nothing')
+-- An object path kept across Lua loads: the ghost's in coop-puppet.txt, the UI root's in a file of its own.
+local ghost,ui=link.store(),link.store('coop-ui.txt')
+assert(ghost.save('/Game/Maps/E04.Actor_1') and ui.save('/Engine/Transient.UserWidget_7'))
+assert(files['C:\\Mod\\coop-puppet.txt']=='/Game/Maps/E04.Actor_1\n' and ui.load()=='/Engine/Transient.UserWidget_7')
+ui.clear()
+assert(ui.load()==nil and ghost.load()=='/Game/Maps/E04.Actor_1')
+ghost.clear()
+
 print('link_test ok')
