@@ -293,7 +293,8 @@ end
 -- Uplink: the game's palette, teal for everything partner (the game's shield teal; enemies are red), Beta blue focus.
 Ui.THEME={text=hex('ECECEC'),grey=hex('B5B5B5'),dim=hex('6E6E6E'),teal=hex('ADD1C4'),beta=hex('CCE9F4'),
     burst=hex('DD8874'),warn=hex('DC8834'),error=hex('D85045'),white=hex('FFFFFF'),panel=hex('0A0E12',0.78),
-    rail=hex('DEDBDE',0.25),focus=hex('CCE9F4',0.12),empty=hex('6E6E6E',0.5),clear=hex('000000',0)}
+    rail=hex('DEDBDE',0.25),focus=hex('CCE9F4',0.12),empty=hex('6E6E6E',0.5),clear=hex('000000',0),
+    shade=hex('000000',0.55)}
 local THEME=Ui.THEME
 local function path(p) return p..'.'..p:match('[^/]+$') end
 local TEX,GAUGE='/Game/Art/UI/Texture/','/Game/Art/UI/Texture/HUD/Gauge/'
@@ -487,6 +488,12 @@ function Ui.kit(opts)
             local rail=math.floor((width-48)/10)*10
             image(x+24,y+12,rail,10,'small',THEME.rail,true,false)
             image(x+24,y+height-22,rail,10,'small',THEME.rail,true,false)
+        end
+        -- Flat colour that takes the mouse in a hit group, so no click reaches what lies under it (the co-op saves'
+        -- question over the title menu); hit tests pass through it elsewhere.
+        function b.shade(x,y,width,height,color)
+            local w=image(x,y,width,height,nil,color)
+            if g.hit then w.v,w.on=VISIBLE,VISIBLE; w.o:SetVisibility(VISIBLE) end
         end
         -- An image by asset name (nil: flat colour; missing: none, never a white square): show(on), tint(c), and
         -- turn(degrees, clockwise) around pivot (its own size's fraction; its centre unless said).
@@ -805,6 +812,8 @@ function Ui.kit(opts)
     -- map change and the next slow (callers skip or queue), or off.
     function self.view(name) return not off and not hidden and built and built.views[name] or nil end
     function self.ready() return not off and not hidden and built~=nil end
+    -- Up with its whole look: no asset it uses still warming (one missing from this build counts as in).
+    function self.whole() return self.ready() and not built.partial end
     -- Turned off for this Lua load: only then do the callers go back to the notice line above EVE and the name tag.
     function self.off() return off end
     -- Shown or hidden; with now (the 1 ms loop's clock), the open tween (160 ms: a slide from the left with a

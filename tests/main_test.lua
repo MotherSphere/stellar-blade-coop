@@ -10,7 +10,9 @@
 -- taken every 250 ms (session or not, coop off included) and its text never logged, the co-op menu (menu.lua on a fake
 -- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, the session
 -- chat (chat.lua's view on the fake kit) opens on Enter, sends, cancels on Esc, hands its lines to the native part and
--- takes the notices into its feed while the UI is up, and the link is optional (no native part, no Steam link, no
+-- takes the notices into its feed while the UI is up, the co-op saves' question (saves.lua on the fake kit) shows on
+-- the title screen and takes the menu's keys while open, coop saves reaches the native part, coop no, coop recruiter and
+-- coop fight accept the co-op saves (slot=coop saves=coop), and the link is optional (no native part, no Steam link, no
 -- keys, no menu).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
@@ -64,6 +66,7 @@ local friend_linked=true -- link.friend()'s linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
+local saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= line, the Steam ID.
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -75,6 +78,7 @@ local fake_link={
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
     mode=function() return link_mode end,
+    saves=function() return saves_info end,
     fight=function() fight_reads=fight_reads+1; return fight_text end,
     chatting=function() return chatting end,
     take_chat=function() chat_takes=chat_takes+1; local lines=chat_lines; chat_lines={}; return lines end,
@@ -168,7 +172,7 @@ local kit_shown={} -- Each group shown or not, as the kit keeps it.
 local function builder()
     local b={panel=function() end}
     local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
-    for _,kind in ipairs({'image','dots','hp','shield','cubes','bar'}) do b[kind]=gauge end
+    for _,kind in ipairs({'image','dots','hp','shield','cubes','bar','shade'}) do b[kind]=gauge end
     function b.text(_,_,s)
         local t={s=s,on=true}
         t.set,t.color,t.show=function(v) t.s=v end,function(c) t.c=c end,function(on) t.on=on end
@@ -196,6 +200,7 @@ end,kit=function(opts)
             if name=='menu' then assert(place.hit); menu_place,menu_view=place,kit_views.menu end
         end,
         slow=said_kit('slow'),tick=function() end,ready=function() return kit_ready and not kit_off end,
+        whole=function() return kit_ready and not kit_off end,
         view=function(name) return kit_ready and not kit_off and kit_views[name] or nil end,
         off=function() return kit_off end,
         show=function(name,on) -- As the kit: on change only.
@@ -243,12 +248,12 @@ package.loaded.chat={new=function(lines,on)
         receive=spy('receive',function(name,text) return {who='partner',name=name,text=text} end),
         send=spy('send',function() return true end),active=function() return chat_active end,
         enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
-end,view=Chat.view,clean=Chat.clean}
+end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | '
-    ..'freeze <seconds>|off | ui reset|off | off'
+    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -324,6 +329,16 @@ assert(asked[2]=='invite' and asked[3]=='leave' and asked[4]=='report')
 coop('join'); assert(asked[5]=='join')
 coop('join','109775241234567890'); assert(asked[6]=='join 109775241234567890')
 coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits only',1,true),last())
+-- coop saves: the co-op saves' requests for the native part, which answers in coop-link.log; anything else is its usage.
+for _,sub in ipairs({'probe','convert','coop','main'}) do
+    coop('saves',sub)
+    assert(asked[#asked]=='saves '..sub and last()=='[StellarCoop] OK: asked the native part: saves '..sub..'\n',last())
+end
+for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh','2'},{'off'}}) do
+    coop('saves',table.unpack(bad))
+    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main\n',last())
+end
+asked={'host','invite','leave','report','join','join 109775241234567890'}
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
@@ -349,9 +364,8 @@ coop('recruiter'); assert(#rc_runs==3 and rc_runs[3][1]==nil and rc_runs[3][2]==
 rc_log('join row: x'); assert(last()=='[StellarCoop][RC] join row: x\n',last())
 assert(rc_stops==0,'Only coop off despawns')
 -- Anything but a slot=coop line of its own refuses, and the probe never runs (D2, N9).
-local STOP='[StellarCoop] STOP: coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
-local RC_STOP='[StellarCoop] STOP: coop recruiter runs only with the co-op save slot loaded (INSTALL.md: Co-op save '
-    ..'slot); now '
+local STOP='[StellarCoop] STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now '
+local RC_STOP='[StellarCoop] STOP: coop recruiter runs only on a co-op save (INSTALL.md: Co-op saves); now '
 for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main index=0 marker=4'},
         {with_slot('slot=none index=4 marker=4\n'),'slot=none index=4 marker=4'},
         {with_slot('slot=unknown index=-1 marker=4\n'),'slot=unknown index=-1 marker=4'},
@@ -364,6 +378,11 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
     coop('recruiter'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
     coop('recruiter','off'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
 end
+-- A co-op copy loaded (the save name switched to StellarBladeCoop): the native part's slot=coop, whatever the marker.
+status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
+local runs,recruits=#probe_runs,#rc_runs
+coop('no','rule'); assert(#probe_runs==runs+1 and last()=='[StellarCoop] OK: probe rule\n',last())
+coop('recruiter'); assert(#rc_runs==recruits+1,last())
 status_text=plain
 notice_result={false,'Screen notices off: x; notices stay in UE4SS.log.'}
 loops[1].f(); assert(last()=='[StellarCoop] STOP: Screen notices off: x; notices stay in UE4SS.log.\n',last())
@@ -530,7 +549,7 @@ before=#probe_runs
 coop('no')
 assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())
 coop('recruiter','off')
-assert(#rc_runs==3 and rc_stops==1,'Neither run nor stop again')
+assert(#rc_runs==4 and rc_stops==1,'Neither run nor stop again')
 assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 coop('dance'); assert(last()=='[StellarCoop] '..USAGE..'\n',last())
 coop(); assert(last():find('Use: coop',1,true))
@@ -626,8 +645,7 @@ link_mode='none'
 -- coop fight (Phase 11, experimental). Strict arguments: anything else is the fight's usage line and asks nothing.
 local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | '
     ..'record | replay\n'
-local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only with the co-op save slot loaded (INSTALL.md: Co-op save '
-    ..'slot); now '
+local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now '
 local COOP=with_slot('slot=coop index=4 marker=4\n')
 settings_text=''
 load_main(true)
@@ -678,6 +696,8 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
     assert(asked[#asked]=='fight off' and last()=='[StellarCoop] OK: asked the native part: fight off\n',last())
     coop('fight','status'); assert(asked[#asked]=='fight status')
 end
+status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
+coop('fight','probe'); assert(asked[#asked]=='fight probe','The co-op saves pass too')
 -- shared_enemies=on with fight_chars: every mode but test carries them; started by itself once a load, when the first
 -- save is judged: slot=coop asks coop fight on, not before (no slot line, none, unknown), never again.
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
@@ -919,7 +939,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Partner card|On|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^GHOST||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 -- A write that fails: said, nothing changed.
@@ -1080,7 +1100,7 @@ chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
 -- and arrow, projected through the kit 30 times a second at most and never without her anchor; nothing after coop off.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
-assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu',table.concat(kit_order,' '))
+assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu saves',table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,
     life=1}
@@ -1104,6 +1124,37 @@ n=#markers; kit_projects=0; her_anchor={X=1000,Y=0,Z=220}
 quarter(); clock=clock+0.1; loops[1].f()
 assert(#markers==n and kit_projects==0,'Nothing after coop off')
 chatting,in_world,kit_ready,link_mode,settings_text=false,false,false,'none',''
+
+-- The co-op saves' question (saves.lua for real on the fake kit; saves_test tests it). On the title screen the kit's
+-- root comes up too; once the question shows, the navigation keys, Enter and Esc are its own (not the chat's, not the
+-- menu's); coop ui reset closes it as Decide later, coop off stops it. The clock moves by quarters only: the frame time
+-- test below needs a sum it can take back exactly.
+settings_text,status_text,link_mode,in_world,at_title,chatting,chat_active='',plain,'none',false,true,true,true
+saves_info={saves='main',convert='idle',slot='none'}
+load_main(true)
+local saves_view=kit_views.saves
+assert(kit_order[#kit_order]=='saves' and saves_view,'Added last: drawn over the menu')
+quarter()
+assert(kit_said('slow true') and not kit_shown.saves,'The title: the root up, its look warming')
+kit_ready=true; quarter()
+assert(kit_shown.saves and kit_input and kit_holder=='saves' and saves_view.rows[1].st=='focus')
+key('DOWN_ARROW'); assert(saves_view.rows[2].st=='focus' and not kit_shown.menu)
+key('UP_ARROW'); key('RETURN')
+clock=clock+0.25; loops[1].f()
+assert(asked[#asked]=='saves coop' and not kit_shown.chat and kit_holder=='saves','Enter chose; no chat box')
+key('ESCAPE'); assert(asked[#asked]=='saves main' and not kit_shown.saves,'Esc: withdrawn, closed')
+clock=clock+0.25; loops[1].f(); assert(not kit_input,'The game has its input back 150 ms later')
+key('RETURN'); clock=clock+0.25; loops[1].f()
+assert(not kit_shown.chat and not kit_input,'On the title screen Enter is the game\'s: no chat box, in a session too')
+in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
+assert(kit_shown.saves,'A new visit of the title: asked again')
+local n_asked=#asked
+coop('ui','reset'); assert(not kit_shown.saves and #asked==n_asked,'Closed as Decide later, nothing asked')
+in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
+assert(kit_shown.saves)
+coop('off')
+key('RETURN'); assert(asked[#asked]=='off','Stopped: its keys do nothing')
+saves_info,at_title,chatting,chat_active={},false,false,false
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true

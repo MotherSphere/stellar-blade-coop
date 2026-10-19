@@ -136,7 +136,8 @@ menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
     ..'photo_name_tag head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects send_rate head:session who_can_join head:combat shared_enemies head:display ui_scale ui_sounds '
+    ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies head:display '
+    ..'ui_scale ui_sounds '
     ..'ui_language head:chat chat',
     ids(menu,NONE))
 -- The two the mod takes at its next load only: the name tag is part of the ghost's build, the shared fight starts once
@@ -161,6 +162,11 @@ action,key,text=menu.select(NONE,0,values)
 assert(action=='set' and key=='name_tag' and text=='off','Select flips a toggle too')
 on('photo_sync')
 assert(select(3,menu.change(NONE,values,1))=='notice' and select(3,menu.change(NONE,values,-1))=='off')
+-- The co-op saves at the title: ask (the default), always or off, wrapping; in effect at once.
+on('auto_coop_save')
+assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='always'
+    and select(3,menu.change(NONE,values,-1))=='off' and not menu.current(NONE).reload)
+assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coop_save=x\n').auto_coop_save=='ask')
 on('send_rate')
 assert(select(3,menu.change(NONE,values,1))=='21' and select(3,menu.change(NONE,values,-1))=='19')
 assert(menu.change(NONE,{send_rate='30'},1)==nil and menu.change(NONE,{send_rate='10'},-1)==nil,'No change at an end')

@@ -10,7 +10,8 @@
 -- at the start of one.
 -- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight; its
 -- photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part
--- through coop-state.txt). The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- through coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op
+-- menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, changed by the co-op menu one line at a
@@ -28,6 +29,10 @@ leave_key=F8
 # Who can join a session you host: friends (your Steam friends can join from their friends list) or private (only the
 # friends you invite).
 who_can_join=friends
+# Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
+# screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
+# StellarCoopSlot.txt names is then the only co-op save).
+auto_coop_save=ask
 # Your friend's Steam name above her ghost: on or off.
 name_tag=on
 # Poses sent to your friend a second: 10 to 30.
@@ -36,7 +41,7 @@ send_rate=20
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play your co-op save slot. fight_chars: the enemy character ids it shares, separated by
+# death, while both of you play a co-op save. fight_chars: the enemy character ids it shares, separated by
 # spaces (coop fight probe logs them), for example fight_chars=15011001.
 shared_enemies=off
 fight_chars=
@@ -68,20 +73,21 @@ card_details=on
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
     dyes='off',effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
-    partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends'}
+    partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
     chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
-local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},who_can_join={'friends','private'}}
+local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},who_can_join={'friends','private'},
+    auto_coop_save={'ask','always','off'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
 local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- A setting's value from its text, or nil and why it is refused. A key is keybind.lua's ({key='F7', mod='SHIFT' or nil,
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
--- from 1 to 2^32-1); a choice (CHOICES: photo_sync, ui_language, who_can_join) one of its words; photo_freeze_max a
--- whole number of seconds; ui_scale one of percent.
+-- from 1 to 2^32-1); a choice (CHOICES: photo_sync, ui_language, who_can_join, auto_coop_save) one of its words;
+-- photo_freeze_max a whole number of seconds; ui_scale one of percent.
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -184,9 +190,10 @@ function Link.new(folder,fs)
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
     -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}; mate: her vitals;
     -- ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits
-    -- for the handshake (kept across changes() until she is linked or we are no longer a guest).
+    -- for the handshake (kept across changes() until she is linked or we are no longer a guest); saves: the co-op
+    -- saves' state (saves()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
-    local mate,ping,loopback,rejoined=nil,nil,false,false
+    local mate,ping,loopback,rejoined,saves=nil,nil,false,false,{}
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -270,7 +277,7 @@ function Link.new(folder,fs)
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
-        mate,ping,loopback=nil,nil,engine:find(' loopback=')~=nil
+        mate,ping,loopback,saves=nil,nil,engine:find(' loopback=')~=nil,{}
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
@@ -300,6 +307,10 @@ function Link.new(folder,fs)
             if name then friend={name,linked=='1',lost=='1'} end
             local n,notice=line:match('^notice=(%d+) (.*)$')
             if n then listed[#listed+1]={tonumber(n),notice} end
+            local verdict,names=line:match('^slot=(%a+) .* saves=(%S+)$')
+            if verdict then saves.slot,saves.saves=verdict,names end
+            saves.convert=saves.convert or line:match('^convert=(.+)$')
+            if line:find('^mod=') then saves.steamid=line:match(' steamid=(%d+) ') end
         end
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
@@ -336,6 +347,10 @@ function Link.new(folder,fs)
         shown=math.max(shown or 0,top and top[1] or 0)
         return texts
     end
+    -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
+    -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
+    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits)}; a field unread is nil.
+    function self.saves() return saves end
     -- The status key's line.
     function self.summary()
         if dead then return 'Co-op: the Steam link stopped; coop status says why.' end

@@ -110,12 +110,13 @@ local T=require('ui_text')
 local ROWS,SHOWN,FADE,WIDE,HIGH=12,6,8,70,44 -- Rows open, rows closed, seconds shown closed, characters a row, units.
 local BACK,REFOCUS,QUIET=0.15,0.05,10 -- Seconds: the game's input back; the box focused again; "needs a session" again.
 local COUNT=160 -- Bytes typed from which the box shows how many, of the MAX a line keeps (red past it: cut).
--- Rows of at most WIDE characters (the text is well-formed UTF-8), broken at the last space within reach, else between
--- two characters.
-local function wrap(text)
+-- Rows of at most wide characters (WIDE unless said; the text is well-formed UTF-8), broken at the last space within
+-- reach, else between two characters. The co-op saves' question wraps its text with it too.
+local function wrap(text,wide)
+    wide=wide or WIDE
     local rows={}
-    while utf8.len(text)>WIDE do
-        local cut=utf8.offset(text,WIDE+1)
+    while utf8.len(text)>wide do
+        local cut=utf8.offset(text,wide+1)
         local space=text:sub(1,cut):match('.*() ')
         if space and space>1 then rows[#rows+1],text=text:sub(1,space-1),text:sub(space+1)
         else rows[#rows+1],text=text:sub(1,cut-1),text:sub(cut) end
@@ -123,6 +124,7 @@ local function wrap(text)
     rows[#rows+1]=text
     return rows
 end
+Chat.wrap=wrap
 -- o: {kit=ui.kit's, model=Chat.new's, settings= (main.lua's: chat, ui_language; the menu changes them in place),
 -- theme=ui.THEME, covered=function() -> true while the menu is open over the feed}.
 function Chat.view(o)

@@ -218,6 +218,7 @@ for i=1,200 do
         builds[#builds+1],roots[#roots+1],since=i,viewport[1],first
         if #builds==2 then break end
         assert(k.view('menu') and logs[1]:find('^UI built while its look warms: %d+ widgets in 0%.0 ms$'),logs[1])
+        assert(k.ready() and not k.whole(),'Up, but not with its whole look yet')
         for _,o in ipairs(of('TextBlock')) do assert(stores[o].font.Size==24 and not stores[o].last.SetFont) end
         for _,o in ipairs(of('Image')) do assert(not stores[o].brush.ResourceObject) end
     end
@@ -242,6 +243,7 @@ assert(count('find ')==#UMG+5+#Ui.ASSETS and #calls-n==3 and calls[n+3]=='UserWi
 -- AddToViewport; its path kept for the next Lua load.
 local root=viewport[1]
 assert(stores[root].class=='UserWidget' and stores[root].outer==pc and stores[root].last.AddToViewport[1]==100)
+assert(k.whole(),'Its whole look')
 local tree,canvas=stores[root].props.WidgetTree,nil
 canvas=stores[tree].props.RootWidget
 assert(stores[tree].outer==root and stores[canvas].class=='CanvasPanel' and stores[canvas].outer==tree)
@@ -938,5 +940,21 @@ k=chat_kit()
 up(k)
 assert(stores[of('EditableTextBox')[1]].style.Font.Size==10 and not k.off()
     and logs[#logs]:find('text box style refused (default box)',1,true),logs[#logs])
+
+-- A shade: flat colour that takes the mouse in a hit group (the co-op saves' question: no click reaches the title menu
+-- under it), and lets it through elsewhere. Hidden with its group, never removed; whole() false while hidden.
+reset()
+k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
+k.add('saves',{x=0,y=0,w=3840,h=2160,hit=true,pivot={X=0.5,Y=0.5}},function(b) b.shade(-1920,-1080,7680,4320,T.shade) end)
+k.add('card',{x=96,y=96,w=760,h=210,shown=true},function(b) b.shade(0,0,10,10,T.panel) end)
+up(k)
+local shades=of('Image')
+assert(#shades==2 and vis(shades[1])==0 and vis(shades[2])==nil,
+    "It takes the mouse in the hit group only; the card's group lets hit tests through all it holds")
+assert(pos(shades[1])=='-1920,-1080' and size(shades[1])=='7680x4320'
+    and stores[shades[1]].last.SetColorAndOpacity[1]==T.shade)
+assert(T.shade.A>0 and T.shade.A<1,'See-through')
+k.slow(false)
+assert(not k.whole() and not k.ready(),'Hidden')
 
 print('ui_kit_test ok')

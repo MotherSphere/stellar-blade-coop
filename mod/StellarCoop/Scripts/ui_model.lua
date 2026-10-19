@@ -45,6 +45,8 @@ M.OPTIONS={
     {head='session'},
     {key='who_can_join',values={'friends','private'},default='friends'}, -- At the next host.
     later(toggle('rejoin','on')),
+    {head='saves'},
+    {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     {head='combat'},
     reload(toggle('shared_enemies','off')),
     {head='display'},

@@ -68,6 +68,28 @@ files[STATUS]='mod=v\nengine=on remote=5 2 peer\nlast=#7 peer linked: poses and 
 link.changes()
 g,n,source=link.remote()
 assert(g==5 and n==2 and source=='peer','A linked friend\'s table')
+-- The co-op saves' state (saves.lua), each from the start of its own line as of the last changes(): the slot line's
+-- verdict and saves=, the convert= line and our Steam ID; nothing from a peer's line, all nil once the status is gone.
+assert(next(link.saves())==nil,'None in these statuses')
+files[STATUS]='mod=v proto=8 steam=ready steamid=76561198000000001 appid=3489700 build=24463856\nengine=on\n'
+    ..'slot=coop index=2 marker=none saves=coop\nconvert=busy 2/6\nlast=#9 co-op saves: slot 1 copied\n'
+link.changes()
+local sv=link.saves()
+assert(sv.slot=='coop' and sv.saves=='coop' and sv.convert=='busy 2/6' and sv.steamid=='76561198000000001')
+files[STATUS]='mod=v proto=8 steam=waiting\nfriend=1 0 x\nslot=main index=0 marker=4 saves=main\n'
+    ..'convert=error:the manifest could not be written\n'
+link.changes()
+sv=link.saves()
+assert(sv.slot=='main' and sv.saves=='main' and sv.convert=='error:the manifest could not be written'
+    and sv.steamid==nil,'No Steam ID before Steam')
+files[STATUS]='mod=v proto=8 steam=ready steamid=7 appid=1\nfriend=1 0 x slot=coop index=1 marker=1 saves=coop\n'
+    ..'peer=2 name=y convert=done\n'
+link.changes()
+sv=link.saves()
+assert(sv.slot==nil and sv.saves==nil and sv.convert==nil and sv.steamid=='7','Never from a Steam name')
+files[STATUS]=nil
+link.changes()
+assert(next(link.saves())==nil,'Nothing read: nothing known')
 -- A peer's Steam name is hers to choose: only the pose path's line is read.
 files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=on 0 0 0 remote=1799 5 loopback\n'
 link.changes()
@@ -176,7 +198,8 @@ for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','
         {'ui_scale','1.5','use 75 to 150','100'},{'ui_sounds','yes','use on or off','on'},
         {'ui_language','french','use game or english','game'},
         {'who_can_join','public','use friends or private','friends'},
-        {'photo_sync','pause','use both, notice or off','both'}}) do
+        {'photo_sync','pause','use both, notice or off','both'},
+        {'auto_coop_save','never','use ask, always or off','ask'}}) do
     s,notes=Link.parse_settings(bad[1]..'='..bad[2])
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
         ..bad[1].." stays "..bad[4],notes[1])
@@ -184,6 +207,10 @@ end
 -- Who can join a session hosted here: friends (the default, and an old file's) or private (invited only).
 assert(Link.parse_settings('').who_can_join=='friends' and Link.DEFAULT:find('\nwho_can_join=friends\n',1,true))
 s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='private')
+-- The co-op saves (saves.lua): ask (the default, and an old file's), always or off; a new file names it.
+assert(Link.parse_settings('').auto_coop_save=='ask' and Link.DEFAULT:find('\nauto_coop_save=ask\n',1,true))
+s,notes=Link.parse_settings('Auto_Coop_Save=ALWAYS\n'); assert(#notes==0 and s.auto_coop_save=='always')
+s,notes=Link.parse_settings('auto_coop_save=off\n'); assert(#notes==0 and s.auto_coop_save=='off')
 -- The chat: on or off (off hides her lines and sends none); a new file names it.
 assert(Link.parse_settings('').chat==true and Link.DEFAULT:find('\nchat=on\n',1,true))
 s,notes=Link.parse_settings('Chat=OFF\n'); assert(#notes==0 and s.chat==false)
