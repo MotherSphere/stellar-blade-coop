@@ -3,7 +3,9 @@
 // SB's ApplyStat, then pushes itself for the next turn. The game thread arms the job after a world load and again when
 // it stopped running. Every access goes through a Game (the glue on Windows, under its SEH guard; fake memory and a
 // fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed arrays only: Simulate
-// never allocates (ApplyStat does internally, as for SB's own logic-thread callers).
+// never allocates (ApplyStat does internally, as for SB's own logic-thread callers). Mail carries the job's lines and
+// events to our worker thread and hers back without ever making the logic thread wait; Worker is the worker's side:
+// the user's on and off, the gates, channel 2's text and the log.
 // Offsets and functions are for Stellar Blade's Steam build 24463856 (PHASE11-DESIGN.md 4.3-4.7); the caller runs it
 // only on the pinned build, with the feature on.
 //
@@ -22,7 +24,12 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <mutex>
 #include <new>
+#include <string>
+#include <vector>
 
 #include "fight_sync.h"    // Host, Guest, Seen, Write, Message, Event, kStatType
 #include "nightop_probe.h" // kImageBase, kGlobals, plausible, get
@@ -89,6 +96,18 @@ struct JobCounts {
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
 };
 
+// What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's
+// arms added by the worker.
+struct Snapshot {
+  JobCounts job;
+  Counts host, guest;            // The session's sides.
+  size_t hosted = 0, paired = 0; // host.linked(), guest.linked().
+  uint64_t lost = 0;             // Lines and events the job had no room for.
+  uint64_t runs = 0, us = 0, max_us = 0; // Simulate calls since the DLL loaded, their time and the longest (the glue's).
+  uint32_t thread = 0, sb_thread = 0;    // The thread Simulate last ran on, and SB's DAT_1470634f0 then.
+  uint32_t game_thread = 0;              // The thread that armed last.
+};
+
 // One logic actor as the liveness test and the reads see it.
 // ponytail: Seen::nodamage stays 0. The state map at FSBActor +0x560 is not decoded (SB asks FUN_141a64b40, which is
 // not on the allowlist), so the host's bypass3/bypass4 counts stay 0; decode it before stage 2 needs them.
@@ -136,6 +155,7 @@ public:
     latched_ = true;
   }
   bool latched() const { return latched_; }
+  bool on() const { return on_; } // Any thread: set() said on, so the game thread arms.
   const char *why() const {
     const char *w = why_;
     return w ? w : "";
@@ -289,6 +309,18 @@ public:
     return latched_ ? 0 : n;
   }
   const Seen *seen() const { return seen_; }
+
+  // The logic thread: its own counts and both sides', for Mail. The game thread's arms stay 0 here (they come through
+  // Mail::armed), so neither thread reads what the other writes.
+  Snapshot snapshot() const {
+    Snapshot s;
+    const JobCounts &c = counts;
+    s.job.turns = c.turns, s.job.stale = c.stale, s.job.doubled = c.doubled, s.job.mode = c.mode;
+    s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
+    s.host = host.counts, s.guest = guest.counts;
+    s.hosted = host.linked(), s.paired = guest.linked();
+    return s;
+  }
 
 private:
   template <class Game> struct Io { // fight_sync.h's Io.
@@ -466,6 +498,281 @@ private:
   Found found_[kMaxCensus];
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
+};
+
+// ---- Between the job and the worker ----
+
+constexpr size_t kMail = 128;     // Lines or events each way between two hand-overs; more are lost (counted).
+constexpr uint64_t kGateMs = 250; // The gate asked again while on: it reads the game.
+constexpr uint64_t kStatsMs = 1000, kQuietMs = 60000; // The stats line: each second a side's count moved, else each minute.
+
+// A FIFO of fixed size: no allocation.
+template <class T, size_t N> class Ring {
+public:
+  bool push(const T &t) {
+    if (count_ == N)
+      return false;
+    items_[(head_ + count_++) % N] = t;
+    return true;
+  }
+  bool pop(T &t) {
+    if (!count_)
+      return false;
+    t = items_[head_];
+    head_ = (head_ + 1) % N;
+    --count_;
+    return true;
+  }
+  // Into to while it has room, oldest first.
+  void move_to(Ring &to) {
+    for (T t; count_ && to.count_ < N;) {
+      pop(t);
+      to.push(t);
+    }
+  }
+  void clear() { head_ = count_ = 0; }
+
+private:
+  T items_[N] = {};
+  size_t head_ = 0, count_ = 0;
+};
+
+// The job's lines and events to the worker, hers to the job. Each thread queues into rings of its own; the logic thread
+// swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next hand-over does it), and
+// touches only our own memory while it holds it, so no fault in the game can leave it held. The worker may wait.
+class Mail {
+public:
+  // The logic thread: the Game's receive, send and event.
+  bool receive(Message &m) { return in_.pop(m); }
+  void send(const Message &m) { lost_ += !out_.push(m); }
+  void event(const Event &e) { lost_ += !events_.push(e); }
+  // The logic thread, before and after each turn: ours out, hers in, the snapshot. False when the lock was busy.
+  bool exchange(const Snapshot &s) {
+    if (!m_.try_lock())
+      return false;
+    out_.move_to(shared_out_);
+    events_.move_to(shared_events_);
+    shared_in_.move_to(in_);
+    snapshot_ = s;
+    snapshot_.lost = lost_;
+    m_.unlock();
+    return true;
+  }
+  // The game thread, after each arm: its counts and thread, for the snapshot.
+  void armed(const JobCounts &c, uint32_t thread) {
+    arms_ = c.arms, deferred_ = c.deferred, forced_ = c.forced, game_thread_ = thread;
+  }
+
+  // The worker: one of her lines for the job; false when full (lost).
+  bool give(const Message &m) {
+    std::lock_guard<std::mutex> lock(m_);
+    return shared_in_.push(m);
+  }
+  // The worker: the job's lines (to on_line) and events (to on_event) handed over so far, oldest first, then the
+  // snapshot. Under the lock: the logic thread's try_lock meanwhile waits for its next hand-over.
+  template <class L, class E> Snapshot take(L &&on_line, E &&on_event) {
+    Snapshot s;
+    {
+      std::lock_guard<std::mutex> lock(m_);
+      for (Message m; shared_out_.pop(m);)
+        on_line(m);
+      for (Event e; shared_events_.pop(e);)
+        on_event(e);
+      s = snapshot_;
+    }
+    s.job.arms = arms_, s.job.deferred = deferred_, s.job.forced = forced_, s.game_thread = game_thread_;
+    return s;
+  }
+  // The worker, when a session ends: her lines the job has not taken yet are dropped.
+  void clear() {
+    std::lock_guard<std::mutex> lock(m_);
+    shared_in_.clear();
+  }
+
+private:
+  std::mutex m_;
+  Ring<Message, kMail> in_, out_, shared_in_, shared_out_;
+  Ring<Event, kMail> events_, shared_events_;
+  Snapshot snapshot_;
+  uint64_t lost_ = 0; // The logic thread's.
+  std::atomic<uint64_t> arms_{0}, deferred_{0}, forced_{0};
+  std::atomic<uint32_t> game_thread_{0};
+};
+
+// The worker's side, on our own thread, which never calls SB: the user's on and off, the gates, channel 2's text and
+// the log. The job runs while the user wants it, a friend is linked and a save is loaded; a missing friend or save
+// pauses it (a new session when both are back), and the gate turns it off until asked again. Its Io:
+//   bool send(const std::string &line, bool reliable): to her on channel 2; false when not queued;
+//   void say(const std::string &line): the log.
+// gate(): why it may not run here (the build, coop off, not on the co-op save), empty when it may. It reads the game,
+// so it is asked before each start and every kGateMs while running, never at every pass.
+class Worker {
+public:
+  Worker(Engine &e, Mail &mail) : e_(e), mail_(mail) {}
+
+  // The user's coop fight on (fight_chars: the charIds shared) or off. The line for the log.
+  template <class Gate, class Io> std::string ask(bool on, const uint32_t *chars, size_t n, Gate &&gate, Io &io) {
+    if (!on) {
+      if (!wanted_)
+        return "shared fight is not on";
+      wanted_ = false;
+      return stop("off", "coop fight off", io);
+    }
+    if (e_.latched())
+      return std::string("shared fight off: stopped for this run (") + e_.why() + ")";
+    if (wanted_)
+      return "shared fight is already on";
+    if (!n)
+      return "shared fight off: no fight_chars";
+    if (std::string why = gate(); !why.empty())
+      return "shared fight off: " + why;
+    e_.allow(chars, n); // While off: the job reads them only while on.
+    wanted_ = true;
+    std::string said = update(gate, io);
+    return !said.empty() ? said
+                         : std::string("shared fight on: waiting for ") + (linked_ ? "a loaded save" : "a linked friend");
+  }
+
+  // Every worker pass, after the link's tick: the job's lines out (while running) and its events into the log, her
+  // lines in (parsed here, strictly), the gates, then the stats line.
+  template <class Gate, class Io>
+  void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
+            Io &io) {
+    now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world;
+    last_ = mail_.take(
+        [&](const Message &m) { // A stopped session's last lines go nowhere: she dropped it.
+          if (running_ && linked && !io.send(format(m), m.type != Type::hp))
+            ++unsent_;
+        },
+        [&](const Event &ev) { io.say("fight " + line(ev)); });
+    for (const std::string &text : lines) {
+      std::string reason;
+      const Message m = parse(text.data(), text.size(), &reason);
+      if (m.type == Type::invalid) {
+        if (!malformed_++)
+          io.say("fight: a malformed line from her dropped (said once a session)");
+        continue;
+      }
+      if (m.type == Type::off)
+        io.say("fight: her shared fight off: " + reason);
+      if (running_ && !mail_.give(m))
+        ++dropped_;
+    }
+    std::string said;
+    if (e_.latched() && !latch_said_) { // Off for the run: the job does nothing and nothing arms again.
+      latch_said_ = true;
+      wanted_ = false;
+      said = stop("off", std::string("stopped for this run (") + e_.why() + ")", io);
+    } else if (running_ && now_ms >= next_gate_) { // A start asks it anyway.
+      next_gate_ = now_ms + kGateMs;
+      if (std::string why = gate(); !why.empty()) {
+        wanted_ = false;
+        said = stop("off", why, io);
+      }
+    }
+    if (said.empty())
+      said = update(gate, io);
+    if (!said.empty())
+      io.say(said);
+    if (running_ && now_ms >= next_stats_)
+      stats(now_ms, io);
+  }
+
+  // For the status line: " fight=on <enemies the host arbitrates, or pairs the guest follows>", " fight=waiting" (on
+  // but paused), " fight=stopped" (latched for the run), or empty.
+  std::string status() const {
+    if (e_.latched())
+      return " fight=stopped";
+    if (running_)
+      return " fight=on " + std::to_string(side_ ? last_.hosted : last_.paired);
+    return wanted_ ? " fight=waiting" : "";
+  }
+
+private:
+  // Starts, pauses or restarts the job for the gates as they stand: the line for the log, or empty.
+  template <class Gate, class Io> std::string update(Gate &&gate, Io &io) {
+    if (running_ && !(linked_ && world_))
+      return stop("paused", linked_ ? "no save loaded" : "no friend linked", io);
+    if (!wanted_ || !linked_ || !world_ || (running_ && side_ == hosting_))
+      return std::string();
+    if (!running_) { // Asked again before each start: the save loaded since the last ask may be another slot.
+      if (std::string why = gate(); !why.empty()) {
+        wanted_ = false;
+        return "shared fight off: " + why;
+      }
+    }
+    return start(io); // Or a new session on the other side.
+  }
+  // A new session of the side (the lobby owner hosts): nothing carries over. Our on goes first; the job says it again
+  // at its first turn, behind what the old session left.
+  template <class Io> std::string start(Io &io) {
+    mail_.clear();
+    e_.set(true, hosting_);
+    running_ = true, side_ = hosting_;
+    malformed_ = 0;
+    next_gate_ = now_ + kGateMs;
+    Message on;
+    on.type = Type::on;
+    io.send(format(on), true);
+    return std::string("shared fight on: as ") + (side_ ? "host" : "guest");
+  }
+  // The job ends at its next turn; she hears why while linked; her lines it has not taken are dropped.
+  template <class Io> std::string stop(const char *how, const std::string &why, Io &io) {
+    e_.set(false, side_);
+    if (running_ && linked_) {
+      Message off;
+      off.type = Type::off;
+      io.send(format(off, why), true);
+    }
+    running_ = false;
+    mail_.clear();
+    return std::string("shared fight ") + how + ": " + why;
+  }
+  // Each second while running, when the side's counts moved, else each minute: one line of counts.
+  template <class Io> void stats(uint64_t now_ms, Io &io) {
+    next_stats_ = now_ms + kStatsMs;
+    const Snapshot &s = last_;
+    const Counts &c = side_ ? s.host : s.guest;
+    if (!std::memcmp(&c, &said_counts_, sizeof c) && now_ms < said_ms_ + kQuietMs)
+      return;
+    said_counts_ = c, said_ms_ = now_ms;
+    const uint64_t runs = s.runs - said_runs_, us = s.us - said_us_;
+    said_runs_ = s.runs, said_us_ = s.us;
+    using u = unsigned long long;
+    char head[320], tail[640];
+    if (side_)
+      std::snprintf(head, sizeof head,
+                    "fight stats: host, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
+                    "floored), nodamage bypass %llu in state 3 and %llu in 4, %llu stale, %llu over the rates, %llu "
+                    "bad, %llu ignored",
+                    s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.bypass3), u(c.bypass4),
+                    u(c.stale), u(c.rate), u(c.bad), u(c.ignored));
+    else
+      std::snprintf(head, sizeof head,
+                    "fight stats: guest, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored), "
+                    "%llu desync guest-dead, %llu stale, %llu bad",
+                    s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), u(c.stale),
+                    u(c.bad));
+    const JobCounts &j = s.job;
+    std::snprintf(tail, sizeof tail,
+                  "; job: %llu turns, %llu arms (%llu deferred, %llu forced), %llu stale, %llu doubled, %llu in "
+                  "another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE; %llu lost, "
+                  "%llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic thread %u "
+                  "(SB's %u), game thread %u",
+                  u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.stale), u(j.doubled), u(j.mode),
+                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(s.lost), u(dropped_), u(unsent_),
+                  u(malformed_), u(runs ? us / runs : 0), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
+    io.say(std::string(head) + tail);
+  }
+
+  Engine &e_;
+  Mail &mail_;
+  bool wanted_ = false, running_ = false, side_ = false, latch_said_ = false; // side_: hosting, as started.
+  bool linked_ = false, hosting_ = false, world_ = false;                     // As of the last pass.
+  uint64_t now_ = 0, next_gate_ = 0, next_stats_ = 0, said_ms_ = 0, said_runs_ = 0, said_us_ = 0;
+  uint64_t unsent_ = 0, dropped_ = 0, malformed_ = 0;
+  Snapshot last_;
+  Counts said_counts_;
 };
 
 } // namespace coop::fight

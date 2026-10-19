@@ -2,9 +2,10 @@
 // census over the actor map (free slots, inline and heap allocation bits, implausible pointers, players and dying
 // actors left out), the liveness test, implausible reads latching, the two phases (a write that summons an actor and
 // moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the job's guards, its arming and
-// re-arming, the ring and the latch, a job that never runs; a guest restarting mid-fight; then two PCs linked through
-// channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once in each world: the stage's
-// exit criteria.
+// re-arming, the ring and the latch, a job that never runs; a guest restarting mid-fight; the hand-over between the
+// job and the worker (Mail) and the worker's side (Worker: on and off, the gates, channel 2's text, the log); then two
+// PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once in each
+// world: the stage's exit criteria.
 #include "fight_engine.h"
 
 #include <algorithm>
@@ -18,6 +19,8 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 using namespace coop::fight;
@@ -560,6 +563,9 @@ int main() {
     for (; t < 1000; t += 16)
       frame(g, *e, t);
     assert(e->counts.arms == 1 && e->counts.turns == 63 && e->counts.censuses == 5 && g.queue.size() == 1);
+    // The snapshot for the worker: the logic thread's counts, never the game thread's arms.
+    const Snapshot snap = e->snapshot();
+    assert(snap.job.turns == 63 && snap.job.censuses == 5 && snap.job.arms == 0 && snap.hosted == e->host.linked());
     assert(g.queue.begin()->first == g.turn() && g.queue.begin()->second == std::vector<Job *>{first});
     // Two entries of the live object under one key (an orphan reached again after a turn reset): one works, one push.
     g.queue[g.turn()].push_back(first);
@@ -715,6 +721,209 @@ int main() {
     for (const uint64_t end = t + 1000; t < end;)
       both();
     assert(eh->host.counts.bad == 0 && eh->host.counts.ignored == 0 && eh->host.counts.claims > before + 5);
+  }
+
+  // ---- Between the job and the worker ----
+  // The ring: first in, first out; full refuses; a move stops where the other ring is full.
+  {
+    Ring<int, 3> a, b;
+    int v = 0;
+    assert(a.push(1) && a.push(2) && a.push(3) && !a.push(4) && a.pop(v) && v == 1 && a.push(4)); // Wrapped.
+    assert(b.push(9) && b.push(8));
+    a.move_to(b);
+    for (int want : {9, 8, 2})
+      assert(b.pop(v) && v == want);
+    assert(!b.pop(v));
+    for (int want : {3, 4})
+      assert(a.pop(v) && v == want);
+    assert(!a.pop(v));
+  }
+  // Mail: nothing crosses before a hand-over, then all of it in order with the snapshot and the game thread's arms;
+  // full rings lose (counted) or refuse; a busy lock makes the logic thread's hand-over return at once, and what it
+  // held goes with the next one.
+  {
+    Mail mail;
+    std::vector<std::string> out, said;
+    const auto take = [&] {
+      return mail.take([&](const Message &m) { out.push_back(format(m)); },
+                       [&](const Event &ev) { said.push_back(line(ev)); });
+    };
+    mail.send(msg("SBF7 up 1 101 5001 0 900 1600"));
+    mail.event(Event{"paired", "", 101, 5001, 0});
+    mail.send(msg("SBF7 hp 1 1 0 101:1600:100:200"));
+    take();
+    assert(out.empty() && said.empty());
+    Snapshot s;
+    s.runs = 7;
+    assert(mail.exchange(s));
+    JobCounts armed;
+    armed.arms = 5, armed.deferred = 2, armed.forced = 1;
+    mail.armed(armed, 77);
+    Snapshot got = take();
+    assert((out == std::vector<std::string>{"SBF7 up 1 101 5001 0 900 1600", "SBF7 hp 1 1 0 101:1600:100:200"}));
+    assert((said == std::vector<std::string>{"paired 5001:0 hguid=101"}) && got.runs == 7 && got.lost == 0);
+    assert(got.job.arms == 5 && got.job.deferred == 2 && got.job.forced == 1 && got.game_thread == 77);
+    // Hers: in at the next hand-over, in order; dropped when cleared before it.
+    Message m;
+    assert(mail.give(msg("SBF7 world 3")) && mail.give(msg("SBF7 on")) && !mail.receive(m));
+    assert(mail.exchange(s) && mail.receive(m) && m.type == Type::world && m.gen == 3 && mail.receive(m) &&
+           m.type == Type::on && !mail.receive(m));
+    assert(mail.give(msg("SBF7 world 4")));
+    mail.clear();
+    assert(mail.exchange(s) && !mail.receive(m));
+    // Full: one past kMail is lost on the job's side, refused on hers.
+    out.clear();
+    for (size_t i = 0; i <= kMail; ++i)
+      mail.send(msg("SBF7 on"));
+    assert(mail.exchange(s) && take().lost == 1 && out.size() == kMail);
+    for (size_t i = 0; i < kMail; ++i)
+      assert(mail.give(msg("SBF7 on")));
+    assert(!mail.give(msg("SBF7 on")) && mail.exchange(s));
+    for (size_t i = 0; i < kMail; ++i)
+      assert(mail.receive(m));
+    assert(!mail.receive(m));
+    // Busy: the worker holds the lock (its take), so the logic thread's hand-over returns at once.
+    out.clear();
+    mail.send(msg("SBF7 world 5"));
+    assert(mail.exchange(s));
+    mail.send(msg("SBF7 world 6"));
+    bool busy = false;
+    mail.take(
+        [&](const Message &) {
+          std::thread logic([&] { busy = !mail.exchange(s); });
+          logic.join();
+        },
+        [](const Event &) {});
+    assert(busy);
+    take();
+    assert(out.empty() && mail.exchange(s));
+    take();
+    assert((out == std::vector<std::string>{"SBF7 world 6"}));
+  }
+  // The worker: refusals, waiting for her, starting and pausing with her link and the loaded save, her lines in and
+  // ours out as text, the stats line, the gate while on, the lobby changing hands, off, and the latch.
+  {
+    struct Desk { // The worker's Io: channel 2 and the log.
+      std::vector<std::pair<std::string, bool>> sent;
+      std::vector<std::string> said;
+      bool send(const std::string &text, bool reliable) {
+        sent.emplace_back(text, reliable);
+        return true;
+      }
+      void say(const std::string &text) { said.push_back(text); }
+      std::string lines() { // The lines sent since the last call, one per row.
+        std::string all;
+        for (const auto &[text, reliable] : sent)
+          all += text + (reliable ? "\n" : " (unreliable)\n");
+        sent.clear();
+        return all;
+      }
+    } io;
+    auto e = engine(false, false);
+    Mail mail;
+    Worker w(*e, mail);
+    std::string why = "not on the co-op save (slot=main index=0 marker=4)";
+    int asked = 0;
+    const auto gate = [&] {
+      ++asked;
+      return why;
+    };
+    const uint32_t chars[] = {kChar};
+    const std::vector<std::string> none;
+    Snapshot s;
+    Message m;
+    uint64_t t = 0;
+    assert(w.ask(true, chars, 1, gate, io) == "shared fight off: " + why && !e->on());
+    why.clear();
+    assert(w.ask(true, chars, 0, gate, io) == "shared fight off: no fight_chars");
+    assert(w.ask(false, chars, 1, gate, io) == "shared fight is not on" && w.status().empty());
+    // On with no friend linked: it waits. Her link with a save loaded starts it as the guest, the gate asked first.
+    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: waiting for a linked friend" && !e->on());
+    assert(w.status() == " fight=waiting" && w.ask(true, chars, 1, gate, io) == "shared fight is already on");
+    asked = 0;
+    w.pass(t, true, false, true, none, gate, io);
+    assert(e->on() && asked == 1 && io.lines() == "SBF7 on\n" && io.said.back() == "shared fight on: as guest");
+    assert(w.status() == " fight=on 0");
+    // Her lines, parsed: the good ones reach the job at its next hand-over; a malformed one is said once, her off with
+    // its reason.
+    io.said.clear();
+    w.pass(t += 16, true, false, true, {"SBF7 world 2", "junk", "SBF7 nope", "SBF7 off busy"}, gate, io);
+    assert((io.said == std::vector<std::string>{"fight: a malformed line from her dropped (said once a session)",
+                                                "fight: her shared fight off: busy"}));
+    assert(mail.exchange(s) && mail.receive(m) && m.type == Type::world && mail.receive(m) && m.type == Type::off &&
+           !mail.receive(m));
+    // The job's lines go out as text (hp unreliable), its events into the log.
+    io.said.clear();
+    mail.send(msg("SBF7 hit 2 1 101 100 0 0 1600 0"));
+    mail.send(msg("SBF7 hp 1 1 0 101:1500:100:200"));
+    mail.event(Event{"paired", "", 101, 5001, 0});
+    s.paired = 1;
+    assert(mail.exchange(s));
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(io.lines() == "SBF7 hit 2 1 101 100 0 0 1600 0\nSBF7 hp 1 1 0 101:1500:100:200 (unreliable)\n");
+    assert((io.said == std::vector<std::string>{"fight paired 5001:0 hguid=101"}) && w.status() == " fight=on 1");
+    // A stats line in the second its side's counts moved, then none until they move again or a minute passed.
+    io.said.clear();
+    s.guest.claims = 3, s.runs = 10, s.us = 200;
+    assert(mail.exchange(s));
+    for (t = 1000; t <= 2000; t += 16)
+      w.pass(t, true, false, true, none, gate, io);
+    assert(io.said.size() == 1 && has(io.said[0], "fight stats: guest, 1 pairs, 3 claims sent, 0 corrections") &&
+           has(io.said[0], "Simulate mean 20 us"));
+    for (; t <= 62100; t += 16)
+      w.pass(t, true, false, true, none, gate, io);
+    assert(io.said.size() == 2);
+    // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
+    io.said.clear();
+    w.pass(t += 16, false, false, true, none, gate, io);
+    assert(!e->on() && io.lines().empty() && io.said.back() == "shared fight paused: no friend linked");
+    assert(w.status() == " fight=waiting");
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(e->on() && io.lines() == "SBF7 on\n");
+    // A load (no save for a while): paused, she hears why, and her line not taken yet goes with the session.
+    w.pass(t += 16, true, false, true, {"SBF7 world 9"}, gate, io);
+    w.pass(t += 16, true, false, false, none, gate, io);
+    assert(!e->on() && io.lines() == "SBF7 off no save loaded\n" && io.said.back() == "shared fight paused: no save loaded");
+    assert(mail.exchange(s) && !mail.receive(m));
+    // The save loaded meanwhile is another slot: the gate, asked before the start, turns it off until asked again.
+    why = "not on the co-op save (slot=main index=0 marker=4)";
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(!e->on() && io.lines().empty() && io.said.back() == "shared fight off: " + why && w.status().empty());
+    why.clear();
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(!e->on());
+    // While on, the gate is asked every 250 ms, not at every pass; coop off turns it off.
+    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: as guest" && io.lines() == "SBF7 on\n");
+    asked = 0;
+    for (const uint64_t end = t + 1000; t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(asked >= 3 && asked <= 4 && e->on());
+    why = "coop off";
+    for (const uint64_t end = t + 300; e->on() && t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(!e->on() && io.lines() == "SBF7 off coop off\n" && io.said.back() == "shared fight off: coop off");
+    // The lobby changes hands: a new session on the other side.
+    why.clear();
+    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: as guest" && io.lines() == "SBF7 on\n");
+    w.pass(t += 16, true, true, true, none, gate, io);
+    assert(e->on() && io.lines() == "SBF7 on\n" && io.said.back() == "shared fight on: as host");
+    assert(w.ask(false, chars, 1, gate, io) == "shared fight off: coop fight off" && !e->on());
+    assert(io.lines() == "SBF7 off coop fight off\n");
+    // The latch: said once, she hears it after what the job handed over before, its later lines go nowhere, and
+    // nothing starts again this run.
+    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: as host" && io.lines() == "SBF7 on\n");
+    e->latch("fault");
+    mail.send(msg("SBF7 world 7"));
+    assert(mail.exchange(s));
+    w.pass(t += 16, true, true, true, none, gate, io);
+    assert(!e->on() && io.said.back() == "shared fight off: stopped for this run (fault)");
+    assert(io.lines() == "SBF7 world 7\nSBF7 off stopped for this run (fault)\n" && w.status() == " fight=stopped");
+    assert(w.ask(true, chars, 1, gate, io) == "shared fight off: stopped for this run (fault)");
+    io.said.clear();
+    mail.send(msg("SBF7 world 8"));
+    assert(mail.exchange(s));
+    w.pass(t += 16, true, true, true, none, gate, io);
+    assert(io.said.empty() && io.lines().empty() && !e->on());
   }
 
   // ---- Two PCs through channel 2: 120 +/- 30 ms each way, 2 % of hp lines lost ----

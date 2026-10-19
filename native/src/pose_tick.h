@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace coop::pose {
 // Worker thread, every pass: pins the build once; reads coop-session.txt, coop-components.txt (EVE's capture, sent on
@@ -37,9 +38,21 @@ void block(); // coop off: no engine access until the game restarts.
 // Worker thread, every 250 ms: the save slot the game entered (client +0x54, save_slot.h), or slot::kUnread on another
 // build or after coop off, which read nothing.
 int loaded_slot();
+// Worker thread, Phase 11's shared fight (fight_engine.h). The user's coop fight on or off, with the charIds it shares
+// (fight_chars); marker: StellarCoopSlot.txt's slot. On only on the pinned build, before coop off and on the co-op save
+// (slot=coop), else refused with why; it then runs while a friend is linked and a save is loaded. Returns the line for
+// the log.
+std::string ask_fight(bool on, const std::vector<uint32_t> &chars, int marker);
+// Worker, every pass after the link's tick. lines: her channel-2 lines; send: ours to her (hp unreliable, false when
+// not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send, logs its events, a fault and
+// a stats line each second its counts move; starts, pauses or stops it for the gates, and leaves it off until asked
+// again once the co-op save is left or it latched.
+void fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
+                bool (*send)(const std::string &, bool));
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
-// " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " nightop=on" or
-// " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
+// " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <enemies>",
+// " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on" or " nightop=rule"
+// (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();
 // A complete file: written beside it, then renamed over it (steam_link.cpp).
 bool write_text(const std::wstring &path, const std::string &bytes);

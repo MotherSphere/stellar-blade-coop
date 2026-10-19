@@ -18,6 +18,11 @@
 //
 // The Night Operation probe (Phase 6) is the worker's alone: on the nightop request it reads the rule manager and its
 // neighbours through ReadProcessMemory (nightop_probe.h) into nightop-probe.txt, never touching a game pointer itself.
+//
+// The shared fight (Phase 11, fight_engine.h) runs inside SB: a static job of ours that SB's logic thread runs once a
+// turn, armed by coop_tick on the game thread. Both run under the fight's own SEH latch, so after its first fault the
+// ghost and the link go on. The job reaches the worker only through Mail (try_lock on the logic thread: it never waits,
+// allocates or writes a file); the worker turns its lines into channel 2's text and its events into the log.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -31,6 +36,7 @@
 #include <string>
 #include <vector>
 
+#include "fight_engine.h"
 #include "link_protocol.h"
 #include "nightop_probe.h"
 #include "pose_codec.h"
@@ -450,6 +456,97 @@ void guarded_tick() {
   }
 }
 
+// ---- The shared fight's job ----
+// SB's own functions on the pinned build (PHASE11-DESIGN.md 4.7): SendJob from the game thread to arm and from inside
+// our job to push it again (never with param_3 = 1); the actor lookup and ApplyStat only from inside our job.
+constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720;
+constexpr uint64_t kLogicThreadId = 0x1470634f0; // DAT_1470634f0: the logic worker's thread ID during its tick, else 0.
+using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
+using FindActor = void *(*)(void *logic, int32_t guid);
+using ApplyStat = void (*)(void *la, int32_t stat, uint64_t key, float delta, uint32_t, void *cause, uint32_t,
+                           int32_t skill_guid, uint32_t, uint8_t notify, uint8_t ignore_nodamage);
+template <class F> F game_function(uint64_t address) {
+  return reinterpret_cast<F>(base + (address - nightop::kImageBase));
+}
+
+fight::Engine fight_engine; // Its ring of 8 jobs is never freed: SB's queue may hold one, and the DLL is pinned.
+fight::Mail fight_mail;
+std::atomic<bool> fight_faulted{false};
+std::atomic<uint64_t> fight_fault_code{0}, fight_fault_rva{0}, fight_fault_address{0};
+uint64_t sim_runs = 0, sim_us = 0, sim_max_us = 0; // The logic thread's.
+bool fight_ticked = false;                         // The game thread's: the fight was on at the last coop_tick.
+
+// fight_engine.h's Game: plain reads (a fault is the SEH guard's, and latches), SB's functions, and Mail.
+struct WinGame {
+  bool read(uint64_t address, void *out, size_t n) {
+    std::memcpy(out, reinterpret_cast<const void *>(address), n);
+    return true;
+  }
+  uint64_t find(uint64_t logic, uint32_t guid) {
+    return reinterpret_cast<uintptr_t>(
+        game_function<FindActor>(kFindActor)(reinterpret_cast<void *>(logic), static_cast<int32_t>(guid)));
+  }
+  void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify) {
+    game_function<ApplyStat>(kApplyStat)(reinterpret_cast<void *>(la), type, 0, delta, 0,
+                                         reinterpret_cast<void *>(cause), 0, 0, 0, notify, 1);
+  }
+  void push(fight::Job *job) { game_function<SendJob>(kSendJob)(nullptr, job, 0); }
+  bool receive(fight::Message &m) { return fight_mail.receive(m); }
+  void send(const fight::Message &m) { fight_mail.send(m); }
+  void event(const fight::Event &e) { fight_mail.event(e); }
+};
+
+// The logic thread's side for the worker: the engine's counts, our time in Simulate and the thread it ran on.
+fight::Snapshot fight_snapshot() {
+  fight::Snapshot s = fight_engine.snapshot();
+  s.runs = sim_runs, s.us = sim_us, s.max_us = sim_max_us;
+  s.thread = GetCurrentThreadId();
+  s.sb_thread = at<uint32_t>(base + (kLogicThreadId - nightop::kImageBase));
+  return s;
+}
+// One run: hers in and ours out around the engine's Simulate, never waiting (Mail's try_lock).
+__declspec(noinline) void simulate_body(fight::Job &job) {
+  const uint64_t start = clock_us();
+  fight_mail.exchange(fight_snapshot());
+  WinGame g;
+  fight_engine.simulate(job, g, start / 1000);
+  const uint64_t took = clock_us() - start;
+  ++sim_runs, sim_us += took, sim_max_us = std::max(sim_max_us, took);
+  fight_mail.exchange(fight_snapshot());
+}
+// Slot 1, which SB's drain calls with the job, on its logic thread (the game thread in non-threaded mode). The first
+// fault turns the shared fight off for the run; SB's drain goes on with its next job.
+void job_simulate(void *self) {
+  __try {
+    simulate_body(*static_cast<fight::Job *>(self));
+  } __except (fault_filter(GetExceptionInformation(), fight_fault_code, fight_fault_rva, fight_fault_address)) {
+    fight_faulted = true;
+    fight_engine.latch("fault");
+  }
+}
+// The vtable SB's queue sees: slot 0 frees nothing (our jobs are static), slot 1 Simulate, slot 2 nothing.
+struct JobVtable {
+  void *(*release)(void *, unsigned);
+  void (*simulate)(void *);
+  void (*nothing)(void *);
+};
+const JobVtable kJobVtable = {fight::job_release, job_simulate, fight::job_nothing};
+
+// The game thread, each frame while on: the engine's arm rule, under the same latch.
+__declspec(noinline) void arm_body() {
+  WinGame g;
+  fight_engine.arm(g, clock_us() / 1000);
+  fight_mail.armed(fight_engine.counts, GetCurrentThreadId());
+}
+void guarded_arm() {
+  __try {
+    arm_body();
+  } __except (fault_filter(GetExceptionInformation(), fight_fault_code, fight_fault_rva, fight_fault_address)) {
+    fight_faulted = true;
+    fight_engine.latch("fault");
+  }
+}
+
 } // namespace
 
 // At most about max bytes of the file (read on in 4 KB steps while under it): Lua's files and the remote table are
@@ -507,6 +604,14 @@ bool rpm(uint64_t address, void *out, size_t n) {
   SIZE_T got = 0;
   return ReadProcessMemory(GetCurrentProcess(), reinterpret_cast<LPCVOID>(address), out, n, &got) && got == n;
 }
+// The shared fight's worker side (fight_engine.h's Worker), with channel 2 as the last fight_pass gave it.
+fight::Worker fight_worker{fight_engine, fight_mail};
+bool (*fight_send)(const std::string &, bool) = nullptr;
+bool fight_fault_logged = false;
+struct FightIo {
+  bool send(const std::string &line, bool reliable) { return fight_send && fight_send(line, reliable); }
+  void say(const std::string &line) { pose::say(line); }
+};
 
 // One line onto nightop-probe.txt, shared for delete too (it may be read or moved while open). Past 4 MB a last line
 // says so and the poller stops for the run.
@@ -771,6 +876,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     engine_reason = reason.empty() ? "pinned build 24463856" : reason;
     engine_on = reason.empty();
     pinned = reason.empty();
+    if (pinned) // Before any fight on: SB's image base and our jobs' vtable.
+      fight_engine.init(base, &kJobVtable);
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
   if (faulted && !fault_logged) {
@@ -1069,9 +1176,51 @@ std::string ask_nightop(bool rule, uint64_t now_ms) {
 
 int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::kUnread; }
 
+namespace {
+// Why the shared fight may not run now, or empty: the pinned build, before coop off, on the co-op save (the slot the
+// game entered is the one StellarCoopSlot.txt names, with a save loaded: slot=coop).
+std::string fight_gate(int marker) {
+  if (!pinned)
+    return engine_reason;
+  if (blocked)
+    return "coop off";
+  const std::string where = slot::line(loaded_slot(), marker, world);
+  return where.rfind("slot=coop ", 0) == 0 ? std::string() : "not on the co-op save (" + where + ")";
+}
+} // namespace
+
+std::string ask_fight(bool on, const std::vector<uint32_t> &chars, int marker) {
+  FightIo io;
+  return fight_worker.ask(on, chars.data(), chars.size(), [marker] { return fight_gate(marker); }, io);
+}
+
+void fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
+                bool (*send)(const std::string &, bool)) {
+  fight_send = send;
+  if (fight_faulted && !fight_fault_logged) {
+    fight_fault_logged = true;
+    // In an SB call made from our job: its address as the decompiles name it; else in this DLL.
+    const uint64_t at_address = fight_fault_rva + reinterpret_cast<uintptr_t>(&__ImageBase);
+    char where[64], text[200];
+    if (at_address - base < kSizeOfImage)
+      std::snprintf(where, sizeof where, "the game at 0x%llx",
+                    static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
+    else
+      std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx",
+                    static_cast<unsigned long long>(fight_fault_rva.load()));
+    std::snprintf(text, sizeof text, "shared fight fault 0x%08llx in %s reading 0x%llx: the ghost and the link go on",
+                  static_cast<unsigned long long>(fight_fault_code.load()), where,
+                  static_cast<unsigned long long>(fight_fault_address.load()));
+    say(text);
+  }
+  FightIo io;
+  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io);
+}
+
 void block() {
   blocked = true;
   engine_on = false;
+  fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
@@ -1092,6 +1241,7 @@ std::string status() {
     s += " replay=on";
   if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.
     s += " remote=" + std::to_string(remote.generation) + " " + std::to_string(remote_count) + " " + remote_source;
+  s += fight_worker.status();
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)
@@ -1107,5 +1257,11 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   using namespace coop::pose;
   if (engine_on && !blocked)
     guarded_tick();
+  // Its own latch: a ghost fault leaves the shared fight running, and the reverse. Once more after off: the arm rule
+  // then forgets its last arm, so the next on arms at once.
+  const bool fight_on = fight_engine.on();
+  if ((fight_on || fight_ticked) && !blocked)
+    guarded_arm();
+  fight_ticked = fight_on;
   return 0;
 }
