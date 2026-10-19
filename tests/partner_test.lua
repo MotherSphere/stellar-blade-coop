@@ -78,7 +78,7 @@ assert(state=='same' and map=='e04')
 state,map=P.where(E04,B07)
 assert(state=='elsewhere' and map=='b07')
 state,map=P.where(nil,B07)
-assert(state=='elsewhere' and map=='b07','Your own map unknown: not the same')
+assert(state==nil and map=='b07','Your own map unknown (a load): neither same nor elsewhere, her map still known')
 assert(P.where(E04,nil)==nil,'Hers unknown: nothing to say')
 
 print('partner_test ok')

@@ -43,9 +43,10 @@ function P.distance(you,her,on)
     if on and m<=15 then return nil end
     return string.format('%d m',m)
 end
--- 'same' or 'elsewhere' and her map's short name ('e04'), from both maps' package paths; nil when hers is unknown.
+-- 'same' or 'elsewhere' and her map's short name ('e04'), from both maps' package paths; nil when hers is unknown, and
+-- nil with her map's name while yours is (a load).
 function P.where(mine,hers)
     if not hers then return nil end
-    return mine==hers and 'same' or 'elsewhere',hers:match('([^/]+)$')
+    return mine and (mine==hers and 'same' or 'elsewhere') or nil,hers:match('([^/]+)$')
 end
 return P
