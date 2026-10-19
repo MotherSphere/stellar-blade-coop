@@ -113,8 +113,8 @@ waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation po
 `saves coop` on an exe that is not the game, logs `save name: saves=off` once, and logs a clean process exit. It also
 checks that `ReadProcessMemory` behaves as the poller needs, that the chat files an earlier run left are deleted at
 start, that a typed line is taken and never logged, that a request file the worker cannot delete is never run twice,
-and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. The clipboard's
-previous text is put back afterwards.
+and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. It runs wine
+with no display, so that clipboard stays inside wine and the desktop's clipboard is never touched.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]

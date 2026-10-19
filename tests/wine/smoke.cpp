@@ -10,8 +10,7 @@
 // twice, and runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process,
 // as the Night Operation poller uses it: equal bytes from the stack, false at 0x1000, no crash on a PAGE_NOACCESS page
 // (whose result Wine may differ on, so it is only printed), and the cost of one read; and that the copy request's
-// clipboard call (clipboard.h) puts a join code there for any program to read, then gives back the text that was there
-// before. Exit code 0 on success.
+// clipboard call (clipboard.h) puts a join code there for any program to read. Exit code 0 on success.
 // Usage: smoke.exe <folder holding StellarCoop.dll>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -216,15 +215,9 @@ int wmain(int argc, wchar_t **argv) {
   double us = double(stop.QuadPart - start.QuadPart) * 1e6 / double(frequency.QuadPart) / 1000;
   bool rpm_ok = stack_read && !low_read;
 
-  // The copy request's clipboard call: the code is read back as any program would; the desktop's text goes back after.
-  const std::wstring before = clipboard_text();
+  // The copy request's clipboard call: the code is read back as any program would. wine_smoke.py runs with no display,
+  // so this clipboard is wine's own and the desktop's is never touched.
   const bool clip_ok = coop::copy_text(L"CCS-CBMH") && clipboard_text() == L"CCS-CBMH";
-  if (!before.empty())
-    coop::copy_text(before);
-  else if (OpenClipboard(nullptr)) {
-    EmptyClipboard();
-    CloseClipboard();
-  }
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
   bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && saves && chat_ok &&

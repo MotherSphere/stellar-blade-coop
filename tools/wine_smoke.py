@@ -3,8 +3,8 @@
 WINEPREFIX with no steam_api64.dll around. Checks that it attaches, waits for Steam, answers coop_tick when exported,
 refuses the Night Operation poller, the shared fight's probe, coop freeze and the save name's probe on an exe that is
 not the game, logs the save name's state (off) once, and logs a clean process exit; that ReadProcessMemory behaves as
-the poller needs; and that the copy request's clipboard call is read back (the desktop's text is put back after). Never
-touches the game folder or the game's prefix."""
+the poller needs; and that the copy request's clipboard call is read back. Runs with no display, so the clipboard
+stays inside wine and the desktop's is never touched. Never touches the game folder or the game's prefix."""
 import argparse
 import os
 import shutil
@@ -60,8 +60,10 @@ def main():
     for path in (dll, exe): shutil.copy2(path, run)
     if any(run.glob('steam_api*.dll')): sys.exit('steam_api64.dll must be absent from the run folder.')
 
-    # mscoree/mshtml off: no Mono or Gecko install prompt while the prefix is created.
-    env = {**os.environ, 'WINEPREFIX': str(prefix), 'WINEDEBUG': '-all', 'WINEDLLOVERRIDES': 'mscoree,mshtml='}
+    # mscoree/mshtml off: no Mono or Gecko install prompt while the prefix is created. No DISPLAY or WAYLAND_DISPLAY:
+    # with one, wine would hand the test's clipboard text to the desktop and drop what was there.
+    env = {k: v for k, v in os.environ.items() if k not in ('DISPLAY', 'WAYLAND_DISPLAY')}
+    env.update(WINEPREFIX=str(prefix), WINEDEBUG='-all', WINEDLLOVERRIDES='mscoree,mshtml=')
     if not (prefix / 'system.reg').is_file():
         prefix.parent.mkdir(parents=True, exist_ok=True)
         print(f'Creating the scratch prefix {prefix}', flush=True)
