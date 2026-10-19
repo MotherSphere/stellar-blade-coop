@@ -78,9 +78,11 @@ build/host/pose_codec_test
   `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS objects for
   those that call the engine. In the capture test, any write to the fake EVE fails the test.
 - C++ tests cover the platform-free headers in `native/src`:
-  - `link_protocol_test`: the text protocol, with a fuzz loop;
+  - `link_protocol_test`: the text protocol, with a fuzz loop, and the join codes (both real lobby ids, loose typing,
+    malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
-    and channel 2 with their checks, the photo line, and the chat and vitals lines;
+    and channel 2 with their checks, the photo line, the chat and vitals lines, joining with a code, and the host's
+    approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting);
   - `pose_engine_test`: the pose path against fake memory;
   - `pose_codec_test`: the codec's round trips and a decoder fuzz;
   - `pose_table_test`: the component table and the display file, with a parser fuzz;
@@ -110,7 +112,9 @@ the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` pres
 waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller, the save name's probe and
 `saves coop` on an exe that is not the game, logs `save name: saves=off` once, and logs a clean process exit. It also
 checks that `ReadProcessMemory` behaves as the poller needs, that the chat files an earlier run left are deleted at
-start, that a typed line is taken and never logged, and that a request file the worker cannot delete is never run twice.
+start, that a typed line is taken and never logged, that a request file the worker cannot delete is never run twice,
+and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. The clipboard's
+previous text is put back afterwards.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]
@@ -155,8 +159,8 @@ Platform-free headers, tested on the build machine:
 
 | File | Contents |
 | --- | --- |
-| `link_core.h` | The Steam link's logic: lobby, invites, members, handshake, liveness, status, channels 1 and 2, chat and vitals |
-| `link_protocol.h` | The link's text protocol and the requests Lua sends |
+| `link_core.h` | The Steam link's logic: lobby, invites, join codes, members, the host's approval, handshake, liveness, status, channels 1 and 2, chat and vitals |
+| `link_protocol.h` | The link's text protocol, the join code's encoding and the requests Lua sends |
 | `pose_core.h` | The pose path's limits, one part, one effect slot, hex addresses |
 | `pose_table.h` | The component table, the mesh path rule and the display file |
 | `pose_engine.h` | Engine memory reads and writes, and the build pin |
@@ -177,3 +181,4 @@ The Windows side:
 | --- | --- |
 | `steam_link.cpp` | Steam callbacks, the worker thread, files and fault containment |
 | `pose_tick.cpp`, `pose_tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua |
+| `clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

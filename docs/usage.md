@@ -578,7 +578,10 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Steam: `mod=<version> proto=8 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
-  held and `rejoin=<n>/3` while rejoining. Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a
+  held and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> removed=<n>` line follows: the
+  join code (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this
+  lobby; then a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer.
+  Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a
   `friend=<linked 0|1> <lost 0|1> <name>` line, a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst
   and Tachy for the partner card (while their last reading is under 3 s old; your own during `coop loopback`), and the
   last 8 notices as `notice=<n> <text>`.

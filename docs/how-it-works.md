@@ -90,7 +90,17 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
   (`8:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
-  log and on screen.
+  log and on screen. A lobby with no tag is another game's, and is refused as such.
+- The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
+  to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
+  StellarCoop never searches, and a player who finds it that way waits for the host's answer like any other player
+  who is not a friend. No invite dialog opens. The host gets a 7-character join code instead (`CCS-CBMH`), on screen
+  and in `coop-status.txt`. The request `copy` puts it on the Windows clipboard. Under Proton, Wine should pass it on
+  to the desktop's clipboard; the Wine smoke test checks the Windows side only. `join <code>` joins the lobby it names.
+- The code holds the low 32 bits of the lobby id in Crockford's base 32, which leaves out I, L, O and U. Every lobby
+  id seen so far starts with the same high 32 bits, `0x01860000`, which the code leaves out. The 3 spare bits hold the
+  low part modulo 7, so 89% of the codes with one character wrong are turned away (over 2,000 random ids) instead of
+  leading to another lobby. Either case is accepted, I and L read as 1, O as 0, and the dash is optional.
 - An accepted invite arrives as a Steam callback, or as `+connect_lobby <id>` on the command line when Steam starts the
   game for it. Either way the game joins only once a save is loaded (Lua writes `world=1` in `coop-state.txt`), so a
   launch never joins from the title screen. Until then the invite is held.
@@ -99,6 +109,30 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
   with more than 2 players is left.
 - When a guest's game loses the host's lobby another way, it rejoins automatically: it tries at 2, 12 and 42 s and
   gives up at 60 s. A lobby that is gone or has a new owner by then ends the session.
+
+### Players who are not Steam friends
+
+In any lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game holds
+the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game reports
+a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says the player is asking to join.
+The joiner's game shows `Joined <host>'s game. Waiting for <host> to let you in.` The host answers with native
+requests, which Lua writes to `coop-request.txt` like the others:
+
+- `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
+  without a new question for as long as the lobby lasts.
+- `deny <SteamID>`, or 60 s with no answer, refuses the player. `remove <SteamID>` refuses any player already in,
+  friends included.
+- A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
+  removed from this session`). Every protocol 8 build shows it as `<host> refused the link: <reason>` and leaves. That
+  player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
+  requests and messages, and sends `you cannot join this session again` each time they come back. Steam has no way to
+  remove a lobby member, so a game that ignores the reject keeps the second place in the lobby. It gets the reject
+  again every 10 s, and the host can create a new lobby, which gets a new code.
+- Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
+  an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
+
+None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject, which protocol 8 already
+has.
 
 ### Handshake
 
