@@ -2,14 +2,14 @@
 // steam_api64.dll exists and checks that it attaches, that its link waits for Steam (coop-status.txt says
 // steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s; with no Steam and no pinned
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
-// build's global, nor a marker; the shared fight's line says fight=off), that coop_tick is exported
-// and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an unpinned exe
-// (coop-link.log, within 3 s each); that the chat files a previous run left are deleted at start, and a typed line
-// is taken within 3 s with no session, its text never in coop-link.log; that a request the worker cannot delete (here
-// read-only) is never run, so never run twice, and runs once when it can be (coop report before Steam). It
-// also checks ReadProcessMemory on its own process, as the Night Operation poller uses it: equal bytes from the stack,
-// false at 0x1000, no crash on a PAGE_NOACCESS page (whose result Wine may differ on, so it is only printed), and
-// the cost of one read. Exit code 0 on success.
+// build's global, nor a marker, nor the save name (saves=off); the shared fight's line says fight=off), that coop_tick
+// is exported and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an
+// unpinned exe (coop-link.log, within 3 s each), as the save name's probe is, at load and on request; that the chat
+// files a previous run left are deleted at start, and a typed line is taken within 3 s with no session, its text never
+// in coop-link.log; that a request the worker cannot delete (here read-only) is never run, so never run twice, and
+// runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process, as the
+// Night Operation poller uses it: equal bytes from the stack, false at 0x1000, no crash on a PAGE_NOACCESS page (whose
+// result Wine may differ on, so it is only printed), and the cost of one read. Exit code 0 on success.
 // Usage: smoke.exe <folder holding StellarCoop.dll>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -90,7 +90,7 @@ int wmain(int argc, wchar_t **argv) {
   auto settled = [](const std::string &text) {
     return text.find("steam=waiting") != std::string::npos &&
            text.find("engine=off reason=build stamp") != std::string::npos &&
-           text.find("\nslot=unknown index=? marker=?\nfight=off\n") != std::string::npos;
+           text.find("\nslot=unknown index=? marker=? saves=off\nfight=off\n") != std::string::npos;
   };
   std::string status = read_text(status_path);
   for (ULONGLONG end = GetTickCount64() + 3000;
@@ -126,6 +126,20 @@ int wmain(int argc, wchar_t **argv) {
       Sleep(50);
       freeze = read_text(folder + L"coop-link.log").find("coop freeze refused: build stamp") != std::string::npos;
     }
+
+  // The save name's probe reads only the pinned build: once at load, then once per request, each refused.
+  const auto probes = [&folder] {
+    const std::string log = read_text(folder + L"coop-link.log");
+    size_t n = 0;
+    for (size_t at = log.find("saves probe: off: build stamp"); at != std::string::npos;
+         at = log.find("saves probe: off: build stamp", at + 1))
+      ++n;
+    return n;
+  };
+  bool saves = freeze && probes() == 1 && write_request(folder, "saves probe");
+  for (ULONGLONG end = GetTickCount64() + 3000; saves && probes() < 2 && GetTickCount64() < end;)
+    Sleep(50);
+  saves = saves && probes() == 2;
 
   // The chat files: the stale ones went at start; a typed line is taken with no session, and never logged.
   bool chat_ok =
@@ -176,19 +190,20 @@ int wmain(int argc, wchar_t **argv) {
   bool rpm_ok = stack_read && !low_read;
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
-  bool ok =
-      waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && chat_ok && once && rpm_ok;
+  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && saves && chat_ok &&
+            once && rpm_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "fight probe=%s | freeze=%s | chat files=%s | undeletable request=%s | rpm=%s (stack %s, 0x1000 %s, "
-              "PAGE_NOACCESS %s, %.1f us a read)\n",
+              "fight probe=%s | freeze=%s | saves probe=%s | chat files=%s | undeletable request=%s | rpm=%s (stack "
+              "%s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
               tick ? tick_text : "absent", nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL",
-              freeze ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL", once ? "run once" : "FAIL",
-              rpm_ok ? "ok" : "FAIL", stack_read ? "equal" : "FAIL", low_read ? "FAIL" : "refused", noaccess, us);
+              freeze ? "refused" : "FAIL", saves ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL",
+              once ? "run once" : "FAIL", rpm_ok ? "ok" : "FAIL", stack_read ? "equal" : "FAIL",
+              low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);
   return ok ? 0 : 1;
 }

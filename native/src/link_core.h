@@ -710,13 +710,14 @@ private:
       report_ = true;
       event("report asked");
       break;
-    case Command::off: // The pose path's, the shared fight's and the photo pause's: the caller handles them.
+    case Command::off: // The pose path's, the shared fight's, the photo pause's and the saves': the caller handles them.
     case Command::loopback:
     case Command::record:
     case Command::replay:
     case Command::nightop:
     case Command::fight:
     case Command::freeze:
+    case Command::saves:
       break;
     case Command::none:
       event("unknown request");

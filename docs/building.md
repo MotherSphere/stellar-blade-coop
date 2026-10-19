@@ -87,7 +87,8 @@ build/host/pose_codec_test
   - `pose_record_test`: the recording's reader, with a fuzz, and its replay;
   - `pose_stream_test`: the loopback pipeline in simulated time;
   - `save_watch_test`: the save watcher;
-  - `save_slot_test`: the slot line and the marker against fake memory;
+  - `save_slot_test`: the slot line, the marker, the save file name's lookup in the game's constant table and the
+    read-only probe, against fake memory;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `fight_engine_test`: the shared enemies' side inside the game, and the vitals read, against fake memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
@@ -103,10 +104,10 @@ build/host/pose_codec_test
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
 the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
-waits for Steam, answers `coop_tick`, refuses the engine and the Night Operation poller on an exe that is not the game,
-and logs a clean process exit. It also checks that `ReadProcessMemory` behaves as the poller needs, that the chat
-files an earlier run left are deleted at start, that a typed line is taken and never logged, and that a request file
-the worker cannot delete is never run twice.
+waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller and the save name's probe on an exe
+that is not the game, and logs a clean process exit. It also checks that `ReadProcessMemory` behaves as the poller
+needs, that the chat files an earlier run left are deleted at start, that a typed line is taken and never logged, and
+that a request file the worker cannot delete is never run twice.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]
@@ -161,7 +162,7 @@ Platform-free headers, tested on the build machine:
 | `pose_record.h` | The recording, its check and its replay |
 | `nightop_probe.h` | The `coop no` poller's reads, lines and verdict |
 | `save_watch.h` | The save watcher |
-| `save_slot.h` | The entered slot's read, the marker's grammar and the `slot=` line |
+| `save_slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup, the probe and the `slot=` line |
 | `fight_sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight_engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
 | `photo_freeze.h` | The synced photo mode's pause |

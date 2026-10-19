@@ -544,8 +544,10 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `nightop=on` or `nightop=rule` while the probe's poller runs.
-- Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?>` (see
-  [saves.md](saves.md#the-co-op-save-slot)).
+- Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
+  [saves.md](saves.md#the-co-op-save-slot)). `saves=` names the save files the game uses: `main` for your own,
+  `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
+  game build, or after `coop off`), and `?` before the first read.
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
   your friend gets (`notice` when your game cannot pause).

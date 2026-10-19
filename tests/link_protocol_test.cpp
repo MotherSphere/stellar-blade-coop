@@ -242,6 +242,11 @@ int main() {
   for (const char *bad : {"nightop on", "nightop off", "nightop x", "nightop  rule", "nightop rule 1", "nightoprule",
                           "probe"})
     assert(parse_request(bad).command == Command::none);
+  // The co-op saves (AUTO-COOP-SAVE §4.5): the read-only probe; anything else, a typo included, is no request.
+  Request saves = parse_request("saves probe\r\n");
+  assert(saves.command == Command::saves && saves.saves == SavesAsk::probe);
+  for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh 0"})
+    assert(parse_request(bad).command == Command::none && parse_request(bad).saves == SavesAsk::none);
   // The shared fight's: each mode with fight_chars (none for the probe too), off, status, and the probe's tests (a
   // whole change with or without its sign, or a kill); anything else, a typo included, is no request.
   Request f = parse_request("fight on 15011001 15011002\n");

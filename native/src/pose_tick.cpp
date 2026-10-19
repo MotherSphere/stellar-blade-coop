@@ -1318,6 +1318,20 @@ std::string ask_nightop(bool rule, uint64_t now_ms) {
 }
 
 int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::kUnread; }
+namespace {
+slot::Names names; // The save name as the worker last read it back.
+slot::Saves saves_now() { return pinned && !blocked ? names.saves() : slot::Saves::off; }
+} // namespace
+slot::Saves saves() {
+  if (pinned && !blocked)
+    names.update(slot::find(base, rpm));
+  return saves_now();
+}
+std::string saves_probe() {
+  if (!pinned || blocked)
+    return "saves probe: off: " + (blocked ? std::string("coop off") : engine_reason);
+  return slot::probe(base, rpm);
+}
 bool loopback() { return engine_on && loopback_on; }
 bool local_vitals(coop::Vitals &out, uint64_t &took_us) {
   took_us = 0;
@@ -1332,14 +1346,14 @@ bool local_vitals(coop::Vitals &out, uint64_t &took_us) {
 }
 
 namespace {
-// Why the shared fight may not run now, or empty: the pinned build, before coop off, on the co-op save (the slot the
-// game entered is the one StellarCoopSlot.txt names, with a save loaded: slot=coop).
+// Why the shared fight may not run now, or empty: the pinned build, before coop off, on the co-op save (a save loaded
+// from the co-op copies, or the slot the game entered is the one StellarCoopSlot.txt names: slot=coop).
 std::string fight_gate(int marker) {
   if (!pinned)
     return engine_reason;
   if (blocked)
     return "coop off";
-  const std::string where = slot::line(loaded_slot(), marker, world);
+  const std::string where = slot::line(loaded_slot(), marker, world, saves_now());
   return where.rfind("slot=coop ", 0) == 0 ? std::string() : "not on the co-op save (" + where + ")";
 }
 } // namespace

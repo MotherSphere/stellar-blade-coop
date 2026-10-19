@@ -207,7 +207,9 @@ coop::SaveWatch save_watch;
 uint64_t next_save_watch = 0;
 int coop_marker = coop::slot::kNotRead; // StellarCoopSlot.txt's slot, kNone or kBad, once the SteamID is known.
 int slot_index = coop::slot::kUnread;   // The slot the game entered, every 250 ms (pose::loaded_slot).
+coop::slot::Saves saves_state = coop::slot::Saves::unread; // The save files the game uses, with it (pose::saves).
 uint64_t next_slot = 0;
+bool probed = false; // The save name's probe ran at load.
 void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<coop::SaveWatch::Entry> &out, int depth) {
   WIN32_FIND_DATAW f;
   HANDLE h = FindFirstFileW((dir + L"\\*").c_str(), &f);
@@ -259,9 +261,9 @@ std::string status_text() {
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   return head + coop::pose::status() + "\n" +
-         coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded()) + "\n" + coop::pose::fight_status() +
-         "\n" + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) + "last=" + journal.last() +
-         "\n";
+         coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded(), saves_state) + "\n" +
+         coop::pose::fight_status() + "\n" + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
+         "last=" + journal.last() + "\n";
 }
 
 void write_report() {
@@ -345,6 +347,10 @@ bool step() {
       request.clear();
       break;
     }
+    case coop::Command::saves:
+      event(coop::pose::saves_probe());
+      request.clear();
+      break;
     case coop::Command::off:
       coop::pose::block();
       switched_off = true;
@@ -355,10 +361,15 @@ bool step() {
       break;
     }
     coop::pose::worker_poll(folder, GetTickCount64(), event);
-    // After worker_poll, which pins the build. Two reads, so every 250 ms, not at every 5 ms pass.
+    if (!probed) { // Once, at the first pass after the pin: how far the game got when the DLL loaded (H0).
+      probed = true;
+      event(coop::pose::saves_probe());
+    }
+    // After worker_poll, which pins the build. Two reads and six, so every 250 ms, not at every 5 ms pass.
     if (uint64_t now = GetTickCount64(); now >= next_slot) {
       next_slot = now + 250;
       slot_index = coop::pose::loaded_slot();
+      saves_state = coop::pose::saves();
     }
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);

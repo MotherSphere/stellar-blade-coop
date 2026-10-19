@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "link_protocol.h" // Request, State, Vitals
+#include "save_slot.h"     // Saves
 
 namespace coop::pose {
 // Worker thread, every pass: pins the build once; reads coop-session.txt, coop-components.txt (EVE's capture, sent on
@@ -50,6 +51,11 @@ bool local_vitals(coop::Vitals &out, uint64_t &took_us);
 // Worker thread, every 250 ms: the save slot the game entered (client +0x54, save_slot.h), or slot::kUnread on another
 // build or after coop off, which read nothing.
 int loaded_slot();
+// Worker thread, every 250 ms with loaded_slot: which save files the game uses, from the GameSaveFileName entry read
+// back (save_slot.h's Names), or slot::Saves::off on another build or after coop off, which read nothing.
+slot::Saves saves();
+// Worker thread: the read-only probe's line for the log (save_slot.h's probe), or why it read nothing.
+std::string saves_probe();
 // Worker thread, Phase 11's shared fight (fight_engine.h's Worker). A coop fight request (Command::fight): on, probe,
 // record or replay with the charIds it shares (fight_chars), off, status or a probe's test; marker: the slot
 // StellarCoopSlot.txt names. A mode starts only on the pinned build, before coop off and on the co-op save

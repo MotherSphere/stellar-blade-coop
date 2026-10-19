@@ -262,9 +262,12 @@ inline Message parse(const char *data, size_t size) {
 // the shared fight (Phase 11, fight_engine.h's Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at
 // most kMaxFightChars), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a
 // sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause
-// held that long) and "freeze off".
-enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze };
+// held that long) and "freeze off"; for the co-op saves (save_slot.h) "saves probe" (one read-only line in the log).
+enum class Command {
+  none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves
+};
 enum class Fight { none, on, off, status, probe, test, record, replay };
+enum class SavesAsk { none, probe };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
@@ -277,6 +280,7 @@ struct Request {
   bool rule = false;                     // nightop rule.
   bool invite_only = false;              // host private.
   Fight fight = Fight::none;
+  SavesAsk saves = SavesAsk::none; // saves: which.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
@@ -347,6 +351,9 @@ inline Request parse_request(std::string text) {
   else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;
+  } else if (text == "saves probe") {
+    r.command = Command::saves;
+    r.saves = SavesAsk::probe;
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
