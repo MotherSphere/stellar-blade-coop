@@ -11,8 +11,9 @@
 -- (experimental: on only with shared_enemies=on in coop-settings.txt, which also starts it once a load on the co-op
 -- save), on the co-op save slot only; the synced photo mode (photo_sync in coop-settings.txt: your friend's photo mode
 -- pauses your game, yours pauses theirs; during your own, the notices, and as set the ghost and its name tag, stay out
--- of the shot), with coop freeze <seconds>|off to test the pause alone. coop off stops everything until the game
--- restarts.
+-- of the shot), with coop freeze <seconds>|off to test the pause alone; coop ui test [game], the UI-layer spike (ui.lua:
+-- a small widget on screen for 5 s and its checks in the log; left out of the usage line until the UI layer ships).
+-- coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -96,6 +97,8 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
     function(line) return ask(line)() end,function() return link and link.status() end)
 -- commands.recruiter runs only on the co-op save slot; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
+-- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
+local ui=require('ui').new(function(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end)
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay'
@@ -211,10 +214,15 @@ local commands={
         if not native_tick then return false,'the native tick is unavailable' end
         return ask(seconds and 'freeze '..seconds or 'freeze off')()
     end,
+    ui=function(sub,arg,extra)
+        if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then return false,'Use: coop ui test [game]' end
+        return ui.test(arg=='game')
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
         notice.stop()
+        ui.stop()
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -265,6 +273,7 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
+    ui.tick() -- Likewise for coop ui test.
 end)
 if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.

@@ -6,7 +6,8 @@
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
--- arguments, and the link is optional (no native part, no Steam link, no keys).
+-- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), and the link is
+-- optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -115,6 +116,12 @@ package.loaded.recruiter={new=function(log)
         stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
         tick=function() rc_ticks=rc_ticks+1 end}
 end}
+local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui test's arguments, its ticks and stops.
+package.loaded.ui={new=function(log)
+    ui_log=log
+    return {test=function(game) ui_tests[#ui_tests+1]=game; return true,'UI test on screen' end,
+        tick=function() ui_ticks=ui_ticks+1 end,stop=function() ui_stops=ui_stops+1 end}
+end}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
@@ -132,6 +139,7 @@ local function load_main(with_native)
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
+    ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -176,8 +184,8 @@ coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
-assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2,
-    'The native tick, the notices, the probe and the recruiter run every frame')
+assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ui_ticks==2,
+    'The native tick, the notices, the probe, the recruiter and the UI spike run every frame')
 -- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status, with the co-op slot loaded.
 local plain=status_text
 local function with_slot(line) return 'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=on\n'..line..'last=#1 ready\n' end
@@ -323,8 +331,17 @@ for _,bad in ipairs({{},{'0'},{'3601'},{'-1'},{'1.5'},{'on'},{'10','x'},{'off','
     coop('freeze',table.unpack(bad))
     assert(last()=='[StellarCoop] STOP: Use: coop freeze <1-3600 seconds> | off\n' and #asked==before,last())
 end
-assert(notice_stops==0)
+-- coop ui test [game]: the spike gets whether the game root goes alone; anything else is its usage line.
+coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n',last())
+coop('ui','test','game'); assert(ui_tests[2]==true and #ui_tests==2)
+for _,bad in ipairs({{},{'off'},{'TEST'},{'test','x'},{'test','game','x'}}) do
+    coop('ui',table.unpack(bad))
+    assert(last()=='[StellarCoop] STOP: Use: coop ui test [game]\n' and #ui_tests==2,last())
+end
+ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
+assert(notice_stops==0 and ui_stops==0)
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
+assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 local written=#states
@@ -337,8 +354,10 @@ press('F5'); flush()
 assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
     and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
-local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
+local drawn,probed,recruited,ui_ticked=notice_ticks,probe_ticks,rc_ticks,ui_ticks
 loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+assert(ui_ticks==ui_ticked,'No UI spike tick after coop off')
+coop('ui','test'); assert(#ui_tests==2 and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
 assert(ticks==4 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
@@ -640,4 +659,5 @@ local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
+coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n','No native part needed')
 io.stdout:write('main_test ok\n')
