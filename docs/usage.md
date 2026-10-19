@@ -119,13 +119,15 @@ friend, in teal:
   more than 15 m away. While it shows their name, the ghost's own name tag hides; with the marker off, or the
   on-screen UI stopped, the name tag is back (`name_tag`).
 - **The arrow**: when they are out of view or behind you, an arrow at the edge of the screen points to them, with the
-  distance and three HP pips. It turns grey while the connection is lost and stays where they were last seen. On
-  another map there is no arrow: the card says where they are.
+  distance and three HP pips. While nothing comes from them (connection lost, or no HP for 3 s) the marker and the
+  arrow turn grey and stay where they were last seen, until they are back or one of you changes map. On another map
+  there is no arrow: the card says where they are.
 
 The gauges move over 150 ms and run up to about half a second behind your friend's own screen. The game's alert sound
 plays when your friend goes down and when the connection is lost (unless `ui_sounds=off`). Options > Partner turns each
-part on or off at once: `partner_bar` (the marker), `partner_arrow`, `partner_card` and `card_details`. Your own photo
-mode hides them all, like the rest of the mod's screen.
+part on or off at once: `partner_bar` (the marker), `partner_arrow`, `partner_card` and `card_details`. All three hide
+while the game is paused or shows one of its own screens (a shop, a dialogue choice). Your own photo mode hides them
+all, like the rest of the mod's screen.
 
 ## Playing with a friend
 

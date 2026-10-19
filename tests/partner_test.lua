@@ -58,7 +58,14 @@ place(view(at(1920,-1800,0)),false,{true,120,H/2})
 place(view(at(1920,-1880,0)),true,{false,M,H/2,180}) -- 40 units in: gone either way.
 -- Behind: always the arrow, towards the side she is on; straight behind, bottom centre.
 place(view(at(-1000,0,0)),true,{false,W/2,H-M,90})
-place(view(at(-1000,-500,0)),true,{false,M,H/2,180})
+place(view(at(-1000,-500,0)),true,{false,W/2-(H/2-M)/2,H-M,math.deg(math.atan(1000,-500))}) -- Behind-left: bottom left.
+-- Straight behind with her marker point above the camera (2.2 m over her feet): the bottom centre whatever the pitch,
+-- and with a small side offset; never the top edge that the raw up would give.
+for _,pitch in ipairs({0,3,10,-10,-15}) do
+    place(view(at(-1000,0,50),{rotation={Pitch=pitch,Yaw=0}}),true,{false,W/2,H-M,90})
+end
+place(view(at(-1000,30,0)),true,{false,W/2+(H/2-M)*30/1000,H-M,math.deg(math.atan(1000,30))})
+place(view(at(-1000,0,5000)),true,{false,W/2,M,-90}) -- Far above, behind: still the top.
 place(view(at(100,0,5000)),true,{false,W/2,M,-90}) -- High above: top centre.
 place(view(at(0.5,0,0)),true,{false,W/2,H-M,90}) -- At the camera: no division by almost nothing.
 -- The engine's projection, when given, places the marker instead of the field of view; never for a point behind.
@@ -162,6 +169,8 @@ local function new_kit()
     function kit.fade(name,a) faded[name]=a end
     function kit.sound(name) sounds[#sounds+1]=name end
     function kit.language() return language end
+    kit.away,kit.paused_reads=false,0
+    function kit.paused() kit.paused_reads=kit.paused_reads+1; return kit.away end
     -- The kit's projection: the field of view's (90 degrees) from the camera, in layout units.
     kit.camera,kit.rotation={X=0,Y=0,Z=0},{Pitch=0,Yaw=0}
     function kit.project(anchor)
@@ -342,6 +351,23 @@ assert(kept==500)
 link.vit=nil
 hud.slow(); frame()
 assert(info.v[1]=='—' and info.c=='grey' and faded.card<1 and hp.v[1]==kept,'Greyed, her last values kept')
+-- Nothing from her, her link not lost yet (the native part drops her vitals at 3 s, her ghost hides a second after her
+-- last pose, the link is lost only at 10 s): the arrow stays grey at her last place.
+puppet.at=at(-1000,0,0)
+frame()
+assert(shown.arrow and chevron.c=='grey' and diamond.c=='grey' and m[1].c=='grey')
+local kept_at={moved.arrow[1],moved.arrow[2]}
+puppet.at=nil
+frame(); frame()
+assert(shown.arrow and moved.arrow[1]==kept_at[1] and moved.arrow[2]==kept_at[2],'Kept at her last place')
+-- Your map changes meanwhile (a camp's teleport): her last place is another map's, forgotten.
+puppet.me_v.map=B07B
+hud.slow(); frame()
+assert(not shown.arrow and not shown.marker,'Her last place was on your old map')
+puppet.me_v.map=E04B
+hud.slow(); frame()
+assert(not shown.arrow,'Forgotten for good')
+puppet.at=at(1000,0,220)
 link.vit=vitals()
 hud.slow(); frame(0.2)
 assert(faded.card==1 and info.v[1]=='118 ms · e04')
@@ -381,16 +407,50 @@ assert(hud.marking()==false,'No root: the name tag is the fallback')
 frame()
 assert(projects==p,'No view: no projection either')
 ready=true
--- Out of a session: everything hidden; the status unread (nil): nothing changes.
-link.session=false
+-- The game paused or on one of its screens (UI-DESIGN 7.4): the card, marker and arrow hide; back on resume.
+puppet.at=at(1000,0,220)
 hud.slow(); frame()
-assert(shown.card==false and not shown.marker and not shown.arrow)
+assert(shown.card and shown.marker)
+kit.away=true
+hud.slow(); frame()
+assert(shown.card==false and not shown.marker and not shown.arrow,'Paused: hidden')
+puppet.at=at(-1000,0,0)
+p=projects
+frame()
+assert(not shown.arrow and projects==p,'Paused: no arrow, no projection')
+kit.away=false
+hud.slow(); frame()
+assert(shown.card and shown.arrow,'Resumed')
+-- Out of a session: everything hidden, the pause not read; the status unread (nil): nothing changes.
+link.session=false
+local reads=kit.paused_reads
+hud.slow(); frame()
+assert(shown.card==false and not shown.marker and not shown.arrow and kit.paused_reads==reads)
 link.session=nil
 hud.slow()
 assert(shown.card==false)
-link.session=true
+link.session,link.vit=true,nil
 hud.slow(); frame()
-assert(shown.card==true)
+assert(shown.card==true and info.v[1]=='—')
+assert(hp.v[1]==0 and hp.v[2]==0 and sh.v[2]==0 and be.v[2]==0 and bu.v[2]==0 and mhp.v[1]==0 and line.v[1]==0
+    and pips.v[1]==0,'A new session: empty, not the last partner\'s gauges')
+link.vit=vitals()
+hud.slow(); frame(0.2)
+assert(hp.v[1]==500 and info.v[1]=='e04')
+-- A new root (the look in, or the root out of the viewport) keeps a shown arrow shown: placed and turned in the same
+-- slow, before it ever draws at its corner.
+puppet.at=at(-1000,0,0)
+frame()
+assert(shown.arrow)
+local before={}
+for _,name in ipairs({'card','marker','arrow'}) do before[name],view_of[name]=view_of[name],groups[name].build(builder({})) end
+moved={}
+p=projects
+hud.slow()
+assert(projects==p+1 and moved.arrow[1]==W/2-80 and moved.arrow[2]==H-180,'Placed at once')
+assert(math.abs(view_of.arrow.chevron.angle%360-180)<1e-6,'Turned at once')
+for name,v in pairs(before) do view_of[name]=v end
+puppet.at=at(1000,0,220)
 
 -- Her name as it shows: cleaned (no controls), at most 20 characters, then an ellipsis; in loopback, 'Partner'.
 link.name='A\1B'..string.rep('é',30)
