@@ -75,8 +75,8 @@ build/host/pose_codec_test
 ```
 
 - Lua tests (`capture`, `chat`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`, `recruiter`,
-  `recruiter_text`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS objects for those
-  that call the engine. In the capture test, any write to the fake EVE fails the test.
+  `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS objects for
+  those that call the engine. In the capture test, any write to the fake EVE fails the test.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop;
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
@@ -142,7 +142,7 @@ native/                     the DLL (CMake)
 tests/                      Lua, C++ and Python tests; wine/smoke.cpp for the Wine smoke test
 tools/
   install.py                checks, build, install, uninstall, release zip
-  save_guard.py             save backups and the co-op save slot
+  save_guard.py             save backups and the manual co-op slot
   wine_smoke.py             loads the DLL under Wine
 docs/                       this documentation
 INSTALL.md                  the player install guide (shipped in the release zip)

@@ -344,17 +344,19 @@ drops the input.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
   tests), the mesh path rule, the channel 1 size and rate limits, and at most 8 effect starts a second.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert` or `saves coop`
-  request, and only at the title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded,
-  and Continue or Load Game was not chosen (the game's load mode is 0). A pass checks this again before each file and
-  before the switch. The native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the
-  copy and reads it back. One name check guards every write: only the copies, their temporary files,
-  `StellarCoopSaves.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken before any copy whenever
-  `StellarCoopSaves.txt` does not exist yet. The switch to the copies is one 8-byte compare-and-swap in the game's
-  memory, on the pinned build only, read back every 250 ms; an entry that moves or changes stops it for the run.
+  request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the title: Lua
+  reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game was not
+  chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The native
+  part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back. One
+  name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt` and the backup in
+  `StellarCoopBackups` pass it. The backup is taken before any copy whenever `StellarCoopSaves.txt` does not exist
+  yet. The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read
+  back every 250 ms; an entry that moves or changes stops it for the run.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
   stats with the experimental shared enemies (`coop fight`, off by default), nothing is copied between the two players'
   games. Beside the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest
-  `StellarCoopSaves.txt`. See [saves.md](saves.md).
+  `StellarCoopSaves.txt`; Lua only checks whether a copy exists, opening none of your own saves. See
+  [saves.md](saves.md).
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
   because the native part keeps the flag.
 - The DLL pins itself in memory, so a Lua reload that frees the script's libraries never unloads code the worker is

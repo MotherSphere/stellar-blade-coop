@@ -101,8 +101,8 @@ while the on-screen UI is up.
 
 ### `coop no` or `coop recruiter` says `STOP`
 
-- `runs only with the co-op save slot loaded`: load the co-op slot, or make it first. See
-  [saves.md](saves.md#the-co-op-save-slot).
+- `runs only on a co-op save`: at the title, choose Play co-op (or Convert and play co-op), then load your save. See
+  [saves.md](saves.md#co-op-saves).
 - Most other `STOP:` lines from the previews give the reason, and many say that nothing was changed. If the probe logs
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).

@@ -64,8 +64,9 @@ or shows the mouse cursor for one of its own screens.
 
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
-looks and the send rate), Session (who can join a session you host), Combat (shared enemies), Display (the size,
-sounds and language of the menu, the chat and the partner HUD) and Chat.
+looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
+title), Combat (shared enemies), Display (the size, sounds and language of the menu, the chat and the partner HUD) and
+Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
@@ -76,8 +77,9 @@ To change a key, select its row, then press the new key: `F1` to `F12` except `F
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
-The menu, the chat and the partner HUD use the game's language when it is French, and English otherwise.
-`ui_language=english` keeps them in English. The status line and the session notices are in English.
+The menu, the chat, the partner HUD and the co-op saves' question and notices use the game's language when it is
+French, and English otherwise. `ui_language=english` keeps them in English. The status line and the session notices
+are in English.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the box close and the game gets its keys back. `coop ui off` removes the co-op menu,
@@ -175,6 +177,30 @@ More about sessions:
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, and enemies are not shared
 unless you turn on the experimental [shared enemies](#shared-enemies-experimental-off-by-default) (off by default).
+Shared enemies run on [co-op saves](#co-op-saves) only.
+
+## Co-op saves
+
+On the title screen, once the on-screen UI has loaded (a few seconds), the mod asks whether to play on co-op copies of
+your saves, while the game uses your own saves (`auto_coop_save=ask`, the default).
+[INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves) lists the choices; [saves.md](saves.md#co-op-saves) has the files
+and the rules.
+
+| Key | In the question |
+| --- | --- |
+| Up arrow, W or Z | Up |
+| Down arrow or S | Down |
+| Enter or Space | Select |
+| Esc | Decide later (while the copies are made: no switch, the game stays on your own saves) |
+
+While the question shows, the game ignores its own keys and a dark shade over the screen takes the mouse, so neither
+reaches the title menu. The game gets its keys back 150 ms after the question closes. Choosing Continue or Load Game
+before the question shows loads your own save; the question comes back at the next title screen. `coop ui reset`
+closes it as Decide later.
+
+`auto_coop_save=always` makes the copies and switches to them at each title screen without asking; `off` turns the
+question and the automatic copies off. Options > Saves > Co-op saves changes it at once. The result shows as a notice in the
+feed (see [Notices](#notices)).
 
 ## Synced photo mode
 
@@ -221,13 +247,16 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
-| `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save slot only) |
-| `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save slot only) |
-| `coop fight on\|off\|status` | Shared enemies (experimental, off by default, co-op save slot only) |
-| `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save slot only) |
+| `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
+| `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
+| `coop fight on\|off\|status` | Shared enemies (experimental, off by default, co-op save only) |
+| `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed and the partner HUD until the mod reloads |
+| `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
+| `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
+| `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -310,11 +339,11 @@ See [how-it-works.md](how-it-works.md#loopback-record-and-replay) for the parts 
 ### Night Operation previews
 
 `coop no` (the probe) and `coop recruiter` (the cut recruiter) are research previews of the cut Night Operation mode,
-not a playable mode. They run only with the co-op save slot loaded and need preparation first: read
+not a playable mode. They run only on a [co-op save](#co-op-saves) and need preparation first: read
 [night-operation.md](night-operation.md) before you use them. Otherwise they stop with:
 
 ```
-STOP: coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>
+STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>
 ```
 
 (`now no slot status` without the native part.)
@@ -327,11 +356,11 @@ The ghost, the link and every other command except `coop fight` (below) run on a
 enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
 balance gauge and death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's
 enemy still fights only its own EVE, and positions are not shared. It changes enemy stats through the game's own code,
-so it runs only on the co-op save slot, only for the enemy types in `fight_chars`, and kills count in the co-op save.
+so it runs only on a co-op save, only for the enemy types in `fight_chars`, and kills count in the co-op save.
 Back up your saves first (see [saves.md](saves.md)).
 
 - `shared_enemies=on` in [coop-settings.txt](#coop-settingstxt) allows `coop fight on` and requests it once per load,
-  when your first save has loaded. On the co-op save slot it starts. On another slot the notice
+  when your first save has loaded. On a co-op save it starts. On your own save the notice
   `Shared fight off: not on the co-op save` gives the reason. Setting it back to `off` and pressing Ctrl+R stops a
   running `coop fight on` (the solo test tools below keep running).
 - `coop fight on` starts it by hand (it needs `shared_enemies=on` and `fight_chars`) and `coop fight off` stops it. It
@@ -344,7 +373,7 @@ Back up your saves first (see [saves.md](saves.md)).
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
   `coop fight replay` plays that file into the guest's side.
 - Every `coop fight` command except `off` and `status` stops on another slot with
-  `STOP: coop fight runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>`.
+  `STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>`.
 - Notices: `Shared fight on: <n> enemies linked` when it starts, and again when enemies get linked after none (the
   host counts none until the friend's side is on). `Shared fight off: <why>` when it stops after it ran or waited.
 
@@ -379,6 +408,10 @@ leave_key=F8
 # Who can join a session you host: friends (your Steam friends can join from their friends list) or private (only the
 # friends you invite).
 who_can_join=friends
+# Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
+# screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
+# StellarCoopSlot.txt names is then the only co-op save).
+auto_coop_save=ask
 # Your friend's Steam name above her ghost: on or off.
 name_tag=on
 # Poses sent to your friend a second: 10 to 30.
@@ -387,7 +420,7 @@ send_rate=20
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play your co-op save slot. fight_chars: the enemy character ids it shares, separated by
+# death, while both of you play a co-op save. fight_chars: the enemy character ids it shares, separated by
 # spaces (coop fight probe logs them), for example fight_chars=15011001.
 shared_enemies=off
 fight_chars=
@@ -421,6 +454,7 @@ card_details=on
 | `status_key` | same as `menu_key` | `F6` |
 | `leave_key` | same as `menu_key` | `F8` |
 | `who_can_join` | `friends` or `private`: who can join a session you host (`private`: only the friends you invite) | `friends` |
+| `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `30` poses sent a second | `20` |
 | `cloth` | `on` or `off` | `off` |
@@ -484,7 +518,7 @@ and turn it off again if the game crashes or the ghost looks wrong.
 
 Each session event shows in the feed at the top left of the screen, in grey with the time, for 8 s (see
 [Session chat](#session-chat)). `UE4SS.log` gets each one once as `[StellarCoop] link: notice=<n> <text>`. On the
-title screen they go to the log only.
+title screen they show in the feed too, once the on-screen UI has loaded.
 
 While the on-screen UI is not up (in the first seconds after a load or a map change, during your own photo mode, or
 after an engine error), a notice shows instead as a line of text about 30 cm above your EVE, turned to the camera, for
@@ -513,6 +547,9 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | Your friend's photo mode, no pause | `<name> is taking photos.` (your `photo_sync=notice`), `<name> is taking photos (their photo sync gives notices only).` or `<name> is taking a selfie.` |
 | Your photo mode | Once a session, `<name>'s game does not pause for photos.` (shown when you leave photo mode) |
 | The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
+| Co-op saves switched on | `Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.` |
+| Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
+| In a session on your own save, with `shared_enemies=on` | Once a session, `You play your own save, and shared enemies run on co-op saves only. Quit to the title to switch; the ghost works now.` |
 
 ## Status lines
 
@@ -545,7 +582,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
-  [saves.md](saves.md#the-co-op-save-slot)). `saves=` names the save files the game uses: `main` for your own,
+  [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
   game build, or a check failed), and `?` before the first read. After `coop off` it keeps the last value read, since
   the game keeps that file name until it exits.

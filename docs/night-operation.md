@@ -27,7 +27,7 @@ The plan is to bring Night Operation back as a mode you play with friends over S
 - Every player gets the same waves, and kills are synced between the games.
 - The players share a timer and a score.
 - Two players first, then up to six.
-- The mode runs on the co-op save slot, a copy of your save, and never on your own slots.
+- The mode runs on a co-op save, a copy of your save, and never on your own saves.
 - The recruiter's lines are translated into the game's 23 languages.
 
 The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The waves,
@@ -40,14 +40,13 @@ the shared timer and the score do not exist yet. The previews below test how the
 - The recruiter, `coop recruiter`, brings back the cut recruiter near Roxanne. You can talk to him in your game
   language.
 
-Both are research tools and run only on the co-op save slot. Neither writes a game file, but their changes stay in the
+Both are research tools and run only on a co-op save. Neither writes a game file, but their changes stay in the
 running game until it ends.
 
 ## Before you try a preview
 
-1. Make the co-op save slot once, with the game closed: follow
-   [INSTALL.md: Co-op save slot](../INSTALL.md#co-op-save-slot). `coop status` must then show `slot=coop`. Both
-   previews refuse to run on any other save.
+1. Load a co-op save: at the title, choose Play co-op (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)), then
+   load your save. `coop status` must then show `slot=coop`. Both previews refuse to run on any other save.
 2. Back up your saves, with the game closed: `python3 tools/save_guard.py backup` on Linux, or a copy of the save
    folder on Windows. See [saves.md](saves.md#backups).
 3. Keep Steam Cloud off for Stellar Blade during preview runs, so nothing from the run replaces the good copy in the
@@ -57,11 +56,11 @@ running game until it ends.
 5. Afterwards, with the game closed, check and restore your backup (see
    [After a preview run](#after-a-preview-run)).
 
-Without the co-op slot loaded, each preview stops with a `STOP:` line that names the command and the current slot line,
+Without a co-op save loaded, each preview stops with a `STOP:` line that names the command and the current slot line,
 for example:
 
 ```
-STOP: coop recruiter runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now slot=main index=0 marker=4
+STOP: coop recruiter runs only on a co-op save (INSTALL.md: Co-op saves); now slot=main index=0 marker=none saves=main
 ```
 
 ## Preview 1: the probe (`coop no`)
@@ -154,10 +153,11 @@ With the game killed and closed:
 - On Windows: in File Explorer, find the files with a newer modified time, then copy the backup back over the save
   folder.
 
-Only these files may differ: the co-op slot and its `Backup/StellarBladeSave0N_Old.sav` copy, the game's
-`StellarBladeSetting.sav` and its `Backup/` copy, the `steam_autocloud.vdf` files and other mods' saves. Any other
-`StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots. The restore puts it back;
-please send the logs in that case. The full recovery steps are in [INSTALL.md: Recovery](../INSTALL.md#recovery).
+Only these files may differ: the co-op save you played (`StellarBladeCoop0N.sav`, or the manual co-op slot) and its
+`Backup/` copy, the game's `StellarBladeSetting.sav` and its `Backup/` copy, the `steam_autocloud.vdf` files and other
+mods' saves. Any other `StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots. The
+restore puts it back; please send the logs in that case. The full recovery steps are in
+[INSTALL.md: Recovery](../INSTALL.md#recovery).
 
 ## How the original matchmaking is blocked
 
