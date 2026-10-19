@@ -1,8 +1,7 @@
 # Using StellarCoop
 
-This page lists everything you can do with StellarCoop in game: the keys, every `coop` console command, the settings
-file, the ghost's looks, the notices and status lines, and the files the mod writes. To install the mod first, see
-[INSTALL.md](../INSTALL.md). For what happens behind each feature, see [how-it-works.md](how-it-works.md).
+To install the mod, see [INSTALL.md](../INSTALL.md). For what happens behind each feature, see
+[how-it-works.md](how-it-works.md).
 
 Close the game before you change any file in the mod folder.
 
@@ -16,8 +15,9 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F6 | Show the status: one line above EVE and in `UE4SS.log` | (a short form of `coop status`) |
 | F8 | Leave the session | `coop leave` |
 
-You can change them in [coop-settings.txt](#coop-settingstxt). A key only hands its action to the game thread, where
-the console's checks apply (`coop off` included). The log says `key F5: host`, then the usual `OK:` or `STOP:` line.
+You can change them in [coop-settings.txt](#coop-settingstxt). A key passes its action to the game thread, where the
+same checks as for the console command apply (`coop off` included). The log says `key F5: host`, then the usual `OK:`
+or `STOP:` line.
 
 ## Playing with a friend
 
@@ -26,50 +26,50 @@ the console's checks apply (`coop off` included). The log says `key F5: host`, t
 2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
    (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
    save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
-3. The ghost turns on by itself in both games when the session starts. Once both games have accepted each other's
+3. The ghost turns on automatically in both games when the session starts. Once both games have accepted each other's
    handshake, each of you sees the other's EVE where she stands, in her outfit, with their Steam name above her.
 
 More about sessions:
 
 - The host leads. When the host leaves, the guest leaves too (`Session ended: <host> left.`).
-- A guest cannot host: F5 answers `You are in <host>'s game: leave it first.`, so one key press never ends their
-  friend's session.
-- If the guest loses the host's lobby another way (Steam drops them, a network cut), their game rejoins it by itself. It
-  tries at 2, 12 and 42 s and gives up at 60 s (`Lost <host>'s game: rejoining.`, then `Rejoined <host>'s game.` or
-  `Session ended: ...`). A lobby that is gone, or that someone else owns by then, ends the session. Leave, host, join
-  or a new invite stops the rejoin. Meanwhile the host's lobby stays; the ghost goes with the link and comes back with
-  it.
-- Your friend's ghost only shows when you are both on the same map. When they are on another map, the screen says once
-  `<name> is in <map>, you are in <map>.`, by the maps' last segments (for example `b07`).
-- If your friend goes silent, their ghost hides after a second without a pose and comes back with the next one.
-- Both players need the same protocol (7) and game build. A mismatch is explained on screen instead of being silently
-  ignored (see [Notices](#notices)).
+- A guest cannot host. F5 shows `You are in <host>'s game: leave it first.`, so a guest's F5 never ends the host's
+  session.
+- If the guest loses the host's lobby another way (Steam drops them, a network cut), their game rejoins it
+  automatically. It tries at 2, 12 and 42 s and gives up at 60 s (`Lost <host>'s game: rejoining.`, then
+  `Rejoined <host>'s game.` or `Session ended: ...`). A lobby that is gone, or that someone else owns by then, ends the
+  session. Leave, host, join or a new invite stops the rejoin. The host keeps the lobby meanwhile. The ghost is removed
+  when the link drops and comes back when the link does.
+- Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
+  `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
+- Your friend's ghost hides after a second without a pose and shows again with the next one.
+- Both players need the same protocol (7) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
-The ghost is display only. Nothing is copied between your two games: no enemies, items, unlocks or progress.
+The ghost is display only. Items, unlocks and progress are not copied between your two games, and enemies are not shared
+unless you turn on the experimental [shared enemies](#shared-enemies-experimental-off-by-default) (off by default).
 
 ## Synced photo mode
 
-When one of you enters the game's photo mode (P), the other's game pauses about half a second later, until the
-photographer leaves photo mode. The paused player can open the pause menu and enter photo mode from there, so both of
-you can pose for one shot; with both in photo mode, each game resumes only when both have left. Nothing is saved: the
-pause is the game's own pause, held in memory only. It is not yet tried in game.
+When one of you enters the game's photo mode (P), the other's game pauses about half a second later and stays paused
+until the photographer leaves photo mode. The paused player can open the pause menu and enter photo mode from there,
+so both of you can pose for one shot. With both in photo mode, each game resumes only when both have left. The pause is
+the game's own pause, held in memory only, and nothing is saved. This has not been tested in game yet.
 
-- Both PCs need `photo_sync=both` (the default) in [coop-settings.txt](#coop-settingstxt). With `notice` on either PC
-  there is a notice and no pause; `off` shows nothing and pauses nothing.
-- Selfie mode gives a notice only: the game itself does not pause in selfie mode.
+- Both PCs need `photo_sync=both` (the default) in [coop-settings.txt](#coop-settingstxt). `notice` on either PC gives
+  a notice and no pause. `off` gives neither.
+- Selfie mode gives a notice only, because the game itself does not pause in selfie mode.
 - The pause ends when the photographer leaves photo mode, when the connection is lost (after 10 s; it comes back if
   they are still in photo mode when they return), when either of you leaves (F8), with `coop off`, and after
   `photo_freeze_max` seconds (10 min by default) until the photographer's next photo session.
-- During your own photo or selfie mode, the notices above EVE wait until it ends, your friend's ghost stays in the shot
-  unless `photo_ghost=off`, and its name tag leaves it unless `photo_name_tag=on`.
-- It runs on game build 24463856 only. On another build, or after a fault (`photo pause off: ...` in the log), photo
-  sync gives notices only.
-- `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, to test it without a friend;
-  `coop freeze off` ends it. A load ends it too.
+- During your own photo or selfie mode, the notices above EVE wait until it ends. Your friend's ghost stays in the shot
+  unless `photo_ghost=off`, and its name tag is hidden unless `photo_name_tag=on`.
+- The pause works on game build 24463856 only. On another build, or after a fault (`photo pause off: ...` in the log),
+  photo sync gives notices only.
+- `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, so you can test it without a friend.
+  `coop freeze off` ends it, and so does a load.
 
 ## Console commands
 
-The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)); it opens with F10 or `~`.
+The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)) and opens with F10 or `~`.
 Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[StellarCoop] OK: ...` or
 `[StellarCoop] STOP: ...` line. An unknown command prints the usage line.
 
@@ -102,7 +102,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 - `coop host` works like F5. While you host, it opens the invite dialog again, as `coop invite` does. A guest's host
   request is refused.
-- `coop join` and `coop join <lobby id>` never wait for a save to load, unlike an accepted invite. Without an id it
+- `coop join` and `coop join <lobby id>` do not wait for a save to load, unlike an accepted invite. Without an id it
   joins the first friend found in a Stellar Blade lobby; the log says `no friend is in a Stellar Blade lobby` when
   there is none. A lobby id is digits only.
 - `coop leave` works like F8.
@@ -111,15 +111,15 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 ### Ghost commands
 
-- `coop puppet` turns the ghost on or off by hand. The ghost turns on by itself when a session starts (the link going
-  from none to host or guest); turning it off with `coop puppet` holds until the next session. On its own it shows
-  nothing: it publishes your EVE's capture, and a ghost is drawn once a table comes back, from a linked friend, the
-  loopback or a replay.
+- `coop puppet` turns the ghost on or off by hand. The ghost turns on automatically when a session starts (the link
+  going from none to host or guest). If you turn it off with `coop puppet`, it stays off until the next session.
+  Turning it on draws nothing at first: it publishes your EVE's capture, and a ghost is drawn once a table comes back
+  from a linked friend, the loopback or a replay.
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
-- `coop look` alone answers the `look:` line that each load logs, for example `look: cloth=off dyes=off effects=off`.
-  `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod reloads (game start or Ctrl+R) and rebuilds
-  the ghost. `coop-settings.txt` stays as it is. See [Looks](#looks).
+- `coop look` with no arguments prints the same `look:` line that each load logs, for example
+  `look: cloth=off dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
+  reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](#looks).
 
 ### `coop where`
 
@@ -131,14 +131,14 @@ spawn=<id>:SBSpawnPoint@<x,y,z> spawn_m=<m> origin=<x,y,z> composition=<flag> re
 ```
 
 - Positions are in centimetres, distances in metres.
-- `eve=` is your EVE actor's location. `mesh=` and `yaw=` are her main mesh's, which is what a friend's ghost of you is
-  placed from.
+- `eve=` is your EVE actor's location. `mesh=` and `yaw=` belong to her main mesh, which is what your friend's ghost of
+  you is placed from.
 - `camp=` is the nearest object of the four camp classes `Env_VendingMachine_C`, `Env_VendingMachine_Simple_C`,
   `Env_Camp_TeleportMachine_C` and `Env_Camp_TeleportMachine_Tetrapod_C` (vending machines and phone booths): its data
   id (`EnvActorName`), class, position and distance, or `none`. Camps are placed in the levels, so the same id should
-  give the same position on both PCs. Finding them walks every object, so it runs only when asked.
+  give the same position on both PCs. The search walks every object, so it runs only for this command.
 - `spawn=` is the nearest `SBSpawnPoint` (its `SpawnPointName`), found the same way. A map can stream every camp out
-  (Spire IV does) while its spawn points stay loaded, so this field gives a reference anywhere on such a map.
+  (Spire IV does) while its spawn points stay loaded, so this field gives a reference point anywhere on such a map.
 - `origin=` is the world origin (`GetWorldOriginLocation`). `composition=` and `rebasing=` are the world settings'
   world composition and origin rebasing flags.
 - `ghost=` is `<source>@<x,y,z> ghost_yaw=<yaw> ghost_m=<m> ghost_age=<s>`: where the main mesh of the ghost's EVE
@@ -151,26 +151,27 @@ spawn=<id>:SBSpawnPoint@<x,y,z> spawn_m=<m> origin=<x,y,z> composition=<flag> re
 
 ### Solo testing: loopback, record, replay
 
-These three run the ghost pipeline on one PC. They need the native tick and the ghost on (`coop puppet`).
+These three commands run the ghost pipeline on one PC. They need the native tick and the ghost on (`coop puppet`).
 
 - `coop loopback <delay ms> <jitter ms> <loss %>` (0 to 1000, 0 to 500, 0 to 100) sends your own EVE through an
   in-process network: that one-way delay, plus or minus the jitter, with each 1200-byte segment of a pose lost at that
   rate. The table is never lost. The ghost is yours, so it walks 2 m to your right. `coop loopback 0 0 0` shows it with
   no delay. New settings drop what is in flight and send the table again. `coop loopback off` removes the ghost.
-- `coop record` records what is sent, the table and your poses, with or without the loopback or a linked friend, for
-  up to 120 s or 24 MiB, or until `coop record off`. It is kept in memory and written at the stop to `coop-record.bin`
-  in the mod folder, if it holds a pose. The name is fixed, so a new recording replaces the last one: rename the file
-  by hand to keep it.
+- `coop record` records what is sent (the table and your poses), with or without the loopback or a linked friend, for
+  up to 120 s or 24 MiB, or until `coop record off`. The recording is kept in memory. When it stops, it is written to
+  `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
+  Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for one made under another protocol, so any made before protocol 7). It then plays it in a loop as
-  the remote side, each pose re-stamped as if sent now, until `coop replay off`, which removes the ghost. The
-  generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks where you walked, with
-  no offset, and the map gate applies.
-- The loopback and the replay never run together. Either one takes over from a linked friend until it is off: nothing
-  is sent to them meanwhile, what they send is ignored, and their ghost goes. Then they are linked again: your table
-  goes to them at once and theirs comes back with their next resend. A recording runs beside them.
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 7). It
+  then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
+  removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
+  where you walked, with no offset, and the map gate applies.
+- The loopback and the replay never run together. Either one replaces a linked friend until it is off: nothing is sent
+  to the friend meanwhile, what they send is ignored, and their ghost is removed. When it stops, you are linked again:
+  your table goes to them at once and theirs comes back with their next resend. A recording can run at the same time
+  as either one.
 
-See [how-it-works.md](how-it-works.md#loopback-record-and-replay) for what each one exercises.
+See [how-it-works.md](how-it-works.md#loopback-record-and-replay) for the parts of the pipeline each one tests.
 
 ### Night Operation previews
 
@@ -188,48 +189,45 @@ The ghost, the link and every other command except `coop fight` (below) run on a
 
 ### Shared enemies (experimental, off by default)
 
-`coop fight` is the first stage of shared enemies, not yet tried in game. With a friend linked, each enemy that both
-games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar, balance gauge and
-death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's enemy still fights
-only its own EVE, and positions are not shared. It changes enemy stats through the game's own code, so it runs only on
-the co-op save slot, only for the enemy types in `fight_chars`, and kills count in the co-op save. Back up your saves
-first (see [saves.md](saves.md)).
+`coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each
+enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
+balance gauge and death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's
+enemy still fights only its own EVE, and positions are not shared. It changes enemy stats through the game's own code,
+so it runs only on the co-op save slot, only for the enemy types in `fight_chars`, and kills count in the co-op save.
+Back up your saves first (see [saves.md](saves.md)).
 
-- `shared_enemies=on` in [coop-settings.txt](#coop-settingstxt) allows `coop fight on` and asks for it once a load,
-  when your first save has loaded: on the co-op save slot it starts; on another slot the notice
-  `Shared fight off: not on the co-op save` says why not. Setting it back to `off` and pressing Ctrl+R stops a running
-  `coop fight on` (the solo test tools below go on).
+- `shared_enemies=on` in [coop-settings.txt](#coop-settingstxt) allows `coop fight on` and requests it once per load,
+  when your first save has loaded. On the co-op save slot it starts. On another slot the notice
+  `Shared fight off: not on the co-op save` gives the reason. Setting it back to `off` and pressing Ctrl+R stops a
+  running `coop fight on` (the solo test tools below keep running).
 - `coop fight on` starts it by hand (it needs `shared_enemies=on` and `fight_chars`) and `coop fight off` stops it. It
   waits for a linked friend and a loaded save, and pauses while either player is in photo mode (selfies and the
-  pause menu do not pause it). Loading another save slot turns it off until it is asked again.
-- `coop fight status` answers with the `fight=` line of `coop status`, for example
-  `fight=on mode=on role=host enemies=3 ...`.
+  pause menu do not pause it). Loading another save slot turns it off until it is requested again.
+- `coop fight status` prints the `fight=` line of `coop status`, for example `fight=on mode=on role=host enemies=3 ...`.
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, HP, Shield, Stamina) to
-  `coop-fight.log`, which is where to find the ids for `fight_chars`. Once the log says `fight writes=armed`,
+  `coop-fight.log`, where you find the ids for `fight_chars`. Once the log says `fight writes=armed`,
   `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the eligible enemy with
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
   `coop fight replay` plays that file into the guest's side.
 - Every `coop fight` command except `off` and `status` stops on another slot with
   `STOP: coop fight runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>`.
 - Notices: `Shared fight on: <n> enemies linked` when it starts, and again when enemies get linked after none (the
-  host counts none until the friend's side is on);
-  `Shared fight off: <why>` when it stops after it ran or waited.
+  host counts none until the friend's side is on). `Shared fight off: <why>` when it stops after it ran or waited.
 
 ### `coop off`
 
-`coop off` stops everything until the game restarts, even across a Lua reload: the ghost, EVE's capture, the loopback,
-a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the Night Operation
-poller, a recruiter (despawned when one was asked, in Xion) and the photo pause (released: only for this does the
-native tick still run).
-Afterwards only `coop status` and `coop report` answer; every other command answers
+`coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
+loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the Night
+Operation poller, a recruiter (despawned if one was requested, in Xion) and the photo pause (released; the native tick
+keeps running for this alone). Afterwards only `coop status` and `coop report` answer. Every other command answers
 `STOP: coop off is active until the game restarts`.
 
 ## coop-settings.txt
 
-`Mods/StellarCoop/coop-settings.txt` is yours. The mod writes it with the defaults when it is missing and never
-overwrites it. Neither the release zip nor an install ships or removes it (`tools/install.py --uninstall` backs it up
-with the folder, then removes it). It is read when the mod loads (game start, or Ctrl+R). Delete it to get the
-defaults back.
+The mod writes `Mods/StellarCoop/coop-settings.txt` with the defaults when the file is missing, and never overwrites
+it. The release zip does not include it, and an install neither adds nor removes it (`tools/install.py --uninstall`
+backs it up with the folder, then removes it). The file is read when the mod loads (game start, or Ctrl+R). Delete it
+to get the defaults back.
 
 The file the mod writes:
 
@@ -282,42 +280,42 @@ Rules:
 - `F10` is refused because it opens the console (as does `~`). Function keys do not depend on the keyboard layout.
 - Names and values ignore case, a UTF-8 BOM (Notepad) is accepted, and lines starting with `#` are comments. Only the
   first 4096 bytes are read.
-- A refused value keeps its default, and `UE4SS.log` says why in a `[StellarCoop] settings:` line. An unknown setting
-  is ignored with a note.
-- Two actions on one key put all three keys back to `F5`, `F6` and `F8`.
+- A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
+  setting is ignored with a note.
+- If two actions share one key, all three keys go back to `F5`, `F6` and `F8`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second`. Another line says when a mod loaded earlier binds
-  the same key; both then run. The `[StellarCoop] photo sync:` line gives the photo settings in use.
+  the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in use.
 
 ## Looks
 
-Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt` (off by default; the file names
-them in a comment only, so add a line such as `cloth=on`), and `coop look` changes one until the mod reloads. With one
+Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt` and off by default. The file
+names them in a comment only, so add a line such as `cloth=on`. `coop look` changes one until the mod reloads. With one
 on, the `Ghost ... built` log line ends with `; look: ...`.
 
-The three looks are not yet tried in game. Back up your saves before you turn one on (see [saves.md](saves.md)), and
-turn it off again if the game crashes or the ghost looks wrong.
+The three looks have not been tested in game yet. Back up your saves before you turn one on (see [saves.md](saves.md)),
+and turn it off again if the game crashes or the ghost looks wrong.
 
-- **`cloth`**: her ponytail swings as cloth. A follower part whose mesh has clothing assets is drawn as a
+- `cloth`: her ponytail swings as cloth. A follower part whose mesh has clothing assets is drawn as a
   SkeletalMeshComponent whose cloth simulates on its leader's bones. If that fails, it is a plain part, with a note in
   the log. Off, the ponytail stays rigid. Only the viewer's setting counts.
-- **`dyes`**: her hair colour and other material variants. Her capture also names each part's overridden materials (a
+- `dyes`: her hair colour and other material variants. Her capture also names each part's overridden materials (a
   material made at run time is sent as the asset it was made from), and the ghost puts on each one your PC has, by the
-  same path rule as the meshes. Not on a fallback mesh. Off, each part has its mesh's own colours.
-- **`effects`**: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
+  same path rule as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours.
+- `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
   playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
-  starts each on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a
-  second. A fault in the native effect read or write turns effects off until the game restarts
-  (`effects off: fault ...`); the ghost goes on without them. Every 60 s with any effect activity, an
+  starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
+  starts a second. A fault in the native effect read or write turns effects off until the game restarts
+  (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
 
 ## Notices
 
-Each session event shows as a line of text about 30 cm above your EVE, turned to the camera, for 4 s each in turn. At
-most 4 wait; the oldest goes. `UE4SS.log` gets each one once as `[StellarCoop] link: notice=<n> <text>`. On the title
-screen they go to the log only. If the engine refuses the line, screen notices stay off until the next Lua load
-(`Screen notices off: <why>; notices stay in UE4SS.log.`).
+Each session event shows as a line of text about 30 cm above your EVE, turned to the camera, for 4 s, one after
+another. At most 4 wait; when more arrive, the oldest is dropped. `UE4SS.log` gets each one once as
+`[StellarCoop] link: notice=<n> <text>`. On the title screen they go to the log only. If the engine refuses the line,
+screen notices stay off until the next Lua load (`Screen notices off: <why>; notices stay in UE4SS.log.`).
 
 | Event | Notice |
 | --- | --- |
@@ -362,21 +360,21 @@ F6 gives one line, in the log (`OK: ...`) and on screen:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- **Steam**: `mod=<version> proto=7 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=7 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
-- **Link**: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
+- Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
   held and `rejoin=<n>/3` while rejoining. Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a
   `friend=<linked 0|1> <lost 0|1> <name>` line, and the last 8 notices as `notice=<n> <text>`.
-- **Pose path**: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
+- Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `nightop=on` or `nightop=rule` while the probe's poller runs.
-- **Save slot**: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?>` (see
+- Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?>` (see
   [saves.md](saves.md#the-co-op-save-slot)).
-- **Photo mode**: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
+- Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
   your friend gets (`notice` when your game cannot pause).
-- **Last event**: `last=<the last coop-link.log event>`.
-- **Ghost**: `ghost=on parts=<n> leaders=<n> basesuit=<0|1> left_out=<n> table=<generation> source=<source>`,
+- Last event: `last=<the last coop-link.log event>`.
+- Ghost: `ghost=on parts=<n> leaders=<n> basesuit=<0|1> left_out=<n> table=<generation> source=<source>`,
   `ghost=waiting`, `ghost=hidden map` or `ghost=off`, plus `stray_parts=<n>` if ghost parts that are not this load's
   ghost stand in the world.
 
@@ -409,10 +407,10 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-state.txt` | Lua | Whether a save is loaded, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 
-The files shared between Lua and the native part are each written whole beside (a `.tmp` file) and renamed over, so
-neither side ever reads one half-written. The native part deletes the capture, remote, display and state files, and any
-stale request or report, when it starts. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can
-be older than the previous run.
+Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
+it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display
+and state files, and any stale request or report. A run without `coop no` writes no probe file, so
+`nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.
