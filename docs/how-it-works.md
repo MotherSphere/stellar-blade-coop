@@ -57,6 +57,12 @@ written whole beside its final name and renamed over, so the reader never sees h
   and `coop-state.txt` (whether a save is loaded, the send rate, and the synced photo mode's state and settings).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
   table), `coop-link.log` and `coop-report.txt`.
+- The chat has two files that live a moment only. Lua writes a typed line into `coop-say.txt` only once the native
+  part has taken the last one, and the native part takes and deletes it at its next pass (every 5 to 50 ms). The
+  native part writes your friend's lines into `coop-chat.txt` (`in <text>`, or `fail` for a line of yours that could
+  not go) only once Lua has taken the last one, and Lua deletes it when it reads it, every 250 ms. Both are deleted
+  when a session starts or ends, when the native part starts and when the game exits. Chat text is written nowhere
+  else; a crash dump (`Saved/Crashes`) holds the game's memory, so it may hold lines of the session.
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
@@ -132,7 +138,8 @@ at most 16 wait for the mod's Lua side. The text never goes into `coop-link.log`
 
 The vit line (unreliable) carries your EVE's numbers for your friend's partner card, in whole units: HP, shield and
 shield blocks, Beta, Burst and Tachy with their maximums, and the life state. It goes when they change and every
-second, from a read 4 times a second (game build 24463856 only). A line with a value over 10,000,000, HP over its
+second, from a read 4 times a second during a session (game build 24463856 only): eight `ReadProcessMemory` reads on
+the native worker, never on the game thread, of the EVE the game's actor manager marks as the local player. A line with a value over 10,000,000, HP over its
 maximum, more than 64 shield blocks or a life state over 255 is invalid. Your friend's last one shows in `coop status`
 as `mate=` for 3 s.
 

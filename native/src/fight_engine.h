@@ -150,6 +150,46 @@ template <class Read> bool photo_mode(uint64_t base, Read &&read) {
          read(manager + kPhotoCamera, &camera, sizeof camera) && camera != kSelfie;
 }
 
+// The local EVE's partner-card numbers (UI-DESIGN 4.3, 5.1), read on our worker through read(address, out, n)
+// (ReadProcessMemory, which fails instead of faulting): the actor manager's local player as SB finds its own EVE
+// (Engine's local_fsb()), with its player flag set; stats 1 to 23 in one read, the life state, then the manager's slot
+// again, so an FSBActor that left the slot during the reads is never taken for ours. False on a failed read, an
+// implausible pointer or a value plausible_vitals() refuses (NaN fails every comparison). Eight reads at most.
+static_assert(kMaxVital == uint32_t(kMaxStat), "the vit line's bound is the engine's");
+template <class Read> bool vitals(uint64_t base, Read &&read, Vitals &out) {
+  constexpr int kType[vital::life] = {1, 2, 7, 8, 11, 14, 15, 18, 19, 22, 23}; // ESBActorStatType, as Vitals orders.
+  uint64_t world = 0, manager = 0, fsb = 0, again = 0;
+  uint8_t slot[kLocalIndex + 4 - kActorArray], player = 0; // The actor array, its count and the local index.
+  float stats[23];
+  int32_t life = 0;
+  if (!read(base + (nightop::kGlobals + kWorldAt - kImageBase), &world, sizeof world) || !plausible(world) ||
+      !read(world + kManager, &manager, sizeof manager) || !plausible(manager) ||
+      !read(manager + kActorArray, slot, sizeof slot))
+    return false;
+  const uint64_t array = nightop::get<uint64_t>(slot, 0);
+  const int32_t count = nightop::get<int32_t>(slot, kActorCount - kActorArray),
+                index = nightop::get<int32_t>(slot, kLocalIndex - kActorArray);
+  const uint64_t at = array + 8 * uint64_t(index);
+  if (index < 0 || index >= count || !plausible(array) || !read(at, &fsb, sizeof fsb) || !plausible(fsb) ||
+      !read(fsb + kPlayer, &player, sizeof player) || !player || !read(fsb + kStatBase + 4, stats, sizeof stats) ||
+      !read(fsb + kLife, &life, sizeof life) || !read(at, &again, sizeof again) || again != fsb)
+    return false;
+  Vitals v{};
+  for (size_t i = 0; i < vital::life; ++i) {
+    const float x = stats[kType[i] - 1];
+    if (!(x >= 0 && x <= float(kMaxVital)))
+      return false;
+    v[i] = uint32_t(x);
+  }
+  if (life < 0 || life > 255)
+    return false;
+  v[vital::life] = uint32_t(life);
+  if (!plausible_vitals(v))
+    return false;
+  out = v;
+  return true;
+}
+
 class Engine {
 public:
   JobCounts counts;

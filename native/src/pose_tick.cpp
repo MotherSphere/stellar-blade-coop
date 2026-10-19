@@ -1310,6 +1310,8 @@ std::string ask_nightop(bool rule, uint64_t now_ms) {
 }
 
 int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::kUnread; }
+bool loopback() { return engine_on && loopback_on; }
+bool local_vitals(coop::Vitals &out) { return pinned && !blocked && fight::vitals(base, rpm, out); }
 
 namespace {
 // Why the shared fight may not run now, or empty: the pinned build, before coop off, on the co-op save (the slot the

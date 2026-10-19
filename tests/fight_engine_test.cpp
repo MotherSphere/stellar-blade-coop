@@ -820,6 +820,65 @@ int main() {
     mem.put(manager + kPhotoCamera, kSelfie);
     assert(!photo_mode(kBase, read));
   }
+  // vitals(): the local EVE's partner-card numbers through a read function (the worker's ReadProcessMemory), from the
+  // actor manager's local player with its player flag set, in eight reads. Each failed read, a cleared player flag, a
+  // slot that changed during the reads, the title screen (no world), a local index out of range, and each value rule
+  // (NaN, negative, over 10,000,000, HP over MaxHP, more than 64 shield blocks, a life state outside 0-255) refuse it.
+  {
+    Game g;
+    const uint64_t f = g.fsb(1);
+    const auto stat = [&](int type, float x) { g.mem.put(f + kStatBase + 4 * size_t(type), x); };
+    const std::pair<int, float> good[] = {{1, 1500.75f}, {2, 1600}, {7, 30}, {8, 50}, {11, 5}, {14, 400}, {15, 1000},
+                                          {18, 0}, {19, 0}, {22, 0}, {23, 0}};
+    for (auto [type, x] : good)
+      stat(type, x);
+    int reads = 0, fail_at = 0;
+    std::function<void(int)> during; // Runs before the read of this number.
+    const auto read = [&](uint64_t address, void *out, size_t n) {
+      if (during)
+        during(reads + 1);
+      return ++reads != fail_at && g.mem.read(address, out, n);
+    };
+    const auto sample = [&](coop::Vitals &v) {
+      reads = 0;
+      return vitals(kBase, read, v);
+    };
+    coop::Vitals v{};
+    assert(sample(v) && reads == 8 && (v == coop::Vitals{1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1}));
+    for (fail_at = 1; fail_at <= 8; ++fail_at)
+      assert(!sample(v) && reads == fail_at);
+    fail_at = 0;
+    g.mem.put<uint8_t>(f + kPlayer, 0);
+    assert(!sample(v));
+    g.mem.put<uint8_t>(f + kPlayer, 1);
+    const uint64_t other = g.fsb(g.mem.get<uint32_t>(g.spawn(2, 0, 0) + kGuid)); // An FSBActor that takes her slot.
+    during = [&](int n) {
+      if (n == 8)
+        g.mem.put(g.players, other);
+    };
+    assert(!sample(v));
+    during = nullptr;
+    g.mem.put(g.players, f);
+    assert(sample(v));
+    g.mem.put<int32_t>(g.manager + kLocalIndex, 1);
+    assert(!sample(v) && reads == 3);
+    g.mem.put<int32_t>(g.manager + kLocalIndex, 0);
+    const std::pair<int, float> bad[] = {{1, std::nanf("")}, {7, -1}, {2, 10'000'001}, {1, 1601}, {11, 65}};
+    for (auto [type, x] : bad) {
+      stat(type, x);
+      assert(!sample(v));
+      for (auto [t, y] : good)
+        stat(t, y);
+    }
+    for (int32_t life : {-1, 256}) {
+      g.mem.put(f + kLife, life);
+      assert(!sample(v));
+    }
+    g.mem.put<int32_t>(f + kLife, 255);
+    assert(sample(v) && v[coop::vital::life] == 255);
+    g.mem.put<uint64_t>(rebased(coop::nightop::kGlobals) + kWorldAt, 0); // The title screen.
+    assert(!sample(v) && reads == 1);
+  }
 
   // ---- A restart while on: the old session's last claim reaches the host after the worker's on ----
   // The job says on again at the new session's first turn, behind that claim, so the host's claim numbers start over

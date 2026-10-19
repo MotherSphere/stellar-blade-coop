@@ -5,7 +5,8 @@
 // coop-link.log (the previous run's is coop-link.old.log) and writes coop-report.txt on 'coop report', all in the mod
 // folder. One worker thread makes every Steam call; the game's Steam callback thread only stores atomics. The worker
 // also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), and the
-// synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp).
+// synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
+// and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -42,6 +43,14 @@ namespace {
 using coop::pose::write_text;
 std::wstring folder;           // This DLL's folder, with its trailing separator.
 wchar_t log_path[MAX_PATH];    // coop-link.log, kept for the last line written at process exit.
+// The chat's two files (UI-DESIGN 5.2) and their temporaries: coop-say.txt, Lua's typed line, taken at every pass;
+// coop-chat.txt, our lines for Lua, written only while Lua has taken the last. Each lives about 250 ms at most, and all
+// four are deleted at worker start, when a chat session starts or ends, and at process exit (so kept for DllMain).
+wchar_t chat_files[4][MAX_PATH];
+void delete_chat() {
+  for (const wchar_t *path : chat_files)
+    DeleteFileW(path);
+}
 std::atomic<bool> log_open{false}, faulted{false};
 
 // What Steam's callbacks store, on the game's Steam thread; taken by the worker.
@@ -236,6 +245,8 @@ void watch_saves(uint64_t now_ms, uint64_t steam_id) {
 
 coop::Api api;
 std::unique_ptr<coop::Link> link;
+bool chat_was = false;    // A chat session held at the last pass.
+uint64_t next_vitals = 0; // Our vitals are read every 250 ms in a chat session.
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
 bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
@@ -295,6 +306,8 @@ bool step() {
                                           [](const uint8_t *d, size_t n) { coop::pose::peer_receive(d, n); });
     }
     std::string request = take_text(folder + L"coop-request.txt");
+    // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
+    const std::string typed = take_text(folder + L"coop-say.txt");
     coop::Command command = coop::parse_request(request).command;
     if (switched_off && !request.empty() && command != coop::Command::report) {
       event("coop off is active until the game restarts: request ignored");
@@ -353,6 +366,7 @@ bool step() {
       const coop::State lua = coop::pose::lua_state();
       link->photo(lua.photo,
                   lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max);
+      link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
     if (ready == coop::Link::Ready::no && !request.empty()) {
@@ -381,6 +395,31 @@ bool step() {
         link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
+        // Chat and vitals (UI-DESIGN 5): a session's start or end deletes both files; Lua's line goes; ours are read
+        // every 250 ms; her lines (or our failures) go to Lua once it took the last file.
+        const bool chatting = !switched_off && link->chatting();
+        if (chatting != chat_was) {
+          chat_was = chatting;
+          delete_chat();
+        }
+        if (!switched_off) {
+          if (!typed.empty())
+            link->say(typed);
+          coop::Vitals mine;
+          if (const uint64_t now = GetTickCount64(); chatting && now >= next_vitals) {
+            next_vitals = now + 250;
+            if (coop::pose::local_vitals(mine))
+              link->vitals(mine);
+          }
+          const std::wstring chat = folder + L"coop-chat.txt";
+          if (link->chat_waiting() && GetFileAttributesW(chat.c_str()) == INVALID_FILE_ATTRIBUTES) {
+            std::string text;
+            for (const std::string &line : link->take_chat())
+              text += line + "\n";
+            if (!write_text(chat, text))
+              DeleteFileW((chat + L".tmp").c_str()); // A line lost, never one left on disk.
+          }
+        }
         api.release_memory(); // Valve's advice for threads other than the game's.
       }
     }
@@ -430,6 +469,7 @@ DWORD WINAPI worker(void *) {
   MoveFileExW((folder + L"coop-fight.log").c_str(), (folder + L"coop-fight.old.log").c_str(),
               MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
+  delete_chat();                                       // And chat lines nobody took.
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt"})
@@ -469,6 +509,7 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved) {
                       t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds,
                       faulted ? " (after a fault)" : "");
     append_raw(text, static_cast<DWORD>(n));
+    delete_chat(); // Stack only: the paths were kept at attach.
     return TRUE;
   }
   if (reason != DLL_PROCESS_ATTACH)
@@ -485,9 +526,12 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved) {
   folder.assign(path, n);
   folder.resize(folder.find_last_of(L"\\/") + 1);
   std::wstring log = folder + L"coop-link.log";
-  if (log.size() >= MAX_PATH)
-    return TRUE; // A path this long would not be loggable; stay idle.
+  if (log.size() + 4 >= MAX_PATH)
+    return TRUE; // A path this long would not be loggable, nor coop-chat.txt.tmp deletable; stay idle.
   lstrcpyW(log_path, log.c_str());
+  const wchar_t *const chat_names[4] = {L"coop-say.txt", L"coop-say.txt.tmp", L"coop-chat.txt", L"coop-chat.txt.tmp"};
+  for (int i = 0; i < 4; ++i)
+    lstrcpynW(chat_files[i], (folder + chat_names[i]).c_str(), MAX_PATH);
   if (HANDLE thread = CreateThread(nullptr, 0, worker, nullptr, 0, nullptr))
     CloseHandle(thread);
   return TRUE;

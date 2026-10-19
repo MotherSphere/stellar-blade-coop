@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "link_protocol.h" // Request, State
+#include "link_protocol.h" // Request, State, Vitals
 
 namespace coop::pose {
 // Worker thread, every pass: pins the build once; reads coop-session.txt, coop-components.txt (EVE's capture, sent on
@@ -40,6 +40,12 @@ std::string ask_replay(bool on);  // coop-record.bin played in a loop as the rem
 // with rule, arms its verdict 60 s later, once a run. Returns the line for the log.
 std::string ask_nightop(bool rule, uint64_t now_ms);
 void block(); // coop off: no engine access until the game restarts.
+// Worker thread: coop loopback runs (its line in status() says loopback=), so with no friend linked the chat echoes
+// and our vitals stand in for hers (UI-DESIGN 5.4).
+bool loopback();
+// Worker thread, every 250 ms in a chat session: our EVE's vitals for the friend's partner card (fight_engine.h's
+// vitals()); false off the pinned build, after coop off, or when they cannot be read (no world, a load).
+bool local_vitals(coop::Vitals &out);
 // Worker thread, every 250 ms: the save slot the game entered (client +0x54, save_slot.h), or slot::kUnread on another
 // build or after coop off, which read nothing.
 int loaded_slot();

@@ -166,6 +166,8 @@ These three run the ghost pipeline on one PC. They need the native tick and the 
   the remote side, each pose re-stamped as if sent now, until `coop replay off`, which removes the ghost. The
   generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks where you walked, with
   no offset, and the map gate applies.
+- During `coop loopback` with no friend linked, a chat line you send comes back as your friend's, and your own HP,
+  shield and gauges stand in for theirs (`mate=` in `coop status`).
 - The loopback and the replay never run together. Either one takes over from a linked friend until it is off: nothing
   is sent to them meanwhile, what they send is ignored, and their ghost goes. Then they are linked again: your table
   goes to them at once and theirs comes back with their next resend. A recording runs beside them.
@@ -410,10 +412,13 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
+| `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at once |
+| `coop-chat.txt` | native | Your friend's chat lines, for a moment: Lua takes and deletes it within 250 ms |
 
 The files shared between Lua and the native part are each written whole beside (a `.tmp` file) and renamed over, so
 neither side ever reads one half-written. The native part deletes the capture, remote, display and state files, and any
-stale request or report, when it starts. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can
+stale request or report, when it starts. The two chat files are also deleted when a session starts or ends and when
+the game exits, and chat text never goes into a log, a report or the console. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can
 be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the

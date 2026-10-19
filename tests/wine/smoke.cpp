@@ -4,7 +4,8 @@
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
 // build's global, nor a marker; the shared fight's line says fight=off), that coop_tick is exported
 // and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an unpinned exe
-// (coop-link.log, within 3 s each). It
+// (coop-link.log, within 3 s each); that the chat files a previous run left are deleted at start, and a typed line
+// is taken within 3 s with no session, its text never in coop-link.log. It
 // also checks ReadProcessMemory on its own process, as the Night Operation poller uses it: equal bytes from the stack,
 // false at 0x1000, no crash on a PAGE_NOACCESS page (whose result Wine may differ on, so it is only printed), and
 // the cost of one read. Exit code 0 on success.
@@ -33,15 +34,15 @@ std::string read_text(const std::wstring &path) {
 }
 
 // As Lua writes it: beside, then renamed in, so the worker never takes half a request.
-bool write_request(const std::wstring &folder, const char *text) {
-  std::wstring temp = folder + L"coop-request.txt.tmp";
+bool write_request(const std::wstring &folder, const char *text, const wchar_t *name = L"coop-request.txt") {
+  std::wstring temp = folder + name + L".tmp";
   HANDLE f = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
     return false;
   DWORD n = 0;
   bool ok = WriteFile(f, text, static_cast<DWORD>(std::strlen(text)), &n, nullptr);
   CloseHandle(f);
-  return ok && MoveFileExW(temp.c_str(), (folder + L"coop-request.txt").c_str(), MOVEFILE_REPLACE_EXISTING);
+  return ok && MoveFileExW(temp.c_str(), (folder + name).c_str(), MOVEFILE_REPLACE_EXISTING);
 }
 
 bool rpm(const void *address, void *out, size_t n) {
@@ -69,6 +70,14 @@ int wmain(int argc, wchar_t **argv) {
     *reinterpret_cast<uint64_t *>(page + 0x2520) = reinterpret_cast<uintptr_t>(page + 0x2800);
     *reinterpret_cast<int32_t *>(page + 0x2854) = 3;
   }
+
+  // A previous run's chat files: the worker deletes them before anything else.
+  const std::wstring say = folder + L"coop-say.txt", chat = folder + L"coop-chat.txt";
+  const auto gone = [](const std::wstring &path) {
+    return GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES;
+  };
+  bool stale = write_request(folder, "smoke secret one\n", L"coop-say.txt") &&
+               write_request(folder, "in smoke secret two\n", L"coop-chat.txt");
 
   HMODULE dll = LoadLibraryW((folder + L"StellarCoop.dll").c_str());
   if (!dll) {
@@ -117,6 +126,14 @@ int wmain(int argc, wchar_t **argv) {
       freeze = read_text(folder + L"coop-link.log").find("coop freeze refused: build stamp") != std::string::npos;
     }
 
+  // The chat files: the stale ones went at start; a typed line is taken with no session, and never logged.
+  bool chat_ok =
+      stale && waiting && gone(say) && gone(chat) && write_request(folder, "smoke secret three\n", L"coop-say.txt");
+  for (ULONGLONG end = GetTickCount64() + 3000; chat_ok && !gone(say) && GetTickCount64() < end;)
+    Sleep(50);
+  chat_ok = chat_ok && gone(say) && gone(chat) &&
+            read_text(folder + L"coop-link.log").find("secret") == std::string::npos;
+
   // ReadProcessMemory on this process, as the poller calls it.
   char source[64], copy[64] = {};
   for (int i = 0; i < 64; ++i)
@@ -137,16 +154,17 @@ int wmain(int argc, wchar_t **argv) {
   bool rpm_ok = stack_read && !low_read;
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
-  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && rpm_ok;
+  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && chat_ok && rpm_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "fight probe=%s | freeze=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
+              "fight probe=%s | freeze=%s | chat files=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a "
+              "read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
               tick ? tick_text : "absent", nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL",
-              freeze ? "refused" : "FAIL", rpm_ok ? "ok" : "FAIL",
+              freeze ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL", rpm_ok ? "ok" : "FAIL",
               stack_read ? "equal" : "FAIL",
               low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);
