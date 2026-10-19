@@ -107,11 +107,27 @@ assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') an
 -- coop-settings.txt (N5): free keys, never F10 or ~ (the console on AZERTY); a bad value keeps its default, with a line.
 local Link=require('link')
 local s,notes=Link.parse_settings('')
-assert(s.host_key.key=='F5' and s.host_key.mod==nil and s.status_key.key=='F6' and s.leave_key.key=='F8' and #notes==0)
+assert(s.menu_key.key=='F5' and s.menu_key.mod==nil and s.status_key.key=='F6' and s.leave_key.key=='F8' and #notes==0)
+assert(s.host_key.key==nil and s.host_key.name=='none','Host is in the menu: no host key unless set')
 assert(s.name_tag==true and s.send_rate==20,'Empty text: the defaults')
-s,notes=Link.parse_settings('status_key=Shift+F7\n host_key = f6 \n')
+s,notes=Link.parse_settings('status_key=Shift+F7\n menu_key = f6 \n')
 assert(s.status_key.key=='F7' and s.status_key.mod=='SHIFT' and s.status_key.name=='Shift+F7' and #notes==0)
-assert(s.host_key.key=='F6' and s.host_key.mod==nil and s.leave_key.key=='F8','Spaces and case do not matter')
+assert(s.menu_key.key=='F6' and s.menu_key.mod==nil and s.leave_key.key=='F8','Spaces and case do not matter')
+-- The menu (D-UI2): a file with no menu_key line (every file before it) gives the menu host_key's key, and host_key goes
+-- off: Host is the menu's first row. The user's Shift+F5 file opens the menu on Shift+F5; a menu_key line keeps both.
+s,notes=Link.parse_settings('host_key=F5\nstatus_key=F6\nleave_key=F8\n')
+assert(#notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.host_key.key==nil)
+s,notes=Link.parse_settings('host_key=Shift+F5\nstatus_key=Shift+F6\nleave_key=Shift+F8\n')
+assert(#notes==0 and s.menu_key.key=='F5' and s.menu_key.mod=='SHIFT' and s.host_key.name=='none'
+    and s.status_key.name=='Shift+F6' and s.leave_key.name=='Shift+F8')
+s,notes=Link.parse_settings('menu_key=F7\nhost_key=F5\n')
+assert(#notes==0 and s.menu_key.name=='F7' and s.host_key.key=='F5','Both set: both kept, host_key hosts at once')
+s,notes=Link.parse_settings('host_key=none\n')
+assert(#notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none')
+s,notes=Link.parse_settings('menu_key=none\n')
+assert(#notes==1 and s.menu_key.name=='F5' and notes[1]:find("'none' is not allowed for menu_key",1,true),notes[1])
+s,notes=Link.parse_settings('menu_key=F5\nhost_key=F5\n')
+assert(#notes==1 and notes[1]=='settings: F5 is set for two actions: default keys used' and s.host_key.name=='none')
 local ANY='use F1 to F12, with at most one of Shift+, Ctrl+, Alt+'
 for _,refused in ipairs({{'F10','F10 opens the console'},{'Ctrl+F10','F10 opens the console'},{'~',ANY},{'A',ANY},
     {'F13',ANY},{'Ctrl+Alt+F5',ANY}}) do
@@ -121,7 +137,8 @@ for _,refused in ipairs({{'F10','F10 opens the console'},{'Ctrl+F10','F10 opens 
 end
 s,notes=Link.parse_settings('host_key=F2\nstatus_key=F3\nleave_key=F3\n')
 assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default keys used',notes[1])
-assert(s.host_key.key=='F5' and s.status_key.key=='F6' and s.leave_key.key=='F8','A shared key: all three go back')
+assert(s.menu_key.key=='F5' and s.host_key.name=='none' and s.status_key.key=='F6' and s.leave_key.key=='F8',
+    'A shared key: all four go back')
 s,notes=Link.parse_settings('status_key=Alt+F7\nleave_key=Ctrl+F7\n')
 assert(#notes==0 and s.status_key.mod=='ALT' and s.leave_key.mod=='CONTROL','Another modifier is another key')
 for _,rate in ipairs({'9','31','x'}) do
@@ -133,8 +150,8 @@ s,notes=Link.parse_settings('send_rate=30'); assert(#notes==0 and s.send_rate==3
 s,notes=Link.parse_settings('name_tag=maybe')
 assert(notes[1]=="settings: line 1: 'maybe' is not allowed for name_tag (use on or off); name_tag stays on" and s.name_tag)
 s,notes=Link.parse_settings('NAME_TAG=Off'); assert(#notes==0 and s.name_tag==false)
-s,notes=Link.parse_settings('name_tag=off\r\nsend_rate=25\r\nhost_key=Shift+F2\r\n')
-assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.host_key.name=='Shift+F2','CRLF')
+s,notes=Link.parse_settings('name_tag=off\r\nsend_rate=25\r\nmenu_key=Shift+F2\r\n')
+assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.menu_key.name=='Shift+F2','CRLF')
 s,notes=Link.parse_settings('colour=red\n\nnot a setting\n')
 assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', ignored"
     and notes[2]=="settings: line 3: unknown setting 'not a setting', ignored",notes[1])
@@ -142,12 +159,26 @@ local long='#'..string.rep('x',4088)..'\nsend_rate=25\n' -- The 4096th byte is t
 long=long..'#'..string.rep('x',5000-#long-2)..'\n'
 s,notes=Link.parse_settings(long)
 assert(#long==5000 and s.send_rate==20 and #notes==1 and notes[1]=='settings: only the first 4096 bytes are read',notes[1])
-s,notes=Link.parse_settings('\239\187\191host_key=F7\n')
-assert(#notes==0 and s.host_key.name=='F7','A UTF-8 BOM is skipped')
+s,notes=Link.parse_settings('\239\187\191menu_key=F7\n')
+assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==3 and #notes==0 and s.host_key.name=='F5' and s.status_key.name=='F6' and s.leave_key.name=='F8')
+assert(keys==4 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+    and s.leave_key.name=='F8')
+assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
+-- The menu's own: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game or english; a new file names them.
+assert(s.ui_scale==100 and math.type(s.ui_scale)=='integer' and s.ui_sounds==true and s.ui_language=='game')
+assert(Link.DEFAULT:find('\nui_scale=100\nui_sounds=on\nui_language=game\n',1,true))
+s,notes=Link.parse_settings('UI_Scale=75\nui_sounds=OFF\nui_language=English\n')
+assert(#notes==0 and s.ui_scale==75 and s.ui_sounds==false and s.ui_language=='english')
+for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','use 75 to 150','100'},
+        {'ui_scale','1.5','use 75 to 150','100'},{'ui_sounds','yes','use on or off','on'},
+        {'ui_language','french','use game or english','game'}}) do
+    s,notes=Link.parse_settings(bad[1]..'='..bad[2])
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
+        ..bad[1].." stays "..bad[4],notes[1])
+end
 assert(s.cloth==false and s.dyes==false and s.effects==false,'The looks are comments in the defaults: off, as the code says')
 -- The ghost's looks: on or off, any case; a bad value keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)
@@ -188,7 +219,7 @@ assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0)
 local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
 assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.host_key.name=='F5' and s.send_rate==20
+assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==20
     and s.name_tag==true and s.cloth==false)
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
@@ -240,6 +271,23 @@ s,notes=link.settings()
 assert(files[SETTINGS]=='send_rate=30\n' and s.send_rate==20,'Not replaced either')
 assert(notes[1]=='settings: cannot write coop-settings.txt (cannot write coop-settings.txt: exists): defaults used',notes[1])
 fs.read,fs.write=read,write
+-- The menu's changes (D-UI4): the text as it is, and the whole file written back through a temporary one; before the
+-- first change of a Lua load, the file as it was then is kept as coop-settings.old.txt (never again in that load).
+local OLD_FILE=SETTINGS:gsub('%.txt$','.old.txt')
+files[SETTINGS]='# mine\nsend_rate=30\n'
+assert(link.settings_text()=='# mine\nsend_rate=30\n')
+assert(link.write_settings('# mine\nsend_rate=25\n'))
+assert(files[SETTINGS]=='# mine\nsend_rate=25\n' and files[OLD_FILE]=='# mine\nsend_rate=30\n' and not files[SETTINGS..'.tmp'])
+assert(link.write_settings('# mine\nsend_rate=20\n'))
+assert(files[SETTINGS]=='# mine\nsend_rate=20\n' and files[OLD_FILE]=='# mine\nsend_rate=30\n','The backup once a load')
+local second=require('link').new('C:\\Mod',fs)
+fs.write=function() return false end
+local saved,why=second.write_settings('x\n')
+assert(not saved and why:find('cannot write',1,true) and files[SETTINGS]=='# mine\nsend_rate=20\n','Nothing changed')
+fs.write=write
+assert(second.write_settings('send_rate=12\n') and files[OLD_FILE]=='# mine\nsend_rate=20\n','A new load backs up again')
+files[SETTINGS],files[OLD_FILE]=nil,nil
+assert(link.settings_text()==nil)
 
 -- coop-state.txt: written once per change; a failed write is not remembered, so the next call writes it.
 local STATE_FILE,state_writes='C:\\Mod\\coop-state.txt',0

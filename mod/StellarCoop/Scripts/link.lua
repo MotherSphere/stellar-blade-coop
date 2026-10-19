@@ -10,14 +10,19 @@
 -- at the start of one.
 -- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight; its
 -- photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part
--- through coop-state.txt).
+-- through coop-state.txt). The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+local K=require('keybind')
 local Link={}
--- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
--- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
+-- coop-settings.txt is the user's (N5): written with these defaults when absent, changed by the co-op menu one line at a
+-- time (write_settings), never shipped (an update would replace it). F-key codes do not depend on the keyboard layout,
+-- and Stellar Blade binds none of them.
 Link.DEFAULT=[[
-# StellarCoop settings, read when the mod loads (game start, or Ctrl+R). Delete this file to get the defaults back.
-# Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7).
-host_key=F5
+# StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
+# one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
+# Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
+# the co-op menu, whose first row hosts; host_key hosts at once, or none.
+menu_key=F5
+host_key=none
 status_key=F6
 leave_key=F8
 # Your friend's Steam name above her ghost: on or off.
@@ -39,24 +44,29 @@ photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
+# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
+# english.
+ui_scale=100
+ui_sounds=on
+ui_language=game
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: off and none, as here; one written before the photo
--- settings lacks those: the defaults here.
-local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',dyes='off',
-    effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',photo_ghost='on',
-    photo_name_tag='off'}
-local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true} -- on or off, as the looks.
+-- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
+    dyes='off',effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',
+    photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game'}
+local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true} -- on or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
-local KEYS={'host_key','status_key','leave_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key'}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
 local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
-local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
--- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil,
--- name='Shift+F7'}; fight_chars a list of whole numbers (the native part takes at most 16, each from 1 to 2^32-1);
--- photo_sync 'both', 'notice' or 'off'; photo_freeze_max a whole number of seconds.
+-- A setting's value from its text, or nil and why it is refused. A key is keybind.lua's ({key='F7', mod='SHIFT' or nil,
+-- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
+-- from 1 to 2^32-1); photo_sync 'both', 'notice' or 'off'; photo_freeze_max a whole number of seconds; ui_scale one of
+-- percent; ui_language 'game' or 'english'.
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -84,16 +94,16 @@ local function setting(name,text)
         local rate=text:match('^%d+$') and tonumber(text)
         if rate and rate>=10 and rate<=30 then return rate end
         return nil,'use 10 to 30'
+    elseif name=='ui_scale' then
+        local pct=text:match('^%d+$') and tonumber(text)
+        if pct and pct>=75 and pct<=150 then return pct end
+        return nil,'use 75 to 150'
+    elseif name=='ui_language' then
+        text=text:lower()
+        if text=='game' or text=='english' then return text end
+        return nil,'use game or english'
     end
-    local prefix,number=text:upper():match('^(%a+)%+F([1-9]%d?)$')
-    if not prefix then number=text:upper():match('^F([1-9]%d?)$') end
-    number=tonumber(number)
-    if not number or number>12 or (prefix and not MODIFIERS[prefix]) then
-        return nil,'use F1 to F12, with at most one of Shift+, Ctrl+, Alt+'
-    end
-    if number==10 then return nil,'F10 opens the console' end -- And ~ never parses: both open it on AZERTY.
-    local shown=(prefix and prefix:sub(1,1)..prefix:sub(2):lower()..'+' or '')..'F'..number
-    return {key='F'..number,mod=MODIFIERS[prefix],name=shown}
+    return K.parse(name,text)
 end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
@@ -104,11 +114,13 @@ function Link.parse_settings(text)
         text=text:sub(1,4096):match('^.*\n') or ''
         notes[1]='settings: only the first 4096 bytes are read'
     end
+    local named={} -- The settings a line names, taken or not.
     for line in ((text:gsub('\r',''))..'\n'):gmatch('([^\n]*)\n') do
         n=n+1
         if not line:find('^%s*$') and not line:find('^%s*#') then
             local name,value=line:match('^%s*([%w_]+)%s*=%s*(.-)%s*$')
             local key=name and name:lower()
+            if key then named[key]=true end
             if not DEFAULTS[key] then
                 notes[#notes+1]=string.format("settings: line %d: unknown setting '%s', ignored",n,name or line:match('^%s*(.-)%s*$'))
             else
@@ -122,16 +134,21 @@ function Link.parse_settings(text)
             end
         end
     end
-    -- Two actions on one key would both run on each press: all three go back to the defaults.
-    local taken={}
+    -- A file with no menu_key line (every file written before the menu, D-UI2): the menu opens on host_key's key and
+    -- Host is its first row, so host_key goes off. The user's Shift+F5 file keeps Shift+F5.
+    if not named.menu_key then
+        if settings.host_key.key then settings.menu_key=settings.host_key end
+        settings.host_key=setting('host_key','none')
+    end
+    -- Two actions on one key would both run on each press: all four go back to the defaults.
+    local keys={}
+    for _,name in ipairs(KEYS) do keys[name]=settings[name] end
     for _,name in ipairs(KEYS) do
-        local shown=settings[name].name
-        if taken[shown] then
-            notes[#notes+1]='settings: '..shown..' is set for two actions: default keys used'
+        if K.clash(keys,name,settings[name]) then
+            notes[#notes+1]='settings: '..settings[name].name..' is set for two actions: default keys used'
             for _,key in ipairs(KEYS) do settings[key]=setting(key,DEFAULTS[key]) end
             break
         end
-        taken[shown]=true
     end
     return settings,notes
 end
@@ -328,6 +345,22 @@ function Link.new(folder,fs)
         local settings,notes=Link.parse_settings(text)
         if wrote then table.insert(notes,1,wrote) end
         return settings,notes
+    end
+    -- The menu's changes (D-UI4): the file's text (nil when it cannot be read), and the whole file written back
+    -- through a temporary one; before the first change of a Lua load, the file as it was then is kept as
+    -- coop-settings.old.txt.
+    local backed=false
+    function self.settings_text() return fs.read(path('coop-settings.txt')) end
+    function self.write_settings(text)
+        if not backed then
+            local old=self.settings_text()
+            if old then
+                local ok,why=put('coop-settings.old.txt',old)
+                if not ok then return false,why end
+            end
+            backed=true
+        end
+        return put('coop-settings.txt',text)
     end
     function self.valid_lobby(text) return text:match('^%d+$')~=nil and text:match('^0+$')==nil end
     return self

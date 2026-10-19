@@ -1,9 +1,11 @@
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
--- the Options tree (every co-op setting as a toggle, a choice, a range or a key), a cursor that skips section headers
--- and wraps, Leave only on a second Select within 3 s, values read as the mod reads coop-settings.txt, and each change
--- as the one value to write there (settings_file.set). Rows and values are ids; ui_text gives their words.
+-- the Options tree (every co-op setting as a toggle, a choice, a range or a key; those whose feature is not built yet
+-- wait, hidden), a cursor that skips section headers and wraps, Leave only on a second Select within 3 s, values read
+-- as the mod reads coop-settings.txt (link.parse_settings), and each change as the one value to write there
+-- (settings_file.set). Rows and values are ids; ui_text gives their words.
 local SF=require('settings_file')
 local K=require('keybind')
+local Link=require('link')
 local M={}
 -- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=a friend linked or the loopback running}.
 M.MAIN={
@@ -22,63 +24,69 @@ M.MAIN={
 local function toggle(key,default) return {key=key,values={'on','off'},default=default} end
 local function range(key,min,max,step,default) return {key=key,min=min,max=max,step=step,default=tostring(default)} end
 local function bind(key,default) return {key=key,bind=true,default=default} end
+local function later(row) row.later=true; return row end -- Its feature is not on this branch yet: hidden.
+local function reload(row) row.reload=true; return row end -- The mod takes it at its next load only.
 -- Defaults as the file writes them. Keys the mod does not read yet are named here first (the milestone that brings
--- each is in UI-DESIGN's Options table).
+-- each is in UI-DESIGN's Options table); each waits as later() until its feature is built, then the mod reads it.
 M.OPTIONS={
     {head='controls'},
-    bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('chat_key','Enter'),
+    bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),later(bind('chat_key','Enter')),
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},
-    range('photo_freeze_max',60,1800,60,600), -- Seconds, shown in minutes: 1 to 30.
+    -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
+    {key='photo_freeze_max',min=30,max=3600,step=60,zero=true,default='600'},
     toggle('photo_ghost','on'),toggle('photo_name_tag','off'),
     {head='partner'},
-    toggle('name_tag','on'),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
-    toggle('card_details','on'), -- Ping and the friend's map on the card.
+    reload(toggle('name_tag','on')),later(toggle('partner_bar','on')),later(toggle('partner_arrow','on')),
+    later(toggle('partner_card','on')),
+    later(toggle('card_details','on')), -- Ping and the friend's map on the card.
     {head='ghost'},
-    toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),toggle('basesuit','off'),
+    toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
     range('send_rate',10,30,1,20),
     {head='session'},
-    {key='who_can_join',values={'friends','private'},default='friends'},
-    toggle('rejoin','on'),
+    later({key='who_can_join',values={'friends','private'},default='friends'}),
+    later(toggle('rejoin','on')),
     {head='combat'},
-    toggle('shared_enemies','off'),
+    reload(toggle('shared_enemies','off')),
     {head='display'},
-    toggle('notices','on'),toggle('chat_feed','on'),
-    {key='status_overlay',values={'off','compact','detailed'},default='off'},
+    later(toggle('notices','on')),later(toggle('chat_feed','on')),
+    later({key='status_overlay',values={'off','compact','detailed'},default='off'}),
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
     {head='chat'},
-    toggle('chat','on'),range('chat_lines',20,50,5,50),
+    later(toggle('chat','on')),later(range('chat_lines',20,50,5,50)),
 }
 -- Every key setting a rebind is checked against: the page's, and host_key, off once the menu holds Host (D-UI2).
 local KEYS={bind('host_key','none')}
 for _,row in ipairs(M.OPTIONS) do if row.bind then KEYS[#KEYS+1]=row end end
--- A file value as the menu shows it, or nil when the mod would refuse it.
-local function shown(row,value)
-    if row.bind then
-        local key=K.parse(row.key,value)
-        return key and key.name
-    end
-    if row.values then
-        value=value:lower()
-        for _,v in ipairs(row.values) do if v==value then return v end end
-        return nil
-    end
-    local n=value:match('^%d+$') and tonumber(value)
-    return n and n>=row.min and n<=row.max and tostring(n) or nil
-end
--- Every setting's value from the file's text (setting name to value): the last line the mod takes, else the default.
+-- Every setting's value from the file's text (setting name to value), as the mod takes it (link.parse_settings: the
+-- last line it takes, the menu key's migration, the defaults for two actions on one key); a setting it does not read
+-- yet, the model's default.
 function M.read(text)
-    local values={}
+    local values,s={},Link.parse_settings(text)
     for _,rows in ipairs({M.OPTIONS,KEYS}) do
         for _,row in ipairs(rows) do
+            local v=row.key and s[row.key]
             if row.key then
-                local value=SF.get(text,row.key,function(v) return shown(row,v)~=nil end)
-                values[row.key]=value and shown(row,value) or row.default
+                if v==nil then values[row.key]=row.default
+                elseif type(v)=='table' then values[row.key]=v.name
+                elseif type(v)=='boolean' then values[row.key]=v and 'on' or 'off'
+                else values[row.key]=tostring(v) end
             end
         end
     end
     return values
+end
+-- The file's text with key set to value (settings_file.set), or nil and why. The first menu_key written into a file
+-- with none also turns host_key off there: the menu held host_key's key (link.parse_settings), which must not host
+-- again by itself.
+function M.write(text,key,value)
+    if key=='menu_key' and not SF.get(text,'menu_key') then
+        local why
+        text,why=SF.set(text,'host_key','none')
+        if not text then return nil,why end
+    end
+    return SF.set(text,key,value)
 end
 -- A key pressed for a rebind (keybind.text's), checked: 'set', key, the value to write; or nil and why: the grammar's
 -- reason, or 'clash' and the other setting that holds it.
@@ -95,12 +103,14 @@ function M.new()
     local self,page,id,index,asked={},'main',nil,1,nil -- asked: when Leave was first selected.
     local function name(row) return row.id or row.key end
     function self.page() return page end
-    -- The page's rows shown in this state, headers included.
+    -- The page's rows shown in this state, headers included, but none with no row under it.
     function self.rows(ctx)
         local rows={}
         for _,row in ipairs(page=='main' and M.MAIN or M.OPTIONS) do
-            if not row.show or row.show(ctx) then rows[#rows+1]=row end
+            if row.head and rows[#rows] and rows[#rows].head then rows[#rows]=nil end
+            if not row.later and (not row.show or row.show(ctx)) then rows[#rows+1]=row end
         end
+        if rows[#rows].head then rows[#rows]=nil end
         return rows
     end
     -- The row under the cursor: the same row while it shows, else the one now in its place (the next, past a header).
@@ -129,7 +139,9 @@ function M.new()
             for i,v in ipairs(row.values) do if v==value then at=i end end
             new=row.values[(at-1+dir)%#row.values+1]
         else
-            new=tostring(math.max(row.min,math.min(row.max,tonumber(value)+dir*row.step)))
+            local n=math.min(row.max,tonumber(value)+dir*row.step)
+            if n<row.min then n=row.zero and 0 or row.min end -- zero: 0 is a value too (no limit), below min.
+            new=tostring(math.tointeger(n) or n)
         end
         if new==value then return nil end
         return 'set',row.key,new

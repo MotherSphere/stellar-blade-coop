@@ -38,14 +38,19 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, `coop where` |
 | `notice.lua` | Notices on screen above your EVE |
+| `menu.lua` | The co-op menu: its pages drawn, its keys, its rows run as `coop` commands, settings changed and applied |
+| `ui_model.lua` | The menu's rows and settings, with no engine call |
+| `ui_text.lua` | The menu's words in English and French |
+| `ui.lua` | The UI kit the menu is drawn with (runtime UMG widgets in the game's look), and the `coop ui test` spike |
+| `keybind.lua`, `settings_file.lua` | Key settings and their clash check; one line of `coop-settings.txt` rewritten |
 | `nightop.lua` | The `coop no` probe |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops: one every frame (the ghost's build step, `coop_tick`, placing the ghost,
-notices, the previews' follow-ups) and one every 250 ms (link status changes, session start, notices to show, the
-capture, the remote table).
+notices, the previews' follow-ups, the menu's tweens) and one every 250 ms (link status changes, session start, notices
+to show, the capture, the remote table, the menu's root and status line).
 
 ### Files between the two sides
 

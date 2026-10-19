@@ -2,18 +2,19 @@
 -- by the native part from a table and poses that come back to you: a linked friend's over Steam, yours through an
 -- in-process loopback (coop loopback <delay ms> <jitter ms> <loss %> | off), or a recording of yours (coop record
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
--- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite,
--- join, leave, status, report; host, status and leave on keys too, F5, F6 and F8 unless coop-settings.txt says
--- otherwise), its notices on screen above your EVE; and coop where, a line of coordinates to compare between the two
--- PCs; coop no [heal|rule|spawnpt|actor], the Night Operation probe of the T6 test only (nightop.lua), on the co-op
--- save slot only; coop recruiter [off], the cut Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua),
--- on the co-op save slot only; coop fight on|off|status|probe|test|record|replay, the shared enemies of Phase 11
--- (experimental: on only with shared_enemies=on in coop-settings.txt, which also starts it once a load on the co-op
--- save), on the co-op save slot only; the synced photo mode (photo_sync in coop-settings.txt: your friend's photo mode
--- pauses your game, yours pauses theirs; during your own, the notices, and as set the ghost and its name tag, stay out
--- of the shot), with coop freeze <seconds>|off to test the pause alone; coop ui test [game], the UI-layer spike (ui.lua:
--- a small widget on screen for 5 s and its checks in the log; left out of the usage line until the UI layer ships).
--- coop off stops everything until the game restarts.
+-- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, join,
+-- leave, status, report; the co-op menu on F5, whose rows host, invite, join, leave and change the settings (menu.lua),
+-- status and leave on F6 and F8, unless coop-settings.txt says otherwise), its notices on screen above your EVE; and
+-- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
+-- Operation probe of the T6 test only (nightop.lua), on the co-op save slot only; coop recruiter [off], the cut Night
+-- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on the co-op save slot only; coop fight
+-- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
+-- in coop-settings.txt, which also starts it once a load on the co-op save), on the co-op save slot only; the synced
+-- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
+-- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
+-- to test the pause alone; coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its
+-- checks in the log; left out of the usage line until the UI layer ships). coop off stops everything until the game
+-- restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -35,8 +36,9 @@ if link then
     local notes
     settings,notes=link.settings()
     for _,note in ipairs(notes) do log(note) end
-    log(string.format('keys: host=%s status=%s leave=%s, name tag %s, %d poses a second',settings.host_key.name,
-        settings.status_key.name,settings.leave_key.name,settings.name_tag and 'on' or 'off',settings.send_rate))
+    log(string.format('keys: menu=%s host=%s status=%s leave=%s, name tag %s, %d poses a second',settings.menu_key.name,
+        settings.host_key.name,settings.status_key.name,settings.leave_key.name,settings.name_tag and 'on' or 'off',
+        settings.send_rate))
 end
 -- What the ghost shows: the settings', changed by coop look until the mod reloads (game start or Ctrl+R: the settings
 -- again). The ghost holds this same table.
@@ -98,7 +100,9 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 -- commands.recruiter runs only on the co-op save slot; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
-local ui=require('ui').new(function(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end)
+local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end
+local ui=require('ui').new(ui_log)
+local kit,menu -- The co-op menu's kit and the menu, with the Steam link only (below the commands).
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
 -- 250 ms so the file never stays on disk, session or not. Its clock counts that loop's ticks: os.clock is CPU time
 -- under some C runtimes, os.time whole seconds. The box that shows and sends lines comes with the UI layer.
@@ -227,6 +231,8 @@ local commands={
         if puppet.active() then puppet.toggle() end
         notice.stop()
         ui.stop()
+        if menu then menu.stop() end
+        if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
@@ -251,15 +257,27 @@ for _,name in ipairs({'record','replay'}) do
     end
 end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
--- A console command or a key, on the game thread.
+local OFF='coop off is active until the game restarts'
+-- A console command, a key or a menu row, on the game thread: logged, and its result returned.
 local function run(name,a,b,c,d)
     local command=commands[name or '']
-    if not command then return log(USAGE) end
+    if not command then log(USAGE); return false,USAGE end
     if off and command~=commands.status and command~=commands.report then
-        return report(false,'coop off is active until the game restarts')
+        report(false,OFF)
+        return false,OFF
     end
     local ran,ok,message=pcall(command,a,b,c,d)
-    if ran then report(ok,message) else report(false,ok) end
+    if not ran then ok,message=false,ok end
+    report(ok,message)
+    return ok,message
+end
+-- The co-op menu (menu.lua) on the Uplink kit (ui.lua), with the Steam link only: its root is built in a world, after
+-- one lookup a 250 ms tick.
+if settings then
+    kit=require('ui').kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,
+        sounds=settings.ui_sounds})
+    menu=require('menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
+        version=VERSION})
 end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
@@ -279,6 +297,12 @@ LoopInGameThreadWithDelay(1,function()
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
     ui.tick() -- Likewise for coop ui test.
+    if kit then -- The menu's open and close tweens, and the game's input back after a close.
+        local now=os.clock()
+        ok,message=kit.tick(now)
+        if message then report(ok,message) end
+        menu.tick(now)
+    end
 end)
 if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.
@@ -341,6 +365,10 @@ if link then
             puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
             local line=link.state(world,settings.send_rate,photo,settings.photo_sync,settings.photo_freeze_max)
             if line then log('state: '..line) end
+            local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
+            local ok,message=kit.slow(shown)
+            if message then report(ok,message) end
+            menu.slow(shown)
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end
@@ -348,28 +376,67 @@ if link then
         if message then report(ok,message) end
     end)
 end
--- Host/invite, status and leave on keys (N5), only with the Steam link. A key callback runs on UE4SS's key thread: it
--- only hands the action to the game thread, where the console's checks (coop off included) apply. The status key gives
--- a one-line summary, in the log and on screen; coop status keeps the full status.
+-- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
+-- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
+-- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line or
+-- Leave. Enter goes to the menu's key capture, then selects; the navigation keys go to the menu while it is open only
+-- (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc). A key
+-- callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
+-- off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
+-- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
+-- in the log and on screen; coop status keeps the full status.
 if settings then
-    for _,action in ipairs({'host','status','leave'}) do
-        local key=settings[action..'_key']
-        local modifiers=key.mod and {ModifierKey[key.mod]} or nil
-        local taken
-        if type(IsKeyBindRegistered)=='function' then
-            if modifiers then taken=IsKeyBindRegistered(Key[key.key],modifiers) else taken=IsKeyBindRegistered(Key[key.key]) end
+    local K=require('keybind')
+    local ACTIONS={'menu','host','status','leave'}
+    if type(IsKeyBindRegistered)=='function' then
+        for _,action in ipairs(ACTIONS) do
+            local key=settings[action..'_key']
+            local taken
+            if key.mod then taken=IsKeyBindRegistered(Key[key.key],{ModifierKey[key.mod]})
+            elseif key.key then taken=IsKeyBindRegistered(Key[key.key]) end
+            if taken then log('keys: '..key.name..' is also bound by a mod loaded earlier; both run') end
         end
-        if taken then log('keys: '..key.name..' is also bound by a mod loaded earlier; both run') end
-        local function pressed()
-            ExecuteInGameThread(function()
-                log('key '..key.name..': '..action)
-                if action~='status' then return run(action) end
-                local summary=link.summary()
-                report(true,summary)
-                notice.say(summary)
-            end)
+    end
+    local modified_at={} -- F-key to when it was last pressed with a modifier (os.clock).
+    local function pressed(name)
+        local base=name:match('^%a+%+(F%d+)$')
+        if base then modified_at[base]=os.clock()
+        elseif modified_at[name] and os.clock()-modified_at[name]<0.2 then return end
+        if menu.capture(name) then return end
+        for _,action in ipairs(ACTIONS) do
+            if settings[action..'_key'].name==name then
+                log('key '..name..': '..action)
+                if action=='status' then
+                    local summary=link.summary()
+                    report(true,summary)
+                    notice.say(summary)
+                elseif action~='menu' then run(action)
+                elseif off then report(false,OFF)
+                else
+                    local ok,why=menu.toggle()
+                    if why then report(ok,why); notice.say(why) end
+                end
+                return
+            end
         end
-        if modifiers then RegisterKeyBind(Key[key.key],modifiers,pressed) else RegisterKeyBind(Key[key.key],pressed) end
+    end
+    local function bind(key,modifier,f)
+        if modifier then RegisterKeyBind(Key[key],{ModifierKey[modifier]},f) else RegisterKeyBind(Key[key],f) end
+    end
+    for n=1,12 do
+        for _,modifier in ipairs(n~=10 and {'SHIFT','CONTROL','ALT',false} or {}) do
+            local name=K.text('F'..n,modifier or nil)
+            bind('F'..n,modifier,function() ExecuteInGameThread(function() pressed(name) end) end)
+        end
+    end
+    bind('RETURN',nil,function()
+        if not menu.is_open() then return end
+        ExecuteInGameThread(function() if not menu.capture('Enter') then menu.nav('select') end end)
+    end)
+    for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
+            {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},{'SPACE','select'},
+            {'ESCAPE','back'}}) do
+        bind(nav[1],nil,function() if menu.is_open() then ExecuteInGameThread(function() menu.nav(nav[2]) end) end end)
     end
 end
 log('Loaded version '..VERSION..'. '..USAGE)

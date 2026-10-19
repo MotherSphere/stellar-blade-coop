@@ -7,8 +7,9 @@
 -- shared_enemies=on and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
 -- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop-chat.txt is
--- taken every 250 ms (session or not, coop off included) and its text never logged, and the link is optional (no
--- native part, no Steam link, no keys).
+-- taken every 250 ms (session or not, coop off included) and its text never logged, the co-op menu (menu.lua on a fake
+-- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, and the link
+-- is optional (no native part, no Steam link, no keys, no menu).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -33,7 +34,14 @@ IsKeyBindRegistered=function(key,modifiers)
     for _,bind in ipairs(binds) do if bind.key==key and mod(bind.modifiers)==mod(modifiers) then return true end end
     return false
 end
-local function press(key) for _,bind in ipairs(binds) do if bind.key=='Key.'..key then return bind.f() end end error(key) end
+local function press(key,modifier) -- The bind of that key with that modifier (UE4SS's name), or alone.
+    for _,bind in ipairs(binds) do
+        if bind.key=='Key.'..key and mod(bind.modifiers)==(modifier and ModifierKey[modifier]) then return bind.f() end
+    end
+    error(key)
+end
+local clock=0
+os.clock=function() return clock end
 local settings_text=''
 -- SB's photo-mode getters on the library's default object (main.lua's photo poll), as UE4SS calls them.
 local photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
@@ -48,6 +56,7 @@ LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 local asked,sessions,ticks,withdrawn,states,photos={},{},0,{},{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local link_mode='none' -- What link.mode() says, as of the last changes().
+local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local fake_link={
@@ -68,6 +77,14 @@ local fake_link={
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
+    ping=function() return ping_ms end,
+    -- coop-settings.txt for the menu: the same text the settings were read from at load.
+    settings_text=function() return settings_text end,
+    write_settings=function(text)
+        if write_refusal then return false,write_refusal end
+        settings_text=text
+        return true
+    end,
     settings=function() return Link.parse_settings(settings_text) end,
     -- The real one writes on a change only (link_test): this one says each call.
     state=function(world,rate,photo,sync,max)
@@ -100,7 +117,7 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         where=function() wheres=wheres+1; return true,'where map=/game/e04' end,world=function() return in_world end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end}
 end}
-package.loaded.link={new=function() return fake_link end}
+package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings} -- The real parser.
 local said,notice_ticks,notice_result,notice_stops={},0,nil,0
 package.loaded.notice={new=function()
     the_notice={say=function(text) said[#said+1]=text end,stop=function() notice_stops=notice_stops+1 end,
@@ -122,10 +139,28 @@ package.loaded.recruiter={new=function(log)
         tick=function() rc_ticks=rc_ticks+1 end}
 end}
 local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui test's arguments, its ticks and stops.
+-- The kit (ui.lua's Ui.kit; ui_kit_test tests it): its calls as words; the menu's view built at once by a builder that
+-- keeps what each text and row was last set to. kit_ready: its root is up; kit_off: it turned off.
+local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
+local function builder()
+    local b={panel=function() end,image=function() return {} end}
+    function b.text(_,_,s) local t={s=s}; t.set=function(v) t.s=v end; return t end
+    function b.row() local r={}; r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end; return r end
+    return b
+end
+local function said_kit(word) return function(...) kit_calls[#kit_calls+1]=table.concat({word,tostring((...))},' ') end end
 package.loaded.ui={new=function(log)
     ui_log=log
     return {test=function(game) ui_tests[#ui_tests+1]=game; return true,'UI test on screen' end,
         tick=function() ui_ticks=ui_ticks+1 end,stop=function() ui_stops=ui_stops+1 end}
+end,kit=function(opts)
+    kit_opts=opts
+    return {add=function(name,place,build) assert(name=='menu' and place.hit); menu_view=build(builder()) end,
+        slow=said_kit('slow'),tick=function() end,ready=function() return kit_ready and not kit_off end,
+        view=function(name) return name=='menu' and kit_ready and not kit_off and menu_view or nil end,
+        off=function() return kit_off end,show=function(_,on) kit_calls[#kit_calls+1]='show '..tostring(on) end,input=said_kit('input'),scale=said_kit('scale'),
+        sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
+        paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop')}
 end}
 -- chat.lua's calls as main.lua makes them, each as its words (chat_test tests the model itself).
 local chat_calls={}
@@ -157,6 +192,7 @@ local function load_main(with_native)
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
+    kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -168,10 +204,10 @@ load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
-assert(logged('keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
+assert(logged('keys: menu=F5 host=none status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
 assert(name_tag==true,'The name tag setting reaches the ghost')
 for k,line in ipairs(printed) do
-    if line:find('keys: host=',1,true) then
+    if line:find('keys: menu=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: off (experimental), fight_chars none\n',printed[k+2])
         assert(printed[k+3]=='[StellarCoop] photo sync: both, longest pause 600 s, ghost in your photos on, its name '
@@ -182,14 +218,26 @@ assert(look.cloth==false and look.dyes==false and look.effects==false,'Off unles
 assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
-assert(#binds==3 and binds[1].key=='Key.F5' and binds[2].key=='Key.F6' and binds[3].key=='Key.F8' and not binds[1].modifiers)
+-- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Enter and the
+-- twelve navigation keys.
+assert(#binds==44+1+12,#binds)
+assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
+    and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
+for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
+assert(binds[45].key=='Key.RETURN' and binds[57].key=='Key.ESCAPE')
 local executed=executes
-press('F5'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
-flush(); assert(executes==executed+1 and asked[1]=='host' and printed[#printed-1]=='[StellarCoop] key F5: host\n')
-assert(last():find('OK: asked the native part: host',1,true),last())
-press('F8'); assert(#asked==1); flush(); assert(executes==executed+2 and asked[2]=='leave' and logged('key F8: leave'))
+press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
+flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
+assert(last():find('OK: asked the native part: leave',1,true),last())
+press('F5'); flush()
+assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the co-op menu opens in the game world '
+    ..'only\n' and said[#said]=='the co-op menu opens in the game world only','F5 opens the menu, never hosts')
+press('F7'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F7') and not logged('key Shift+F5'),
+    'Keys no action holds: nothing')
+clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
+press('DOWN_ARROW'); press('RETURN'); press('ESCAPE'); assert(executes==executed+4,'Menu keys while closed: not queued')
 press('F6'); flush()
-assert(#asked==2 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
+assert(#asked==1 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
 assert(said[#said]=='Co-op: not in a session.','The summary on screen too')
 asked={}
 coop('host'); assert(asked[1]=='host' and last():find('OK: asked the native part: host',1,true),last())
@@ -383,9 +431,10 @@ assert(#states==written,'No world state after coop off: no engine access')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 local lines
 before,lines=#asked,#printed
-press('F5'); flush()
-assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
-    and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
+press('F5'); press('F8'); flush()
+assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop] key F5: menu\n'
+    and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n'
+    and printed[lines+4]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited,ui_ticked=notice_ticks,probe_ticks,rc_ticks,ui_ticks
 loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
@@ -441,12 +490,13 @@ load_main(true)
 assert(name_tag==false,'name_tag=off reaches the ghost')
 assert(look.cloth==true and look.dyes==true and look.effects==true and logged('look: cloth=on dyes=on effects=on'),
     'cloth=on, dyes=on and effects=on reach the ghost')
-assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays F5"))
-assert(logged('keys: host=F5 status=F6 leave=Ctrl+F8, name tag off, 25 poses a second'),table.concat(printed,'|'))
-assert(binds[3].key=='Key.F8' and #binds[3].modifiers==1 and binds[3].modifiers[1]==0x11 and not binds[1].modifiers)
+assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays none"))
+assert(logged('keys: menu=F5 host=none status=F6 leave=Ctrl+F8, name tag off, 25 poses a second'),
+    table.concat(printed,'|'))
 in_world=false
 loops[2].f(); assert(states[1]=='world=0 rate=25' and logged('state: world=0 rate=25'),'The settings\' rate in the state')
-press('F8'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
+press('F8'); flush(); assert(#asked==0 and not logged('key F8:'),'Plain F8 is not the leave key here')
+press('F8','CONTROL'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
 settings_text=''
 
 -- The photo settings: refused values keep their defaults; these reach the state, the veils and the log line.
@@ -662,6 +712,170 @@ loops[1].f(); loops[1].f(); assert(fight_reads==reads,'No shared fight work in t
 fight_text=nil
 status_text=plain
 
+-- The co-op menu (menu.lua, ui_model.lua and ui_text.lua for real; the kit faked). menu_key opens it in a world only,
+-- with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it and
+-- hosts (the Steam overlay takes the focus); the game's input comes back 150 ms after a close; it closes when the world
+-- or our HUD goes, and at coop off.
+local function key(k,modifier) press(k,modifier); flush() end
+local function screen() -- The rows drawn, 'label|value|state', blank slots left out.
+    local out={}
+    for _,r in ipairs(menu_view.rows) do if r.l~='' then out[#out+1]=r.l..'|'..r.v..'|'..r.st end end
+    return table.concat(out,'\n')
+end
+local function focus() for _,r in ipairs(menu_view.rows) do if r.st=='focus' then return r.l,r.v end end end
+local function to(label) -- Down until that row has the focus.
+    for _=1,40 do if focus()==label then return end key('DOWN_ARROW') end
+    error('no row '..label)
+end
+local function kit_said(word) for i=#kit_calls,1,-1 do if kit_calls[i]==word then return i end end end
+local function quarter() clock=clock+0.25; loops[2].f() end
+settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
+load_main(true)
+assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store' and kit_opts.log==ui_log,
+    'The kit gets the settings, the UI log and its own path store')
+assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')
+quarter(); assert(kit_calls[#kit_calls]=='slow false','No world: the HUD hidden')
+in_world=true; quarter(); assert(kit_calls[#kit_calls]=='slow true')
+key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n','Its root not up yet')
+kit_ready,kit_paused=true,true
+key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused\n',last())
+kit_paused=false
+key('F5')
+assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
+assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nSETTINGS||disabled\n'
+    ..'Options||normal\nHELP||disabled\nWrite a bug report||normal\nClose||normal',screen())
+assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
+    and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
+key('S'); assert(focus()=='Join a friend' and kit_sounds[#kit_sounds]=='move')
+key('W'); key('Z'); assert(focus()=='Close','Up wraps over the headers')
+key('DOWN_ARROW'); assert(focus()=='Host a session')
+local executed=executes
+press('F7'); flush(); assert(executes==executed+1 and focus()=='Host a session','A free F-key does nothing')
+key('RETURN')
+assert(asked[#asked]=='host' and kit_said('show false') and kit_sounds[#kit_sounds]=='close','Host closes it first')
+assert(not kit_said('input false'),'The game gets its keys back 150 ms after the close only')
+clock=clock+0.1; loops[1].f(); assert(not kit_said('input false'))
+clock=clock+0.1; loops[1].f(); assert(kit_said('input false'))
+local n=#kit_calls
+loops[1].f(); assert(#kit_calls==n,'Once')
+key('DOWN_ARROW'); assert(#kit_calls==n,'Closed: the navigation keys do nothing')
+-- Hosting: Leave asks for a second Select within 3 s; Invite closes it; F5 and Esc close it too.
+link_mode='host'
+key('F5'); assert(focus()=='Leave the session' and screen():find('Invite a friend (Steam)|',1,true))
+ping_ms=118; quarter(); assert(menu_view.status.s=='Co-op: not in a session. · 118 ms','Her ping once linked')
+ping_ms=nil
+local asks=#asked
+key('RETURN'); assert(#asked==asks and menu_view.note.s=='Select again within 3 s to leave.')
+clock=clock+1; key('SPACE'); assert(asked[#asked]=='leave' and menu_view.note.s=='')
+key('DOWN_ARROW'); key('RETURN'); assert(asked[#asked]=='invite' and kit_said('show false'))
+key('F5'); key('F5'); assert(kit_calls[#kit_calls]=='show false','menu_key closes it')
+key('F5'); key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false' and kit_sounds[#kit_sounds-1]=='back')
+-- It closes by itself when the world goes or our own photo mode starts (our HUD hides then), and when the kit turned
+-- off.
+for _,case in ipairs({{'world',function() in_world=false end},{'photo',function() photo_mode=true end},
+        {'kit',function() kit_off=true end}}) do
+    in_world,photo_mode,kit_off=true,false,false; quarter()
+    key('F5'); assert(kit_calls[#kit_calls]=='show true' or kit_said('show true')>n,case[1])
+    n=#kit_calls
+    case[2](); quarter()
+    assert(kit_said('show false') and kit_said('show false')>n,case[1])
+    n=#kit_calls
+end
+in_world,photo_mode,kit_off=true,false,false; quarter()
+key('F5'); assert(focus()=='Leave the session')
+kit_off=true
+key('F5'); key('F5')
+assert(last()=='[StellarCoop] STOP: the co-op menu is off (the UI stopped, see the log): use the coop commands\n')
+kit_off=false
+-- The Options page: the settings as the mod reads them; a toggle, a choice or a range changes at once with its line
+-- rewritten (the first change kept the file as it was: link.lua), the name tag and the shared enemies at the next load.
+link_mode='none'
+settings_text='# mine\nname_tag=on\n'
+key('F5'); to('Options'); key('RETURN')
+assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
+    ..'Leave the session|F8|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\nLongest pause|10 min|normal\n'),screen())
+to('Ponytail cloth'); local rebuilt=#rebuilds
+key('RIGHT_ARROW')
+assert(settings_text=='# mine\nname_tag=on\ncloth=on\n' and look.cloth==true and #rebuilds==rebuilt+1
+    and select(2,focus())=='On' and kit_sounds[#kit_sounds]=='change'
+    and logged('menu: cloth=on saved in coop-settings.txt'))
+key('LEFT_ARROW'); assert(look.cloth==false and settings_text=='# mine\nname_tag=on\ncloth=off\n')
+to('Photo sync'); key('D'); quarter()
+assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
+to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
+to('Poses sent a second'); key('RIGHT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=21')
+to('Name tag'); key('RETURN')
+assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
+    and menu_view.note.s=='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
+to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
+to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
+-- The language: the game's (French here), English when set so; the page scrolled to keep the cursor in view.
+kit_language='fr-FR'
+to('Menu language'); key('RIGHT_ARROW')
+assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
+assert(screen():find('^Ghost in my photos|On|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+key('RIGHT_ARROW')
+assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
+-- A write that fails: said, nothing changed.
+write_refusal='cannot write coop-settings.txt: busy'
+local before_text=settings_text
+key('LEFT_ARROW')
+assert(settings_text==before_text and menu_view.note.s=='Non enregistré : cannot write coop-settings.txt: busy'
+    and logged('menu: ui_language=english not saved: cannot write coop-settings.txt: busy'))
+write_refusal,kit_language=nil,nil
+key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options')
+key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
+-- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; the new
+-- key works at once (every F-key is bound). The file had no menu_key line: host_key=none is written with it, so the old
+-- key never hosts again by itself.
+settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\n'
+key('F5'); to('Options'); key('RETURN')
+assert(focus()=='Open this menu')
+key('RETURN'); assert(select(2,focus())=='Press a key' and menu_view.note.s:find('^Press F1 to F12'))
+key('DOWN_ARROW'); assert(focus()=='Open this menu','Waiting: the arrows do nothing')
+key('F6'); assert(menu_view.note.s=='Show the status already uses this key.' and select(2,focus())=='Press a key')
+key('RETURN')
+assert(menu_view.note.s=='Use F1 to F12, with at most one of Shift, Ctrl, Alt.','Enter is the chat key only')
+key('ESCAPE'); assert(select(2,focus())=='F5' and menu_view.note.s=='' and focus()=='Open this menu','Esc: not waiting')
+key('RETURN'); key('F7','SHIFT')
+assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nmenu_key=Shift+F7\n'
+    and select(2,focus())=='Shift+F7')
+key('F7'); assert(kit_calls[#kit_calls]~='show false','A plain press right after a Shift+F7: the same press, dropped')
+clock=clock+1
+key('F5'); assert(kit_calls[#kit_calls]~='show false' and not logged('key F5: host'),'F5 is nobody\'s now')
+key('F7','SHIFT'); assert(kit_calls[#kit_calls]=='show false' and logged('key Shift+F7: menu'),'The new key, at once')
+-- The status key moved to plain F7: Shift+F7 still opens the menu, and the plain F7 bind UE4SS may call with it is the
+-- same press; F7 alone shows the status.
+key('F7','SHIFT'); to('Options'); key('RETURN'); key('DOWN_ARROW'); key('RETURN'); clock=clock+1; key('F7')
+assert(settings_text:find('\nstatus_key=F7\n',1,true) and select(2,focus())=='F7')
+key('ESCAPE'); key('ESCAPE')
+local lines_before=#printed
+clock=clock+1
+n=#kit_calls
+key('F7','SHIFT'); key('F7')
+assert((kit_said('show true') or 0)>n and (kit_said('show false') or 0)<=n
+    and not table.concat(printed,'',lines_before+1):find('key F7: status'),'One press: the menu')
+clock=clock+1
+key('F7'); assert(logged('key F7: status'))
+-- coop off: closed, the kit stopped (it gives the game its input back), no key opens it again.
+coop('off')
+assert(kit_calls[#kit_calls]=='stop nil')
+n=#kit_calls
+key('DOWN_ARROW'); key('F7','SHIFT')
+assert(#kit_calls==n and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',
+    'Nothing after coop off')
+-- The migration on the user's own file (Shift+F5, F6 and F8 because another mod binds F5, F6 and F8): Shift+F5 opens
+-- the menu, nothing hosts by itself; a file that sets both keys keeps host_key hosting at once.
+settings_text='host_key=Shift+F5\nstatus_key=Shift+F6\nleave_key=Shift+F8\n'
+load_main(true)
+assert(logged('keys: menu=Shift+F5 host=none status=Shift+F6 leave=Shift+F8, name tag on, 20 poses a second'))
+in_world,kit_ready=true,true; quarter()
+key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
+settings_text='menu_key=F5\nhost_key=F9\n'
+load_main(true)
+key('F9'); assert(asked[#asked]=='host' and logged('key F9: host'))
+settings_text,in_world,kit_ready='',false,false
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end
@@ -681,7 +895,7 @@ assert(#loops==1,'No link loop without the native part')
 assert(name_tag==nil,'No settings without the native part')
 assert(look.cloth==false and look.dyes==false and look.effects==false and capture_look==look and not logged('look: '),
     'Nor looks: all off, unsaid')
-assert(#binds==0 and not logged('keys: host'),'No keys without the native part')
+assert(#binds==0 and not logged('keys: menu'),'No keys without the native part')
 coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the native part',1,true),last())
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())
 coop('status'); assert(last():find('STOP: no Steam link status yet',1,true),last())

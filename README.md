@@ -11,9 +11,9 @@ link goes through the Steam client that the game already runs.
 
 ## What it does today
 
-- **One-key sessions.** Press F5 to host a friends-only session and invite a friend from the Steam dialog. They join
-  by themselves once their save has loaded, even if Steam had to start their game. Press F6 for the status and F8 to
-  leave.
+- **A co-op menu.** Press F5, then Enter, to host a friends-only session and invite a friend from the Steam dialog.
+  They join by themselves once their save has loaded, even if Steam had to start their game. The menu also leaves,
+  invites, joins and changes every setting; F6 gives the status and F8 leaves.
 - **A friend's ghost in your world.** A display-only copy of your friend's EVE moves as she moves, wears her outfit and
   carries their Steam name. Optional looks, off by default and not yet tried in game: her ponytail as cloth, her hair
   colour and her attack and skill effects.

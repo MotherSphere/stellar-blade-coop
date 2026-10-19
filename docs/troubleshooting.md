@@ -29,7 +29,7 @@ Remember that StellarCoop is an experimental pre-release, played in only a few s
 - `Native tick unavailable`: the DLL loaded but its per-frame entry did not. Without it no pose is read or drawn, so
   no ghost shows, and the loopback, record and replay refuse to start.
 - A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. Note that `F10` is never
-  allowed, and two actions on one key put all three keys back to `F5`, `F6` and `F8`. See
+  allowed, and two actions on one key put all four keys back to `F5` (menu), `none` (host), `F6` and `F8`. See
   [usage.md](usage.md#coop-settingstxt).
 - `keys: <key> is also bound by a mod loaded earlier; both run`: another mod uses the same key. Pick another one.
 

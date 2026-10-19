@@ -1,7 +1,7 @@
 # Using StellarCoop
 
-This page lists everything you can do with StellarCoop in game: the keys, every `coop` console command, the settings
-file, the ghost's looks, the notices and status lines, and the files the mod writes. To install the mod first, see
+This page lists everything you can do with StellarCoop in game: the keys, the co-op menu, every `coop` console
+command, the settings file, the ghost's looks, the notices and status lines, and the files the mod writes. To install the mod first, see
 [INSTALL.md](../INSTALL.md). For what happens behind each feature, see [how-it-works.md](how-it-works.md).
 
 Close the game before you change any file in the mod folder.
@@ -12,17 +12,62 @@ The keys work with or without the console. They need the native part (`StellarCo
 
 | Key (default) | Action | Console equivalent |
 | --- | --- | --- |
-| F5 | Host a session, or open the Steam invite dialog again while you host | `coop host` |
+| F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session | (none) |
 | F6 | Show the status: one line above EVE and in `UE4SS.log` | (a short form of `coop status`) |
 | F8 | Leave the session | `coop leave` |
+| none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change them in [coop-settings.txt](#coop-settingstxt). A key only hands its action to the game thread, where
-the console's checks apply (`coop off` included). The log says `key F5: host`, then the usual `OK:` or `STOP:` line.
+You can change them in the menu's Options page or in [coop-settings.txt](#coop-settingstxt). A key only hands its
+action to the game thread, where the console's checks apply (`coop off` included). The log says `key F5: menu`, then
+an `OK:` or `STOP:` line when there is something to say.
+
+Before this menu, F5 hosted. A settings file written by an older version has no `menu_key` line: the menu then opens on
+that file's `host_key` (F5, or Shift+F5 if you set that), and no key hosts directly. Set both `menu_key` and
+`host_key` to keep a direct host key.
+
+## Co-op menu
+
+F5 opens the co-op menu on the left of the screen, in a world only (not on the title screen, not while the game is
+paused or in your own photo mode). While it is open the game ignores its own keys, so EVE stands still:
+
+| Key | In the menu |
+| --- | --- |
+| Up arrow, W or Z | Up |
+| Down arrow or S | Down |
+| Left and right arrows, A or Q, D | Change the value of a setting |
+| Enter or Space | Select |
+| Esc | Back, then close |
+| F5 | Close |
+
+The main page follows your session:
+
+- **Host a session** (not in a session): as `coop host`. The menu closes first, because the Steam invite dialog opens.
+- **Join a friend** (not in a session): as `coop join`.
+- **Leave the session** (in a session): select it twice within 3 s.
+- **Invite a friend (Steam)** (while you host): as `coop invite`. The menu closes first.
+- **Options**: the settings below.
+- **Write a bug report**: as `coop report`.
+- **Close**.
+
+The status line under the rows is the F6 line, with your friend's ping once linked.
+
+**Options.** Each row is a setting of [coop-settings.txt](#coop-settingstxt): the keys, the synced photo mode, the
+name tag, the ghost's looks and send rate, the shared enemies, and the menu's own size, sounds and language. Left and
+right change a value; Enter changes it too. Each change rewrites only that setting's line in `coop-settings.txt`
+(comments and other lines stay), and the first change after the mod loads keeps the file as it was as
+`coop-settings.old.txt`. A change applies at once, except the name tag and the shared enemies: those say
+`It takes effect when the mod reloads`.
+
+**Keys.** Select a key row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt. A key
+another action already holds is refused and named; Esc stops waiting. The new key works at once.
+
+The menu follows the game's language: French or English (`ui_language=english` keeps English). The status line stays
+in English.
 
 ## Playing with a friend
 
-1. The host presses F5. This creates a friends-only Steam lobby for 2 players and opens the Steam invite dialog. Pick
-   your friend there.
+1. The host presses F5 and selects **Host a session**. This creates a friends-only Steam lobby for 2 players and opens
+   the Steam invite dialog. Pick your friend there.
 2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
    (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
    save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
@@ -32,8 +77,8 @@ the console's checks apply (`coop off` included). The log says `key F5: host`, t
 More about sessions:
 
 - The host leads. When the host leaves, the guest leaves too (`Session ended: <host> left.`).
-- A guest cannot host: F5 answers `You are in <host>'s game: leave it first.`, so one key press never ends their
-  friend's session.
+- A guest cannot host: the menu shows them Leave instead of Host, and `coop host` answers
+  `You are in <host>'s game: leave it first.`, so one key press never ends their friend's session.
 - If the guest loses the host's lobby another way (Steam drops them, a network cut), their game rejoins it by itself. It
   tries at 2, 12 and 42 s and gives up at 60 s (`Lost <host>'s game: rejoining.`, then `Rejoined <host>'s game.` or
   `Session ended: ...`). A lobby that is gone, or that someone else owns by then, ends the session. Leave, host, join
@@ -75,7 +120,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Host a friends-only session (2 players) and open the Steam invite dialog (F5) |
+| `coop host` | Host a friends-only session (2 players) and open the Steam invite dialog (the menu's first row) |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
 | `coop join <lobby id>` | Join that lobby (digits only) |
@@ -100,7 +145,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 ### Session commands
 
-- `coop host` works like F5. While you host, it opens the invite dialog again, as `coop invite` does. A guest's host
+- `coop host` works like the menu's Host row. While you host, it opens the invite dialog again, as `coop invite` does. A guest's host
   request is refused.
 - `coop join` and `coop join <lobby id>` never wait for a save to load, unlike an accepted invite. Without an id it
   joins the first friend found in a Stellar Blade lobby; the log says `no friend is in a Stellar Blade lobby` when
@@ -228,17 +273,21 @@ Afterwards only `coop status` and `coop report` answer; every other command answ
 
 ## coop-settings.txt
 
-`Mods/StellarCoop/coop-settings.txt` is yours. The mod writes it with the defaults when it is missing and never
-overwrites it. Neither the release zip nor an install ships or removes it (`tools/install.py --uninstall` backs it up
-with the folder, then removes it). It is read when the mod loads (game start, or Ctrl+R). Delete it to get the
-defaults back.
+`Mods/StellarCoop/coop-settings.txt` is yours. The mod writes it with the defaults when it is missing. Afterwards only
+the [co-op menu](#co-op-menu) changes it, one line at a time, and keeps the file as it was before its first change of a
+load as `coop-settings.old.txt`. Neither the release zip nor an install ships or removes it (`tools/install.py
+--uninstall` backs it up with the folder, then removes it). It is read when the mod loads (game start, or Ctrl+R).
+Delete it to get the defaults back.
 
 The file the mod writes:
 
 ```
-# StellarCoop settings, read when the mod loads (game start, or Ctrl+R). Delete this file to get the defaults back.
-# Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7).
-host_key=F5
+# StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
+# one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
+# Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
+# the co-op menu, whose first row hosts; host_key hosts at once, or none.
+menu_key=F5
+host_key=none
 status_key=F6
 leave_key=F8
 # Your friend's Steam name above her ghost: on or off.
@@ -260,12 +309,18 @@ photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
+# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
+# english.
+ui_scale=100
+ui_sounds=on
+ui_language=game
 ```
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| `host_key` | `F1` to `F12` except `F10`, with at most one of `Shift+`, `Ctrl+` or `Alt+` in front | `F5` |
-| `status_key` | same | `F6` |
+| `menu_key` | `F1` to `F12` except `F10`, with at most one of `Shift+`, `Ctrl+` or `Alt+` in front | `F5` |
+| `host_key` | same, or `none`: hosts at once | `none` |
+| `status_key` | same, without `none` | `F6` |
 | `leave_key` | same | `F8` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `30` poses sent a second | `20` |
@@ -278,6 +333,9 @@ photo_name_tag=off
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
 | `photo_name_tag` | `on` or `off`: its name tag in your own photos | `off` |
+| `ui_scale` | `75` to `150`: the menu's size, in percent | `100` |
+| `ui_sounds` | `on` or `off`: the game's UI sounds in the menu | `on` |
+| `ui_language` | `game` (French or English, as the game) or `english` | `game` |
 
 Rules:
 
@@ -286,9 +344,11 @@ Rules:
   first 4096 bytes are read.
 - A refused value keeps its default, and `UE4SS.log` says why in a `[StellarCoop] settings:` line. An unknown setting
   is ignored with a note.
-- Two actions on one key put all three keys back to `F5`, `F6` and `F8`.
+- Two actions on one key put all four keys back to their defaults: `F5` for the menu, `none` to host, `F6` and `F8`.
+- No `menu_key` line (a file from before the menu): the menu takes `host_key`'s key and `host_key` counts as `none`.
+  The first `menu_key` the menu writes into such a file also writes `host_key=none`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
-  `keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second`. Another line says when a mod loaded earlier binds
+  `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 20 poses a second`. Another line says when a mod loaded earlier binds
   the same key; both then run. The `[StellarCoop] photo sync:` line gives the photo settings in use.
 
 ## Looks
@@ -394,7 +454,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 
 | File | Written by | What it is |
 | --- | --- | --- |
-| `coop-settings.txt` | Lua, once | Your settings (see above) |
+| `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
+| `coop-settings.old.txt` | Lua, at the menu's first change of a load | `coop-settings.txt` as it was before that change |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
 | `coop-link.old.log` | native | The previous run's `coop-link.log`, moved there at start |
@@ -412,6 +473,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
+| `coop-ui.txt` | Lua | The co-op menu's on-screen root, so the next Lua load (Ctrl+R) can remove it |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at once |
 | `coop-chat.txt` | native | Your friend's chat lines, for a moment: Lua takes and deletes it within 250 ms |
 

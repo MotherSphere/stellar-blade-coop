@@ -56,8 +56,9 @@ protocol ..., build ...; yours runs ...`. StellarCoop versions before this one o
 
 ## Keys and settings
 
-- `F5`, host: opens a friends-only session and the Steam invite dialog; pick your friend there. While you host, it
-  opens the dialog again. A guest cannot host: leave first.
+- `F5`, the co-op menu. Its first row, Host a session, opens a friends-only session and the Steam invite dialog; pick
+  your friend there. While you host, the menu has Invite and Leave instead. Arrows (or WASD, ZQSD) move, Enter
+  selects, Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
 - `F6`, status: one line above EVE and in `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8`, leave the session. When the host leaves, the guest leaves too.
 
@@ -65,12 +66,14 @@ Your friend accepts the invite in Steam; if their game is closed, Steam starts i
 save, and both ghosts turn on by themselves. Session events (a friend joined or left, connection lost, a rejoin) show
 as a line above EVE for 4 s, and go to `UE4SS.log` too.
 
-The first start writes `Mods/StellarCoop/coop-settings.txt`. To change it, close the game, edit the file, then start
-the game again:
+The first start writes `Mods/StellarCoop/coop-settings.txt`. The menu's Options page changes it one line at a time
+(the file as it was is kept as `coop-settings.old.txt`). To change it by hand, close the game, edit the file, then
+start the game again:
 
-- `host_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
-  `Shift+`, `Ctrl+` or `Alt+` in front, for example `host_key=Shift+F7`. Two actions on one key put all three keys
-  back to `F5`, `F6` and `F8`.
+- `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
+  `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` hosts at once (`none` by
+  default). Two actions on one key put all four keys back to their defaults. A file from an older version has no
+  `menu_key`: the menu then opens on its `host_key`.
 - `name_tag`: `on` or `off`, your friend's Steam name above their ghost.
 - `send_rate`: poses sent to your friend a second, from 10 to 30 (20 by default).
 - `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default: the file

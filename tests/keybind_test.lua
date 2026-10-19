@@ -13,13 +13,13 @@ local why
 key,why=K.parse('leave_key','F10')
 assert(key==nil and why=='F10 opens the console')
 
--- The same grammar as link.parse_settings, refusals and their reasons included, for the three keys it reads today
--- (host_key=none, below, is new).
+-- The same grammar as link.parse_settings, refusals and their reasons included, for the four keys it reads.
 for _,text in ipairs({'F5','f6','Shift+F7','shift+f7','SHIFT+F7','Ctrl+F1','CTRL+F1','Alt+F12','F12','F1','F10',
     'Ctrl+F10','~','A','F13','F0','F01','Ctrl+Alt+F5','Control+F5','Meta+F5','Shift+','F 5','Enter',''}) do
-    for _,name in ipairs({'host_key','status_key','leave_key'}) do
-        -- The other two keys apart from every case, so no case clashes with them.
-        local s,notes=Link.parse_settings('host_key=Alt+F1\nstatus_key=Alt+F2\nleave_key=Alt+F3\n'..name..'='..text)
+    for _,name in ipairs({'menu_key','host_key','status_key','leave_key'}) do
+        -- The other keys apart from every case, so no case clashes with them.
+        local s,notes=Link.parse_settings('menu_key=Alt+F4\nhost_key=Alt+F1\nstatus_key=Alt+F2\nleave_key=Alt+F3\n'
+            ..name..'='..text)
         key,why=K.parse(name,text)
         if #notes==0 then
             assert(key and key.key==s[name].key and key.mod==s[name].mod and key.name==s[name].name,name..'='..text)
