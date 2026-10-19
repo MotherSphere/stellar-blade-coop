@@ -17,8 +17,9 @@ link goes through the Steam client that the game already runs.
 - **A friend's ghost in your world.** A display-only copy of your friend's EVE moves as she moves, wears her outfit and
   carries their Steam name. Optional looks, off by default and not yet tried in game: her ponytail as cloth, her hair
   colour and her attack and skill effects.
-- **Session notices** above your EVE: a friend joined or left, connection lost, version mismatch, and more. A guest
-  who loses the host's session tries to rejoin it by themselves for 60 s.
+- **Session notices and chat** in a feed at the top left: a friend joined or left, connection lost, version mismatch,
+  and more; Enter opens a chat with your friend, kept in memory only. A guest who loses the host's session tries to
+  rejoin it by themselves for 60 s.
 - **Solo tools** that run the whole ghost pipeline on one PC: a network loopback, a recording and its replay, and
   `coop where` to compare positions between two PCs.
 - **Your saves stay yours.** The mod never reads or writes a save, the inventory, unlocks or equipment.

@@ -1,7 +1,8 @@
 # Using StellarCoop
 
-This page lists everything you can do with StellarCoop in game: the keys, the co-op menu, every `coop` console
-command, the settings file, the ghost's looks, the notices and status lines, and the files the mod writes. To install the mod first, see
+This page lists everything you can do with StellarCoop in game: the keys, the co-op menu, the session chat, every
+`coop` console command, the settings file, the ghost's looks, the notices and status lines, and the files the mod
+writes. To install the mod first, see
 [INSTALL.md](../INSTALL.md). For what happens behind each feature, see [how-it-works.md](how-it-works.md).
 
 Close the game before you change any file in the mod folder.
@@ -13,8 +14,9 @@ The keys work with or without the console. They need the native part (`StellarCo
 | Key (default) | Action | Console equivalent |
 | --- | --- | --- |
 | F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session | (none) |
-| F6 | Show the status: one line above EVE and in `UE4SS.log` | (a short form of `coop status`) |
+| F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
 | F8 | Leave the session | `coop leave` |
+| Enter | Open the [session chat](#session-chat) during a session, then send a line; Esc closes it | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
 You can change them in the menu's Options page or in [coop-settings.txt](#coop-settingstxt). A key only hands its
@@ -46,24 +48,54 @@ The main page follows your session:
 - **Join a friend** (not in a session): as `coop join`.
 - **Leave the session** (in a session): select it twice within 3 s.
 - **Invite a friend (Steam)** (while you host): as `coop invite`. The menu closes first.
+- **Chat** (in a session, with chat on): closes the menu and opens the [session chat](#session-chat).
 - **Options**: the settings below.
 - **Write a bug report**: as `coop report`.
 - **Close**.
 
 The status line under the rows is the F6 line, with your friend's ping once linked.
 
-**Options.** Each row is a setting of [coop-settings.txt](#coop-settingstxt): the keys, the synced photo mode, the
-name tag, the ghost's looks and send rate, the shared enemies, and the menu's own size, sounds and language. Left and
-right change a value; Enter changes it too. Each change rewrites only that setting's line in `coop-settings.txt`
+**Options.** Each row is a setting of [coop-settings.txt](#coop-settingstxt): the keys, the synced photo mode, the name
+tag, the ghost's looks and send rate, the shared enemies, the menu's own size, sounds and language, and the chat. Left
+and right change a value; Enter changes it too. Each change rewrites only that setting's line in `coop-settings.txt`
 (comments and other lines stay), and the first change after the mod loads keeps the file as it was as
-`coop-settings.old.txt`. A change applies at once, except the name tag and the shared enemies: those say
-`It takes effect when the mod reloads`.
+`coop-settings.old.txt`. A change applies at once, except the name tag and the shared enemies: those say `It takes
+effect when the mod reloads`.
 
 **Keys.** Select a key row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt. A key
 another action already holds is refused and named; Esc stops waiting. The new key works at once.
 
 The menu follows the game's language: French or English (`ui_language=english` keeps English). The status line stays
 in English.
+
+## Session chat
+
+During a session (or `coop loopback`), Enter opens a text box at the top left of the screen, under the feed, in a world
+only (not while the game is paused or shows the mouse cursor for one of its own screens). While it is open the game
+ignores its own keys, so EVE stands still, and the mod's keys (F5, F6, F8) do nothing.
+
+| Key | In the chat |
+| --- | --- |
+| Enter | Send the line; on an empty line, close the box |
+| Esc | Close the box; what you typed goes |
+
+- Type in any keyboard layout, with accents: the game's own text box turns your keys into characters. A line is at
+  most 200 bytes (200 letters, fewer with accents or emoji); the rest is cut.
+- Your lines show at once in white, your friend's in teal, notices in grey, each with the time. A line that could not
+  be sent turns red and ends with `(not sent)`. At most two lines leave a second; when four are waiting, the line you
+  typed stays in the box: press Enter again.
+- The feed shows lines for 8 s (the last 6 rows) while the box is closed, and the last 12 rows while it is open. It
+  hides while the co-op menu is open.
+- Outside a session, Enter says `Chat needs a session.` (at most once every 10 s).
+- `chat=off` in [coop-settings.txt](#coop-settingstxt), or Options > Chat, hides your friend's lines and sends none;
+  Enter then says `Chat is off (Options > Chat).`
+- The history is kept in memory only, 50 lines at most. It is cleared when the session ends, at `coop off` and when
+  the mod reloads (game start or Ctrl+R). Chat text never goes into a log, a report, the console or a lasting file
+  (see [Files in the mod folder](#files-in-the-mod-folder)); a crash dump holds the game's memory, so it may hold
+  lines of the session.
+- Key binds of other mods still run while you type.
+- If the on-screen UI stopped (an engine error, said in `UE4SS.log`), the box does not open
+  (`The chat box is off (the UI stopped, see UE4SS.log).`) and your friend's lines show on the line above your EVE.
 
 ## Playing with a friend
 
@@ -315,6 +347,8 @@ photo_name_tag=off
 ui_scale=100
 ui_sounds=on
 ui_language=game
+# The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
+chat=on
 ```
 
 | Setting | Values | Default |
@@ -337,6 +371,7 @@ ui_language=game
 | `ui_scale` | `75` to `150`: the menu's size, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu | `on` |
 | `ui_language` | `game` (French or English, as the game) or `english` | `game` |
+| `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
 
 Rules:
 
@@ -377,9 +412,13 @@ turn it off again if the game crashes or the ghost looks wrong.
 
 ## Notices
 
-Each session event shows as a line of text about 30 cm above your EVE, turned to the camera, for 4 s each in turn. At
-most 4 wait; the oldest goes. `UE4SS.log` gets each one once as `[StellarCoop] link: notice=<n> <text>`. On the title
-screen they go to the log only. If the engine refuses the line, screen notices stay off until the next Lua load
+Each session event shows in the feed at the top left of the screen, in grey with the time, for 8 s (see
+[Session chat](#session-chat)). `UE4SS.log` gets each one once as `[StellarCoop] link: notice=<n> <text>`. On the
+title screen they go to the log only.
+
+While the on-screen UI is not up (still loading after a map change, or stopped after an engine error), a notice shows
+instead as a line of text about 30 cm above your EVE, turned to the camera, for 4 s each in turn. At most 4 wait; the
+oldest goes. If the engine refuses that line too, screen notices stay off until the next Lua load
 (`Screen notices off: <why>; notices stay in UE4SS.log.`).
 
 | Event | Notice |
@@ -409,7 +448,7 @@ screen they go to the log only. If the engine refuses the line, screen notices s
 
 ### The status key (F6)
 
-F6 gives one line, in the log (`OK: ...`) and on screen:
+F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 - `Co-op: not in a session.`
 - `Co-op: hosting, no friend yet.`

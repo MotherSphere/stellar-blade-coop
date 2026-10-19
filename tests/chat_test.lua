@@ -142,5 +142,225 @@ chat=Chat.new('50','on')
 chat.session(true)
 assert(chat.send('hi',0) and chat.receive('Kaanta','hi',0))
 
+-- active() and enable(): a session holds; chat turned off and on again while the mod runs (the menu's Options).
+chat=Chat.new()
+assert(chat.active()==false)
+chat.session(true)
+assert(chat.active()==true)
+chat.enable(false)
+assert(select(2,chat.send('hi',0))=='off' and chat.receive('Kaanta','hi',0)==nil)
+chat.enable(true)
+assert(chat.send('hi',0) and chat.receive('Kaanta','hi',0))
+chat.enable('off'); assert(select(2,chat.send('hi',0))=='off')
+-- A notice is cleaned like a line (a Steam name may hold anything): nothing at all, no line.
+assert(chat.system('Ka\0anta\226\128\174 joined.',0).text=='Kaanta joined.' and chat.system(' \0 ',0)==nil)
+
+-- The view (Chat.view): the feed and the box on a fake kit (ui_kit_test tests the kit itself: the field, its focus and
+-- who holds the game's input). Enter opens the box in a session only, with the game's input on the box and its
+-- keyboard focus again 50 ms later; Enter sends (shown at once, queued, the box emptied and focused again), an empty
+-- line closes, a line too fast stays in the box; Esc cancels and empties it; the game's input comes back 150 ms after
+-- a close, once, and not when the box opens again before. The feed: chat lines and notices, newest at the bottom, the
+-- last 6 rows of lines under 8 s old while closed, the last 12 while open, long lines wrapped at a space; her lines in
+-- teal with a sound, ours white, notices grey, a line not sent red. It closes and empties when the session ends, chat
+-- turns off (her lines hidden, Enter refused), our HUD hides or the kit turns off. No log function is given: nothing
+-- can be logged (print and io are trapped above).
+local clock=0
+os.clock=function() return clock end
+local calls,state,box,built,placed={},{ready=true,off=false,paused=false},{text='',focuses=0},{},{}
+local holder,inputting=nil,false
+local kit={}
+function kit.add(name,place,build)
+    placed[#placed+1]=name
+    local b={panel=function() end}
+    function b.text(_,_,s,_,color)
+        local t={s=s,c=color,on=true}
+        t.set,t.color,t.show=function(v) t.s=v end,function(c) t.c=c end,function(on) t.on=on end
+        return t
+    end
+    function b.field(_,_,_,_,hint)
+        box.hint=hint
+        return {text=function() return box.text end,set=function(s) box.text=s end,
+            focus=function() box.focuses=box.focuses+1 end,hint=function(s) box.hint=s end}
+    end
+    built[name]={place=place,view=build(b)}
+end
+function kit.ready() return state.ready and not state.off end
+function kit.view(name) return kit.ready() and built[name].view or nil end
+function kit.off() return state.off end
+function kit.paused() return state.paused end
+function kit.language() return state.language end
+function kit.show(name,on) calls[#calls+1]='show '..name..' '..tostring(on) end
+function kit.sound(name) calls[#calls+1]='sound '..name end
+function kit.input(on,who) -- As the kit: each once, and off only from the one who holds it.
+    if on then
+        if inputting and holder==who then return end
+        holder,inputting=who,true
+        calls[#calls+1]='input true '..tostring(who)
+    elseif inputting and holder==who then
+        inputting=false
+        calls[#calls+1]='input false '..tostring(who)
+    end
+end
+local TH={text='white',grey='grey',teal='teal',error='red'}
+local settings,menu_open={chat=true,ui_language='game'},false
+local model=Chat.new()
+local view=Chat.view({kit=kit,model=model,settings=settings,theme=TH,covered=function() return menu_open end})
+assert(placed[1]=='chat' and placed[2]=='feed' and built.chat.place.hit and not built.chat.place.shown
+    and built.feed.place.shown and not built.feed.place.hit,
+    'The glass and the box under the feed; only the box takes the mouse')
+local rows=built.feed.view.rows
+assert(#rows==12)
+local function shown()
+    local out={}
+    for _,r in ipairs(rows) do if r.on then out[#out+1]=r.s end end
+    return table.concat(out,'\n')
+end
+local function since(n) return table.concat(calls,'|',n+1) end
+
+-- No session: Enter says so, once per 10 s; nothing opens and the kit is not touched.
+view.slow(0)
+assert(shown()=='' and #calls==0)
+local ok,why=view.open()
+assert(ok==false and why=='Chat needs a session.' and #calls==0)
+assert(select(2,view.open())==nil,'Once per 10 s')
+view.slow(9.75); assert(select(2,view.open())==nil)
+view.slow(10); assert(select(2,view.open())=='Chat needs a session.')
+-- No root up (a map loads, warming), the game paused or on one of its screens: nothing, quietly.
+model.session(true)
+state.ready=false; assert(view.open()==false and select(2,view.open())==nil and not view.can())
+state.ready,state.paused=true,true; assert(view.open()==false and select(2,view.open())==nil and #calls==0)
+state.paused=false
+assert(view.can(),"The menu's Chat row")
+
+-- Open: the box shown, the game's input on it, the hint in the game's language, an old draft gone; its keyboard focus
+-- again 50 ms later.
+box.text='old draft'
+assert(view.open()==true and view.is_open() and since(0)=='show chat true|input true chat')
+assert(box.text=='' and box.hint=='Message · Enter to send · Esc to close')
+clock=0.04; view.tick(clock); assert(box.focuses==0)
+clock=0.06; view.tick(clock); assert(box.focuses==1)
+view.tick(clock); assert(box.focuses==1,'Once')
+-- Enter: what Slate typed (any layout, accents) goes as one cleaned line, shown at once and queued; the box empties and
+-- has the keys again 50 ms later.
+box.text='  Bonjour é à ç  '
+view.send()
+assert(box.text=='' and shown()=='[21:04] You: Bonjour é à ç' and rows[12].c=='white' and view.is_open())
+assert(model.take(10)=='Bonjour é à ç','Queued for the native part')
+clock=0.12; view.tick(clock); assert(box.focuses==2)
+-- Her line: teal, after ours, with the game's chat sound; a notice grey.
+model.receive('Kaanta','salut',10)
+view.slow(10.25)
+assert(shown()=='[21:04] You: Bonjour é à ç\n[21:04] Kaanta: salut' and rows[12].c=='teal'
+    and calls[#calls]=='sound chat')
+local n=#calls
+view.slow(10.5); assert(#calls==n,'The sound once a line')
+assert(view.say('Kaanta: connection lost.')==true and rows[12].s=='[21:04] Kaanta: connection lost.'
+    and rows[12].c=='grey')
+-- Four waiting at most: the fifth stays in the box to send again.
+for _,t in ipairs({'a','b','c','d'}) do box.text=t; view.send() end
+box.text='e'; view.send()
+assert(box.text=='e' and view.is_open() and not shown():find('] You: e',1,true))
+-- A line the native part could not send: red, marked.
+assert(model.take(10.5)=='a')
+model.fail()
+view.slow(10.5)
+assert(rows[9].s=='[21:04] You: a (not sent)' and rows[9].c=='red',rows[9].s)
+-- An empty line closes the box; the game's input comes back 150 ms later, once (asked again each 250 ms till given).
+box.text='   '
+n=#calls
+view.send()
+assert(not view.is_open() and since(n)=='show chat false' and box.text=='')
+clock=0.22; view.tick(clock); assert(since(n)=='show chat false')
+clock=0.28; view.tick(clock); assert(since(n)=='show chat false|input false chat')
+view.slow(10.75); view.tick(1); assert(since(n)=='show chat false|input false chat')
+-- Esc: the draft goes with the box.
+view.open(); box.text='brouillon'
+view.cancel()
+assert(not view.is_open() and box.text=='')
+-- Opened again within the 150 ms: the input stays on the box, never given back under it.
+n=#calls
+clock=1.1; view.open()
+clock=1.5; view.tick(clock); view.slow(11)
+assert(view.is_open() and since(n)=='show chat true')
+view.cancel(); clock=2; view.tick(clock)
+assert(since(n)=='show chat true|show chat false|input false chat')
+
+-- Closed, the feed shows the lines under 8 s old, 6 rows at most; open, the last 12, wrapped at a space.
+model.session(false); model.session(true)
+for i=1,8 do model.system('n'..i,20) end
+view.slow(20)
+assert(shown()=='[21:04] n3\n[21:04] n4\n[21:04] n5\n[21:04] n6\n[21:04] n7\n[21:04] n8' and not rows[6].on)
+view.slow(27.75); assert(select(2,shown():gsub('\n',''))==5)
+view.slow(28); assert(shown()=='','Faded 8 s after')
+view.open()
+assert(shown():find('^%[21:04%] n1\n') and select(2,shown():gsub('\n',''))==7,'Open: all of them')
+local long=string.rep('word ',38)..'end'
+model.receive('Kaanta',long,28)
+view.slow(28)
+assert(rows[10].s=='[21:04] Kaanta: '..string.rep('word ',10)..'word'
+    and rows[11].s==string.rep('word ',13)..'word' and rows[12].s==string.rep('word ',13)..'end'
+    and rows[11].c=='teal',rows[10].s..'|'..rows[11].s..'|'..rows[12].s)
+model.receive('Kaanta',string.rep('x',150),28)
+view.slow(28)
+assert(rows[9].s=='[21:04] Kaanta:' and rows[10].s==string.rep('x',70) and rows[11].s==string.rep('x',70)
+    and rows[12].s==string.rep('x',10),'A word longer than a row: on rows of its own, cut between characters')
+
+-- The session ends: the box closes and empties, the history goes (the notice that says so comes after).
+box.text='half typed'
+n=#calls
+model.session(false)
+view.slow(28.25)
+assert(not view.is_open() and box.text=='' and shown()=='' and since(n)=='show chat false')
+clock=3; view.tick(clock); assert(calls[#calls]=='input false chat')
+-- chat=off (the menu's Options, at once): her lines and ours hidden, notices shown, Enter says it is off; the box
+-- closes if open.
+model.session(true)
+view.open()
+model.receive('Kaanta','secret',30)
+view.slow(30)
+assert(shown()=='[21:04] Kaanta: secret')
+settings.chat=false
+view.slow(30.25)
+assert(not view.is_open() and shown()=='' and not view.can())
+view.say('Kaanta left.')
+assert(shown()=='[21:04] Kaanta left.')
+assert(model.receive('Kaanta','hidden',30.25)==nil and select(2,model.send('x',30.25))=='off','The model off too')
+view.slow(30.5); assert(shown()=='[21:04] Kaanta left.')
+assert(select(2,view.open())=='Chat is off (Options > Chat).')
+settings.chat=true
+view.slow(41)
+-- The menu open over the feed: the feed hides, once, and comes back after.
+n=#calls
+menu_open=true; view.slow(41); view.slow(41.25)
+assert(since(n)=='show feed false')
+menu_open=false; view.slow(41.5); assert(since(n)=='show feed false|show feed true')
+-- The kit off (a fault, which gives the input back) or our HUD hidden: the box closes; notices go back to the line
+-- above EVE (say is false).
+view.open()
+state.off=true
+view.slow(42)
+assert(not view.is_open() and view.say('x')==false)
+assert(select(2,view.open())=='The chat box is off (the UI stopped, see UE4SS.log).','Said, not silent')
+state.off=false
+view.open()
+state.ready=false
+view.send()
+assert(not view.is_open(),'Enter with no root: closed, nothing read')
+assert(view.say('x')==false)
+state.ready=true
+-- French: the hint and our name.
+state.language='fr-FR'
+clock=10; view.tick(clock)
+view.open()
+assert(box.hint=='Message · Entrée pour envoyer · Échap pour fermer')
+box.text='salut'
+view.send()
+assert(rows[12].s=='[21:04] Vous : salut',rows[12].s)
+-- coop off: closed, nothing more asked of the kit (kit.stop gives the input back).
+n=#calls
+view.stop()
+clock=20; view.tick(clock)
+assert(not view.is_open() and #calls==n)
+
 os.date=date
 stdout:write('chat_test ok\n')

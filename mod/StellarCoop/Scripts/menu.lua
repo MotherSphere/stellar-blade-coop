@@ -1,14 +1,15 @@
--- The co-op menu (UI-DESIGN 4.1, D-UI2, D-UI4): ui_model.lua's two pages drawn with the Uplink kit (ui.lua), opened
--- and closed by menu_key, in a world only and never while the game is paused or shows the mouse cursor (one of its
+-- The co-op menu (UI-DESIGN 4.1, D-UI2, D-UI4): ui_model.lua's two pages drawn with the Uplink kit (ui.lua), opened and
+-- closed by menu_key, in a world only and never while the game is paused or shows the mouse cursor (one of its
 -- screens). While it is open the game ignores its own keys (the kit's input), and main.lua's binds hand it the
 -- navigation keys: up, down, left and right to move and change, select and back (each a no-op while it is closed). Its
 -- rows run the console commands (Host and Invite close it first: the Steam overlay takes the focus); Leave asks for a
--- second Select. A setting changed on the Options page rewrites its own line of coop-settings.txt (link.lua keeps the
--- file as it was as coop-settings.old.txt) and applies at once, but the name tag and the shared enemies, at the next
--- load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while open: the
--- status line and the rows of the session's state; the world gone or the kit off, it closes. The game's input comes
--- back 150 ms after a close, so the key that closed it (Esc would open the pause menu) never reaches the game, and is
--- asked again each 250 ms while closed until the kit has given it. No engine call here: the kit makes them.
+-- second Select; Chat (in a session) closes it and opens the chat's box. A setting changed on the Options page rewrites
+-- its own line of coop-settings.txt (link.lua keeps the file as it was as coop-settings.old.txt) and applies at once,
+-- but the name tag and the shared enemies, at the next load; a key row takes the next F-key pressed (capture), checked
+-- against the other keys. Each 250 ms while open: the status line and the rows of the session's state; the world gone
+-- or the kit off, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would
+-- open the pause menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it.
+-- No engine call here: the kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
@@ -19,7 +20,7 @@ local OFF='the co-op menu is off (the UI stopped, see the log): use the coop com
 local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name)
--- -> ok, message (main.lua's: the console's checks and log line), log=, version=}.
+-- -> ok, message (main.lua's: the console's checks and log line), log=, version=, chat=chat.lua's view or nil}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
@@ -34,8 +35,7 @@ function Menu.new(o)
         v.hints=b.hints(48,1410,320,{{'arrows',''},{'enter',''},{'escape',''}})
         return v
     end)
-    -- The chat row waits for the chat box.
-    local function context() return {mode=link.mode(),chat=false} end
+    local function context() return {mode=link.mode(),chat=o.chat~=nil and o.chat.can()} end
     local function value(row)
         local v=values[row.key]
         if row.bind then return capturing==row.key and words.press or v end
@@ -150,6 +150,9 @@ function Menu.new(o)
             elseif action=='rebind' then capturing,note=key,words.capture
             elseif action=='set' then set(key,text)
             elseif action=='close' then return self.close()
+            elseif action=='chat' then
+                self.close()
+                return o.chat.open()
             elseif action=='host' or action=='invite' then
                 self.close()
                 return o.run(action)

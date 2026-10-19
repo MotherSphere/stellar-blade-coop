@@ -4,7 +4,8 @@
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
 -- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, join,
 -- leave, status, report; the co-op menu on F5, whose rows host, invite, join, leave and change the settings (menu.lua),
--- status and leave on F6 and F8, unless coop-settings.txt says otherwise), its notices on screen above your EVE; and
+-- status and leave on F6 and F8, unless coop-settings.txt says otherwise), the session chat on Enter (chat.lua), its
+-- notices in the chat's feed (or, with the UI off, on a line above your EVE); and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on the co-op save slot only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on the co-op save slot only; coop fight
@@ -64,7 +65,11 @@ if link then
 end
 local capture=require('capture').new(link and link.components or nil,look)
 local notice=require('notice').new()
-local puppet=require('puppet').new(link,capture,notice.say,settings and settings.name_tag,look)
+local kit,menu,box -- The UI kit, the co-op menu and the chat's box and feed, with the Steam link only (below).
+-- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
+-- the UI is off or failed.
+local function say(text) if not (box and box.say(text)) then notice.say(text) end end
+local puppet=require('puppet').new(link,capture,say,settings and settings.name_tag,look)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local function native_off()
@@ -102,11 +107,11 @@ local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '.
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end
 local ui=require('ui').new(ui_log)
-local kit,menu -- The co-op menu's kit and the menu, with the Steam link only (below the commands).
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
--- 250 ms so the file never stays on disk, session or not. Its clock counts that loop's ticks: os.clock is CPU time
--- under some C runtimes, os.time whole seconds. The box that shows and sends lines comes with the UI layer.
-local chat,chat_clock=require('chat').new(),0
+-- 250 ms so the file never stays on disk, session or not, and ours leave through coop-say.txt in the same loop. Its
+-- clock counts that loop's ticks: os.clock is CPU time under some C runtimes, os.time whole seconds. chat.lua's view
+-- shows and sends the lines (box, below).
+local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay'
@@ -232,6 +237,7 @@ local commands={
         notice.stop()
         ui.stop()
         if menu then menu.stop() end
+        if box then box.stop() end
         if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
         -- A failing despawn is logged and never stops the rest of coop off.
@@ -271,15 +277,22 @@ local function run(name,a,b,c,d)
     report(ok,message)
     return ok,message
 end
--- The co-op menu (menu.lua) on the Uplink kit (ui.lua), with the Steam link only: its root is built in a world, after
--- one lookup a 250 ms tick.
+-- The chat's box and feed (chat.lua's view) and the co-op menu (menu.lua) on the Uplink kit (ui.lua), with the Steam
+-- link only: its root is built in a world, after one lookup a 250 ms tick. The feed first: the menu draws over it.
 if settings then
-    kit=require('ui').kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,
-        sounds=settings.ui_sounds})
+    local Ui=require('ui')
+    kit=Ui.kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,sounds=settings.ui_sounds})
+    box=require('chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
+        covered=function() return menu.is_open() end})
     menu=require('menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
-        version=VERSION})
+        version=VERSION,chat=box})
 end
+-- Enter with nothing open asks for the chat's box (chat_asked, os.clock), which opens 0.1 s later unless a coop command
+-- came from the console around then (typed_at): UE4SS calls our Enter bind whatever has the keyboard, so that Enter was
+-- the console's. Its own state is not reflected, so other console commands may still open the box.
+local chat_asked,typed_at=nil,-math.huge
 RegisterConsoleCommandHandler('coop',function(_,parameters)
+    typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
     ExecuteInGameThread(function() run(name,a,b,c,d) end)
     return true
@@ -297,11 +310,20 @@ LoopInGameThreadWithDelay(1,function()
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
     ui.tick() -- Likewise for coop ui test.
-    if kit then -- The menu's open and close tweens, and the game's input back after a close.
+    if kit then -- The open and close tweens, the game's input back after a close, the chat box focused again.
         local now=os.clock()
         ok,message=kit.tick(now)
         if message then report(ok,message) end
         menu.tick(now)
+        box.tick(now)
+        if chat_asked and now>=chat_asked+0.1 then
+            local asked=chat_asked
+            chat_asked=nil
+            if typed_at<asked-0.3 and not menu.is_open() then
+                local _,why=box.open() -- Said on screen only: Enter is the game's too.
+                if why then say(why) end
+            end
+        end
     end
 end)
 if link then
@@ -319,13 +341,13 @@ if link then
         if now=='on on' then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
             if not fight_said or (fight_count==0 and count>0) then
-                notice.say(string.format('Shared fight on: %d %s linked',count,count==1 and 'enemy' or 'enemies'))
+                say(string.format('Shared fight on: %d %s linked',count,count==1 and 'enemy' or 'enemies'))
             end
             fight_said,fight_count=true,count
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') then
                 local why=line:match(' why=(.*)$') or 'off'
-                notice.say('Shared fight off: '..(state=='stopped' and 'stopped for this run ('..why..')' or why))
+                say('Shared fight off: '..(state=='stopped' and 'stopped for this run ('..why..')' or why))
             end
             fight_said,fight_count=false,0
         end
@@ -338,8 +360,15 @@ if link then
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
         if off or chatting~=nil then chat.session(not off and chatting) end
         for _,line in ipairs(link.take_chat()) do
-            if line.fail then chat.fail() else chat.receive((link.friend()) or '',line.text,chat_clock) end
+            if line.fail then chat.fail()
+            else
+                local got=chat.receive((link.friend()) or '',line.text,chat_clock)
+                -- While the feed cannot show it (the UI off or failed, or still warming): on the line above EVE.
+                if got and not kit.ready() then notice.say((got.name~='' and got.name or 'Partner')..': '..got.text) end
+            end
         end
+        local typed=chat.take(chat_clock) -- One of ours for the native part, two a second at most; never logged.
+        if typed and not link.say(typed) then chat.fail() end
         if fight_auto and not off then
             local verdict=(slot_line() or ''):match('^slot=(%a+)')
             if verdict=='coop' or verdict=='main' then
@@ -347,7 +376,7 @@ if link then
                 local ok,message=false,'not on the co-op save'
                 if verdict=='coop' then ok,message=commands.fight('on') end
                 report(ok,'shared_enemies=on: '..message)
-                if not ok then notice.say('Shared fight off: '..message) end
+                if not ok then say('Shared fight off: '..message) end
             end
         end
         fight_notices()
@@ -356,7 +385,7 @@ if link then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
             last_mode=mode
         end
-        for _,text in ipairs(link.notices()) do notice.say(text) end
+        for _,text in ipairs(link.notices()) do say(text) end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world=puppet.world()
             local photo=world and photo_state() or '0'
@@ -369,6 +398,7 @@ if link then
             local ok,message=kit.slow(shown)
             if message then report(ok,message) end
             menu.slow(shown)
+            box.slow(chat_clock)
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end
@@ -380,8 +410,9 @@ end
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
 -- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line or
 -- Leave. Enter goes to the menu's key capture, then selects; the navigation keys go to the menu while it is open only
--- (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc). A key
--- callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
+-- (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc). With
+-- the menu closed, Enter opens the chat's box, then sends, and Esc cancels; while it is open our F-keys do nothing. A
+-- key callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
 -- off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
 -- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
 -- in the log and on screen; coop status keeps the full status.
@@ -402,19 +433,19 @@ if settings then
         local base=name:match('^%a+%+(F%d+)$')
         if base then modified_at[base]=os.clock()
         elseif modified_at[name] and os.clock()-modified_at[name]<0.2 then return end
-        if menu.capture(name) then return end
+        if box.is_open() or menu.capture(name) then return end -- Typing: our keys do nothing.
         for _,action in ipairs(ACTIONS) do
             if settings[action..'_key'].name==name then
                 log('key '..name..': '..action)
                 if action=='status' then
                     local summary=link.summary()
                     report(true,summary)
-                    notice.say(summary)
+                    say(summary)
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else
                     local ok,why=menu.toggle()
-                    if why then report(ok,why); notice.say(why) end
+                    if why then report(ok,why); say(why) end
                 end
                 return
             end
@@ -430,13 +461,21 @@ if settings then
         end
     end
     bind('RETURN',nil,function()
-        if not menu.is_open() then return end
-        ExecuteInGameThread(function() if not menu.capture('Enter') then menu.nav('select') end end)
+        ExecuteInGameThread(function()
+            if menu.is_open() then
+                if not menu.capture('Enter') then menu.nav('select') end
+            elseif box.is_open() then box.send()
+            elseif not off then chat_asked=os.clock() end
+        end)
     end)
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
-            {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},{'SPACE','select'},
-            {'ESCAPE','back'}}) do
+            {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
+            {'SPACE','select'}}) do
         bind(nav[1],nil,function() if menu.is_open() then ExecuteInGameThread(function() menu.nav(nav[2]) end) end end)
     end
+    bind('ESCAPE',nil,function()
+        if menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end)
+        elseif box.is_open() then ExecuteInGameThread(box.cancel) end
+    end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)

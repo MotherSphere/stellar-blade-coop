@@ -179,6 +179,12 @@ for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
         ..bad[1].." stays "..bad[4],notes[1])
 end
+-- The chat: on or off (off hides her lines and sends none); a new file names it.
+assert(Link.parse_settings('').chat==true and Link.DEFAULT:find('\nchat=on\n',1,true))
+s,notes=Link.parse_settings('Chat=OFF\n'); assert(#notes==0 and s.chat==false)
+s,notes=Link.parse_settings('chat=maybe\n')
+assert(#notes==1 and s.chat==true and notes[1]=="settings: line 1: 'maybe' is not allowed for chat (use on or off); "
+    ..'chat stays on',notes[1])
 assert(s.cloth==false and s.dyes==false and s.effects==false,'The looks are comments in the defaults: off, as the code says')
 -- The ghost's looks: on or off, any case; a bad value keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)

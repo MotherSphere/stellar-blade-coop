@@ -1,11 +1,11 @@
--- The co-op menu's words (D-UI8): English and French. The game's language picks them (GetCurrentLanguage, as the
--- recruiter reads it) unless ui_language=english; any other language reads English until translated. Row ids and
--- setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
+-- The co-op menu's and the chat's words (D-UI8): English and French. The game's language picks them
+-- (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language reads English until
+-- translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
 local T={}
 T.en={
     title='CO-OP',
     head={session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
-        ghost='GHOST',combat='COMBAT',display='DISPLAY'},
+        ghost='GHOST',combat='COMBAT',display='DISPLAY',chat='CHAT'},
     row={host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',join='Join a friend',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
         menu_key='Open this menu',host_key='Host at once',status_key='Show the status',leave_key='Leave the session',
@@ -23,11 +23,14 @@ T.en={
     keys='Use F1 to F12, with at most one of Shift, Ctrl, Alt.',
     unreadable='Not saved: coop-settings.txt cannot be read.',not_saved='Not saved: %s',
     report='The bug report goes to coop-report.txt in the mod folder.',
+    chat={you='You',partner='Partner',said='%s: ',hint='Message · Enter to send · Esc to close',
+        no_session='Chat needs a session.',off='Chat is off (Options > Chat).',not_sent=' (not sent)',
+        ui_off='The chat box is off (the UI stopped, see UE4SS.log).'},
 }
 T.fr={
     title='CO-OP',
     head={session='SESSION',settings='RÉGLAGES',help='AIDE',controls='TOUCHES',photo='MODE PHOTO',partner='PARTENAIRE',
-        ghost='FANTÔME',combat='COMBAT',display='AFFICHAGE'},
+        ghost='FANTÔME',combat='COMBAT',display='AFFICHAGE',chat='DISCUSSION'},
     row={host='Héberger une session',leave='Quitter la session',invite='Inviter un ami (Steam)',
         join='Rejoindre un ami',chat='Discussion',options='Options',report='Écrire un rapport de bug',close='Fermer',
         menu_key='Ouvrir ce menu',host_key='Héberger directement',status_key="Afficher l'état",
@@ -46,6 +49,10 @@ T.fr={
     keys="Utilisez F1 à F12, avec au plus l'une de Maj, Ctrl, Alt.",
     unreadable='Non enregistré : coop-settings.txt est illisible.',not_saved='Non enregistré : %s',
     report='Le rapport de bug va dans coop-report.txt, dans le dossier du mod.',
+    chat={you='Vous',partner='Partenaire',said='%s : ',hint='Message · Entrée pour envoyer · Échap pour fermer',
+        no_session='La discussion demande une session.',off='La discussion est coupée (Options > Discussion).',
+        not_sent=' (non envoyé)',
+        ui_off="La zone de discussion est coupée (l'interface s'est arrêtée, voir UE4SS.log)."},
 }
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(culture,setting)

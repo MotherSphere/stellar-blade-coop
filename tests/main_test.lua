@@ -8,8 +8,10 @@
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
 -- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop-chat.txt is
 -- taken every 250 ms (session or not, coop off included) and its text never logged, the co-op menu (menu.lua on a fake
--- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, and the link
--- is optional (no native part, no Steam link, no keys, no menu).
+-- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, the session
+-- chat (chat.lua's view on the fake kit) opens on Enter, sends, cancels on Esc, hands its lines to the native part and
+-- takes the notices into its feed while the UI is up, and the link is optional (no native part, no Steam link, no
+-- keys, no menu).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -60,6 +62,7 @@ local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fail
 local friend_linked=true -- link.friend()'s linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
+local said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -74,6 +77,11 @@ local fake_link={
     fight=function() fight_reads=fight_reads+1; return fight_text end,
     chatting=function() return chatting end,
     take_chat=function() chat_takes=chat_takes+1; local lines=chat_lines; chat_lines={}; return lines end,
+    say=function(text)
+        if say_refusal then return false,say_refusal end
+        said_lines[#said_lines+1]=text
+        return true
+    end,
     friend=function() return 'Kaanta',friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
@@ -104,12 +112,14 @@ package.loaded.capture={new=function(publish,looks)
     return fake_capture
 end}
 local toggles,active,basesuits,wheres,in_world=0,false,0,0,false
+local puppet_say -- What the ghost says its notices with.
 local the_notice,name_tag,look,rebuilds
 local veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
 package.loaded.puppet={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
-    assert(the_notice and say==the_notice.say,'The map notice goes on screen')
+    assert(the_notice and type(say)=='function','The map notice goes on screen')
+    puppet_say=say
     name_tag,look,rebuilds=tag,looks,{}
     return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function() toggles=toggles+1; active=not active; return true,'ghost' end,tick=function() end,
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
@@ -145,9 +155,19 @@ local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui t
 -- row was last set to. kit_ready: its root is up; kit_off: it turned off.
 local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
 local menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
+-- The groups' views by name; who holds the input (nil: the menu); the chat box's text and how often it was focused.
+local kit_views,kit_holder,box_text,box_focuses={},nil,'',0
 local function builder()
     local b={panel=function() end,image=function() return {} end}
-    function b.text(_,_,s) local t={s=s}; t.set=function(v) t.s=v end; return t end
+    function b.text(_,_,s)
+        local t={s=s,on=true}
+        t.set,t.color,t.show=function(v) t.s=v end,function(c) t.c=c end,function(on) t.on=on end
+        return t
+    end
+    function b.field()
+        return {text=function() return box_text end,set=function(v) box_text=v end,
+            focus=function() box_focuses=box_focuses+1 end,hint=function() end}
+    end
     function b.row() local r={}; r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end; return r end
     function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
     return b
@@ -160,32 +180,44 @@ package.loaded.ui={new=function(log)
 end,kit=function(opts)
     kit_opts=opts
     return {add=function(name,place,build)
-            assert(name=='menu' and place.hit)
-            menu_place,menu_view=place,build(builder())
+            kit_views[name]=build(builder())
+            if name=='menu' then assert(place.hit); menu_place,menu_view=place,kit_views.menu end
         end,
         slow=said_kit('slow'),tick=function() end,ready=function() return kit_ready and not kit_off end,
-        view=function(name) return name=='menu' and kit_ready and not kit_off and menu_view or nil end,
-        off=function() return kit_off end,show=function(_,on) kit_calls[#kit_calls+1]='show '..tostring(on) end,
-        input=function(on)
-            input_asks=input_asks+1
+        view=function(name) return kit_ready and not kit_off and kit_views[name] or nil end,
+        off=function() return kit_off end,
+        show=function(name,on) kit_calls[#kit_calls+1]='show '..(name=='menu' and '' or name..' ')..tostring(on) end,
+        input=function(on,who) -- As the kit: each once, given back only by who holds it.
+            if who==nil then input_asks=input_asks+1 end
             if on and input_refused then kit_off=true; return end
-            if on~=kit_input then kit_input=on; kit_calls[#kit_calls+1]='input '..tostring(on) end
+            local word=' '..tostring(on)..(who and ' '..who or '')
+            if on and not (kit_input and kit_holder==who) then kit_input,kit_holder=true,who
+            elseif on or not kit_input or kit_holder~=who then return
+            else kit_input=false end
+            kit_calls[#kit_calls+1]='input'..word
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
         paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop')}
-end}
--- chat.lua's calls as main.lua makes them, each as its words (chat_test tests the model itself).
-local chat_calls={}
-package.loaded.chat={new=function()
-    local function spy(name)
+end,THEME={text='white',grey='grey',teal='teal',error='red'}}
+-- chat.lua's model calls as main.lua and the real view make them, each as its words (chat_test tests the model and the
+-- view): a session (chat_active), her line given back for the screen, ours queued (chat_out: what take gives).
+local chat_calls,chat_active,chat_out,chat_new={},false,{},nil
+local Chat=dofile('mod/StellarCoop/Scripts/chat.lua')
+package.loaded.chat={new=function(lines,on)
+    chat_new={lines,on}
+    local function spy(name,back)
         return function(...)
             local words={name}
             for i=1,select('#',...) do words[#words+1]=tostring((select(i,...))) end
             chat_calls[#chat_calls+1]=table.concat(words,' ')
+            if back then return back(...) end
         end
     end
-    return {session=spy('session'),receive=spy('receive'),fail=spy('fail'),clear=spy('clear')}
-end}
+    return {session=spy('session'),fail=spy('fail'),clear=spy('clear'),system=spy('system'),
+        receive=spy('receive',function(name,text) return {who='partner',name=name,text=text} end),
+        send=spy('send',function() return true end),active=function() return chat_active end,
+        enable=function() end,lines=function() return {} end,take=function() return table.remove(chat_out,1) end}
+end,view=Chat.view}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
@@ -206,6 +238,7 @@ local function load_main(with_native)
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks=nil,false,0
+    kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out={},nil,'',0,{},nil,{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -219,6 +252,9 @@ assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdr
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
 assert(logged('keys: menu=F5 host=none status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
 assert(name_tag==true,'The name tag setting reaches the ghost')
+puppet_say('Kaanta is in b07, you are in e04.')
+assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the line above EVE')
+assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say; 50 lines')
 for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
@@ -248,7 +284,8 @@ assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the
 press('F7'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F7') and not logged('key Shift+F5'),
     'Keys no action holds: nothing')
 clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
-press('DOWN_ARROW'); press('RETURN'); press('ESCAPE'); assert(executes==executed+4,'Menu keys while closed: not queued')
+press('DOWN_ARROW'); press('ESCAPE'); assert(executes==executed+4,'Menu keys while closed: not queued')
+press('RETURN'); assert(executes==executed+5,'Enter is queued: the chat decides on the game thread')
 press('F6'); flush()
 assert(#asked==1 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
 assert(said[#said]=='Co-op: not in a session.','The summary on screen too')
@@ -373,6 +410,9 @@ chat_lines={{text='secret one'},{fail=true}}; loops[2].f()
 chatting=true; chat_lines={{text='secret two'}}; loops[2].f()
 chatting=nil; loops[2].f()
 assert(chat_takes==takes+3 and #chat_lines==0 and not table.concat(printed,'|'):find('secret'))
+local on_line=table.concat(said,'|')
+assert(on_line:find('|Kaanta: secret one|Kaanta joined.|',1,true) and on_line:find('|Kaanta: secret two|',1,true),
+    'Her lines on the line above EVE while the feed cannot show them (no root yet)')
 local made=table.concat(chat_calls,'|',calls+1)
 assert(made:find('^session false|receive Kaanta secret one [%d.]+|fail|session true|receive Kaanta secret two [%d.]+$'),
     made)
@@ -906,6 +946,84 @@ settings_text='menu_key=F5\nhost_key=F9\n'
 load_main(true)
 key('F9'); assert(asked[#asked]=='host' and logged('key F9: host'))
 settings_text,in_world,kit_ready='',false,false
+
+-- The session chat (chat.lua's view for real on the fake kit; its model a spy). Enter, queued to the game thread:
+-- outside a session it says why on screen (into the feed, its root up; never in the log); in one it opens the box with
+-- the game's input on it; Enter sends what was typed, Esc cancels and the game's input comes back 150 ms later; our
+-- F-keys do nothing while it is open. Each 250 ms a line waiting goes to the native part (a refused write marks it not
+-- sent, nothing logged). Notices go into the feed while the root is up, else to the line above EVE. The menu hides the
+-- feed while open, and its Chat row opens the box, the input passing from the menu to the box. coop off closes it.
+settings_text,status_text,link_mode,chat_active='chat=off\n',plain,'host',false
+load_main(true)
+assert(chat_new[2]==false,'chat=off reaches the model')
+settings_text=''
+load_main(true)
+in_world,kit_ready=true,true; quarter()
+local feed=kit_views.feed
+assert(kit_views.chat and feed and #feed.rows==12)
+-- Enter with the box closed: it opens 0.1 s later, unless a coop command came from the console around that Enter
+-- (UE4SS calls our bind whatever has the keyboard: that Enter was the console's), in either order.
+local function enter() key('RETURN'); clock=clock+0.1; loops[1].f() end
+local printed_before=#printed
+enter()
+assert(chat_calls[#chat_calls]:find('^system Chat needs a session%. ') and not kit_said('show chat true')
+    and #printed==printed_before,'On screen only')
+chat_active=true
+local calls_at=#chat_calls
+key('RETURN'); coop('status'); clock=clock+0.2; loops[1].f()
+handler(nil,{'status'}); clock=clock+0.2; key('RETURN'); clock=clock+0.2; loops[1].f() -- A slow frame between.
+assert(not kit_said('show chat true') and #chat_calls==calls_at,"The console's Enter: no box, nothing said")
+clock=clock+0.5
+key('RETURN'); clock=clock+0.09; loops[1].f()
+assert(not kit_said('show chat true'),'Not before 0.1 s')
+clock=clock+0.02; loops[1].f()
+assert(kit_said('show chat true') and kit_said('input true chat') and box_text=='')
+clock=clock+0.1; loops[1].f(); assert(box_focuses==1,'The box focused again 50 ms after')
+box_text='Bonjour é'
+key('RETURN')
+assert(chat_calls[#chat_calls]:find('^send Bonjour é ') and box_text=='' and not logged('Bonjour'))
+n=#printed
+key('F6'); key('F5'); key('F8')
+assert(#printed==n and #asked==0 and not kit_said('show true'),'Our F-keys do nothing while typing')
+box_text='brouillon'
+key('ESCAPE')
+assert(kit_calls[#kit_calls]=='show chat false' and box_text=='','Esc: closed, the draft gone')
+clock=clock+0.1; loops[1].f(); assert(not kit_said('input false chat'))
+clock=clock+0.1; loops[1].f(); assert(kit_calls[#kit_calls]=='input false chat','The game gets its keys 150 ms after')
+chat_out={'bonjour'}; quarter()
+assert(said_lines[#said_lines]=='bonjour' and not logged('bonjour'),'To the native part through coop-say.txt')
+local calls_before=#chat_calls
+say_refusal,chat_out='busy',{'encore'}; quarter()
+assert(table.concat(chat_calls,'|',calls_before+1):find('|fail|',1,true) and not logged('encore'),
+    'Refused: marked not sent')
+say_refusal=nil
+-- Notices: into the feed while the root is up (the line above EVE untouched), else on that line.
+local said_before=#said
+quarter()
+assert(#said==said_before and table.concat(chat_calls,'|'):find('|system Kaanta joined%. [%d.]+|system Kaanta: '
+    ..'connection lost%. [%d.]+$'))
+kit_ready=false; quarter(); assert(said[#said]=='Kaanta: connection lost.','No root: the line above EVE')
+kit_ready=true; quarter()
+-- The menu over the feed hides it; its Chat row opens the box, and the menu's late give-back leaves the box its input.
+key('F5'); quarter()
+assert(kit_said('show feed false') and focus()=='Leave the session')
+to('Chat'); key('RETURN')
+assert(kit_said('show false')<kit_said('show chat true') and kit_said('show chat true')<kit_said('input true chat')
+    and kit_said('input true chat')<kit_said('show feed true'),'The menu closed, the box open, the feed back')
+clock=clock+0.2; loops[1].f(); quarter()
+assert(kit_said('input true chat')>(kit_said('input false') or 0),"The menu's late give-back leaves the box its keys")
+-- The session ends while it is open: closed, the game's input back 150 ms later.
+chat_active=false; quarter()
+assert(kit_said('show chat false'))
+clock=clock+0.2; loops[1].f(); assert(kit_calls[#kit_calls]=='input false chat')
+-- coop off with the box open: closed, the kit stopped (it gives the input back); Enter does nothing after.
+chat_active=true; enter(); assert(kit_calls[#kit_calls]=='input true chat')
+coop('off')
+assert(kit_calls[#kit_calls]=='stop nil')
+n=#kit_calls
+enter(); key('ESCAPE')
+assert(#kit_calls==n,'Nothing after coop off')
+chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true

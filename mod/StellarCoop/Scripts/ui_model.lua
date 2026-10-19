@@ -54,7 +54,7 @@ M.OPTIONS={
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
     {head='chat'},
-    later(toggle('chat','on')),later(range('chat_lines',20,50,5,50)),
+    toggle('chat','on'),later(range('chat_lines',20,50,5,50)),
 }
 -- Every key setting a rebind is checked against: the page's, and host_key, off once the menu holds Host (D-UI2).
 local KEYS={bind('host_key','none')}
