@@ -74,12 +74,13 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/pose_codec_test.cpp -o 
 build/host/pose_codec_test
 ```
 
-- Lua tests (`capture`, `link`, `main`, `nightop`, `notice`, `puppet`, `recruiter`, `recruiter_text`) run the scripts
-  against fake UE4SS objects. In the capture test, any write to the fake EVE fails the test.
+- Lua tests (`capture`, `chat`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`, `recruiter`,
+  `recruiter_text`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS objects for those
+  that call the engine. In the capture test, any write to the fake EVE fails the test.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop;
-  - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways and
-    channel 1's checks;
+  - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
+    and channel 2 with their checks, the photo line, and the chat and vitals lines;
   - `pose_engine_test`: the pose path against fake memory;
   - `pose_codec_test`: the codec's round trips and a decoder fuzz;
   - `pose_table_test`: the component table and the display file, with a parser fuzz;
@@ -87,7 +88,11 @@ build/host/pose_codec_test
   - `pose_stream_test`: the loopback pipeline in simulated time;
   - `save_watch_test`: the save watcher;
   - `save_slot_test`: the slot line and the marker against fake memory;
-  - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image.
+  - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
+  - `fight_engine_test`: the shared enemies' side inside the game, and the vitals read, against fake memory;
+  - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
+    worlds linked through a delayed, lossy line;
+  - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
   - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
@@ -144,7 +149,7 @@ Platform-free headers, tested on the build machine:
 
 | File | Contents |
 | --- | --- |
-| `link_core.h` | The Steam link's logic: lobby, invites, members, handshake, liveness, status and channel 1 |
+| `link_core.h` | The Steam link's logic: lobby, invites, members, handshake, liveness, status, channels 1 and 2, chat and vitals |
 | `link_protocol.h` | The link's text protocol and the requests Lua sends |
 | `pose_core.h` | The pose path's limits, one part, one effect slot, hex addresses |
 | `pose_table.h` | The component table, the mesh path rule and the display file |
@@ -155,6 +160,9 @@ Platform-free headers, tested on the build machine:
 | `nightop_probe.h` | The `coop no` poller's reads, lines and verdict |
 | `save_watch.h` | The save watcher |
 | `save_slot.h` | The entered slot's read, the marker's grammar and the `slot=` line |
+| `fight_sync.h` | The shared enemies' host and guest rules, and channel 2's text |
+| `fight_engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
+| `photo_freeze.h` | The synced photo mode's pause |
 
 The Windows side:
 
