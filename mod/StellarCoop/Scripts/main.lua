@@ -5,7 +5,8 @@
 -- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, join,
 -- leave, status, report; the co-op menu on F5, whose rows host, invite, join, leave and change the settings (menu.lua),
 -- status and leave on F6 and F8, unless coop-settings.txt says otherwise), the session chat on Enter (chat.lua), its
--- notices in the chat's feed (or, with the UI off, on a line above your EVE); and
+-- notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's card, marker and off-screen
+-- arrow (partner.lua; the ghost's name tag is their fallback); and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on the co-op save slot only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on the co-op save slot only; coop fight
@@ -65,7 +66,7 @@ if link then
 end
 local capture=require('capture').new(link and link.components or nil,look)
 local notice=require('notice').new()
-local kit,menu,box -- The UI kit, the co-op menu and the chat's box and feed, with the Steam link only (below).
+local kit,menu,box,hud -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD: with the Steam link.
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
 -- the UI is off or failed.
 local function say(text) if not (box and box.say(text)) then notice.say(text) end end
@@ -277,13 +278,15 @@ local function run(name,a,b,c,d)
     report(ok,message)
     return ok,message
 end
--- The chat's box and feed (chat.lua's view) and the co-op menu (menu.lua) on the Uplink kit (ui.lua), with the Steam
--- link only: its root is built in a world, after one lookup a 250 ms tick. The feed first: the menu draws over it.
+-- The chat's box and feed (chat.lua's view), the partner HUD (partner.lua's) and the co-op menu (menu.lua) on the
+-- Uplink kit (ui.lua), with the Steam link only: its root is built in a world, after one lookup a 250 ms tick. The
+-- feed and the HUD first: the menu draws over them.
 if settings then
     local Ui=require('ui')
     kit=Ui.kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,sounds=settings.ui_sounds})
     box=require('chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
         covered=function() return menu.is_open() end})
+    hud=require('partner').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
     menu=require('menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box})
 end
@@ -310,12 +313,15 @@ LoopInGameThreadWithDelay(1,function()
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
     ui.tick() -- Likewise for coop ui test.
-    if kit then -- The open and close tweens, the game's input back after a close, the chat box focused again.
+    -- The open and close tweens, the game's input back after a close, the chat box focused again, the partner's marker
+    -- (at most 30 times a second, from the ghost's place just set).
+    if kit then
         local now=os.clock()
         ok,message=kit.tick(now)
         if message then report(ok,message) end
         menu.tick(now)
         box.tick(now)
+        hud.tick(now)
         if chat_asked and now>=chat_asked+0.1 then
             local asked=chat_asked
             chat_asked=nil
@@ -399,6 +405,8 @@ if link then
             if message then report(ok,message) end
             menu.slow(shown)
             box.slow(chat_clock)
+            hud.slow()
+            puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end

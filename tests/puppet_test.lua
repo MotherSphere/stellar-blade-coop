@@ -369,6 +369,8 @@ FindAllOf=nil
 
 -- Shown at the first pose, placed from the mailbox 2 m to her right in loopback; hidden a second after the last pose.
 assert(ghost.place()==nil and actor.hidden and not root.moves,'No stamp yet: nothing')
+assert(ghost.anchor()==nil,'Hidden: no anchor for the UI marker')
+assert(ghost.her_map()=='/game/art/bg/worldmap/level_p/e04','Her map: the table\'s')
 local box=actor.mailbox
 box.RelativeScale3D.Z=5
 box.RelativeLocation={X=100,Y=0,Z=30}
@@ -376,6 +378,9 @@ box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 ghost.place()
 assert(actor.hidden==false and root.moves==1,'Shown at the first stamp')
 assert(math.abs(root.at.X-(100-200))<1e-6 and math.abs(root.at.Y)<1e-6 and root.at.Z==30,'Her right: mesh yaw 0 plus 90')
+-- The UI marker's anchor: 2.2 m over where the root was put (the tag's 2 m and 20 cm), and her feet there.
+local top,feet=ghost.anchor()
+assert(math.abs(top.X+100)<1e-6 and math.abs(top.Y)<1e-6 and top.Z==250 and math.abs(feet.X+100)<1e-6 and feet.Z==30)
 assert(tag.turns==1 and math.abs(tag.rot.Yaw-90)<1e-9 and tag.rot.Pitch==0 and tag.rot.Roll==0,'The tag faces the camera')
 clock=clock+0.9
 ghost.place()
@@ -383,6 +388,7 @@ assert(actor.hidden==false and root.moves==1,'The same stamp: not moved again, s
 clock=clock+0.1
 ghost.place()
 assert(actor.hidden==true,'A second without a pose: hidden, never frozen in view')
+assert(ghost.anchor()==nil,'Hidden: no anchor')
 box.RelativeScale3D.Z=6
 camera={X=-100,Y=-100,Z=0}
 ghost.place()
@@ -404,6 +410,20 @@ assert(actor.hidden==false and tag.visible==false and tag.shows==1,'The ghost in
 ghost.photo(false,false)
 ghost.place()
 assert(tag.visible==true and tag.shows==2)
+-- The UI marker up (main.lua: partner_bar on, the UI's root shown) carries her name: the tag hides, and is back at
+-- once when the marker goes (the UI off or failed, partner_bar off). The photo veil still counts.
+ghost.marker(true)
+ghost.place()
+assert(tag.visible==false and tag.shows==3 and actor.hidden==false)
+ghost.place()
+assert(tag.shows==3,'On change only')
+ghost.photo(false,true)
+ghost.marker(false)
+ghost.place()
+assert(tag.visible==false and tag.shows==3,'Still veiled')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and tag.shows==4)
 
 -- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
 local displays_before=#displays
@@ -784,8 +804,11 @@ player=eve_of('EVE8',{GetFullName=function() return 'World /Game/Lobby/Lobby.Lob
 assert(ghost.world()==false,'EVE on the title map')
 player=eve_of('EVE9',{GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end})
 assert(ghost.world()==true,'EVE on Spire IV')
+-- The same read keeps where we are for the partner HUD (her distance, whether she is on our map).
+assert(ghost.me().map=='/game/art/bg/worldmap/level_p/b07' and ghost.me().at.X==1 and ghost.me().at.Z==3)
 player=nil
 assert(ghost.world()==false,'No pawn at all')
+assert(ghost.me()==nil,'Nowhere')
 player=eve_of('EVE10',{GetFullName=function() error('world gone') end})
 assert(ghost.world()==false,'An engine error is no world, never raised')
 

@@ -59,6 +59,7 @@ local asked,sessions,ticks,withdrawn,states,photos={},{},0,{},{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local link_mode='none' -- What link.mode() says, as of the last changes().
 local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
+local mate_v=nil -- link.mate(): her vitals.
 local friend_linked=true -- link.friend()'s linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
@@ -87,6 +88,7 @@ local fake_link={
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     ping=function() return ping_ms end,
+    mate=function() return mate_v end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load.
     settings_text=function() return settings_text end,
     write_settings=function(text)
@@ -115,6 +117,7 @@ local toggles,active,basesuits,wheres,in_world=0,false,0,0,false
 local puppet_say -- What the ghost says its notices with.
 local the_notice,name_tag,look,rebuilds
 local veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
+local her_anchor,markers=nil,{} -- puppet.anchor(); puppet.marker's arguments (the name tag left to the UI marker).
 package.loaded.puppet={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
@@ -126,7 +129,9 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
         where=function() wheres=wheres+1; return true,'where map=/game/e04' end,world=function() return in_world end,
-        photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end}
+        photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
+        anchor=function() return her_anchor,her_anchor end,her_map=function() return '/game/e04' end,
+        me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
 end}
 package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings} -- The real parser.
 local said,notice_ticks,notice_result,notice_stops={},0,nil,0
@@ -157,8 +162,12 @@ local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit
 local menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
 -- The groups' views by name; who holds the input (nil: the menu); the chat box's text and how often it was focused.
 local kit_views,kit_holder,box_text,box_focuses={},nil,'',0
+local kit_order,kit_projects={},0 -- The groups in the order added; the projections asked (the partner marker's).
+local kit_shown={} -- Each group shown or not, as the kit keeps it.
 local function builder()
-    local b={panel=function() end,image=function() return {} end}
+    local b={panel=function() end}
+    local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
+    for _,kind in ipairs({'image','dots','hp','shield','cubes','bar'}) do b[kind]=gauge end
     function b.text(_,_,s)
         local t={s=s,on=true}
         t.set,t.color,t.show=function(v) t.s=v end,function(c) t.c=c end,function(on) t.on=on end
@@ -180,13 +189,19 @@ package.loaded.ui={new=function(log)
 end,kit=function(opts)
     kit_opts=opts
     return {add=function(name,place,build)
+            kit_order[#kit_order+1]=name
+            kit_shown[name]=place.shown==true
             kit_views[name]=build(builder())
             if name=='menu' then assert(place.hit); menu_place,menu_view=place,kit_views.menu end
         end,
         slow=said_kit('slow'),tick=function() end,ready=function() return kit_ready and not kit_off end,
         view=function(name) return kit_ready and not kit_off and kit_views[name] or nil end,
         off=function() return kit_off end,
-        show=function(name,on) kit_calls[#kit_calls+1]='show '..(name=='menu' and '' or name..' ')..tostring(on) end,
+        show=function(name,on) -- As the kit: on change only.
+            if (kit_shown[name]==true)==(on==true) then return end
+            kit_shown[name]=on==true
+            kit_calls[#kit_calls+1]='show '..(name=='menu' and '' or name..' ')..tostring(on)
+        end,
         input=function(on,who) -- As the kit: each once, given back only by who holds it.
             if who==nil then input_asks=input_asks+1 end
             if on and input_refused then kit_off=true; return end
@@ -197,7 +212,12 @@ end,kit=function(opts)
             kit_calls[#kit_calls+1]='input'..word
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
-        paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop')}
+        paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop'),
+        move=function() end,fade=function() end,
+        project=function(anchor)
+            kit_projects=kit_projects+1
+            return {camera={X=0,Y=0,Z=0},rotation={Pitch=0,Yaw=0},fov=90,anchor=anchor,width=3840,height=2160}
+        end}
 end,THEME={text='white',grey='grey',teal='teal',error='red'}}
 -- chat.lua's model calls as main.lua and the real view make them, each as its words (chat_test tests the model and the
 -- view): a session (chat_active), her line given back for the screen, ours queued (chat_out: what take gives).
@@ -221,7 +241,7 @@ package.loaded.chat={new=function(lines,on)
         receive=spy('receive',function(name,text) return {who='partner',name=name,text=text} end),
         send=spy('send',function() return true end),active=function() return chat_active end,
         enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
-end,view=Chat.view}
+end,view=Chat.view,clean=Chat.clean}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
@@ -243,6 +263,7 @@ local function load_main(with_native)
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks=nil,false,0
     kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out={},nil,'',0,{},nil,{}
+    kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -890,7 +911,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Ghost in my photos|On|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^HP marker|On|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 -- A write that fails: said, nothing changed.
@@ -1039,6 +1060,37 @@ n=#kit_calls
 enter(); key('ESCAPE')
 assert(#kit_calls==n,'Nothing after coop off')
 chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
+
+-- The partner HUD (partner.lua's view for real on the fake kit; partner_test tests it): added after the feed and
+-- before the menu, which draws over it; each 250 ms in a world its card follows the session and her vitals, and the
+-- ghost hides its name tag while the marker carries her name (partner_bar on, the root up); each frame only its marker
+-- and arrow, projected through the kit 30 times a second at most and never without her anchor; nothing after coop off.
+settings_text,status_text,link_mode='',plain,'host'
+load_main(true)
+assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu',table.concat(kit_order,' '))
+in_world,kit_ready,chatting=true,true,true
+mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,
+    life=1}
+quarter()
+assert(kit_said('show card true') and markers[#markers]==true,'The card up; the marker carries her name')
+loops[1].f(); clock=clock+0.05; loops[1].f()
+assert(kit_projects==0,'No anchor: no projection')
+her_anchor={X=1000,Y=0,Z=220}
+clock=clock+0.05; loops[1].f(); loops[1].f()
+assert(kit_projects==1 and kit_said('show marker true'),'Once in a 1/30 s')
+clock=clock+0.04; loops[1].f()
+assert(kit_projects==2)
+kit_ready=false; quarter()
+assert(markers[#markers]==false,'No root: the name tag is the fallback')
+settings_text='partner_bar=off\n'
+load_main(true)
+in_world,kit_ready=true,true; quarter()
+assert(markers[#markers]==false,'partner_bar=off: the name tag stays')
+coop('off')
+n=#markers; kit_projects=0; her_anchor={X=1000,Y=0,Z=220}
+quarter(); clock=clock+0.1; loops[1].f()
+assert(#markers==n and kit_projects==0,'Nothing after coop off')
+chatting,in_world,kit_ready,link_mode,settings_text=false,false,false,'none',''
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true

@@ -37,9 +37,8 @@ M.OPTIONS={
     {key='photo_freeze_max',min=30,max=3600,step=60,zero=true,default='600'},
     toggle('photo_ghost','on'),toggle('photo_name_tag','off'),
     {head='partner'},
-    reload(toggle('name_tag','on')),later(toggle('partner_bar','on')),later(toggle('partner_arrow','on')),
-    later(toggle('partner_card','on')),
-    later(toggle('card_details','on')), -- Ping and the friend's map on the card.
+    reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
+    toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
     toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
     range('send_rate',10,30,1,20),

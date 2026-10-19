@@ -51,15 +51,23 @@ ui_sounds=on
 ui_language=game
 # The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
 chat=on
+# Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
+# the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
+# and her map on it. While partner_bar shows her name, the name tag above her ghost hides.
+partner_bar=on
+partner_arrow=on
+partner_card=on
+card_details=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: off and none, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
     dyes='off',effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',
-    photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on'}
+    photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
+    partner_arrow='on',partner_card='on',card_details='on'}
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
-    chat=true}
+    chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).

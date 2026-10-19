@@ -1,7 +1,7 @@
 # Using StellarCoop
 
-This page lists everything you can do with StellarCoop in game: the keys, the co-op menu, the session chat, every
-`coop` console command, the settings file, the ghost's looks, the notices and status lines, and the files the mod
+This page lists everything you can do with StellarCoop in game: the keys, the co-op menu, the session chat, your
+friend's card, marker and arrow, every `coop` console command, the settings file, the ghost's looks, the notices and status lines, and the files the mod
 writes. To install the mod first, see
 [INSTALL.md](../INSTALL.md). For what happens behind each feature, see [how-it-works.md](how-it-works.md).
 
@@ -59,7 +59,7 @@ just said something there. The menu closes by itself when the game pauses or sho
 screens.
 
 **Options.** Each row is a setting of [coop-settings.txt](#coop-settingstxt): the keys, the synced photo mode, the name
-tag, the ghost's looks and send rate, the shared enemies, the menu's own size, sounds and language, and the chat. Left
+tag and the [partner HUD](#partner-hud), the ghost's looks and send rate, the shared enemies, the menu's own size, sounds and language, and the chat. Left
 and right change a value; Enter changes it too. Each change rewrites only that setting's line in `coop-settings.txt`
 (comments and other lines stay), and the first change after the mod loads keeps the file as it was as
 `coop-settings.old.txt`. A change applies at once, except the name tag and the shared enemies: those say `It takes
@@ -103,6 +103,29 @@ and what you typed goes. Alt+Enter never opens it.
   than `coop ...` also opens the box a moment later; press Esc to close it.
 - If the on-screen UI stopped (an engine error, said in `UE4SS.log`), the box does not open
   (`The chat box is off (the UI stopped, see UE4SS.log).`) and your friend's lines show on the line above your EVE.
+
+## Partner HUD
+
+During a session (or `coop loopback`, where your own values stand in for your friend's), three things show your
+friend, in teal:
+
+- **The card**, at the top left above the chat's feed: their Steam name, their HP (three rows of dots), shield blocks,
+  Beta and Burst cubes, filled by the same rules as your own gauges at the bottom left, and one line beside the name:
+  - their ping and map, for example `118 ms · e04` (`card_details`);
+  - `DOWN` in red while they are down;
+  - `elsewhere · b07` while they are on another map;
+  - `connection lost`, or `—` when no HP has come from them for 3 s; both grey the card out, their last values kept.
+- **The marker**, over their ghost's head: their name, a row of HP dots, a shield line, and the distance once they are
+  more than 15 m away. While it shows their name, the ghost's own name tag hides; with the marker off, or the
+  on-screen UI stopped, the name tag is back (`name_tag`).
+- **The arrow**: when they are out of view or behind you, an arrow at the edge of the screen points to them, with the
+  distance and three HP pips. It turns grey while the connection is lost and stays where they were last seen. On
+  another map there is no arrow: the card says where they are.
+
+The gauges move over 150 ms and run up to about half a second behind your friend's own screen. The game's alert sound
+plays when your friend goes down and when the connection is lost (unless `ui_sounds=off`). Options > Partner turns each
+part on or off at once: `partner_bar` (the marker), `partner_arrow`, `partner_card` and `card_details`. Your own photo
+mode hides them all, like the rest of the mod's screen.
 
 ## Playing with a friend
 
@@ -356,6 +379,13 @@ ui_sounds=on
 ui_language=game
 # The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
 chat=on
+# Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
+# the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
+# and her map on it. While partner_bar shows her name, the name tag above her ghost hides.
+partner_bar=on
+partner_arrow=on
+partner_card=on
+card_details=on
 ```
 
 | Setting | Values | Default |
@@ -379,6 +409,10 @@ chat=on
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu | `on` |
 | `ui_language` | `game` (French or English, as the game) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
+| `partner_bar` | `on` or `off`: the [marker](#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
+| `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
+| `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
+| `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
 
 Rules:
 

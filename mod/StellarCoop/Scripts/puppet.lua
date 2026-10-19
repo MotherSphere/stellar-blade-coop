@@ -29,6 +29,7 @@ local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U
 local Puppet={}
 local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
 local TAG_SIZE,TAG_HEIGHT=18,200 -- cm: the name tag's letters, and its height above the main mesh (her feet).
+local ABOVE=TAG_HEIGHT+20 -- cm: the UI marker's anchor above her feet, over the tag's place.
 local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
@@ -439,8 +440,21 @@ function Puppet.new(link,capture,say,name_tag,look)
     end
     -- During our own photo mode (main.lua, every 250 ms): ghost_off hides the ghost (photo_ghost=off), tag_off its name
     -- tag (photo_name_tag=off), until it ends; place() applies them.
-    local veil_ghost,veil_tag=false,false
+    local veil_ghost,veil_tag,marked=false,false,false
     function self.photo(ghost_off,tag_off) veil_ghost,veil_tag=ghost_off,tag_off end
+    -- The UI marker carries her name (main.lua, every 250 ms: partner_bar on and the UI's root up): the tag hides, and
+    -- is the fallback again once it goes (UI-DESIGN D-UI5). place() applies it.
+    function self.marker(on) marked=on==true end
+    -- Where the UI marker goes: 2.2 m over her feet, and her feet, both as placed at her last pose; nil while the ghost
+    -- is hidden or not built.
+    function self.anchor()
+        local g=ghost
+        if wanted and g and g.built and not g.hidden and g.feet then
+            return {X=g.feet.X,Y=g.feet.Y,Z=g.feet.Z+ABOVE},g.feet
+        end
+    end
+    -- Her map's package path, from her table; nil without one.
+    function self.her_map() return remote and remote.map end
     function self.active() return wanted end
     function self.toggle()
         sweep()
@@ -535,9 +549,10 @@ function Puppet.new(link,capture,say,name_tag,look)
             local box=g.mailbox
             local s=value_of(box.RelativeScale3D)
             local stamp=s.Z
-            if g.tag and (g.tag_veiled==true)~=veil_tag then
-                g.tag:SetVisibility(not veil_tag,false)
-                g.tag_veiled=veil_tag
+            local veiled=veil_tag or marked
+            if g.tag and (g.tag_veiled==true)~=veiled then
+                g.tag:SetVisibility(not veiled,false)
+                g.tag_veiled=veiled
             end
             if veil_ghost and not g.hidden then
                 g.actor:SetActorHiddenInGame(true)
@@ -554,6 +569,7 @@ function Puppet.new(link,capture,say,name_tag,look)
                 end
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
                     {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},true)
+                g.feet={X=x,Y=y,Z=at.Z}
                 if g.hidden and not veil_ghost then
                     g.actor:SetActorHiddenInGame(false)
                     g.hidden=false
@@ -600,13 +616,21 @@ function Puppet.new(link,capture,say,name_tag,look)
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
     -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
+    -- The same read keeps where she stands and her map for the partner HUD (me()).
+    local me=nil
     function self.world()
+        me=nil
         local ok,loaded=pcall(function()
             local eve=her(valid(UE.GetPlayer()))
-            return eve~=nil and U.map_of(eve)~='/game/lobby/lobby'
+            if not eve then return false end
+            local map,at=U.map_of(eve),value_of(eve:K2_GetActorLocation())
+            me={at={X=at.X,Y=at.Y,Z=at.Z},map=map}
+            return map~='/game/lobby/lobby'
         end)
         return ok and loaded
     end
+    -- Our EVE as of the last world(): {at={X,Y,Z}, map=}, or nil.
+    function self.me() return me end
     local CAMPS={'Env_VendingMachine_C','Env_VendingMachine_Simple_C','Env_Camp_TeleportMachine_C',
         'Env_Camp_TeleportMachine_Tetrapod_C'} -- Leaf classes: exact whether FindAllOf returns subclasses or not.
     local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end

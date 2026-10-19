@@ -127,6 +127,7 @@ local function reset()
     registry['/Script/Engine.Default__GameplayStatics']=object('GameplayStatics')
     registry['/Script/UMG.Default__WidgetBlueprintLibrary']=object('WidgetBlueprintLibrary')
     registry['/Script/Engine.Default__KismetInternationalizationLibrary']=object('KismetInternationalizationLibrary')
+    registry['/Script/UMG.Default__WidgetLayoutLibrary']=object('WidgetLayoutLibrary')
     for _,c in ipairs({'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar',
             'EditableTextBox'}) do
         registry['/Script/UMG.'..c]=object(c)
@@ -159,7 +160,8 @@ local function kit(options)
         views.card_built=(views.card_built or 0)+1
         b.panel(0,0,760,210)
         return {name=b.text(24,20,'Alex','name',T.teal),hp=b.hp(24,80,40,3,'big'),sh=b.shield(24,130,'small'),
-            be=b.cubes(24,160,8,T.beta),dot=b.image(700,20,20,20,'link',T.teal)}
+            be=b.cubes(24,160,8,T.beta),dot=b.image(700,20,20,20,'link',T.teal),
+            arrow=b.image(600,20,32,32,'chevron',T.teal,{X=0.5,Y=2})}
     end)
     k.add('menu',{x=180,y=330,w=1240,h=1500,hit=true},function(b)
         b.panel(0,0,1240,1500)
@@ -220,8 +222,9 @@ for i=1,200 do
         for _,o in ipairs(of('Image')) do assert(not stores[o].brush.ResourceObject) end
     end
 end
--- Classes, the PC class and three libraries (GameplayStatics, the input modes, the language); then the assets.
-assert(builds[1]==#UMG+5 and builds[2]==#UMG+5+#Ui.ASSETS-SOUNDS+1,table.concat(builds,' '))
+-- Classes, the PC class and four libraries (GameplayStatics, the input modes, the language, the viewport's size); then
+-- the assets.
+assert(builds[1]==#UMG+6 and builds[2]==#UMG+6+#Ui.ASSETS-SOUNDS+1,table.concat(builds,' '))
 assert(stores[roots[1]].last.RemoveFromParent and roots[2]~=roots[1],'The first root out')
 for i=1,SOUNDS do
     local before=#calls
@@ -232,7 +235,7 @@ for i=1,SOUNDS do
 end
 local n=#calls
 k.slow(true)
-assert(count('find ')==#UMG+4+#Ui.ASSETS and #calls-n==3 and calls[n+3]=='UserWidget.IsInViewport',
+assert(count('find ')==#UMG+5+#Ui.ASSETS and #calls-n==3 and calls[n+3]=='UserWidget.IsInViewport',
     'Then a still-ours, in-the-viewport check only')
 
 -- The build: a plain UserWidget owned by the player, its tree and canvas by hand, a canvas a group; all in before
@@ -365,6 +368,59 @@ k.scale(10); assert(ms.last.SetRenderScale[1].X==0.75)
 -- move: the group's slot, on change only.
 k.move('menu',200,300); assert(pos(menu_canvas)=='200,300')
 n=#calls; k.move('menu',200,300); assert(#calls==n)
+-- fade: a group's opacity (the partner card greyed), on change only, kept across builds. turn: an image's angle around
+-- the pivot it was made with (the arrow's chevron around its diamond), on change only.
+k.fade('card',0.45)
+assert(stores[groups[1]].last.SetRenderOpacity[1]==0.45)
+n=#calls; k.fade('card',0.45); assert(#calls==n)
+local chevron=textured('chevron')[1]
+assert(chevron and stores[chevron].last.SetRenderTransformPivot[1].Y==2 and stores[chevron].brush.Tiling==0)
+card.arrow.turn(90); assert(stores[chevron].last.SetRenderTransformAngle[1]==90)
+n=#calls; card.arrow.turn(90); assert(#calls==n)
+-- project: a world point's view for partner.place, in layout units (the viewport's pixels over its DPI scale): the
+-- player's camera, the viewport read once a second, and the engine's projection; the field of view when the engine
+-- gives no point (behind the camera, or an out-table left empty), and from then on once it raises (said once, the kit
+-- stays); nil with no camera or no scale.
+local cam=object('PlayerCameraManager')
+stores[pc].props.PlayerCameraManager=cam
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=2560,Y=1440} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 1440/2160 end
+special['PlayerCameraManager.GetCameraLocation']=function() return {X=1,Y=2,Z=3} end
+special['PlayerCameraManager.GetCameraRotation']=function() return {Pitch=-10,Yaw=45,Roll=0} end
+special['PlayerCameraManager.GetFOVAngle']=function() return 80 end
+special['PC.ProjectWorldLocationToScreen']=function(_,_,_,out,relative)
+    assert(relative==false)
+    out.X,out.Y=1280,720
+    return true
+end
+local anchor={X=500,Y=0,Z=220}
+local view=k.project(anchor,clock)
+assert(math.abs(view.width-3840)<1e-9 and math.abs(view.height-2160)<1e-9 and math.abs(view.screen.x-1920)<1e-9
+    and math.abs(view.screen.y-1080)<1e-9 and view.anchor==anchor and view.fov==nil)
+assert(view.camera.X==1 and view.camera.Z==3 and view.rotation.Yaw==45 and view.rotation.Pitch==-10)
+assert(stores[pc].last.ProjectWorldLocationToScreen[1]==anchor)
+n=count('WidgetLayoutLibrary.GetViewport')
+k.project(anchor,clock+0.5)
+assert(count('WidgetLayoutLibrary.GetViewport')==n,'The viewport read once a second')
+k.project(anchor,clock+1)
+assert(count('WidgetLayoutLibrary.GetViewport')==n+2)
+special['PC.ProjectWorldLocationToScreen']=function() return false end
+view=k.project(anchor,clock+1)
+assert(view.screen==nil and view.fov==80,'Behind the camera')
+special['PC.ProjectWorldLocationToScreen']=function() return true end
+assert(k.project(anchor,clock+1).fov==80,'An out-table left empty')
+raise['PC.ProjectWorldLocationToScreen']='no such out param'
+n=#logs
+assert(k.project(anchor,clock+1).fov==80 and #logs==n+1 and logs[#logs]:find('no such out param',1,true),logs[#logs])
+raise={}
+n=count('PC.ProjectWorldLocationToScreen')
+assert(k.project(anchor,clock+1).fov==80 and count('PC.ProjectWorldLocationToScreen')==n and k.ready())
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0 end
+assert(k.project(anchor,clock+2)==nil,'No scale yet')
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 1 end
+stores[pc].props.PlayerCameraManager=nil
+assert(k.project(anchor,clock+3)==nil,'No camera')
+stores[pc].props.PlayerCameraManager=cam
 
 -- The game's sounds: PlaySound2D with our root as the world, volume, pitch 1, from the start; the chat line quieter;
 -- off by the setting; a raise turns the sounds off only.
@@ -411,6 +467,7 @@ assert(k.view('card')~=old_card and saved==stores[root2].full:match('^%S+ (.+)$'
 local groups2=stores[stores[stores[root2].props.WidgetTree].props.RootWidget].children
 assert(vis(groups2[1])==3 and vis(groups2[2])==4 and stores[groups2[2]].last.SetRenderScale[1].X==0.75,
     'Shown as before, scaled as before')
+assert(stores[groups2[1]].last.SetRenderOpacity[1]==0.45,'Faded as before')
 k.show('menu',false)
 -- Out of the viewport but not freed yet: taken out, one new root.
 viewport={}
@@ -508,6 +565,18 @@ k.view('card').name.set('Kaanta')
 assert(#viewport==0 and saved==nil and k.view('card')==nil)
 local ok,why=k.tick(clock)
 assert(ok==false and why==OFF:format('stale text') and k.slow(true)==nil and k.off())
+-- In a projection: off, and no half a view (partner.place would raise in the 1 ms loop).
+reset()
+k=kit()
+up(k)
+stores[pc].props.PlayerCameraManager=object('PlayerCameraManager')
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=1920,Y=1080} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0.5 end
+special['*.GetCameraLocation']=function() return {X=0,Y=0,Z=0} end
+special['*.GetCameraRotation']=function() return {Pitch=0,Yaw=0,Roll=0} end
+raise['PlayerCameraManager.GetFOVAngle']='no FOV'
+assert(k.project({X=1,Y=0,Z=0},clock)==nil and k.off() and select(2,k.tick(clock))==OFF:format('no FOV'))
+special['*.GetCameraLocation'],special['*.GetCameraRotation']=nil,nil
 -- In a view's own build (a set there): the build stops at once; nothing reaches the viewport or is kept.
 reset()
 k=kit()
@@ -542,7 +611,7 @@ assert(text('Alex').font.FontObject==asset('Roboto'))
 assert(logs[#logs]:find('; look: Bold missing %(Roboto%), brush tiling did not take, key_escape missing$'),
     logs[#logs])
 assert(count('Image.SetBrushFromTexture')==#textured('cube0')*5+#textured('key_enter')+#textured('key_move')
-    +#textured('link') and #textured('dot')==0,'Only the untiled images get their texture')
+    +#textured('link')+#textured('chevron') and #textured('dot')==0,'Only the untiled images get their texture')
 reset()
 modes.Font='raise'
 k=kit()
@@ -651,7 +720,7 @@ assert(ok==false and why==OFF:format('the UI root keeps leaving the viewport') a
 -- The build with the look waits while the menu is open (its rows under the mouse), and comes once it closes.
 reset()
 k=kit()
-for _=1,#UMG+5 do k.slow(true) end
+for _=1,#UMG+6 do k.slow(true) end
 assert(#viewport==1 and #logs==1 and logs[1]:find('while its look warms'))
 k.show('menu',true)
 for _=1,60 do k.slow(true) end

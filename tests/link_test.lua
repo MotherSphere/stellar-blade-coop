@@ -186,6 +186,14 @@ s,notes=Link.parse_settings('chat=maybe\n')
 assert(#notes==1 and s.chat==true and notes[1]=="settings: line 1: 'maybe' is not allowed for chat (use on or off); "
     ..'chat stays on',notes[1])
 assert(s.cloth==false and s.dyes==false and s.effects==false,'The looks are comments in the defaults: off, as the code says')
+-- The partner HUD's parts (Options > Partner): the HP marker over her, the off-screen arrow, the card and its ping
+-- and map, each on or off; a new file names them.
+s=Link.parse_settings('')
+assert(s.partner_bar==true and s.partner_arrow==true and s.partner_card==true and s.card_details==true)
+assert(Link.DEFAULT:find('\npartner_bar=on\npartner_arrow=on\npartner_card=on\ncard_details=on\n',1,true))
+s,notes=Link.parse_settings('Partner_Bar=OFF\npartner_arrow=off\npartner_card=off\ncard_details=off\n')
+assert(#notes==0 and s.partner_bar==false and s.partner_arrow==false and s.partner_card==false
+    and s.card_details==false)
 -- The ghost's looks: on or off, any case; a bad value keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)
 s,notes=Link.parse_settings('CLOTH=Off'); assert(#notes==0 and s.cloth==false)

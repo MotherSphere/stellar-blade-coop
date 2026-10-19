@@ -135,8 +135,9 @@ assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='opti
 menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
-    ..'photo_name_tag head:partner name_tag head:ghost cloth dyes effects send_rate head:combat shared_enemies '
-    ..'head:display ui_scale ui_sounds ui_language head:chat chat',ids(menu,NONE))
+    ..'photo_name_tag head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
+    ..'effects send_rate head:combat shared_enemies head:display ui_scale ui_sounds ui_language head:chat chat',
+    ids(menu,NONE))
 -- The two the mod takes at its next load only: the name tag is part of the ghost's build, the shared fight starts once
 -- a load.
 for _,row in ipairs(M.OPTIONS) do

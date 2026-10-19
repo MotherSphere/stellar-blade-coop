@@ -304,6 +304,7 @@ Ui.ASSETS={{'Bold',GAME_FONT},{'Mideum',path('/Game/Art/Font/Mideum')},{'AGENCYB
     {'dot_bg',path(GAUGE..'Hp_Dot1_5x_bg')},{'small',path(GAUGE..'Hp_Dot_12')},{'small_bg',path(GAUGE..'Hp_Dot_12bg')}}
 for i=0,4 do table.insert(Ui.ASSETS,{'cube'..i,path(GAUGE..'Beta_cube_0'..i)}) end
 for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common/selectdot'},
+        {'chevron',TEX..'Workshop/TriPatternUp'},{'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
         {'key_enter',KEY..'Enter'},{'key_escape',KEY..'Escape'},{'key_space',KEY..'SpaceBar'},{'key_up',KEY..'Up'},
         {'key_arrows',KEY..'DirectionAll'},{'key_move',KEY..'MoveAll'},{'key_move_azerty',KEY..'MoveAll_AZERTY'},
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
@@ -320,7 +321,10 @@ local CLASSES={}
 for _,name in ipairs(KIT_UMG) do CLASSES[#CLASSES+1]='/Script/UMG.'..name end
 local STATICS,WIDGETS='/Script/Engine.Default__GameplayStatics','/Script/UMG.Default__WidgetBlueprintLibrary'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
-for _,class in ipairs({'/Script/Engine.PlayerController',STATICS,WIDGETS,LANGUAGE}) do CLASSES[#CLASSES+1]=class end
+local LAYOUT='/Script/UMG.Default__WidgetLayoutLibrary'
+for _,class in ipairs({'/Script/Engine.PlayerController',STATICS,WIDGETS,LANGUAGE,LAYOUT}) do
+    CLASSES[#CLASSES+1]=class
+end
 -- Text styles: font and size in layout units (UI-DESIGN 3.2's typography).
 local STYLES={title={'Bold',56},item={'Bold',40},name={'Bold',36},hint={'Bold',30},body={'Mideum',34},
     status={'Mideum',30},head={'Mideum',28},num={'AGENCYB',30},label={'FZSHANGYTJW',30}}
@@ -357,6 +361,7 @@ function Ui.kit(opts)
     local self,order,by,cache,found={},{},{},{},{} -- cache: asset name to {o=, full=} or false (not in this build).
     local built,pending,off,said,hidden,swept,lost,holder=nil,nil,false,nil,false,false,0,nil
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
+    local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
@@ -483,12 +488,18 @@ function Ui.kit(opts)
             image(x+24,y+12,rail,10,'small',THEME.rail,true,false)
             image(x+24,y+height-22,rail,10,'small',THEME.rail,true,false)
         end
-        -- An image by asset name (nil: flat colour; missing: none, never a white square): show(on), tint(c).
-        function b.image(x,y,width,height,tex,tint)
+        -- An image by asset name (nil: flat colour; missing: none, never a white square): show(on), tint(c), and
+        -- turn(degrees, clockwise) around pivot (its own size's fraction; its centre unless said).
+        function b.image(x,y,width,height,tex,tint,pivot)
             tint=tint or THEME.white
             local w=image(x,y,width,height,tex,tint,nil,false)
+            if pivot then w.o:SetRenderTransformPivot(pivot) end
+            local angle=0
             return {show=function(on) show_w(w,on) end,
-                tint=function(c) if c~=tint then tint=c; upd(w,function(x2) x2:SetColorAndOpacity(c) end) end end}
+                tint=function(c) if c~=tint then tint=c; upd(w,function(x2) x2:SetColorAndOpacity(c) end) end end,
+                turn=function(a)
+                    if a~=angle then angle=a; upd(w,function(x2) x2:SetRenderTransformAngle(a) end) end
+                end}
         end
         -- Dots of the HUD's gauges ('big': its 15-unit dots, 'small': the 10-unit ones), cols by rows, tiled, lit over
         -- empty: set(lit, shown), lit columns of the shown ones (all unless said).
@@ -666,6 +677,7 @@ function Ui.kit(opts)
             if scale~=1 then g.o:SetRenderScale({X=scale,Y=scale}) end
             g.v=def.shown and g.on or COLLAPSED
             g.o:SetVisibility(g.v)
+            if def.alpha then g.o:SetRenderOpacity(def.alpha) end
             n.groups[def.name]=g
             n.views[def.name]=def.build(builder(n,g)) or {}
         end
@@ -810,7 +822,7 @@ function Ui.kit(opts)
         upd(g,function(x)
             x:SetVisibility(g.v)
             if on then
-                x:SetRenderOpacity(now and 0 or 1)
+                x:SetRenderOpacity(now and 0 or def.alpha or 1)
                 x:SetRenderTranslation({X=now and -SLIDE or 0,Y=0})
             end
         end)
@@ -821,6 +833,49 @@ function Ui.kit(opts)
         if not g or (g.x==x and g.y==y) then return end
         g.x,g.y=x,y
         upd(g,function() g.slot:SetPosition({X=x,Y=y}) end)
+    end
+    -- A group's opacity (the partner card greyed), on change only, kept across builds; not for a group that tweens.
+    function self.fade(name,a)
+        local def=by[name]
+        if not def or def.alpha==a then return end
+        def.alpha=a
+        local g=built and built.groups[name]
+        if g then upd(g,function(x) x:SetRenderOpacity(a) end) end
+    end
+    -- A world point (her marker's anchor) as partner.place wants it: {camera, rotation, anchor=at, width, height, and
+    -- screen={x, y} (the engine's projection) or fov (the camera's, for partner.place's own)}, in layout units: the
+    -- viewport's pixels over its DPI scale, both read once a second. nil while the root is not up, or with no camera
+    -- or scale (a map loads). The engine's projection gives no point behind the camera (or none in an out-table
+    -- UE4SS left empty): the field of view then; once it raises, the field of view from then on, said once.
+    function self.project(at,now)
+        if off or hidden or not built then return nil end
+        local v=nil
+        run(function()
+            local pc=controller()
+            local camera=pc and valid(pc.PlayerCameraManager)
+            if not camera then return end
+            if not screen or now>=screen.at+1 then
+                local lib=U.find(LAYOUT)
+                local px,s=value_of(lib:GetViewportSize(pc)),tonumber(lib:GetViewportScale(pc))
+                screen=s and s>0 and px.X>0 and px.Y>0 and {w=px.X/s,h=px.Y/s,s=s,at=now} or nil
+                if not screen then return end
+            end
+            local c,r=value_of(camera:GetCameraLocation()),value_of(camera:GetCameraRotation())
+            v={camera={X=c.X,Y=c.Y,Z=c.Z},rotation={Pitch=r.Pitch,Yaw=r.Yaw},anchor=at,width=screen.w,
+                height=screen.h}
+            if projecting then
+                local out={}
+                local ok,on=pcall(function() return pc:ProjectWorldLocationToScreen(at,out,false) end)
+                if not ok then
+                    projecting=false
+                    log('UI marker: the engine projection raised ('..tostring(on)..'); the field of view places it')
+                elseif on and tonumber(out.X) and tonumber(out.Y) then
+                    v.screen={x=out.X/screen.s,y=out.Y/screen.s}
+                end
+            end
+            if not v.screen then v.fov=camera:GetFOVAngle() end
+        end)
+        return not off and v or nil -- Never half a view: a raise turned the kit off.
     end
     -- ui_scale, applied at once to every group, from its pivot.
     function self.scale(pct)
