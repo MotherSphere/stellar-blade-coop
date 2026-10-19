@@ -72,8 +72,10 @@ constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 // Her photo lines a second: Lua writes ours at most 4 times, and each change of hers can pause or resume our game.
 constexpr uint64_t kPhotoPerSecond = 8;
 // Chat (UI-DESIGN 5.1): our lines a second (Lua paces two), hers kept a second, and the lines waiting for Lua (hers and
-// our failures). Vitals: ours go again after this long unchanged; hers show this long after her last.
-constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsAgainMs = 1000, kMateMs = 3000;
+// our failures). Vitals: ours go at most once each kVitalsEveryMs (10 a second), and again after kVitalsAgainMs
+// unchanged; hers show this long after her last.
+constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 100, kVitalsAgainMs = 1000,
+                   kMateMs = 3000;
 constexpr size_t kChatInbox = 16;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
@@ -454,16 +456,16 @@ public:
     ++chat_out_;
     return true;
   }
-  // Our vitals (pose_tick.cpp's local_vitals(), every 250 ms in a session, 500 after a slow read), unreliable to the
-  // friend past the handshake on change and each kVitalsAgainMs, which also heals reordering; in the loopback with no
-  // friend, hers. Worker thread, after tick().
+  // Our vitals (pose_tick.cpp's local_vitals(), every 100 ms in a session, 500 after a slow read), unreliable to the
+  // friend past the handshake on change (at most once each kVitalsEveryMs) and each kVitalsAgainMs, which also heals
+  // reordering; in the loopback with no friend, hers. Worker thread, after tick().
   void vitals(const Vitals &mine) {
     if (!linked()) {
       if (loopback_)
         mate_ = mine, mate_at_ = now_, has_mate_ = true;
       return;
     }
-    if (vitals_sent_ && mine == vitals_ && now_ - vitals_at_ < kVitalsAgainMs)
+    if (vitals_sent_ && now_ - vitals_at_ < (mine == vitals_ ? kVitalsAgainMs : kVitalsEveryMs))
       return;
     const std::string line = vit_line(mine);
     bool sent = false;
