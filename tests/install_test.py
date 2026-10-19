@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
 import install  # noqa: E402
 
 install.running_game = lambda: False  # The real check would fail this test while Stellar Blade runs.
-SAVES_LINE = 'Saves, the co-op save slot and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op save slot).\n'
+SAVES_LINE = 'Saves, the co-op copies and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op saves).\n'
 CLOSE = 'Close Stellar Blade first: its mods must not change under it.'
 
 

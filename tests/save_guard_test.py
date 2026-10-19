@@ -117,7 +117,7 @@ def save(body, head=b'EVAS\x01\0\0\0', magic=b'GVAS'):
 # 12. The marker grammar: the same table as the native slot::marker test, plus tabs and the 4096-byte edge (case 3
 # checks that the tool writes TOOL_TEXT).
 TOOL_TEXT = b'''StellarBladeSave04.sav
-# StellarCoop's co-op save slot for this Steam account: coop no (and later shared features) run only on it.
+# StellarCoop's manual co-op slot for this Steam account: coop no (and later shared features) run only on it.
 # Copied from StellarBladeSave00.sav at 2026-10-15T20:01:02Z by tools/save_guard.py. Never copied back to a main slot.
 # To make it a main slot again: close the game, then move this file out of this folder.
 '''

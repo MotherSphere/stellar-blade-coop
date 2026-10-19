@@ -130,7 +130,7 @@ def uninstall(target, dry_run):
     if listed.is_file() and any(line.strip().startswith('StellarCoop')
                                 for line in listed.read_text(encoding='utf-8-sig', errors='replace').splitlines()):
         print(f'mods.txt still names StellarCoop: remove that line by hand ({listed})')
-    print('Saves, the co-op save slot and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op save slot).')
+    print('Saves, the co-op copies and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op saves).')
 
 
 def changelog(ver, when, subjects):

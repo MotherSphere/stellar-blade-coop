@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Backs up, checks and restores Stellar Blade's SaveGames folder, and makes the co-op save slot (never while the game
+"""Backs up, checks and restores Stellar Blade's SaveGames folder, and makes the manual co-op slot (never while the game
 runs, never deletes a save)."""
 import argparse
 import hashlib
@@ -111,8 +111,8 @@ def make_slot(args):
     if running_game(): fail(f'Stellar Blade started during the backup: nothing written ({safety})')  # It may be saving.
     stamp = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     put(marker, (f'{dst.name}\n'
-                 "# StellarCoop's co-op save slot for this Steam account: coop no (and later shared features) run only "
-                 'on it.\n'
+                 "# StellarCoop's manual co-op slot for this Steam account: coop no (and later shared features) run "
+                 'only on it.\n'
                  f'# Copied from {src.name} at {stamp} by tools/save_guard.py. Never copied back to a main slot.\n'
                  '# To make it a main slot again: close the game, then move this file out of this folder.\n').encode())
     put(dst, data)

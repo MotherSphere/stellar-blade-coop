@@ -131,8 +131,8 @@ Image client(uint64_t pointer, bool field = false, int32_t slot = 0) {
 int main() {
   // The marker: the same cases as save_guard_test.py's MARKS (PHASE7 §5.1, plus tabs and the 4096-byte edge).
   const std::string tool = "StellarBladeSave04.sav\n"
-                           "# StellarCoop's co-op save slot for this Steam account: coop no (and later shared features) "
-                           "run only on it.\n"
+                           "# StellarCoop's manual co-op slot for this Steam account: coop no (and later shared "
+                           "features) run only on it.\n"
                            "# Copied from StellarBladeSave00.sav at 2026-10-15T20:01:02Z by tools/save_guard.py. Never "
                            "copied back to a main slot.\n"
                            "# To make it a main slot again: close the game, then move this file out of this folder.\n";
