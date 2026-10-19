@@ -7,6 +7,10 @@
 #include <string>
 #include <vector>
 
+namespace coop {
+struct Request; // link_protocol.h
+} // namespace coop
+
 namespace coop::pose {
 // Worker thread, every pass: pins the build once; reads coop-session.txt, coop-components.txt (EVE's capture, sent on
 // as the wire table) and coop-display.txt (the ghost Lua built for the remote table) when they change, the last one at
@@ -38,19 +42,23 @@ void block(); // coop off: no engine access until the game restarts.
 // Worker thread, every 250 ms: the save slot the game entered (client +0x54, save_slot.h), or slot::kUnread on another
 // build or after coop off, which read nothing.
 int loaded_slot();
-// Worker thread, Phase 11's shared fight (fight_engine.h). The user's coop fight on or off, with the charIds it shares
-// (fight_chars); marker: StellarCoopSlot.txt's slot. On only on the pinned build, before coop off and on the co-op save
-// (slot=coop), else refused with why; it then runs while a friend is linked and a save is loaded. Returns the line for
-// the log.
-std::string ask_fight(bool on, const std::vector<uint32_t> &chars, int marker);
+// Worker thread, Phase 11's shared fight (fight_engine.h's Worker). A coop fight request (Command::fight): on, probe,
+// record or replay with the charIds it shares (fight_chars), off, status or a probe's test; marker: the slot
+// StellarCoopSlot.txt names. A mode starts only on the pinned build, before coop off and on the co-op save
+// (slot=coop), else is refused with why; it then runs while a save is loaded (and, for on, a friend is linked). record
+// and replay use coop-fight-record.txt in the mod folder. Returns the line for the log.
+std::string ask_fight(const coop::Request &request, int marker);
 // Worker, every pass after the link's tick. lines: her channel-2 lines; send: ours to her (hp unreliable, false when
-// not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send, logs its events, a fault and
-// a stats line each second its counts move; starts, pauses or stops it for the gates, and leaves it off until asked
-// again once the co-op save is left or it latched.
-void fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
+// not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send (or to the recording), logs
+// its events, its probe census, a fault and a stats line each second its counts move; starts, pauses or stops it for
+// the gates, and leaves it off until asked again once the co-op save is left or it latched. True while the job runs
+// (the worker then passes every 5 ms, not 50).
+bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool));
+// Worker: coop-status.txt's fight line (fight_engine.h's Worker::detail).
+std::string fight_status();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
-// " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <enemies>",
+// " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <count>",
 // " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on" or " nightop=rule"
 // (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();

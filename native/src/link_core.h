@@ -611,11 +611,12 @@ private:
       report_ = true;
       event("report asked");
       break;
-    case Command::off: // The pose path's: the caller handles them.
+    case Command::off: // The pose path's and the shared fight's: the caller handles them.
     case Command::loopback:
     case Command::record:
     case Command::replay:
     case Command::nightop:
+    case Command::fight:
       break;
     case Command::none:
       event("unknown request");

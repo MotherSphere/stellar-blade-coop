@@ -3,9 +3,9 @@
 -- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table), coop-puppet.txt (the
 -- ghost's object path, for the next load) and coop-state.txt (a save loaded, the send rate). The native part writes
 -- coop-remote.txt (the table the ghost is built from) the same way. Each line of the native coop-status.txt that
--- changed is returned once, for the log; peer lines change with every ping, so they stay in coop status, out of the
--- log. The same read gives the session's mode, the friend and the notices for the screen, each from the start of its
--- own line: a Steam name is never at the start of one.
+-- changed is returned once, for the log; peer lines change with every ping and the shared fight's counts (its fight=
+-- line) every second, so they stay in coop status, out of the log. The same read gives the session's mode, the friend
+-- and the notices for the screen, each from the start of its own line: a Steam name is never at the start of one.
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
 -- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
@@ -165,7 +165,7 @@ function Link.new(folder,fs)
         listed={}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
-            if not seen[line] and not line:find('^peer=') then new[#new+1]=line end
+            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') then new[#new+1]=line end
             if not mode and line:find('^link=') then
                 mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
             end

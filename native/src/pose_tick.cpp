@@ -494,6 +494,7 @@ struct WinGame {
   bool receive(fight::Message &m) { return fight_mail.receive(m); }
   void send(const fight::Message &m) { fight_mail.send(m); }
   void event(const fight::Event &e) { fight_mail.event(e); }
+  void probe(const fight::Actor &a) { fight_mail.probe(a); }
 };
 
 // The logic thread's side for the worker: the engine's counts, our time in Simulate and the thread it ran on.
@@ -611,6 +612,8 @@ bool fight_fault_logged = false;
 struct FightIo {
   bool send(const std::string &line, bool reliable) { return fight_send && fight_send(line, reliable); }
   void say(const std::string &line) { pose::say(line); }
+  bool save(const std::string &text) { return write_text(dir + L"coop-fight-record.txt", text); }
+  std::string load(bool &exists) { return read_file(dir + L"coop-fight-record.txt", exists, fight::kMaxRecording + 1); }
 };
 
 // One line onto nightop-probe.txt, shared for delete too (it may be read or moved while open). Past 4 MB a last line
@@ -1189,12 +1192,14 @@ std::string fight_gate(int marker) {
 }
 } // namespace
 
-std::string ask_fight(bool on, const std::vector<uint32_t> &chars, int marker) {
+std::string ask_fight(const coop::Request &request, int marker) {
   FightIo io;
-  return fight_worker.ask(on, chars.data(), chars.size(), [marker] { return fight_gate(marker); }, io);
+  return fight_worker.ask(request, [marker] { return fight_gate(marker); }, io);
 }
 
-void fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
+std::string fight_status() { return fight_worker.detail(); }
+
+bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool)) {
   fight_send = send;
   if (fight_faulted && !fight_fault_logged) {
@@ -1220,6 +1225,7 @@ void fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   }
   FightIo io;
   fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io);
+  return fight_engine.on();
 }
 
 void block() {

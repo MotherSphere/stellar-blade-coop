@@ -3,7 +3,8 @@
 // is the Windows side: Steam's callbacks, the worker thread, files and fault containment.
 // Lua asks through coop-request.txt; this part answers in coop-status.txt, appends numbered UTC events to
 // coop-link.log (the previous run's is coop-link.old.log) and writes coop-report.txt on 'coop report', all in the mod
-// folder. One worker thread makes every Steam call; the game's Steam callback thread only stores atomics.
+// folder. One worker thread makes every Steam call; the game's Steam callback thread only stores atomics. The worker
+// also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp).
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -244,7 +245,8 @@ std::string status_text() {
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   return head + coop::pose::status() + "\n" +
-         coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded()) + "\n" + "last=" + journal.last() + "\n";
+         coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded()) + "\n" + coop::pose::fight_status() +
+         "\n" + "last=" + journal.last() + "\n";
 }
 
 void write_report() {
@@ -316,6 +318,10 @@ bool step() {
       event(coop::pose::ask_nightop(coop::parse_request(request).rule, GetTickCount64()));
       request.clear();
       break;
+    case coop::Command::fight:
+      event(coop::pose::ask_fight(coop::parse_request(request), coop_marker));
+      request.clear();
+      break;
     case coop::Command::off:
       coop::pose::block();
       switched_off = true;
@@ -366,6 +372,13 @@ bool step() {
       }
     }
     bool linked = loaded && ready != coop::Link::Ready::no && !switched_off && link->linked();
+    // Channel 2 both ways between the link and the shared fight's job; the lobby owner hosts it. Ours is queued for
+    // the next tick.
+    bool fighting = coop::pose::fight_pass(
+        GetTickCount64(), linked, linked && link->host(), coop_marker,
+        loaded ? link->take_fight() : std::vector<std::string>(),
+        [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); });
+    streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {
       if (api.user_handle())

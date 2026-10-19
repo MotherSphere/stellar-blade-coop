@@ -3,9 +3,10 @@
 // actors left out), the liveness test, implausible reads latching, the two phases (a write that summons an actor and
 // moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the job's guards, its arming and
 // re-arming, the ring and the latch, a job that never runs; a guest restarting mid-fight; the hand-over between the
-// job and the worker (Mail) and the worker's side (Worker: on and off, the gates, channel 2's text, the log); then two
-// PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once in each
-// world: the stage's exit criteria.
+// job and the worker (Mail) and the worker's side (Worker: on and off, the gates, channel 2's text, the log); the probe
+// (T11a: every live actor, the world fence, test writes) in the engine and through the worker; a recording made by one
+// PC's host replayed into another's guest, and a recording at its cap; then two PCs linked through channel 2's text at
+// 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once in each world: the stage's exit criteria.
 #include "fight_engine.h"
 
 #include <algorithm>
@@ -72,7 +73,7 @@ struct Memory {
 // One PC's game: SB's globals, the net-mode cache, the logic singleton with its actor map (elements and allocation
 // bits, inline up to 128) and job queue, the world's actor manager, logic actors and FSBActors; this PC's EVE is
 // GUID 1. SB's lookup, ApplyStat, SendJob, remove-dead and Logic Reset act as the decompiles show; channel 2 is two
-// queues.
+// queues, or the worker's Mail once set (as WinGame's in pose_tick.cpp).
 struct Game {
   Memory mem;
   uint64_t net = 0, logic = 0, world = 0, manager = 0, players = 0, data = 0, heap = 0, eve = 0;
@@ -101,6 +102,8 @@ struct Game {
   std::deque<Message> inbox;
   std::vector<Message> sent;
   std::vector<Event> events;
+  std::vector<Actor> probes;
+  Mail *mail = nullptr;
 
   explicit Game(int32_t slots = 64) {
     const uint64_t globals = rebased(coop::nightop::kGlobals);
@@ -299,14 +302,57 @@ struct Game {
   }
   void push(Job *job) { queue[processing ? turn() + 1 : turn() - late].push_back(job); }
   bool receive(Message &m) {
+    if (mail)
+      return mail->receive(m);
     if (inbox.empty())
       return false;
     m = inbox.front();
     inbox.pop_front();
     return true;
   }
-  void send(const Message &m) { sent.push_back(m); }
-  void event(const Event &e) { events.push_back(e); }
+  void send(const Message &m) { mail ? mail->send(m) : sent.push_back(m); }
+  void event(const Event &e) {
+    events.push_back(e);
+    if (mail)
+      mail->event(e);
+  }
+  void probe(const Actor &a) {
+    probes.push_back(a);
+    if (mail)
+      mail->probe(a);
+  }
+};
+
+bool has(const std::string &text, const std::string &part) { return text.find(part) != std::string::npos; }
+// The worker's Io: channel 2, the log and coop-fight-record.txt.
+struct Desk {
+  std::vector<std::pair<std::string, bool>> sent;
+  std::vector<std::string> said;
+  std::string file; // The recording, once saved (or put here).
+  bool has_file = false;
+  bool send(const std::string &text, bool reliable) {
+    sent.emplace_back(text, reliable);
+    return true;
+  }
+  void say(const std::string &text) { said.push_back(text); }
+  bool save(const std::string &text) {
+    file = text;
+    return has_file = true;
+  }
+  std::string load(bool &exists) {
+    exists = has_file;
+    return file;
+  }
+  std::string lines() { // The lines sent since the last call, one per row.
+    std::string all;
+    for (const auto &[text, reliable] : sent)
+      all += text + (reliable ? "\n" : " (unreliable)\n");
+    sent.clear();
+    return all;
+  }
+  size_t saying(const std::string &part) const { // Lines said that hold part.
+    return size_t(std::count_if(said.begin(), said.end(), [&](const std::string &s) { return has(s, part); }));
+  }
 };
 
 Message msg(const std::string &text) {
@@ -314,7 +360,6 @@ Message msg(const std::string &text) {
   assert(m.type != Type::invalid);
   return m;
 }
-bool has(const std::string &text, const std::string &part) { return text.find(part) != std::string::npos; }
 // The lines sent since the last call, one per row.
 std::string lines(Game &g) {
   std::string text;
@@ -329,10 +374,15 @@ size_t count(const Game &g, const std::string &what, const std::string &why = ""
     n += what == e.what && (why.empty() || why == e.why);
   return n;
 }
-// One frame: the game thread's coop_tick arms, then the logic runs one turn.
+// One frame: the game thread's coop_tick arms, then the logic runs one turn; with a Mail, Simulate's hand-overs around
+// it (simulate_body in pose_tick.cpp).
 void frame(Game &g, Engine &e, uint64_t now) {
   e.arm(g, now);
+  if (g.mail)
+    g.mail->exchange(e.snapshot());
   g.tick(e, now);
+  if (g.mail)
+    g.mail->exchange(e.snapshot());
 }
 std::unique_ptr<Engine> engine(bool on, bool hosting) {
   static const uint32_t allowed[] = {kChar};
@@ -809,22 +859,7 @@ int main() {
   // The worker: refusals, waiting for her, starting and pausing with her link and the loaded save, her lines in and
   // ours out as text, the stats line, the gate while on, the lobby changing hands, off, and the latch.
   {
-    struct Desk { // The worker's Io: channel 2 and the log.
-      std::vector<std::pair<std::string, bool>> sent;
-      std::vector<std::string> said;
-      bool send(const std::string &text, bool reliable) {
-        sent.emplace_back(text, reliable);
-        return true;
-      }
-      void say(const std::string &text) { said.push_back(text); }
-      std::string lines() { // The lines sent since the last call, one per row.
-        std::string all;
-        for (const auto &[text, reliable] : sent)
-          all += text + (reliable ? "\n" : " (unreliable)\n");
-        sent.clear();
-        return all;
-      }
-    } io;
+    Desk io;
     auto e = engine(false, false);
     Mail mail;
     Worker w(*e, mail);
@@ -835,18 +870,18 @@ int main() {
       ++asked;
       return loaded ? why : "not on the co-op save (slot=none index=0 marker=4)";
     };
-    const uint32_t chars[] = {kChar};
+    const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
     const std::vector<std::string> none;
     Snapshot s;
     Message m;
     uint64_t t = 0;
-    assert(w.ask(true, chars, 1, gate, io) == "shared fight off: " + why && !e->on());
+    assert(ask("fight on 900") == "shared fight off: " + why && !e->on());
     why.clear();
-    assert(w.ask(true, chars, 0, gate, io) == "shared fight off: no fight_chars");
-    assert(w.ask(false, chars, 1, gate, io) == "shared fight is not on" && w.status().empty());
+    assert(ask("fight on") == "shared fight off: no fight_chars");
+    assert(ask("fight off") == "shared fight is not on" && w.status().empty());
     // On with no friend linked: it waits. Her link with a save loaded starts it as the guest, the gate asked first.
-    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: waiting for a linked friend" && !e->on());
-    assert(w.status() == " fight=waiting" && w.ask(true, chars, 1, gate, io) == "shared fight is already on");
+    assert(ask("fight on 900") == "shared fight on: waiting for a linked friend" && !e->on());
+    assert(w.status() == " fight=waiting" && ask("fight on 900") == "shared fight is already on (on)");
     asked = 0;
     w.pass(t, true, false, true, none, gate, io);
     assert(e->on() && asked == 1 && io.lines() == "SBF7 on\n" && io.said.back() == "shared fight on: as guest");
@@ -910,7 +945,7 @@ int main() {
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(!e->on());
     // While on, the gate is asked every 250 ms, not at every pass; coop off turns it off.
-    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: as guest" && io.lines() == "SBF7 on\n");
+    assert(ask("fight on 900") == "shared fight on: as guest" && io.lines() == "SBF7 on\n");
     asked = 0;
     for (const uint64_t end = t + 1000; t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
@@ -921,26 +956,268 @@ int main() {
     assert(!e->on() && io.lines() == "SBF7 off coop off\n" && io.said.back() == "shared fight off: coop off");
     // The lobby changes hands: a new session on the other side.
     why.clear();
-    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: as guest" && io.lines() == "SBF7 on\n");
+    assert(ask("fight on 900") == "shared fight on: as guest" && io.lines() == "SBF7 on\n");
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(e->on() && io.lines() == "SBF7 on\n" && io.said.back() == "shared fight on: as host");
-    assert(w.ask(false, chars, 1, gate, io) == "shared fight off: coop fight off" && !e->on());
+    assert(ask("fight off") == "shared fight off: coop fight off" && !e->on());
     assert(io.lines() == "SBF7 off coop fight off\n");
     // The latch: said once, she hears it after what the job handed over before, its later lines go nowhere, and
     // nothing starts again this run.
-    assert(w.ask(true, chars, 1, gate, io) == "shared fight on: as host" && io.lines() == "SBF7 on\n");
+    assert(ask("fight on 900") == "shared fight on: as host" && io.lines() == "SBF7 on\n");
     e->latch("fault");
     mail.send(msg("SBF7 world 7"));
     assert(mail.exchange(s));
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(!e->on() && io.said.back() == "shared fight off: stopped for this run (fault)");
     assert(io.lines() == "SBF7 world 7\nSBF7 off stopped for this run (fault)\n" && w.status() == " fight=stopped");
-    assert(w.ask(true, chars, 1, gate, io) == "shared fight off: stopped for this run (fault)");
+    assert(ask("fight on 900") == "shared fight off: stopped for this run (fault)");
     io.said.clear();
     mail.send(msg("SBF7 world 8"));
     assert(mail.exchange(s));
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(io.said.empty() && io.lines().empty() && !e->on());
+  }
+
+  // ---- The probe (T11a's read-only half): every live actor each second, the world fence, its test writes ----
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->set(true, false, true);
+    g.spawn(101, 5001, 0);
+    g.spawn(102, 5002, 0, 901); // Not on the allowlist.
+    g.spawn(103, 0, 0);         // No EventSpawnId.
+    g.mem.put<float>(g.stat_at(102, kHp), std::nanf("")); // Shown as -1: never latched on.
+    const auto probed = [&](uint32_t guid) {
+      for (auto it = g.probes.rbegin(); it != g.probes.rend(); ++it)
+        if (it->seen.guid == guid)
+          return *it;
+      assert(false);
+      return Actor();
+    };
+    uint64_t t = 0;
+    frame(g, *e, t);
+    t += 16;
+    assert(g.probes.size() == 4 && g.calls.empty() && !e->latched());
+    assert(probed(1).eve && probed(1).player && !probed(101).eve && probed(101).seen.spawn == 5001);
+    assert(probed(101).seen.value[kHp] == 1600 && probed(101).seen.max[kHp] == 1600);
+    assert(probed(102).seen.value[kHp] == -1);
+    Snapshot snap = e->snapshot();
+    assert(snap.actors == 4 && snap.eve && snap.job.censuses == 1);
+    // A census each second, not each turn; nothing written.
+    g.probes.clear();
+    for (; t < 1000; t += 16)
+      frame(g, *e, t);
+    assert(g.probes.empty());
+    frame(g, *e, t);
+    t += 16;
+    assert(g.probes.size() == 4 && e->counts.censuses == 2 && g.calls.empty() && g.events.empty());
+    // A warp: every keyed actor replaced (the EVE stays) is a world change.
+    g.unlink(101);
+    g.unlink(102);
+    g.spawn(104, 5004, 0);
+    for (const uint64_t end = t + 1000; t <= end; t += 16)
+      frame(g, *e, t);
+    assert(count(g, "world", "enemies replaced") == 1 && e->snapshot().actors == 3);
+    // Tests, at the next turn: the eligible enemy with the lowest HP share (the one just hit); a drop with a number, a
+    // rise without, Shield; each handed over again with its new values.
+    g.spawn(105, 5005, 0);
+    g.hit(105, kHp, 100);
+    g.probes.clear();
+    g.calls.clear(); // The hit's.
+    e->test(kHp, -10);
+    frame(g, *e, t);
+    t += 16;
+    assert(g.calls.size() == 1 && g.calls[0].la == g.by_guid[105] && g.calls[0].type == 1 && g.calls[0].delta == -10);
+    assert(!g.calls[0].cause && g.calls[0].notify && g.calls[0].ignore && g.hp(105) == 1490);
+    assert(count(g, "test", "applied") == 1 && g.events.back().spawn == 5005);
+    assert(g.probes.back().seen.guid == 105 && g.probes.back().seen.value[kHp] == 1490);
+    e->test(kHp, 5);
+    frame(g, *e, t);
+    t += 16;
+    assert(g.calls.back().delta == 5 && !g.calls.back().notify && g.hp(105) == 1495);
+    e->test(kShield, -1);
+    frame(g, *e, t);
+    t += 16;
+    assert(g.calls.back().type == 7 && g.calls.back().delta == -1 && g.calls.size() == 3);
+    // A kill: our EVE as the cause. The next goes to the other one, whose Immortal holds: floored. None left: refused.
+    e->test(-1, 0);
+    frame(g, *e, t);
+    t += 16;
+    assert(g.calls.back().cause == g.eve && g.calls.back().delta == -1495 && g.body(105).deaths == 1);
+    assert(g.body(105).killer == g.eve && count(g, "test", "kill") == 1);
+    g.body(104).immortal = true;
+    e->test(-1, 0);
+    frame(g, *e, t);
+    t += 16;
+    assert(g.calls.back().la == g.by_guid[104] && g.hp(104) == 1 && count(g, "test", "kill floored") == 1);
+    g.unlink(104);
+    e->test(kHp, -10);
+    frame(g, *e, t);
+    t += 16;
+    assert(count(g, "test", "refused: no eligible enemy") == 1 && g.calls.size() == 5 && !e->latched());
+    // Off: a test asked meanwhile goes too.
+    e->test(kHp, -10);
+    e->set(false, false);
+    g.spawn(106, 5006, 0);
+    for (const uint64_t end = t + 1000; t <= end; t += 16)
+      frame(g, *e, t);
+    assert(g.calls.size() == 5 && g.queue.empty() && !e->latched());
+  }
+
+  // ---- The worker's probe through Mail: each actor said once and again when it changes, fight writes=armed, then
+  // its tests; the stats, status and fight lines ----
+  {
+    Game g;
+    auto mail = std::make_unique<Mail>();
+    g.mail = mail.get();
+    auto e = engine(false, false);
+    Worker w(*e, *mail);
+    Desk io;
+    const auto gate = [] { return std::string(); };
+    const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
+    const std::vector<std::string> none;
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t < until; t += 16) {
+        frame(g, *e, t);
+        w.pass(t, false, false, true, none, gate, io);
+      }
+    };
+    g.spawn(101, 5001, 0);
+    assert(ask("fight test hp -10") == "shared fight test refused: only while coop fight probe runs");
+    assert(ask("fight probe 900") == "shared fight probe: waiting for a loaded save" && !e->on());
+    assert(w.detail() == "fight=waiting mode=probe why=no save loaded" && w.status() == " fight=waiting");
+    w.pass(t, false, false, true, none, gate, io);
+    assert(e->on() && io.said.back() == "shared fight probe: read only, a census each second (coop fight test once "
+                                        "fight writes=armed)");
+    assert(ask("fight test hp -10") ==
+           "shared fight test refused: writes not armed yet (the probe has not found our EVE)");
+    assert(ask("fight on 900") == "shared fight is already on (probe)");
+    run(2000);
+    const std::string eve = "fight probe guid=1 key=0:0 chr=0 life=1 hp=1600/1600 sh=100/100 st=200/200 eve player";
+    const std::string fresh = "fight probe guid=101 key=5001:0 chr=900 life=1 hp=1600/1600 sh=100/100 st=200/200";
+    assert(io.saying(eve) == 1 && io.saying(fresh) == 1 && io.saying("fight writes=armed: ") == 1);
+    assert(io.saying("fight stats: probe, 2 actors, our EVE found") == 1 && io.lines().empty());
+    g.hit(101, kHp, 100);
+    run(t + 1000);
+    assert(io.saying(eve) == 1 && io.saying("fight probe guid=101 key=5001:0 chr=900 life=1 hp=1500/1600 ") == 1);
+    assert(ask("fight test hp -10") ==
+           "shared fight test asked: hp -10, on the eligible enemy with the lowest HP share");
+    run(t + 48);
+    assert(io.saying("fight test 5001:0 applied") == 1);
+    assert(io.saying("guid=101 key=5001:0 chr=900 life=1 hp=1490/") == 1);
+    assert(has(w.detail(), "fight=on mode=probe actors=2 eve=1 turn=") && has(w.detail(), " writes=armed sim_us="));
+    assert(w.status() == " fight=on 2");
+    // coop fight status: the fight line, and a stats line at once.
+    const size_t stats = io.saying("fight stats: probe");
+    assert(ask("fight status").rfind("shared fight status: fight=on mode=probe actors=2", 0) == 0);
+    assert(io.saying("fight stats: probe") == stats + 1);
+    assert(ask("fight off") == "shared fight off: coop fight off" && !e->on());
+    assert(w.detail() == "fight=off why=coop fight off" && w.status().empty());
+    assert(ask("fight test kill") == "shared fight test refused: only while coop fight probe runs");
+    assert(ask("fight status") == "shared fight status: fight=off why=coop fight off");
+  }
+
+  // ---- Record on one PC, replay into another's guest: T11a's solo test of both roles ----
+  // The host's side alone records as if a guest were on; the file, played into the other PC's guest, pairs its copies
+  // by key, moves their HP and kills the one the host's EVE killed, with this PC's EVE as the cause (F3). The guest's
+  // own lines go nowhere.
+  {
+    const auto gate = [] { return std::string(); };
+    const std::vector<std::string> none;
+    std::string recording;
+    {
+      Game H;
+      auto mail = std::make_unique<Mail>();
+      H.mail = mail.get();
+      auto e = engine(false, false);
+      Worker w(*e, *mail);
+      Desk io;
+      H.spawn(101, 5001, 0);
+      H.spawn(102, 5002, 0);
+      uint64_t t = 0;
+      w.pass(t, false, false, true, none, gate, io);
+      assert(w.ask(coop::parse_request("fight record 900"), gate, io) ==
+             "shared fight record: as host, into coop-fight-record.txt when coop fight off ends it");
+      for (; t < 2500; t += 16) {
+        if (t == 512)
+          H.hit(101, kHp, 300);
+        if (t == 1504)
+          H.hit(101, kHp, 1300);
+        frame(H, *e, t);
+        w.pass(t, false, false, true, none, gate, io);
+      }
+      assert(has(w.detail(), "fight=on mode=record role=host enemies=1 "));
+      const std::string said = w.ask(coop::parse_request("fight off"), gate, io);
+      assert(said.rfind("shared fight off: coop fight off; ", 0) == 0);
+      assert(has(said, " lines written to coop-fight-record.txt"));
+      assert(io.has_file && io.sent.empty() && !e->on());
+      std::vector<Line> lines;
+      assert(!parse_recording(io.file, lines) && lines[0].message.type == Type::world);
+      assert(has(io.file, " SBF7 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF7 up 1 102 5002 0 900 1600\n"));
+      assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF7 dead 1 101\n") && !has(io.file, " on"));
+      recording = io.file;
+    }
+    Game G;
+    auto mail = std::make_unique<Mail>();
+    G.mail = mail.get();
+    auto e = engine(false, false);
+    Worker w(*e, *mail);
+    Desk io;
+    const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
+    G.spawn(901, 5001, 0);
+    G.spawn(902, 5002, 0);
+    uint64_t t = 0;
+    w.pass(t, false, false, true, none, gate, io);
+    assert(ask("fight replay 900") == "shared fight replay refused: no coop-fight-record.txt (coop fight record makes "
+                                      "one)");
+    io.has_file = true;
+    io.file = "0 SBF7 hp 1 1 0 101:1600:100:200\n";
+    assert(ask("fight replay 900") ==
+           "shared fight replay refused: coop-fight-record.txt fails its check (first line)");
+    io.file = recording;
+    assert(ask("fight replay 900").rfind("shared fight replay: ", 0) == 0 && e->on());
+    for (; t < 3500; t += 16) {
+      frame(G, *e, t);
+      w.pass(t, false, false, true, none, gate, io);
+    }
+    assert(count(G, "paired") == 2 && G.body(901).deaths == 1 && G.body(901).killer == G.eve);
+    assert(G.body(902).deaths == 0 && G.hp(902) == 1600 && !e->latched());
+    bool followed = false; // The host's 300, before its kill.
+    for (const Game::Call &c : G.calls)
+      followed = followed || (c.la == G.by_guid[901] && c.type == 1 && c.delta == -300 && c.notify);
+    assert(followed && io.saying("fight replay: all ") == 1 && io.sent.empty());
+    assert(has(w.detail(), "fight=on mode=replay role=guest pairs=1 ") && has(w.detail(), " kills=1 "));
+  }
+  // A recording stops at its cap: the mode ends and the file is written whole. Lines before its first world (an older
+  // session's) and the job's on are left out; the host gets a guest's on at the start.
+  {
+    auto mail = std::make_unique<Mail>();
+    auto e = engine(false, false);
+    Worker w(*e, *mail);
+    Desk io;
+    const auto gate = [] { return std::string(); };
+    const std::vector<std::string> none;
+    Snapshot s;
+    Message m;
+    uint64_t t = 0;
+    w.pass(t, false, false, true, none, gate, io);
+    assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: as host", 0) == 0);
+    assert(mail->exchange(s) && mail->receive(m) && m.type == Type::on && !mail->receive(m));
+    mail->send(msg("SBF7 hp 1 1 0 101:1600:100:200"));
+    mail->send(msg("SBF7 on"));
+    mail->send(msg("SBF7 world 1"));
+    for (uint32_t batch = 1; e->on() && batch < 1000; ++batch) {
+      for (size_t i = 0; i < kMail; ++i)
+        mail->send(msg("SBF7 hp 1 " + std::to_string(batch) + " 0 101:1600:100:200"));
+      assert(mail->exchange(s));
+      w.pass(t += 16, false, false, true, none, gate, io);
+    }
+    assert(!e->on() && io.said.back() == "shared fight off: the recording is full (4 MB or 20000 lines); 20000 lines "
+                                         "written to coop-fight-record.txt");
+    std::vector<Line> lines;
+    assert(!parse_recording(io.file, lines) && lines.size() == kMaxRecordLines && lines[0].message.type == Type::world);
+    assert(w.detail() == "fight=off why=the recording is full (4 MB or 20000 lines)");
   }
 
   // ---- Two PCs through channel 2: 120 +/- 30 ms each way, 2 % of hp lines lost ----

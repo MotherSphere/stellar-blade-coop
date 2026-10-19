@@ -133,6 +133,34 @@ int main() {
   for (const char *bad : {"nightop on", "nightop off", "nightop x", "nightop  rule", "nightop rule 1", "nightoprule",
                           "probe"})
     assert(parse_request(bad).command == Command::none);
+  // The shared fight's: each mode with fight_chars (none for the probe too), off, status, and the probe's tests (a
+  // whole change with or without its sign, or a kill); anything else, a typo included, is no request.
+  Request f = parse_request("fight on 15011001 15011002\n");
+  assert(f.command == Command::fight && f.fight == Fight::on && (f.chars == std::vector<uint32_t>{15011001, 15011002}));
+  f = parse_request("fight probe");
+  assert(f.command == Command::fight && f.fight == Fight::probe && f.chars.empty());
+  assert(parse_request("fight record 1").fight == Fight::record);
+  assert(parse_request("fight replay 4294967295").fight == Fight::replay);
+  std::string sixteen = "fight on";
+  for (int i = 1; i <= 16; ++i)
+    sixteen += " " + std::to_string(i);
+  assert(parse_request(sixteen).chars.size() == kMaxFightChars);
+  assert(parse_request(sixteen + " 17").command == Command::none);
+  assert(parse_request("fight off").fight == Fight::off && parse_request("fight status\r\n").fight == Fight::status);
+  f = parse_request("fight test hp -10");
+  assert(f.command == Command::fight && f.fight == Fight::test && f.stat == 0 && f.change == -10);
+  f = parse_request("fight test sh +1");
+  assert(f.fight == Fight::test && f.stat == 1 && f.change == 1);
+  f = parse_request("fight test st 10000000");
+  assert(f.fight == Fight::test && f.stat == 2 && f.change == 10000000);
+  f = parse_request("fight test kill");
+  assert(f.command == Command::fight && f.fight == Fight::test && f.stat == -1);
+  for (const char *bad : {"fight", "fight ", "fight on x", "fight on 0", "fight on 4294967296", "fight on  1",
+                          "fight on -1", "fight off now", "fight status 1", "fight test", "fight test hp",
+                          "fight test hp 0", "fight test hp -0", "fight test hp 10000001", "fight test hp --1",
+                          "fight test hp +", "fight test hp 1.5", "fight test mp -1", "fight test kill 1",
+                          "fight probes", "fightoff", "fight  off", "fight dance"})
+    assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0);
   r = parse_request("join 109775241234567890\n");

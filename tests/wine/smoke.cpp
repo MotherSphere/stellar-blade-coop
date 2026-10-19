@@ -2,8 +2,9 @@
 // steam_api64.dll exists and checks that it attaches, that its link waits for Steam (coop-status.txt says
 // steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s; with no Steam and no pinned
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
-// build's global, nor a marker), that coop_tick is exported
-// and one call returns 0, and that the nightop request is refused on an unpinned exe (coop-link.log, within 3 s). It
+// build's global, nor a marker; the shared fight's line says fight=off), that coop_tick is exported
+// and one call returns 0, and that the nightop and fight probe requests are refused on an unpinned exe (coop-link.log,
+// within 3 s each). It
 // also checks ReadProcessMemory on its own process, as the Night Operation poller uses it: equal bytes from the stack,
 // false at 0x1000, no crash on a PAGE_NOACCESS page (whose result Wine may differ on, so it is only printed), and
 // the cost of one read. Exit code 0 on success.
@@ -79,7 +80,7 @@ int wmain(int argc, wchar_t **argv) {
   auto settled = [](const std::string &text) {
     return text.find("steam=waiting") != std::string::npos &&
            text.find("engine=off reason=build stamp") != std::string::npos &&
-           text.find("\nslot=unknown index=? marker=?\n") != std::string::npos;
+           text.find("\nslot=unknown index=? marker=?\nfight=off\n") != std::string::npos;
   };
   std::string status = read_text(status_path);
   for (ULONGLONG end = GetTickCount64() + 3000;
@@ -99,6 +100,13 @@ int wmain(int argc, wchar_t **argv) {
     for (ULONGLONG end = GetTickCount64() + 3000; !nightop && GetTickCount64() < end;) {
       Sleep(50);
       nightop = read_text(folder + L"coop-link.log").find("nightop poller off: build stamp") != std::string::npos;
+    }
+  // The shared fight's job is pushed only on the pinned build: its probe is refused with the same reason.
+  bool fight = false;
+  if (nightop && write_request(folder, "fight probe"))
+    for (ULONGLONG end = GetTickCount64() + 3000; !fight && GetTickCount64() < end;) {
+      Sleep(50);
+      fight = read_text(folder + L"coop-link.log").find("shared fight off: build stamp") != std::string::npos;
     }
 
   // ReadProcessMemory on this process, as the poller calls it.
@@ -121,16 +129,17 @@ int wmain(int argc, wchar_t **argv) {
   bool rpm_ok = stack_read && !low_read;
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
-  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && rpm_ok;
+  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && rpm_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
+              "fight probe=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
               tick ? tick_text : "absent",
-              nightop ? "refused" : "FAIL", rpm_ok ? "ok" : "FAIL", stack_read ? "equal" : "FAIL",
+              nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL", rpm_ok ? "ok" : "FAIL",
+              stack_read ? "equal" : "FAIL",
               low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);
   return ok ? 0 : 1;

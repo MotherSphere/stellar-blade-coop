@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Wine smoke test: builds StellarCoop.dll and tests/wine/smoke.exe, then loads the DLL under Proton's wine in a scratch
 WINEPREFIX with no steam_api64.dll around. Checks that it attaches, waits for Steam, answers coop_tick when exported,
-refuses the Night Operation poller on an exe that is not the game, and logs a clean process exit; and that
-ReadProcessMemory behaves as the poller needs. Never touches the game folder or the game's prefix."""
+refuses the Night Operation poller and the shared fight's probe on an exe that is not the game, and logs a clean
+process exit; and that ReadProcessMemory behaves as the poller needs. Never touches the game folder or the game's prefix."""
 import argparse
 import os
 import shutil
@@ -76,9 +76,9 @@ def main():
 
     log = (run / 'coop-link.log').read_text(errors='replace').splitlines() if (run / 'coop-link.log').is_file() else []
     checks = {
-        'smoke.exe exit code 0 (load, steam=waiting and the engine refusing smoke.exe within 3 s, no steam_api64.dll, '
-        'coop_tick exported and returning 0, nightop refused within 3 s, ReadProcessMemory reading its stack and '
-        'refusing 0x1000)':
+        'smoke.exe exit code 0 (load, steam=waiting, fight=off and the engine refusing smoke.exe within 3 s, no '
+        'steam_api64.dll, coop_tick exported and returning 0, nightop and fight probe refused within 3 s each, '
+        'ReadProcessMemory reading its stack and refusing 0x1000)':
             result.returncode == 0,
         'no nightop-probe.txt in the run folder (the poller never started)':
             not (run / 'nightop-probe.txt').exists(),

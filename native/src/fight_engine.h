@@ -3,9 +3,9 @@
 // SB's ApplyStat, then pushes itself for the next turn. The game thread arms the job after a world load and again when
 // it stopped running. Every access goes through a Game (the glue on Windows, under its SEH guard; fake memory and a
 // fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed arrays only: Simulate
-// never allocates (ApplyStat does internally, as for SB's own logic-thread callers). Mail carries the job's lines and
-// events to our worker thread and hers back without ever making the logic thread wait; Worker is the worker's side:
-// the user's on and off, the gates, channel 2's text and the log.
+// never allocates (ApplyStat does internally, as for SB's own logic-thread callers). Mail carries the job's lines,
+// events and probe census to our worker thread and hers back without ever making the logic thread wait; Worker is the
+// worker's side: the user's coop fight requests, the gates, channel 2's text, the record and replay files and the log.
 // Offsets and functions are for Stellar Blade's Steam build 24463856 (PHASE11-DESIGN.md 4.3-4.7); the caller runs it
 // only on the pinned build, with the feature on.
 //
@@ -16,7 +16,8 @@
 //     FUN_141ba8720(la, type, 0, delta, 0, cause, 0, 0, 0, notify, true): every write passes NoDamage (fight_sync.h);
 //   void push(Job *job): FUN_141af3930(nullptr, job, 0), never param_3 = 1;
 //   bool receive(Message &m): the friend's next line, parsed by the worker; false when none;
-//   void send(const Message &m), void event(const Event &e): to the worker, which never calls SB.
+//   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
+//     calls SB.
 #pragma once
 
 #include <algorithm>
@@ -26,6 +27,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <new>
 #include <string>
@@ -80,8 +82,10 @@ inline void job_nothing(void *) {} // Slot 2: only pooled types get it.
 constexpr size_t kRing = 8;
 constexpr uint32_t kCensusTurns = 15; // About 250 ms at 60 FPS.
 constexpr uint64_t kHeartbeatMs = 500, kFallbackMs = 500;
-constexpr size_t kMaxCensus = 1024; // Allocated map slots a census copies; more are cut.
-constexpr size_t kMaxChars = 16;    // fight_chars, the stage's allowlist.
+constexpr size_t kMaxCensus = 1024;         // Allocated map slots a census copies; more are cut.
+constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowlist.
+constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
+constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -106,6 +110,9 @@ struct Snapshot {
   uint64_t runs = 0, us = 0, max_us = 0; // Simulate calls since the DLL loaded, their time and the longest (the glue's).
   uint32_t thread = 0, sb_thread = 0;    // The thread Simulate last ran on, and SB's DAT_1470634f0 then.
   uint32_t game_thread = 0;              // The thread that armed last.
+  uint32_t turn = 0;                     // SB's logic turn at the last turn's work.
+  size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
+  bool eve = false;                      // The last census found our EVE (RE4).
 };
 
 // One logic actor as the liveness test and the reads see it.
@@ -115,6 +122,7 @@ struct Actor {
   uint64_t fsb = 0;
   uint8_t controlled = 0; // 1: the actor the local player controls.
   bool player = false, pending = false;
+  bool eve = false; // The probe: our EVE (controlled and the actor manager's local player).
   int32_t life = 0;
   Seen seen; // GUID, key, charId and dying; the stats once stats() read them.
 };
@@ -138,14 +146,22 @@ public:
     std::copy(chars, chars + chars_, allowed_);
   }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
-  // starts a new session of the side (host: the lobby owner), so nothing carries over. off ends the job at its next
-  // turn; the worker sends our on and off lines, and the job says on again at the session's first turn (simulate).
-  void set(bool on, bool hosting) {
+  // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
+  // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
+  // (simulate). A test not run yet goes either way.
+  void set(bool on, bool hosting, bool probing = false) {
+    test_ = kNoTest;
     if (on) {
       hosting_ = hosting;
+      probing_ = probing;
       ++session_;
     }
     on_ = on;
+  }
+  // Any thread: a test write for the probe's next turn (stat as Request::stat; change unused for a kill).
+  void test(int stat, int32_t change) {
+    change_ = change;
+    test_ = stat;
   }
   // Any thread: the first fault (the glue's SEH handler) or an implausible read. Off for the run: Simulate does nothing
   // and nothing re-arms. why: a static string, the first one kept for the log.
@@ -248,13 +264,23 @@ public:
       new (&guest) Guest();
       session_seen_ = session;
       hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
+      probing_seen_ = probing_;
       census_turn_ = kNever;
       eve_ = 0;
+      probe_fence_.clear();
+      next_probe_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
       // from it (a late claim number would make the new guest's claims look like lies, and 16 of them ignore her).
       Message on;
       on.type = Type::on;
       g.send(on);
+    }
+    turn_ = turn;
+    if (probing_seen_) {
+      probe(g, logic, turn, now_ms);
+      if (!latched_)
+        g.push(&job);
+      return;
     }
     const bool hosting = hosting_seen_;
     Io<Game> io{*this, g, logic};
@@ -319,6 +345,7 @@ public:
     s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.linked(), s.paired = guest.linked();
+    s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
     return s;
   }
 
@@ -441,6 +468,91 @@ private:
     return true;
   }
 
+  // Probe mode (T11a's read-only half), each second and at once for a test: the map walked with reads only, every live
+  // actor handed to the worker (Game::probe) with its stats as read, our EVE marked, and the world fence's verdict on
+  // the actors with a spawn key (a warp replaces them, a load turns the turn back). A test then writes to the eligible
+  // enemy with the lowest HP share (the one just hit), the first in the map on a tie: the only write a probe makes.
+  template <class Game> void probe(Game &g, uint64_t logic, uint32_t turn, uint64_t now_ms) {
+    const int test = test_.exchange(kNoTest);
+    if (test == kNoTest && now_ms < next_probe_)
+      return;
+    next_probe_ = now_ms + kProbeMs;
+    ++counts.censuses;
+    if (!walk(g, logic))
+      return;
+    const uint64_t local = local_fsb(g);
+    size_t keyed = 0;
+    double low = 2;
+    Actor a, aim;
+    eve_ = 0;
+    actors_ = 0;
+    for (size_t i = 0; i < found_count_ && !latched_; ++i) {
+      if (!live(g, found_[i].la, found_[i].guid, a) || !raw(g, a)) {
+        counts.rejected += !latched_;
+        continue;
+      }
+      a.eve = a.controlled == 1 && local && a.fsb == local;
+      if (a.eve)
+        eve_ = a.seen.guid;
+      ++actors_;
+      g.probe(a);
+      if (a.seen.spawn && !a.player && keyed < kMaxSeen)
+        seen_[keyed++] = a.seen;
+      const float max = a.seen.max[kHp];
+      const int32_t hp = a.seen.value[kHp];
+      const double share = max > 0 && max <= float(kMaxStat) && hp >= 0 ? hp / double(max) : 2;
+      if (test != kNoTest && eligible(a) && share < low)
+        low = share, aim = a;
+    }
+    if (latched_)
+      return;
+    if (const char *why = probe_fence_.changed(seen_, keyed, turn, true))
+      g.event(Event{"world", why});
+    if (test != kNoTest)
+      try_test(g, logic, test, aim);
+  }
+  // HP, Shield and Stamina with their maxes as the probe shows them: whole units, -1 when not a number within
+  // +-kMaxStat; any value is shown, never latched on (another actor's may be anything). Unreadable: latched.
+  template <class Game> bool raw(Game &g, Actor &a) {
+    float v[13]; // Types 1 (HP) to 13 (MaxStamina).
+    if (!g.read(a.fsb + kStatBase + 4, v, sizeof v)) {
+      latch("unreadable");
+      return false;
+    }
+    for (int s = 0; s < kStats; ++s) {
+      const float x = v[kStatType[s] - 1];
+      a.seen.max[s] = v[kStatType[s]];
+      a.seen.value[s] = x >= -float(kMaxStat) && x <= float(kMaxStat) ? int32_t(x) : -1;
+    }
+    return true;
+  }
+  // A test write on the enemy aim (none: refused), as the sides write: a stat's change (a drop shows the bar and a
+  // number, a rise neither) or a kill with our EVE as the cause; its outcome logged, and the enemy handed over again
+  // with its values after it.
+  template <class Game> void try_test(Game &g, uint64_t logic, int test, const Actor &aim) {
+    Event done{"test", "refused: no eligible enemy", 0, aim.seen.spawn, aim.seen.index};
+    if (!aim.seen.guid)
+      return g.event(done);
+    Write w;
+    w.guid = aim.seen.guid;
+    w.stat = test < 0 ? kHp : test;
+    w.delta = test < 0 ? -aim.seen.value[kHp] : change_.load();
+    w.eve = test < 0;
+    w.notify = w.delta < 0;
+    int32_t after = 0;
+    done.why = !w.delta || !write(g, logic, w, after) ? "refused: gone or dying"
+               : test >= 0                            ? "applied"
+               : after > 0                            ? "kill floored"
+                                                      : "kill";
+    if (latched_)
+      return;
+    g.event(done);
+    Actor b;
+    const uint64_t la = g.find(logic, w.guid);
+    if (la && live(g, la, w.guid, b) && raw(g, b))
+      g.probe(b);
+  }
+
   // The local player's FSBActor as SB finds it on the logic thread, or 0.
   template <class Game> uint64_t local_fsb(Game &g) {
     uint64_t net = 0, logic = 0, world = 0, manager = 0, array = 0, fsb = 0;
@@ -483,7 +595,9 @@ private:
   Job ring_[kRing];
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
-  std::atomic<bool> on_{false}, hosting_{false}, latched_{false};
+  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false};
+  std::atomic<int> test_{kNoTest};
+  std::atomic<int32_t> change_{0};
   std::atomic<const char *> why_{nullptr};
   std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.
   std::atomic<uint64_t> heartbeat_ms_{0};
@@ -493,8 +607,11 @@ private:
   bool armed_ = false, waiting_ = false;
   uint64_t waiting_ms_ = 0;
   // The logic thread's.
-  uint32_t session_seen_ = 0, census_turn_ = kNever, eve_ = 0;
-  bool hosting_seen_ = false; // The side of session_seen_.
+  uint32_t session_seen_ = 0, census_turn_ = kNever, eve_ = 0, turn_ = 0;
+  bool hosting_seen_ = false, probing_seen_ = false; // The side of session_seen_, or the probe.
+  uint64_t next_probe_ = 0;
+  size_t actors_ = 0; // Live actors at the probe's last census.
+  Fence probe_fence_;
   Found found_[kMaxCensus];
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
@@ -537,21 +654,24 @@ private:
   size_t head_ = 0, count_ = 0;
 };
 
-// The job's lines and events to the worker, hers to the job. Each thread queues into rings of its own; the logic thread
-// swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next hand-over does it), and
-// touches only our own memory while it holds it, so no fault in the game can leave it held. The worker may wait.
+// The job's lines, events and probe census to the worker, hers to the job. Each thread queues into rings of its
+// own; the logic thread swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next
+// hand-over does it), and touches only our own memory while it holds it, so no fault in the game can leave it held.
+// The worker may wait.
 class Mail {
 public:
-  // The logic thread: the Game's receive, send and event. None while a clear() waits for its hand-over.
+  // The logic thread: the Game's receive, send, event and probe. None while a clear() waits for its hand-over.
   bool receive(Message &m) { return !drop_in_ && in_.pop(m); }
   void send(const Message &m) { lost_ += !out_.push(m); }
   void event(const Event &e) { lost_ += !events_.push(e); }
+  void probe(const Actor &a) { lost_ += !probes_.push(a); }
   // The logic thread, before and after each turn: ours out, hers in, the snapshot. False when the lock was busy.
   bool exchange(const Snapshot &s) {
     if (!m_.try_lock())
       return false;
     out_.move_to(shared_out_);
     events_.move_to(shared_events_);
+    probes_.move_to(shared_probes_);
     if (drop_in_) { // A clear() since the last hand-over: hers already handed over go too.
       in_.clear();
       drop_in_ = false;
@@ -572,9 +692,13 @@ public:
     std::lock_guard<std::mutex> lock(m_);
     return shared_in_.push(m);
   }
-  // The worker: the job's lines (to on_line) and events (to on_event) handed over so far, oldest first, then the
-  // snapshot. Under the lock: the logic thread's try_lock meanwhile waits for its next hand-over.
+  // The worker: the job's lines (to on_line), events (to on_event) and probe census (to on_probe) handed over so far,
+  // oldest first, then the snapshot. Under the lock: the logic thread's try_lock meanwhile waits for its next
+  // hand-over.
   template <class L, class E> Snapshot take(L &&on_line, E &&on_event) {
+    return take(on_line, on_event, [](const Actor &) {});
+  }
+  template <class L, class E, class P> Snapshot take(L &&on_line, E &&on_event, P &&on_probe) {
     Snapshot s;
     {
       std::lock_guard<std::mutex> lock(m_);
@@ -582,6 +706,8 @@ public:
         on_line(m);
       for (Event e; shared_events_.pop(e);)
         on_event(e);
+      for (Actor a; shared_probes_.pop(a);)
+        on_probe(a);
       s = snapshot_;
     }
     s.job.arms = arms_, s.job.deferred = deferred_, s.job.forced = forced_, s.game_thread = game_thread_;
@@ -599,6 +725,7 @@ private:
   std::mutex m_;
   Ring<Message, kMail> in_, out_, shared_in_, shared_out_;
   Ring<Event, kMail> events_, shared_events_;
+  Ring<Actor, kMaxCensus> probes_, shared_probes_; // A probe's census: every live actor, once a second.
   Snapshot snapshot_;
   uint64_t lost_ = 0; // The logic thread's.
   std::atomic<bool> drop_in_{false}; // Set by clear(), done by the next exchange(): in_ is the logic thread's.
@@ -606,52 +733,83 @@ private:
   std::atomic<uint32_t> game_thread_{0};
 };
 
-// The worker's side, on our own thread, which never calls SB: the user's on and off, the gates, channel 2's text and
-// the log. The job runs while the user wants it, a friend is linked and a save is loaded; a missing friend or save
-// pauses it (a new session when both are back), and the gate turns it off until asked again. Its Io:
+// The worker's side, on our own thread, which never calls SB: the user's coop fight requests, the gates, channel 2's
+// text, the record and replay files and the log. One mode at a time, each run as a session of the job:
+//   on: with the linked friend, the lobby owner hosting (a new session when the lobby changes hands);
+//   probe (T11a): read only, each live actor in the log when first seen and again when its line changes, a stats line
+//     each second the census moved; its test writes (coop fight test) wait for fight writes=armed: our job ran and its
+//     census found our EVE;
+//   record: the host's side alone, as if a guest were on: its lines (world, up, down, dead, hp) go into
+//     coop-fight-record.txt, written when the mode ends;
+//   replay: that file played into the guest's side from its start; the guest's own lines go nowhere.
+// A mode runs while a save is loaded (and, for on, a friend is linked); a missing friend or save pauses it (a new
+// session when both are back), and the gate turns it off until asked again. Its Io:
 //   bool send(const std::string &line, bool reliable): to her on channel 2; false when not queued;
-//   void say(const std::string &line): the log.
+//   void say(const std::string &line): the log;
+//   bool save(const std::string &text), std::string load(bool &exists): coop-fight-record.txt, whole.
 // gate(): why it may not run here (the build, coop off, not on the co-op save), empty when it may. It reads the game,
 // so it is asked before each start and every kGateMs while running, never at every pass.
 class Worker {
 public:
   Worker(Engine &e, Mail &mail) : e_(e), mail_(mail) {}
 
-  // The user's coop fight on (fight_chars: the charIds shared) or off. The line for the log.
-  template <class Gate, class Io> std::string ask(bool on, const uint32_t *chars, size_t n, Gate &&gate, Io &io) {
-    if (!on) {
-      if (!wanted_)
-        return "shared fight is not on";
-      wanted_ = false;
-      return stop("off", "coop fight off", io);
+  // A coop fight request (link_protocol.h's parse_request). The line for the log.
+  template <class Gate, class Io> std::string ask(const Request &r, Gate &&gate, Io &io) {
+    switch (r.fight) {
+    case Fight::off: return mode_ == Fight::none ? "shared fight is not on" : end("coop fight off", io);
+    case Fight::status:
+      if (running_)
+        stats(now_, io, true);
+      return "shared fight status: " + detail();
+    case Fight::test: return test(r);
+    case Fight::none: return "shared fight: unknown request";
+    default: break;
     }
     if (e_.latched())
       return std::string("shared fight off: stopped for this run (") + e_.why() + ")";
-    if (wanted_)
-      return "shared fight is already on";
-    if (!n)
+    if (mode_ != Fight::none)
+      return std::string("shared fight is already on (") + name(mode_) + ")";
+    if (r.chars.empty() && r.fight != Fight::probe)
       return "shared fight off: no fight_chars";
     if (std::string why = gate(); !why.empty())
       return "shared fight off: " + why;
-    e_.allow(chars, n); // While off: the job reads them only while on.
-    wanted_ = true;
+    if (r.fight == Fight::replay) {
+      bool exists = false;
+      const std::string text = io.load(exists);
+      if (!exists)
+        return "shared fight replay refused: no coop-fight-record.txt (coop fight record makes one)";
+      if (const char *why = parse_recording(text, file_))
+        return std::string("shared fight replay refused: coop-fight-record.txt fails its check (") + why + ")";
+    }
+    e_.allow(r.chars.data(), r.chars.size()); // While off: the job reads them only while on.
+    chars_ = r.chars.size();
+    mode_ = r.fight;
+    recording_.clear(), record_lines_ = 0;
     std::string said = update(gate, io);
     return !said.empty() ? said
-                         : std::string("shared fight on: waiting for ") + (linked_ ? "a loaded save" : "a linked friend");
+                         : std::string("shared fight ") + name(mode_) + ": waiting for " +
+                               (mode_ == Fight::on && !linked_ ? "a linked friend" : "a loaded save");
   }
 
-  // Every worker pass, after the link's tick: the job's lines out (while running) and its events into the log, her
-  // lines in (parsed here, strictly), the gates, then the stats line.
+  // Every worker pass, after the link's tick: the job's lines out (while running: to her, or into the recording), its
+  // events and probe census into the log, her lines in (parsed here, strictly) or the replay's, the gates, then the
+  // stats.
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
             Io &io) {
     now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world;
     last_ = mail_.take(
         [&](const Message &m) { // A stopped session's last lines go nowhere: she dropped it.
-          if (running_ && linked && !io.send(format(m), m.type != Type::hp))
+          if (running_ && ran_ == Fight::record)
+            record(m);
+          else if (running_ && ran_ == Fight::on && linked && !io.send(format(m), m.type != Type::hp))
             ++unsent_;
         },
-        [&](const Event &ev) { io.say("fight " + line(ev)); });
+        [&](const Event &ev) { io.say("fight " + line(ev)); },
+        [&](const Actor &a) {
+          if (running_ && ran_ == Fight::probe)
+            probed(a, io);
+        });
     for (const std::string &text : lines) {
       std::string reason;
       const Message m = parse(text.data(), text.size(), &reason);
@@ -666,20 +824,30 @@ public:
         her_off_ = true;
         io.say("fight: her shared fight off: " + reason);
       }
-      if (running_ && !mail_.give(m))
+      if (running_ && ran_ == Fight::on && !mail_.give(m))
         ++dropped_;
+    }
+    if (running_ && ran_ == Fight::replay) {
+      replay_.deliver(now_ms, [&](const Message &m) { dropped_ += !mail_.give(m); });
+      if (!replay_.on() && !replay_said_) {
+        replay_said_ = true;
+        io.say("fight replay: all " + std::to_string(file_.size()) + " lines played; coop fight off ends it");
+      }
+    }
+    if (!armed_ && last_.eve && last_.job.turns) { // T11a's write gate, once a run.
+      armed_ = true;
+      io.say("fight writes=armed: our job runs and its census found our EVE");
     }
     std::string said;
     if (e_.latched() && !latch_said_) { // Off for the run: the job does nothing and nothing arms again.
       latch_said_ = true;
-      wanted_ = false;
-      said = stop("off", std::string("stopped for this run (") + e_.why() + ")", io);
+      said = end(std::string("stopped for this run (") + e_.why() + ")", io);
+    } else if (record_full_) {
+      said = end("the recording is full (4 MB or 20000 lines)", io);
     } else if (running_ && world_ && now_ms >= next_gate_) { // A start asks it anyway; a load only pauses (update).
       next_gate_ = now_ms + kGateMs;
-      if (std::string why = gate(); !why.empty()) {
-        wanted_ = false;
-        said = stop("off", why, io);
-      }
+      if (std::string why = gate(); !why.empty())
+        said = end(why, io);
     }
     if (said.empty())
       said = update(gate, io);
@@ -689,80 +857,213 @@ public:
       stats(now_ms, io);
   }
 
-  // For the status line: " fight=on <enemies the host arbitrates, or pairs the guest follows>", " fight=waiting" (on
-  // but paused), " fight=stopped" (latched for the run), or empty.
+  // For the status line: " fight=on <enemies the host arbitrates, pairs the guest follows, or the probe's actors>",
+  // " fight=waiting" (asked but paused), " fight=stopped" (latched for the run), or empty.
   std::string status() const {
     if (e_.latched())
       return " fight=stopped";
     if (running_)
-      return " fight=on " + std::to_string(side_ ? last_.hosted : last_.paired);
-    return wanted_ ? " fight=waiting" : "";
+      return " fight=on " + std::to_string(ran_ == Fight::probe ? last_.actors : side_ ? last_.hosted : last_.paired);
+    return mode_ != Fight::none ? " fight=waiting" : "";
+  }
+  // coop-status.txt's own line: "fight=on mode=<on|probe|record|replay> ..." with the counts as of the last second,
+  // "fight=waiting mode=<mode> why=<what it waits for>", "fight=stopped why=<the latch>", or "fight=off", with
+  // " why=<why it last stopped>" once it ran. The why last: it has spaces.
+  std::string detail() const {
+    if (e_.latched())
+      return std::string("fight=stopped why=") + e_.why();
+    if (running_)
+      return detail_;
+    if (mode_ != Fight::none)
+      return std::string("fight=waiting mode=") + name(mode_) +
+             " why=" + (mode_ == Fight::on && !linked_ ? "no friend linked" : "no save loaded");
+    return last_why_.empty() ? "fight=off" : "fight=off why=" + last_why_;
   }
 
 private:
+  static const char *name(Fight f) {
+    return f == Fight::on ? "on" : f == Fight::probe ? "probe" : f == Fight::record ? "record" : "replay";
+  }
+
   // Starts, pauses or restarts the job for the gates as they stand: the line for the log, or empty.
   template <class Gate, class Io> std::string update(Gate &&gate, Io &io) {
-    if (running_ && !(linked_ && world_))
-      return stop("paused", linked_ ? "no save loaded" : "no friend linked", io);
-    if (!wanted_ || !linked_ || !world_ || (running_ && side_ == hosting_))
+    const bool friendless = mode_ == Fight::on && !linked_;
+    if (running_ && (!world_ || friendless))
+      return stop("paused", friendless ? "no friend linked" : "no save loaded", io);
+    if (mode_ == Fight::none || !world_ || friendless || (running_ && (ran_ != Fight::on || side_ == hosting_)))
       return std::string();
     if (!running_) { // Asked again before each start: the save loaded since the last ask may be another slot.
-      if (std::string why = gate(); !why.empty()) {
-        wanted_ = false;
-        return "shared fight off: " + why;
-      }
+      if (std::string why = gate(); !why.empty())
+        return end(why, io);
     }
     return start(io); // Or a new session on the other side.
   }
-  // A new session of the side (the lobby owner hosts): nothing carries over. Our on goes first; the job says it again
-  // at its first turn, behind what the old session left.
+  // A new session of the mode (on: the lobby owner hosts; record hosts, replay is the guest): nothing carries over. On
+  // sends our on first; the job says it again at its first turn, behind what the old session left.
   template <class Io> std::string start(Io &io) {
+    const bool host = mode_ == Fight::on ? hosting_ : mode_ == Fight::record;
     mail_.clear();
-    e_.set(true, hosting_);
-    running_ = true, side_ = hosting_;
+    e_.set(true, host, mode_ == Fight::probe);
+    running_ = true, side_ = host, ran_ = mode_;
     malformed_ = 0;
     next_gate_ = now_ + kGateMs;
+    tick_ms_ = now_, tick_runs_ = last_.runs, tick_us_ = last_.us, tick_turns_ = last_.job.turns;
+    mean_us_ = rate_ = 0;
+    detail_ = counts_line();
     Message on;
     on.type = Type::on;
-    io.send(format(on), true);
-    return std::string("shared fight on: as ") + (side_ ? "host" : "guest");
+    switch (ran_) {
+    case Fight::on:
+      io.send(format(on), true);
+      return std::string("shared fight on: as ") + (host ? "host" : "guest");
+    case Fight::record:
+      mail_.give(on); // As a guest's on: the host announces its enemies and sends their values.
+      if (recording_.empty())
+        record_start_ = now_;
+      return "shared fight record: as host, into coop-fight-record.txt when coop fight off ends it";
+    case Fight::replay: {
+      replay_.start(file_, now_);
+      replay_said_ = false;
+      char text[160];
+      std::snprintf(text, sizeof text, "shared fight replay: %zu lines (%.1f s) into the guest's side, from the start",
+                    file_.size(), double(file_.back().ms) / 1000);
+      return text;
+    }
+    default:
+      shown_.clear();
+      return "shared fight probe: read only, a census each second (coop fight test once fight writes=armed)";
+    }
   }
   // The job ends at its next turn; she hears why while linked; her lines it has not taken are dropped.
   template <class Io> std::string stop(const char *how, const std::string &why, Io &io) {
     e_.set(false, side_);
-    if (running_ && linked_) {
+    if (running_ && ran_ == Fight::on && linked_) {
       Message off;
       off.type = Type::off;
       io.send(format(off, why), true);
     }
     running_ = false;
     mail_.clear();
+    last_why_ = why;
     return std::string("shared fight ") + how + ": " + why;
   }
-  // Each second while running, when the side's counts moved, else each minute: one line of counts.
-  template <class Io> void stats(uint64_t now_ms, Io &io) {
-    next_stats_ = now_ms + kStatsMs;
-    const Snapshot &s = last_;
-    const Counts &c = side_ ? s.host : s.guest;
-    if (!std::memcmp(&c, &said_counts_, sizeof c) && now_ms < said_ms_ + kQuietMs)
+  // The mode ends until asked again: stopped, and a recording written.
+  template <class Io> std::string end(const std::string &why, Io &io) {
+    const bool recorded = mode_ == Fight::record;
+    mode_ = Fight::none;
+    record_full_ = false;
+    std::string said = stop("off", why, io);
+    if (recorded)
+      said += recording_.empty()      ? std::string("; nothing recorded")
+              : io.save(recording_) ? "; " + std::to_string(record_lines_) + " lines written to coop-fight-record.txt"
+                                      : std::string("; coop-fight-record.txt not written");
+    return said;
+  }
+
+  // One of the host's lines (world, up, down, dead, hp) into the recording, from its first world (an older session's
+  // lines may still come); full: the mode ends at this pass.
+  void record(const Message &m) {
+    if (m.type < Type::world || m.type > Type::hp || record_full_ || (recording_.empty() && m.type != Type::world))
       return;
-    said_counts_ = c, said_ms_ = now_ms;
-    const uint64_t runs = s.runs - said_runs_, us = s.us - said_us_;
-    said_runs_ = s.runs, said_us_ = s.us;
+    const std::string text = record_line(now_ - record_start_, m);
+    if (record_lines_ == kMaxRecordLines || recording_.size() + text.size() > kMaxRecording) {
+      record_full_ = true;
+      return;
+    }
+    recording_ += text;
+    ++record_lines_;
+  }
+  // A probe's actor: said when new, and again when its line changed.
+  // ponytail: shown_ keeps a line for each GUID this probe saw; fine for T11a's half hour, bound it for longer probes.
+  template <class Io> void probed(const Actor &a, Io &io) {
+    const Seen &s = a.seen;
+    char text[200];
+    std::snprintf(text, sizeof text, "fight probe guid=%u key=%u:%u chr=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s",
+                  s.guid, s.spawn, unsigned(s.index), s.chr, a.life, s.value[kHp], whole(s.max[kHp]),
+                  s.value[kShield], whole(s.max[kShield]), s.value[kStamina], whole(s.max[kStamina]),
+                  a.eve ? " eve" : a.controlled == 1 ? " controlled" : "", a.player ? " player" : "",
+                  a.pending ? " pending" : "");
+    std::string &said = shown_[s.guid];
+    if (said != text)
+      io.say(said = text);
+  }
+  // coop fight test: the probe's next turn writes to the eligible enemy with the lowest HP share (the one just hit).
+  std::string test(const Request &r) {
+    if (!running_ || ran_ != Fight::probe)
+      return "shared fight test refused: only while coop fight probe runs";
+    if (!armed_)
+      return "shared fight test refused: writes not armed yet (the probe has not found our EVE)";
+    if (!chars_)
+      return "shared fight test refused: no fight_chars (the enemies a test may write to)";
+    if (r.stat < -1 || r.stat >= kStats)
+      return "shared fight test refused: no such stat";
+    e_.test(r.stat, r.change);
+    static const char *const kName[kStats] = {"hp", "sh", "st"};
+    return std::string("shared fight test asked: ") +
+           (r.stat < 0 ? std::string("kill") : kName[r.stat] + (" " + std::to_string(r.change))) +
+           ", on the eligible enemy with the lowest HP share";
+  }
+
+  // The status line's counts as of the last second.
+  std::string counts_line() const {
+    const Snapshot &s = last_;
     using u = unsigned long long;
-    char head[320], tail[640];
-    if (side_)
+    char head[320], tail[120];
+    if (ran_ == Fight::probe)
+      std::snprintf(head, sizeof head, "fight=on mode=probe actors=%zu eve=%d turn=%u turns_per_s=%llu writes=%s",
+                    s.actors, int(s.eve), s.turn, u(rate_), armed_ ? "armed" : "off");
+    else if (side_)
       std::snprintf(head, sizeof head,
-                    "fight stats: host, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
+                    "fight=on mode=%s role=host enemies=%zu claims=%llu refused=%llu kills=%llu floored=%llu",
+                    name(ran_), s.hosted, u(s.host.claims), u(s.host.refused), u(s.host.kills), u(s.host.floored));
+    else
+      std::snprintf(head, sizeof head,
+                    "fight=on mode=%s role=guest pairs=%zu claims=%llu corrections=%llu kills=%llu floored=%llu "
+                    "desync=%llu",
+                    name(ran_), s.paired, u(s.guest.claims), u(s.guest.corrections), u(s.guest.kills),
+                    u(s.guest.floored), u(s.guest.desync));
+    std::snprintf(tail, sizeof tail, " sim_us=%llu/%llu threads=%u/%u/%u", u(mean_us_), u(s.max_us), s.thread,
+                  s.sb_thread, s.game_thread);
+    return std::string(head) + tail;
+  }
+  // Each second while running: the status line's counts, and a line of them in the log when the side's counts (the
+  // probe's actors, EVE or turn going back) moved, else each minute; at once for coop fight status.
+  template <class Io> void stats(uint64_t now_ms, Io &io, bool force = false) {
+    const Snapshot &s = last_;
+    const uint64_t ms = now_ms - tick_ms_, runs = s.runs - tick_runs_, us = s.us - tick_us_;
+    rate_ = ms ? (s.job.turns - tick_turns_) * 1000 / ms : 0;
+    mean_us_ = runs ? us / runs : 0;
+    tick_ms_ = now_ms, tick_runs_ = s.runs, tick_us_ = s.us, tick_turns_ = s.job.turns;
+    next_stats_ = now_ms + kStatsMs;
+    detail_ = counts_line();
+    const Counts &c = side_ ? s.host : s.guest;
+    const bool probe = ran_ == Fight::probe;
+    const bool moved = probe ? s.actors != said_actors_ || s.eve != said_eve_ || s.turn < said_turn_
+                             : std::memcmp(&c, &said_counts_, sizeof c) != 0;
+    said_turn_ = s.turn;
+    if (!force && !moved && now_ms < said_ms_ + kQuietMs)
+      return;
+    said_counts_ = c, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
+    using u = unsigned long long;
+    const char *as = ran_ == Fight::record ? " (record)" : ran_ == Fight::replay ? " (replay)" : "";
+    char head[320], tail[640];
+    if (probe)
+      std::snprintf(head, sizeof head,
+                    "fight stats: probe, %zu actors, our EVE %s, turn %u (%llu a second), writes %s, %llu rejected",
+                    s.actors, s.eve ? "found" : "not found", s.turn, u(rate_), armed_ ? "armed" : "off",
+                    u(s.job.rejected));
+    else if (side_)
+      std::snprintf(head, sizeof head,
+                    "fight stats: host%s, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
                     "floored), nodamage bypass %llu in state 3 and %llu in 4, %llu stale, %llu over the rates, %llu "
                     "bad, %llu ignored",
-                    s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.bypass3), u(c.bypass4),
+                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.bypass3), u(c.bypass4),
                     u(c.stale), u(c.rate), u(c.bad), u(c.ignored));
     else
       std::snprintf(head, sizeof head,
-                    "fight stats: guest, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored), "
+                    "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored), "
                     "%llu desync guest-dead, %llu stale, %llu bad",
-                    s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), u(c.stale),
+                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), u(c.stale),
                     u(c.bad));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
@@ -772,19 +1073,35 @@ private:
                   "(SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.stale), u(j.doubled), u(j.mode),
                   u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(s.lost), u(dropped_), u(unsent_),
-                  u(malformed_), u(runs ? us / runs : 0), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
+                  u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.say(std::string(head) + tail);
   }
 
   Engine &e_;
   Mail &mail_;
-  bool wanted_ = false, running_ = false, side_ = false, latch_said_ = false; // side_: hosting, as started.
-  bool linked_ = false, hosting_ = false, world_ = false;                     // As of the last pass.
-  bool her_off_ = false;                                                       // Her last off said, no on since.
-  uint64_t now_ = 0, next_gate_ = 0, next_stats_ = 0, said_ms_ = 0, said_runs_ = 0, said_us_ = 0;
+  Fight mode_ = Fight::none, ran_ = Fight::none; // What was asked, and the mode of the running session.
+  bool running_ = false, side_ = false, latch_said_ = false; // side_: hosting, as started.
+  bool linked_ = false, hosting_ = false, world_ = false;    // As of the last pass.
+  bool her_off_ = false;                                     // Her last off said, no on since.
+  bool armed_ = false;                                       // fight writes=armed: tests may write, this run.
+  size_t chars_ = 0;                                         // fight_chars asked with the mode.
+  uint64_t now_ = 0, next_gate_ = 0, next_stats_ = 0, said_ms_ = 0;
+  uint64_t tick_ms_ = 0, tick_runs_ = 0, tick_us_ = 0, tick_turns_ = 0, mean_us_ = 0, rate_ = 0; // The last second.
   uint64_t unsent_ = 0, dropped_ = 0, malformed_ = 0;
   Snapshot last_;
   Counts said_counts_;
+  size_t said_actors_ = 0;
+  bool said_eve_ = false;
+  uint32_t said_turn_ = 0;
+  std::string detail_, last_why_;
+  std::string recording_; // record: the lines so far, written when the mode ends.
+  size_t record_lines_ = 0;
+  bool record_full_ = false;
+  uint64_t record_start_ = 0;
+  std::vector<Line> file_; // replay: the recording, played from its start at each session.
+  Replay replay_;
+  bool replay_said_ = false;
+  std::map<uint32_t, std::string> shown_; // probe: each actor's last line said.
 };
 
 } // namespace coop::fight

@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace coop {
 constexpr int kProtocol = 7; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
@@ -148,19 +149,72 @@ inline Message parse(const char *data, size_t size) {
 // A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
 // "join <lobby id>", and for the pose path "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>",
 // "loopback off", "record", "record off", "replay" and "replay off"; for the Night Operation probe (Phase 6, T6 only)
-// "nightop" (start the read-only poller) and "nightop rule" (start it if needed and arm the verdict, once a run).
-enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay, nightop };
+// "nightop" (start the read-only poller) and "nightop rule" (start it if needed and arm the verdict, once a run); for
+// the shared fight (Phase 11, fight_engine.h's Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at
+// most kMaxFightChars), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a
+// sign) and "fight test kill".
+enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight };
+enum class Fight { none, on, off, status, probe, test, record, replay };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500;
+constexpr size_t kMaxFightChars = 16;
+constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %.
   bool off = false;                      // loopback off, record off, replay off.
   bool rule = false;                     // nightop rule.
+  Fight fight = Fight::none;
+  std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
+  int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
+  int32_t change = 0;          // fight test: never 0.
 };
+// What follows "fight ": its words split on single spaces. Command::none when anything is off.
+inline Request parse_fight(const std::string &text) {
+  std::vector<std::string> w;
+  for (size_t at = 0, end = 0; at <= text.size(); at = end + 1) {
+    end = text.find(' ', at);
+    end = end == std::string::npos ? text.size() : end;
+    w.push_back(text.substr(at, end - at));
+    if (w.back().empty())
+      return Request();
+  }
+  Request r;
+  uint64_t v = 0;
+  const std::string &what = w[0];
+  if ((what == "off" || what == "status") && w.size() == 1) {
+    r.fight = what == "off" ? Fight::off : Fight::status;
+  } else if (what == "on" || what == "probe" || what == "record" || what == "replay") {
+    for (size_t i = 1; i < w.size(); ++i) {
+      if (i > kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
+        return Request();
+      r.chars.push_back(static_cast<uint32_t>(v));
+    }
+    r.fight = what == "on"       ? Fight::on
+              : what == "probe"  ? Fight::probe
+              : what == "record" ? Fight::record
+                                 : Fight::replay;
+  } else if (what == "test" && w.size() == 2 && w[1] == "kill") {
+    r.fight = Fight::test;
+    r.stat = -1;
+  } else if (what == "test" && w.size() == 3 && (w[1] == "hp" || w[1] == "sh" || w[1] == "st")) {
+    const bool minus = w[2][0] == '-', sign = minus || w[2][0] == '+';
+    if (!number(std::string_view(w[2]).substr(sign), v) || !v || v > kMaxFightChange)
+      return Request();
+    r.fight = Fight::test;
+    r.stat = w[1] == "hp" ? 0 : w[1] == "sh" ? 1 : 2;
+    r.change = minus ? -static_cast<int32_t>(v) : static_cast<int32_t>(v);
+  } else {
+    return Request();
+  }
+  r.command = Command::fight;
+  return r;
+}
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
     text.pop_back();
+  if (text.rfind("fight ", 0) == 0)
+    return parse_fight(text.substr(6));
   Request r;
   std::string f[4];
   if (text == "host")

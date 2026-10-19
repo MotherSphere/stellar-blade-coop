@@ -1,8 +1,10 @@
 // The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
 // the handshake and its rejects, the host leaving (D1), the guest's rejoin of a lost lobby, a lost peer, strangers,
 // session requests, relay, the journal, the player's notices, a v0.1.1 friend (protocol 6); and two Links through it:
-// the handshake both ways, channel 1 with its checks, channel 2 with its checks and its session-long queues, join and
-// leave cycles, the host leaving, and a rejoin the host never saw.
+// the handshake both ways, channel 1 with its checks, channel 2 with its checks and its session-long queues, channel 2
+// wired to the shared fight's worker on each side as steam_link.cpp wires it, join and leave cycles, the host leaving,
+// and a rejoin the host never saw.
+#include "fight_engine.h"
 #include "link_core.h"
 #include "pose_table.h"
 
@@ -13,6 +15,7 @@
 #include <functional>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <new>
 #include <string>
 #include <utility>
@@ -1415,6 +1418,112 @@ int main() {
       t.tick(t.b, 1);
     }
     assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
+  }
+
+  // Two Links and the shared fight's worker on each, wired as steam_link.cpp wires them: each pass gives the worker
+  // whether a friend is linked, whether we own the lobby and her lines from take_fight(); its lines go out through
+  // send_fight(). The lobby owner hosts, both on lines cross, what one job hands over reaches the other's in order (hp
+  // unreliable), and her leaving pauses both sides with nothing more sent.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked() && t.a.host() && !t.b.host());
+    struct Desk { // pose_tick.cpp's FightIo, with the Link as fight_pass's send.
+      Link *link;
+      std::vector<std::string> said;
+      bool send(const std::string &line, bool reliable) { return link->send_fight(line, reliable); }
+      void say(const std::string &line) { said.push_back(line); }
+      bool save(const std::string &) { return false; }
+      std::string load(bool &exists) { return exists = false, std::string(); }
+    };
+    struct Side {
+      Link *link;
+      std::unique_ptr<fight::Engine> engine = std::make_unique<fight::Engine>();
+      std::unique_ptr<fight::Mail> mail = std::make_unique<fight::Mail>();
+      fight::Worker worker{*engine, *mail};
+      Desk io{link, {}};
+    } a{&t.a}, b{&t.b};
+    const auto gate = [] { return std::string(); };
+    const auto pass = [&](Side &s) {
+      s.worker.pass(t.now, s.link->linked(), s.link->linked() && s.link->host(), true, s.link->take_fight(), gate,
+                    s.io);
+    };
+    const auto ask = [&](Side &s) { return s.worker.ask(parse_request("fight on 15011001"), gate, s.io); };
+    const auto line = [](const std::string &text) { return fight::parse(text.data(), text.size()); };
+    // The lines each job takes at its next hand-over, as text.
+    const auto taken = [](Side &s) {
+      std::vector<std::string> lines;
+      fight::Snapshot snap;
+      assert(s.mail->exchange(snap));
+      for (fight::Message m; s.mail->receive(m);)
+        lines.push_back(fight::format(m));
+      return lines;
+    };
+    const auto fight_sent = [](size_t from) { // Channel 2's sends from that index: text and reliable.
+      std::vector<std::pair<std::string, bool>> out;
+      for (size_t i = from; i < F.sent.size(); ++i)
+        if (F.sent[i].channel == kFightChannel)
+          out.emplace_back(F.sent[i].text, F.sent[i].flags == kReliable);
+      return out;
+    };
+    const std::string on = fight_tag() + " on", up = fight_tag() + " up 3 77 50110 2 15011001 1600",
+                      hp = fight_tag() + " hp 3 1 0 77:1600:100:200", hit = fight_tag() + " hit 3 1 77 120 5 30 400 0";
+    // Asked before the first pass: waiting, as the worker has not seen the link yet.
+    assert(ask(a) == "shared fight on: waiting for a linked friend");
+    assert(ask(b) == "shared fight on: waiting for a linked friend" && b.worker.status() == " fight=waiting");
+    pass(a);
+    pass(b);
+    assert(a.io.said.back() == "shared fight on: as host" && b.io.said.back() == "shared fight on: as guest");
+    size_t sends = F.sent.size();
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    pass(a);
+    pass(b);
+    assert((fight_sent(sends) == std::vector<std::pair<std::string, bool>>{{on, true}, {on, true}}));
+    assert(taken(a) == std::vector<std::string>{on} && taken(b) == std::vector<std::string>{on});
+    // The host's job: an up and an hp to her job, in order, the hp unreliable; her claim back the same way.
+    a.mail->send(line(up));
+    a.mail->send(line(hp));
+    taken(a);
+    pass(a);
+    sends = F.sent.size();
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    pass(b);
+    assert((fight_sent(sends) == std::vector<std::pair<std::string, bool>>{{up, true}, {hp, false}}));
+    assert((taken(b) == std::vector<std::string>{up, hp}));
+    b.mail->send(line(hit));
+    taken(b);
+    pass(b);
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    pass(a);
+    assert(taken(a) == std::vector<std::string>{hit});
+    // She leaves: both pause, and the host's next line goes nowhere.
+    t.tick(t.b, 1, "leave");
+    t.tick(t.a, 1);
+    pass(a);
+    pass(b);
+    assert(a.io.said.back() == "shared fight paused: no friend linked" && a.worker.status() == " fight=waiting");
+    assert(b.io.said.back() == "shared fight paused: no friend linked" && b.worker.status() == " fight=waiting");
+    a.mail->send(line(hp));
+    taken(a);
+    sends = F.sent.size();
+    pass(a);
+    t.tick(t.a, 1);
+    assert(fight_sent(sends).empty() && !a.engine->on() && !b.engine->on());
   }
 
   // Channel 2 at a session's edges, one Link: her first line, in the pass whose accept links us, is kept; a guest who
