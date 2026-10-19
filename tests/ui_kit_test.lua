@@ -755,6 +755,26 @@ k=kit()
 up(k)
 k.input(true); k.stop()
 assert(count(LIB..'SetInputMode_GameOnly')==1,'coop off too')
+-- coop ui reset: given back now whoever holds it, even when the kit thinks the game has it; without a player
+-- controller, still due (the menu's next input(false) tries again); the kit off too.
+reset()
+k=kit()
+up(k)
+k.input(true,'chat'); k.reset()
+assert(count(LIB..'SetInputMode_GameOnly')==1,'The chat held it')
+k.input(false,'chat')
+assert(count(LIB..'SetInputMode_GameOnly')==1,"The chat's late give-back: nothing left to give")
+k.reset()
+assert(count(LIB..'SetInputMode_GameOnly')==2,'Again, though the game had it')
+local held=pc
+pc=nil
+k.reset(); k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==2,'No player controller: due')
+pc=held
+k.input(false); k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==3,'Given back once there is one, once')
+k.stop(); k.reset()
+assert(count(LIB..'SetInputMode_GameOnly')==4,'The kit off too')
 reset()
 k=kit()
 up(k)

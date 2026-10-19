@@ -14,9 +14,10 @@
 -- in coop-settings.txt, which also starts it once a load on the co-op save), on the co-op save slot only; the synced
 -- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
 -- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
--- to test the pause alone; coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its
--- checks in the log; left out of the usage line until the UI layer ships). coop off stops everything until the game
--- restarts.
+-- to test the pause alone; coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
+-- (the co-op UI gone until the mod reloads); coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen
+-- for 5 s and its checks in the log; a test tool, left out of the usage line). coop off stops everything until the
+-- game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -79,7 +80,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | ui reset|off | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -231,8 +232,21 @@ local commands={
         if not native_tick then return false,'the native tick is unavailable' end
         return ask(seconds and 'freeze '..seconds or 'freeze off')()
     end,
+    -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
+    -- (7.6): the co-op UI gone until the mod reloads, the notice line above EVE and the ghost's name tag back.
     ui=function(sub,arg,extra)
-        if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then return false,'Use: coop ui test [game]' end
+        if (sub=='reset' or sub=='off') and arg==nil then
+            if not kit then return false,'the co-op UI needs the Steam link' end
+            if sub=='off' then
+                menu.stop(); box.stop(); kit.stop()
+                return true,'co-op UI off until the mod reloads: notices on the line above EVE'
+            end
+            menu.close(); box.close(); kit.reset()
+            return true,'co-op UI reset: menu and chat closed, the game has its input back'
+        end
+        if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then
+            return false,'Use: coop ui test [game] | reset | off'
+        end
         return ui.test(arg=='game')
     end,
     off=function()

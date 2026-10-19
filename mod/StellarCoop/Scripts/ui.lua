@@ -930,7 +930,13 @@ function Ui.kit(opts)
         local ok,culture=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
         return ok and culture or nil
     end
-    -- coop off: the root goes now (the game's input back first); no engine call after.
+    -- coop ui reset, the escape hatch (UI-DESIGN 7.5): the game's input given back now whoever holds it, even when this
+    -- load thinks the game has it (a later input(false) tries again while there is no player controller).
+    function self.reset()
+        inputting,holder=true,nil
+        if off then pcall(input_mode,false) else run(input_mode,false) end
+    end
+    -- coop off and coop ui off: the root goes now (the game's input back first); no engine call after.
     function self.stop()
         if off then return end
         close_all()

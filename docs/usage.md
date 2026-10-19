@@ -71,6 +71,11 @@ another action already holds is refused and named; Esc stops waiting. The new ke
 The menu follows the game's language: French or English (`ui_language=english` keeps English). The status line stays
 in English.
 
+If the menu or the chat box ever leaves the game deaf to its own keys, open the console (F10 or `~`) and type
+`coop ui reset`: the menu and the box close and the game gets its keys back. `coop ui off` removes the co-op menu,
+chat box and partner HUD until the mod reloads (game start or Ctrl+R); the notices then go back to the line above
+your EVE and your friend's name back to the name tag above their ghost.
+
 ## Session chat
 
 During a session (or `coop loopback`), Enter opens a text box at the top left of the screen, under the feed, in a world
@@ -208,6 +213,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight on\|off\|status` | Shared enemies (experimental, off by default, co-op save slot only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save slot only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
+| `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
+| `coop ui off` | Remove the co-op menu, chat box and partner HUD until the mod reloads |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands

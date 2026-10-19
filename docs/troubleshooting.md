@@ -86,6 +86,12 @@ The cloth, dyes and effects looks are not yet tried in game. If the game crashes
 turn it off in `coop-settings.txt` (or with `coop look <look> off`). An `effects off: fault ...` line means a fault
 turned effects off until the game restarts; the ghost goes on without them.
 
+### The game ignores its keys after the co-op menu or the chat
+
+Open the console (F10 or `~`) and type `coop ui reset`: the menu and the chat box close and the game gets its keys
+back. `UI off until the mod reloads: <why>` in `UE4SS.log` means the on-screen UI met an engine error; the notices then
+show on the line above EVE. `coop ui off` does the same by hand.
+
 ### Screen notices stopped
 
 `Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line. Screen notices stay off until

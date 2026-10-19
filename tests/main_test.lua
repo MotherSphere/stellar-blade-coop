@@ -213,6 +213,7 @@ end,kit=function(opts)
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
         paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop'),
+        reset=said_kit('reset'),
         move=function() end,fade=function() end,
         project=function(anchor)
             kit_projects=kit_projects+1
@@ -246,7 +247,7 @@ package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | '
-    ..'freeze <seconds>|off | off'
+    ..'freeze <seconds>|off | ui reset|off | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -489,9 +490,9 @@ end
 -- coop ui test [game]: the spike gets whether the game root goes alone; anything else is its usage line.
 coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n',last())
 coop('ui','test','game'); assert(ui_tests[2]==true and #ui_tests==2)
-for _,bad in ipairs({{},{'off'},{'TEST'},{'test','x'},{'test','game','x'}}) do
+for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'reset','x'}}) do
     coop('ui',table.unpack(bad))
-    assert(last()=='[StellarCoop] STOP: Use: coop ui test [game]\n' and #ui_tests==2,last())
+    assert(last()=='[StellarCoop] STOP: Use: coop ui test [game] | reset | off\n' and #ui_tests==2,last())
 end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
 assert(notice_stops==0 and ui_stops==0)
@@ -1115,6 +1116,20 @@ coop('fight','probe'); assert(last():find('STOP: the native tick is unavailable'
 coop('freeze','10'); assert(last():find('STOP: the native tick is unavailable',1,true) and #asked==0,last())
 coop('fight','off'); assert(asked[1]=='fight off','Off needs no tick')
 
+-- coop ui reset (UI-DESIGN 7.5): the menu (or the chat's box) closed and the game's input given back at once, whoever
+-- holds it; coop ui off (7.6): the kit stopped, the menu and the box with it.
+settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+load_main(true)
+kit_ready=true; quarter()
+key('F5'); assert(kit_shown.menu and kit_input)
+coop('ui','reset')
+assert(not kit_shown.menu and kit_calls[#kit_calls]=='reset nil' and last()=='[StellarCoop] OK: co-op UI reset: menu '
+    ..'and chat closed, the game has its input back\n',last())
+key('F5'); assert(kit_shown.menu)
+coop('ui','off')
+assert(kit_calls[#kit_calls]=='stop nil' and last():find('OK: co-op UI off until the mod reloads',1,true),last())
+in_world=false
+
 load_main(false)
 assert(#loops==1,'No link loop without the native part')
 assert(name_tag==nil,'No settings without the native part')
@@ -1132,4 +1147,5 @@ assert(not refused and refusal=='the Steam link needs the native part' and probe
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n','No native part needed')
+coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 io.stdout:write('main_test ok\n')
