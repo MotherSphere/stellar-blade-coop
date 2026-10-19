@@ -164,14 +164,19 @@ function Link.parse_settings(text)
     end
     return settings,notes
 end
-local files={
+Link.files={
     read=function(path) local f=io.open(path,'rb'); if not f then return nil end; local text=f:read('a'); f:close(); return text end,
-    write=function(path,text) local f=io.open(path,'wb'); if not f then return false end; f:write(text); f:close(); return true end,
+    -- A full disk fails at the write or only at the close's flush: either one is a failed write.
+    write=function(path,text)
+        local f=io.open(path,'wb'); if not f then return false end
+        local wrote=f:write(text); local closed=f:close()
+        return wrote~=nil and closed==true
+    end,
     remove=os.remove,
     rename=os.rename,
 }
 function Link.new(folder,fs)
-    fs=fs or files
+    fs=fs or Link.files
     local function path(name) return folder..'\\'..name end
     local status_path=path('coop-status.txt')
     local seen,remote={},{}

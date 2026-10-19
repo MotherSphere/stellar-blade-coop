@@ -494,5 +494,16 @@ assert(files['C:\\Mod\\coop-puppet.txt']=='/Game/Maps/E04.Actor_1\n' and ui.load
 ui.clear()
 assert(ui.load()==nil and ghost.load()=='/Game/Maps/E04.Actor_1')
 ghost.clear()
+-- The real file helper: a write the disk refused (/dev/full takes the open, then fails the flush) is false, so put()
+-- never swaps a cut .tmp over the good file and its backup.
+local real=require('link').files
+local scratch=os.tmpname()
+assert(real.write(scratch,'menu_key=F5\n')==true and real.read(scratch)=='menu_key=F5\n','A plain write')
+os.remove(scratch)
+local full=io.open('/dev/full','wb')
+if full then
+    full:close()
+    assert(real.write('/dev/full','menu_key=F5\n')==false,'A full disk was reported as written')
+end
 
 print('link_test ok')
