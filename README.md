@@ -28,7 +28,8 @@ client that the game already runs, so the mod needs no other program and no serv
   their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are out of view.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
-- The mod never reads or writes a save, the inventory, unlocks or equipment.
+- The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make
+  separate co-op copies of them (see [docs/saves.md](docs/saves.md)).
 
 The ghost is display only. Items and progress are not shared. Enemies are shared only through the experimental
 `coop fight`, which is off by default and untested in game (see [docs/usage.md](docs/usage.md)).

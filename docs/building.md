@@ -108,9 +108,9 @@ build/host/pose_codec_test
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
 the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
 waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller, the save name's probe and
-`saves coop` on an exe that is not the game, and logs a clean process exit. It also checks that `ReadProcessMemory` behaves as the poller
-needs, that the chat files an earlier run left are deleted at start, that a typed line is taken and never logged, and
-that a request file the worker cannot delete is never run twice.
+`saves coop` on an exe that is not the game, and logs a clean process exit. It also checks that `ReadProcessMemory`
+behaves as the poller needs, that the chat files an earlier run left are deleted at start, that a typed line is taken
+and never logged, and that a request file the worker cannot delete is never run twice.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]

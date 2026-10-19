@@ -98,9 +98,9 @@ local fake_link={
     end,
     settings=function() return Link.parse_settings(settings_text) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max)
+    state=function(world,rate,photo,sync,max,title)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
-        states[#states+1]=string.format('world=%d rate=%d',world and 1 or 0,rate)
+        states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
 }
@@ -113,7 +113,7 @@ package.loaded.capture={new=function(publish,looks)
     capture_look=looks
     return fake_capture
 end}
-local toggles,active,basesuits,wheres,in_world=0,false,0,0,false
+local toggles,active,basesuits,wheres,in_world,at_title=0,false,0,0,false,false
 local puppet_say -- What the ghost says its notices with.
 local the_notice,name_tag,look,rebuilds
 local veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
@@ -128,7 +128,8 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
-        where=function() wheres=wheres+1; return true,'where map=/game/e04' end,world=function() return in_world end,
+        where=function() wheres=wheres+1; return true,'where map=/game/e04' end,
+        world=function() return in_world,at_title end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
         anchor=function() return her_anchor,her_anchor end,her_map=function() return '/game/e04' end,
         me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
@@ -453,6 +454,8 @@ assert(states[#states]=='world=0 rate=20' and logged('state: world=0 rate=20'),t
 before=#asked
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and logged('state: world=1 rate=20'))
 in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=20')
+at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=20','The title screen goes along')
+at_title=false
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and #asked==before,'No request written')
 -- The photo mode with the state, read only with a save loaded: '1', 's' (a selfie wins), then '0', with photo_sync and
 -- photo_freeze_max. During our own, the notices are veiled, the ghost stays (photo_ghost=on) and its tag goes

@@ -303,11 +303,16 @@ int main() {
   for (const std::string &good : {"world=1 rate=25" + tail, "world=1 rate=25" + tail + "\n",
                                   "world=1 rate=25" + tail + "\r\n"}) {
     State s;
-    assert(parse_state(good, s) && s.world && s.rate == 25 && s.photo == '0' && s.sync == Sync::both && s.max == 600);
+    assert(parse_state(good, s) && s.world && !s.title && s.rate == 25 && s.photo == '0' && s.sync == Sync::both &&
+           s.max == 600);
   }
   State s;
-  assert(parse_state("world=0 rate=10 photo=1 sync=notice max=0", s) && !s.world && s.rate == 10 && s.photo == '1' &&
-         s.sync == Sync::notice && s.max == 0);
+  assert(parse_state("world=0 rate=10 photo=1 sync=notice max=0", s) && !s.world && !s.title && s.rate == 10 &&
+         s.photo == '1' && s.sync == Sync::notice && s.max == 0);
+  // The title screen (the only time the co-op saves change): no world, and the title; a later line drops it.
+  assert(parse_state("world=title rate=30 photo=0 sync=notice max=3600\r\n", s) && !s.world && s.title);
+  assert(std::string("world=title rate=30 photo=0 sync=notice max=3600\r\n").size() <= kMaxState);
+  assert(parse_state("world=0 rate=30 photo=0 sync=notice max=3600", s) && !s.world && !s.title);
   assert(parse_state("world=0 rate=30 photo=s sync=off max=30\n", s) && !s.world && s.rate == 30 && s.photo == 's' &&
          s.sync == Sync::off && s.max == 30);
   assert(parse_state("world=1 rate=20 photo=0 sync=both max=3600", s) && s.max == 3600);
@@ -315,6 +320,7 @@ int main() {
   for (const std::string &bad :
        {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=31" + tail,
         "world=1 rate=20x" + tail, "world=1 rate=20" + tail + " extra=1", std::string("world=1"),
+        "world=Title rate=20" + tail, "world=t rate=20" + tail, "world=title1 rate=20" + tail, "title rate=20" + tail,
         std::string("world=1 rate=20"), "rate=20 world=1" + tail, "world=1  rate=20" + tail,
         "world=1 rate=20" + tail + "\r", "world=1 rate=20" + tail + "\n\n", "world=1 rate=-20" + tail,
         "world=1 rate=020" + tail + "\nx", std::string("world=1 rate=20 photo=2 sync=both max=600"),
@@ -334,7 +340,8 @@ int main() {
            out.max == 99);
   }
   State fresh; // Before Lua writes one: photo sync off, the default cap.
-  assert(!fresh.world && fresh.rate == 20 && fresh.photo == '0' && fresh.sync == Sync::off && fresh.max == 600);
+  assert(!fresh.world && !fresh.title && fresh.rate == 20 && fresh.photo == '0' && fresh.sync == Sync::off &&
+         fresh.max == 600);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
   assert(connect_lobby(L"SB-Win64-Shipping.exe -DistributionPlatform=Steam +connect_lobby 109775241234567890") ==

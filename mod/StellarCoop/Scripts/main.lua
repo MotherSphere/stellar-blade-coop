@@ -426,12 +426,12 @@ if link then
         end
         for _,text in ipairs(link.notices()) do say(text) end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
-            local world=puppet.world()
+            local world,title=puppet.world()
             local photo=world and photo_state() or '0'
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             notice.veil(own)
             puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
-            local line=link.state(world,settings.send_rate,photo,settings.photo_sync,settings.photo_freeze_max)
+            local line=link.state(world,settings.send_rate,photo,settings.photo_sync,settings.photo_freeze_max,title)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             local ok,message=kit.slow(shown)

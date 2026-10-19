@@ -4,11 +4,16 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
 
 ## What the mod reads and writes
 
-- The mod never reads or writes a save, the inventory, unlocks or equipment.
+- The mod never writes your own saves (`StellarBladeSave00.sav` to `04.sav`), the inventory, unlocks or equipment.
+- The native part reads your saves only to make their co-op copies, `StellarBladeCoop00.sav` to `04.sav`, on a
+  `saves convert` or `saves coop` request at the title. It also writes `StellarCoopSaves.txt`, which records each
+  copy's size and write time, and, whenever that file does not exist yet, a backup of every `StellarBlade*.sav` of the
+  account in `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`, before the first copy. No console command
+  sends these requests yet. The rules are in [how-it-works.md](how-it-works.md#safety-design).
 - Apart from enemy stats with the experimental shared enemies (`coop fight`, off by default), nothing is copied between
   the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI and saves skip it,
   and nothing of it is written to a save. The meshes it loads are only loaded into memory; nothing is worn or unlocked.
-- In the save folder, the mod reads only the co-op marker `StellarCoopSlot.txt` (every 5 s), which names the co-op
+- In the save folder, the mod also reads the co-op marker `StellarCoopSlot.txt` (every 5 s), which names the co-op
   save slot.
 - Every 5 s the native part also lists the names, sizes and write times of the files in the save folder, without
   opening any save, and logs each change in `coop-link.log`. `coop report` sums the changes up. This log shows when
@@ -16,9 +21,9 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
 - On the pinned game build only, and until `coop off`, the mod reads which slot the game entered (every 250 ms), for
   the `slot=` line of `coop status`.
 
-Apart from a restore, which puts a backup back, the only save anything in this project writes is the co-op slot's
-copy. `tools/save_guard.py slot` makes it, with the game closed and after a safety backup. Nothing is copied back from
-it.
+Apart from a restore, which puts a backup back, the only saves anything in this project writes are copies: the co-op
+slot's copy, which `tools/save_guard.py slot` makes with the game closed and after a safety backup, and the co-op save
+copies above. Nothing is copied back from either.
 
 ## Where the saves are
 

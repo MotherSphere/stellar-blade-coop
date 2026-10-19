@@ -796,21 +796,26 @@ player=menu
 ok,message=ghost.where()
 assert(ok==false and message=='no EVE in the world',message)
 
--- A save is loaded once EVE stands on a map other than the title screen's: held invites wait for it.
+-- A save is loaded once EVE stands on a map other than the title screen's: held invites wait for it. The second value
+-- says the title screen is shown: any pawn on its map, never without one (a loading screen) nor on another map.
+local function both() local w,t=ghost.world(); return tostring(w)..' '..tostring(t) end
 player=object('MenuPawn',{IsA=function() return false end,
     GetWorld=function() return {GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end} end})
-assert(ghost.world()==false,'Not EVE, even on a world map')
+assert(both()=='false false','Not EVE, even on a world map')
+player=object('MenuPawn',{IsA=function() return false end,
+    GetWorld=function() return {GetFullName=function() return 'World /Game/Lobby/Lobby.Lobby' end} end})
+assert(both()=='false true','Another pawn on the title map: the title')
 player=eve_of('EVE8',{GetFullName=function() return 'World /Game/Lobby/Lobby.Lobby' end})
-assert(ghost.world()==false,'EVE on the title map')
+assert(both()=='false true','EVE on the title map')
 player=eve_of('EVE9',{GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/B07.B07' end})
-assert(ghost.world()==true,'EVE on Spire IV')
+assert(both()=='true false','EVE on Spire IV')
 -- The same read keeps where we are for the partner HUD (her distance, whether she is on our map).
 assert(ghost.me().map=='/game/art/bg/worldmap/level_p/b07' and ghost.me().at.X==1 and ghost.me().at.Z==3)
 player=nil
-assert(ghost.world()==false,'No pawn at all')
+assert(both()=='false false','No pawn at all')
 assert(ghost.me()==nil,'Nowhere')
 player=eve_of('EVE10',{GetFullName=function() error('world gone') end})
-assert(ghost.world()==false,'An engine error is no world, never raised')
+assert(both()=='false false','An engine error is neither a world nor the title, never raised')
 
 -- Cloth (look.cloth, read at each build): a follower whose mesh has clothing assets, her ponytail, is a
 -- SkeletalMeshComponent that follows its Poseable leader, with no collision, simulated in its own space, never bound to

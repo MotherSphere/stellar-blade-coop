@@ -2,9 +2,10 @@
 // write goes through, the manifest's grammar, every row of the copy policy, then whole passes as the worker runs them:
 // the backup once and before any copy, copies checked and read back, untouched copies following the player's saves,
 // played copies never replaced, a missing or bad manifest keeping everything, a torn read retried once, a failed write,
-// rename or read-back leaving no half copy, a pass stopped half way, and the requests' refusals, the switch at the
-// end of a pass and its release, against a fake game. The player's own saves are compared byte for byte, with their
-// write times, after every pass.
+// rename or read-back leaving no half copy, a pass stopped half way keeping its copies untouched, and the requests'
+// refusals (off the title included, before and during a pass), the switch at the end of a pass, its withdrawal and its
+// release, against a fake game. The player's own saves are compared byte for byte, with their write times, after every
+// pass.
 #include "save_twins.h"
 
 #include <cassert>
@@ -39,13 +40,14 @@ void spill(const fs::path &p, const std::string &bytes) { std::ofstream(p, std::
 
 // The file functions save_twins.h asks for, on a temporary account folder and a backups folder beside it. Every write,
 // rename and remove in the account folder is logged in order, and must pass the name check; a name can be set to
-// fail its write or its rename, or to have its bytes changed as they are written; on_read runs before each read.
+// fail its write or its rename, or to have its bytes changed as they are written; on_read runs before each read and
+// on_write before each write in the account folder.
 struct HostFs {
   fs::path dir, backups, current;
   std::vector<std::string> ops; // "write <name>", "rename <from> <to>", "remove <name>", "backup <name>".
   std::string fail_write, fail_rename, garble;
   bool fail_backup = false;
-  std::function<void(const std::string &)> on_read;
+  std::function<void(const std::string &)> on_read, on_write;
   std::map<std::string, int> reads;
 
   Stat stat(const std::string &name) {
@@ -64,6 +66,8 @@ struct HostFs {
   bool write(const std::string &name, const std::string &bytes) {
     assert(writable(name));
     ops.push_back("write " + name);
+    if (on_write)
+      on_write(name);
     if (name == fail_write)
       return false;
     std::string b = bytes;
@@ -122,14 +126,16 @@ struct HostFs {
   }
 };
 
-// The game as the switch sees it: the name as last read back, a save loaded or not, the load mode, and the swap.
+// The game as the switch sees it: the name as last read back, a save loaded or not, the title screen shown or not
+// (Lua's world=title), the load mode, and the swap.
 struct Game {
   Saves name = Saves::main;
-  bool loaded = false, swap_fails = false;
+  bool loaded = false, at_title = true, swap_fails = false;
   int mode = 0, swaps = 0;
   Saves saves() const { return name; }
   std::string why() const { return name == Saves::off ? "no GameSaveFileName entry" : ""; }
   bool world() const { return loaded; }
+  bool title() const { return at_title; }
   int load_mode() const { return mode; }
   std::string swap(bool coop) {
     ++swaps;
@@ -376,14 +382,17 @@ int main() {
   assert(!c.ready() && !fs::exists(f.dir / twin_name(3)) && !fs::exists(f.dir / (twin_name(3) + ".coop-tmp")));
   assert(c.status() == "error:slot 3's copy could not be written");
   f.fail_write.clear();
-  // A failed rename on a refresh: the copy keeps its old bytes (still a copy, so the pass is ready), no temporary file.
+  // A failed rename on a refresh (a full disk, a locked file): the copy keeps its old bytes and its line, so the next
+  // pass refreshes it, and no temporary file; the pass is not ready, since that copy is older than the player's save.
   run(c, f);
   spill(f.dir / "StellarBladeSave03.sav", save("three, later"));
   const std::string old_three = slurp(f.dir / twin_name(3));
   f.fail_rename = twin_name(3);
   said = run(c, f);
-  assert(c.ready() && slurp(f.dir / twin_name(3)) == old_three && !fs::exists(f.dir / (twin_name(3) + ".coop-tmp")));
+  assert(!c.ready() && slurp(f.dir / twin_name(3)) == old_three && !fs::exists(f.dir / (twin_name(3) + ".coop-tmp")));
   assert(logged(said, "slot 3's copy could not replace " + twin_name(3)));
+  assert(c.status() == "error:slot 3's copy could not replace " + twin_name(3));
+  assert(plan(f).act[3] == Act::refresh);
   f.fail_rename.clear();
   // A copy that reads back different is removed: never a copy the game would refuse (it would start a new game there).
   f.garble = twin_name(3) + ".coop-tmp";
@@ -427,14 +436,45 @@ int main() {
     assert(g.ops[i].rfind("remove ", 0) == 0);
   for (const auto &entry : fs::directory_iterator(g.dir))
     assert(entry.path().extension() != ".coop-tmp");
-  // No save of the player's at all (a fresh game, or a folder that is not the game's): nothing to pair, so not ready.
+  // The refresh made before the stop has its line: the copy is untouched, not played, and follows save 01 again.
+  assert(plan(g).act[1] == Act::none && plan(g).act[2] == Act::copy);
+  said = run(d, g);
+  assert(d.ready() && logged(said, "co-op saves ready: 1 copied") && slurp(g.dir / twin_name(2)) == save("two"));
+  spill(g.dir / "StellarBladeSave01.sav", save("one, latest"));
+  said = run(d, g);
+  assert(d.ready() && logged(said, "slot 1 refreshed") && slurp(g.dir / twin_name(1)) == save("one, latest"));
+  // A first conversion stopped after its backup and one copy: that copy has its line, and the backup is not made again.
+  HostFs h;
+  h.dir = root / "SaveGames" / "76561198000000003";
+  h.backups = root / "StellarCoopBackups4";
+  fs::create_directories(h.dir);
+  spill(h.dir / "StellarBladeSave00.sav", save("zero"));
+  spill(h.dir / "StellarBladeSave01.sav", save("one"));
+  Convert k;
+  k.start(h);
+  while (!fs::exists(h.dir / twin_name(0)))
+    k.step(h);
+  k.stop(h, "a load");
+  assert(backups(h) == 1 && plan(h).manifest_ok && plan(h).act[0] == Act::none && plan(h).act[1] == Act::copy);
+  said = run(k, h);
+  assert(k.ready() && backups(h) == 1 && logged(said, "co-op saves ready: 1 copied"));
+  spill(h.dir / "StellarBladeSave00.sav", save("zero, later"));
+  run(k, h);
+  assert(k.ready() && slurp(h.dir / twin_name(0)) == save("zero, later"));
+  // No save of the player's at all (a fresh game, or a folder that is not the game's): nothing to pair, so not ready,
+  // and nothing written, not even the manifest, so the backup still comes first once there are saves.
   HostFs empty;
   empty.dir = root / "SaveGames" / "76561198000000002";
   empty.backups = root / "StellarCoopBackups3";
   fs::create_directories(empty.dir);
+  spill(empty.dir / "StellarBladeSetting.sav", "settings");
   Convert e;
   run(e, empty);
   assert(!e.ready() && e.status() == "error:no save of yours in this account's folder");
+  assert(empty.ops.empty() && !fs::exists(empty.dir / "StellarCoopSaves.txt") && backups(empty) == 0);
+  spill(empty.dir / "StellarBladeSave02.sav", save("two"));
+  said = run(e, empty);
+  assert(e.ready() && backups(empty) == 1 && logged(said, "a backup of 2 files first"));
 
   // The requests and the switch (AUTO-COOP-SAVE §4.3, §4.5), on the first folder, against a fake game.
   Switch sw;
@@ -444,8 +484,13 @@ int main() {
   game.loaded = true;
   assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves refused: a save is loaded: quit to the title first");
   game.loaded = false;
+  game.at_title = false;
+  assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves refused: the title screen is not shown");
+  assert(sw.ask(SavesAsk::main, &f, game) == "co-op saves are already off: the game uses your own saves");
+  game.at_title = true;
   game.mode = 2;
-  assert(sw.ask(SavesAsk::convert, &f, game) == "co-op saves refused: the game started a load (load mode 2)");
+  assert(sw.ask(SavesAsk::convert, &f, game) ==
+         "co-op saves refused: Continue or Load Game was chosen at the title (load mode 2)");
   game.mode = coop::slot::kUnread;
   assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves refused: the game's load state is unreadable");
   game.mode = 0;
@@ -468,12 +513,25 @@ int main() {
   assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves: a conversion is under way; the switch follows it");
   said = passes(sw, f, game);
   assert(game.name == Saves::coop && game.swaps == 1 && logged(said, "co-op saves on: the game now uses"));
+  // Back, then saves coop withdrawn by saves main while its pass runs (the popup's Esc): the copies go on, no switch.
+  assert(sw.ask(SavesAsk::main, &f, game) == "co-op saves off: the game uses your own saves again");
+  spill(f.dir / "StellarBladeSave01.sav", save("one, later"));
+  assert(sw.ask(SavesAsk::coop, &f, game).rfind("co-op saves: converting", 0) == 0);
+  assert(sw.ask(SavesAsk::main, &f, game) ==
+         "co-op saves stay off: the switch asked for after this conversion is cancelled");
+  said = passes(sw, f, game);
+  assert(game.name == Saves::main && game.swaps == 2 && sw.status() == "convert=done");
+  assert(!logged(said, "co-op saves on") && slurp(f.dir / twin_name(1)) == save("one, later"));
+  assert(sw.ask(SavesAsk::main, &f, game) == "co-op saves are already off: the game uses your own saves");
+  sw.ask(SavesAsk::coop, &f, game);
+  passes(sw, f, game);
+  assert(game.name == Saves::coop && game.swaps == 3);
   assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves are already on");
   assert(sw.ask(SavesAsk::convert, &f, game) ==
          "co-op saves refused: copies are made only while the game uses your own saves");
   // The release, at the title, while no co-op save was loaded: back to the player's own saves.
   assert(sw.ask(SavesAsk::main, &f, game) == "co-op saves off: the game uses your own saves again");
-  assert(game.name == Saves::main && game.swaps == 2);
+  assert(game.name == Saves::main && game.swaps == 4);
   // Once a co-op save was loaded, the title's list holds the co-op copies (no rescan): no switch back until the game
   // restarts. coop off never switches back either.
   sw.ask(SavesAsk::coop, &f, game);
@@ -486,7 +544,7 @@ int main() {
   assert(sw.ask(SavesAsk::main, &f, game) ==
          "co-op saves refused: co-op saves were played this launch: restart the game to play your own saves");
   passes(sw, f, game, true);
-  assert(game.name == Saves::coop && game.swaps == 3);
+  assert(game.name == Saves::coop && game.swaps == 5);
   // A pass that cannot end ready never switches; a load or coop off during a pass stops it, and nothing switches.
   Switch sw2;
   Game game2;
@@ -502,15 +560,60 @@ int main() {
   said = passes(sw2, f, game2);
   assert(game2.swaps == 0 && logged(said, "conversion stopped: a save is loaded: quit to the title first"));
   game2.loaded = false;
+  // Continue or Load Game chosen, or the title left (New Game), once the pass was asked: it stops before any job, so
+  // the missing copy is not made, and nothing switches.
+  auto leave = [&game2](int how) {
+    if (how)
+      game2.at_title = false;
+    else
+      game2.mode = 2;
+  };
+  const char *left[] = {"Continue or Load Game was chosen at the title (load mode 2)", "the title screen is not shown"};
+  for (int how = 0; how < 2; ++how) {
+    fs::remove(f.dir / twin_name(3));
+    assert(sw2.ask(SavesAsk::coop, &f, game2).rfind("co-op saves: converting", 0) == 0);
+    leave(how);
+    said = passes(sw2, f, game2);
+    assert(game2.swaps == 0 && game2.name == Saves::main && !fs::exists(f.dir / twin_name(3)));
+    assert(logged(said, std::string("conversion stopped: ") + left[how]));
+    game2.mode = 0;
+    game2.at_title = true;
+  }
+  // The same between the pass's last job and the switch: the manifest is written, the name is not switched.
+  run(c, f);
+  for (int how = 0; how < 2; ++how) {
+    f.on_write = [&leave, how](const std::string &name) {
+      if (name == "StellarCoopSaves.txt.coop-tmp")
+        leave(how);
+    };
+    sw2.ask(SavesAsk::coop, &f, game2);
+    said = passes(sw2, f, game2);
+    f.on_write = nullptr;
+    assert(game2.swaps == 0 && game2.name == Saves::main && sw2.status() == "convert=done");
+    assert(logged(said, std::string("co-op saves refused: ") + left[how]));
+    game2.mode = 0;
+    game2.at_title = true;
+  }
   sw2.ask(SavesAsk::coop, &f, game2);
   said = passes(sw2, f, game2, true);
   assert(game2.swaps == 0 && logged(said, "conversion stopped: coop off") && sw2.status() == "convert=error:coop off");
+  // A pass that stops at its start (no save of the player's) leaves no switch pending: saves main has none to cancel.
+  HostFs bare;
+  bare.dir = root / "SaveGames" / "76561198000000004";
+  bare.backups = root / "StellarCoopBackups5";
+  fs::create_directories(bare.dir);
+  Switch sw3;
+  Game game3;
+  assert(sw3.ask(SavesAsk::coop, &bare, game3) ==
+         "co-op saves: conversion stopped: no save of yours in this account's folder");
+  assert(sw3.ask(SavesAsk::main, &bare, game3) == "co-op saves are already off: the game uses your own saves");
+  assert(bare.ops.empty() && game3.swaps == 0);
   // A switch the game refuses (the name moved meanwhile) is said, and the name is left as it reads.
   game2.swap_fails = true;
   sw2.ask(SavesAsk::coop, &f, game2);
   said = passes(sw2, f, game2);
   assert(game2.swaps == 1 && game2.name == Saves::main &&
-         logged(said, "co-op saves refused: the save name could not be written"));
+         logged(said, "co-op saves switch failed: the save name could not be written"));
   // The probe's dry run: the plan for each slot, nothing written.
   fs::remove(f.dir / twin_name(3));
   f.ops.clear();

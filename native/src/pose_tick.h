@@ -52,7 +52,8 @@ bool local_vitals(coop::Vitals &out, uint64_t &took_us);
 // build or after coop off, which read nothing.
 int loaded_slot();
 // Worker thread, every 250 ms with loaded_slot: which save files the game uses, from the GameSaveFileName entry read
-// back (save_slot.h's Names), or slot::Saves::off on another build or after coop off, which read nothing.
+// back (save_slot.h's Names), or slot::Saves::off on another build, which reads nothing. After coop off: the last value
+// read, with no new read, since the game keeps the name until it exits.
 slot::Saves saves();
 // Worker thread: the read-only probe's line for the log (save_slot.h's probe), or why it read nothing.
 std::string saves_probe();

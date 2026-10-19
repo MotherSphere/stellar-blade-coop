@@ -547,7 +547,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#the-co-op-save-slot)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
-  game build, or after `coop off`), and `?` before the first read.
+  game build, or a check failed), and `?` before the first read. After `coop off` it keeps the last value read, since
+  the game keeps that file name until it exits.
 - Co-op save copies: `convert=<idle|busy <done>/<jobs>|done|error:<why>>`, the last copy pass (`idle` before any).
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
@@ -584,7 +585,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
-| `coop-state.txt` | Lua | Whether a save is loaded, the send rate, your photo mode and the photo settings |
+| `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |

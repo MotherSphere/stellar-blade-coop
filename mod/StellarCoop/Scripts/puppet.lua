@@ -616,18 +616,22 @@ function Puppet.new(link,capture,say,name_tag,look)
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
     -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
-    -- The same read keeps where she stands and her map for the partner HUD (me()).
+    -- Second: whether the title screen is shown, a pawn of any class on its map (never during a loading screen, which
+    -- has no pawn); the native part changes the co-op saves only then. The same read keeps where she stands and her
+    -- map for the partner HUD (me()).
     local me=nil
+    local TITLE='/game/lobby/lobby'
     function self.world()
         me=nil
-        local ok,loaded=pcall(function()
-            local eve=her(valid(UE.GetPlayer()))
-            if not eve then return false end
+        local ok,loaded,title=pcall(function()
+            local pawn=valid(UE.GetPlayer())
+            local eve=her(pawn)
+            if not eve then return false,pawn~=nil and U.map_of(pawn)==TITLE end
             local map,at=U.map_of(eve),value_of(eve:K2_GetActorLocation())
             me={at={X=at.X,Y=at.Y,Z=at.Z},map=map}
-            return map~='/game/lobby/lobby'
+            return map~=TITLE,map==TITLE
         end)
-        return ok and loaded
+        return ok and loaded,ok and title
     end
     -- Our EVE as of the last world(): {at={X,Y,Z}, map=}, or nil.
     function self.me() return me end

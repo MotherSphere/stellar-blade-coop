@@ -331,6 +331,10 @@ assert(link.state(false,25,'s','both',600)=='world=0 rate=25 photo=s sync=both m
 assert(link.state(true,30,'1','notice',3600)=='world=1 rate=30 photo=1 sync=notice max=3600' and state_writes==4)
 assert(#files[STATE_FILE]<=64 and link.state(true,30,'1','notice',3600)==nil and state_writes==4)
 assert(link.state(true,30,'1','off',0)=='world=1 rate=30 photo=1 sync=off max=0' and state_writes==5)
+-- The title screen, when no save is loaded: world=title, the longest line still within the 64 bytes.
+assert(link.state(false,30,'0','notice',3600,true)=='world=title rate=30 photo=0 sync=notice max=3600'
+    and state_writes==6 and #files[STATE_FILE]<=64)
+assert(link.state(true,30,'0','notice',3600,true)=='world=1 rate=30 photo=0 sync=notice max=3600','A save wins')
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.

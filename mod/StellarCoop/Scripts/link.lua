@@ -203,12 +203,14 @@ function Link.new(folder,fs)
         return true,'asked the native part: '..line
     end
     function self.session(token) return put('coop-session.txt',token..'\n') end
-    -- coop-state.txt: whether a save is loaded (held invites wait for one), the poses sent a second, and the synced
+    -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
+    -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'), photo_sync and photo_freeze_max. Written when its text changes, and
     -- remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate,photo_now,sync,max)
-        local line=string.format('world=%d rate=%d photo=%s sync=%s max=%d',world and 1 or 0,rate,photo_now,sync,max)
+    function self.state(world,rate,photo_now,sync,max,title)
+        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d',world and '1' or title and 'title' or '0',
+            rate,photo_now,sync,max)
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line

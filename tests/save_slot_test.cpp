@@ -351,11 +351,24 @@ int main() {
   assert(sw.saves() == Saves::unread && sw.swap(kBase, image, cas, true) == "the save name reads ?: the save name "
                                                                             "could not be written");
   assert(cas_calls == 3 && m.find().saves == Saves::main);
-  // A swap that does not read back: latched.
+  // A swap that does not read back: latched, and said as written, since the game may use the other files from then on.
   Names quiet;
   cas_writes = false;
-  assert(quiet.swap(kBase, image, cas, true) == "the save name did not read back" && quiet.latched());
+  assert(quiet.swap(kBase, image, cas, true) ==
+             "the save name was written but did not read back: restart the game before you play" &&
+         quiet.latched() && quiet.saves() == Saves::unread);
   cas_writes = true;
+  // The same when the read after the swap finds the entry gone: no further switch either.
+  Names gone_after;
+  auto vanish = [&m, &cas](uint64_t at, uint64_t expected, uint64_t desired) {
+    const bool swapped = cas(at, expected, desired);
+    m.put(kNamesAt, uint64_t(0x10));
+    return swapped;
+  };
+  assert(gone_after.swap(kBase, image, vanish, true) ==
+             "the save name was written but did not read back: restart the game before you play" &&
+         gone_after.latched());
+  m = names();
   // The entry moved since it was found: latched before any write.
   Names moved_state;
   assert(moved_state.update(m.find()) == Saves::main);
@@ -364,12 +377,16 @@ int main() {
   const int calls = cas_calls;
   assert(moved_state.swap(kBase, image, cas, true) == "the save name reads ?: the save name moved");
   assert(cas_calls == calls && moved_state.latched());
-  // Off the title: a save loaded, a load started, or the load state unreadable.
-  assert(not_title(false, 0).empty());
-  assert(not_title(true, 0) == "a save is loaded: quit to the title first");
-  assert(not_title(false, 2) == "the game started a load (load mode 2)");
-  assert(not_title(false, kUnread) == "the game's load state is unreadable");
-  assert(not_title(true, kUnread) == "a save is loaded: quit to the title first");
+  // Off the title: a save loaded, the title screen not shown (a loading screen, a New Game intro, an older Lua or
+  // none), Continue or Load Game chosen there, or the load state unreadable. Only Lua's title with load mode 0 passes.
+  assert(not_title(false, true, 0).empty());
+  assert(not_title(true, false, 0) == "a save is loaded: quit to the title first");
+  assert(not_title(true, true, 0) == "a save is loaded: quit to the title first");
+  assert(not_title(false, false, 0) == "the title screen is not shown");
+  assert(not_title(false, false, kUnread) == "the title screen is not shown");
+  assert(not_title(false, true, 2) == "Continue or Load Game was chosen at the title (load mode 2)");
+  assert(not_title(false, true, kUnread) == "the game's load state is unreadable");
+  assert(not_title(true, true, kUnread) == "a save is loaded: quit to the title first");
 
   // The read-only probe (T-AS0 step 1): the client's slot cache count, the pending load's slot and mode and the entered
   // slot, then the entry, the verdict and the builder's cached key. It reads; it never writes.

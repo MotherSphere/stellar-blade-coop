@@ -308,8 +308,15 @@ public:
     }
     return {};
   }
+  // Written beside as .coop-tmp, then renamed: a full disk or a killed game never leaves a cut .sav in the backup.
   bool backup_write(const std::string &name, const std::string &bytes) {
-    return !current_.empty() && write_at(current_ + wide(name), bytes);
+    if (current_.empty())
+      return false;
+    const std::wstring path = current_ + wide(name), temp = path + L".coop-tmp";
+    if (write_at(temp, bytes) && MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_WRITE_THROUGH))
+      return true;
+    DeleteFileW(temp.c_str());
+    return false;
   }
   bool backup_read(const std::string &name, std::string &out, size_t max) {
     return !current_.empty() && read_at(current_ + wide(name), out, max);
@@ -379,6 +386,7 @@ struct GameView {
   coop::slot::Saves saves() { return saves_state; }
   std::string why() { return coop::pose::saves_why(); }
   bool world() { return coop::pose::world_loaded(); }
+  bool title() { return coop::pose::lua_state().title; }
   int load_mode() { return coop::pose::load_mode(); }
   std::string swap(bool coop) {
     std::string why = coop::pose::saves_switch(coop);

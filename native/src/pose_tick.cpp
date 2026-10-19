@@ -1320,7 +1320,8 @@ std::string ask_nightop(bool rule, uint64_t now_ms) {
 int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::kUnread; }
 namespace {
 slot::Names names; // The save name as the worker last read it back.
-slot::Saves saves_now() { return pinned && !blocked ? names.saves() : slot::Saves::off; }
+// After coop off nothing is read again, but the name stays as it was until the game exits: the last value read.
+slot::Saves saves_now() { return pinned ? names.saves() : slot::Saves::off; }
 // The name's compare-and-swap. clang-cl catches a fault only in a function the __try calls, so the write stays out of
 // line; a fault (the entry freed since its read) is a failed swap, which latches the switch off.
 __declspec(noinline) bool cas_body(uint64_t at, uint64_t expected, uint64_t desired) {

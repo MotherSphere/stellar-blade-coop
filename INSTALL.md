@@ -117,8 +117,9 @@ or Ctrl+R) and builds the ghost again; `coop-settings.txt` does not change. `coo
 
 ## Saves and Steam Cloud
 
-The mod never reads or writes a save. It reads only `StellarCoopSlot.txt`, a text file beside the saves (see "Co-op
-save slot" below). Back up the saves anyway before you play with any mod:
+The mod never writes your own saves. Beside them it reads `StellarCoopSlot.txt`, a text file (see "Co-op save slot"
+below), and it reads the saves themselves only to make separate co-op copies (see
+[docs/saves.md](docs/saves.md#what-the-mod-reads-and-writes)). Back up the saves anyway before you play with any mod:
 
 1. Close the game.
 2. Copy the save folder to a place outside the game and Steam folders.

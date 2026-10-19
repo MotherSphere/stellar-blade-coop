@@ -165,7 +165,8 @@ public:
   }
   // The switch: the name read again, one compare-and-swap of its last four characters (cas(address, expected,
   // desired) is true only when it swapped; on the worker, under SEH), then the name read back. Empty once the name
-  // reads the asked one; else why not. A failed swap or read-back latches: no switch again this run.
+  // reads the asked one; else why not. A failed swap or read-back latches: no switch again this run. A read-back that
+  // fails after the swap says the name was written, since the game may use the other files from then on.
   template <class Read, class Cas> std::string swap(uint64_t base, Read &&read, Cas &&cas, bool coop) {
     const Saves from = coop ? Saves::main : Saves::coop, to = coop ? Saves::coop : Saves::main;
     if (update(find(base, read)) != from)
@@ -174,9 +175,11 @@ public:
       latch("the save name could not be written");
       return why_;
     }
-    if (update(find(base, read)) != to && !latched_)
-      latch("the save name did not read back");
-    return latched_ ? why_ : std::string();
+    if (update(find(base, read)) != to) {
+      latch("the save name was written but did not read back: restart the game before you play");
+      return why_;
+    }
+    return {};
   }
   Saves saves() const { return saves_; }
   bool latched() const { return latched_; }
@@ -195,16 +198,20 @@ private:
   std::string why_ = "not read yet";
 };
 
-// Why the save files may not change now (the copies or the name), or empty: only at the title, with no save loaded
-// (Lua's world flag) and no load started there (client +0x86c is 0; 0 at boot [L], and whether the game resets it at
-// the title is for the probe to show), so a world never saves into the other files (AUTO-COOP-SAVE §4.3).
-inline std::string not_title(bool world, int load_mode) {
+// Why the save files may not change now (the copies or the name), or empty: only at the title, which Lua says
+// (coop-state.txt's world=title: a pawn on the title screen's map, so never during a loading screen, a New Game intro
+// or with no Lua), with no save loaded (world=1) and no load asked there (client +0x86c is 0; 0 at boot [L], set by
+// Continue and Load Game, and whether the game resets it at the title is for the probe to show), so a world never
+// saves into the other files (AUTO-COOP-SAVE §4.3).
+inline std::string not_title(bool world, bool title, int load_mode) {
   if (world)
     return "a save is loaded: quit to the title first";
+  if (!title)
+    return "the title screen is not shown";
   if (load_mode == kUnread)
     return "the game's load state is unreadable";
   if (load_mode)
-    return "the game started a load (load mode " + std::to_string(load_mode) + ")";
+    return "Continue or Load Game was chosen at the title (load mode " + std::to_string(load_mode) + ")";
   return {};
 }
 
