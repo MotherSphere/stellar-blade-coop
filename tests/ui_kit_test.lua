@@ -83,6 +83,12 @@ special['TextBlock.SetFont']=function(s,_,info)
     s.font.FontObject,s.font.Size=info.FontObject,info.Size
 end
 special['Image.SetBrushFromTexture']=function(s,_,texture,match) assert(match==true); s.brush.ResourceObject=texture end
+-- As this engine's UE4SS: PlaySound2D takes all 8 parameters (WorldContextObject, Sound, VolumeMultiplier,
+-- PitchMultiplier, StartTime, ConcurrencySettings, OwningActor, bIsUISound), nil ones included.
+special['GameplayStatics.PlaySound2D']=function(_,_,...)
+    local n=select('#',...)
+    if n~=8 then error('UFunction expected 8 parameters, received '..n,0) end
+end
 StaticFindObject=function(path) call('find '..path); return registry[path] or invalid end
 LoadAsset=function(path) call('load '..path); if loadable[path] then registry[path]=loadable[path] end end
 StaticConstructObject=function(class,outer)
@@ -132,7 +138,10 @@ local function reset()
             'EditableTextBox'}) do
         registry['/Script/UMG.'..c]=object(c)
     end
-    for _,a in ipairs(Ui.ASSETS) do registry[a[2]]=object(a[1]) end
+    for _,a in ipairs(Ui.ASSETS) do
+        registry[a[2]]=object(a[1])
+        if a.alt then registry[a.alt]=object(a[1]..'_alt') end
+    end
 end
 local store={save=function(path) saved=path end,load=function() return saved end,clear=function() saved=nil end}
 local function count(prefix)
@@ -189,6 +198,12 @@ assert(PATHS.Bold=='/Game/Art/Font/Bold.Bold' and PATHS.FZSHANGYTJW=='/Game/Art/
     ..'FZSHANGYTJW_Font' and PATHS.dot=='/Game/Art/UI/Texture/HUD/Gauge/Hp_Dot1_5x.Hp_Dot1_5x')
 assert(PATHS.key_move_azerty=='/Game/Art/UI/Texture/Interaction/PC_ActionAssist/KeyIcon_KeyBoard_MoveAll_AZERTY.'
     ..'KeyIcon_KeyBoard_MoveAll_AZERTY' and PATHS.open=='/Game/Sound/UI/MainMenu/Ui_MoveIn_Cue.Ui_MoveIn_Cue')
+-- A path is found only in the case of the game's own package name ('WorkShop', as its widgets name it; a pak listing
+-- shows 'Workshop'): the chevron, with the HUD's triangle (it points up too) when that one is missing.
+local ALT={}
+for _,a in ipairs(Ui.ASSETS) do ALT[a[1]]=a.alt end
+assert(PATHS.chevron=='/Game/Art/UI/Texture/WorkShop/TriPatternUp.TriPatternUp'
+    and ALT.chevron=='/Game/Art/UI/Texture/HUD/triangle.triangle',PATHS.chevron)
 -- Colours as the engine takes them: linear, from the hex Slate shows (#ADD1C4).
 assert(math.abs(T.teal.R-0.418)<0.001 and math.abs(T.teal.G-0.637)<0.001 and T.teal.A==1 and T.panel.A==0.78)
 
@@ -424,12 +439,16 @@ stores[pc].props.PlayerCameraManager=nil
 assert(k.project(anchor,clock+3)==nil,'No camera')
 stores[pc].props.PlayerCameraManager=cam
 
--- The game's sounds: PlaySound2D with our root as the world, volume, pitch 1, from the start; the chat line quieter;
--- off by the setting; a raise turns the sounds off only.
+-- The game's sounds: PlaySound2D with all its 8 parameters (the fake refuses fewer, as the game's UE4SS does): our
+-- root as the world, volume, pitch 1, from the start, no concurrency or owner, a UI sound; the chat line quieter; off
+-- by the setting; a raise turns the sounds off only.
 local statics=registry['/Script/Engine.Default__GameplayStatics']
+n=#logs
 k.sound('open')
 local played=stores[statics].last.PlaySound2D
-assert(played[1]==root and played[2]==asset('open') and played[3]==1 and played[4]==1 and played[5]==0 and #played==5)
+assert(#logs==n,logs[#logs])
+assert(played[1]==root and played[2]==asset('open') and played[3]==1 and played[4]==1 and played[5]==0
+    and played[6]==nil and played[7]==nil and played[8]==true)
 k.sound('chat'); assert(stores[statics].last.PlaySound2D[3]==0.5)
 n=#calls; k.sound('link'); assert(#calls==n,'A texture is no sound')
 k.sounds(false); n=#calls; k.sound('move'); assert(#calls==n)
@@ -669,6 +688,21 @@ for _,o in ipairs(of('Image')) do
     if size(o)=='30x30' and vis(o)==3 then lit=lit+1; assert(stores[o].brush.ResourceObject,'No textureless cube') end
 end
 assert(lit==8+4*3,'8 bases, and 3 quarters on each of the 4 full cubes')
+
+-- The chevron missing: the HUD's triangle instead, no look note; neither: none (no white square).
+reset()
+registry[PATHS.chevron]=nil
+k=kit()
+up(k)
+local alt=registry[ALT.chevron]
+local found=0
+for _,o in ipairs(of('Image')) do if stores[o].brush.ResourceObject==alt then found=found+1 end end
+assert(found==1 and not logs[#logs]:find('chevron'),logs[#logs])
+reset()
+registry[PATHS.chevron],registry[ALT.chevron]=nil,nil
+k=kit()
+up(k)
+assert(logs[#logs]:find('chevron missing'),logs[#logs])
 
 -- Hidden from the start (the title screen): nothing looked up or built, however long.
 reset()

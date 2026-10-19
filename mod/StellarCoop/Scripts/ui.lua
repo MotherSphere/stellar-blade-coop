@@ -299,20 +299,23 @@ local THEME=Ui.THEME
 local function path(p) return p..'.'..p:match('[^/]+$') end
 local TEX,GAUGE='/Game/Art/UI/Texture/','/Game/Art/UI/Texture/HUD/Gauge/'
 local KEY,SOUND=TEX..'Interaction/PC_ActionAssist/KeyIcon_KeyBoard_','/Game/Sound/UI/'
--- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them.
+-- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them. A path
+-- is found only in the case of the game's own package name, which its widgets' references give (the chevron's
+-- 'WorkShop'; a pak listing says 'Workshop'); alt: the one tried when it is missing.
 Ui.ASSETS={{'Bold',GAME_FONT},{'Mideum',path('/Game/Art/Font/Mideum')},{'AGENCYB',path('/Game/Art/Font/AGENCYB')},
     {'FZSHANGYTJW',path('/Game/Art/Font/English/FZSHANGYTJW_Font')},{'Roboto',ENGINE_FONT},{'dot',DOTS},
     {'dot_bg',path(GAUGE..'Hp_Dot1_5x_bg')},{'small',path(GAUGE..'Hp_Dot_12')},{'small_bg',path(GAUGE..'Hp_Dot_12bg')}}
 for i=0,4 do table.insert(Ui.ASSETS,{'cube'..i,path(GAUGE..'Beta_cube_0'..i)}) end
 for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common/selectdot'},
-        {'chevron',TEX..'Workshop/TriPatternUp'},{'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
+        {'chevron',TEX..'WorkShop/TriPatternUp',alt=TEX..'HUD/triangle'},
+        {'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
         {'key_enter',KEY..'Enter'},{'key_escape',KEY..'Escape'},{'key_space',KEY..'SpaceBar'},{'key_up',KEY..'Up'},
         {'key_arrows',KEY..'DirectionAll'},{'key_move',KEY..'MoveAll'},{'key_move_azerty',KEY..'MoveAll_AZERTY'},
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
         {'move',SOUND..'UI_Common_Hover_Cue',1},{'select',SOUND..'ui_button_Confirm_Cue',1},
         {'back',SOUND..'ui_button_cancel',1},{'change',SOUND..'MainMenu/UI_Setting_Select_Cue',1},
         {'chat',SOUND..'ui_notice_Cue',0.5},{'alert',SOUND..'ui_SystemNotice_Cue',1}}) do
-    table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3]})
+    table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3],alt=a.alt and path(a.alt)})
 end
 local VOLUME={}
 for _,a in ipairs(Ui.ASSETS) do VOLUME[a[1]]=a.volume end
@@ -723,7 +726,7 @@ function Ui.kit(opts)
         if classes() then return true end
         for _,a in ipairs(Ui.ASSETS) do
             if cache[a[1]]==nil and not (look and a.volume) then
-                local x=load(a[2])
+                local x=load(a[2]) or a.alt and load(a.alt)
                 cache[a[1]]=x and {o=x,full=U.text(x:GetFullName())} or false
                 return true
             end
@@ -902,7 +905,8 @@ function Ui.kit(opts)
         for _,g in pairs(built and built.groups or {}) do upd(g,function(x) x:SetRenderScale({X=s,Y=s}) end) end
     end
     function self.sounds(on) sounding=on end -- ui_sounds.
-    -- One of the game's UI sounds (Ui.ASSETS' with a volume), as a UI sound of our root's world.
+    -- One of the game's UI sounds (Ui.ASSETS' with a volume), as a UI sound of our root's world. This engine's
+    -- PlaySound2D takes all its 8 parameters: world, sound, volume, pitch, start time, concurrency, owner, UI sound.
     function self.sound(name)
         if off or quiet or not sounding or not built then return end
         local e=VOLUME[name] and cache[name]
@@ -910,7 +914,7 @@ function Ui.kit(opts)
         local ok,why=pcall(function()
             local root,s=alive(built.root),valid(e.o)
             if not (s and U.text(s:GetFullName())==e.full) then cache[name]=nil; return end -- Freed: a later slow finds it.
-            if root then U.find(STATICS):PlaySound2D(root,s,VOLUME[name],1,0) end
+            if root then U.find(STATICS):PlaySound2D(root,s,VOLUME[name],1,0,nil,nil,true) end
         end)
         if not ok then
             quiet=true
