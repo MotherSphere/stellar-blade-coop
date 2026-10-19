@@ -48,7 +48,7 @@ function F.set(text,key,value)
     if last then
         local line=lines[last]
         local cr=line:sub(-1)=='\r' and '\r' or ''
-        lines[last]=line:gsub('\r$',''):match('^%s*[%w_]+%s*=%s*')..value..cr
+        lines[last]=line:gsub('\r',''):match('^%s*[%w_]+%s*=%s*')..value..cr -- Every CR goes, as named() drops them.
     else -- At the end, with the file's own line end; a last line that had none gets one first.
         local cr=text:find('\r\n',1,true) and '\r' or ''
         if lines[#lines]=='' then lines[#lines]=nil elseif cr~='' and lines[#lines]:sub(-1)~='\r' then
@@ -60,6 +60,14 @@ function F.set(text,key,value)
     local result=bom..table.concat(lines,'\n')
     if F.get(result,key)~=value then
         return nil,'coop-settings.txt is over '..LIMIT..' bytes: '..key..' would not be read'
+    end
+    -- A line rewritten longer or shorter moves the limit for the lines after it (the same line numbers before and after;
+    -- a line added at the end moves none): no other setting may leave or join what the mod reads.
+    local _,after,now=split(result)
+    for i=math.min(read,now)+1,last and math.max(read,now) or 0 do
+        if named(after[i]) then
+            return nil,'coop-settings.txt is over '..LIMIT..' bytes: '..key..' would change what else is read'
+        end
     end
     return result
 end

@@ -33,6 +33,9 @@ assert(F.set('host_key=F7\r\nname_tag=on','send_rate','30')=='host_key=F7\r\nnam
 assert(F.set('name_tag=on','send_rate','30')=='name_tag=on\nsend_rate=30\n')
 assert(F.set('','send_rate','30')=='send_rate=30\n')
 assert(F.set('name_tag=on','name_tag','off')=='name_tag=off','No line end added to a line that had none')
+-- A CR inside the name (a hand edit): the mod drops it, so the line names the key and is rewritten.
+assert(Link.parse_settings('host\r_key=F7\n').host_key.name=='F7')
+assert(F.set('host\r_key=F7\r\n','host_key','F9')=='host_key=F9\r\n')
 
 -- Two lines for one key: the later one is the one the mod reads, so that one is rewritten.
 local twice='send_rate=12\nsend_rate=14\n'
@@ -55,6 +58,19 @@ assert(text2==nil and why:find('over 4096 bytes',1,true),'Longer, the line would
 assert(F.set(near,'send_rate','13')==near:gsub('=12','=13'),'Same length: fine')
 local bom='\239\187\191#'..string.rep('x',4080)..'\nsend_rate=12\n' -- The BOM is not counted, as in the mod.
 assert(Link.parse_settings(bom).send_rate==12 and F.set(bom,'send_rate','13')==bom:gsub('=12','=13'))
+-- A longer or shorter value moves the limit for the lines after it: no other setting may leave or join what is read.
+local fill='#'..string.rep('x',4069)..'\n'
+local edge='host_key=F5\n'..fill..'leave_key=F9\n' -- 4096 bytes: leave_key ends on the last byte read.
+assert(Link.parse_settings(edge).leave_key.name=='F9')
+text2,why=F.set(edge,'host_key','Shift+F5')
+assert(text2==nil and why=='coop-settings.txt is over 4096 bytes: host_key would change what else is read',why)
+local past='host_key=Shift+F5\n'..fill..'leave_key=F9\n' -- leave_key ends past byte 4096: not read.
+assert(Link.parse_settings(past).leave_key.name=='F8')
+text2,why=F.set(past,'host_key','F5')
+assert(text2==nil and why:find('what else is read',1,true),'Shorter, leave_key would be read')
+assert(F.set(past,'host_key','Shift+F6')==past:gsub('F5','F6',1),'Same length: fine')
+local tail='host_key=F5\n#'..string.rep('x',4073)..'\n#tail\n' -- A comment leaving what is read changes nothing.
+assert(Link.parse_settings(assert(F.set(tail,'host_key','Shift+F5'))).host_key.name=='Shift+F5')
 
 -- Refused: a name the mod would not read, or a value that would not read back as written.
 for _,bad in ipairs({{'host key','F7'},{'','F7'},{'host_key','F7\n'},{'host_key','F7\r'},{'host_key',' F7'},
