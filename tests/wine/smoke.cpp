@@ -9,7 +9,9 @@
 // its text never in coop-link.log; that a request the worker cannot delete (here read-only) is never run, so never run
 // twice, and runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process,
 // as the Night Operation poller uses it: equal bytes from the stack, false at 0x1000, no crash on a PAGE_NOACCESS page
-// (whose result Wine may differ on, so it is only printed), and the cost of one read. Exit code 0 on success.
+// (whose result Wine may differ on, so it is only printed), and the cost of one read; and that the copy request's
+// clipboard call (clipboard.h) puts a join code there for any program to read, then gives back the text that was there
+// before. Exit code 0 on success.
 // Usage: smoke.exe <folder holding StellarCoop.dll>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -18,6 +20,8 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+
+#include "clipboard.h"
 
 namespace {
 // The first 8 KB of a file (coop-link.log in game soon passes 1 KB), or empty. The DLL replaces the status file by
@@ -44,6 +48,20 @@ bool write_request(const std::wstring &folder, const char *text, const wchar_t *
   bool ok = WriteFile(f, text, static_cast<DWORD>(std::strlen(text)), &n, nullptr);
   CloseHandle(f);
   return ok && MoveFileExW(temp.c_str(), (folder + name).c_str(), MOVEFILE_REPLACE_EXISTING);
+}
+
+// The clipboard's text as another program reads it, or empty.
+std::wstring clipboard_text() {
+  std::wstring text;
+  if (!OpenClipboard(nullptr))
+    return text;
+  if (HANDLE data = GetClipboardData(CF_UNICODETEXT))
+    if (const auto *wide = static_cast<const wchar_t *>(GlobalLock(data))) {
+      text = wide;
+      GlobalUnlock(data);
+    }
+  CloseClipboard();
+  return text;
 }
 
 bool rpm(const void *address, void *out, size_t n) {
@@ -198,21 +216,31 @@ int wmain(int argc, wchar_t **argv) {
   double us = double(stop.QuadPart - start.QuadPart) * 1e6 / double(frequency.QuadPart) / 1000;
   bool rpm_ok = stack_read && !low_read;
 
+  // The copy request's clipboard call: the code is read back as any program would; the desktop's text goes back after.
+  const std::wstring before = clipboard_text();
+  const bool clip_ok = coop::copy_text(L"CCS-CBMH") && clipboard_text() == L"CCS-CBMH";
+  if (!before.empty())
+    coop::copy_text(before);
+  else if (OpenClipboard(nullptr)) {
+    EmptyClipboard();
+    CloseClipboard();
+  }
+
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
   bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && saves && chat_ok &&
-            once && rpm_ok;
+            once && rpm_ok && clip_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "fight probe=%s | freeze=%s | saves probe=%s | chat files=%s | undeletable request=%s | rpm=%s (stack "
-              "%s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
+              "fight probe=%s | freeze=%s | saves probe=%s | chat files=%s | undeletable request=%s | clipboard=%s | "
+              "rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
               tick ? tick_text : "absent", nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL",
               freeze ? "refused" : "FAIL", saves ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL",
-              once ? "run once" : "FAIL", rpm_ok ? "ok" : "FAIL", stack_read ? "equal" : "FAIL",
-              low_read ? "FAIL" : "refused", noaccess, us);
+              once ? "run once" : "FAIL", clip_ok ? "read back" : "FAIL", rpm_ok ? "ok" : "FAIL",
+              stack_read ? "equal" : "FAIL", low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);
   return ok ? 0 : 1;
 }

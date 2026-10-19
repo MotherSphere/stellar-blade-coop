@@ -2,8 +2,9 @@
 """Wine smoke test: builds StellarCoop.dll and tests/wine/smoke.exe, then loads the DLL under Proton's wine in a scratch
 WINEPREFIX with no steam_api64.dll around. Checks that it attaches, waits for Steam, answers coop_tick when exported,
 refuses the Night Operation poller, the shared fight's probe, coop freeze and the save name's probe on an exe that is
-not the game, logs the save name's state (off) once, and logs a clean process exit; and that ReadProcessMemory
-behaves as the poller needs. Never touches the game folder or the game's prefix."""
+not the game, logs the save name's state (off) once, and logs a clean process exit; that ReadProcessMemory behaves as
+the poller needs; and that the copy request's clipboard call is read back (the desktop's text is put back after). Never
+touches the game folder or the game's prefix."""
 import argparse
 import os
 import shutil
@@ -37,7 +38,7 @@ def build_smoke():
     includes = ('crt/include', 'sdk/include/ucrt', 'sdk/include/um', 'sdk/include/shared')
     libs = ('crt/lib/x86_64', 'sdk/lib/um/x86_64', 'sdk/lib/ucrt/x86_64')
     subprocess.run(['clang-cl', '--target=x86_64-pc-windows-msvc', '/std:c++17', '/O2', '/MT', '/EHsc', '/W4', '/WX',
-                    *(f'/imsvc{XWIN / d}' for d in includes), ROOT / 'tests/wine/smoke.cpp',
+                    *(f'/imsvc{XWIN / d}' for d in includes), f'/I{ROOT / "native/src"}', ROOT / 'tests/wine/smoke.cpp',
                     f'/Fo{OUT / "smoke.obj"}', f'/Fe{OUT / "smoke.exe"}', '-fuse-ld=lld',
                     '/link', *(f'/libpath:{XWIN / d}' for d in libs)], check=True)
     return OUT / 'smoke.exe'
@@ -79,7 +80,8 @@ def main():
     checks = {
         'smoke.exe exit code 0 (load, steam=waiting, fight=off and the engine refusing smoke.exe within 3 s, no '
         'steam_api64.dll, coop_tick exported and returning 0, nightop, fight probe, freeze and saves probe refused '
-        'within 3 s each, ReadProcessMemory reading its stack and refusing 0x1000)':
+        'within 3 s each, ReadProcessMemory reading its stack and refusing 0x1000, a join code read back from the '
+        'clipboard)':
             result.returncode == 0,
         'no nightop-probe.txt in the run folder (the poller never started)':
             not (run / 'nightop-probe.txt').exists(),

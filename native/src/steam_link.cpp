@@ -7,7 +7,8 @@
 // also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), and the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
 // and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
-// makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h).
+// makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h), and
+// puts our join code on the clipboard on the copy request (clipboard.h).
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -18,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "clipboard.h"
 #include "link_core.h"
 #include "pose_tick.h"
 #include "save_slot.h"
@@ -567,6 +569,11 @@ bool step() {
         link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
+        if (const std::string code = link->take_copy(); !code.empty()) {
+          const bool copied = coop::copy_text(std::wstring(code.begin(), code.end()));
+          event(copied ? "join code copied to the clipboard" : "join code not copied: the clipboard refused it");
+          link->notice(copied ? "Join code " + code + " copied." : "Could not copy the join code " + code + ".");
+        }
         // Chat and vitals (UI-DESIGN 5): a session's end deletes both files (a fail line from before its start still
         // reaches Lua); Lua's line goes; ours are read every 250 ms; her lines (or our failures) go to Lua once it took
         // the last file.
