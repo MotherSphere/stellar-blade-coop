@@ -28,7 +28,8 @@ that file's `host_key` (F5, or Shift+F5 if you set that), and no key hosts direc
 ## Co-op menu
 
 F5 opens the co-op menu on the left of the screen, in a world only (not on the title screen, not while the game is
-paused or in your own photo mode). While it is open the game ignores its own keys, so EVE stands still:
+paused or shows the mouse cursor for one of its own screens, and not in your own photo mode). While it is open the game
+ignores its own keys, so EVE stands still:
 
 | Key | In the menu |
 | --- | --- |
@@ -473,7 +474,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
-| `coop-ui.txt` | Lua | The co-op menu's on-screen root, so the next Lua load (Ctrl+R) can remove it |
+| `coop-ui.txt` | Lua | The co-op menu's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at once |
 | `coop-chat.txt` | native | Your friend's chat lines, for a moment: Lua takes and deletes it within 250 ms |
 

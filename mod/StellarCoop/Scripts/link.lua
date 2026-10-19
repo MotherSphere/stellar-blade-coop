@@ -360,7 +360,12 @@ function Link.new(folder,fs)
             end
             backed=true
         end
-        return put('coop-settings.txt',text)
+        local ok,why=put('coop-settings.txt',text)
+        local final=path('coop-settings.txt')
+        -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place, so the next
+        -- load never falls back to the defaults (F5, F6, F8, which other mods bind).
+        if not ok and not fs.read(final) and fs.write(final,text) then return true end
+        return ok,why
     end
     function self.valid_lobby(text) return text:match('^%d+$')~=nil and text:match('^0+$')==nil end
     return self

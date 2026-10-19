@@ -543,7 +543,7 @@ assert(count('TextBlock.SetColorAndOpacity')==1,'Tried once')
 k.view('menu').row.set('Host a session','','disabled')
 assert(count('TextBlock.SetColorAndOpacity')==1 and k.ready(),'Not again, and the UI stays')
 reset()
-registry[PATHS.dot]=nil; registry[PATHS.dot_bg]=nil; registry[PATHS.key_move_azerty]=nil
+registry[PATHS.dot]=nil; registry[PATHS.dot_bg]=nil; registry[PATHS.key_move_azerty]=nil; registry[PATHS.link]=nil
 k=kit({azerty=true})
 up(k)
 local flat=0
@@ -555,6 +555,10 @@ assert(flat==1,'The HP dots as flat teal')
 local hidden_key=0
 for _,o in ipairs(of('Image')) do if size(o)=='48x48' and vis(o)==1 then hidden_key=hidden_key+1 end end
 assert(hidden_key==1,'No icon for a missing key, the label stays')
+local dots={}
+for _,o in ipairs(of('Image')) do if size(o)=='20x20' then dots[#dots+1]=o end end
+k.view('card').dot.show(true)
+assert(#dots==1 and vis(dots[1])==1,'Nor a white square for a missing image, shown or not')
 -- A sound not in this build: silent, never looked up again.
 reset()
 registry[PATHS.alert]=nil
@@ -673,9 +677,63 @@ raise[LIB..'SetInputMode_GameOnly']='refused'
 k.input(false)
 assert(k.off(),'A refused input change turns the kit off, once')
 assert(count(LIB..'SetInputMode_GameOnly')==1,'Not tried again by the fault')
--- The game paused or not (false when unread), and its language (nil when unread); nothing once off.
+-- Given back only to a player controller (after a map change UEHelpers' cached address may hold another object), and
+-- still due while there is none: tried again at the next input(false), the kit off too.
 reset()
 k=kit()
+up(k)
+k.input(true)
+local real=pc
+pc=object('Actor')
+k.input(false)
+pc=nil
+k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==0,'Not on an Actor, nor without a player controller')
+pc=real
+k.input(false); k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==1,'Given back once there is one')
+k.input(true)
+pc=nil
+raise['ProgressBar.SetPercent']='boom'
+k.view('menu').bar.set(0.5)
+assert(k.off() and count(LIB..'SetInputMode_GameOnly')==1)
+pc=real
+k.input(false); k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==2,'Still given back once the kit is off')
+-- Ctrl+R with the menu open: the old load's input mode stays in the game's viewport, so its path says so and the new
+-- load gives the input back as it sweeps the root (or later, with no player controller yet).
+reset()
+k=kit()
+up(k)
+local root_path=saved
+k.input(true)
+assert(saved==root_path..' input','The input marked with the path')
+k.input(false)
+assert(saved==root_path)
+k.input(true)
+registry[root_path]=viewport[1]
+local reloaded=kit()
+reloaded.slow(true)
+assert(#viewport==0 and count(LIB..'SetInputMode_GameOnly')==2 and saved==nil,'Swept, the input given back')
+reloaded.stop()
+assert(count(LIB..'SetInputMode_GameOnly')==2,'Once')
+saved=root_path..' input'
+pc=nil
+reloaded=kit()
+reloaded.slow(true)
+pc=real
+assert(count(LIB..'SetInputMode_GameOnly')==2)
+reloaded.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==3,'Still due: given back once there is a player controller')
+-- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
+-- (nil when unread); nothing once off.
+reset()
+k=kit()
+pc.bShowMouseCursor=false
+assert(k.paused()==false)
+pc.bShowMouseCursor=true
+assert(k.paused()==true,'A screen of the game that does not pause')
+pc.bShowMouseCursor=false
 special['GameplayStatics.IsGamePaused']=function(_,_,context) assert(context==pc); return true end
 special['KismetInternationalizationLibrary.GetCurrentLanguage']=function() return 'fr-FR' end
 assert(k.paused()==true and k.language()=='fr-FR')

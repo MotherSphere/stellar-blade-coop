@@ -340,6 +340,12 @@ local function put(canvas,w,x,y,width,height) -- Layout units: the HUD's 3840x21
     return w
 end
 local function hide(w) w.v=COLLAPSED; w.o:SetVisibility(COLLAPSED) end
+-- The player controller while it is one: UEHelpers keeps its last one while that address is valid, and after a map
+-- change the address may hold another object (an input mode set on that one is a native fault).
+local function controller()
+    local pc=valid(UE.GetPlayerController())
+    return pc and pc:IsA(U.find('/Script/Engine.PlayerController')) and pc or nil
+end
 -- opts: {log=function(line), store={save,load,clear} (link.store('coop-ui.txt')), azerty=true for the AZERTY move
 -- keys, scale=ui_scale (75 to 150 %), sounds=false for ui_sounds=off}.
 function Ui.kit(opts)
@@ -356,13 +362,21 @@ function Ui.kit(opts)
         local x=w and valid(w.o)
         return x and U.text(x:GetFullName())==w.name and x or nil
     end
+    -- The root's path for the next Lua load's sweep (Ctrl+R), with ' input' while the game's input is ours: that load
+    -- gives it back (the ignore-input flag lives in the game's viewport, which a Lua reload keeps).
+    local function keep()
+        if built then store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')) end
+    end
     -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx, our root
     -- focused; the menu's keys are UE4SS binds, which read the keyboard whatever has focus); off, the game's again.
+    -- With no player controller (a map loads) or no root: nothing, and the change still due (input tries again).
+    -- inputting changes before the engine call: a refused call is not tried again by the fault it raises.
     local function input_mode(on)
-        local pc,root=valid(UE.GetPlayerController()),on and alive(built.root)
-        inputting=on
+        local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
+        inputting=on
         if on then U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,root,0) else U.find(WIDGETS):SetInputMode_GameOnly(pc) end
+        keep()
     end
     local function close_all()
         if inputting then pcall(input_mode,false) end -- A fault or coop off never leaves the game deaf.
@@ -462,10 +476,10 @@ function Ui.kit(opts)
             image(x+24,y+12,rail,10,'small',THEME.rail,true,false)
             image(x+24,y+height-22,rail,10,'small',THEME.rail,true,false)
         end
-        -- An image by asset name (nil: flat colour): show(on), tint(c).
+        -- An image by asset name (nil: flat colour; missing: none, never a white square): show(on), tint(c).
         function b.image(x,y,width,height,tex,tint)
             tint=tint or THEME.white
-            local w=image(x,y,width,height,tex,tint)
+            local w=image(x,y,width,height,tex,tint,nil,false)
             return {show=function(on) show_w(w,on) end,
                 tint=function(c) if c~=tint then tint=c; upd(w,function(x2) x2:SetColorAndOpacity(c) end) end end}
         end
@@ -561,21 +575,23 @@ function Ui.kit(opts)
             end}
         end
         -- Key hints cell units apart, {{key, label}, ...}; keys: move (ZQSD with azerty), arrows, up, enter, space,
-        -- escape. A missing icon leaves its label.
+        -- escape. A missing icon leaves its label. Returns the labels (text's views: the language may change).
         function b.hints(x,y,cell,list)
+            local labels={}
             for i,hint in ipairs(list) do
                 local key=(hint[1]=='move' and opts.azerty) and 'move_azerty' or hint[1]
                 image(x+(i-1)*cell,y,48,48,'key_'..key,THEME.white,false,false)
-                text(x+(i-1)*cell+60,y+4,hint[2],'hint')
+                labels[i]=text(x+(i-1)*cell+60,y+4,hint[2],'hint')
             end
+            return labels
         end
         return b
     end
     -- The build, all in this one game-thread call; nothing when there is no player controller yet. An asset a map
     -- change freed is looked up again by warm (a build using it is partial meanwhile).
     local function build()
-        local pc=valid(UE.GetPlayerController())
-        if not (pc and pc:IsA(U.find('/Script/Engine.PlayerController'))) then return end
+        local pc=controller()
+        if not pc then return end
         local assets={}
         for name,e in pairs(cache) do
             local x=e and valid(e.o)
@@ -610,7 +626,7 @@ function Ui.kit(opts)
         n.root.o:AddToViewport(Z)
         need(n.root.o:IsInViewport(),'the UI root is not in the viewport')
         pending,built=nil,n
-        store.save(n.root.name:match('^%S+ (.+)$'))
+        keep()
         if n.partial then return log(string.format('UI built while its look warms: %d widgets in %.1f ms',n.count,
             ms(started))) end
         local look={}
@@ -638,12 +654,14 @@ function Ui.kit(opts)
         end
         return false
     end
-    -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up.
+    -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up. That load's menu open, the game's
+    -- input is given back first (or once there is a player controller: input(false) tries again).
     local function sweep()
         local left=store.load()
         store.clear()
         if not left then return false end
-        local x=valid(StaticFindObject(left))
+        if left:find(' input$') then inputting=true; input_mode(false) end
+        local x=valid(StaticFindObject(left:match('^%S+')))
         if x and U.text(x:GetFullName()):find('^UserWidget ') and x:IsInViewport() then
             x:RemoveFromParent()
             log('removed the UI an earlier Lua load left on screen')
@@ -777,16 +795,21 @@ function Ui.kit(opts)
             log('UI sounds off until the mod reloads: '..tostring(why))
         end
     end
-    -- The menu's input: on (only while the root is up) or off; each once.
+    -- The menu's input: on (only while the root is up) or off; each once. Off while still due is tried again at each
+    -- call, the kit off too: the game never stays deaf.
     function self.input(on)
         on=on==true
-        if on==inputting or off or (on and not self.ready()) then return end
-        run(input_mode,on)
+        if on==inputting or (on and (off or not self.ready())) then return end
+        if off then pcall(input_mode,false) else run(input_mode,on) end
     end
-    -- Whether the game is paused (its own menu, a cutscene): the menu does not open then. false when unread.
+    -- Whether the game is paused (its own menu, a cutscene) or shows the mouse cursor (one of its screens that does
+    -- not pause: a shop, a dialogue choice): the menu does not open then. false when unread.
     function self.paused()
         if off then return false end
-        local ok,paused=pcall(function() return U.find(STATICS):IsGamePaused(valid(UE.GetPlayerController())) end)
+        local ok,paused=pcall(function()
+            local pc=controller()
+            return pc and (U.find(STATICS):IsGamePaused(pc) or pc.bShowMouseCursor)
+        end)
         return ok and paused==true
     end
     -- The game's text culture ('fr-FR'...; ui_text.lua picks the words), or nil when unread.

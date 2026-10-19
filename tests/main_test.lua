@@ -57,6 +57,7 @@ local asked,sessions,ticks,withdrawn,states,photos={},{},0,{},{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local link_mode='none' -- What link.mode() says, as of the last changes().
 local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
+local friend_linked=true -- link.friend()'s linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local fake_link={
@@ -73,7 +74,7 @@ local fake_link={
     fight=function() fight_reads=fight_reads+1; return fight_text end,
     chatting=function() return chatting end,
     take_chat=function() chat_takes=chat_takes+1; local lines=chat_lines; chat_lines={}; return lines end,
-    friend=function() return 'Kaanta',true,false end,
+    friend=function() return 'Kaanta',friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -139,13 +140,16 @@ package.loaded.recruiter={new=function(log)
         tick=function() rc_ticks=rc_ticks+1 end}
 end}
 local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui test's arguments, its ticks and stops.
--- The kit (ui.lua's Ui.kit; ui_kit_test tests it): its calls as words; the menu's view built at once by a builder that
--- keeps what each text and row was last set to. kit_ready: its root is up; kit_off: it turned off.
+-- The kit (ui.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes the
+-- engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
+-- row was last set to. kit_ready: its root is up; kit_off: it turned off.
 local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
+local menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
 local function builder()
     local b={panel=function() end,image=function() return {} end}
     function b.text(_,_,s) local t={s=s}; t.set=function(v) t.s=v end; return t end
     function b.row() local r={}; r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end; return r end
+    function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
     return b
 end
 local function said_kit(word) return function(...) kit_calls[#kit_calls+1]=table.concat({word,tostring((...))},' ') end end
@@ -155,10 +159,18 @@ package.loaded.ui={new=function(log)
         tick=function() ui_ticks=ui_ticks+1 end,stop=function() ui_stops=ui_stops+1 end}
 end,kit=function(opts)
     kit_opts=opts
-    return {add=function(name,place,build) assert(name=='menu' and place.hit); menu_view=build(builder()) end,
+    return {add=function(name,place,build)
+            assert(name=='menu' and place.hit)
+            menu_place,menu_view=place,build(builder())
+        end,
         slow=said_kit('slow'),tick=function() end,ready=function() return kit_ready and not kit_off end,
         view=function(name) return name=='menu' and kit_ready and not kit_off and menu_view or nil end,
-        off=function() return kit_off end,show=function(_,on) kit_calls[#kit_calls+1]='show '..tostring(on) end,input=said_kit('input'),scale=said_kit('scale'),
+        off=function() return kit_off end,show=function(_,on) kit_calls[#kit_calls+1]='show '..tostring(on) end,
+        input=function(on)
+            input_asks=input_asks+1
+            if on and input_refused then kit_off=true; return end
+            if on~=kit_input then kit_input=on; kit_calls[#kit_calls+1]='input '..tostring(on) end
+        end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
         paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop')}
 end}
@@ -193,6 +205,7 @@ local function load_main(with_native)
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
+    menu_place,kit_input,input_asks=nil,false,0
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -734,11 +747,14 @@ load_main(true)
 assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store' and kit_opts.log==ui_log,
     'The kit gets the settings, the UI log and its own path store')
 assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')
+local top=menu_place.y+menu_place.h*menu_place.pivot.Y*(1-1.5)
+assert(top+36*1.5>=0 and top+1458*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
 quarter(); assert(kit_calls[#kit_calls]=='slow false','No world: the HUD hidden')
 in_world=true; quarter(); assert(kit_calls[#kit_calls]=='slow true')
 key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n','Its root not up yet')
 kit_ready,kit_paused=true,true
-key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused\n',last())
+key('F5')
+assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused or shows a menu\n',last())
 kit_paused=false
 key('F5')
 assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
@@ -759,12 +775,18 @@ clock=clock+0.1; loops[1].f(); assert(kit_said('input false'))
 local n=#kit_calls
 loops[1].f(); assert(#kit_calls==n,'Once')
 key('DOWN_ARROW'); assert(#kit_calls==n,'Closed: the navigation keys do nothing')
+local asks=input_asks
+quarter(); assert(input_asks==asks+1,'Closed: asked again each 250 ms (still due after a map change)')
 -- Hosting: Leave asks for a second Select within 3 s; Invite closes it; F5 and Esc close it too.
 link_mode='host'
 key('F5'); assert(focus()=='Leave the session' and screen():find('Invite a friend (Steam)|',1,true))
-ping_ms=118; quarter(); assert(menu_view.status.s=='Co-op: not in a session. · 118 ms','Her ping once linked')
+asks=input_asks
+ping_ms,friend_linked=118,false; quarter()
+assert(menu_view.status.s=='Co-op: not in a session.' and input_asks==asks,
+    'No ping before she is linked; open: no input asked')
+friend_linked=true; quarter(); assert(menu_view.status.s=='Co-op: not in a session. · 118 ms','Her ping once linked')
 ping_ms=nil
-local asks=#asked
+asks=#asked
 key('RETURN'); assert(#asked==asks and menu_view.note.s=='Select again within 3 s to leave.')
 clock=clock+1; key('SPACE'); assert(asked[#asked]=='leave' and menu_view.note.s=='')
 key('DOWN_ARROW'); key('RETURN'); assert(asked[#asked]=='invite' and kit_said('show false'))
@@ -785,7 +807,17 @@ in_world,photo_mode,kit_off=true,false,false; quarter()
 key('F5'); assert(focus()=='Leave the session')
 kit_off=true
 key('F5'); key('F5')
-assert(last()=='[StellarCoop] STOP: the co-op menu is off (the UI stopped, see the log): use the coop commands\n')
+local MENU_OFF='[StellarCoop] STOP: the co-op menu is off (the UI stopped, see the log): use the coop commands\n'
+assert(last()==MENU_OFF)
+-- Off between two slow ticks (a refused input mode, a draw that faults): closed at the next key, no row run unseen.
+link_mode,kit_off,input_refused='none',false,true
+asks=#asked
+key('F5'); assert(last()==MENU_OFF and kit_calls[#kit_calls]=='show false','Refused as it opens')
+key('RETURN'); assert(#asked==asks,'Not open: Enter does nothing')
+kit_off,input_refused=false,false
+key('F5'); assert(focus()=='Host a session')
+kit_off=true
+key('RETURN'); assert(#asked==asks and kit_calls[#kit_calls]=='show false','Closed, Host not run')
 kit_off=false
 -- The Options page: the settings as the mod reads them; a toggle, a choice or a range changes at once with its line
 -- rewritten (the first change kept the file as it was: link.lua), the name tag and the shared enemies at the next load.
@@ -840,7 +872,6 @@ key('ESCAPE'); assert(select(2,focus())=='F5' and menu_view.note.s=='' and focus
 key('RETURN'); key('F7','SHIFT')
 assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nmenu_key=Shift+F7\n'
     and select(2,focus())=='Shift+F7')
-key('F7'); assert(kit_calls[#kit_calls]~='show false','A plain press right after a Shift+F7: the same press, dropped')
 clock=clock+1
 key('F5'); assert(kit_calls[#kit_calls]~='show false' and not logged('key F5: host'),'F5 is nobody\'s now')
 key('F7','SHIFT'); assert(kit_calls[#kit_calls]=='show false' and logged('key Shift+F7: menu'),'The new key, at once')

@@ -286,6 +286,11 @@ local saved,why=second.write_settings('x\n')
 assert(not saved and why:find('cannot write',1,true) and files[SETTINGS]=='# mine\nsend_rate=20\n','Nothing changed')
 fs.write=write
 assert(second.write_settings('send_rate=12\n') and files[OLD_FILE]=='# mine\nsend_rate=20\n','A new load backs up again')
+-- A rename refused after the old file went (a scanner holding the .tmp): the file is written in place, never missing.
+local rename=fs.rename
+fs.rename=function(from,to) if to==SETTINGS then return nil,'in use' end return rename(from,to) end
+assert(second.write_settings('send_rate=14\n') and files[SETTINGS]=='send_rate=14\n','Written in place')
+fs.rename=rename
 files[SETTINGS],files[OLD_FILE]=nil,nil
 assert(link.settings_text()==nil)
 

@@ -1,19 +1,21 @@
 -- The co-op menu (UI-DESIGN 4.1, D-UI2, D-UI4): ui_model.lua's two pages drawn with the Uplink kit (ui.lua), opened
--- and closed by menu_key, in a world only and never while the game is paused. While it is open the game ignores its own
--- keys (the kit's input), and main.lua's binds hand it the navigation keys: up, down, left and right to move and
--- change, select and back (each a no-op while it is closed). Its rows run the console commands (Host and Invite close
--- it first: the Steam overlay takes the focus); Leave asks for a second Select. A setting changed on the Options page
--- rewrites its own line of coop-settings.txt (link.lua keeps the file as it was as coop-settings.old.txt) and applies
--- at once, but the name tag and the shared enemies, at the next load; a key row takes the next F-key pressed (capture),
--- checked against the other keys. Each 250 ms while open: the status line and the rows of the session's state; the
--- world gone, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would open
--- the pause menu) never reaches the game. No engine call here: the kit makes them.
+-- and closed by menu_key, in a world only and never while the game is paused or shows the mouse cursor (one of its
+-- screens). While it is open the game ignores its own keys (the kit's input), and main.lua's binds hand it the
+-- navigation keys: up, down, left and right to move and change, select and back (each a no-op while it is closed). Its
+-- rows run the console commands (Host and Invite close it first: the Steam overlay takes the focus); Leave asks for a
+-- second Select. A setting changed on the Options page rewrites its own line of coop-settings.txt (link.lua keeps the
+-- file as it was as coop-settings.old.txt) and applies at once, but the name tag and the shared enemies, at the next
+-- load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while open: the
+-- status line and the rows of the session's state; the world gone or the kit off, it closes. The game's input comes
+-- back 150 ms after a close, so the key that closed it (Esc would open the pause menu) never reaches the game, and is
+-- asked again each 250 ms while closed until the kit has given it. No engine call here: the kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
 local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
+local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
 local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name)
@@ -22,16 +24,14 @@ function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
     local values,words={},T.en
-    kit.add('menu',{x=180,y=330,w=1240,h=1500,hit=true},function(b)
+    -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150.
+    kit.add('menu',{x=180,y=330,w=1240,h=1500,hit=true,pivot={X=0,Y=0.5}},function(b)
         b.panel(0,0,1240,1500)
-        local v={title=b.text(48,36,'','title'),rows={},hints={}}
+        local v={title=b.text(48,36,'','title'),rows={}}
         b.text(300,58,o.version or '','num')
         for i=1,ROWS do v.rows[i]=b.row(24,130+(i-1)*76,1192) end
         v.status,v.note=b.text(48,1290,'','status'),b.text(48,1340,'','status')
-        for i,key in ipairs({'arrows','enter','escape'}) do
-            b.image(48+(i-1)*320,1410,48,48,'key_'..key)
-            v.hints[i]=b.text(108+(i-1)*320,1414,'','hint')
-        end
+        v.hints=b.hints(48,1410,320,{{'arrows',''},{'enter',''},{'escape',''}})
         return v
     end)
     -- The chat row waits for the chat box.
@@ -99,17 +99,19 @@ function Menu.new(o)
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
     function self.is_open() return open end
-    -- menu_key: open, or close; nothing and why when it cannot open.
+    -- menu_key: open, or close; nothing and why when it cannot open (the kit off when it took the game's input: the
+    -- menu would be open unseen).
     function self.toggle()
         if open then return self.close() end
-        if kit.off() then return false,'the co-op menu is off (the UI stopped, see the log): use the coop commands' end
+        if kit.off() then return false,OFF end
         if not (world and kit.ready()) then return false,'the co-op menu opens in the game world only' end
-        if kit.paused() then return false,'the co-op menu does not open while the game is paused' end
+        if kit.paused() then return false,'the co-op menu does not open while the game is paused or shows a menu' end
         model,open,capturing,note,page,back_at=M.new(),true,nil,nil,nil,nil
         values=M.read(link.settings_text() or '')
         words=T.pick(kit.language(),settings.ui_language)
         kit.show('menu',true,os.clock())
         kit.input(true)
+        if kit.off() then self.close(); return false,OFF end
         kit.sound('open')
         draw()
     end
@@ -125,6 +127,7 @@ function Menu.new(o)
     -- back only, which stops waiting.
     function self.nav(what)
         if not open then return end
+        if kit.off() then return self.close() end -- Unseen: no row runs.
         if capturing then
             if what=='back' then capturing,note=nil,nil; kit.sound('back'); draw() end
             return
@@ -161,6 +164,7 @@ function Menu.new(o)
     -- key once it is free, else with why.
     function self.capture(name)
         if not (open and capturing) then return false end
+        if kit.off() then self.close(); return false end
         local action,a,b=M.rebind(values,capturing,name)
         if action then
             capturing=nil
@@ -170,10 +174,12 @@ function Menu.new(o)
         draw()
         return true
     end
-    -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not.
+    -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not. Closed, the game's input
+    -- is given back again while still due (no player controller at the close: a map change).
     function self.slow(shown)
         world=shown==true
         if open and (not world or kit.off()) then return self.close() end
+        if not (open or back_at) then kit.input(false) end
         draw()
     end
     -- Each frame: the game's input back, once due.
