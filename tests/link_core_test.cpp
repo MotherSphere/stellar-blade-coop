@@ -1444,6 +1444,7 @@ int main() {
       std::vector<std::string> said;
       bool send(const std::string &line, bool reliable) { return link->send_fight(line, reliable); }
       void say(const std::string &line) { said.push_back(line); }
+      void trace(const std::string &) {}
       bool save(const std::string &) { return false; }
       std::string load(bool &exists) { return exists = false, std::string(); }
     };

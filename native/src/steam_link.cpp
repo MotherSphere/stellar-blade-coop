@@ -408,6 +408,8 @@ DWORD WINAPI worker(void *) {
   MoveFileExW((folder + L"coop-link.log").c_str(), (folder + L"coop-link.old.log").c_str(), MOVEFILE_REPLACE_EXISTING);
   MoveFileExW((folder + L"nightop-probe.txt").c_str(), (folder + L"nightop-probe.old.txt").c_str(),
               MOVEFILE_REPLACE_EXISTING); // A relaunch before the files were sent keeps the last T6 probe.
+  MoveFileExW((folder + L"coop-fight.log").c_str(), (folder + L"coop-fight.old.log").c_str(),
+              MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.

@@ -324,10 +324,10 @@ struct Game {
 };
 
 bool has(const std::string &text, const std::string &part) { return text.find(part) != std::string::npos; }
-// The worker's Io: channel 2, the log and coop-fight-record.txt.
+// The worker's Io: channel 2, the log, coop-fight.log (the trace) and coop-fight-record.txt.
 struct Desk {
   std::vector<std::pair<std::string, bool>> sent;
-  std::vector<std::string> said;
+  std::vector<std::string> said, traced;
   std::string file; // The recording, once saved (or put here).
   bool has_file = false;
   bool send(const std::string &text, bool reliable) {
@@ -335,6 +335,7 @@ struct Desk {
     return true;
   }
   void say(const std::string &text) { said.push_back(text); }
+  void trace(const std::string &text) { traced.push_back(text); }
   bool save(const std::string &text) {
     file = text;
     return has_file = true;
@@ -350,8 +351,10 @@ struct Desk {
     sent.clear();
     return all;
   }
-  size_t saying(const std::string &part) const { // Lines said that hold part.
-    return size_t(std::count_if(said.begin(), said.end(), [&](const std::string &s) { return has(s, part); }));
+  size_t saying(const std::string &part) const { return holding(said, part); }    // Lines said that hold part.
+  size_t tracing(const std::string &part) const { return holding(traced, part); } // Lines traced that hold part.
+  static size_t holding(const std::vector<std::string> &lines, const std::string &part) {
+    return size_t(std::count_if(lines.begin(), lines.end(), [&](const std::string &s) { return has(s, part); }));
   }
 };
 
@@ -911,17 +914,18 @@ int main() {
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(io.lines() == "SBF7 hit 2 1 101 100 0 0 1600 0\nSBF7 hp 1 1 0 101:1500:100:200 (unreliable)\n");
     assert((io.said == std::vector<std::string>{"fight paired 5001:0 hguid=101"}) && w.status() == " fight=on 1");
-    // A stats line in the second its side's counts moved, then none until they move again or a minute passed.
-    io.said.clear();
+    // A stats line traced in the second its side's counts moved, then none until they move again or a minute passed.
+    io.said.clear(), io.traced.clear();
     s.guest.claims = 3, s.runs = 10, s.us = 200;
     assert(mail.exchange(s));
     for (t = 1000; t <= 2000; t += 16)
       w.pass(t, true, false, true, none, gate, io);
-    assert(io.said.size() == 1 && has(io.said[0], "fight stats: guest, 1 pairs, 3 claims sent, 0 corrections") &&
-           has(io.said[0], "Simulate mean 20 us"));
+    assert(io.said.empty() && io.traced.size() == 1 &&
+           has(io.traced[0], "fight stats: guest, 1 pairs, 3 claims sent, 0 corrections") &&
+           has(io.traced[0], "Simulate mean 20 us"));
     for (; t <= 62100; t += 16)
       w.pass(t, true, false, true, none, gate, io);
-    assert(io.said.size() == 2);
+    assert(io.said.empty() && io.traced.size() == 2);
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);
@@ -1064,8 +1068,8 @@ int main() {
     assert(g.calls.size() == 5 && g.queue.empty() && !e->latched());
   }
 
-  // ---- The worker's probe through Mail: each actor said once and again when it changes, fight writes=armed, then
-  // its tests; the stats, status and fight lines ----
+  // ---- The worker's probe through Mail: each actor traced once and again when it changes, fight writes=armed, then
+  // its tests; her lines kept from its job; the stats, status and fight lines ----
   {
     Game g;
     auto mail = std::make_unique<Mail>();
@@ -1096,22 +1100,28 @@ int main() {
     run(2000);
     const std::string eve = "fight probe guid=1 key=0:0 chr=0 life=1 hp=1600/1600 sh=100/100 st=200/200 eve player";
     const std::string fresh = "fight probe guid=101 key=5001:0 chr=900 life=1 hp=1600/1600 sh=100/100 st=200/200";
-    assert(io.saying(eve) == 1 && io.saying(fresh) == 1 && io.saying("fight writes=armed: ") == 1);
-    assert(io.saying("fight stats: probe, 2 actors, our EVE found") == 1 && io.lines().empty());
+    assert(io.tracing(eve) == 1 && io.tracing(fresh) == 1 && io.saying("fight writes=armed: ") == 1);
+    assert(io.tracing("fight stats: probe, 2 actors, our EVE found") == 1 && io.lines().empty());
+    assert(!io.saying("fight probe guid=") && !io.saying("fight stats") && w.status() == " fight=probe");
     g.hit(101, kHp, 100);
     run(t + 1000);
-    assert(io.saying(eve) == 1 && io.saying("fight probe guid=101 key=5001:0 chr=900 life=1 hp=1500/1600 ") == 1);
+    assert(io.tracing(eve) == 1 && io.tracing("fight probe guid=101 key=5001:0 chr=900 life=1 hp=1500/1600 ") == 1);
+    // A friend linked meanwhile: her lines never reach the probe's job.
+    w.pass(t, true, false, true, {"SBF7 on", "SBF7 hit 1 1 101 10 0 0 1600 0"}, gate, io);
+    frame(g, *e, t += 16);
+    Message m;
+    assert(!mail->receive(m) && !io.saying("malformed"));
     assert(ask("fight test hp -10") ==
            "shared fight test asked: hp -10, on the eligible enemy with the lowest HP share");
     run(t + 48);
     assert(io.saying("fight test 5001:0 applied") == 1);
-    assert(io.saying("guid=101 key=5001:0 chr=900 life=1 hp=1490/") == 1);
+    assert(io.tracing("guid=101 key=5001:0 chr=900 life=1 hp=1490/") == 1);
     assert(has(w.detail(), "fight=on mode=probe actors=2 eve=1 turn=") && has(w.detail(), " writes=armed sim_us="));
-    assert(w.status() == " fight=on 2");
+    assert(w.status() == " fight=probe");
     // coop fight status: the fight line, and a stats line at once.
-    const size_t stats = io.saying("fight stats: probe");
+    const size_t stats = io.tracing("fight stats: probe");
     assert(ask("fight status").rfind("shared fight status: fight=on mode=probe actors=2", 0) == 0);
-    assert(io.saying("fight stats: probe") == stats + 1);
+    assert(io.tracing("fight stats: probe") == stats + 1);
     assert(ask("fight off") == "shared fight off: coop fight off" && !e->on());
     assert(w.detail() == "fight=off why=coop fight off" && w.status().empty());
     assert(ask("fight test kill") == "shared fight test refused: only while coop fight probe runs");
@@ -1121,7 +1131,8 @@ int main() {
   // ---- Record on one PC, replay into another's guest: T11a's solo test of both roles ----
   // The host's side alone records as if a guest were on; the file, played into the other PC's guest, pairs its copies
   // by key, moves their HP and kills the one the host's EVE killed, with this PC's EVE as the cause (F3). The guest's
-  // own lines go nowhere.
+  // own lines go nowhere, and a linked friend's never reach either side. Replay writes: it waits for fight
+  // writes=armed, as T11a's whole write half does.
   {
     const auto gate = [] { return std::string(); };
     const std::vector<std::string> none;
@@ -1139,14 +1150,17 @@ int main() {
       w.pass(t, false, false, true, none, gate, io);
       assert(w.ask(coop::parse_request("fight record 900"), gate, io) ==
              "shared fight record: as host, into coop-fight-record.txt when coop fight off ends it");
+      const std::vector<std::string> her = {"SBF7 on", "SBF7 hit 1 1 101 10 0 0 1600 0"}; // Her guest's claim.
       for (; t < 2500; t += 16) {
         if (t == 512)
           H.hit(101, kHp, 300);
         if (t == 1504)
           H.hit(101, kHp, 1300);
         frame(H, *e, t);
-        w.pass(t, false, false, true, none, gate, io);
+        w.pass(t, t == 1008, false, true, t == 1008 ? her : none, gate, io);
       }
+      // Only the two hits: the job never got her claim (an ApplyStat of ours ignores NoDamage).
+      assert(H.calls.size() == 2 && !H.calls[0].ignore && !H.calls[1].ignore && !io.saying("malformed"));
       assert(has(w.detail(), "fight=on mode=record role=host enemies=1 "));
       const std::string said = w.ask(coop::parse_request("fight off"), gate, io);
       assert(said.rfind("shared fight off: coop fight off; ", 0) == 0);
@@ -1169,6 +1183,14 @@ int main() {
     G.spawn(902, 5002, 0);
     uint64_t t = 0;
     w.pass(t, false, false, true, none, gate, io);
+    assert(ask("fight replay 900") == "shared fight replay refused: writes not armed yet (coop fight probe first)");
+    // The probe first: its census finds our EVE, which arms writes for the run.
+    assert(ask("fight probe").rfind("shared fight probe: ", 0) == 0);
+    for (; !io.saying("fight writes=armed: ") && t < 1000; t += 16) {
+      frame(G, *e, t);
+      w.pass(t, false, false, true, none, gate, io);
+    }
+    assert(io.saying("fight writes=armed: ") == 1 && ask("fight off") == "shared fight off: coop fight off");
     assert(ask("fight replay 900") == "shared fight replay refused: no coop-fight-record.txt (coop fight record makes "
                                       "one)");
     io.has_file = true;
@@ -1177,16 +1199,18 @@ int main() {
            "shared fight replay refused: coop-fight-record.txt fails its check (first line)");
     io.file = recording;
     assert(ask("fight replay 900").rfind("shared fight replay: ", 0) == 0 && e->on());
-    for (; t < 3500; t += 16) {
+    // A linked friend's dead line for the host's 102 once paired: it would kill 902 if it reached the guest.
+    const std::vector<std::string> her = {"SBF7 dead 1 102"};
+    for (const uint64_t from = t; t < from + 3500; t += 16) {
       frame(G, *e, t);
-      w.pass(t, false, false, true, none, gate, io);
+      w.pass(t, t == from + 1008, false, true, t == from + 1008 ? her : none, gate, io);
     }
     assert(count(G, "paired") == 2 && G.body(901).deaths == 1 && G.body(901).killer == G.eve);
     assert(G.body(902).deaths == 0 && G.hp(902) == 1600 && !e->latched());
     bool followed = false; // The host's 300, before its kill.
     for (const Game::Call &c : G.calls)
       followed = followed || (c.la == G.by_guid[901] && c.type == 1 && c.delta == -300 && c.notify);
-    assert(followed && io.saying("fight replay: all ") == 1 && io.sent.empty());
+    assert(followed && io.saying("fight replay: all ") == 1 && io.sent.empty() && !io.saying("malformed"));
     assert(has(w.detail(), "fight=on mode=replay role=guest pairs=1 ") && has(w.detail(), " kills=1 "));
   }
   // A recording stops at its cap: the mode ends and the file is written whole. Lines before its first world (an older

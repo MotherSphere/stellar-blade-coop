@@ -609,15 +609,27 @@ bool rpm(uint64_t address, void *out, size_t n) {
 fight::Worker fight_worker{fight_engine, fight_mail};
 bool (*fight_send)(const std::string &, bool) = nullptr;
 bool fight_fault_logged = false;
+void trace_fight(const std::string &line);
 struct FightIo {
   bool send(const std::string &line, bool reliable) { return fight_send && fight_send(line, reliable); }
   void say(const std::string &line) { pose::say(line); }
+  void trace(const std::string &line) { trace_fight(line); }
   bool save(const std::string &text) { return write_text(dir + L"coop-fight-record.txt", text); }
   std::string load(bool &exists) { return read_file(dir + L"coop-fight-record.txt", exists, fight::kMaxRecording + 1); }
 };
 
-// One line onto nightop-probe.txt, shared for delete too (it may be read or moved while open). Past 4 MB a last line
-// says so and the poller stops for the run.
+// Bytes onto a file of the mod folder, shared for delete too (it may be read or moved while open).
+void append_file(const wchar_t *name, const std::string &text) {
+  HANDLE f = CreateFileW((dir + name).c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                         nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (f == INVALID_HANDLE_VALUE)
+    return;
+  DWORD n = 0;
+  WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr);
+  CloseHandle(f);
+}
+
+// One line onto nightop-probe.txt. Past 4 MB a last line says so and the poller stops for the run.
 void append_probe(const std::string &line) {
   if (!nightop_on)
     return; // Capped earlier in this step: its other lines go nowhere.
@@ -630,14 +642,30 @@ void append_probe(const std::string &line) {
   } else {
     nightop_bytes += text.size();
   }
-  HANDLE f = CreateFileW((dir + L"nightop-probe.txt").c_str(), FILE_APPEND_DATA,
-                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_ALWAYS,
-                         FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (f == INVALID_HANDLE_VALUE)
+  append_file(L"nightop-probe.txt", text);
+}
+
+// coop-fight.log (the Worker's trace): the shared fight's probe actors and stats lines, stamped in UTC like
+// coop-link.log, whose 1 MB they would fill. Past 4 MB a last line says so and the run's later ones go nowhere.
+size_t fight_log_bytes = 0;
+constexpr size_t kFightLogCap = 4 << 20; // About 2 h of stats lines each second, or a T11a probe's half hour.
+void trace_fight(const std::string &line) {
+  if (fight_log_bytes >= kFightLogCap)
     return;
-  DWORD n = 0;
-  WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr);
-  CloseHandle(f);
+  SYSTEMTIME t;
+  GetSystemTime(&t);
+  char stamp[32];
+  wsprintfA(stamp, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ ", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
+            t.wMilliseconds);
+  std::string text = stamp + line + "\r\n";
+  if (fight_log_bytes + text.size() > kFightLogCap) {
+    text = std::string(stamp) + "capped at 4 MB: the shared fight's events go on in coop-link.log\r\n";
+    fight_log_bytes = kFightLogCap;
+    say("fight: coop-fight.log capped at 4 MB for this run");
+  } else {
+    fight_log_bytes += text.size();
+  }
+  append_file(L"coop-fight.log", text);
 }
 
 // Every worker pass while on: a sample each 100 ms, its lines into the file, the verdict into the log as well.

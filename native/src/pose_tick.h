@@ -59,8 +59,8 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
 std::string fight_status();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <count>",
-// " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on" or " nightop=rule"
-// (once the rule was asked) last while the poller runs: no per-frame counters.
+// " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on"
+// or " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();
 // A complete file: written beside it, then renamed over it (steam_link.cpp).
 bool write_text(const std::wstring &path, const std::string &bytes);
