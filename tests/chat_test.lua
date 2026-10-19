@@ -35,6 +35,10 @@ assert(clean(a:sub(2)..'é')==a:sub(2)..'é' and #clean(a:sub(2)..'é')==200,'é
 assert(clean(string.rep('a',197)..'😀')==string.rep('a',197),'A 4-byte emoji across the cut: dropped whole')
 assert(clean(a..' b')==a,'A space left at the cut: trimmed')
 assert(clean(string.rep('\0',50)..string.rep('a',250))==string.rep('a',200),'Controls go before the cut')
+-- Long runs of spaces cost no more than other text (a pasted line runs on the game thread): well under a second.
+local start=os.clock()
+assert(clean('a'..string.rep(' ',32000)..'b')=='a' and clean(string.rep(' ',32000))=='')
+assert(os.clock()-start<0.5,os.clock()-start)
 -- Whatever bytes come in, what comes out is well-formed, short, trimmed and free of controls.
 math.randomseed(7)
 for _=1,3000 do
@@ -107,6 +111,15 @@ chat=Chat.new(50,false)
 chat.session(true)
 assert(select(2,chat.send('hi',0))=='off' and chat.receive('Kaanta','hi',0)==nil and chat.system('x',0))
 assert(#chat.lines()==1 and chat.take(1)==nil)
+-- The settings as ui_model.read gives them: text.
+chat=Chat.new('20','off')
+chat.session(true)
+assert(select(2,chat.send('hi',0))=='off' and chat.receive('Kaanta','hi',0)==nil)
+for i=1,25 do chat.system('n'..i,i) end
+assert(#chat.lines()==20 and chat.lines()[1].text=='n6')
+chat=Chat.new('50','on')
+chat.session(true)
+assert(chat.send('hi',0) and chat.receive('Kaanta','hi',0))
 
 os.date=date
 stdout:write('chat_test ok\n')

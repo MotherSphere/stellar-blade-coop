@@ -9,6 +9,14 @@ local function control(c) -- C0, DEL, C1, and the bidi and zero-width controls.
     return c<0x20 or (c>=0x7F and c<=0x9F) or c==0x061C or (c>=0x200B and c<=0x200F) or (c>=0x2028 and c<=0x202E)
         or (c>=0x2060 and c<=0x206F) or c==0xFEFF
 end
+-- Spaces off both ends. Once the controls are gone only ASCII spaces are left to trim: no %s, which follows the C
+-- locale (0xA0, the end of 'à', is a space in some code pages) and makes a pattern trim slow on long space runs.
+local function trim(text)
+    local first,last=text:find('[^ ]'),#text
+    if not first then return '' end
+    while text:byte(last)==32 do last=last-1 end
+    return text:sub(first,last)
+end
 -- The line both players see: well-formed UTF-8 only (any other byte dropped), no controls, trimmed, at most 200
 -- bytes, never cut inside a character. '' when nothing is left.
 function Chat.clean(text)
@@ -19,18 +27,18 @@ function Chat.clean(text)
         for _,c in utf8.codes(text:sub(at,stop-1)) do if not control(c) then kept[#kept+1]=utf8.char(c) end end
         at=stop+1
     end
-    text=table.concat(kept):match('^%s*(.-)%s*$')
+    text=trim(table.concat(kept))
     if #text>MAX then
         local cut=MAX+1 -- Back to the first byte of the character the 201st byte belongs to.
         while text:byte(cut)>=0x80 and text:byte(cut)<0xC0 do cut=cut-1 end
-        text=text:sub(1,cut-1):match('^(.-)%s*$')
+        text=trim(text:sub(1,cut-1))
     end
     return text
 end
--- lines: how many the feed keeps (the chat_lines setting, 50 unless said); on: false for chat=off (nothing sent,
--- nothing received shown; notices still are).
+-- lines: how many the feed keeps (the chat_lines setting, 50 unless said); on: false or 'off' for chat=off (nothing
+-- sent, nothing received shown; notices still are). Both as numbers and booleans or as ui_model.read's text.
 function Chat.new(lines,on)
-    lines,on=lines or 50,on~=false
+    lines,on=tonumber(lines) or 50,on~=false and on~='off'
     local self,feed,outbox,session,last,taken={},{},{},false,nil,nil
     local function add(line)
         line.time=os.date('%H:%M')
@@ -40,7 +48,7 @@ function Chat.new(lines,on)
     end
     function self.clear() feed,outbox,taken={},{},nil end
     -- Each check of the link: true while a session holds (a friend linked, or a rejoin pending, or the loopback);
-    -- its end clears everything.
+    -- its end clears everything, notices too: call it before adding the notice that says the session ended.
     function self.session(active)
         if session and not active then self.clear() end
         session=active
