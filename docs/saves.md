@@ -100,7 +100,8 @@ Options) says when:
 The question and `always` show their result as a notice: `Co-op saves on: you play co-op copies of your saves. Your
 own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` While the game uses
 the copies, the title screen shows `CO-OP SAVES` at the top right. In a session on your
-own save with `shared_enemies=on`, a notice says once a session that shared enemies run on co-op saves only.
+own save with shared enemies on, a notice says how to switch to the co-op copy (see
+[usage.md: Shared enemies](usage.md#shared-enemies-experimental-off-by-default)).
 
 A copy pass:
 

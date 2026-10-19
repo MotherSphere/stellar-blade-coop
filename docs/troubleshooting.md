@@ -121,6 +121,25 @@ reason:
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI
   stopped (see the `[StellarCoop][UI]` lines). `auto_coop_save=always` still switches to the copies.
 
+### Enemies are not shared
+
+Shared enemies are off by default. Both players turn on Options > Combat > Shared enemies (experimental) in the co-op
+menu. The `fight=` line of `coop status` then says what is missing (see
+[usage.md: Shared enemies](usage.md#shared-enemies-experimental-off-by-default)):
+
+- `fight=off` with no `why=`, and `shared enemies: off (experimental)` in `UE4SS.log` at load: shared enemies are off
+  in your game.
+- `fight=waiting mode=on ... why=not on a co-op save`: you play your own save. Quit to the title screen and choose
+  Play co-op, then load the same slot number.
+- `her=own-save`, `her=off` or `her=stopped`: your friend plays their own save, has shared enemies off, or theirs
+  stopped for the run (their `coop-link.log` says why). `her=?`: nothing came from their game yet. A friend on an
+  older build of the mod sends nothing until their shared enemies run.
+- `fight=on mode=on role=host enemies=0` or `role=guest pairs=0` while you both fight the same enemies: the two games
+  spawned them differently (another map, a different save, a boss or an Alpha Naytiba, which are not shared yet), or
+  a `fight_chars` list leaves them out.
+- `fight=stopped why=<why>`: shared enemies stopped for this run, and the ghost and the link go on. A reason that
+  starts with `implausible` means a value in the game's memory did not look as expected on this game build.
+
 ### `Co-op saves off for this load: <why>`
 
 The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:
