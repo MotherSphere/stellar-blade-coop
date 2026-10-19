@@ -6,6 +6,7 @@
 -- changed is returned once, for the log; peer lines change with every ping and the shared fight's counts (its fight=
 -- line) every second, so they stay in coop status, out of the log. The same read gives the session's mode, the friend
 -- and the notices for the screen, each from the start of its own line: a Steam name is never at the start of one.
+-- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight.
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
 -- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
@@ -22,16 +23,33 @@ send_rate=20
 # What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
+# Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
+# death, while both of you play your co-op save slot. fight_chars: the enemy character ids it shares, separated by
+# spaces (coop fight probe logs them), for example fight_chars=15011001.
+shared_enemies=off
+fight_chars=
 ]]
--- The looks are comments only in the file above: an old file and a new one both follow the code's default here.
+-- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
+-- written before shared_enemies and fight_chars existed lacks them: off and none, as here.
 local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',dyes='off',
-    effects='off'}
+    effects='off',shared_enemies='off',fight_chars=''}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'host_key','status_key','leave_key'}
 local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
--- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil, name='Shift+F7'}.
+-- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil,
+-- name='Shift+F7'}; fight_chars a list of whole numbers (the native part takes at most 16, each from 1 to 2^32-1).
 local function setting(name,text)
-    if name=='name_tag' or LOOKS[name] then
+    if name=='fight_chars' then
+        local ids={}
+        for word in text:gmatch('%S+') do
+            local id=word:match('^%d+$') and tonumber(word)
+            if not id or id<1 or id>4294967295 or #ids==16 then
+                return nil,'use at most 16 character ids, whole numbers separated by spaces'
+            end
+            ids[#ids+1]=id
+        end
+        return ids
+    elseif name=='name_tag' or name=='shared_enemies' or LOOKS[name] then
         text=text:lower()
         if text=='on' or text=='off' then return text=='on' end
         return nil,'use on or off'
@@ -70,7 +88,7 @@ function Link.parse_settings(text)
                 local parsed,why=setting(key,value)
                 if why then
                     notes[#notes+1]=string.format("settings: line %d: '%s' is not allowed for %s (%s); %s stays %s",
-                        n,value,key,why,key,DEFAULTS[key])
+                        n,value,key,why,key,DEFAULTS[key]~='' and DEFAULTS[key] or 'empty')
                 else
                     settings[key]=parsed
                 end
@@ -103,8 +121,8 @@ function Link.new(folder,fs)
     local seen,remote={},{}
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
-    -- handed out.
-    local mode,friend,listed,dead,held,rejoin,shown=nil,nil,nil,false,nil,nil,nil
+    -- handed out; fight: the shared fight's line.
+    local mode,friend,listed,dead,held,rejoin,shown,fight=nil,nil,nil,false,nil,nil,nil,nil
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -160,7 +178,7 @@ function Link.new(folder,fs)
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
-        mode,friend,listed,dead,held,rejoin=nil,nil,nil,false,nil,nil
+        mode,friend,listed,dead,held,rejoin,fight=nil,nil,nil,false,nil,nil,nil
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
@@ -170,6 +188,7 @@ function Link.new(folder,fs)
                 mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
             end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
+            if line:find('^fight=') then fight=line end
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
             if name then friend={name,linked=='1',lost=='1'} end
             local n,notice=line:match('^notice=(%d+) (.*)$')
@@ -180,6 +199,9 @@ function Link.new(folder,fs)
     end
     -- 'none', 'host' or 'guest'; nil before Steam is ready.
     function self.mode() return mode end
+    -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
+    -- nil without one.
+    function self.fight() return fight end
     -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a

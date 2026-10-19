@@ -7,7 +7,9 @@
 -- otherwise), its notices on screen above your EVE; and coop where, a line of coordinates to compare between the two
 -- PCs; coop no [heal|rule|spawnpt|actor], the Night Operation probe of the T6 test only (nightop.lua), on the co-op
 -- save slot only; coop recruiter [off], the cut Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua),
--- on the co-op save slot only. coop off stops everything until the game restarts.
+-- on the co-op save slot only; coop fight on|off|status|probe|test|record|replay, the shared enemies of Phase 11
+-- (experimental: on only with shared_enemies=on in coop-settings.txt, which also starts it once a load on the co-op
+-- save), on the co-op save slot only. coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -40,7 +42,11 @@ local function looks()
     return 'look: cloth='..(look.cloth and 'on' or 'off')..' dyes='..(look.dyes and 'on' or 'off')..' effects='
         ..(look.effects and 'on' or 'off')
 end
-if settings then log(looks()) end
+if settings then
+    log(looks())
+    log('shared enemies: '..(settings.shared_enemies and 'on' or 'off')..' (experimental), fight_chars '
+        ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'none'))
+end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
     link.components(nil)
@@ -53,7 +59,7 @@ local puppet=require('puppet').new(link,capture,notice.say,settings and settings
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -67,8 +73,9 @@ end
 -- coop no and coop recruiter (and the shared features of later phases) run only with the co-op save slot loaded (D2,
 -- N9): the native part's slot= line, from the start of its own line (a Steam name never starts one). The ghost, the
 -- Steam link and every other command are never locked to it.
+local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
-    local line=('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)')
+    local line=slot_line()
     if line and line:find('^slot=coop ') then return true end
     return false,what..' runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now '
         ..(line or 'no slot status')
@@ -78,6 +85,21 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
     function(line) return ask(line)() end,function() return link and link.status() end)
 -- commands.recruiter runs only on the co-op save slot; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
+-- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
+-- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
+local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay'
+local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
+local function fight_line(sub,a,b,extra)
+    if extra~=nil then return nil end
+    if FIGHT_ALONE[sub] and a==nil then return 'fight '..sub end
+    if sub~='test' then return nil end
+    if a=='kill' and b==nil then return 'fight test kill' end
+    local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
+    if n and n~=0 and math.abs(n)<=10000000 then return string.format('fight test %s %d',a,n) end
+end
+-- shared_enemies=on: coop fight on once a load, when the first save is judged (slot=coop asks it, slot=main says why
+-- not); coop fight off before then cancels it.
+local fight_auto=settings~=nil and settings.shared_enemies
 local commands={
     puppet=puppet.toggle, host=ask('host'), invite=ask('invite'), leave=ask('leave'), report=ask('report'),
     join=function(lobby)
@@ -119,6 +141,30 @@ local commands={
         if not ok then return false,why end
         return recruiter.run(sub,extra)
     end,
+    -- on needs shared_enemies=on and fight_chars; probe (fight_chars optional: a test writes only to them), test,
+    -- record and replay are the solo T11a tools. All but off and status run only on the co-op save slot; the native
+    -- part checks again, and says in the log why it refuses. status answers with the fight= line.
+    fight=function(sub,a,b,extra)
+        local line=fight_line(sub,a,b,extra)
+        if not line then return false,FIGHT_USE end
+        if sub=='off' then fight_auto=false end
+        if sub~='off' and sub~='status' then
+            if not native_tick then return false,'the native tick is unavailable' end
+            local ok,why=coop_slot('coop fight')
+            if not ok then return false,why end
+            local chars=settings.fight_chars
+            if sub=='on' and not settings.shared_enemies then
+                return false,'shared enemies are off in coop-settings.txt (shared_enemies=off)'
+            end
+            if #chars==0 and (sub=='on' or sub=='record' or sub=='replay') then
+                return false,"no fight_chars in coop-settings.txt (coop fight probe logs the enemies' character ids)"
+            end
+            if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
+        end
+        local ok,why=ask(line)()
+        if not ok or sub~='status' then return ok,why end
+        return true,link.fight() or 'no shared fight status yet'
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
@@ -147,18 +193,18 @@ for _,name in ipairs({'record','replay'}) do
 end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 -- A console command or a key, on the game thread.
-local function run(name,a,b,c)
+local function run(name,a,b,c,d)
     local command=commands[name or '']
     if not command then return log(USAGE) end
     if off and command~=commands.status and command~=commands.report then
         return report(false,'coop off is active until the game restarts')
     end
-    local ran,ok,message=pcall(command,a,b,c)
+    local ran,ok,message=pcall(command,a,b,c,d)
     if ran then report(ok,message) else report(false,ok) end
 end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
-    local name,a,b,c=parameters[1],parameters[2],parameters[3],parameters[4]
-    ExecuteInGameThread(function() run(name,a,b,c) end)
+    local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
+    ExecuteInGameThread(function() run(name,a,b,c,d) end)
     return true
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
@@ -178,8 +224,42 @@ if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.
     -- A status read with no mode (before Steam, or unreadable) is no leave.
     local last_mode='none'
+    -- The shared fight's notices, from its fight= line: on when it first runs as coop fight on (again when its enemies
+    -- go from none to some), off with why once it ran or waited (any mode). An unread status changes nothing.
+    local fight_was,fight_count,fight_said=nil,0,false
+    local function fight_notices()
+        local line=link.fight()
+        if not line then return end
+        local state,mode=line:match('^fight=(%a+)'),line:match(' mode=(%a+)')
+        local now=state=='on' and 'on '..tostring(mode) or state
+        if now=='on on' then
+            local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
+            if not fight_said or (fight_count==0 and count>0) then
+                notice.say(string.format('Shared fight on: %d %s linked',count,count==1 and 'enemy' or 'enemies'))
+            end
+            fight_said,fight_count=true,count
+        elseif state=='off' or state=='stopped' then
+            if fight_was and (fight_was:find('^on ') or fight_was=='waiting') then
+                local why=line:match(' why=(.*)$') or 'off'
+                notice.say('Shared fight off: '..(state=='stopped' and 'stopped for this run ('..why..')' or why))
+            end
+            fight_said,fight_count=false,0
+        end
+        fight_was=now
+    end
     LoopInGameThreadWithDelay(250,function()
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        if fight_auto and not off then
+            local verdict=(slot_line() or ''):match('^slot=(%a+)')
+            if verdict=='coop' or verdict=='main' then
+                fight_auto=false
+                local ok,message=false,'not on the co-op save'
+                if verdict=='coop' then ok,message=commands.fight('on') end
+                report(ok,'shared_enemies=on: '..message)
+                if not ok then notice.say('Shared fight off: '..message) end
+            end
+        end
+        fight_notices()
         local mode=link.mode()
         if mode then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end

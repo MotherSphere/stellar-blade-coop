@@ -84,6 +84,24 @@ files[STATUS]=nil
 link.changes()
 assert(link.remote()==nil,'No status: none either')
 
+-- The shared fight's line (Phase 11), as of the last changes(): from the start of its own line only, as a peer's Steam
+-- name is hers to choose; nil without one.
+files[STATUS]='mod=v\npeer=2 name=x fight=on mode=on hello=1\nengine=on fight=on 3\n'
+    ..'fight=on mode=on role=host enemies=3 claims=0\nlast=#8 x\n'
+link.changes()
+assert(link.fight()=='fight=on mode=on role=host enemies=3 claims=0',tostring(link.fight()))
+files[STATUS]='mod=v\r\nfight=off why=not on the co-op save (slot=main index=0 marker=4)\r\nlast=#9 x\r\n'
+link.changes()
+assert(link.fight()=='fight=off why=not on the co-op save (slot=main index=0 marker=4)','CRLF')
+files[STATUS]='mod=v\npeer=2 name=x fight=off\nlast=fight=on mode=on\n'
+link.changes()
+assert(link.fight()==nil,'Not from a peer line nor from the last line')
+files[STATUS]='mod=v\nfight=on mode=probe actors=1\n'
+link.changes()
+files[STATUS]=nil
+link.changes()
+assert(link.fight()==nil,'No status: none either')
+
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 
 -- coop-settings.txt (N5): free keys, never F10 or ~ (the console on AZERTY); a bad value keeps its default, with a line.
@@ -139,6 +157,39 @@ s,notes=Link.parse_settings('effects=on'); assert(#notes==0 and s.effects==true 
 s,notes=Link.parse_settings('cloth=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays off"
     and s.cloth==false,notes[1])
+-- The shared enemies (Phase 11, experimental): shared_enemies on or off, off by default; fight_chars at most 16 whole
+-- character ids from 1 to 2^32-1 separated by spaces, empty by default. A bad value keeps the default, with a line.
+s,notes=Link.parse_settings('')
+assert(s.shared_enemies==false and #s.fight_chars==0,'Off and none unless set')
+s,notes=Link.parse_settings('Shared_Enemies=ON\nfight_chars= 15011001  2\t4294967295 \n')
+assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==3 and s.fight_chars[1]==15011001
+    and s.fight_chars[2]==2 and s.fight_chars[3]==4294967295,notes[1])
+assert(math.type(s.fight_chars[1])=='integer','Whole numbers: the request prints them without a decimal point')
+s,notes=Link.parse_settings('fight_chars=007 '..string.rep('7 ',15))
+assert(#notes==0 and #s.fight_chars==16 and s.fight_chars[1]==7,'16 at most')
+s,notes=Link.parse_settings('shared_enemies=off\nfight_chars=\n')
+assert(#notes==0 and not s.shared_enemies and #s.fight_chars==0)
+local CHARS_RULE='use at most 16 character ids, whole numbers separated by spaces'
+for _,bad in ipairs({string.rep('7 ',17),'0','4294967296','99999999999999999999','1,2','-1','+1','x','1.5','1e3'}) do
+    s,notes=Link.parse_settings('fight_chars='..bad)
+    local shown=bad:match('^%s*(.-)%s*$')
+    local want="settings: line 1: '"..shown.."' is not allowed for fight_chars ("..CHARS_RULE..'); fight_chars '
+        ..'stays empty'
+    assert(#notes==1 and notes[1]==want and #s.fight_chars==0,notes[1])
+end
+s,notes=Link.parse_settings('shared_enemies=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_enemies (use on or off); "
+    .."shared_enemies stays off" and s.shared_enemies==false,notes[1])
+-- A new file names both, off and empty; a file written before they existed keeps working unchanged: the same settings,
+-- no line.
+assert(Link.DEFAULT:find('\nshared_enemies=off\nfight_chars=\n',1,true),'Both written in a new file')
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0)
+local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
+assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.host_key.name=='F5' and s.send_rate==20
+    and s.name_tag==true and s.cloth==false)
 
 -- The file is the user's: written with the defaults when absent, never written again.
 local SETTINGS,writes='C:\\Mod\\coop-settings.txt',0

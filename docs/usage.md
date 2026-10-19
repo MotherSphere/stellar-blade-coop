@@ -73,6 +73,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save slot only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save slot only) |
+| `coop fight on\|off\|status` | Shared enemies (experimental, off by default, co-op save slot only) |
+| `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save slot only) |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -161,7 +163,33 @@ STOP: coop no runs only with the co-op save slot loaded (INSTALL.md: Co-op save 
 
 (`now no slot status` without the native part.)
 
-The ghost, the link and every other command run on any save.
+The ghost, the link and every other command except `coop fight` (below) run on any save.
+
+### Shared enemies (experimental, off by default)
+
+`coop fight` is the first stage of shared enemies, not yet tried in game. With a friend linked, each enemy that both
+games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar, balance gauge and
+death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's enemy still fights
+only its own EVE, and positions are not shared. It changes enemy stats through the game's own code, so it runs only on
+the co-op save slot, only for the enemy types in `fight_chars`, and kills count in the co-op save. Back up your saves
+first (see [saves.md](saves.md)).
+
+- `shared_enemies=on` in [coop-settings.txt](#coop-settingstxt) allows `coop fight on` and asks for it once a load,
+  when your first save has loaded: on the co-op save slot it starts; on another slot the notice
+  `Shared fight off: not on the co-op save` says why not.
+- `coop fight on` starts it by hand (it needs `shared_enemies=on` and `fight_chars`) and `coop fight off` stops it. It
+  waits for a linked friend and a loaded save. Loading another save slot turns it off until it is asked again.
+- `coop fight status` answers with the `fight=` line of `coop status`, for example
+  `fight=on mode=on role=host enemies=3 ...`.
+- Solo test tools: `coop fight probe` is read only and logs each actor (character id, HP, Shield, Stamina) to
+  `coop-fight.log`, which is where to find the ids for `fight_chars`. Once the log says `fight writes=armed`,
+  `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the eligible enemy with
+  the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
+  `coop fight replay` plays that file into the guest's side.
+- Every `coop fight` command except `off` and `status` stops on another slot with
+  `STOP: coop fight runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>`.
+- Notices: `Shared fight on: <n> enemies linked` when it starts, and again when enemies get linked after none;
+  `Shared fight off: <why>` when it stops after it ran or waited.
 
 ### `coop off`
 
@@ -192,6 +220,11 @@ send_rate=20
 # What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
+# Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
+# death, while both of you play your co-op save slot. fight_chars: the enemy character ids it shares, separated by
+# spaces (coop fight probe logs them), for example fight_chars=15011001.
+shared_enemies=off
+fight_chars=
 ```
 
 | Setting | Values | Default |
@@ -204,6 +237,8 @@ send_rate=20
 | `cloth` | `on` or `off` | `off` |
 | `dyes` | `on` or `off` | `off` |
 | `effects` | `on` or `off` | `off` |
+| `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental-off-by-default), experimental | `off` |
+| `fight_chars` | At most 16 enemy character ids, whole numbers separated by spaces | empty |
 
 Rules:
 
@@ -318,6 +353,9 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-record.bin` | native | The last recording (`coop record`) |
 | `nightop-probe.txt` | native | The `coop no` poller's lines, capped at 4 MB |
 | `nightop-probe.old.txt` | native | An earlier run's last probe file, moved there when the native part starts and finds one |
+| `coop-fight.log` | native | The shared enemies' probe actors and stats lines, capped at 4 MB |
+| `coop-fight.old.log` | native | The previous run's `coop-fight.log` |
+| `coop-fight-record.txt` | native | The last shared-enemies recording (`coop fight record`) |
 | `coop-request.txt` | Lua | A console request for the native part |
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |

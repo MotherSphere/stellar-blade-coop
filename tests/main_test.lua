@@ -2,8 +2,9 @@
 -- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
 -- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
--- on any slot even when that raises), coop look changes what the ghost shows and builds it again, and the link is
--- optional (no native part, no Steam link, no keys).
+-- on any slot even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
+-- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
+-- shared_enemies=on and says on and off on screen, and the link is optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -35,6 +36,7 @@ LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 local asked,sessions,ticks,withdrawn,states={},{},0,{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local link_mode='none' -- What link.mode() says, as of the last changes().
+local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -46,6 +48,7 @@ local fake_link={
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
     mode=function() return link_mode end,
+    fight=function() fight_reads=fight_reads+1; return fight_text end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -100,7 +103,7 @@ end}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | off'
+    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -128,6 +131,7 @@ assert(name_tag==true,'The name tag setting reaches the ghost')
 for k,line in ipairs(printed) do
     if line:find('keys: host=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
+        assert(printed[k+2]=='[StellarCoop] shared enemies: off (experimental), fight_chars none\n',printed[k+2])
     end
 end
 assert(look.cloth==false and look.dyes==false and look.effects==false,'Off unless the settings say on')
@@ -364,6 +368,157 @@ coop('off'); assert(toggles==4 and not active)
 link_mode='host'; loops[2].f(); assert(toggles==4 and not active,'No toggle after coop off')
 link_mode='none'
 
+-- coop fight (Phase 11, experimental). Strict arguments: anything else is the fight's usage line and asks nothing.
+local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | '
+    ..'record | replay\n'
+local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only with the co-op save slot loaded (INSTALL.md: Co-op save '
+    ..'slot); now '
+local COOP=with_slot('slot=coop index=4 marker=4\n')
+settings_text=''
+load_main(true)
+status_text=COOP
+for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','now'},{'status','x'},{'probe','1'},{'record','x'},
+        {'replay','x'},{'test'},{'test','kill','x'},{'test','hp'},{'test','hp','0'},{'test','hp','-0'},
+        {'test','hp','+0'},{'test','hp','1.5'},{'test','hp','10000001'},{'test','hp','-10000001'},{'test','hp','x'},
+        {'test','hp','--1'},{'test','hp',' 5'},{'test','hp','5 '},{'test','hp','0x10'},{'test','hp','1e3'},
+        {'test','hpx','5'},{'test','HP','5'},{'test','kill','1'},{'test','hp','-10','x'},{'test','sh','1','x','y'},
+        {'test','st','1','2'}}) do
+    coop('fight',table.unpack(bad))
+    assert(last()==FIGHT_USE and #asked==0,table.concat(bad,' ')..': '..last())
+end
+-- shared_enemies=off (the default): coop fight on refuses; the T11a tools still run, the probe without fight_chars;
+-- record and replay need them. A test's change goes as a plain whole number; a test never carries fight_chars.
+coop('fight','on')
+assert(last()=='[StellarCoop] STOP: shared enemies are off in coop-settings.txt (shared_enemies=off)\n' and #asked==0)
+local NO_CHARS="[StellarCoop] STOP: no fight_chars in coop-settings.txt (coop fight probe logs the enemies' character "
+    .."ids)\n"
+coop('fight','record'); assert(last()==NO_CHARS and #asked==0,last())
+coop('fight','replay'); assert(last()==NO_CHARS and #asked==0,last())
+coop('fight','probe')
+assert(asked[1]=='fight probe' and last()=='[StellarCoop] OK: asked the native part: fight probe\n',last())
+for _,case in ipairs({{{'hp','-10'},'fight test hp -10'},{{'hp','+5'},'fight test hp 5'},
+        {{'sh','-1'},'fight test sh -1'},{{'st','10000000'},'fight test st 10000000'},
+        {{'st','-007'},'fight test st -7'},{{'kill'},'fight test kill'}}) do
+    coop('fight','test',table.unpack(case[1])); assert(asked[#asked]==case[2],asked[#asked])
+end
+-- status asks the native part (its stats line) and answers with the fight= line, the way coop-status.txt has it.
+local before_status=#asked
+fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
+coop('fight','status')
+assert(asked[#asked]=='fight status' and last()=='[StellarCoop] OK: '..fight_text..'\n',last())
+fight_text=nil
+coop('fight','status'); assert(last()=='[StellarCoop] OK: no shared fight status yet\n' and #asked==before_status+2)
+-- Off the co-op slot only off and status run: the others say the slot line and ask nothing (D2, N9).
+for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main index=0 marker=4'},
+        {with_slot('slot=none index=4 marker=4\n'),'slot=none index=4 marker=4'},
+        {with_slot('slot=unknown index=? marker=4\n'),'slot=unknown index=? marker=4'},
+        {with_slot(''),'no slot status'},
+        {with_slot('friend=1 0 slot=coop index=4 marker=4\n'),'no slot status'}}) do -- Not at a line start.
+    status_text=case[1]
+    local before=#asked
+    for _,args in ipairs({{'on'},{'probe'},{'record'},{'replay'},{'test','kill'},{'test','hp','-1'}}) do
+        coop('fight',table.unpack(args)); assert(last()==FIGHT_STOP..case[2]..'\n' and #asked==before,last())
+    end
+    coop('fight','off')
+    assert(asked[#asked]=='fight off' and last()=='[StellarCoop] OK: asked the native part: fight off\n',last())
+    coop('fight','status'); assert(asked[#asked]=='fight status')
+end
+-- shared_enemies=on with fight_chars: every mode but test carries them; started by itself once a load, when the first
+-- save is judged: slot=coop asks coop fight on, not before (no slot line, none, unknown), never again.
+settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
+status_text=plain
+load_main(true)
+assert(logged('shared enemies: on (experimental), fight_chars 15011001 2'),table.concat(printed,'|'))
+for _,waiting in ipairs({plain,with_slot('slot=none index=4 marker=4\n'),with_slot('slot=unknown index=? marker=4\n'),
+        with_slot('friend=1 0 slot=coop index=4 marker=4\n')}) do
+    status_text=waiting; loops[2].f(); assert(#asked==0,'No save judged yet: it waits')
+end
+status_text=COOP
+loops[2].f()
+assert(#asked==1 and asked[1]=='fight on 15011001 2'
+    and logged('OK: shared_enemies=on: asked the native part: fight on 15011001 2'),table.concat(printed,'|'))
+loops[2].f(); status_text=with_slot('slot=none index=4 marker=4\n'); loops[2].f(); status_text=COOP; loops[2].f()
+assert(#asked==1,'Once a load: a reload of the save asks nothing (the native part pauses and resumes it)')
+for _,mode in ipairs({'on','probe','record','replay'}) do
+    coop('fight',mode); assert(asked[#asked]=='fight '..mode..' 15011001 2',asked[#asked])
+end
+coop('fight','test','kill'); assert(asked[#asked]=='fight test kill')
+-- The first judged save is a main one: said on screen and in the log, and not asked later on the co-op save.
+load_main(true)
+local said_before=#said
+status_text=with_slot('slot=main index=0 marker=4\n'); loops[2].f()
+assert(#asked==0 and logged('STOP: shared_enemies=on: not on the co-op save'))
+local function fight_notices_since(n)
+    local out={}
+    for i=n+1,#said do if said[i]:find('^Shared fight') then out[#out+1]=said[i] end end
+    return out
+end
+local shown=fight_notices_since(said_before)
+assert(#shown==1 and shown[1]=='Shared fight off: not on the co-op save',table.concat(shown,'|'))
+status_text=COOP; loops[2].f(); assert(#asked==0,'coop fight on starts it from here')
+-- coop fight off cancels the start to come; coop off too.
+load_main(true)
+status_text=plain; coop('fight','off'); status_text=COOP; loops[2].f()
+assert(#asked==1 and asked[1]=='fight off','Only the off')
+load_main(true)
+coop('off'); loops[2].f(); assert(#asked==1 and asked[1]=='off','Nothing after coop off')
+-- shared_enemies=on without fight_chars: said, never asked.
+settings_text='shared_enemies=on\n'
+load_main(true)
+status_text=COOP; said_before=#said; loops[2].f()
+shown=fight_notices_since(said_before)
+assert(#asked==0 and #shown==1 and shown[1]=="Shared fight off: no fight_chars in coop-settings.txt (coop fight probe "
+    .."logs the enemies' character ids)",shown[1])
+-- And never with the default off.
+settings_text=''
+load_main(true)
+loops[2].f(); assert(#asked==0)
+-- The notices, every 250 ms from the fight= line: on when coop fight on first runs, again when its enemies go from none
+-- to some (one enemy, or several); off with why once it ran or waited, in any mode; a latch says so; nothing for the
+-- probe's start, a pause, a resume, the same line again, or a status that was not read; nothing per frame.
+local function fight_step(text)
+    fight_text=text
+    local n=#said
+    loops[2].f()
+    return table.concat(fight_notices_since(n),'|')
+end
+for _,step in ipairs({
+        {nil,''},{'fight=off',''},{'fight=off why=coop fight off',''},
+        {'fight=waiting mode=on why=no friend linked',''},
+        {'fight=on mode=on role=host enemies=0 claims=0 refused=0 kills=0 floored=0 sim_us=0/0 threads=0/0/0',
+            'Shared fight on: 0 enemies linked'},
+        {'fight=on mode=on role=host enemies=0 claims=0 refused=0 kills=0 floored=0 sim_us=0/0 threads=0/0/0',''},
+        {'fight=on mode=on role=host enemies=3 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2',
+            'Shared fight on: 3 enemies linked'},
+        {'fight=on mode=on role=host enemies=2 claims=4 refused=0 kills=1 floored=0 sim_us=9/20 threads=1/1/2',''},
+        {'fight=on mode=on role=host enemies=0 claims=4 refused=0 kills=3 floored=0 sim_us=9/20 threads=1/1/2',''},
+        {'fight=on mode=on role=guest pairs=1 claims=0 corrections=0 kills=0 floored=0 desync=0 sim_us=5/9 '
+            ..'threads=1/1/2','Shared fight on: 1 enemy linked'},
+        {'fight=waiting mode=on why=no save loaded',''},
+        {'fight=on mode=on role=guest pairs=0 claims=0 corrections=0 kills=0 floored=0 desync=0 sim_us=5/9 '
+            ..'threads=1/1/2',''},
+        {nil,''},
+        {'fight=off why=not on the co-op save (slot=main index=0 marker=4)',
+            'Shared fight off: not on the co-op save (slot=main index=0 marker=4)'},
+        {'fight=off why=not on the co-op save (slot=main index=0 marker=4)',''},
+        {'fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2',''},
+        {'fight=off why=coop fight off','Shared fight off: coop fight off'},
+        {'fight=waiting mode=on why=no friend linked',''},
+        {'fight=off why=coop fight off','Shared fight off: coop fight off'},
+        {'fight=on mode=replay role=guest pairs=2 claims=0 corrections=1 kills=0 floored=0 desync=0 sim_us=5/9 '
+            ..'threads=1/1/2',''},
+        {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2',
+            'Shared fight on: 2 enemies linked'},
+        {'fight=stopped why=fault','Shared fight off: stopped for this run (fault)'},
+        {'fight=stopped why=fault',''}}) do
+    local got=fight_step(step[1])
+    assert(got==step[2],tostring(step[1])..': '..got)
+end
+local reads=fight_reads
+loops[1].f(); loops[1].f(); assert(fight_reads==reads,'No shared fight work in the per-frame loop')
+fight_text=nil
+status_text=plain
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end
@@ -374,6 +529,8 @@ coop('puppet')
 for _,name in ipairs({'loopback','record','replay'}) do
     coop(name); assert(last():find('STOP: the native tick is unavailable',1,true),last())
 end
+coop('fight','probe'); assert(last():find('STOP: the native tick is unavailable',1,true) and #asked==0,last())
+coop('fight','off'); assert(asked[1]=='fight off','Off needs no tick')
 
 load_main(false)
 assert(#loops==1,'No link loop without the native part')
@@ -385,6 +542,8 @@ coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the n
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())
 coop('status'); assert(last():find('STOP: no Steam link status yet',1,true),last())
 coop('where'); assert(wheres==2 and last():find('OK: where',1,true),'coop where needs no Steam link')
+coop('fight','off'); assert(last():find('STOP: the Steam link needs the native part',1,true),last())
+coop('fight','on'); assert(last():find('STOP: the native tick is unavailable',1,true) and #asked==0,last())
 local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
