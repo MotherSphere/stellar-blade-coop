@@ -1252,7 +1252,8 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     say(text);
   }
   FightIo io;
-  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io);
+  const bool photo = pinned && !blocked && fight::photo_mode(base, rpm); // Our photo mode pauses it (pinned build).
+  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
   return fight_engine.on();
 }
 

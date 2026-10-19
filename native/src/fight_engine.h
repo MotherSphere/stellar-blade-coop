@@ -60,6 +60,15 @@ constexpr size_t kGuid = 0x20, kFsb = 0x60, kControlled = 0xbc, kPendingDeath = 
 constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
+// SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
+// count and free slots are at +0x1f0 and +0x21c. FUN_1422aafe0 pauses the world when the first tag comes and unpauses
+// it when the last goes: the pause menu, photo mode, a movie, a lost focus...
+constexpr size_t kPauseAt = 0x30, kTagsNum = 0x1f0, kTagsFree = 0x21c;
+// SB's photo mode manager (FUN_141adc360's): +0x38 active, +0x48 the camera (1 free, 2 selfie, 3 cutscene). SB's logic
+// dispatch (FUN_141acd5c0) returns at once while it is active with any camera but the selfie's.
+constexpr uint64_t kPhotoMode = 0x147032598;
+constexpr size_t kPhotoActive = 0x38, kPhotoCamera = 0x48;
+constexpr int32_t kSelfie = 2;
 
 // ---- Our job ----
 
@@ -129,6 +138,17 @@ struct Actor {
 };
 inline bool fighting(const Actor &a) { return !a.pending && (a.life == 1 || a.life == 6); }
 
+// The local player in SB's photo mode with any camera but the selfie's: SB's logic stands still, so our job does not
+// run. read(address, out, n) as a Game's; false when unread (none before the manager is made).
+template <class Read> bool photo_mode(uint64_t base, Read &&read) {
+  uint64_t manager = 0;
+  uint8_t active = 0;
+  int32_t camera = 0;
+  return read(base + (kPhotoMode - kImageBase), &manager, sizeof manager) && plausible(manager) &&
+         read(manager + kPhotoActive, &active, sizeof active) && active &&
+         read(manager + kPhotoCamera, &camera, sizeof camera) && camera != kSelfie;
+}
+
 class Engine {
 public:
   JobCounts counts;
@@ -181,7 +201,7 @@ public:
   // mode 0, and our job has not run for 500 ms while the logic went on (none armed yet, a Logic Reset dropped it, an
   // orphaned push). Only while no logic task is in flight (+0x5c0 == 0): a push between the worker's drain and its
   // turn's end lands on a key already drained. Else again next tick, and after 500 ms of that anyway [G]: an orphan
-  // then costs one re-arm. True when it pushed.
+  // then costs one re-arm. Never while the world is paused. True when it pushed.
   template <class Game> bool arm(Game &g, uint64_t now_ms) {
     uint64_t net = 0, logic = 0, world = 0, task = 0;
     int32_t mode = -1;
@@ -189,6 +209,14 @@ public:
     if (!on_ || latched_ || !globals(g, net, logic, world) || !plausible(world) || !plausible(logic) ||
         !plausible(net) || !get(g, net + kNetMode, mode) || mode != 0 || !get(g, logic + kTurn, turn)) {
       armed_ = waiting_ = false;
+      return false;
+    }
+    // A paused world (SB holds a pause tag) stands still for this rule even when its 0 s ticks move the turn while our
+    // entry waits [G]: no arm and no idle count, so a long pause never trips the latch below. The beat starts again at
+    // the resume, so the entry still queued gets its turn before a re-arm.
+    if (paused(g)) {
+      heartbeat_ms_ = now_ms;
+      waiting_ = false;
       return false;
     }
     // Not while it beats (it ran or was armed within 500 ms), nor while the logic stands still (the turn has not moved
@@ -380,6 +408,21 @@ private:
     logic = nightop::get<uint64_t>(b, kLogicAt);
     world = nightop::get<uint64_t>(b, kWorldAt);
     return true;
+  }
+
+  // SB holds a pause tag (kPauseAt); none before the singleton is made. Unreadable or implausible: latched, and true.
+  template <class Game> bool paused(Game &g) {
+    uint64_t tags = 0;
+    int32_t count = 0, gaps = 0;
+    if (!get(g, base_ + (nightop::kGlobals + kPauseAt - kImageBase), tags))
+      return true;
+    if (!tags)
+      return false;
+    if (!plausible(tags)) {
+      latch("implausible pause tags");
+      return true;
+    }
+    return !get(g, tags + kTagsNum, count) || !get(g, tags + kTagsFree, gaps) || count > gaps;
   }
 
   // Section 4.4's liveness test by direct reads, no SB call: a plausible pointer to a logic actor (its vtable) whose
@@ -743,8 +786,10 @@ private:
 //     coop-fight-record.txt, written when the mode ends;
 //   replay: that file played into the guest's side from its start; the guest's own lines go nowhere. It writes, so
 //     it waits for fight writes=armed too.
-// A mode runs while a save is loaded (and, for on, a friend is linked); a missing friend or save pauses it (a new
-// session when both are back), and the gate turns it off until asked again. Its Io:
+// A mode runs while a save is loaded, our player is not in photo mode (SB's logic stands still there, so the job would
+// not run while her lines pile up; she hears our off, which stops her side's sharing too) and, for on, a friend is
+// linked. Any of them missing pauses it (a new session when all are back); the gate turns it off until asked again.
+// The game's other pauses (its menu) leave it running: its logic still ticks. Its Io:
 //   bool send(const std::string &line, bool reliable): to her on channel 2; false when not queued;
 //   void say(const std::string &line): the log;
 //   void trace(const std::string &line): coop-fight.log: the probe's actors and the stats lines, which would fill the
@@ -793,16 +838,18 @@ public:
     std::string said = update(gate, io);
     return !said.empty() ? said
                          : std::string("shared fight ") + name(mode_) + ": waiting for " +
-                               (mode_ == Fight::on && !linked_ ? "a linked friend" : "a loaded save");
+                               (mode_ == Fight::on && !linked_ ? "a linked friend"
+                                : !world_                      ? "a loaded save"
+                                                               : "the end of photo mode");
   }
 
   // Every worker pass, after the link's tick: the job's lines out (while running: to her, or into the recording), its
   // events and probe census into the log, her lines in (parsed here, strictly) or the replay's, the gates, then the
-  // stats.
+  // stats. photo: our player in photo mode (photo_mode()).
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
-            Io &io) {
-    now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world;
+            Io &io, bool photo = false) {
+    now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
     last_ = mail_.take(
         [&](const Message &m) { // A stopped session's last lines go nowhere: she dropped it.
           if (running_ && ran_ == Fight::record)
@@ -881,9 +928,10 @@ public:
       return std::string("fight=stopped why=") + e_.why();
     if (running_)
       return detail_;
-    if (mode_ != Fight::none)
-      return std::string("fight=waiting mode=") + name(mode_) +
-             " why=" + (mode_ == Fight::on && !linked_ ? "no friend linked" : "no save loaded");
+    if (mode_ != Fight::none) {
+      const char *why = waits();
+      return std::string("fight=waiting mode=") + name(mode_) + " why=" + (why ? why : "starting");
+    }
     return last_why_.empty() ? "fight=off" : "fight=off why=" + last_why_;
   }
 
@@ -892,12 +940,19 @@ private:
     return f == Fight::on ? "on" : f == Fight::probe ? "probe" : f == Fight::record ? "record" : "replay";
   }
 
+  // What the mode asked waits for, or nullptr.
+  const char *waits() const {
+    return mode_ == Fight::on && !linked_ ? "no friend linked"
+           : !world_                      ? "no save loaded"
+           : photo_                       ? "photo mode"
+                                          : nullptr;
+  }
   // Starts, pauses or restarts the job for the gates as they stand: the line for the log, or empty.
   template <class Gate, class Io> std::string update(Gate &&gate, Io &io) {
-    const bool friendless = mode_ == Fight::on && !linked_;
-    if (running_ && (!world_ || friendless))
-      return stop("paused", friendless ? "no friend linked" : "no save loaded", io);
-    if (mode_ == Fight::none || !world_ || friendless || (running_ && (ran_ != Fight::on || side_ == hosting_)))
+    const char *why = waits();
+    if (running_ && why)
+      return stop("paused", why, io);
+    if (mode_ == Fight::none || why || (running_ && (ran_ != Fight::on || side_ == hosting_)))
       return std::string();
     if (!running_) { // Asked again before each start: the save loaded since the last ask may be another slot.
       if (std::string why = gate(); !why.empty())
@@ -1095,6 +1150,7 @@ private:
   Fight mode_ = Fight::none, ran_ = Fight::none; // What was asked, and the mode of the running session.
   bool running_ = false, side_ = false, latch_said_ = false; // side_: hosting, as started.
   bool linked_ = false, hosting_ = false, world_ = false;    // As of the last pass.
+  bool photo_ = false;                                       // Our player in photo mode, as of the last pass.
   bool her_off_ = false;                                     // Her last off said, no on since.
   bool armed_ = false;                                       // fight writes=armed: tests may write, this run.
   size_t chars_ = 0;                                         // fight_chars asked with the mode.

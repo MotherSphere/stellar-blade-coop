@@ -179,7 +179,8 @@ first (see [saves.md](saves.md)).
   `Shared fight off: not on the co-op save` says why not. Setting it back to `off` and pressing Ctrl+R stops a running
   `coop fight on` (the solo test tools below go on).
 - `coop fight on` starts it by hand (it needs `shared_enemies=on` and `fight_chars`) and `coop fight off` stops it. It
-  waits for a linked friend and a loaded save. Loading another save slot turns it off until it is asked again.
+  waits for a linked friend and a loaded save, and pauses while either player is in photo mode (selfies and the
+  pause menu do not pause it). Loading another save slot turns it off until it is asked again.
 - `coop fight status` answers with the `fight=` line of `coop status`, for example
   `fight=on mode=on role=host enemies=3 ...`.
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, HP, Shield, Stamina) to

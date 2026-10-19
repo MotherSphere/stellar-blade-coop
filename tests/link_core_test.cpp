@@ -1423,7 +1423,8 @@ int main() {
   // Two Links and the shared fight's worker on each, wired as steam_link.cpp wires them: each pass gives the worker
   // whether a friend is linked, whether we own the lobby and her lines from take_fight(); its lines go out through
   // send_fight(). The lobby owner hosts, both on lines cross, what one job hands over reaches the other's in order (hp
-  // unreliable), and her leaving pauses both sides with nothing more sent.
+  // unreliable), her photo mode pauses her side and stops the host's sharing until her new session, and her leaving
+  // pauses both sides with nothing more sent.
   reset();
   {
     Two t;
@@ -1456,9 +1457,9 @@ int main() {
       Desk io{link, {}};
     } a{&t.a}, b{&t.b};
     const auto gate = [] { return std::string(); };
-    const auto pass = [&](Side &s) {
-      s.worker.pass(t.now, s.link->linked(), s.link->linked() && s.link->host(), true, s.link->take_fight(), gate,
-                    s.io);
+    const auto pass = [&](Side &s, bool photo = false) {
+      s.worker.pass(t.now, s.link->linked(), s.link->linked() && s.link->host(), true, s.link->take_fight(), gate, s.io,
+                    photo);
     };
     const auto ask = [&](Side &s) { return s.worker.ask(parse_request("fight on 15011001"), gate, s.io); };
     const auto line = [](const std::string &text) { return fight::parse(text.data(), text.size()); };
@@ -1512,6 +1513,27 @@ int main() {
     t.tick(t.a, 1);
     pass(a);
     assert(taken(a) == std::vector<std::string>{hit});
+    // Her photo mode: her side pauses and its off reaches the host's job; the host's lines meanwhile never reach hers.
+    // Back from it: her new session's on reaches the host's job.
+    pass(b, true);
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    pass(a);
+    assert(b.io.said.back() == "shared fight paused: photo mode" && !b.engine->on() && a.engine->on());
+    assert(a.io.said.back() == "fight: her shared fight off: photo mode");
+    assert(taken(a) == std::vector<std::string>{fight_tag() + " off ?"}); // The job's off: the reason stays in the log.
+    a.mail->send(line(hp));
+    taken(a);
+    pass(a);
+    t.tick(t.a, 1);
+    t.tick(t.b, 1);
+    pass(b, true);
+    assert(taken(b).empty());
+    pass(b);
+    t.tick(t.b, 1);
+    t.tick(t.a, 1);
+    pass(a);
+    assert(b.io.said.back() == "shared fight on: as guest" && taken(a) == std::vector<std::string>{on});
     // She leaves: both pause, and the host's next line goes nowhere.
     t.tick(t.b, 1, "leave");
     t.tick(t.a, 1);

@@ -45,8 +45,9 @@ int loaded_slot();
 // Worker thread, Phase 11's shared fight (fight_engine.h's Worker). A coop fight request (Command::fight): on, probe,
 // record or replay with the charIds it shares (fight_chars), off, status or a probe's test; marker: the slot
 // StellarCoopSlot.txt names. A mode starts only on the pinned build, before coop off and on the co-op save
-// (slot=coop), else is refused with why; it then runs while a save is loaded (and, for on, a friend is linked). record
-// and replay use coop-fight-record.txt in the mod folder. Returns the line for the log.
+// (slot=coop), else is refused with why; it then runs while a save is loaded and our player is not in SB's photo mode
+// (and, for on, a friend is linked). record and replay use coop-fight-record.txt in the mod folder. Returns the line
+// for the log.
 std::string ask_fight(const coop::Request &request, int marker);
 // Worker, every pass after the link's tick. lines: her channel-2 lines; send: ours to her (hp unreliable, false when
 // not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send (or to the recording), logs
