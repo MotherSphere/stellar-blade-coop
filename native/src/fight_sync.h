@@ -323,6 +323,7 @@ public:
   }
   uint32_t gen() const { return gen_; }
   size_t linked() const { return count_; }
+  bool peer_on() const { return peer_on_; } // Her on came, and no off since.
   // The GUIDs the next pass must re-find.
   size_t tracked(uint32_t *guids) const {
     for (size_t i = 0; i < count_; ++i)

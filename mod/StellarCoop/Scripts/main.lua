@@ -95,11 +95,19 @@ local function fight_line(sub,a,b,extra)
     if sub~='test' then return nil end
     if a=='kill' and b==nil then return 'fight test kill' end
     local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
-    if n and n~=0 and math.abs(n)<=10000000 then return string.format('fight test %s %d',a,n) end
+    if n and n~=0 and n>=-10000000 and n<=10000000 then return string.format('fight test %s %d',a,n) end
 end
 -- shared_enemies=on: coop fight on once a load, when the first save is judged (slot=coop asks it, slot=main says why
 -- not); coop fight off before then cancels it.
 local fight_auto=settings~=nil and settings.shared_enemies
+-- shared_enemies=off is a kill switch at a reload too (Ctrl+R): the native part outlives Lua, so a coop fight on that an
+-- earlier load started ends here, waiting or running (its fight= line, from the start of its own line). A probe, record
+-- or replay goes on: shared_enemies does not gate them.
+if settings and not settings.shared_enemies and not off
+    and ('\n'..(link.status() or '')):find('\nfight=%a+ mode=on ') then
+    local ok,why=ask('fight off')()
+    log((ok and 'OK: ' or 'STOP: ')..'shared_enemies=off: '..tostring(why))
+end
 local commands={
     puppet=puppet.toggle, host=ask('host'), invite=ask('invite'), leave=ask('leave'), report=ask('report'),
     join=function(lobby)

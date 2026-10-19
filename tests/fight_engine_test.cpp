@@ -499,6 +499,21 @@ int main() {
     assert(e->pass(g, g.logic, true, nullptr, 0) == 0 && e->latched() && std::string(e->why()) == why);
   }
 
+  // ---- The host's count is what it shares: none until her on and after her off, however many it follows ----
+  {
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    frame(g, *e, 0);
+    assert(e->host.linked() == 1 && e->snapshot().hosted == 0);
+    g.inbox.push_back(msg("SBF7 on"));
+    frame(g, *e, 16);
+    assert(e->snapshot().hosted == 1);
+    g.inbox.push_back(msg("SBF7 off busy"));
+    frame(g, *e, 32);
+    assert(e->host.linked() == 1 && e->snapshot().hosted == 0);
+  }
+
   // ---- Two phases: a write that summons an actor and moves the map ----
   {
     Game g;
@@ -909,7 +924,7 @@ int main() {
     mail.send(msg("SBF7 hit 2 1 101 100 0 0 1600 0"));
     mail.send(msg("SBF7 hp 1 1 0 101:1500:100:200"));
     mail.event(Event{"paired", "", 101, 5001, 0});
-    s.paired = 1;
+    s.paired = 1, s.session = e->session(); // The session's first turn ran.
     assert(mail.exchange(s));
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(io.lines() == "SBF7 hit 2 1 101 100 0 0 1600 0\nSBF7 hp 1 1 0 101:1500:100:200 (unreliable)\n");
@@ -1171,6 +1186,16 @@ int main() {
       assert(has(io.file, " SBF7 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF7 up 1 102 5002 0 900 1600\n"));
       assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF7 dead 1 101\n") && !has(io.file, " on"));
       recording = io.file;
+      // A second session shows none of the first one's counts, not even before its job's first turn.
+      assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: ", 0) == 0);
+      for (const uint64_t from = t; t < from + 1500; t += 16)
+        w.pass(t, false, false, true, none, gate, io);
+      assert(has(w.detail(), "fight=on mode=record role=host enemies=0 ") && w.status() == " fight=on 0");
+      for (const uint64_t from = t; t < from + 1100; t += 16) {
+        frame(H, *e, t);
+        w.pass(t, false, false, true, none, gate, io);
+      }
+      assert(has(w.detail(), "fight=on mode=record role=host enemies=1 ") && w.status() == " fight=on 1");
     }
     Game G;
     auto mail = std::make_unique<Mail>();

@@ -382,7 +382,7 @@ for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','now'},{'status','x'}
         {'test','hp','+0'},{'test','hp','1.5'},{'test','hp','10000001'},{'test','hp','-10000001'},{'test','hp','x'},
         {'test','hp','--1'},{'test','hp',' 5'},{'test','hp','5 '},{'test','hp','0x10'},{'test','hp','1e3'},
         {'test','hpx','5'},{'test','HP','5'},{'test','kill','1'},{'test','hp','-10','x'},{'test','sh','1','x','y'},
-        {'test','st','1','2'}}) do
+        {'test','st','1','2'},{'test','hp','-9223372036854775808'}}) do -- math.abs keeps the last one negative.
     coop('fight',table.unpack(bad))
     assert(last()==FIGHT_USE and #asked==0,table.concat(bad,' ')..': '..last())
 end
@@ -473,6 +473,27 @@ assert(#asked==0 and #shown==1 and shown[1]=="Shared fight off: no fight_chars i
 settings_text=''
 load_main(true)
 loops[2].f(); assert(#asked==0)
+-- shared_enemies=off at a reload (Ctrl+R) ends a coop fight on an earlier load started, waiting or running, from the
+-- fight= line at a line start only; a probe, record or replay goes on, and nothing is asked after coop off.
+local ON_LINE='fight=on mode=on role=host enemies=3 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2\n'
+for _,case in ipairs({{with_slot(ON_LINE),true},{with_slot('fight=waiting mode=on why=no friend linked\n'),true},
+        {with_slot('fight=on mode=record role=host enemies=1 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 '
+            ..'threads=1/1/2\n'),false},
+        {with_slot('fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 '
+            ..'threads=1/1/2\n'),false},
+        {with_slot('fight=waiting mode=replay why=no save loaded\n'),false},
+        {with_slot('fight=off why=coop fight off\n'),false},{with_slot('fight=stopped why=fault\n'),false},
+        {with_slot('peer=2 name=x '..ON_LINE),false},
+        {'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=off reason=coop_off\n'..ON_LINE,false}}) do
+    status_text=case[1]
+    load_main(true)
+    assert(#asked==(case[2] and 1 or 0) and (not case[2] or asked[1]=='fight off'),case[1])
+    assert(not case[2] or logged('OK: shared_enemies=off: asked the native part: fight off'),table.concat(printed,'|'))
+end
+settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
+status_text=with_slot(ON_LINE)
+load_main(true); assert(#asked==0,'shared_enemies=on leaves it running')
+settings_text=''
 -- The notices, every 250 ms from the fight= line: on when coop fight on first runs, again when its enemies go from none
 -- to some (one enemy, or several); off with why once it ran or waited, in any mode; a latch says so; nothing for the
 -- probe's start, a pause, a resume, the same line again, or a status that was not read; nothing per frame.

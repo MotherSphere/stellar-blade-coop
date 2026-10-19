@@ -176,7 +176,8 @@ first (see [saves.md](saves.md)).
 
 - `shared_enemies=on` in [coop-settings.txt](#coop-settingstxt) allows `coop fight on` and asks for it once a load,
   when your first save has loaded: on the co-op save slot it starts; on another slot the notice
-  `Shared fight off: not on the co-op save` says why not.
+  `Shared fight off: not on the co-op save` says why not. Setting it back to `off` and pressing Ctrl+R stops a running
+  `coop fight on` (the solo test tools below go on).
 - `coop fight on` starts it by hand (it needs `shared_enemies=on` and `fight_chars`) and `coop fight off` stops it. It
   waits for a linked friend and a loaded save. Loading another save slot turns it off until it is asked again.
 - `coop fight status` answers with the `fight=` line of `coop status`, for example
@@ -188,7 +189,8 @@ first (see [saves.md](saves.md)).
   `coop fight replay` plays that file into the guest's side.
 - Every `coop fight` command except `off` and `status` stops on another slot with
   `STOP: coop fight runs only with the co-op save slot loaded (INSTALL.md: Co-op save slot); now <the slot line>`.
-- Notices: `Shared fight on: <n> enemies linked` when it starts, and again when enemies get linked after none;
+- Notices: `Shared fight on: <n> enemies linked` when it starts, and again when enemies get linked after none (the
+  host counts none until the friend's side is on);
   `Shared fight off: <why>` when it stops after it ran or waited.
 
 ### `coop off`

@@ -105,7 +105,8 @@ struct JobCounts {
 struct Snapshot {
   JobCounts job;
   Counts host, guest;            // The session's sides.
-  size_t hosted = 0, paired = 0; // host.linked(), guest.linked().
+  size_t hosted = 0, paired = 0; // host.linked() while her side is on (else none shared), guest.linked().
+  uint32_t session = 0;          // The session the sides are of: Engine::session() once its first turn ran.
   uint64_t lost = 0;             // Lines and events the job had no room for.
   uint64_t runs = 0, us = 0, max_us = 0; // Simulate calls since the DLL loaded, their time and the longest (the glue's).
   uint32_t thread = 0, sb_thread = 0;    // The thread Simulate last ran on, and SB's DAT_1470634f0 then.
@@ -170,6 +171,7 @@ public:
   }
   bool latched() const { return latched_; }
   bool on() const { return on_; } // Any thread: set() said on, so the game thread arms.
+  uint32_t session() const { return session_; } // Any thread: the session set() last started.
   const char *why() const {
     const char *w = why_;
     return w ? w : "";
@@ -342,7 +344,7 @@ public:
     s.job.turns = c.turns, s.job.stale = c.stale, s.job.doubled = c.doubled, s.job.mode = c.mode;
     s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
     s.host = host.counts, s.guest = guest.counts;
-    s.hosted = host.linked(), s.paired = guest.linked();
+    s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
     return s;
   }
@@ -813,6 +815,7 @@ public:
           if (running_ && ran_ == Fight::probe)
             probed(a, io);
         });
+    own_session();
     for (const std::string &text : lines) {
       std::string reason;
       const Message m = parse(text.data(), text.size(), &reason);
@@ -908,6 +911,7 @@ private:
     const bool host = mode_ == Fight::on ? hosting_ : mode_ == Fight::record;
     mail_.clear();
     e_.set(true, host, mode_ == Fight::probe);
+    own_session();
     running_ = true, side_ = host, ran_ = mode_;
     malformed_ = 0;
     next_gate_ = now_ + kGateMs;
@@ -1008,6 +1012,11 @@ private:
            ", on the eligible enemy with the lowest HP share";
   }
 
+  // Until the new session's first turn, the snapshot's sides are the last session's: none of them are this one's.
+  void own_session() {
+    if (last_.session != e_.session())
+      last_.host = last_.guest = Counts{}, last_.hosted = last_.paired = 0;
+  }
   // The status line's counts as of the last second.
   std::string counts_line() const {
     const Snapshot &s = last_;
