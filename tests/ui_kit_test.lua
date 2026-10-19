@@ -833,6 +833,25 @@ pc=real
 assert(count(LIB..'SetInputMode_GameOnly')==2)
 reloaded.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==3,'Still due: given back once there is a player controller')
+-- At the title (the co-op saves' question), given back as GameAndUIEx with no widget, no mouse lock and the cursor
+-- kept, so the title menu keeps its mouse; GameOnly when the engine refuses it (the kit stays on); in a world GameOnly.
+reset()
+k=kit()
+up(k)
+k.slow(true,true)
+k.input(true); k.input(false)
+local gameui=stores[registry['/Script/UMG.Default__WidgetBlueprintLibrary']].last.SetInputMode_GameAndUIEx
+assert(count(LIB..'SetInputMode_GameAndUIEx')==1 and count(LIB..'SetInputMode_GameOnly')==0 and gameui[1]==pc
+    and gameui[2]==nil and gameui[3]==0 and gameui[4]==false,'The title: GameAndUI')
+raise[LIB..'SetInputMode_GameAndUIEx']='no overload'
+k.input(true); k.input(false)
+assert(not k.off() and count(LIB..'SetInputMode_GameOnly')==1,'Refused: GameOnly, the kit still on')
+k.slow(true,false)
+k.input(true); k.input(false)
+assert(count(LIB..'SetInputMode_GameAndUIEx')==2 and count(LIB..'SetInputMode_GameOnly')==2,'A world: GameOnly')
+k.slow(true,true)
+k.input(true); k.reset()
+assert(count(LIB..'SetInputMode_GameAndUIEx')==3,'coop ui reset at the title too')
 -- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
 -- (nil when unread); nothing once off.
 reset()

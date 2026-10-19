@@ -182,7 +182,12 @@ local function builder()
         return {text=function() return box_text end,set=function(v) box_text=v end,
             focus=function() box_focuses=box_focuses+1 end,hint=function() end}
     end
-    function b.row() local r={}; r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end; return r end
+    function b.row()
+        local r={}
+        r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end
+        r.hovered=function() return r.hover==true end
+        return r
+    end
     function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
     return b
 end
@@ -199,7 +204,8 @@ end,kit=function(opts)
             kit_views[name]=build(builder())
             if name=='menu' then assert(place.hit); menu_place,menu_view=place,kit_views.menu end
         end,
-        slow=said_kit('slow'),tick=function() end,ready=function() return kit_ready and not kit_off end,
+        slow=function(up,title) kit_calls[#kit_calls+1]='slow '..tostring(up)..(title and ' title' or '') end,
+        tick=function() end,ready=function() return kit_ready and not kit_off end,
         whole=function() return kit_ready and not kit_off end,
         view=function(name) return kit_ready and not kit_off and kit_views[name] or nil end,
         off=function() return kit_off end,
@@ -300,13 +306,13 @@ assert(capture_look==look,'The capture holds the same table: dyes and effects of
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 -- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
--- and the twelve navigation keys.
-assert(#binds==44+2+12,#binds)
+-- and the twelve navigation keys, then the left mouse button (the co-op saves' question).
+assert(#binds==44+2+12+1,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
 assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
-    and not binds[46].modifiers and binds[58].key=='Key.ESCAPE')
+    and not binds[46].modifiers and binds[58].key=='Key.ESCAPE' and binds[59].key=='Key.LEFT_MOUSE_BUTTON')
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
@@ -1126,16 +1132,17 @@ assert(#markers==n and kit_projects==0,'Nothing after coop off')
 chatting,in_world,kit_ready,link_mode,settings_text=false,false,false,'none',''
 
 -- The co-op saves' question (saves.lua for real on the fake kit; saves_test tests it). On the title screen the kit's
--- root comes up too; once the question shows, the navigation keys, Enter and Esc are its own (not the chat's, not the
--- menu's); coop ui reset closes it as Decide later, coop off stops it. The clock moves by quarters only: the frame time
--- test below needs a sum it can take back exactly.
+-- root comes up too (the kit told it is the title); once the question shows, the navigation keys, Enter, Esc and a
+-- left click on a choice are its own (not the chat's, not the menu's); coop ui reset closes it as Decide later, coop
+-- off stops it; coop ui off leaves auto_coop_save=always asking. The clock moves by quarters only: the frame time test
+-- below needs a sum it can take back exactly.
 settings_text,status_text,link_mode,in_world,at_title,chatting,chat_active='',plain,'none',false,true,true,true
-saves_info={saves='main',convert='idle',slot='none'}
+saves_info={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
 load_main(true)
 local saves_view=kit_views.saves
 assert(kit_order[#kit_order]=='saves' and saves_view,'Added last: drawn over the menu')
 quarter()
-assert(kit_said('slow true') and not kit_shown.saves,'The title: the root up, its look warming')
+assert(kit_said('slow true title') and not kit_shown.saves,'The title: the root up, its look warming')
 kit_ready=true; quarter()
 assert(kit_shown.saves and kit_input and kit_holder=='saves' and saves_view.rows[1].st=='focus')
 key('DOWN_ARROW'); assert(saves_view.rows[2].st=='focus' and not kit_shown.menu)
@@ -1152,8 +1159,19 @@ local n_asked=#asked
 coop('ui','reset'); assert(not kit_shown.saves and #asked==n_asked,'Closed as Decide later, nothing asked')
 in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
 assert(kit_shown.saves)
+key('LEFT_MOUSE_BUTTON'); assert(kit_shown.saves,'A click on no choice: nothing')
+saves_view.rows[2].hover=true
+key('LEFT_MOUSE_BUTTON'); assert(not kit_shown.saves and #asked==n_asked,'A click on Play solo normally')
+saves_view.rows[2].hover=nil
+in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
+assert(kit_shown.saves)
 coop('off')
 key('RETURN'); assert(asked[#asked]=='off','Stopped: its keys do nothing')
+settings_text='auto_coop_save=always\n'
+load_main(true)
+coop('ui','off'); kit_off=true
+quarter(); assert(asked[#asked]=='saves coop','coop ui off: always still asks')
+kit_off,settings_text=false,''
 saves_info,at_title,chatting,chat_active={},false,false,false
 
 -- Without the native tick export, the pose path's commands say so.

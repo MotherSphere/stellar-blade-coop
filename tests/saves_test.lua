@@ -1,12 +1,14 @@
 -- The co-op saves at the title (saves.lua) on a fake kit and a fake link: with auto_coop_save=ask the question shows
--- once a visit of the title, while the game uses your own saves (saves=main) and no copy pass runs, once the kit has
--- its whole look; Convert and play co-op (Play co-op once a co-op copy exists) asks for "saves coop" and shows the
--- pass until saves=coop, then closes with a notice; a pass that ends without the switch, or a request with no answer
--- in 2 s, shows why with only the solo choices left; a solo choice after a request asks "saves main"; Decide later and
--- Esc close it for this visit; Don't ask again rewrites only auto_coop_save's line, then plays co-op; the title left
--- closes it. With always, no question: the request at each visit, its result as a notice. With off, nothing. In a
--- session on your own save with shared enemies on, one notice a session. The game's input is the question's while it
--- is open and comes back 150 ms after it closes. English and French.
+-- once a visit of the title, while the game uses your own saves (saves=main), the Steam ID is known and no copy pass
+-- runs, once the kit has its whole look; Convert and play co-op (Play co-op once a co-op copy exists) asks for "saves
+-- coop" and shows the pass until saves=coop, then closes with a notice; a pass that ends without the switch, or a
+-- request with no answer in 2 s, shows why with only the solo choices left (an unread status is no answer; a pass said
+-- failed that switches after all is said on); a solo choice after a request asks "saves main"; Decide later, Esc and
+-- 60 s with no key close it for this visit; a left click takes the choice under the mouse; Don't ask again rewrites
+-- only auto_coop_save's line, then plays co-op; the title left closes it. With always, no question: the request at each
+-- visit, its result as a notice. With off, nothing. In a session on your own save with shared enemies on, one notice a
+-- session. The game's input is the question's while it is open and comes back 150 ms after it closes. English and
+-- French.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local Saves=require('saves')
@@ -27,7 +29,12 @@ function kit.add(name,place,build)
         t.set=function(v) t.s=v end
         return t
     end
-    function b.row() local r={}; r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end; return r end
+    function b.row()
+        local r={}
+        r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end
+        r.hovered=function() return r.hover==true end
+        return r
+    end
     function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
     built[name]={place=place,view=build(b)}
 end
@@ -101,8 +108,9 @@ for _,case in ipairs({{false,false,'no title'},{true,true,'a save loaded'},{fals
     quarter(case[1],case[2])
     assert(#calls==0 and #asked==0 and not saves.is_open(),case[3])
 end
-for _,case in ipairs({at({saves='?'}),at({saves='off'}),{convert='idle'},at({convert='busy 1/6'})}) do
-    info=case -- Not read yet, another build, no slot line (an older native part), a pass running.
+for _,case in ipairs({at({saves='?'}),at({saves='off'}),{convert='idle'},at({convert='busy 1/6'}),
+        {saves='main',convert='idle',slot='none'}}) do
+    info=case -- Not read yet, another build, no slot line (an older native part), a pass running, no Steam ID yet.
     quarter(false,true)
     assert(#calls==0 and #asked==0 and not saves.is_open(),tostring(case.saves)..' '..tostring(case.convert))
 end
@@ -243,6 +251,30 @@ info=at()
 quarter(false,true); saves.nav('select')
 info=at({convert='error:bad\0 \255name\27'}); quarter(false,true)
 assert(screen():find('\nbad name\n',1,true),screen())
+-- An unread status (link.changes() keeps no line then) during a pass is no news: the pass goes on to the switch.
+saves=new()
+info=at()
+quarter(false,true); saves.nav('select')
+info=at({convert='busy 1/6'}); quarter(false,true)
+info={}; quarter(false,true)
+assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 1 of 6.',screen())
+info=at({convert='busy 2/6'}); quarter(false,true)
+info=at({convert='done',saves='coop'}); quarter(false,true)
+assert(not saves.is_open() and said[1]:find('^Co%-op saves on') and #asked==1,'Switched')
+-- Unread at the request: the next line read is no failure, and 2 s with no step is.
+saves=new()
+info=at()
+quarter(false,true)
+info={}; saves.nav('select')
+info=at(); quarter(false,true)
+assert(asked[1]=='saves coop' and screen()=='CO-OP SAVES\nSwitching to the co-op saves.',screen())
+info={}
+for _=1,6 do quarter(false,true) end
+assert(screen()=='CO-OP SAVES\nSwitching to the co-op saves.')
+quarter(false,true); assert(screen():find('could not be switched on',1,true),'2 s of unread status: no answer')
+-- A pass said failed (here no answer in 2 s) that switches after all: the question closes, the copies said on.
+info=at({convert='done',saves='coop'}); quarter(false,true)
+assert(not saves.is_open() and said[1]:find('^Co%-op saves on') and #asked==1,tostring(said[1]))
 
 -- Don't ask again: auto_coop_save=always rewritten in its own line (every other byte kept), in effect at once, then co-op.
 file='\239\187\191# mine\r\nmenu_key=F7\r\nauto_coop_save=ask\r\nchat=off\r\n'
@@ -261,6 +293,42 @@ info=at()
 quarter(false,true); saves.nav('up'); saves.nav('select')
 assert(settings.auto_coop_save=='ask' and asked[1]=='saves coop'
     and logs[#logs-1]=='co-op saves: auto_coop_save=always not saved: coop-settings.txt cannot be read',logs[#logs-1])
+
+-- A left click: the choice under the mouse; over none, nothing.
+saves=new()
+info=at()
+quarter(false,true)
+n=#calls
+saves.nav('click'); assert(saves.is_open() and #calls==n,'Over no choice')
+built.saves.view.rows[2].hover=true
+saves.nav('click')
+assert(not saves.is_open() and #asked==0 and calls[n+1]=='sound select'
+    and logs[#logs]=='co-op saves: Play solo normally: your own saves',logs[#logs])
+
+-- 60 s with no key (a controller alone cannot answer it): Decide later. A key starts the 60 s again; none while a pass
+-- runs; the error screen has its own 60 s, then withdraws the switch. Each slow draws it again (the kit sets only what
+-- changed), so a root the kit built again shows it whole.
+saves=new()
+info=at()
+quarter(false,true)
+for _=1,200 do quarter(false,true) end
+saves.nav('down')
+built.saves.view.title.s=''
+for _=1,239 do quarter(false,true) end
+assert(saves.is_open() and built.saves.view.title.s=='CO-OP SAVES','A key restarted the 60 s; drawn again')
+quarter(false,true)
+assert(not saves.is_open() and #asked==0 and logs[#logs-1]=='co-op saves: no key in 60 s'
+    and logs[#logs]=='co-op saves: Decide later: your own saves',logs[#logs])
+saves=new()
+info=at()
+quarter(false,true); saves.nav('select')
+info=at({convert='busy 1/6'})
+for _=1,300 do quarter(false,true) end
+assert(saves.is_open() and screen():find('step 1 of 6',1,true),'Not while the pass runs')
+info=at({convert='error:the backup folder could not be made'}); quarter(false,true) -- Its first quarter.
+for _=1,238 do quarter(false,true) end
+assert(saves.is_open() and screen():find('the backup folder',1,true))
+quarter(false,true); assert(not saves.is_open() and asked[2]=='saves main','60 s on the error screen')
 
 -- The title left while it asks: closed (Decide later), nothing asked; while a pass runs: followed, its result said.
 saves=new()
@@ -322,7 +390,8 @@ assert(#calls==0 and #asked==0 and #said==0 and #logs==0)
 settings.auto_coop_save='ask'
 
 -- In a session on your own save with shared enemies on: one notice a session, in a world; again in the next one. Not
--- with shared enemies off, not on a co-op save, not with auto_coop_save=off.
+-- with shared enemies off, not on a co-op save, not with auto_coop_save=off, not when no switch can be made (saves=off
+-- or ?: another build, or the name check failed).
 settings.shared_enemies=true
 saves=new()
 info=at({slot='main'})
@@ -334,10 +403,11 @@ mode='none'; quarter(true,false)
 mode='guest'; quarter(true,false); assert(#said==2,'The next session')
 mode=nil; quarter(true,false); mode='guest'; quarter(true,false); assert(#said==2,'An unread status ends nothing')
 for _,case in ipairs({{shared=false,slot='main',auto='ask'},{shared=true,slot='coop',auto='ask'},
-        {shared=true,slot='main',auto='off'},{shared=true,slot='none',auto='always'}}) do
+        {shared=true,slot='main',auto='off'},{shared=true,slot='none',auto='always'},
+        {shared=true,slot='main',auto='ask',saves='off'},{shared=true,slot='main',auto='always',saves='?'}}) do
     settings.shared_enemies,settings.auto_coop_save=case.shared,case.auto
     saves=new()
-    info=at({slot=case.slot,saves=case.slot=='coop' and 'coop' or 'main'})
+    info=at({slot=case.slot,saves=case.saves or (case.slot=='coop' and 'coop' or 'main')})
     quarter(true,false)
     assert(#said==0,case.slot..' '..case.auto)
 end

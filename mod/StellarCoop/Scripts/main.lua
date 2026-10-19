@@ -244,12 +244,13 @@ local commands={
         return ask('saves '..sub)()
     end,
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
-    -- (7.6): the co-op UI gone until the mod reloads, the notice line above EVE and the ghost's name tag back.
+    -- (7.6): the co-op UI gone until the mod reloads, the notice line above EVE and the ghost's name tag back (the
+    -- co-op saves' question with it; auto_coop_save=always still asks at the title).
     ui=function(sub,arg,extra)
         if (sub=='reset' or sub=='off') and arg==nil then
             if not kit then return false,'the co-op UI needs the Steam link' end
             if sub=='off' then
-                menu.stop(); box.stop(); saves_ui.stop(); kit.stop()
+                menu.stop(); box.stop(); kit.stop()
                 return true,'co-op UI off until the mod reloads: notices on the line above EVE'
             end
             menu.close(); box.close(); saves_ui.close(); kit.reset()
@@ -452,7 +453,7 @@ if link then
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
-            local ok,message=kit.slow(shown or title==true)
+            local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
             menu.slow(shown)
             box.slow(chat_clock)
@@ -547,6 +548,11 @@ if settings then
         if menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end)
         elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('back') end)
         elseif box.is_open() then ExecuteInGameThread(box.cancel) end
+    end)
+    -- A left click answers the co-op saves' question with the choice under the mouse (the kit's input leaves Slate the
+    -- mouse, and UE4SS calls the bind whatever has it); no gamepad button can be bound.
+    bind('LEFT_MOUSE_BUTTON',nil,function()
+        if saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('click') end) end
     end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)

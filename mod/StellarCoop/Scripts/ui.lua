@@ -363,6 +363,7 @@ function Ui.kit(opts)
     local built,pending,off,said,hidden,swept,lost,holder=nil,nil,false,nil,false,false,0,nil
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
+    local titled=false -- The title screen shows (slow's title): the input given back there is the title menu's.
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
@@ -377,9 +378,10 @@ function Ui.kit(opts)
     end
     -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx with our root
     -- focused, the menu's keys being UE4SS binds, which read the keyboard whatever has focus; or with a text box and
-    -- its keyboard focus, the chat's); off, the game's again. With no player controller (a map loads) or no root:
-    -- nothing, and the change still due (input tries again). inputting changes before the engine call: a refused call
-    -- is not tried again by the fault it raises.
+    -- its keyboard focus, the chat's); off, the game's again: GameOnly in a world; at the title GameAndUIEx with no
+    -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). With no player
+    -- controller (a map loads) or no root: nothing, and the change still due (input tries again). inputting changes
+    -- before the engine call: a refused call is not tried again by the fault it raises.
     local function input_mode(on,field)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
@@ -388,7 +390,12 @@ function Ui.kit(opts)
         if on then
             U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,box or root,0)
             if box then box:SetKeyboardFocus() end
-        else U.find(WIDGETS):SetInputMode_GameOnly(pc) end
+        else
+            local lib=U.find(WIDGETS)
+            if not (titled and pcall(function() lib:SetInputMode_GameAndUIEx(pc,nil,0,false) end)) then
+                lib:SetInputMode_GameOnly(pc)
+            end
+        end
         keep()
     end
     local function close_all()
@@ -769,9 +776,10 @@ function Ui.kit(opts)
         end
         if not classes() then build() end
     end
-    -- Each 250 ms with whether our HUD may show (a world with EVE, not paused, the game's HUD up, no photo mode).
-    -- Returns false and why once, when the kit turned off.
-    function self.slow(world)
+    -- Each 250 ms with whether our HUD may show (a world with EVE, not paused, the game's HUD up, no photo mode, or
+    -- the title screen) and whether the title screen shows. Returns false and why once, when the kit turned off.
+    function self.slow(world,title)
+        titled=title==true
         if not off and order[1] then run(step,world) end
         return said_once()
     end

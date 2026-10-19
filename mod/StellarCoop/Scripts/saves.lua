@@ -1,23 +1,26 @@
 -- The co-op saves at the title (AUTO-COOP-SAVE §6), on the Uplink kit (ui.lua). UE4SS is not known yet to hold the
 -- game's Continue and Load Game presses, so the question comes when the title screen shows, before any press. With
 -- auto_coop_save=ask it shows once a visit of the title, while the game uses your own saves (the slot line's
--- saves=main) and no copy pass runs, once the kit has its whole look: Convert and play co-op (Play co-op once a co-op
--- copy exists in this account's save folder), Play solo normally, Decide later (Esc) and Don't ask again, which writes
--- auto_coop_save=always as one line of coop-settings.txt, then plays co-op. Co-op asks the native part for "saves
--- coop" (it makes or refreshes the copies, then switches the save name, at the title only) and shows the pass's steps
--- until saves=coop; a pass that ends without the switch, or a request with no answer in 2 s, shows why, with only the
--- solo choices left. A solo choice after a request asks "saves main", which withdraws a switch still to come. The title
+-- saves=main), the Steam ID is known and no copy pass runs, once the kit has its whole look: Convert and play co-op
+-- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc, or 60 s
+-- with no key: a controller alone cannot answer) and Don't ask again, which writes auto_coop_save=always as one line of
+-- coop-settings.txt, then plays co-op. Co-op asks the native part for "saves coop" (it makes or refreshes the copies,
+-- then switches the save name, at the title only) and shows the pass's steps until saves=coop; a pass that ends
+-- without the switch, or a request with no answer in 2 s, shows why, with only the solo choices left. An unread status
+-- is no answer. A solo choice after a request asks "saves main", which withdraws a switch still to come. The title
 -- left closes it as Decide later; a pass under way is followed on, its result said as a notice. With always, no
 -- question: "saves coop" once a visit, its result a notice. With off, nothing: the manual co-op slot that
 -- StellarCoopSlot.txt names is the only co-op save. In a session on your own save with shared_enemies=on, one notice a
 -- session says how to switch. While the question is open the game ignores its keys (the kit's input; main.lua's binds
--- hand it up, down, select and back), a shade over the whole screen takes the mouse so no click reaches the title menu
--- under it, and the game's input comes back 150 ms after it closes. No engine call here: the kit makes them.
+-- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
+-- the title menu under it, and the game's input comes back 150 ms after it closes. No engine call here: the kit makes
+-- them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
 local Saves={}
-local BACK,WAIT,SLOW=0.15,8,480 -- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most.
+-- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most, no key (then Decide later).
+local BACK,WAIT,SLOW,IDLE=0.15,8,480,240
 local WIDE,BODY=78,5 -- Characters a body row (18 layout units each, as the feed's); body rows.
 local CHOICES={ask={'coop','solo','later','always'},error={'solo','later'}}
 local function exists(path)
@@ -35,7 +38,7 @@ function Saves.new(o)
     local self={}
     local phase,open,cursor,back_at=nil,false,1,nil -- phase: nil, 'ask', 'wait' (a request out) or 'error'.
     local visit,asked,copies=false,false,false -- This visit of the title is answered; "saves coop" is out; copies seen.
-    local before,waited,quiet,progress,why=nil,0,0,nil,nil
+    local before,waited,quiet,progress,why,idle=nil,0,0,nil,nil,0
     local queued,told,stopped=nil,false,false -- queued: a notice to say once the kit is up or a world loads.
     local lang=T.en
     -- Over the whole screen, scaled from its centre; the shade reaches past any screen, ui_scale 75 included.
@@ -99,7 +102,7 @@ function Saves.new(o)
         why=text~=nil and Chat.clean(text) or ''
         if why=='' then why=nil end
         log('co-op saves stay off: '..(why or 'no switch (coop-link.log says why)'))
-        if open then phase,cursor='error',1 else phase,queued=nil,{'off',why} end
+        if open then phase,cursor,idle='error',1,0 else phase,queued=nil,{'off',why} end
     end
     -- "saves coop", then the pass followed: on the question while it is open, else for a notice.
     local function switch(info)
@@ -134,7 +137,9 @@ function Saves.new(o)
         phase=nil
         close()
     end
-    -- Each 250 ms while a request is out: the pass's steps; saves=coop, or why not.
+    -- Each 250 ms while a request is out: the pass's steps; saves=coop, or why not. An unread status (no convert=
+    -- line) is no news: 2 s of them fail as no answer does. Also once a pass said failed (2 minutes, or 2 s with no
+    -- answer) switches after all: the copies are on.
     local function follow(info)
         if info.saves=='coop' then
             log('co-op saves on')
@@ -144,7 +149,7 @@ function Saves.new(o)
         waited=waited+1
         local done,jobs=(info.convert or ''):match('^busy (%d+)/(%d+)$')
         if done then progress,quiet={tonumber(done),tonumber(jobs)},0 else quiet=quiet+1 end
-        if (not done and (info.convert~=before or quiet>=WAIT)) or waited>=SLOW then
+        if (not done and (quiet>=WAIT or (info.convert and before and info.convert~=before))) or waited>=SLOW then
             failed((info.convert or ''):match('^error:(.*)$'))
         end
         draw()
@@ -155,21 +160,28 @@ function Saves.new(o)
         if stopped then return end
         local info=link.saves() or {}
         local want=settings.auto_coop_save
-        if phase=='wait' then follow(info) end
+        if phase=='wait' or (asked and info.saves=='coop') then follow(info) end
         if not (open or back_at) then kit.input(false,'saves') end -- Still due (no player controller at the close).
         if open and kit.off() then
             if phase~='wait' then phase=nil end
             close()
         end
+        if open and phase~='wait' then
+            idle=idle+1
+            if idle>=IDLE then
+                log('co-op saves: no key in 60 s')
+                answer('later')
+            end
+        end
         if title and not world then
-            if not visit and not phase and want~='off' and info.saves=='main' and not (info.convert or ''):find('^busy')
-                then
+            if not visit and not phase and want~='off' and info.saves=='main' and info.steamid
+                and not (info.convert or ''):find('^busy') then
                 if want=='always' then switch(info)
                 elseif kit.off() then
                     visit=true
                     log('co-op saves: the question cannot show (the co-op UI is off): your own saves')
                 elseif kit.whole() then
-                    visit,copies,phase,cursor,back_at=true,any_copy(info),'ask',1,nil
+                    visit,copies,phase,cursor,back_at,idle=true,any_copy(info),'ask',1,nil,0
                     pick()
                     open=true
                     kit.show('saves',true,os.clock())
@@ -193,17 +205,29 @@ function Saves.new(o)
         local mode=link.mode()
         if mode=='none' then told=false end
         if world and not told and want~='off' and settings.shared_enemies and (mode=='host' or mode=='guest')
-            and info.slot=='main' then
+            and info.slot=='main' and info.saves=='main' then
             told=true
             pick()
             o.say(lang.saves.session)
         end
+        draw() -- The kit may have built its root again meanwhile: on change only.
     end
-    -- A navigation key while open: 'up', 'down', 'select' or 'back' (Esc: Decide later, or the pass withdrawn).
+    -- A navigation key while open: 'up', 'down', 'select', 'back' (Esc: Decide later, or the pass withdrawn) or
+    -- 'click' (the left mouse button: the choice under the mouse, if any).
     function self.nav(what)
         if not open or kit.off() then return end -- Unseen: the next slow closes it.
+        idle=0
         local list=CHOICES[phase] or {}
-        if (what=='up' or what=='down') and #list>0 then
+        if what=='click' then
+            local v=kit.view('saves')
+            for i,r in ipairs(v and v.rows or {}) do
+                if list[i] and r.hovered() then
+                    cursor=i
+                    kit.sound('select')
+                    return answer(list[i])
+                end
+            end
+        elseif (what=='up' or what=='down') and #list>0 then
             cursor=(cursor-1+(what=='up' and -1 or 1))%#list+1
             kit.sound('move')
             draw()
@@ -224,7 +248,7 @@ function Saves.new(o)
     end
     -- coop ui reset: closed as Decide later.
     function self.close() if open then answer('later') end end
-    -- coop off and coop ui off: nothing more (kit.stop gives the game its input back).
+    -- coop off: nothing more (kit.stop gives the game its input back). Not coop ui off: always still asks then.
     function self.stop() stopped,open,back_at,phase=true,false,nil,nil end
     return self
 end
