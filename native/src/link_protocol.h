@@ -4,7 +4,8 @@
 // The handshake reads the same in every protocol version, so a mismatch is always answered, never silently dropped:
 //   SBC hello <protocol> <mod version> <game build>, then SBC accept, or SBC reject <reason>.
 // Every other message carries the protocol number and is dropped by a peer that runs another one:
-//   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>.
+//   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
+//   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h). Channel 2 carries the shared enemies' text lines, which
 // start with fight_tag() (fight_sync.h parses them).
@@ -20,8 +21,8 @@ namespace coop {
 constexpr int kProtocol = 7; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                              // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
-                             // channel 2 (shared enemies, SBF7). A v0.1.1 peer (6) is told why: the lobby tag, then
-                             // the hello's reject, name both protocols.
+                             // channel 2 (shared enemies, SBF7) and the photo line. A v0.1.1 peer (6) is told why: the
+                             // lobby tag, then the hello's reject, name both protocols.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -53,10 +54,11 @@ inline std::string token(std::string text) {
   return text.empty() ? "dev" : text;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo };
 struct Message {
   Kind kind = Kind::invalid;
-  uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms.
+  uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
+                         // 's', then 1 for both.
   std::string text;      // hello: mod version. reject: the reason. Cleaned.
 };
 
@@ -73,6 +75,12 @@ inline std::string versioned(const char *kind, uint64_t a, uint64_t b) {
 }
 inline std::string ping(uint64_t seq, uint64_t ms) { return versioned("ping", seq, ms); }
 inline std::string pong(uint64_t seq, uint64_t ms) { return versioned("pong", seq, ms); }
+// The synced photo mode (FEATURE-PARITY.md 6.3), reliable: our player in SB's photo mode ('1'), in its selfie mode
+// ('s') or neither ('0'), and whether the friend's photo mode may pause our game ("both": photo_sync=both here and this
+// game can pause) or not ("notice").
+inline std::string photo_line(char state, bool both) {
+  return "SBC" + std::to_string(kProtocol) + " photo " + state + (both ? " both" : " notice");
+}
 // Channel 2's tag, versioned like channel 0's: "SBF7".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
@@ -142,6 +150,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && (f[1] == "ping" || f[1] == "pong")) {
     if (number(f[2], m.a) && number(f[3], m.b))
       m.kind = f[1] == "ping" ? Kind::ping : Kind::pong;
+  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "photo" &&
+             (f[2] == "0" || f[2] == "1" || f[2] == "s") && (f[3] == "both" || f[3] == "notice")) {
+    m.kind = Kind::photo;
+    m.a = static_cast<uint8_t>(f[2][0]);
+    m.b = f[3] == "both";
   }
   return m;
 }
@@ -152,17 +165,19 @@ inline Message parse(const char *data, size_t size) {
 // "nightop" (start the read-only poller) and "nightop rule" (start it if needed and arm the verdict, once a run); for
 // the shared fight (Phase 11, fight_engine.h's Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at
 // most kMaxFightChars), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a
-// sign) and "fight test kill".
-enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight };
+// sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause
+// held that long) and "freeze off".
+enum class Command { none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze };
 enum class Fight { none, on, off, status, probe, test, record, replay };
-constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500;
+constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
-  uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %.
-  bool off = false;                      // loopback off, record off, replay off.
+  uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
+                                         // the seconds in ms.
+  bool off = false;                      // loopback off, record off, replay off, freeze off.
   bool rule = false;                     // nightop rule.
   Fight fight = Fight::none;
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
@@ -237,19 +252,33 @@ inline Request parse_request(std::string text) {
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
-  } else if (text == "loopback off") {
-    r.command = Command::loopback;
+  } else if (text == "loopback off" || text == "freeze off") {
+    r.command = text[0] == 'l' ? Command::loopback : Command::freeze;
     r.off = true;
+  } else if (split(text, f, 2, nullptr) && f[0] == "freeze" && number(f[1], r.ms) && r.ms && r.ms <= kMaxFreezeS) {
+    r.command = Command::freeze;
+    r.ms *= 1000;
   } else if (split(text, f, 4, nullptr) && f[0] == "loopback" && number(f[1], r.ms) && r.ms <= kMaxLoopbackMs &&
              number(f[2], r.jitter) && r.jitter <= kMaxJitterMs && number(f[3], r.loss) && r.loss <= 100)
     r.command = Command::loopback;
   return r;
 }
 
-// coop-state.txt, from Lua: "world=<0|1> rate=<10..30>", whether a save is loaded (held invites wait for one) and the
-// poses sent a second. One trailing \n or \r\n, at most 64 bytes; anything else is refused and changes nothing.
+// coop-settings.txt's photo_sync: the friend's photo mode pauses this game and ours pauses hers (both, needed on both
+// PCs), a notice only, or nothing.
+enum class Sync { off, notice, both };
+inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
+// coop-state.txt, from Lua: "world=<0|1> rate=<10..30> photo=<0|1|s> sync=<both|notice|off> max=<0|30..3600>".
+struct State {
+  bool world = false;    // A save is loaded: held invites wait for one.
+  uint32_t rate = 20;    // Poses sent a second.
+  char photo = '0';      // Our player in SB's photo mode ('1'), its selfie mode ('s') or neither.
+  Sync sync = Sync::off; // photo_sync, off until Lua says.
+  uint32_t max = 600;    // photo_freeze_max: the longest pause the friend's photo mode holds us in, in s; 0: no cap.
+};
+// One trailing \n or \r\n, at most 64 bytes; anything else is refused and changes nothing.
 constexpr size_t kMaxState = 64;
-inline bool parse_state(const std::string &text, bool &world, uint32_t &rate) {
+inline bool parse_state(const std::string &text, State &out) {
   if (text.size() > kMaxState)
     return false;
   std::string line = text;
@@ -257,13 +286,19 @@ inline bool parse_state(const std::string &text, bool &world, uint32_t &rate) {
     line.resize(line.size() - 2);
   else if (!line.empty() && line.back() == '\n')
     line.pop_back();
-  std::string f[2];
-  uint64_t n = 0;
-  if (!split(line, f, 2, nullptr) || (f[0] != "world=0" && f[0] != "world=1") || f[1].rfind("rate=", 0) != 0 ||
-      !number(std::string_view(f[1]).substr(5), n) || n < 10 || n > 30)
+  std::string f[5];
+  uint64_t rate = 0, max = 0;
+  if (!split(line, f, 5, nullptr) || (f[0] != "world=0" && f[0] != "world=1") || f[1].rfind("rate=", 0) != 0 ||
+      !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 30 ||
+      (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s") ||
+      (f[3] != "sync=both" && f[3] != "sync=notice" && f[3] != "sync=off") || f[4].rfind("max=", 0) != 0 ||
+      !number(std::string_view(f[4]).substr(4), max) || (max && (max < 30 || max > 3600)))
     return false;
-  world = f[0] == "world=1";
-  rate = static_cast<uint32_t>(n);
+  out.world = f[0] == "world=1";
+  out.rate = static_cast<uint32_t>(rate);
+  out.photo = f[2][6];
+  out.sync = f[3] == "sync=both" ? Sync::both : f[3] == "sync=notice" ? Sync::notice : Sync::off;
+  out.max = static_cast<uint32_t>(max);
   return true;
 }
 

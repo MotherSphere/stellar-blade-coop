@@ -47,6 +47,26 @@ More about sessions:
 
 The ghost is display only. Nothing is copied between your two games: no enemies, items, unlocks or progress.
 
+## Synced photo mode
+
+When one of you enters the game's photo mode (P), the other's game pauses about half a second later, until the
+photographer leaves photo mode. The paused player can open the pause menu and enter photo mode from there, so both of
+you can pose for one shot; with both in photo mode, each game resumes only when both have left. Nothing is saved: the
+pause is the game's own pause, held in memory only. It is not yet tried in game.
+
+- Both PCs need `photo_sync=both` (the default) in [coop-settings.txt](#coop-settingstxt). With `notice` on either PC
+  there is a notice and no pause; `off` shows nothing and pauses nothing.
+- Selfie mode gives a notice only: the game itself does not pause in selfie mode.
+- The pause ends when the photographer leaves photo mode, when the connection is lost (after 10 s; it comes back if
+  they are still in photo mode when they return), when either of you leaves (F8), with `coop off`, and after
+  `photo_freeze_max` seconds (10 min by default) until the photographer's next photo session.
+- During your own photo or selfie mode, the notices above EVE wait until it ends, your friend's ghost stays in the shot
+  unless `photo_ghost=off`, and its name tag leaves it unless `photo_name_tag=on`.
+- It runs on game build 24463856 only. On another build, or after a fault (`photo pause off: ...` in the log), photo
+  sync gives notices only.
+- `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, to test it without a friend;
+  `coop freeze off` ends it. A load ends it too.
+
 ## Console commands
 
 The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)); it opens with F10 or `~`.
@@ -75,6 +95,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save slot only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, off by default, co-op save slot only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save slot only) |
+| `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -179,7 +200,8 @@ first (see [saves.md](saves.md)).
   `Shared fight off: not on the co-op save` says why not. Setting it back to `off` and pressing Ctrl+R stops a running
   `coop fight on` (the solo test tools below go on).
 - `coop fight on` starts it by hand (it needs `shared_enemies=on` and `fight_chars`) and `coop fight off` stops it. It
-  waits for a linked friend and a loaded save. Loading another save slot turns it off until it is asked again.
+  waits for a linked friend and a loaded save, and pauses while either player is in photo mode (selfies and the
+  pause menu do not pause it). Loading another save slot turns it off until it is asked again.
 - `coop fight status` answers with the `fight=` line of `coop status`, for example
   `fight=on mode=on role=host enemies=3 ...`.
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, HP, Shield, Stamina) to
@@ -196,9 +218,11 @@ first (see [saves.md](saves.md)).
 ### `coop off`
 
 `coop off` stops everything until the game restarts, even across a Lua reload: the ghost, EVE's capture, the loopback,
-a recording (which is written), a replay, the native tick, engine reads, the Steam link, the screen notices, the
-Night Operation poller, and a recruiter (despawned when one was asked, in Xion). Afterwards only `coop status` and
-`coop report` answer; every other command answers `STOP: coop off is active until the game restarts`.
+a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the Night Operation
+poller, a recruiter (despawned when one was asked, in Xion) and the photo pause (released: only for this does the
+native tick still run).
+Afterwards only `coop status` and `coop report` answer; every other command answers
+`STOP: coop off is active until the game restarts`.
 
 ## coop-settings.txt
 
@@ -227,6 +251,13 @@ send_rate=20
 # spaces (coop fight probe logs them), for example fight_chars=15011001.
 shared_enemies=off
 fight_chars=
+# Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
+# both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+photo_sync=both
+photo_freeze_max=600
+photo_ghost=on
+photo_name_tag=off
 ```
 
 | Setting | Values | Default |
@@ -241,6 +272,10 @@ fight_chars=
 | `effects` | `on` or `off` | `off` |
 | `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental-off-by-default), experimental | `off` |
 | `fight_chars` | At most 16 enemy character ids, whole numbers separated by spaces | empty |
+| `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
+| `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
+| `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
+| `photo_name_tag` | `on` or `off`: its name tag in your own photos | `off` |
 
 Rules:
 
@@ -252,7 +287,7 @@ Rules:
 - Two actions on one key put all three keys back to `F5`, `F6` and `F8`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: host=F5 status=F6 leave=F8, name tag on, 20 poses a second`. Another line says when a mod loaded earlier binds
-  the same key; both then run.
+  the same key; both then run. The `[StellarCoop] photo sync:` line gives the photo settings in use.
 
 ## Looks
 
@@ -302,6 +337,10 @@ screen they go to the log only. If the engine refuses the line, screen notices s
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | Ghost failed 3 times on one table | `Ghost failed 3 times: the reason is in UE4SS.log.` |
+| Your friend's photo mode pauses you | `<name> is taking photos: game paused. Esc > Photo Mode to join in.`, then `Game resumed.` or `Paused for <n> min: game resumed.` (`photo_freeze_max`) |
+| Your friend's photo mode, no pause | `<name> is taking photos.` (your `photo_sync=notice`), `<name> is taking photos (their photo sync gives notices only).` or `<name> is taking a selfie.` |
+| Your photo mode | Once a session, `<name>'s game does not pause for photos.` (shown when you leave photo mode) |
+| The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
 
 ## Status lines
 
@@ -312,7 +351,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen:
 - `Co-op: not in a session.`
 - `Co-op: hosting, no friend yet.`
 - `Co-op: <name> is connecting.`
-- `Co-op: hosting <name>.` or `Co-op: in <name>'s game.` (a lost friend adds `Connection lost.`)
+- `Co-op: hosting <name>.` or `Co-op: in <name>'s game.` (`Paused by <name>.` while their photo mode pauses your game;
+  a lost friend adds `Connection lost.`)
 - `Co-op: invite held until your save has loaded.`
 - `Co-op: rejoining your friend's game (try <n>/3).`
 - `Co-op: waiting for Steam.`
@@ -332,6 +372,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen:
   `nightop=on` or `nightop=rule` while the probe's poller runs.
 - **Save slot**: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?>` (see
   [saves.md](saves.md#the-co-op-save-slot)).
+- **Photo mode**: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
+  (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
+  your friend gets (`notice` when your game cannot pause).
 - **Last event**: `last=<the last coop-link.log event>`.
 - **Ghost**: `ghost=on parts=<n> leaders=<n> basesuit=<0|1> left_out=<n> table=<generation> source=<source>`,
   `ghost=waiting`, `ghost=hidden map` or `ghost=off`, plus `stray_parts=<n>` if ghost parts that are not this load's
@@ -363,7 +406,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
-| `coop-state.txt` | Lua | Whether a save is loaded, and the send rate |
+| `coop-state.txt` | Lua | Whether a save is loaded, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 
 The files shared between Lua and the native part are each written whole beside (a `.tmp` file) and renamed over, so

@@ -166,7 +166,7 @@ with tempfile.TemporaryDirectory() as tmp:
     shipped = {'enabled.txt', 'StellarCoop.dll', 'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt',
                *(f'Scripts/{name}.lua'
                  for name in ('capture', 'chat', 'keybind', 'link', 'main', 'nightop', 'notice', 'partner',
-                              'puppet', 'recruiter', 'recruiter_text', 'settings_file', 'ui_model', 'unreal',
+                              'puppet', 'recruiter', 'recruiter_text', 'settings_file', 'ui', 'ui_model', 'unreal',
                               'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files

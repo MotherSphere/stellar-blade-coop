@@ -4,7 +4,10 @@
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
 -- on any slot even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
--- shared_enemies=on and says on and off on screen, and the link is optional (no native part, no Steam link, no keys).
+-- shared_enemies=on and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
+-- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
+-- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), and the link is
+-- optional (no native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -31,9 +34,17 @@ IsKeyBindRegistered=function(key,modifiers)
 end
 local function press(key) for _,bind in ipairs(binds) do if bind.key=='Key.'..key then return bind.f() end end error(key) end
 local settings_text=''
+-- SB's photo-mode getters on the library's default object (main.lua's photo poll), as UE4SS calls them.
+local photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
+StaticFindObject=function(path)
+    assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
+    local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
+    return {type=function() return 'UObject' end,IsValid=function() return true end,
+        IsPhotoMode=function() return read(photo_mode) end,IsSelfieMode=function() return read(selfie_mode) end}
+end
 local Link=dofile('mod/StellarCoop/Scripts/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
-local asked,sessions,ticks,withdrawn,states={},{},0,{},{}
+local asked,sessions,ticks,withdrawn,states,photos={},{},0,{},{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local link_mode='none' -- What link.mode() says, as of the last changes().
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
@@ -53,7 +64,9 @@ local fake_link={
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     settings=function() return Link.parse_settings(settings_text) end,
-    state=function(world,rate) -- The real one writes on a change only (link_test): this one says each call.
+    -- The real one writes on a change only (link_test): this one says each call.
+    state=function(world,rate,photo,sync,max)
+        photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         states[#states+1]=string.format('world=%d rate=%d',world and 1 or 0,rate)
         return states[#states]
     end,
@@ -69,6 +82,7 @@ package.loaded.capture={new=function(publish,looks)
 end}
 local toggles,active,basesuits,wheres,in_world=0,false,0,0,false
 local the_notice,name_tag,look,rebuilds
+local veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
 package.loaded.puppet={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
@@ -78,12 +92,14 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
-        where=function() wheres=wheres+1; return true,'where map=/game/e04' end,world=function() return in_world end}
+        where=function() wheres=wheres+1; return true,'where map=/game/e04' end,world=function() return in_world end,
+        photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end}
 end}
 package.loaded.link={new=function() return fake_link end}
 local said,notice_ticks,notice_result,notice_stops={},0,nil,0
 package.loaded.notice={new=function()
     the_notice={say=function(text) said[#said+1]=text end,stop=function() notice_stops=notice_stops+1 end,
+        veil=function(on) veils[#veils+1]=on end,
         tick=function() notice_ticks=notice_ticks+1; if notice_result then return table.unpack(notice_result) end end}
     return the_notice
 end}
@@ -100,10 +116,17 @@ package.loaded.recruiter={new=function(log)
         stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
         tick=function() rc_ticks=rc_ticks+1 end}
 end}
+local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui test's arguments, its ticks and stops.
+package.loaded.ui={new=function(log)
+    ui_log=log
+    return {test=function(game) ui_tests[#ui_tests+1]=game; return true,'UI test on screen' end,
+        tick=function() ui_ticks=ui_ticks+1 end,stop=function() ui_stops=ui_stops+1 end}
+end}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | off'
+    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | '
+    ..'freeze <seconds>|off | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -113,8 +136,10 @@ local function load_main(with_native)
         return true
     end
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
+    photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
+    ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -132,6 +157,8 @@ for k,line in ipairs(printed) do
     if line:find('keys: host=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: off (experimental), fight_chars none\n',printed[k+2])
+        assert(printed[k+3]=='[StellarCoop] photo sync: both, longest pause 600 s, ghost in your photos on, its name '
+            ..'tag off\n',printed[k+3])
     end
 end
 assert(look.cloth==false and look.dyes==false and look.effects==false,'Off unless the settings say on')
@@ -157,8 +184,8 @@ coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
-assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2,
-    'The native tick, the notices, the probe and the recruiter run every frame')
+assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ui_ticks==2,
+    'The native tick, the notices, the probe, the recruiter and the UI spike run every frame')
 -- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status, with the co-op slot loaded.
 local plain=status_text
 local function with_slot(line) return 'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=on\n'..line..'last=#1 ready\n' end
@@ -271,8 +298,50 @@ before=#asked
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and logged('state: world=1 rate=20'))
 in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=20')
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and #asked==before,'No request written')
-assert(notice_stops==0)
+-- The photo mode with the state, read only with a save loaded: '1', 's' (a selfie wins), then '0', with photo_sync and
+-- photo_freeze_max. During our own, the notices are veiled, the ghost stays (photo_ghost=on) and its tag goes
+-- (photo_name_tag=off); nothing is asked of the native part.
+assert(photos[#photos]=='0 both 600' and veils[#veils]==false)
+assert(photo_veils[#photo_veils][1]==false and photo_veils[#photo_veils][2]==false)
+local reads=photo_reads
+in_world=false; photo_mode=true; loops[2].f()
+assert(photos[#photos]=='0 both 600' and photo_reads==reads and veils[#veils]==false,'No save: not read')
+in_world=true; loops[2].f()
+assert(photos[#photos]=='1 both 600' and veils[#veils]==true)
+assert(photo_veils[#photo_veils][1]==false and photo_veils[#photo_veils][2]==true,'The ghost stays, its tag goes')
+selfie_mode=true; loops[2].f(); assert(photos[#photos]=='s both 600' and veils[#veils]==true)
+selfie_mode,photo_mode=false,false; loops[2].f()
+assert(photos[#photos]=='0 both 600' and veils[#veils]==false and photo_veils[#photo_veils][2]==false)
+assert(#asked==before,'The state only')
+-- A getter that fails: one log line, then '0' and no read until the mod reloads.
+photo_error='IsSelfieMode: no such function'; loops[2].f()
+assert(photos[#photos]=='0 both 600' and logged('photo sync: photo mode unreadable, off until the mod reloads: '
+    ..'IsSelfieMode: no such function'),table.concat(printed,'|'))
+photo_error,photo_mode,reads=nil,true,photo_reads
+loops[2].f(); loops[2].f()
+assert(photo_reads==reads and photos[#photos]=='0 both 600' and veils[#veils]==false,'Off for this load')
+photo_mode=false
+-- coop freeze: 1 to 3600 whole seconds, or off; anything else is its usage line and asks nothing.
+coop('freeze','10')
+assert(asked[#asked]=='freeze 10' and last()=='[StellarCoop] OK: asked the native part: freeze 10\n',last())
+coop('freeze','3600'); assert(asked[#asked]=='freeze 3600')
+coop('freeze','off'); assert(asked[#asked]=='freeze off')
+before=#asked
+for _,bad in ipairs({{},{'0'},{'3601'},{'-1'},{'1.5'},{'on'},{'10','x'},{'off','x'},{'1e3'},{'OFF'}}) do
+    coop('freeze',table.unpack(bad))
+    assert(last()=='[StellarCoop] STOP: Use: coop freeze <1-3600 seconds> | off\n' and #asked==before,last())
+end
+-- coop ui test [game]: the spike gets whether the game root goes alone; anything else is its usage line.
+coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n',last())
+coop('ui','test','game'); assert(ui_tests[2]==true and #ui_tests==2)
+for _,bad in ipairs({{},{'off'},{'TEST'},{'test','x'},{'test','game','x'}}) do
+    coop('ui',table.unpack(bad))
+    assert(last()=='[StellarCoop] STOP: Use: coop ui test [game]\n' and #ui_tests==2,last())
+end
+ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
+assert(notice_stops==0 and ui_stops==0)
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
+assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 local written=#states
@@ -285,8 +354,12 @@ press('F5'); flush()
 assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop] key F5: host\n'
     and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
-local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
+local drawn,probed,recruited,ui_ticked=notice_ticks,probe_ticks,rc_ticks,ui_ticks
 loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+assert(ui_ticks==ui_ticked,'No UI spike tick after coop off')
+coop('ui','test'); assert(#ui_tests==2 and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
+status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
+assert(ticks==4 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
@@ -301,7 +374,7 @@ coop(); assert(last():find('Use: coop',1,true))
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=off reason=coop_off\nlast=#9 coop off\n'
 load_main(true)
 coop('host'); assert(last():find('coop off is active until the game restarts',1,true),last())
-loops[1].f(); assert(ticks==0,'Still no native tick')
+loops[1].f(); assert(ticks==1,'Still the native tick alone: a pause tag held before the reload goes')
 loops[2].f(); assert(#states==0,'Nor a world state')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
@@ -342,6 +415,22 @@ in_world=false
 loops[2].f(); assert(states[1]=='world=0 rate=25' and logged('state: world=0 rate=25'),'The settings\' rate in the state')
 press('F8'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
 settings_text=''
+
+-- The photo settings: refused values keep their defaults; these reach the state, the veils and the log line.
+settings_text='photo_sync=Notice\nphoto_freeze_max=0\nphoto_ghost=off\nphoto_name_tag=on\n'
+load_main(true)
+assert(logged('photo sync: notice, longest pause no limit, ghost in your photos off, its name tag on'),
+    table.concat(printed,'|'))
+in_world,photo_mode=true,true; loops[2].f()
+assert(photos[#photos]=='1 notice 0' and veils[#veils]==true)
+assert(photo_veils[#photo_veils][1]==true and photo_veils[#photo_veils][2]==false,'The ghost goes, its tag would stay')
+settings_text='photo_sync=yes\nphoto_freeze_max=29\n'
+load_main(true)
+assert(logged("settings: line 1: 'yes' is not allowed for photo_sync (use both, notice or off); photo_sync stays both"))
+assert(logged("settings: line 2: '29' is not allowed for photo_freeze_max (use 0 (no limit) or 30 to 3600 seconds); "
+    .."photo_freeze_max stays 600"),table.concat(printed,'|'))
+loops[2].f(); assert(photos[#photos]=='1 both 600')
+in_world,photo_mode,settings_text=false,false,''
 
 -- The ghost turns on when the link goes from none to a session (D5.1): once per session, so a manual off holds until
 -- the next one; a status read that gave no mode is no leave; never after coop off.
@@ -551,6 +640,7 @@ for _,name in ipairs({'loopback','record','replay'}) do
     coop(name); assert(last():find('STOP: the native tick is unavailable',1,true),last())
 end
 coop('fight','probe'); assert(last():find('STOP: the native tick is unavailable',1,true) and #asked==0,last())
+coop('freeze','10'); assert(last():find('STOP: the native tick is unavailable',1,true) and #asked==0,last())
 coop('fight','off'); assert(asked[1]=='fight off','Off needs no tick')
 
 load_main(false)
@@ -569,4 +659,5 @@ local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
+coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n','No native part needed')
 io.stdout:write('main_test ok\n')

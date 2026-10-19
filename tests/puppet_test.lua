@@ -5,7 +5,8 @@
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again (2 s apart, 3 times,
 -- then said on screen), the strict table read; every UE4SS call on UE4SS's own Lua state, never in a coroutine;
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
--- turned to the camera at each pose, left out alone when it fails), the map notice on screen, a title round trip; with
+-- turned to the camera at each pose, left out alone when it fails), our photo mode hiding the ghost or its tag, the map
+-- notice on screen, a title round trip; with
 -- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails;
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
@@ -143,6 +144,7 @@ local function text_render(actor)
     function l:K2_SetRelativeLocation(at) self.relative=at end
     function l:K2_SetText(t) self.text=t.text end
     function l:K2_SetWorldRotation(r) self.rot=r; self.turns=(self.turns or 0)+1 end
+    function l:SetVisibility(v,children) assert(children==false); self.visible=v; self.shows=(self.shows or 0)+1 end
     function l:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
     return l
 end
@@ -386,6 +388,22 @@ camera={X=-100,Y=-100,Z=0}
 ghost.place()
 assert(actor.hidden==false and root.moves==2)
 assert(tag.turns==2 and math.abs(tag.rot.Yaw+90)<1e-9,'Turned again at each new pose, only then')
+-- Our own photo mode: photo_ghost=off hides the ghost while it lasts, poses or not, and photo_name_tag=off its tag; the
+-- ghost comes back with the next pose once it ends, the tag at once. Never veiled, the tag was never touched.
+assert(not tag.shows)
+ghost.photo(true,true)
+ghost.place()
+assert(actor.hidden==true and tag.visible==false and root.moves==2,'At once, no pose needed')
+box.RelativeScale3D.Z=6.5
+ghost.place()
+assert(actor.hidden==true and root.moves==3 and tag.shows==1,'Still placed, still hidden')
+ghost.photo(false,true)
+box.RelativeScale3D.Z=6.6
+ghost.place()
+assert(actor.hidden==false and tag.visible==false and tag.shows==1,'The ghost in the shot, its tag not')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and tag.shows==2)
 
 -- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
 local displays_before=#displays

@@ -1,7 +1,7 @@
-// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, channel 1, where
-// the pose path's tables and poses travel, and channel 2, where the shared enemies' lines travel. Every Steam call goes
-// through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the build machine, and
-// steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
+// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, the synced photo
+// mode's line, channel 1, where the pose path's tables and poses travel, and channel 2, where the shared enemies' lines
+// travel. Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam
+// on the build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <algorithm>
@@ -67,6 +67,8 @@ constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~2
 constexpr size_t kFightQueue = 256;
 constexpr uint64_t kFightPerSecond = 2 * kFightQueue, kFightBytesPerSecond = kFightPerSecond * kMaxMessage;
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
+// Her photo lines a second: Lua writes ours at most 4 times, and each change of hers can pause or resume our game.
+constexpr uint64_t kPhotoPerSecond = 8;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
 // A guest who lost the host's lobby tries again this long after the loss, and gives up at kRejoinMs (D5.10).
@@ -244,6 +246,13 @@ struct Peer {
   int64_t rtt_ms = -1;
   int session_state = 0, session_ping = -1;
   Window pose_window, fight_window; // Channels 1 and 2, received.
+  // The synced photo mode: her state and whether her photo mode may pause our game, from her last photo line ('0' and
+  // no before one); our line as she last got it (sent again after each hello of hers, so a rejoin heals); whether
+  // "does not pause for photos" was said for her; her photo lines' window.
+  char photo = '0';
+  bool photo_both = false, photo_off_said = false;
+  std::string photo_sent;
+  Window photo_window;
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
@@ -338,8 +347,10 @@ public:
       receive_binary();
       receive_fight();
       send_fight_queue();
+      send_photo();
       ping_peers();
     }
+    photo_pass(); // Also once the session ended: a pause held for her goes.
     log_peers();
     poll_relay();
   }
@@ -388,6 +399,32 @@ public:
   // Her channel-2 lines since the last call, oldest first. The link never parses them: fight_sync.h does, strictly.
   std::vector<std::string> take_fight() { return std::exchange(fight_in_, {}); }
 
+  // The synced photo mode (FEATURE-PARITY.md 6.3), from Lua's coop-state.txt, before each tick(): ours ('0', '1' or
+  // 's'), our photo_sync as she gets it (both only while this game can pause, so she never counts on a pause it cannot
+  // make), and photo_freeze_max in s (0: no cap). No photo line goes before the first call.
+  void photo(char mine, Sync sync, uint32_t max_s) {
+    photo_on_ = true;
+    photo_ = mine;
+    sync_ = sync;
+    photo_max_ = max_s;
+  }
+  // As of the last tick(): our game holds its pause, as the friend past the handshake, heard within 10 s, is in photo
+  // mode (not a selfie), photo_sync=both on both PCs, and photo_freeze_max has not run out since she entered it.
+  bool photo_freeze() const { return freeze_; }
+  // coop-status.txt's photo line; frozen: our pause tag is held (pose_tick.cpp), which coop freeze holds too.
+  std::string photo_status(bool frozen) const {
+    return std::string("photo=") + photo_ + " peer_photo=" + theirs_ + " frozen=" + (frozen ? "1" : "0") +
+           " sync=" + sync_name(sync_);
+  }
+  // A line for the player, numbered for the run so Lua shows each once; the last kNotices kept. No event: every site
+  // logs its own. Public for the photo pause's fault (steam_link.cpp).
+  void notice(const std::string &text) {
+    notices_.push_back(clean(text, kMaxNotice));
+    ++notice_count_;
+    if (notices_.size() > kNotices)
+      notices_.pop_front();
+  }
+
   bool take_report() {
     bool asked = report_;
     report_ = false;
@@ -432,14 +469,6 @@ public:
 
 private:
   void event(const std::string &line) { event_(line); }
-  // A line for the player, numbered for the run so Lua shows each once; the last kNotices kept. No event: every site
-  // logs its own.
-  void notice(const std::string &text) {
-    notices_.push_back(clean(text, kMaxNotice));
-    ++notice_count_;
-    if (notices_.size() > kNotices)
-      notices_.pop_front();
-  }
 
   Identity identity(uint64_t id) const {
     Identity who{};
@@ -611,12 +640,13 @@ private:
       report_ = true;
       event("report asked");
       break;
-    case Command::off: // The pose path's and the shared fight's: the caller handles them.
+    case Command::off: // The pose path's, the shared fight's and the photo pause's: the caller handles them.
     case Command::loopback:
     case Command::record:
     case Command::replay:
     case Command::nightop:
     case Command::fight:
+    case Command::freeze:
       break;
     case Command::none:
       event("unknown request");
@@ -813,6 +843,7 @@ private:
         peer->lost = false;
         event(peer->name + " is back");
         notice(peer->name + " is back.");
+        peer->photo_sent.clear(); // Our last photo line may have gone with a broken session: it goes again.
       }
       on_message(*peer, message);
     }
@@ -972,6 +1003,7 @@ private:
         return;
       }
       peer.compatible = true;
+      peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -1007,11 +1039,87 @@ private:
           peer.rtt_max = peer.rtt_ms;
       }
       break;
+    case Kind::photo: {
+      // From the friend past the handshake only, at a sane rate: each change of hers can pause or resume our game.
+      const char *why = !peer.compatible || !peer.accepted ? "before the handshake"
+                        : over_rate(peer.photo_window, 1, kPhotoPerSecond, kPhotoPerSecond) ? "over the rate limit"
+                                                                                             : nullptr;
+      if (why) {
+        event("dropped a photo line from " + peer.name + ": " + why);
+        break;
+      }
+      const char state = static_cast<char>(message.a);
+      const bool both = message.b != 0;
+      if (state != peer.photo || both != peer.photo_both)
+        event(peer.name + " photo=" + state + (both ? " both" : " notice"));
+      peer.photo = state;
+      peer.photo_both = both;
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
       break;
     }
+  }
+
+  // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
+  // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
+  void send_photo() {
+    if (!photo_on_)
+      return;
+    const std::string line = photo_line(sync_ == Sync::off ? '0' : photo_, sync_ == Sync::both);
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && p.photo_sent != line &&
+          send(p, line.data(), line.size(), kReliable) == kResultOk)
+        p.photo_sent = line;
+  }
+
+  // Each pass, after channel 0 and the liveness check: whether our game holds its pause for the friend's photo mode,
+  // its cap, and the notices on both screens. Hers counts only while she is past the handshake and not lost (it comes
+  // back with her); a friend who leaves takes it along. photo_sync=off shows nothing.
+  void photo_pass() {
+    Peer *p = nullptr;
+    for (auto &peer : peers_)
+      if (peer.compatible && peer.accepted) {
+        p = &peer;
+        break;
+      }
+    const char theirs = p && !p->lost ? p->photo : '0';
+    const bool asked = sync_ == Sync::both && theirs == '1' && p->photo_both;
+    if (theirs == '0')
+      capped_ = false; // The next photo session of hers pauses us again (a selfie within one is no new one).
+    const bool cap = asked && freeze_ && photo_max_ && now_ - freeze_since_ >= uint64_t(photo_max_) * 1000;
+    capped_ = capped_ || cap;
+    const bool want = asked && !capped_;
+    if (sync_ != Sync::off && theirs != '0' && theirs != theirs_) {
+      const std::string &name = p->name;
+      notice(theirs == 's'                ? name + " is taking a selfie."
+             : want                       ? name + " is taking photos: game paused. Esc > Photo Mode to join in."
+             : sync_ == Sync::both && !p->photo_both ? name + " is taking photos (their photo sync gives notices only)."
+                                                     : name + " is taking photos.");
+    }
+    if (sync_ != Sync::off && photo_ == '1' && mine_ != '1' && p && !p->lost) {
+      // An event only: our notices wait for the end of our photo mode, when her pause ends too.
+      if (p->photo_both && sync_ == Sync::both)
+        event("photo mode: " + p->name + "'s game is paused");
+      else if (!p->photo_both && !p->photo_off_said) {
+        p->photo_off_said = true; // Once a session.
+        notice(p->name + "'s game does not pause for photos.");
+      }
+    }
+    if (want && !freeze_) {
+      freeze_since_ = now_;
+      event("photo pause on: " + p->name + " is taking photos");
+    } else if (freeze_ && !want) {
+      const std::string cap_text = photo_max_ % 60 ? std::to_string(photo_max_) + " s"
+                                                   : std::to_string(photo_max_ / 60) + " min";
+      event(cap ? "photo pause off: photo_freeze_max (" + cap_text + ") reached" : "photo pause off");
+      notice(cap ? "Paused for " + cap_text + ": game resumed." : "Game resumed.");
+    }
+    freeze_ = want;
+    theirs_ = theirs;
+    mine_ = photo_;
   }
 
   void ping_peers() {
@@ -1125,5 +1233,14 @@ private:
   std::vector<std::pair<std::string, bool>> fight_out_;
   bool fight_linked_ = false;
   bool fight_waiting_ = false; // fight_out_'s first line was refused at an earlier pass.
+  // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s; as of the last pass, hers
+  // ('0' with no friend or a lost one) and ours, whether our game holds its pause and since when, whether the cap ended
+  // this photo session of hers.
+  bool photo_on_ = false;
+  char photo_ = '0', theirs_ = '0', mine_ = '0';
+  Sync sync_ = Sync::off;
+  uint32_t photo_max_ = 0;
+  bool freeze_ = false, capped_ = false;
+  uint64_t freeze_since_ = 0;
 };
 } // namespace coop

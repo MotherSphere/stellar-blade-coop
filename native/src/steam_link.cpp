@@ -4,7 +4,8 @@
 // Lua asks through coop-request.txt; this part answers in coop-status.txt, appends numbered UTC events to
 // coop-link.log (the previous run's is coop-link.old.log) and writes coop-report.txt on 'coop report', all in the mod
 // folder. One worker thread makes every Steam call; the game's Steam callback thread only stores atomics. The worker
-// also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp).
+// also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), and the
+// synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp).
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -246,7 +247,8 @@ std::string status_text() {
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   return head + coop::pose::status() + "\n" +
          coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded()) + "\n" + coop::pose::fight_status() +
-         "\n" + "last=" + journal.last() + "\n";
+         "\n" + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) + "last=" + journal.last() +
+         "\n";
 }
 
 void write_report() {
@@ -322,6 +324,12 @@ bool step() {
       event(coop::pose::ask_fight(coop::parse_request(request), coop_marker));
       request.clear();
       break;
+    case coop::Command::freeze: {
+      coop::Request r = coop::parse_request(request);
+      event(coop::pose::ask_freeze(!r.off, r.ms, GetTickCount64()));
+      request.clear();
+      break;
+    }
     case coop::Command::off:
       coop::pose::block();
       switched_off = true;
@@ -339,8 +347,13 @@ bool step() {
     }
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
-    if (loaded) // Before ready(): a +connect_lobby there is held until a world loads.
+    if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.
       link->world(coop::pose::world_loaded());
+      // Ours as Lua last wrote it; photo_sync=both is sent as notice while this game cannot pause.
+      const coop::State lua = coop::pose::lua_state();
+      link->photo(lua.photo,
+                  lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max);
+    }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
     if (ready == coop::Link::Ready::no && !request.empty()) {
       // Before Steam is ready: a report still helps (it tells why); anything else is said, never silently dropped.
@@ -372,6 +385,12 @@ bool step() {
       }
     }
     bool linked = loaded && ready != coop::Link::Ready::no && !switched_off && link->linked();
+    // The friend's photo mode holds our pause while the link says so and a save is loaded (the title screen has nothing
+    // to pause); a fault's line goes on screen.
+    std::string said = coop::pose::freeze_pass(
+        loaded && !switched_off && link->photo_freeze() && coop::pose::world_loaded(), GetTickCount64());
+    if (loaded && !said.empty())
+      link->notice(said);
     // Channel 2 both ways between the link and the shared fight's job; the lobby owner hosts it. Ours is queued for
     // the next tick.
     bool fighting = coop::pose::fight_pass(

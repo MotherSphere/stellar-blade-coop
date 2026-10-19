@@ -1,5 +1,6 @@
 -- Notices on screen with fake UE4SS objects and clock: 4 s each, in order, at most 4 queued; dropped with no EVE; the
 -- line 120 cm above her, turned to the camera, wrapped at 40 characters (the shared fight's longest on two lines);
+-- hidden during our own photo mode, the queue kept;
 -- spawned again once invalid; the first engine error turns it off with one line, and no engine call follows; so does
 -- coop off, which hides it first.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -134,6 +135,21 @@ clock=clock+4; n.say('Shared fight on: 12 enemies linked'); n.tick()
 assert(label.text=='Shared fight on: 12 enemies linked',label.text)
 clock=clock+4; n.say('Shared fight off: not on the co-op save (slot=main index=0 marker=4)'); n.tick()
 assert(label.text=='Shared fight off: not on the co-op save\n(slot=main index=0 marker=4)',label.text)
+
+-- Our own photo mode (main.lua's veil): the line goes at once and nothing is drawn, the queue kept; once it ends, the
+-- head notice goes up again for its full 4 s.
+clock=clock+4; n.tick(); assert(actor.hidden==true)
+n.say('photo'); n.tick(); assert(not actor.hidden and label.text=='photo')
+clock=clock+3; n.veil(true); assert(actor.hidden==true)
+n.say('queued')
+calls=0
+for _=1,3 do clock=clock+4; n.tick() end
+n.veil(true)
+assert(calls==0 and actor.hidden,'Veiled: no engine call')
+n.veil(false); n.tick(); assert(not actor.hidden and label.text=='photo','The head notice again')
+clock=clock+3.9; n.tick(); assert(label.text=='photo','Its full 4 s')
+clock=clock+0.1; n.tick(); assert(label.text=='queued')
+clock=clock+4; n.tick(); assert(actor.hidden==true)
 
 -- A line whose level went away is spawned again, with its text.
 clock=clock+4; n.tick()

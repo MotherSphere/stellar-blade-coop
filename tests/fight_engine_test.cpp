@@ -2,11 +2,12 @@
 // census over the actor map (free slots, inline and heap allocation bits, implausible pointers, players and dying
 // actors left out), the liveness test, implausible reads latching, the two phases (a write that summons an actor and
 // moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the job's guards, its arming and
-// re-arming, the ring and the latch, a job that never runs; a guest restarting mid-fight; the hand-over between the
-// job and the worker (Mail) and the worker's side (Worker: on and off, the gates, channel 2's text, the log); the probe
-// (T11a: every live actor, the world fence, test writes) in the engine and through the worker; a recording made by one
-// PC's host replayed into another's guest, and a recording at its cap; then two PCs linked through channel 2's text at
-// 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once in each world: the stage's exit criteria.
+// re-arming, the ring and the latch, a job that never runs, a long pause, photo mode; a guest restarting mid-fight;
+// the hand-over between the job and the worker (Mail) and the worker's side (Worker: on and off, the gates, our photo
+// mode, channel 2's text, the log); the probe (T11a: every live actor, the world fence, test writes) in the engine and
+// through the worker; a recording made by one PC's host replayed into another's guest, and a recording at its cap;
+// then two PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once
+// in each world: the stage's exit criteria.
 #include "fight_engine.h"
 
 #include <algorithm>
@@ -748,6 +749,77 @@ int main() {
     assert(std::string(e->why()) == "job never runs" && e->counts.arms == kRing && e->counts.turns == 0);
     assert(g.queue.size() == kRing && t < 5000);
   }
+  // A paused world (SB holds a pause tag: its menu, photo mode, a movie) whose 0 s ticks move the turn while our entry
+  // never gets its turn [G]: a minute of it arms nothing and trips no latch (the rule above alone would latch within
+  // 5 s). At the resume the beat starts again: one re-arm 500 ms later (the entry's key was passed), and the session
+  // goes on, with no new on and the same enemy still announced.
+  {
+    Game g;
+    auto e = engine(true, true);
+    const uint64_t tags = g.mem.alloc(0x220), pauser = rebased(coop::nightop::kGlobals) + kPauseAt;
+    g.mem.put(pauser, tags);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF7 on"));
+    uint64_t t = 0;
+    for (; t < 1000; t += 16)
+      frame(g, *e, t);
+    const uint64_t turns = e->counts.turns;
+    assert(e->counts.arms == 1 && e->host.linked() == 1 && has(lines(g), "SBF7 on\n"));
+    g.mem.put<int32_t>(tags + kTagsNum, 1); // A tag: the set's one element.
+    for (const uint64_t end = t + 60000; t < end; t += 16) {
+      assert(!e->arm(g, t));
+      g.mem.put(g.logic + kTurn, g.turn() + 1); // A 0 s tick: the turn moves, our entry does not run.
+    }
+    assert(e->counts.arms == 1 && e->counts.turns == turns && !e->latched() && e->counts.paused == 60000 / 16);
+    g.mem.put<int32_t>(tags + kTagsFree, 1); // Removed: its slot free.
+    const uint64_t last = t - 16;
+    for (; e->counts.arms == 1 && t < last + 2000; t += 16)
+      frame(g, *e, t);
+    assert(t - 16 >= last + 500 && t - 16 < last + 516);
+    for (const uint64_t end = t + 1000; t < end; t += 16)
+      frame(g, *e, t);
+    const std::string sent = lines(g);
+    assert(e->counts.arms == 2 && e->counts.turns > turns + 50 && e->counts.stale == 0 && !e->latched());
+    assert(e->host.linked() == 1 && !has(sent, "SBF7 on") && !has(sent, "SBF7 up") && has(sent, "SBF7 hp"));
+    assert(e->counts.paused == 60000 / 16);
+    // An implausible pointer where the pause tags' singleton should be: off for the run.
+    g.mem.put<uint64_t>(pauser, 0x1235);
+    assert(!e->arm(g, t) && std::string(e->why()) == "implausible pause tags");
+  }
+  // A first arm put off by a logic task in flight, then a pause longer than the 500 ms fallback: the resume starts
+  // the deferral's clock again, so no push is forced at once onto a key the worker may have drained.
+  {
+    Game g;
+    auto e = engine(true, true);
+    const uint64_t tags = g.mem.alloc(0x220);
+    g.mem.put(rebased(coop::nightop::kGlobals) + kPauseAt, tags);
+    g.mem.put<uint64_t>(g.logic + kTask, 0x51ca);
+    assert(!e->arm(g, 0) && e->counts.deferred == 1);
+    g.mem.put<int32_t>(tags + kTagsNum, 1);
+    for (uint64_t t = 16; t <= 1000; t += 16)
+      assert(!e->arm(g, t));
+    g.mem.put<int32_t>(tags + kTagsFree, 1);
+    assert(!e->arm(g, 1016) && e->counts.deferred == 2 && e->counts.forced == 0 && e->counts.arms == 0);
+  }
+  // photo_mode(): SB's logic stands still in photo mode with the free or the cutscene camera, not with the selfie's;
+  // nothing before the manager is made.
+  {
+    Memory mem;
+    const uint64_t at = rebased(kPhotoMode);
+    mem.regions[at].assign(8, 0);
+    const auto read = [&](uint64_t address, void *out, size_t n) { return mem.read(address, out, n); };
+    assert(!photo_mode(kBase, read));
+    const uint64_t manager = mem.alloc(0x610);
+    mem.put(at, manager);
+    assert(!photo_mode(kBase, read));
+    mem.put<uint8_t>(manager + kPhotoActive, 1);
+    for (int32_t camera : {1, 3}) {
+      mem.put(manager + kPhotoCamera, camera);
+      assert(photo_mode(kBase, read));
+    }
+    mem.put(manager + kPhotoCamera, kSelfie);
+    assert(!photo_mode(kBase, read));
+  }
 
   // ---- A restart while on: the old session's last claim reaches the host after the worker's on ----
   // The job says on again at the new session's first turn, behind that claim, so the host's claim numbers start over
@@ -825,12 +897,13 @@ int main() {
     s.runs = 7;
     assert(mail.exchange(s));
     JobCounts armed;
-    armed.arms = 5, armed.deferred = 2, armed.forced = 1;
+    armed.arms = 5, armed.deferred = 2, armed.forced = 1, armed.paused = 3;
     mail.armed(armed, 77);
     Snapshot got = take();
     assert((out == std::vector<std::string>{"SBF7 up 1 101 5001 0 900 1600", "SBF7 hp 1 1 0 101:1600:100:200"}));
     assert((said == std::vector<std::string>{"paired 5001:0 hguid=101"}) && got.runs == 7 && got.lost == 0);
-    assert(got.job.arms == 5 && got.job.deferred == 2 && got.job.forced == 1 && got.game_thread == 77);
+    assert(got.job.arms == 5 && got.job.deferred == 2 && got.job.forced == 1 && got.job.paused == 3 &&
+           got.game_thread == 77);
     // Hers: in at the next hand-over, in order; dropped when cleared before it.
     Message m;
     assert(mail.give(msg("SBF7 world 3")) && mail.give(msg("SBF7 on")) && !mail.receive(m));
@@ -948,6 +1021,17 @@ int main() {
     assert(w.status() == " fight=waiting");
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(e->on() && io.lines() == "SBF7 on\n");
+    // Our player in photo mode: SB's logic stands still, so paused, and she hears why (her side stops sharing too); her
+    // line not taken yet goes with the session. Asked meanwhile, it waits; a new session once it ends.
+    const uint32_t before = e->session();
+    w.pass(t += 16, true, false, true, {"SBF7 world 8"}, gate, io, true);
+    assert(!e->on() && io.lines() == "SBF7 off photo mode\n" && io.said.back() == "shared fight paused: photo mode");
+    assert(w.detail() == "fight=waiting mode=on why=photo mode" && mail.exchange(s) && !mail.receive(m));
+    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines().empty());
+    assert(ask("fight on 900") == "shared fight on: waiting for the end of photo mode" && !e->on());
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(e->on() && e->session() == before + 1 && io.lines() == "SBF7 on\n");
+    assert(io.said.back() == "shared fight on: as guest");
     // A load (no save for a while), on a pass the gate is due: paused, not off; she hears why, and her line not taken
     // yet goes with the session.
     w.pass(t += 16, true, false, true, {"SBF7 world 9"}, gate, io);

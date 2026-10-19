@@ -23,12 +23,17 @@
 // turn, armed by coop_tick on the game thread. Both run under the fight's own SEH latch, so after its first fault the
 // ghost and the link go on. The job reaches the worker only through Mail (try_lock on the logic thread: it never waits,
 // allocates or writes a file); the worker turns its lines into channel 2's text and its events into the log.
+//
+// The synced photo mode's pause (photo_freeze.h) is the game thread's too: while the friend's photo mode asks for it
+// (the link's photo line) or coop freeze runs, coop_tick holds a pause tag of ours in SB's set through SB's own
+// pause-tag function, under its own SEH latch, and releases it on every way out, coop off included.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -39,6 +44,7 @@
 #include "fight_engine.h"
 #include "link_protocol.h"
 #include "nightop_probe.h"
+#include "photo_freeze.h"
 #include "pose_codec.h"
 #include "pose_engine.h"
 #include "pose_record.h"
@@ -548,6 +554,97 @@ void guarded_arm() {
   }
 }
 
+// ---- The synced photo mode's pause (photo_freeze.h) ----
+// SB's on the pinned build (FEATURE-PARITY.md 6.2): the pause-tag function photo mode pauses with, the player
+// controller getter it pauses through, and FName's MakeWithNumber (FUN_142938380, which SB calls for "PhotoMode"; our
+// name has no number suffix, so ParseNumber's 0 goes as it is). The set's singleton is fight_engine.h's kPauseAt.
+constexpr uint64_t kPauseTag = 0x1422aafe0, kController = 0x14231c710, kMakeName = 0x142938380;
+// FUN_1422ab320's reads, null-checked here: the controller's GetWorld (virtual +0x158), the world's persistent level,
+// the level's WorldSettings, and their PauserPlayerState.
+constexpr size_t kGetWorld = 0x158, kLevel = 0x30, kWorldSettings = 0x268, kPauser = 0x20b0;
+struct NameView { // FUN_142938380's name: its characters, their count, and whether any needs more than 7 bits.
+  const wchar_t *text;
+  uint32_t len;
+  bool wide;
+};
+static_assert(sizeof(NameView) == 16 && offsetof(NameView, len) == 8 && offsetof(NameView, wide) == 12);
+using PauseTag = void (*)(bool add, const uint64_t *name, bool notify);
+using Controller = uintptr_t (*)();
+using MakeName = uint64_t *(*)(uint64_t *out, const NameView *name, int find_type, uint32_t number);
+using GetWorld = uintptr_t (*)(uintptr_t controller);
+
+// The worker's asks, and what the game thread did, for its log.
+std::atomic<bool> freeze_pinned{false}, freeze_sync{false}, freeze_held{false}, freeze_faulted{false};
+std::atomic<uint32_t> freeze_test{0};   // The running coop freeze's number, 0 when none.
+std::atomic<uint32_t> freeze_unsure{0}; // Bumped at each Lua load.
+std::atomic<uint64_t> freeze_reapplied{0}, freeze_dropped{0};
+std::atomic<uint64_t> freeze_fault_code{0}, freeze_fault_rva{0}, freeze_fault_address{0};
+// The game thread's.
+photo::Freeze freeze;
+uint64_t freeze_name = 0; // FName "StellarCoopFreeze" (ComparisonIndex, Number), made once.
+uint32_t freeze_unsure_seen = 0;
+
+struct FreezeGame {
+  uintptr_t controller() { return game_function<Controller>(kController)(); }
+  bool ready() {
+    return at<uint64_t>(base + (nightop::kGlobals + fight::kPauseAt - nightop::kImageBase)) && controller();
+  }
+  void tag(bool add) { game_function<PauseTag>(kPauseTag)(add, &freeze_name, true); }
+  bool paused() {
+    const uintptr_t pc = controller();
+    const uintptr_t world = pc ? reinterpret_cast<GetWorld>(at<uintptr_t>(at<uintptr_t>(pc) + kGetWorld))(pc) : 0;
+    const uintptr_t level = world ? at<uintptr_t>(world + kLevel) : 0;
+    const uintptr_t settings = level ? at<uintptr_t>(level + kWorldSettings) : 0;
+    return !settings || at<uintptr_t>(settings + kPauser) != 0;
+  }
+};
+// Each tick: nothing while no pause is asked or held. coop off (blocked) asks for none, so a held tag goes.
+__declspec(noinline) void freeze_body() {
+  if (const uint32_t n = freeze_unsure; n != freeze_unsure_seen) {
+    freeze_unsure_seen = n;
+    freeze.unsure();
+  }
+  const bool sync = freeze_sync && !blocked;
+  const uint32_t test = blocked ? 0 : freeze_test.load();
+  if (!sync && !test && !freeze.held())
+    return;
+  if (!freeze_name) {
+    const NameView name{L"StellarCoopFreeze", 17, false};
+    game_function<MakeName>(kMakeName)(&freeze_name, &name, 1, 0); // 1: FNAME_Add.
+    if (!freeze_name) {                                             // "None": never a tag of ours.
+      freeze_faulted = true;
+      return;
+    }
+  }
+  FreezeGame g;
+  freeze.step(g, sync, test, clock_us() / 1000);
+  freeze_held = freeze.held();
+  freeze_reapplied = freeze.reapplied, freeze_dropped = freeze.dropped;
+}
+__declspec(noinline) void freeze_release() {
+  FreezeGame g;
+  if (g.ready())
+    g.tag(false);
+}
+// The first fault turns the pause off for the run (the worker logs it and says so on screen), after one try to remove
+// our tag, so a pause never outlives the latch while SB still takes the call.
+void guarded_freeze() {
+  __try {
+    freeze_body();
+  } __except (fault_filter(GetExceptionInformation(), freeze_fault_code, freeze_fault_rva, freeze_fault_address)) {
+    freeze_faulted = true;
+  }
+  if (!freeze_faulted)
+    return;
+  if (freeze_name) { // Even unheld: a fault inside an add may come after our tag went into SB's set.
+    __try {
+      freeze_release();
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+  }
+  freeze_held = false;
+}
+
 } // namespace
 
 // At most about max bytes of the file (read on in 4 KB steps while under it): Lua's files and the remote table are
@@ -576,6 +673,11 @@ bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers
 uint64_t next_poll = 0, next_counters = 0;
 bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
 uint32_t rate = 20;  // From coop-state.txt: poses sent a second.
+State lua;           // coop-state.txt as last read, the synced photo mode's fields with it.
+uint64_t freeze_until = 0; // When the running coop freeze ends (GetTickCount64 ms); 0: none.
+uint32_t freeze_tests = 0; // coop freeze holds asked this run: each one's number.
+uint64_t freeze_reapplied_seen = 0, freeze_dropped_seen = 0;
+bool freeze_fault_logged = false;
 Message worker_out; // The encoded pose taken from the game thread.
 DelayLine delay_line;
 Replay replay;
@@ -909,6 +1011,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     pinned = reason.empty();
     if (pinned) // Before any fight on: SB's image base and our jobs' vtable.
       fight_engine.init(base, &kJobVtable);
+    freeze_pinned = pinned; // After base: the game thread's pause calls need it.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
   if (faulted && !fault_logged) {
@@ -951,18 +1054,18 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     sent_table.clear();
     capture_text = display_text = "\x01";
     rebuild();
+    ++freeze_unsure; // Our pause tag is removed unless it is still wanted.
     event("new Lua session: capture and ghost dropped");
   }
   take_capture();
   take_display();
   // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
   // so the worker can find none in between.
-  bool world_now = false;
-  uint32_t rate_now = 0;
-  if (parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), world_now, rate_now)) {
-    world = world_now;
-    if (rate_now != rate) {
-      rate = rate_now;
+  if (State now; parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), now)) {
+    lua = now;
+    world = now.world;
+    if (now.rate != rate) {
+      rate = now.rate;
       send_us = 1'000'000 / rate;
       event("send rate " + std::to_string(rate) + " poses a second");
     }
@@ -1037,6 +1140,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
 }
 
 bool world_loaded() { return world; }
+State lua_state() { return lua; }
 
 bool worker_stream() {
   if (!buffers_ready)
@@ -1252,8 +1356,66 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     say(text);
   }
   FightIo io;
-  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io);
+  // Our photo mode pauses it (pinned build). Two or three reads, so every kGateMs, not at every 5 ms pass: SB's logic
+  // stands still meanwhile anyway.
+  static bool photo = false;
+  static uint64_t next_photo = 0;
+  if (now_ms >= next_photo)
+    next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
+  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
   return fight_engine.on();
+}
+
+bool can_freeze() { return pinned && !blocked && !freeze_faulted; }
+bool frozen() { return freeze_held; }
+
+std::string ask_freeze(bool on, uint64_t ms, uint64_t now_ms) {
+  if (!on) {
+    if (!freeze_until)
+      return "coop freeze is not on";
+    freeze_until = 0, freeze_test = 0;
+    return "coop freeze off: our pause tag goes";
+  }
+  if (!can_freeze())
+    return "coop freeze refused: " + (blocked          ? std::string("coop off")
+                                      : freeze_faulted ? std::string("the photo pause stopped for this run")
+                                                       : engine_reason);
+  freeze_until = now_ms + ms;
+  freeze_test = ++freeze_tests;
+  return "coop freeze: our pause tag held for " + std::to_string(ms / 1000) +
+         " s, or until coop freeze off or the world it paused is gone";
+}
+
+std::string freeze_pass(bool sync, uint64_t now_ms) {
+  freeze_sync = sync && can_freeze();
+  if (freeze_until && now_ms >= freeze_until) {
+    freeze_until = 0, freeze_test = 0;
+    say("coop freeze over: our pause tag goes");
+  }
+  if (const uint64_t n = freeze_dropped; n != freeze_dropped_seen) {
+    freeze_dropped_seen = n;
+    freeze_until = 0, freeze_test = 0;
+    say("coop freeze ended: the world ran under our pause tag (a load, or the game refused the pause)");
+  }
+  if (const uint64_t n = freeze_reapplied; n != freeze_reapplied_seen) { // Repeats are counted by the journal.
+    freeze_reapplied_seen = n;
+    say("photo pause applied again: the world ran under our pause tag (a load, or the game refused the pause)");
+  }
+  if (!freeze_faulted || freeze_fault_logged)
+    return {};
+  freeze_fault_logged = true;
+  char text[200];
+  if (!freeze_fault_code)
+    std::snprintf(text, sizeof text, "photo pause off: the game made no FName for our pause tag");
+  else
+    std::snprintf(text, sizeof text,
+                  "photo pause off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; our tag released, photo "
+                  "sync gives notices only until the game restarts",
+                  static_cast<unsigned long long>(freeze_fault_code.load()),
+                  static_cast<unsigned long long>(freeze_fault_rva.load()),
+                  static_cast<unsigned long long>(freeze_fault_address.load()));
+  say(text);
+  return "Photo sync can no longer pause this game: notices only until the game restarts.";
 }
 
 void block() {
@@ -1302,5 +1464,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   if ((fight_on || fight_ticked) && !blocked)
     guarded_arm();
   fight_ticked = fight_on;
+  // The photo pause's own latch, after coop off too: its tag is released then, and nothing more is called.
+  if (freeze_pinned && !freeze_faulted)
+    guarded_freeze();
   return 0;
 }

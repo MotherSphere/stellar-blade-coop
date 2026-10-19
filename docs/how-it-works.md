@@ -54,7 +54,7 @@ written whole beside its final name and renamed over, so the reader never sees h
 
 - Lua writes `coop-request.txt` (a console request), `coop-session.txt` (a new token per Lua load, so the native part
   drops what an older load published), `coop-components.txt` (EVE's capture), `coop-display.txt` (the ghost it built)
-  and `coop-state.txt` (whether a save is loaded, and the send rate).
+  and `coop-state.txt` (whether a save is loaded, the send rate, and the synced photo mode's state and settings).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
   table), `coop-link.log` and `coop-report.txt`.
 
@@ -112,7 +112,14 @@ handshake, every message carries the protocol number and is dropped by a peer th
 ```
 SBC7 ping <seq> <ms>
 SBC7 pong <seq> <ms>
+SBC7 photo <0|1|s> <both|notice>
 ```
+
+The photo line (reliable) carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their game may
+be paused for the other's (`both`). It goes after each handshake and on each change, at most 8 a second are taken, and
+while the other's says `1 both` and yours is `photo_sync=both`, the game thread holds a pause tag of the mod's own in
+the game's pause set, through the function the game's photo mode pauses with (build 24463856 only); see
+[usage.md](usage.md#synced-photo-mode) for when it is released.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. Messages longer than 512 bytes are junk.

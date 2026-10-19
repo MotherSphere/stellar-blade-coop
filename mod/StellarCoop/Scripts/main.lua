@@ -9,7 +9,11 @@
 -- save slot only; coop recruiter [off], the cut Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua),
 -- on the co-op save slot only; coop fight on|off|status|probe|test|record|replay, the shared enemies of Phase 11
 -- (experimental: on only with shared_enemies=on in coop-settings.txt, which also starts it once a load on the co-op
--- save), on the co-op save slot only. coop off stops everything until the game restarts.
+-- save), on the co-op save slot only; the synced photo mode (photo_sync in coop-settings.txt: your friend's photo mode
+-- pauses your game, yours pauses theirs; during your own, the notices, and as set the ghost and its name tag, stay out
+-- of the shot), with coop freeze <seconds>|off to test the pause alone; coop ui test [game], the UI-layer spike (ui.lua:
+-- a small widget on screen for 5 s and its checks in the log; left out of the usage line until the UI layer ships).
+-- coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -46,6 +50,9 @@ if settings then
     log(looks())
     log('shared enemies: '..(settings.shared_enemies and 'on' or 'off')..' (experimental), fight_chars '
         ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'none'))
+    log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
+        settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
+        settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
 end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
@@ -58,8 +65,13 @@ local notice=require('notice').new()
 local puppet=require('puppet').new(link,capture,notice.say,settings and settings.name_tag,look)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
-local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | off'
+local function native_off()
+    return link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
+end
+local off=native_off()
+-- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
+local blocked=off
+local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -85,6 +97,8 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
     function(line) return ask(line)() end,function() return link and link.status() end)
 -- commands.recruiter runs only on the co-op save slot; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
+-- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
+local ui=require('ui').new(function(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end)
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay'
@@ -96,6 +110,23 @@ local function fight_line(sub,a,b,extra)
     if a=='kill' and b==nil then return 'fight test kill' end
     local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
     if n and n~=0 and n>=-10000000 and n<=10000000 then return string.format('fight test %s %d',a,n) end
+end
+-- The synced photo mode: our player in SB's photo mode ('1'), its selfie mode ('s') or neither ('0'), from SB's
+-- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
+-- ('0' from then on) with one log line.
+local U=require('unreal')
+local photo_failed=false
+local function photo_state()
+    if photo_failed then return '0' end
+    local ok,state=pcall(function()
+        local library=U.find('/Script/SB.Default__SBAutomationBlueprintFunctionLibrary')
+        if library:IsSelfieMode() then return 's' end
+        return library:IsPhotoMode() and '1' or '0'
+    end)
+    if ok then return state end
+    photo_failed=true
+    log('photo sync: photo mode unreadable, off until the mod reloads: '..tostring(state))
+    return '0'
 end
 -- shared_enemies=on: coop fight on once a load, when the first save is judged (slot=coop asks it, slot=main says why
 -- not); coop fight off before then cancels it.
@@ -173,10 +204,25 @@ local commands={
         if not ok or sub~='status' then return ok,why end
         return true,link.fight() or 'no shared fight status yet'
     end,
+    -- The photo pause alone (the solo tests): our pause tag held for 1 to 3600 s, or until off; the native part refuses
+    -- it off the pinned build and says why in the log.
+    freeze=function(arg,extra)
+        local seconds=arg~='off' and whole(arg,3600)
+        if extra~=nil or not (arg=='off' or seconds and seconds>0) then
+            return false,'Use: coop freeze <1-3600 seconds> | off'
+        end
+        if not native_tick then return false,'the native tick is unavailable' end
+        return ask(seconds and 'freeze '..seconds or 'freeze off')()
+    end,
+    ui=function(sub,arg,extra)
+        if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then return false,'Use: coop ui test [game]' end
+        return ui.test(arg=='game')
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
         notice.stop()
+        ui.stop()
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -217,7 +263,7 @@ RegisterConsoleCommandHandler('coop',function(_,parameters)
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
-    if off then return end
+    if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
     if native_tick then native_tick() end
@@ -227,6 +273,7 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
+    ui.tick() -- Likewise for coop ui test.
 end)
 if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.
@@ -256,6 +303,7 @@ if link then
         fight_was=now
     end
     LoopInGameThreadWithDelay(250,function()
+        if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if fight_auto and not off then
             local verdict=(slot_line() or ''):match('^slot=(%a+)')
@@ -274,8 +322,13 @@ if link then
             last_mode=mode
         end
         for _,text in ipairs(link.notices()) do notice.say(text) end
-        if not off then -- Whether a save is loaded (an accepted invite waits for one) and the send rate.
-            local line=link.state(puppet.world(),settings.send_rate)
+        if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
+            local world=puppet.world()
+            local photo=world and photo_state() or '0'
+            local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
+            notice.veil(own)
+            puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
+            local line=link.state(world,settings.send_rate,photo,settings.photo_sync,settings.photo_freeze_max)
             if line then log('state: '..line) end
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.

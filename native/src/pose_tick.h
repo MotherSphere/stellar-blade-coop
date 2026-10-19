@@ -7,9 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace coop {
-struct Request; // link_protocol.h
-} // namespace coop
+#include "link_protocol.h" // Request, State
 
 namespace coop::pose {
 // Worker thread, every pass: pins the build once; reads coop-session.txt, coop-components.txt (EVE's capture, sent on
@@ -21,6 +19,9 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
 // Worker thread: whether Lua last said a save is loaded (coop-state.txt, read every 250 ms; the send rate comes with
 // it).
 bool world_loaded();
+// Worker thread: coop-state.txt as last read, the synced photo mode's fields with it (ours, photo_sync and
+// photo_freeze_max); its defaults until Lua wrote one.
+coop::State lua_state();
 // Worker thread, every pass after worker_poll: sends the newest encoded pose, hands what the loopback's delay line and
 // the replay have due to the receiving side, and stops a recording at its cap. True while the loopback, a recording, a
 // replay or a linked friend runs (the worker then passes every 5 ms, not 50).
@@ -45,8 +46,9 @@ int loaded_slot();
 // Worker thread, Phase 11's shared fight (fight_engine.h's Worker). A coop fight request (Command::fight): on, probe,
 // record or replay with the charIds it shares (fight_chars), off, status or a probe's test; marker: the slot
 // StellarCoopSlot.txt names. A mode starts only on the pinned build, before coop off and on the co-op save
-// (slot=coop), else is refused with why; it then runs while a save is loaded (and, for on, a friend is linked). record
-// and replay use coop-fight-record.txt in the mod folder. Returns the line for the log.
+// (slot=coop), else is refused with why; it then runs while a save is loaded and our player is not in SB's photo mode
+// (and, for on, a friend is linked). record and replay use coop-fight-record.txt in the mod folder. Returns the line
+// for the log.
 std::string ask_fight(const coop::Request &request, int marker);
 // Worker, every pass after the link's tick. lines: her channel-2 lines; send: ours to her (hp unreliable, false when
 // not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send (or to the recording), logs
@@ -57,6 +59,18 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
                 bool (*send)(const std::string &, bool));
 // Worker: coop-status.txt's fight line (fight_engine.h's Worker::detail).
 std::string fight_status();
+// The synced photo mode's pause (photo_freeze.h), which the game thread holds as our own tag in SB's pause set. Worker
+// thread. Whether this game can hold it: the pinned build, before coop off, no fault so far.
+bool can_freeze();
+// Every pass after the link's tick. sync: the friend's photo mode asks for our pause (Link::photo_freeze()). Ends a
+// coop freeze whose time is up, logs what the game thread did (a hold a new world ended, a pause applied again, a
+// fault) and returns a line for the player's screen (the fault's), or empty.
+std::string freeze_pass(bool sync, uint64_t now_ms);
+// Worker: our pause tag is held (coop-status.txt's frozen=).
+bool frozen();
+// The coop freeze request (the solo tests): on, our pause tag held for ms, until coop freeze off, coop off or the
+// world it paused is gone (a load); or off. On the pinned build only. Returns the line for the log.
+std::string ask_freeze(bool on, uint64_t ms, uint64_t now_ms);
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <count>",
 // " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on"
