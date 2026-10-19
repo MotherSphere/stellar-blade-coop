@@ -4,12 +4,12 @@
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
 // build's global, nor a marker, nor the save name (saves=off); the shared fight's line says fight=off), that coop_tick
 // is exported and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an
-// unpinned exe (coop-link.log, within 3 s each), as the save name's probe is, at load and on request; that the chat
-// files a previous run left are deleted at start, and a typed line is taken within 3 s with no session, its text never
-// in coop-link.log; that a request the worker cannot delete (here read-only) is never run, so never run twice, and
-// runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process, as the
-// Night Operation poller uses it: equal bytes from the stack, false at 0x1000, no crash on a PAGE_NOACCESS page (whose
-// result Wine may differ on, so it is only printed), and the cost of one read. Exit code 0 on success.
+// unpinned exe (coop-link.log, within 3 s each), as the save name's probe is, at load and on request, and saves coop;
+// that the chat files a previous run left are deleted at start, and a typed line is taken within 3 s with no session,
+// its text never in coop-link.log; that a request the worker cannot delete (here read-only) is never run, so never run
+// twice, and runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process,
+// as the Night Operation poller uses it: equal bytes from the stack, false at 0x1000, no crash on a PAGE_NOACCESS page
+// (whose result Wine may differ on, so it is only printed), and the cost of one read. Exit code 0 on success.
 // Usage: smoke.exe <folder holding StellarCoop.dll>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -90,7 +90,7 @@ int wmain(int argc, wchar_t **argv) {
   auto settled = [](const std::string &text) {
     return text.find("steam=waiting") != std::string::npos &&
            text.find("engine=off reason=build stamp") != std::string::npos &&
-           text.find("\nslot=unknown index=? marker=? saves=off\nfight=off\n") != std::string::npos;
+           text.find("\nslot=unknown index=? marker=? saves=off\nconvert=idle\nfight=off\n") != std::string::npos;
   };
   std::string status = read_text(status_path);
   for (ULONGLONG end = GetTickCount64() + 3000;
@@ -140,6 +140,15 @@ int wmain(int argc, wchar_t **argv) {
   for (ULONGLONG end = GetTickCount64() + 3000; saves && probes() < 2 && GetTickCount64() < end;)
     Sleep(50);
   saves = saves && probes() == 2;
+  // The copies and the switch need the pinned build too: saves coop is refused with the same reason, nothing written.
+  bool switched = false;
+  if (saves && write_request(folder, "saves coop"))
+    for (ULONGLONG end = GetTickCount64() + 3000; !switched && GetTickCount64() < end;) {
+      Sleep(50);
+      switched = read_text(folder + L"coop-link.log")
+                     .find("co-op saves refused: the save name reads off: build stamp") != std::string::npos;
+    }
+  saves = switched;
 
   // The chat files: the stale ones went at start; a typed line is taken with no session, and never logged.
   bool chat_ok =

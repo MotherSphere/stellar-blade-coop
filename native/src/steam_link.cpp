@@ -6,10 +6,12 @@
 // folder. One worker thread makes every Steam call; the game's Steam callback thread only stores atomics. The worker
 // also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), and the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
-// and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files.
+// and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
+// makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h).
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -19,6 +21,7 @@
 #include "link_core.h"
 #include "pose_tick.h"
 #include "save_slot.h"
+#include "save_twins.h"
 #include "save_watch.h"
 
 #ifndef STELLARCOOP_VERSION
@@ -177,7 +180,8 @@ std::string exe_stamp() {
 
 // Run id, versions, exe, the save folder (for backups) and DLLs from other mods that can change test results.
 std::vector<std::string> header_lines;
-std::wstring saves_dir; // %LOCALAPPDATA%\SB\Saved\SaveGames, or empty.
+std::wstring saves_dir;   // %LOCALAPPDATA%\SB\Saved\SaveGames, or empty.
+std::wstring backups_dir; // %LOCALAPPDATA%\SB\Saved\StellarCoopBackups (outside the synced folder), or empty.
 void write_header() {
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
@@ -185,8 +189,10 @@ void write_header() {
   wsprintfA(run, "%08lx", static_cast<unsigned long>(counter.LowPart ^ (GetCurrentProcessId() << 16)));
   wchar_t local[MAX_PATH];
   DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", local, MAX_PATH);
-  if (n && n < MAX_PATH)
+  if (n && n < MAX_PATH) {
     saves_dir = std::wstring(local, n) + L"\\SB\\Saved\\SaveGames";
+    backups_dir = std::wstring(local, n) + L"\\SB\\Saved\\StellarCoopBackups";
+  }
   std::string saves = saves_dir.empty() ? "unknown" : utf8(saves_dir);
   header_lines = {
       "run " + std::string(run) + " mod " + coop::token(STELLARCOOP_VERSION) + " protocol " +
@@ -247,6 +253,115 @@ void watch_saves(uint64_t now_ms, uint64_t steam_id) {
   }
 }
 
+// The co-op saves' file functions (save_twins.h): names in this account's save folder, and in a new folder of the
+// backups' folder. Reads share everything, so the game's own writes are never blocked; writes are flushed before
+// their rename.
+class WinFs {
+public:
+  WinFs(const std::wstring &dir, const std::wstring &backups) : dir_(dir + L"\\"), backups_(backups) {}
+  coop::twins::Stat stat(const std::string &name) {
+    WIN32_FILE_ATTRIBUTE_DATA a;
+    if (!GetFileAttributesExW((dir_ + wide(name)).c_str(), GetFileExInfoStandard, &a) ||
+        (a.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+      return {};
+    return {true, (uint64_t(a.nFileSizeHigh) << 32) | a.nFileSizeLow,
+            (uint64_t(a.ftLastWriteTime.dwHighDateTime) << 32) | a.ftLastWriteTime.dwLowDateTime};
+  }
+  bool read(const std::string &name, std::string &out, size_t max) { return read_at(dir_ + wide(name), out, max); }
+  bool write(const std::string &name, const std::string &bytes) { return write_at(dir_ + wide(name), bytes); }
+  bool rename(const std::string &from, const std::string &to) {
+    return MoveFileExW((dir_ + wide(from)).c_str(), (dir_ + wide(to)).c_str(),
+                       MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+  }
+  bool remove(const std::string &name) { return DeleteFileW((dir_ + wide(name)).c_str()); }
+  std::vector<std::string> list() {
+    std::vector<std::string> names;
+    WIN32_FIND_DATAW f;
+    HANDLE h = FindFirstFileW((dir_ + L"*").c_str(), &f);
+    if (h == INVALID_HANDLE_VALUE)
+      return names;
+    do {
+      if (!(f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        names.push_back(utf8(f.cFileName));
+    } while (FindNextFileW(h, &f));
+    FindClose(h);
+    return names;
+  }
+  // StellarCoopBackups\<UTC time>[-n]\, new; its path, or empty.
+  std::string backup_dir() {
+    current_.clear();
+    if (backups_.empty())
+      return {};
+    CreateDirectoryW(backups_.c_str(), nullptr); // Already there after the first backup.
+    SYSTEMTIME t;
+    GetSystemTime(&t);
+    wchar_t stamp[24];
+    wsprintfW(stamp, L"%04u%02u%02uT%02u%02u%02uZ", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+    for (int n = 0; n < 100; ++n) {
+      const std::wstring path = backups_ + L"\\" + stamp + (n ? L"-" + std::to_wstring(n) : std::wstring());
+      if (CreateDirectoryW(path.c_str(), nullptr)) {
+        current_ = path + L"\\";
+        return utf8(path);
+      }
+      if (GetLastError() != ERROR_ALREADY_EXISTS)
+        return {};
+    }
+    return {};
+  }
+  bool backup_write(const std::string &name, const std::string &bytes) {
+    return !current_.empty() && write_at(current_ + wide(name), bytes);
+  }
+  bool backup_read(const std::string &name, std::string &out, size_t max) {
+    return !current_.empty() && read_at(current_ + wide(name), out, max);
+  }
+
+private:
+  static std::wstring wide(const std::string &text) {
+    int n = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    std::wstring out(static_cast<size_t>(n > 0 ? n : 0), L'\0');
+    if (n > 0)
+      MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(), n);
+    return out;
+  }
+  static bool read_at(const std::wstring &path, std::string &out, size_t max) {
+    HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE)
+      return false;
+    LARGE_INTEGER size;
+    bool ok = GetFileSizeEx(f, &size) && size.QuadPart >= 0 && uint64_t(size.QuadPart) <= max;
+    if (ok) {
+      out.resize(static_cast<size_t>(size.QuadPart));
+      for (size_t at = 0; ok && at < out.size();) {
+        DWORD n = 0;
+        ok = ReadFile(f, out.data() + at, static_cast<DWORD>(std::min<size_t>(out.size() - at, 1 << 20)), &n,
+                      nullptr) &&
+             n;
+        at += n;
+      }
+    }
+    CloseHandle(f);
+    return ok;
+  }
+  static bool write_at(const std::wstring &path, const std::string &bytes) {
+    HANDLE f = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE)
+      return false;
+    bool ok = true;
+    for (size_t at = 0; ok && at < bytes.size();) {
+      DWORD n = 0;
+      ok = WriteFile(f, bytes.data() + at, static_cast<DWORD>(std::min<size_t>(bytes.size() - at, 1 << 20)), &n,
+                     nullptr) &&
+           n;
+      at += n;
+    }
+    ok = FlushFileBuffers(f) && ok;
+    CloseHandle(f);
+    return ok;
+  }
+  std::wstring dir_, backups_, current_;
+};
+
 coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool chat_was = false;    // A chat session held at the last pass.
@@ -256,14 +371,30 @@ std::wstring command_line;
 bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
 std::string written;
 
+// The co-op saves (save_twins.h): this account's file functions once the SteamID is known, and the requests and
+// passes, against the game as pose_tick.cpp reads it.
+std::unique_ptr<WinFs> account;
+coop::twins::Switch coop_saves;
+struct GameView {
+  coop::slot::Saves saves() { return saves_state; }
+  std::string why() { return coop::pose::saves_why(); }
+  bool world() { return coop::pose::world_loaded(); }
+  int load_mode() { return coop::pose::load_mode(); }
+  std::string swap(bool coop) {
+    std::string why = coop::pose::saves_switch(coop);
+    saves_state = coop::pose::saves(); // The status shows the switch at once.
+    return why;
+  }
+};
+
 std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   return head + coop::pose::status() + "\n" +
          coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded(), saves_state) + "\n" +
-         coop::pose::fight_status() + "\n" + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
-         "last=" + journal.last() + "\n";
+         coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" +
+         (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) + "last=" + journal.last() + "\n";
 }
 
 void write_report() {
@@ -309,6 +440,8 @@ bool step() {
       link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event,
                                           [](const uint8_t *d, size_t n) { coop::pose::peer_receive(d, n); });
     }
+    if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
+      account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
     std::string request = take_text(folder + L"coop-request.txt");
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
@@ -348,7 +481,14 @@ bool step() {
       break;
     }
     case coop::Command::saves:
-      event(coop::pose::saves_probe());
+      if (const coop::SavesAsk ask = coop::parse_request(request).saves; ask == coop::SavesAsk::probe) {
+        event(coop::pose::saves_probe());
+        if (account) // The plan, from stats and the manifest only.
+          event(coop::twins::describe(coop::twins::plan(*account)));
+      } else {
+        GameView game;
+        event(coop_saves.ask(ask, account.get(), game));
+      }
       request.clear();
       break;
     case coop::Command::off:
@@ -370,6 +510,11 @@ bool step() {
       next_slot = now + 250;
       slot_index = coop::pose::loaded_slot();
       saves_state = coop::pose::saves();
+    }
+    { // A conversion's next job, at most one a pass, then the switch asked at its end.
+      GameView game;
+      for (const std::string &line : coop_saves.pass(account.get(), game, switched_off))
+        event(line);
     }
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);

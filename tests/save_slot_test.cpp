@@ -315,6 +315,62 @@ int main() {
   assert(gone_state.update(found) == Saves::main && gone_state.update(bad) == Saves::unread && gone_state.latched());
   assert(gone_state.why() == "the save name no longer reads: no GameSaveFileName entry");
 
+  // The switch and its release on the fake image: cas compares and swaps the word there. Then refusals: the name
+  // already switched, a failed swap or a read-back that does not show it (both latch), an entry that moved since.
+  uint64_t cas_at = 0;
+  int cas_calls = 0;
+  bool cas_writes = true;
+  auto cas = [&m, &cas_at, &cas_calls, &cas_writes](uint64_t at, uint64_t expected, uint64_t desired) {
+    ++cas_calls;
+    cas_at = at;
+    uint64_t now = 0;
+    if (!m.read(at, &now, 8) || now != expected)
+      return false;
+    if (cas_writes)
+      m.put(at, desired);
+    return true;
+  };
+  auto image = [&m](uint64_t at, void *out, size_t size) { return m.read(at, out, size); };
+  m = names();
+  Names sw;
+  assert(sw.swap(kBase, image, cas, true).empty() && sw.saves() == Saves::coop && cas_at == kData + 24);
+  assert(m.find().saves == Saves::coop && std::string(m.find().text) == "StellarBladeCoop");
+  assert(sw.swap(kBase, image, cas, true) == "the save name reads coop" && cas_calls == 1);
+  assert(sw.swap(kBase, image, cas, false).empty() && sw.saves() == Saves::main && m.find().saves == Saves::main);
+  assert(cas_calls == 2 && !sw.latched());
+  // A name another writer switched: refused by the first read, before any write. A swap the compare refuses: latched,
+  // never tried again.
+  m.put(kData + 24, kCoop);
+  assert(sw.swap(kBase, image, cas, true) == "the save name reads coop" && cas_calls == 2);
+  m.put(kData + 24, kSave);
+  auto refuse = [&cas_calls](uint64_t, uint64_t, uint64_t) {
+    ++cas_calls;
+    return false;
+  };
+  assert(sw.swap(kBase, image, refuse, true) == "the save name could not be written" && sw.latched());
+  assert(sw.saves() == Saves::unread && sw.swap(kBase, image, cas, true) == "the save name reads ?: the save name "
+                                                                            "could not be written");
+  assert(cas_calls == 3 && m.find().saves == Saves::main);
+  // A swap that does not read back: latched.
+  Names quiet;
+  cas_writes = false;
+  assert(quiet.swap(kBase, image, cas, true) == "the save name did not read back" && quiet.latched());
+  cas_writes = true;
+  // The entry moved since it was found: latched before any write.
+  Names moved_state;
+  assert(moved_state.update(m.find()) == Saves::main);
+  m.put(kElements + 0x48, kData + 0x40);
+  text(m, kData + 0x40, std::u16string(u"StellarBladeSave") + u'\0');
+  const int calls = cas_calls;
+  assert(moved_state.swap(kBase, image, cas, true) == "the save name reads ?: the save name moved");
+  assert(cas_calls == calls && moved_state.latched());
+  // Off the title: a save loaded, a load started, or the load state unreadable.
+  assert(not_title(false, 0).empty());
+  assert(not_title(true, 0) == "a save is loaded: quit to the title first");
+  assert(not_title(false, 2) == "the game started a load (load mode 2)");
+  assert(not_title(false, kUnread) == "the game's load state is unreadable");
+  assert(not_title(true, kUnread) == "a save is loaded: quit to the title first");
+
   // The read-only probe (T-AS0 step 1): the client's slot cache count, the pending load's slot and mode and the entered
   // slot, then the entry, the verdict and the builder's cached key. It reads; it never writes.
   m = names();

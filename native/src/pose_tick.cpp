@@ -1321,11 +1321,31 @@ int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::k
 namespace {
 slot::Names names; // The save name as the worker last read it back.
 slot::Saves saves_now() { return pinned && !blocked ? names.saves() : slot::Saves::off; }
+// The name's compare-and-swap. clang-cl catches a fault only in a function the __try calls, so the write stays out of
+// line; a fault (the entry freed since its read) is a failed swap, which latches the switch off.
+__declspec(noinline) bool cas_body(uint64_t at, uint64_t expected, uint64_t desired) {
+  return InterlockedCompareExchange64(reinterpret_cast<volatile LONG64 *>(at), static_cast<LONG64>(desired),
+                                      static_cast<LONG64>(expected)) == static_cast<LONG64>(expected);
+}
+bool guarded_cas(uint64_t at, uint64_t expected, uint64_t desired) {
+  __try {
+    return cas_body(at, expected, desired);
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    return false;
+  }
+}
 } // namespace
 slot::Saves saves() {
   if (pinned && !blocked)
     names.update(slot::find(base, rpm));
   return saves_now();
+}
+std::string saves_why() { return !pinned ? engine_reason : blocked ? std::string("coop off") : names.why(); }
+int load_mode() { return pinned && !blocked ? slot::field(base, rpm, slot::kLoadMode) : slot::kUnread; }
+std::string saves_switch(bool coop) {
+  if (!pinned || blocked)
+    return saves_why();
+  return names.swap(base, rpm, guarded_cas, coop);
 }
 std::string saves_probe() {
   if (!pinned || blocked)

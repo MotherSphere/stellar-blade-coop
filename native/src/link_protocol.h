@@ -262,12 +262,14 @@ inline Message parse(const char *data, size_t size) {
 // the shared fight (Phase 11, fight_engine.h's Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at
 // most kMaxFightChars), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a
 // sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause
-// held that long) and "freeze off"; for the co-op saves (save_slot.h) "saves probe" (one read-only line in the log).
+// held that long) and "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in
+// the log), "saves convert" (make the co-op copies), "saves coop" (make them, then switch to them) and "saves main"
+// (switch back to the player's own saves).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves
 };
 enum class Fight { none, on, off, status, probe, test, record, replay };
-enum class SavesAsk { none, probe };
+enum class SavesAsk { none, probe, convert, coop, main };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
@@ -351,9 +353,14 @@ inline Request parse_request(std::string text) {
   else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;
-  } else if (text == "saves probe") {
-    r.command = Command::saves;
-    r.saves = SavesAsk::probe;
+  } else if (text.rfind("saves ", 0) == 0) {
+    const std::string word = text.substr(6);
+    r.saves = word == "probe"     ? SavesAsk::probe
+              : word == "convert" ? SavesAsk::convert
+              : word == "coop"    ? SavesAsk::coop
+              : word == "main"    ? SavesAsk::main
+                                  : SavesAsk::none;
+    r.command = r.saves == SavesAsk::none ? Command::none : Command::saves;
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;

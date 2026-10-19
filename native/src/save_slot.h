@@ -163,12 +163,27 @@ public:
     why_ = n.why;
     return saves_ = n.saves;
   }
+  // The switch: the name read again, one compare-and-swap of its last four characters (cas(address, expected,
+  // desired) is true only when it swapped; on the worker, under SEH), then the name read back. Empty once the name
+  // reads the asked one; else why not. A failed swap or read-back latches: no switch again this run.
+  template <class Read, class Cas> std::string swap(uint64_t base, Read &&read, Cas &&cas, bool coop) {
+    const Saves from = coop ? Saves::main : Saves::coop, to = coop ? Saves::coop : Saves::main;
+    if (update(find(base, read)) != from)
+      return std::string("the save name reads ") + saves_name(saves_) + (why_.empty() ? "" : ": " + why_);
+    if (!cas(tail_, coop ? kSave : kCoop, coop ? kCoop : kSave)) {
+      latch("the save name could not be written");
+      return why_;
+    }
+    if (update(find(base, read)) != to && !latched_)
+      latch("the save name did not read back");
+    return latched_ ? why_ : std::string();
+  }
   Saves saves() const { return saves_; }
   bool latched() const { return latched_; }
   const std::string &why() const { return why_; } // Why the state is off or unread, or empty.
   uint64_t tail() const { return tail_; }         // The address of the name's last four characters, once found.
 
-protected:
+private:
   Saves latch(const std::string &why) {
     latched_ = true;
     why_ = why;
@@ -179,6 +194,19 @@ protected:
   bool latched_ = false;
   std::string why_ = "not read yet";
 };
+
+// Why the save files may not change now (the copies or the name), or empty: only at the title, with no save loaded
+// (Lua's world flag) and no load started there (client +0x86c is 0; 0 at boot [L], and whether the game resets it at
+// the title is for the probe to show), so a world never saves into the other files (AUTO-COOP-SAVE §4.3).
+inline std::string not_title(bool world, int load_mode) {
+  if (world)
+    return "a save is loaded: quit to the title first";
+  if (load_mode == kUnread)
+    return "the game's load state is unreadable";
+  if (load_mode)
+    return "the game started a load (load mode " + std::to_string(load_mode) + ")";
+  return {};
+}
 
 // One line for the log, read-only (T-AS0 step 1, H0): the client (0 before it exists) with its slot list's count, the
 // title's pending load (slot and mode) and the entered slot; the table, the entry and its text; the verdict; and the
