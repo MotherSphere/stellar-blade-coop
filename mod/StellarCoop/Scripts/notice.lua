@@ -1,7 +1,7 @@
 -- Notices on screen: one line of text about 30 cm above your EVE, turned to the camera each frame, each notice for 4 s
 -- in turn. A plain actor of its own, never attached to EVE, so the player actor is never touched. Notices queued with
--- no EVE in the world (the title screen) are dropped: UE4SS.log already has them. The first engine error turns the
--- line off for this Lua load.
+-- no EVE in the world (the title screen) are dropped: UE4SS.log already has them. During your own photo mode nothing is
+-- drawn, so no notice lands in a photo: they wait. The first engine error turns the line off for this Lua load.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local valid,value_of,find=U.valid,U.value_of,U.find
@@ -19,6 +19,7 @@ end
 function Notice.new()
     local self,queue={},{}
     local actor,label,since,visible,off=nil,nil,nil,false,false -- since: when the head notice went up, nil before.
+    local veiled=false -- Our own photo mode: the line is hidden, the queue kept.
     function self.say(text)
         queue[#queue+1]=text
         if #queue>KEEP then table.remove(queue,1); since=nil end
@@ -59,9 +60,16 @@ function Notice.new()
         off,queue=true,{}
         pcall(hide)
     end
-    -- Each frame: nothing at all while there is nothing to show or hide.
+    -- Every 250 ms (main.lua): whether our own photo or selfie mode runs. On, the line goes at once; off, the head
+    -- notice gets its full time again.
+    function self.veil(on)
+        if on==veiled then return end
+        veiled,since=on,nil
+        if on and not off then pcall(hide) end
+    end
+    -- Each frame: nothing at all while there is nothing to show or hide, or while veiled.
     function self.tick()
-        if off or (not queue[1] and not visible) then return end
+        if off or veiled or (not queue[1] and not visible) then return end
         local ok,why=pcall(step)
         if ok then return end
         off,queue=true,{}

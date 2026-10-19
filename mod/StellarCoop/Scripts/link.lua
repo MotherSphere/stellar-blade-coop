@@ -6,7 +6,9 @@
 -- changed is returned once, for the log; peer lines change with every ping and the shared fight's counts (its fight=
 -- line) every second, so they stay in coop status, out of the log. The same read gives the session's mode, the friend
 -- and the notices for the screen, each from the start of its own line: a Steam name is never at the start of one.
--- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight.
+-- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight; its
+-- photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part
+-- through coop-state.txt).
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, never overwritten, never shipped (an
 -- update would replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
@@ -28,16 +30,27 @@ send_rate=20
 # spaces (coop fight probe logs them), for example fight_chars=15011001.
 shared_enemies=off
 fight_chars=
+# Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
+# both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+photo_sync=both
+photo_freeze_max=600
+photo_ghost=on
+photo_name_tag=off
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
--- written before shared_enemies and fight_chars existed lacks them: off and none, as here.
+-- written before shared_enemies and fight_chars existed lacks them: off and none, as here; one written before the photo
+-- settings lacks those: the defaults here.
 local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',dyes='off',
-    effects='off',shared_enemies='off',fight_chars=''}
+    effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',photo_ghost='on',
+    photo_name_tag='off'}
+local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true} -- on or off, as the looks.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'host_key','status_key','leave_key'}
 local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
 -- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil,
--- name='Shift+F7'}; fight_chars a list of whole numbers (the native part takes at most 16, each from 1 to 2^32-1).
+-- name='Shift+F7'}; fight_chars a list of whole numbers (the native part takes at most 16, each from 1 to 2^32-1);
+-- photo_sync 'both', 'notice' or 'off'; photo_freeze_max a whole number of seconds.
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -49,7 +62,15 @@ local function setting(name,text)
             ids[#ids+1]=id
         end
         return ids
-    elseif name=='name_tag' or name=='shared_enemies' or LOOKS[name] then
+    elseif name=='photo_sync' then
+        text=text:lower()
+        if text=='both' or text=='notice' or text=='off' then return text end
+        return nil,'use both, notice or off'
+    elseif name=='photo_freeze_max' then
+        local seconds=text:match('^%d+$') and tonumber(text)
+        if seconds and (seconds==0 or seconds>=30 and seconds<=3600) then return math.tointeger(seconds) end
+        return nil,'use 0 (no limit) or 30 to 3600 seconds'
+    elseif SWITCHES[name] or LOOKS[name] then
         text=text:lower()
         if text=='on' or text=='off' then return text=='on' end
         return nil,'use on or off'
@@ -121,8 +142,8 @@ function Link.new(folder,fs)
     local seen,remote={},{}
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
-    -- handed out; fight: the shared fight's line.
-    local mode,friend,listed,dead,held,rejoin,shown,fight=nil,nil,nil,false,nil,nil,nil,nil
+    -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}.
+    local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -139,11 +160,12 @@ function Link.new(folder,fs)
         return true,'asked the native part: '..line
     end
     function self.session(token) return put('coop-session.txt',token..'\n') end
-    -- coop-state.txt: whether a save is loaded (held invites wait for one) and the poses sent a second. Written when
-    -- its text changes, and remembered only once written, so a failed write is tried again; returns the line it wrote.
+    -- coop-state.txt: whether a save is loaded (held invites wait for one), the poses sent a second, and the synced
+    -- photo mode's: ours ('0', '1' or 's'), photo_sync and photo_freeze_max. Written when its text changes, and
+    -- remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate)
-        local line=string.format('world=%d rate=%d',world and 1 or 0,rate)
+    function self.state(world,rate,photo_now,sync,max)
+        local line=string.format('world=%d rate=%d photo=%s sync=%s max=%d',world and 1 or 0,rate,photo_now,sync,max)
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line
@@ -178,7 +200,7 @@ function Link.new(folder,fs)
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
-        mode,friend,listed,dead,held,rejoin,fight=nil,nil,nil,false,nil,nil,nil
+        mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
@@ -189,6 +211,8 @@ function Link.new(folder,fs)
             end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
+            local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
+            if mine then photo={mine=mine,peer=peer,frozen=frozen=='1'} end
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
             if name then friend={name,linked=='1',lost=='1'} end
             local n,notice=line:match('^notice=(%d+) (.*)$')
@@ -228,6 +252,7 @@ function Link.new(folder,fs)
         elseif not linked then text='Co-op: '..(name or 'your friend')..' is connecting.'
         elseif mode=='host' then text='Co-op: hosting '..name..'.'
         else text='Co-op: in '..name.."'s game." end
+        if linked and photo and photo.frozen and photo.peer=='1' then text=text..' Paused by '..name..'.' end
         return lost and text..' Connection lost.' or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.

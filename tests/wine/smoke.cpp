@@ -3,8 +3,8 @@
 // steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s; with no Steam and no pinned
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
 // build's global, nor a marker; the shared fight's line says fight=off), that coop_tick is exported
-// and one call returns 0, and that the nightop and fight probe requests are refused on an unpinned exe (coop-link.log,
-// within 3 s each). It
+// and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an unpinned exe
+// (coop-link.log, within 3 s each). It
 // also checks ReadProcessMemory on its own process, as the Night Operation poller uses it: equal bytes from the stack,
 // false at 0x1000, no crash on a PAGE_NOACCESS page (whose result Wine may differ on, so it is only printed), and
 // the cost of one read. Exit code 0 on success.
@@ -109,6 +109,14 @@ int wmain(int argc, wchar_t **argv) {
       fight = read_text(folder + L"coop-link.log").find("shared fight off: build stamp") != std::string::npos;
     }
 
+  // The photo pause calls SB only on the pinned build: coop freeze is refused with the same reason.
+  bool freeze = false;
+  if (fight && write_request(folder, "freeze 5"))
+    for (ULONGLONG end = GetTickCount64() + 3000; !freeze && GetTickCount64() < end;) {
+      Sleep(50);
+      freeze = read_text(folder + L"coop-link.log").find("coop freeze refused: build stamp") != std::string::npos;
+    }
+
   // ReadProcessMemory on this process, as the poller calls it.
   char source[64], copy[64] = {};
   for (int i = 0; i < 64; ++i)
@@ -129,16 +137,16 @@ int wmain(int argc, wchar_t **argv) {
   bool rpm_ok = stack_read && !low_read;
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
-  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && rpm_ok;
+  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && rpm_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "fight probe=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
+              "fight probe=%s | freeze=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
-              tick ? tick_text : "absent",
-              nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL", rpm_ok ? "ok" : "FAIL",
+              tick ? tick_text : "absent", nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL",
+              freeze ? "refused" : "FAIL", rpm_ok ? "ok" : "FAIL",
               stack_read ? "equal" : "FAIL",
               low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);

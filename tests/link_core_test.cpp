@@ -3,7 +3,7 @@
 // session requests, relay, the journal, the player's notices, a v0.1.1 friend (protocol 6); and two Links through it:
 // the handshake both ways, channel 1 with its checks, channel 2 with its checks and its session-long queues, channel 2
 // wired to the shared fight's worker on each side as steam_link.cpp wires it, join and leave cycles, the host leaving,
-// and a rejoin the host never saw.
+// a rejoin the host never saw, and the synced photo mode's line, pause, cap and notices on both sides.
 #include "fight_engine.h"
 #include "link_core.h"
 #include "pose_table.h"
@@ -307,6 +307,29 @@ bool noticed(const std::string &status, const std::string &text) {
       return true;
   }
   return false;
+}
+// A Link's notices numbered above mark, oldest first; mark moves to the newest.
+using Texts = std::vector<std::string>;
+Texts fresh_notices(const Link &link, uint64_t &mark) {
+  Texts out;
+  const std::string s = link.status(Counters{});
+  for (size_t at = 0; (at = s.find("\nnotice=", at)) != std::string::npos; ++at) {
+    const size_t space = s.find(' ', at), end = s.find('\n', at + 1);
+    const uint64_t n = std::stoull(s.substr(at + 8, space - at - 8));
+    if (n > mark) {
+      out.push_back(s.substr(space + 1, end - space - 1));
+      mark = n;
+    }
+  }
+  return out;
+}
+// The last photo line sent from one id to another, or empty.
+std::string last_photo(uint64_t from, uint64_t to) {
+  std::string line;
+  for (auto &s : F.sent)
+    if (s.from == from && s.to == to && s.channel == kChannel && s.text.find(" photo ") != std::string::npos)
+      line = s.text;
+  return line;
 }
 int count(const std::string &part) {
   int n = 0;
@@ -1622,6 +1645,235 @@ int main() {
     }
     assert(t.a.linked() && t.b.linked() && t.b.status(Counters{}).find("\nfriend=1 0 Me\n") != std::string::npos);
     assert(!saw("A: Kaanta left the lobby"));
+  }
+
+  // The synced photo mode between two Links, A hosting (Me) and B (Kaanta). No photo line goes before photo() is first
+  // called; then each sends its line once linked and on each change. A's photo mode pauses B (photo_sync=both on both)
+  // at B's next pass, with a notice on both screens, until A leaves photo mode (P1); both in photo mode, each holds a
+  // pause for the other until the other leaves (P3); a selfie gives a notice only (Q2); B's photo_freeze_max ends its
+  // pause until A's next photo session; A silent for 10 s releases B, which pauses again when A is back still in photo
+  // mode, and A leaving releases B at once (P4).
+  struct Side {
+    char photo = '0';
+    Sync sync = Sync::both;
+    uint32_t max = 600;
+  };
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked());
+    const std::string any = "SBC" + std::to_string(kProtocol) + " photo ";
+    assert(sent_to(kFriend, any) == 0 && sent_to(kMe, any) == 0);
+    Side sa, sb;
+    auto pass = [&](uint64_t ms = 50) { // A, then B in the same instant: A's line reaches B in this pass.
+      t.a.photo(sa.photo, sa.sync, sa.max);
+      t.tick(t.a, ms);
+      t.b.photo(sb.photo, sb.sync, sb.max);
+      t.tick(t.b, 0);
+    };
+    uint64_t ma = 0, mb = 0;
+    fresh_notices(t.a, ma), fresh_notices(t.b, mb); // The join's.
+    pass();
+    pass();
+    pass();
+    assert(sent_to(kFriend, photo_line('0', true)) == 1 && sent_to(kMe, photo_line('0', true)) == 1);
+    assert(sent_to(kFriend, any) == 1 && sent_to(kMe, any) == 1 && !t.a.photo_freeze() && !t.b.photo_freeze());
+    assert(t.b.photo_status(false) == "photo=0 peer_photo=0 frozen=0 sync=both");
+
+    sa.photo = '1'; // P1.
+    pass();
+    assert(t.b.photo_freeze() && !t.a.photo_freeze() && last_photo(kMe, kFriend) == photo_line('1', true));
+    assert(t.b.photo_status(true) == "photo=0 peer_photo=1 frozen=1 sync=both");
+    assert(fresh_notices(t.b, mb) == Texts{"Me is taking photos: game paused. Esc > Photo Mode to join in."});
+    assert(fresh_notices(t.a, ma) == Texts{"Photo mode: Kaanta's game is paused."});
+    assert(saw("B: Me photo=1 both") && saw("B: photo pause on: Me is taking photos"));
+    pass();
+    assert(t.b.photo_freeze() && fresh_notices(t.b, mb).empty() && sent_to(kFriend, any) == 2);
+    sa.photo = '0';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb) == Texts{"Game resumed."} && fresh_notices(t.a, ma).empty());
+    assert(saw("B: photo pause off"));
+
+    sa.photo = '1'; // P3.
+    pass();
+    sb.photo = '1';
+    pass();
+    pass(); // B's line reaches A at A's next pass.
+    assert(t.a.photo_freeze() && t.b.photo_freeze());
+    sa.photo = '0';
+    pass();
+    assert(!t.b.photo_freeze() && t.a.photo_freeze());
+    sb.photo = '0';
+    pass();
+    pass();
+    assert(!t.a.photo_freeze() && !t.b.photo_freeze());
+    fresh_notices(t.a, ma), fresh_notices(t.b, mb);
+
+    sa.photo = 's'; // A selfie.
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb) == Texts{"Me is taking a selfie."});
+    assert(fresh_notices(t.a, ma).empty() && t.b.photo_status(false) == "photo=0 peer_photo=s frozen=0 sync=both");
+    sa.photo = '0';
+    pass();
+    assert(fresh_notices(t.b, mb).empty());
+
+    sb.max = 60; // The cap.
+    sa.photo = '1';
+    pass();
+    for (int i = 0; i < 59; ++i)
+      pass(1000);
+    assert(t.b.photo_freeze());
+    pass(1000);
+    assert(!t.b.photo_freeze() && saw("B: photo pause off: photo_freeze_max (1 min) reached"));
+    const Texts capped = {"Me is taking photos: game paused. Esc > Photo Mode to join in.",
+                          "Paused for 1 min: game resumed."};
+    assert(fresh_notices(t.b, mb) == capped);
+    for (int i = 0; i < 10; ++i)
+      pass(1000);
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb).empty());
+    sa.photo = '0';
+    pass();
+    sa.photo = '1';
+    pass();
+    assert(t.b.photo_freeze());
+    sb.max = 0; // No cap.
+    for (int i = 0; i < 700; ++i)
+      pass(1000);
+    assert(t.b.photo_freeze());
+    fresh_notices(t.a, ma), fresh_notices(t.b, mb);
+
+    int silent = 0; // P4: A silent. B resumes once A counts as lost: 10 s after A's last line (a ping or a pong).
+    while (t.b.photo_freeze() && silent < 11) {
+      t.tick(t.b, 1000);
+      ++silent;
+    }
+    assert(silent >= 8 && silent <= 10 && t.b.photo_status(false) == "photo=0 peer_photo=0 frozen=0 sync=both");
+    assert(fresh_notices(t.b, mb) == Texts({"Me: connection lost.", "Game resumed."}));
+    pass();
+    assert(t.b.photo_freeze() &&
+           fresh_notices(t.b, mb) ==
+               Texts({"Me is back.", "Me is taking photos: game paused. Esc > Photo Mode to join in."}));
+    t.tick(t.a, 50, "leave"); // P4: A leaves.
+    F.owner[5000] = kFriend;  // Steam hands her lobby over.
+    t.tick(t.b, 0);
+    assert(!t.b.linked() && !t.b.photo_freeze());
+    assert(fresh_notices(t.b, mb) == Texts({"Session ended: Me left.", "Game resumed."}));
+  }
+
+  // The settings differ: B on photo_sync=notice gets a notice and no pause, and A hears once a session that B has photo
+  // sync off; A on notice pauses nobody, and B says why; B on off sends "0 notice", shows nothing and pauses for
+  // nobody, and turning it off releases a friend B's photo mode paused. Her hello gets our line again (a rejoin heals).
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked());
+    Side sa, sb;
+    sb.sync = Sync::notice;
+    auto pass = [&](uint64_t ms = 50) {
+      t.a.photo(sa.photo, sa.sync, sa.max);
+      t.tick(t.a, ms);
+      t.b.photo(sb.photo, sb.sync, sb.max);
+      t.tick(t.b, 0);
+    };
+    uint64_t ma = 0, mb = 0;
+    fresh_notices(t.a, ma), fresh_notices(t.b, mb);
+    pass();
+    assert(last_photo(kFriend, kMe) == photo_line('0', false));
+    sa.photo = '1';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb) == Texts{"Me is taking photos."});
+    assert(fresh_notices(t.a, ma) == Texts{"Kaanta has photo sync off."});
+    sa.photo = '0';
+    pass();
+    sa.photo = '1';
+    pass();
+    assert(fresh_notices(t.a, ma).empty() && fresh_notices(t.b, mb) == Texts{"Me is taking photos."});
+    sa.photo = '0';
+    sa.sync = Sync::notice, sb.sync = Sync::both;
+    pass();
+    sa.photo = '1';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.a, ma).empty());
+    assert(fresh_notices(t.b, mb) == Texts{"Me is taking photos (photo sync is off on their side)."});
+    sa.photo = '0', sa.sync = Sync::both, sb.sync = Sync::off, sb.photo = '1';
+    pass();
+    assert(last_photo(kFriend, kMe) == photo_line('0', false) && !t.a.photo_freeze());
+    assert(t.b.photo_status(false) == "photo=1 peer_photo=0 frozen=0 sync=off");
+    sa.photo = '1';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb).empty());
+    sa.photo = '0', sb.sync = Sync::both;
+    pass();
+    pass();
+    assert(t.a.photo_freeze());
+    fresh_notices(t.a, ma);
+    sb.sync = Sync::off; // A Lua reload with photo_sync=off while in photo mode.
+    pass();
+    pass(); // Her line reaches A at A's next pass.
+    assert(!t.a.photo_freeze() && fresh_notices(t.a, ma) == Texts{"Game resumed."});
+    const std::string any = "SBC" + std::to_string(kProtocol) + " photo ";
+    const int ours = sent_to(kFriend, any);
+    pass();
+    assert(sent_to(kFriend, any) == ours);
+    inbox(0, kChannel).push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    pass();
+    assert(sent_to(kFriend, any) == ours + 1 && last_photo(kMe, kFriend) == photo_line('0', true));
+  }
+
+  // One Link: her photo line before her accept is dropped and ours waits for it; a flood passes 8 lines a second, the
+  // rest dropped and logged; a malformed one is an invalid message.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[w.link.lobby()].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, photo_line('1', true)});
+    w.link.photo('0', Sync::both, 600);
+    w.tick();
+    assert(saw("dropped a photo line from Kaanta: before the handshake") && !w.link.photo_freeze());
+    assert(sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " photo ") == 0);
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(sent_to(kFriend, photo_line('0', true)) == 1 && !w.link.photo_freeze());
+    w.tick("", 0, 0, 1000);
+    for (int i = 0; i < 10; ++i)
+      F.inbox.push_back({kFriend, photo_line(i % 2 ? '0' : '1', true)});
+    w.tick();
+    assert(count("dropped a photo line from Kaanta: over the rate limit") == 2 && !w.link.photo_freeze());
+    w.tick("", 0, 0, 1000);
+    F.inbox.push_back({kFriend, photo_line('1', true)});
+    w.tick();
+    assert(w.link.photo_freeze());
+    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " photo 1 maybe"});
+    w.tick();
+    assert(saw("invalid message from Kaanta") && w.link.photo_freeze());
   }
 
   // coop report is passed to the caller once.

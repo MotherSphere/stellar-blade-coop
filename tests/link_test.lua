@@ -191,6 +191,40 @@ s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.host_key.name=='F5' and s.send_rate==20
     and s.name_tag==true and s.cloth==false)
 
+-- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
+-- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
+-- written before them reads the defaults with no line. A bad value keeps the default, with a line.
+s,notes=Link.parse_settings('')
+assert(s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost==true and s.photo_name_tag==false)
+assert(math.type(s.photo_freeze_max)=='integer','The state line prints it whole')
+s,notes=Link.parse_settings('Photo_Sync=NOTICE\nphoto_freeze_max=0\nphoto_ghost=OFF\nphoto_name_tag=on\n')
+assert(#notes==0 and s.photo_sync=='notice' and s.photo_freeze_max==0 and not s.photo_ghost and s.photo_name_tag)
+for _,good in ipairs({{'off','30',30},{'both','3600',3600},{'both','0600',600}}) do
+    s,notes=Link.parse_settings('photo_sync='..good[1]..'\nphoto_freeze_max='..good[2])
+    assert(#notes==0 and s.photo_sync==good[1] and s.photo_freeze_max==good[3])
+    assert(math.type(s.photo_freeze_max)=='integer')
+end
+for _,bad in ipairs({'29','3601','-1','1.5','10m','99999999999999999999',''}) do
+    s,notes=Link.parse_settings('photo_freeze_max='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for photo_freeze_max (use 0 (no "
+        .."limit) or 30 to 3600 seconds); photo_freeze_max stays 600" and s.photo_freeze_max==600,notes[1])
+end
+for _,bad in ipairs({'on','yes','pause',''}) do
+    s,notes=Link.parse_settings('photo_sync='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for photo_sync (use both, notice or "
+        .."off); photo_sync stays both" and s.photo_sync=='both',notes[1])
+end
+s,notes=Link.parse_settings('photo_ghost=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for photo_ghost (use on or off); photo_ghost "
+    .."stays on" and s.photo_ghost==true,notes[1])
+assert(Link.DEFAULT:find('\nphoto_sync=both\nphoto_freeze_max=600\nphoto_ghost=on\nphoto_name_tag=off\n',1,true))
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost and not s.photo_name_tag)
+local before_photo=Link.DEFAULT:gsub('# Synced photo mode.*$','')
+assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
+s,notes=Link.parse_settings(before_photo)
+assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.shared_enemies==false)
+
 -- The file is the user's: written with the defaults when absent, never written again.
 local SETTINGS,writes='C:\\Mod\\coop-settings.txt',0
 fs.write=function(path,text) writes=writes+1; return write(path,text) end
@@ -211,14 +245,20 @@ fs.read,fs.write=read,write
 local STATE_FILE,state_writes='C:\\Mod\\coop-state.txt',0
 local function counted(path,text) if path==STATE_FILE..'.tmp' then state_writes=state_writes+1 end return write(path,text) end
 fs.write=counted
-assert(link.state(true,25)=='world=1 rate=25' and files[STATE_FILE]=='world=1 rate=25\n' and state_writes==1)
-assert(link.state(true,25)==nil and state_writes==1,'Unchanged: not written again')
+local A,B='world=1 rate=25 photo=0 sync=both max=600','world=0 rate=25 photo=0 sync=both max=600'
+assert(link.state(true,25,'0','both',600)==A and files[STATE_FILE]==A..'\n' and state_writes==1)
+assert(link.state(true,25,'0','both',600)==nil and state_writes==1,'Unchanged: not written again')
 fs.write=function() return false end
-assert(link.state(false,25)==nil and files[STATE_FILE]=='world=1 rate=25\n','The write failed')
+assert(link.state(false,25,'0','both',600)==nil and files[STATE_FILE]==A..'\n','The write failed')
 fs.write=counted
-assert(link.state(false,25)=='world=0 rate=25' and state_writes==2,'Tried again')
-assert(files[STATE_FILE]=='world=0 rate=25\n' and not files[STATE_FILE..'.tmp'])
-assert(link.state(false,25)==nil and state_writes==2)
+assert(link.state(false,25,'0','both',600)==B and state_writes==2,'Tried again')
+assert(files[STATE_FILE]==B..'\n' and not files[STATE_FILE..'.tmp'])
+assert(link.state(false,25,'0','both',600)==nil and state_writes==2)
+-- The photo mode and its settings are part of it: each change is written once, within the native part's 64 bytes.
+assert(link.state(false,25,'s','both',600)=='world=0 rate=25 photo=s sync=both max=600' and state_writes==3)
+assert(link.state(true,30,'1','notice',3600)=='world=1 rate=30 photo=1 sync=notice max=3600' and state_writes==4)
+assert(#files[STATE_FILE]<=64 and link.state(true,30,'1','notice',3600)==nil and state_writes==4)
+assert(link.state(true,30,'1','off',0)=='world=1 rate=30 photo=1 sync=off max=0' and state_writes==5)
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
@@ -283,5 +323,18 @@ assert(summary(GUEST)=='Co-op: your friend is connecting.')
 assert(summary('stopped=fault 0xc0000005\n')=='Co-op: the Steam link stopped; coop status says why.')
 assert(summary('missing=SteamAPI_ISteamMatchmaking_JoinLobby\n')=='Co-op: the Steam link stopped; coop status says why.')
 assert(summary(GUEST)=='Co-op: your friend is connecting.','Only as long as the status says so')
+-- Paused by her photo mode (the photo line's frozen=1 with peer_photo=1): said after the session part; not for a
+-- coop freeze alone, nor from a line that does not start the status line.
+local PHOTO='photo=0 peer_photo=1 frozen=1 sync=both\n'
+assert(summary(GUEST..'friend=1 0 Kaanta\n'..PHOTO)=="Co-op: in Kaanta's game. Paused by Kaanta.")
+assert(summary(HEAD..'friend=1 0 Kaanta\n'..PHOTO)=='Co-op: hosting Kaanta. Paused by Kaanta.')
+assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=0 frozen=1 sync=both\n')=='Co-op: hosting Kaanta.')
+assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=1 frozen=0 sync=both\n')=='Co-op: hosting Kaanta.')
+assert(summary(HEAD..'friend=1 0 photo=0 peer_photo=1 frozen=1 sync=both\n')=='Co-op: hosting photo=0 peer_photo=1 '
+    ..'frozen=1 sync=both.','A name is no photo line')
+assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.','Gone with the line')
+files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
+lines=fresh.changes()
+assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
 files[STATUS]=nil
 print('link_test ok')

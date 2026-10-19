@@ -38,6 +38,17 @@ int main() {
   std::string other = "SBC" + std::to_string(kProtocol + 1) + " ping 1 2";
   assert(parse_text(other).kind == Kind::invalid);
 
+  // The synced photo mode's line: each state with each mode round-trips; another protocol's, or any other word, is
+  // dropped.
+  for (char state : {'0', '1', 's'})
+    for (bool both : {false, true}) {
+      m = parse_text(photo_line(state, both));
+      assert(m.kind == Kind::photo && m.a == static_cast<uint64_t>(state) && m.b == both);
+    }
+  assert(photo_line('1', true) == "SBC" + std::to_string(kProtocol) + " photo 1 both");
+  assert(photo_line('s', false) == "SBC" + std::to_string(kProtocol) + " photo s notice");
+  assert(parse_text("SBC" + std::to_string(kProtocol + 1) + " photo 1 both").kind == Kind::invalid);
+
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
   // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
   static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
@@ -68,14 +79,17 @@ int main() {
         p + " ping 1 2x", p + " ping -1 2", p + " ping 99999999999999999999 1", p + "  ping 1 2",
         std::string("SBC hello"), std::string("SBC hello 2 v1"), std::string("SBC hello x v1 3"),
         std::string("SBC hello 2  3"), std::string("SBC accept now"), std::string("sbc accept"),
-        std::string("SBC hello 2 v1 3 extra")})
+        std::string("SBC hello 2 v1 3 extra"), p + " photo", p + " photo 1", p + " photo 2 both", p + " photo S both",
+        p + " photo 1 Both", p + " photo 1 off", p + " photo 1 both now", p + " photo 01 both", p + " photo  1 both",
+        p + " photo 1 both ", p + " photo s"})
     assert(parse_text(bad).kind == Kind::invalid);
   const char zero[] = {'S', 'B', 'C', ' ', 'a', 'c', 'c', 'e', 'p', 't', '\0'};
   assert(parse(zero, sizeof zero).kind == Kind::invalid); // An embedded NUL is junk, not an end.
 
   // Fuzz: random bytes and mutated valid messages never crash, and anything parsed respects the limits.
   std::mt19937 rng(1234);
-  const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2)};
+  const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
+                               photo_line('1', true)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -83,11 +97,13 @@ int main() {
       for (char &c : text)
         c = static_cast<char>(rng());
     } else {
-      text = seeds[rng() % 5];
+      text = seeds[rng() % 6];
       for (int k = rng() % 4; k >= 0 && !text.empty(); --k)
         text[rng() % text.size()] = static_cast<char>(rng());
     }
     Message f = parse(text.data(), text.size());
+    if (f.kind == Kind::photo) // Only a state and a mode, whatever the bytes.
+      assert((f.a == '0' || f.a == '1' || f.a == 's') && f.b <= 1 && text == photo_line(char(f.a), f.b));
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= kMaxReason);
       for (char c : f.text)
@@ -161,6 +177,16 @@ int main() {
                           "fight test hp +", "fight test hp 1.5", "fight test mp -1", "fight test kill 1",
                           "fight probes", "fightoff", "fight  off", "fight dance"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);
+  // coop freeze: whole seconds from 1 to 3600 (in ms), or off.
+  Request z = parse_request("freeze 10\n");
+  assert(z.command == Command::freeze && z.ms == 10000 && !z.off);
+  z = parse_request("freeze 3600");
+  assert(z.command == Command::freeze && z.ms == 3600000);
+  z = parse_request("freeze off\r\n");
+  assert(z.command == Command::freeze && z.off);
+  for (const char *bad : {"freeze", "freeze 0", "freeze 3601", "freeze -1", "freeze 1.5", "freeze on", "freeze  10",
+                          "freeze 10 x", "freeze off now", "freezeoff", "freeze 99999999999999999999"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0);
   r = parse_request("join 109775241234567890\n");
@@ -168,26 +194,44 @@ int main() {
   for (const char *bad : {"", "dance", "join x", "join 12 13", "hostile", "host now", "join 0"})
     assert(parse_request(bad).command == Command::none);
 
-  // coop-state.txt, from Lua: strict, so junk never passes for a loaded world; a refusal leaves the values alone.
-  for (const char *good : {"world=1 rate=25", "world=1 rate=25\n", "world=1 rate=25\r\n"}) {
-    bool world = false;
-    uint32_t rate = 0;
-    assert(parse_state(good, world, rate) && world && rate == 25);
+  // coop-state.txt, from Lua: strict, so junk never passes for a loaded world or a photo mode; a refusal leaves the
+  // values alone.
+  const std::string tail = " photo=0 sync=both max=600";
+  for (const std::string &good : {"world=1 rate=25" + tail, "world=1 rate=25" + tail + "\n",
+                                  "world=1 rate=25" + tail + "\r\n"}) {
+    State s;
+    assert(parse_state(good, s) && s.world && s.rate == 25 && s.photo == '0' && s.sync == Sync::both && s.max == 600);
   }
-  bool world = true;
-  uint32_t rate = 7;
-  assert(parse_state("world=0 rate=10", world, rate) && !world && rate == 10);
-  assert(parse_state("world=0 rate=30\n", world, rate) && !world && rate == 30);
+  State s;
+  assert(parse_state("world=0 rate=10 photo=1 sync=notice max=0", s) && !s.world && s.rate == 10 && s.photo == '1' &&
+         s.sync == Sync::notice && s.max == 0);
+  assert(parse_state("world=0 rate=30 photo=s sync=off max=30\n", s) && !s.world && s.rate == 30 && s.photo == 's' &&
+         s.sync == Sync::off && s.max == 30);
+  assert(parse_state("world=1 rate=20 photo=0 sync=both max=3600", s) && s.max == 3600);
+  assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :
-       {std::string(), std::string("world=2 rate=20"), std::string("world=1 rate=9"), std::string("world=1 rate=31"),
-        std::string("world=1 rate=20x"), std::string("world=1 rate=20 extra=1"), std::string("world=1"),
-        std::string("rate=20 world=1"), std::string("world=1  rate=20"), std::string("world=1 rate=20\r"),
-        std::string("world=1 rate=20\n\n"), std::string("world=1 rate=-20"), std::string("world=1 rate=020\n") + "x",
-        "world=1 rate=25\n" + std::string(49, '\n')}) { // The last is 65 bytes.
-    world = true;
-    rate = 7;
-    assert(!parse_state(bad, world, rate) && world && rate == 7);
+       {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=31" + tail,
+        "world=1 rate=20x" + tail, "world=1 rate=20" + tail + " extra=1", std::string("world=1"),
+        std::string("world=1 rate=20"), "rate=20 world=1" + tail, "world=1  rate=20" + tail,
+        "world=1 rate=20" + tail + "\r", "world=1 rate=20" + tail + "\n\n", "world=1 rate=-20" + tail,
+        "world=1 rate=020" + tail + "\nx", std::string("world=1 rate=20 photo=2 sync=both max=600"),
+        std::string("world=1 rate=20 photo=S sync=both max=600"),
+        std::string("world=1 rate=20 photo=1 sync=on max=600"),
+        std::string("world=1 rate=20 photo=1 sync=Both max=600"),
+        std::string("world=1 rate=20 photo=1 sync=both max=29"),
+        std::string("world=1 rate=20 photo=1 sync=both max=3601"),
+        std::string("world=1 rate=20 photo=1 sync=both max="),
+        std::string("world=1 rate=20 photo=1 sync=both max=-1"),
+        std::string("world=1 rate=20 sync=both photo=1 max=600"), std::string("world=1 rate=20 photo=1 sync=both"),
+        "world=1 rate=25" + tail + "\n" + std::string(64 - 41, '\n')}) { // The last is 65 bytes.
+    State keep;
+    keep.world = true, keep.rate = 7, keep.photo = 's', keep.sync = Sync::notice, keep.max = 99;
+    State out = keep;
+    assert(!parse_state(bad, out) && out.world && out.rate == 7 && out.photo == 's' && out.sync == Sync::notice &&
+           out.max == 99);
   }
+  State fresh; // Before Lua writes one: photo sync off, the default cap.
+  assert(!fresh.world && fresh.rate == 20 && fresh.photo == '0' && fresh.sync == Sync::off && fresh.max == 600);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
   assert(connect_lobby(L"SB-Win64-Shipping.exe -DistributionPlatform=Steam +connect_lobby 109775241234567890") ==

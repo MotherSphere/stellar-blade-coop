@@ -437,6 +437,10 @@ function Puppet.new(link,capture,say,name_tag,look)
         local message=clear('a new table')
         return message and true,message
     end
+    -- During our own photo mode (main.lua, every 250 ms): ghost_off hides the ghost (photo_ghost=off), tag_off its name
+    -- tag (photo_name_tag=off), until it ends; place() applies them.
+    local veil_ghost,veil_tag=false,false
+    function self.photo(ghost_off,tag_off) veil_ghost,veil_tag=ghost_off,tag_off end
     function self.active() return wanted end
     function self.toggle()
         sweep()
@@ -521,7 +525,8 @@ function Puppet.new(link,capture,say,name_tag,look)
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
     -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
     -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was. A new
-    -- effects stamp in the mailbox is a slot box just written: only then are the boxes read.
+    -- effects stamp in the mailbox is a slot box just written: only then are the boxes read. Our photo mode's veils
+    -- (self.photo) keep the ghost or its tag out of the shot.
     function self.place()
         local g=ghost
         if not (wanted and g and g.built) then return end
@@ -530,6 +535,14 @@ function Puppet.new(link,capture,say,name_tag,look)
             local box=g.mailbox
             local s=value_of(box.RelativeScale3D)
             local stamp=s.Z
+            if g.tag and (g.tag_veiled==true)~=veil_tag then
+                g.tag:SetVisibility(not veil_tag,false)
+                g.tag_veiled=veil_tag
+            end
+            if veil_ghost and not g.hidden then
+                g.actor:SetActorHiddenInGame(true)
+                g.hidden=true
+            end
             if stamp>1 and stamp~=g.stamp then
                 g.stamp,g.stamp_at=stamp,os.clock()
                 local at,rotation=value_of(box.RelativeLocation),value_of(box.RelativeRotation)
@@ -541,7 +554,7 @@ function Puppet.new(link,capture,say,name_tag,look)
                 end
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
                     {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},true)
-                if g.hidden then
+                if g.hidden and not veil_ghost then
                     g.actor:SetActorHiddenInGame(false)
                     g.hidden=false
                     local reset,reset_why=pcall(function()
