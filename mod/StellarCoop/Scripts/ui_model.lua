@@ -149,9 +149,11 @@ function M.new()
         if row.key then return self.change(ctx,values,1) end
         return row.id
     end
+    -- The menu closed (by menu_key; back() calls it for Esc): a first Select on Leave is forgotten.
+    function self.close() asked=nil end
     -- Back (Esc): from Options to the main page, on its Options row; from the main page, 'close'.
     function self.back()
-        if page=='main' then return 'close' end
+        if page=='main' then self.close(); return 'close' end
         page,id,asked='main','options',nil
         return nil
     end

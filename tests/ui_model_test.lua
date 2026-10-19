@@ -64,6 +64,11 @@ menu.move(HOST,1)
 assert(menu.select(HOST,0)=='close')
 -- Back closes the main page.
 assert(menu.back()=='close')
+-- A first Select on Leave does not outlive the menu: closed by Esc, or by menu_key (close()), it asks again.
+menu=M.new()
+assert(menu.select(HOST,40)=='confirm_leave' and menu.back()=='close' and menu.select(HOST,41)=='confirm_leave')
+menu.close()
+assert(menu.select(HOST,42)=='confirm_leave','close()')
 
 -- The Options tree: every row a header or a setting with a unique name the file can hold, and a default it takes.
 local names={}
