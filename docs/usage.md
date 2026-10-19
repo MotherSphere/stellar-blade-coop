@@ -90,7 +90,8 @@ and what you typed goes. Alt+Enter never opens it.
 | Esc | Close the box; what you typed goes |
 
 - Type in any keyboard layout, with accents: the game's own text box turns your keys into characters. A line is at
-  most 200 bytes (200 letters, fewer with accents or emoji); the rest is cut.
+  most 200 bytes (200 letters, fewer with accents or emoji); the rest is cut. From 160 bytes a counter at the right of
+  the box shows how many you typed, for example `172/200`; it turns red past 200.
 - Your lines show at once in white, your friend's in teal, notices in grey, each with the time. A line that could not
   be sent turns red and ends with `(not sent)`. At most two lines leave a second; when four are waiting, the line you
   typed stays in the box: press Enter again.

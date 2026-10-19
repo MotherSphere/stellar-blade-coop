@@ -109,6 +109,7 @@ end
 local T=require('ui_text')
 local ROWS,SHOWN,FADE,WIDE,HIGH=12,6,8,70,44 -- Rows open, rows closed, seconds shown closed, characters a row, units.
 local BACK,REFOCUS,QUIET=0.15,0.05,10 -- Seconds: the game's input back; the box focused again; "needs a session" again.
+local COUNT=160 -- Bytes typed from which the box shows how many, of the MAX a line keeps (red past it: cut).
 -- Rows of at most WIDE characters (the text is well-formed UTF-8), broken at the last space within reach, else between
 -- two characters.
 local function wrap(text)
@@ -128,10 +129,11 @@ function Chat.view(o)
     local kit,model,settings,theme=o.kit,o.model,o.settings,o.theme
     local self,open,now,back_at,refocus_at,said,covered,heard={},false,0,nil,nil,nil,false,nil
     local words=T.en.chat
-    -- Under the feed: the glass and the box, shown while open; the box takes the mouse (a click focuses it).
+    -- Under the feed: the glass and the box, shown while open, with its byte counter at its right; the box takes the
+    -- mouse (a click focuses it).
     kit.add('chat',{x=96,y=330,w=1300,h=660,hit=true},function(b)
         b.panel(0,0,1300,660)
-        return {box=b.field(24,572,1252,56,words.hint)}
+        return {box=b.field(24,572,1132,56,words.hint),count=b.text(1172,580,'','num',theme.grey)}
     end)
     kit.add('feed',{x=96,y=330,w=1300,h=40+ROWS*HIGH,shown=true},function(b)
         local rows={}
@@ -210,6 +212,7 @@ function Chat.view(o)
         if not v then return false end -- The kit turned off as it took the input: given back.
         open,back_at,refocus_at=true,nil,os.clock()+REFOCUS
         v.box.set('')
+        v.count.set('')
         v.box.hint(words.hint)
         draw()
         return true
@@ -230,7 +233,7 @@ function Chat.view(o)
         local v=kit.view('chat')
         if not v then return self.close() end
         local ok,why=model.send(v.box.text(),now)
-        if ok then v.box.set('') elseif why~='too_fast' then return self.close() end
+        if ok then v.box.set(''); v.count.set('') elseif why~='too_fast' then return self.close() end
         refocus_at=os.clock()+REFOCUS
         draw()
     end
@@ -250,6 +253,12 @@ function Chat.view(o)
         if open and (not self.can() or kit.paused()) then self.close() end
         if not (open or back_at) then kit.input(false,'chat') end
         if kit.ready() then draw() end
+        local v=open and kit.view('chat')
+        if v then -- The counter: one read of the box a 250 ms while open, a count only.
+            local n=#v.box.text()
+            v.count.set(n>=COUNT and string.format('%d/%d',n,MAX) or '')
+            v.count.color(n>MAX and theme.error or theme.grey)
+        end
     end
     -- Each frame: the game's input back, the box focused again, once due.
     function self.tick(t)

@@ -246,11 +246,17 @@ assert(box.text=='' and box.hint=='Message · Enter to send · Esc to close')
 clock=0.04; view.tick(clock); assert(box.focuses==0)
 clock=0.06; view.tick(clock); assert(box.focuses==1)
 view.tick(clock); assert(box.focuses==1,'Once')
+-- The counter at the box's right, read each 250 ms while open: from 160 bytes, red past the 200 a line keeps.
+local count=built.chat.view.count
+box.text=('é'):rep(79)..'a'; view.slow(10); assert(count.s=='' and count.c=='grey','159 bytes: none')
+box.text=('é'):rep(80); view.slow(10); assert(count.s=='160/200' and count.c=='grey')
+box.text=('a'):rep(205); view.slow(10); assert(count.s=='205/200' and count.c=='red','Past 200: the end is cut')
 -- Enter: what Slate typed (any layout, accents) goes as one cleaned line, shown at once and queued; the box empties and
 -- has the keys again 50 ms later.
 box.text='  Bonjour é à ç  '
 view.send()
 assert(box.text=='' and shown()=='[21:04] You: Bonjour é à ç' and rows[12].c=='white' and view.is_open())
+assert(count.s=='','Sent: the counter goes with the line')
 assert(model.take(10)=='Bonjour é à ç','Queued for the native part')
 clock=0.12; view.tick(clock); assert(box.focuses==2)
 -- Her line: teal, after ours, with the game's chat sound; a notice grey.
