@@ -461,6 +461,23 @@ int main() {
   spill(h.dir / "StellarBladeSave00.sav", save("zero, later"));
   run(k, h);
   assert(k.ready() && slurp(h.dir / twin_name(0)) == save("zero, later"));
+  // A first conversion stopped right after its backup (Continue pressed meanwhile): the manifest, with no line yet,
+  // says the backup was made, so the next pass copies without a second backup.
+  HostFs b;
+  b.dir = root / "SaveGames" / "76561198000000006";
+  b.backups = root / "StellarCoopBackups6";
+  fs::create_directories(b.dir);
+  spill(b.dir / "StellarBladeSave00.sav", save("zero"));
+  spill(b.dir / "StellarBladeSave03.sav", save("three"));
+  Convert m;
+  m.start(b);
+  m.step(b);
+  assert(m.busy() && !fs::exists(b.dir / "StellarCoopSaves.txt"));
+  m.step(b);
+  m.stop(b, "a load");
+  assert(backups(b) == 1 && plan(b).manifest_ok && plan(b).backups.empty() && !fs::exists(b.dir / twin_name(0)));
+  said = run(m, b);
+  assert(m.ready() && backups(b) == 1 && logged(said, "co-op saves ready: 2 copied") && !logged(said, "a backup"));
   // No save of the player's at all (a fresh game, or a folder that is not the game's): nothing to pair, so not ready,
   // and nothing written, not even the manifest, so the backup still comes first once there are saves.
   HostFs empty;

@@ -9,7 +9,8 @@
 // The manifest is written after each copy, so a pass stopped half way never leaves a new copy without its line.
 // Whenever there is no manifest (the first conversion, or one removed since), every StellarBlade*.sav of the account is
 // copied into a new folder of %LOCALAPPDATA%\SB\Saved\StellarCoopBackups, outside the synced folder, and read back,
-// before any copy is written. A folder with no save of the player's gets no pass at all, so nothing is written there.
+// before any copy is written; the manifest is written as soon as that backup is whole, so a pass stopped after it
+// never backs up again. A folder with no save of the player's gets no pass at all, so nothing is written there.
 //
 // Every write goes through one name check: in the account's folder only the copies, their temporary files and the
 // manifest; in the backup folder only StellarBlade*.sav names. The player's saves are only ever read.
@@ -332,9 +333,12 @@ private:
       return stop(fs, "the backup stopped: " + name + " " + why);
     if (!backup_name(name) || !fs.backup_write(name, bytes) || !fs.backup_read(name, back, kMaxSave) || back != bytes)
       return stop(fs, "the backup of " + name + " could not be written");
-    return jobs_[next_].kind == Job::backup
-               ? std::string()
-               : "co-op saves: " + std::to_string(next_) + " files backed up in " + folder_;
+    if (jobs_[next_].kind == Job::backup)
+      return {};
+    // The backup is whole: the manifest now (no line yet), so a pass stopped before its end backs up nothing again. A
+    // failure here is the last job's to say.
+    put(fs, kManifest, format(lines_));
+    return "co-op saves: " + std::to_string(next_) + " files backed up in " + folder_;
   }
 
   // A file of the account read whole between two equal stats, once more when it changed meanwhile (the game writing
