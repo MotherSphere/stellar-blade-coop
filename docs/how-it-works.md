@@ -114,14 +114,14 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
 In any lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game holds
 the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game reports
-a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says the player is asking to join.
-The joiner's game shows `Joined <host>'s game. Waiting for <host> to let you in.` The host answers with native
-requests, which Lua writes to `coop-request.txt` like the others:
+a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not a
+Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` The host
+answers with native requests, which Lua writes to `coop-request.txt` like the others:
 
 - `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
   without a new question for as long as the lobby lasts.
-- `deny <SteamID>`, or 60 s with no answer, refuses the player. `remove <SteamID>` refuses any player already in,
-  friends included.
+- `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
+  `remove <SteamID>` refuses any player already in, friends included.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
   removed from this session`). Every protocol 8 build shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session

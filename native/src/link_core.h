@@ -521,7 +521,7 @@ public:
     // While we host: our join code (none outside who_can_join=code), the players refused for the rest of this lobby,
     // and each joiner waiting for our answer, her name last.
     if (host_ && lobby_) {
-      s += "code=" + (code_.empty() ? std::string("none") : code_) + " removed=" + std::to_string(refused_.size()) +
+      s += "code=" + (code_.empty() ? std::string("none") : code_) + " refused=" + std::to_string(refused_.size()) +
            "\n";
       for (auto &p : peers_)
         if (p.asking)
@@ -627,6 +627,8 @@ private:
     event("left lobby " + std::to_string(lobby_) + ": " + why);
     lobby_ = host_id_ = 0;
     host_ = false;
+    allowed_.clear(); // Our answers as host hold for that lobby only: never for the next one, nor once we are a guest.
+    refused_.clear();
   }
 
   void join(uint64_t lobby, const std::string &how) {
@@ -691,7 +693,7 @@ private:
   void handle(const Request &r) {
     // The player chose: a held invite would undo it once the save loads, and a rejoin once it gets back in.
     const char *asked = r.command == Command::host    ? "host"
-                        : r.command == Command::join  ? "join"
+                        : r.command == Command::join  ? (r.code && !r.lobby ? nullptr : "join") // A bad code: nothing.
                         : r.command == Command::leave ? "leave"
                                                       : nullptr;
     bool dropped = held_ && asked;
@@ -829,8 +831,6 @@ private:
         lobby_ = r.lobby;
         host_ = true;
         host_id_ = me_;
-        allowed_.clear(); // A new lobby: every answer of the last one is forgotten.
-        refused_.clear();
         code_ = hosting_ == Who::code ? join_code(lobby_) : std::string();
         const std::string id = std::to_string(lobby_);
         if (cancel_) {
@@ -915,8 +915,7 @@ private:
       // Not her Steam friend: her game holds the handshake until she lets us in (an answer she keeps for a rejoin).
       const bool asking = !rejoin && !api_.has_friend(friends_, host_id_, kImmediateFriends);
       event("joined lobby " + id + " hosted by " + host + (asking ? ", not a Steam friend: waiting to be let in" : ""));
-      notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game." +
-             (asking ? " Waiting for " + host + " to let you in." : ""));
+      notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game." + (asking ? " Waiting to be let in." : ""));
     }
   }
 
@@ -970,6 +969,8 @@ private:
       event(peers_[i].name + " left the lobby");
       if (host_) // A guest's only other member is the host, whose leaving ends the session above.
         notice(peers_[i].name + " left.");
+      if (peers_[i].asking) // Gone before our answer: a no, so leaving and coming back never asks again.
+        refused_[peers_[i].id] = 0;
       Identity who = identity(peers_[i].id);
       api_.close_session(msgs_, &who);
       peers_.erase(peers_.begin() + static_cast<std::ptrdiff_t>(i));
@@ -996,8 +997,8 @@ private:
         peers_.push_back(peer);
         event(peer.name + " is in the lobby" +
               (peer.asking ? ", not a Steam friend: waiting for the host's answer" : ""));
-        if (host_) // A guest has had her Joined line.
-          notice(peer.name + (peer.asking ? " is asking to join (not a Steam friend)." : " joined."));
+        if (host_) // A guest has had her Joined line. A stranger's name may not be known yet: pending= has it later.
+          notice(peer.asking ? "A player who is not your Steam friend is asking to join." : peer.name + " joined.");
       }
       Peer &peer = *find_peer(id);
       if (peer.asking) // A stranger's name may reach Steam a moment after she joins.
