@@ -1,8 +1,9 @@
 # Installing StellarCoop
 
-StellarCoop is an experimental co-op mod for Stellar Blade (PC). It runs inside UE4SS. These steps are for Windows
-and for Linux with Proton; both have been played together.
-Full documentation: [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the repository.
+StellarCoop is an experimental co-op mod for Stellar Blade on PC. It runs inside UE4SS. These steps cover Windows and
+Linux with Proton; a Windows PC and a Linux PC have played together.
+The rest of the documentation is in [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the
+repository.
 
 **Close the game before you copy, change or delete any mod file.**
 
@@ -12,8 +13,8 @@ Full documentation: [docs/](https://github.com/MotherSphere/stellar-blade-coop/t
 - UE4SS, as packaged in "Stellar Blade UE4SS 1.3" (UE4SS v3.0.1 Beta, git `08a0733`). The first lines of
   `UE4SS.log` show the version, for example `UE4SS - v3.0.1 Beta #0 - Git SHA #08a0733`.
 - Optional: ConsoleEnablerMod, which comes with that UE4SS package, for the `coop` console commands. The keys (see
-  "Keys and settings") work without it. To use it, `Mods/mods.txt` has the line `ConsoleEnablerMod : 1`; in game, it
-  opens the console with `F10` or `~` (Tilde).
+  "Keys and settings") work without it. It needs the line `ConsoleEnablerMod : 1` in `Mods/mods.txt`. In game, `F10`
+  or `~` (tilde) opens the console.
 
 ## Find the folders
 
@@ -25,73 +26,85 @@ Full documentation: [docs/](https://github.com/MotherSphere/stellar-blade-coop/t
 
 1. Close the game.
 2. Unzip `StellarCoop-<version>.zip`. You get a folder named `StellarCoop`. Windows "Extract All" may put it one
-   level deeper, in `StellarCoop-<version>\StellarCoop\`: use that inner `StellarCoop` folder.
+   level deeper, in `StellarCoop-<version>\StellarCoop\`; in that case, use the inner `StellarCoop` folder.
 3. Optional but recommended: check the files (see "Check the files" below).
 4. Copy the whole `StellarCoop` folder (the one that holds `enabled.txt`) into the Mods folder. The result must be
    `SB/Binaries/Win64/ue4ss/Mods/StellarCoop/Scripts/main.lua`, with `StellarCoop.dll` and `enabled.txt` next to
    `Scripts/`.
-5. Start the game, load a save and press `F6`. A line of text above EVE answers, for example `Co-op: not in a
-   session.`, for 4 s. `UE4SS.log` has the same answer, in a line that contains `[StellarCoop] OK:`.
-   No line? Close the game and look in `UE4SS.log` for lines with `[StellarCoop]`: `Native part not loaded` means
-   `StellarCoop.dll` is missing or quarantined (see "Windows Defender and SmartScreen"); the keys need it.
+5. Start the game, load a save and press `F6`. `Co-op: not in a session.` appears at the top left of the screen (or
+   above EVE, in the first seconds after a load). `UE4SS.log` gets the same text in a line that contains
+   `[StellarCoop] OK:`.
+   If no line appears, close the game and look in `UE4SS.log` for lines with `[StellarCoop]`. `Native part not loaded`
+   means that `StellarCoop.dll` is missing or quarantined (see "Windows Defender and SmartScreen"). The keys do not
+   work without it.
 
-You do not need to edit `mods.txt`: UE4SS starts every mod folder that contains an `enabled.txt` file.
+UE4SS starts every mod folder that contains an `enabled.txt` file, so you do not need to edit `mods.txt`.
 
-On Linux, from the StellarCoop repository, `python3 tools/install.py` builds the mod and installs it instead (give
-`--game <Stellar Blade folder>` if the game is elsewhere). It first backs up the files it replaces into
-`~/StellarCoop-install-backups`.
+On Linux, you can build and install the mod from the StellarCoop repository instead, with `python3 tools/install.py`.
+Add `--game <Stellar Blade folder>` if the game is not in the script's default folder (`--help` shows it). The script
+first backs up the files it replaces into `~/StellarCoop-install-backups`.
 
 ### Update
 
-`CHANGELOG.md` in the zip gives its version and the features and fixes, newest first. Both players update together:
-a friend whose StellarCoop speaks another protocol is refused: whoever joins sees `Version mismatch: that game runs
-protocol ..., build ...; yours runs ...`. StellarCoop versions before this one only write that to `UE4SS.log`.
+`CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
+together. Two games with different protocols cannot link, and the player who tries to join sees
+`Version mismatch: that game runs protocol ..., build ...; yours runs ...`.
 
 1. Close the game.
-2. Copy out of the old `Mods/StellarCoop` folder what you want to keep: `coop-settings.txt` if you changed it, and any
-   log you still want to send. The zip never holds `coop-settings.txt`; without it, the mod writes the defaults again.
-3. Delete the old `StellarCoop` folder, so no file of the old version stays.
-4. Install the new zip as above, steps 2 to 4, and put `coop-settings.txt` back into the new folder.
-5. Do install step 5, with your own status key if you changed it.
+2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed it, and
+   any log you still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the
+   defaults again.
+3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
+4. Install the new zip with install steps 2 to 4, and put `coop-settings.txt` back into the new folder.
+5. Do install step 5, with your status key if you changed it.
 
 ## Keys and settings
 
-- `F5`, the co-op menu. Its first row, Host a session, opens a session (friends-only unless Options sets invited only)
-  and the Steam invite dialog; pick your friend there. While you host, the menu has Invite and Leave instead. Arrows
-  (or WASD, ZQSD) move, Enter selects, Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
-- `F6`, status: one line above EVE and in `UE4SS.log`, for example `Co-op: hosting Alex.`
-- `F8`, leave the session. When the host leaves, the guest leaves too.
+- `F5` opens the co-op menu. Its first row, Host a session, opens a session and the Steam invite dialog, where you
+  pick your friend. The session is friends-only unless Options sets Who can join to Invited only. While you host, the
+  menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or ZQSD) move, Enter selects and Esc
+  goes back. See [usage.md](docs/usage.md#co-op-menu).
+- `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
+- `F8` leaves the session. When the host leaves, the guest leaves too.
+- `Enter`, during a session, opens the chat box. See [usage.md](docs/usage.md#session-chat).
 
-Your friend accepts the invite in Steam; if their game is closed, Steam starts it. They join once they have loaded a
-save, and both ghosts turn on by themselves. Session events (a friend joined or left, connection lost, a rejoin) show
-as a line above EVE for 4 s, and go to `UE4SS.log` too.
+Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
+save, and both ghosts turn on automatically. Session events (a friend joined or left, connection lost, a rejoin)
+show for 8 s in the feed at the top left of the screen and also go to `UE4SS.log`. While the co-op UI is not up (in
+the first seconds after a load, or after an engine error), they show above EVE for 4 s instead.
 
-The first start writes `Mods/StellarCoop/coop-settings.txt`. The menu's Options page changes it one line at a time
-(the file as it was is kept as `coop-settings.old.txt`). To change it by hand, close the game, edit the file, then
-start the game again:
+The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
+changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as
+`coop-settings.old.txt`. To change a setting by hand, close the game, edit the file, then start the game again:
 
 - `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
-  `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` hosts at once (`none` by
-  default). Two actions on one key put all four keys back to their defaults. A file from an older version has no
-  `menu_key`: the menu then opens on its `host_key`.
-- `name_tag`: `on` or `off`, your friend's Steam name above their ghost.
-- `send_rate`: poses sent to your friend a second, from 10 to 30 (20 by default).
-- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default: the file
-  names them in a comment only, so add a line such as `cloth=on` to turn one on.
+  `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` takes the same keys, or `none` (the
+  default); a key set there hosts at once, without the menu. If two actions share one key, all four keys go back to
+  their defaults. A file written before the menu existed has no `menu_key` line: the menu then opens on that file's
+  `host_key`, and no key hosts at once.
+- `who_can_join`: `friends` (the default: your Steam friends can join from their friends list) or `private` (only the
+  friends you invite can join). It counts for the next session you host.
+- `name_tag`: `on` or `off`, your friend's Steam name above their ghost. While the partner marker shows their name
+  (`partner_bar=on`, the default), the name tag is hidden.
+- `send_rate`: poses sent to your friend per second, from 10 to 30 (20 by default).
+- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default. The file
+  names them only in a comment, so add a line such as `cloth=on` to turn one on.
   - `cloth`: her ponytail swings as cloth. Off, it stays rigid.
   - `dyes`: her hair colour and other material variants. Off, each part has its mesh's own colours.
   - `effects`: her attack and skill effects (19 of EVE's effects, at most 4 at a time).
-  - `dyes=off` and `effects=off` each also stop sending yours, so your friend's ghost of you lacks them too.
+  - `dyes=off` and `effects=off` each also stop your game from sending your own, so the ghost of you in your friend's
+    game lacks them too.
+- The photo, menu, chat and partner HUD settings are listed in [usage.md](docs/usage.md#coop-settingstxt).
 
-A value the mod refuses keeps its default, and `UE4SS.log` says why in a line that starts with
-`[StellarCoop] settings:`. The `[StellarCoop] keys:` line gives the keys in use, and the `[StellarCoop] look:` line
+If the mod rejects a value, that setting keeps its default, and `UE4SS.log` gives the reason in a line that starts with
+`[StellarCoop] settings:`. The `[StellarCoop] keys:` line lists the keys in use, and the `[StellarCoop] look:` line
 what the ghost shows. Delete the file to get the defaults back.
 
-The three looks are not yet tried in game. Back up your saves before you turn one on (see "Saves and Steam Cloud").
-If the game crashes or the ghost looks wrong, turn it off again.
+The three looks have not been tried in game yet. Back up your saves before you turn one on (see "Saves and Steam
+Cloud"). If the game crashes or the ghost looks wrong, turn that look off again.
 
-With the console, `coop look <cloth|dyes|effects> <on|off>` turns one on or off until the mod reloads (game start or
-Ctrl+R) and builds the ghost again; `coop-settings.txt` stays as it is. `coop look` alone gives the three.
+With the console, `coop look <cloth|dyes|effects> <on|off>` turns one look on or off until the mod reloads (game start
+or Ctrl+R) and builds the ghost again; `coop-settings.txt` does not change. `coop look` alone lists the three.
 
 ## Turn the mod off or on
 
@@ -104,25 +117,25 @@ Ctrl+R) and builds the ghost again; `coop-settings.txt` stays as it is. `coop lo
 ## Saves and Steam Cloud
 
 The mod never reads or writes a save. It reads only `StellarCoopSlot.txt`, a text file beside the saves (see "Co-op
-save slot" below). Back the saves up anyway before you play with any mod:
+save slot" below). Back up the saves anyway before you play with any mod:
 
 1. Close the game.
 2. Copy the save folder to a place outside the game and Steam folders.
    - Windows: `%LOCALAPPDATA%\SB\Saved\SaveGames\<your Steam ID>\`
    - Linux (Proton): `<Steam library>/steamapps/compatdata/3489700/pfx/drive_c/users/steamuser/AppData/Local/SB/Saved/SaveGames/<your Steam ID>/`
 
-Steam Cloud syncs this folder. If a save ever looks wrong, do not start the game again. First turn Steam Cloud off for
-Stellar Blade (right-click the game, Properties, General), so the bad save does not replace the good copy in the
+Steam Cloud syncs this folder. If a save looks wrong, do not start the game again. First turn Steam Cloud off for
+Stellar Blade (right-click the game, Properties, General), so that the bad save does not replace the good copy in the
 cloud. Then restore your backup.
 
 ## Co-op save slot
 
-`coop no` and `coop recruiter` (and the shared features of later versions) run only on a copy of your save, the co-op
-save slot, never on your own slots. The ghost, the keys and the Steam link work on any save. Make the copy once, with
-the game closed, before the first co-op session. Nothing is ever copied back to your own slots.
+`coop no`, `coop recruiter` and `coop fight` run only on a copy of your save, the co-op save slot, and never on your
+own slots. The ghost, the keys and the Steam link work on any save. Make the copy once, with the game closed, before the
+first co-op session. Nothing is copied back to your own slots.
 
 The game has five save slots: the files `StellarBladeSave00.sav` to `StellarBladeSave04.sav` in the save folder above.
-The co-op slot is the one that `StellarCoopSlot.txt`, in the same folder, names.
+The co-op slot is the file that `StellarCoopSlot.txt`, in the same folder, names.
 
 ### Windows
 
@@ -145,8 +158,9 @@ With the game closed:
 If it shows something else:
 
 - `slot=main index=0 marker=4`: another slot is loaded (here file 00). Go back to the title and load the other entry.
-- `marker=none`: no `StellarCoopSlot.txt` in that folder, often because it is named `StellarCoopSlot.txt.txt`.
-- `marker=bad`: the file's text or encoding is wrong: one line with the name, saved as UTF-8.
+- `marker=none`: there is no `StellarCoopSlot.txt` in that folder, often because it is named
+  `StellarCoopSlot.txt.txt`.
+- `marker=bad`: the file's text or encoding is wrong. It must hold one line with the name, saved as UTF-8.
 - `slot=none`: no save is loaded yet (the title screen).
 
 ### Linux (Proton)
@@ -162,53 +176,54 @@ closed:
    is free). It checks the copy and writes nothing.
 4. The same command without `--dry-run`.
 
-`slot` refuses while the game runs and refuses an occupied slot that is not the co-op slot. It makes its own safety
-backup, then writes `StellarCoopSlot.txt` and the copy. Replacing the co-op slot with a new copy needs `--yes`.
-`--saves` gives another save folder (see `--help`). Then load the copy as in Windows step 7.
+`slot` refuses to run while the game runs, and refuses a target slot that holds a save other than the co-op slot. It
+makes its own safety backup, then writes `StellarCoopSlot.txt` and the copy. Replacing the co-op slot with a new copy
+needs `--yes`. `--saves` gives another save folder (see `--help`). Then load the copy as in Windows step 7.
 
 ### Recovery
 
-- The mod never writes your own saves, and nothing is ever copied back from the co-op slot.
 - To stop using the co-op slot, close the game and move `StellarCoopSlot.txt` out of the folder. The copy then counts
-  as an ordinary save. To get back a save you moved out, then, with `StellarCoopSlot.txt` already out, move the copy
-  into a different folder (or rename it), and move that save back in.
+  as an ordinary save. To get back a save you moved out to free a slot, first move `StellarCoopSlot.txt` out, then
+  move the copy into a different folder (or rename it), and move that save back in.
 - `save_guard.py restore` of a backup older than the co-op slot removes `StellarCoopSlot.txt`, and says so. If you
-  restore such a backup by hand, move `StellarCoopSlot.txt` out first: otherwise it names one of your own saves.
-- Continue loads whichever slot you played last. Load Game is clearer, and `coop status` says which slot is loaded.
-- New Game and New Game+ ask which slot to overwrite: that is the game's own behaviour.
+  restore such a backup by hand, move `StellarCoopSlot.txt` out first; otherwise it names one of your own saves.
+- Continue loads the slot you played last. Load Game lets you pick the slot, and `coop status` says which slot is
+  loaded.
+- New Game and New Game+ ask which slot to overwrite. That prompt comes from the game, not from the mod.
 - Steam Cloud syncs the copied `.sav` but never `StellarCoopSlot.txt`. On another PC the copy counts as an ordinary
-  save, and `coop no` refuses there.
+  save, and `coop no` refuses to run there.
 - After any `coop no` subcommand, end the game by killing it (Linux: `pkill -9 -f SB-Win64-Shipping`; Windows: Task
   Manager, End task), not by Quit from the menu, which saves. Never load another save in that run: the probe's changes
   stay in the game until it ends.
-- After `coop recruiter`, the same: kill the game rather than Quit, and never load another save in that run (its
-  changes also stay in the game until it ends). It is not yet known whether the game saves the guard, so keep Steam
-  Cloud off, back the saves up before the run, and restore that backup once the game is closed. The restore also
-  undoes the co-op slot's progress of that run, but a guard the game may have saved never stays in the co-op slot.
+- After `coop recruiter`, do the same: kill the game instead of using Quit, and never load another save in that run
+  (the recruiter's changes also stay in the game until it ends). It is not yet known whether the game saves the
+  spawned recruiter (a Xion guard), so keep Steam Cloud off, back up the saves before the run, and restore that backup
+  once the game is closed. The restore also undoes that run's progress in the co-op slot, and removes the recruiter
+  from it if the game saved him.
   - Linux, from the repository: `python3 tools/save_guard.py backup` before the run. After it,
     `python3 tools/save_guard.py check`, then `python3 tools/save_guard.py restore <backup> --yes`, where `<backup>`
     is the folder name that `backup` printed.
-  - Windows: copy the save folder before the run, as in "Saves and Steam Cloud". After it, see in File Explorer which
-    files have a newer modified time, then copy the backup back over the save folder.
-  - Only these may differ: the co-op slot and its `Backup/StellarBladeSave0N_Old.sav` copy, the game's own
+  - Windows: copy the save folder before the run, as in "Saves and Steam Cloud". After it, look in File Explorer at
+    which files have a newer modified time, then copy the backup back over the save folder.
+  - Only these files may differ: the co-op slot and its `Backup/StellarBladeSave0N_Old.sav` copy, the game's own
     `StellarBladeSetting.sav` and its `Backup/` copy, the `steam_autocloud.vdf` files and other mods' saves. Any other
-    `StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots: the restore puts it
-    back, and please send the logs (see "Which logs to send").
+    `StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots. The restore puts it
+    back; please send the logs (see "Which logs to send").
 
 ## Check the files
 
-`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, `INSTALL.md`, `LICENSE` and `CHANGELOG.md`
-included.
+`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, including `INSTALL.md`, `LICENSE` and
+`CHANGELOG.md`.
 
-- Linux: in the `StellarCoop` folder, run `sha256sum -c SHA256SUMS.txt`. Every file must pass (`OK`, or the same word in your
-  language). A mismatch ends with a warning.
+- Linux: in the `StellarCoop` folder, run `sha256sum -c SHA256SUMS.txt`. Every file must pass (`OK`, or the same word in
+  your language). A mismatch ends with a warning.
 - Windows: in PowerShell, in the `StellarCoop` folder, run `Get-FileHash <file> -Algorithm SHA256` for each file, for
   example `Get-FileHash StellarCoop.dll -Algorithm SHA256`. The hash must match that file's line of `SHA256SUMS.txt`
   (upper or lower case does not matter). Check at least `StellarCoop.dll` and `CHANGELOG.md`.
 
-The build is reproducible: `python3 tools/install.py --zip` on a commit, with clang-cl 23.1.3 and xwin's Windows SDK
+The build is reproducible: `python3 tools/install.py --zip` on a commit, with clang-cl 23.1.3, xwin's Windows SDK
 10.0.26100 and MSVC CRT 14.44.35220, gives the same `StellarCoop.dll` bytes, so anyone with the repository can compare
-its sum. It bakes the commit's `git describe` into the DLL: the zip's name must show the same version.
+its sum. The build writes the commit's `git describe` into the DLL, and the zip's name must show the same version.
 
 ## Windows Defender and SmartScreen
 
@@ -224,17 +239,18 @@ Close the game first.
   `coop-settings.txt`, so first copy out what you want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`,
   remove that line.
 - Installed with `tools/install.py` (Linux), from the StellarCoop repository: `python3 tools/install.py --uninstall`
-  (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is elsewhere). It
-  backs up the whole folder into `~/StellarCoop-install-backups` first, then removes it. It removes only a folder it
-  installed (one with `install-manifest.txt`): delete a folder copied from the zip by hand, as above. It never edits
-  `mods.txt`: it says if a line there still names StellarCoop, for you to remove.
+  (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is not in the
+  script's default folder). It backs up the whole folder into `~/StellarCoop-install-backups`, then removes it. It
+  removes only a folder it installed (one with `install-manifest.txt`); delete a folder copied from the zip by hand, as
+  above. It never edits `mods.txt`, but it reports a line there that still names StellarCoop, for you to remove.
 
 Your saves, the co-op save slot and `StellarCoopSlot.txt` stay. To stop using the co-op slot too, see "Recovery" above.
 
 ## Which logs to send
 
-If something goes wrong, close the game and send these files before you start the game again: each launch overwrites
-`UE4SS.log` and moves `coop-link.log` to `coop-link.old.log`. Some files may be missing, which is fine.
+If something goes wrong, close the game and send these files before you start the game again, because each launch
+overwrites `UE4SS.log` and moves `coop-link.log` to `coop-link.old.log`. Some of the files may not exist; send the ones
+that do.
 
 - `Mods/StellarCoop/coop-report.txt`
 - `Mods/StellarCoop/coop-link.log`
@@ -243,5 +259,4 @@ If something goes wrong, close the game and send these files before you start th
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
 
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
-which may include your Windows user name.
-They contain no passwords. Read them before you send them if you wish.
+which may include your Windows user name. They contain no passwords. You can read them before you send them.

@@ -1,21 +1,19 @@
 # Building from source
 
-This page is for developers: the toolchain, the build and install script, the tests, the Wine smoke test, the
-reproducible build, and how the repository is laid out. StellarCoop is developed on Linux: the Lua scripts need no
-build, and the Windows DLL is cross-compiled with clang-cl. To understand the design first, see
-[how-it-works.md](how-it-works.md).
+StellarCoop is developed on Linux. The Lua scripts need no build, and the Windows DLL is cross-compiled with clang-cl.
+For the design, see [how-it-works.md](how-it-works.md).
 
 ## Toolchain
 
 - Python 3 and Git.
 - Lua 5.4 (`lua5.4`), the version the game's UE4SS embeds, for the Lua tests.
-- A host C++17 compiler (`c++`) for the native tests. When it can build and run them, AddressSanitizer and
-  UndefinedBehaviorSanitizer are turned on.
+- A host C++17 compiler (`c++`) for the native tests. If it can build and run binaries with AddressSanitizer and
+  UndefinedBehaviorSanitizer, the native tests use both.
 - CMake 3.20 or newer and Ninja.
 - clang-cl with [xwin](https://github.com/Jake-Shadle/xwin)'s Windows SDK and MSVC CRT, through a CMake toolchain file:
   `~/.local/share/xwin/clang-cl-msvc.cmake` by default, or the path in the `STELLAR_WINDOWS_TOOLCHAIN` environment
   variable.
-- For the Wine smoke test only: a Proton build's `wine`.
+- `wine` from a Proton build, for the Wine smoke test only.
 
 The CMake project in `native/` builds one target, `StellarCoop.dll`, with the C++ runtime linked statically, so there
 is no runtime DLL to ship.
@@ -39,33 +37,33 @@ python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run | --zip [PAT
 
 Except with `--zip`, the game's UE4SS `Mods` folder must exist.
 
-In order, a run:
+A run does these steps in order:
 
 1. runs the Lua tests (`tests/*_test.lua`), the Python tests (`tests/*_test.py`) and the native tests
    (`tests/*_test.cpp`, built and run on this machine);
-2. configures and builds the DLL in `build/windows` with the clang-cl toolchain, baking the version (`git describe`)
-   into it;
+2. configures and builds the DLL in `build/windows` with the clang-cl toolchain, and writes the version
+   (`git describe`) into it;
 3. installs, writes a dry-run report, or writes the zip.
 
-**Installing.** The mod folder gets the scripts, `enabled.txt`, `StellarCoop.dll`, `Scripts/version.lua` (the version)
-and `install-manifest.txt` (the files it installed). It first backs up the files it replaces or removes into
-`~/StellarCoop-install-backups/<UTC time>/StellarCoop`, outside the game folder (UE4SS would load a copy under `Mods`).
-Backups are never pruned. Files the previous install shipped and this one does not are removed; what the mod writes in
-game (its logs, status files and settings) is never removed.
+An install puts into the mod folder the scripts, `enabled.txt`, `StellarCoop.dll`, `Scripts/version.lua` (the
+version) and `install-manifest.txt` (the list of installed files). Before that, it backs up the files it replaces or
+removes into `~/StellarCoop-install-backups/<UTC time>/StellarCoop`. The backups go outside the game folder because
+UE4SS would load a copy under `Mods`. Backups are never pruned. Files that the previous install shipped and this one
+does not are removed. Files the mod writes in game (its logs, status files and settings) are never removed.
 
-**Uninstalling.** `--uninstall` backs up the whole folder (logs and `coop-settings.txt` included) into the same backup
-folder, then removes it. It leaves alone a folder without `install-manifest.txt` (one copied from the zip) or a
-symbolic link. It never touches saves, `StellarCoopSlot.txt` or `mods.txt`; it says if a `mods.txt` line still names
+`--uninstall` backs up the whole folder (logs and `coop-settings.txt` included) into the same backup folder, then
+removes it. It does not touch a folder without `install-manifest.txt` (one copied from the zip) or a symbolic link. It
+never touches saves, `StellarCoopSlot.txt` or `mods.txt`, and it reports any `mods.txt` line that still names
 StellarCoop.
 
-**The release zip.** `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, a `CHANGELOG.md` generated from the
-commits' `feat` and `fix` subjects (newest first), and `SHA256SUMS.txt` over every other file. It never holds
-`coop-settings.txt`. `CHANGELOG.md` is generated for the zip and never committed. Commit subjects follow Conventional
-Commits; only `feat` and `fix` subjects reach the changelog, with their scope, and a `!` marks a breaking change.
+The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, a `CHANGELOG.md` and a
+`SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. `CHANGELOG.md` is generated for the zip
+and never committed. Commit subjects follow Conventional Commits. The changelog lists the `feat` and `fix` subjects
+only, newest first, with their scope; a `!` marks a breaking change.
 
 ## Tests
 
-The tests run on the build machine, without the game. `tools/install.py` runs them all before every build; to run one
+The tests run on the build machine, without the game. `tools/install.py` runs them all before every build. To run one
 by hand, from the repository root:
 
 ```
@@ -76,9 +74,9 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/pose_codec_test.cpp -o 
 build/host/pose_codec_test
 ```
 
-- **Lua** (`capture`, `link`, `main`, `nightop`, `notice`, `puppet`, `recruiter`, `recruiter_text`): the scripts
-  against fake UE4SS objects. The capture's fake EVE only reads, so any write to her fails the test.
-- **C++** (the platform-free headers in `native/src`):
+- Lua tests (`capture`, `link`, `main`, `nightop`, `notice`, `puppet`, `recruiter`, `recruiter_text`) run the scripts
+  against fake UE4SS objects. In the capture test, any write to the fake EVE fails the test.
+- C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop;
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways and
     channel 1's checks;
@@ -90,35 +88,35 @@ build/host/pose_codec_test
   - `save_watch_test`: the save watcher;
   - `save_slot_test`: the slot line and the marker against fake memory;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image.
-- **Python**:
+- Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
   - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
-  - `matchmaking_scan_test.py`: a scan proving that no script or native source can reach the game's matchmaking (see
-    [night-operation.md](night-operation.md#why-the-original-matchmaking-can-never-run)).
+  - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
+    (see [night-operation.md](night-operation.md#how-the-original-matchmaking-is-blocked)).
 
 ## tools/wine_smoke.py
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
-the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` around. It checks that the DLL attaches,
+the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
 waits for Steam, answers `coop_tick`, refuses the engine and the Night Operation poller on an exe that is not the game,
-and logs a clean process exit, and that `ReadProcessMemory` behaves as the poller needs.
+and logs a clean process exit. It also checks that `ReadProcessMemory` behaves as the poller needs.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]
 ```
 
-It never touches the game folder or the game's prefix: it refuses a prefix under a Steam `compatdata` folder. The run
-folder `build/wine/run` is kept afterwards, so its `coop-link.log` can be read.
+It does not touch the game folder or the game's prefix, and it refuses any prefix under a Steam `compatdata` folder.
+It keeps the run folder `build/wine/run` afterwards, so you can read its `coop-link.log`.
 
 ## Reproducible build
 
-The DLL is reproducible: the same commit, built through `tools/install.py` with clang-cl 23.1.3 and xwin's Windows SDK
-10.0.26100 and MSVC CRT 14.44.35220 (linked statically), gives the same `StellarCoop.dll` bytes from any checkout. The
-build uses `/Brepro` and maps the checkout path to a fixed prefix. `tools/install.py` bakes `git describe` into the
-DLL; a plain CMake build bakes `dev`.
+The same commit, built through `tools/install.py` with clang-cl 23.1.3 and xwin's Windows SDK 10.0.26100 and MSVC CRT
+14.44.35220 (linked statically), gives the same `StellarCoop.dll` bytes from any checkout. The build uses `/Brepro` and
+maps the checkout path to a fixed prefix. `tools/install.py` writes the `git describe` output into the DLL; a plain
+CMake build writes `dev`.
 
-The zip is reproducible too: the same commit gives the same zip, every entry dated from the commit, in sorted order.
-Anyone with the repository can therefore rebuild a release and compare its `SHA256SUMS.txt` (see
+The release zip is reproducible too: the same commit gives the same zip, with every entry dated from the commit and in
+sorted order. Anyone with the repository can rebuild a release and compare its `SHA256SUMS.txt` (see
 [INSTALL.md: Check the files](../INSTALL.md#check-the-files)).
 
 ## Repository layout
@@ -142,7 +140,7 @@ LICENSE                     GPL-3.0-or-later (shipped in the release zip)
 
 ### Native sources
 
-Free of Windows, and tested on the build machine:
+Platform-free headers, tested on the build machine:
 
 | File | Contents |
 | --- | --- |
