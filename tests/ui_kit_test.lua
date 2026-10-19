@@ -704,6 +704,39 @@ k=kit()
 up(k)
 assert(logs[#logs]:find('chevron missing'),logs[#logs])
 
+-- An inside group (the partner HUD's card, marker and arrow): where it is moved, but its box, scaled around its pivot
+-- by ui_scale, kept 48 units inside the viewport in layout units (its left and top edges win when it does not fit);
+-- on change only; as asked while the viewport is unread. The viewport is read once a second and logged when its size
+-- changes. A text's alignment is its slot's.
+reset()
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=1920,Y=1080} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0.5 end
+k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
+k.add('tag',{x=0,y=0,w=320,h=120,pivot={X=0.5,Y=1},shown=true,inside=true},function(b)
+    b.text(10,22,'Alex','name',T.teal,{X=0,Y=0.5})
+end)
+up(k)
+local tag=stores[stores[stores[viewport[1]].props.WidgetTree].props.RootWidget].children[1]
+local function placed(x,y) local p=stores[stores[tag].slot].last.SetPosition[1]; return p.X==x and p.Y==y end
+assert(stores[stores[of('TextBlock')[1]].slot].last.SetAlignment[1].Y==0.5,'Centred on its line')
+k.move('tag',1000,500)
+assert(placed(1000,500) and logs[#logs]=='UI viewport: 3840x2160 units (1920x1080 pixels at DPI scale 0.5)',
+    logs[#logs])
+k.move('tag',-100,-50); assert(placed(48,48))
+k.move('tag',3800,2100); assert(placed(3840-48-320,2160-48-120),pos(tag))
+n=#calls; k.move('tag',3800,2100); assert(#calls==n,'On change only')
+k.scale(150) -- 480 by 180 around its bottom centre: 80 units more each side, 60 more above.
+k.move('tag',3800,2100); assert(placed(3392,1992),pos(tag))
+k.move('tag',0,0); assert(placed(128,108),pos(tag))
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=200,Y=100} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 1 end
+k.move('tag',500,500); assert(placed(500,500),'Read once a second')
+clock=clock+1
+k.move('tag',500,500); assert(placed(128,108),'Too small: its left and top edges win')
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0 end
+clock=clock+1
+k.move('tag',700,600); assert(placed(700,600) and k.ready(),'Unread: as asked')
+
 -- Hidden from the start (the title screen): nothing looked up or built, however long.
 reset()
 k=kit()

@@ -1103,7 +1103,7 @@ chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
 -- The partner HUD (partner.lua's view for real on the fake kit; partner_test tests it): added after the feed and
 -- before the menu, which draws over it; each 250 ms in a world its card follows the session and her vitals, and the
 -- ghost hides its name tag while the marker carries her name (partner_bar on, the root up); each frame only its marker
--- and arrow, projected through the kit 30 times a second at most and never without her anchor; nothing after coop off.
+-- and arrow, projected through the kit each frame and never without her anchor; nothing after coop off.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
 assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu badge saves',table.concat(kit_order,' '))
@@ -1116,9 +1116,9 @@ loops[1].f(); clock=clock+0.05; loops[1].f()
 assert(kit_projects==0,'No anchor: no projection')
 her_anchor={X=1000,Y=0,Z=220}
 clock=clock+0.05; loops[1].f(); loops[1].f()
-assert(kit_projects==1 and kit_said('show marker true'),'Once in a 1/30 s')
+assert(kit_projects==2 and kit_said('show marker true'),'Each frame')
 clock=clock+0.04; loops[1].f()
-assert(kit_projects==2)
+assert(kit_projects==3)
 kit_ready=false; quarter()
 assert(markers[#markers]==false,'No root: the name tag is the fallback')
 settings_text='partner_bar=off\n'

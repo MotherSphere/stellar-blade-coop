@@ -24,8 +24,9 @@ client that the game already runs, so the mod needs no other program and no serv
   rejoin it for 60 s.
 - During a session, Enter opens a text box to chat with your friend. Chat lines show in the same feed and are kept in
   memory only.
-- Your friend's card at the top left shows their HP, shield, Beta and Burst, their ping and their map. A marker over
-  their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are out of view.
+- Your friend's card at the top left shows their name with their ping and map, then their HP, shield and Beta. A
+  marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
+  out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make

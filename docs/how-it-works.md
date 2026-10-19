@@ -48,11 +48,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
 
-`main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost,
-the notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the
-menu or the chat box closes, and your friend's marker and gauges (at most 30 updates a second). The other runs every
-250 ms: link status changes, session start, notices to show, chat lines in and out, the UI's root, the menu's rows and
-status line, the chat's feed, your friend's card, the capture and the remote table.
+`main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
+notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
+the chat box closes, and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
+start, notices to show, chat lines in and out, the UI's root, the menu's rows and status line, the chat's feed, your
+friend's card, the capture and the remote table.
 
 ### Files shared by Lua and the native part
 

@@ -76,58 +76,64 @@ function P.cube(i,value,max,limit)
     return i==full+1 and math.floor(value%200/50) or 0
 end
 -- The partner HUD (UI-DESIGN 3.2, 4.3, D-UI5) on the Uplink kit (ui.lua), during a session (a friend linked or
--- rejoining, or coop loopback). Her card at the top left: her name in teal, then her HP, shield, Beta and Burst rows by
--- the player cluster's rules above, and one line for her state: DOWN in red (life 3 to 5, or no HP), elsewhere and her
--- map, connection lost, or a dash when the native part has had no vitals from her for 3 s (it drops them then); the
--- last two grey the card out, her last values kept. Otherwise that line holds the ping and her map (card_details). Over
--- her ghost's head, her marker: name, a row of HP dots, a shield line, and the distance past 15 m; when she is out of
--- view or behind, an arrow on the screen's edge instead, turned towards her, with the distance and three HP pips; grey
--- and kept at her last place on your map while nothing comes from her (her link lost, or no vitals: her ghost hides a
--- second after her last pose, her link is lost only after 10 s). The gauges tween over 150 ms, empty until her first
--- vitals; DOWN and a lost link sound the alert once. All three hide while the game is paused or on one of its screens
--- (UI-DESIGN 7.4). Each part has its setting (partner_bar, partner_arrow, partner_card, card_details), read at each
--- update, so the menu's change applies at once; while the marker carries her name, her ghost's name tag hides
--- (marking()). Each 250 ms (slow): the session, her state, name and vitals from the link's last read (an unread status
--- changes nothing), and the marker or arrow placed at once on a new root (never drawn at its corner). Each frame
--- (tick): at most 30 updates a second, and then only the gauges while they tween and the marker or arrow while she has
--- an anchor: one projection through the kit, its views' setters touching the engine on change only. No engine call
--- here: the kit makes them.
+-- rejoining, or coop loopback). Her card at the top left: her name in teal, then her HP, shield and Beta rows stacked
+-- under it by the player cluster's rules above, and at the right end of her name's line her state: DOWN in red (life 3
+-- to 5, or no HP), elsewhere and her map, connection lost, or a dash when the native part has had no vitals from her
+-- for 3 s (it drops them then); the last two grey the card out, her last values kept. Otherwise that line holds the
+-- ping and her map (card_details). Over her ghost's head, her marker: name, a row of HP dots, a shield line, and the
+-- distance past 15 m; when she is out of view or behind, an arrow on the screen's edge instead, turned towards her,
+-- with the distance and three HP pips; grey and kept at her last place on your map while nothing comes from her (her
+-- link lost, or no vitals: her ghost hides a second after her last pose, her link is lost only after 10 s). The kit
+-- keeps all three on screen at any resolution and ui_scale. Each gauge moves over 300 ms from where it is drawn to her
+-- latest value, a bit longer than the 250 ms between two reads of her vitals, so it neither jumps nor stops between
+-- them; empty until her first vitals; DOWN and a lost link sound the alert once. All three hide while the game is
+-- paused or on one of its screens (UI-DESIGN 7.4). Each part has its setting (partner_bar, partner_arrow, partner_card,
+-- card_details), read at each update, so the menu's change applies at once; while the marker carries her name, her
+-- ghost's name tag hides (marking()). Each 250 ms (slow): the session, her state, name and vitals from the link's last
+-- read (an unread status changes nothing), and the marker or arrow placed at once on a new root (never drawn at its
+-- corner). Each frame (tick): the gauges while they move and the marker or arrow while she has an anchor, so it follows
+-- the camera at the game's frame rate: one projection through the kit, its views' setters touching the engine on change
+-- only. No engine call here: the kit makes them.
 local T=require('ui_text')
 local clean=require('chat').clean
-local RATE,TWEEN,GREY,NAME=1/30,0.15,0.45,20 -- s between updates; s a tween; a greyed card's opacity; characters shown.
-local MW,MH,AW,AH,AC=320,110,160,180,80 -- Marker and arrow sizes in layout units; the arrow's diamond centre in it.
-local TWEENED={'hp','shield','beta','burst'}
+local TWEEN,GREY,NAME=0.3,0.45,20 -- s a gauge moves; a greyed card's opacity; characters shown.
+local MW,MH,AW,AH,AC=320,120,160,180,80 -- Marker and arrow sizes in layout units; the arrow's diamond centre in it.
+-- The card in layout units: its place (under it from y 330, the feed), its size, where its rows start (after their
+-- labels' column), its name's line, and each row's label, top and height (HP: 3 rows of 15-unit dots; SH: 2 of 10;
+-- BE: 30-unit cubes).
+local CX,CY,CW,CH,ROW_X,NAME_Y=96,96,744,232,120,50
+local HP_ROW,SH_ROW,BE_ROW={'HP',82,45},{'SH',140,20},{'BE',173,30}
+local MID,RIGHT={X=0,Y=0.5},{X=1,Y=0.5} -- A text centred on its line, from its left or its right end.
+local TWEENED={'hp','shield','beta'}
 -- o: {kit=ui.kit's, link= (chatting, friend, mate, ping), puppet= (anchor, her_map, me), settings= (main.lua's: the
 -- menu changes them in place), theme=ui.THEME}.
 function P.hud(o)
     local kit,link,puppet,settings,theme=o.kit,o.link,o.puppet,o.settings,o.theme
     local self,words,picked,lang={},T.en.partner,nil,nil
     local session,quiet,away,where,alert,vit,from,since=false,false,false,nil,nil,nil,nil,nil
-    local now,due,was_on,last_at,last_feet=0,0,false,nil,nil
-    kit.add('card',{x=96,y=96,w=860,h=200},function(b)
-        b.panel(0,0,860,200)
-        local v={name=b.text(24,16,'','name',theme.teal),info=b.text(540,22,'','status',theme.grey)}
-        for _,l in ipairs({{'HP',24,72},{'SH',24,118},{'BE',24,154},{'BU',440,154}}) do
-            b.text(l[2],l[3],l[1],'label',theme.text)
-        end
-        v.hp,v.sh=b.hp(96,68,40,3,'big'),b.shield(96,124,'small')
-        v.be,v.bu=b.cubes(96,156,8,theme.beta),b.cubes(500,156,8,theme.burst)
+    local now,was_on,last_at,last_feet=0,false,nil,nil
+    kit.add('card',{x=CX,y=CY,w=CW,h=CH,inside=true},function(b)
+        b.panel(0,0,CW,CH)
+        local v={name=b.text(24,NAME_Y,'','name',theme.teal,MID),info=b.text(CW-24,NAME_Y,'','status',theme.grey,RIGHT)}
+        for _,row in ipairs({HP_ROW,SH_ROW,BE_ROW}) do b.text(24,row[2]+row[3]/2,row[1],'label',theme.text,MID) end
+        v.hp,v.sh=b.hp(ROW_X,HP_ROW[2],40,3,'big'),b.shield(ROW_X,SH_ROW[2],'small')
+        v.be=b.cubes(ROW_X,BE_ROW[2],8,theme.beta)
         return v
     end)
     -- Scaled from its bottom centre, on her head.
-    kit.add('marker',{x=0,y=0,w=MW,h=MH,pivot={X=0.5,Y=1}},function(b)
-        return {name=b.text(10,0,'','hint',theme.teal),hp=b.hp(10,46,30,1,'small'),shield=b.bar(10,62,300,6,theme.teal),
-            far=b.text(10,72,'','num')}
+    kit.add('marker',{x=0,y=0,w=MW,h=MH,pivot={X=0.5,Y=1},inside=true},function(b)
+        return {name=b.text(10,22,'','hint',theme.teal,MID),hp=b.hp(10,50,30,1,'small'),
+            shield=b.bar(10,66,300,6,theme.teal),far=b.text(10,96,'','num',nil,MID)}
     end)
     -- The chevron turns around the diamond, at the group's (80, 80): the point on the edge.
-    kit.add('arrow',{x=0,y=0,w=AW,h=AH,pivot={X=0.5,Y=AC/AH}},function(b)
+    kit.add('arrow',{x=0,y=0,w=AW,h=AH,pivot={X=0.5,Y=AC/AH},inside=true},function(b)
         return {chevron=b.image(64,16,32,32,'chevron',theme.teal,{X=0.5,Y=2}),
             diamond=b.image(64,64,32,32,'diamond',theme.teal),far=b.text(52,116,'','num'),
             pips=b.dots(65,160,3,1,'small')}
     end)
     -- Before her first vitals (a new session): every gauge empty, never the last partner's.
-    local NONE={hp=0,max_hp=0,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0}
-    -- A tweened value as drawn now.
+    local NONE={hp=0,max_hp=0,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0}
+    -- A gauge's value as drawn now.
     local function at_now(k)
         if not since then return (vit or NONE)[k] end
         return from[k]+(vit[k]-from[k])*math.min(1,(now-since)/TWEEN)
@@ -140,7 +146,6 @@ function P.hud(o)
             c.hp.set(hp,v.max_hp)
             c.sh.set(sh,v.max_shield,v.blocks)
             c.be.set(at_now('beta'),v.max_beta)
-            c.bu.set(at_now('burst'),v.max_burst)
         end
         if m then
             m.hp.set(hp,v.max_hp)
@@ -178,7 +183,7 @@ function P.hud(o)
             kit.show('marker',true)
         elseif not on and arrow then
             kit.show('marker',false)
-            kit.move('arrow',math.max(0,math.min(v.width-AW,x-AC)),math.max(0,math.min(v.height-AH,y-AC)))
+            kit.move('arrow',x-AC,y-AC)
             a.chevron.turn(angle+90) -- Its art points up.
             a.far.set(far)
             kit.show('arrow',true)
@@ -230,6 +235,7 @@ function P.hud(o)
         alert=session and state or nil
         local name=shown_name(friend)
         kit.show('card',session and not away and settings.partner_card~=false)
+        kit.move('card',CX,CY) -- The kit keeps it on screen for this viewport and ui_scale.
         kit.fade('card',grey and GREY or 1)
         if c then
             c.name.set(name)
@@ -252,11 +258,9 @@ function P.hud(o)
     -- Each frame with the 1 ms loop's clock (os.clock, as the kit's tweens).
     function self.tick(t)
         now=t
-        if t<due then return end
-        due=t+RATE
         if since then
+            if t-since>=TWEEN then since=nil end -- Done: drawn at her values themselves.
             gauges()
-            if t-since>=TWEEN then since=nil end
         end
         place()
     end
