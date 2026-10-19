@@ -1,7 +1,8 @@
 -- The partner marker's maths (UI-DESIGN 4.3), no engine call: where her marker goes on screen, or the arrow on the
 -- screen's edge that points at her when she is off screen or behind you, the distance it shows, whether she is on
--- your map, and her gauges by the player cluster's own rules (sb-layout.md 0). Screen positions are in the caller's units (the layout's, 3840 wide at 16:9), y down. Locations and
--- rotations are UE4SS's ({X,Y,Z} in cm, {Pitch,Yaw} in degrees; camera roll taken as 0).
+-- your map, and her gauges by the player cluster's own rules (sb-layout.md 0). Screen positions are in the caller's
+-- units (the layout's, 3840 wide at 16:9), y down. Locations and rotations are UE4SS's ({X,Y,Z} in cm, {Pitch,Yaw} in
+-- degrees; camera roll taken as 0).
 local P={}
 P.OFF,P.ON=48,72 -- Units from an edge: the marker turns into the arrow inside OFF, and back only ON inside.
 -- at as seen from a camera at c turned r: forward, right, up (UE: X forward, Y right, Z up).
