@@ -165,7 +165,9 @@ The full steps are in [INSTALL.md: Recovery](../INSTALL.md#recovery).
 - If you restore an older backup by hand, move `StellarCoopSlot.txt` out first. Otherwise it may name one of your own
   saves. `save_guard.py restore` does this itself.
 - Continue loads whichever slot you played last. Use Load Game to pick the slot; `coop status` shows which slot is
-  loaded.
+  loaded. On the title screen where the switch happens, the game's slot list still shows your own saves' details (it
+  reads the list when the game starts and at each return to the title): pick the slot by its number there, and start
+  no New Game in a slot the list shows as empty, since it can hold a copy you played in co-op.
 - New Game and New Game+ ask which slot to overwrite, among the co-op copies while the game uses them. That prompt
   comes from the game, not from the mod.
 - After a Night Operation preview, kill the game instead of quitting from the menu (which saves), then check and

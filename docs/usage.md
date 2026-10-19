@@ -83,8 +83,9 @@ are in English.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the box close and the game gets its keys back. `coop ui off` removes the co-op menu,
-the chat box, the feed and the partner HUD until the mod reloads (game start or Ctrl+R). Notices then go back to the
-line above your EVE, and your friend's name back to the name tag above their ghost.
+the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads (game start or Ctrl+R).
+Notices then go back to the line above your EVE, and your friend's name back to the name tag above their ghost. With
+the UI off, `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
 ## Session chat
 
@@ -192,11 +193,13 @@ and the rules.
 | Down arrow or S | Down |
 | Enter or Space | Select |
 | Esc | Decide later (while the copies are made: no switch, the game stays on your own saves) |
+| Left click | The choice under the mouse |
 
 While the question shows, the game ignores its own keys and a dark shade over the screen takes the mouse, so neither
-reaches the title menu. The game gets its keys back 150 ms after the question closes. Choosing Continue or Load Game
-before the question shows loads your own save; the question comes back at the next title screen. `coop ui reset`
-closes it as Decide later.
+reaches the title menu. The game gets its keys back 150 ms after the question closes. A controller cannot answer it:
+after 60 s with no key, it closes as Decide later, and `auto_coop_save=always` or `off` skips it. Choosing Continue or
+Load Game before the question shows loads your own save; the question comes back at the next title screen.
+`coop ui reset` closes it as Decide later.
 
 `auto_coop_save=always` makes the copies and switches to them at each title screen without asking; `off` turns the
 question and the automatic copies off. Options > Saves > Co-op saves changes it at once. The result shows as a notice in the
@@ -253,7 +256,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
-| `coop ui off` | Remove the co-op menu, the chat box, the feed and the partner HUD until the mod reloads |
+| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |

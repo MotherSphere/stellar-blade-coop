@@ -31,9 +31,10 @@ repository.
 4. Copy the whole `StellarCoop` folder (the one that holds `enabled.txt`) into the Mods folder. The result must be
    `SB/Binaries/Win64/ue4ss/Mods/StellarCoop/Scripts/main.lua`, with `StellarCoop.dll` and `enabled.txt` next to
    `Scripts/`.
-5. Start the game. On the title screen the mod asks whether to play on co-op saves (see "Co-op saves" below). Load a
-   save and press `F6`. `Co-op: not in a session.` appears at the top left of the screen (or above EVE, in the first
-   seconds after a load). `UE4SS.log` gets the same text in a line that contains `[StellarCoop] OK:`.
+5. Start the game. On the title screen the mod asks whether to play on co-op saves (see "Co-op saves" below). Choose
+   Decide later until you have backed up your saves (see "Saves and Steam Cloud"). Load a save and press `F6`.
+   `Co-op: not in a session.` appears at the top left of the screen (or above EVE, in the first seconds after a load).
+   `UE4SS.log` gets the same text in a line that contains `[StellarCoop] OK:`.
    If no line appears, close the game and look in `UE4SS.log` for lines with `[StellarCoop]`. `Native part not loaded`
    means that `StellarCoop.dll` is missing or quarantined (see "Windows Defender and SmartScreen"). The keys do not
    work without it.
@@ -141,16 +142,22 @@ Load Game and every save the game makes go to them.
 
 On the title screen, once the mod's on-screen UI has loaded (a few seconds), the mod asks how to play. If you choose
 Continue or Load Game before it shows, the game loads your own save, and the question comes back at the next title
-screen. Up and down arrows (or W, Z and S) move, Enter selects, Esc is Decide later. The mouse does nothing while the
-question shows.
+screen. Up and down arrows (or W, Z and S) move, Enter selects, Esc is Decide later, and a left click selects the
+choice under the mouse. A controller cannot answer it: after 60 s with no key, the question closes as Decide later. To
+play with a controller only, set `auto_coop_save` to `always` or `off`.
 
 - Convert and play co-op (Play co-op once copies exist): the mod copies your saves, then switches the game to the
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into
-  `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`. Then use Continue or Load Game as usual.
+  `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`. Then use Load Game (see below).
 - Play solo normally, or Decide later: the game uses your own saves. The question comes back the next time the title
   screen shows.
 - Don't ask again: sets `auto_coop_save=always` in `coop-settings.txt`, then plays co-op. From then on the mod switches
   to the copies at every title screen without asking.
+
+On the title screen where the switch happens, use Load Game and pick the slot by its number. The game reads its slot
+list when it starts and each time you return to the title, so until then the list shows your own saves' details while
+every load and save goes to the copies. Continue may then load a different slot from the one you last played in co-op,
+and a slot the list shows as empty can hold a copy you played in co-op: a New Game there replaces it without asking.
 
 If the copies cannot be made, the question says why and offers only the solo choices. `coop status` shows
 `slot=coop ... saves=coop` once a copy is loaded. The co-op saves have not been tested in game yet: back up your saves
@@ -185,8 +192,8 @@ game closed, and named on one line of `StellarCoopSlot.txt` (UTF-8) in the same 
   then move the copy into a different folder (or rename it), and move that save back in.
 - `save_guard.py restore` of a backup older than the manual co-op slot removes `StellarCoopSlot.txt`, and says so. If
   you restore such a backup by hand, move `StellarCoopSlot.txt` out first; otherwise it names one of your own saves.
-- Continue loads the slot you played last. Load Game lets you pick the slot, and `coop status` says which slot is
-  loaded.
+- Continue loads the slot you played last, except on the title screen where the mod switched to the copies (see
+  "Co-op saves"). Load Game lets you pick the slot, and `coop status` says which slot is loaded.
 - New Game and New Game+ ask which slot to overwrite, among the co-op copies while the game uses them. That prompt
   comes from the game, not from the mod.
 - Steam Cloud never syncs `StellarCoopSaves.txt` (the mod's list of copies) or `StellarCoopSlot.txt`. On another PC
