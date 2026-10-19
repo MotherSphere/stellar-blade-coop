@@ -81,4 +81,37 @@ state,map=P.where(nil,B07)
 assert(state==nil and map=='b07','Your own map unknown (a load): neither same nor elsewhere, her map still known')
 assert(P.where(E04,nil)==nil,'Hers unknown: nothing to say')
 
+-- Her gauges by the player cluster's own rules (sb-layout.md 0). HP: lit columns by HP / MaxHP, rounded up so a sliver
+-- still shows one; none at 0 HP or without a max.
+assert(P.hp_columns(100,100,40)==40 and P.hp_columns(50,100,40)==20 and P.hp_columns(51,100,40)==21)
+assert(P.hp_columns(1,1000,40)==1,'A sliver shows')
+assert(P.hp_columns(0,100,40)==0 and P.hp_columns(5,0,40)==0 and P.hp_columns(150,100,40)==40)
+-- Shield: blocks shown = min(ShieldBlock, 5); points a block = floor(MaxShield / ShieldBlock); every lit block full
+-- but the last, which fills by what is left (rounded up); later blocks dim (0); nil past the shown ones.
+local function blocks(sh,max,n)
+    local out={}
+    for i=1,6 do out[i]=tostring(P.shield_block(i,sh,max,n,11)) end
+    return table.concat(out,' ')
+end
+assert(blocks(300,300,3)=='11 11 11 nil nil nil',blocks(300,300,3))
+assert(blocks(150,300,3)=='11 6 0 nil nil nil',blocks(150,300,3)) -- 100 a block: 50 of the second, 5.5 columns.
+assert(blocks(0,300,3)=='0 0 0 nil nil nil')
+assert(blocks(40,100,1)=='5 nil nil nil nil nil')
+assert(blocks(700,700,7)=='11 11 11 11 11 nil','ShieldBlock 7: five shown')
+assert(blocks(250,700,7)=='11 11 6 0 0 nil',blocks(250,700,7))
+assert(blocks(50,100,0)=='nil nil nil nil nil nil','No block, no row')
+assert(blocks(5,3,7)=='0 0 0 0 0 nil','Under a point a block: dim')
+-- Beta and Burst: one cube a 200 points of the max, at most limit shown; full cubes = floor(value / 200); the next
+-- lights floor((value mod 200) / 50) quarters.
+local function cubes(value,max,limit)
+    local out={}
+    for i=1,limit+1 do out[i]=tostring(P.cube(i,value,max,limit)) end
+    return table.concat(out,' ')
+end
+assert(cubes(450,1000,8)=='4 4 1 0 0 nil nil nil nil',cubes(450,1000,8))
+assert(cubes(0,600,8)=='0 0 0 nil nil nil nil nil nil')
+assert(cubes(199,400,8)=='3 0 nil nil nil nil nil nil nil')
+assert(cubes(3200,3200,8)=='4 4 4 4 4 4 4 4 nil','Sixteen cubes of Beta: eight on the card')
+assert(cubes(0,0,8)=='nil nil nil nil nil nil nil nil nil','Burst before its unlock: no cube')
+
 print('partner_test ok')

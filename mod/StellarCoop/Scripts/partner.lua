@@ -1,6 +1,6 @@
 -- The partner marker's maths (UI-DESIGN 4.3), no engine call: where her marker goes on screen, or the arrow on the
--- screen's edge that points at her when she is off screen or behind you, the distance it shows, and whether she is on
--- your map. Screen positions are in the caller's units (the layout's, 3840 wide at 16:9), y down. Locations and
+-- screen's edge that points at her when she is off screen or behind you, the distance it shows, whether she is on
+-- your map, and her gauges by the player cluster's own rules (sb-layout.md 0). Screen positions are in the caller's units (the layout's, 3840 wide at 16:9), y down. Locations and
 -- rotations are UE4SS's ({X,Y,Z} in cm, {Pitch,Yaw} in degrees; camera roll taken as 0).
 local P={}
 P.OFF,P.ON=48,72 -- Units from an edge: the marker turns into the arrow inside OFF, and back only ON inside.
@@ -48,5 +48,28 @@ end
 function P.where(mine,hers)
     if not hers then return nil end
     return mine and (mine==hers and 'same' or 'elsewhere') or nil,hers:match('([^/]+)$')
+end
+-- Her HP gauge: the lit columns of cols, by HP / MaxHP, rounded up so a sliver still shows one; 0 at 0 HP or with no
+-- max.
+function P.hp_columns(hp,max,cols)
+    if not (max>0 and hp>0) then return 0 end
+    return math.min(cols,math.ceil(hp/max*cols))
+end
+-- Shield block i: its lit columns of cols, or nil when it is not shown. Blocks shown: min(ShieldBlock, 5); points a
+-- block: floor(MaxShield / ShieldBlock); every lit block full but the last, which fills by what is left; later ones dim.
+function P.shield_block(i,shield,max,blocks,cols)
+    if i>math.min(blocks,5) then return nil end
+    local per=math.floor(max/blocks)
+    local left=shield-(i-1)*per
+    if per<=0 or left<=0 then return 0 end
+    return math.min(cols,math.ceil(math.min(left,per)/per*cols))
+end
+-- Cube i of a Beta or Burst row: its lit quarters (0 to 4), or nil when it is not shown. One cube a 200 points of the
+-- max, at most limit shown; full cubes: floor(value / 200); the next lights floor((value mod 200) / 50) quarters.
+function P.cube(i,value,max,limit)
+    if i>math.min(math.floor(max/200),limit) then return nil end
+    local full=math.floor(value/200)
+    if i<=full then return 4 end
+    return i==full+1 and math.floor(value%200/50) or 0
 end
 return P
