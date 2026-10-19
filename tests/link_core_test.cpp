@@ -54,6 +54,7 @@ struct Fake {
   int build = kBuild;
   uint64_t next_call = 100, next_lobby = 5000;
   bool refuse_create = false;
+  int lobby_type = -1; // The last lobby created's ELobbyType.
   std::map<uint64_t, Call> calls;
   std::map<uint64_t, std::vector<uint64_t>> members;
   std::map<uint64_t, uint64_t> owner;
@@ -133,7 +134,8 @@ template <int N> Api make_api() {
     return true;
   };
   a.create_lobby = [](void *, int type, int max) -> uint64_t {
-    assert(type == kFriendsOnly && max == 2);
+    assert((type == kFriendsOnly || type == kPrivate) && max == 2);
+    F.lobby_type = type;
     if (F.refuse_create)
       return 0;
     uint64_t call = F.next_call++, lobby = F.next_lobby++;
@@ -973,6 +975,15 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("lobby creation failed (result 2)") && noticed(w.status(), "Could not host: Steam result 2."));
+    assert(F.lobby_type == kFriendsOnly);
+    // who_can_join=private: the same lobby, private (joined by invite only); asked again while hosting, the dialog.
+    w.tick("host private");
+    assert(F.lobby_type == kPrivate && saw("creating a private lobby (invite only)"));
+    finish_all();
+    w.tick();
+    int invites = F.invites;
+    w.tick("host private");
+    assert(saw("already hosting: invite dialog opened") && F.invites == invites + 1);
   }
 
   // The notices: the last 8 kept, numbered for the run, oldest first; none writes an event of its own.

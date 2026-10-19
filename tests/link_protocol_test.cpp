@@ -202,7 +202,10 @@ int main() {
   }
 
   // Requests written by Lua.
-  assert(parse_request("host\n").command == Command::host);
+  assert(parse_request("host\n").command == Command::host && !parse_request("host").invite_only);
+  assert(parse_request("host private\n").command == Command::host && parse_request("host private").invite_only);
+  assert(parse_request("host public").command == Command::none);
+  assert(parse_request("host  private").command == Command::none);
   assert(parse_request("invite").command == Command::invite);
   assert(parse_request("leave").command == Command::leave);
   assert(parse_request("report\r\n").command == Command::report);

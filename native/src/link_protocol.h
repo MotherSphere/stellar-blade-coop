@@ -254,7 +254,8 @@ inline Message parse(const char *data, size_t size) {
   return m;
 }
 
-// A request from Lua (coop-request.txt): "host", "invite", "leave", "report", "join" (a friend's lobby),
+// A request from Lua (coop-request.txt): "host", "host private" (who_can_join=private: a lobby joined by invite
+// only), "invite", "leave", "report", "join" (a friend's lobby),
 // "join <lobby id>", and for the pose path "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>",
 // "loopback off", "record", "record off", "replay" and "replay off"; for the Night Operation probe (Phase 6, T6 only)
 // "nightop" (start the read-only poller) and "nightop rule" (start it if needed and arm the verdict, once a run); for
@@ -274,6 +275,7 @@ struct Request {
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off.
   bool rule = false;                     // nightop rule.
+  bool invite_only = false;              // host private.
   Fight fight = Fight::none;
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
@@ -327,9 +329,10 @@ inline Request parse_request(std::string text) {
     return parse_fight(text.substr(6));
   Request r;
   std::string f[4];
-  if (text == "host")
+  if (text == "host" || text == "host private") {
     r.command = Command::host;
-  else if (text == "invite")
+    r.invite_only = text.size() > 4;
+  } else if (text == "invite")
     r.command = Command::invite;
   else if (text == "leave")
     r.command = Command::leave;

@@ -85,7 +85,8 @@ passes every 50 ms, and every 5 ms while poses flow (the loopback, a recording, 
 
 ### Lobby and invites
 
-- `coop host` creates a **friends-only lobby** with room for **2 players** and opens Steam's invite dialog. The lobby
+- `coop host` creates a **friends-only lobby** with room for **2 players** (a **private** one, joined by invite only,
+  with `who_can_join=private`: Lua then asks `host private`) and opens Steam's invite dialog. The lobby
   carries a tag under the key `stellarcoop`: the protocol and the game's Steam build (`8:<build>`). A lobby from
   another protocol or game build is refused on joining, with both versions in the joiner's log and on screen.
 - An accepted invite arrives as a Steam callback, or as `+connect_lobby <id>` on the command line when Steam starts the

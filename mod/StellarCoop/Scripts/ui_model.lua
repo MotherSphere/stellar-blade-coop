@@ -43,7 +43,7 @@ M.OPTIONS={
     toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
     range('send_rate',10,30,1,20),
     {head='session'},
-    later({key='who_can_join',values={'friends','private'},default='friends'}),
+    {key='who_can_join',values={'friends','private'},default='friends'}, -- At the next host.
     later(toggle('rejoin','on')),
     {head='combat'},
     reload(toggle('shared_enemies','off')),

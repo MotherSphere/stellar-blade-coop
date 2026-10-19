@@ -902,6 +902,10 @@ to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
 to('Poses sent a second'); key('RIGHT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=21')
+to('Who can join'); key('RETURN')
+assert(settings_text:find('\nwho_can_join=private\n',1,true) and select(2,focus())=='Invited only')
+coop('host'); assert(asked[#asked]=='host private','At once: the next Host is private')
+key('RETURN'); coop('host'); assert(asked[#asked]=='host' and select(2,focus())=='Friends')
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
     and menu_view.note.s=='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
@@ -911,7 +915,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^HP marker|On|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^Partner card|On|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 -- A write that fails: said, nothing changed.
@@ -971,6 +975,11 @@ key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
 settings_text='menu_key=F5\nhost_key=F9\n'
 load_main(true)
 key('F9'); assert(asked[#asked]=='host' and logged('key F9: host'))
+-- who_can_join=private: Host asks for a private lobby (invited only), from the key, the console or the menu.
+settings_text='menu_key=F5\nhost_key=F9\nwho_can_join=private\n'
+load_main(true)
+key('F9'); assert(asked[#asked]=='host private' and logged('key F9: host'))
+coop('host'); assert(asked[#asked]=='host private' and last():find('OK: asked the native part: host private',1,true))
 settings_text,in_world,kit_ready='',false,false
 
 -- The session chat (chat.lua's view for real on the fake kit; its model a spy). Enter, queued to the game thread:

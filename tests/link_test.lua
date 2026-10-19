@@ -174,11 +174,16 @@ s,notes=Link.parse_settings('UI_Scale=75\nui_sounds=OFF\nui_language=English\n')
 assert(#notes==0 and s.ui_scale==75 and s.ui_sounds==false and s.ui_language=='english')
 for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','use 75 to 150','100'},
         {'ui_scale','1.5','use 75 to 150','100'},{'ui_sounds','yes','use on or off','on'},
-        {'ui_language','french','use game or english','game'}}) do
+        {'ui_language','french','use game or english','game'},
+        {'who_can_join','public','use friends or private','friends'},
+        {'photo_sync','pause','use both, notice or off','both'}}) do
     s,notes=Link.parse_settings(bad[1]..'='..bad[2])
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad[2].."' is not allowed for "..bad[1].." ("..bad[3].."); "
         ..bad[1].." stays "..bad[4],notes[1])
 end
+-- Who can join a session hosted here: friends (the default, and an old file's) or private (invited only).
+assert(Link.parse_settings('').who_can_join=='friends' and Link.DEFAULT:find('\nwho_can_join=friends\n',1,true))
+s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='private')
 -- The chat: on or off (off hides her lines and sends none); a new file names it.
 assert(Link.parse_settings('').chat==true and Link.DEFAULT:find('\nchat=on\n',1,true))
 s,notes=Link.parse_settings('Chat=OFF\n'); assert(#notes==0 and s.chat==false)

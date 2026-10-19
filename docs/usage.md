@@ -59,8 +59,8 @@ just said something there. The menu closes by itself when the game pauses or sho
 screens.
 
 **Options.** Each row is a setting of [coop-settings.txt](#coop-settingstxt): the keys, the synced photo mode, the name
-tag and the [partner HUD](#partner-hud), the ghost's looks and send rate, the shared enemies, the menu's own size, sounds and language, and the chat. Left
-and right change a value; Enter changes it too. Each change rewrites only that setting's line in `coop-settings.txt`
+tag and the [partner HUD](#partner-hud), the ghost's looks and send rate, who can join a session you host, the shared
+enemies, the menu's own size, sounds and language, and the chat. Left and right change a value; Enter changes it too. Each change rewrites only that setting's line in `coop-settings.txt`
 (comments and other lines stay), and the first change after the mod loads keeps the file as it was as
 `coop-settings.old.txt`. A change applies at once, except the name tag and the shared enemies: those say `It takes
 effect when the mod reloads`.
@@ -131,8 +131,10 @@ all, like the rest of the mod's screen.
 
 ## Playing with a friend
 
-1. The host presses F5 and selects **Host a session**. This creates a friends-only Steam lobby for 2 players and opens
-   the Steam invite dialog. Pick your friend there.
+1. The host presses F5 and selects **Host a session**. This creates a Steam lobby for 2 players and opens the Steam
+   invite dialog. Pick your friend there. By default the lobby is friends-only: your Steam friends with the mod can
+   also join from their friends list or with `coop join`. With Options > Session > Who can join set to **Invited only**
+   (`who_can_join=private`), only the friends you invite can join. The setting counts for the next session you host.
 2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
    (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
    save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
@@ -185,7 +187,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Host a friends-only session (2 players) and open the Steam invite dialog (the menu's first row) |
+| `coop host` | Host a session (2 players, friends-only or invited only by `who_can_join`) and open the Steam invite dialog (the menu's first row) |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
 | `coop join <lobby id>` | Join that lobby (digits only) |
@@ -355,6 +357,9 @@ menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
+# Who can join a session you host: friends (your Steam friends can join from their friends list) or private (only the
+# friends you invite).
+who_can_join=friends
 # Your friend's Steam name above her ghost: on or off.
 name_tag=on
 # Poses sent to your friend a second: 10 to 30.
@@ -396,6 +401,7 @@ card_details=on
 | `host_key` | same, or `none`: hosts at once | `none` |
 | `status_key` | same, without `none` | `F6` |
 | `leave_key` | same | `F8` |
+| `who_can_join` | `friends` or `private`: who can join a session you host (private: only the friends you invite) | `friends` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `30` poses sent a second | `20` |
 | `cloth` | `on` or `off` | `off` |

@@ -55,7 +55,8 @@ struct NetMessage { // SteamNetworkingMessage_t: only the first fields are read.
 static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(LobbyEnter) == 24 &&
                   sizeof(JoinRequested) == 16 && sizeof(Identity) == 136 && offsetof(NetMessage, peer) == 16,
               "Steamworks 1.59 layouts");
-constexpr int kFriendsOnly = 1, kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
+constexpr int kPrivate = 0, kFriendsOnly = 1; // ELobbyType: who_can_join=private, friends.
+constexpr int kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
@@ -671,8 +672,10 @@ private:
         event("busy: a lobby call is still pending, host ignored");
       } else {
         leave("hosting instead");
-        create_call_ = api_.create_lobby(mm_, kFriendsOnly, kMaxMembers);
-        event(create_call_ ? "creating a friends-only lobby" : "Steam refused to create a lobby");
+        create_call_ = api_.create_lobby(mm_, r.invite_only ? kPrivate : kFriendsOnly, kMaxMembers);
+        event(!create_call_   ? "Steam refused to create a lobby"
+              : r.invite_only ? "creating a private lobby (invite only)"
+                              : "creating a friends-only lobby");
         if (!create_call_)
           notice("Could not host: Steam refused.");
       }

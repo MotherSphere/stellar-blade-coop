@@ -53,6 +53,8 @@ Remember that StellarCoop is an experimental pre-release, played in only a few s
 - `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
   invite, or use `coop join <lobby id>`.
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
+- The host set Who can join to Invited only (`who_can_join=private`): `coop join` and the Steam friends list do not
+  find that session. The host invites them from the menu (Invite a friend) instead.
 
 ### I do not see my friend's ghost
 

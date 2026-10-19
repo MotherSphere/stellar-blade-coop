@@ -56,9 +56,9 @@ protocol ..., build ...; yours runs ...`. StellarCoop versions before this one o
 
 ## Keys and settings
 
-- `F5`, the co-op menu. Its first row, Host a session, opens a friends-only session and the Steam invite dialog; pick
-  your friend there. While you host, the menu has Invite and Leave instead. Arrows (or WASD, ZQSD) move, Enter
-  selects, Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
+- `F5`, the co-op menu. Its first row, Host a session, opens a session (friends-only unless Options sets invited only)
+  and the Steam invite dialog; pick your friend there. While you host, the menu has Invite and Leave instead. Arrows
+  (or WASD, ZQSD) move, Enter selects, Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
 - `F6`, status: one line above EVE and in `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8`, leave the session. When the host leaves, the guest leaves too.
 

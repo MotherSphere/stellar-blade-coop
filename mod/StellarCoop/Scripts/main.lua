@@ -154,7 +154,10 @@ if settings and not settings.shared_enemies and not off
     log((ok and 'OK: ' or 'STOP: ')..'shared_enemies=off: '..tostring(why))
 end
 local commands={
-    puppet=puppet.toggle, host=ask('host'), invite=ask('invite'), leave=ask('leave'), report=ask('report'),
+    puppet=puppet.toggle, invite=ask('invite'),
+    -- who_can_join=private: a lobby only the friends invited can join (the native part's Steam private lobby).
+    host=function() return ask(settings and settings.who_can_join=='private' and 'host private' or 'host')() end,
+    leave=ask('leave'), report=ask('report'),
     join=function(lobby)
         if lobby and link and not link.valid_lobby(lobby) then return false,'a lobby id is digits only' end
         return ask(lobby and 'join '..lobby or 'join')()

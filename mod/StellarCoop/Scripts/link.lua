@@ -25,6 +25,9 @@ menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
+# Who can join a session you host: friends (your Steam friends can join from their friends list) or private (only the
+# friends you invite).
+who_can_join=friends
 # Your friend's Steam name above her ghost: on or off.
 name_tag=on
 # Poses sent to your friend a second: 10 to 30.
@@ -65,19 +68,20 @@ card_details=on
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
     dyes='off',effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
-    partner_arrow='on',partner_card='on',card_details='on'}
+    partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends'}
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
     chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
+local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},who_can_join={'friends','private'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
 local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- A setting's value from its text, or nil and why it is refused. A key is keybind.lua's ({key='F7', mod='SHIFT' or nil,
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
--- from 1 to 2^32-1); photo_sync 'both', 'notice' or 'off'; photo_freeze_max a whole number of seconds; ui_scale one of
--- percent; ui_language 'game' or 'english'.
+-- from 1 to 2^32-1); a choice (CHOICES: photo_sync, ui_language, who_can_join) one of its words; photo_freeze_max a
+-- whole number of seconds; ui_scale one of percent.
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -89,10 +93,11 @@ local function setting(name,text)
             ids[#ids+1]=id
         end
         return ids
-    elseif name=='photo_sync' then
+    elseif CHOICES[name] then
+        local list=CHOICES[name]
         text=text:lower()
-        if text=='both' or text=='notice' or text=='off' then return text end
-        return nil,'use both, notice or off'
+        for _,v in ipairs(list) do if text==v then return v end end
+        return nil,'use '..table.concat(list,', ',1,#list-1)..' or '..list[#list]
     elseif name=='photo_freeze_max' then
         local seconds=text:match('^%d+$') and tonumber(text)
         if seconds and (seconds==0 or seconds>=30 and seconds<=3600) then return math.tointeger(seconds) end
@@ -109,10 +114,6 @@ local function setting(name,text)
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end
         return nil,'use 75 to 150'
-    elseif name=='ui_language' then
-        text=text:lower()
-        if text=='game' or text=='english' then return text end
-        return nil,'use game or english'
     end
     return K.parse(name,text)
 end
