@@ -1252,7 +1252,12 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     say(text);
   }
   FightIo io;
-  const bool photo = pinned && !blocked && fight::photo_mode(base, rpm); // Our photo mode pauses it (pinned build).
+  // Our photo mode pauses it (pinned build). Two or three reads, so every kGateMs, not at every 5 ms pass: SB's logic
+  // stands still meanwhile anyway.
+  static bool photo = false;
+  static uint64_t next_photo = 0;
+  if (now_ms >= next_photo)
+    next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
   fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
   return fight_engine.on();
 }

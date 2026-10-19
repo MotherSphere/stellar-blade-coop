@@ -107,6 +107,7 @@ struct JobCounts {
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
+  uint64_t paused = 0;                         // Ticks a paused world put off.
 };
 
 // What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's
@@ -213,8 +214,10 @@ public:
     }
     // A paused world (SB holds a pause tag) stands still for this rule even when its 0 s ticks move the turn while our
     // entry waits [G]: no arm and no idle count, so a long pause never trips the latch below. The beat starts again at
-    // the resume, so the entry still queued gets its turn before a re-arm.
+    // the resume, so the entry still queued gets its turn before a re-arm. Counted, so a tag held while the world
+    // runs shows in the stats line.
     if (paused(g)) {
+      ++counts.paused;
       heartbeat_ms_ = now_ms;
       waiting_ = false;
       return false;
@@ -727,7 +730,7 @@ public:
   }
   // The game thread, after each arm: its counts and thread, for the snapshot.
   void armed(const JobCounts &c, uint32_t thread) {
-    arms_ = c.arms, deferred_ = c.deferred, forced_ = c.forced, game_thread_ = thread;
+    arms_ = c.arms, deferred_ = c.deferred, forced_ = c.forced, paused_ = c.paused, game_thread_ = thread;
   }
 
   // The worker: one of her lines for the job; false when full (lost).
@@ -753,7 +756,8 @@ public:
         on_probe(a);
       s = snapshot_;
     }
-    s.job.arms = arms_, s.job.deferred = deferred_, s.job.forced = forced_, s.game_thread = game_thread_;
+    s.job.arms = arms_, s.job.deferred = deferred_, s.job.forced = forced_, s.job.paused = paused_;
+    s.game_thread = game_thread_;
     return s;
   }
   // The worker, when a session ends: her lines the job has not taken yet are dropped, those already handed over at
@@ -772,7 +776,7 @@ private:
   Snapshot snapshot_;
   uint64_t lost_ = 0; // The logic thread's.
   std::atomic<bool> drop_in_{false}; // Set by clear(), done by the next exchange(): in_ is the logic thread's.
-  std::atomic<uint64_t> arms_{0}, deferred_{0}, forced_{0};
+  std::atomic<uint64_t> arms_{0}, deferred_{0}, forced_{0}, paused_{0};
   std::atomic<uint32_t> game_thread_{0};
 };
 
@@ -1135,11 +1139,11 @@ private:
                     u(c.bad));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
-                  "; job: %llu turns, %llu arms (%llu deferred, %llu forced), %llu stale, %llu doubled, %llu in "
-                  "another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE; %llu lost, "
-                  "%llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic thread %u "
-                  "(SB's %u), game thread %u",
-                  u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.stale), u(j.doubled), u(j.mode),
+                  "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
+                  "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE; "
+                  "%llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic "
+                  "thread %u (SB's %u), game thread %u",
+                  u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
                   u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.trace(std::string(head) + tail);

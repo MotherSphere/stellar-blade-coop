@@ -770,7 +770,7 @@ int main() {
       assert(!e->arm(g, t));
       g.mem.put(g.logic + kTurn, g.turn() + 1); // A 0 s tick: the turn moves, our entry does not run.
     }
-    assert(e->counts.arms == 1 && e->counts.turns == turns && !e->latched());
+    assert(e->counts.arms == 1 && e->counts.turns == turns && !e->latched() && e->counts.paused == 60000 / 16);
     g.mem.put<int32_t>(tags + kTagsFree, 1); // Removed: its slot free.
     const uint64_t last = t - 16;
     for (; e->counts.arms == 1 && t < last + 2000; t += 16)
@@ -781,9 +781,25 @@ int main() {
     const std::string sent = lines(g);
     assert(e->counts.arms == 2 && e->counts.turns > turns + 50 && e->counts.stale == 0 && !e->latched());
     assert(e->host.linked() == 1 && !has(sent, "SBF7 on") && !has(sent, "SBF7 up") && has(sent, "SBF7 hp"));
+    assert(e->counts.paused == 60000 / 16);
     // An implausible pointer where the pause tags' singleton should be: off for the run.
     g.mem.put<uint64_t>(pauser, 0x1235);
     assert(!e->arm(g, t) && std::string(e->why()) == "implausible pause tags");
+  }
+  // A first arm put off by a logic task in flight, then a pause longer than the 500 ms fallback: the resume starts
+  // the deferral's clock again, so no push is forced at once onto a key the worker may have drained.
+  {
+    Game g;
+    auto e = engine(true, true);
+    const uint64_t tags = g.mem.alloc(0x220);
+    g.mem.put(rebased(coop::nightop::kGlobals) + kPauseAt, tags);
+    g.mem.put<uint64_t>(g.logic + kTask, 0x51ca);
+    assert(!e->arm(g, 0) && e->counts.deferred == 1);
+    g.mem.put<int32_t>(tags + kTagsNum, 1);
+    for (uint64_t t = 16; t <= 1000; t += 16)
+      assert(!e->arm(g, t));
+    g.mem.put<int32_t>(tags + kTagsFree, 1);
+    assert(!e->arm(g, 1016) && e->counts.deferred == 2 && e->counts.forced == 0 && e->counts.arms == 0);
   }
   // photo_mode(): SB's logic stands still in photo mode with the free or the cutscene camera, not with the selfie's;
   // nothing before the manager is made.
@@ -881,12 +897,13 @@ int main() {
     s.runs = 7;
     assert(mail.exchange(s));
     JobCounts armed;
-    armed.arms = 5, armed.deferred = 2, armed.forced = 1;
+    armed.arms = 5, armed.deferred = 2, armed.forced = 1, armed.paused = 3;
     mail.armed(armed, 77);
     Snapshot got = take();
     assert((out == std::vector<std::string>{"SBF7 up 1 101 5001 0 900 1600", "SBF7 hp 1 1 0 101:1600:100:200"}));
     assert((said == std::vector<std::string>{"paired 5001:0 hguid=101"}) && got.runs == 7 && got.lost == 0);
-    assert(got.job.arms == 5 && got.job.deferred == 2 && got.job.forced == 1 && got.game_thread == 77);
+    assert(got.job.arms == 5 && got.job.deferred == 2 && got.job.forced == 1 && got.job.paused == 3 &&
+           got.game_thread == 77);
     // Hers: in at the next hand-over, in order; dropped when cleared before it.
     Message m;
     assert(mail.give(msg("SBF7 world 3")) && mail.give(msg("SBF7 on")) && !mail.receive(m));
