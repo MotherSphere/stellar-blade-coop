@@ -361,6 +361,13 @@ files[CHAT]='in Coucou\nfail\nin ça va ?\nin \njunk\nfail now\nin  two spaces\n
 local chat=link.take_chat()
 assert(#chat==4 and chat[1].text=='Coucou' and chat[2].fail and chat[3].text=='ça va ?' and chat[4].text==' two spaces')
 assert(files[CHAT]==nil and #link.take_chat()==0,'Taken: deleted at once')
+local remove=fs.remove
+fs.remove=function() return nil,'in use' end -- An indexer holds it: read again next time, never shown twice.
+files[CHAT]='in once\n'
+assert(#link.take_chat()==0 and files[CHAT]=='in once\n')
+fs.remove=remove
+chat=link.take_chat()
+assert(#chat==1 and chat[1].text=='once' and files[CHAT]==nil and #link.take_chat()==0)
 
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change four times a second),
 -- the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds: a friend
@@ -385,6 +392,15 @@ assert(fresh.chatting()==true and fresh.mate()==nil,'Lost but linked: the sessio
 files[STATUS]='mod=v steam=ready\nlink=none lobby=0 rejoin=1/3\n'
 fresh.changes()
 assert(fresh.chatting()==true,'A rejoin keeps the session')
+-- Back in her lobby, rejoin= is gone before the handshake: the session holds until she is linked, then as any link.
+local GUEST='mod=v steam=ready\nlink=guest lobby=7000\n'
+for _,step in ipairs({{nil,nil},{GUEST,true},{GUEST..'friend=0 0 Host\n',true},{GUEST..'friend=1 0 Host\n',true},
+        {GUEST..'friend=0 0 Host\n',false},{'mod=v steam=ready\nlink=none lobby=0 rejoin=2/3\n',true},
+        {'mod=v steam=ready\nlink=none lobby=0\n',false},{GUEST..'friend=0 0 Host\n',false}}) do
+    files[STATUS]=step[1]
+    fresh.changes()
+    assert(fresh.chatting()==step[2],tostring(step[1])) -- The first: an unread status, which ends nothing (nil).
+end
 for _,engine in ipairs({'engine=on loopback=on 0 0 0','engine=on loopback=waiting'}) do
     files[STATUS]='mod=v steam=ready\n'..engine..'\nlink=none lobby=0\n'..MATE
     fresh.changes()
@@ -393,7 +409,10 @@ end
 files[STATUS]='mod=v steam=ready\nengine=on\nlink=none lobby=0\nfriend=0 0 x loopback=on 0 0 0\n'
 fresh.changes()
 assert(fresh.chatting()==false,'Only the pose path\'s line says loopback')
+files[STATUS]='mod=v steam=waiting\nengine=on loopback=on 0 0 0\n'
+fresh.changes()
+assert(fresh.chatting()==false,'Before Steam is ready, the native part would drop a line without a word')
 files[STATUS]=nil
 fresh.changes()
-assert(fresh.chatting()==false and fresh.mate()==nil and fresh.ping()==nil)
+assert(fresh.chatting()==nil and fresh.mate()==nil and fresh.ping()==nil,'Not read: nil, which ends nothing')
 print('link_test ok')

@@ -127,6 +127,18 @@ package.loaded.ui={new=function(log)
     return {test=function(game) ui_tests[#ui_tests+1]=game; return true,'UI test on screen' end,
         tick=function() ui_ticks=ui_ticks+1 end,stop=function() ui_stops=ui_stops+1 end}
 end}
+-- chat.lua's calls as main.lua makes them, each as its words (chat_test tests the model itself).
+local chat_calls={}
+package.loaded.chat={new=function()
+    local function spy(name)
+        return function(...)
+            local words={name}
+            for i=1,select('#',...) do words[#words+1]=tostring((select(i,...))) end
+            chat_calls[#chat_calls+1]=table.concat(words,' ')
+        end
+    end
+    return {session=spy('session'),receive=spy('receive'),fail=spy('fail'),clear=spy('clear')}
+end}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
@@ -293,11 +305,16 @@ for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effec
 end
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
 loops[2].f()
--- coop-chat.txt: taken at every pass, session or not, so it never stays on disk; no text of it is ever logged.
-local takes=chat_takes
+-- coop-chat.txt: taken at every pass, session or not, so it never stays on disk; no text of it is ever logged. Its
+-- lines reach the chat after the pass's session check, with her name; an unread status (nil) ends no session.
+local takes,calls=chat_takes,#chat_calls
 chat_lines={{text='secret one'},{fail=true}}; loops[2].f()
 chatting=true; chat_lines={{text='secret two'}}; loops[2].f()
-assert(chat_takes==takes+2 and #chat_lines==0 and not table.concat(printed,'|'):find('secret'))
+chatting=nil; loops[2].f()
+assert(chat_takes==takes+3 and #chat_lines==0 and not table.concat(printed,'|'):find('secret'))
+local made=table.concat(chat_calls,'|',calls+1)
+assert(made:find('^session false|receive Kaanta secret one [%d.]+|fail|session true|receive Kaanta secret two [%d.]+$'),
+    made)
 chatting=false
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
 assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
@@ -359,6 +376,9 @@ local written=#states
 takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
+assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
+chatting=true; loops[2].f(); chatting=false
+assert(chat_calls[#chat_calls]=='session false','No session after coop off, whatever the link says')
 assert(#states==written,'No world state after coop off: no engine access')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 local lines

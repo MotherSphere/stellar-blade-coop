@@ -311,7 +311,8 @@ if link then
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         chat_clock=chat_clock+0.25
-        chat.session(not off and link.chatting())
+        local chatting=link.chatting() -- nil: the status was not read, which ends no session.
+        if off or chatting~=nil then chat.session(not off and chatting) end
         for _,line in ipairs(link.take_chat()) do
             if line.fail then chat.fail() else chat.receive((link.friend()) or '',line.text,chat_clock) end
         end
