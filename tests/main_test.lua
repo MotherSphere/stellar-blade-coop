@@ -1121,6 +1121,16 @@ coop('fight','off'); assert(asked[1]=='fight off','Off needs no tick')
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
 load_main(true)
 kit_ready=true; quarter()
+-- Once a minute with the UI up: the Lua frame time of the ghost's place and of the UI's ticks, over the minute's frames.
+local start=clock
+loops[1].f(); clock=clock+30; loops[1].f()
+assert(not logged('Lua frame time'),'Not before a minute')
+clock=start+60; loops[1].f()
+assert(last():find('^%[StellarCoop%] Lua frame time, last 60 s: ghost 0%.000 ms, UI 0%.000 ms a frame %(3 frames%)'),
+    last())
+local lines=#printed
+kit_ready=false; clock=start+120; loops[1].f(); kit_ready=true
+assert(#printed==lines,'Not while the UI is down (a map loads, warming)')
 key('F5'); assert(kit_shown.menu and kit_input)
 coop('ui','reset')
 assert(not kit_shown.menu and kit_calls[#kit_calls]=='reset nil' and last()=='[StellarCoop] OK: co-op UI reset: menu '

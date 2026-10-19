@@ -127,6 +127,11 @@ Every 60 s, `coop-link.log` has lines that help with performance problems:
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 250.
 
+`UE4SS.log` has one more each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s: ghost
+<x> ms, UI <y> ms a frame (<n> frames)`, the game-thread cost of placing the ghost and of the co-op menu, chat and
+partner HUD. To see what the marker and the arrow cost, compare a minute with them on and a minute with Options >
+Partner > HP marker and Off-screen arrow off.
+
 A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.
 
 ## Which logs to send

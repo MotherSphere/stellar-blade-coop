@@ -311,6 +311,10 @@ end
 -- came from the console around then (typed_at): UE4SS calls our Enter bind whatever has the keyboard, so that Enter was
 -- the console's. Its own state is not reflected, so other console commands may still open the box.
 local chat_asked,typed_at=nil,-math.huge
+-- The Lua frame time of the ghost's place and of the UI's ticks (UI-DESIGN 7.3, measured in T-UI1), summed and logged
+-- once a minute with the UI up. os.clock steps by whole ms under the game's C runtime: over a minute's frames the sum
+-- averages out.
+local timed={ghost=0,ui=0,frames=0,since=nil}
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
@@ -323,8 +327,10 @@ LoopInGameThreadWithDelay(1,function()
     local ok,message=puppet.tick()
     if message then report(ok,message) end
     if native_tick then native_tick() end
+    local placed=os.clock()
     ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
     if message then report(ok,message) end
+    placed=os.clock()-placed
     ok,message=notice.tick()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
@@ -346,6 +352,16 @@ LoopInGameThreadWithDelay(1,function()
                 local _,why=box.open() -- Said on screen only: Enter is the game's too.
                 if why then say(why) end
             end
+        end
+        local t=os.clock()
+        timed.since=timed.since or t
+        timed.ghost,timed.ui,timed.frames=timed.ghost+placed,timed.ui+t-now,timed.frames+1
+        if t-timed.since>=60 then
+            if kit.ready() then
+                log(string.format('Lua frame time, last 60 s: ghost %.3f ms, UI %.3f ms a frame (%d frames)',
+                    timed.ghost*1000/timed.frames,timed.ui*1000/timed.frames,timed.frames))
+            end
+            timed={ghost=0,ui=0,frames=0,since=t}
         end
     end
 end)
