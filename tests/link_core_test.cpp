@@ -1649,10 +1649,10 @@ int main() {
 
   // The synced photo mode between two Links, A hosting (Me) and B (Kaanta). No photo line goes before photo() is first
   // called; then each sends its line once linked and on each change. A's photo mode pauses B (photo_sync=both on both)
-  // at B's next pass, with a notice on both screens, until A leaves photo mode (P1); both in photo mode, each holds a
-  // pause for the other until the other leaves (P3); a selfie gives a notice only (Q2); B's photo_freeze_max ends its
-  // pause until A's next photo session; A silent for 10 s releases B, which pauses again when A is back still in photo
-  // mode, and A leaving releases B at once (P4).
+  // at B's next pass, with a notice on B's screen and a line in A's log, until A leaves photo mode (P1); both in photo
+  // mode, each holds a pause for the other until the other leaves (P3); a selfie gives a notice only (Q2); B's
+  // photo_freeze_max ends its pause until A's next photo session; A silent for 10 s releases B, which pauses again when
+  // A is back still in photo mode, and A leaving releases B at once (P4).
   struct Side {
     char photo = '0';
     Sync sync = Sync::both;
@@ -1696,7 +1696,7 @@ int main() {
     assert(t.b.photo_freeze() && !t.a.photo_freeze() && last_photo(kMe, kFriend) == photo_line('1', true));
     assert(t.b.photo_status(true) == "photo=0 peer_photo=1 frozen=1 sync=both");
     assert(fresh_notices(t.b, mb) == Texts{"Me is taking photos: game paused. Esc > Photo Mode to join in."});
-    assert(fresh_notices(t.a, ma) == Texts{"Photo mode: Kaanta's game is paused."});
+    assert(fresh_notices(t.a, ma).empty() && saw("A: photo mode: Kaanta's game is paused"));
     assert(saw("B: Me photo=1 both") && saw("B: photo pause on: Me is taking photos"));
     pass();
     assert(t.b.photo_freeze() && fresh_notices(t.b, mb).empty() && sent_to(kFriend, any) == 2);
@@ -1742,6 +1742,11 @@ int main() {
     for (int i = 0; i < 10; ++i)
       pass(1000);
     assert(!t.b.photo_freeze() && fresh_notices(t.b, mb).empty());
+    sa.photo = 's'; // The selfie camera and back within the same photo session: still capped.
+    pass();
+    sa.photo = '1';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb) == Texts({"Me is taking a selfie.", "Me is taking photos."}));
     sa.photo = '0';
     pass();
     sa.photo = '1';
@@ -1764,6 +1769,28 @@ int main() {
     assert(t.b.photo_freeze() &&
            fresh_notices(t.b, mb) ==
                Texts({"Me is back.", "Me is taking photos: game paused. Esc > Photo Mode to join in."}));
+    // A broken session: 11 s with nothing arriving either way, A leaving photo mode meanwhile, so its line is lost.
+    // Each side sends its line again once it hears the other back: B pauses one pass on A's old line, then resumes.
+    sa.photo = '0';
+    for (int i = 0; i < 11; ++i) {
+      t.a.photo(sa.photo, sa.sync, sa.max);
+      t.tick(t.a, 1000);
+      inbox(1, kChannel).clear();
+      t.b.photo(sb.photo, sb.sync, sb.max);
+      t.tick(t.b, 0);
+      inbox(0, kChannel).clear();
+    }
+    assert(!t.b.photo_freeze() && last_photo(kMe, kFriend) == photo_line('0', true));
+    assert(fresh_notices(t.b, mb) == Texts({"Me: connection lost.", "Game resumed."}));
+    pass(1000); // A ping each 2 s: B hears A back, A hears B back at the next.
+    pass(1000);
+    assert(!t.b.photo_freeze() && t.b.photo_status(false) == "photo=0 peer_photo=0 frozen=0 sync=both");
+    assert(fresh_notices(t.b, mb) ==
+           Texts({"Me is back.", "Me is taking photos: game paused. Esc > Photo Mode to join in.", "Game resumed."}));
+    sa.photo = '1';
+    pass();
+    assert(t.b.photo_freeze());
+    fresh_notices(t.b, mb);
     t.tick(t.a, 50, "leave"); // P4: A leaves.
     F.owner[5000] = kFriend;  // Steam hands her lobby over.
     t.tick(t.b, 0);
@@ -1771,9 +1798,10 @@ int main() {
     assert(fresh_notices(t.b, mb) == Texts({"Session ended: Me left.", "Game resumed."}));
   }
 
-  // The settings differ: B on photo_sync=notice gets a notice and no pause, and A hears once a session that B has photo
-  // sync off; A on notice pauses nobody, and B says why; B on off sends "0 notice", shows nothing and pauses for
-  // nobody, and turning it off releases a friend B's photo mode paused. Her hello gets our line again (a rejoin heals).
+  // The settings differ: B on photo_sync=notice gets a notice and no pause, and A hears once a session that B's game
+  // does not pause for photos; A on notice pauses nobody, and B says why; B on off sends "0 notice", shows nothing and
+  // pauses for nobody, and turning it off releases a friend B's photo mode paused. Her hello gets our line again (a
+  // rejoin heals).
   reset();
   {
     Two t;
@@ -1804,7 +1832,7 @@ int main() {
     sa.photo = '1';
     pass();
     assert(!t.b.photo_freeze() && fresh_notices(t.b, mb) == Texts{"Me is taking photos."});
-    assert(fresh_notices(t.a, ma) == Texts{"Kaanta has photo sync off."});
+    assert(fresh_notices(t.a, ma) == Texts{"Kaanta's game does not pause for photos."});
     sa.photo = '0';
     pass();
     sa.photo = '1';
@@ -1816,7 +1844,7 @@ int main() {
     sa.photo = '1';
     pass();
     assert(!t.b.photo_freeze() && fresh_notices(t.a, ma).empty());
-    assert(fresh_notices(t.b, mb) == Texts{"Me is taking photos (photo sync is off on their side)."});
+    assert(fresh_notices(t.b, mb) == Texts{"Me is taking photos (their photo sync gives notices only)."});
     sa.photo = '0', sa.sync = Sync::both, sb.sync = Sync::off, sb.photo = '1';
     pass();
     assert(last_photo(kFriend, kMe) == photo_line('0', false) && !t.a.photo_freeze());

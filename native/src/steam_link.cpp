@@ -385,8 +385,10 @@ bool step() {
       }
     }
     bool linked = loaded && ready != coop::Link::Ready::no && !switched_off && link->linked();
-    // The friend's photo mode holds our pause while the link says so; a fault's line goes on screen.
-    std::string said = coop::pose::freeze_pass(loaded && !switched_off && link->photo_freeze(), GetTickCount64());
+    // The friend's photo mode holds our pause while the link says so and a save is loaded (the title screen has nothing
+    // to pause); a fault's line goes on screen.
+    std::string said = coop::pose::freeze_pass(
+        loaded && !switched_off && link->photo_freeze() && coop::pose::world_loaded(), GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
     // Channel 2 both ways between the link and the shared fight's job; the lobby owner hosts it. Ours is queued for

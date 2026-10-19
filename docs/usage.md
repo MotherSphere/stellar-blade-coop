@@ -218,8 +218,9 @@ first (see [saves.md](saves.md)).
 ### `coop off`
 
 `coop off` stops everything until the game restarts, even across a Lua reload: the ghost, EVE's capture, the loopback,
-a recording (which is written), a replay, the native tick, engine reads, the Steam link, the screen notices, the
-Night Operation poller, a recruiter (despawned when one was asked, in Xion) and the photo pause (released).
+a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the Night Operation
+poller, a recruiter (despawned when one was asked, in Xion) and the photo pause (released: only for this does the
+native tick still run).
 Afterwards only `coop status` and `coop report` answer; every other command answers
 `STOP: coop off is active until the game restarts`.
 
@@ -337,8 +338,8 @@ screen they go to the log only. If the engine refuses the line, screen notices s
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | Ghost failed 3 times on one table | `Ghost failed 3 times: the reason is in UE4SS.log.` |
 | Your friend's photo mode pauses you | `<name> is taking photos: game paused. Esc > Photo Mode to join in.`, then `Game resumed.` or `Paused for <n> min: game resumed.` (`photo_freeze_max`) |
-| Your friend's photo mode, no pause | `<name> is taking photos.` (your `photo_sync=notice`), `<name> is taking photos (photo sync is off on their side).` or `<name> is taking a selfie.` |
-| Your photo mode | `Photo mode: <name>'s game is paused.`, or once a session `<name> has photo sync off.` (shown when you leave photo mode) |
+| Your friend's photo mode, no pause | `<name> is taking photos.` (your `photo_sync=notice`), `<name> is taking photos (their photo sync gives notices only).` or `<name> is taking a selfie.` |
+| Your photo mode | Once a session, `<name>'s game does not pause for photos.` (shown when you leave photo mode) |
 | The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
 
 ## Status lines

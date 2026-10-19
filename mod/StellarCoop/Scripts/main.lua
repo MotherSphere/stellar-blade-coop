@@ -64,7 +64,12 @@ local notice=require('notice').new()
 local puppet=require('puppet').new(link,capture,notice.say,settings and settings.name_tag,look)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
-local off=link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
+local function native_off()
+    return link~=nil and ('\n'..(link.status() or '')):find('\nengine=[^\r\n]* reason=coop_off')~=nil
+end
+local off=native_off()
+-- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
+local blocked=off
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
@@ -250,7 +255,7 @@ RegisterConsoleCommandHandler('coop',function(_,parameters)
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
-    if off then return end
+    if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
     if native_tick then native_tick() end
@@ -289,6 +294,7 @@ if link then
         fight_was=now
     end
     LoopInGameThreadWithDelay(250,function()
+        if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if fight_auto and not off then
             local verdict=(slot_line() or ''):match('^slot=(%a+)')

@@ -636,7 +636,7 @@ void guarded_freeze() {
   }
   if (!freeze_faulted)
     return;
-  if (freeze_name && freeze.held()) {
+  if (freeze_name) { // Even unheld: a fault inside an add may come after our tag went into SB's set.
     __try {
       freeze_release();
     } __except (EXCEPTION_EXECUTE_HANDLER) {

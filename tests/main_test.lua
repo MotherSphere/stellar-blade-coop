@@ -339,6 +339,8 @@ assert(#asked==before and #printed==lines+2 and printed[lines+1]=='[StellarCoop]
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
+assert(ticks==4 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
@@ -353,7 +355,7 @@ coop(); assert(last():find('Use: coop',1,true))
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=off reason=coop_off\nlast=#9 coop off\n'
 load_main(true)
 coop('host'); assert(last():find('coop off is active until the game restarts',1,true),last())
-loops[1].f(); assert(ticks==0,'Still no native tick')
+loops[1].f(); assert(ticks==1,'Still the native tick alone: a pause tag held before the reload goes')
 loops[2].f(); assert(#states==0,'Nor a world state')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'

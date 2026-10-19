@@ -248,7 +248,7 @@ struct Peer {
   Window pose_window, fight_window; // Channels 1 and 2, received.
   // The synced photo mode: her state and whether her photo mode may pause our game, from her last photo line ('0' and
   // no before one); our line as she last got it (sent again after each hello of hers, so a rejoin heals); whether
-  // "has photo sync off" was said for her; her photo lines' window.
+  // "does not pause for photos" was said for her; her photo lines' window.
   char photo = '0';
   bool photo_both = false, photo_off_said = false;
   std::string photo_sent;
@@ -843,6 +843,7 @@ private:
         peer->lost = false;
         event(peer->name + " is back");
         notice(peer->name + " is back.");
+        peer->photo_sent.clear(); // Our last photo line may have gone with a broken session: it goes again.
       }
       on_message(*peer, message);
     }
@@ -1086,8 +1087,8 @@ private:
       }
     const char theirs = p && !p->lost ? p->photo : '0';
     const bool asked = sync_ == Sync::both && theirs == '1' && p->photo_both;
-    if (theirs != '1')
-      capped_ = false; // The next photo session of hers pauses us again.
+    if (theirs == '0')
+      capped_ = false; // The next photo session of hers pauses us again (a selfie within one is no new one).
     const bool cap = asked && freeze_ && photo_max_ && now_ - freeze_since_ >= uint64_t(photo_max_) * 1000;
     capped_ = capped_ || cap;
     const bool want = asked && !capped_;
@@ -1095,15 +1096,16 @@ private:
       const std::string &name = p->name;
       notice(theirs == 's'                ? name + " is taking a selfie."
              : want                       ? name + " is taking photos: game paused. Esc > Photo Mode to join in."
-             : sync_ == Sync::both        ? name + " is taking photos (photo sync is off on their side)."
-                                          : name + " is taking photos.");
+             : sync_ == Sync::both && !p->photo_both ? name + " is taking photos (their photo sync gives notices only)."
+                                                     : name + " is taking photos.");
     }
     if (sync_ != Sync::off && photo_ == '1' && mine_ != '1' && p && !p->lost) {
+      // An event only: our notices wait for the end of our photo mode, when her pause ends too.
       if (p->photo_both && sync_ == Sync::both)
-        notice("Photo mode: " + p->name + "'s game is paused.");
+        event("photo mode: " + p->name + "'s game is paused");
       else if (!p->photo_both && !p->photo_off_said) {
         p->photo_off_said = true; // Once a session.
-        notice(p->name + " has photo sync off.");
+        notice(p->name + "'s game does not pause for photos.");
       }
     }
     if (want && !freeze_) {
