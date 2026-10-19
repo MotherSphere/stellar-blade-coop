@@ -416,10 +416,10 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-chat.txt` | native | Your friend's chat lines, for a moment: Lua takes and deletes it within 250 ms |
 
 The files shared between Lua and the native part are each written whole beside (a `.tmp` file) and renamed over, so
-neither side ever reads one half-written. The native part deletes the capture, remote, display and state files, and any
-stale request or report, when it starts. The two chat files are also deleted when a session starts or ends and when
-the game exits, and chat text never goes into a log, a report or the console. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can
-be older than the previous run.
+neither side ever reads one half-written. The native part deletes the capture, remote, display, state and chat files,
+and any stale request or report, when it starts. The chat files are also deleted when a session ends and when the
+game exits, and chat text never goes into a log, a report or the console. A run without `coop no` writes no probe
+file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.

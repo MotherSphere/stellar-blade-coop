@@ -61,7 +61,7 @@ written whole beside its final name and renamed over, so the reader never sees h
   part has taken the last one, and the native part takes and deletes it at its next pass (every 5 to 50 ms). The
   native part writes your friend's lines into `coop-chat.txt` (`in <text>`, or `fail` for a line of yours that could
   not go) only once Lua has taken the last one, and Lua deletes it when it reads it, every 250 ms. Both are deleted
-  when a session starts or ends, when the native part starts and when the game exits. Chat text is written nowhere
+  when a session ends, when the native part starts and when the game exits. Chat text is written nowhere
   else; a crash dump (`Saved/Crashes`) holds the game's memory, so it may hold lines of the session.
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).

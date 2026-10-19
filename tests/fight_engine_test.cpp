@@ -844,7 +844,11 @@ int main() {
       return vitals(kBase, read, v);
     };
     coop::Vitals v{};
-    assert(sample(v) && reads == 8 && (v == coop::Vitals{1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1}));
+    assert(sample(v) && reads == 8 && (v == coop::Vitals{1501, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1}));
+    stat(1, 0.25f); // A sliver of HP is not down.
+    assert(sample(v) && v[coop::vital::hp] == 1);
+    stat(1, 1600);
+    assert(sample(v) && v[coop::vital::hp] == 1600);
     for (fail_at = 1; fail_at <= 8; ++fail_at)
       assert(!sample(v) && reads == fail_at);
     fail_at = 0;

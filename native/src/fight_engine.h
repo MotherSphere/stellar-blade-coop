@@ -153,8 +153,9 @@ template <class Read> bool photo_mode(uint64_t base, Read &&read) {
 // The local EVE's partner-card numbers (UI-DESIGN 4.3, 5.1), read on our worker through read(address, out, n)
 // (ReadProcessMemory, which fails instead of faulting): the actor manager's local player as SB finds its own EVE
 // (Engine's local_fsb()), with its player flag set; stats 1 to 23 in one read, the life state, then the manager's slot
-// again, so an FSBActor that left the slot during the reads is never taken for ours. False on a failed read, an
-// implausible pointer or a value plausible_vitals() refuses (NaN fails every comparison). Eight reads at most.
+// again, so an FSBActor that left the slot during the reads is never taken for ours. Fractions round up, so a sliver of
+// HP never reads as down. False on a failed read, an implausible pointer or a value plausible_vitals() refuses (NaN
+// fails every comparison). Eight reads at most.
 static_assert(kMaxVital == uint32_t(kMaxStat), "the vit line's bound is the engine's");
 template <class Read> bool vitals(uint64_t base, Read &&read, Vitals &out) {
   constexpr int kType[vital::life] = {1, 2, 7, 8, 11, 14, 15, 18, 19, 22, 23}; // ESBActorStatType, as Vitals orders.
@@ -179,7 +180,7 @@ template <class Read> bool vitals(uint64_t base, Read &&read, Vitals &out) {
     const float x = stats[kType[i] - 1];
     if (!(x >= 0 && x <= float(kMaxVital)))
       return false;
-    v[i] = uint32_t(x);
+    v[i] = uint32_t(std::ceil(x));
   }
   if (life < 0 || life > 255)
     return false;

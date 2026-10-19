@@ -45,7 +45,7 @@ std::wstring folder;           // This DLL's folder, with its trailing separator
 wchar_t log_path[MAX_PATH];    // coop-link.log, kept for the last line written at process exit.
 // The chat's two files (UI-DESIGN 5.2) and their temporaries: coop-say.txt, Lua's typed line, taken at every pass;
 // coop-chat.txt, our lines for Lua, written only while Lua has taken the last. Each lives about 250 ms at most, and all
-// four are deleted at worker start, when a chat session starts or ends, and at process exit (so kept for DllMain).
+// four are deleted at worker start, when a chat session ends, and at process exit (so kept for DllMain).
 wchar_t chat_files[4][MAX_PATH];
 void delete_chat() {
   for (const wchar_t *path : chat_files)
@@ -395,13 +395,13 @@ bool step() {
         link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
-        // Chat and vitals (UI-DESIGN 5): a session's start or end deletes both files; Lua's line goes; ours are read
-        // every 250 ms; her lines (or our failures) go to Lua once it took the last file.
+        // Chat and vitals (UI-DESIGN 5): a session's end deletes both files (a fail line from before its start still
+        // reaches Lua); Lua's line goes; ours are read every 250 ms; her lines (or our failures) go to Lua once it took
+        // the last file.
         const bool chatting = !switched_off && link->chatting();
-        if (chatting != chat_was) {
-          chat_was = chatting;
+        if (chat_was && !chatting)
           delete_chat();
-        }
+        chat_was = chatting;
         if (!switched_off) {
           if (!typed.empty())
             link->say(typed);
