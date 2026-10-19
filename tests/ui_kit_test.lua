@@ -109,6 +109,8 @@ local function reset()
     pc=object('PC')
     registry['/Script/Engine.PlayerController']=object('PlayerController')
     registry['/Script/Engine.Default__GameplayStatics']=object('GameplayStatics')
+    registry['/Script/UMG.Default__WidgetBlueprintLibrary']=object('WidgetBlueprintLibrary')
+    registry['/Script/Engine.Default__KismetInternationalizationLibrary']=object('KismetInternationalizationLibrary')
     for _,c in ipairs({'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar'}) do
         registry['/Script/UMG.'..c]=object(c)
     end
@@ -201,8 +203,8 @@ for i=1,200 do
         for _,o in ipairs(of('Image')) do assert(not stores[o].brush.ResourceObject) end
     end
 end
--- Classes, the PC class and GameplayStatics; then the assets.
-assert(builds[1]==#UMG+3 and builds[2]==#UMG+3+#Ui.ASSETS-SOUNDS+1,table.concat(builds,' '))
+-- Classes, the PC class and three libraries (GameplayStatics, the input modes, the language); then the assets.
+assert(builds[1]==#UMG+5 and builds[2]==#UMG+5+#Ui.ASSETS-SOUNDS+1,table.concat(builds,' '))
 assert(stores[roots[1]].last.RemoveFromParent and roots[2]~=roots[1],'The first root out')
 for i=1,SOUNDS do
     local before=#calls
@@ -213,7 +215,7 @@ for i=1,SOUNDS do
 end
 local n=#calls
 k.slow(true)
-assert(count('find ')==#UMG+2+#Ui.ASSETS and #calls-n==3 and calls[n+3]=='UserWidget.IsInViewport',
+assert(count('find ')==#UMG+4+#Ui.ASSETS and #calls-n==3 and calls[n+3]=='UserWidget.IsInViewport',
     'Then a still-ours, in-the-viewport check only')
 
 -- The build: a plain UserWidget owned by the player, its tree and canvas by hand, a canvas a group; all in before
@@ -628,7 +630,7 @@ assert(ok==false and why==OFF:format('the UI root keeps leaving the viewport') a
 -- The build with the look waits while the menu is open (its rows under the mouse), and comes once it closes.
 reset()
 k=kit()
-for _=1,#UMG+3 do k.slow(true) end
+for _=1,#UMG+5 do k.slow(true) end
 assert(#viewport==1 and #logs==1 and logs[1]:find('while its look warms'))
 k.show('menu',true)
 for _=1,60 do k.slow(true) end
@@ -636,5 +638,53 @@ assert(#logs==1,'Not built again while open')
 k.show('menu',false)
 k.slow(true)
 assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
+
+
+-- The menu's input: the game's keys off while open (UIOnlyEx on our root, no mouse lock), back on at close; each once;
+-- not before the root is up; back on when the kit turns off by a fault, or at coop off.
+reset()
+k=kit()
+local LIB='WidgetBlueprintLibrary.'
+k.input(true)
+assert(count(LIB..'SetInputMode')==0,'No root yet: nothing')
+up(k)
+k.input(true); k.input(true)
+local uionly=stores[registry['/Script/UMG.Default__WidgetBlueprintLibrary']].last.SetInputMode_UIOnlyEx
+assert(count(LIB..'SetInputMode_UIOnlyEx')==1 and uionly[1]==pc and uionly[2]==viewport[1] and uionly[3]==0)
+k.input(false); k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==1
+    and stores[registry['/Script/UMG.Default__WidgetBlueprintLibrary']].last.SetInputMode_GameOnly[1]==pc)
+k.input(true)
+raise['ProgressBar.SetPercent']='boom'
+k.view('menu').bar.set(0.5)
+assert(k.off() and count(LIB..'SetInputMode_GameOnly')==2,'A fault gives the game its input back')
+k.input(true); k.input(false)
+assert(count(LIB..'SetInputMode')==4,'Nothing once off')
+reset()
+k=kit()
+up(k)
+k.input(true); k.stop()
+assert(count(LIB..'SetInputMode_GameOnly')==1,'coop off too')
+reset()
+k=kit()
+up(k)
+k.input(true)
+raise[LIB..'SetInputMode_GameOnly']='refused'
+k.input(false)
+assert(k.off(),'A refused input change turns the kit off, once')
+assert(count(LIB..'SetInputMode_GameOnly')==1,'Not tried again by the fault')
+-- The game paused or not (false when unread), and its language (nil when unread); nothing once off.
+reset()
+k=kit()
+special['GameplayStatics.IsGamePaused']=function(_,_,context) assert(context==pc); return true end
+special['KismetInternationalizationLibrary.GetCurrentLanguage']=function() return 'fr-FR' end
+assert(k.paused()==true and k.language()=='fr-FR')
+raise['GameplayStatics.IsGamePaused']='no world'
+raise['KismetInternationalizationLibrary.GetCurrentLanguage']='gone'
+assert(k.paused()==false and k.language()==nil)
+special['GameplayStatics.IsGamePaused'],special['KismetInternationalizationLibrary.GetCurrentLanguage']=nil,nil
+k.stop()
+n=#calls
+assert(k.paused()==false and k.language()==nil and #calls==n)
 
 print('ui_kit_test ok')

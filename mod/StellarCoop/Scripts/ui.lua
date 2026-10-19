@@ -316,8 +316,9 @@ local VOLUME={}
 for _,a in ipairs(Ui.ASSETS) do VOLUME[a[1]]=a.volume end
 local CLASSES={}
 for _,name in ipairs(UMG) do CLASSES[#CLASSES+1]='/Script/UMG.'..name end
-CLASSES[#CLASSES+1]='/Script/Engine.PlayerController'
-CLASSES[#CLASSES+1]='/Script/Engine.Default__GameplayStatics'
+local STATICS,WIDGETS='/Script/Engine.Default__GameplayStatics','/Script/UMG.Default__WidgetBlueprintLibrary'
+local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
+for _,class in ipairs({'/Script/Engine.PlayerController',STATICS,WIDGETS,LANGUAGE}) do CLASSES[#CLASSES+1]=class end
 -- Text styles: font and size in layout units (UI-DESIGN 3.2's typography).
 local STYLES={title={'Bold',56},item={'Bold',40},name={'Bold',36},hint={'Bold',30},body={'Mideum',34},
     status={'Mideum',30},head={'Mideum',28},num={'AGENCYB',30},label={'FZSHANGYTJW',30}}
@@ -347,7 +348,7 @@ function Ui.kit(opts)
     local store=opts.store or {save=function() end,load=function() end,clear=function() end}
     local self,order,by,cache,found={},{},{},{},{} -- cache: asset name to {o=, full=} or false (not in this build).
     local built,pending,off,said,hidden,swept,lost=nil,nil,false,nil,false,false,0
-    local quiet,no_color,sounding,tweens=false,false,opts.sounds~=false,{}
+    local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
@@ -355,7 +356,16 @@ function Ui.kit(opts)
         local x=w and valid(w.o)
         return x and U.text(x:GetFullName())==w.name and x or nil
     end
+    -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx, our root
+    -- focused; the menu's keys are UE4SS binds, which read the keyboard whatever has focus); off, the game's again.
+    local function input_mode(on)
+        local pc,root=valid(UE.GetPlayerController()),on and alive(built.root)
+        inputting=on
+        if not pc or (on and not root) then return end
+        if on then U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,root,0) else U.find(WIDGETS):SetInputMode_GameOnly(pc) end
+    end
     local function close_all()
+        if inputting then pcall(input_mode,false) end -- A fault or coop off never leaves the game deaf.
         off,tweens=true,{}
         for _,n in ipairs({built or false,pending or false}) do
             if n then pcall(function() local r=alive(n.root); if r then r:RemoveFromParent() end end) end
@@ -760,14 +770,32 @@ function Ui.kit(opts)
         local ok,why=pcall(function()
             local root,s=alive(built.root),valid(e.o)
             if not (s and U.text(s:GetFullName())==e.full) then cache[name]=nil; return end -- Freed: a later slow finds it.
-            if root then U.find('/Script/Engine.Default__GameplayStatics'):PlaySound2D(root,s,VOLUME[name],1,0) end
+            if root then U.find(STATICS):PlaySound2D(root,s,VOLUME[name],1,0) end
         end)
         if not ok then
             quiet=true
             log('UI sounds off until the mod reloads: '..tostring(why))
         end
     end
-    -- coop off: the root goes now; no engine call after.
+    -- The menu's input: on (only while the root is up) or off; each once.
+    function self.input(on)
+        on=on==true
+        if on==inputting or off or (on and not self.ready()) then return end
+        run(input_mode,on)
+    end
+    -- Whether the game is paused (its own menu, a cutscene): the menu does not open then. false when unread.
+    function self.paused()
+        if off then return false end
+        local ok,paused=pcall(function() return U.find(STATICS):IsGamePaused(valid(UE.GetPlayerController())) end)
+        return ok and paused==true
+    end
+    -- The game's text culture ('fr-FR'...; ui_text.lua picks the words), or nil when unread.
+    function self.language()
+        if off then return nil end
+        local ok,culture=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
+        return ok and culture or nil
+    end
+    -- coop off: the root goes now (the game's input back first); no engine call after.
     function self.stop()
         if off then return end
         close_all()
