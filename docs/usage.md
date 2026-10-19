@@ -588,8 +588,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
-  game build, or a check failed), and `?` before the first read. After `coop off` it keeps the last value read, since
-  the game keeps that file name until it exits.
+  game build, or a check failed), and `?` before the first read or once the name moved in the game's memory (no switch
+  until the game restarts). `coop-link.log` logs each change as `save name: saves=<value>`, with the reason for `off`
+  and `?`. After `coop off` it keeps the last value read, since the game keeps that file name until it exits.
 - Co-op save copies: `convert=<idle|busy <done>/<jobs>|done|error:<why>>`, the last copy pass (`idle` before any).
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`

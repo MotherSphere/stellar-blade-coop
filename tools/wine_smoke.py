@@ -2,8 +2,8 @@
 """Wine smoke test: builds StellarCoop.dll and tests/wine/smoke.exe, then loads the DLL under Proton's wine in a scratch
 WINEPREFIX with no steam_api64.dll around. Checks that it attaches, waits for Steam, answers coop_tick when exported,
 refuses the Night Operation poller, the shared fight's probe, coop freeze and the save name's probe on an exe that is
-not the game, and logs a clean process exit; and that ReadProcessMemory behaves as the poller needs. Never touches the
-game folder or the game's prefix."""
+not the game, logs the save name's state (off) once, and logs a clean process exit; and that ReadProcessMemory
+behaves as the poller needs. Never touches the game folder or the game's prefix."""
 import argparse
 import os
 import shutil
@@ -83,6 +83,8 @@ def main():
             result.returncode == 0,
         'no nightop-probe.txt in the run folder (the poller never started)':
             not (run / 'nightop-probe.txt').exists(),
+        'coop-link.log says "save name: saves=off (build stamp ..." once (each change of the name logged once)':
+            sum('save name: saves=off (build stamp' in line for line in log) == 1,
         'coop-link.log ends with "worker stopped: process exit"':
             bool(log) and log[-1].endswith('worker stopped: process exit'),
     }

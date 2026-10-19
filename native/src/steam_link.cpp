@@ -517,7 +517,13 @@ bool step() {
     if (uint64_t now = GetTickCount64(); now >= next_slot) {
       next_slot = now + 250;
       slot_index = coop::pose::loaded_slot();
+      const coop::slot::Saves was = saves_state;
       saves_state = coop::pose::saves();
+      if (saves_state != was) { // Each change once, with why it reads off or ? (an entry that moved latches it: H6).
+        const std::string why = coop::pose::saves_why();
+        event(std::string("save name: saves=") + coop::slot::saves_name(saves_state) +
+              (why.empty() ? std::string() : " (" + why + ")"));
+      }
     }
     { // A conversion's next job, at most one a pass, then the switch asked at its end.
       GameView game;
