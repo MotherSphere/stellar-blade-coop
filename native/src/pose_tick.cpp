@@ -1367,15 +1367,16 @@ bool local_vitals(coop::Vitals &out, uint64_t &took_us) {
 }
 
 namespace {
-// Why the shared fight may not run now, or empty: the pinned build, before coop off, on the co-op save (a save loaded
-// from the co-op copies, or the slot the game entered is the one StellarCoopSlot.txt names: slot=coop).
+// Why the shared fight may not run now, or empty: the pinned build, before coop off, on a co-op save (a save loaded
+// from the co-op copies, or the slot the game entered is the one StellarCoopSlot.txt names: slot=coop). Off a co-op
+// save the reason starts with fight::kNoCoopSave, which coop fight on waits out.
 std::string fight_gate(int marker) {
   if (!pinned)
     return engine_reason;
   if (blocked)
     return "coop off";
   const std::string where = slot::line(loaded_slot(), marker, world, saves_now());
-  return where.rfind("slot=coop ", 0) == 0 ? std::string() : "not on the co-op save (" + where + ")";
+  return where.rfind("slot=coop ", 0) == 0 ? std::string() : std::string(fight::kNoCoopSave) + " (" + where + ")";
 }
 } // namespace
 
