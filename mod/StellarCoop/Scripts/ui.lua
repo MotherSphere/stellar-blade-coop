@@ -77,7 +77,13 @@ local function dots(image)
     image:SetBrushFromTexture(texture,true)
     return same(value_of(image.Brush).ResourceObject,texture) and 'dots tiled' or 'dots set, not read back'
 end
-local function clean(w) pcall(function() if valid(w.root) then w.root:RemoveFromParent() end end) end
+-- One of the test's own widgets while it is still that object: a map change frees them, and the address of a freed one
+-- may hold another object by the time it is used (puppet.lua's resolve guards its cache the same way).
+local function ours(w,key)
+    local o=valid(w[key])
+    return o and U.text(o:GetFullName())==w.names[key] and o or nil
+end
+local function clean(w) pcall(function() local root=ours(w,'root'); if root then root:RemoveFromParent() end end) end
 function Ui.new(log)
     local self={}
     local test -- The test on screen: its widgets, the player controller, when it is due, its timing.
@@ -103,13 +109,14 @@ function Ui.new(log)
     local function build(w,class,pc,c)
         local step,names=2,{'construct','tree','font','viewport'}
         local ok,why=pcall(function()
-            local function make(of,outer,what)
-                return need(valid(StaticConstructObject(of,outer)),what..' was not constructed')
+            local function make(key,of,outer,what)
+                w[key]=need(valid(StaticConstructObject(of,outer)),what..' was not constructed')
+                w.names[key]=U.text(w[key]:GetFullName())
             end
-            w.root=make(class,pc,'the root')
-            w.tree=make(c.WidgetTree,w.root,'its WidgetTree')
-            for _,name in ipairs(KIDS) do w[name]=make(c[name],w.tree,'a '..name) end
-            w.canary=make(c.TextBlock,w.tree,'the canary') -- In no tree: the next GC frees it, which shows one ran.
+            make('root',class,pc,'the root')
+            make('tree',c.WidgetTree,w.root,'its WidgetTree')
+            for _,name in ipairs(KIDS) do make(name,c[name],w.tree,'a '..name) end
+            make('canary',c.TextBlock,w.tree,'the canary') -- In no tree: the next GC frees it, which shows one ran.
             check(2,'construct',true,'root, tree and '..(#KIDS+1)..' widgets')
             step=3
             w.root.WidgetTree=w.tree
@@ -157,6 +164,8 @@ function Ui.new(log)
     function self.test(game_only)
         if test then return false,'a UI test is on screen already; its checks follow within '..SHOW..' s' end
         local pc=valid(UE.GetPlayerController())
+        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
+        if pc and not pc:IsA(U.find('/Script/Engine.PlayerController')) then pc=nil end
         if not pc then return false,'no player controller yet: load a save first' end
         local cursor=pc.bShowMouseCursor -- Before anything is built: a raise here leaves nothing behind.
         local started=os.clock()
@@ -171,7 +180,7 @@ function Ui.new(log)
             or 'missing: '..table.concat(missing,' '))
         if #missing>0 then verdict(); return false,FAILED end
         for _,kind in ipairs(game_only and {'game'} or {'plain','game'}) do
-            local w,class={kind=kind},c.UserWidget
+            local w,class={kind=kind,names={}},c.UserWidget
             if kind=='game' then
                 if not game_only then log("fallback 1: the game's WB_Setting_Category_C as the root") end
                 fails={}
@@ -199,8 +208,8 @@ function Ui.new(log)
     -- Checks 6 to 10, when the 5 s are up.
     local function finish(t)
         local w=t.w
-        local root=w.root
-        local there=valid(root)~=nil and root:IsInViewport()
+        local root=ours(w,'root')
+        local there=root~=nil and root:IsInViewport()
         if there then
             local size,shown=value_of(root:GetDesiredSize()),root:IsVisible()
             check(6,'visible',shown and size.X>0 and size.Y>0,string.format('visible %s, laid out at %.0fx%.0f',
@@ -213,25 +222,26 @@ function Ui.new(log)
                 through and 'pass through' or 'caught',cursor==t.cursor and 'as before' or 'changed'))
             local lost={}
             for _,name in ipairs({'root','tree',table.unpack(KIDS)}) do
-                if not valid(w[name]) then lost[#lost+1]=name end
+                if not ours(w,name) then lost[#lost+1]=name end
             end
             if #lost==0 and not (same(root.WidgetTree,w.tree) and same(w.tree.RootWidget,w.CanvasPanel)
                 and w.CanvasPanel:GetChildrenCount()==4) then lost[1]='a link' end
-            local ran=valid(w.canary)==nil
+            local ran=ours(w,'canary')==nil
             check(8,'gc',#lost==0 and (ran or 'untested'),#lost>0 and 'lost: '..table.concat(lost,' ')
                 or ran and 'a GC ran, the tree is whole' or 'no GC ran in '..SHOW..' s (the loose canary lives); '
                 ..'the tree is whole')
         else
-            check(6,'visible',false,'gone before the check: a map change removes viewport widgets')
+            check(6,'visible',false,root and 'out of the viewport but not freed: the game took it out'
+                or 'gone before the check: a map change removes viewport widgets')
             check(7,'input','skipped')
             check(8,'gc','skipped')
         end
         local removed,why=true,'the engine removed it with the map'
-        if valid(root) then
+        if root then
             removed,why=pcall(function() root:RemoveFromParent() end)
             why=removed and 'RemoveFromParent' or tostring(why)
         end
-        local out=not (valid(root) and root:IsInViewport())
+        local out=not (root and root:IsInViewport())
         check(9,'removed',removed and out,out and why or why..'; still in the viewport')
         check(10,'timing',t.ms<=BUDGET or 'slow',string.format('%.1f ms in one frame: classes %.1f, build and assets '
             ..'%.1f, viewport %.1f; budget %d ms',t.ms,t.classes_ms,t.ms-t.classes_ms-w.add_ms,w.add_ms,BUDGET))

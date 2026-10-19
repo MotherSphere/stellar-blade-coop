@@ -5,7 +5,9 @@
 -- fallbacks: the game's root class when the plain root fails to construct, add or show (and alone with game), the
 -- verdict naming the next routes when no root shows, the engine font, the default font, flat colour; no input taken;
 -- the timing budget; nothing left in the viewport whatever fails (a raise, coop off, a map change); no engine call while
--- idle; every call on UE4SS's own Lua state, never in a coroutine; a new test after each, nothing kept between them.
+-- idle; every call on UE4SS's own Lua state, never in a coroutine; a new test after each, nothing kept between them;
+-- each read-back failing on its own (the tree, the canvas, the bar, the dots, the layout, the viewport, the hit tests,
+-- a link); an address that holds another object after a map change is never touched, the player controller included.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -18,6 +20,7 @@ end
 local calls={} -- Every engine call, in order: 'Class.Method', 'set Class.Field', 'construct Class in Outer'.
 local function call(name) ue4ss(); calls[#calls+1]=name end
 local modes={} -- 'raise': a write into that struct raises; 'copy': each read is a copy, so writes do not stick.
+local stuck={} -- 'Class.Field': that write is made but not kept, so its read-back fails.
 -- A struct property as UE4SS gives it: a view on the object's memory, its writes recorded.
 local function struct(name,data,copy)
     local target=data
@@ -34,12 +37,17 @@ local function object(name,fields,methods,getters)
     for k,v in pairs(fields or {}) do store[k]=v end
     next_address=next_address+0x100
     local at=next_address
+    store.full=string.format('%s /Engine/Transient.%s_%x',name,name,at) -- Unique, as the engine's object names are.
     store.type=function() return 'UObject' end
     store.IsValid=function() ue4ss(); return not store.destroyed end
+    store.GetFullName=function() ue4ss(); return store.full end
     store.GetAddress=function() return at end
     for k,f in pairs(methods or {}) do store[k]=function(self,...) call(name..'.'..k); return f(self,...) end end
     local o=setmetatable({},{__index=function(_,k) if getters and getters[k] then return getters[k]() end
-        return store[k] end,__newindex=function(_,k,v) call('set '..name..'.'..k); store[k]=v end})
+        return store[k] end,__newindex=function(_,k,v)
+            call('set '..name..'.'..k)
+            if not stuck[name..'.'..k] then store[k]=v end
+        end})
     stores[o]=store
     return o
 end
@@ -50,7 +58,7 @@ local GAME='/Game/Art/UI/Widget/GameMenu/Setting/Slot/WB_Setting_Category'
 local GAME_CLASS=GAME..'.WB_Setting_Category_C'
 local TEAL={R=0.678,G=0.82,B=0.769,A=1}
 local registry,loadable,loads,constructed,viewport,laid_out
-local fail_construct,fail_add,hidden,fail_remove,fail_size,focus_taken,gc_runs,gc_eats,gc_queued,add_cost
+local fail_construct,fail_add,hidden,fail_remove,fail_size,focus_taken,gc_runs,gc_eats,gc_queued,add_cost,no_layout
 local pc,lines
 local function find(path) return registry[path] end
 -- The widgets UE4SS would construct, by class name.
@@ -92,7 +100,7 @@ makers.CanvasPanel=function()
     o=object('CanvasPanel',{children={}},{
         AddChildToCanvas=function(_,child)
             local list=stores[o].children
-            list[#list+1]=child
+            if not stuck['CanvasPanel.children'] then list[#list+1]=child end
             local slot
             slot=object('CanvasPanelSlot',{content=child},{
                 SetPosition=function(_,at) stores[slot].at=at end,
@@ -126,14 +134,17 @@ makers.Image=function()
     local brush={Tiling=0,DrawAs=3}
     o=object('Image',{brush=brush},{
         SetColorAndOpacity=function(_,c) stores[o].tint=c end,
-        SetBrushFromTexture=function(_,texture,match) assert(match==true); brush.ResourceObject=texture end},
+        SetBrushFromTexture=function(_,texture,match)
+            assert(match==true)
+            if not stuck['Image.ResourceObject'] then brush.ResourceObject=texture end
+        end},
         {Brush=function() return struct('Brush',brush,modes.Brush=='copy') end})
     return o
 end
 makers.ProgressBar=function()
     local o
     o=object('ProgressBar',{Percent=0},{
-        SetPercent=function(_,p) stores[o].Percent=p end,
+        SetPercent=function(_,p) if not stuck['ProgressBar.Percent'] then stores[o].Percent=p end end,
         SetFillColorAndOpacity=function(_,c) stores[o].fill=c end})
     return o
 end
@@ -172,17 +183,19 @@ end
 local function frame()
     if gc_queued and gc_runs then collect() end
     gc_queued=false
-    for _,r in ipairs(viewport) do laid_out[r]=true end
+    if not no_layout then for _,r in ipairs(viewport) do laid_out[r]=true end end
 end
 local function reset()
     for _,o in pairs(registry or {}) do stores[o].destroyed=true end -- unreal.lua's cache looks them up again.
     registry,loadable,loads,constructed,viewport,laid_out={},{},{},{},{},{}
     fail_construct,fail_add,hidden,fail_remove,fail_size={},{},{},nil,nil
-    focus_taken,gc_runs,gc_eats,gc_queued,add_cost=false,true,nil,false,0
+    focus_taken,gc_runs,gc_eats,gc_queued,add_cost,no_layout=false,true,nil,false,0,false
     for k in pairs(modes) do modes[k]=nil end
+    for k in pairs(stuck) do stuck[k]=nil end
     calls,lines={},{}
     clock=100
-    pc=object('PC',{bShowMouseCursor=false})
+    pc=object('PC',{bShowMouseCursor=false},{IsA=function(_,class) return stores[class].name=='PlayerController' end})
+    registry['/Script/Engine.PlayerController']=object('PlayerController')
     for _,name in ipairs({'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar'}) do
         registry['/Script/UMG.'..name]=object(name)
     end
@@ -282,6 +295,13 @@ reset(); gc_eats='WidgetTree'
 ui=new(); assert(ui.test(false)); finish(ui)
 assert(line('check 8/')=='check 8/10 gc: FAIL (lost: tree CanvasPanel Border TextBlock Image ProgressBar)',all())
 assert(lines[#lines]=='verdict: route A built a plain UserWidget root, but check 8 gc failed' and #viewport==0,all())
+-- The lost tree's address taken by another object by then: still lost.
+reset(); gc_eats='WidgetTree'
+ui=new(); assert(ui.test(false)); frame()
+local lost_tree=stores[viewport[1]].WidgetTree
+stores[lost_tree].destroyed,stores[lost_tree].full=false,'WidgetTree /Game/Maps/Next.Other'
+clock=clock+5; ui.tick()
+assert(line('check 8/')=='check 8/10 gc: FAIL (lost: tree CanvasPanel Border TextBlock Image ProgressBar)',all())
 
 -- Fonts: the engine's when the game's is missing; SetFont when the in-place write raises; the default when neither
 -- takes, which only degrades the look.
@@ -407,4 +427,65 @@ assert(line('check 9/')=='check 9/10 removed: FAIL (RemoveFromParent: no parent;
 reset(); pc=nil
 ui=new(); ok,why=ui.test(false)
 assert(not ok and why=='no player controller yet: load a save first' and #calls==0 and #lines==0)
+-- The player controller UEHelpers keeps, its address now another object's: nothing at all.
+reset(); pc=object('HUD',{},{IsA=function() return false end})
+ui=new(); ok,why=ui.test(false)
+assert(not ok and why=='no player controller yet: load a save first' and constructs()=='' and #lines==0,why)
+
+-- Each read-back on its own. Check 3: the root's tree link (the game root then shows), the canvas's children, the bar.
+for _,case in ipairs({{'UserWidget.WidgetTree','the tree did not read back',true},
+        {'CanvasPanel.children','the canvas holds 0 widgets, not 4'},
+        {'ProgressBar.Percent',"the bar's value did not read back"}}) do
+    reset(); stuck[case[1]]=true
+    ui=new(); ok=ui.test(false)
+    assert(lines[3]=='check 3/10 tree: FAIL ('..case[2]..')' and line('fallback 1'),all())
+    if case[3] then
+        assert(ok and #viewport==1 and stores[viewport[1]].name=='WB_Setting_Category_C',all())
+        finish(ui); assert(lines[#lines]:find('^verdict: route A works with fallback 1'),all())
+    else
+        assert(not ok and lines[#lines]==NEXT and #viewport==0,all())
+    end
+end
+-- The dots set but not read back.
+reset(); stuck['Image.ResourceObject']=true
+ui=new(); assert(ui.test(false))
+assert(lines[3]=='check 3/10 tree: ok (canvas: panel, title, dots set, not read back, bar at 60 %)',lines[3])
+-- Check 6: shown but never laid out; taken out of the viewport while it lives (not a map change).
+reset(); no_layout=true
+ui=new(); assert(ui.test(false)); finish(ui)
+assert(line('check 6/')=='check 6/10 visible: FAIL (visible true, laid out at 0x0)',all())
+assert(lines[#lines]=='verdict: route A built a plain UserWidget root, but check 6 visible failed',lines[#lines])
+reset()
+ui=new(); assert(ui.test(false)); frame(); viewport={}; clock=clock+5; ui.tick()
+assert(line('check 6/')=='check 6/10 visible: FAIL (out of the viewport but not freed: the game took it out)',all())
+assert(line('check 7/')=='check 7/10 input: skipped' and line('check 9/')=='check 9/10 removed: ok (RemoveFromParent)')
+-- Check 7: hit tests caught again. Check 8: the tree's link to its canvas gone after the GC.
+reset()
+ui=new(); assert(ui.test(false)); stores[viewport[1]].Visibility=0; finish(ui)
+assert(line('check 7/')=='check 7/10 input: FAIL (keyboard focus none, hit tests caught, mouse cursor as before)',all())
+reset()
+ui=new(); assert(ui.test(false)); frame()
+stores[stores[viewport[1]].WidgetTree].RootWidget=nil; clock=clock+5; ui.tick()
+assert(line('check 8/')=='check 8/10 gc: FAIL (lost: a link)',all())
+
+-- After a map change, the root's address holds a HUD widget of the new map: it is never removed (at the check, at
+-- coop off). The canary's address taken by another object after the GC freed it: the GC still counts as run.
+for i,leave in ipairs({function(u) clock=clock+5; u.tick() end,function(u) u.stop() end}) do
+    reset()
+    ui=new(); assert(ui.test(false))
+    local r=viewport[1]
+    for _,o in ipairs(constructed) do stores[o].destroyed=true end
+    stores[r].destroyed,stores[r].full=false,'UserWidget /Game/Maps/Next.Next:PersistentLevel.HUD_Hp'
+    leave(ui)
+    assert(#viewport==1 and viewport[1]==r and count('UserWidget.RemoveFromParent')==0,all())
+    assert(i==2 or line('check 6/')=='check 6/10 visible: FAIL (gone before the check: a map change removes viewport '
+        ..'widgets)' and line('check 9/')=='check 9/10 removed: ok (the engine removed it with the map)',all())
+end
+reset()
+ui=new(); assert(ui.test(false)); frame()
+local canary=constructed[8]
+assert(stores[canary].destroyed)
+stores[canary].destroyed,stores[canary].full=false,'TextBlock /Game/Maps/Next.Next:PersistentLevel.Other'
+clock=clock+5; ui.tick()
+assert(line('check 8/')=='check 8/10 gc: ok (a GC ran, the tree is whole)',all())
 io.stdout:write('ui_test ok\n')
