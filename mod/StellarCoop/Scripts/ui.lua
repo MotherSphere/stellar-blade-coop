@@ -314,8 +314,10 @@ for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common
 end
 local VOLUME={}
 for _,a in ipairs(Ui.ASSETS) do VOLUME[a[1]]=a.volume end
+local KIT_UMG={table.unpack(UMG)}
+KIT_UMG[#KIT_UMG+1]='EditableTextBox' -- The chat's text box, besides the spike's classes.
 local CLASSES={}
-for _,name in ipairs(UMG) do CLASSES[#CLASSES+1]='/Script/UMG.'..name end
+for _,name in ipairs(KIT_UMG) do CLASSES[#CLASSES+1]='/Script/UMG.'..name end
 local STATICS,WIDGETS='/Script/Engine.Default__GameplayStatics','/Script/UMG.Default__WidgetBlueprintLibrary'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 for _,class in ipairs({'/Script/Engine.PlayerController',STATICS,WIDGETS,LANGUAGE}) do CLASSES[#CLASSES+1]=class end
@@ -353,7 +355,7 @@ function Ui.kit(opts)
     local log=opts.log or function() end
     local store=opts.store or {save=function() end,load=function() end,clear=function() end}
     local self,order,by,cache,found={},{},{},{},{} -- cache: asset name to {o=, full=} or false (not in this build).
-    local built,pending,off,said,hidden,swept,lost=nil,nil,false,nil,false,false,0
+    local built,pending,off,said,hidden,swept,lost,holder=nil,nil,false,nil,false,false,0,nil
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
@@ -367,15 +369,20 @@ function Ui.kit(opts)
     local function keep()
         if built then store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')) end
     end
-    -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx, our root
-    -- focused; the menu's keys are UE4SS binds, which read the keyboard whatever has focus); off, the game's again.
-    -- With no player controller (a map loads) or no root: nothing, and the change still due (input tries again).
-    -- inputting changes before the engine call: a refused call is not tried again by the fault it raises.
-    local function input_mode(on)
+    -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx with our root
+    -- focused, the menu's keys being UE4SS binds, which read the keyboard whatever has focus; or with a text box and
+    -- its keyboard focus, the chat's); off, the game's again. With no player controller (a map loads) or no root:
+    -- nothing, and the change still due (input tries again). inputting changes before the engine call: a refused call
+    -- is not tried again by the fault it raises.
+    local function input_mode(on,field)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
+        local box=on and field and alive(field)
         inputting=on
-        if on then U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,root,0) else U.find(WIDGETS):SetInputMode_GameOnly(pc) end
+        if on then
+            U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,box or root,0)
+            if box then box:SetKeyboardFocus() end
+        else U.find(WIDGETS):SetInputMode_GameOnly(pc) end
         keep()
     end
     local function close_all()
@@ -574,6 +581,49 @@ function Ui.kit(opts)
                 return on
             end}
         end
+        -- The chat's text box (one a group; input(true, its group) gives it the keys): Slate turns keys into
+        -- characters, so any layout, accents and dead keys work. It keeps its keyboard focus on Enter and reverts on
+        -- Esc, Mideum 34 white on the dark glass, all set before AddToViewport; a style the engine refuses leaves
+        -- Slate's own box (dark text on white), a refused flag or hint only that. It takes the mouse: a click focuses
+        -- it. text(), set(s), focus(), hint(s).
+        function b.field(x,y,width,height,hint)
+            local w=make(n,'EditableTextBox',n.tree.o)
+            if not pcall(function() w.o.ClearKeyboardFocusOnCommit=false; w.o.RevertTextOnEscape=true end) then
+                n.look['text box behaviour refused']=true
+            end
+            local f=get('Mideum') or get('Roboto')
+            local function color(slate,c)
+                slate.ColorUseRule=0
+                local v=value_of(slate.SpecifiedColor)
+                v.R,v.G,v.B,v.A=c.R,c.G,c.B,c.A
+            end
+            local style=nil
+            if not pcall(function()
+                style=value_of(w.o.WidgetStyle)
+                if f then local font=value_of(style.Font); font.FontObject=f; font.Size=34 end
+                color(value_of(style.BackgroundColor),THEME.panel)
+                color(value_of(style.ForegroundColor),THEME.text)
+            end) then
+                n.look['text box style refused (default box)']=true
+                if style then pcall(color,value_of(style.BackgroundColor),THEME.white) end -- Never white on white.
+            end
+            local function set_hint(x2,s)
+                if not pcall(function() x2:SetHintText(FText(s)) end) then n.look['text box hint refused']=true end
+            end
+            set_hint(w.o,hint or '')
+            w.v,w.on=VISIBLE,VISIBLE
+            w.o:SetVisibility(VISIBLE)
+            put(g,w,x,y,width,height)
+            g.field=w
+            return {text=function()
+                    local s=''
+                    upd(w,function(x2) s=U.text(x2:GetText()) end)
+                    return s
+                end,
+                set=function(s) upd(w,function(x2) x2:SetText(FText(s)) end) end,
+                focus=function() upd(w,function(x2) x2:SetKeyboardFocus() end) end,
+                hint=function(s) upd(w,function(x2) set_hint(x2,s) end) end}
+        end
         -- Key hints cell units apart, {{key, label}, ...}; keys: move (ZQSD with azerty), arrows, up, enter, space,
         -- escape. A missing icon leaves its label. Returns the labels (text's views: the language may change).
         function b.hints(x,y,cell,list)
@@ -599,7 +649,7 @@ function Ui.kit(opts)
         end
         local started=os.clock()
         local n={classes={},assets=assets,count=0,look={},groups={},views={},size=#order}
-        for _,name in ipairs(UMG) do n.classes[name]=U.find('/Script/UMG.'..name) end
+        for _,name in ipairs(KIT_UMG) do n.classes[name]=U.find('/Script/UMG.'..name) end
         pending=n
         n.root=make(n,'UserWidget',pc)
         n.tree=make(n,'WidgetTree',n.root.o)
@@ -795,12 +845,19 @@ function Ui.kit(opts)
             log('UI sounds off until the mod reloads: '..tostring(why))
         end
     end
-    -- The menu's input: on (only while the root is up) or off; each once. Off while still due is tried again at each
-    -- call, the kit off too: the game never stays deaf.
-    function self.input(on)
-        on=on==true
-        if on==inputting or (on and (off or not self.ready())) then return end
-        if off then pcall(input_mode,false) else run(input_mode,on) end
+    -- The game's input for who: nil, the menu's (on our root), or a group's name, its field's (the chat box, with its
+    -- keyboard focus). On (only while the root is up) or off; each once. Only who holds it gives it back: the menu's
+    -- late give-back (150 ms after its close) never takes the chat's that opened meanwhile, nor the reverse. Off while
+    -- still due is tried again at each call, the kit off too: the game never stays deaf.
+    function self.input(on,who)
+        if on==true then
+            if off or not self.ready() or (inputting and holder==who) then return end
+            holder=who
+            local g=who and built.groups[who]
+            run(input_mode,true,g and g.field)
+        elseif inputting and holder==who then
+            if off then pcall(input_mode,false) else run(input_mode,false) end
+        end
     end
     -- Whether the game is paused (its own menu, a cutscene) or shows the mouse cursor (one of its screens that does
     -- not pause: a shop, a dialogue choice): the menu does not open then. false when unread.

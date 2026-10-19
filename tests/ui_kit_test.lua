@@ -50,7 +50,11 @@ local function object(class)
             local f=special[name] or special['*.'..k]
             if f then return f(s,o,...) end
         end
-    end,__newindex=function(_,k,v) call('set '..class..'.'..k); s.props[k]=v end})
+    end,__newindex=function(_,k,v)
+        call('set '..class..'.'..k)
+        if raise['set '..class..'.'..k] then error(raise['set '..class..'.'..k],0) end
+        s.props[k]=v
+    end})
     stores[o]=s
     return o
 end
@@ -71,6 +75,8 @@ special['UserWidget.RemoveFromParent']=function(_,o)
 end
 special['PC.IsA']=function(_,_,class) return stores[class].class=='PlayerController' end
 special['TextBlock.SetText']=function(s,_,t) s.text=t.text end
+special['EditableTextBox.SetText']=function(s,_,t) s.text=t.text end
+special['EditableTextBox.GetText']=function(s) return {ToString=function() return s.text end} end
 special['Image.IsHovered']=function(s) return s.hovered end
 special['TextBlock.SetFont']=function(s,_,info)
     if modes.SetFont then error(modes.SetFont,0) end
@@ -92,6 +98,16 @@ StaticConstructObject=function(class,outer)
     elseif name=='Image' then
         s.brush={Tiling=0}
         s.get.Brush=function() return struct('Brush',s.brush) end
+    elseif name=='EditableTextBox' then -- Its style as Slate's default box: dark text on white.
+        s.text=''
+        s.style={Font={Size=10},ForegroundColor={ColorUseRule=1,SpecifiedColor={R=0,G=0,B=0,A=1}},
+            BackgroundColor={ColorUseRule=1,SpecifiedColor={R=1,G=1,B=1,A=1}}}
+        local view={}
+        for key,data in pairs(s.style) do view[key]=struct(key=='Font' and 'BoxFont' or key,data) end
+        s.get.WidgetStyle=function()
+            if modes.WidgetStyle then error(modes.WidgetStyle,0) end
+            return struct('WidgetStyle',view)
+        end
     end
     constructed[#constructed+1]=o
     return o
@@ -111,7 +127,8 @@ local function reset()
     registry['/Script/Engine.Default__GameplayStatics']=object('GameplayStatics')
     registry['/Script/UMG.Default__WidgetBlueprintLibrary']=object('WidgetBlueprintLibrary')
     registry['/Script/Engine.Default__KismetInternationalizationLibrary']=object('KismetInternationalizationLibrary')
-    for _,c in ipairs({'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar'}) do
+    for _,c in ipairs({'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar',
+            'EditableTextBox'}) do
         registry['/Script/UMG.'..c]=object(c)
     end
     for _,a in ipairs(Ui.ASSETS) do registry[a[2]]=object(a[1]) end
@@ -161,7 +178,7 @@ local function up(k)
     end
     error('never built')
 end
-local UMG={'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar'}
+local UMG={'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar','EditableTextBox'}
 local SOUNDS=0
 for _,a in ipairs(Ui.ASSETS) do if a.volume then SOUNDS=SOUNDS+1 end end
 
@@ -744,5 +761,93 @@ special['GameplayStatics.IsGamePaused'],special['KismetInternationalizationLibra
 k.stop()
 n=#calls
 assert(k.paused()==false and k.language()==nil and #calls==n)
+
+-- The chat box (b.field): an EditableTextBox that keeps its keyboard focus on Enter and reverts on Esc, in Mideum 34,
+-- white on the dark glass, with its hint, all set before AddToViewport; it takes the mouse in its hit group (a click
+-- focuses it). input(true, 'chat') puts the game's input on it with its keyboard focus. Who holds the input gives it
+-- back: the menu's late give-back (150 ms after its close) never takes the chat's, nor the chat's the menu's. Its text
+-- read through GetText, emptied, focused again, its hint changed. A refused style or property only degrades.
+local function last_at(name) for i=#calls,1,-1 do if calls[i]==name then return i end end end
+local function chat_kit()
+    local ck=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
+    ck.add('menu',{x=180,y=330,w=1240,h=1500,hit=true},function(b) return {row=b.row(0,0,100)} end)
+    ck.add('chat',{x=96,y=330,w=1300,h=660,hit=true},function(b)
+        b.panel(0,0,1300,660)
+        return {box=b.field(24,572,1252,56,'Message')}
+    end)
+    return ck
+end
+reset()
+k=chat_kit()
+up(k)
+local box=of('EditableTextBox')[1]
+local bs=stores[box]
+assert(bs.props.ClearKeyboardFocusOnCommit==false and bs.props.RevertTextOnEscape==true)
+assert(bs.style.Font.FontObject==asset('Mideum') and bs.style.Font.Size==34)
+local fg,bg=bs.style.ForegroundColor,bs.style.BackgroundColor
+assert(fg.ColorUseRule==0 and fg.SpecifiedColor.R==T.text.R and fg.SpecifiedColor.A==1)
+assert(bg.ColorUseRule==0 and bg.SpecifiedColor.B==T.panel.B and bg.SpecifiedColor.A==T.panel.A)
+assert(bs.last.SetHintText[1].text=='Message' and vis(box)==0 and pos(box)=='24,572' and size(box)=='1252x56')
+local added=last_at('UserWidget.AddToViewport')
+for _,c in ipairs({'set EditableTextBox.ClearKeyboardFocusOnCommit','set EditableTextBox.RevertTextOnEscape',
+        'EditableTextBox.SetHintText','EditableTextBox.SetVisibility'}) do
+    assert(last_at(c)<added,c..' before AddToViewport')
+end
+assert(logs[#logs]:find('^UI built: %d+ widgets in 0%.0 ms$'),logs[#logs])
+local LIB='WidgetBlueprintLibrary.'
+local lib=stores[registry['/Script/UMG.Default__WidgetBlueprintLibrary']]
+k.input(true,'chat'); k.input(true,'chat')
+assert(count(LIB..'SetInputMode_UIOnlyEx')==1 and lib.last.SetInputMode_UIOnlyEx[1]==pc
+    and lib.last.SetInputMode_UIOnlyEx[2]==box and lib.last.SetInputMode_UIOnlyEx[3]==0)
+assert(count('EditableTextBox.SetKeyboardFocus')==1
+    and at('EditableTextBox.SetKeyboardFocus')>at(LIB..'SetInputMode_UIOnlyEx'))
+k.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==0,"The menu's late give-back: the chat holds the input")
+k.input(true)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==2 and lib.last.SetInputMode_UIOnlyEx[2]==viewport[1],
+    'The menu opened over a closing chat: the input on our root')
+k.input(false,'chat')
+assert(count(LIB..'SetInputMode_GameOnly')==0,"The chat's late give-back: the menu holds it")
+k.input(false); k.input(false); k.input(false,'chat')
+assert(count(LIB..'SetInputMode_GameOnly')==1 and lib.last.SetInputMode_GameOnly[1]==pc)
+local root_path=saved
+k.input(true,'chat')
+assert(saved==root_path..' input','Ctrl+R with the box open gives the input back too')
+k.input(false,'chat')
+assert(count(LIB..'SetInputMode_GameOnly')==2 and saved==root_path)
+local field=k.view('chat').box
+bs.text='Bonjour é à ç'
+assert(field.text()=='Bonjour é à ç')
+field.set('')
+assert(bs.text=='' and bs.last.SetText[1].text=='')
+local focused=count('EditableTextBox.SetKeyboardFocus')
+field.focus()
+assert(count('EditableTextBox.SetKeyboardFocus')==focused+1)
+field.hint('Indice')
+assert(bs.last.SetHintText[1].text=='Indice')
+-- A root rebuilt (a map change): the box's handles never touch the freed one.
+for _,o in ipairs(constructed) do stores[o].alive=false end
+local n=#calls
+field.set('x'); field.focus()
+assert(field.text()=='' and not at('EditableTextBox.SetText',n) and not at('EditableTextBox.SetKeyboardFocus',n))
+-- Refused: the colours (the background white again: Slate's own box, dark text on white, readable), the behaviour
+-- flags, the hint; each said in the look line, the box built all the same.
+reset()
+modes.ForegroundColor='raise'
+raise['set EditableTextBox.ClearKeyboardFocusOnCommit']='no such property'
+raise['EditableTextBox.SetHintText']='no such function'
+k=chat_kit()
+up(k)
+bs=stores[of('EditableTextBox')[1]]
+assert(bs.style.BackgroundColor.SpecifiedColor.R==1 and bs.style.BackgroundColor.SpecifiedColor.A==1
+    and bs.style.Font.Size==34 and not k.off())
+assert(logs[#logs]:find('text box behaviour refused',1,true) and logs[#logs]:find('text box hint refused',1,true)
+    and logs[#logs]:find('text box style refused (default box)',1,true),logs[#logs])
+reset()
+modes.WidgetStyle='no such property'
+k=chat_kit()
+up(k)
+assert(stores[of('EditableTextBox')[1]].style.Font.Size==10 and not k.off()
+    and logs[#logs]:find('text box style refused (default box)',1,true),logs[#logs])
 
 print('ui_kit_test ok')
