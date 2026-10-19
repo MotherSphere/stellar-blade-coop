@@ -138,10 +138,10 @@ at most 16 wait for the mod's Lua side. The text never goes into `coop-link.log`
 
 The vit line (unreliable) carries your EVE's numbers for your friend's partner card, in whole units: HP, shield and
 shield blocks, Beta, Burst and Tachy with their maximums, and the life state. It goes when they change and every
-second, from a read 4 times a second during a session (game build 24463856 only): eight `ReadProcessMemory` reads on
-the native worker, never on the game thread, of the EVE the game's actor manager marks as the local player. A line with a value over 10,000,000, HP over its
-maximum, more than 64 shield blocks or a life state over 255 is invalid. Your friend's last one shows in `coop status`
-as `mate=` for 3 s.
+second, from a read 4 times a second during a session (twice after a read over 1 ms; game build 24463856 only): eight
+`ReadProcessMemory` reads on the native worker, never on the game thread, of the EVE the game's actor manager marks as
+the local player. A line with a value over 10,000,000, HP over its maximum, more than 64 shield blocks or a life state
+over 255 is invalid. Your friend's last one shows in `coop status` as `mate=` for 3 s.
 
 Say and vit lines count only from a friend past the handshake; before it they are ignored without a log line.
 

@@ -5,7 +5,8 @@
 // build's global, nor a marker; the shared fight's line says fight=off), that coop_tick is exported
 // and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an unpinned exe
 // (coop-link.log, within 3 s each); that the chat files a previous run left are deleted at start, and a typed line
-// is taken within 3 s with no session, its text never in coop-link.log. It
+// is taken within 3 s with no session, its text never in coop-link.log; that a request the worker cannot delete (here
+// read-only) is never run, so never run twice, and runs once when it can be (coop report before Steam). It
 // also checks ReadProcessMemory on its own process, as the Night Operation poller uses it: equal bytes from the stack,
 // false at 0x1000, no crash on a PAGE_NOACCESS page (whose result Wine may differ on, so it is only printed), and
 // the cost of one read. Exit code 0 on success.
@@ -134,6 +135,27 @@ int wmain(int argc, wchar_t **argv) {
   chat_ok = chat_ok && gone(say) && gone(chat) &&
             read_text(folder + L"coop-link.log").find("secret") == std::string::npos;
 
+  // A file the worker takes but cannot delete: kept for a later pass, never acted on twice.
+  const std::wstring request = folder + L"coop-request.txt", held = folder + L"coop-request.held";
+  const auto reports = [&folder] {
+    const std::string log = read_text(folder + L"coop-link.log");
+    size_t n = 0;
+    for (size_t at = log.find("report written"); at != std::string::npos; at = log.find("report written", at + 1))
+      ++n;
+    return n;
+  };
+  bool once = chat_ok && write_request(folder, "report\n", L"coop-request.held") &&
+              SetFileAttributesW(held.c_str(), FILE_ATTRIBUTE_READONLY) &&
+              MoveFileExW(held.c_str(), request.c_str(), 0);
+  if (once)
+    Sleep(1000); // About 20 passes.
+  once = once && !gone(request) && reports() == 0 && SetFileAttributesW(request.c_str(), FILE_ATTRIBUTE_NORMAL);
+  for (ULONGLONG end = GetTickCount64() + 3000; once && !gone(request) && GetTickCount64() < end;)
+    Sleep(50);
+  if (once)
+    Sleep(300);
+  once = once && gone(request) && reports() == 1;
+
   // ReadProcessMemory on this process, as the poller calls it.
   char source[64], copy[64] = {};
   for (int i = 0; i < 64; ++i)
@@ -154,19 +176,19 @@ int wmain(int argc, wchar_t **argv) {
   bool rpm_ok = stack_read && !low_read;
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
-  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && chat_ok && rpm_ok;
+  bool ok =
+      waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && chat_ok && once && rpm_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "fight probe=%s | freeze=%s | chat files=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a "
-              "read)\n",
+              "fight probe=%s | freeze=%s | chat files=%s | undeletable request=%s | rpm=%s (stack %s, 0x1000 %s, "
+              "PAGE_NOACCESS %s, %.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
               tick ? tick_text : "absent", nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL",
-              freeze ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL", rpm_ok ? "ok" : "FAIL",
-              stack_read ? "equal" : "FAIL",
-              low_read ? "FAIL" : "refused", noaccess, us);
+              freeze ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL", once ? "run once" : "FAIL",
+              rpm_ok ? "ok" : "FAIL", stack_read ? "equal" : "FAIL", low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);
   return ok ? 0 : 1;
 }

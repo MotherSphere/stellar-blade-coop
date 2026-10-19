@@ -671,6 +671,7 @@ std::function<void(const std::string &)> say = [](const std::string &) {}; // wo
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false;
 uint64_t next_poll = 0, next_counters = 0;
+uint64_t vitals_reads = 0, vitals_max_us = 0; // local_vitals()'s, for the 60 s line.
 bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
 uint32_t rate = 20;  // From coop-state.txt: poses sent a second.
 State lua;           // coop-state.txt as last read, the synced photo mode's fields with it.
@@ -1097,6 +1098,13 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     int64_t lag_us = window_lag_us.exchange(0), behind_us = window_behind_us.exchange(0);
     uint64_t fx_started = window_fx_started.exchange(0), fx_over = window_fx_over.exchange(0),
              fx_unlisted = window_fx_unlisted.exchange(0), fx_written = window_fx_written.exchange(0);
+    if (!first && vitals_reads) { // Eight ReadProcessMemory calls each; the cost under Proton is unmeasured.
+      char line[96];
+      std::snprintf(line, sizeof line, "vitals read, last 60 s: %llu reads, max %llu us",
+                    static_cast<unsigned long long>(vitals_reads), static_cast<unsigned long long>(vitals_max_us));
+      event(line);
+    }
+    vitals_reads = vitals_max_us = 0;
     if (!first && n) {
       char line[900];
       std::snprintf(line, sizeof line,
@@ -1311,7 +1319,17 @@ std::string ask_nightop(bool rule, uint64_t now_ms) {
 
 int loaded_slot() { return pinned && !blocked ? slot::index(base, rpm) : slot::kUnread; }
 bool loopback() { return engine_on && loopback_on; }
-bool local_vitals(coop::Vitals &out) { return pinned && !blocked && fight::vitals(base, rpm, out); }
+bool local_vitals(coop::Vitals &out, uint64_t &took_us) {
+  took_us = 0;
+  if (!pinned || blocked)
+    return false;
+  const uint64_t start = clock_us();
+  const bool ok = fight::vitals(base, rpm, out);
+  took_us = clock_us() - start;
+  ++vitals_reads;
+  vitals_max_us = std::max(vitals_max_us, took_us);
+  return ok;
+}
 
 namespace {
 // Why the shared fight may not run now, or empty: the pinned build, before coop off, on the co-op save (the slot the

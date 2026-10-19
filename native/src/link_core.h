@@ -453,9 +453,9 @@ public:
     ++chat_out_;
     return true;
   }
-  // Our vitals (pose_tick.cpp's local_vitals(), every 250 ms in a session), unreliable to the friend past the handshake
-  // on change and each kVitalsAgainMs, which also heals reordering; in the loopback with no friend, hers. Worker
-  // thread, after tick().
+  // Our vitals (pose_tick.cpp's local_vitals(), every 250 ms in a session, 500 after a slow read), unreliable to the
+  // friend past the handshake on change and each kVitalsAgainMs, which also heals reordering; in the loopback with no
+  // friend, hers. Worker thread, after tick().
   void vitals(const Vitals &mine) {
     if (!linked()) {
       if (loopback_)

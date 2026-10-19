@@ -44,8 +44,9 @@ void block(); // coop off: no engine access until the game restarts.
 // and our vitals stand in for hers (UI-DESIGN 5.4).
 bool loopback();
 // Worker thread, every 250 ms in a chat session: our EVE's vitals for the friend's partner card (fight_engine.h's
-// vitals()); false off the pinned build, after coop off, or when they cannot be read (no world, a load).
-bool local_vitals(coop::Vitals &out);
+// vitals()); false off the pinned build, after coop off, or when they cannot be read (no world, a load). took_us: the
+// read's time (0 when none ran), whose worst goes in a 60 s line (UI-DESIGN 7.3).
+bool local_vitals(coop::Vitals &out, uint64_t &took_us);
 // Worker thread, every 250 ms: the save slot the game entered (client +0x54, save_slot.h), or slot::kUnread on another
 // build or after coop off, which read nothing.
 int loaded_slot();

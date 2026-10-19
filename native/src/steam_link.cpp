@@ -108,7 +108,8 @@ std::string utc_stamp() {
   return stamp;
 }
 
-// The whole file, then deleted; empty when there is none. Lua writes it beside and renames it, so it is complete.
+// The whole file, then deleted; empty when there is none, or when it cannot be deleted (Lua's busy check holds it
+// open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is complete.
 std::string take_text(const std::wstring &path) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
@@ -117,7 +118,8 @@ std::string take_text(const std::wstring &path) {
   DWORD n = 0;
   bool ok = ReadFile(f, buffer, sizeof buffer, &n, nullptr);
   CloseHandle(f);
-  DeleteFileW(path.c_str());
+  if (!DeleteFileW(path.c_str()))
+    return {};
   return ok ? std::string(buffer, n) : std::string();
 }
 
@@ -246,7 +248,7 @@ void watch_saves(uint64_t now_ms, uint64_t steam_id) {
 coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool chat_was = false;    // A chat session held at the last pass.
-uint64_t next_vitals = 0; // Our vitals are read every 250 ms in a chat session.
+uint64_t next_vitals = 0; // Our vitals are read every 250 ms in a chat session (500 after a read over 1 ms).
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
 bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
@@ -407,9 +409,10 @@ bool step() {
             link->say(typed);
           coop::Vitals mine;
           if (const uint64_t now = GetTickCount64(); chatting && now >= next_vitals) {
-            next_vitals = now + 250;
-            if (coop::pose::local_vitals(mine))
+            uint64_t took_us = 0;
+            if (coop::pose::local_vitals(mine, took_us))
               link->vitals(mine);
+            next_vitals = now + (took_us > 1000 ? 500 : 250); // UI-DESIGN 7.3: 2 Hz after a read over 1 ms.
           }
           const std::wstring chat = folder + L"coop-chat.txt";
           if (link->chat_waiting() && GetFileAttributesW(chat.c_str()) == INVALID_FILE_ATTRIBUTES) {
@@ -489,7 +492,8 @@ DWORD WINAPI worker(void *) {
       wsprintfA(hex, "0x%08lx", static_cast<unsigned long>(code));
       write_text(folder + L"coop-status.txt", std::string("stopped=fault ") + hex + "\n");
       append(utc_stamp() + " worker stopped: fault " + hex);
-      return 0; // Steam may be gone or a lock held: never call it again.
+      delete_chat(); // A typed line nobody will take now.
+      return 0;      // Steam may be gone or a lock held: never call it again.
     }
     Sleep(streaming ? 5 : 50);
   }
@@ -500,16 +504,18 @@ DWORD WINAPI worker(void *) {
 } // namespace
 
 extern "C" BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved) {
-  if (reason == DLL_PROCESS_DETACH && reserved && log_open) {
+  if (reason == DLL_PROCESS_DETACH && reserved) {
     // The process is exiting (other threads are already gone): one last line, stack only, no heap, no Steam.
-    SYSTEMTIME t;
-    GetSystemTime(&t);
-    char text[96];
-    int n = wsprintfA(text, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ worker stopped: process exit%s\r\n", t.wYear,
-                      t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds,
-                      faulted ? " (after a fault)" : "");
-    append_raw(text, static_cast<DWORD>(n));
-    delete_chat(); // Stack only: the paths were kept at attach.
+    if (log_open) {
+      SYSTEMTIME t;
+      GetSystemTime(&t);
+      char text[96];
+      int n = wsprintfA(text, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ worker stopped: process exit%s\r\n", t.wYear,
+                        t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, t.wMilliseconds,
+                        faulted ? " (after a fault)" : "");
+      append_raw(text, static_cast<DWORD>(n));
+    }
+    delete_chat(); // Stack only: the paths were kept at attach (empty when it stayed idle, which deletes nothing).
     return TRUE;
   }
   if (reason != DLL_PROCESS_ATTACH)

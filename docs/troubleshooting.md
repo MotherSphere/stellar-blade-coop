@@ -116,6 +116,8 @@ Every 60 s, `coop-link.log` has lines that help with performance problems:
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
+- `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
+  slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 250.
 
 A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.
 
