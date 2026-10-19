@@ -459,10 +459,11 @@ int main() {
     std::string mod;
     uint64_t build;
   };
-  // Protocol 6 is v0.1.1's. A channel-2 line from such a member never gets through, nor can we send her one.
-  static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
-  for (const Theirs &t : {Theirs{1, "old", kBuild}, Theirs{6, "v0.1.1", kBuild}, Theirs{kProtocol + 1, "new", kBuild},
-                          Theirs{kProtocol, "v", 123}}) {
+  // Protocol 6 is v0.1.1's, 7 v0.2.0's. A channel-2 line from such a member never gets through, nor can we send her
+  // one.
+  static_assert(kProtocol > 7, "6 is v0.1.1's protocol, 7 v0.2.0's: older ones");
+  for (const Theirs &t : {Theirs{1, "old", kBuild}, Theirs{6, "v0.1.1", kBuild}, Theirs{7, "v0.2.0", kBuild},
+                          Theirs{kProtocol + 1, "new", kBuild}, Theirs{kProtocol, "v", 123}}) {
     std::string their = hello(t.protocol, t.mod, t.build);
     reset();
     World w;
@@ -499,21 +500,23 @@ int main() {
     assert(noticed(w.status(), "Kaanta refused the link: protocol 3 build 1, mine protocol 9 build 1 (mod x)"));
   }
 
-  // A v0.1.1 friend's lobby carries her protocol in its tag: we leave it before greeting her, and say why with both
-  // protocols, never silently (her hello's reject, above, is the backstop). Her v0.1.1 joining ours does the same on
-  // her side: the same code with her protocol.
-  reset();
-  {
+  // A v0.1.1 (6) or v0.2.0 (7) friend's lobby carries her protocol in its tag: we leave it before greeting her, and
+  // say why with both protocols, never silently (her hello's reject, above, is the backstop). Her older version
+  // joining ours does the same on her side: the same code with her protocol.
+  for (const char *theirs : {"6", "7"}) {
+    reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
-    her_lobby(7000, "6:24463856");
+    her_lobby(7000, std::string(theirs) + ":24463856");
     w.tick("join 7000");
     finish_all();
     w.tick();
-    assert(saw("lobby 7000 runs protocol 6, build 24463856, this game runs protocol " + std::to_string(kProtocol)));
+    assert(saw("lobby 7000 runs protocol " + std::string(theirs) + ", build 24463856, this game runs protocol " +
+               std::to_string(kProtocol)));
     assert(saw("left lobby 7000: incompatible lobby") && w.link.lobby() == 0 && F.sent.empty());
-    assert(noticed(w.status(), "Version mismatch: that game runs protocol 6, build 24463856; yours runs protocol " +
-                                   std::to_string(kProtocol) + ", build 24463856."));
+    assert(noticed(w.status(), "Version mismatch: that game runs protocol " + std::string(theirs) +
+                                   ", build 24463856; yours runs protocol " + std::to_string(kProtocol) +
+                                   ", build 24463856."));
   }
 
   // A third member: we leave before greeting anyone.
@@ -1902,6 +1905,157 @@ int main() {
     F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " photo 1 maybe"});
     w.tick();
     assert(saw("invalid message from Kaanta") && w.link.photo_freeze());
+  }
+
+  // Chat between two Links (UI-DESIGN 4.2, 5): a line typed on A reaches B's lines for Lua, cleaned, reliable, and the
+  // reverse; three a second leave, the fourth is refused with a fail line for Lua; B keeps ten of A's a second (no
+  // text in the log line) and at most kChatInbox waiting for Lua. No chat text ever reaches an event, a notice or the
+  // status. The session's end empties what waits and logs the counts only.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    assert(!t.a.chatting() && !t.a.say("too early") && t.a.take_chat() == Texts{"fail"});
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.chatting() && t.b.chatting() && !t.a.chat_waiting());
+    const std::string say = "SBC" + std::to_string(kProtocol) + " say ";
+    assert(t.a.say(" Salut \x1b\342\200\256é à tous ") && sent_to(kFriend, say + "Salut é à tous") == 1);
+    for (auto &s : F.sent)
+      if (s.text.rfind(say, 0) == 0)
+        assert(s.flags == kReliable && s.channel == kChannel);
+    t.tick(t.b, 50);
+    assert(t.b.chat_waiting() && t.b.take_chat() == Texts{"in Salut é à tous"} && !t.b.chat_waiting());
+    assert(t.b.say("Coucou") && t.b.say("ça va") && t.b.say("?"));
+    assert(!t.b.say("a fourth in the same second") && t.b.take_chat() == Texts{"fail"}); // Lua paces 2 a second.
+    assert(!t.b.say(" \x01 ") && !t.b.chat_waiting()); // Nothing left: nothing sent, nothing to tell.
+    t.tick(t.a, 50);
+    assert((t.a.take_chat() == Texts{"in Coucou", "in ça va", "in ?"}));
+    t.now += 1000;
+    t.tick(t.b, 0);
+    assert(t.b.say("again"));
+    t.tick(t.a, 0);
+    assert(t.a.take_chat() == Texts{"in again"});
+    // A refused send says so to Lua.
+    F.send_result = 25;
+    assert(!t.a.say("lost") && t.a.take_chat() == Texts{"fail"});
+    F.send_result = 1;
+
+    // Her flood: ten a second kept, the rest dropped, one log line a minute without the text.
+    t.tick(t.a, 1000);
+    for (int i = 0; i < 12; ++i)
+      inbox(0, kChannel).push_back({kFriend, say_line("spam " + std::to_string(i))});
+    t.tick(t.a, 0);
+    assert(t.a.take_chat().size() == 10 && count("A: dropped chat lines from Kaanta: over the rate limit") == 1);
+    // At most kChatInbox wait for Lua; the rest are dropped.
+    for (int second = 0; second < 2; ++second) {
+      t.tick(t.a, 1000);
+      for (int i = 0; i < 10; ++i)
+        inbox(0, kChannel).push_back({kFriend, say_line("waiting")});
+      t.tick(t.a, 0);
+    }
+    assert(t.a.take_chat().size() == kChatInbox);
+    for (auto &e : events)
+      assert(e.find("Salut") == std::string::npos && e.find("Coucou") == std::string::npos &&
+             e.find("spam") == std::string::npos && e.find("waiting") == std::string::npos);
+    const std::string status = t.a.status(Counters{}) + t.b.status(Counters{});
+    assert(status.find("spam") == std::string::npos && status.find("Salut") == std::string::npos);
+
+    // B leaves: the lines waiting on either side go, and each logs its counts once.
+    t.tick(t.a, 1000);
+    inbox(0, kChannel).push_back({kFriend, say_line("last")});
+    t.tick(t.a, 0);
+    t.tick(t.b, 50, "leave");
+    t.tick(t.a, 50);
+    assert(!t.a.chatting() && !t.a.chat_waiting() && !t.b.chatting());
+    assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
+  }
+
+  // Vitals between two Links: ours go unreliable on change and each second; hers show as the status's mate= line while
+  // she is linked and her last one is under 3 s old; before the handshake they are ignored with no log line; a
+  // malformed one is an invalid message. A session's end forgets hers.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    const Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    F.inbox.push_back({kFriend, vit_line(hers)});
+    F.inbox.push_back({kFriend, say_line("before")});
+    const size_t logged = events.size();
+    w.tick();
+    assert(w.status().find("\nmate=") == std::string::npos && !w.link.chat_waiting() && events.size() == logged);
+    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    w.link.vitals(mine);
+    const std::string vit = "SBC" + std::to_string(kProtocol) + " vit ";
+    assert(sent_to(kFriend, vit) == 0); // Not linked: nothing goes.
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    F.inbox.push_back({kFriend, vit_line(hers)});
+    w.tick();
+    assert(w.status().find("\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1\n") != std::string::npos);
+    assert(w.status().find("\nfriend=") < w.status().find("\nmate=") &&
+           w.status().find("\nmate=") < w.status().find("\nnotice="));
+    w.link.vitals(mine);
+    assert(sent_to(kFriend, vit_line(mine)) == 1);
+    for (auto &s : F.sent)
+      if (s.text.rfind(vit, 0) == 0)
+        assert(s.flags == kUnreliable && s.channel == kChannel);
+    w.tick("", 0, 0, 250);
+    w.link.vitals(mine);
+    assert(sent_to(kFriend, vit) == 1); // Unchanged: it waits for the keepalive.
+    Vitals hit = mine;
+    hit[vital::hp] = 1200;
+    w.link.vitals(hit);
+    assert(sent_to(kFriend, vit_line(hit)) == 1);
+    w.tick("", 0, 0, 1000);
+    w.link.vitals(hit);
+    assert(sent_to(kFriend, vit_line(hit)) == 2); // The keepalive.
+    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " vit 1601 1600 0 0 0 0 0 0 0 0 0 1"});
+    w.tick();
+    assert(saw("invalid message from Kaanta") && w.status().find("\nmate=900 ") != std::string::npos);
+    w.tick("", 0, 0, 1700); // Her last line is 3 s old: gone from the status, so the card greys.
+    assert(w.status().find("\nmate=") == std::string::npos);
+    F.inbox.push_back({kFriend, vit_line(mine)});
+    w.tick();
+    assert(w.status().find("\nmate=1500 ") != std::string::npos);
+    w.tick("leave");
+    assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
+  }
+
+  // coop loopback with no friend (UI-DESIGN 5.4, the solo tests): a chat session of its own, where our lines come
+  // back as hers and our vitals stand in for hers; turning it off ends that session.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.link.loopback(true);
+    w.tick();
+    assert(w.link.chatting() && w.link.say("écho 😀") && F.sent.empty());
+    assert(w.link.take_chat() == Texts{"in écho 😀"});
+    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    w.link.vitals(mine);
+    assert(w.status().find("\nmate=1500 1600 30 50 5 400 1000 0 0 0 0 1\n") != std::string::npos);
+    assert(w.status().find("écho") == std::string::npos);
+    w.link.loopback(false);
+    w.tick();
+    assert(!w.link.chatting() && w.status().find("\nmate=") == std::string::npos);
+    assert(saw("chat this session: 1 in, 1 out, 0 dropped") && !w.link.say("alone") &&
+           w.link.take_chat() == Texts{"fail"});
+    for (auto &e : events)
+      assert(e.find("écho") == std::string::npos);
   }
 
   // coop report is passed to the caller once.

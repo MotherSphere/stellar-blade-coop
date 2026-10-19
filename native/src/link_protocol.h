@@ -5,12 +5,14 @@
 //   SBC hello <protocol> <mod version> <game build>, then SBC accept, or SBC reject <reason>.
 // Every other message carries the protocol number and is dropped by a peer that runs another one:
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
-//   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it).
+//   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
+//   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h). Channel 2 carries the shared enemies' text lines, which
 // start with fight_tag() (fight_sync.h parses them).
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -18,11 +20,12 @@
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 7; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 8; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                              // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
-                             // channel 2 (shared enemies, SBF7) and the photo line. A v0.1.1 peer (6) is told why: the
-                             // lobby tag, then the hello's reject, name both protocols.
+                             // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines, which
+                             // a protocol-7 peer would count as invalid and drop without a word. An older peer (6:
+                             // v0.1.1, 7: v0.2.0) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -54,12 +57,80 @@ inline std::string token(std::string text) {
   return text.empty() ? "dev" : text;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo };
+// Chat (UI-DESIGN 4.2, 5.1): a line both players see, at most kMaxChat bytes once cleaned.
+constexpr size_t kMaxChat = 200;
+// The bidi and zero-width controls, C0, DEL and C1: never part of a chat line.
+constexpr bool chat_control(uint32_t c) {
+  return c < 0x20 || (c >= 0x7F && c <= 0x9F) || c == 0x061C || (c >= 0x200B && c <= 0x200F) ||
+         (c >= 0x2028 && c <= 0x202E) || (c >= 0x2060 && c <= 0x206F) || c == 0xFEFF;
+}
+// The same cleaning as chat.lua's Chat.clean, byte for byte (tests/link_protocol_test.cpp and tests/chat_test.lua
+// check one digest): well-formed UTF-8 only, a byte that starts no valid character dropped alone (overlongs,
+// surrogates and anything past U+10FFFF included); chat_control() characters dropped (a ZWJ too, so a joined emoji
+// shows as its parts); ASCII spaces trimmed; at most kMaxChat bytes, never cut inside a character, then trimmed again.
+// Empty when nothing is left.
+inline std::string chat_clean(std::string_view text) {
+  std::string out;
+  for (size_t at = 0; at < text.size();) {
+    const auto byte = [&](size_t i) { return static_cast<unsigned char>(text[i]); };
+    const unsigned lead = byte(at);
+    const size_t n = lead < 0x80                    ? 1
+                     : lead >= 0xC2 && lead <= 0xDF ? 2
+                     : lead >= 0xE0 && lead <= 0xEF ? 3
+                     : lead >= 0xF0 && lead <= 0xF4 ? 4
+                                                    : 0;
+    uint32_t c = n == 1 ? lead : lead & (0x7F >> n);
+    bool ok = n && at + n <= text.size();
+    for (size_t i = 1; ok && i < n; ++i) {
+      ok = (byte(at + i) & 0xC0) == 0x80;
+      c = c << 6 | (byte(at + i) & 0x3F);
+    }
+    if (!ok || c < (n == 3 ? 0x800u : n == 4 ? 0x10000u : 0u) || c > 0x10FFFF || (c >= 0xD800 && c <= 0xDFFF)) {
+      ++at;
+      continue;
+    }
+    if (!chat_control(c))
+      out.append(text.substr(at, n));
+    at += n;
+  }
+  const auto trim = [](std::string &t) {
+    const size_t first = t.find_first_not_of(' ');
+    t = first == std::string::npos ? std::string() : t.substr(first, t.find_last_not_of(' ') - first + 1);
+  };
+  trim(out);
+  if (out.size() > kMaxChat) {
+    size_t n = kMaxChat;
+    while (n && (static_cast<unsigned char>(out[n]) & 0xC0) == 0x80)
+      --n;
+    out.resize(n);
+    trim(out);
+  }
+  return out;
+}
+
+// The partner card's numbers (UI-DESIGN 4.3), in whole units, by these indexes: SB's stats HP, MaxHP, Shield,
+// MaxShield, ShieldBlock, Beta, MaxBeta, Burst, MaxBurst, Tachy and MaxTachy, then the life state (1 Spawn, 6
+// Spawning; 3-5 dying or dead).
+namespace vital {
+enum : size_t { hp, max_hp, shield, max_shield, blocks, beta, max_beta, burst, max_burst, tachy, max_tachy, life };
+}
+using Vitals = std::array<uint32_t, vital::life + 1>;
+constexpr uint32_t kMaxVital = 10'000'000; // fight_sync.h's kMaxStat.
+// Every value at most kMaxVital, HP at most MaxHP, at most 64 shield blocks, a life state that fits a byte.
+inline bool plausible_vitals(const Vitals &v) {
+  for (uint32_t x : v)
+    if (x > kMaxVital)
+      return false;
+  return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
+}
+
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals };
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
                          // 's', then 1 for both.
-  std::string text;      // hello: mod version. reject: the reason. Cleaned.
+  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
+  Vitals vitals{};       // vitals: hers, plausible_vitals().
 };
 
 inline std::string hello(int protocol, const std::string &mod, uint32_t build) {
@@ -81,7 +152,19 @@ inline std::string pong(uint64_t seq, uint64_t ms) { return versioned("pong", se
 inline std::string photo_line(char state, bool both) {
   return "SBC" + std::to_string(kProtocol) + " photo " + state + (both ? " both" : " notice");
 }
-// Channel 2's tag, versioned like channel 0's: "SBF7".
+// A chat line, reliable; empty when nothing is left of the text once cleaned (nothing to send).
+inline std::string say_line(const std::string &text) {
+  const std::string line = chat_clean(text);
+  return line.empty() ? line : "SBC" + std::to_string(kProtocol) + " say " + line;
+}
+// Our vitals, unreliable: on change and each second (link_core.h).
+inline std::string vit_line(const Vitals &v) {
+  std::string line = "SBC" + std::to_string(kProtocol) + " vit";
+  for (uint32_t x : v)
+    line += " " + std::to_string(x);
+  return line;
+}
+// Channel 2's tag, versioned like channel 0's: "SBF8".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
@@ -135,7 +218,7 @@ inline Message parse(const char *data, size_t size) {
   std::string text(data, size);
   if (text.find('\0') != std::string::npos)
     return m;
-  std::string f[5], rest;
+  std::string f[2 + std::tuple_size_v<Vitals>], rest;
   const std::string versioned_tag = "SBC" + std::to_string(kProtocol);
   if (split(text, f, 2, nullptr) && f[0] == "SBC" && f[1] == "accept") {
     m.kind = Kind::accept;
@@ -155,6 +238,18 @@ inline Message parse(const char *data, size_t size) {
     m.kind = Kind::photo;
     m.a = static_cast<uint8_t>(f[2][0]);
     m.b = f[3] == "both";
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "say") {
+    m.text = chat_clean(rest);
+    m.kind = m.text.empty() ? Kind::invalid : Kind::say;
+  } else if (split(text, f, 2 + m.vitals.size(), nullptr) && f[0] == versioned_tag && f[1] == "vit") {
+    uint64_t x = 0;
+    for (size_t i = 0; i < m.vitals.size(); ++i) {
+      if (!number(f[2 + i], x) || x > kMaxVital)
+        return Message();
+      m.vitals[i] = static_cast<uint32_t>(x);
+    }
+    if (plausible_vitals(m.vitals))
+      m.kind = Kind::vitals;
   }
   return m;
 }

@@ -137,11 +137,12 @@ int main() {
       at_entries = over_entries;
     over_entries += entry('P', pose(a, k, 1'000'000 + k * 10'000));
   }
-  std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good, protocol_6 = good;
+  std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good, protocol_6 = good, protocol_7 = good;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x07");
+  assert(kHead == "SBR\x08");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
+  protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.
   bad_byte_3[3] = char(coop::kProtocol + 1);
   const std::string span_end = pose(a, 2, 1'000'000 + kMaxSpanUs + 1);
   const std::pair<std::string, const char *> refused[] = {
@@ -152,6 +153,7 @@ int main() {
       {bad_protocol, "protocol"},
       {protocol_5, "protocol"},
       {protocol_6, "protocol"},
+      {protocol_7, "protocol"},
       {good + entry('X', p1), "kind"},
       {good + entry('p', p1), "kind"},
       {kHead + entry('X', t1) + entry('P', p1), "kind"},

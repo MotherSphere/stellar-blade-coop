@@ -73,7 +73,7 @@ passes every 50 ms, and every 5 ms while poses flow (the loopback, a recording, 
 ### Lobby and invites
 
 - `coop host` creates a **friends-only lobby** with room for **2 players** and opens Steam's invite dialog. The lobby
-  carries a tag under the key `stellarcoop`: the protocol and the game's Steam build (`7:<build>`). A lobby from
+  carries a tag under the key `stellarcoop`: the protocol and the game's Steam build (`8:<build>`). A lobby from
   another protocol or game build is refused on joining, with both versions in the joiner's log and on screen.
 - An accepted invite arrives as a Steam callback, or as `+connect_lobby <id>` on the command line when Steam starts the
   game for it. Either way the game joins only once a save is loaded (Lua writes `world=1` in `coop-state.txt`), so a
@@ -110,9 +110,11 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number and is dropped by a peer that runs another one:
 
 ```
-SBC7 ping <seq> <ms>
-SBC7 pong <seq> <ms>
-SBC7 photo <0|1|s> <both|notice>
+SBC8 ping <seq> <ms>
+SBC8 pong <seq> <ms>
+SBC8 photo <0|1|s> <both|notice>
+SBC8 say <text>
+SBC8 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 ```
 
 The photo line (reliable) carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their game may
@@ -120,6 +122,21 @@ be paused for the other's (`both`). It goes after each handshake and on each cha
 while the other's says `1 both` and yours is `photo_sync=both`, the game thread holds a pause tag of the mod's own in
 the game's pause set, through the function the game's photo mode pauses with (build 24463856 only); see
 [usage.md](usage.md#synced-photo-mode) for when it is released.
+
+The say line (reliable) is one chat line. Both games clean it the same way: well-formed UTF-8 only, control, bidi
+and zero-width characters dropped, spaces trimmed, at most 200 bytes, never cut inside a character. At most 3 a second
+leave, at most 10 a second are kept from a friend (the rest are dropped, with one log line a minute and no text), and
+at most 16 wait for the mod's Lua side. The text never goes into `coop-link.log`, `coop-status.txt`,
+`coop-report.txt` or the console: when the session ends, the log gets its counts only (`chat this session: <n> in,
+<n> out, <n> dropped`).
+
+The vit line (unreliable) carries your EVE's numbers for your friend's partner card, in whole units: HP, shield and
+shield blocks, Beta, Burst and Tachy with their maximums, and the life state. It goes when they change and every
+second, from a read 4 times a second (game build 24463856 only). A line with a value over 10,000,000, HP over its
+maximum, more than 64 shield blocks or a life state over 255 is invalid. Your friend's last one shows in `coop status`
+as `mate=` for 3 s.
+
+Say and vit lines count only from a friend past the handshake; before it they are ignored without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. Messages longer than 512 bytes are junk.
@@ -129,7 +146,7 @@ anything else is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes as they are: the component table as text starting `SBT 7` (sent reliable), and
+Channel 1 carries the pose path's bytes as they are: the component table as text starting `SBT 8` (sent reliable), and
 each pose as a binary message starting `SBP` and the protocol byte (sent unreliable, without Nagle delay).
 
 - Your table goes to them at once and again every 5 s, which heals one lost with a broken session or sent before
@@ -144,7 +161,7 @@ each pose as a binary message starting `SBP` and the protocol byte (sent unrelia
 - Once they are out of the lobby (`<name> left the lobby`), or you left it, the log says `peer unlinked`, their table
   goes and the ghost with it (`Ghost <generation> removed (her table is gone).`).
 
-### Protocol 7
+### Protocol 8
 
 The protocol number goes up with any change to what travels between two games, so an older StellarCoop is refused
 instead of misread:
@@ -156,7 +173,8 @@ instead of misread:
 | 4 | Tables and poses carried on Steam channel 1 |
 | 5 | The table's material lines (dyes) |
 | 6 | Four effect slots in each pose |
-| 7 | Steam channel 2 for the shared enemies (this version) |
+| 7 | Steam channel 2 for the shared enemies, and the photo line |
+| 8 | The say and vit lines for the chat and the partner card (this version). A protocol 7 game would drop them without a word, so it is refused instead. |
 
 ### Link health in the log
 

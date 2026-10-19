@@ -1,7 +1,8 @@
 // The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, the synced photo
-// mode's line, channel 1, where the pose path's tables and poses travel, and channel 2, where the shared enemies' lines
-// travel. Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam
-// on the build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
+// mode's line, the chat and vitals lines, channel 1, where the pose path's tables and poses travel, and channel 2,
+// where the shared enemies' lines travel. Every Steam call goes through the Api table, so tests/link_core_test.cpp
+// drives this file with a fake Steam on the build machine, and steam_link.cpp fills the table from the game's
+// steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <algorithm>
@@ -69,6 +70,10 @@ constexpr uint64_t kFightPerSecond = 2 * kFightQueue, kFightBytesPerSecond = kFi
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 // Her photo lines a second: Lua writes ours at most 4 times, and each change of hers can pause or resume our game.
 constexpr uint64_t kPhotoPerSecond = 8;
+// Chat (UI-DESIGN 5.1): our lines a second (Lua paces two), hers kept a second, and the lines waiting for Lua (hers and
+// our failures). Vitals: ours go again after this long unchanged; hers show this long after her last.
+constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsAgainMs = 1000, kMateMs = 3000;
+constexpr size_t kChatInbox = 16;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
 // A guest who lost the host's lobby tries again this long after the loss, and gives up at kRejoinMs (D5.10).
@@ -253,6 +258,8 @@ struct Peer {
   bool photo_both = false, photo_off_said = false;
   std::string photo_sent;
   Window photo_window;
+  Window say_window;       // Her chat lines.
+  bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
@@ -343,6 +350,7 @@ public:
         receive();
     }
     fight_session();
+    chat_session();
     if (lobby_) { // A reject may have made us leave.
       receive_binary();
       receive_fight();
@@ -416,6 +424,58 @@ public:
     return std::string("photo=") + photo_ + " peer_photo=" + theirs_ + " frozen=" + (frozen ? "1" : "0") +
            " sync=" + sync_name(sync_);
   }
+  // Chat and vitals (UI-DESIGN 4.2, 4.3, 5). A session is a friend past the handshake, or coop loopback (pose_tick.cpp,
+  // set before each tick()), where with no friend linked our lines come back as hers and our vitals stand in for hers
+  // (5.4, the solo tests). Its end empties the lines waiting for Lua, forgets her vitals and logs the counts, never a
+  // text: chat text never reaches an event, a notice or the status.
+  void loopback(bool on) { loopback_ = on; }
+  bool chatting() const { return linked() || loopback_; }
+  // A line typed here (coop-say.txt), cleaned again, reliable to the friend past the handshake (or back as hers). False
+  // when nothing is left of it, or, with a "fail" line for Lua, when it cannot go: no session, past kSayPerSecond,
+  // Steam refused it. Worker thread, after tick().
+  bool say(const std::string &text) {
+    const std::string clean = chat_clean(text);
+    if (clean.empty())
+      return false;
+    bool ok = chatting() && !over_rate(say_window_, 1, kSayPerSecond, kSayPerSecond * kMaxMessage);
+    if (ok && linked()) {
+      const std::string line = say_line(clean);
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    } else if (ok) {
+      ++(for_lua("in " + clean) ? chat_in_ : chat_dropped_);
+    }
+    if (!ok) {
+      for_lua("fail");
+      return false;
+    }
+    ++chat_out_;
+    return true;
+  }
+  // Our vitals (pose_tick.cpp's local_vitals(), every 250 ms in a session), unreliable to the friend past the handshake
+  // on change and each kVitalsAgainMs, which also heals reordering; in the loopback with no friend, hers. Worker
+  // thread, after tick().
+  void vitals(const Vitals &mine) {
+    if (!linked()) {
+      if (loopback_)
+        mate_ = mine, mate_at_ = now_, has_mate_ = true;
+      return;
+    }
+    if (vitals_sent_ && mine == vitals_ && now_ - vitals_at_ < kVitalsAgainMs)
+      return;
+    const std::string line = vit_line(mine);
+    bool sent = false;
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && send(p, line.data(), line.size(), kUnreliable) == kResultOk)
+        sent = true;
+    if (sent)
+      vitals_ = mine, vitals_at_ = now_, vitals_sent_ = true;
+  }
+  // For coop-chat.txt (steam_link.cpp), oldest first: "in <text>" (hers, chat_clean()) and "fail" (ours could not go).
+  std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
+  bool chat_waiting() const { return !chat_.empty(); }
+
   // A line for the player, numbered for the run so Lua shows each once; the last kNotices kept. No event: every site
   // logs its own. Public for the photo pause's fault (steam_link.cpp).
   void notice(const std::string &text) {
@@ -455,6 +515,13 @@ public:
       const Peer &p = peers_.front();
       s += std::string("friend=") + (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
            p.name + "\n";
+    }
+    // Her vitals for the partner card, while a session holds and her last line is under kMateMs old.
+    if (has_mate_ && chatting() && now_ - mate_at_ < kMateMs) {
+      s += "mate=";
+      for (size_t i = 0; i < mate_.size(); ++i)
+        s += (i ? " " : "") + std::to_string(mate_[i]);
+      s += "\n";
     }
     uint64_t n = notice_count_ - notices_.size();
     for (auto &text : notices_)
@@ -917,6 +984,29 @@ private:
     fight_waiting_ = false;
   }
 
+  // A chat session's end (chatting() goes false: here, as for channel 2, or with loopback() between passes): the lines
+  // waiting for Lua go, her vitals are forgotten, and the counts go to the log. Its start keeps what came in the same
+  // pass as her accept.
+  void chat_session() {
+    if (chatting() == chat_session_)
+      return;
+    chat_session_ = !chat_session_;
+    if (chat_session_)
+      return;
+    event("chat this session: " + std::to_string(chat_in_) + " in, " + std::to_string(chat_out_) + " out, " +
+          std::to_string(chat_dropped_) + " dropped");
+    chat_.clear();
+    chat_in_ = chat_out_ = chat_dropped_ = 0;
+    has_mate_ = vitals_sent_ = false;
+  }
+  // A line for Lua while fewer than kChatInbox wait; false when it is dropped.
+  bool for_lua(std::string line) {
+    if (chat_.size() >= kChatInbox)
+      return false;
+    chat_.push_back(std::move(line));
+    return true;
+  }
+
   // Channel 2: lines kept for take_fight(), only from a member past the handshake, within kMaxMessage and the rate
   // limit, while fewer than kFightQueue wait. A friend's flood or a stranger's junk stops here.
   void receive_fight() {
@@ -1056,6 +1146,24 @@ private:
       peer.photo_both = both;
       break;
     }
+    case Kind::vitals:
+      if (peer.compatible && peer.accepted) // Before the handshake: ignored, with no log line.
+        mate_ = message.vitals, mate_at_ = now_, has_mate_ = true;
+      break;
+    case Kind::say: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.say_window, 1, kHeardPerSecond, kHeardPerSecond * kMaxMessage)
+                            ? "over the rate limit"
+                        : !for_lua("in " + message.text) ? "too many waiting"
+                                                         : nullptr;
+      ++(why ? chat_dropped_ : chat_in_);
+      if (why && !peer.say_logged) {
+        peer.say_logged = true;
+        event("dropped chat lines from " + peer.name + ": " + why);
+      }
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1185,7 +1293,7 @@ private:
       p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
-      p.drop_logged = p.fight_logged = false;
+      p.drop_logged = p.fight_logged = p.say_logged = false;
     }
   }
 
@@ -1242,5 +1350,14 @@ private:
   uint32_t photo_max_ = 0;
   bool freeze_ = false, capped_ = false;
   uint64_t freeze_since_ = 0;
+  // Chat and vitals: coop loopback runs; a session held at the last pass; the lines for Lua and this session's counts;
+  // our rate window; ours as last sent and when; hers as last heard and when.
+  bool loopback_ = false, chat_session_ = false;
+  std::vector<std::string> chat_;
+  uint64_t chat_in_ = 0, chat_out_ = 0, chat_dropped_ = 0;
+  Window say_window_;
+  Vitals vitals_{}, mate_{};
+  uint64_t vitals_at_ = 0, mate_at_ = 0;
+  bool vitals_sent_ = false, has_mate_ = false;
 };
 } // namespace coop

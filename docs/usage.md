@@ -42,7 +42,7 @@ More about sessions:
 - Your friend's ghost only shows when you are both on the same map. When they are on another map, the screen says once
   `<name> is in <map>, you are in <map>.`, by the maps' last segments (for example `b07`).
 - If your friend goes silent, their ghost hides after a second without a pose and comes back with the next one.
-- Both players need the same protocol (7) and game build. A mismatch is explained on screen instead of being silently
+- Both players need the same protocol (8) and game build. A mismatch is explained on screen instead of being silently
   ignored (see [Notices](#notices)).
 
 The ghost is display only. Nothing is copied between your two games: no enemies, items, unlocks or progress.
@@ -162,7 +162,7 @@ These three run the ghost pipeline on one PC. They need the native tick and the 
   in the mod folder, if it holds a pose. The name is fixed, so a new recording replaces the last one: rename the file
   by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for one made under another protocol, so any made before protocol 7). It then plays it in a loop as
+  reason (`protocol` for one made under another protocol, so any made before protocol 8). It then plays it in a loop as
   the remote side, each pose re-stamped as if sent now, until `coop replay off`, which removes the ghost. The
   generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks where you walked, with
   no offset, and the map gate applies.
@@ -362,11 +362,13 @@ F6 gives one line, in the log (`OK: ...`) and on screen:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- **Steam**: `mod=<version> proto=7 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- **Steam**: `mod=<version> proto=8 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - **Link**: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
   held and `rejoin=<n>/3` while rejoining. Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a
-  `friend=<linked 0|1> <lost 0|1> <name>` line, and the last 8 notices as `notice=<n> <text>`.
+  `friend=<linked 0|1> <lost 0|1> <name>` line, a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst
+  and Tachy for the partner card (while their last reading is under 3 s old; your own during `coop loopback`), and the
+  last 8 notices as `notice=<n> <text>`.
 - **Pose path**: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `nightop=on` or `nightop=rule` while the probe's poller runs.

@@ -49,6 +49,81 @@ int main() {
   assert(photo_line('s', false) == "SBC" + std::to_string(kProtocol) + " photo s notice");
   assert(parse_text("SBC" + std::to_string(kProtocol + 1) + " photo 1 both").kind == Kind::invalid);
 
+  // Chat (UI-DESIGN 4.2, 5.1): the line both players see, cleaned as chat.lua's Chat.clean cleans it. Well-formed
+  // UTF-8 only; C0, DEL, C1, the bidi and zero-width controls dropped (a ZWJ too); ASCII spaces trimmed; 200 bytes at
+  // most, never cut inside a character, then trimmed again.
+  assert(chat_clean("Bonjour é à ç") == "Bonjour é à ç" && chat_clean("  hi  ") == "hi");
+  assert(chat_clean(std::string("a\tb\nc\rd\0e", 9)) == "abcde" && chat_clean("\x1b[31mred\x7f") == "[31mred");
+  assert(chat_clean("a\302\205b\302\240c") == "ab\302\240c"); // NEL dropped, a no-break space kept.
+  for (const char *mark : {"\xd8\x9c", "\xe2\x80\x8b", "\xe2\x80\x8d", "\xe2\x80\xae", "\xe2\x81\xa0", "\xef\xbb\xbf"})
+    assert(chat_clean(std::string("a") + mark + "b") == "ab");
+  assert(chat_clean("a\377b\300\257c\355\240\200d\364\220\200\200e\342\202") == "abcde");
+  assert(chat_clean("\xf0\x9f\x98\x80 ok") == "\xf0\x9f\x98\x80 ok" && chat_clean(" \xe2\x80\xae ").empty());
+  const std::string a199(199, 'a');
+  assert(chat_clean(a199 + "é") == a199 && chat_clean(a199.substr(1) + "é") == a199.substr(1) + "é");
+  assert(chat_clean(std::string(197, 'a') + "\xf0\x9f\x98\x80") == std::string(197, 'a'));
+  assert(chat_clean(a199 + " b") == a199 && chat_clean(std::string(50, '\0') + std::string(250, 'a')).size() == 200);
+  // The same cleaning as Lua's over 20,000 generated lines: tests/chat_test.lua makes the same lines with the same
+  // generator and asserts the same digest of Chat.clean's results, so neither side can drift alone.
+  {
+    // chat_test.lua's TOKENS, in its decimal escapes' order; the NUL one apart, as a C string cannot hold it.
+    const char *const tokens[] = {" ", "a", "A", "", "\t", "\n", "\x1b", "\x7f", "\302\205", "\302\240", "\303\251",
+                                  "\342\202\254", "\360\237\230\200", "\342\200\215", "\342\200\256", "\330\234",
+                                  "\357\273\277", "\355\240\200", "\300\257", "\364\220\200\200", "\200", "\277",
+                                  "\302", "\342\202", "\360\237", "\370", "\377"};
+    uint64_t x = 12345;
+    const auto next = [&x] { return (x = (x * 1103515245 + 12345) & 0x7fffffff) >> 8; };
+    uint32_t digest = 2166136261u;
+    size_t total = 0;
+    for (int n = 1; n <= 20000; ++n) {
+      const bool longer = n % 16 == 0;
+      std::string text = longer ? std::string(170 + next() % 40, 'a') : std::string();
+      for (uint64_t i = 0, parts = longer ? 12 : next() % 24; i < parts; ++i)
+        if (next() % 8 == 0)
+          text += char(next() % 256);
+        else if (const char *token = tokens[next() % 27]; *token)
+          text += token;
+        else
+          text += '\0';
+      const std::string out = chat_clean(text) + '\xff';
+      total += out.size();
+      for (char c : out)
+        digest = (digest ^ static_cast<unsigned char>(c)) * 16777619u;
+    }
+    assert(digest == 0xb5b7514cu && total == 368115);
+  }
+
+  // The say line, reliable: cleaned when built and again when read; nothing left after cleaning is no line.
+  const std::string p = "SBC" + std::to_string(kProtocol);
+  assert(say_line(" hi\n") == p + " say hi" && say_line("\x01 ").empty());
+  m = parse_text(say_line("Salut é à tous"));
+  assert(m.kind == Kind::say && m.text == "Salut é à tous");
+  m = parse_text(p + " say " + std::string(300, 'z'));
+  assert(m.kind == Kind::say && m.text == std::string(kMaxChat, 'z'));
+  m = parse_text(p + " say \x1b[31m\342\200\256x\377");
+  assert(m.kind == Kind::say && m.text == "[31mx");
+  m = parse_text(p + " say  two spaces ");
+  assert(m.kind == Kind::say && m.text == "two spaces");
+
+  // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
+  const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+  assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1");
+  m = parse_text(vit_line(v));
+  assert(m.kind == Kind::vitals && m.vitals == v && plausible_vitals(v));
+  Vitals edge = {kMaxVital, kMaxVital, kMaxVital, kMaxVital, 64, kMaxVital, kMaxVital, kMaxVital, kMaxVital,
+                 kMaxVital, kMaxVital, 255};
+  m = parse_text(vit_line(edge));
+  assert(m.kind == Kind::vitals && m.vitals == edge && vit_line(edge).size() <= 9 + 11 * 9 + 4);
+  for (auto [at, value] : {std::pair<size_t, uint32_t>{vital::hp, kMaxVital + 1}, {vital::max_hp, kMaxVital + 1},
+                           {vital::blocks, 65}, {vital::life, 256}, {vital::tachy, kMaxVital + 1}}) {
+    Vitals bad = edge;
+    bad[at] = value;
+    assert(!plausible_vitals(bad) && parse_text(vit_line(bad)).kind == Kind::invalid);
+  }
+  Vitals over = v;
+  over[vital::hp] = 1601; // HP over MaxHP.
+  assert(!plausible_vitals(over) && parse_text(vit_line(over)).kind == Kind::invalid);
+
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
   // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
   static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
@@ -56,6 +131,11 @@ int main() {
   m = parse_text("SBC hello 6 v0.1.1 24463856");
   assert(m.kind == Kind::hello && m.a == 6 && m.b == 24463856 && m.text == "v0.1.1");
   assert(parse_text("SBC6 ping 1 2").kind == Kind::invalid && parse_text("SBC6 pong 1 2").kind == Kind::invalid);
+  // A v0.2.0 peer runs protocol 7: it would count say and vit as invalid and drop them, so a chat line would vanish
+  // without a word. Protocol 8 makes her lobby tag and hello refuse the link instead; her lines are dropped too.
+  static_assert(kProtocol == 8, "8 adds say and vit; 7 is v0.2.0's");
+  assert(lobby_tag(24463856) != "7:24463856");
+  assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
   assert(fight_tag() == "SBF" + std::to_string(kProtocol));
   for (const std::string &line : {fight_tag() + " on", fight_tag() + " world 3", fight_tag() + " ping 1 2"})
     assert(parse_text(line).kind == Kind::invalid);
@@ -73,7 +153,13 @@ int main() {
   assert(clean(hangul, 64) == hangul.substr(0, 63)); // 21 whole characters, no half one.
 
   // Anything else is invalid: unknown kinds, bad or missing numbers, junk.
-  const std::string p = "SBC" + std::to_string(kProtocol);
+  const std::string n12 = " 1 2 3 4 5 6 7 8 9 10 11 12";
+  for (const std::string &bad :
+       {p + " say", p + " say ", p + " say \x01\x02", p + " say \xe2\x80\x8b", p + " Say hi", p + " vit",
+        p + " vit 1 2 3 4 5 6 7 8 9 10 11", p + " vit" + n12 + " 13", p + " vit" + n12 + " ",
+        p + " vit  2" + n12.substr(2), p + " vit -1 2 3 4 5 6 7 8 9 10 11 12", p + " vit 1.5 2 3 4 5 6 7 8 9 10 11 12",
+        p + " vit 1 2 3 4 5 6 7 8 9 10 11 x", p + " vit 99999999999999999999 1 0 0 0 0 0 0 0 0 0 1"})
+    assert(parse_text(bad).kind == Kind::invalid);
   for (const std::string &bad :
        {std::string(), std::string("SBC"), p, p + " dance 1 2", p + " ping", p + " ping 1", p + " ping x 2",
         p + " ping 1 2x", p + " ping -1 2", p + " ping 99999999999999999999 1", p + "  ping 1 2",
@@ -89,7 +175,7 @@ int main() {
   // Fuzz: random bytes and mutated valid messages never crash, and anything parsed respects the limits.
   std::mt19937 rng(1234);
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
-                               photo_line('1', true)};
+                               photo_line('1', true), say_line("é ok"), vit_line(v)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -97,13 +183,17 @@ int main() {
       for (char &c : text)
         c = static_cast<char>(rng());
     } else {
-      text = seeds[rng() % 6];
+      text = seeds[rng() % 8];
       for (int k = rng() % 4; k >= 0 && !text.empty(); --k)
         text[rng() % text.size()] = static_cast<char>(rng());
     }
     Message f = parse(text.data(), text.size());
     if (f.kind == Kind::photo) // Only a state and a mode, whatever the bytes.
       assert((f.a == '0' || f.a == '1' || f.a == 's') && f.b <= 1 && text == photo_line(char(f.a), f.b));
+    if (f.kind == Kind::say) // Cleaned, never empty.
+      assert(!f.text.empty() && f.text == chat_clean(f.text));
+    if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
+      assert(plausible_vitals(f.vitals));
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= kMaxReason);
       for (char c : f.text)

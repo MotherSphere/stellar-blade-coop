@@ -48,6 +48,27 @@ for _=1,3000 do
     assert(utf8.len(out) and #out<=200 and not out:find('^%s') and not out:find('%s$'),out)
     for _,c in utf8.codes(out) do assert(c>=0x20 and c~=0x7F and not (c>=0x80 and c<=0x9F),c) end
 end
+-- The native part cleans her lines the same way (link_protocol.h's chat_clean): tests/link_protocol_test.cpp makes
+-- these 20,000 lines with the same generator and asserts the same digest (FNV-1a over each result and a 0xFF).
+do
+    local TOKENS={' ','a','A','\0','\t','\n','\27','\127','\194\133','\194\160','\195\169','\226\130\172',
+        '\240\159\152\128','\226\128\141','\226\128\174','\216\156','\239\187\191','\237\160\128','\192\175',
+        '\244\144\128\128','\128','\191','\194','\226\130','\240\159','\248','\255'}
+    local x=12345
+    local function next_rand() x=(x*1103515245+12345)&0x7fffffff return x>>8 end
+    local digest,total=2166136261,0
+    for n=1,20000 do
+        local longer=n%16==0
+        local parts={longer and string.rep('a',170+next_rand()%40) or ''}
+        for _=1,(longer and 12 or next_rand()%24) do
+            parts[#parts+1]=next_rand()%8==0 and string.char(next_rand()%256) or TOKENS[next_rand()%#TOKENS+1]
+        end
+        local out=clean(table.concat(parts))..'\255'
+        total=total+#out
+        for i=1,#out do digest=((digest~out:byte(i))*16777619)&0xffffffff end
+    end
+    assert(digest==0xb5b7514c and total==368115,string.format('0x%08x %d',digest,total))
+end
 
 -- No session: nothing to send, nothing received.
 local chat=Chat.new()
