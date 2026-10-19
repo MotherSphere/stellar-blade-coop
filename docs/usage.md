@@ -203,7 +203,8 @@ Load Game before the question shows loads your own save; the question comes back
 
 `auto_coop_save=always` makes the copies and switches to them at each title screen without asking; `off` turns the
 question and the automatic copies off. Options > Saves > Co-op saves changes it at once. The result shows as a notice in the
-feed (see [Notices](#notices)).
+feed (see [Notices](#notices)). While the game uses the co-op copies, the title screen shows `CO-OP SAVES` at the
+top right, whatever `auto_coop_save` says, and the question does not show.
 
 ## Synced photo mode
 

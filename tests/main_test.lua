@@ -1106,7 +1106,7 @@ chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
 -- and arrow, projected through the kit 30 times a second at most and never without her anchor; nothing after coop off.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
-assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu saves',table.concat(kit_order,' '))
+assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu badge saves',table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,
     life=1}

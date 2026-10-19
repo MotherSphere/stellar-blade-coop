@@ -7,8 +7,8 @@
 -- 60 s with no key close it for this visit; a left click takes the choice under the mouse; Don't ask again rewrites
 -- only auto_coop_save's line, then plays co-op; the title left closes it. With always, no question: the request at each
 -- visit, its result as a notice. With off, nothing. In a session on your own save with shared enemies on, one notice a
--- session. The game's input is the question's while it is open and comes back 150 ms after it closes. English and
--- French.
+-- session. The game's input is the question's while it is open and comes back 150 ms after it closes. While the game
+-- uses the co-op copies, a badge at the top right of the title. English and French.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local Saves=require('saves')
@@ -114,9 +114,15 @@ for _,case in ipairs({at({saves='?'}),at({saves='off'}),{convert='idle'},at({con
     quarter(false,true)
     assert(#calls==0 and #asked==0 and not saves.is_open(),tostring(case.saves)..' '..tostring(case.convert))
 end
-info=at({saves='coop'}); quarter(false,true); assert(#calls==0 and #asked==0,'The co-op saves already: nothing to ask')
+-- The co-op saves already: nothing to ask, the badge at the top right instead (hidden in a world).
+info=at({saves='coop'}); quarter(false,true)
+assert(since(0)=='show badge true' and #asked==0 and built.badge.view.text.s=='CO-OP SAVES',since(0))
+assert(built.badge.place.pivot.X==1 and not built.badge.place.shown and not built.badge.place.hit,'Top right, hidden')
+quarter(true,false); assert(since(1)=='show badge false','Not in a world')
+quarter(false,true); assert(since(2)=='show badge true')
 info=at()
-state.whole=false; quarter(false,true); assert(#calls==0,'The kit still warms its look: it waits')
+state.whole=false; quarter(false,true); assert(since(3)=='show badge false','The kit still warms its look: it waits')
+calls={}
 state.whole=true
 assert(quarter(false,true)==nil and saves.is_open(),'Then it shows')
 assert(since(0)=='show saves true tween|input true saves|sound open',since(0))
@@ -424,6 +430,8 @@ assert(screen()=='SAUVEGARDES CO-OP\nJouer en co-op sur des copies de vos sauveg
     ..'Convertir et jouer en co-op||focus\nJouer en solo normalement||normal\nDécider plus tard||normal\n'
     ..'Ne plus demander|Toujours co-op|normal',screen())
 saves.nav('back')
+info=at({saves='coop'}); quarter(false,true); assert(built.badge.view.text.s=='SAUVEGARDES CO-OP')
+info=at()
 settings.ui_language='english'
 quarter(true,false); quarter(false,true)
 assert(screen():find('^CO%-OP SAVES\n'),'ui_language=english')

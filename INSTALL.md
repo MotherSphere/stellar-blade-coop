@@ -171,6 +171,8 @@ More about the copies:
   `always` or `off` (no copies; see "Manual co-op slot" below).
 - A copy you have not played in co-op follows your own save: the next conversion copies your save again if it changed.
   A copy you played in co-op is never replaced.
+- While the game uses the copies, `CO-OP SAVES` shows at the top right of the title screen, and the question does
+  not show.
 - Steam Cloud syncs the copies like your own saves, so they take up to the same space again.
 - To keep a co-op character without the mod: close the game, back up the save folder, then copy
   `StellarBladeCoop0N.sav` to a free `StellarBladeSave0M.sav` name in the same folder. The game loads it like any save.

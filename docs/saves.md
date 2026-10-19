@@ -98,7 +98,8 @@ Options) says when:
 | `off` | Nothing: your own saves, and the manual co-op slot as the only co-op save |
 
 The question and `always` show their result as a notice: `Co-op saves on: you play co-op copies of your saves. Your
-own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` In a session on your
+own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` While the game uses
+the copies, the title screen shows `CO-OP SAVES` at the top right. In a session on your
 own save with `shared_enemies=on`, a notice says once a session that shared enemies run on co-op saves only.
 
 A copy pass:

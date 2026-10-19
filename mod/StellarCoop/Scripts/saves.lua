@@ -13,8 +13,9 @@
 -- StellarCoopSlot.txt names is the only co-op save. In a session on your own save with shared_enemies=on, one notice a
 -- session says how to switch. While the question is open the game ignores its keys (the kit's input; main.lua's binds
 -- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
--- the title menu under it, and the game's input comes back 150 ms after it closes. No engine call here: the kit makes
--- them.
+-- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
+-- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. No
+-- engine call here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
@@ -41,6 +42,12 @@ function Saves.new(o)
     local before,waited,quiet,progress,why,idle=nil,0,0,nil,nil,0
     local queued,told,stopped=nil,false,false -- queued: a notice to say once the kit is up or a world loads.
     local lang=T.en
+    local badged=false -- The badge is shown.
+    -- At the top right, scaled from that corner; wide enough for the French title. Added first: the question draws over.
+    kit.add('badge',{x=3024,y=96,w=720,h=96,pivot={X=1,Y=0}},function(b)
+        b.panel(0,0,720,96)
+        return {text=b.text(24,14,'','title',o.theme.teal)}
+    end)
     -- Over the whole screen, scaled from its centre; the shade reaches past any screen, ui_scale 75 included.
     kit.add('saves',{x=0,y=0,w=3840,h=2160,hit=true,pivot={X=0.5,Y=0.5}},function(b)
         b.shade(-1920,-1080,7680,4320,o.theme.shade)
@@ -160,6 +167,18 @@ function Saves.new(o)
         if stopped then return end
         local info=link.saves() or {}
         local want=settings.auto_coop_save
+        -- The badge: shown or hidden on change; its word set at each slow (the kit sets it on change only, and a root
+        -- built again shows it).
+        local badge=(title and not world and info.saves=='coop')==true
+        if badge~=badged then
+            badged=badge
+            kit.show('badge',badge)
+        end
+        local bv=badge and kit.view('badge')
+        if bv then
+            pick()
+            bv.text.set(lang.saves.title)
+        end
         if phase=='wait' or (asked and info.saves=='coop') then follow(info) end
         if not (open or back_at) then kit.input(false,'saves') end -- Still due (no player controller at the close).
         if open and kit.off() then
