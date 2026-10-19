@@ -99,6 +99,10 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
 local ui=require('ui').new(function(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end)
+-- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
+-- 250 ms so the file never stays on disk, session or not. Its clock counts that loop's ticks: os.clock is CPU time
+-- under some C runtimes, os.time whole seconds. The box that shows and sends lines comes with the UI layer.
+local chat,chat_clock=require('chat').new(),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay'
@@ -223,6 +227,7 @@ local commands={
         if puppet.active() then puppet.toggle() end
         notice.stop()
         ui.stop()
+        chat.clear()
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -305,6 +310,11 @@ if link then
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        chat_clock=chat_clock+0.25
+        chat.session(not off and link.chatting())
+        for _,line in ipairs(link.take_chat()) do
+            if line.fail then chat.fail() else chat.receive((link.friend()) or '',line.text,chat_clock) end
+        end
         if fight_auto and not off then
             local verdict=(slot_line() or ''):match('^slot=(%a+)')
             if verdict=='coop' or verdict=='main' then

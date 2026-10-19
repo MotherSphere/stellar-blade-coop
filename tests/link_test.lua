@@ -337,4 +337,63 @@ files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
 lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
 files[STATUS]=nil
+
+-- Chat (UI-DESIGN 4.2, 5.2): coop-say.txt, a typed line, is written only while the last one is gone, whole (beside,
+-- then renamed), and never left as a temporary; no returned message carries its text. coop-chat.txt is taken and
+-- deleted at once: "in <text>" is her line, "fail" says ours could not go, anything else is ignored.
+local SAY,CHAT='C:\\Mod\\coop-say.txt','C:\\Mod\\coop-chat.txt'
+ok,message=link.say('Salut é à tous')
+assert(ok and files[SAY]=='Salut é à tous\n' and not files[SAY..'.tmp'],message)
+ok,message=link.say('the second')
+assert(not ok and message=='busy' and files[SAY]=='Salut é à tous\n','The native part has not taken the first')
+files[SAY]=nil
+fs.write=function(path,text) write(path,text); return false end -- A disk full after a part.
+ok,message=link.say('the third')
+assert(not ok and message=='cannot write' and not files[SAY] and not files[SAY..'.tmp'])
+fs.write=write
+local rename=fs.rename
+fs.rename=function() return nil,'denied' end
+ok,message=link.say('the fourth')
+assert(not ok and message=='cannot write' and not files[SAY] and not files[SAY..'.tmp'])
+fs.rename=rename
+assert(#link.take_chat()==0,'Nothing waiting')
+files[CHAT]='in Coucou\nfail\nin ça va ?\nin \njunk\nfail now\nin  two spaces\n'
+local chat=link.take_chat()
+assert(#chat==4 and chat[1].text=='Coucou' and chat[2].fail and chat[3].text=='ça va ?' and chat[4].text==' two spaces')
+assert(files[CHAT]==nil and #link.take_chat()==0,'Taken: deleted at once')
+
+-- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change four times a second),
+-- the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds: a friend
+-- linked (lost or not), a rejoin under way, or the loopback.
+local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
+files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
+    ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nfriend=1 0 x\n'..MATE..'last=#9 x\n'
+lines=fresh.changes()
+for _,line in ipairs(lines) do assert(not line:find('^mate='),'mate= stays out of the log') end
+local mate=fresh.mate()
+assert(mate.hp==900 and mate.max_hp==1600 and mate.shield==0 and mate.max_shield==50 and mate.blocks==5
+    and mate.beta==200 and mate.max_beta==1000 and mate.burst==0 and mate.max_burst==0 and mate.tachy==0
+    and mate.max_tachy==0 and mate.life==1)
+assert(fresh.ping()==118 and fresh.chatting()==true)
+files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=-1 session=1 '
+    ..'session_ping=-1\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
+fresh.changes()
+assert(fresh.mate()==nil and fresh.ping()==nil and fresh.chatting()==false,'No vitals, no RTT, not linked')
+files[STATUS]=HEAD..'friend=1 1 x\n'
+fresh.changes()
+assert(fresh.chatting()==true and fresh.mate()==nil,'Lost but linked: the session holds')
+files[STATUS]='mod=v steam=ready\nlink=none lobby=0 rejoin=1/3\n'
+fresh.changes()
+assert(fresh.chatting()==true,'A rejoin keeps the session')
+for _,engine in ipairs({'engine=on loopback=on 0 0 0','engine=on loopback=waiting'}) do
+    files[STATUS]='mod=v steam=ready\n'..engine..'\nlink=none lobby=0\n'..MATE
+    fresh.changes()
+    assert(fresh.chatting()==true and fresh.mate().hp==900,'The loopback: a session, with our own vitals')
+end
+files[STATUS]='mod=v steam=ready\nengine=on\nlink=none lobby=0\nfriend=0 0 x loopback=on 0 0 0\n'
+fresh.changes()
+assert(fresh.chatting()==false,'Only the pose path\'s line says loopback')
+files[STATUS]=nil
+fresh.changes()
+assert(fresh.chatting()==false and fresh.mate()==nil and fresh.ping()==nil)
 print('link_test ok')

@@ -6,8 +6,9 @@
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
--- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), and the link is
--- optional (no native part, no Steam link, no keys).
+-- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop-chat.txt is
+-- taken every 250 ms (session or not, coop off included) and its text never logged, and the link is optional (no
+-- native part, no Steam link, no keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -48,6 +49,7 @@ local asked,sessions,ticks,withdrawn,states,photos={},{},0,{},{},{}
 local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 local link_mode='none' -- What link.mode() says, as of the last changes().
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
+local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -60,6 +62,9 @@ local fake_link={
     changes=function() return {'link=host lobby=7'} end,
     mode=function() return link_mode end,
     fight=function() fight_reads=fight_reads+1; return fight_text end,
+    chatting=function() return chatting end,
+    take_chat=function() chat_takes=chat_takes+1; local lines=chat_lines; chat_lines={}; return lines end,
+    friend=function() return 'Kaanta',true,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -288,6 +293,12 @@ for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effec
 end
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
 loops[2].f()
+-- coop-chat.txt: taken at every pass, session or not, so it never stays on disk; no text of it is ever logged.
+local takes=chat_takes
+chat_lines={{text='secret one'},{fail=true}}; loops[2].f()
+chatting=true; chat_lines={{text='secret two'}}; loops[2].f()
+assert(chat_takes==takes+2 and #chat_lines==0 and not table.concat(printed,'|'):find('secret'))
+chatting=false
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
 assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
 assert(captured[#captured]==true and last():find('OK: Capture 7',1,true),'The capture runs while the ghost is on')
@@ -345,7 +356,9 @@ assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 local written=#states
+takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
+assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(#states==written,'No world state after coop off: no engine access')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 local lines

@@ -3,8 +3,9 @@
 -- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table), coop-puppet.txt (the
 -- ghost's object path, for the next load) and coop-state.txt (a save loaded, the send rate). The native part writes
 -- coop-remote.txt (the table the ghost is built from) the same way. Each line of the native coop-status.txt that
--- changed is returned once, for the log; peer lines change with every ping and the shared fight's counts (its fight=
--- line) every second, so they stay in coop status, out of the log. The same read gives the session's mode, the friend
+-- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight=
+-- line) every second and her vitals (mate=) four times a second, so they stay in coop status, out of the log. The chat
+-- has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see say()). The same read gives the session's mode, the friend
 -- and the notices for the screen, each from the start of its own line: a Steam name is never at the start of one.
 -- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight; its
 -- photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part
@@ -47,6 +48,9 @@ local DEFAULTS={host_key='F5',status_key='F6',leave_key='F8',name_tag='on',send_
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true} -- on or off, as the looks.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'host_key','status_key','leave_key'}
+-- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
+local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
+    'life'}
 local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
 -- A setting's value from its text, or nil and why it is refused. A key is {key='F7', mod='SHIFT' or nil,
 -- name='Shift+F7'}; fight_chars a list of whole numbers (the native part takes at most 16, each from 1 to 2^32-1);
@@ -142,8 +146,10 @@ function Link.new(folder,fs)
     local seen,remote={},{}
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
-    -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}.
+    -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}; mate: her vitals;
+    -- ping: the first peer's RTT in ms; loopback: coop loopback runs.
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
+    local mate,ping,loopback=nil,nil,false
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -194,6 +200,30 @@ function Link.new(folder,fs)
     -- changes(): its generation, how many times it wrote coop-remote.txt (a new count: read it again) and where it came
     -- from ('loopback', 'replay' or 'peer'); all nil when there is none.
     function self.remote() return remote[1],remote[2],remote[3] end
+    -- Chat (UI-DESIGN 4.2, 5.2). A typed line goes into coop-say.txt, written only while the native part has taken the
+    -- last one (else false, 'busy'), whole and never left as a temporary; false, 'cannot write' when it cannot be.
+    -- No message here ever holds the text: callers log them.
+    function self.say(text)
+        local final=path('coop-say.txt')
+        if fs.read(final) then return false,'busy' end
+        local temp=final..'.tmp'
+        if fs.write(temp,text..'\n') and fs.rename(temp,final) then return true end
+        fs.remove(temp)
+        return false,'cannot write'
+    end
+    -- The native part's coop-chat.txt, taken and deleted at once: {text=} for each of her lines, {fail=true} when one
+    -- of ours could not go, oldest first; anything else is ignored.
+    function self.take_chat()
+        local name=path('coop-chat.txt')
+        local text,lines=fs.read(name),{}
+        if not text then return lines end
+        fs.remove(name)
+        for line in text:gmatch('[^\n]+') do
+            local said=line:match('^in (.+)$')
+            if said then lines[#lines+1]={text=said} elseif line=='fail' then lines[#lines+1]={fail=true} end
+        end
+        return lines
+    end
     function self.changes()
         local text,now,new=fs.read(status_path),{},{}
         -- From the pose path's line only: a peer line before it carries a Steam name the other player chooses.
@@ -201,11 +231,23 @@ function Link.new(folder,fs)
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
+        mate,ping,loopback=nil,nil,engine:find(' loopback=')~=nil
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
-            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') then new[#new+1]=line end
+            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=') then
+                new[#new+1]=line
+            end
+            if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.
+                ping=tonumber(line:match(' rtt_ms=(%-?%d+) session=%-?%d+ session_ping=%-?%d+$'))
+                ping=ping and ping>=0 and ping or false
+            end
+            local v={line:match('^mate='..('(%d+) '):rep(11)..'(%d+)$')}
+            if v[12] then
+                mate={}
+                for i,key in ipairs(VITALS) do mate[key]=tonumber(v[i]) end
+            end
             if not mode and line:find('^link=') then
                 mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
             end
@@ -223,6 +265,16 @@ function Link.new(folder,fs)
     end
     -- 'none', 'host' or 'guest'; nil before Steam is ready.
     function self.mode() return mode end
+    -- Her vitals for the partner card ({hp=, max_hp=, shield=, max_shield=, blocks=, beta=, max_beta=, burst=,
+    -- max_burst=, tachy=, max_tachy=, life=}, whole units; your own during coop loopback), or nil: none for 3 s.
+    function self.mate() return mate end
+    -- The friend's round trip in ms, or nil before the first pong.
+    function self.ping() return ping or nil end
+    -- A chat session holds: a friend linked (lost or not), a rejoin under way, or coop loopback. Its end clears the
+    -- chat (chat.lua's session()); the native part's own ends with the link, so a line typed during a rejoin fails.
+    function self.chatting()
+        return (friend~=nil and friend[2]) or rejoin~=nil or loopback
+    end
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
     function self.fight() return fight end
