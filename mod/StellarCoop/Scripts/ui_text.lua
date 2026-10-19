@@ -1,4 +1,5 @@
--- The co-op menu's, the chat's, the partner HUD's and the co-op saves' words (D-UI8): English and French. The game's language picks them
+-- The co-op menu's, the chat's, the partner HUD's, the co-op saves' and the shared enemies' words (D-UI8): English and
+-- French. The game's language picks them
 -- (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language reads English until
 -- translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
 local T={}
@@ -30,7 +31,7 @@ T.en={
         no_session='Chat needs a session.',off='Chat is off (Options > Chat).',not_sent=' (not sent)',
         ui_off='The chat box is off (the UI stopped, see UE4SS.log).'},
     partner={partner='Partner',down='DOWN',lost='connection lost',elsewhere='elsewhere · %s'},
-    -- The question at the title (saves.lua), its notices, and the one in a session on your own save.
+    -- The question at the title (saves.lua) and its notices.
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
             ..'copies. Your own saves are not changed.',
@@ -42,9 +43,18 @@ T.en={
         failed='The co-op saves could not be switched on. Your own saves were not changed.',
         see_log='coop-link.log says why',
         on='Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.',
-        off='Co-op saves off for this load: %s. You play your own saves.',
-        session='You play your own save, and shared enemies run on co-op saves only. Quit to the title to switch; the '
-            ..'ghost works now.'},
+        off='Co-op saves off for this load: %s. You play your own saves.'},
+    -- The shared enemies' notices (main.lua): on, off, and what keeps coop fight on from sharing (%s: her name).
+    fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
+        off='Shared enemies off: %s.',friend='Your friend',
+        you='Shared enemies need a co-op save, and this is your own save. Quit to the title screen and switch to the '
+            ..'co-op saves (Play co-op), then Continue or load the same slot number. The ghost works on any save.',
+        you_manual='Shared enemies need a co-op save, and this is your own save. With the co-op copies off, only the '
+            ..'manual co-op slot counts (see INSTALL.md). The ghost works on any save.',
+        her_save='Shared enemies wait: %s plays their own save. They can switch at the title screen with Play co-op.',
+        her_off='Shared enemies wait: %s has them off (co-op menu, Options, Combat).',
+        her_stopped="Shared enemies stopped for this run in %s's game. Their coop-link.log says why.",
+        map='Shared enemies wait until you and %s are on the same map.'},
 }
 T.fr={
     title='CO-OP',
@@ -89,9 +99,20 @@ T.fr={
         see_log='coop-link.log dit pourquoi',
         on='Sauvegardes co-op actives : vous jouez sur des copies co-op de vos sauvegardes. Vos propres sauvegardes '
             ..'ne changent pas.',
-        off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.',
-        session='Vous jouez sur votre propre sauvegarde, et les ennemis partagés ne fonctionnent que sur les '
-            .."sauvegardes co-op. Revenez à l'écran titre pour changer ; le fantôme fonctionne déjà."},
+        off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.'},
+    fight={on='Ennemis partagés actifs : %d ennemis liés.',one='Ennemis partagés actifs : 1 ennemi lié.',
+        off='Ennemis partagés coupés : %s.',friend='Votre partenaire',
+        you='Les ennemis partagés demandent une sauvegarde co-op, et vous jouez sur votre propre sauvegarde. Revenez à '
+            .."l'écran titre et passez aux sauvegardes co-op (Jouer en co-op), puis Continuer ou chargez le même "
+            .."numéro d'emplacement. Le fantôme fonctionne sur toutes les sauvegardes.",
+        you_manual='Les ennemis partagés demandent une sauvegarde co-op, et vous jouez sur votre propre sauvegarde. '
+            ..'Avec les copies co-op coupées, seul l\'emplacement co-op manuel compte (voir INSTALL.md). Le fantôme '
+            ..'fonctionne sur toutes les sauvegardes.',
+        her_save="Ennemis partagés en attente : %s joue sur sa propre sauvegarde. Le passage se fait à l'écran titre, "
+            ..'avec Jouer en co-op.',
+        her_off='Ennemis partagés en attente : ils sont coupés chez %s (menu co-op, Options, Combat).',
+        her_stopped='Ennemis partagés arrêtés pour cette partie chez %s. Son coop-link.log dit pourquoi.',
+        map="Ennemis partagés en attente : vous et %s n'êtes pas sur la même zone."},
 }
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(culture,setting)

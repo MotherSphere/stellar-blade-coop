@@ -234,10 +234,16 @@ s,notes=Link.parse_settings('effects=on'); assert(#notes==0 and s.effects==true 
 s,notes=Link.parse_settings('cloth=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays off"
     and s.cloth==false,notes[1])
--- The shared enemies (Phase 11, experimental): shared_enemies on or off, off by default; fight_chars at most 16 whole
--- character ids from 1 to 2^32-1 separated by spaces, empty by default. A bad value keeps the default, with a line.
+-- The shared enemies (Phase 11, experimental): shared_enemies on or off, off by default; fight_chars auto (the default:
+-- every common enemy, an empty list for the native part) or at most 16 whole character ids from 1 to 2^32-1 separated
+-- by spaces. An empty value is auto too: the files written before auto said fight_chars= and shared nothing. A bad
+-- value keeps the default, with a line.
 s,notes=Link.parse_settings('')
-assert(s.shared_enemies==false and #s.fight_chars==0,'Off and none unless set')
+assert(s.shared_enemies==false and #s.fight_chars==0,'Off and auto unless set')
+for _,auto in ipairs({'auto','AUTO',' Auto ',''}) do
+    s,notes=Link.parse_settings('fight_chars='..auto)
+    assert(#notes==0 and type(s.fight_chars)=='table' and #s.fight_chars==0,auto)
+end
 s,notes=Link.parse_settings('Shared_Enemies=ON\nfight_chars= 15011001  2\t4294967295 \n')
 assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==3 and s.fight_chars[1]==15011001
     and s.fight_chars[2]==2 and s.fight_chars[3]==4294967295,notes[1])
@@ -246,20 +252,21 @@ s,notes=Link.parse_settings('fight_chars=007 '..string.rep('7 ',15))
 assert(#notes==0 and #s.fight_chars==16 and s.fight_chars[1]==7,'16 at most')
 s,notes=Link.parse_settings('shared_enemies=off\nfight_chars=\n')
 assert(#notes==0 and not s.shared_enemies and #s.fight_chars==0)
-local CHARS_RULE='use at most 16 character ids, whole numbers separated by spaces'
-for _,bad in ipairs({string.rep('7 ',17),'0','4294967296','99999999999999999999','1,2','-1','+1','x','1.5','1e3'}) do
+local CHARS_RULE='use auto, or at most 16 character ids, whole numbers separated by spaces'
+for _,bad in ipairs({string.rep('7 ',17),'0','4294967296','99999999999999999999','1,2','-1','+1','x','1.5','1e3',
+        'auto 15011001','autos'}) do
     s,notes=Link.parse_settings('fight_chars='..bad)
     local shown=bad:match('^%s*(.-)%s*$')
     local want="settings: line 1: '"..shown.."' is not allowed for fight_chars ("..CHARS_RULE..'); fight_chars '
-        ..'stays empty'
+        ..'stays auto'
     assert(#notes==1 and notes[1]==want and #s.fight_chars==0,notes[1])
 end
 s,notes=Link.parse_settings('shared_enemies=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_enemies (use on or off); "
     .."shared_enemies stays off" and s.shared_enemies==false,notes[1])
--- A new file names both, off and empty; a file written before they existed keeps working unchanged: the same settings,
+-- A new file names both, off and auto; a file written before they existed keeps working unchanged: the same settings,
 -- no line.
-assert(Link.DEFAULT:find('\nshared_enemies=off\nfight_chars=\n',1,true),'Both written in a new file')
+assert(Link.DEFAULT:find('\nshared_enemies=off\nfight_chars=auto\n',1,true),'Both written in a new file')
 s,notes=Link.parse_settings(Link.DEFAULT)
 assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0)
 local older=Link.DEFAULT:gsub('# Shared enemies.*$','')

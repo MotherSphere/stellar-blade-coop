@@ -12,8 +12,10 @@ assert(text==Link.DEFAULT:gsub('\nmenu_key=F5\n','\nmenu_key=Shift+F7\n'),text)
 local s,notes=Link.parse_settings(text)
 assert(#notes==0 and s.menu_key.name=='Shift+F7' and s.status_key.name=='F6')
 text=assert(F.set(Link.DEFAULT,'fight_chars','15011001 15011002'))
-assert(text==Link.DEFAULT:gsub('\nfight_chars=\n','\nfight_chars=15011001 15011002\n'))
-assert(F.set(Link.DEFAULT,'fight_chars','')==Link.DEFAULT,'An empty value is a value')
+assert(text==Link.DEFAULT:gsub('\nfight_chars=auto\n','\nfight_chars=15011001 15011002\n'))
+assert(F.set(Link.DEFAULT,'fight_chars','auto')==Link.DEFAULT,'The value it has already')
+assert(F.set(text,'fight_chars','')==Link.DEFAULT:gsub('\nfight_chars=auto\n','\nfight_chars=\n'),
+    'An empty value is a value')
 
 -- A commented example is a comment: the key goes at the end instead, and the comment stays.
 text=assert(F.set(Link.DEFAULT,'cloth','on'))

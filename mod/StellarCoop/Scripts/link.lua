@@ -41,10 +41,11 @@ send_rate=20
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play a co-op save. fight_chars: the enemy character ids it shares, separated by
-# spaces (coop fight probe logs them), for example fight_chars=15011001.
+# death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
+# shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
+# example fight_chars=15011001.
 shared_enemies=off
-fight_chars=
+fight_chars=auto
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -68,10 +69,10 @@ partner_card=on
 card_details=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
--- written before shared_enemies and fight_chars existed lacks them: off and none, as here; one written before the photo
+-- written before shared_enemies and fight_chars existed lacks them: off and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
-    dyes='off',effects='off',shared_enemies='off',fight_chars='',photo_sync='both',photo_freeze_max='600',
+    dyes='off',effects='off',shared_enemies='off',fight_chars='auto',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
     partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
@@ -86,15 +87,17 @@ local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','bu
 local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- A setting's value from its text, or nil and why it is refused. A key is keybind.lua's ({key='F7', mod='SHIFT' or nil,
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
--- from 1 to 2^32-1); a choice (CHOICES: photo_sync, ui_language, who_can_join, auto_coop_save) one of its words;
+-- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
+-- written before auto); a choice (CHOICES: photo_sync, ui_language, who_can_join, auto_coop_save) one of its words;
 -- photo_freeze_max a whole number of seconds; ui_scale one of percent.
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
+        if text:lower()=='auto' then return ids end
         for word in text:gmatch('%S+') do
             local id=word:match('^%d+$') and tonumber(word)
             if not id or id<1 or id>4294967295 or #ids==16 then
-                return nil,'use at most 16 character ids, whole numbers separated by spaces'
+                return nil,'use auto, or at most 16 character ids, whole numbers separated by spaces'
             end
             ids[#ids+1]=id
         end
