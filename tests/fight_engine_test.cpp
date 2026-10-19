@@ -771,6 +771,12 @@ int main() {
     assert(mail.give(msg("SBF7 world 4")));
     mail.clear();
     assert(mail.exchange(s) && !mail.receive(m));
+    // Handed over but not taken yet: dropped too, even before a hand-over (the next try_lock may find it busy); hers
+    // given after the clear still arrive.
+    assert(mail.give(msg("SBF7 world 5")) && mail.exchange(s));
+    mail.clear();
+    assert(!mail.receive(m) && mail.give(msg("SBF7 world 6")) && mail.exchange(s));
+    assert(mail.receive(m) && m.type == Type::world && m.gen == 6 && !mail.receive(m));
     // Full: one past kMail is lost on the job's side, refused on hers.
     out.clear();
     for (size_t i = 0; i <= kMail; ++i)
@@ -824,9 +830,10 @@ int main() {
     Worker w(*e, mail);
     std::string why = "not on the co-op save (slot=main index=0 marker=4)";
     int asked = 0;
+    bool loaded = true; // As fight_gate: slot=none while no save is loaded.
     const auto gate = [&] {
       ++asked;
-      return why;
+      return loaded ? why : "not on the co-op save (slot=none index=0 marker=4)";
     };
     const uint32_t chars[] = {kChar};
     const std::vector<std::string> none;
@@ -852,6 +859,13 @@ int main() {
                                                 "fight: her shared fight off: busy"}));
     assert(mail.exchange(s) && mail.receive(m) && m.type == Type::world && mail.receive(m) && m.type == Type::off &&
            !mail.receive(m));
+    // Her off again is not said again until her on.
+    io.said.clear();
+    w.pass(t += 16, true, false, true, {"SBF7 off busy", "SBF7 on", "SBF7 off later"}, gate, io);
+    assert((io.said == std::vector<std::string>{"fight: her shared fight off: later"}));
+    assert(mail.exchange(s));
+    while (mail.receive(m))
+      ;
     // The job's lines go out as text (hp unreliable), its events into the log.
     io.said.clear();
     mail.send(msg("SBF7 hit 2 1 101 100 0 0 1600 0"));
@@ -880,12 +894,15 @@ int main() {
     assert(w.status() == " fight=waiting");
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(e->on() && io.lines() == "SBF7 on\n");
-    // A load (no save for a while): paused, she hears why, and her line not taken yet goes with the session.
+    // A load (no save for a while), on a pass the gate is due: paused, not off; she hears why, and her line not taken
+    // yet goes with the session.
     w.pass(t += 16, true, false, true, {"SBF7 world 9"}, gate, io);
-    w.pass(t += 16, true, false, false, none, gate, io);
+    loaded = false;
+    w.pass(t += kGateMs, true, false, false, none, gate, io);
     assert(!e->on() && io.lines() == "SBF7 off no save loaded\n" && io.said.back() == "shared fight paused: no save loaded");
     assert(mail.exchange(s) && !mail.receive(m));
     // The save loaded meanwhile is another slot: the gate, asked before the start, turns it off until asked again.
+    loaded = true;
     why = "not on the co-op save (slot=main index=0 marker=4)";
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(!e->on() && io.lines().empty() && io.said.back() == "shared fight off: " + why && w.status().empty());

@@ -1199,15 +1199,20 @@ void fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   fight_send = send;
   if (fight_faulted && !fight_fault_logged) {
     fight_fault_logged = true;
-    // In an SB call made from our job: its address as the decompiles name it; else in this DLL.
+    // In an SB call made from our job: its address as the decompiles name it; in this DLL: its offset; else (ntdll
+    // under ApplyStat's heap, say) the address itself.
     const uint64_t at_address = fight_fault_rva + reinterpret_cast<uintptr_t>(&__ImageBase);
+    const auto *ours = reinterpret_cast<const IMAGE_NT_HEADERS *>(reinterpret_cast<const char *>(&__ImageBase) +
+                                                                  __ImageBase.e_lfanew);
     char where[64], text[200];
     if (at_address - base < kSizeOfImage)
       std::snprintf(where, sizeof where, "the game at 0x%llx",
                     static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
-    else
+    else if (fight_fault_rva < ours->OptionalHeader.SizeOfImage)
       std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx",
                     static_cast<unsigned long long>(fight_fault_rva.load()));
+    else
+      std::snprintf(where, sizeof where, "0x%llx (another module)", static_cast<unsigned long long>(at_address));
     std::snprintf(text, sizeof text, "shared fight fault 0x%08llx in %s reading 0x%llx: the ghost and the link go on",
                   static_cast<unsigned long long>(fight_fault_code.load()), where,
                   static_cast<unsigned long long>(fight_fault_address.load()));

@@ -542,8 +542,8 @@ private:
 // touches only our own memory while it holds it, so no fault in the game can leave it held. The worker may wait.
 class Mail {
 public:
-  // The logic thread: the Game's receive, send and event.
-  bool receive(Message &m) { return in_.pop(m); }
+  // The logic thread: the Game's receive, send and event. None while a clear() waits for its hand-over.
+  bool receive(Message &m) { return !drop_in_ && in_.pop(m); }
   void send(const Message &m) { lost_ += !out_.push(m); }
   void event(const Event &e) { lost_ += !events_.push(e); }
   // The logic thread, before and after each turn: ours out, hers in, the snapshot. False when the lock was busy.
@@ -552,6 +552,10 @@ public:
       return false;
     out_.move_to(shared_out_);
     events_.move_to(shared_events_);
+    if (drop_in_) { // A clear() since the last hand-over: hers already handed over go too.
+      in_.clear();
+      drop_in_ = false;
+    }
     shared_in_.move_to(in_);
     snapshot_ = s;
     snapshot_.lost = lost_;
@@ -583,10 +587,12 @@ public:
     s.job.arms = arms_, s.job.deferred = deferred_, s.job.forced = forced_, s.game_thread = game_thread_;
     return s;
   }
-  // The worker, when a session ends: her lines the job has not taken yet are dropped.
+  // The worker, when a session ends: her lines the job has not taken yet are dropped, those already handed over at
+  // the next hand-over (none received meanwhile).
   void clear() {
     std::lock_guard<std::mutex> lock(m_);
     shared_in_.clear();
+    drop_in_ = true;
   }
 
 private:
@@ -595,6 +601,7 @@ private:
   Ring<Event, kMail> events_, shared_events_;
   Snapshot snapshot_;
   uint64_t lost_ = 0; // The logic thread's.
+  std::atomic<bool> drop_in_{false}; // Set by clear(), done by the next exchange(): in_ is the logic thread's.
   std::atomic<uint64_t> arms_{0}, deferred_{0}, forced_{0};
   std::atomic<uint32_t> game_thread_{0};
 };
@@ -653,8 +660,12 @@ public:
           io.say("fight: a malformed line from her dropped (said once a session)");
         continue;
       }
-      if (m.type == Type::off)
+      if (m.type == Type::on)
+        her_off_ = false;
+      else if (m.type == Type::off && !her_off_) { // Said again only after her on: repeats cannot fill the log.
+        her_off_ = true;
         io.say("fight: her shared fight off: " + reason);
+      }
       if (running_ && !mail_.give(m))
         ++dropped_;
     }
@@ -663,7 +674,7 @@ public:
       latch_said_ = true;
       wanted_ = false;
       said = stop("off", std::string("stopped for this run (") + e_.why() + ")", io);
-    } else if (running_ && now_ms >= next_gate_) { // A start asks it anyway.
+    } else if (running_ && world_ && now_ms >= next_gate_) { // A start asks it anyway; a load only pauses (update).
       next_gate_ = now_ms + kGateMs;
       if (std::string why = gate(); !why.empty()) {
         wanted_ = false;
@@ -769,6 +780,7 @@ private:
   Mail &mail_;
   bool wanted_ = false, running_ = false, side_ = false, latch_said_ = false; // side_: hosting, as started.
   bool linked_ = false, hosting_ = false, world_ = false;                     // As of the last pass.
+  bool her_off_ = false;                                                       // Her last off said, no on since.
   uint64_t now_ = 0, next_gate_ = 0, next_stats_ = 0, said_ms_ = 0, said_runs_ = 0, said_us_ = 0;
   uint64_t unsent_ = 0, dropped_ = 0, malformed_ = 0;
   Snapshot last_;
