@@ -107,6 +107,31 @@ while the on-screen UI is up.
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).
 
+### The co-op saves question does not show
+
+It shows only with `auto_coop_save=ask`, on the title screen, once the on-screen UI has loaded. `coop status` gives the
+reason:
+
+- `saves=coop` on the slot line: the game already uses the co-op copies, and `CO-OP SAVES` shows at the top right of
+  the title screen. They stay on until the game restarts.
+- `saves=off` or `saves=?`: the mod cannot use the save file name on this game build, or a check failed. The
+  `save name: saves=...` line of `coop-link.log` says why. The mod makes no copies, and the game uses your own saves.
+- `steam=waiting`: Steam is not ready yet, and the mod needs your Steam ID to find your save folder.
+- `convert=busy ...`: a copy pass runs. The question waits for its end.
+- `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI
+  stopped (see the `[StellarCoop][UI]` lines). `auto_coop_save=always` still switches to the copies.
+
+### `Co-op saves off for this load: <why>`
+
+The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:
+
+- `Continue or Load Game was chosen at the title (load mode 2)`: Continue or Load Game was pressed before the copies
+  were ready, so the game loads your own save.
+- `slot N's save ...` or `slot N's copy ...`: that save could not be copied (it fails the game's own check, it changed
+  while it was read, or the disk is full). The other copies are made, but the switch needs a copy of every save.
+- `the backup folder could not be made` or `the backup of <file> could not be written`: the disk is full, or
+  `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups` cannot be written.
+
 ### A save looks wrong
 
 Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
