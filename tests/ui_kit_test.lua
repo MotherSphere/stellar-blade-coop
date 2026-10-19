@@ -1,11 +1,13 @@
 -- The Uplink kit (ui.lua's Ui.kit) with fake UE4SS objects and clock: nothing at all until a group is added; the
--- assets warmed one lookup a 250 ms tick, the build in one call once the look's assets are in (sounds after), every
--- group's widgets in place before AddToViewport; the game's fonts, dots, cubes, key icons and colours; updates only on
--- change; groups hidden and shown again, never removed; the open (slide and flicker) and close tweens in the 1 ms
--- loop, and no engine call while none runs; the scale; the game's sounds; a new root after a map change, its freed
--- assets looked up again first, the old handles never touching an address that holds another object; the root an
--- earlier Lua load left swept; the first engine error turning the kit off (views nil: the notice line above EVE stays
--- the fallback); a look that cannot be had only degrading; nothing while the world is hidden or after coop off.
+-- assets warmed one lookup a 250 ms tick, the build in one call once the classes are in (default font and flat colour)
+-- and again once the look's assets are in (sounds after; not while the menu is open), every group's widgets in place
+-- before AddToViewport; the game's fonts, dots, cubes, key icons and colours; hit tests passing through all but the
+-- menu's rows; updates only on change; groups hidden and shown again, never removed; the open (slide and flicker) and
+-- close tweens in the 1 ms loop, and no engine call while none runs; the scale; the game's sounds; a new root after a
+-- map change, its freed assets looked up again, the old handles never touching an address that holds another object;
+-- no rebuild storm; the root an earlier Lua load left swept; the first engine error, in a build's own update too,
+-- turning the kit off (off(): the notice line above EVE is the fallback); a look that cannot be had only degrading;
+-- nothing while the world is hidden or after coop off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -17,6 +19,7 @@ local function ue4ss()
 end
 local calls,stores,raise,modes,special={},{},{},{},{}
 local viewport,registry,loadable,constructed,logs,saved,pc
+local since=0 -- of() looks at the widgets constructed after this many: the last full build's (up sets it).
 local next_address=0x1000
 local function call(name) ue4ss(); calls[#calls+1]=name end
 -- A struct property as UE4SS gives it: a view on the object's memory ('raise': writes raise; 'copy': they do not stick).
@@ -68,6 +71,7 @@ special['UserWidget.RemoveFromParent']=function(_,o)
 end
 special['PC.IsA']=function(_,_,class) return stores[class].class=='PlayerController' end
 special['TextBlock.SetText']=function(s,_,t) s.text=t.text end
+special['Image.IsHovered']=function(s) return s.hovered end
 special['TextBlock.SetFont']=function(s,_,info)
     if modes.SetFont then error(modes.SetFont,0) end
     s.font.FontObject,s.font.Size=info.FontObject,info.Size
@@ -100,7 +104,7 @@ local PATHS={} -- Asset name to object path.
 for _,a in ipairs(Ui.ASSETS) do PATHS[a[1]]=a[2] end
 local function reset()
     for _,o in pairs(registry or {}) do stores[o].alive=false end -- unreal.lua's cache looks them up again.
-    calls,raise,modes,viewport,registry,loadable,constructed,logs,saved={},{},{},{},{},{},{},{},nil
+    calls,raise,modes,viewport,registry,loadable,constructed,logs,saved,since={},{},{},{},{},{},{},{},nil,0
     clock=100
     pc=object('PC')
     registry['/Script/Engine.PlayerController']=object('PlayerController')
@@ -117,13 +121,17 @@ local function count(prefix)
     return n
 end
 local function at(name,after) for i=(after or 0)+1,#calls do if calls[i]==name then return i end end end
-local function of(class) local list={}; for _,o in ipairs(constructed) do if stores[o].class==class then list[#list+1]=o end end return list end
+local function of(class)
+    local list={}
+    for i=since+1,#constructed do if stores[constructed[i]].class==class then list[#list+1]=constructed[i] end end
+    return list
+end
 local function asset(name) return registry[PATHS[name]] end
 local function size(o) local s=stores[stores[o].slot].last.SetSize; return s and s[1].X..'x'..s[1].Y end
 local function pos(o) local p=stores[stores[o].slot].last.SetPosition[1]; return p.X..','..p.Y end
 local function vis(o) local v=stores[o].last.SetVisibility; return v and v[1] end
 local views={}
--- Two groups using every builder: a card (shown) and a menu (hidden until shown).
+-- Two groups using every builder: a card (shown) and a menu (hidden until shown; its rows take the mouse).
 local function kit(options)
     options=options or {}
     options.store,options.log=store,function(m) logs[#logs+1]=m end
@@ -134,7 +142,7 @@ local function kit(options)
         return {name=b.text(24,20,'Alex','name',T.teal),hp=b.hp(24,80,40,3,'big'),sh=b.shield(24,130,'small'),
             be=b.cubes(24,160,8,T.beta),dot=b.image(700,20,20,20,'link',T.teal)}
     end)
-    k.add('menu',{x=180,y=330,w=1240,h=1500},function(b)
+    k.add('menu',{x=180,y=330,w=1240,h=1500,hit=true},function(b)
         b.panel(0,0,1240,1500)
         local v={title=b.text(40,30,'CO-OP','title'),row=b.row(40,200,760),bar=b.bar(40,900,400,12,T.teal)}
         b.hints(40,1400,300,{{'move','Move'},{'enter','Select'},{'escape','Close'}})
@@ -142,11 +150,12 @@ local function kit(options)
     end)
     return k
 end
--- Slow ticks until the root is in the viewport: the tick count.
+-- Slow ticks until the root is built with its look (after one built while it warms); of() then looks at its widgets.
 local function up(k)
-    for i=1,100 do
+    for i=1,200 do
+        local first=#constructed
         k.slow(true)
-        if #viewport>0 then return i end
+        if #constructed>first and logs[#logs]:find('^UI built: ') then since=first; return i end
     end
     error('never built')
 end
@@ -168,12 +177,13 @@ local k=Ui.kit({store=store})
 for _=1,60 do k.slow(true); k.tick(clock) end
 assert(#calls==0 and k.view('card')==nil and not k.ready(),'No engine call without a group')
 
--- The warm-up: one asset (or class) a tick, nothing constructed before the build; the build in one tick with no
--- lookup, once every asset but the sounds is in; then the sounds, one a tick.
+-- The warm-up: one class or asset a tick. The build, which looks nothing up, as soon as the classes are in: the
+-- default font, flat colour, no texture (the menu works from the start); built again once the assets it uses are in
+-- (not the sounds), the first root out; then the sounds, one a tick.
 reset()
 k=kit({azerty=true})
-local ticks,build_tick=0,nil
-for i=1,100 do
+local builds,roots={},{}
+for i=1,200 do
     local before,first=#calls,#constructed
     k.slow(true)
     local finds,loads=0,0
@@ -184,12 +194,16 @@ for i=1,100 do
     assert(finds<=1 and loads==0,'One lookup a tick at most')
     if #constructed>first then
         assert(finds==0 and #viewport==1,'The build looks nothing up')
-        build_tick=i
-        break
+        builds[#builds+1],roots[#roots+1],since=i,viewport[1],first
+        if #builds==2 then break end
+        assert(k.view('menu') and logs[1]:find('^UI built while its look warms: %d+ widgets in 0%.0 ms$'),logs[1])
+        for _,o in ipairs(of('TextBlock')) do assert(stores[o].font.Size==24 and not stores[o].last.SetFont) end
+        for _,o in ipairs(of('Image')) do assert(not stores[o].brush.ResourceObject) end
     end
-    ticks=i
 end
-assert(build_tick==#UMG+2+#Ui.ASSETS-SOUNDS+1,build_tick) -- Classes, the PC class and GameplayStatics, the assets.
+-- Classes, the PC class and GameplayStatics; then the assets.
+assert(builds[1]==#UMG+3 and builds[2]==#UMG+3+#Ui.ASSETS-SOUNDS+1,table.concat(builds,' '))
+assert(stores[roots[1]].last.RemoveFromParent and roots[2]~=roots[1],'The first root out')
 for i=1,SOUNDS do
     local before=#calls
     assert(k.slow(true)==nil)
@@ -209,21 +223,22 @@ assert(stores[root].class=='UserWidget' and stores[root].outer==pc and stores[ro
 local tree,canvas=stores[root].props.WidgetTree,nil
 canvas=stores[tree].props.RootWidget
 assert(stores[tree].outer==root and stores[canvas].class=='CanvasPanel' and stores[canvas].outer==tree)
-local add=at('UserWidget.AddToViewport')
+local first=at('UserWidget.AddToViewport') -- The build while the look warms.
+local add=at('UserWidget.AddToViewport',first)
 for _,before in ipairs({'set UserWidget.WidgetTree','set WidgetTree.RootWidget','UserWidget.SetOwningPlayer',
         'UserWidget.SetVisibility','TextBlock.SetText','Image.SetBrushFromTexture','set Font.FontObject'}) do
-    assert(at(before) and at(before)<add,before..' before AddToViewport')
+    assert(at(before,first) and at(before,first)<add,before..' before AddToViewport')
 end
-assert(stores[root].last.SetOwningPlayer[1]==pc and vis(root)==3,'Owned, hit tests pass through')
+assert(stores[root].last.SetOwningPlayer[1]==pc and vis(root)==4,"Owned, hit tests pass through but the menu's")
 assert(saved==stores[root].full:match('^%S+ (.+)$'),'Its path kept')
-assert(logs[1]:find('^UI built: %d+ widgets in 0%.0 ms$'),logs[1])
+assert(#logs==2 and logs[2]:find('^UI built: %d+ widgets in 0%.0 ms$'),logs[2])
 local groups=stores[canvas].children
 assert(#groups==2 and pos(groups[1])=='96,96' and size(groups[1])=='760x210' and pos(groups[2])=='180,330')
 assert(vis(groups[1])==3 and vis(groups[2])==1,'The card shown, the menu hidden')
 assert(stores[groups[1]].last.SetRenderTransformPivot[1].X==0 and not stores[groups[1]].last.SetRenderScale,
     'Scaled from the top left; 100 % needs no call')
 local card,menu=k.view('card'),k.view('menu')
-assert(card and menu and k.ready() and views.card_built==1)
+assert(card and menu and k.ready() and views.card_built==2) -- Once while the look warmed.
 
 -- The look: the panel's glass and dotted rails; text in the game's fonts and colours; the gauges' dots; the cubes;
 -- the key icons, AZERTY's moves.
@@ -235,6 +250,8 @@ assert(text('Alex').last.SetColorAndOpacity[1].SpecifiedColor==T.teal and
     text('Alex').last.SetColorAndOpacity[1].ColorUseRule==0,'Teal, the partner colour')
 assert(text('CO-OP').font.Size==56 and text('Move').font.FontObject==asset('Bold') and text('Move').font.Size==30)
 assert(text('CO-OP').last.SetColorAndOpacity[1].SpecifiedColor==T.text)
+assert(vis(select(2,text('CO-OP')))==3 and vis(borders[2])==3 and vis(select(2,text('Alex')))==nil,
+    "In the menu hit tests pass through all but its rows; the card's group lets them all through")
 local function textured(name)
     local list={}
     for _,o in ipairs(of('Image')) do if stores[o].brush.ResourceObject==asset(name) then list[#list+1]=o end end
@@ -272,28 +289,35 @@ assert(text('Alexandra'))
 menu.row.set('Host a session','','focus')
 local flats={}
 for _,o in ipairs(of('Image')) do if not stores[o].brush.ResourceObject then flats[#flats+1]=o end end
-assert(#flats==2 and vis(flats[1])==3 and vis(flats[2])==3 and size(flats[2])=='6x76','The Beta-blue focus bar')
+assert(#flats==2 and vis(flats[1])==0 and size(flats[1])=='760x76','The row takes the mouse')
+assert(stores[flats[1]].last.SetColorAndOpacity[1]==T.focus and vis(flats[2])==3 and size(flats[2])=='6x76',
+    'The Beta-blue focus bar')
 assert(stores[flats[2]].last.SetColorAndOpacity[1]==T.beta and text('Host a session').font.Size==40)
+assert(menu.row.hovered()==false)
+stores[flats[1]].hovered=true
+assert(menu.row.hovered()==true,'Under the mouse')
 menu.row.set('Join a friend','','disabled')
 assert(vis(flats[2])==1 and text('Join a friend').last.SetColorAndOpacity[1].SpecifiedColor==T.dim)
+assert(stores[flats[1]].last.SetColorAndOpacity[1]==T.clear and vis(flats[1])==0)
 menu.bar.set(0.5)
 assert(stores[of('ProgressBar')[1]].last.SetPercent[1]==0.5)
 card.dot.show(false)
 assert(vis(textured('link')[1])==1)
-assert(k.view('card')==card and count('construct ')==#constructed and count('UserWidget.RemoveFromParent')==0)
+-- The first root went: the one built while the look warmed.
+assert(k.view('card')==card and count('construct ')==#constructed and count('UserWidget.RemoveFromParent')==1)
 
 -- Hidden and shown again, never rebuilt: instant, or with the open tween (160 ms: slide from -32 and a two-frame
 -- flicker at 0.6) and the close tween (120 ms, then collapsed); no engine call while none runs.
 local menu_canvas=groups[2]
 local ms=stores[menu_canvas]
 k.show('menu',true)
-assert(vis(menu_canvas)==3 and ms.last.SetRenderOpacity[1]==1 and ms.last.SetRenderTranslation[1].X==0)
+assert(vis(menu_canvas)==4 and ms.last.SetRenderOpacity[1]==1 and ms.last.SetRenderTranslation[1].X==0)
 n=#calls; k.show('menu',true); assert(#calls==n,'Already shown')
 k.show('menu',false)
 assert(vis(menu_canvas)==1)
 n=#calls; k.tick(clock); assert(#calls==n,'No tween, no call')
 k.show('menu',true,clock)
-assert(vis(menu_canvas)==3 and ms.last.SetRenderOpacity[1]==0 and ms.last.SetRenderTranslation[1].X==-32)
+assert(vis(menu_canvas)==4 and ms.last.SetRenderOpacity[1]==0 and ms.last.SetRenderTranslation[1].X==-32)
 local function frame(dt) clock=clock+dt; assert(k.tick(clock)==nil) return ms.last.SetRenderOpacity[1],
     ms.last.SetRenderTranslation[1].X end
 local function near(v,want) return math.abs(v-want)<1e-6 end
@@ -305,10 +329,14 @@ a,x=frame(0.008); assert(a==1 and near(x,-32*(1-0.13/0.16)^2),'Back to full')
 a,x=frame(0.04); assert(a==1 and x==0)
 n=#calls; frame(0.1); assert(#calls==n,'Done: no call')
 k.show('menu',false,clock)
-assert(vis(menu_canvas)==3,'Visible while it closes')
+assert(vis(menu_canvas)==4,'Visible while it closes')
 a,x=frame(0.06); assert(near(a,0.5) and near(x,-8))
 frame(0.06); assert(vis(menu_canvas)==1,'Collapsed at the end')
 n=#calls; frame(0.1); assert(#calls==n)
+-- Shown at once while it closes: the close tween dropped, shown it stays.
+k.show('menu',true,clock); frame(0.2); k.show('menu',false,clock); frame(0.06); k.show('menu',true); frame(0.2)
+assert(vis(menu_canvas)==4 and ms.last.SetRenderOpacity[1]==1 and ms.last.SetRenderTranslation[1].X==0)
+k.show('menu',false)
 -- The scale: every group, on change only, 75 to 150 %.
 k.scale(120)
 assert(stores[groups[1]].last.SetRenderScale[1].X==1.2 and ms.last.SetRenderScale[1].Y==1.2)
@@ -326,6 +354,7 @@ k.sound('open')
 local played=stores[statics].last.PlaySound2D
 assert(played[1]==root and played[2]==asset('open') and played[3]==1 and played[4]==1 and played[5]==0 and #played==5)
 k.sound('chat'); assert(stores[statics].last.PlaySound2D[3]==0.5)
+n=#calls; k.sound('link'); assert(#calls==n,'A texture is no sound')
 k.sounds(false); n=#calls; k.sound('move'); assert(#calls==n)
 -- A sound freed (its address reused): silent, looked up again by the next slow.
 k.sounds(true)
@@ -344,6 +373,7 @@ raise={}
 -- A map change: the viewport and every widget gone. The next tick builds a new root, the groups as they were; the old
 -- handles touch nothing, even where an address now holds another object.
 local old_card=card
+k.show('menu',true,clock) -- Its open tween running as the map goes.
 for _,o in ipairs(constructed) do stores[o].alive=false end
 viewport={}
 local reused=of('TextBlock')[1]
@@ -352,36 +382,44 @@ n=#calls
 old_card.name.set('Someone'); old_card.hp.set(10,100)
 assert(stores[reused].text~='Someone')
 for j=n+1,#calls do assert(not calls[j]:find('^TextBlock%.Set') and not calls[j]:find('^CanvasPanelSlot'),calls[j]) end
-local before=#constructed
+local before,card_built=#constructed,views.card_built
 assert(k.view('card')==old_card,'Until the next tick')
 k.slow(true)
-assert(#viewport==1 and viewport[1]~=root and #constructed>before and views.card_built==2,'Built again')
+assert(#viewport==1 and viewport[1]~=root and #constructed>before and views.card_built==card_built+1,'Built again')
 local root2=viewport[1]
+n=#calls; k.tick(clock+0.05); assert(#calls==n,'The tween went with the old root')
 assert(k.view('card')~=old_card and saved==stores[root2].full:match('^%S+ (.+)$'))
 local groups2=stores[stores[stores[root2].props.WidgetTree].props.RootWidget].children
-assert(vis(groups2[1])==3 and vis(groups2[2])==1 and stores[groups2[2]].last.SetRenderScale[1].X==0.75,
+assert(vis(groups2[1])==3 and vis(groups2[2])==4 and stores[groups2[2]].last.SetRenderScale[1].X==0.75,
     'Shown as before, scaled as before')
+k.show('menu',false)
 -- Out of the viewport but not freed yet: taken out, one new root.
 viewport={}
 k.slow(true)
 assert(#viewport==1 and viewport[1]~=root2 and stores[root2].last.RemoveFromParent)
--- Assets freed with the map (one's address now holding another object): looked up again before the build, one a
--- tick.
+-- Assets freed with the map (one's address now holding another object): the new root at once, flat where it uses
+-- one (the dots); they are looked up again, one a tick, then it is built again with them.
 local root3=viewport[1]
 viewport={}
 stores[asset('Mideum')].alive=false
 registry[PATHS.Mideum]=object('Mideum')
 stores[asset('dot')].full='Texture2D /Game/Maps/Next.Other'
 registry[PATHS.dot]=object('dot')
-before=#constructed
 k.slow(true)
-assert(#viewport==0 and #constructed==before,'Waits for the font and the dots')
+assert(#viewport==1 and viewport[1]~=root3 and #textured('dot')==0 and logs[#logs]:find('while its look warms'))
+local root4=viewport[1]
 k.slow(true)
-assert(#viewport==0 and calls[#calls]=='Mideum.GetFullName','The font looked up again')
+assert(calls[#calls]=='Mideum.GetFullName','The font looked up again')
 k.slow(true)
-assert(#viewport==0 and calls[#calls]=='dot.GetFullName','The dots')
+assert(calls[#calls]=='dot.GetFullName','The dots')
 k.slow(true)
-assert(#viewport==1 and viewport[1]~=root3 and #textured('dot')==1,'Built with the dots found again')
+assert(#viewport==1 and viewport[1]~=root4 and #textured('dot')==1 and stores[root4].last.RemoveFromParent,
+    'Built again with the dots found again')
+-- One no group uses freed (the QWERTY move icon): built at once with its look, found again later.
+viewport={}
+stores[asset('key_move')].alive=false
+k.slow(true)
+assert(#viewport==1 and logs[#logs]:find('^UI built: '),logs[#logs])
 -- A group added later: built again with it.
 k.add('feed',{x=96,y=330,w=1200,h=400,shown=true},function(b) return {line=b.text(0,0,'Alex joined.','body')} end)
 k.slow(true)
@@ -391,10 +429,10 @@ assert(text('Alex joined.').font.Size==34)
 -- Hidden (no world: the title screen, a pause, photo mode): the root collapsed once, no views, no build; back, shown.
 local r=viewport[1]
 k.slow(false)
-assert(vis(r)==1 and k.view('card')==nil and not k.ready())
+assert(vis(r)==1 and k.view('card')==nil and not k.ready() and not k.off(),'Hidden, not off: no fallback')
 n=#calls; k.slow(false); assert(#calls==n,'Nothing while hidden')
 k.slow(true)
-assert(vis(r)==3 and k.view('card') and viewport[1]==r)
+assert(vis(r)==4 and k.view('card') and viewport[1]==r)
 
 -- coop off: the root goes, its path too; nothing after.
 k.stop()
@@ -436,7 +474,7 @@ for _,case in ipairs({{'CanvasPanelSlot.SetPosition','bad slot'},{'UserWidget.Ad
         if ok~=nil then break end
     end
     assert(ok==false and why==OFF:format(case[2] or 'Image not constructed'),tostring(why))
-    assert(#viewport==0 and saved==nil and k.view('card')==nil and not k.ready())
+    assert(#viewport==0 and saved==nil and k.view('card')==nil and not k.ready() and k.off())
     n=#calls
     assert(k.slow(true)==nil and k.tick(clock)==nil,'Said once')
     k.sound('open'); k.show('menu',true,clock); k.scale(130)
@@ -450,7 +488,20 @@ raise['TextBlock.SetText']='stale text'
 k.view('card').name.set('Kaanta')
 assert(#viewport==0 and saved==nil and k.view('card')==nil)
 local ok,why=k.tick(clock)
-assert(ok==false and why==OFF:format('stale text') and k.slow(true)==nil)
+assert(ok==false and why==OFF:format('stale text') and k.slow(true)==nil and k.off())
+-- In a view's own build (a set there): the build stops at once; nothing reaches the viewport or is kept.
+reset()
+k=kit()
+k.add('bad',{x=0,y=0,w=10,h=10,shown=true},function(b)
+    local t=b.text(0,0,'a','body')
+    raise['TextBlock.SetText']='no FText'
+    t.set('b')
+    raise['TextBlock.SetText']=nil
+end)
+for _=1,20 do ok,why=k.slow(true); if ok~=nil then break end end
+assert(ok==false and why==OFF:format('no FText') and k.off(),tostring(why))
+assert(#viewport==0 and saved==nil and not at('UserWidget.SetOwningPlayer') and not at('UserWidget.AddToViewport'))
+n=#calls; k.stop(); k.slow(true); assert(#calls==n)
 -- A UMG class missing: off before anything is constructed.
 reset()
 registry['/Script/UMG.ProgressBar']=nil
@@ -512,5 +563,78 @@ n=count('find ')
 k.sound('alert')
 for _=1,5 do k.slow(true) end
 assert(count('find ')==n and not stores[registry['/Script/Engine.Default__GameplayStatics']].last.PlaySound2D)
+
+-- A missing cube texture: that quarter never shows, even lit (no flat square).
+reset()
+registry[PATHS.cube4]=nil
+k=kit()
+up(k)
+k.view('card').be.set(800,1600)
+local lit=0
+for _,o in ipairs(of('Image')) do
+    if size(o)=='30x30' and vis(o)==3 then lit=lit+1; assert(stores[o].brush.ResourceObject,'No textureless cube') end
+end
+assert(lit==8+4*3,'8 bases, and 3 quarters on each of the 4 full cubes')
+
+-- Hidden from the start (the title screen): nothing looked up or built, however long.
+reset()
+k=kit()
+for _=1,50 do k.slow(false) end
+assert(#constructed==0 and count('find ')==0 and not k.off())
+-- A player controller handle that now holds another object: no build.
+reset()
+pc=object('Actor')
+k=kit()
+for _=1,60 do k.slow(true) end
+assert(#constructed==0 and #viewport==0)
+-- No hit group (the HUD only): the root lets every hit through, as the spike's.
+reset()
+k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
+k.add('card',{x=96,y=96,w=760,h=210,shown=true},function(b) b.panel(0,0,760,210) end)
+up(k)
+assert(vis(viewport[1])==3 and vis(of('Border')[1])==nil)
+
+-- Addresses reused after a map change (the root and the menu's canvas now other objects): a sound, hidden, moved,
+-- shown with its tween, coop off: not one call reaches them.
+reset()
+k=kit()
+up(k)
+for _=1,SOUNDS do k.slow(true) end
+local r0=viewport[1]
+local menu0=stores[stores[stores[r0].props.WidgetTree].props.RootWidget].children[2]
+for _,o in ipairs(constructed) do stores[o].alive=false end
+for _,o in ipairs({r0,menu0}) do
+    local s=stores[o]
+    s.alive,s.full,s.last=true,s.class..' /Game/Maps/Next.Other',{}
+end
+stores[stores[menu0].slot].last={}
+n=#calls
+k.sound('open'); k.slow(false); k.move('menu',10,10); k.show('menu',true,clock)
+clock=clock+0.05; k.tick(clock); k.stop()
+assert(next(stores[r0].last)==nil and next(stores[menu0].last)==nil and next(stores[stores[menu0].slot].last)==nil)
+assert(not at('GameplayStatics.PlaySound2D',n),'No root of ours: no sound')
+
+-- A root that keeps leaving the viewport: built again 3 times in a row, then off (no rebuild storm); one lost every
+-- other tick never trips it.
+reset()
+k=kit()
+up(k)
+for _=1,10 do viewport={}; k.slow(true); assert(#viewport==1); k.slow(true) end
+local card_builds=views.card_built
+for _=1,3 do viewport={}; assert(k.slow(true)==nil and #viewport==1) end
+viewport={}
+ok,why=k.slow(true)
+assert(ok==false and why==OFF:format('the UI root keeps leaving the viewport') and views.card_built==card_builds+3)
+-- The build with the look waits while the menu is open (its rows under the mouse), and comes once it closes.
+reset()
+k=kit()
+for _=1,#UMG+3 do k.slow(true) end
+assert(#viewport==1 and #logs==1 and logs[1]:find('while its look warms'))
+k.show('menu',true)
+for _=1,60 do k.slow(true) end
+assert(#logs==1,'Not built again while open')
+k.show('menu',false)
+k.slow(true)
+assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
 
 print('ui_kit_test ok')

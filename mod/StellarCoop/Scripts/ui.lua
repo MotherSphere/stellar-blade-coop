@@ -271,15 +271,18 @@ function Ui.new(log)
 end
 -- The Uplink kit (UI-DESIGN 3.2, 7.1-7.6): one root a world, a plain UserWidget built by hand as coop ui test proved,
 -- holding every group the views add (the menu, the feed, the card, the marker), each a canvas of its own, hidden
--- (Collapsed) when unused, never removed. Each 250 ms (slow): the root an earlier Lua load left (Ctrl+R) is swept by
--- its path; the classes and the game's fonts, textures and sounds warm one lookup a tick (about 4 ms each); the root
--- is built in one call once the look's assets are in (the sounds follow), checked to be still ours and in the
--- viewport each tick, and built again, as it was, once a map change took it. Each frame (tick): only the open and
--- close tweens, while one runs. Updates touch the engine only on change, and only a widget still ours: a map change
--- frees them, and an address may hold another object by then. Every engine call runs in pcall on the game thread,
--- never in a coroutine; the first error in a build or an update turns the kit off for this Lua load (views nil: the
--- callers keep the notice line above EVE and the name tag), said once by the next slow or tick. A look that cannot be
--- had (a font, a texture, a text colour) only degrades, with one log line a build.
+-- (Collapsed) when unused, never removed. Hit tests pass through every group but one marked hit (the menu: its rows
+-- take the mouse). Each 250 ms (slow): the root an earlier Lua load left (Ctrl+R) is swept by its path; the classes and
+-- the game's fonts, textures and sounds warm one lookup a tick (about 4 ms each); the root is built in one call once
+-- the classes are in (in the default font and flat colour while an asset it uses still warms: the menu works from the
+-- start), built once again when those are in (not while the menu is open), checked to be still ours and in the
+-- viewport each tick, and built again, as it was, once a map change took it (off after 4 losses in a row: no rebuild
+-- storm). Each frame (tick): only the open and close tweens, while one runs. Updates touch the engine only on change,
+-- and only a widget still ours: a map change frees them, and an address may hold another object by then. Every engine
+-- call runs in pcall on the game thread, never in a coroutine; the first error in a build or an update turns the kit
+-- off for this Lua load (off(): the callers go back to the notice line above EVE and the name tag), said once by the
+-- next slow or tick. A look that cannot be had (a font, a texture, a text colour) only degrades, with one log line a
+-- build.
 local P=require('partner')
 local function linear(byte) local c=byte/255; return c<=0.04045 and c/12.92 or ((c+0.055)/1.055)^2.4 end
 -- A colour as Slate shows it ('ADD1C4') to the linear one the engine takes.
@@ -290,7 +293,7 @@ end
 -- Uplink: the game's palette, teal for everything partner (the game's shield teal; enemies are red), Beta blue focus.
 Ui.THEME={text=hex('ECECEC'),grey=hex('B5B5B5'),dim=hex('6E6E6E'),teal=hex('ADD1C4'),beta=hex('CCE9F4'),
     burst=hex('DD8874'),warn=hex('DC8834'),error=hex('D85045'),white=hex('FFFFFF'),panel=hex('0A0E12',0.78),
-    rail=hex('DEDBDE',0.25),focus=hex('CCE9F4',0.12),empty=hex('6E6E6E',0.5)}
+    rail=hex('DEDBDE',0.25),focus=hex('CCE9F4',0.12),empty=hex('6E6E6E',0.5),clear=hex('000000',0)}
 local THEME=Ui.THEME
 local function path(p) return p..'.'..p:match('[^/]+$') end
 local TEX,GAUGE='/Game/Art/UI/Texture/','/Game/Art/UI/Texture/HUD/Gauge/'
@@ -318,7 +321,9 @@ CLASSES[#CLASSES+1]='/Script/Engine.Default__GameplayStatics'
 -- Text styles: font and size in layout units (UI-DESIGN 3.2's typography).
 local STYLES={title={'Bold',56},item={'Bold',40},name={'Bold',36},hint={'Bold',30},body={'Mideum',34},
     status={'Mideum',30},head={'Mideum',28},num={'AGENCYB',30},label={'FZSHANGYTJW',30}}
-local COLLAPSED,ROW,OPEN,CLOSE,SLIDE=1,76,0.16,0.12,32 -- Row height; tween seconds; slide units.
+local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children only.
+-- Row height; tween seconds; slide units; rebuilds in a row for a root that left the viewport, then off.
+local ROW,OPEN,CLOSE,SLIDE,LOSSES=76,0.16,0.12,32,3
 local function make(n,class,outer)
     local x=valid(StaticConstructObject(n.classes[class],outer))
     if not x then error(class..' not constructed',0) end
@@ -326,6 +331,8 @@ local function make(n,class,outer)
     return {o=x,name=U.text(x:GetFullName())}
 end
 local function put(canvas,w,x,y,width,height) -- Layout units: the HUD's 3840x2160.
+    -- In a hit group, hit tests pass through every widget not said otherwise (a row's own area takes them).
+    if canvas.hit and not w.v then w.v=HIT_TEST_INVISIBLE; w.o:SetVisibility(w.v) end
     w.slot=need(valid(canvas.o:AddChildToCanvas(w.o)),'no canvas slot')
     w.slot:SetPosition({X=x,Y=y})
     if width then w.slot:SetSize({X=width,Y=height}) else w.slot:SetAutoSize(true) end
@@ -339,7 +346,7 @@ function Ui.kit(opts)
     local log=opts.log or function() end
     local store=opts.store or {save=function() end,load=function() end,clear=function() end}
     local self,order,by,cache,found={},{},{},{},{} -- cache: asset name to {o=, full=} or false (not in this build).
-    local built,pending,off,said,hidden,swept=nil,nil,false,nil,false,false
+    local built,pending,off,said,hidden,swept,lost=nil,nil,false,nil,false,false,0
     local quiet,no_color,sounding,tweens=false,false,opts.sounds~=false,{}
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
@@ -368,31 +375,42 @@ function Ui.kit(opts)
     end
     local function run(f,...)
         if off then return end
+        if pending then return f(...) end -- In a build (a view's set): an error stops the build, in its own run.
         local ok,why=pcall(f,...)
         if not ok then fail(why) end
     end
     local function upd(w,f) run(function() local x=alive(w); if x then f(x) end end) end -- Only while still ours.
+    -- Shown (w.on: its visibility shown, hit tests passing through unless said) or collapsed; never an image whose
+    -- texture is missing (gone).
     local function show_w(w,on)
-        local v=on and HIT_TEST_INVISIBLE or COLLAPSED
+        if w.gone then return end
+        local v=on and (w.on or HIT_TEST_INVISIBLE) or COLLAPSED
         if w.v==v then return end
         w.v=v
         upd(w,function(x) x:SetVisibility(v) end)
     end
     -- A text colour; white for good once the engine refuses one.
     local function paint(x,c,n)
-        if no_color then return end
-        if pcall(function() x:SetColorAndOpacity({SpecifiedColor=c,ColorUseRule=0}) end) then return end
+        if not no_color and pcall(function() x:SetColorAndOpacity({SpecifiedColor=c,ColorUseRule=0}) end) then
+            return
+        end
+        if n then n.look['text colour refused (white)']=true -- In each build's look line.
+        elseif not no_color then log('UI text colours off: refused') end
         no_color=true
-        if n then n.look['text colour refused (white)']=true else log('UI text colours off: refused') end
     end
     -- The widgets of one group (g: its canvas), made while build n runs.
     local function builder(n,g)
         local b={}
+        -- An asset of the look; a build that wants one still warming is partial (built again once it is in).
+        local function get(name)
+            if cache[name]==nil and not n.assets[name] then n.partial=true end
+            return n.assets[name]
+        end
         -- An image: tex (an asset name, nil for flat colour) tiled or not, else flat colour (flat: that colour, tint
         -- unless said; false: hidden instead).
         local function image(x,y,width,height,tex,tint,tiled,flat)
             local w=make(n,'Image',n.tree.o)
-            local t=tex and n.assets[tex]
+            local t=tex and get(tex)
             if tex and not t then n.look[tex..' missing']=true end
             if t and tiled then
                 local wrote=pcall(function() value_of(w.o.Brush).Tiling=TILE_BOTH end)
@@ -403,14 +421,14 @@ function Ui.kit(opts)
             end
             if t then w.o:SetBrushFromTexture(t,true) end
             w.o:SetColorAndOpacity((t or not flat) and tint or flat)
-            if tex and not t and flat==false then hide(w) end
+            if tex and not t and flat==false then hide(w); w.gone=true end
             return put(g,w,x,y,width,height)
         end
         -- A line of text in a style (STYLES) and colour: set(text), color(c), show(on).
         local function text(x,y,str,style,color)
             local w=make(n,'TextBlock',n.tree.o)
             local st=STYLES[style] or STYLES.body
-            local f=n.assets[st[1]] or n.assets.Roboto
+            local f=get(st[1]) or get('Roboto')
             if not f then n.look['no font (default font)']=true
             elseif not pcall(function() local v=value_of(w.o.Font); v.FontObject=f; v.Size=st[2] end)
                 and not pcall(function() w.o:SetFont({FontObject=f,Size=st[2]}) end) then
@@ -509,10 +527,10 @@ function Ui.kit(opts)
             end}
         end
         -- A list row 76 units high: a label, a value 300 units from its end; on focus the Beta-blue bar and a faint
-        -- Beta tint. set(label, value, 'normal'|'focus'|'disabled').
+        -- Beta tint. set(label, value, 'normal'|'focus'|'disabled'); hovered() in a hit group: the mouse is over it.
         function b.row(x,y,width)
-            local back,bar=image(x,y,width,ROW,nil,THEME.focus),image(x,y,6,ROW,nil,THEME.beta)
-            hide(back)
+            local back,bar=image(x,y,width,ROW,nil,THEME.clear),image(x,y,6,ROW,nil,THEME.beta)
+            if g.hit then back.v=VISIBLE; back.o:SetVisibility(VISIBLE) end -- The row's area takes the mouse.
             hide(bar)
             local label,value=text(x+36,y+12,'','item'),text(x+width-300,y+12,'','item')
             local state='normal'
@@ -522,10 +540,14 @@ function Ui.kit(opts)
                 st=st or 'normal'
                 if st==state then return end
                 state=st
-                show_w(back,st=='focus')
+                upd(back,function(x2) x2:SetColorAndOpacity(st=='focus' and THEME.focus or THEME.clear) end)
                 show_w(bar,st=='focus')
                 label.color(st=='disabled' and THEME.dim or THEME.text)
                 value.color(st=='disabled' and THEME.dim or THEME.text)
+            end,hovered=function()
+                local on=false
+                upd(back,function(x2) on=x2:IsHovered()==true end)
+                return on
             end}
         end
         -- Key hints cell units apart, {{key, label}, ...}; keys: move (ZQSD with azerty), arrows, up, enter, space,
@@ -539,18 +561,16 @@ function Ui.kit(opts)
         end
         return b
     end
-    -- The build, all in this one game-thread call; nothing when there is no player controller yet, or an asset a map
-    -- change freed must be looked up again first.
+    -- The build, all in this one game-thread call; nothing when there is no player controller yet. An asset a map
+    -- change freed is looked up again by warm (a build using it is partial meanwhile).
     local function build()
         local pc=valid(UE.GetPlayerController())
         if not (pc and pc:IsA(U.find('/Script/Engine.PlayerController'))) then return end
-        local assets,again={},false
+        local assets={}
         for name,e in pairs(cache) do
             local x=e and valid(e.o)
-            if x and U.text(x:GetFullName())==e.full then assets[name]=x
-            elseif e then cache[name]=nil; again=again or not VOLUME[name] end
+            if x and U.text(x:GetFullName())==e.full then assets[name]=x elseif e then cache[name]=nil end
         end
-        if again then return end
         local started=os.clock()
         local n={classes={},assets=assets,count=0,look={},groups={},views={},size=#order}
         for _,name in ipairs(UMG) do n.classes[name]=U.find('/Script/UMG.'..name) end
@@ -560,37 +580,47 @@ function Ui.kit(opts)
         local canvas=make(n,'CanvasPanel',n.tree.o)
         n.root.o.WidgetTree=n.tree.o
         n.tree.o.RootWidget=canvas.o
+        local hit=false
         for _,def in ipairs(order) do
             local p=def.place
             local g=put(canvas,make(n,'CanvasPanel',n.tree.o),p.x,p.y,p.w,p.h)
-            g.x,g.y=p.x,p.y
+            g.x,g.y,g.hit,g.on=p.x,p.y,p.hit,p.hit and SELF_HIT or HIT_TEST_INVISIBLE
+            hit=hit or p.hit
             g.o:SetRenderTransformPivot(p.pivot or {X=0,Y=0})
             if scale~=1 then g.o:SetRenderScale({X=scale,Y=scale}) end
-            g.v=def.shown and HIT_TEST_INVISIBLE or COLLAPSED
+            g.v=def.shown and g.on or COLLAPSED
             g.o:SetVisibility(g.v)
             n.groups[def.name]=g
             n.views[def.name]=def.build(builder(n,g)) or {}
         end
         n.root.o:SetOwningPlayer(pc)
-        n.root.v=HIT_TEST_INVISIBLE -- Mouse hits pass through, as the spike's.
-        n.root.o:SetVisibility(HIT_TEST_INVISIBLE)
+        n.root.on=hit and SELF_HIT or HIT_TEST_INVISIBLE -- Mouse hits pass through, as the spike's, but a hit group's.
+        n.root.v=n.root.on
+        n.root.o:SetVisibility(n.root.on)
         n.root.o:AddToViewport(Z)
         need(n.root.o:IsInViewport(),'the UI root is not in the viewport')
         pending,built=nil,n
         store.save(n.root.name:match('^%S+ (.+)$'))
+        if n.partial then return log(string.format('UI built while its look warms: %d widgets in %.1f ms',n.count,
+            ms(started))) end
         local look={}
         for note in pairs(n.look) do look[#look+1]=note end
         table.sort(look)
         log(string.format('UI built: %d widgets in %.1f ms%s',n.count,ms(started),
             #look>0 and '; look: '..table.concat(look,', ') or ''))
     end
-    -- One class or asset not tried yet looked up (all but the sounds when build): true when one was.
-    local function warm(for_build)
+    -- One class not looked up yet looked up: true when one was.
+    local function classes()
         for _,class in ipairs(CLASSES) do
             if not found[class] then U.find(class); found[class]=true; return true end
         end
+        return false
+    end
+    -- One class or asset not tried yet looked up (look: all but the sounds): true when one was.
+    local function warm(look)
+        if classes() then return true end
         for _,a in ipairs(Ui.ASSETS) do
-            if cache[a[1]]==nil and not (for_build and a.volume) then
+            if cache[a[1]]==nil and not (look and a.volume) then
                 local x=load(a[2])
                 cache[a[1]]=x and {o=x,full=U.text(x:GetFullName())} or false
                 return true
@@ -617,6 +647,7 @@ function Ui.kit(opts)
         end
         hidden=not world
         if hidden then
+            lost=0
             if built and built.root.v~=COLLAPSED then
                 built.root.v=COLLAPSED
                 local r=alive(built.root)
@@ -626,15 +657,20 @@ function Ui.kit(opts)
         end
         if built then
             local r=alive(built.root)
-            if r and r:IsInViewport() and built.size==#order then
-                if built.root.v~=HIT_TEST_INVISIBLE then built.root.v=HIT_TEST_INVISIBLE; r:SetVisibility(HIT_TEST_INVISIBLE) end
-                warm(false)
-                return
+            local kept=r and r:IsInViewport()
+            if kept and built.size==#order then
+                lost=0
+                if built.root.v~=built.root.on then built.root.v=built.root.on; r:SetVisibility(built.root.on) end
+                if warm(built.partial) or not built.partial then return end
+                for _,def in ipairs(order) do if def.shown and def.place.hit then return end end -- Not under the mouse.
+            elseif built.size==#order then
+                lost=lost+1 -- A map change took it out, or the game, or another mod.
+                need(lost<=LOSSES,'the UI root keeps leaving the viewport')
             end
-            if r then r:RemoveFromParent() end -- A map change took it out, or a group came.
+            if r then r:RemoveFromParent() end -- Out of the viewport, a group came, or the look is in.
             built,tweens=nil,{}
         end
-        if not warm(true) then build() end
+        if not classes() then build() end
     end
     -- Each 250 ms with whether our HUD may show (a world with EVE, not paused, the game's HUD up, no photo mode).
     -- Returns false and why once, when the kit turned off.
@@ -667,17 +703,20 @@ function Ui.kit(opts)
         end
         return said_once()
     end
-    -- A group: place {x, y, w, h in layout units, pivot (of the scale, top left unless said), shown}; build(b) makes
-    -- its widgets with the builders above at each root build and returns its view. Added before the first slow, or
-    -- the root is built again.
+    -- A group: place {x, y, w, h in layout units, pivot (of the scale, top left unless said), shown, hit (its rows
+    -- take the mouse: the menu)}; build(b) makes its widgets with the builders above at each root build and returns
+    -- its view. Added before the first slow, or the root is built again.
     function self.add(name,place,build_view)
         local def={name=name,place=place,shown=place.shown==true,build=build_view}
         order[#order+1]=def
         by[name]=def
     end
-    -- A group's view while the root is up, shown and ours; nil otherwise (callers fall back).
+    -- A group's view while the root is up, shown and ours; nil otherwise: hidden, before the first build or between a
+    -- map change and the next slow (callers skip or queue), or off.
     function self.view(name) return not off and not hidden and built and built.views[name] or nil end
     function self.ready() return not off and not hidden and built~=nil end
+    -- Turned off for this Lua load: only then do the callers go back to the notice line above EVE and the name tag.
+    function self.off() return off end
     -- Shown or hidden; with now (the 1 ms loop's clock), the open tween (160 ms: a slide from the left with a
     -- flicker) or the close one (120 ms).
     function self.show(name,on,now)
@@ -689,7 +728,7 @@ function Ui.kit(opts)
         if not g or off then return end
         tweens[name]=now and {at=now,open=on,flick=0} or nil
         if not on and now then return end
-        g.v=on and HIT_TEST_INVISIBLE or COLLAPSED
+        g.v=on and g.on or COLLAPSED
         upd(g,function(x)
             x:SetVisibility(g.v)
             if on then
@@ -716,8 +755,8 @@ function Ui.kit(opts)
     -- One of the game's UI sounds (Ui.ASSETS' with a volume), as a UI sound of our root's world.
     function self.sound(name)
         if off or quiet or not sounding or not built then return end
-        local e=cache[name]
-        if not e then return end -- Not warmed yet, or not in this build.
+        local e=VOLUME[name] and cache[name]
+        if not e then return end -- Not a sound, not warmed yet, or not in this build.
         local ok,why=pcall(function()
             local root,s=alive(built.root),valid(e.o)
             if not (s and U.text(s:GetFullName())==e.full) then cache[name]=nil; return end -- Freed: a later slow finds it.
