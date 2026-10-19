@@ -1,8 +1,8 @@
-// The Steam link's logic, free of Windows: lobby, invites, members, handshake, liveness and status, the synced photo
-// mode's line, the chat and vitals lines, channel 1, where the pose path's tables and poses travel, and channel 2,
-// where the shared enemies' lines travel. Every Steam call goes through the Api table, so tests/link_core_test.cpp
-// drives this file with a fake Steam on the build machine, and steam_link.cpp fills the table from the game's
-// steam_api64.dll (flat API, SDK 1.59).
+// The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
+// not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines,
+// channel 1, where the pose path's tables and poses travel, and channel 2, where the shared enemies' lines travel.
+// Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the
+// build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <algorithm>
@@ -12,6 +12,7 @@
 #include <cstring>
 #include <deque>
 #include <functional>
+#include <map>
 #include <set>
 #include <string>
 #include <type_traits>
@@ -55,7 +56,9 @@ struct NetMessage { // SteamNetworkingMessage_t: only the first fields are read.
 static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(LobbyEnter) == 24 &&
                   sizeof(JoinRequested) == 16 && sizeof(Identity) == 136 && offsetof(NetMessage, peer) == 16,
               "Steamworks 1.59 layouts");
-constexpr int kPrivate = 0, kFriendsOnly = 1; // ELobbyType: who_can_join=private, friends.
+// ELobbyType: who_can_join=private (invite only), friends, code (invisible: joined by id, hidden from the host's
+// friends; Steamworks says a lobby search still returns it, which StellarCoop never makes).
+constexpr int kPrivate = 0, kFriendsOnly = 1, kInvisible = 3;
 constexpr int kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
@@ -81,6 +84,8 @@ constexpr uint64_t kHelloAgainMs = 10000;
 constexpr int kRejoinTries = 3;
 constexpr uint64_t kRejoinAt[kRejoinTries] = {2000, 12000, 42000}, kRejoinMs = 60000;
 constexpr size_t kNotices = 8, kMaxNotice = 300;
+// A joiner who is not the host's Steam friend waits this long for the host's answer, then is refused.
+constexpr uint64_t kApprovalMs = 60000;
 
 // The SteamID in a SessionRequest's identity, or 0. Read in place: the callback thread must not call Steam.
 inline uint64_t steam_id_of(const Identity &who) {
@@ -113,6 +118,7 @@ struct Api {
   int (*friend_count)(void *, int);
   uint64_t (*friend_by_index)(void *, int, int);
   bool (*friend_game)(void *, uint64_t, FriendGame *);
+  bool (*has_friend)(void *, uint64_t, int);
   void (*invite_dialog)(void *, uint64_t);
   bool (*call_done)(void *, uint64_t, bool *);
   bool (*call_result)(void *, uint64_t, void *, int, int, bool *);
@@ -163,6 +169,7 @@ template <class Resolve> std::string load(Api &api, Resolve resolve) {
   get(api.friend_count, "SteamAPI_ISteamFriends_GetFriendCount");
   get(api.friend_by_index, "SteamAPI_ISteamFriends_GetFriendByIndex");
   get(api.friend_game, "SteamAPI_ISteamFriends_GetFriendGamePlayed");
+  get(api.has_friend, "SteamAPI_ISteamFriends_HasFriend");
   get(api.invite_dialog, "SteamAPI_ISteamFriends_ActivateGameOverlayInviteDialog");
   get(api.call_done, "SteamAPI_ISteamUtils_IsAPICallCompleted");
   get(api.call_result, "SteamAPI_ISteamUtils_GetAPICallResult");
@@ -246,6 +253,10 @@ struct Peer {
   uint64_t id = 0;
   std::string name; // From Steam, never from the peer's own messages; cleaned.
   bool hello_sent = false, hello_received = false, accepted = false, compatible = false, lost = false;
+  // Not the host's Steam friend (on the host only): no hello and nothing of hers read until the host lets her in, at
+  // most kApprovalMs from asking_at.
+  bool asking = false;
+  uint64_t asking_at = 0;
   int invalid = 0; // Junk messages received; only the first is logged.
   uint64_t build = 0, ping_seq = 0, next_ping = 0, last_heard = 0;
   uint64_t next_hello = 0; // Our last hello to her plus kHelloAgainMs.
@@ -491,6 +502,8 @@ public:
     report_ = false;
     return asked;
   }
+  // The copy request: our join code for the clipboard (steam_link.cpp), once; empty when none was asked.
+  std::string take_copy() { return std::exchange(copy_, {}); }
 
   // No Steam call here: the caller may ask before Steam is ready, or after the game shut it down.
   std::string status(const Counters &c) const {
@@ -505,6 +518,15 @@ public:
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
          (create_call_ || join_call_ ? " pending=1" : "") + (held_ ? " held=" + std::to_string(held_) : "") +
          (rejoin_.lobby ? " rejoin=" + std::to_string(rejoin_.tries) + "/3" : "") + "\n";
+    // While we host: our join code (none outside who_can_join=code), the players refused for the rest of this lobby,
+    // and each joiner waiting for our answer, her name last.
+    if (host_ && lobby_) {
+      s += "code=" + (code_.empty() ? std::string("none") : code_) + " removed=" + std::to_string(refused_.size()) +
+           "\n";
+      for (auto &p : peers_)
+        if (p.asking)
+          s += "pending=" + std::to_string(p.id) + " " + p.name + "\n";
+    }
     for (auto &p : peers_)
       s += "peer=" + std::to_string(p.id) + " name=" + p.name + " hello=" + (p.hello_received ? "1" : "0") +
            " accepted=" + (p.accepted ? "1" : "0") + " compatible=" + (p.compatible ? "1" : "0") +
@@ -570,6 +592,24 @@ private:
       if (api_.member(mm_, lobby_, i) == id)
         return true;
     return false;
+  }
+
+  // Why a non-peer's messages are ignored, for the log.
+  const char *outsider(uint64_t id) const { return refused_.count(id) ? "refused by the host" : "not in our lobby"; }
+
+  // The host's no (deny, remove, or no answer in time): a reject with why, which every protocol reads and on which a
+  // StellarCoop game leaves, then she is out for the rest of this lobby. Her session stays open, so the reject still
+  // goes out (CloseSessionWithUser drops unsent reliable data).
+  // ponytail: Steam has no kick, so a game that ignores the reject keeps the lobby's second place (rejects every
+  // 10 s, never greeted); the host hosts again for a new code.
+  void refuse(uint64_t id, const std::string &why, const std::string &text) {
+    Peer *p = find_peer(id);
+    send(*p, reject(why), kReliable);
+    allowed_.erase(id);
+    refused_[id] = now_ + kHelloAgainMs;
+    event("refused " + p->name + " (" + std::to_string(id) + "): " + why);
+    notice(text);
+    peers_.erase(peers_.begin() + (p - peers_.data()));
   }
 
   // close=false leaves the sessions to time out, so a reliable message just sent (a reject) still goes out:
@@ -672,10 +712,16 @@ private:
         event("busy: a lobby call is still pending, host ignored");
       } else {
         leave("hosting instead");
-        create_call_ = api_.create_lobby(mm_, r.invite_only ? kPrivate : kFriendsOnly, kMaxMembers);
-        event(!create_call_   ? "Steam refused to create a lobby"
-              : r.invite_only ? "creating a private lobby (invite only)"
-                              : "creating a friends-only lobby");
+        hosting_ = r.who;
+        create_call_ = api_.create_lobby(mm_,
+                                         r.who == Who::code      ? kInvisible
+                                         : r.who == Who::invited ? kPrivate
+                                                                 : kFriendsOnly,
+                                         kMaxMembers);
+        event(!create_call_           ? "Steam refused to create a lobby"
+              : r.who == Who::invited ? "creating a private lobby (invite only)"
+              : r.who == Who::code    ? "creating an invisible lobby (joined with its code)"
+                                      : "creating a friends-only lobby");
         if (!create_call_)
           notice("Could not host: Steam refused.");
       }
@@ -689,10 +735,14 @@ private:
       }
       break;
     case Command::join:
-      if (r.lobby)
-        join(r.lobby, "console");
-      else
+      if (r.code && !r.lobby) { // What was typed is never logged: it may be anything.
+        event("join code refused: not a valid code");
+        notice("That is not a join code: check its 7 characters.");
+      } else if (r.lobby) {
+        join(r.lobby, r.code ? "join code" : "console");
+      } else {
         join_friend();
+      }
       break;
     case Command::leave:
       if (create_call_ || join_call_) {
@@ -709,6 +759,39 @@ private:
     case Command::report:
       report_ = true;
       event("report asked");
+      break;
+    case Command::allow: // The host's answers, to the joiner still waiting for one; removal, to any member.
+    case Command::deny:
+    case Command::remove: {
+      Peer *p = host_ && lobby_ ? find_peer(r.player) : nullptr;
+      const char *why = !host_ || !lobby_                            ? "not hosting"
+                        : !p                                         ? "not in the lobby"
+                        : r.command != Command::remove && !p->asking ? "not waiting for an answer"
+                                                                     : nullptr;
+      if (why) {
+        event(std::string(r.command == Command::allow  ? "allow "
+                          : r.command == Command::deny ? "deny "
+                                                       : "remove ") +
+              std::to_string(r.player) + " ignored: " + why);
+      } else if (r.command == Command::allow) {
+        p->asking = false; // poll_members() greets her in this pass.
+        allowed_.insert(p->id);
+        event("let " + p->name + " in");
+        notice(p->name + " was let in.");
+      } else if (r.command == Command::deny) {
+        refuse(p->id, "you were not let in", p->name + " was not let in.");
+      } else {
+        refuse(p->id, "you were removed from this session", p->name + " was removed.");
+      }
+      break;
+    }
+    case Command::copy:
+      if (host_ && lobby_ && !code_.empty()) {
+        copy_ = code_;
+      } else {
+        event("copy asked with no join code");
+        notice("No join code to copy.");
+      }
       break;
     case Command::off: // The pose path's, the shared fight's, the photo pause's and the saves': the caller handles them.
     case Command::loopback:
@@ -746,14 +829,29 @@ private:
         lobby_ = r.lobby;
         host_ = true;
         host_id_ = me_;
+        allowed_.clear(); // A new lobby: every answer of the last one is forgotten.
+        refused_.clear();
+        code_ = hosting_ == Who::code ? join_code(lobby_) : std::string();
+        const std::string id = std::to_string(lobby_);
         if (cancel_) {
           leave("leave asked while it was being created");
           notice("Left the session.");
         } else {
           api_.set_lobby_data(mm_, lobby_, kLobbyKey, tag_.c_str());
-          api_.invite_dialog(friends_, lobby_);
-          event("hosting lobby " + std::to_string(lobby_) + ": invite dialog opened");
-          notice("Hosting: invite a friend from the Steam overlay (Shift+Tab).");
+          if (!code_.empty()) { // The player shares the code: no overlay over the game.
+            event("hosting lobby " + id + ", join code " + code_);
+            notice("Hosting. Your join code is " + code_ + ".");
+          } else if (hosting_ == Who::code) {
+            api_.invite_dialog(friends_, lobby_);
+            event("hosting lobby " + id +
+                  " without a join code: its high part is not 0x01860000; invite dialog opened");
+            notice("Hosting without a join code (unexpected lobby id): invite a friend from the Steam overlay "
+                   "(Shift+Tab).");
+          } else {
+            api_.invite_dialog(friends_, lobby_);
+            event("hosting lobby " + id + ": invite dialog opened");
+            notice("Hosting: invite a friend from the Steam overlay (Shift+Tab).");
+          }
         }
       }
       cancel_ = false;
@@ -802,6 +900,11 @@ private:
       }
       const char *tag = api_.lobby_data(mm_, lobby, kLobbyKey);
       std::string theirs = clean(tag ? tag : "", 32);
+      if (theirs.empty()) { // Another game's lobby, or one a code typo led to.
+        event("lobby " + id + " is not a StellarCoop game (no " + kLobbyKey + " tag)");
+        notice("Could not join: that is not a StellarCoop game.");
+        return leave("not a StellarCoop lobby");
+      }
       if (theirs != tag_) {
         event("lobby " + std::to_string(lobby) + " runs " + describe_tag(theirs) + ", this game runs " +
               describe_tag(tag_));
@@ -809,13 +912,19 @@ private:
         return leave("incompatible lobby");
       }
       std::string host = name_of(host_id_);
-      event("joined lobby " + id + " hosted by " + host);
-      notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game.");
+      // Not her Steam friend: her game holds the handshake until she lets us in (an answer she keeps for a rejoin).
+      const bool asking = !rejoin && !api_.has_friend(friends_, host_id_, kImmediateFriends);
+      event("joined lobby " + id + " hosted by " + host + (asking ? ", not a Steam friend: waiting to be let in" : ""));
+      notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game." +
+             (asking ? " Waiting for " + host + " to let you in." : ""));
     }
   }
 
   // Lobby members are the only peers: new ones get a hello, gone ones are dropped. Read every pass, before receive(),
-  // so a member's first message always finds its peer. The host leaving ends the session for the guest (D1: the leader
+  // so a member's first message always finds its peer. On the host, a new member who is not her Steam friend (nor let
+  // in before in this lobby) waits for her answer with no hello, refused at kApprovalMs; a member refused in this
+  // lobby is never a peer again and gets a reject each time she comes in, and every 10 s while she stays (a
+  // StellarCoop game leaves on the first). The host leaving ends the session for the guest (D1: the leader
   // is always the host), even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours (a
   // network cut): the guest leaves and tries to get back in for 60 s.
   void poll_members() {
@@ -847,6 +956,9 @@ private:
         return leave("lost the host's lobby, rejoining");
       }
     }
+    for (auto &[id, next] : refused_)
+      if (std::find(members.begin(), members.end(), id) == members.end())
+        next = 0; // Gone: told at once if she comes back.
     for (size_t i = 0; i < peers_.size();) {
       bool still = false;
       for (auto id : members)
@@ -863,18 +975,38 @@ private:
       peers_.erase(peers_.begin() + static_cast<std::ptrdiff_t>(i));
     }
     for (auto id : members) {
+      if (auto it = refused_.find(id); it != refused_.end()) {
+        if (now_ >= it->second) {
+          Peer out;
+          out.id = id;
+          send(out, reject("you cannot join this session again"), kReliable);
+          if (!it->second)
+            event("refused " + name_of(id) + " came back: told to leave");
+          it->second = now_ + kHelloAgainMs;
+        }
+        continue;
+      }
       if (!find_peer(id)) {
         Peer peer;
         peer.id = id;
         peer.name = name_of(id);
         peer.last_heard = now_;
+        peer.asking = host_ && !allowed_.count(id) && !api_.has_friend(friends_, id, kImmediateFriends);
+        peer.asking_at = now_;
         peers_.push_back(peer);
-        event(peer.name + " is in the lobby");
+        event(peer.name + " is in the lobby" +
+              (peer.asking ? ", not a Steam friend: waiting for the host's answer" : ""));
         if (host_) // A guest has had her Joined line.
-          notice(peer.name + " joined.");
+          notice(peer.name + (peer.asking ? " is asking to join (not a Steam friend)." : " joined."));
       }
       Peer &peer = *find_peer(id);
-      if (!peer.hello_sent) {
+      if (peer.asking) // A stranger's name may reach Steam a moment after she joins.
+        peer.name = name_of(id);
+      if (peer.asking && now_ - peer.asking_at >= kApprovalMs) {
+        refuse(id, "no answer within 60 s", peer.name + " was not let in: no answer within 60 s.");
+        continue;
+      }
+      if (!peer.hello_sent && !peer.asking) {
         send(peer, hello(kProtocol, mod_, build_), kReliable);
         peer.hello_sent = true;
         peer.next_hello = now_ + kHelloAgainMs;
@@ -884,12 +1016,12 @@ private:
 
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed.
   void on_session_request(uint64_t id) {
-    if (lobby_ && id && id != me_ && member_now(id)) {
+    if (lobby_ && id && id != me_ && !refused_.count(id) && member_now(id)) {
       Identity who = identity(id);
       api_.accept_session(msgs_, &who);
       event("accepted a session from " + name_of(id));
     } else if (strangers_.insert(id).second) {
-      event("ignored a session request from " + std::to_string(id) + ": not in our lobby");
+      event("ignored a session request from " + std::to_string(id) + ": " + outsider(id));
     }
   }
 
@@ -906,10 +1038,12 @@ private:
       Peer *peer = find_peer(from);
       if (!peer) {
         if (strangers_.insert(from).second)
-          event("ignored messages from " + std::to_string(from) + ": not in our lobby");
+          event("ignored messages from " + std::to_string(from) + ": " + outsider(from));
         continue;
       }
       peer->last_heard = now_;
+      if (peer->asking) // Nothing of hers counts before the host's answer, her hello included.
+        continue;
       if (peer->lost) {
         peer->lost = false;
         event(peer->name + " is back");
@@ -930,7 +1064,7 @@ private:
       uint64_t from = api_.get_steam_id(&m->peer);
       size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
       Peer *peer = find_peer(from);
-      const char *why = !peer                                 ? "not in our lobby"
+      const char *why = !peer                                  ? outsider(from)
                         : !peer->compatible || !peer->accepted ? "before the handshake"
                         : size == 0 || size > kMaxBinary       ? "bad size"
                         : over_rate(peer->pose_window, size, kBinaryPerSecond, kBinaryBytesPerSecond)
@@ -1021,7 +1155,7 @@ private:
       uint64_t from = api_.get_steam_id(&m->peer);
       size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
       Peer *peer = find_peer(from);
-      const char *why = !peer                                 ? "not in our lobby"
+      const char *why = !peer                                  ? outsider(from)
                         : !peer->compatible || !peer->accepted ? "before the handshake"
                         : size == 0 || size > kMaxMessage      ? "bad size"
                         : fight_in_.size() >= kFightQueue      ? "inbox full"
@@ -1236,12 +1370,13 @@ private:
 
   void ping_peers() {
     for (auto &peer : peers_) {
-      if (peer.compatible && peer.accepted && now_ >= peer.next_ping) {
+      // A joiner waiting for our answer gets pings too: her game answers them and never calls us lost meanwhile.
+      if ((peer.asking || (peer.compatible && peer.accepted)) && now_ >= peer.next_ping) {
         peer.next_ping = now_ + kPingEveryMs;
         send(peer, ping(++peer.ping_seq, now_), kUnreliable);
-        ++peer.pings;
+        peer.pings += !peer.asking; // Her pongs are not read: the 60 s line counts no loss for them.
       }
-      if (!peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
+      if (!peer.asking && !peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
         peer.lost = true;
         event(peer.name + " silent for 10 s: lost");
         notice(peer.name + ": connection lost.");
@@ -1335,6 +1470,13 @@ private:
   } rejoin_;
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
+  // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=code), the members
+  // let in, and those refused, with when a reject may go to her again (0: she is gone), all for this lobby only; our
+  // code once the copy request asked for it.
+  Who hosting_ = Who::friends;
+  std::string code_, copy_;
+  std::set<uint64_t> allowed_;
+  std::map<uint64_t, uint64_t> refused_;
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;

@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <new>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -41,10 +42,11 @@ struct Sent {
   std::string text;
 };
 using Inbox = std::vector<std::pair<uint64_t, std::string>>; // Sender and text.
-// One player's own Steam: who she is and what waits for her on each channel.
+// One player's own Steam: who she is, what waits for her on each channel, and her Steam friends.
 struct Client {
   uint64_t id;
   Inbox inbox[3]; // Channels 0, 1 and 2.
+  std::set<uint64_t> friends;
 };
 
 // The fake Steam's whole state. Lobbies, calls and names are shared; each client (0 is us, 1 is Kaanta) has its own id
@@ -61,7 +63,7 @@ struct Fake {
   std::map<uint64_t, std::map<std::string, std::string>> data;
   std::vector<Sent> sent;
   Inbox inbox; // Client 0's channel 0, filled by hand in the one-Link tests.
-  Client client[2] = {{kMe, {}}, {kFriend, {}}};
+  Client client[2] = {{kMe, {}, {kFriend}}, {kFriend, {}, {kMe}}};
   std::vector<uint64_t> accepted, closed, left;
   std::map<uint64_t, std::string> names = {{kFriend, "Kaanta"}, {kOther, "Third"}, {kStranger, "Stranger"}};
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
@@ -121,6 +123,10 @@ template <int N> Api make_api() {
     *g = FriendGame{3489700, 0, 0, 0, F.friend_lobby.at(id)};
     return true;
   };
+  a.has_friend = [](void *, uint64_t id, int flags) {
+    assert(flags == kImmediateFriends);
+    return F.client[N].friends.count(id) > 0;
+  };
   a.invite_dialog = [](void *, uint64_t) { ++F.invites; };
   a.call_done = [](void *, uint64_t call, bool *failed) {
     *failed = false;
@@ -134,7 +140,7 @@ template <int N> Api make_api() {
     return true;
   };
   a.create_lobby = [](void *, int type, int max) -> uint64_t {
-    assert((type == kFriendsOnly || type == kPrivate) && max == 2);
+    assert((type == kFriendsOnly || type == kPrivate || type == kInvisible) && max == 2);
     F.lobby_type = type;
     if (F.refuse_create)
       return 0;
@@ -298,6 +304,34 @@ struct Two {
     link.tick(now, request, 0, 0);
   }
 };
+// Alternate passes 600 ms apart until both are linked, six rounds at most; whether they are.
+bool settle(Two &t) {
+  for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+    t.tick(t.a, 600);
+    t.tick(t.b, 600);
+  }
+  return t.a.linked() && t.b.linked();
+}
+// A hosts with who_can_join=code in the real lobby 109775241346428561 (code CCS-CBMH); B, a stranger to A unless
+// friends says otherwise, joins with the code typed loosely, and A's next pass sees her.
+constexpr uint64_t kCodeLobby = 109775241346428561ull;
+void code_session(Two &t, bool friends = false) {
+  F.names[kMe] = "Me";
+  F.next_lobby = kCodeLobby;
+  if (!friends) {
+    F.client[1].id = kStranger;
+    F.client[0].friends.clear();
+    F.client[1].friends.clear();
+  }
+  assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+  t.tick(t.a, 50, "host code");
+  finish_all();
+  t.tick(t.a, 50);
+  t.tick(t.b, 50, "join ccs cbmh");
+  finish_all();
+  t.tick(t.b, 50);
+  t.tick(t.a, 600);
+}
 void send_binary(Link &link, const std::string &bytes, bool reliable) {
   link.send_binary(reinterpret_cast<const uint8_t *>(bytes.data()), bytes.size(), reliable);
 }
@@ -2067,6 +2101,324 @@ int main() {
            w.link.take_chat() == Texts{"fail"});
     for (auto &e : events)
       assert(e.find("écho") == std::string::npos);
+  }
+
+  // who_can_join=code, one Link: an invisible lobby (joined by id) with no invite dialog, and its code on
+  // the status (code= and removed=, while we host) and in a notice. The copy request hands the code to the caller once
+  // (the clipboard is steam_link.cpp's); with no code it says so. A lobby whose id has another high part gets no code:
+  // the invite dialog opens instead. A friends-only lobby has code=none.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("copy");
+    assert(w.link.take_copy().empty() && saw("copy asked with no join code") &&
+           noticed(w.status(), "No join code to copy."));
+    F.next_lobby = kCodeLobby;
+    w.tick("host code");
+    assert(F.lobby_type == kInvisible && saw("creating an invisible lobby (joined with its code)"));
+    finish_all();
+    w.tick();
+    std::string s = w.status();
+    assert(F.invites == 0 && saw("hosting lobby 109775241346428561, join code CCS-CBMH"));
+    assert(s.find("\nlink=host lobby=109775241346428561\ncode=CCS-CBMH removed=0\n") != std::string::npos);
+    assert(noticed(s, "Hosting. Your join code is CCS-CBMH.") && F.data[kCodeLobby][kLobbyKey] == lobby_tag(kBuild));
+    w.tick("copy");
+    assert(w.link.take_copy() == "CCS-CBMH" && w.link.take_copy().empty());
+    w.tick("leave");
+    assert(w.status().find("\ncode=") == std::string::npos);
+    w.tick("host code"); // The fake's next id is kCodeLobby + 1, under the same high part.
+    finish_all();
+    w.tick();
+    assert(w.status().find("\ncode=" + join_code(kCodeLobby + 1) + " removed=0\n") != std::string::npos);
+    w.tick("leave");
+    F.next_lobby = 5000;
+    w.tick("host code");
+    finish_all();
+    w.tick();
+    s = w.status();
+    assert(F.invites == 1 && s.find("\ncode=none removed=0\n") != std::string::npos);
+    assert(saw("hosting lobby 5000 without a join code: its high part is not 0x01860000; invite dialog opened"));
+    assert(noticed(s, "Hosting without a join code (unexpected lobby id): invite a friend from the Steam overlay "
+                      "(Shift+Tab)."));
+    w.tick("copy");
+    assert(w.link.take_copy().empty() && count("copy asked with no join code") == 2);
+    w.tick("leave");
+    w.tick("host");
+    finish_all();
+    w.tick();
+    assert(F.lobby_type == kFriendsOnly && w.status().find("\ncode=none removed=0\n") != std::string::npos);
+  }
+
+  // Joining with a code, one Link: a malformed one never calls Steam and says so; a code with no game behind it, a full
+  // game, a lobby that is not StellarCoop's and one of another version are each refused with their own notice.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("join CCS-CBMI");
+    assert(joins() == 0 && saw("join code refused: not a valid code") &&
+           noticed(w.status(), "That is not a join code: check its 7 characters."));
+    w.tick("join CCS-CBMH");
+    finish_all();
+    w.tick();
+    assert(saw("joining lobby 109775241346428561 (join code)") && w.link.lobby() == 0 &&
+           noticed(w.status(), "Could not join: that game no longer exists."));
+    her_lobby(kCodeLobby);
+    F.join_response = 4;
+    w.tick("join CCS-CBMH");
+    finish_all();
+    w.tick();
+    assert(w.link.lobby() == 0 && noticed(w.status(), "Could not join: that game is full."));
+    F.join_response = 1;
+    F.data[kCodeLobby][kLobbyKey] = "";
+    w.tick("join CCS-CBMH");
+    finish_all();
+    w.tick();
+    assert(saw("lobby 109775241346428561 is not a StellarCoop game (no stellarcoop tag)") && w.link.lobby() == 0);
+    assert(saw("left lobby 109775241346428561: not a StellarCoop lobby") && F.sent.empty() &&
+           noticed(w.status(), "Could not join: that is not a StellarCoop game."));
+    F.data[kCodeLobby][kLobbyKey] = "7:24463856";
+    w.tick("join CCS-CBMH");
+    finish_all();
+    w.tick();
+    assert(w.link.lobby() == 0 && noticed(w.status(), "Version mismatch: that game runs protocol 7, build 24463856; "
+                                                      "yours runs protocol " +
+                                                          std::to_string(kProtocol) + ", build 24463856."));
+    assert(joins() == 4 && F.sent.empty());
+  }
+
+  // The host's approval, one Link: a member who is not our Steam friend waits (pending= on the status, a notice, no
+  // hello, nothing of hers read, pings so her game never calls us lost) in any kind of lobby; friends never wait.
+  // Answers and removals go by SteamID: a stale one, one from a guest, or a deny for someone already linked is ignored.
+  // Removing a friend sends her a reject and keeps her out of this lobby: never greeted again, a reject at once each
+  // time she comes back, her session requests ignored. A new lobby forgets every answer.
+  reset();
+  {
+    World w;
+    linked_host(w);
+    const size_t hellos = static_cast<size_t>(sent_to(kFriend, "SBC hello "));
+    w.tick("deny 2002");
+    assert(saw("deny 2002 ignored: not waiting for an answer") && w.link.linked());
+    w.tick("allow 3003");
+    assert(saw("allow 3003 ignored: not in the lobby"));
+    w.tick("remove 2002");
+    std::string s = w.status();
+    assert(!w.link.linked() && sent_to(kFriend, "SBC reject you were removed from this session") == 1);
+    assert(saw("refused Kaanta (2002): you were removed from this session") && noticed(s, "Kaanta was removed."));
+    assert(s.find("\ncode=none removed=1\n") != std::string::npos && s.find("\npeer=") == std::string::npos);
+    assert(s.find("\nfriend=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
+    // Her game has not left yet: no second reject within 10 s, no hello, her lines ignored and logged once, her session
+    // request ignored.
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, say_line("let me back")});
+    w.tick();
+    w.tick("", 0, kFriend);
+    assert(sent_to(kFriend, "SBC reject ") == 1 && static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos);
+    assert(count("ignored messages from 2002: refused by the host") == 1 && !w.link.chat_waiting());
+    assert(F.accepted.empty() && sent_to(kFriend, "SBC accept") == 1);
+    // She leaves, then comes back: told at once, never greeted, never asked about.
+    F.members[5000] = {kMe};
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick();
+    assert(sent_to(kFriend, "SBC reject you cannot join this session again") == 1);
+    assert(count("refused Kaanta came back: told to leave") == 1);
+    w.tick("", 0, 0, 10000); // Still there 10 s later: told again.
+    assert(sent_to(kFriend, "SBC reject you cannot join this session again") == 2);
+    assert(static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos &&
+           w.status().find("\npending=") == std::string::npos);
+    assert(count("Kaanta is in the lobby") == 1);
+    // A guest's answers are ignored; a new lobby forgets every answer, and she is greeted again.
+    w.tick("leave");
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5001].push_back(kFriend);
+    w.tick();
+    assert(w.status().find("\ncode=none removed=0\n") != std::string::npos &&
+           static_cast<size_t>(sent_to(kFriend, "SBC hello ")) == hellos + 1);
+  }
+  reset();
+  {
+    World w;
+    linked_guest(w);
+    w.tick("remove 2002");
+    w.tick("allow 2002");
+    assert(saw("remove 2002 ignored: not hosting") && saw("allow 2002 ignored: not hosting") && w.link.linked());
+    assert(w.status().find("\ncode=") == std::string::npos);
+  }
+  reset();
+  {
+    World w; // A stranger in a friends-only lobby (as if Steam let her in by id) waits like one with a code.
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    std::string s = w.status();
+    assert(saw("Stranger is in the lobby, not a Steam friend: waiting for the host's answer"));
+    assert(noticed(s, "Stranger is asking to join (not a Steam friend).") && !noticed(s, "Stranger joined."));
+    assert(s.find("\ncode=none removed=0\npending=9009 Stranger\n") != std::string::npos);
+    assert(F.accepted == std::vector<uint64_t>{kStranger} && sent_to(kStranger, "SBC hello ") == 0);
+    // Her hello and lines are not read: no accept, no chat, no invalid count. Our pings keep going.
+    F.inbox.push_back({kStranger, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kStranger, accept()});
+    F.inbox.push_back({kStranger, "junk"});
+    w.tick("", 0, 0, 2000);
+    assert(sent_to(kStranger, "SBC accept") == 0 && !w.link.linked() &&
+           w.status().find("invalid=0") != std::string::npos);
+    assert(sent_to(kStranger, "SBC" + std::to_string(kProtocol) + " ping ") >= 2 && !saw("Stranger silent"));
+    w.tick("allow 9009");
+    assert(saw("let Stranger in") && noticed(w.status(), "Stranger was let in.") &&
+           sent_to(kStranger, "SBC hello ") == 1);
+    assert(w.status().find("\npending=") == std::string::npos);
+    F.inbox.push_back({kStranger, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kStranger, accept()});
+    w.tick();
+    assert(w.link.linked() && sent_to(kStranger, "SBC accept") == 1);
+    // Let in once, let in for this lobby: back from a drop, she is greeted with no new question.
+    const int hellos = sent_to(kStranger, "SBC hello ");
+    F.members[5000] = {kMe};
+    w.tick();
+    F.members[5000].push_back(kStranger);
+    w.tick();
+    assert(sent_to(kStranger, "SBC hello ") == hellos + 1 && count("waiting for the host's answer") == 1);
+  }
+
+  // Join by code and the host's approval, two Links. A hosts with who_can_join=code; B, not A's Steam friend, joins
+  // with the code and hears she waits. A shows her as pending for the whole minute minus a little, greets her not,
+  // reads nothing of hers and pings her, so neither side calls the other lost. A lets her in: the handshake runs as
+  // with a friend. A removes her: B leaves with the reason on screen and no rejoin. B comes back with the code: A tells
+  // her at once, B leaves again, and A never greets her or asks about her again.
+  reset();
+  {
+    Two t;
+    code_session(t);
+    std::string a = t.a.status(Counters{}), b = t.b.status(Counters{});
+    assert(saw("B: joining lobby 109775241346428561 (join code)") &&
+           saw("B: joined lobby 109775241346428561 hosted by Me, not a Steam friend: waiting to be let in"));
+    assert(noticed(b, "Joined Me's game. Waiting for Me to let you in."));
+    assert(a.find("\ncode=CCS-CBMH removed=0\npending=9009 Stranger\n") != std::string::npos);
+    for (int i = 0; i < 58; ++i) {
+      t.tick(t.a, 500);
+      t.tick(t.b, 500);
+    }
+    assert(t.a.status(Counters{}).find("\npending=9009 Stranger\n") != std::string::npos && !t.a.linked());
+    assert(sent_to(kStranger, "SBC hello ") == 0 && sent_to(kStranger, "SBC accept") == 0);
+    assert(!saw("B: Me silent for 10 s") && !saw("A: Stranger silent") && !saw("A: hello from Stranger"));
+    t.tick(t.a, 50, "allow 9009");
+    assert(settle(t) && saw("A: hello from Stranger") && saw("B: Me accepted our hello"));
+    assert(noticed(t.a.status(Counters{}), "Stranger was let in."));
+    assert(t.a.say("salut"));
+    t.tick(t.b, 50);
+    assert(t.b.take_chat() == Texts{"in salut"});
+    t.tick(t.a, 50, "remove 9009");
+    t.tick(t.b, 50);
+    b = t.b.status(Counters{});
+    assert(!t.a.linked() && t.b.lobby() == 0 && saw("B: left lobby 109775241346428561: rejected by Me"));
+    assert(noticed(b, "Me refused the link: you were removed from this session") &&
+           b.find("rejoin=") == std::string::npos);
+    assert(t.a.status(Counters{}).find("\ncode=CCS-CBMH removed=1\n") != std::string::npos);
+    const int hellos = sent_to(kStranger, "SBC hello ");
+    t.tick(t.a, 50); // A pass sees her gone, as one always does between a leave and a join a second apart.
+    t.tick(t.b, 50, "join CCS-CBMH");
+    finish_all();
+    t.tick(t.b, 50);
+    t.tick(t.a, 50);
+    t.tick(t.b, 50);
+    assert(t.b.lobby() == 0 &&
+           noticed(t.b.status(Counters{}), "Me refused the link: you cannot join this session again"));
+    for (int i = 0; i < 4; ++i) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(sent_to(kStranger, "SBC hello ") == hellos &&
+           t.a.status(Counters{}).find("\npending=") == std::string::npos);
+    assert(count("A: Stranger is in the lobby") == 1 && !t.a.linked() && !t.b.linked());
+  }
+
+  // Deny and the minute's end, two Links: B hears why and leaves; A counts her in removed=; an answer after she left is
+  // ignored. With no answer for 60 s she is refused the same way, at 60 s and not before.
+  reset();
+  {
+    Two t;
+    code_session(t);
+    t.tick(t.a, 50, "deny 9009");
+    t.tick(t.b, 50);
+    assert(t.b.lobby() == 0 && noticed(t.b.status(Counters{}), "Me refused the link: you were not let in"));
+    assert(noticed(t.a.status(Counters{}), "Stranger was not let in.") &&
+           saw("A: refused Stranger (9009): you were not let in"));
+    assert(t.a.status(Counters{}).find("\ncode=CCS-CBMH removed=1\n") != std::string::npos);
+    t.tick(t.a, 50);
+    t.tick(t.a, 50, "allow 9009");
+    assert(saw("A: allow 9009 ignored: not in the lobby") && sent_to(kStranger, "SBC hello ") == 0);
+  }
+  reset();
+  {
+    Two t;
+    code_session(t);
+    const uint64_t asked = t.now;
+    t.now = asked + kApprovalMs - 1;
+    t.tick(t.a, 0);
+    assert(t.a.status(Counters{}).find("\npending=9009 Stranger\n") != std::string::npos);
+    t.tick(t.a, 1);
+    t.tick(t.b, 50);
+    assert(t.b.lobby() == 0 && noticed(t.b.status(Counters{}), "Me refused the link: no answer within 60 s"));
+    assert(noticed(t.a.status(Counters{}), "Stranger was not let in: no answer within 60 s."));
+    assert(t.a.status(Counters{}).find("\ncode=CCS-CBMH removed=1\npending=") == std::string::npos &&
+           t.a.status(Counters{}).find("\ncode=CCS-CBMH removed=1\n") != std::string::npos);
+  }
+
+  // A stranger flooding lines while she waits, two Links: whatever she sends on channels 0, 1 and 2 (hellos, accepts,
+  // chat, junk, pose and fight data) is released and dropped, logged once per channel at most, never handed to Lua,
+  // never answered, and her place stays pending. Once refused, her flood is ignored and logged once.
+  reset();
+  {
+    Two t;
+    code_session(t);
+    const int notices = count("A: ");
+    for (int i = 0; i < 100; ++i) {
+      inbox(0, kChannel)
+          .push_back({kStranger, i % 4 == 0   ? hello(kProtocol, "x", kBuild)
+                                 : i % 4 == 1 ? accept()
+                                 : i % 4 == 2 ? say_line("spam " + std::to_string(i))
+                                              : std::string(600, 'j')});
+      inbox(0, kPoseChannel).push_back({kStranger, "SBT flood"});
+      inbox(0, kFightChannel).push_back({kStranger, fight_tag() + " on"});
+    }
+    const int released = F.released;
+    for (int i = 0; i < 8; ++i)
+      t.tick(t.a, 5);
+    assert(F.released == released + 300 && inbox(0, kChannel).empty());
+    assert(!t.a.linked() && !t.a.chat_waiting() && t.a.take_fight().empty() && sink[0].empty());
+    assert(sent_to(kStranger, "SBC accept") == 0 && sent_to(kStranger, "SBC hello ") == 0);
+    assert(count("A: dropped pose data from Stranger: before the handshake") == 1);
+    assert(count("A: dropped fight data from Stranger: before the handshake") == 1 && !saw("A: invalid message"));
+    assert(count("A: ") <= notices + 2 &&
+           t.a.status(Counters{}).find("\npending=9009 Stranger\n") != std::string::npos);
+    for (auto &e : events)
+      assert(e.find("spam") == std::string::npos);
+    t.tick(t.a, 50, "deny 9009");
+    for (int i = 0; i < 40; ++i)
+      inbox(0, kChannel).push_back({kStranger, say_line("more spam")});
+    t.tick(t.a, 5);
+    t.tick(t.a, 5);
+    t.tick(t.a, 5);
+    assert(inbox(0, kChannel).empty() && count("A: ignored messages from 9009: refused by the host") == 1);
+    assert(!t.a.chat_waiting());
+  }
+
+  // A friend with the code: no question, the usual handshake, the usual notices on both sides.
+  reset();
+  {
+    Two t;
+    code_session(t, true);
+    assert(settle(t) && t.a.status(Counters{}).find("\npending=") == std::string::npos);
+    assert(noticed(t.a.status(Counters{}), "Kaanta joined.") && noticed(t.b.status(Counters{}), "Joined Me's game."));
+    assert(!saw("not a Steam friend") &&
+           t.a.status(Counters{}).find("\ncode=CCS-CBMH removed=0\n") != std::string::npos);
   }
 
   // coop report is passed to the caller once.

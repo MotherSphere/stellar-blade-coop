@@ -2,6 +2,7 @@
 #include "link_protocol.h"
 
 #include <cassert>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <random>
@@ -202,10 +203,12 @@ int main() {
   }
 
   // Requests written by Lua.
-  assert(parse_request("host\n").command == Command::host && !parse_request("host").invite_only);
-  assert(parse_request("host private\n").command == Command::host && parse_request("host private").invite_only);
-  assert(parse_request("host public").command == Command::none);
-  assert(parse_request("host  private").command == Command::none);
+  // who_can_join: friends (the default), code (an invisible lobby, joined with its code) or private (invited only).
+  assert(parse_request("host\n").command == Command::host && parse_request("host").who == Who::friends);
+  assert(parse_request("host code\r\n").command == Command::host && parse_request("host code").who == Who::code);
+  assert(parse_request("host private\n").command == Command::host && parse_request("host private").who == Who::invited);
+  for (const char *bad : {"host public", "host  private", "host Code", "host code x", "hostcode", "host friends"})
+    assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
   assert(parse_request("leave").command == Command::leave);
   assert(parse_request("report\r\n").command == Command::report);
@@ -291,11 +294,80 @@ int main() {
                           "freeze 10 x", "freeze off now", "freezeoff", "freeze 99999999999999999999"})
     assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
-  assert(r.command == Command::join && r.lobby == 0);
+  assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");
-  assert(r.command == Command::join && r.lobby == 109775241234567890ull);
-  for (const char *bad : {"", "dance", "join x", "join 12 13", "hostile", "host now", "join 0"})
+  assert(r.command == Command::join && r.lobby == 109775241234567890ull && !r.code);
+  // join with a code: anything after "join " that is no lobby id is read as one, and one that is no valid code asks
+  // for the join with lobby 0, so the player hears why. Seven characters (eight with the dash) are always a code, even
+  // in digits only, never a lobby id.
+  r = parse_request("join CCS-CBMH\r\n");
+  assert(r.command == Command::join && r.code && r.lobby == 109775241346428561ull);
+  r = parse_request("join ccs cbmh");
+  assert(r.command == Command::join && r.code && r.lobby == 109775241346428561ull);
+  for (const char *typo : {"join x", "join 12 13", "join 0", "join CCS-CBMI", "join CCSCBMH9", "join 1234567"}) {
+    r = parse_request(typo);
+    assert(r.command == Command::join && r.code && (r.lobby == 0 || r.lobby >> 32 == kCodeHigh));
+  }
+  assert(parse_request("join CCS-CBMI").lobby == 0 && parse_request("join 0").lobby == 0);
+  // The host's answers to a joiner who is not a Steam friend, and the removal of a player: by SteamID, so an answer
+  // meant for someone who left never reaches the next one. copy: our join code on the clipboard.
+  r = parse_request("allow 76561198000000001\n");
+  assert(r.command == Command::allow && r.player == 76561198000000001ull);
+  assert(parse_request("deny 9009").command == Command::deny && parse_request("deny 9009").player == 9009);
+  assert(parse_request("remove 2002\r\n").command == Command::remove && parse_request("remove 2002").player == 2002);
+  assert(parse_request("copy\n").command == Command::copy);
+  for (const char *bad : {"", "dance", "hostile", "host now", "allow", "allow 0", "allow x", "allow  1", "allow 1 2",
+                          "deny", "deny -1", "remove", "remove all", "copy CCS-CBMH", "copyCCS", "joincode CCS-CBMH"})
     assert(parse_request(bad).command == Command::none);
+
+  // Join codes (UI-DESIGN 4.6): the low 32 bits of a lobby id with the high part 0x01860000, low % 7 in the 3 bits
+  // left over, as 7 Crockford base-32 characters shown XXX-XXXX. Both real ids from the logs round-trip, as do the
+  // ends of the range, typed loosely too (either case, I and L for 1, O for 0, a space or no dash).
+  assert(join_code(109775241346428561ull) == "CCS-CBMH" && join_code(109775241275271709ull) == "RAN-GTGX");
+  for (uint64_t lobby : std::initializer_list<uint64_t>{109775241346428561ull, 109775241275271709ull, kCodeHigh << 32,
+                                                        kCodeHigh << 32 | 0xffffffff, kCodeHigh << 32 | 0x89abcdef}) {
+    const std::string code = join_code(lobby);
+    assert(code.size() == 8 && code[3] == '-' && code_lobby(code) == lobby);
+    std::string loose = code;
+    for (char &c : loose)
+      c = c == '1' ? 'l' : c == '0' ? 'o' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    assert(code_lobby(loose) == lobby && code_lobby(code.substr(0, 3) + code.substr(4)) == lobby);
+    assert(code_lobby(code.substr(0, 3) + " " + code.substr(4)) == lobby);
+  }
+  assert(join_code(kCodeHigh << 32) == "000-0000" && code_lobby("ooo-oooo") == kCodeHigh << 32);
+  // An id with another high part has no code (the fake Steam's 5000, a different instance flag).
+  for (uint64_t lobby : std::initializer_list<uint64_t>{0, 5000, (kCodeHigh + 1) << 32 | 5, 0x0186000100000000, ~0ull})
+    assert(join_code(lobby).empty());
+  // Malformed: a wrong length, a dash elsewhere, a character outside the set (U, punctuation, non-ASCII, a NUL), the
+  // check of 7 that low % 7 never gives.
+  for (const std::string &bad :
+       {std::string(), std::string("CCS-CBM"), std::string("CCS-CBMHX"), std::string("CCS--CBMH"),
+        std::string("CCSCBMH-"), std::string("CC-SCBMH"), std::string("CCS_CBMH"), std::string("CCS-CBMU"),
+        std::string("CCS-CBM!"), std::string("CCS-CB\xc3\xa9"), std::string("CCS-CBM\0", 8), std::string(" CCSCBMH"),
+        std::string("ZZZ-ZZZZ"), std::string("CCS-CBMH "), std::string("CCS\tCBMH")})
+    assert(code_lobby(bad) == 0);
+  // A typo: of the 217 codes one character away from a real one, at least 85% are turned away (a change of the value
+  // by a multiple of 7 passes). Of 20,000 random 7-character strings, about one in 8 passes.
+  int caught = 0, typos = 0;
+  const std::string real = join_code(109775241346428561ull);
+  for (size_t at : {0, 1, 2, 4, 5, 6, 7})
+    for (const char *c = kCodeDigits; *c; ++c)
+      if (*c != real[at]) {
+        std::string typo = real;
+        typo[at] = *c;
+        ++typos;
+        caught += code_lobby(typo) == 0;
+      }
+  assert(typos == 217 && caught * 100 >= typos * 85);
+  rng.seed(7);
+  int passed = 0;
+  for (int i = 0; i < 20000; ++i) {
+    std::string random(7, '0');
+    for (char &c : random)
+      c = kCodeDigits[rng() % 32];
+    passed += code_lobby(random) != 0;
+  }
+  assert(passed > 2000 && passed < 3000);
 
   // coop-state.txt, from Lua: strict, so junk never passes for a loaded world or a photo mode; a refusal leaves the
   // values alone.

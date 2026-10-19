@@ -13,8 +13,10 @@
 #pragma once
 
 #include <array>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -254,20 +256,64 @@ inline Message parse(const char *data, size_t size) {
   return m;
 }
 
-// A request from Lua (coop-request.txt): "host", "host private" (who_can_join=private: a lobby joined by invite
-// only), "invite", "leave", "report", "join" (a friend's lobby),
-// "join <lobby id>", and for the pose path "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>",
-// "loopback off", "record", "record off", "replay" and "replay off"; for the Night Operation probe (Phase 6, T6 only)
-// "nightop" (start the read-only poller) and "nightop rule" (start it if needed and arm the verdict, once a run); for
-// the shared fight (Phase 11, fight_engine.h's Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at
-// most kMaxFightChars), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a
-// sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause
-// held that long) and "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in
-// the log), "saves convert" (make the co-op copies), "saves coop" (make them, then switch to them) and "saves main"
-// (switch back to the player's own saves).
+// Join codes (UI-DESIGN 4.6, who_can_join=code). Every lobby id seen so far has the high part 0x01860000 (universe 1,
+// chat type, lobby flags), so a code carries only the low 32 bits, with low % 7 in the 3 bits left over: 89% of the
+// codes one character off are turned away instead of sending the player into another lobby. 7 characters of
+// Crockford's base 32 (no I, L, O or U), shown XXX-XXXX.
+constexpr uint64_t kCodeHigh = 0x01860000;
+constexpr char kCodeDigits[] = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+// Our lobby's code, or empty for an id with another high part.
+inline std::string join_code(uint64_t lobby) {
+  if (lobby >> 32 != kCodeHigh)
+    return {};
+  const uint64_t low = lobby & 0xffffffff;
+  uint64_t value = (low % 7) << 32 | low;
+  std::string code(8, '-');
+  for (int i = 7; i >= 0; --i)
+    if (i != 3) {
+      code[static_cast<size_t>(i)] = kCodeDigits[value % 32];
+      value /= 32;
+    }
+  return code;
+}
+// The lobby id of a code as typed: either case, I and L read as 1, O as 0, the dash (or a space) after the third
+// character or none. 0 when it is no code: another length or character, or a check that does not match.
+inline uint64_t code_lobby(std::string_view text) {
+  const bool dash = text.size() == 8 && (text[3] == '-' || text[3] == ' ');
+  if (text.size() != 7 && !dash)
+    return 0;
+  uint64_t value = 0;
+  for (size_t i = 0; i < text.size(); ++i) {
+    if (dash && i == 3)
+      continue;
+    char c = static_cast<char>(std::toupper(static_cast<unsigned char>(text[i])));
+    c = c == 'I' || c == 'L' ? '1' : c == 'O' ? '0' : c;
+    const char *at = c ? std::strchr(kCodeDigits, c) : nullptr;
+    if (!at)
+      return 0;
+    value = value * 32 + static_cast<uint64_t>(at - kCodeDigits);
+  }
+  const uint64_t low = value & 0xffffffff;
+  return value >> 32 == low % 7 ? kCodeHigh << 32 | low : 0;
+}
+// A request from Lua (coop-request.txt): "host", "host code" (who_can_join=code: a lobby joined with its code),
+// "host private" (who_can_join=private: a lobby joined by invite only), "invite", "leave", "report", "join" (a
+// friend's lobby), "join <lobby id>", "join <code>" (code_lobby(); anything else after "join " that is no lobby id is
+// taken for a code, so a typo is answered), "copy" (our join code on the clipboard), for the host "allow <SteamID>" and
+// "deny <SteamID>" (her answer to a joiner who is not her Steam friend) and "remove <SteamID>", and for the pose path
+// "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
+// and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
+// "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
+// Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at most kMaxFightChars), "fight off", "fight
+// status", "fight test hp|sh|st <change>" (whole units, with or without a sign) and "fight test kill"; for the synced
+// photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the
+// co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op
+// copies), "saves coop" (make them, then switch to them) and "saves main" (switch back to the player's own saves).
 enum class Command {
-  none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves
+  none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
+  remove, copy
 };
+enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay };
 enum class SavesAsk { none, probe, convert, coop, main };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
@@ -280,7 +326,9 @@ struct Request {
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off.
   bool rule = false;                     // nightop rule.
-  bool invite_only = false;              // host private.
+  Who who = Who::friends;                // host: who can join the lobby.
+  bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
+  uint64_t player = 0;                   // allow, deny, remove: her SteamID.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
@@ -335,9 +383,9 @@ inline Request parse_request(std::string text) {
     return parse_fight(text.substr(6));
   Request r;
   std::string f[4];
-  if (text == "host" || text == "host private") {
+  if (text == "host" || text == "host code" || text == "host private") {
     r.command = Command::host;
-    r.invite_only = text.size() > 4;
+    r.who = text.size() == 4 ? Who::friends : text[5] == 'c' ? Who::code : Who::invited;
   } else if (text == "invite")
     r.command = Command::invite;
   else if (text == "leave")
@@ -346,10 +394,19 @@ inline Request parse_request(std::string text) {
     r.command = Command::report;
   else if (text == "off")
     r.command = Command::off;
-  else if (text == "join")
+  else if (text == "join" || text == "copy")
+    r.command = text == "join" ? Command::join : Command::copy;
+  else if (text.rfind("join ", 0) == 0) {
+    const std::string what = text.substr(5);
+    const bool shaped = what.size() == 7 || (what.size() == 8 && (what[3] == '-' || what[3] == ' '));
     r.command = Command::join;
-  else if (split(text, f, 2, nullptr) && f[0] == "join" && number(f[1], r.lobby) && r.lobby)
-    r.command = Command::join;
+    if (shaped || !number(what, r.lobby) || !r.lobby) {
+      r.code = true;
+      r.lobby = code_lobby(what);
+    }
+  } else if (split(text, f, 2, nullptr) && (f[0] == "allow" || f[0] == "deny" || f[0] == "remove") &&
+             number(f[1], r.player) && r.player)
+    r.command = f[0] == "allow" ? Command::allow : f[0] == "deny" ? Command::deny : Command::remove;
   else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;
