@@ -5,6 +5,7 @@
 -- time='HH:MM', unsent=true once the native part could not send it}.
 local Chat={}
 local MAX,WAIT,GAP=200,4,0.5 -- Bytes a line, lines waiting to leave, seconds between two (two a second).
+local PASTE=4096 -- Bytes of a typed line cleaned at most: a pasted megabyte would hold the game thread 100 ms.
 local function control(c) -- C0, DEL, C1, and the bidi and zero-width controls.
     return c<0x20 or (c>=0x7F and c<=0x9F) or c==0x061C or (c>=0x200B and c<=0x200F) or (c>=0x2028 and c<=0x202E)
         or (c>=0x2060 and c<=0x206F) or c==0xFEFF
@@ -59,7 +60,7 @@ function Chat.new(lines,on)
     -- A line typed: shown at once and queued, or false and why: 'empty' (the box closes), 'no_session', 'off',
     -- 'too_fast' (four already wait).
     function self.send(text,now)
-        text=Chat.clean(text)
+        text=Chat.clean(#text>PASTE and text:sub(1,PASTE) or text)
         if text=='' then return false,'empty' end
         if not session then return false,'no_session' end
         if not on then return false,'off' end
@@ -102,8 +103,9 @@ end
 -- layout, accents and dead keys work. Enter sends the line (shown at once; an empty one closes the box; one too fast
 -- stays in it), Esc cancels; the game's input comes back 150 ms after a close, so that key never reaches the game.
 -- The box closes and empties by itself when the session ends (the history goes with it), chat turns off (her lines
--- hide too), our HUD hides or the kit turns off. No engine call here, and nothing to log with: the text goes to the
--- model and the screen only.
+-- hide too), the game pauses or shows the mouse cursor (UI-DESIGN 7.4: a game screen keeps its keys; the friend's
+-- photo pause too), our HUD hides or the kit turns off. While the co-op menu covers the feed, the menu shows the newest
+-- notice (notice()). No engine call here, and nothing to log with: the text goes to the model and the screen only.
 local T=require('ui_text')
 local ROWS,SHOWN,FADE,WIDE,HIGH=12,6,8,70,44 -- Rows open, rows closed, seconds shown closed, characters a row, units.
 local BACK,REFOCUS,QUIET=0.15,0.05,10 -- Seconds: the game's input back; the box focused again; "needs a session" again.
@@ -158,7 +160,8 @@ function Chat.view(o)
         local newest=lines[#lines]
         if newest~=heard then
             heard=newest
-            if newest and newest.who=='partner' then kit.sound('chat') end
+            -- Not for a line that waited out its 8 s unseen (a map load, our photo mode).
+            if newest and newest.who=='partner' and now-newest.at<FADE then kit.sound('chat') end
         end
         local k,stop,chatting=ROWS,ROWS-(open and ROWS or SHOWN),settings.chat~=false
         for i=#lines,1,-1 do
@@ -179,6 +182,14 @@ function Chat.view(o)
         for j=1,k do v.rows[j].show(false) end
     end
     function self.is_open() return open end
+    -- The newest notice under 8 s old, or nil: the menu shows it while it covers the feed (UI-DESIGN 4.4).
+    function self.notice()
+        local lines=model.lines()
+        for i=#lines,1,-1 do
+            if now-lines[i].at>=FADE then return nil end
+            if lines[i].who=='system' then return lines[i].text end
+        end
+    end
     -- Whether the box can open now (the menu's Chat row): a session, chat on, our root up.
     function self.can() return model.active() and settings.chat~=false and kit.ready() end
     -- Enter, the box closed: true once open; false, and why once per 10 s outside a session, with chat off or the kit
@@ -231,12 +242,12 @@ function Chat.view(o)
         draw()
         return true
     end
-    -- Each 250 ms with the chat's clock: chat on or off, the box closed when it can no longer be open, the game's input
-    -- asked back while still due, the feed drawn.
+    -- Each 250 ms with the chat's clock: chat on or off, the box closed when it can no longer be open (paused included:
+    -- one engine read, while open only), the game's input asked back while still due, the feed drawn.
     function self.slow(t)
         now=t
         model.enable(settings.chat)
-        if open and not self.can() then self.close() end
+        if open and (not self.can() or kit.paused()) then self.close() end
         if not (open or back_at) then kit.input(false,'chat') end
         if kit.ready() then draw() end
     end

@@ -202,6 +202,7 @@ end,THEME={text='white',grey='grey',teal='teal',error='red'}}
 -- chat.lua's model calls as main.lua and the real view make them, each as its words (chat_test tests the model and the
 -- view): a session (chat_active), her line given back for the screen, ours queued (chat_out: what take gives).
 local chat_calls,chat_active,chat_out,chat_new={},false,{},nil
+local chat_feed -- The model's lines: its notices, once a test asks for them (nil: none kept).
 local Chat=dofile('mod/StellarCoop/Scripts/chat.lua')
 package.loaded.chat={new=function(lines,on)
     chat_new={lines,on}
@@ -213,10 +214,13 @@ package.loaded.chat={new=function(lines,on)
             if back then return back(...) end
         end
     end
-    return {session=spy('session'),fail=spy('fail'),clear=spy('clear'),system=spy('system'),
+    local function system(text,now)
+        if chat_feed then chat_feed[#chat_feed+1]={who='system',text=text,at=now,time='21:04'} end
+    end
+    return {session=spy('session'),fail=spy('fail'),clear=spy('clear'),system=spy('system',system),
         receive=spy('receive',function(name,text) return {who='partner',name=name,text=text} end),
         send=spy('send',function() return true end),active=function() return chat_active end,
-        enable=function() end,lines=function() return {} end,take=function() return table.remove(chat_out,1) end}
+        enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
 end,view=Chat.view}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
@@ -267,13 +271,14 @@ assert(look.cloth==false and look.dyes==false and look.effects==false,'Off unles
 assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
--- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Enter and the
--- twelve navigation keys.
-assert(#binds==44+1+12,#binds)
+-- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
+-- and the twelve navigation keys.
+assert(#binds==44+2+12,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
-assert(binds[45].key=='Key.RETURN' and binds[57].key=='Key.ESCAPE')
+assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
+    and not binds[46].modifiers and binds[58].key=='Key.ESCAPE')
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
@@ -832,18 +837,18 @@ clock=clock+1; key('SPACE'); assert(asked[#asked]=='leave' and menu_view.note.s=
 key('DOWN_ARROW'); key('RETURN'); assert(asked[#asked]=='invite' and kit_said('show false'))
 key('F5'); key('F5'); assert(kit_calls[#kit_calls]=='show false','menu_key closes it')
 key('F5'); key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false' and kit_sounds[#kit_sounds-1]=='back')
--- It closes by itself when the world goes or our own photo mode starts (our HUD hides then), and when the kit turned
--- off.
+-- It closes by itself when the world goes or our own photo mode starts (our HUD hides then), when the game pauses or
+-- shows the mouse cursor (a game screen keeps its keys), and when the kit turned off.
 for _,case in ipairs({{'world',function() in_world=false end},{'photo',function() photo_mode=true end},
-        {'kit',function() kit_off=true end}}) do
-    in_world,photo_mode,kit_off=true,false,false; quarter()
+        {'paused',function() kit_paused=true end},{'kit',function() kit_off=true end}}) do
+    in_world,photo_mode,kit_off,kit_paused=true,false,false,false; quarter()
     key('F5'); assert(kit_calls[#kit_calls]=='show true' or kit_said('show true')>n,case[1])
     n=#kit_calls
     case[2](); quarter()
     assert(kit_said('show false') and kit_said('show false')>n,case[1])
     n=#kit_calls
 end
-in_world,photo_mode,kit_off=true,false,false; quarter()
+in_world,photo_mode,kit_off,kit_paused=true,false,false,false; quarter()
 key('F5'); assert(focus()=='Leave the session')
 kit_off=true
 key('F5'); key('F5')
@@ -958,6 +963,7 @@ load_main(true)
 assert(chat_new[2]==false,'chat=off reaches the model')
 settings_text=''
 load_main(true)
+chat_feed={}
 in_world,kit_ready=true,true; quarter()
 local feed=kit_views.feed
 assert(kit_views.chat and feed and #feed.rows==12)
@@ -973,6 +979,14 @@ local calls_at=#chat_calls
 key('RETURN'); coop('status'); clock=clock+0.2; loops[1].f()
 handler(nil,{'status'}); clock=clock+0.2; key('RETURN'); clock=clock+0.2; loops[1].f() -- A slow frame between.
 assert(not kit_said('show chat true') and #chat_calls==calls_at,"The console's Enter: no box, nothing said")
+-- Alt+Enter (the fullscreen toggle), if UE4SS also calls the plain bind for it: no box.
+clock=clock+0.5
+key('RETURN','ALT'); key('RETURN'); clock=clock+0.1; loops[1].f()
+assert(not kit_said('show chat true') and #chat_calls==calls_at,'Alt+Enter: no box')
+-- Enter while the game is paused or on one of its screens (Resume, a choice): the game's, even once it resumes.
+clock=clock+0.5
+kit_paused=true; key('RETURN'); kit_paused=false; clock=clock+0.1; loops[1].f()
+assert(not kit_said('show chat true') and #chat_calls==calls_at,'Paused at the press: no box, nothing said')
 clock=clock+0.5
 key('RETURN'); clock=clock+0.09; loops[1].f()
 assert(not kit_said('show chat true'),'Not before 0.1 s')
@@ -1004,9 +1018,10 @@ assert(#said==said_before and table.concat(chat_calls,'|'):find('|system Kaanta 
     ..'connection lost%. [%d.]+$'))
 kit_ready=false; quarter(); assert(said[#said]=='Kaanta: connection lost.','No root: the line above EVE')
 kit_ready=true; quarter()
--- The menu over the feed hides it; its Chat row opens the box, and the menu's late give-back leaves the box its input.
+-- The menu over the feed hides it and shows the newest notice instead; its Chat row opens the box, and the menu's late
+-- give-back leaves the box its input.
 key('F5'); quarter()
-assert(kit_said('show feed false') and focus()=='Leave the session')
+assert(kit_said('show feed false') and focus()=='Leave the session' and menu_view.note.s=='Kaanta: connection lost.')
 to('Chat'); key('RETURN')
 assert(kit_said('show false')<kit_said('show chat true') and kit_said('show chat true')<kit_said('input true chat')
     and kit_said('input true chat')<kit_said('show feed true'),'The menu closed, the box open, the feed back')

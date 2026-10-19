@@ -460,12 +460,17 @@ if settings then
             bind('F'..n,modifier,function() ExecuteInGameThread(function() pressed(name) end) end)
         end
     end
+    -- Alt+Enter (the fullscreen toggle) first: if UE4SS also calls the plain bind for it, that press is dropped.
+    local alt_enter_at=-math.huge
+    bind('RETURN','ALT',function() ExecuteInGameThread(function() alt_enter_at=os.clock() end) end)
     bind('RETURN',nil,function()
         ExecuteInGameThread(function()
+            if os.clock()-alt_enter_at<0.2 then return end
             if menu.is_open() then
                 if not menu.capture('Enter') then menu.nav('select') end
             elseif box.is_open() then box.send()
-            elseif not off then chat_asked=os.clock() end
+            -- Paused or on a game screen at the press: that Enter was the game's (Resume, a choice), never the chat's.
+            elseif not off and not kit.paused() then chat_asked=os.clock() end
         end)
     end)
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},

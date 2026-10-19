@@ -10,7 +10,7 @@ local KEEP,SECONDS,WIDTH,SIZE,RISE=4,4,40,10,120 -- Notices queued, seconds each
 -- Lines of at most WIDTH characters, broken on spaces; a longer word keeps a line of its own.
 local function wrap(text)
     local lines,line={},nil
-    for word in text:gmatch('%S+') do
+    for word in text:gmatch('[^ ]+') do -- Not %S: 0xA0, the end of 'à', is a space in some code pages.
         if line and #line+1+#word<=WIDTH then line=line..' '..word else lines[#lines+1]=line; line=word end
     end
     lines[#lines+1]=line

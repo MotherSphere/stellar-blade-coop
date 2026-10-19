@@ -53,7 +53,10 @@ The main page follows your session:
 - **Write a bug report**: as `coop report`.
 - **Close**.
 
-The status line under the rows is the F6 line, with your friend's ping once linked.
+The status line under the rows is the F6 line, with your friend's ping once linked. Under it, the newest notice of the
+last 8 s shows while the menu covers the [feed](#session-chat) (for example the result of Join a friend), unless a row
+just said something there. The menu closes by itself when the game pauses or shows the mouse cursor for one of its own
+screens.
 
 **Options.** Each row is a setting of [coop-settings.txt](#coop-settingstxt): the keys, the synced photo mode, the name
 tag, the ghost's looks and send rate, the shared enemies, the menu's own size, sounds and language, and the chat. Left
@@ -72,7 +75,9 @@ in English.
 
 During a session (or `coop loopback`), Enter opens a text box at the top left of the screen, under the feed, in a world
 only (not while the game is paused or shows the mouse cursor for one of its own screens). While it is open the game
-ignores its own keys, so EVE stands still, and the mod's keys (F5, F6, F8) do nothing.
+ignores its own keys, so EVE stands still, and the mod's keys (F5, F6, F8) do nothing. If the game pauses or shows the
+mouse cursor while the box is open (EVE dies, or your friend's photo mode pauses your game), the box closes by itself
+and what you typed goes. Alt+Enter never opens it.
 
 | Key | In the chat |
 | --- | --- |
@@ -85,7 +90,7 @@ ignores its own keys, so EVE stands still, and the mod's keys (F5, F6, F8) do no
   be sent turns red and ends with `(not sent)`. At most two lines leave a second; when four are waiting, the line you
   typed stays in the box: press Enter again.
 - The feed shows lines for 8 s (the last 6 rows) while the box is closed, and the last 12 rows while it is open. It
-  hides while the co-op menu is open.
+  hides while the co-op menu is open; the menu shows the newest notice meanwhile.
 - Outside a session, Enter says `Chat needs a session.` (at most once every 10 s).
 - `chat=off` in [coop-settings.txt](#coop-settingstxt), or Options > Chat, hides your friend's lines and sends none;
   Enter then says `Chat is off (Options > Chat).`
@@ -94,6 +99,8 @@ ignores its own keys, so EVE stands still, and the mod's keys (F5, F6, F8) do no
   (see [Files in the mod folder](#files-in-the-mod-folder)); a crash dump holds the game's memory, so it may hold
   lines of the session.
 - Key binds of other mods still run while you type.
+- The mod cannot tell when the game's console has the keyboard. During a session, Enter to run a console command other
+  than `coop ...` also opens the box a moment later; press Esc to close it.
 - If the on-screen UI stopped (an engine error, said in `UE4SS.log`), the box does not open
   (`The chat box is off (the UI stopped, see UE4SS.log).`) and your friend's lines show on the line above your EVE.
 

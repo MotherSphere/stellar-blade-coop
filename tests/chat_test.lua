@@ -116,6 +116,12 @@ assert(#chat.lines()==0 and chat.send('again',11) and chat.take(11)=='again')
 -- coop off clears too.
 chat.clear()
 assert(#chat.lines()==0 and chat.take(12)==nil)
+-- A pasted megabyte costs the game thread no more than a line: only its first 4 KB is cleaned.
+local paste=string.rep('é',1<<20)
+start=os.clock()
+ok,line=chat.send(paste,13)
+assert(ok and line.text==string.rep('é',100) and os.clock()-start<0.05,os.clock()-start)
+assert(chat.take(13)==line.text)
 
 -- 50 lines by default, or the chat_lines setting's count: the oldest go first.
 chat=Chat.new()
@@ -334,11 +340,17 @@ n=#calls
 menu_open=true; view.slow(41); view.slow(41.25)
 assert(since(n)=='show feed false')
 menu_open=false; view.slow(41.5); assert(since(n)=='show feed false|show feed true')
+-- Meanwhile the menu shows the newest notice under 8 s old (UI-DESIGN 4.4), past a chat line after it.
+assert(view.notice()==nil,'The last notice is older than 8 s')
+view.say('Kaanta joined.'); model.receive('Kaanta','hi',41.5)
+assert(view.notice()=='Kaanta joined.')
+view.slow(49.25); assert(view.notice()=='Kaanta joined.')
+view.slow(49.5); assert(view.notice()==nil,'Faded with it')
 -- The kit off (a fault, which gives the input back) or our HUD hidden: the box closes; notices go back to the line
 -- above EVE (say is false).
 view.open()
 state.off=true
-view.slow(42)
+view.slow(50)
 assert(not view.is_open() and view.say('x')==false)
 assert(select(2,view.open())=='The chat box is off (the UI stopped, see UE4SS.log).','Said, not silent')
 state.off=false
@@ -348,6 +360,13 @@ view.send()
 assert(not view.is_open(),'Enter with no root: closed, nothing read')
 assert(view.say('x')==false)
 state.ready=true
+-- The game pauses or shows the mouse cursor while open (a death screen, the friend's photo pause): closed, the draft
+-- gone, so that screen's Enter and Esc are its own.
+view.open(); box.text='draft'
+state.paused=true; view.slow(50.25)
+assert(not view.is_open() and box.text=='')
+view.send(); assert(model.take(99)==nil,'Nothing sent')
+state.paused=false
 -- French: the hint and our name.
 state.language='fr-FR'
 clock=10; view.tick(clock)
@@ -356,6 +375,17 @@ assert(box.hint=='Message · Entrée pour envoyer · Échap pour fermer')
 box.text='salut'
 view.send()
 assert(rows[12].s=='[21:04] Vous : salut',rows[12].s)
+-- Her line while our root is down (a map load, our photo mode): its sound once the feed can show it, unless it waited
+-- out its 8 s.
+n=#calls
+state.ready=false
+model.receive('Kaanta','late',51); view.slow(51.25)
+state.ready=true; view.slow(59)
+assert(not since(n):find('sound chat',1,true),'8 s later: no sound')
+state.ready=false
+model.receive('Kaanta','soon',59); view.slow(59.25)
+state.ready=true; view.slow(66.75)
+assert(since(n):find('sound chat',1,true),'Under 8 s: its sound')
 -- coop off: closed, nothing more asked of the kit (kit.stop gives the input back).
 n=#calls
 view.stop()

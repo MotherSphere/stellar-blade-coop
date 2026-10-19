@@ -6,10 +6,11 @@
 -- second Select; Chat (in a session) closes it and opens the chat's box. A setting changed on the Options page rewrites
 -- its own line of coop-settings.txt (link.lua keeps the file as it was as coop-settings.old.txt) and applies at once,
 -- but the name tag and the shared enemies, at the next load; a key row takes the next F-key pressed (capture), checked
--- against the other keys. Each 250 ms while open: the status line and the rows of the session's state; the world gone
--- or the kit off, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would
--- open the pause menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it.
--- No engine call here: the kit makes them.
+-- against the other keys. Each 250 ms while open: the status line, the rows of the session's state and, unless a row
+-- said something, the newest notice (the feed hides under the menu); the world gone, the game paused or showing the
+-- mouse cursor (UI-DESIGN 7.4), or the kit off, it closes. The game's input comes back 150 ms after a close, so the
+-- key that closed it (Esc would open the pause menu) never reaches the game, and is asked again each 250 ms while
+-- closed until the kit has given it. No engine call here: the kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
@@ -68,7 +69,7 @@ function Menu.new(o)
         local ping,_,linked=link.ping(),link.friend()
         v.title.set(words.title)
         v.status.set(link.summary()..(linked and ping and ' · '..ping..' ms' or ''))
-        v.note.set(note or '')
+        v.note.set(note or (o.chat and o.chat.notice()) or '')
         for i,hint in ipairs({'move','select','back'}) do v.hints[i].set(words.hint[hint]) end
     end
     -- A change in effect, from the file now written: every key (the file may hold another clash), else the one setting.
@@ -177,11 +178,12 @@ function Menu.new(o)
         draw()
         return true
     end
-    -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not. Closed, the game's input
-    -- is given back again while still due (no player controller at the close: a map change).
+    -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not, or when the game pauses or
+    -- shows the mouse cursor. Closed, the game's input is given back again while still due (no player controller at the
+    -- close: a map change).
     function self.slow(shown)
         world=shown==true
-        if open and (not world or kit.off()) then return self.close() end
+        if open and (not world or kit.off() or kit.paused()) then return self.close() end
         if not (open or back_at) then kit.input(false) end
         draw()
     end
