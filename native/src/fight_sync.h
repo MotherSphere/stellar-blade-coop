@@ -249,7 +249,7 @@ struct Seen {
   uint8_t cc = 0;                        // Bit i: kCcEffects[i] runs on it.
   bool stunned = false;                  // It holds Down (6), Groggy (7) or Airborne (8): a crowd control runs.
   bool immortal = false;                 // It holds Immortal (27): SB's own floor keeps its HP at 1 or more.
-  bool dying = false;                    // Pending death or life state 3-5: it may stay in the map a while.
+  bool dying = false;                    // Pending death or life state 3 (Dead): it may stay in the map a while.
   bool scaled = false;                   // The engine holds our two-player scaling on it: its maxes are not its own.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.

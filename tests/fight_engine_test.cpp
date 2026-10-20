@@ -629,6 +629,12 @@ int main() {
     const uint32_t followed[] = {108, 101, 999, 115, 116, 119};
     n = e->pass(g, g.logic, false, followed, 6);
     assert((guids(*e, n) == std::vector<uint32_t>{108, 101}) && e->seen()[0].dying && e->counts.censuses == 1);
+    // Leaving the map in place (Despawn 4, Destroy 5) with HP left is gone, never a death; with none left, a death.
+    const uint32_t leaving[] = {109, 110};
+    assert(e->pass(g, g.logic, false, leaving, 2) == 0 && !e->latched());
+    g.mem.put<float>(g.stat_at(110, kHp), 0);
+    n = e->pass(g, g.logic, false, leaving, 2);
+    assert((guids(*e, n) == std::vector<uint32_t>{110}) && dying(e->seen()[0]) && !e->seen()[0].dying);
     // A census after them, without them again.
     const uint32_t one[] = {112};
     n = e->pass(g, g.logic, true, one, 1);

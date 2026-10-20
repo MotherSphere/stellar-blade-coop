@@ -59,7 +59,7 @@ constexpr uint64_t kActorVtable = 0x145c0bee0;
 constexpr size_t kGuid = 0x20, kFsb = 0x60, kControlled = 0xbc, kPendingDeath = 0x414, kAlive = 0x491,
                  kCharId = 0x618, kSpawnId = 0x61c, kSpawnIndex = 0x620;
 // FSBActor: stat type t at kStatBase + 4 t (HP 1, MaxHP 2, Shield 7, MaxShield 8, Stamina 12, MaxStamina 13: each max
-// right after its value), the life state (1 Spawn, 6 Spawning; 3-5 dying or dead) and the player flag.
+// right after its value), the life state (1 Spawn, 6 Spawning; 3 Dead, 4 Despawn, 5 Destroy) and the player flag.
 constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
 // Stat 107, MinimumHP, at kStatBase + 4 * 107 = 0x2c4: ApplyStat holds any HP result at or above it (PHASE11-STAGE2-RE
 // 3). Stored plainly, never clamped; SB's own MinimumHP effects add and take off deltas too, so ours composes.
@@ -228,6 +228,9 @@ struct Actor {
   Seen seen; // GUID, key, charId and dying; the stats once stats() read them.
 };
 inline bool fighting(const Actor &a) { return !a.pending && (a.life == 1 || a.life == 6); }
+// Despawn (4) or Destroy (5) with no pending death: a death once its HP is gone, else an enemy leaving the map in place
+// (PHASE11-STAGE2-RE 6), which the side takes for gone (down, unpaired), never for a kill.
+inline bool leaving(const Actor &a) { return !a.pending && (a.life == 4 || a.life == 5); }
 
 // The local player in SB's photo mode with any camera but the selfie's: SB's logic stands still, so our job does not
 // run. read(address, out, n) as a Game's; false when unread (none before the manager is made).
@@ -509,8 +512,10 @@ public:
     Actor a;
     for (size_t i = 0; i < count && n < kMaxSeen && !latched_; ++i) {
       uint64_t la = g.find(logic, followed[i]);
-      // A life state we do not know is left out (gone, so down or unpaired), never read as a death.
-      if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying) && stats(g, a)) {
+      // A life state we do not know is left out (gone, so down or unpaired), never read as a death; so is one leaving
+      // the map with HP left.
+      if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying || leaving(a)) && stats(g, a) &&
+          (!leaving(a) || dying(a.seen))) {
         marks(g, la, a);
         a.seen.scaled = scaled(a.seen.guid);
         seen_[n++] = a.seen;
@@ -633,7 +638,7 @@ private:
     a.seen.guid = guid;
     a.pending = pending;
     a.player = player;
-    a.seen.dying = a.pending || (a.life >= 3 && a.life <= 5);
+    a.seen.dying = a.pending || a.life == 3; // Leaving (4, 5) dies only with its HP gone: Seen's dying().
     return true;
   }
   // What a fighting actor (logic actor la) holds, into a.states and its Seen: the states of kStatesRead (NoDamageNoHit
