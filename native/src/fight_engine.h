@@ -139,6 +139,11 @@ constexpr uint32_t kStunned = 1u << 6 | 1u << 7 | 1u << 8; // Of kStatesRead: Do
 constexpr size_t kEffects = 0x170, kEffectCount = 0x178, kEffectId = 0x104;
 constexpr int32_t kMaxEffects = 128; // A longer list is taken for a torn read.
 
+// FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1d150) sets for slow
+// motion; 1 otherwise [L]. Read for the stats line only, to size slow motion before stage 3 (FEATURE-PARITY C33).
+constexpr size_t kTimeScale = 0x27c4;
+constexpr float kSlow = 0.99f; // Below this, slow motion.
+
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
 // SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
@@ -191,6 +196,8 @@ struct JobCounts {
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
   uint64_t unread = 0;  // State maps and effect lists that failed their checks: read as holding nothing.
   uint64_t unscaled = 0; // Enemies left at their own maxes: MaxHP not stat 3 x (1 + stat 4), or past kMaxStat scaled.
+  // Turns in which our EVE or an enemy of the pass ran below kSlow, how often that began, the lowest scale in percent.
+  uint64_t slow_turns = 0, slow_starts = 0, slow_min = 100;
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
   uint64_t paused = 0;                         // Ticks a paused world put off.
@@ -475,6 +482,8 @@ public:
     uint32_t followed[kMaxTracked];
     size_t count = hosting ? host.tracked(followed) : guest.tracked(followed);
     size_t n = pass(g, logic, census, followed, count);
+    if (!latched_)
+      slow_motion(g, n);
     if (!latched_ && hosting) {
       host.step(seen_, n, census, turn, now_ms, io);
       hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance));
@@ -518,6 +527,7 @@ public:
           (!leaving(a) || dying(a.seen))) {
         marks(g, la, a);
         a.seen.scaled = scaled(a.seen.guid);
+        fsbs_[n] = a.fsb;
         seen_[n++] = a.seen;
       }
     }
@@ -543,6 +553,7 @@ public:
       else if (stats(g, a)) {
         marks(g, f.la, a);
         a.seen.scaled = scaled(a.seen.guid);
+        fsbs_[n] = a.fsb;
         seen_[n++] = a.seen;
       }
     }
@@ -558,6 +569,7 @@ public:
     s.job.turns = c.turns, s.job.stale = c.stale, s.job.doubled = c.doubled, s.job.mode = c.mode;
     s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
     s.job.unread = c.unread, s.job.unscaled = c.unscaled;
+    s.job.slow_turns = c.slow_turns, s.job.slow_starts = c.slow_starts, s.job.slow_min = c.slow_min;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
@@ -863,6 +875,25 @@ private:
     }
   }
 
+  // Slow motion this turn: the lowest time scale among our EVE and this pass's enemies (n of fsbs_), counted below
+  // kSlow. A scale that fails its read or is not a number from 0 counts as 1: this only feeds the stats line.
+  template <class Game> void slow_motion(Game &g, size_t n) {
+    float low = 1;
+    const auto take = [&](uint64_t fsb) {
+      float x = 1;
+      if (fsb && g.read(fsb + kTimeScale, &x, sizeof x) && x >= 0 && x < low)
+        low = x;
+    };
+    take(local_fsb(g));
+    for (size_t i = 0; i < n; ++i)
+      take(fsbs_[i]);
+    const bool slow = low < kSlow;
+    counts.slow_turns += slow;
+    counts.slow_starts += slow && !slow_;
+    counts.slow_min = std::min(counts.slow_min, uint64_t(low * 100));
+    slow_ = slow;
+  }
+
   // The local player's FSBActor as SB finds it on the logic thread, or 0.
   template <class Game> uint64_t local_fsb(Game &g) {
     uint64_t net = 0, logic = 0, world = 0, manager = 0, array = 0, fsb = 0;
@@ -1077,6 +1108,8 @@ private:
   Found found_[kMaxCensus];
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
+  uint64_t fsbs_[kMaxSeen] = {}; // Each one's FSBActor, for this turn only.
+  bool slow_ = false;            // The last turn ran in slow motion.
   Capture caps_[kMaxCaptures];
   size_t captures_ = 0, lifting_ = 0; // lifting_: captures dropped whose lift a fault cut short.
 };
@@ -1616,7 +1649,7 @@ private:
     said_counts_ = c, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
     using u = unsigned long long;
     const char *as = ran_ == Fight::record ? " (record)" : ran_ == Fight::replay ? " (replay)" : "";
-    char head[640], tail[640];
+    char head[640], tail[800];
     if (probe)
       std::snprintf(head, sizeof head,
                     "fight stats: probe, %zu actors, our EVE %s, turn %u (%llu a second), writes %s, %llu rejected",
@@ -1645,11 +1678,12 @@ private:
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
-                  "%llu state maps or effect lists unread, %llu enemies left unscaled; "
-                  "%llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic "
-                  "thread %u (SB's %u), game thread %u",
+                  "%llu state maps or effect lists unread, %llu enemies left unscaled, slow motion %llu times (%llu "
+                  "turns, lowest %llu %%); %llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, "
+                  "max %llu us; logic thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
-                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(j.unscaled), u(s.lost),
+                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(j.unscaled), u(j.slow_starts),
+                  u(j.slow_turns), u(j.slow_min), u(s.lost),
                   u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.trace(std::string(head) + tail);

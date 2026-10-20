@@ -458,6 +458,10 @@ when shared enemies restart, and when an enemy stops being shared and comes back
 counts as not fought. Whether an enemy with no killer still drops loot is not tested yet. An enemy that your own hit
 kills always gives you the kill.
 
+Slow motion is not shared: each game slows down on its own. The stats lines in `coop-fight.log` count it (the turns in
+which your EVE or a shared enemy ran below normal speed, how often that began, and the lowest speed in percent), to
+measure how often the two games drift apart this way.
+
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
 too. A file from version 0.2 says `shared_enemies=off` and keeps it off until you turn the row on. It starts by itself

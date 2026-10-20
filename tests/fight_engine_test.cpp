@@ -227,8 +227,9 @@ struct Game {
   // Monster unless said. Its MaxHPValue (stat 3) is its MaxHP, MaxHPRate (4) 0.
   uint64_t spawn(uint32_t guid, uint32_t spawn_id, uint8_t index, uint32_t chr = kChar, float max_hp = 1600,
                  uint8_t type = kTypeMonster) {
-    uint64_t la = mem.alloc(0x628), f = mem.alloc(0x2608);
+    uint64_t la = mem.alloc(0x628), f = mem.alloc(kTimeScale + 4);
     mem.put(la, rebased(kActorVtable));
+    mem.put(f + kTimeScale, 1.f);
     mem.put(la + kGuid, guid);
     mem.put(la + kFsb, f);
     mem.put<uint8_t>(la + kAlive, 1);
@@ -1230,6 +1231,27 @@ int main() {
     for (uint64_t t = 32; t <= 16 * 16; t += 16)
       frame(g, *e, t);
     assert(has(lines(g), "SBF10 up 1 150 5050 0 900 1600\n") && !e->latched());
+  }
+
+  // ---- Slow motion: counted for the stats line from FSBActor +0x27c4, our EVE's or an enemy's ----
+  {
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF10 on"));
+    frame(g, *e, 0);
+    g.mem.put(g.fsb(101) + kTimeScale, 0.3f);
+    frame(g, *e, 16);
+    frame(g, *e, 32);
+    g.mem.put(g.fsb(101) + kTimeScale, 1.f);
+    g.mem.put(g.fsb(1) + kTimeScale, 0.5f);
+    frame(g, *e, 48);
+    g.mem.put(g.fsb(1) + kTimeScale, std::nanf("")); // Not a number: 1, and never latched.
+    frame(g, *e, 64);
+    g.mem.put(g.fsb(1) + kTimeScale, 0.5f);
+    frame(g, *e, 80);
+    const JobCounts &c = e->counts;
+    assert(c.slow_turns == 4 && c.slow_starts == 2 && c.slow_min == 30 && !e->latched());
   }
 
   // ---- Pooled reuse: the same object under another GUID ----
