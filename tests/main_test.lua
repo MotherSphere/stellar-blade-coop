@@ -881,7 +881,9 @@ settings_text='shared_enemies=off\n'
 load_main(true)
 loops[2].f(); assert(#asked==0)
 -- shared_enemies=off at a reload (Ctrl+R) ends a coop fight on an earlier load started, waiting or running, from the
--- fight= line at a line start only; a probe, record or replay goes on, and nothing is asked after coop off.
+-- fight= line at a line start only; a probe, record or replay goes on, and nothing is asked after coop off. (With
+-- same_place=on: same_place=off has its own reload ask, below.)
+settings_text='shared_enemies=off\nsame_place=on\n'
 local ON_LINE='fight=on mode=on role=host enemies=3 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2\n'
 for _,case in ipairs({{with_slot(ON_LINE),true},{with_slot('fight=waiting mode=on why=no friend linked\n'),true},
         {with_slot('fight=waiting mode=on her=off why=not on a co-op save\n'),true},
@@ -901,6 +903,32 @@ end
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 status_text=with_slot(ON_LINE)
 load_main(true); assert(#asked==0,'shared_enemies=on leaves it running')
+settings_text=''
+-- same_place=off (the default) at a reload asks coop fight pilot off on the side that hosts, running or waiting: coop
+-- fight on while the link hosts, or record. Never as guest or unlinked for on, never for a probe or replay, nor after
+-- coop off; same_place=on leaves it.
+local function hosted(line) return (with_slot(line):gsub('\nlink=none lobby=0\n','\nlink=host lobby=7\n')) end
+for _,case in ipairs({{hosted(ON_LINE),true},{hosted('fight=waiting mode=on her=off why=not on a co-op save\n'),true},
+        {with_slot('fight=on mode=record role=host enemies=1 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 '
+            ..'threads=1/1/2\n'),true},
+        {with_slot('fight=waiting mode=record why=no save loaded\n'),true},
+        {with_slot('fight=waiting mode=on why=no friend linked\n'),false},
+        {(with_slot('fight=on mode=on role=guest pairs=2 claims=0 corrections=0 kills=0 floored=0\n')
+            :gsub('link=none lobby=0','link=guest lobby=7')),false},
+        {hosted('fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2\n'),
+            false},
+        {hosted('fight=waiting mode=replay why=no save loaded\n'),false},
+        {hosted('fight=off why=coop fight off\n'),false},{hosted('peer=2 name=x '..ON_LINE),false},
+        {'mod=v proto=3 steam=ready\nlink=host lobby=7\nengine=off reason=coop_off\n'..ON_LINE,false}}) do
+    status_text=case[1]
+    load_main(true)
+    assert(#asked==(case[2] and 1 or 0) and (not case[2] or asked[1]=='fight pilot off'),case[1])
+    assert(not case[2] or logged('OK: same_place=off: asked the native part: fight pilot off'),
+        table.concat(printed,'|'))
+end
+settings_text='same_place=on\n'
+status_text=hosted(ON_LINE)
+load_main(true); assert(#asked==0,'same_place=on leaves it running')
 settings_text=''
 -- The notices, every 250 ms from the fight= line: on when its enemies go from none to some (one enemy, or several);
 -- off once it ran or waited, in any mode, but not when our own player ended it (coop fight off, coop off); a latch
@@ -1068,7 +1096,7 @@ for _,step in ipairs({{nil,''},{'pilot=off why=fight',''},{'pilot=off why=host',
 end
 kit_language='fr-FR'
 for _,step in ipairs({{'pilot=on piloted=3','Même position : 3 ennemis pilotés.'},
-        {'pilot=off why=host',"Même position coupée : la partie de Kaanta l'a coupée."},
+        {'pilot=off why=host',"Même position coupée : la partie de Kaanta l'a désactivée."},
         {'pilot=on piloted=1','Même position : 1 ennemi piloté.'},
         {'pilot=stopped',"Même position coupée : arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit "
             ..'pourquoi.'}}) do

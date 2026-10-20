@@ -174,7 +174,7 @@ T.fr={
         paks="%s n'a pas les mêmes mods .pak que vous (%d en face, %d ici). Les ennemis qui diffèrent ne sont pas "
             ..'partagés.'},
     pilot={on='Même position : %d ennemis pilotés.',one='Même position : 1 ennemi piloté.',
-        off='Même position coupée : %s',host="la partie de %s l'a coupée.",
+        off='Même position coupée : %s',host="la partie de %s l'a désactivée.",
         stopped="arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi."},
 }
 -- The words for the game's culture (nil when unread) and ui_language.
