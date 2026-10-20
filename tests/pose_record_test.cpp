@@ -127,6 +127,7 @@ int main() {
   const std::string good = kHead + entry('T', t1) + entry('P', p1) + entry('P', p2) + entry('T', t1) + entry('P', p3);
   Recording r = recording(good);
   assert(r.entries.size() == 5 && r.poses == 3 && r.first == 1'000'000 && r.last == 1'100'000 && r.file == good);
+  assert(r.tables == 2 && r.sbe == 0 && r.shows == 0 && r.end == r.last);
   assert(r.entries[1].kind == 'P' && r.entries[1].size == p1.size() && r.entries[4].publication == 1'100'000);
   assert(good.compare(r.entries[3].at, t1.size(), t1) == 0);
 
@@ -179,9 +180,43 @@ int main() {
     assert(rec.bytes() == mixed && rec.rules().poses == 2 && rec.rules().sbe == 2 && rec.rules().shows == 3);
     const Recording mr = recording(mixed);
     assert(mr.entries.size() == 8 && mr.poses == 2 && mr.first == 1'000'000 && mr.last == 1'050'000);
+    // Counted by kind for coop replay's line, whose loop runs to the show-stop after the last pose.
+    assert(mr.tables == 1 && mr.sbe == 2 && mr.shows == 3 && mr.end == 1'060'000);
     const uint64_t stamps[8] = {0, 1'000'000, 1'010'000, 1'020'000, 1'020'000, 1'050'000, 1'043'333, 1'060'000};
     for (size_t i = 0; i < 8; ++i)
       assert(mr.entries[i].publication == stamps[i] && mr.entries[i].kind == "TPESSPES"[i]);
+  }
+  // A show line's replay keeps its context: kMaxShowLine bytes is the most a line with a 1-digit t_ms may hold so that
+  // the same line with a 20-digit t_ms still fits kMaxMessage. One byte more and format() would drop the context, so
+  // the recorder skips such a line and the reader refuses it.
+  {
+    coop::pilot::ShowLine l;
+    l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = 1, l.t_ms = 5, l.rate = 1000;
+    std::fill(l.ctx, l.ctx + coop::pilot::kCtx, -1'000'000'000);
+    l.ctx[coop::pilot::kHitLevel] = l.ctx[coop::pilot::kHitLevel60] = 0;
+    auto sized = [&](size_t want) {
+      for (size_t p = 1; p <= coop::pilot::kMaxPath; ++p) {
+        assert(coop::pilot::set_path(l, 0, std::string(p, 'a')));
+        if (coop::pilot::format(l).size() == want)
+          return coop::pilot::format(l);
+      }
+      assert(!"no path length gives that size");
+      return std::string();
+    };
+    const std::string edge = sized(kMaxShowLine), over = sized(kMaxShowLine + 1);
+    for (const std::string *s : {&edge, &over}) {
+      coop::pilot::ShowLine longest = show_of(*s);
+      longest.t_ms = UINT64_MAX;
+      const std::string again = coop::pilot::format(longest);
+      assert(show_of(again).ctx[coop::pilot::kHitPos] == (s == &edge ? -1'000'000'000 : 0));
+    }
+    const std::string p5 = pose(a, 1, 5'000), head = kHead + entry('T', t1) + entry('P', p5);
+    const char *why = parse(head + entry('S', over));
+    assert(!parse(head + entry('S', edge)) && why && std::string(why) == "show length");
+    assert(rec.start(t1));
+    for (const std::string *m : {&p5, &over, &edge})
+      assert(rec.add(u8(*m), m->size()));
+    assert(rec.bytes() == head + entry('S', edge) && rec.rules().shows == 1);
   }
   // Full at kMaxEntries: the file still reads back.
   assert(rec.start(t1));

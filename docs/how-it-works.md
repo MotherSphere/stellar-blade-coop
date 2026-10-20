@@ -443,7 +443,9 @@ These solo tools run the whole pipeline on one PC, so most of the mod can be tes
 - A recording keeps what is sent (the table and the poses, as the exact wire bytes) in memory for up to 120 s or 25 MiB,
   and writes it to `coop-record.bin` when it stops. The file holds `SBR` and the protocol, then entries of a kind (`T` a
   table, `P` a keyframe, `D` a delta, `E` a same-place enemies' `SBE` or `S` a show line), a size and the bytes.
-  `SBE` messages and show lines come after the first pose and are re-stamped with the poses on replay.
+  `SBE` messages and show lines come after the first pose and are re-stamped with the poses on replay. A show line over
+  493 bytes is not recorded: its new time can be up to 19 digits longer, and past 512 bytes the line would lose its
+  hit context.
 - A replay reads and checks the whole file before anything plays (the tests fuzz the reader), then plays it in a loop as
   the remote side, each pose re-stamped as if sent now. A file made under another protocol is refused.
 

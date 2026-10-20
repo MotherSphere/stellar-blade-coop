@@ -11,7 +11,8 @@
 // before it; a delta's keyframe is the latest pose since that table's first entry. Protocol 9 added the deltas.
 // Protocol 11 added same-place enemies' SBE and show lines, on the poses' clock: after the first pose, an SBE published
 // after the SBE before it, a show line stamped (its t_ms) no earlier than the one before it, so the replay moves them
-// with the poses and the ghost's playback clock draws the enemies as it drew them.
+// with the poses and the ghost's playback clock draws the enemies as it drew them. A show line is at most
+// kMaxShowLine bytes: its replay, with a t_ms of up to 20 digits, still fits kMaxMessage with its context.
 #pragma once
 
 #include <algorithm>
@@ -32,6 +33,9 @@ namespace coop::pose {
 // the show lines about 25 MiB: such a recording stops as full a few seconds early.
 constexpr size_t kMaxRecording = size_t(25) << 20, kMaxEntries = 16384, kEntryHeader = 5;
 constexpr uint64_t kMaxSpanUs = 130'000'000; // The recorder stops at 120 s.
+// format() drops a show's context ("-") rather than pass kMaxMessage; a recorded t_ms has at least 1 digit, a replayed
+// one at most 20 (UINT64_MAX's).
+constexpr size_t kMaxShowLine = kMaxMessage - 19;
 
 namespace record {
 // What the entries so far allow next. The recorder skips what may not follow, as a receiver would drop it (a pose
@@ -101,6 +105,8 @@ struct Rules {
       const pilot::ShowLine l = pilot::parse_show(reinterpret_cast<const char *>(data), size);
       if (l.kind == pilot::Kind::invalid)
         return "show";
+      if (size > kMaxShowLine)
+        return "show length";
       if (!poses || l.t_ms < first / 1000)
         return "before a pose";
       const uint64_t ms = l.t_ms - first / 1000, us = ms * 1000 > first % 1000 ? ms * 1000 - first % 1000 : 0;
@@ -168,7 +174,8 @@ struct Recording {
   std::string file;
   std::vector<Entry> entries;
   uint64_t first = 0, last = 0; // The first and the last pose's publication (a delta is a pose here).
-  size_t poses = 0;
+  uint64_t end = 0;             // The latest entry's time, of any kind: a loop runs from first to it.
+  size_t poses = 0, tables = 0, sbe = 0, shows = 0;
 };
 
 // A whole coop-record.bin, checked before anything plays: null when it is good (then out holds it), else why not.
@@ -190,13 +197,14 @@ inline const char *parse_recording(std::string file, Recording &out) {
     if (const char *why = rules.take(data[at], data + at + kEntryHeader, size))
       return why;
     r.entries.push_back({data[at], at + kEntryHeader, size, data[at] != 'T' ? rules.stamp : 0});
+    r.end = std::max(r.end, r.entries.back().publication);
     at += kEntryHeader + size;
   }
   if (!rules.poses)
     return "no pose";
   r.first = rules.first;
   r.last = rules.last;
-  r.poses = rules.poses;
+  r.poses = rules.poses, r.tables = rules.tables, r.sbe = rules.sbe, r.shows = rules.shows;
   r.file = std::move(file); // Entries hold offsets, not pointers: a short file's bytes move.
   out = std::move(r);
   return nullptr;
