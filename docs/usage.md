@@ -176,9 +176,8 @@ More about sessions:
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
 - Both players need the same protocol (8) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
-The ghost is display only. Items, unlocks and progress are not copied between your two games, and enemies are not shared
-unless you turn on the experimental [shared enemies](#shared-enemies-experimental-off-by-default) (off by default).
-Shared enemies run on [co-op saves](#co-op-saves) only.
+The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
+[shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
 ## Co-op saves
 
@@ -253,7 +252,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
-| `coop fight on\|off\|status` | Shared enemies (experimental, off by default, co-op save only) |
+| `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
@@ -354,7 +353,7 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 
 The ghost, the link and every other command except `coop fight` (below) run on any save.
 
-### Shared enemies (experimental, off by default)
+### Shared enemies (experimental)
 
 `coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each
 enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
@@ -363,15 +362,19 @@ enemy still fights only its own EVE, and positions are not shared. It changes en
 so it shares enemies only on a co-op save, and kills count in the co-op save. Back up your saves first (see
 [saves.md](saves.md)).
 
-To use it, both players turn on Options > Combat > Shared enemies (experimental) in the [co-op menu](#options)
-(`shared_enemies=on` in [coop-settings.txt](#coop-settingstxt)) and play a [co-op save](#co-op-saves). The row takes
-effect at once. It then starts by itself once you are linked and both on a co-op save. Enemies get linked only while
-you are on the same map. Turning the row off stops it, but not the solo test tools below.
+It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
+new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
+too. It starts by itself once you are linked and both play a [co-op save](#co-op-saves), and changes no enemy on your
+own save. Enemies get linked only while you are on the same map. Turning the row off (`shared_enemies=off`) stops it
+at once, but not the solo test tools below.
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the
-game's BossMonster type) are not shared yet. A list of character ids instead, for example
-`fight_chars=15011001 15011002` (16 at most), shares those enemies only, of any type. A file written before `auto`
-existed has `fight_chars=` with nothing after it, which counts as `auto`.
+game's BossMonster type) are not shared yet. `auto` also leaves out a few Monster-type enemies that are not common
+ones: the Gorgon (character id 50330), the two laser turrets with 999,999 HP (35027002 and 35027003), and any enemy
+with more than 500,000 maximum HP. The common enemy with the most HP has 213,125, on Hard. A list of character ids
+instead, for example `fight_chars=15011001 15011002` (16 at most), shares those enemies only, of any type, including
+the ones `auto` leaves out. A file written before `auto` existed has `fight_chars=` with nothing after it, which counts
+as `auto`.
 
 The host shares 16 enemies at a time. When all 16 places are taken, an enemy the host hurts takes the place of one at
 full HP that the friend never hit. When every place holds an enemy in a fight, `coop-link.log` says
@@ -406,7 +409,9 @@ shows when a check of the game's memory turned it off for the run. These notices
   `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run), `waiting` (a load, photo
   mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their game yet).
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, type, HP, Shield, Stamina) to
-  `coop-fight.log`, where you find the ids for `fight_chars`. Once the log says `fight writes=armed`,
+  `coop-fight.log`, where you find the ids for `fight_chars`. With no `fight_chars` list, the line of a Monster that
+  `auto` leaves out ends with `left_out=charId` (the Gorgon or a turret) or `left_out=MaxHP` (more than 500,000
+  maximum HP). Once the log says `fight writes=armed`,
   `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the shared enemy with
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
   `coop fight replay` plays that file into the guest's side.
@@ -459,7 +464,7 @@ send_rate=20
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
 # shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
 # example fight_chars=15011001.
-shared_enemies=off
+shared_enemies=on
 fight_chars=auto
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
@@ -497,7 +502,7 @@ card_details=on
 | `cloth` | `on` or `off` | `off` |
 | `dyes` | `on` or `off` | `off` |
 | `effects` | `on` or `off` | `off` |
-| `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental-off-by-default), experimental | `off` |
+| `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
@@ -586,7 +591,7 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
 | Co-op saves switched on | `Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.` |
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
-| Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental-off-by-default) |
+| Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 
 ## Status lines
 
@@ -627,7 +632,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Co-op save copies: `convert=<idle|busy <done>/<jobs>|done|error:<why>>`, the last copy pass (`idle` before any).
 - Shared enemies: `fight=on mode=<on|probe|record|replay> ...` with its counts, `fight=waiting mode=<mode> why=<what it
   waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see
-  [Shared enemies](#shared-enemies-experimental-off-by-default)).
+  [Shared enemies](#shared-enemies-experimental)).
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
   your friend gets (`notice` when your game cannot pause).

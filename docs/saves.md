@@ -14,9 +14,10 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   [how-it-works.md](how-it-works.md#safety-design).
 - When the question shows, Lua checks whether a co-op copy exists, to name its first choice: it opens each
   `StellarBladeCoop0N.sav` and closes it at once, without reading it.
-- Apart from enemy stats with the experimental shared enemies (`coop fight`, off by default), nothing is copied between
-  the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI and saves skip it,
-  and nothing of it is written to a save. The meshes it loads are only loaded into memory; nothing is worn or unlocked.
+- Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), nothing
+  is copied between the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI
+  and saves skip it, and nothing of it is written to a save. The meshes it loads are only loaded into memory; nothing is
+  worn or unlocked.
 - In the save folder, the mod also reads the co-op marker `StellarCoopSlot.txt` (every 5 s), which names the
   [manual co-op slot](#manual-co-op-slot).
 - Every 5 s the native part also lists the names, sizes and write times of the files in the save folder, without
@@ -101,7 +102,7 @@ The question and `always` show their result as a notice: `Co-op saves on: you pl
 own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` While the game uses
 the copies, the title screen shows `CO-OP SAVES` at the top right. In a session on your
 own save with shared enemies on, a notice says how to switch to the co-op copy (see
-[usage.md: Shared enemies](usage.md#shared-enemies-experimental-off-by-default)).
+[usage.md: Shared enemies](usage.md#shared-enemies-experimental)).
 
 A copy pass:
 
