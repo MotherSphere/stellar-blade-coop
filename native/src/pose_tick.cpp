@@ -38,7 +38,8 @@
 // her SBE and show lines (from her, or from a replayed recording) come to the game thread through the same lock, and
 // each frame every copy this side draws is found again by its GUID and driven at the ghost's draw time (pilot.h's
 // Driver): its movement component out of SB's manager, the speed override, the root moved, Velocity set, her Shows
-// replayed through SB's Show handle API. The first fault puts every copy back once and stops all of it for the run.
+// replayed through SB's Show handle API. The first fault stops all of it for the run and, when it was in this DLL,
+// puts every copy back once.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -925,8 +926,11 @@ __declspec(noinline) void pilot_put_back() {
   PilotGame g;
   driver.fault(g, base);
 }
-// The first fault stops the capture and the drive for the run, puts every drawn copy back once (its replays stopped,
-// its movement component and speed override back), and asks the job to let every frozen copy go (Engine::stop_pilot).
+// The first fault stops the capture and the drive for the run and asks the job to let every frozen copy go
+// (Engine::stop_pilot). When the fault was in this DLL (one of our reads, so the game's state is whole) every drawn
+// copy is put back once: its replays stopped, its movement component and speed override back. After a fault in the
+// game's code or another module's (an SB call broken half way, which a second call could hang) nothing more is called,
+// as lift_after_fault does for the shared fight: what the drive changed stays until those enemies leave the map.
 void guarded_pilot() {
   __try {
     pilot_body();
@@ -935,7 +939,7 @@ void guarded_pilot() {
     pilot_sending = false;
     fight_engine.stop_pilot();
   }
-  if (!pilot_faulted)
+  if (!pilot_faulted || !fault_in_dll(pilot_fault_rva))
     return;
   __try { // Once: coop_tick calls nothing here after a fault. A fault in it leaves the rest as it is.
     pilot_put_back();
@@ -1760,12 +1764,17 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
                 bool (*send)(const std::string &, bool)) {
   if (pilot_faulted && !pilot_fault_logged) {
     pilot_fault_logged = true;
-    char text[300];
+    char text[400];
     std::snprintf(text, sizeof text,
                   "same-place enemies fault 0x%08llx in %s reading 0x%llx: their capture and drive stop for this run, "
-                  "the drawn copies are put back and let go; the ghost, the link and the shared fight go on",
+                  "%s; the ghost, the link and the shared fight go on",
                   static_cast<unsigned long long>(pilot_fault_code.load()), fault_where(pilot_fault_rva).c_str(),
-                  static_cast<unsigned long long>(pilot_fault_address.load()));
+                  static_cast<unsigned long long>(pilot_fault_address.load()),
+                  fault_in_dll(pilot_fault_rva)
+                      ? "the drawn copies are put back and let go"
+                      : "the drawn copies are let go, and those the drive moved keep their movement component off "
+                        "and our speed override until they leave the map (a fault outside StellarCoop.dll gets no "
+                        "second call)");
     say(text);
   }
   uint8_t sbe[pilot::kMaxSbe];
