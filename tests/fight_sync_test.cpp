@@ -317,6 +317,46 @@ int main() {
            has(sent, "\nSBF8 hp 2 8 0 213:"));
   }
 
+  // ---- Host: with every place taken, a hurt enemy takes the place of one out of any fight ----
+  // fight_chars=auto follows a zone's whole roster: 16 places, so the enemies being fought must get one.
+  {
+    World w;
+    Host h;
+    for (uint32_t i = 0; i < 16; ++i)
+      w.add(200 + i, 6000 + i, 0);
+    h.receive(msg("SBF8 on"), 0, w);
+    step(h, w, 1, 0);
+    w.lines();
+    w.add(216, 6016, 0);
+    step(h, w, 2, 100); // At full HP: it waits.
+    assert(w.sent.empty() && h.linked() == 16);
+    w.hit(216, kHp, 100);
+    step(h, w, 3, 200);
+    assert(w.lines() == "SBF8 down 1 200\nSBF8 up 1 216 6016 0 900 1600\nSBF8 hp 1 2 0 216:1500:100:200\n");
+    assert(h.linked() == 16 && w.count("full") == 0);
+    step(h, w, 4, 300); // 200, at full HP and followed no more, does not come back.
+    assert(w.sent.empty());
+    // An enemy she hit keeps its place at full HP: 201 is passed over for 202.
+    h.receive(msg("SBF8 hit 1 1 201 0 0 10 1600 0"), 300, w);
+    step(h, w, 5, 400);
+    assert(h.counts.claims == 1 && w.hp(201) == 1600);
+    w.lines();
+    w.add(217, 6017, 0);
+    w.hit(217, kHp, 100);
+    step(h, w, 6, 500);
+    assert(w.lines().rfind("SBF8 down 1 202\nSBF8 up 1 217 6017 0 900 1600\n", 0) == 0);
+    // Every one in a fight: no place, said once in this world.
+    uint32_t guids[kMaxTracked];
+    for (size_t i = 0, n = h.tracked(guids); i < n; ++i)
+      if (w.hp(guids[i]) == 1600 && guids[i] != 201)
+        w.hit(guids[i], kHp, 1);
+    w.add(218, 6018, 0);
+    w.hit(218, kHp, 100);
+    step(h, w, 7, 600);
+    step(h, w, 8, 700);
+    assert(!has(w.lines(), " 218 ") && h.linked() == 16 && w.count("full") == 1);
+  }
+
   // ---- Host: claims and death rules ----
   {
     World w;

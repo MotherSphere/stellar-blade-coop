@@ -107,7 +107,8 @@ struct JobCounts {
   uint64_t stale = 0;   // Runs of an old arm's job: nothing done (an orphan, an old key after an init without reset).
   uint64_t doubled = 0; // A second run in one turn: nothing done.
   uint64_t mode = 0;    // Runs in a net mode other than 0: nothing done, no re-push.
-  uint64_t censuses = 0, cut = 0, rejected = 0; // Census passes, slots past kMaxCensus, elements failing the test.
+  uint64_t censuses = 0, rejected = 0; // Census passes, elements failing the test.
+  uint64_t cut = 0; // Map slots past kMaxCensus, and eligible enemies past kMaxSeen, summed over the censuses.
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
@@ -406,8 +407,11 @@ public:
       }
       if (a.controlled == 1 && local && a.fsb == local && pc(g, a))
         eve_ = f.guid;
-      if (n < kMaxSeen && eligible(g, a) && std::find(followed, followed + count, f.guid) == followed + count &&
-          stats(g, a))
+      if (std::find(followed, followed + count, f.guid) != followed + count || !eligible(g, a))
+        continue;
+      if (n == kMaxSeen)
+        ++counts.cut;
+      else if (stats(g, a))
         seen_[n++] = a.seen;
     }
     return latched_ ? 0 : n;
@@ -868,8 +872,8 @@ private:
 // not run while her lines pile up; she hears our off, which stops her side's sharing too) and, for on, a friend is
 // linked and the save is a co-op one (the gate's kNoCoopSave). Any of them missing pauses it (a new session when all
 // are back); any other refusal of the gate turns it off until asked again. While she is linked and we do not share,
-// she hears what we wait for (or kFeatureOff) as an off line, when it changes and every kTellMs; what she says the
-// same way is her state on our fight= line.
+// she hears what we wait for (or why it last ended, or kFeatureOff) as an off line, when it changes and every kTellMs;
+// what she says the same way is her state on our fight= line.
 // The game's other pauses (its menu) leave it running: its logic still ticks. Its Io:
 //   bool send(const std::string &line, bool reliable): to her on channel 2; false when not queued;
 //   void say(const std::string &line): the log;
@@ -1039,7 +1043,8 @@ private:
   }
   // While she is linked and we do not share: our state as an off line, when it changes and every kTellMs (a line sent
   // as the link comes up may reach her before her side passed the handshake, which drops it). Sharing, she heard our
-  // on at its start.
+  // on at its start. Not asked: why it last ended (coop fight off, coop off, the gate), or kFeatureOff before any end
+  // and while a solo tool runs.
   template <class Io> void tell(uint64_t now_ms, Io &io) {
     if (!linked_ || (running_ && ran_ == Fight::on)) {
       told_.clear();
@@ -1047,6 +1052,7 @@ private:
     }
     const char *wait = mode_ == Fight::on ? waits() : nullptr;
     const std::string why = e_.latched()          ? std::string("stopped for this run (") + e_.why() + ")"
+                            : mode_ == Fight::none && !last_why_.empty() ? last_why_
                             : mode_ != Fight::on ? kFeatureOff
                             : wait               ? wait
                                                  : "starting";

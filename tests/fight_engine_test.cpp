@@ -483,6 +483,15 @@ int main() {
     size_t n = e->pass(g, g.logic, true, nullptr, 0);
     assert((guids(*e, n) == std::vector<uint32_t>{1003, 1135}) && !e->latched());
   }
+  // A zone's roster past kMaxSeen: the pass is full, and the rest counted as cut.
+  {
+    Game g(512);
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    for (uint32_t i = 0; i < kMaxSeen + 3; ++i)
+      g.spawn(2000 + i, 7000 + i, 0);
+    assert(e->pass(g, g.logic, true, nullptr, 0) == kMaxSeen && e->counts.cut == 3 && !e->latched());
+  }
   // An implausible map or enemy, or an unreadable read, turns the feature off for the run, not just the turn.
   for (int k = 0; k < 6; ++k) {
     Game g;
@@ -1159,7 +1168,7 @@ int main() {
     w.pass(t += 16, true, false, true, {"SBF8 world 8"}, gate, io, true);
     assert(!e->on() && io.lines() == "SBF8 off photo mode\n" && io.said.back() == "shared fight paused: photo mode");
     assert(w.detail() == "fight=waiting mode=on her=on why=photo mode" && mail.exchange(s) && !mail.receive(m));
-    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines() == "SBF8 off shared enemies off\n");
+    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines() == "SBF8 off coop fight off\n");
     assert(ask("fight on 900") == "shared fight on: waiting for the end of photo mode" && !e->on());
     assert(io.lines() == "SBF8 off photo mode\n");
     w.pass(t += 16, true, false, true, none, gate, io);
@@ -1204,14 +1213,14 @@ int main() {
     why = "coop off";
     for (const uint64_t end = t + 300; e->on() && t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
-    assert(!e->on() && io.lines() == "SBF8 off shared enemies off\n" && io.said.back() == "shared fight off: coop off");
+    assert(!e->on() && io.lines() == "SBF8 off coop off\n" && io.said.back() == "shared fight off: coop off");
     // The lobby changes hands: a new session on the other side.
     why.clear();
     assert(ask("fight on 900") == "shared fight on: as guest" && io.lines() == "SBF8 on\n");
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(e->on() && io.lines() == "SBF8 on\n" && io.said.back() == "shared fight on: as host");
     assert(ask("fight off") == "shared fight off: coop fight off" && !e->on());
-    assert(io.lines() == "SBF8 off shared enemies off\n");
+    assert(io.lines() == "SBF8 off coop fight off\n");
     // The latch: said once, she hears it after what the job handed over before, its later lines go nowhere, and
     // nothing starts again this run.
     assert(ask("fight on 900") == "shared fight on: as host" && io.lines() == "SBF8 on\n");

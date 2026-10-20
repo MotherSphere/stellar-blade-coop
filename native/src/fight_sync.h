@@ -39,7 +39,7 @@ enum Stat : int { kHp, kShield, kStamina, kStats };
 constexpr uint8_t kStatType[kStats] = {1, 7, 12}; // ESBActorStatType, ApplyStat's second argument.
 
 constexpr size_t kMaxPairs = 16;         // Enemies the host arbitrates, so pairs too.
-constexpr size_t kMaxSeen = 64;          // Enemies one pass hands over; more are cut.
+constexpr size_t kMaxSeen = 256;         // Enemies one pass hands over (a zone's roster); more are cut.
 constexpr size_t kHpPerMessage = 12;     // 12 entries of 10 + 3 x 8 digits fit kMaxMessage with the header.
 constexpr size_t kMaxPending = 32;       // Claims per pair the host has not answered yet.
 constexpr size_t kMaxClaims = 64;        // Claims the host holds until its next turn; the rates pass 60 a second.
@@ -307,7 +307,9 @@ private:
 // ---- Host: the arbiter ----
 
 // Follows its eligible enemies (at most kMaxPairs), tells the guest about them while she is on, and applies her claims
-// (R16) after checking each (R33). Its values are the truth (R17); it never detects claims itself (R35).
+// (R16) after checking each (R33). Its values are the truth (R17); it never detects claims itself (R35). Stage 1 reads
+// no positions, so with every place taken a hurt enemy (HP below MaxHP: a fight) takes the place of one at full HP that
+// she never hit, which goes down; when none is left, that is logged once a world.
 class Host {
 public:
   Counts counts;
@@ -318,6 +320,7 @@ public:
     count_ = claims_ = 0;
     ++gen_;
     announce_ = true;
+    full_said_ = false;
     fence_.clear();
     next_hp_ = next_refresh_ = 0;
   }
@@ -364,6 +367,7 @@ public:
       ++gen_;
       count_ = claims_ = 0;
       announce_ = true;
+      full_said_ = false;
       io.event(Event{"world", why});
     }
     bool each = peer_on_ && !announce_; // An announce sends the whole list instead.
@@ -381,14 +385,24 @@ public:
         io.send(note(s ? Type::dead : Type::down, e.guid));
       enemies_[i] = enemies_[--count_];
     }
-    for (size_t i = 0; i < n && count_ < kMaxPairs; ++i)
-      if (!dying(seen[i]) && !find(seen[i].guid)) {
-        Enemy &e = enemies_[count_++] = Enemy();
-        e.guid = seen[i].guid;
-        e.take(seen[i]);
-        if (each)
-          io.send(up(e));
+    for (size_t i = 0; i < n; ++i) {
+      if (dying(seen[i]) || find(seen[i].guid))
+        continue;
+      const bool hurt = seen[i].value[kHp] < whole(seen[i].max[kHp]), room = count_ < kMaxPairs;
+      Enemy *place = room ? &enemies_[count_++] : hurt ? idle() : nullptr;
+      if (!place) {
+        if (hurt && !full_said_)
+          full_said_ = true, io.event(Event{"full", "every place holds an enemy in a fight; a hurt one is not shared"});
+        continue;
       }
+      if (!room && each) // Out of any fight: gone for her, as if it left.
+        io.send(note(Type::down, place->guid));
+      Enemy &e = *place = Enemy();
+      e.guid = seen[i].guid;
+      e.take(seen[i]);
+      if (each)
+        io.send(up(e));
+    }
     if (announce_ && peer_on_) {
       announce_ = false;
       Message w;
@@ -412,6 +426,7 @@ private:
     float max[kStats] = {};
     int32_t value[kStats] = {}, sent[kStats] = {};
     bool claimed = false; // A claim was taken since the last hp: its ack must travel with these values.
+    bool hit = false;     // A claim was ever applied to it: it keeps its place.
     uint64_t window = 0;  // The rate window's start and its claims.
     uint32_t in_window = 0;
     void take(const Seen &s) {
@@ -429,6 +444,13 @@ private:
   Enemy *find(uint32_t guid) {
     for (size_t i = 0; i < count_; ++i)
       if (enemies_[i].guid == guid)
+        return &enemies_[i];
+    return nullptr;
+  }
+  // The first enemy out of any fight: at full HP, never hit by her. Null when every one fights.
+  Enemy *idle() {
+    for (size_t i = 0; i < count_; ++i)
+      if (!enemies_[i].hit && enemies_[i].value[kHp] >= whole(enemies_[i].max[kHp]))
         return &enemies_[i];
     return nullptr;
   }
@@ -500,7 +522,7 @@ private:
       return;
     }
     ++counts.claims;
-    e->claimed = true;
+    e->claimed = e->hit = true;
     if ((e->nodamage == 3 || e->nodamage == 4) && (k.delta[kHp] || k.delta[kShield] || k.lethal))
       ++(e->nodamage == 3 ? counts.bypass3 : counts.bypass4);
     for (int s : {kShield, kStamina})
@@ -574,6 +596,7 @@ private:
   uint32_t gen_ = 1, last_seq_ = 0, in_window_ = 0, batch_ = 0;
   uint64_t window_ = 0, next_hp_ = 0, next_refresh_ = 0;
   bool peer_on_ = false, announce_ = true, ignored_ = false;
+  bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
 };
 
