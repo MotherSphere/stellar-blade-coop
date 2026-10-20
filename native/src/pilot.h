@@ -1419,7 +1419,7 @@ public:
     uint64_t no_context = 0;               // Shows replayed without their context (R33's 1 km rule, or no player).
     uint64_t deduped = 0;                  // Shows not replayed: the copy started the same asset itself (dedupe()).
     uint64_t sets = 0, stops = 0, unknown = 0; // show-set, show-stop; one naming no live replay.
-    uint64_t events_lost = 0;              // Event lines (events()) dropped: kEvents were waiting, or the taker refused.
+    uint64_t events_lost = 0;              // Event lines dropped: kEvents were waiting, or events()' taker refused.
     uint64_t not_drawn = 0;                // Shows due while their copy was not driven (released, local, not found).
     double drift_cm = 0, drift_deg = 0;    // The most a driven copy moved or turned (per second) between our write and
                                            // the next frame: a mover still at work inside the tick. Reset by the reader.
@@ -1799,7 +1799,8 @@ private:
       if (!read(list + 8 * uint64_t(k), &stage, sizeof stage) || !nightop::plausible(stage) ||
           !read(stage, st, sizeof st))
         continue;
-      const int32_t weak_index = field<int32_t>(st, kStageMainWeak), weak_serial = field<int32_t>(st, kStageMainWeak + 4);
+      const int32_t weak_index = field<int32_t>(st, kStageMainWeak),
+                    weak_serial = field<int32_t>(st, kStageMainWeak + 4);
       if (weak_serial ? weak_index != f.index || weak_serial != f.serial
                       : field<uint64_t>(st, kStageMain) != f.ch + kShowInterface)
         continue; // Not the copy's.
@@ -1809,8 +1810,8 @@ private:
       });
       const int32_t count = field<int32_t>(st, kStagePlayerCount);
       players = field<uint64_t>(st, kStagePlayers);
-      if (ours || count <= 0 || count > 4096 || !nightop::plausible(players) || !read(players, &player, sizeof player) ||
-          !nightop::plausible(player) || !read(player, pl, sizeof pl))
+      if (ours || count <= 0 || count > 4096 || !nightop::plausible(players) ||
+          !read(players, &player, sizeof player) || !nightop::plausible(player) || !read(player, pl, sizeof pl))
         continue;
       const float time = field<float>(pl, kPlayerTime);
       uint8_t form = 0;
