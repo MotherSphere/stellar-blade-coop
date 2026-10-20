@@ -49,7 +49,10 @@ The main page shows the rows that fit your session:
 | Host a session | Outside a session | Runs `coop host`. The menu closes first, because the Steam invite dialog opens. |
 | Leave the session | In a session | Runs `coop leave` when you select it a second time within 3 s |
 | Invite a friend (Steam) | While you host | Runs `coop invite`. The menu closes first. |
+| Copy my code | While you host with a [join code](#join-codes) | Shows the code and runs `coop copy`, which puts it on the clipboard |
+| Remove <name> | While a player who is not your Steam friend is in the session you host | Runs `coop remove <SteamID>` when you select it a second time within 3 s |
 | Join a friend | Outside a session | Runs `coop join` |
+| Join with a code | Outside a session | Closes the menu and opens the [code box](#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
 | Options | Always | Opens the settings, below |
 | Write a bug report | Always | Runs `coop report` |
@@ -77,15 +80,16 @@ To change a key, select its row, then press the new key: `F1` to `F12` except `F
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
-The menu, the chat, the partner HUD and the co-op saves' question and notices use the game's language when it is
-French, and English otherwise. `ui_language=english` keeps them in English. The status line and the session notices
-are in English.
+The menu, the chat, the partner HUD, the code box, the host's question and the co-op saves' question and notices use
+the game's language when it is French, and English otherwise. `ui_language=english` keeps them in English. The status
+line and the session notices are in English.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
-`coop ui reset`: the menu and the box close and the game gets its keys back. `coop ui off` removes the co-op menu,
-the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads (game start or Ctrl+R).
-Notices then go back to the line above your EVE, and your friend's name back to the name tag above their ghost. With
-the UI off, `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
+`coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
+game gets its keys back. `coop ui off` removes the co-op menu, the chat box, the code box, the host's question, the
+feed, the partner HUD and the co-op saves' question until the mod reloads (game start or Ctrl+R). Notices then go back
+to the line above your EVE, and your friend's name back to the name tag above their ghost. With the UI off,
+`auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
 ## Session chat
 
@@ -154,7 +158,9 @@ own screens (a shop, a dialogue choice). Your own photo mode hides them too, lik
 1. The host presses F5 and selects Host a session. This creates a Steam lobby for 2 players and opens the Steam invite
    dialog. Pick your friend there. By default the lobby is friends-only: your Steam friends who have the mod can also
    join from their friends list or with `coop join`. With Options > Session > Who can join set to Invited only
-   (`who_can_join=private`), only the friends you invite can join. The setting counts for the next session you host.
+   (`who_can_join=private`), only the friends you invite can join. Set to With a code (`who_can_join=code`), it opens
+   no dialog, and anyone you give the [join code](#join-codes) to can ask to join. The setting counts for the next
+   session you host.
 2. Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once a save is loaded
    (EVE in a world, not on the title screen). Until then their game holds the invite (`Invite held: joining once your
    save has loaded.`). A newer invite replaces a held one, and host, join or leave drops it.
@@ -179,6 +185,46 @@ More about sessions:
 The ghost is display only. Items, unlocks and progress are not copied between your two games, and enemies are not shared
 unless you turn on the experimental [shared enemies](#shared-enemies-experimental-off-by-default) (off by default).
 Shared enemies run on [co-op saves](#co-op-saves) only.
+
+### Join codes
+
+With Options > Session > Who can join set to With a code (`who_can_join=code`), Host a session creates a lobby that
+does not show in your friends' lists, and no invite dialog opens. The notice `Hosting. Your join code is 0CS-CBMH.`
+gives its 7-character code. The menu's Copy my code row shows it too, and selecting it puts it on the clipboard
+(`Join code 0CS-CBMH copied.`). Send it to the other player, for example in Discord. Each new lobby gets a new code.
+
+The other player opens the menu outside a session and selects Join with a code. A text box opens where the menu was.
+It works like the chat box: any keyboard layout, the game ignores its own keys, and the mod's keys do nothing.
+
+| Key | In the code box |
+| --- | --- |
+| Enter | Join with the code typed, in capitals or not, with or without the dash. Other text stays in the box with `A join code is 7 letters and digits, like XXX-XXXX.`; an empty box closes. |
+| Esc | Close the box |
+
+The box closes when a session starts, when the game pauses or shows the mouse cursor, and outside a world. The native
+part checks the code: most codes with a wrong character get `That is not a join code: check its 7 characters.` (see
+[how-it-works.md](how-it-works.md#lobby-and-invites)), and a code that leads to no game gets one of the
+`Could not join: ...` notices.
+
+A player who is not your Steam friend waits for your answer, whatever Who can join says. Their game shows
+`Joined <host>'s game. Waiting to be let in.` Yours shows a question in the middle of the screen, `<name> wants to
+join`, with Accept and Deny. Deny has the focus when it opens, so one key pressed for something else never lets
+that player in.
+
+- Up and down move between Accept and Deny, Enter or Space answers, and Esc denies. While the question is open, the
+  game ignores its own keys and the mod's keys do nothing.
+- The question opens in a world, while the game is not paused and the chat box is closed, and closes the co-op menu.
+  Until then it waits. It hides while the game pauses and comes back after.
+- With no answer for 30 s, the player is denied, even if the question never showed (with `coop ui off`, for example).
+  The native part refuses them after 60 s on its own.
+- A denied or removed player cannot come back to that lobby. Their game shows `<host> refused the link: you were not
+  let in` (or `you were removed from this session`) and leaves.
+- After 3 players were refused in one lobby (denied, removed, or gone before an answer), the next ones are denied with
+  no question, and one notice says so. Host again to get a new code.
+- While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
+  (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
+- `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
+  its `pending=` line.
 
 ## Co-op saves
 
@@ -235,10 +281,14 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 
 | Command | What it does |
 | --- | --- |
-| `coop host` | Host a session (2 players, friends-only, or invited only with `who_can_join=private`) and open the Steam invite dialog (the menu's Host a session row) |
+| `coop host` | Host a session (2 players, friends-only; invited only with `who_can_join=private`) and open the Steam invite dialog (the menu's Host a session row); with `who_can_join=code`, host with a [join code](#join-codes) and no dialog |
 | `coop invite` | Open the Steam invite dialog again while you are in a lobby |
 | `coop join` | Join the first Steam friend found in a Stellar Blade lobby |
 | `coop join <lobby id>` | Join that lobby (digits only) |
+| `coop join <code>` | Join the lobby of that [join code](#join-codes), in capitals or not, with or without the dash |
+| `coop copy` | Put your join code on the clipboard while you host with one (the menu's Copy my code row) |
+| `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
+| `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
@@ -269,7 +319,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
   `coop invite` does. A guest's host request is refused.
 - `coop join` and `coop join <lobby id>` do not wait for a save to load, unlike an accepted invite. Without an id it
   joins the first friend found in a Stellar Blade lobby; the log says `no friend is in a Stellar Blade lobby` when
-  there is none. A lobby id is digits only.
+  there is none. A lobby id is digits only, and any other text is taken for a join code.
 - `coop leave` works like F8.
 - `coop report` writes `coop-report.txt` in the mod folder: versions, the save folder, DLLs loaded from other mods, the
   status, a summary of save folder changes and the last 100 events.
@@ -409,8 +459,9 @@ menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
-# Who can join a session you host: friends (your Steam friends can join from their friends list) or private (only the
-# friends you invite).
+# Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
+# give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
+# is not your Steam friend waits until you accept or deny them.
 who_can_join=friends
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
@@ -457,7 +508,7 @@ card_details=on
 | `host_key` | same, or `none`: a key that hosts at once, without the menu | `none` |
 | `status_key` | same as `menu_key` | `F6` |
 | `leave_key` | same as `menu_key` | `F8` |
-| `who_can_join` | `friends` or `private`: who can join a session you host (`private`: only the friends you invite) | `friends` |
+| `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](#join-codes); `private`: only the friends you invite) | `friends` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `30` poses sent a second | `20` |
@@ -532,9 +583,15 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | Event | Notice |
 | --- | --- |
 | Hosting | `Hosting: invite a friend from the Steam overlay (Shift+Tab).` |
+| Hosting with a join code | `Hosting. Your join code is <code>.` |
+| Join code copied | `Join code <code> copied.`, `Could not copy the join code <code>.` or `No join code to copy.` |
 | Could not host | `Could not host: Steam refused.` or `Could not host: Steam result <n>.` |
 | Host asked as a guest | `You are in <host>'s game: leave it first.` |
-| Joined | `Joined <host>'s game.` |
+| Joined | `Joined <host>'s game.`, with ` Waiting to be let in.` when the host is not your Steam friend |
+| A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
+| A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
+| Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed.` |
+| 3 players refused in one lobby | `3 players were refused in this session, so new requests are denied without a question. Host again for a new code.` |
 | Could not join | `Could not join: that game no longer exists.`, `... that game is full.` or `... Steam response <n>.` |
 | A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
 | Connection lost | `<name>: connection lost.` |

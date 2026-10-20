@@ -74,9 +74,9 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/pose_codec_test.cpp -o 
 build/host/pose_codec_test
 ```
 
-- Lua tests (`capture`, `chat`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`, `recruiter`,
-  `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS objects for
-  those that call the engine. In the capture test, any write to the fake EVE fails the test.
+- Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`,
+  `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
+  objects for those that call the engine. In the capture test, any write to the fake EVE fails the test.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, and the join codes (both real lobby ids, loose typing,
     malformed codes, and the share of one-character typos the check turns away);

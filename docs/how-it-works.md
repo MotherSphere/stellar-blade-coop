@@ -36,10 +36,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, `coop where` |
 | `notice.lua` | The line of notices above your EVE, used while the on-screen UI is not up |
 | `chat.lua` | The session chat: its history (memory only), the feed of chat lines and notices, and the text box |
+| `join.lua` | The code box and the host's question about a player who is not her Steam friend |
 | `partner.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
 | `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui_model.lua` | The menu's rows and settings, with no engine call |
-| `ui_text.lua` | The words of the menu, the chat and the partner HUD, in English and French |
+| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves and the join codes, in English and French |
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
@@ -130,6 +131,11 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
   again every 10 s, and the host can create a new lobby, which gets a new code.
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
+
+On the host, `join.lua` turns the first `pending=` line into a question on screen and writes the answer. It denies
+after 30 s with no answer, before the native part's 60 s, and asks each player once a lobby. From the `code=` line's
+`refused=3`, it denies the next players with no question. `link.lua` keeps in memory which lobby members waited for an
+answer, for the menu's Remove row, so a Lua reload forgets them.
 
 None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject, which protocol 8 already
 has.
