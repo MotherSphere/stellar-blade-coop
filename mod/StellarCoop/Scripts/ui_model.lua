@@ -1,19 +1,25 @@
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
 -- the Options tree (every co-op setting as a toggle, a choice, a range or a key; those whose feature is not built yet
--- wait, hidden), a cursor that skips section headers and wraps, Leave only on a second Select within 3 s, values read
--- as the mod reads coop-settings.txt (link.parse_settings), and each change as the one value to write there
--- (settings_file.set). Rows and values are ids; ui_text gives their words.
+-- wait, hidden), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of that row
+-- within 3 s, values read as the mod reads coop-settings.txt (link.parse_settings), and each change as the one value
+-- to write there (settings_file.set). Rows and values are ids; ui_text gives their words.
 local SF=require('settings_file')
 local K=require('keybind')
 local Link=require('link')
 local M={}
--- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=a friend linked or the loopback running}.
+-- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=a friend linked or the loopback running,
+-- code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam friend
+-- ({id=, name=}, link.stranger)}. confirm: the row runs on a second Select within 3 s.
+local function none(c) return c.mode=='none' end
 M.MAIN={
     {head='session'},
-    {id='host',show=function(c) return c.mode=='none' end},
-    {id='leave',show=function(c) return c.mode=='host' or c.mode=='guest' end},
+    {id='host',show=none},
+    {id='leave',confirm=true,show=function(c) return c.mode=='host' or c.mode=='guest' end},
     {id='invite',show=function(c) return c.mode=='host' end},
-    {id='join',show=function(c) return c.mode=='none' end},
+    {id='copy',show=function(c) return c.code~=nil end},
+    {id='remove',confirm=true,show=function(c) return c.stranger~=nil end},
+    {id='join',show=none},
+    {id='join_code',show=none},
     {id='chat',show=function(c) return c.chat end},
     {head='settings'},
     {id='options'},
@@ -43,7 +49,7 @@ M.OPTIONS={
     toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
     range('send_rate',10,30,1,20),
     {head='session'},
-    {key='who_can_join',values={'friends','private'},default='friends'}, -- At the next host.
+    {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
     later(toggle('rejoin','on')),
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
@@ -101,7 +107,7 @@ function M.rebind(values,key,text)
     return 'set',key,new.name
 end
 function M.new()
-    local self,page,id,index,asked={},'main',nil,1,nil -- asked: when Leave was first selected.
+    local self,page,id,index,asked={},'main',nil,1,nil -- asked: {id=, at=} the first Select of a confirm row.
     local function name(row) return row.id or row.key end
     function self.page() return page end
     -- The page's rows shown in this state, headers included, but none with no row under it.
@@ -147,22 +153,22 @@ function M.new()
         if new==value then return nil end
         return 'set',row.key,new
     end
-    -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'join', 'chat', 'report',
-    -- 'close'); 'confirm_leave' (Leave runs on a second Select within 3 s); 'options' (the page changed); 'rebind',
-    -- key; or a setting's next value, as change().
+    -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
+    -- 'join_code', 'chat', 'report', 'close'); 'confirm_leave' or 'confirm_remove' (the row runs on a second Select of
+    -- it within 3 s); 'options' (the page changed); 'rebind', key; or a setting's next value, as change().
     function self.select(ctx,now,values)
         local row=self.current(ctx)
-        if row.id=='leave' then
-            if asked and now-asked<=3 then asked=nil; return 'leave' end
-            asked=now
-            return 'confirm_leave'
+        if row.confirm then
+            if asked and asked.id==row.id and now-asked.at<=3 then asked=nil; return row.id end
+            asked={id=row.id,at=now}
+            return 'confirm_'..row.id
         end
         if row.id=='options' then page,id,index='options',nil,1; return 'options' end
         if row.bind then return 'rebind',row.key end
         if row.key then return self.change(ctx,values,1) end
         return row.id
     end
-    -- The menu closed (by menu_key; back() calls it for Esc): a first Select on Leave is forgotten.
+    -- The menu closed (by menu_key; back() calls it for Esc): a first Select on Leave or Remove is forgotten.
     function self.close() asked=nil end
     -- Back (Esc): from Options to the main page, on its Options row; from the main page, 'close'.
     function self.back()

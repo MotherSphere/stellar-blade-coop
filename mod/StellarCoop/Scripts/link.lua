@@ -8,6 +8,8 @@
 -- has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see say()). The same read gives the
 -- session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is never
 -- at the start of one.
+-- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
+-- and keeps who waited in this lobby (the menu's Remove row).
 -- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight; its
 -- photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part
 -- through coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op
@@ -26,8 +28,9 @@ menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
-# Who can join a session you host: friends (your Steam friends can join from their friends list) or private (only the
-# friends you invite).
+# Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
+# give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
+# is not your Steam friend waits until you accept or deny them.
 who_can_join=friends
 # Co-op saves, the co-op copies of your saves (StellarBladeCoop00.sav to 04.sav): ask (a question on the title
 # screen), always (the copies at every title, no question) or off (no copies; the manual co-op slot that
@@ -78,7 +81,8 @@ local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_ta
     chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
-local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},who_can_join={'friends','private'},
+local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},
+    who_can_join={'friends','code','private'},
     auto_coop_save={'ask','always','off'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
@@ -181,6 +185,16 @@ Link.files={
     remove=os.remove,
     rename=os.rename,
 }
+-- A join code as typed (the code box, coop join <code>): either case, the dash or a space after the third character or
+-- nothing there, spaces around. Returned as the native part takes it, 'XXX-XXXX' in capitals; nil for anything else.
+-- Its letters and its check digit are the native part's to judge (link_protocol.h's code_lobby), which answers a wrong
+-- one on screen.
+local ALNUM=('[0-9A-Za-z]'):rep(3)
+function Link.join_code(text)
+    if type(text)~='string' or #text>32 then return nil end
+    local a,b=text:match('^[ \t]*('..ALNUM..')[- ]?('..ALNUM..'[0-9A-Za-z])[ \t]*$')
+    return a and (a..'-'..b):upper() or nil
+end
 function Link.new(folder,fs)
     fs=fs or Link.files
     local function path(name) return folder..'\\'..name end
@@ -194,6 +208,13 @@ function Link.new(folder,fs)
     -- saves' state (saves()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
     local mate,ping,loopback,rejoined,saves=nil,nil,false,false,{}
+    -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
+    -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
+    -- lobby members' SteamIDs (peer lines). strangers: each joiner seen waiting in the lobby strangers_in names
+    -- (SteamID to her last name), none a Steam friend.
+    -- ponytail: Lua memory only: a Lua reload forgets them, and the Remove row with them (coop remove still works); a
+    -- flag on her peer line from the native part would outlive the reload.
+    local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,nil,{},{},nil
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -278,6 +299,7 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
         mate,ping,loopback,saves=nil,nil,engine:find(' loopback=')~=nil,{}
+        lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
         listed={}
         for line in text:gmatch('[^\r\n]+') do
@@ -298,7 +320,14 @@ function Link.new(folder,fs)
             end
             if not mode and line:find('^link=') then
                 mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
+                lobby=line:match(' lobby=(%d+)')
             end
+            local ours,out=line:match('^code=([%w%-]+) refused=(%d+)$')
+            if ours then code,refused=ours~='none' and ours or nil,tonumber(out) end
+            local id,name=line:match('^pending=(%d+) (.*)$')
+            if id and not pending then pending={id=id,name=name} end
+            id=line:match('^peer=(%d+) ')
+            if id then members[#members+1]=id end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
@@ -314,6 +343,8 @@ function Link.new(folder,fs)
         end
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
+        if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
+        if pending then strangers[pending.id]=pending.name end
         seen=now
         return new
     end
@@ -346,6 +377,21 @@ function Link.new(folder,fs)
         end
         shown=math.max(shown or 0,top and top[1] or 0)
         return texts
+    end
+    -- The link line's lobby id (digits, '0' outside a lobby), nil when the status was not read.
+    function self.lobby() return lobby end
+    -- Our join code ('XXX-XXXX', nil when we host without one or do not host) and the players refused in this lobby
+    -- (nil when we do not host).
+    function self.code() return code,refused end
+    -- The first joiner who is not our Steam friend and waits for our answer, {id=her SteamID (digits), name=her Steam
+    -- name as the native part cleaned it, maybe ''}; nil when none.
+    function self.pending() return pending end
+    -- The first lobby member who waited for our answer in this lobby and no longer does (we let her in), {id=, name=};
+    -- nil when none.
+    function self.stranger()
+        for _,id in ipairs(members) do
+            if strangers[id] and not (pending and pending.id==id) then return {id=id,name=strangers[id]} end
+        end
     end
     -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
     -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
@@ -402,6 +448,7 @@ function Link.new(folder,fs)
         return ok,why
     end
     function self.valid_lobby(text) return text:match('^%d+$')~=nil and text:match('^0+$')==nil end
+    self.join_code=Link.join_code
     return self
 end
 return Link

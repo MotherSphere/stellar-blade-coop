@@ -1,5 +1,6 @@
--- The co-op menu's model: the main page's rows by session state, a cursor that skips section headers and wraps, Leave
--- only on a second Select within 3 s, the Options tree (every co-op setting as a toggle, a choice, a range or a key),
+-- The co-op menu's model: the main page's rows by session state (the join code and the player let in who is not a
+-- Steam friend included), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of
+-- that same row within 3 s, the Options tree (every co-op setting as a toggle, a choice, a range or a key),
 -- its values read as the mod reads coop-settings.txt, each change as the one line to rewrite, and key rebinds checked
 -- against the other keys.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -15,12 +16,19 @@ local function ids(menu,ctx)
 end
 local NONE,HOST,GUEST={mode='none'},{mode='host',chat=true},{mode='guest',chat=true}
 
--- The main page by session state (ctx.mode as link.mode() says; ctx.chat: a friend linked, or the loopback).
+-- The main page by session state (ctx.mode as link.mode() says; ctx.chat: a friend linked, or the loopback; ctx.code:
+-- our join code while we host with one; ctx.stranger: a player we let in who is not our Steam friend).
 local menu=M.new()
 assert(ids(menu,{})=='head:settings options head:help report close','Before Steam: no session rows, nor their header')
-assert(ids(menu,NONE)=='head:session host join head:settings options head:help report close')
-assert(ids(menu,{mode='none',chat=true})=='head:session host join chat head:settings options head:help report close',
+assert(ids(menu,NONE)=='head:session host join join_code head:settings options head:help report close')
+assert(ids(menu,{mode='none',chat=true})
+    =='head:session host join join_code chat head:settings options head:help report close',
     'The loopback chats with no session')
+assert(ids(menu,{mode='host',code='0CS-CBMH'})
+    =='head:session leave invite copy head:settings options head:help report close','Hosting with a code')
+assert(ids(menu,{mode='host',chat=true,code='0CS-CBMH',stranger={id='9',name='S'}})
+    =='head:session leave invite copy remove chat head:settings options head:help report close',
+    'A player let in who is not a Steam friend: removable')
 assert(ids(menu,HOST)=='head:session leave invite chat head:settings options head:help report close')
 assert(ids(menu,{mode='host'})=='head:session leave invite head:settings options head:help report close',
     'Hosting with no friend linked yet: no chat')
@@ -30,12 +38,11 @@ assert(ids(menu,GUEST)=='head:session leave chat head:settings options head:help
 assert(menu.current(NONE).id=='host')
 local seen={}
 for _=1,6 do menu.move(NONE,1); seen[#seen+1]=menu.current(NONE).id end
-assert(table.concat(seen,' ')=='join options report close host join',table.concat(seen,' '))
-menu.move(NONE,-1)
+assert(table.concat(seen,' ')=='join join_code options report close host',table.concat(seen,' '))
 menu.move(NONE,-1)
 assert(menu.current(NONE).id=='close')
--- The session changes under the cursor: the row in its place takes it.
 menu.move(NONE,1) -- host
+-- The session changes under the cursor: the row in its place takes it.
 assert(menu.current(NONE).id=='host' and menu.current(HOST).id=='leave')
 assert(menu.current(NONE).id=='host','And back')
 assert(menu.current({}).id=='options','A header in its place: the next row')
@@ -45,6 +52,8 @@ menu=M.new()
 assert(menu.select(NONE,0)=='host')
 menu.move(NONE,1)
 assert(menu.select(NONE,0)=='join')
+menu.move(NONE,1)
+assert(menu.select(NONE,0)=='join_code')
 menu=M.new()
 assert(menu.select(HOST,10)=='confirm_leave' and menu.select(HOST,12.9)=='leave')
 assert(menu.select(HOST,20)=='confirm_leave' and menu.select(HOST,23.5)=='confirm_leave','Too late: asked again')
@@ -69,6 +78,25 @@ menu=M.new()
 assert(menu.select(HOST,40)=='confirm_leave' and menu.back()=='close' and menu.select(HOST,41)=='confirm_leave')
 menu.close()
 assert(menu.select(HOST,42)=='confirm_leave','close()')
+-- Copy and Remove (while we host: a code, a player let in who is not a Steam friend). Remove asks first, like Leave;
+-- a first Select counts for its own row only, so one on Remove never lets a Select on Leave leave at once.
+local CODE={mode='host',chat=true,code='0CS-CBMH',stranger={id='9',name='S'}}
+menu=M.new()
+menu.move(CODE,1); menu.move(CODE,1)
+assert(menu.current(CODE).id=='copy' and menu.select(CODE,50)=='copy')
+menu.move(CODE,1)
+assert(menu.select(CODE,51)=='confirm_remove' and menu.select(CODE,52)=='remove')
+assert(menu.select(CODE,53)=='confirm_remove')
+assert(menu.current({mode='host',chat=true,code='0CS-CBMH'}).id=='chat','She left: the row in its place')
+assert(menu.select({mode='host',chat=true,code='0CS-CBMH'},53.5)=='chat')
+menu.move(CODE,-1)
+assert(menu.select(CODE,60)=='confirm_remove')
+menu.move(CODE,-1)
+assert(menu.select(CODE,60.5)=='copy')
+menu.move(CODE,-1); menu.move(CODE,-1)
+assert(menu.select(CODE,61)=='confirm_leave','Not after a first Select on Remove')
+menu.move(CODE,1); menu.move(CODE,1); menu.move(CODE,1)
+assert(menu.select(CODE,61.5)=='confirm_remove','Moving forgets it')
 
 -- The Options tree: every row a header or a setting with a unique name the file can hold, and a default it takes.
 local names={}
@@ -127,6 +155,7 @@ assert(M.write(pad..OLD,'menu_key','F7')==nil,'A file over the limit: nothing ch
 
 -- The Options page: opened from the main page, back to it on its row.
 menu=M.new()
+menu.move(NONE,1)
 menu.move(NONE,1)
 menu.move(NONE,1)
 assert(menu.select(NONE,0)=='options' and menu.page()=='options')

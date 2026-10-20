@@ -2,26 +2,30 @@
 -- closed by menu_key, in a world only and never while the game is paused or shows the mouse cursor (one of its
 -- screens). While it is open the game ignores its own keys (the kit's input), and main.lua's binds hand it the
 -- navigation keys: up, down, left and right to move and change, select and back (each a no-op while it is closed). Its
--- rows run the console commands (Host and Invite close it first: the Steam overlay takes the focus); Leave asks for a
--- second Select; Chat (in a session) closes it and opens the chat's box. A setting changed on the Options page rewrites
--- its own line of coop-settings.txt (link.lua keeps the file as it was as coop-settings.old.txt) and applies at once,
--- but the name tag and the shared enemies, at the next load; a key row takes the next F-key pressed (capture), checked
--- against the other keys. Each 250 ms while open: the status line, the rows of the session's state and, unless a row
--- said something, the newest notice (the feed hides under the menu); the world gone, the game paused or showing the
--- mouse cursor (UI-DESIGN 7.4), or the kit off, it closes. The game's input comes back 150 ms after a close, so the
--- key that closed it (Esc would open the pause menu) never reaches the game, and is asked again each 250 ms while
--- closed until the kit has given it. No engine call here: the kit makes them.
+-- rows run the console commands (Host and Invite close it first: the Steam overlay takes the focus); Leave and Remove
+-- <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code shows our join code and
+-- asks the native part to copy it; Chat (in a session) and Join with a code close it and open the chat's box or the
+-- code box (join.lua). A setting changed on the Options page rewrites its own line of coop-settings.txt (link.lua
+-- keeps the file as it was as coop-settings.old.txt) and applies at once, but the name tag and the shared enemies, at
+-- the next load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while
+-- open: the status line, the rows of the session's state and, unless a row said something, the newest notice (the
+-- feed hides under the menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit
+-- off, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would open the
+-- pause menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it. No engine
+-- call here: the kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
+local Join=require('join')
 local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
 local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
--- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name)
--- -> ok, message (main.lua's: the console's checks and log line), log=, version=, chat=chat.lua's view or nil}.
+-- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name,
+-- arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=, chat=chat.lua's view or nil,
+-- code=join.lua's code box}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
@@ -36,7 +40,11 @@ function Menu.new(o)
         v.hints=b.hints(48,1410,320,{{'arrows',''},{'enter',''},{'escape',''}})
         return v
     end)
-    local function context() return {mode=link.mode(),chat=o.chat~=nil and o.chat.can()} end
+    local function context()
+        local code=link.code()
+        return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger()}
+    end
+    local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
     local function value(row)
         local v=values[row.key]
         if row.bind then return capturing==row.key and words.press or v end
@@ -63,7 +71,9 @@ function Menu.new(o)
             if not row then w.set('','','normal')
             elseif row.head then w.set(words.head[row.head],'','disabled')
             else
-                w.set(words.row[row.id or row.key],row.key and value(row) or '',row==current and 'focus' or 'normal')
+                local label,v=words.row[row.id or row.key],row.key and value(row) or ''
+                if row.id=='copy' then v=ctx.code elseif row.id=='remove' then label=label:format(stranger(ctx)) end
+                w.set(label,v,row==current and 'focus' or 'normal')
             end
         end
         local ping,_,linked=link.ping(),link.friend()
@@ -148,16 +158,23 @@ function Menu.new(o)
             kit.sound('select')
             local action,key,text=model.select(ctx,os.clock(),values)
             if action=='confirm_leave' then note=words.confirm_leave
+            elseif action=='confirm_remove' then note=words.confirm_remove:format(stranger(ctx))
             elseif action=='rebind' then capturing,note=key,words.capture
             elseif action=='set' then set(key,text)
             elseif action=='close' then return self.close()
             elseif action=='chat' then
                 self.close()
                 return o.chat.open()
+            elseif action=='join_code' then
+                self.close()
+                return o.code.open()
+            elseif action=='remove' then
+                local ok,message=o.run('remove',ctx.stranger.id)
+                if not ok then note=message end
             elseif action=='host' or action=='invite' then
                 self.close()
                 return o.run(action)
-            elseif action=='leave' or action=='join' or action=='report' then
+            elseif action=='leave' or action=='join' or action=='report' or action=='copy' then
                 local ok,message=o.run(action)
                 if not ok then note=message elseif action=='report' then note=words.report end
             end

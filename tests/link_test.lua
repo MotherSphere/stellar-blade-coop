@@ -125,6 +125,17 @@ link.changes()
 assert(link.fight()==nil,'No status: none either')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
+-- A join code as typed (the code box, coop join <code>): either case, the dash after the third character, a space there
+-- or none, spaces around; given back as the native part takes it, 'XXX-XXXX' in capitals. Its letters and its check
+-- are the native part's (it answers a wrong one). Nothing else passes, so no typed text reaches coop-request.txt.
+for _,typed in ipairs({'0CS-CBMH','0cs-cbmh','0csCBMH','0CS CBMH','  0cs-cbmh\t'}) do
+    assert(link.join_code(typed)=='0CS-CBMH',typed)
+end
+for _,bad in ipairs({'','0CS-CBM','0CS-CBMHX','0CS--CBMH','0CSC-BMH','0CS-CBM!','0CS-CBMH\nleave','0CS-CBMH\r',
+        'é0CS-CBMH','0CS-CBM\0',('0'):rep(1000000),'-0CSCBMH'}) do
+    assert(link.join_code(bad)==nil,bad)
+end
+assert(link.join_code(nil)==nil and link.join_code(7)==nil and require('link').join_code('abc1234')=='ABC-1234')
 
 -- coop-settings.txt (N5): free keys, never F10 or ~ (the console on AZERTY); a bad value keeps its default, with a line.
 local Link=require('link')
@@ -197,7 +208,7 @@ assert(#notes==0 and s.ui_scale==75 and s.ui_sounds==false and s.ui_language=='e
 for _,bad in ipairs({{'ui_scale','74','use 75 to 150','100'},{'ui_scale','151','use 75 to 150','100'},
         {'ui_scale','1.5','use 75 to 150','100'},{'ui_sounds','yes','use on or off','on'},
         {'ui_language','french','use game or english','game'},
-        {'who_can_join','public','use friends or private','friends'},
+        {'who_can_join','public','use friends, code or private','friends'},
         {'photo_sync','pause','use both, notice or off','both'},
         {'auto_coop_save','never','use ask, always or off','ask'}}) do
     s,notes=Link.parse_settings(bad[1]..'='..bad[2])
@@ -207,6 +218,8 @@ end
 -- Who can join a session hosted here: friends (the default, and an old file's) or private (invited only).
 assert(Link.parse_settings('').who_can_join=='friends' and Link.DEFAULT:find('\nwho_can_join=friends\n',1,true))
 s,notes=Link.parse_settings('Who_Can_Join=PRIVATE\n'); assert(#notes==0 and s.who_can_join=='private')
+s,notes=Link.parse_settings('who_can_join=Code\n'); assert(#notes==0 and s.who_can_join=='code','code: with the join code')
+assert(Link.DEFAULT:find('), code (anyone you',1,true),'A new file explains code')
 -- The co-op saves (saves.lua): ask (the default, and an old file's), always or off; a new file names it.
 assert(Link.parse_settings('').auto_coop_save=='ask' and Link.DEFAULT:find('\nauto_coop_save=ask\n',1,true))
 s,notes=Link.parse_settings('Auto_Coop_Save=ALWAYS\n'); assert(#notes==0 and s.auto_coop_save=='always')
@@ -518,6 +531,52 @@ assert(fresh.chatting()==false,'Before Steam is ready, the native part would dro
 files[STATUS]=nil
 fresh.changes()
 assert(fresh.chatting()==nil and fresh.mate()==nil and fresh.ping()==nil,'Not read: nil, which ends nothing')
+-- Join codes and the host's answers (the native part's code= and pending= lines, while we host): our code (none
+-- outside who_can_join=code) and the players refused in this lobby; the first joiner who is not our Steam friend and
+-- waits for our answer, her name last and whole; each from the start of its own line only.
+local door=require('link').new('C:\\Mod',fs)
+local HOSTING='mod=v steam=ready\nlink=host lobby=7000\n'
+local function peer(id,name) return 'peer='..id..' name='..name..' hello=0 accepted=0 compatible=0 lost=0 invalid=0 '
+    ..'rtt_ms=-1 session=0 session_ping=0\n' end
+files[STATUS]=HOSTING..'code=0CS-CBMH refused=2\npending=76561198000000009 Str anger\npending=76561198000000008 Two\n'
+    ..peer('76561198000000009','Str anger')..'friend=0 0 pending=1 x\n'
+door.changes()
+local code,refused=door.code()
+local waiting=door.pending()
+assert(code=='0CS-CBMH' and refused==2 and waiting.id=='76561198000000009' and waiting.name=='Str anger','The first')
+assert(door.lobby()=='7000')
+assert(door.stranger()==nil,'Still waiting: no Remove row yet')
+files[STATUS]=HOSTING..'code=none refused=0\npending=76561198000000009 \n'..peer('76561198000000009','')
+door.changes()
+code,refused=door.code()
+assert(code==nil and refused==0 and door.pending().name=='','No code; a name Steam does not know yet')
+files[STATUS]=HOSTING..peer('2','x pending=3 y')..'friend=0 0 x\ncode=0CS-CBMH refused=1 x\nlast=pending=4 z\n'
+door.changes()
+assert(door.pending()==nil and door.code()==nil,'Never from a name, nor from a line with more on it')
+-- The Remove row's player: a lobby member who waited for our answer in this lobby (so never our Steam friend) and no
+-- longer does, by her last name; a friend never. Forgotten when the link line names another lobby, or none; an unread
+-- status forgets nothing.
+files[STATUS]=HOSTING..'code=0CS-CBMH refused=0\npending=76561198000000009 Stranger\n'..peer('76561198000000009','S')
+door.changes()
+files[STATUS]=HOSTING..'code=0CS-CBMH refused=0\n'..peer('76561198000000001','Kaanta')..peer('76561198000000009','S')
+door.changes()
+local out=door.stranger()
+assert(door.pending()==nil and out.id=='76561198000000009' and out.name=='Stranger','Let in: removable')
+files[STATUS]=nil
+door.changes()
+assert(door.stranger()==nil and door.code()==nil,'Unread: no member, no code')
+files[STATUS]=HOSTING..peer('76561198000000009','S')
+door.changes()
+assert(door.stranger().id=='76561198000000009','Still known once read again')
+files[STATUS]=HOSTING..peer('76561198000000001','Kaanta')
+door.changes()
+assert(door.stranger()==nil,'Gone from the lobby')
+files[STATUS]='mod=v steam=ready\nlink=host lobby=7001\n'..peer('76561198000000009','S')
+door.changes()
+assert(door.stranger()==nil,'A new lobby: every stranger of the last one forgotten')
+files[STATUS]=HOSTING..peer('76561198000000009','S')
+door.changes()
+assert(door.stranger()==nil,'Forgotten for good, not hidden')
 -- An object path kept across Lua loads: the ghost's in coop-puppet.txt, the UI root's in a file of its own.
 local ghost,ui=link.store(),link.store('coop-ui.txt')
 assert(ghost.save('/Game/Maps/E04.Actor_1') and ui.save('/Engine/Transient.UserWidget_7'))

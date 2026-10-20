@@ -10,7 +10,9 @@
 -- taken every 250 ms (session or not, coop off included) and its text never logged, the co-op menu (menu.lua on a fake
 -- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, the session
 -- chat (chat.lua's view on the fake kit) opens on Enter, sends, cancels on Esc, hands its lines to the native part and
--- takes the notices into its feed while the UI is up, the co-op saves' question (saves.lua on the fake kit) shows on
+-- takes the notices into its feed while the UI is up, join codes (join.lua on the fake kit: who_can_join=code, the
+-- menu's Copy my code, Join with a code and Remove rows, the code box and the host's question taking the keys), the
+-- co-op saves' question (saves.lua on the fake kit) shows on
 -- the title screen and takes the menu's keys while open, coop saves reaches the native part, coop no, coop recruiter and
 -- coop fight accept the co-op saves (slot=coop saves=coop), and the link is optional (no native part, no Steam link, no
 -- keys, no menu).
@@ -67,6 +69,8 @@ local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), 
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
 local saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= line, the Steam ID.
+-- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
+local link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
 local fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -91,6 +95,11 @@ local fake_link={
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function() return 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
+    join_code=Link.join_code,
+    code=function() return link_code,link_refused end,
+    pending=function() return link_pending end,
+    stranger=function() return link_stranger end,
+    lobby=function() return link_lobby end,
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load.
@@ -165,11 +174,12 @@ local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui t
 -- row was last set to. kit_ready: its root is up; kit_off: it turned off.
 local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
 local menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
--- The groups' views by name; who holds the input (nil: the menu); the chat box's text and how often it was focused.
-local kit_views,kit_holder,box_text,box_focuses={},nil,'',0
+-- The groups' views by name; who holds the input (nil: the menu); the chat box's text and how often it was focused;
+-- the code box's text.
+local kit_views,kit_holder,box_text,box_focuses,code_text={},nil,'',0,''
 local kit_order,kit_projects={},0 -- The groups in the order added; the projections asked (the partner marker's).
 local kit_shown={} -- Each group shown or not, as the kit keeps it.
-local function builder()
+local function builder(group)
     local b={panel=function() end}
     local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
     for _,kind in ipairs({'image','dots','hp','shield','cubes','bar','shade'}) do b[kind]=gauge end
@@ -179,6 +189,10 @@ local function builder()
         return t
     end
     function b.field()
+        if group=='code' then
+            return {text=function() return code_text end,set=function(v) code_text=v end,focus=function() end,
+                hint=function() end}
+        end
         return {text=function() return box_text end,set=function(v) box_text=v end,
             focus=function() box_focuses=box_focuses+1 end,hint=function() end}
     end
@@ -201,7 +215,7 @@ end,kit=function(opts)
     return {add=function(name,place,build)
             kit_order[#kit_order+1]=name
             kit_shown[name]=place.shown==true
-            kit_views[name]=build(builder())
+            kit_views[name]=build(builder(name))
             if name=='menu' then assert(place.hit); menu_place,menu_view=place,kit_views.menu end
         end,
         slow=function(up,title) kit_calls[#kit_calls+1]='slow '..tostring(up)..(title and ' title' or '') end,
@@ -256,7 +270,8 @@ package.loaded.chat={new=function(lines,on)
         enable=function() end,lines=function() return chat_feed or {} end,take=function() return table.remove(chat_out,1) end}
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
-local USAGE='Use: coop puppet | host | invite | join [lobby id] | leave | status | report | where | loopback '
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
+    ..'status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
@@ -275,7 +290,7 @@ local function load_main(with_native)
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks=nil,false,0
-    kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out={},nil,'',0,{},nil,{}
+    kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out,code_text={},nil,'',0,{},nil,{},''
     kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
@@ -334,7 +349,8 @@ coop('invite'); coop('leave'); coop('report')
 assert(asked[2]=='invite' and asked[3]=='leave' and asked[4]=='report')
 coop('join'); assert(asked[5]=='join')
 coop('join','109775241234567890'); assert(asked[6]=='join 109775241234567890')
-coop('join','12x'); assert(#asked==6 and last():find('STOP: a lobby id is digits only',1,true),last())
+coop('join','12x')
+assert(#asked==6 and last():find('STOP: a lobby id is digits only, a join code 7 letters and digits',1,true),last())
 -- coop saves: the co-op saves' requests for the native part, which answers in coop-link.log; anything else is its usage.
 for _,sub in ipairs({'probe','convert','coop','main'}) do
     coop('saves',sub)
@@ -343,6 +359,17 @@ end
 for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh','2'},{'off'}}) do
     coop('saves',table.unpack(bad))
     assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main\n',last())
+end
+-- Join codes and the host's answers: coop join <code> in either case, with or without the dash, as the native part
+-- takes it; coop copy; coop allow, deny and remove with a SteamID only.
+asked={}
+coop('join','0cs-cbmh'); coop('join','0CSCBMH'); coop('copy')
+coop('allow','76561198000000009'); coop('deny','76561198000000009'); coop('remove','76561198000000009')
+assert(table.concat(asked,'|')=='join 0CS-CBMH|join 0CS-CBMH|copy|allow 76561198000000009|deny 76561198000000009|'
+    ..'remove 76561198000000009',table.concat(asked,'|'))
+for _,bad in ipairs({{'allow'},{'deny','12x'},{'remove',('9'):rep(21)},{'allow','-1'}}) do
+    coop(table.unpack(bad))
+    assert(#asked==6 and last()=='[StellarCoop] STOP: Use: coop '..bad[1]..' <SteamID>\n',last())
 end
 asked={'host','invite','leave','report','join','join 109775241234567890'}
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
@@ -854,7 +881,8 @@ assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game 
 kit_paused=false
 key('F5')
 assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
-assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nSETTINGS||disabled\n'
+assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
+    ..'SETTINGS||disabled\n'
     ..'Options||normal\nHELP||disabled\nWrite a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
@@ -933,8 +961,9 @@ assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only'
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
 to('Poses sent a second'); key('RIGHT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=21')
 to('Who can join'); key('RETURN')
-assert(settings_text:find('\nwho_can_join=private\n',1,true) and select(2,focus())=='Invited only')
-coop('host'); assert(asked[#asked]=='host private','At once: the next Host is private')
+assert(settings_text:find('\nwho_can_join=code\n',1,true) and select(2,focus())=='With a code')
+coop('host'); assert(asked[#asked]=='host code','At once: the next Host has a join code')
+key('RETURN'); coop('host'); assert(asked[#asked]=='host private' and select(2,focus())=='Invited only')
 key('RETURN'); coop('host'); assert(asked[#asked]=='host' and select(2,focus())=='Friends')
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
@@ -1100,13 +1129,63 @@ enter(); key('ESCAPE')
 assert(#kit_calls==n,'Nothing after coop off')
 chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
 
+-- Join codes (join.lua for real on the fake kit; join_test tests it). who_can_join=code hosts with a code. Join with a
+-- code closes the menu and opens the code box, the input passing from the menu to the box; while it is open the
+-- navigation keys and our F-keys do nothing; Enter joins, Esc cancels. While we host, Copy my code shows our code and
+-- asks the native part to copy it (the menu stays), Remove <name> asks a second Select. The host's question closes the
+-- menu as it opens and takes the navigation keys, Enter and Esc (no chat box, no F-key); coop ui reset denies an open
+-- question; coop off ends it.
+settings_text,status_text,link_mode='who_can_join=code\n',plain,'none'
+load_main(true)
+coop('host'); assert(asked[#asked]=='host code' and logged('OK: asked the native part: host code'))
+in_world,kit_ready=true,true; quarter()
+key('F5'); to('Join with a code'); key('RETURN')
+assert(not kit_shown.menu and kit_shown.code and kit_holder=='code' and kit_views.code.title.s=='JOIN WITH A CODE')
+n=#asked
+key('S'); key('SPACE'); key('F6'); key('F5')
+assert(kit_shown.code and not kit_shown.menu and #asked==n and not logged('key F6: status'),'Typing: our keys rest')
+code_text='0cs-cbmh'; key('RETURN')
+assert(asked[#asked]=='join 0CS-CBMH' and not kit_shown.code and kit_input)
+clock=clock+0.25; loops[1].f(); assert(not kit_input,'The game gets its keys back 150 ms after')
+key('F5'); to('Join with a code'); key('RETURN'); code_text='0CS'
+key('ESCAPE'); assert(not kit_shown.code and code_text=='' and asked[#asked]=='join 0CS-CBMH','Esc: nothing asked')
+link_mode,link_code,link_refused,link_lobby='host','0CS-CBMH',0,'7000'
+key('F5'); to('Copy my code'); assert(select(2,focus())=='0CS-CBMH')
+key('RETURN'); assert(asked[#asked]=='copy' and kit_shown.menu,'Copied: the menu stays')
+link_stranger={id='76561198000000009',name='Stranger'}
+key('DOWN_ARROW'); assert(focus()=='Remove Stranger')
+key('RETURN'); assert(menu_view.note.s=='Select again within 3 s to remove Stranger.' and asked[#asked]=='copy')
+key('RETURN'); assert(asked[#asked]=='remove 76561198000000009')
+link_pending={id='76561198000000008',name='Two'}
+quarter()
+assert(not kit_shown.menu and kit_shown.ask and kit_holder=='ask' and kit_views.ask.title.s=='Two wants to join')
+n=#asked
+key('F5'); key('F6'); assert(not kit_shown.menu and #asked==n and not logged('key F6: status'),'Our keys rest')
+key('UP_ARROW'); key('RETURN')
+clock=clock+0.25; loops[1].f()
+assert(asked[#asked]=='allow 76561198000000008' and not kit_shown.ask and not kit_shown.chat,'Enter: let in, no chat')
+link_pending={id='76561198000000007',name='Three'}
+quarter(); assert(kit_shown.ask)
+key('ESCAPE'); assert(asked[#asked]=='deny 76561198000000007' and not kit_shown.ask)
+link_pending={id='76561198000000006',name='Four'}
+quarter(); assert(kit_shown.ask)
+coop('ui','reset'); assert(asked[#asked]=='deny 76561198000000006' and not kit_shown.ask,'Reset: denied')
+link_pending={id='76561198000000005',name='Five'}
+coop('off')
+n=#asked
+for _=1,130 do quarter() end
+assert(#asked==n and not kit_shown.ask,'Nothing after coop off')
+link_mode,link_code,link_refused,link_pending,link_stranger,link_lobby='none',nil,nil,nil,nil,'0'
+settings_text,in_world,kit_ready='',false,false
+
 -- The partner HUD (partner.lua's view for real on the fake kit; partner_test tests it): added after the feed and
 -- before the menu, which draws over it; each 250 ms in a world its card follows the session and her vitals, and the
 -- ghost hides its name tag while the marker carries her name (partner_bar on, the root up); each frame only its marker
 -- and arrow, projected through the kit 30 times a second at most and never without her anchor; nothing after coop off.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
-assert(table.concat(kit_order,' ')=='chat feed card marker arrow menu badge saves',table.concat(kit_order,' '))
+assert(table.concat(kit_order,' ')=='chat feed card marker arrow code menu ask badge saves',
+    table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,
     life=1}

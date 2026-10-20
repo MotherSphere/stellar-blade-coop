@@ -1,12 +1,13 @@
--- The co-op menu's, the chat's, the partner HUD's and the co-op saves' words (D-UI8): English and French. The game's language picks them
--- (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language reads English until
--- translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
+-- The co-op menu's, the chat's, the partner HUD's, the co-op saves' and the join codes' words (D-UI8): English and
+-- French. The game's language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english;
+-- any other language reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
 local T={}
 T.en={
     title='CO-OP',
     head={session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT'},
     row={host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',join='Join a friend',
+        copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
         menu_key='Open this menu',host_key='Host at once',status_key='Show the status',leave_key='Leave the session',
         photo_sync='Photo sync',photo_freeze_max='Longest pause',photo_ghost='Ghost in my photos',
@@ -16,10 +17,10 @@ T.en={
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
         who_can_join='Who can join',auto_coop_save='Co-op saves'},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',friends='Friends',
-        private='Invited only',ask='Ask',always='Always'},
+        code='With a code',private='Invited only',ask='Ask',always='Always'},
     no_limit='No limit',minutes='%d min',seconds='%d s',percent='%d %%',press='Press a key',
     hint={move='Move',select='Select',back='Back'},
-    confirm_leave='Select again within 3 s to leave.',
+    confirm_leave='Select again within 3 s to leave.',confirm_remove='Select again within 3 s to remove %s.',
     reload='Saved. It takes effect when the mod reloads (game start or Ctrl+R).',
     capture='Press F1 to F12, with Shift, Ctrl or Alt if you like. Esc cancels.',
     clash='%s already uses this key.',f10='F10 opens the console.',
@@ -30,6 +31,13 @@ T.en={
         no_session='Chat needs a session.',off='Chat is off (Options > Chat).',not_sent=' (not sent)',
         ui_off='The chat box is off (the UI stopped, see UE4SS.log).'},
     partner={partner='Partner',down='DOWN',lost='connection lost',elsewhere='elsewhere · %s'},
+    -- The code box and the host's question (join.lua).
+    join={title='JOIN WITH A CODE',hint='XXX-XXXX',join='Join',cancel='Cancel',
+        bad='A join code is 7 letters and digits, like XXX-XXXX.'},
+    ask={title='%s wants to join',someone='A player',accept='Accept',deny='Deny',
+        about='Not on your Steam friends list. Denied in %d s without an answer.',
+        auto='3 players were refused in this session, so new requests are denied without a question. Host again for a '
+            ..'new code.'},
     -- The question at the title (saves.lua), its notices, and the one in a session on your own save.
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
@@ -51,7 +59,8 @@ T.fr={
     head={session='SESSION',settings='RÉGLAGES',help='AIDE',controls='TOUCHES',photo='MODE PHOTO',partner='PARTENAIRE',
         ghost='FANTÔME',saves='SAUVEGARDES',combat='COMBAT',display='AFFICHAGE',chat='DISCUSSION'},
     row={host='Héberger une session',leave='Quitter la session',invite='Inviter un ami (Steam)',
-        join='Rejoindre un ami',chat='Discussion',options='Options',report='Écrire un rapport de bug',close='Fermer',
+        join='Rejoindre un ami',copy='Copier mon code',remove='Retirer %s',join_code='Rejoindre avec un code',
+        chat='Discussion',options='Options',report='Écrire un rapport de bug',close='Fermer',
         menu_key='Ouvrir ce menu',host_key='Héberger directement',status_key="Afficher l'état",
         leave_key='Quitter la session',photo_sync='Photo synchronisée',photo_freeze_max='Pause la plus longue',
         photo_ghost='Fantôme sur mes photos',photo_name_tag='Nom sur mes photos',name_tag='Nom au-dessus',
@@ -61,10 +70,11 @@ T.fr={
         partner_arrow='Flèche hors écran',partner_card='Fiche du partenaire',card_details='Ping et zone sur la fiche',
         who_can_join='Qui peut rejoindre',auto_coop_save='Sauvegardes co-op'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',friends='Amis',
-        private='Sur invitation',ask='Demander',always='Toujours'},
+        code='Avec un code',private='Sur invitation',ask='Demander',always='Toujours'},
     no_limit='Sans limite',minutes='%d min',seconds='%d s',percent='%d %%',press='Appuyez sur une touche',
     hint={move='Déplacer',select='Choisir',back='Retour'},
     confirm_leave='Choisissez encore dans les 3 s pour quitter.',
+    confirm_remove='Choisissez encore dans les 3 s pour retirer %s.',
     reload='Enregistré. Pris en compte au rechargement du mod (lancement du jeu ou Ctrl+R).',
     capture='Appuyez sur F1 à F12, avec Maj, Ctrl ou Alt si vous voulez. Échap annule.',
     clash='%s utilise déjà cette touche.',f10='F10 ouvre la console.',
@@ -76,6 +86,12 @@ T.fr={
         not_sent=' (non envoyé)',
         ui_off="La zone de discussion est coupée (l'interface s'est arrêtée, voir UE4SS.log)."},
     partner={partner='Partenaire',down='À TERRE',lost='connexion perdue',elsewhere='ailleurs · %s'},
+    join={title='REJOINDRE AVEC UN CODE',hint='XXX-XXXX',join='Rejoindre',cancel='Annuler',
+        bad='Un code compte 7 lettres et chiffres, comme XXX-XXXX.'},
+    ask={title='%s veut rejoindre la partie',someone='Un joueur',accept='Accepter',deny='Refuser',
+        about='Pas dans vos amis Steam. Refusé dans %d s sans réponse.',
+        auto='3 joueurs ont été refusés dans cette session : les nouvelles demandes sont refusées sans question. '
+            ..'Hébergez à nouveau pour avoir un nouveau code.'},
     saves={title='SAUVEGARDES CO-OP',new='Jouer en co-op sur des copies de vos sauvegardes ?',
         new_about='StellarCoop copie vos sauvegardes dans des fichiers co-op séparés, et la partie que vous chargez '
             ..'ensuite est une de ces copies. Vos propres sauvegardes ne changent pas.',
