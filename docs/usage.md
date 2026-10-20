@@ -500,6 +500,11 @@ enemies get linked after none (the host counts none until the friend's side is o
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
+When your friend's game loads other `.pak` mods than yours, a notice says so once a session, for example
+`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` The mod compares the
+`.pak` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`), by name and size;
+`coop-link.log` lists yours at its start. It is a warning only.
+
 The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
 game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
 leaves, when an enemy of the host's cannot be paired because its maximum HP differs (by more than 0.5, before any

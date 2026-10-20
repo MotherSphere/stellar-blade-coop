@@ -64,6 +64,7 @@ local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n
 local link_mode='none' -- What link.mode() says, as of the last changes().
 local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 local mate_v=nil -- link.mate(): her vitals.
+local paks_v=nil -- link.paks(): her .pak mods against ours.
 local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
@@ -102,6 +103,7 @@ local fake_link={
     lobby=function() return link_lobby end,
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
+    paks=function() return paks_v end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load.
     settings_text=function() return settings_text end,
     write_settings=function(text)
@@ -907,6 +909,25 @@ for _,step in ipairs({{'fight=off why=coop fight off',''},
     local got=fight_step(step[1])
     assert(got==step[2],tostring(step[1])..': '..got)
 end
+-- Her .pak mods against ours: one notice when they differ, until the session ends (no link); the same say nothing.
+local function paks_tick(v)
+    paks_v=v
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do if said[i]:find('.pak',1,true) then out[#out+1]=said[i] end end
+    return table.concat(out,'|')
+end
+local PAKS='Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.'
+link_mode='host'
+assert(paks_tick(nil)=='' and paks_tick({same=true,ours=2,hers=2})=='')
+assert(paks_tick({same=false,ours=2,hers=1})==PAKS and paks_tick({same=false,ours=2,hers=1})=='')
+link_mode='none'
+assert(paks_tick(nil)=='')
+link_mode,kit_language='guest','fr-FR'
+assert(paks_tick({same=false,ours=0,hers=3})=="Kaanta n'a pas les mêmes mods .pak que vous (3 en face, 0 ici). Les "
+    ..'ennemis qui diffèrent ne sont pas partagés.')
+link_mode,kit_language='none',nil
+paks_tick(nil)
 -- Sharing as the guest: once when the host has enemies we cannot pair for their MaxHP (until it stops or the friend
 -- leaves); each time the host goes down while enemies are linked (her vitals: HP 0, or a life state 3-5).
 local GUEST_ON='fight=on mode=on role=guest claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=1 sim_us=5/9 '

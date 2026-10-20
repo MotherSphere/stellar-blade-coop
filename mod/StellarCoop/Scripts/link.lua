@@ -243,9 +243,9 @@ function Link.new(folder,fs)
     -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}; mate: her vitals;
     -- ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits
     -- for the handshake (kept across changes() until she is linked or we are no longer a guest); saves: the co-op
-    -- saves' state (saves()).
+    -- saves' state (saves()); paks: her .pak mods against ours (paks()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
-    local mate,ping,loopback,rejoined,saves=nil,nil,false,false,{}
+    local mate,ping,loopback,rejoined,saves,paks=nil,nil,false,false,{},nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
     -- lobby members' SteamIDs (peer lines). strangers: each joiner seen waiting in the lobby strangers_in names
@@ -336,7 +336,7 @@ function Link.new(folder,fs)
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
-        mate,ping,loopback,saves=nil,nil,engine:find(' loopback=')~=nil,{}
+        mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
         lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
         listed={}
@@ -368,6 +368,8 @@ function Link.new(folder,fs)
             if id then members[#members+1]=id end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
+            local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
+            if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
             if mine then photo={mine=mine,peer=peer,frozen=frozen=='1'} end
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
@@ -403,6 +405,9 @@ function Link.new(folder,fs)
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
     function self.fight() return fight end
+    -- Her .pak mods against ours, once her game said them: {same=, ours=, hers=} (the counts beyond the base game's
+    -- paks), or nil.
+    function self.paks() return paks end
     -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a

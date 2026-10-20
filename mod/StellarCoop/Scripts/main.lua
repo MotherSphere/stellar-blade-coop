@@ -503,6 +503,16 @@ if link then
             say(words[missing]:format(her_name(words)))
         end
     end
+    -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
+    local paks_said=false
+    local function paks_notice()
+        local paks=link.paks()
+        if link.mode()=='none' then paks_said=false
+        elseif paks and not paks.same and not paks_said then
+            paks_said=true
+            say(fight_words().paks:format(her_name(fight_words()),paks.hers,paks.ours))
+        end
+    end
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
@@ -539,6 +549,7 @@ if link then
             end
         end
         fight_notices()
+        paks_notice()
         local mode=link.mode()
         if mode then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end

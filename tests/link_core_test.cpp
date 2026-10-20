@@ -2025,6 +2025,42 @@ int main() {
     assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
   }
 
+  // Pak mods: ours goes once to the friend past the handshake (again after her next hello); hers, once it came, shows
+  // as the status's paks= line against ours and is logged when it changes; before the handshake it is ignored with no
+  // log line.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.link.paks(2, 77);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    const std::string paks = "SBC" + std::to_string(kProtocol) + " paks ";
+    F.inbox.push_back({kFriend, paks_line(1, 5)});
+    const size_t logged = events.size();
+    w.tick();
+    assert(sent_to(kFriend, paks) == 0 && w.status().find("\npaks=") == std::string::npos && events.size() == logged);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    F.inbox.push_back({kFriend, paks_line(1, 5)});
+    w.tick();
+    assert(sent_to(kFriend, paks_line(2, 77)) == 1 && w.status().find("\npaks=differ 2 1\n") != std::string::npos);
+    assert(saw("Kaanta loads 1 .pak mods, not the same as ours (2 here)"));
+    F.inbox.push_back({kFriend, paks_line(1, 5)}); // The same again: no new log line.
+    w.tick();
+    assert(sent_to(kFriend, paks) == 1 && count("Kaanta loads") == 1);
+    F.inbox.push_back({kFriend, paks_line(2, 77)});
+    w.tick();
+    assert(w.status().find("\npaks=same 2 2\n") != std::string::npos &&
+           saw("Kaanta loads 2 .pak mods, the same as ours"));
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)}); // Her session may be new: ours goes again.
+    w.tick();
+    assert(sent_to(kFriend, paks_line(2, 77)) == 2);
+  }
+
   // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the
   // status's mate= line while she is linked and her last one is under 3 s old; before the handshake they are ignored
   // with no log line; a malformed one is an invalid message. A session's end forgets hers.

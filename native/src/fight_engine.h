@@ -1704,8 +1704,8 @@ private:
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
                   "%llu state maps or effect lists unread, %llu enemies left unscaled, slow motion %llu times (%llu "
-                  "turns, lowest %llu %%); %llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, "
-                  "max %llu us; logic thread %u (SB's %u), game thread %u",
+                  "turns, lowest %llu %%); %llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu "
+                  "us, max %llu us; logic thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
                   u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(j.unscaled), u(j.slow_starts),
                   u(j.slow_turns), u(j.slow_min), u(s.lost),

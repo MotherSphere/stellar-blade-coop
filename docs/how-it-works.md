@@ -171,6 +171,7 @@ SBC10 pong <seq> <ms>
 SBC10 photo <0|1|s> <both|notice>
 SBC10 say <text>
 SBC10 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC10 paks <count> <hash>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -195,7 +196,15 @@ every 100 ms, or 500 ms after a read that took over 1 ms (game build 24463856 on
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
 blocks or the life state is over 255. Your friend's last line shows in `coop status` as `mate=` for 3 s.
 
-Say and vit lines from a friend who has not passed the handshake are ignored, without a log line.
+The paks line is sent reliable, once after each handshake. At start the native part lists the files under
+`SB/Content/Paks` (three folders deep) and leaves out the base game's own (`pakchunk<n>-WindowsNoEditor` and
+`pakchunk<n>optional-WindowsNoEditor`, `global`). The line carries the number of `.pak` files left and a 64-bit hash of
+their paths and sizes, and of their `.ucas` and `.utoc` files. The header of `coop-link.log` names those `.pak` files
+(`paks <n> beyond the base game, hash <hash>: ...`). When your friend's hash differs from yours, `coop status` has
+`paks=differ <yours> <theirs>` and a notice says so once a session; with the same hash it has `paks=same`. Nothing is
+refused: enemies that differ already stay unshared (same character id and maximum HP for each pair).
+
+Say, vit and paks lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -242,7 +251,7 @@ instead of misread:
 | 7 | Steam channel 2 for the shared enemies, and the photo line |
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
-| 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers (this version) |
+| 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line (this version) |
 
 ### Link health in the log
 

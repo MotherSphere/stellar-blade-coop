@@ -21,6 +21,7 @@
 
 #include "clipboard.h"
 #include "link_core.h"
+#include "pak_list.h"
 #include "pose_tick.h"
 #include "save_slot.h"
 #include "save_twins.h"
@@ -238,6 +239,29 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
   } while (FindNextFileW(h, &f));
   FindClose(h);
 }
+
+// The .pak mods the game loads beyond the base game's (pak_list.h), from SB\Content\Paks next to the exe's
+// SB\Binaries\Win64, read once at start: a header line names them, and each friend gets their count and hash.
+coop::Paks game_paks;
+void log_paks() {
+  wchar_t exe[MAX_PATH];
+  DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
+  std::wstring dir(exe, n && n < MAX_PATH ? n : 0);
+  for (int up = 0; up < 3; ++up) // The exe's name, Win64, Binaries.
+    dir.resize(dir.find_last_of(L"\\/") == std::wstring::npos ? 0 : dir.find_last_of(L"\\/"));
+  std::vector<coop::SaveWatch::Entry> files;
+  if (!dir.empty())
+    list_saves(dir + L"\\Content\\Paks", "", files, 0);
+  std::vector<coop::PakFile> paks;
+  for (auto &f : files)
+    paks.push_back({f.name, f.size});
+  game_paks = coop::digest(paks);
+  std::string names = game_paks.names.size() > 1000 ? game_paks.names.substr(0, 1000) + "..." : game_paks.names;
+  header_lines.push_back("paks " + std::to_string(game_paks.count) + " beyond the base game, hash " +
+                         std::to_string(game_paks.hash) + (names.empty() ? "" : ": " + names));
+  append(utc_stamp() + " " + header_lines.back());
+}
+
 // steam_id: 0 until Steam is ready; the marker is then not looked up, as another account's folder never decides.
 void watch_saves(uint64_t now_ms, uint64_t steam_id) {
   if (saves_dir.empty() || now_ms < next_save_watch)
@@ -449,6 +473,7 @@ bool step() {
       loaded = true;
       link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event,
                                           [](const uint8_t *d, size_t n) { coop::pose::peer_receive(d, n); });
+      link->paks(game_paks.count, game_paks.hash);
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
@@ -655,6 +680,7 @@ DWORD WINAPI worker(void *) {
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables and addresses from a previous run mean nothing now.
   write_header();
+  log_paks();
   log_open = true;
   write_text(folder + L"coop-status.txt", status_text()); // Never show the previous run's state as current.
   for (;;) {

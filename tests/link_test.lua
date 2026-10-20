@@ -123,6 +123,17 @@ link.changes()
 files[STATUS]=nil
 link.changes()
 assert(link.fight()==nil,'No status: none either')
+-- Her .pak mods against ours (paks=same|differ <ours> <hers>), from the start of its own line only; nil without one.
+files[STATUS]='mod=v\npeer=2 name=x paks=same 1 1\npaks=differ 2 0\nlast=#9 x\n'
+link.changes()
+local paks=link.paks()
+assert(paks and paks.same==false and paks.ours==2 and paks.hers==0)
+files[STATUS]='mod=v\npaks=same 3 3\n'
+link.changes()
+assert(link.paks().same and link.paks().ours==3)
+files[STATUS]='mod=v\npeer=2 name=x paks=differ 1 2\npaks=odd\n'
+link.changes()
+assert(link.paks()==nil,'Not from a peer line, nor a line of another shape')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 -- A join code as typed (the code box, coop join <code>): either case, the dash after the third character, a space there

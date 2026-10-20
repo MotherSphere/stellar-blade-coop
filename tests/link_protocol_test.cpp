@@ -125,6 +125,16 @@ int main() {
   over[vital::hp] = 1601; // HP over MaxHP.
   assert(!plausible_vitals(over) && parse_text(vit_line(over)).kind == Kind::invalid);
 
+  // The paks line, reliable: how many .pak mods her game loads beyond the base game's, and their hash (pak_list.h).
+  assert(paks_line(2, 18446744073709551615ull) == p + " paks 2 18446744073709551615");
+  m = parse_text(paks_line(2, 18446744073709551615ull));
+  assert(m.kind == Kind::paks && m.a == 2 && m.b == 18446744073709551615ull);
+  m = parse_text(paks_line(uint32_t(kMaxPaks), 0));
+  assert(m.kind == Kind::paks && m.a == kMaxPaks && m.b == 0);
+  for (const std::string &bad : {p + " paks", p + " paks 1", p + " paks 100001 5", p + " paks 1 5 6", p + " paks x 5",
+                                 p + " paks 1 -5", p + " paks 1 18446744073709551616", std::string("SBC9 paks 1 5")})
+    assert(parse_text(bad).kind == Kind::invalid);
+
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
   // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
   static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
@@ -181,7 +191,7 @@ int main() {
   // Fuzz: random bytes and mutated valid messages never crash, and anything parsed respects the limits.
   std::mt19937 rng(1234);
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
-                               photo_line('1', true), say_line("é ok"), vit_line(v)};
+                               photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -189,7 +199,7 @@ int main() {
       for (char &c : text)
         c = static_cast<char>(rng());
     } else {
-      text = seeds[rng() % 8];
+      text = seeds[rng() % 9];
       for (int k = rng() % 4; k >= 0 && !text.empty(); --k)
         text[rng() % text.size()] = static_cast<char>(rng());
     }
@@ -200,6 +210,8 @@ int main() {
       assert(!f.text.empty() && f.text == chat_clean(f.text));
     if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
       assert(plausible_vitals(f.vitals));
+    if (f.kind == Kind::paks)
+      assert(f.a <= kMaxPaks);
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= kMaxReason);
       for (char c : f.text)

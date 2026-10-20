@@ -274,6 +274,11 @@ struct Peer {
   std::string photo_sent;
   Window photo_window;
   Window say_window;       // Her chat lines.
+  // Her .pak mods beyond the base game's (pak_list.h) from her paks line, once one came; our paks line as she last got
+  // it (sent again after each hello of hers, like the photo line).
+  bool has_paks = false;
+  uint64_t paks_count = 0, paks_hash = 0;
+  std::string paks_sent;
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
@@ -371,6 +376,7 @@ public:
       receive_fight();
       send_fight_queue();
       send_photo();
+      send_paks();
       ping_peers();
     }
     photo_pass(); // Also once the session ended: a pause held for her goes.
@@ -421,6 +427,14 @@ public:
   }
   // Her channel-2 lines since the last call, oldest first. The link never parses them: fight_sync.h does, strictly.
   std::vector<std::string> take_fight() { return std::exchange(fight_in_, {}); }
+
+  // Our .pak mods beyond the base game's (pak_list.h), once, before the first tick(): each friend past the handshake
+  // gets them, and status() compares hers. No paks line goes before this call.
+  void paks(uint32_t count, uint64_t hash) {
+    paks_on_ = true;
+    paks_count_ = count;
+    paks_hash_ = hash;
+  }
 
   // The synced photo mode (FEATURE-PARITY.md 6.3), from Lua's coop-state.txt, before each tick(): ours ('0', '1' or
   // 's'), our photo_sync as she gets it (both only while this game can pause, so she never counts on a pause it cannot
@@ -541,6 +555,12 @@ public:
       const Peer &p = peers_.front();
       s += std::string("friend=") + (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
            p.name + "\n";
+    }
+    // Her .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ <ours> <hers>".
+    if (!peers_.empty() && peers_.front().has_paks && paks_on_) {
+      const Peer &p = peers_.front();
+      s += std::string("paks=") + (p.paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
+           " " + std::to_string(p.paks_count) + "\n";
     }
     // Her vitals for the partner card, while a session holds and her last line is under kMateMs old.
     if (has_mate_ && chatting() && now_ - mate_at_ < kMateMs) {
@@ -1053,6 +1073,7 @@ private:
         event(peer->name + " is back");
         notice(peer->name + " is back.");
         peer->photo_sent.clear(); // Our last photo line may have gone with a broken session: it goes again.
+        peer->paks_sent.clear();
       }
       on_message(*peer, message);
     }
@@ -1236,6 +1257,7 @@ private:
       }
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
+      peer.paks_sent.clear();  // The same for our paks line.
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -1288,6 +1310,16 @@ private:
       peer.photo_both = both;
       break;
     }
+    case Kind::paks:
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      if (!peer.has_paks || message.a != peer.paks_count || message.b != peer.paks_hash)
+        event(peer.name + " loads " + std::to_string(message.a) + " .pak mods" +
+              (!paks_on_                    ? std::string()
+               : message.b == paks_hash_ ? ", the same as ours"
+                                         : ", not the same as ours (" + std::to_string(paks_count_) + " here)"));
+      peer.has_paks = true, peer.paks_count = message.a, peer.paks_hash = message.b;
+      break;
     case Kind::vitals:
       if (peer.compatible && peer.accepted) // Before the handshake: ignored, with no log line.
         mate_ = message.vitals, mate_at_ = now_, has_mate_ = true;
@@ -1315,6 +1347,15 @@ private:
 
   // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
   // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
+  void send_paks() {
+    if (!paks_on_)
+      return;
+    const std::string line = paks_line(paks_count_, paks_hash_);
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && p.paks_sent != line &&
+          send(p, line.data(), line.size(), kReliable) == kResultOk)
+        p.paks_sent = line;
+  }
   void send_photo() {
     if (!photo_on_)
       return;
@@ -1495,6 +1536,8 @@ private:
   // ('0' with no friend or a lost one) and ours, whether our game holds its pause and since when, whether the cap ended
   // this photo session of hers.
   bool photo_on_ = false;
+  bool paks_on_ = false; // paks() said ours.
+  uint64_t paks_count_ = 0, paks_hash_ = 0;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;
   uint32_t photo_max_ = 0;
