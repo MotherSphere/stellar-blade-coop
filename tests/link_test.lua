@@ -558,9 +558,9 @@ fs.remove=remove
 chat=link.take_chat()
 assert(#chat==1 and chat[1].text=='once' and files[CHAT]==nil and #link.take_chat()==0)
 
--- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change four times a second),
--- the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds: a friend
--- linked (lost or not), a rejoin under way, or the loopback.
+-- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
+-- second), the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds:
+-- a friend linked (lost or not), a rejoin under way, or the loopback.
 local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
 files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
     ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nfriend=1 0 x\n'..MATE..'last=#9 x\n'

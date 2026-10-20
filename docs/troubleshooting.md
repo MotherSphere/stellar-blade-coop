@@ -167,7 +167,7 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 [usage.md: Shared enemies](usage.md#shared-enemies-experimental)):
 
 - `fight=off` with no `why=`, and `shared enemies: off (experimental)` in `UE4SS.log` at load: shared enemies are off
-  in your game.
+  in your game. A `coop-settings.txt` from version 0.2 says `shared_enemies=off`.
 - `fight=waiting mode=on ... why=not on a co-op save`: you play your own save. Quit to the title screen and choose
   Convert and play co-op (Play co-op once you have co-op copies), then load the same slot number.
 - `her=own-save`, `her=off` or `her=stopped`: your friend plays their own save, has shared enemies off, or theirs

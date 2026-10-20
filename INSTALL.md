@@ -56,7 +56,8 @@ together. Two games with different protocols cannot link, and the player who tri
    setting, by hand or in the menu's Options, and any log you still want to send. The zip has no
    `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
-4. Install the new zip with install steps 2 to 4, and put `coop-settings.txt` back into the new folder.
+4. Install the new zip with install steps 2 to 4, and put `coop-settings.txt` back into the new folder. A file from
+   version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in Options > Combat.
 5. Do install step 5, with your status key if you changed it.
 
 ## Keys and settings
@@ -107,8 +108,8 @@ changes one line of the file at a time, and keeps the file as it was before its 
   - `effects`: her attack and skill effects (19 of EVE's effects, at most 4 at a time).
   - `dyes=off` and `effects=off` each also stop your game from sending your own, so the ghost of you in your friend's
     game lacks them too.
-- `auto_coop_save`: see "Co-op saves" below. The photo, menu, chat and partner HUD settings are listed in
-  [usage.md](docs/usage.md#coop-settingstxt).
+- `auto_coop_save`: see "Co-op saves" below. The photo, menu, chat, partner HUD and shared enemies settings are
+  listed in [usage.md](docs/usage.md#coop-settingstxt).
 
 If the mod rejects a value, that setting keeps its default, and `UE4SS.log` gives the reason in a line that starts with
 `[StellarCoop] settings:`. The `[StellarCoop] keys:` line lists the keys in use, and the `[StellarCoop] look:` line

@@ -416,9 +416,10 @@ so it shares enemies only on a co-op save, and kills count in the co-op save. Ba
 
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
-too. It starts by itself once you are linked and both play a [co-op save](#co-op-saves), and changes no enemy on your
-own save. Enemies get linked only while you are on the same map. Turning the row off (`shared_enemies=off`) stops it
-at once, but not the solo test tools below.
+too. A file from version 0.2 says `shared_enemies=off` and keeps it off until you turn the row on. It starts by itself
+once you are linked and both play a [co-op save](#co-op-saves), and changes no enemy on your own save. Enemies get
+linked only while you are on the same map. Turning the row off (`shared_enemies=off`) stops it at once, but not the
+solo test tools below.
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the
 game's BossMonster type) are not shared yet. `auto` also leaves out a few Monster-type enemies that are not common
