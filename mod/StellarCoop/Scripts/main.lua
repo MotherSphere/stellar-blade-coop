@@ -149,7 +149,8 @@ end
 -- shared_enemies=on: coop fight on asked once a load, as soon as the native part judged the slot (coop, main, or none
 -- at the title: its build is pinned then); it then waits there for a friend, a co-op save and a loaded save. coop
 -- fight off before then cancels the ask. The co-op menu's row changes shared_enemies while the mod runs: on asks again
--- the same way, off asks coop fight off at once (fight_wanted: the value last acted on).
+-- the same way, off asks coop fight off at once when coop fight on waits or runs (fight_wanted: the value last acted
+-- on); a probe, record or replay goes on, as at a reload below.
 local fight_auto=settings~=nil and settings.shared_enemies
 local fight_wanted=fight_auto
 -- shared_enemies=off is a kill switch at a reload too (Ctrl+R): the native part outlives Lua, so a coop fight on that an
@@ -390,29 +391,36 @@ if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.
     -- A status read with no mode (before Steam, or unreadable) is no leave.
     local last_mode='none'
-    -- The shared enemies' notices, from the fight= line (an unread status changes nothing), in the menu's language: on
-    -- with the count when its enemies go from none to some; off with why once it ran or waited, in any mode; and while
-    -- coop fight on waits or runs, one notice for what keeps it from sharing, said again only when that changes: your
-    -- save or hers not a co-op one, her shared enemies off or stopped for the run, or the two of you on different maps.
-    -- Waits that end by themselves (no friend yet, a load, photo mode) say nothing. Sharing with her on the same map,
-    -- or the session's end, forgets what was said.
+    -- The shared enemies' notices, from the fight= line (an unread status changes nothing), in the menu's language
+    -- (read only to say one): on with the count when its enemies go from none to some; off, or stopped for the run,
+    -- once it ran or waited, in any mode, unless our own player ended it (coop fight off, the menu's row, coop off);
+    -- and while coop fight on waits or runs, one notice for what keeps it from sharing, said again only when that
+    -- changes, and FIGHT_HOLD seconds after the last at the soonest (her lines set her state, so a friend flipping it
+    -- cannot flood them): your save or hers not a co-op one, her shared enemies off or stopped for the run, or the two
+    -- of you on different maps. Waits that end by themselves (no friend yet, a load, photo mode) say nothing. Sharing
+    -- with her on the same map, or the session's end, forgets what was said.
     local T,P=require('ui_text'),require('partner')
-    local fight_was,fight_count,fight_told=nil,0,nil
+    local FIGHT_HOLD=5
+    local fight_was,fight_count,fight_told,fight_hold=nil,0,nil,0
+    local function fight_words() return T.pick(kit.language(),settings.ui_language).fight end
     local function fight_notices()
         if link.mode()=='none' then fight_told=nil end
         local line=link.fight()
         if not line then return end
-        local words=T.pick(kit.language(),settings.ui_language).fight
         local state,mode,her=line:match('^fight=(%a+)'),line:match(' mode=(%a+)'),line:match(' her=(%S+)')
         local why=line:match(' why=(.*)$')
         local now=state=='on' and 'on '..tostring(mode) or state
         if now=='on on' then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
-            if fight_count==0 and count>0 then say(count==1 and words.one or words.on:format(count)) end
+            if fight_count==0 and count>0 then
+                local words=fight_words()
+                say(count==1 and words.one or words.on:format(count))
+            end
             fight_count=count
         elseif state=='off' or state=='stopped' then
-            if fight_was and (fight_was:find('^on ') or fight_was=='waiting') then
-                say(words.off:format(state=='stopped' and 'stopped for this run ('..tostring(why)..')' or why or 'off'))
+            if fight_was and (fight_was:find('^on ') or fight_was=='waiting') and why~='coop fight off'
+                and why~='coop off' then
+                say(fight_words()[state])
             end
             fight_count=0
         end
@@ -428,8 +436,9 @@ if link then
             local where=P.where(mine and mine.map,puppet.her_map())
             if where=='elsewhere' then missing='map' elseif where=='same' then fight_told=nil end
         end
-        if not missing or missing==fight_told then return end
-        fight_told=missing
+        if not missing or missing==fight_told or chat_clock<fight_hold then return end
+        fight_told,fight_hold=missing,chat_clock+FIGHT_HOLD
+        local words=fight_words()
         if missing=='you' then -- How to switch, or the manual slot when the co-op copies are off.
             local info=link.saves() or {}
             say((settings.auto_coop_save=='off' or info.saves~='main') and words.you_manual or words.you)
@@ -456,7 +465,7 @@ if link then
         if settings.shared_enemies~=fight_wanted and not off then -- The co-op menu's row.
             fight_wanted=settings.shared_enemies
             fight_auto=fight_wanted
-            if not fight_wanted then
+            if not fight_wanted and (link.fight() or ''):find('^fight=%a+ mode=on ') then
                 local ok,message=ask('fight off')()
                 report(ok,'shared_enemies=off: '..tostring(message))
             end

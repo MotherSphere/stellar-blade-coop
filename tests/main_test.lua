@@ -165,6 +165,7 @@ local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui t
 -- engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
 -- row was last set to. kit_ready: its root is up; kit_off: it turned off.
 local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
+local language_reads=0 -- kit.language(): a game call.
 local menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
 -- The groups' views by name; who holds the input (nil: the menu); the chat box's text and how often it was focused.
 local kit_views,kit_holder,box_text,box_focuses={},nil,'',0
@@ -225,7 +226,8 @@ end,kit=function(opts)
             kit_calls[#kit_calls+1]='input'..word
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
-        paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop'),
+        paused=function() return kit_paused end,stop=said_kit('stop'),
+        language=function() language_reads=language_reads+1; return kit_language end,
         reset=said_kit('reset'),
         move=function() end,fade=function() end,
         project=function(anchor)
@@ -773,8 +775,9 @@ status_text=with_slot(ON_LINE)
 load_main(true); assert(#asked==0,'shared_enemies=on leaves it running')
 settings_text=''
 -- The notices, every 250 ms from the fight= line: on when its enemies go from none to some (one enemy, or several);
--- off with why once it ran or waited, in any mode; a latch says so; nothing for a start with no enemy yet, a pause, a
--- resume, the same line again, or a status that was not read; nothing per frame.
+-- off once it ran or waited, in any mode, but not when our own player ended it (coop fight off, coop off); a latch
+-- says so; nothing for a start with no enemy yet, a pause, a resume, the same line again, or a status that was not
+-- read; nothing per frame.
 local function fight_notices_since(n)
     local out={}
     for i=n+1,#said do
@@ -782,12 +785,13 @@ local function fight_notices_since(n)
     end
     return out
 end
-local function fight_step(text)
+local function fight_tick(text,ticks)
     fight_text=text
     local n=#said
-    loops[2].f()
+    for _=1,ticks or 1 do loops[2].f() end
     return table.concat(fight_notices_since(n),'|')
 end
+local function fight_step(text) return fight_tick(text,21) end -- Past the 5 s between two notices of what is missing.
 for _,step in ipairs({
         {nil,''},{'fight=off',''},{'fight=off why=coop fight off',''},
         {'fight=waiting mode=on why=no friend linked',''},
@@ -803,30 +807,35 @@ for _,step in ipairs({
         {'fight=on mode=on role=guest pairs=0 claims=0 corrections=0 kills=0 floored=0 desync=0 sim_us=5/9 '
             ..'threads=1/1/2',''},
         {nil,''},
-        {'fight=off why=coop off','Shared enemies off: coop off.'},
         {'fight=off why=coop off',''},
         {'fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2',''},
-        {'fight=off why=coop fight off','Shared enemies off: coop fight off.'},
+        {'fight=off why=coop fight off',''},
         {'fight=waiting mode=on why=no friend linked',''},
-        {'fight=off why=coop fight off','Shared enemies off: coop fight off.'},
+        {'fight=off why=the game build is not the pinned one','Shared enemies off. coop-link.log says why.'},
+        {'fight=on mode=record role=host enemies=0 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2',''},
+        {'fight=off why=the recording is full (4 MB or 20000 lines)','Shared enemies off. coop-link.log says why.'},
         {'fight=on mode=replay role=guest pairs=2 claims=0 corrections=1 kills=0 floored=0 desync=0 sim_us=5/9 '
             ..'threads=1/1/2',''},
         {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2',
             'Shared enemies on: 2 enemies linked.'},
-        {'fight=stopped why=fault','Shared enemies off: stopped for this run (fault).'},
+        {'fight=stopped why=fault','Shared enemies stopped until the game restarts. coop-link.log says why.'},
         {'fight=stopped why=fault',''}}) do
     local got=fight_step(step[1])
     assert(got==step[2],tostring(step[1])..': '..got)
 end
 local reads=fight_reads
 loops[1].f(); loops[1].f(); assert(fight_reads==reads,'No shared fight work in the per-frame loop')
+local languages=language_reads
+fight_step('fight=stopped why=fault')
+assert(language_reads==languages,'The language is read only to say a notice')
 -- What keeps coop fight on from sharing, one notice each time it changes: your own save (how to switch to the co-op
 -- copy, or the manual slot when the co-op copies are off), her own save, her shared enemies off or stopped, the two of
 -- you on different maps. Waits that end by themselves (no friend, a load, photo mode) say nothing and forget nothing;
 -- sharing with her on the same map forgets what was said, and so does the session's end. Never for a solo tool.
 local HOST_ON='fight=on mode=on role=host enemies=0 claims=0 refused=0 kills=0 floored=0 sim_us=0/0 threads=0/0/0'
-local YOU='Shared enemies need a co-op save, and this is your own save. Quit to the title screen and switch to the '
-    ..'co-op saves (Play co-op), then Continue or load the same slot number. The ghost works on any save.'
+local YOU='Shared enemies need a co-op save, and this is your own save. Quit to the title screen and choose Convert '
+    ..'and play co-op (Play co-op once you have co-op copies), then Continue or load the same slot number. The ghost '
+    ..'works on any save.'
 local YOU_MANUAL='Shared enemies need a co-op save, and this is your own save. With the co-op copies off, only the '
     ..'manual co-op slot counts (see INSTALL.md). The ghost works on any save.'
 fight_text=nil
@@ -838,7 +847,7 @@ for _,step in ipairs({
         {'fight=waiting mode=on her=? why=no save loaded',''},
         {'fight=waiting mode=on her=own-save why=not on a co-op save',''},
         {HOST_ON..' her=own-save','Shared enemies wait: Kaanta plays their own save. They can switch at the title '
-            ..'screen with Play co-op.'},
+            ..'screen with Convert and play co-op (Play co-op once they have co-op copies).'},
         {HOST_ON..' her=own-save',''},
         {HOST_ON..' her=off','Shared enemies wait: Kaanta has them off (co-op menu, Options, Combat).'},
         {HOST_ON..' her=stopped',"Shared enemies stopped for this run in Kaanta's game. Their coop-link.log says why."},
@@ -872,11 +881,23 @@ assert(fight_step('fight=waiting mode=on her=? why=not on a co-op save (slot=mai
 link_mode='none'; fight_step('fight=waiting mode=on why=no friend linked')
 link_mode,saves_info,kit_language='guest',{slot='main',saves='main'},'fr-FR'
 assert(fight_step('fight=waiting mode=on her=? why=not on a co-op save')=='Les ennemis partagés demandent une '
-    ..'sauvegarde co-op, et vous jouez sur votre propre sauvegarde. Revenez à l\'écran titre et passez aux sauvegardes '
-    ..'co-op (Jouer en co-op), puis Continuer ou chargez le même numéro d\'emplacement. Le fantôme fonctionne sur '
-    ..'toutes les sauvegardes.')
+    ..'sauvegarde co-op, et vous jouez sur votre propre sauvegarde. Revenez à l\'écran titre et choisissez Convertir '
+    ..'et jouer en co-op (Jouer en co-op si vous avez déjà des copies co-op), puis Continuer ou chargez le même '
+    ..'numéro d\'emplacement. Le fantôme fonctionne sur toutes les sauvegardes.')
 assert(fight_step(HOST_ON..' her=own-save')=='Ennemis partagés en attente : Kaanta joue sur sa propre sauvegarde. Le '
-    ..'passage se fait à l\'écran titre, avec Jouer en co-op.')
+    ..'passage se fait à l\'écran titre, avec Convertir et jouer en co-op (Jouer en co-op si ses copies co-op '
+    ..'existent déjà).')
+assert(fight_step('fight=stopped why=fault')=='Ennemis partagés arrêtés jusqu\'au redémarrage du jeu. coop-link.log '
+    ..'dit pourquoi.')
+-- A friend flipping her state every 250 ms: one notice, then the cause as it stands once 5 s passed, and so on.
+link_mode,kit_language='host',nil
+fight_step(HOST_ON..' her=on')
+local flips={}
+for i=1,40 do
+    local got=fight_tick(HOST_ON..(i%2==1 and ' her=own-save' or ' her=off'))
+    if got~='' then flips[#flips+1]=i end
+end
+assert(#flips==2 and flips[1]==1 and flips[2]>=21,table.concat(flips,','))
 link_mode,saves_info,kit_language='none',{},nil
 settings_text='shared_enemies=on\nauto_coop_save=off\n'
 load_main(true)
@@ -1007,7 +1028,8 @@ key('RETURN'); coop('host'); assert(asked[#asked]=='host' and select(2,focus())=
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
     and menu_view.note.s=='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
--- Shared enemies at once: on asks coop fight on as soon as the native part judged the save, off asks coop fight off.
+-- Shared enemies at once: on asks coop fight on as soon as the native part judged the save, off asks coop fight off
+-- while coop fight on waits or runs; a probe, record or replay goes on.
 local fight_asks=#asked
 to('Shared enemies (experimental)'); key('RETURN')
 assert(settings_text:find('\nshared_enemies=on\n',1,true) and select(2,focus())=='On'
@@ -1017,12 +1039,17 @@ status_text=with_slot('slot=main index=0 marker=4\n')
 quarter()
 assert(#asked==fight_asks+1 and asked[#asked]=='fight on' and logged('OK: shared_enemies=on: asked the native part: fight on'))
 quarter(); assert(#asked==fight_asks+1,'Once')
+fight_text='fight=waiting mode=on why=not on a co-op save (slot=main index=0 marker=4)'
 key('RETURN')
 assert(settings_text:find('\nshared_enemies=off\n',1,true) and select(2,focus())=='Off')
 quarter()
 assert(#asked==fight_asks+2 and asked[#asked]=='fight off'
     and logged('OK: shared_enemies=off: asked the native part: fight off'))
 quarter(); assert(#asked==fight_asks+2,'Once')
+fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
+key('RETURN'); quarter(); assert(#asked==fight_asks+3 and asked[#asked]=='fight on')
+key('RETURN'); quarter(); assert(#asked==fight_asks+3 and select(2,focus())=='Off','The probe goes on')
+fight_text=nil
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
