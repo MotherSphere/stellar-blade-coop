@@ -90,7 +90,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`10:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`11:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -166,12 +166,12 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC10 ping <seq> <ms>
-SBC10 pong <seq> <ms>
-SBC10 photo <0|1|s> <both|notice>
-SBC10 say <text>
-SBC10 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC10 paks <count> <hash>
+SBC11 ping <seq> <ms>
+SBC11 pong <seq> <ms>
+SBC11 photo <0|1|s> <both|notice>
+SBC11 say <text>
+SBC11 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC11 paks <count> <hash>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -215,9 +215,11 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 9` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 11` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
-without Nagle delay).
+without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
+second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
+other screen.
 
 - Your table goes to your friend at once and again every 5 s, so a table lost with a broken session, or sent before
   they accepted, arrives with a later resend. An identical table is ignored. A changed capture (a new outfit, the
@@ -226,9 +228,9 @@ without Nagle delay).
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
 - Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
   sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
-  5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s, under
-  Steam's default send rate of 256 KiB/s.
-- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 160 messages
+  5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s
+  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s.
+- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 240 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
   logged once (`ignored pose data from <id>: not in our lobby`). Channel 1 traffic does not count as hearing from a
@@ -251,7 +253,8 @@ instead of misread:
 | 7 | Steam channel 2 for the shared enemies, and the photo line |
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
-| 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line (this version) |
+| 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
+| 11 | Same-place enemies: `SBE` on Steam channel 1 and the show lines on channel 2 (this version) |
 
 ### Link health in the log
 

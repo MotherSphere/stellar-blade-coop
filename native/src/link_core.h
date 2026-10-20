@@ -1,6 +1,7 @@
 // The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
 // not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines,
-// channel 1, where the pose path's tables and poses travel, and channel 2, where the shared enemies' lines travel.
+// channel 1, where the pose path's tables and poses and the pilot's enemy roots (SBE) travel, and channel 2, where the
+// shared enemies' lines and the pilot's show lines travel.
 // Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the
 // build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
@@ -63,12 +64,13 @@ constexpr int kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentity
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
-constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
-constexpr uint64_t kBinaryPerSecond = 160, kBinaryBytesPerSecond = 1 << 20; // ~61/s, ~200 KB/s at most expected
+constexpr size_t kMaxBinary = 65536; // pose_table.h kMaxTable
+// ~91/s (60 poses, 30 SBE, a table) and ~200 KB/s at most expected.
+constexpr uint64_t kBinaryPerSecond = 240, kBinaryBytesPerSecond = 1 << 20;
 // Channel 2, per member: lines waiting each way, and lines a second (each within kMaxMessage). The host's busiest
-// second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths); the guest paces her claims to
-// 41. A full outbox, sent at once when Steam takes lines again after refusing them, fits in one second with the
-// busiest.
+// second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths), plus the pilot's show lines
+// (a show and its stop, a few a second per enemy); the guest paces her claims to 41. A full outbox, sent at once when
+// Steam takes lines again after refusing them, fits in one second with the busiest.
 constexpr size_t kFightQueue = 256;
 constexpr uint64_t kFightPerSecond = 2 * kFightQueue, kFightBytesPerSecond = kFightPerSecond * kMaxMessage;
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
@@ -299,7 +301,7 @@ struct Counters {
 
 class Link {
 public:
-  // binary: a handshaken member's channel-1 message (her table or pose), called from tick().
+  // binary: a handshaken member's channel-1 message (her table, pose or SBE), called from tick().
   Link(const Api &api, std::string mod_version, std::function<void(const std::string &)> event,
        std::function<void(const uint8_t *, size_t)> binary = nullptr)
       : api_(api), mod_(token(std::move(mod_version))), event_(std::move(event)), binary_(std::move(binary)) {}
@@ -395,7 +397,7 @@ public:
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }
 
-  // The pose path's table (reliable) or pose (unreliable), on channel 1 to every friend past the handshake only.
+  // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every friend past the handshake only.
   // Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
   // line's queue). Over 100 ms, add NoDelay (4) or SendRateMin/Max through SetConfigValue.
@@ -1079,8 +1081,9 @@ private:
     }
   }
 
-  // Channel 1: bytes the link never reads, handed on only from a member past the handshake, within kMaxBinary and the
-  // rate limit. A friend's flood or a stranger's junk stops here. Liveness stays channel 0's.
+  // Channel 1: bytes the link never reads (tables, poses and SBE alike), handed on only from a member past the
+  // handshake, within kMaxBinary and the rate limit. A friend's flood or a stranger's junk stops here. Liveness stays
+  // channel 0's.
   void receive_binary() {
     NetMessage *batch[16];
     int n = api_.receive(msgs_, kPoseChannel, batch, 16);
@@ -1122,8 +1125,9 @@ private:
     }
   }
 
-  // Per member and channel, one window a second. Channel 1: 160 messages and 1 MiB, 2.6 times her 60 Hz stream with
-  // its table, and 5 times her byte budget (pose_codec.h); channel 2: kFightPerSecond lines. Only what passes counts.
+  // Per member and channel, one window a second. Channel 1: 240 messages and 1 MiB, 2.6 times her 60 poses and 30 SBE
+  // a second with her table, and 5 times her byte budget (pose_codec.h); channel 2: kFightPerSecond lines. Only what
+  // passes counts.
   bool over_rate(Window &w, size_t size, uint64_t count, uint64_t bytes) {
     if (now_ - w.at >= 1000) {
       w.at = now_;

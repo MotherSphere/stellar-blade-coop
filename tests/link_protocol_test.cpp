@@ -146,10 +146,16 @@ int main() {
   // without a word. Protocol 8 makes her lobby tag and hello refuse the link instead; her lines are dropped too.
   // A v0.3.0 peer runs protocol 9: it would drop the shared fight's scale line as malformed and keep its copies at
   // their own maxes while the host's are scaled, so the two HP bars would disagree. Protocol 10 refuses the link.
-  static_assert(kProtocol == 10, "10 adds the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
+  // A stage 2 peer runs protocol 10: it would count the pilot's show lines as malformed and its SBE as junk, so its
+  // copies would stay where its own game puts them. Protocol 11 refuses the link.
+  static_assert(kProtocol == 11, "11 adds SBE and the show lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 "
+                                 "say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
-         lobby_tag(24463856) != "9:24463856");
+         lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856");
   assert(parse_text("SBC9 ping 1 2").kind == Kind::invalid && parse_text("SBC9 vit 1").kind == Kind::invalid);
+  assert(parse_text("SBC10 ping 1 2").kind == Kind::invalid && parse_text("SBC10 paks 1 5").kind == Kind::invalid);
+  m = parse_text("SBC hello 10 v0.4.0 24463856"); // Still answered: the link rejects it by its number.
+  assert(m.kind == Kind::hello && m.a == 10);
   assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
   assert(parse_text("SBC8 say hi").kind == Kind::invalid && parse_text("SBC8 vit 1").kind == Kind::invalid);
   assert(fight_tag() == "SBF" + std::to_string(kProtocol));

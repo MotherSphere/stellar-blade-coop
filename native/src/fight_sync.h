@@ -11,22 +11,24 @@
 // Channel 2 (link_core.h), plain text after link_protocol.h's fight_tag(), integers only (HP, Shield and Stamina are
 // whole units in the game). An enemy is named by the host's ActorGUID (hguid), which SB reuses only after 5,000,000
 // spawns; gen is the host's world generation.
-//   SBF10 on, SBF10 off <reason>                                   both, reliable: the feature's state
-//   SBF10 world <gen>                                              both, reliable: a world change, all pairs dropped
-//   SBF10 scale <gen> <hp %> <balance %>                           host, reliable, after its world when it scales:
+//   SBF11 on, SBF11 off <reason>                                   both, reliable: the feature's state
+//   SBF11 world <gen>                                              both, reliable: a world change, all pairs dropped
+//   SBF11 scale <gen> <hp %> <balance %>                           host, reliable, after its world when it scales:
 //                                                                  MaxHP and MaxStamina, kMinScale to kMaxScale
-//   SBF10 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
+//   SBF11 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
 //                                                                  game's own MaxHP (never a scaled one)
-//   SBF10 down <gen> <hguid>, SBF10 dead <gen> <hguid>             host, reliable: gone without a death, or its death
-//   SBF10 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...            host, unreliable: values; n: the turn's number,
+//   SBF11 down <gen> <hguid>, SBF11 dead <gen> <hguid>             host, reliable: gone without a death, or its death
+//   SBF11 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...            host, unreliable: values; n: the turn's number,
 //                                                                  rising, shared by its lines; ack: last claim taken;
 //                                                                  hp 0 while a kill waits (Host::apply)
-//   SBF10 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>  guest, reliable: drops since its last claim, the HP
+//   SBF11 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>  guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
-//   SBF10 cc <gen> <hguid> <effect>                                both, reliable: a crowd control (kCcEffects) that
+//   SBF11 cc <gen> <hguid> <effect>                                both, reliable: a crowd control (kCcEffects) that
 //                                                                  started on our copy
 // The host answers the guest's on and world with its whole list (world, its scale, then every up), and the guest
 // answers the host's on with its own (hers may have come while the host was off), so either side may restart.
+// Same-place enemies (pilot.h) send their show, show-set and show-stop lines on this channel with the same tag, from
+// the side that owns an enemy; pilot_line() tells them apart, and pilot.h parses them.
 #pragma once
 
 #include <algorithm>
@@ -240,6 +242,14 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     return Message();
   m.type = type;
   return m;
+}
+
+// One of same-place enemies' lines (pilot.h's show, show-set or show-stop), by its tag and word only: the worker hands
+// it to the pilot, never to parse(), which takes none.
+inline bool pilot_line(const std::string &text) {
+  std::string head[2], rest;
+  return split(text, head, 2, &rest) && head[0] == fight_tag() &&
+         (head[1] == "show" || head[1] == "show-set" || head[1] == "show-stop");
 }
 
 // ---- The game, as the engine hands it over ----
@@ -1231,7 +1241,7 @@ private:
 
 // ---- Record and replay ----
 
-// The host's lines as sent (world, scale, up, down, dead, hp, cc), each "<ms since the start> <SBF10 text>\n", in a
+// The host's lines as sent (world, scale, up, down, dead, hp, cc), each "<ms since the start> <SBF11 text>\n", in a
 // file the worker writes at the stop; read back whole and checked, then played once into the guest role. The first
 // line is a world (the recorder starts with the host's list), so the guest takes the recorded generation; pairing goes
 // by key, so a recorded enemy pairs with the same spawn after a camp rest.

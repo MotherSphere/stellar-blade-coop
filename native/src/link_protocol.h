@@ -9,8 +9,9 @@
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
 //   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
-// (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h). Channel 2 carries the shared
-// enemies' text lines, which start with fight_tag() (fight_sync.h parses them).
+// (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
+// roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
+// pilot's show lines, which start with fight_tag() (fight_sync.h and pilot.h parse them).
 #pragma once
 
 #include <array>
@@ -23,7 +24,7 @@
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 10; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 11; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -31,8 +32,10 @@ constexpr int kProtocol = 10; // Bump on any wire change. 1 was the first link (
                               // delta (SBD) on channel 1, which a protocol-8 peer would count malformed; 10 adds the
                               // shared fight's scale line, which a protocol-9 guest would drop as malformed, keeping
                               // its copies at their own maxes while the host's grow, and the paks line (a protocol-9
-                              // peer would count it invalid). An older peer (6: v0.1.1, 7:
-                              // v0.2.0, 9: v0.3.0) is told why: the lobby tag, then the hello's reject, name both.
+                              // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
+                              // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
+                              // copies where its own game puts them. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
+                              // 10: stage 2's builds) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -174,7 +177,7 @@ inline std::string vit_line(const Vitals &v) {
 // The .pak mods our game loads beyond the base game's (pak_list.h), reliable, once to each friend past the handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
-// Channel 2's tag, versioned like channel 0's: "SBF10".
+// Channel 2's tag, versioned like channel 0's: "SBF11".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.

@@ -41,6 +41,8 @@ namespace coop::pilot {
 constexpr size_t kMaxEnemies = fight::kMaxPairs;
 constexpr size_t kHeaderBytes = 19, kEntryBytes = 26, kMaxSbe = kHeaderBytes + kMaxEnemies * kEntryBytes;
 constexpr uint8_t kBattle = 1, kDying = 2; // BattleMode (state 30); HP <= 0 or state 32.
+constexpr unsigned kSbeHz = 30;            // One message every other frame at 60 fps.
+static_assert(kMaxSbe * kSbeHz <= size_t(pose::kSbeBytesPerSecond), "the pose budget gives up enough for SBE");
 
 struct SbeHeader {
   uint16_t gen = 0;

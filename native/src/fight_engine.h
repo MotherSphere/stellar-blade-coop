@@ -1304,6 +1304,8 @@ public:
         });
     own_session();
     for (const std::string &text : lines) {
+      if (pilot_line(text)) // Same-place enemies' (pilot.h): never the job's.
+        continue;
       std::string reason;
       const Message m = parse(text.data(), text.size(), &reason);
       if (m.type == Type::invalid) {

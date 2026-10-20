@@ -518,9 +518,13 @@ int main() {
     assert(text.find(" 255,7,2147483647,-3000,") != std::string::npos && same(parsed(text), l));
     ShowLine s;
     s.kind = Kind::set, s.gen = 7, s.guid = 4100, s.oe = 3, s.id = 250, s.t_ms = 99, s.rate = 0, s.step = 65535;
-    assert(format(s) == tag + " show-set 7 4100 3 250 99 0 65535" && same(parsed(format(s)), s));
+    const std::string good_set = format(s);
+    assert(good_set == tag + " show-set 7 4100 3 250 99 0 65535" && same(parsed(good_set), s));
     s.kind = Kind::stop, s.rate = s.step = 0;
     assert(format(s) == tag + " show-stop 7 4100 3 250 99" && same(parsed(format(s)), s));
+    // Channel 2's worker tells all three from the shared fight's lines, which never parse as one.
+    assert(coop::fight::pilot_line(text) && coop::fight::pilot_line(format(s)) && coop::fight::pilot_line(good_set));
+    assert(parsed(tag + " world 3").kind == Kind::invalid && parsed(tag + " on").kind == Kind::invalid);
     // Form 1, as given: each Show root.
     for (const char *path : {"/Game/Art/Show/A/B.C", "/Game/Art/FX/Show/X/Y", "/Game/DLC_1/Art/Show/Boss/P_1"}) {
       ShowLine f = show_line();
