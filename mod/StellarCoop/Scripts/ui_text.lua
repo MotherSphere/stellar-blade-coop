@@ -35,9 +35,7 @@ T.en={
     join={title='JOIN WITH A CODE',hint='XXX-XXXX',join='Join',cancel='Cancel',
         bad='A join code is 7 letters and digits, like XXX-XXXX.'},
     ask={title='%s wants to join',someone='A player',accept='Accept',deny='Deny',
-        about='Not on your Steam friends list. Denied in %d s without an answer.',
-        auto='3 players were refused in this session, so new requests are denied without a question. Host again for a '
-            ..'new code.'},
+        about='Not on your Steam friends list. Denied in %d s if you do not answer.'},
     -- The question at the title (saves.lua), its notices, and the one in a session on your own save.
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
@@ -89,9 +87,7 @@ T.fr={
     join={title='REJOINDRE AVEC UN CODE',hint='XXX-XXXX',join='Rejoindre',cancel='Annuler',
         bad='Un code compte 7 lettres et chiffres, comme XXX-XXXX.'},
     ask={title='%s veut rejoindre la partie',someone='Un joueur',accept='Accepter',deny='Refuser',
-        about='Pas dans vos amis Steam. Refusé dans %d s sans réponse.',
-        auto='3 joueurs ont été refusés dans cette session : les nouvelles demandes sont refusées sans question. '
-            ..'Hébergez à nouveau pour avoir un nouveau code.'},
+        about='Pas dans vos amis Steam. Refusé dans %d s si vous ne répondez pas.'},
     saves={title='SAUVEGARDES CO-OP',new='Jouer en co-op sur des copies de vos sauvegardes ?',
         new_about='StellarCoop copie vos sauvegardes dans des fichiers co-op séparés, et la partie que vous chargez '
             ..'ensuite est une de ces copies. Vos propres sauvegardes ne changent pas.',

@@ -4,10 +4,10 @@
 -- dash, closes on an empty box, and keeps any other text with a line saying what a code looks like; Esc cancels; the
 -- game's input comes back 150 ms after a close, not under a box opened again; it closes when the world goes, the game
 -- pauses, a session starts or the kit turns off. The host's question: a player who is not her Steam friend asks to
--- join; "<name> wants to join" with Deny focused, the menu closed and the alert played as it opens; up and down move,
--- Enter answers, Esc denies; each player asked once a lobby; 30 s with no answer denies, open or not; it waits while
--- the chat box is open or the game is paused, and hides then; a name is cleaned and cut; from 3 refusals in a lobby the
--- next players are denied with no question and one notice; coop ui reset denies an open question; coop off ends it.
+-- join; "<name> wants to join" with Deny focused, the menu closed and the alert played as it opens; every key does
+-- nothing for 1 s after it shows; then up and down move, Enter answers, Esc denies; each player asked once a lobby;
+-- no answer runs nothing, the native part's 60 s answer; it waits while the chat box is open or the game is paused,
+-- and hides then; a name is cleaned and cut; coop ui reset denies an open question; coop off ends it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -55,15 +55,14 @@ function kit.input(on,who) -- As the kit: each once, and off only from the one w
     end
 end
 local function since(n) return table.concat(calls,'|',n+1) end
--- The link as of its last read: the mode, the lobby, our code and refusals, the joiner waiting.
-local link={m='none',at='0',refused=nil,waiting=nil}
+-- The link as of its last read: the mode, the lobby, the joiner waiting.
+local link={m='none',at='0',waiting=nil}
 function link.mode() return link.m end
 function link.lobby() return link.at end
-function link.code() return nil,link.refused end
 function link.pending() return link.waiting end
 link.join_code=require('link').join_code -- The real one (link_test tests it).
 -- The console's commands (main.lua's run): each call kept as 'name arg'; refusal: what the next one answers.
-local ran,refusal,said,logged={},nil,{},{}
+local ran,refusal,said={},nil,{}
 local function run(name,arg)
     ran[#ran+1]=name..(arg and ' '..arg or '')
     if refusal then local why=refusal; refusal=nil; return false,why end
@@ -79,7 +78,7 @@ local Join=require('join')
 local TH={error='red'}
 local box=Join.box({kit=kit,link=link,settings=settings,theme=TH,run=run})
 local ask=Join.ask({kit=kit,link=link,settings=settings,theme=TH,run=run,say=function(t) said[#said+1]=t end,
-    log=function(t) logged[#logged+1]=t end,menu=menu,chat=chat})
+    menu=menu,chat=chat})
 assert(placed[1]=='code' and placed[2]=='ask' and built.code.place.hit and not built.code.place.shown
     and not built.ask.place.hit and not built.ask.place.shown,'Both hidden at first; the box takes the mouse')
 local code,field=built.code.view,fields.code
@@ -155,59 +154,66 @@ clock=10; box.tick(clock); assert(#calls==n)
 -- it, the alert; Deny focused.
 local q=built.ask.view
 local function shown_rows() return q.rows[1].l..'|'..q.rows[1].st..' '..q.rows[2].l..'|'..q.rows[2].st end
-link.m,link.at,link.refused='host','7000',0
+link.m,link.at='host','7000'
 ask.slow(true); assert(not ask.is_open(),'Nobody asks')
 link.waiting={id='76561198000000009',name='Stranger'}
 menu.open=true
 n=#calls
 ask.slow(true)
 assert(ask.is_open() and since(n)=='menu closed|show ask true|input true ask|sound alert')
-assert(q.title.s=='Stranger wants to join' and q.about.s=='Not on your Steam friends list. Denied in 30 s without an '
-    ..'answer.' and shown_rows()=='Accept|normal Deny|focus' and q.hints[1].s=='Move' and q.hints[3].s=='Deny')
+assert(q.title.s=='Stranger wants to join' and q.about.s=='Not on your Steam friends list. Denied in 60 s if you do '
+    ..'not answer.' and shown_rows()=='Accept|normal Deny|focus' and q.hints[1].s=='Move' and q.hints[3].s=='Deny')
+-- It opened on its own: for 1 s every key does nothing (a walk forward then a jump, a stray Enter or Esc).
+local runs
+n,runs=#calls,#ran
+for _,what in ipairs({'up','select','down','back'}) do ask.nav(what) end
+clock=10.99; ask.nav('up'); ask.nav('select')
+assert(ask.is_open() and #ran==runs and #calls==n and shown_rows()=='Accept|normal Deny|focus','1 s: nothing')
 -- Up and down move; Enter on Accept lets her in; asked once: her line, until the native part drops it, opens nothing.
-ask.nav('up'); assert(shown_rows()=='Accept|focus Deny|normal' and calls[#calls]=='sound move')
+clock=11; ask.nav('up'); assert(shown_rows()=='Accept|focus Deny|normal' and calls[#calls]=='sound move')
 ask.nav('left'); assert(shown_rows()=='Accept|focus Deny|normal','Left and right: nothing')
 n=#calls
 ask.nav('select')
 assert(ran[#ran]=='allow 76561198000000009' and not ask.is_open()
     and since(n)=='sound select|show ask false|sound close')
-clock=10.1; ask.tick(clock); assert(calls[#calls]=='sound close')
-clock=10.2; ask.tick(clock); assert(calls[#calls]=='input false ask','The game gets its keys 150 ms after')
-local runs=#ran
-for _=1,200 do ask.slow(true) end
-assert(not ask.is_open() and #ran==runs,'Answered: never asked again, nor denied at 30 s')
+clock=11.1; ask.tick(clock); assert(calls[#calls]=='sound close')
+clock=11.2; ask.tick(clock); assert(calls[#calls]=='input false ask','The game gets its keys 150 ms after')
+runs=#ran
+for _=1,300 do ask.slow(true) end
+assert(not ask.is_open() and #ran==runs,'Answered: never asked again')
 -- Another one: Esc denies; Enter on the Deny it starts on denies.
 link.waiting={id='76561198000000008',name='Two'}
 ask.slow(true); assert(ask.is_open() and shown_rows()=='Accept|normal Deny|focus')
-ask.nav('back'); assert(ran[#ran]=='deny 76561198000000008' and calls[#calls-2]=='sound back')
+clock=12.2; ask.nav('back'); assert(ran[#ran]=='deny 76561198000000008' and calls[#calls-2]=='sound back')
 link.waiting={id='76561198000000007',name='Three'}
-ask.slow(true); ask.nav('down'); ask.nav('down'); ask.nav('select')
+ask.slow(true); clock=13.2; ask.nav('down'); ask.nav('down'); ask.nav('select')
 assert(ran[#ran]=='deny 76561198000000007')
--- 30 s with no answer denies, whether it shows or not: hidden while the chat box is open or the game is paused (the
--- game's input given back), shown again after with Deny focused and the seconds left.
+-- Hidden while the chat box is open or the game is paused (the game's input given back), shown again after with Deny
+-- focused, the seconds left and its 1 s with no keys.
 link.waiting,clock={id='76561198000000006',name=''},20
 chat.open=true
 n=#calls
 ask.slow(true); assert(not ask.is_open() and since(n)=='','The chat box open: it waits')
 chat.open=false
 for _=1,39 do ask.slow(true) end
-assert(ask.is_open() and q.title.s=='A player wants to join' and q.about.s:find('in 20 s ',1,true),q.about.s)
+assert(ask.is_open() and q.title.s=='A player wants to join' and q.about.s:find('in 50 s ',1,true),q.about.s)
 link.waiting.name='Late Name'
-ask.nav('up'); ask.slow(true); assert(q.title.s=='Late Name wants to join','Her name, once Steam has it')
+clock=21; ask.nav('up'); ask.slow(true); assert(q.title.s=='Late Name wants to join','Her name, once Steam has it')
 state.paused=true; ask.slow(true); assert(not ask.is_open())
-clock=20.2; ask.tick(clock); assert(calls[#calls]=='input false ask')
+clock=21.2; ask.tick(clock); assert(calls[#calls]=='input false ask')
 state.paused=false; ask.slow(true); assert(ask.is_open() and shown_rows()=='Accept|normal Deny|focus')
+ask.nav('up'); assert(shown_rows()=='Accept|normal Deny|focus','Shown again: 1 s with no keys')
 ask.slow(false); assert(not ask.is_open(),'Our HUD hidden: no world, our photo mode')
+-- No answer runs nothing, shown or not: the native part refuses her at 60 s and drops her line. The seconds left
+-- stop at 0 if its line is late.
 runs=#ran
-for _=1,75 do ask.slow(false) end
-assert(#ran==runs and #logged==0)
-ask.slow(false)
-assert(ran[#ran]=='deny 76561198000000006' and logged[1]=='join: no answer from the host in 30 s: denied')
--- The UI off: no question, the 30 s still apply.
+for _=1,300 do ask.slow(false) end
+ask.slow(true); assert(ask.is_open() and #ran==runs and q.about.s:find('in 0 s ',1,true),q.about.s)
+link.waiting=nil; ask.slow(true); assert(not ask.is_open() and #ran==runs)
+-- The UI off: no question, nothing run.
 link.waiting,state.off={id='76561198000000005',name='Five'},true
-for _=1,119 do ask.slow(true) end
-assert(not ask.is_open() and ran[#ran]=='deny 76561198000000006')
-ask.slow(true); assert(ran[#ran]=='deny 76561198000000005')
+for _=1,300 do ask.slow(true) end
+assert(not ask.is_open() and #ran==runs)
 state.off=false
 -- Her line gone before an answer (she left, or the console answered): closed, nothing run. An unread status (no mode)
 -- changes nothing.
@@ -216,27 +222,19 @@ ask.slow(true); assert(ask.is_open())
 link.m=nil; link.waiting=nil; ask.slow(true); assert(ask.is_open(),'Unread')
 link.m='host'; runs=#ran
 ask.slow(true); assert(not ask.is_open() and #ran==runs)
--- A name is hers to choose: cleaned (controls, broken UTF-8) and cut to 24 characters.
+-- A name is hers to choose: cleaned (controls, broken UTF-8) and cut to 16 characters.
 link.waiting={id='76561198000000003',name='\27[31mÉve\226\128\174 '..('x'):rep(40)..' %s %d'}
 ask.slow(true)
-assert(q.title.s=='[31mÉve '..('x'):rep(16)..'... wants to join',q.title.s)
+assert(q.title.s=='[31mÉve '..('x'):rep(8)..'... wants to join',q.title.s)
 assert(Join.name('')==nil and Join.name('\1\2')==nil and Join.name('Kaanta')=='Kaanta')
 -- An answer that cannot be written: said on screen.
 refusal='cannot write coop-request.txt'
-ask.nav('select')
+clock=clock+1; ask.nav('select')
 assert(ran[#ran]=='deny 76561198000000003' and said[#said]=='cannot write coop-request.txt')
--- 3 players refused in this lobby (the native part's count): the next ones are denied with no question and one notice.
-link.refused,link.waiting=3,{id='76561198000000002',name='Six'}
-n=#calls
-ask.slow(true)
-assert(not ask.is_open() and ran[#ran]=='deny 76561198000000002' and since(n)=='' and said[#said]=='3 players were '
-    ..'refused in this session, so new requests are denied without a question. Host again for a new code.')
-link.waiting={id='76561198000000001',name='Seven'}
-ask.slow(true); assert(ran[#ran]=='deny 76561198000000001' and #said==2,'One notice a lobby')
--- A new lobby: every answer and the notice of the last one forgotten.
-link.at,link.refused,link.waiting='7001',0,{id='76561198000000009',name='Stranger'}
+-- A new lobby: every answer of the last one forgotten.
+link.at,link.waiting='7001',{id='76561198000000009',name='Stranger'}
 ask.slow(true); assert(ask.is_open(),'Asked again in a new lobby')
--- coop ui reset: an open question denied. coop off: nothing more, the 30 s included.
+-- coop ui reset: an open question denied. coop off: nothing more.
 ask.close(); assert(ran[#ran]=='deny 76561198000000009' and not ask.is_open())
 ask.close(); assert(ran[#ran]=='deny 76561198000000009','Closed: nothing')
 link.at='7002'; ask.slow(true); assert(ask.is_open())

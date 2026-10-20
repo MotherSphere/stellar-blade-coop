@@ -84,7 +84,8 @@ changes one line of the file at a time, and keeps the file as it was before its 
   default); a key set there hosts at once, without the menu. If two actions share one key, all four keys go back to
   their defaults. A file written before the menu existed has no `menu_key` line: the menu then opens on that file's
   `host_key`, and no key hosts at once.
-- `who_can_join`: `friends` (the default: your Steam friends can join from their friends list) or `private` (only the
+- `who_can_join`: `friends` (the default: your Steam friends can join from their friends list), `code` (anyone with
+  your join code can join; a player who is not your Steam friend waits for your answer) or `private` (only the
   friends you invite can join). It counts for the next session you host.
 - `name_tag`: `on` or `off`, your friend's Steam name above their ghost. While the partner marker shows their name
   (`partner_bar=on`, the default), the name tag is hidden.

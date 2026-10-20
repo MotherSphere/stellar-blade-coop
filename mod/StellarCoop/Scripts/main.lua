@@ -339,7 +339,7 @@ if settings then
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
     menu=require('menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box})
-    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,log=log,menu=menu,chat=box})
+    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box})
     saves_ui=require('saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,log=log})
 end
 -- Enter with nothing open asks for the chat's box (chat_asked, os.clock), which opens 0.1 s later unless a coop command
@@ -568,7 +568,9 @@ if settings then
             {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
             {'SPACE','select'}}) do
         bind(nav[1],nil,function()
-            if approval.is_open() then ExecuteInGameThread(function() approval.nav(nav[2]) end)
+            -- The host's question opens on its own: the arrows only, never W, S or Space (walking, jumping, the menu).
+            if approval.is_open() then
+                if nav[1]:find('_ARROW$') then ExecuteInGameThread(function() approval.nav(nav[2]) end) end
             elseif menu.is_open() then ExecuteInGameThread(function() menu.nav(nav[2]) end)
             elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav(nav[2]) end) end
         end)

@@ -1161,12 +1161,17 @@ quarter()
 assert(not kit_shown.menu and kit_shown.ask and kit_holder=='ask' and kit_views.ask.title.s=='Two wants to join')
 n=#asked
 key('F5'); key('F6'); assert(not kit_shown.menu and #asked==n and not logged('key F6: status'),'Our keys rest')
+-- It opened on its own: a walk forward and a jump, then any key for 1 s, answer nothing; later W, S and Space still
+-- do nothing there.
+key('W'); key('SPACE'); key('UP_ARROW'); key('RETURN'); key('ESCAPE')
+clock=clock+1; key('W'); key('Z'); key('SPACE'); key('S'); key('SPACE')
+assert(#asked==n and kit_shown.ask and not kit_shown.chat,'Stray keys: nothing')
 key('UP_ARROW'); key('RETURN')
 clock=clock+0.25; loops[1].f()
 assert(asked[#asked]=='allow 76561198000000008' and not kit_shown.ask and not kit_shown.chat,'Enter: let in, no chat')
 link_pending={id='76561198000000007',name='Three'}
 quarter(); assert(kit_shown.ask)
-key('ESCAPE'); assert(asked[#asked]=='deny 76561198000000007' and not kit_shown.ask)
+clock=clock+1; key('ESCAPE'); assert(asked[#asked]=='deny 76561198000000007' and not kit_shown.ask)
 link_pending={id='76561198000000006',name='Four'}
 quarter(); assert(kit_shown.ask)
 coop('ui','reset'); assert(asked[#asked]=='deny 76561198000000006' and not kit_shown.ask,'Reset: denied')

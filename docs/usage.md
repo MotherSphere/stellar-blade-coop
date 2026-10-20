@@ -208,19 +208,18 @@ part checks the code: most codes with a wrong character get `That is not a join 
 
 A player who is not your Steam friend waits for your answer, whatever Who can join says. Their game shows
 `Joined <host>'s game. Waiting to be let in.` Yours shows a question in the middle of the screen, `<name> wants to
-join`, with Accept and Deny. Deny has the focus when it opens, so one key pressed for something else never lets
-that player in.
+join`, with Accept and Deny. It opens on its own, maybe while you walk or use the menu. Deny has the focus, and for
+1 s after it shows every key does nothing, so keys pressed for something else never answer it.
 
-- Up and down move between Accept and Deny, Enter or Space answers, and Esc denies. While the question is open, the
-  game ignores its own keys and the mod's keys do nothing.
+- The Up and Down arrows move between Accept and Deny, Enter answers, and Esc denies. W, S and Space do nothing here.
+  While the question is open, the game ignores its own keys and the mod's keys do nothing.
 - The question opens in a world, while the game is not paused and the chat box is closed, and closes the co-op menu.
   Until then it waits. It hides while the game pauses and comes back after.
-- With no answer for 30 s, the player is denied, even if the question never showed (with `coop ui off`, for example).
-  The native part refuses them after 60 s on its own.
+- With no answer for 60 s, the native part refuses the player, even if the question never showed (with
+  `coop ui off`, for example). The question shows the seconds left.
 - A denied or removed player cannot come back to that lobby. Their game shows `<host> refused the link: you were not
   let in` (or `you were removed from this session`) and leaves.
-- After 3 players were refused in one lobby (denied, removed, or gone before an answer), the next ones are denied with
-  no question, and one notice says so. Host again to get a new code.
+- If players you do not know keep asking, host again: the new lobby gets a new code.
 - While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
   (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
@@ -591,7 +590,6 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
 | Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed.` |
-| 3 players refused in one lobby | `3 players were refused in this session, so new requests are denied without a question. Host again for a new code.` |
 | Could not join | `Could not join: that game no longer exists.`, `... that game is full.` or `... Steam response <n>.` |
 | A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
 | Connection lost | `<name>: connection lost.` |

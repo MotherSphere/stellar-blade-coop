@@ -132,10 +132,11 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
 
-On the host, `join.lua` turns the first `pending=` line into a question on screen and writes the answer. It denies
-after 30 s with no answer, before the native part's 60 s, and asks each player once a lobby. From the `code=` line's
-`refused=3`, it denies the next players with no question. `link.lua` keeps in memory which lobby members waited for an
-answer, for the menu's Remove row, so a Lua reload forgets them.
+On the host, `join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks each
+player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a key
+press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
+`link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
+forgets them.
 
 None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject, which protocol 8 already
 has.
