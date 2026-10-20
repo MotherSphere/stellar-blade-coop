@@ -3,14 +3,16 @@
 // samples drawn on the ghost's own playback clock, with interpolation, the 150 ms extrapolation cap, the warp, hole and
 // 3 m snaps and the velocity; the drawn copy's four states with the 2 m convergence snap; the capture list and its
 // restore order; the three show lines (round trips, the R33 refusals for both path forms and the context, a fuzz),
-// the timeline with its late flag, the line ids on both sides and the dedupe window; and the FNamePool decode and the
-// compact id over fake blocks.
+// the timeline with its late flag, the line ids on both sides and the dedupe window; the FNamePool decode and the
+// compact id over fake blocks; and two worlds through a fake Steam (120 +/- 30 ms, 2 % loss): the guest's copies
+// against the host's enemies at the same host time, the show lines in order, and restore at host loss.
 #include "pilot.h"
 
 #include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <algorithm>
 #include <map>
 #include <random>
 #include <string>
@@ -855,6 +857,298 @@ int main() {
     assert(id("/Game/Art/Show/" + std::string(200, 'a'), std::string(200, 'a')) == "0:" + std::string(200, 'a'));
     assert(id("/Game/Art/Show/" + std::string(201, 'a'), std::string(201, 'a')) == "<refused>");
     assert(id("/Game/Art/Show/" + std::string(190, 'a'), "bb") == "<refused>"); // pkg.obj too long.
+  }
+
+  // ---- Two worlds: the host pilots the guest's copies through a fake Steam (exit criterion 1 of stage 3a) ----
+  // Channel 1 (unreliable, 2 % of 1200-byte segments lost) carries the host's SBE at 30 Hz and, at 60 Hz, a small
+  // stand-in for each pose, which only feeds the ghost's playback clock; channel 2 (reliable) carries the show lines.
+  // Both are 120 +/- 30 ms one way and keep their order (pose_stream.h's DelayLine, the loopback's line), and the
+  // guest's worker takes them every 5 ms. Her clock runs 7.65 s ahead of the host's and her frames come 5 ms after his.
+  // Four paired enemies: one circling at 4 m/s, one standing, one walking 8 m (6 m/s at most) and resting 2 s at each
+  // end, one running a curve at up to 8 m/s; each plays Shows (the walker two at once) whose rate goes up halfway. For
+  // 50 s she draws each copy at the ghost's draw time and replays each line once that time reaches its stamp; then the
+  // host is lost. Against the host's own position at the same host time, the copy stays within 30 cm while it moves
+  // and 5 cm at rest, with no snap; every line applies in the host's order, once its stamp is reached and within about
+  // a frame of it, none late, each show-set and show-stop naming a live replay; restore stops every live replay and
+  // leaves no copy frozen, out of SB's movement manager or with our speed override.
+  {
+    using coop::pose::DelayLine;
+    using coop::pose::Playback;
+    constexpr uint32_t kGen = 5;
+    constexpr int kN = 4;
+    constexpr uint64_t kOffset = 7'654'321, kFrame = 16'667, kEnd = 50'000'000, kFreeze = 300'000, kWarm = 2'000'000;
+    // Enemy i of the host at host time ms: location (cm) and yaw (degrees).
+    auto truth = [](int i, double ms, float *loc, float &yaw) {
+      const double s = ms / 1000;
+      loc[2] = 20, yaw = 0;
+      if (i == 0) { // A 6 m circle at 4 m/s, facing along it.
+        const double a = s * 400 / 600;
+        loc[0] = float(600 * std::cos(a)), loc[1] = float(600 * std::sin(a)), yaw = float(a * 180 / kPi + 90);
+      } else if (i == 1) {
+        loc[0] = 1000, loc[1] = 500, yaw = 30;
+      } else if (i == 2) { // 2 s at rest, 8 m along X in 2 s (smoothstep), 2 s at rest, back in 2 s.
+        const double c = std::fmod(s, 8);
+        double u = c < 2 ? 0 : c < 4 ? (c - 2) / 2 : c < 6 ? 1 : 1 - (c - 6) / 2;
+        loc[0] = float(2000 + 800 * u * u * (3 - 2 * u)), loc[1] = 0;
+      } else { // 5 m/s along X, 3 m to each side every 3 s.
+        const double w = 2 * kPi / 3;
+        loc[0] = float(4000 + 500 * s), loc[1] = float(300 * std::sin(w * s));
+        yaw = float(std::atan2(300 * w * std::cos(w * s), 500) * 180 / kPi);
+      }
+    };
+    // Enemy i's Shows: one every `every` ms from `from`, each `last` ms long, its rate 1.5 from halfway.
+    struct Plan {
+      uint64_t from, every, last;
+    };
+    const Plan plan[kN] = {{1000, 1500, 1000}, {1100, 2000, 700}, {1200, 600, 1000}, {1300, 900, 400}};
+
+    // The guest's copy of each enemy, as the game thread sees it, and what restore puts back.
+    struct Fake {
+      Owner owner{kGen, kHost, 0};
+      Track track;
+      Copy copy;
+      Capture cap;
+      Lines lines;
+      float loc[3] = {}, quat[4] = {0, 0, 0, 1};
+      bool ai = false, cmc = true; // Our BlockAI on it; its CMC in SB's parallel manager.
+      uint8_t speed = 0;           // char+0xC68.
+      std::vector<uint64_t> live;  // Replays playing on it, by handle.
+    } copies[kN];
+    struct FakeUndo {
+      Fake &c;
+      void stop(const Live &l) {
+        uint64_t h;
+        std::memcpy(&h, l.handle, 8);
+        auto at = std::find(c.live.begin(), c.live.end(), h);
+        assert(at != c.live.end()); // Never one stopped twice, nor one never started.
+        c.live.erase(at);
+      }
+      void cmc_on() { c.cmc = true; }
+      void speed(uint8_t was) { c.speed = was; }
+    };
+    for (int i = 0; i < kN; ++i) { // Where her own game put the copy: 50 cm off.
+      float yaw = 0;
+      truth(i, 0, copies[i].loc, yaw);
+      copies[i].loc[0] += 50;
+    }
+
+    DelayLine ch1, ch2;
+    ch1.set({120, 30, 2}, 99);
+    ch2.set({120, 30, 0}, 98);
+    Playback playback;
+    playback.reset(0);
+    Timeline timeline;
+    Outbox outbox[kN];
+    struct Said {
+      int enemy;
+      Kind kind;
+      uint8_t id;
+      uint64_t t_ms;
+    };
+    std::vector<Said> sent, applied;
+    struct In {
+      std::vector<uint8_t> bytes;
+      uint64_t arrival; // The guest's clock, µs.
+    };
+    std::vector<In> in1, in2;
+    uint32_t pose_seq = 0, sbe_seq = 0;
+    uint64_t handles = 0, host_frames = 0, next_host = 1000, next_guest = 6000; // The pose clock is never 0.
+    double worst_moving = 0, worst_rest = 0, worst_turn = 0, worst_after = 0;
+    size_t moving = 0, rest = 0, snaps = 0, late = 0, unknown = 0, not_drawn = 0, refused = 0, extrapolated = 0;
+    for (uint64_t t = 1000; t <= kEnd; t += 1000) {
+      if (t >= next_host) { // The host's frame: a pose every frame, SBE and the Shows every other one.
+        next_host += kFrame;
+        uint8_t pose[13] = {'P'}, *o = pose + 1;
+        coop::pose::codec::put(o, ++pose_seq, 4);
+        coop::pose::codec::put(o, t, 8);
+        ch1.send(pose, sizeof pose, t);
+        if (host_frames++ % 2 == 0) {
+          Entry e[kN];
+          for (int i = 0; i < kN; ++i) {
+            float yaw = 0, ahead[3], later = 0;
+            truth(i, t / 1000.0, e[i].loc, yaw);
+            truth(i, t / 1000.0 + 1, ahead, later);
+            e[i].guid = 4100 + uint32_t(i), e[i].rot[1] = axis_short(yaw);
+            const float dx = ahead[0] - e[i].loc[0], dy = ahead[1] - e[i].loc[1];
+            e[i].speed = speed_cm(std::sqrt(dx * dx + dy * dy) * 1000);
+          }
+          SbeHeader h;
+          h.gen = uint16_t(kGen), h.seq = ++sbe_seq, h.publication = t;
+          uint8_t sbe[kMaxSbe];
+          ch1.send(sbe, encode_sbe(h, e, kN, sbe), t);
+          for (int i = 0; i < kN; ++i) {
+            Playing now[4];
+            size_t n = 0;
+            const uint64_t ms = t / 1000;
+            for (uint64_t k = 0, start = plan[i].from; start <= ms; start = plan[i].from + ++k * plan[i].every)
+              if (ms < start + plan[i].last)
+                now[n++] = Playing{uint64_t(i + 1) << 32 | k, uint64_t(i + 1) << 32 | k, 7 + k % 3,
+                                   ms - start >= plan[i].last / 2 ? 1500u : 1000u, 0, false};
+            assert(n <= 2);
+            outbox[i].diff(now, n, [&](Outbox::Event ev, uint8_t id, const Playing *p) {
+              ShowLine l;
+              l.kind = ev == Outbox::kShow ? Kind::show : ev == Outbox::kSet ? Kind::set : Kind::stop;
+              l.gen = kGen, l.guid = 4100 + uint32_t(i), l.id = id, l.t_ms = ms;
+              if (p)
+                l.rate = p->rate, l.step = p->step;
+              if (ev == Outbox::kShow) {
+                assert(set_path(l, 0, "CH_M_NA_05_Gorilla/Skill/M_GorillaB_S0" + std::to_string(p->data)));
+                l.ctx[kHitPos] = int32_t(e[i].loc[0] * 100); // Context near the enemy, as R33 asks.
+              }
+              const std::string text = format(l);
+              ch2.send(reinterpret_cast<const uint8_t *>(text.data()), text.size(), t, true);
+              sent.push_back({i, l.kind, id, ms});
+            });
+          }
+        }
+      }
+      if (t % 5000 == 0) { // The guest's worker takes what the line delivered.
+        ch1.deliver(t, [&](const uint8_t *d, size_t n) { in1.push_back({{d, d + n}, t + kOffset}); });
+        ch2.deliver(t, [&](const uint8_t *d, size_t n) { in2.push_back({{d, d + n}, t + kOffset}); });
+      }
+      if (t < next_guest)
+        continue;
+      next_guest += kFrame;
+      // The guest's frame: the hand-over (poses to the playback, SBE to the tracks, lines to the timeline), the copies
+      // drawn at the ghost's draw time, then the lines that time reached.
+      const uint64_t g = t + kOffset;
+      for (const In &m : in1) {
+        if (m.bytes[0] == 'P') {
+          const uint8_t *at = m.bytes.data() + 1;
+          Playback::Frame &f = playback.scratch();
+          f.sequence = uint32_t(coop::pose::codec::get(at, 4));
+          f.publication = coop::pose::codec::get(at, 8);
+          playback.accept(m.arrival);
+          continue;
+        }
+        SbeHeader h;
+        Entry e[kMaxEnemies];
+        size_t n = 0;
+        assert(decode_sbe(m.bytes.data(), m.bytes.size(), h, e, n) && n == kN);
+        for (size_t k = 0; k < n; ++k) {
+          Fake &c = copies[e[k].guid - 4100];
+          if (takes_sbe(c.owner, kHost, h.gen, e[k].oe))
+            assert(c.track.push(h.publication, e[k]));
+        }
+      }
+      in1.clear();
+      const double at = playback.display_ms(g / 1000.0);
+      for (const In &m : in2) {
+        const ShowLine l = parse_show(reinterpret_cast<const char *>(m.bytes.data()), m.bytes.size());
+        assert(l.kind != Kind::invalid && l.guid >= 4100 && l.guid < 4100 + kN);
+        float where[3], yaw = 0;
+        truth(int(l.guid - 4100), double(l.t_ms), where, yaw);
+        assert(l.kind != Kind::show || ctx_near(l, where)); // R33's 1 km rule holds for an honest host.
+        refused += !takes(copies[l.guid - 4100].owner, kHost, l.gen, l.oe) || !timeline.push(l, at);
+      }
+      in2.clear();
+      for (int i = 0; i < kN; ++i) {
+        Fake &c = copies[i];
+        c.ai = t >= kFreeze; // Simulate's freeze took.
+        Cues cue;
+        cue.eligible = true, cue.frozen = c.ai;
+        Drawn d, out;
+        const bool has = c.track.sample(at, d);
+        Pose own;
+        std::copy(c.loc, c.loc + 3, own.loc);
+        std::copy(c.quat, c.quat + 4, own.quat);
+        bool snapped = false;
+        const State st = c.copy.step(cue, own, has ? &d : nullptr, g / 1000.0, out, snapped);
+        const Mode mo = mode(st);
+        if (!mo.cmc_on && c.cmc) // The CMC out of SB's manager, taken once (slot 0x350, false).
+          c.cap.took_cmc(c.cmc), c.cmc = false;
+        if (mo.speed_override)
+          c.cap.took_speed(c.speed), c.speed = 1;
+        if (mo.root_stream) {
+          std::copy(out.loc, out.loc + 3, c.loc);
+          std::copy(out.quat, out.quat + 4, c.quat);
+        }
+        if (t < kWarm)
+          continue;
+        assert(st == State::piloted);
+        float host[3], before[3], yaw = 0, was = 0;
+        truth(i, at, host, yaw);
+        truth(i, at - 300, before, was);
+        const double err = std::sqrt((c.loc[0] - host[0]) * (c.loc[0] - host[0]) +
+                                     (c.loc[1] - host[1]) * (c.loc[1] - host[1]) +
+                                     (c.loc[2] - host[2]) * (c.loc[2] - host[2]));
+        const bool still = host[0] == before[0] && host[1] == before[1];
+        (still ? worst_rest : worst_moving) = std::max(still ? worst_rest : worst_moving, err);
+        ++(still ? rest : moving);
+        float r[3] = {0, yaw, 0}, q[4];
+        quat_of(r, q);
+        worst_turn = std::max(worst_turn, angle(c.quat, q));
+        snaps += snapped || d.snap;
+        extrapolated += d.extrapolated;
+      }
+      for (const Timeline::Due *due; (due = timeline.front(at));) {
+        const ShowLine l = due->line;
+        timeline.pop();
+        Fake &c = copies[l.guid - 4100];
+        FakeUndo u{c};
+        late += due->late;
+        worst_after = std::max(worst_after, at - double(l.t_ms));
+        assert(at >= double(l.t_ms)); // Never before the copy is drawn at that host time.
+        applied.push_back({int(l.guid - 4100), l.kind, l.id, l.t_ms});
+        if (!mode(c.copy.state()).owner_shows) {
+          ++not_drawn;
+        } else if (l.kind == Kind::show) {
+          Live &live = c.lines.start(l.id, u); // AddShow on a new handle: its stage and player slot.
+          const uint64_t h = ++handles;
+          std::memcpy(live.handle, &h, 8);
+          live.slot = 0;
+          c.live.push_back(h);
+        } else if (Live *live = c.lines.find(l.id)) { // SetRate and SetStep, or Stop.
+          if (l.kind == Kind::stop) {
+            u.stop(*live);
+            c.lines.drop(l.id);
+          }
+        } else {
+          ++unknown;
+        }
+      }
+    }
+    // Every line in the host's order, all but the last ones still on their way when the host was lost.
+    size_t in_flight = 0;
+    for (int i = 0; i < kN; ++i) {
+      std::vector<Said> s_i, a_i;
+      for (const Said &x : sent)
+        if (x.enemy == i)
+          s_i.push_back(x);
+      for (const Said &x : applied)
+        if (x.enemy == i)
+          a_i.push_back(x);
+      assert(a_i.size() <= s_i.size() && a_i.size() + 20 >= s_i.size());
+      for (size_t k = 0; k < a_i.size(); ++k)
+        assert(a_i[k].kind == s_i[k].kind && a_i[k].id == s_i[k].id && a_i[k].t_ms == s_i[k].t_ms);
+      for (size_t k = a_i.size(); k < s_i.size(); ++k)
+        assert(s_i[k].t_ms * 1000 + 400'000 > kEnd); // Only the last 400 ms of lines are still to come.
+      in_flight += s_i.size() - a_i.size();
+    }
+    std::printf("pilot_test: two worlds, 50 s: copy within %.2f cm of the host moving (%zu frames), %.3f cm at rest "
+                "(%zu), %.2f deg; %zu snaps, %zu extrapolated; %zu of %zu lines applied in order, at most %.1f ms "
+                "after their stamp, %zu late, %zu in flight\n",
+                worst_moving, moving, worst_rest, rest, worst_turn, snaps, extrapolated, applied.size(), sent.size(),
+                worst_after, late, in_flight);
+    assert(worst_moving < 30 && worst_rest < 5 && moving > 4000 && rest > 2000 && worst_turn < 5 && snaps == 0);
+    assert(late == 0 && unknown == 0 && not_drawn == 0 && refused == 0 && worst_after < 34 && applied.size() > 500);
+    // The host is lost: each copy put back once, every live replay stopped, then local (Simulate dispels 2000101).
+    size_t live = 0;
+    for (Fake &c : copies)
+      live += c.live.size();
+    assert(live > 0);
+    for (Fake &c : copies) {
+      FakeUndo u{c};
+      restore(c.cap, c.lines, u);
+      restore(c.cap, c.lines, u); // Once.
+      Cues gone;
+      Pose own;
+      Drawn out;
+      bool snapped = false;
+      assert(c.copy.step(gone, own, nullptr, (kEnd + kOffset) / 1000.0, out, snapped) == State::local);
+      c.ai = mode(c.copy.state()).ai_held;
+      assert(c.live.empty() && !c.ai && c.cmc && c.speed == 0 && !c.cap.cmc && !c.cap.speed);
+    }
   }
 
   std::puts("pilot_test: ok");

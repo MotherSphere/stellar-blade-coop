@@ -86,7 +86,8 @@ build/host/pose_codec_test
   - `pose_engine_test`: the pose path against fake memory;
   - `pose_codec_test`: the codec's round trips, the deltas against a keyframe, and a decoder fuzz;
   - `pose_table_test`: the component table and the display file, with a parser fuzz;
-  - `pose_record_test`: the recording's reader, with a fuzz, and its replay;
+  - `pose_record_test`: the recording's reader, with a fuzz, and its replay, with same-place enemies' `SBE` and show
+    lines re-stamped on the poses' clock;
   - `pose_stream_test`: the loopback pipeline in simulated time;
   - `save_watch_test`: the save watcher;
   - `save_slot_test`: the slot line, the marker, the save file name's lookup in the game's constant table, its
@@ -102,7 +103,10 @@ build/host/pose_codec_test
   - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps),
     the drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a
-    fuzz, their timeline and line ids, the 1 s dedupe window, and the FNamePool decode and compact id over fake blocks;
+    fuzz, their timeline and line ids, the 1 s dedupe window, the FNamePool decode and compact id over fake blocks,
+    and two worlds through a delayed, lossy line (120 ms, plus or minus 30, 2 % lost), where the guest's copies stay
+    within 30 cm of the host's enemies at the same host time while they move and 5 cm at rest, the show lines apply in
+    the host's order, and restore leaves no copy frozen;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
