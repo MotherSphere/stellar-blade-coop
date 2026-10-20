@@ -1223,10 +1223,11 @@ void pilot_in(const uint8_t *data, size_t size) {
   pilot_in_lost += !pilot_lines_in.push(l);
 }
 
-// The only way in: a table to take_table, a pose or a delta of this protocol to the game thread's inbox, an SBE or a
-// replayed show line to the drawn side, anything else counted.
+// The only way in: a table to take_table, a pose or a delta of this protocol to the game thread's inbox, an SBE to the
+// drawn side, anything else counted. Show lines are channel 2's text: hers come through pilot_pass, a recording's
+// through replay_receive.
 void wire_receive(const uint8_t *data, size_t size, uint64_t now_us) {
-  if (size >= 3 && (!std::memcmp(data, "SBE", 3) || !std::memcmp(data, "SBF", 3))) {
+  if (size >= 3 && !std::memcmp(data, "SBE", 3)) {
     pilot_in(data, size);
   } else if (size >= 3 && !std::memcmp(data, "SBT", 3)) {
     take_table(data, size);
@@ -1511,8 +1512,14 @@ bool worker_stream() {
   if (blocked && replay.on())
     replay.stop();
   auto receive = [now_us](const uint8_t *data, size_t size) { wire_receive(data, size, now_us); };
+  auto replay_receive = [now_us](const uint8_t *data, size_t size) { // A recording also holds the show lines.
+    if (size >= 3 && !std::memcmp(data, "SBF", 3))
+      pilot_in(data, size);
+    else
+      wire_receive(data, size, now_us);
+  };
   delay_line.deliver(now_us, receive);
-  replay.deliver(now_us, receive);
+  replay.deliver(now_us, replay_receive);
   return loopback_on || record_on || replay.on() || peer_on; // Every 5 ms only while something streams.
 }
 
