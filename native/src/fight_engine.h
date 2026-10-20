@@ -331,6 +331,10 @@ struct Snapshot {
   // for MaxHP, and our keys the host's list lacked (Guest::lonely).
   Unshared unshared[kMaxUnshared];
   size_t unshared_all = 0, maxhp = 0, lonely = 0;
+  // Same-place enemies: why they do not run on this side ("stopped", "asked", "setting", "fight" or "host"), null
+  // while they do, and how many pairs they move (the host's captured, the guest's drawn).
+  const char *pilot_why = "fight";
+  size_t piloted = 0;
 };
 
 // One logic actor as the liveness test and the reads see it.
@@ -428,9 +432,14 @@ public:
   // and kill_credit (all, or only the enemies our EVE hit). Set while off.
   void scale(uint16_t hp, uint16_t balance) { scale_hp_ = hp, scale_balance_ = balance; }
   void credit(bool all) { credit_all_ = all; }
-  // Any thread: same_place, the host's for both games. On, this side freezes the copies it draws (those the other side
-  // owns) and its pair table tells the game thread to capture or draw; off takes every freeze off at the next turn.
+  // Any thread: our same_place, the host's for both games (a guest's side takes the host's from its place line, never
+  // its own). On, the host's pair table tells the game thread to capture, and the host tells her; the guest freezes the
+  // copies she draws (those the host owns) and her table tells the game thread to draw them. Off takes every freeze
+  // off at the next turn.
   void same_place(bool on) { same_place_ = on; }
+  // Any thread: coop fight pilot off (true), until the next on, probe, record or replay (false): same-place enemies
+  // off on this side whatever the host's same_place says, and the host tells her so.
+  void pilot_off(bool off) { pilot_off_ = off; }
   // Any thread: the game thread's pilot latch (its first fault): every freeze off at the next turn, none again in this
   // run.
   void stop_pilot() { pilot_stopped_ = true; }
@@ -557,6 +566,7 @@ public:
     if (!zero) { // No call in this mode: our freezes stay, and the game thread drives none.
       ++counts.mode;
       table_ = PilotTable();
+      pilot_why_ = "fight";
       return publish(g, turn, now_ms);
     }
     job.last_turn = turn;
@@ -590,6 +600,7 @@ public:
     if (probing_seen_) {
       probe(g, logic, turn, now_ms);
       table_ = PilotTable(); // No pairs: not the last session's either.
+      pilot_why_ = "fight";
       publish(g, turn, now_ms);
       if (!latched_)
         g.push(&job);
@@ -609,6 +620,7 @@ public:
     if (!latched_)
       slow_motion(g, n);
     if (!latched_ && hosting) {
+      host.set_place(same_place_ && !pilot_off_ && !pilot_stopped_);
       host.step(seen_, n, census, turn, now_ms, io);
       hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance));
     } else if (!latched_) {
@@ -705,6 +717,7 @@ public:
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
+    s.pilot_why = pilot_why_, s.piloted = piloted_;
     for (size_t i = 0; i < captures_; ++i) {
       s.floors += caps_[i].type == kFloorStat;
       s.scaled += caps_[i].type == kMaxHpValue && caps_[i].delta;
@@ -1281,7 +1294,15 @@ private:
     size_t drawn = 0, kept = 0;
     const uint32_t *refused = flags_.refused,
                    *refused_end = refused + std::min<size_t>(flags_.refused_count, kMaxPairs);
-    table_.on = same_place_ && !pilot_stopped_ && (!hosting || host.peer_on());
+    // Why same-place enemies do not run on this side, or null: the pilot's latch, coop fight pilot off, then the host's
+    // same_place (its own, or its place line on the guest's side) and, on the host's side, her side off.
+    pilot_why_ = pilot_stopped_               ? "stopped"
+                 : pilot_off_                 ? "asked"
+                 : hosting && !same_place_    ? "setting"
+                 : hosting && !host.peer_on() ? "fight"
+                 : !hosting && !guest.place() ? "host"
+                                              : nullptr;
+    table_.on = !pilot_why_;
     table_.side = hosting ? pilot::kHost : pilot::kGuest;
     table_.gen = hosting ? host.gen() : guest.gen();
     table_.count = 0;
@@ -1304,6 +1325,7 @@ private:
     }
     std::copy(lost, lost + kept, lost_);
     lost_count_ = kept;
+    piloted_ = !table_.on ? 0 : hosting ? table_.count : drawn;
     let_go(g, logic, kFreeze, want, drawn);
     for (uint8_t r = 0; r < table_.count && !latched_; ++r)
       if (table_.pairs[r].bits & kRowDrawn)
@@ -1375,7 +1397,9 @@ private:
   // The pair table to the game thread (none once off or latched), and what it says back, for the next turn.
   template <class Game> void publish(Game &g, uint32_t turn, uint64_t now) {
     if (!on_ || latched_)
-      table_ = PilotTable();
+      table_ = PilotTable(), pilot_why_ = "fight";
+    if (!table_.on)
+      piloted_ = 0;
     table_.session = session_seen_, table_.turn = turn, table_.ms = now;
     g.publish(table_, flags_);
   }
@@ -1385,7 +1409,7 @@ private:
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
-  std::atomic<bool> same_place_{false}, pilot_stopped_{false};
+  std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false};
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
@@ -1414,6 +1438,8 @@ private:
   StreamFlags flags_;         // The game thread's word, as of the last publish.
   uint32_t lost_[kMaxPairs] = {}; // Copies whose freeze was lost, while their pairs last.
   size_t lost_count_ = 0;
+  const char *pilot_why_ = "fight"; // Why same-place enemies do not run (pilot_turn), null while they do.
+  size_t piloted_ = 0;              // The pairs they move: the host's captured, or the guest's drawn.
   uint32_t cast_[kMaxPairs] = {}; // This turn's crowd controls of ours (cast()), by copy, and how many in all.
   size_t casts_ = 0;
 };
@@ -1673,6 +1699,19 @@ public:
 
   // The mode on runs with her: our lines go to her (same-place enemies' too).
   bool sharing() const { return running_ && ran_ == Fight::on; }
+  // Same-place enemies as of the last second, for coop-status.txt's pilot line (pose_tick.cpp adds the rest): "on
+  // piloted=<n>" while they run (n: the pairs this side captures as host, or draws as guest), "off why=<fight|asked|
+  // setting|host>" (the shared fight not running a mode that pairs, coop fight pilot off, the host's same_place off on
+  // its side, or as its place line said on the guest's), or "stopped" after the pilot's latch.
+  std::string pilot() const {
+    const char *why = !running_ || ran_ == Fight::probe || e_.latched() || last_.session != e_.session()
+                          ? "fight"
+                          : last_.pilot_why;
+    if (!why)
+      return "on piloted=" + std::to_string(last_.piloted);
+    return std::strcmp(why, "stopped") == 0 ? std::string("stopped") : std::string("off why=") + why;
+  }
+  bool piloting() const { return pilot().rfind("on ", 0) == 0; }
   // For the status line: " fight=on <enemies the host arbitrates or pairs the guest follows>", " fight=probe" (no
   // count: its actors may change at each census, and Lua logs each new status line), " fight=waiting" (asked but
   // paused), " fight=stopped" (latched for the run), or empty.
@@ -1739,6 +1778,8 @@ private:
     e_.scale(r.scale[kScaleHp], r.scale[kScaleBalance]);
     std::copy(r.scale, r.scale + kScales, own_scale_);
     e_.credit(!r.fought);
+    e_.same_place(r.place);
+    e_.pilot_off(false);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
     std::string said = update(gate, io);
@@ -1940,6 +1981,7 @@ private:
   void own_session() {
     if (last_.session != e_.session()) {
       last_.host = last_.guest = Counts{}, last_.hosted = last_.paired = 0;
+      last_.pilot_why = "fight", last_.piloted = 0;
       last_.unshared_all = last_.maxhp = last_.lonely = 0;
     }
   }

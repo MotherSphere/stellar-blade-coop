@@ -427,7 +427,7 @@ std::string status_text() {
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   return head + coop::pose::status() + "\n" +
          coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded(), saves_state) + "\n" +
-         coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" +
+         coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
          (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) + "last=" + journal.last() + "\n";
 }
 

@@ -329,13 +329,35 @@ int main() {
   assert(f.fight == Fight::test && f.stat == 2 && f.change == 10000000);
   f = parse_request("fight test kill");
   assert(f.command == Command::fight && f.fight == Fight::test && f.stat == -1);
-  // Same-place enemies' probe: on, and off.
+  // Same-place enemies (stage 3a): same_place=on as "place", one word after the scaling, before the ids, with the modes
+  // that can host or pilot (on, probe, record, replay); none: off.
+  f = parse_request("fight on confirmed fought scale 135 115 place 15011001");
+  assert(f.fight == Fight::on && f.confirmed && f.fought && f.scale[0] == 135 && f.place &&
+         (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight record place").place && parse_request("fight replay place").place);
+  assert(!parse_request("fight on scale 135 115").place && !parse_request("fight record 1").place);
+  assert(parse_request("fight on place" + sixteen.substr(8)).chars.size() == kMaxFightChars);
+  for (const char *bad : {"fight on place scale 135 115", "fight on place place", "fight on 1 place",
+                          "fight on place fought", "fight on Place", "fight off place", "fight status place",
+                          "fight test kill place", "fight on  place"})
+    assert(parse_request(bad).command == Command::none);
+  // The pilot's own: the probe on, the pilot off for the session (the probe too), its status, and how far the drawn
+  // side goes (freeze, cmc, drive or replay, each adding to the one before).
   f = parse_request("fight pilot probe\n");
-  assert(f.command == Command::fight && f.fight == Fight::pilot && !f.off);
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::probe && !f.off);
   f = parse_request("fight pilot off");
-  assert(f.command == Command::fight && f.fight == Fight::pilot && f.off);
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::off);
+  assert(parse_request("fight pilot status").pilot == PilotAsk::status);
+  const std::pair<const char *, PilotTest> tests[] = {{"freeze", PilotTest::freeze}, {"cmc", PilotTest::cmc},
+                                                      {"drive", PilotTest::drive}, {"replay", PilotTest::replay}};
+  for (const auto &[word, test] : tests) {
+    f = parse_request(std::string("fight pilot test ") + word);
+    assert(f.fight == Fight::pilot && f.pilot == PilotAsk::test && f.test == test);
+  }
   for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on", "fight pilot  probe",
-                          "fight pilot Probe", "fight pilot off 1"})
+                          "fight pilot Probe", "fight pilot off 1", "fight pilot status 1", "fight pilot test",
+                          "fight pilot test target", "fight pilot test exec", "fight pilot test freeze 1",
+                          "fight pilot test Freeze", "fight pilot test  cmc", "fight pilot tests drive"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);
   for (const char *bad : {"fight", "fight ", "fight on x", "fight on 0", "fight on 4294967296", "fight on  1",
                           "fight on -1", "fight off now", "fight status 1", "fight test", "fight test hp",

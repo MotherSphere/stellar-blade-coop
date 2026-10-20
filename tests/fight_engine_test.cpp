@@ -985,7 +985,7 @@ int main() {
     e->set(true, false);
     g.spawn(501, 5001, 0);
     const uint64_t la = g.by_guid[501];
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     uint64_t t = 0;
     frame(g, *e, t);
@@ -1033,7 +1033,7 @@ int main() {
     e2->same_place(true);
     e2->set(true, false);
     h.spawn(501, 5001, 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       h.inbox.push_back(msg(line));
     frame(h, *e2, t += 16);
     frame(h, *e2, t += 16);
@@ -1053,7 +1053,7 @@ int main() {
     e3->set(true, false);
     r.spawn(501, 5001, 0);
     r.body(501).immune = true;
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       r.inbox.push_back(msg(line));
     for (int k = 0; k < 8; ++k)
       for (uint32_t i = 0; i < kCensusTurns; ++i)
@@ -1077,8 +1077,8 @@ int main() {
     g.knock(502, 5000039);
     g.state(503, kNoDamageNoHit, 1);
     g.mem.put<int32_t>(g.fsb(504) + kLife, 6); // Spawning.
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600", "SBF11 up 1 102 5002 0 900 1600",
-                             "SBF11 up 1 103 5003 0 900 1600", "SBF11 up 1 104 5004 0 900 1600",
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600",
+                             "SBF11 up 1 102 5002 0 900 1600", "SBF11 up 1 103 5003 0 900 1600", "SBF11 up 1 104 5004 0 900 1600",
                              "SBF11 up 1 105 5005 0 900 1600"})
       g.inbox.push_back(msg(line));
     uint64_t t = 0;
@@ -1186,7 +1186,7 @@ int main() {
     e->same_place(true);
     e->set(true, false);
     g.spawn(501, 5001, 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     frame(g, *e, 0);
     frame(g, *e, 16);
@@ -1212,7 +1212,7 @@ int main() {
     PilotTable table;
     StreamFlags stream;
     assert(mail.table(table, stream) && !table.on && table.count == 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       assert(mail.give(msg(line)));
     uint64_t t = 0;
     frame(g, *e, t);
@@ -1243,8 +1243,8 @@ int main() {
     for (const uint64_t end = t + 3 * kBattleMs; (t += 16) < end;)
       frame(g, *e, t);
     assert(battles() == 2);
-    // A stream of a pair this side does not draw (same_place off) starts nothing either.
-    e->same_place(false);
+    // A stream of a pair this side does not draw (the host's same_place off) starts nothing either.
+    assert(mail.give(msg("SBF11 place 1 0")));
     stream.count = 1;
     assert(mail.table(table, stream));
     for (const uint64_t end = t + 3 * kBattleMs; (t += 16) < end;)
@@ -1262,7 +1262,8 @@ int main() {
     e->set(true, false);
     g.spawn(501, 5001, 0);
     g.spawn(502, 5002, 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600", "SBF11 up 1 102 5002 0 900 1600"})
+    for (const char *line :
+         {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600", "SBF11 up 1 102 5002 0 900 1600"})
       g.inbox.push_back(msg(line));
     uint64_t t = 0;
     frame(g, *e, t);
@@ -1307,14 +1308,14 @@ int main() {
     e->set(true, false);
     g.spawn(501, 5001, 0);
     const uint64_t la = g.by_guid[501];
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     uint64_t t = 0;
     frame(g, *e, t);
     frame(g, *e, t += 16);
     assert(Game::held(g.body(501), kBlockAiState) && g.casts.size() == 2);
     switch (way) {
-    case 0: e->same_place(false); break;
+    case 0: g.inbox.push_back(msg("SBF11 place 1 0")); break;
     case 1: g.inbox.push_back(msg("SBF11 off coop fight off")); break;
     case 2: e->set(false, false); break;
     case 3: e->set(true, false); break;
@@ -1336,13 +1337,13 @@ int main() {
     assert(!Game::held(g.body(501), kBlockAiState) && e->counts.thawed == 1 && (g.table.count == 0 || !g.table.on));
     for (uint32_t i = 0; i < 2 * kCensusTurns; ++i)
       frame(g, *e, t += 16);
-    if (way == 0) { // same_place on again: frozen again.
-      e->same_place(true);
+    if (way == 0) { // The host's same_place on again: frozen again.
+      g.inbox.push_back(msg("SBF11 place 1 1"));
       frame(g, *e, t += 16);
       assert(g.casts.size() == 5 && g.casts[3].id == kBlockAi);
     } else if (way == 7) { // The pilot latch holds for the run, a new session too.
       e->set(true, false);
-      for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+      for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
         g.inbox.push_back(msg(line));
       for (uint32_t i = 0; i < 2 * kCensusTurns; ++i)
         frame(g, *e, t += 16);
@@ -1359,7 +1360,7 @@ int main() {
     e->same_place(true);
     e->set(true, false);
     g.spawn(501, 5001, 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     uint64_t t = 0;
     frame(g, *e, t);
@@ -1379,7 +1380,7 @@ int main() {
       assert(e->counts.thaw_refused == 1 && e->forget() == 0 && Game::held(g.body(501), kBlockAiState));
       continue;
     }
-    e->same_place(false);
+    g.inbox.push_back(msg("SBF11 place 1 0"));
     for (int k = 0; k < 3; ++k)
       frame(g, *e, t += 16);
     assert(dispels() == 3 && count(g, "thaw refused", "trying again") == 1 && count(g, "thaw refused") == 1);
@@ -1398,7 +1399,7 @@ int main() {
     e->same_place(true);
     e->set(true, false);
     g.spawn(501, 5001, 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     uint64_t t = 0;
     while (t < kRefreezeMs - 1500)
@@ -1429,7 +1430,7 @@ int main() {
     uint64_t t = 0;
     frame(g, *e, t);
     assert(e->guest.linked() == 1 && g.casts.empty());
-    e->same_place(true);
+    g.inbox.push_back(msg("SBF11 place 1 1"));
     g.inbox.push_back(msg("SBF11 cc 1 101 3000300"));
     frame(g, *e, t += 16);
     assert(g.casts.size() == 1 && g.casts[0].id == 3000300 && e->counts.frozen == 0);
@@ -1446,6 +1447,7 @@ int main() {
     e->same_place(true);
     e->set(true, false);
     g.inbox.push_back(msg("SBF11 world 1"));
+    g.inbox.push_back(msg("SBF11 place 1 1"));
     for (uint32_t i = 0; i < kMaxPairs + 1; ++i) {
       g.spawn(501 + i, 5001 + i, 0);
       if (i < kMaxPairs)
@@ -1472,7 +1474,7 @@ int main() {
     e->same_place(true);
     e->set(true, false);
     g.spawn(501, 5001, 0);
-    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
       g.inbox.push_back(msg(line));
     frame(g, *e, 0);
     frame(g, *e, 16);
@@ -1485,6 +1487,70 @@ int main() {
     }
     frame(g, *e, 32);
     assert(!g.table.on && g.table.count == 0 && g.table.turn == 2 && e->counts.mode == (probe ? 0 : 1));
+  }
+
+  // The host's same_place decides for both games: the guest's own is never read, so her copies are frozen only while
+  // the host's last place line says on. coop fight pilot off (pilot_off) turns same-place enemies off on either side
+  // until the next start, and the pilot's latch for the run: the host then tells her place 0 and its table stops its
+  // capture. The snapshot says why they do not run ("host", "asked", "stopped"), or how many pairs they move.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true); // Hers: never read.
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    frame(g, *e, t += 16);
+    assert(!g.table.on && g.casts.empty() && !std::strcmp(e->snapshot().pilot_why, "host"));
+    assert(e->snapshot().piloted == 0);
+    e->same_place(false);
+    g.inbox.push_back(msg("SBF11 place 1 1"));
+    frame(g, *e, t += 16);
+    assert(g.table.on && g.casts.size() == 2 && !e->snapshot().pilot_why && e->snapshot().piloted == 1);
+    e->pilot_off(true);
+    frame(g, *e, t += 16);
+    assert(!g.table.on && g.casts.size() == 3 && g.casts[2].id == kDispel);
+    assert(!std::strcmp(e->snapshot().pilot_why, "asked") && e->snapshot().piloted == 0);
+    for (uint32_t i = 0; i < 2 * kCensusTurns; ++i)
+      frame(g, *e, t += 16);
+    e->pilot_off(false);
+    frame(g, *e, t += 16);
+    assert(g.table.on && g.casts.size() == 5 && g.casts[3].id == kBlockAi && e->snapshot().piloted == 1);
+    e->stop_pilot();
+    frame(g, *e, t += 16);
+    assert(!g.table.on && g.casts.size() == 6 && !std::strcmp(e->snapshot().pilot_why, "stopped"));
+  }
+  {
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.spawn(102, 5002, 0);
+    g.inbox.push_back(msg("SBF11 on"));
+    frame(g, *e, 0);
+    const std::string gen = std::to_string(e->host.gen());
+    assert(!g.table.on && !has(lines(g), "place") && !std::strcmp(e->snapshot().pilot_why, "setting"));
+    e->same_place(true);
+    frame(g, *e, 16);
+    assert(g.table.on && lines(g) == "SBF11 place " + gen + " 1\n" && e->snapshot().piloted == 2);
+    e->pilot_off(true);
+    frame(g, *e, 32);
+    assert(!g.table.on && lines(g) == "SBF11 place " + gen + " 0\n" && !std::strcmp(e->snapshot().pilot_why, "asked"));
+    e->pilot_off(false);
+    frame(g, *e, 48);
+    assert(g.table.on && lines(g) == "SBF11 place " + gen + " 1\n");
+    g.inbox.push_back(msg("SBF11 off photo mode")); // Her side off: no capture, no line.
+    frame(g, *e, 64);
+    assert(!g.table.on && !has(lines(g), "place") && !std::strcmp(e->snapshot().pilot_why, "fight"));
+    g.inbox.push_back(msg("SBF11 on"));
+    frame(g, *e, 80);
+    assert(g.table.on && has(lines(g), "SBF11 place " + gen + " 1\n"));
+    e->stop_pilot();
+    frame(g, *e, 96);
+    assert(!g.table.on && lines(g) == "SBF11 place " + gen + " 0\n");
+    assert(!std::strcmp(e->snapshot().pilot_why, "stopped") && e->snapshot().piloted == 0);
   }
 
   // ---- Two-player scaling (PHASE11-STAGE2-RE 4): on each enemy the side names, MaxHPValue (stat 3, which MaxHP
@@ -2739,6 +2805,41 @@ int main() {
         w.pass(t, false, false, true, none, gate, io);
       }
       assert(has(w.detail(), "fight=on mode=record role=host enemies=1 ") && w.status() == " fight=on 1");
+    }
+    { // Same-place enemies: the request's place word is the host's same_place, which the recording keeps as a place
+      // line; the pilot line says off why=fight until a mode that pairs runs, then the job's word. coop fight pilot
+      // off holds until the next start.
+      Game H;
+      auto mail = std::make_unique<Mail>();
+      H.mail = mail.get();
+      auto e = engine(false, false);
+      Worker w(*e, *mail);
+      Desk io;
+      H.spawn(101, 5001, 0);
+      uint64_t t = 0;
+      assert(w.pilot() == "off why=fight");
+      w.pass(t, false, false, true, none, gate, io);
+      assert(w.ask(coop::parse_request("fight record place"), gate, io).rfind("shared fight record: ", 0) == 0);
+      assert(w.pilot() == "off why=fight"); // Before its first turn.
+      const auto run = [&](uint64_t ms) {
+        for (const uint64_t from = t; t < from + ms; t += 16) {
+          frame(H, *e, t);
+          w.pass(t, false, false, true, none, gate, io);
+        }
+      };
+      run(200);
+      assert(w.pilot() == "on piloted=1");
+      e->pilot_off(true);
+      run(100);
+      assert(w.pilot() == "off why=asked");
+      w.ask(coop::parse_request("fight off"), gate, io);
+      assert(has(io.file, " SBF11 place 1 1\n") && has(io.file, " SBF11 place 1 0\n"));
+      assert(w.pilot() == "off why=fight");
+      assert(w.ask(coop::parse_request("fight record"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(200);
+      assert(w.pilot() == "off why=setting"); // pilot off ended with the start; same_place off this time.
+      w.ask(coop::parse_request("fight off"), gate, io);
+      assert(!has(io.file, "place"));
     }
     Game G;
     auto mail = std::make_unique<Mail>();

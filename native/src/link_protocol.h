@@ -14,11 +14,13 @@
 // pilot's show lines, which start with fight_tag() (fight_sync.h and pilot.h parse them).
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -318,11 +320,13 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [<charId> ...]"
-// (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; fight_chars,
-// at most kMaxFightChars, none: every Monster), "fight off", "fight status", "fight test hp|sh|st <change>" (whole
-// units, with or without a sign), "fight test kill", "fight pilot probe" and "fight pilot off" (same-place enemies'
-// lines this side sends, into coop-fight.log: pose_tick.cpp's); for the synced photo mode's solo tests "freeze
+// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [<charId> ...]"
+// (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's
+// same_place=on; fight_chars, at most kMaxFightChars, none: every Monster), "fight off", "fight status", "fight test
+// hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
+// (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot off" (the probe
+// off, and same-place enemies off until the next fight on, probe, record or replay), "fight pilot status" and "fight
+// pilot test freeze|cmc|drive|replay" (how far the drawn side goes); for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
 // save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them) and "saves main" (switch back to the player's own saves).
@@ -332,6 +336,11 @@ enum class Command {
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
+enum class PilotAsk : uint8_t { probe, off, status, test }; // fight pilot ...
+// fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
+// out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
+// too (all of it, the default).
+enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
 enum class SavesAsk { none, probe, convert, coop, main };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
@@ -342,7 +351,7 @@ struct Request {
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
-  bool off = false;                      // loopback off, record off, replay off, freeze off, fight pilot off.
+  bool off = false;                      // loopback off, record off, replay off, freeze off.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -353,6 +362,9 @@ struct Request {
   bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
   bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
   uint16_t scale[2] = {kMinScale, kMinScale}; // fight on, probe, record, replay: MaxHP and balance in % (a host's).
+  bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
+  PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
+  PilotTest test = PilotTest::replay;    // fight pilot test: how far.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
 };
@@ -385,6 +397,8 @@ inline Request parse_fight(const std::string &text) {
       }
       ++i;
     }
+    r.place = i < w.size() && w[i] == "place";
+    i += r.place;
     for (; i < w.size(); ++i) {
       if (r.chars.size() == kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
         return Request();
@@ -394,9 +408,17 @@ inline Request parse_fight(const std::string &text) {
               : what == "probe"  ? Fight::probe
               : what == "record" ? Fight::record
                                  : Fight::replay;
-  } else if (what == "pilot" && w.size() == 2 && (w[1] == "probe" || w[1] == "off")) { // Same-place enemies' probe.
+  } else if (what == "pilot" && w.size() == 2 && (w[1] == "probe" || w[1] == "off" || w[1] == "status")) {
     r.fight = Fight::pilot;
-    r.off = w[1] == "off";
+    r.pilot = w[1] == "probe" ? PilotAsk::probe : w[1] == "off" ? PilotAsk::off : PilotAsk::status;
+  } else if (what == "pilot" && w.size() == 3 && w[1] == "test") {
+    static const char *const kTests[] = {"freeze", "cmc", "drive", "replay"};
+    const auto at = std::find(std::begin(kTests), std::end(kTests), w[2]);
+    if (at == std::end(kTests))
+      return Request();
+    r.fight = Fight::pilot;
+    r.pilot = PilotAsk::test;
+    r.test = PilotTest(at - std::begin(kTests));
   } else if (what == "test" && w.size() == 2 && w[1] == "kill") {
     r.fight = Fight::test;
     r.stat = -1;

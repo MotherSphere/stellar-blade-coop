@@ -32,6 +32,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "fight_sync.h"    // kMaxPairs, detail::id, and link_protocol.h's fight_tag, split, number, kMaxMessage
 #include "nightop_probe.h" // kImageBase, plausible
@@ -1461,6 +1462,16 @@ public:
   Counts counts;
 
   bool latched() const { return latched_; }
+  // coop fight pilot test: how far the drawn side goes (link_protocol.h's PilotTest; replay, all of it, by default). A
+  // change puts each pair back once at its next frame, so nothing a larger step changed stays; the step then takes
+  // again what it needs.
+  void limit(PilotTest t) {
+    if (t == limit_)
+      return;
+    limit_ = t;
+    for (Pair &p : pairs_)
+      p.reset = p.row.hguid != 0;
+  }
   // A pair still held: the glue runs one more frame after coop off, to put them back.
   bool holding() const {
     return std::any_of(pairs_, pairs_ + kMaxEnemies, [](const Pair &p) { return p.row.hguid != 0; });
@@ -1532,7 +1543,9 @@ public:
         p.wrote = false;
         continue;
       }
-      ok[i] = drive(g, read, base, s.reg, p, found[i], now, at);
+      if (std::exchange(p.reset, false))
+        put_back(g, s.reg, p, &found[i]);
+      ok[i] = drive(g, read, base, s.reg, p, found[i], now, at) && limit_ == PilotTest::replay;
     }
     for (const Timeline::Due *due; (due = timeline_.front(at));) {
       const Timeline::Due d = *due;
@@ -1571,7 +1584,9 @@ private:
     Capture cap; // What we changed on the copy, to put back.
     Lines lines; // Its live replays.
     bool refused = false, battle = false;
-    bool wrote = false;                              // The last frame wrote its root: the drift probe compares.
+    bool reset = false;                              // limit() changed: put back at its next frame.
+    bool wrote = false;                              // The last frame wrote its root (or, under PilotTest::cmc, read
+                                                     // it): the drift probe compares.
     float loc[3] = {}, quat[4] = {0, 0, 0, 1};       // As written then.
     double at = 0;                                   // When (our clock, ms).
   };
@@ -1674,7 +1689,7 @@ private:
     counts.released += st == State::released && was != State::released;
     counts.converged += was == State::converging && st == State::piloted;
     p.battle = has && (d.flags & kBattle) && st != State::local;
-    if (!mode(st).root_stream)
+    if (!mode(st).root_stream || limit_ == PilotTest::freeze)
       return put_back(g, reg, p, &f), false;
     counts.snaps += d.snap || snapped;
     // Checks first, writes after: SB's movement component class with SB's override in slot 0x350, the root's vtable
@@ -1696,6 +1711,12 @@ private:
       ++(p.cap.cmc ? counts.cmc_reenabled : counts.cmc_out);
       p.cap.took_cmc(true);
       g.cmc(f.cmc, false);
+    }
+    if (limit_ == PilotTest::cmc) { // Nothing written: the drift probe reads where the game leaves the copy at rest.
+      std::copy(own.loc, own.loc + 3, p.loc);
+      std::copy(own.quat, own.quat + 4, p.quat);
+      p.at = now, p.wrote = true;
+      return false;
     }
     p.cap.took_speed(override_was);
     const uint8_t on = 1;
@@ -1811,6 +1832,7 @@ private:
   Timeline timeline_;
   uint32_t gen_ = 0;
   Side side_ = kHost;
+  PilotTest limit_ = PilotTest::replay;
   bool latched_ = false;
 };
 

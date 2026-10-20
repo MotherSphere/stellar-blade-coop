@@ -34,12 +34,13 @@
 // runs, reads each enemy (found by GUID through SB's two read-only lookups) and SB's show manager into one SBE message
 // and the show lines, under its own SEH latch, pilot, whose first fault also asks the job to let every frozen copy go.
 // The worker sends them to her while the shared fight runs on (SBE on channel 1, the lines on channel 2), puts them in
-// a recording being made, and logs them to coop-fight.log while the probe runs. The write half, under the same latch:
-// her SBE and show lines (from her, or from a replayed recording) come to the game thread through the same lock, and
-// each frame every copy this side draws is found again by its GUID and driven at the ghost's draw time (pilot.h's
-// Driver): its movement component out of SB's manager, the speed override, the root moved, Velocity set, her Shows
-// replayed through SB's Show handle API. The first fault stops all of it for the run and, when it was in this DLL,
-// puts every copy back once.
+// a recording being made, and logs them to coop-fight.log while the probe runs, with a stats line a second while
+// same-place enemies run. The write half, under the same latch: her SBE and show lines (from her, or from a replayed
+// recording) come to the game thread through the same lock, and each frame every copy this side draws is found again
+// by its GUID and driven at the ghost's draw time (pilot.h's Driver): its movement component out of SB's manager, the
+// speed override, the root moved, Velocity set, her Shows replayed through SB's Show handle API, as far as coop fight
+// pilot test lets it (all of it unless asked). The first fault stops all of it for the run and, when it was in this
+// DLL, puts every copy back once. coop fight pilot off turns it off on this side until the next start.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -736,6 +737,9 @@ struct PilotLine {
 };
 // The worker's asks and what the game thread did.
 std::atomic<bool> pilot_pinned{false}, pilot_faulted{false}, pilot_probe{false};
+// coop fight pilot test: how far the drawn side goes (PilotTest), for the game thread's Driver; back to replay (all of
+// it) at each coop fight on.
+std::atomic<uint8_t> pilot_test{uint8_t(PilotTest::replay)};
 std::atomic<uint64_t> pilot_fault_code{0}, pilot_fault_rva{0}, pilot_fault_address{0};
 std::atomic<uint32_t> pilot_owned{0}; // The pairs the last frame would capture.
 // The game thread's.
@@ -896,6 +900,7 @@ __declspec(noinline) void pilot_body() {
       driver.counts.drift_cm = driver.counts.drift_deg = 0;
     pilot::Row rows[fight::kMaxPairs];
     PilotGame g;
+    driver.limit(PilotTest(pilot_test.load()));
     driver.rows(g, base, t.gen, t.side, rows, fresh ? fight::drawn(t, rows) : 0);
     const double now_ms = start / 1000.0,
                  draw = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
@@ -1200,8 +1205,9 @@ void take_table(const uint8_t *data, size_t size) {
 // Hers for the drawn side, from her (channel 1's SBE, channel 2's show lines) or from a replayed recording: an SBE as
 // it came, a show line parsed here (parse_show allocates: the worker's), both for the game thread under pilot_m. Full
 // rings drop the newest, counted.
-uint64_t pilot_in_lost = 0, pilot_in_bad = 0;
+uint64_t pilot_in_lost = 0, pilot_in_bad = 0, pilot_bytes_in = 0;
 void pilot_in(const uint8_t *data, size_t size) {
+  pilot_bytes_in += size;
   if (size >= 3 && !std::memcmp(data, "SBE", 3)) {
     SbeIn m;
     if (size > sizeof m.data) {
@@ -1738,16 +1744,42 @@ std::string fault_where(uint64_t rva) {
   return where;
 }
 
-// coop fight pilot probe|off: while on, same-place enemies' lines this side sends go to coop-fight.log.
-std::string ask_pilot(bool probe) {
-  if (!probe)
-    return pilot_probe.exchange(false) ? "pilot probe off" : "pilot probe is not on";
+// coop fight pilot probe|off|status|test <how far>. probe: while on, same-place enemies' lines this side sends go to
+// coop-fight.log; off: the probe off and same-place enemies off on this side until the next coop fight on, probe,
+// record or replay (each drawn copy goes back to the game, and the host tells her); status: the pilot line, and the
+// stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on.
+bool pilot_stats_now = false;
+std::string ask_pilot(const coop::Request &request) {
+  switch (request.pilot) {
+  case PilotAsk::off: {
+    const bool probe = pilot_probe.exchange(false);
+    fight_engine.pilot_off(true);
+    return std::string("same-place enemies off until the next coop fight on (every drawn copy goes back to the "
+                       "game)") +
+           (probe ? "; pilot probe off" : "");
+  }
+  case PilotAsk::status: pilot_stats_now = true; return "same-place enemies: " + pilot_status();
+  default: break;
+  }
+  const char *what = request.pilot == PilotAsk::test ? "pilot test" : "pilot probe";
   if (!pinned)
-    return "pilot probe refused: " + engine_reason;
+    return std::string(what) + " refused: " + engine_reason;
   if (blocked)
-    return "pilot probe refused: coop off";
+    return std::string(what) + " refused: coop off";
   if (pilot_faulted)
-    return "pilot probe refused: same-place enemies stopped for this run (a fault)";
+    return std::string(what) + " refused: same-place enemies stopped for this run (a fault)";
+  if (request.pilot == PilotAsk::test) {
+    static const char *const kSay[] = {
+        "our freeze only (the copies stand still and play their own animations)",
+        ("our freeze and their movement component out of the game's manager, nothing written (the drift lines say "
+         "how far the game still moves them)"),
+        "our freeze, the movement component out, root, speed and velocity from the stream, no Show replayed",
+        "all of it (freeze, movement component, root, speed, velocity and Show replay)"};
+    pilot_test = uint8_t(request.test);
+    return std::string("pilot test: the copies this side draws get ") + kSay[uint8_t(request.test)] +
+           " until coop fight on; coop record with coop fight record as host, then coop replay with coop fight "
+           "replay, plays them from a recording";
+  }
   if (pilot_probe.exchange(true))
     return "pilot probe is already on";
   return "pilot probe on: the SBE and show lines of the enemies this side owns, the lines it takes from her and how it "
@@ -1758,11 +1790,13 @@ std::string ask_pilot(bool probe) {
 // Same-place enemies' output at each worker pass: the newest SBE and the show lines the game thread captured. Those
 // for her go to her while the shared fight runs on (SBE on channel 1 unreliable, the lines on channel 2 reliable) and
 // into a recording being made (coop record). Her show lines among this pass's channel 2 lines go to the drawn side.
-// With the probe, each line out and in, one SBE line a second with the capture's counts and one with the drawn side's
-// go to coop-fight.log. A fault is logged once.
+// While same-place enemies run (PHASE11-STAGE3 7 rule 13), and at once for coop fight pilot status, coop-fight.log
+// gets a stats line a second (the pilot line, the capture's counts, the bytes a second both ways) and the drawn side's
+// counts when they moved. With the probe, also each line out and in, and the stats line carries the newest SBE. A
+// fault is logged once.
 bool pilot_fault_logged = false;
 uint64_t pilot_drive_seen = 0; // The drawn side's counts as the last line had them (summed): no line while still.
-uint64_t pilot_next_line = 0, pilot_unsent = 0;
+uint64_t pilot_next_line = 0, pilot_unsent = 0, pilot_bytes_out = 0, pilot_bytes_said = 0, pilot_line_ms = 0;
 fight::Ring<PilotLine, kPilotLines> pilot_taken;
 uint8_t pilot_last_sbe[pilot::kMaxSbe]; // The newest SBE since the probe's last line, for its next one.
 size_t pilot_last_size = 0;
@@ -1812,7 +1846,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   };
   if (sbe_size && sbe_peer) {
     if (sharing && peer_on && peer_send)
-      peer_send(sbe, sbe_size, false);
+      peer_send(sbe, sbe_size, false), pilot_bytes_out += sbe_size;
     record(sbe, sbe_size);
   }
   if (sbe_size) {
@@ -1823,24 +1857,32 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
     const std::string text = pilot::format(l.line);
     const bool out = l.peer && sharing && linked && send(text, true);
     pilot_unsent += l.peer && sharing && linked && !out;
+    pilot_bytes_out += out ? text.size() : 0;
     if (l.peer)
       record(reinterpret_cast<const uint8_t *>(text.data()), text.size());
     if (probe)
       trace_fight((out ? "pilot out " : "pilot ") + text);
   }
-  if (!probe || now_ms < pilot_next_line)
+  const bool now = std::exchange(pilot_stats_now, false);
+  if (!now && (now_ms < pilot_next_line || (!probe && !fight_worker.piloting())))
     return;
   pilot_next_line = now_ms + 1000;
   using u = unsigned long long;
-  char tail[400];
+  const uint64_t ms = std::max<uint64_t>(1, now_ms - pilot_line_ms), bytes = pilot_bytes_in + pilot_bytes_out;
+  pilot_line_ms = now_ms;
+  char tail[480];
   std::snprintf(tail, sizeof tail,
                 "; %llu captures (mean %llu us, max %llu us), %llu enemies sent, %llu not found, %llu Show assets "
                 "unnamed, %llu players odd, %llu cut, %llu waiting for an id, %llu without context; %llu shows, %llu "
-                "show-set, %llu show-stop, %llu lost, %llu unsent",
+                "show-set, %llu show-stop, %llu lost, %llu unsent; %llu B in and out, %llu B/s",
                 u(counts.captures), u(runs ? us / runs : 0), u(max_us), u(counts.entries), u(counts.unresolved),
                 u(counts.unnamed), u(counts.odd), u(counts.cut), u(counts.waited), u(counts.no_context),
-                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent));
-  if (pilot_last_size)
+                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent), u(bytes),
+                u((bytes - pilot_bytes_said) * 1000 / ms));
+  pilot_bytes_said = bytes;
+  if (!probe)
+    trace_fight("pilot stats: " + pilot_status() + tail);
+  else if (pilot_last_size)
     trace_fight((pilot_last_out ? "pilot out " : "pilot ") + pilot::sbe_text(pilot_last_sbe, pilot_last_size) + tail);
   else
     trace_fight(std::string("pilot probe: no SBE in the last second: ") +
@@ -1849,7 +1891,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   pilot_last_size = 0;
   const uint64_t moved = drive.frames + drive.unresolved + drive.sbe + drive.sbe_refused + drive.lines +
                          drive.lines_refused + drive.not_drawn + pilot_in_bad + pilot_in_lost;
-  if (moved == pilot_drive_seen)
+  if (moved == pilot_drive_seen && !now)
     return;
   pilot_drive_seen = moved;
   char line[900];
@@ -1872,12 +1914,34 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
 
 std::string ask_fight(const coop::Request &request, int marker) {
   if (request.fight == Fight::pilot)
-    return ask_pilot(!request.off);
+    return ask_pilot(request);
+  if (request.fight == Fight::on)
+    pilot_test = uint8_t(PilotTest::replay);
   FightIo io;
   return fight_worker.ask(request, [marker] { return fight_gate(marker); }, io);
 }
 
 std::string fight_status() { return fight_worker.detail(); }
+
+// coop-status.txt's pilot line: "pilot=refused why=<why>" off the pinned build or after coop off, "pilot=stopped" after
+// the pilot's latch, else the shared fight's word (Worker::pilot: "on piloted=<n>", "off why=<word>" or "stopped"),
+// with " probe=on" while the probe runs and " test=<freeze|cmc|drive>" while a test holds the drawn side back, before
+// the why (the last field: engine reasons have spaces).
+std::string pilot_status() {
+  if (!pilot_pinned)
+    return "pilot=refused why=" + engine_reason;
+  if (blocked)
+    return "pilot=refused why=coop off";
+  if (pilot_faulted)
+    return "pilot=stopped";
+  static const char *const kTests[] = {"freeze", "cmc", "drive", "replay"};
+  std::string word = fight_worker.pilot(), why;
+  if (const size_t at = word.find(" why="); at != std::string::npos)
+    why = word.substr(at), word.resize(at);
+  const uint8_t test = pilot_test;
+  return "pilot=" + word + (pilot_probe ? " probe=on" : "") +
+         (test < uint8_t(PilotTest::replay) ? std::string(" test=") + kTests[test] : std::string()) + why;
+}
 
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool)) {

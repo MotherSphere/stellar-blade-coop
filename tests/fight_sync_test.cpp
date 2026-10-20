@@ -165,7 +165,8 @@ int main() {
           "SBF11 up 4294967295 4294967295 4294967295 255 4294967295 10000000", "SBF11 down 3 77", "SBF11 dead 3 77",
           "SBF11 hp 3 1 0 77:1600:100:200", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7", "SBF11 hit 3 1 77 120 5 30 400 0",
           "SBF11 hit 3 4294967295 77 400 0 0 400 1", "SBF11 hit 3 2 77 0 0 0 0 0", "SBF11 cc 3 77 9900001",
-          "SBF11 cc 4294967295 4294967295 3000401", "SBF11 scale 3 135 115", "SBF11 scale 4294967295 400 100"}) {
+          "SBF11 cc 4294967295 4294967295 3000401", "SBF11 scale 3 135 115", "SBF11 scale 4294967295 400 100",
+          "SBF11 place 3 1", "SBF11 place 4294967295 0"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -185,6 +186,8 @@ int main() {
     Message scale = msg("SBF11 scale 3 135 115");
     assert(scale.type == Type::scale && scale.gen == 3 && scale.scale[kScaleHp] == 135 &&
            scale.scale[kScaleBalance] == 115);
+    assert(msg("SBF11 place 3 1").type == Type::place && msg("SBF11 place 3 1").gen == 3 &&
+           msg("SBF11 place 3 1").place && !msg("SBF11 place 3 0").place);
     assert(msg("SBF11 world 007").gen == 7); // Leading zeros read as the number; we never write them.
 
     // off's reason: cleaned both ways, never empty, bounded; a peer's text never breaks our log line.
@@ -240,7 +243,10 @@ int main() {
           "SBF11 cc 3 77 99000010",
           // scale: two whole percents from 100 to 400 (1.0 to 4.0 in coop-settings.txt).
           "SBF11 scale 3 99 115", "SBF11 scale 3 135 401", "SBF11 scale 0 135 115", "SBF11 scale 3 135",
-          "SBF11 scale 3 135 115 1", "SBF11 scale 3 1.35 1.15", "SBF11 scale 3 -135 115", "SBF11 scale 3 135  115"})
+          "SBF11 scale 3 135 115 1", "SBF11 scale 3 1.35 1.15", "SBF11 scale 3 -135 115", "SBF11 scale 3 135  115",
+          // place: the host's same_place, 0 or 1.
+          "SBF11 place 3", "SBF11 place 3 2", "SBF11 place 0 1", "SBF11 place 3 1 0", "SBF11 place 3 01",
+          "SBF11 place 3 on", "SBF11 place 3 -1", "SBF11 place  3 1"})
       assert(!valid(bad));
     const char nul[] = {'S', 'B', 'F', '7', ' ', 'o', 'n', '\0'};
     assert(parse(nul, sizeof nul).type == Type::invalid && parse(nullptr, 3).type == Type::invalid);
@@ -261,7 +267,7 @@ int main() {
     const std::string seeds[] = {"SBF11 on", "SBF11 off why", "SBF11 world 3", "SBF11 up 3 77 50110 2 15011001 1600",
                                  "SBF11 dead 3 77", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
                                  "SBF11 hit 3 1 77 120 5 30 400 1", "SBF11 cc 3 77 9900001",
-                                 "SBF11 scale 3 135 115"};
+                                 "SBF11 scale 3 135 115", "SBF11 place 3 1"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -269,7 +275,7 @@ int main() {
         for (char &c : text)
           c = static_cast<char>(rng() % 3 ? "0123456789: SBF11onfworldupdeadhpit"[rng() % 35] : char(rng()));
       } else {
-        text = seeds[rng() % 9];
+        text = seeds[rng() % 10];
         for (int k = rng() % 4; k >= 0 && !text.empty(); --k) {
           size_t at = rng() % text.size();
           switch (rng() % 3) {
@@ -592,6 +598,49 @@ int main() {
     step(plain, v, 2, 10);
     wrote(v, 0, 201, kHp, -1600, true, true);
     assert(plain.counts.uncredited == 0);
+  }
+
+  // ---- Host: same place (stage 3a) ----
+  // Our same_place goes to the guest as a place line: after the world (and the scale line) while on, before the ups,
+  // and again at each change while her side is on. Off needs no line in an announce: her world drops it.
+  {
+    World w;
+    w.add(101, 5001, 0);
+    Host h;
+    h.set_place(true);
+    step(h, w, 1, 0);
+    assert(w.sent.empty()); // Her on has not come.
+    h.receive(msg("SBF11 on"), 5, w);
+    step(h, w, 2, 10);
+    assert(w.lines().rfind("SBF11 world 1\nSBF11 place 1 1\nSBF11 up 1 101 ", 0) == 0);
+    step(h, w, 3, 20);
+    assert(!has(w.lines(), "place"));
+    h.set_place(false); // coop fight pilot off, or the pilot's latch.
+    step(h, w, 4, 30);
+    assert(has(w.lines(), "SBF11 place 1 0\n"));
+    step(h, w, 5, 40);
+    assert(!has(w.lines(), "place"));
+    h.receive(msg("SBF11 off photo mode"), 50, w);
+    h.set_place(true); // Changed while she is off: told with her next on's list.
+    step(h, w, 6, 50);
+    assert(!has(w.lines(), "place"));
+    h.receive(msg("SBF11 on"), 60, w);
+    step(h, w, 7, 60);
+    assert(w.lines().rfind("SBF11 world 1\nSBF11 place 1 1\nSBF11 up 1 101 ", 0) == 0);
+    World v; // With scaling: world, scale, place, then the ups. Off: no place line at all.
+    v.add(201, 6001, 0);
+    Host scaled;
+    scaled.set_scale(135, 115);
+    scaled.set_place(true);
+    scaled.receive(msg("SBF11 on"), 0, v);
+    step(scaled, v, 1, 0);
+    assert(v.lines().rfind("SBF11 world 1\nSBF11 scale 1 135 115\nSBF11 place 1 1\nSBF11 up 1 201 ", 0) == 0);
+    World u;
+    u.add(301, 7001, 0);
+    Host plain;
+    plain.receive(msg("SBF11 on"), 0, u);
+    step(plain, u, 1, 0);
+    assert(!has(u.lines(), "place"));
   }
 
   // ---- Host: crowd control told and mirrored (PHASE11-STAGE2-RE 2) ----
@@ -1077,6 +1126,29 @@ int main() {
     step(g, w, 7, 316);
     wrote(w, 0, 903, kHp, -1500, true, true);
     assert(g.counts.kills == 3 && g.counts.uncredited == 1);
+  }
+
+  // ---- Guest: the host's same place ----
+  // The host's place line, of its generation, holds until its next world, on or off (fail closed: same place only
+  // while the host's last word says on).
+  {
+    World w;
+    Guest g;
+    assert(!g.place());
+    g.receive(msg("SBF11 world 1"), w);
+    g.receive(msg("SBF11 place 2 1"), w); // Another generation's.
+    assert(!g.place() && g.counts.stale == 1);
+    g.receive(msg("SBF11 place 1 1"), w);
+    assert(g.place());
+    g.receive(msg("SBF11 place 1 0"), w);
+    assert(!g.place());
+    for (const char *end : {"SBF11 world 2", "SBF11 off coop fight off", "SBF11 on"}) {
+      g.receive(msg("SBF11 world 1"), w);
+      g.receive(msg("SBF11 place 1 1"), w);
+      assert(g.place());
+      g.receive(msg(end), w);
+      assert(!g.place());
+    }
   }
 
   // ---- Guest, guest_kills=confirmed: our copies hold a 1 HP floor, so our lethal hit waits for the host's word ----

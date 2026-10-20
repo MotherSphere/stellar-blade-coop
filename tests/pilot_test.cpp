@@ -1572,6 +1572,55 @@ int main() {
     assert(s.since(seen).empty() && s.writes == 0 && d3.counts.unresolved == 1 && d3.holding());
     assert(d3.counts.not_drawn == 1 && d3.counts.shows == 0);
   }
+  // coop fight pilot test (T11d-solo, from a recording): how far the drawn side goes. freeze: the copy never touched
+  // here (our freeze is the job's); cmc: its movement component out too, nothing written, and the drift probe reads how
+  // far the game moves the copy at rest; drive: root, speed and Velocity too, but no Show replayed (counted as a Show
+  // for a copy not driven); replay: all of it, the default. A change puts each pair back once at its next frame, so
+  // nothing a larger step changed stays.
+  {
+    Stage s;
+    const uint64_t ch = s.copy(501, 100, 200, 20), cmc = s.cmc(ch);
+    Stage::Game g = s.game();
+    Driver d;
+    d.limit(coop::PilotTest::freeze);
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    h.seq = 2, h.publication = 1'033'000, e = entry(4100, 110, 200, 20);
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    size_t seen = 0;
+    d.draw(g, kBase, 5000, 1000);
+    assert(s.since(seen).empty() && d.counts.frames == 0 && s.get<uint8_t>(cmc + kCmcParallel) == 1);
+    d.limit(coop::PilotTest::cmc);
+    d.draw(g, kBase, 5016, 1016);
+    assert(s.since(seen) == "cmc off" && d.counts.cmc_out == 1 && d.counts.frames == 0 && near(s.x(ch), 100, 1e-3));
+    s.put<float>(s.root(ch) + 0x200, 101); // The game moves it 1 cm in 16 ms: a mover the drive would fight.
+    d.draw(g, kBase, 5032, 1020);
+    assert(s.since(seen).empty() && near(d.counts.drift_cm, 1000.0 / 16, 0.5));
+    d.limit(coop::PilotTest::drive);
+    ShowLine l;
+    l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = 1, l.t_ms = 1030, l.rate = 1000;
+    assert(set_path(l, 0, "A/B"));
+    d.line(l, 1020);
+    d.draw(g, kBase, 5048, 1033); // Put back first (only the component: nothing else was ours), then driven.
+    assert(s.since(seen) == "cmc on cmc off write1 write4 move write12" && near(s.x(ch), 110, 1e-3));
+    assert(d.counts.shows == 0 && d.counts.not_drawn == 1);
+    d.limit(coop::PilotTest::freeze); // All of it back at once.
+    d.draw(g, kBase, 5064, 1033);
+    assert(s.since(seen) == "write12 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0);
+    d.draw(g, kBase, 5080, 1033);
+    assert(s.since(seen).empty());
+    d.limit(coop::PilotTest::replay);
+    l.id = 2, l.t_ms = 1040;
+    d.line(l, 1033);
+    d.draw(g, kBase, 5096, 1040);
+    assert(s.since(seen).rfind("cmc off write1 write4 move write12 handle 1 main 1 add 1 A/B 0 1.000 0 0", 0) == 0);
+    assert(d.counts.shows == 1);
+  }
   // A movement component that changes class between frames (a pooled actor back under the same GUID): refused, and on
   // the way back neither SB's 142158f40 nor a Velocity write touches it; only SB's speed override byte goes back. The
   // same when the pair goes.
