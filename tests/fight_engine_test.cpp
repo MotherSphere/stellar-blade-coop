@@ -1155,6 +1155,25 @@ int main() {
     assert(owned(mixed, o) == 0);
     mixed.side = coop::pilot::kGuest; // 3b's: hers, at her epoch.
     assert(owned(mixed, o) == 1 && o[0].hguid == 102 && o[0].oe == 4 && o[0].flags == coop::pilot::kDying);
+    // The game thread's reading: fresh for kTableMs after its publication while the engine is not latched. The lines
+    // told so far are forgotten on a new session or generation or when the table's on turns, never because the table
+    // went stale (a menu stops the job): she still holds them, so a resumed Show told again would play twice.
+    PilotTable seen = g.table;
+    Told told;
+    assert(told.forget(seen) && !told.forget(seen));
+    assert(fresh(seen, seen.ms, false) && fresh(seen, seen.ms + kTableMs - 1, false));
+    assert(!fresh(seen, seen.ms + kTableMs, false) && !fresh(seen, seen.ms, true) && !fresh(PilotTable(), 0, false));
+    assert(!told.forget(seen)); // Stale for seconds, then fresh again: the same session, gen and on.
+    seen.ms += 5000;
+    assert(fresh(seen, seen.ms, false) && !told.forget(seen));
+    seen.on = false;
+    assert(told.forget(seen) && !told.forget(seen));
+    seen.on = true;
+    assert(told.forget(seen));
+    ++seen.session;
+    assert(told.forget(seen));
+    ++seen.gen;
+    assert(told.forget(seen) && !told.forget(seen));
     e->same_place(false);
     frame(g, *e, 48);
     assert(!g.table.on && g.casts.empty());

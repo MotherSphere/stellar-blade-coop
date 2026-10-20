@@ -206,6 +206,25 @@ inline size_t owned(const PilotTable &t, pilot::Owned *out) {
   }
   return n;
 }
+// The game thread's reading of each table. fresh: the job published one in the last kTableMs and the engine is not
+// latched (a fault's lift publishes nothing), so the owner captures; a stale table (a menu or a load stopped the job)
+// captures nothing.
+constexpr uint64_t kTableMs = 1000;
+inline bool fresh(const PilotTable &t, uint64_t now_ms, bool latched) {
+  return t.ms && now_ms < t.ms + kTableMs && !latched;
+}
+// What the owner's lines so far were told under. forget(t): true when they are void, so every Show is told again as
+// new: a new session or generation, or the table's own on turned (the drawn side dropped them). A table that only went
+// stale voids nothing: her lines stay, and a resumed Show told again would play twice.
+struct Told {
+  uint32_t session = 0, gen = 0;
+  bool on = false;
+  bool forget(const PilotTable &t) {
+    const bool changed = t.session != session || t.gen != gen || t.on != on;
+    session = t.session, gen = t.gen, on = t.on;
+    return changed;
+  }
+};
 
 // FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1d150) sets for slow
 // motion; 1 otherwise [L]. Read for the stats line only, to size slow motion before stage 3 (FEATURE-PARITY C33).

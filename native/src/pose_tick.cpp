@@ -723,7 +723,6 @@ constexpr uint64_t kFindFsb = 0x141aace90, kFindCharacter = 0x14201b1e0;
 using FindFsb = void *(*)(void *manager, int32_t guid);
 using FindCharacter = void *(*)(void *map, const int32_t *guid);
 constexpr uint64_t kSbeUs = 1'000'000 / pilot::kSbeHz;
-constexpr uint64_t kTableMs = 1000; // A pair table older than this: the job stopped running, so nothing is captured.
 constexpr size_t kPilotLines = 64;
 struct PilotLine {
   pilot::ShowLine line;
@@ -737,8 +736,7 @@ std::atomic<uint32_t> pilot_owned{0}; // The pairs the last frame would capture.
 pilot::Capturer capturer;
 fight::PilotTable pilot_table;
 fight::StreamFlags pilot_stream; // The drawn copies' word back (the write half's): none yet.
-uint32_t pilot_session = 0, pilot_gen = 0;
-bool pilot_peer = false; // The lines told so far were for her: a change, a new session or world tells every Show again.
+fight::Told pilot_told; // What the lines so far were told under: a change tells every Show again.
 uint64_t next_sbe = 0, pilot_lost_here = 0;
 uint64_t pilot_runs_here = 0, pilot_us_here = 0, pilot_max_us_here = 0;
 fight::Ring<PilotLine, kPilotLines> pilot_waiting; // Lines a busy lock kept here.
@@ -776,11 +774,9 @@ __declspec(noinline) void pilot_body() {
   const uint64_t start = clock_us();
   fight_mail.table(pilot_table, pilot_stream); // Busy: the table as it was.
   const fight::PilotTable &t = pilot_table;
-  const bool fresh = t.ms && start / 1000 < t.ms + kTableMs, peer = fresh && t.on;
-  if (t.session != pilot_session || t.gen != pilot_gen || peer != pilot_peer) {
+  const bool fresh = fight::fresh(t, start / 1000, fight_engine.latched()), peer = t.on;
+  if (pilot_told.forget(t))
     capturer.clear();
-    pilot_session = t.session, pilot_gen = t.gen, pilot_peer = peer;
-  }
   pilot::Owned owned[fight::kMaxPairs];
   const size_t n = fresh && (peer || pilot_probe) ? fight::owned(t, owned) : 0;
   pilot_owned = uint32_t(n);

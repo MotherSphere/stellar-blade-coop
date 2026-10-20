@@ -100,7 +100,10 @@ build/host/pose_codec_test
     out, the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put
     back after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd
     control, taken off before a kill and on every way out, a refused dispel tried again) with the pair table for the
-    game thread and the rows it captures (only those the side owns and does not draw), against fake memory;
+    game thread, the rows it captures (only those the side owns and does not draw) and how it reads the table (fresh
+    for 1 s after the job published it and never once the engine is latched; the Shows told so far are told again only
+    after a new session, a new generation or a change of the table's on, not after a stale table), against fake
+    memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
     worlds linked through a delayed, lossy line;
   - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
