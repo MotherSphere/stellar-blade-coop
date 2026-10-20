@@ -4,7 +4,8 @@
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
 -- on any slot even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
--- shared_enemies=on and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
+-- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
+-- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
 -- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop-chat.txt is
 -- taken every 250 ms (session or not, coop off included) and its text never logged, the co-op menu (menu.lua on a fake
@@ -67,6 +68,7 @@ local mate_v=nil -- link.mate(): her vitals.
 local paks_v=nil -- link.paks(): her .pak mods against ours.
 local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
+local pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
 local saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= line, the Steam ID.
@@ -85,6 +87,7 @@ local fake_link={
     mode=function() return link_mode end,
     saves=function() return saves_info end,
     fight=function() fight_reads=fight_reads+1; return fight_text end,
+    pilot=function() pilot_reads=pilot_reads+1; return pilot_text end,
     chatting=function() return chatting end,
     take_chat=function() chat_takes=chat_takes+1; local lines=chat_lines; chat_lines={}; return lines end,
     say=function(text)
@@ -292,7 +295,7 @@ package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | '
+    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
 
 local function load_main(with_native)
@@ -330,7 +333,8 @@ assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say;
 for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
-        assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto\n',printed[k+2])
+        assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto, same place off '
+            ..'(experimental)\n',printed[k+2])
         assert(printed[k+3]=='[StellarCoop] photo sync: both, longest pause 600 s, ghost in your photos on, its name '
             ..'tag off\n',printed[k+3])
     end
@@ -706,7 +710,7 @@ link_mode='none'
 
 -- coop fight (Phase 11, experimental). Strict arguments: anything else is the fight's usage line and asks nothing.
 local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | '
-    ..'record | replay\n'
+    ..'record | replay | pilot status|probe|on|off | pilot test freeze|cmc|drive|replay\n'
 local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now '
 local COOP=with_slot('slot=coop index=4 marker=4\n')
 settings_text='shared_enemies=off\n'
@@ -761,13 +765,48 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
 end
 status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
 coop('fight','probe'); assert(asked[#asked]=='fight probe','The co-op saves pass too')
+-- coop fight pilot (same-place enemies, stage 3a), on any slot: status asks the native part (which logs its stats
+-- lines at once) and answers with the pilot= line; probe, on, off and test go as typed. on needs same_place=on, as on
+-- needs shared_enemies=on. target and exec are refused here: force target comes with stage 3b, executions with 3c.
+status_text=with_slot('slot=main index=0 marker=4\n')
+for _,bad in ipairs({{'pilot'},{'pilot','start'},{'pilot','status','x'},{'pilot','probe','1'},{'pilot','off','now'},
+        {'pilot','on','x'},{'pilot','test'},{'pilot','test','Freeze'},{'pilot','test','freeze','x'},
+        {'pilot','tests','drive'},{'pilot','test','kill'},{'pilot','test','hp','5'},{'pilot','Probe'}}) do
+    local before=#asked
+    coop('fight',table.unpack(bad))
+    assert(last()==FIGHT_USE and #asked==before,table.concat(bad,' ')..': '..last())
+end
+for _,case in ipairs({{{'probe'},'fight pilot probe'},{{'off'},'fight pilot off'},
+        {{'test','freeze'},'fight pilot test freeze'},{{'test','cmc'},'fight pilot test cmc'},
+        {{'test','drive'},'fight pilot test drive'},{{'test','replay'},'fight pilot test replay'}}) do
+    coop('fight','pilot',table.unpack(case[1]))
+    assert(asked[#asked]==case[2] and last()=='[StellarCoop] OK: asked the native part: '..case[2]..'\n',last())
+end
+local before_pilot=#asked
+coop('fight','pilot','on')
+assert(#asked==before_pilot and last()=='[StellarCoop] STOP: same place is off in coop-settings.txt (same_place=off)\n',
+    last())
+coop('fight','pilot','test','target')
+assert(#asked==before_pilot and last()=='[StellarCoop] STOP: coop fight pilot test target: force target comes with '
+    ..'stage 3b (enemies that fight the guest), not in this build\n',last())
+coop('fight','pilot','test','exec')
+assert(#asked==before_pilot and last()=='[StellarCoop] STOP: coop fight pilot test exec: executions on the same enemy '
+    ..'come with stage 3c, not in this build\n',last())
+pilot_text='pilot=on piloted=3 probe=on'
+coop('fight','pilot','status')
+assert(asked[#asked]=='fight pilot status' and last()=='[StellarCoop] OK: pilot=on piloted=3 probe=on\n',last())
+pilot_text=nil
+coop('fight','pilot','status')
+assert(asked[#asked]=='fight pilot status' and last()=='[StellarCoop] OK: no same-place status yet\n',last())
+status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
 -- shared_enemies=on with fight_chars: every mode but test carries them. coop fight on runs on any save: the native
 -- part waits for a co-op save, and says what it waits for. It starts by itself once a load, as soon as the native part
 -- judged the slot (coop, main, or none at the title), not before (no slot line, unknown), never again.
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 status_text=plain
 load_main(true)
-assert(logged('shared enemies: on (experimental), fight_chars 15011001 2'),table.concat(printed,'|'))
+assert(logged('shared enemies: on (experimental), fight_chars 15011001 2, same place off (experimental)'),
+    table.concat(printed,'|'))
 for _,waiting in ipairs({plain,with_slot('slot=unknown index=? marker=4\n'),
         with_slot('friend=1 0 slot=coop index=4 marker=4\n')}) do
     status_text=waiting; loops[2].f(); assert(#asked==0,'No save judged yet: it waits')
@@ -805,6 +844,20 @@ settings_text='shared_enemies=on\nkill_credit=FOUGHT\nenemy_hp_scale=1.234\nenem
 load_main(true)
 status_text=COOP
 coop('fight','on'); assert(asked[#asked]=='fight on fought scale 123 101',asked[#asked])
+-- same_place=on goes with the modes that can host (on, record) as "place" after the scaling, before the ids; the
+-- guest takes the host's, so replay and probe never carry it. coop fight pilot on then runs.
+settings_text='shared_enemies=on\nsame_place=on\nfight_chars=15011001 2\n'
+load_main(true)
+assert(logged('shared enemies: on (experimental), fight_chars 15011001 2, same place on (experimental)'),
+    table.concat(printed,'|'))
+status_text=COOP
+loops[2].f()
+assert(#asked==1 and asked[1]=='fight on scale 135 115 place 15011001 2',asked[1])
+for _,case in ipairs({{'record','fight record scale 135 115 place 15011001 2'},{'replay','fight replay 15011001 2'},
+        {'probe','fight probe 15011001 2'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+coop('fight','pilot','on'); assert(asked[#asked]=='fight pilot on')
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)
@@ -818,7 +871,8 @@ for _,text in ipairs({'','shared_enemies=on\n','shared_enemies=on\nfight_chars=a
         'shared_enemies=on\nfight_chars=\n'}) do
     settings_text=text
     load_main(true)
-    assert(logged('shared enemies: on (experimental), fight_chars auto'),table.concat(printed,'|'))
+    assert(logged('shared enemies: on (experimental), fight_chars auto, same place off (experimental)'),
+        table.concat(printed,'|'))
     status_text=COOP; loops[2].f()
     assert(#asked==1 and asked[1]=='fight on scale 135 115',text)
 end
@@ -985,6 +1039,50 @@ loops[1].f(); loops[1].f(); assert(fight_reads==reads,'No shared fight work in t
 local languages=language_reads
 fight_step('fight=stopped why=fault')
 assert(language_reads==languages,'The language is read only to say a notice')
+-- Same place's notices (stage 3a), every 250 ms from the pilot= line, in the menu's language: on with the count when
+-- its enemies go from none to some; off with why once it was on, when the host's game turned it off or an error
+-- stopped it; never for our own coop fight pilot off (why=asked), the host's own setting (why=setting) or the shared
+-- fight not running (why=fight: its own notices say so), nor for a status that was not read; nothing per frame.
+local function pilot_step(text)
+    pilot_text=text
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do
+        if said[i]:find('^Same place') or said[i]:find('^Même position') then out[#out+1]=said[i] end
+    end
+    return table.concat(out,'|')
+end
+local OFF_BY_ERROR='Same place off: stopped by an error until the game restarts. coop-link.log says why.'
+for _,step in ipairs({{nil,''},{'pilot=off why=fight',''},{'pilot=off why=host',''},{'pilot=on piloted=0',''},
+        {'pilot=on piloted=3','Same place: 3 enemies piloted.'},{'pilot=on piloted=2',''},{'pilot=on piloted=0',''},
+        {'pilot=on piloted=1','Same place: 1 enemy piloted.'},{nil,''},
+        {'pilot=off why=host',"Same place off: Kaanta's game turned it off."},{'pilot=off why=host',''},
+        {'pilot=on piloted=2 probe=on','Same place: 2 enemies piloted.'},{'pilot=off why=asked',''},
+        {'pilot=on piloted=2 test=cmc','Same place: 2 enemies piloted.'},{'pilot=off why=fight',''},
+        {'pilot=on piloted=2','Same place: 2 enemies piloted.'},{'pilot=off why=setting',''},
+        {'pilot=on piloted=0',''},{'pilot=off why=host',"Same place off: Kaanta's game turned it off."},
+        {'pilot=on piloted=1','Same place: 1 enemy piloted.'},{'pilot=stopped',OFF_BY_ERROR},{'pilot=stopped',''},
+        {'pilot=refused why=coop off',''}}) do
+    local got=pilot_step(step[1])
+    assert(got==step[2],tostring(step[1])..': '..got)
+end
+kit_language='fr-FR'
+for _,step in ipairs({{'pilot=on piloted=3','Même position : 3 ennemis pilotés.'},
+        {'pilot=off why=host',"Même position coupée : la partie de Kaanta l'a coupée."},
+        {'pilot=on piloted=1','Même position : 1 ennemi piloté.'},
+        {'pilot=stopped',"Même position coupée : arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit "
+            ..'pourquoi.'}}) do
+    local got=pilot_step(step[1])
+    assert(got==step[2],tostring(step[1])..': '..got)
+end
+kit_language=nil
+friend_name=''
+pilot_step('pilot=on piloted=1')
+assert(pilot_step('pilot=off why=host')=="Same place off: your friend's game turned it off.")
+friend_name='Kaanta'
+pilot_step(nil)
+local pilots=pilot_reads
+loops[1].f(); loops[1].f(); assert(pilot_reads==pilots,'No same-place work in the per-frame loop')
 -- What keeps coop fight on from sharing, one notice each time it changes: your own save (how to switch to the co-op
 -- copy, or the manual slot when the co-op copies are off), her own save, her shared enemies off or stopped, the two of
 -- you on different maps. Waits that end by themselves (no friend, a load, photo mode) say nothing and forget nothing;
@@ -1248,6 +1346,26 @@ key('RETURN')
 assert(settings_text:find('\nkill_credit=fought\n',1,true) and select(2,focus())=='Enemies I hit'
     and #asked==fight_asks+3)
 quarter(); assert(#asked==fight_asks+3)
+-- Same place, the host's for both games: Off by default. While a mode that pairs (on, record, replay) waits or runs,
+-- off asks coop fight pilot off at once and on asks coop fight pilot on; with none, or a probe, nothing (the next
+-- coop fight on carries it).
+to('Same place (experimental)'); assert(select(2,focus())=='Off')
+key('RETURN')
+assert(settings_text:find('\nsame_place=on\n',1,true) and select(2,focus())=='On')
+quarter(); assert(#asked==fight_asks+3,'No mode asked: the next coop fight on carries it')
+fight_text='fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2'
+quarter(); assert(#asked==fight_asks+3,'Only a change asks')
+key('RETURN'); quarter()
+assert(settings_text:find('\nsame_place=off\n',1,true) and #asked==fight_asks+4 and asked[#asked]=='fight pilot off'
+    and logged('OK: same_place=off: asked the native part: fight pilot off'))
+quarter(); assert(#asked==fight_asks+4,'Once')
+fight_text='fight=waiting mode=record why=no save loaded'
+key('RETURN'); quarter()
+assert(#asked==fight_asks+5 and asked[#asked]=='fight pilot on'
+    and logged('OK: same_place=on: asked the native part: fight pilot on'))
+fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
+key('RETURN'); quarter(); assert(#asked==fight_asks+5 and select(2,focus())=='Off','The probe: nothing')
+fight_text=nil
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
@@ -1255,7 +1373,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Attack effects|Off|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^Poses sent a second|55|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)

@@ -1,7 +1,7 @@
--- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', the status
--- line's and the notices' words that the Lua side writes (D-UI8): English and French. The game's language picks them
--- (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language reads English until
--- translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
+-- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
+-- place's, the status line's and the notices' words that the Lua side writes (D-UI8): English and French. The game's
+-- language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language
+-- reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
 local T={}
 T.en={
     title='CO-OP',
@@ -17,7 +17,8 @@ T.en={
         ui_scale='Menu size',ui_sounds='Menu sounds',ui_language='Menu language',partner_bar='HP marker',
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
         who_can_join='Who can join',auto_coop_save='Co-op saves',enemy_hp_scale="Enemy HP (host's)",
-        enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards'},
+        enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards',
+        same_place='Same place (experimental)'},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',friends='Friends',
         code='With a code',private='Invited only',ask='Ask',always='Always',all='Every shared enemy',
         fought='Enemies I hit'},
@@ -84,6 +85,10 @@ T.en={
             ..'stay unshared.',
         host_down='Shared enemies: %s is down. Once they respawn, the enemies you share go back to full health.',
         paks='%s loads other .pak mods than you (%d there, %d here). Enemies that differ stay unshared.'},
+    -- Same place's notices (main.lua): how many enemies it moves, and why it went off (off with host or stopped; %s
+    -- in host: her name, or fight.friend).
+    pilot={on='Same place: %d enemies piloted.',one='Same place: 1 enemy piloted.',off='Same place off: %s',
+        host="%s's game turned it off.",stopped='stopped by an error until the game restarts. coop-link.log says why.'},
 }
 T.fr={
     title='CO-OP',
@@ -100,7 +105,8 @@ T.fr={
         ui_scale='Taille du menu',ui_sounds='Sons du menu',ui_language='Langue du menu',partner_bar='Marqueur de vie',
         partner_arrow='Flèche hors écran',partner_card='Fiche du partenaire',card_details='Ping et zone sur la fiche',
         who_can_join='Qui peut rejoindre',auto_coop_save='Sauvegardes co-op',enemy_hp_scale='PV des ennemis (hôte)',
-        enemy_balance_scale='Équilibre des ennemis (hôte)',kill_credit='Mes récompenses'},
+        enemy_balance_scale='Équilibre des ennemis (hôte)',kill_credit='Mes récompenses',
+        same_place='Même position (expérimental)'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',friends='Amis',
         code='Avec un code',private='Sur invitation',ask='Demander',always='Toujours',all='Tous les ennemis partagés',
         fought='Ceux que je frappe'},
@@ -167,6 +173,9 @@ T.fr={
             ..'santé.',
         paks="%s n'a pas les mêmes mods .pak que vous (%d en face, %d ici). Les ennemis qui diffèrent ne sont pas "
             ..'partagés.'},
+    pilot={on='Même position : %d ennemis pilotés.',one='Même position : 1 ennemi piloté.',
+        off='Même position coupée : %s',host="la partie de %s l'a coupée.",
+        stopped="arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi."},
 }
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(culture,setting)

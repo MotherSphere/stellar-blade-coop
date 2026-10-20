@@ -10,10 +10,11 @@
 -- at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
--- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale and kill_credit
--- (Phase 11, experimental) are main.lua's coop fight; its photo_sync, photo_freeze_max, photo_ghost and photo_name_tag
--- the synced photo mode's (main.lua, and the native part through coop-state.txt); its auto_coop_save the co-op saves'
--- (saves.lua), which also read saves() here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit and
+-- same_place (Phase 11, experimental) are main.lua's coop fight; its photo_sync, photo_freeze_max, photo_ghost and
+-- photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt); its auto_coop_save
+-- the co-op saves' (saves.lua), which also read saves() here. The co-op menu (menu.lua) changes the file, one line at
+-- a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -61,6 +62,10 @@ guest_kills=at_once
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
 kill_credit=all
+# Same place, experimental: on or off, the host's setting for both games (the guest's is not used). On, each shared
+# enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It never
+# attacks the guest yet.
+same_place=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -88,11 +93,11 @@ card_details=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='all',photo_sync='both',photo_freeze_max='600',
+    enemy_balance_scale='1.15',kill_credit='all',same_place='off',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
     partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
-local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
-    chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true}
+local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true,
+    chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -240,11 +245,11 @@ function Link.new(folder,fs)
     local seen,remote={},{}
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
-    -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}; mate: her vitals;
-    -- ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits
-    -- for the handshake (kept across changes() until she is linked or we are no longer a guest); saves: the co-op
-    -- saves' state (saves()); paks: her .pak mods against ours (paks()).
-    local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
+    -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
+    -- peer=,frozen=}; mate: her vitals; ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a
+    -- rejoin got her lobby back and waits for the handshake (kept across changes() until she is linked or we are no
+    -- longer a guest); saves: the co-op saves' state (saves()); paks: her .pak mods against ours (paks()).
+    local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,ping,loopback,rejoined,saves,paks=nil,nil,false,false,{},nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
@@ -335,7 +340,7 @@ function Link.new(folder,fs)
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
-        mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
+        mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
         lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
@@ -368,6 +373,7 @@ function Link.new(folder,fs)
             if id then members[#members+1]=id end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
+            if line:find('^pilot=') then pilot=line end
             local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
             if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
@@ -405,6 +411,9 @@ function Link.new(folder,fs)
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
     function self.fight() return fight end
+    -- Same-place enemies' line ("pilot=on piloted=3", "pilot=off why=host", "pilot=stopped", "pilot=refused why=...";
+    -- native pilot_status()), from the start of its own line; nil without one.
+    function self.pilot() return pilot end
     -- Her .pak mods against ours, once her game said them: {same=, ours=, hers=} (the counts beyond the base game's
     -- paks), or nil.
     function self.paks() return paks end

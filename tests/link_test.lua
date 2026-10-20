@@ -123,6 +123,19 @@ link.changes()
 files[STATUS]=nil
 link.changes()
 assert(link.fight()==nil,'No status: none either')
+-- Same-place enemies' line (stage 3a), likewise from the start of its own line only; nil without one.
+files[STATUS]='mod=v\npeer=2 name=x pilot=on piloted=9\nfight=off\npilot=on piloted=3 probe=on\nlast=#10 x\n'
+link.changes()
+assert(link.pilot()=='pilot=on piloted=3 probe=on',tostring(link.pilot()))
+files[STATUS]='mod=v\r\npilot=refused why=build stamp 0 (not the pinned game)\r\nlast=#11 x\r\n'
+link.changes()
+assert(link.pilot()=='pilot=refused why=build stamp 0 (not the pinned game)','CRLF')
+files[STATUS]='mod=v\npeer=2 name=x pilot=on piloted=1\nlast=pilot=on piloted=1\n'
+link.changes()
+assert(link.pilot()==nil,'Not from a peer line nor from the last line')
+files[STATUS]=nil
+link.changes()
+assert(link.pilot()==nil,'No status: none either')
 -- Her .pak mods against ours (paks=same|differ <ours> <hers>), from the start of its own line only; nil without one.
 files[STATUS]='mod=v\npeer=2 name=x paks=same 1 1\npaks=differ 2 0\nlast=#9 x\n'
 link.changes()
@@ -333,6 +346,21 @@ end
 s,notes=Link.parse_settings('kill_credit=mine')
 assert(#notes==1 and notes[1]=="settings: line 1: 'mine' is not allowed for kill_credit (use all or fought); "
     .."kill_credit stays all" and s.kill_credit=='all',notes[1])
+-- same_place (stage 3a, experimental): on or off in any case, off by default and in a file written before it; a new
+-- file names it after kill_credit, with its comment; a bad value keeps off, with a line.
+assert(Link.DEFAULT:find('\nkill_credit=all\n# Same place, experimental: ',1,true)
+    and Link.DEFAULT:find('\nsame_place=off\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.same_place==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.same_place==false)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('same_place='..case[1])
+    assert(#notes==0 and s.same_place==case[2],case[1])
+end
+s,notes=Link.parse_settings('same_place=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for same_place (use on or off); "
+    .."same_place stays off" and s.same_place==false,notes[1])
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one

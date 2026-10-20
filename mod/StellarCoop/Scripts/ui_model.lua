@@ -55,6 +55,9 @@ M.OPTIONS={
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     {head='combat'},
     toggle('shared_enemies','on'), -- At once: main.lua asks coop fight on or off.
+    -- The host's for both games: at once while shared enemies wait or run (main.lua asks coop fight pilot off or on),
+    -- else from their next start.
+    toggle('same_place','off'),
     -- The host's values for both games, and our own kill credit: each from the next start of shared enemies.
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),
     {key='kill_credit',values={'all','fought'},default='all'},
