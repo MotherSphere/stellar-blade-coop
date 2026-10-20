@@ -843,6 +843,14 @@ public:
       head_ = (head_ + 1) % kLines, --count_;
   }
   void clear() { head_ = count_ = 0; }
+  // Forgets the lines of one pair (it is gone: a later pair of that GUID is another life), the others kept in order.
+  void drop(uint32_t guid) {
+    size_t kept = 0;
+    for (size_t i = 0; i < count_; ++i)
+      if (q_[(head_ + i) % kLines].line.guid != guid)
+        q_[(head_ + kept++) % kLines] = q_[(head_ + i) % kLines];
+    count_ = kept;
+  }
 
 private:
   Due q_[kLines];
@@ -1498,7 +1506,7 @@ public:
   }
   // One frame at now (our clock, ms), drawing at at (the owner's clock, ms: the ghost's draw time; NaN without one).
   template <class Game> void draw(Game &g, uint64_t base, double now, double at) {
-    if (latched_)
+    if (latched_ || !holding()) // Nothing held: no line either (forget() drops a pair's), and nothing to read.
       return;
     auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
     const uint64_t objects = base + pose::kObjectsRva;
@@ -1611,6 +1619,7 @@ private:
     Found f;
     const bool found = globals(read, base, s) && find(g, read, base + pose::kObjectsRva, s, p.row.local, f);
     put_back(g, s.reg, p, found ? &f : nullptr);
+    timeline_.drop(p.row.hguid);
     p = Pair();
   }
   template <class Game, class Read>

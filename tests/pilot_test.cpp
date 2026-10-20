@@ -1000,6 +1000,20 @@ int main() {
     for (size_t k = 0; k < Timeline::kLines; ++k)
       tl.pop();
     assert(!tl.front(1e9) && tl.push(a, 0));
+    // A pair's lines dropped (it is gone): the others keep their order, across the ring's end.
+    tl.clear();
+    for (size_t k = 0; k < 30; ++k)
+      assert(tl.push(a, 0)), tl.pop();
+    for (uint32_t guid : {1, 2, 1, 3, 1, 2}) {
+      a.guid = guid, a.id = uint8_t(10 + guid);
+      assert(tl.push(a, 0));
+    }
+    tl.drop(1);
+    for (uint32_t guid : {2, 3, 2}) {
+      assert(tl.front(1e9) && tl.front(1e9)->line.guid == guid);
+      tl.pop();
+    }
+    assert(!tl.front(1e9));
   }
 
   // ---- Line ids: the owner's outbox and the drawn side's table ----
@@ -1611,6 +1625,35 @@ int main() {
     assert(s.since(seen).empty());
     d.draw(g, kBase, 5300, 1340);
     assert(s.since(seen) == "cmc off write1 write4 move write12");
+  }
+  // A pair forgotten takes its queued lines with it: drawn again later, nothing of its old life plays. With nothing
+  // held, a frame reads nothing of the game.
+  {
+    Stage s;
+    s.copy(501, 0, 0, 0);
+    Stage::Game g = s.game();
+    Driver d;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 0);
+    uint8_t bytes[kMaxSbe];
+    const size_t size = encode_sbe(h, &e, 1, bytes);
+    ShowLine l;
+    l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = 1, l.t_ms = 1500, l.rate = 1000;
+    assert(set_path(l, 0, "A/B"));
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.sbe(bytes, size);
+    d.line(l, 1000);
+    d.rows(g, kBase, 7, kGuest, nullptr, 0);
+    const int reads = s.reads;
+    d.draw(g, kBase, 5500, 1500);
+    assert(s.reads == reads && !d.holding());
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.sbe(bytes, size);
+    size_t seen = 0;
+    d.draw(g, kBase, 5600, 1600);
+    assert(s.since(seen) == "cmc off write1 write4 move write12" && d.counts.shows == 0 && d.counts.not_drawn == 0);
   }
   // Every way back in restore's order (the live replays stopped, then the movement component back only if it was in
   // SB's manager, then SB's speed override): the rows gone (unpair, same_place off, host loss, fight off, session end);
