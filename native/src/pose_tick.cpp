@@ -1744,9 +1744,10 @@ std::string fault_where(uint64_t rva) {
   return where;
 }
 
-// coop fight pilot probe|off|status|test <how far>. probe: while on, same-place enemies' lines this side sends go to
-// coop-fight.log; off: the probe off and same-place enemies off on this side until the next coop fight on, probe,
-// record or replay (each drawn copy goes back to the game, and the host tells her); status: the pilot line, and the
+// coop fight pilot probe|on|off|status|test <how far>. probe: while on, same-place enemies' lines this side sends go
+// to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it), and a pilot off
+// lifted; off: the probe off and same-place enemies off on this side until the next coop fight on, probe, record or
+// replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the pilot line, and the
 // stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on.
 bool pilot_stats_now = false;
 std::string ask_pilot(const coop::Request &request) {
@@ -1761,13 +1762,21 @@ std::string ask_pilot(const coop::Request &request) {
   case PilotAsk::status: pilot_stats_now = true; return "same-place enemies: " + pilot_status();
   default: break;
   }
-  const char *what = request.pilot == PilotAsk::test ? "pilot test" : "pilot probe";
+  const char *what = request.pilot == PilotAsk::test ? "pilot test"
+                     : request.pilot == PilotAsk::on ? "pilot on"
+                                                     : "pilot probe";
   if (!pinned)
     return std::string(what) + " refused: " + engine_reason;
   if (blocked)
     return std::string(what) + " refused: coop off";
   if (pilot_faulted)
     return std::string(what) + " refused: same-place enemies stopped for this run (a fault)";
+  if (request.pilot == PilotAsk::on) {
+    fight_engine.same_place(true);
+    fight_engine.pilot_off(false);
+    return "same-place enemies on: as host, for both games once the shared fight runs; as guest, the host's setting "
+           "decides";
+  }
   if (request.pilot == PilotAsk::test) {
     static const char *const kSay[] = {
         "our freeze only (the copies stand still and play their own animations)",

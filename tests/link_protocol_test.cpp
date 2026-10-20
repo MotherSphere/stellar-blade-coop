@@ -341,20 +341,21 @@ int main() {
                           "fight on place fought", "fight on Place", "fight off place", "fight status place",
                           "fight test kill place", "fight on  place"})
     assert(parse_request(bad).command == Command::none);
-  // The pilot's own: the probe on, the pilot off for the session (the probe too), its status, and how far the drawn
-  // side goes (freeze, cmc, drive or replay, each adding to the one before).
+  // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
+  // too), its status, and how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before).
   f = parse_request("fight pilot probe\n");
   assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::probe && !f.off);
   f = parse_request("fight pilot off");
   assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::off);
   assert(parse_request("fight pilot status").pilot == PilotAsk::status);
+  assert(parse_request("fight pilot on").pilot == PilotAsk::on && parse_request("fight pilot on").fight == Fight::pilot);
   const std::pair<const char *, PilotTest> tests[] = {{"freeze", PilotTest::freeze}, {"cmc", PilotTest::cmc},
                                                       {"drive", PilotTest::drive}, {"replay", PilotTest::replay}};
   for (const auto &[word, test] : tests) {
     f = parse_request(std::string("fight pilot test ") + word);
     assert(f.fight == Fight::pilot && f.pilot == PilotAsk::test && f.test == test);
   }
-  for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on", "fight pilot  probe",
+  for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on 1", "fight pilot  probe",
                           "fight pilot Probe", "fight pilot off 1", "fight pilot status 1", "fight pilot test",
                           "fight pilot test target", "fight pilot test exec", "fight pilot test freeze 1",
                           "fight pilot test Freeze", "fight pilot test  cmc", "fight pilot tests drive"})
