@@ -421,7 +421,8 @@ public:
     credit_ -= int64_t(n) * 1'000'000;
     return n;
   }
-  // The keyframe handed out never reached the worker (a newer pose replaced it): the next pose is a keyframe.
+  // The keyframe encoded never reached the worker (a newer pose overwrote it before its hand-over): the next pose is a
+  // keyframe.
   void lose() { lost_ = true; }
 
 private:
@@ -430,6 +431,14 @@ private:
   int64_t credit_ = 0;
   bool lost_ = false;
 };
+
+// The hand-over to the worker: whether the pose waiting there (not taken yet, waiting_size 0: none) stays and the
+// newest is dropped, rather than replacing it. Only a keyframe facing a delta, which names it: sent without it, that
+// delta and the ones after it would be keyless. The dropped delta is counted missing; the keyframe goes when the worker
+// comes.
+inline bool keeps_waiting(const uint8_t *waiting, size_t waiting_size, const uint8_t *newest, size_t newest_size) {
+  return waiting_size >= 3 && waiting[2] == 'P' && newest_size >= 3 && newest[2] == 'D';
+}
 
 // The receiver's side: the keyframe held, and the rebuilt pose. reset() allocates (the worker, with the Live); decode()
 // never does. Game thread.

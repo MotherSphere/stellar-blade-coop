@@ -164,14 +164,14 @@ std::atomic<int64_t> window_lag_us{0}, window_behind_us{0};
 std::atomic<int> last_refusal{0};              // An Io value, for the counter line.
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
 
-// The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing. A
-// keyframe replaced so never leaves: the next pose must be one, or her deltas would name a keyframe she never got.
+// The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing; but a
+// keyframe not taken yet stays and a delta, which names it, is dropped instead (keeps_waiting).
 void give_out() {
-  if (out_fresh && out_mid.size >= 3 && out_mid.data[2] == 'P' && session)
-    session->encoder.lose();
+  out_ready = false;
+  if (out_fresh && keeps_waiting(out_mid.data.data(), out_mid.size, out_back.data.data(), out_back.size))
+    return;
   std::swap(out_back, out_mid);
   out_fresh = true;
-  out_ready = false;
 }
 
 uint64_t micros_between(LARGE_INTEGER a, LARGE_INTEGER b) {
@@ -833,8 +833,9 @@ void hand_over(std::unique_ptr<Live> next) {
 
 // The game thread's next Live from the worker's tables. Only when the capture generation, the remote generation or
 // the ghost changes: a new Live starts the ghost's playback again.
-// ponytail: a new capture generation (her outfit, in loopback) also restarts the ghost's playback, about 75 ms frozen;
-// swap the playback across when the remote table and the ghost stay, if T4 shows it.
+// ponytail: a new Live also forgets her keyframe, so her deltas are dropped as keyless until her next one: up to 250 ms
+// frozen plus the playback's refill. A new capture generation (our outfit; hers in loopback) does so too while her
+// table and ghost stay; carry the playback and the decoder across then, if T4 shows it.
 void rebuild() {
   std::unique_ptr<Live> next;
   if (capture.generation || remote.generation)

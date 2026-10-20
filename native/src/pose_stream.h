@@ -139,7 +139,8 @@ public:
       if (arrival - last_arrival_ > kSilentMs)
         count_ = 0; // Counted below as a stall; the poses from before the silence are not blended with this one.
       stats_.lost += scratch_.sequence - newest.sequence - 1;
-      double gap = publication - newest.publication / 1000.0;
+      // Over the sequence numbers between: lost poses (a lost keyframe's 15 keyless deltas) do not lengthen it.
+      double gap = (publication - newest.publication / 1000.0) / (scratch_.sequence - newest.sequence);
       if (gap > 0 && gap < kIntervalCapMs)
         interval_ = interval_ * 0.9 + gap * 0.1;
       if (arrival - last_arrival_ > std::max(250.0, 3 * interval_))

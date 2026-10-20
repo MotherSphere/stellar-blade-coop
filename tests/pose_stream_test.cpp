@@ -3,7 +3,8 @@
 // due back, the game thread decodes it into the playback and draws a pose every frame. The root's X is the publication
 // time in ms, a straight line, so a drawn pose that interpolates right lands exactly on the display time. Checks delay,
 // jitter and loss against their settings, tracking, stalls, a clock step both ways, silence and stale poses; effect
-// slots held, not blended; and 60 poses a second with 100 ms of jitter, then with loss.
+// slots held, not blended; 60 poses a second with 100 ms of jitter, then with loss, then with a worker slower than the
+// capture and a busy hand-over; and the interval across a lost keyframe's hole.
 #include "pose_codec.h"
 #include "pose_stream.h"
 
@@ -27,6 +28,7 @@ Table table() {
 
 struct Result {
   uint64_t sent = 0, dropped = 0, received = 0, rejected = 0, keyless = 0, frames = 0, on_line = 0;
+  uint64_t kept = 0, keys_overwritten = 0; // Hand-overs: keyframes kept over a delta, keyframes never handed over.
   double lag_ms = 0, max_gap_ms = 0;
   Playback::Stats stats;
   double behind_ms = 0;     // Mean.
@@ -45,6 +47,8 @@ struct Scenario {
   uint64_t tracking_percent = 99; // Frames drawn exactly at the display time (the rest: past the extrapolation cap).
   uint64_t interval_us = 50000;   // Between two captures.
   bool keyed = false;             // Through KeyedEncoder and KeyedDecoder (protocol 9), not as keyframes only.
+  uint64_t worker_us = 5000;      // Between two worker passes.
+  uint64_t busy_every = 0;        // The hand-over's lock is busy for two frames in each this many (0: never).
 };
 
 Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
@@ -65,7 +69,8 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   KeyedDecoder receiver;
   sender.reset(pose_size(t));
   receiver.reset(pose_size(t));
-  std::vector<uint8_t> out(kMaxPose), sent_message;
+  std::vector<uint8_t> out(kMaxPose), back, sent_message; // As pose_tick.cpp's out_back and out_mid.
+  bool back_ready = false;
   const Effect no_fx[kEffectSlots];
   Effect drawn_fx[kEffectSlots];
   std::vector<std::vector<uint8_t>> inbox;
@@ -80,7 +85,7 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   uint64_t start_frames = 0;
   for (uint64_t now = start; now < end; now += 1000) {
     double second = (now - start) / 1e6;
-    if (now % 5000 == 0) { // Worker pass.
+    if (now % s.worker_us == 0) { // Worker pass.
       if (!sent_message.empty()) {
         ++r.sent;
         r.dropped += !line.send(sent_message.data(), sent_message.size(), now);
@@ -95,6 +100,18 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
       continue;
     next_frame += frame_us;
     ++r.frames;
+    // The hand-over, as pose_tick.cpp's give_out(): the newest pose replaces one the worker has not taken (counted
+    // lost), unless keeps_waiting(); a busy lock leaves it for the next frame.
+    const bool busy = s.busy_every && r.frames % s.busy_every < 2;
+    auto give_out = [&] {
+      back_ready = false;
+      if (keeps_waiting(sent_message.data(), sent_message.size(), back.data(), back.size()))
+        ++r.kept;
+      else
+        sent_message = back;
+    };
+    if (back_ready && !busy)
+      give_out();
     // Game thread: capture every interval (from the first frame at or after the schedule).
     bool paused = s.pause_at >= 0 && second >= s.pause_at && second < s.pause_at + s.pause_seconds;
     if (now >= next_capture && !paused) {
@@ -103,10 +120,15 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
                         (s.drift_from >= 0 && second > s.drift_from ? (second - s.drift_from) * s.drift_ms_per_s : 0);
       float root[10] = {0, 0, 0, 1, float(clock_ms - 10000), 0, 0, 1, 1, 1}; // X: publication ms (offset for precision).
       PoseHeader h{t.generation, uint64_t(clock_ms * 1000), ++sequence, 0};
+      if (back_ready && back.size() >= 3 && back[2] == 'P') // A keyframe never handed over: overwritten.
+        ++r.keys_overwritten, sender.lose();
       size_t n = encode_pose(t, h, root, bones.data(), no_fx, out.data(), clamped);
       if (s.keyed)
         n = sender.encode(t, out.data(), n, h.publication);
-      sent_message.assign(out.begin(), out.begin() + long(n)); // Overwrites one the worker has not taken (counted lost).
+      back.assign(out.begin(), out.begin() + long(n));
+      back_ready = true;
+      if (!busy)
+        give_out();
     }
     for (size_t i = 0; i < inbox.size(); ++i) {
       Playback::Frame &f = playback.scratch();
@@ -273,6 +295,40 @@ int main() {
   fast_lossy.tracking_percent = 90;
   Result g = run(fast_lossy);
   assert(g.keyless > 0 && g.keyless * 10 < g.sent && g.stats.stale == 0);
+  // A worker slower than the capture (a pass every 25 ms), and the hand-over's lock busy two frames running: a keyframe
+  // the worker has not taken stays and the delta that names it is dropped; a keyframe never handed over makes the next
+  // pose a keyframe. With no loss on the line no delta ever goes without its keyframe.
+  Scenario slow{120, 30, 0};
+  slow.interval_us = 16667;
+  slow.keyed = true;
+  slow.worker_us = 25000;
+  slow.busy_every = 7;
+  slow.tracking_percent = 90;
+  Result sw = run(slow);
+  assert(sw.kept > 100 && sw.keys_overwritten > 10 && sw.keyless == 0 && sw.stats.stale == 0);
+
+  // A lost keyframe at 60 a second: its deltas are dropped as keyless, so 16 sequence numbers pass between two poses.
+  // The interval is that gap over the sequence numbers, so she is drawn as far behind the newest pose after the hole as
+  // before it (taking the 267 ms gap as one interval drew her 37 ms further back, a step back on screen).
+  {
+    Playback p;
+    p.reset(kTransformBytes);
+    double before = 0;
+    for (uint32_t k = 1; k <= 140; ++k) {
+      if (k > 100 && k < 116)
+        continue;
+      p.scratch().sequence = k;
+      p.scratch().publication = 1'000'000 + k * 16'667;
+      const uint64_t arrival = p.scratch().publication + 100'000;
+      assert(p.accept(arrival));
+      const double behind = arrival / 1000.0 - p.display_ms(arrival / 1000.0); // The floor (100 ms) and 1.5 intervals.
+      if (k == 100)
+        before = behind;
+      if (k >= 116)
+        assert(std::fabs(behind - before) < 0.5);
+    }
+    assert(std::fabs(before - 125) < 0.5);
+  }
 
   // A stale pose (not newer than the newest) is refused and counted.
   {
