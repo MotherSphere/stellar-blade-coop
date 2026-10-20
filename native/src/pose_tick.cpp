@@ -34,7 +34,11 @@
 // runs, reads each enemy (found by GUID through SB's two read-only lookups) and SB's show manager into one SBE message
 // and the show lines, under its own SEH latch, pilot, whose first fault also asks the job to let every frozen copy go.
 // The worker sends them to her while the shared fight runs on (SBE on channel 1, the lines on channel 2), puts them in
-// a recording being made, and logs them to coop-fight.log while the probe runs.
+// a recording being made, and logs them to coop-fight.log while the probe runs. The write half, under the same latch:
+// her SBE and show lines (from her, or from a replayed recording) come to the game thread through the same lock, and
+// each frame every copy this side draws is found again by its GUID and driven at the ghost's draw time (pilot.h's
+// Driver): its movement component out of SB's manager, the speed override, the root moved, Velocity set, her Shows
+// replayed through SB's Show handle API. The first fault puts every copy back once and stops all of it for the run.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -44,6 +48,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -751,13 +756,57 @@ size_t pilot_sbe_size = 0;
 bool pilot_sbe_peer = false;
 pilot::Capturer::Counts pilot_counts;
 uint64_t pilot_lost = 0, pilot_runs = 0, pilot_us = 0, pilot_max_us = 0;
+// The drawn side's. Hers (SBE messages, parsed show lines) come from the worker under pilot_m, and the game thread
+// moves them to its own rings at its hand-over; what its Driver did goes back the same way.
+struct SbeIn {
+  uint8_t data[pilot::kMaxSbe];
+  size_t size = 0;
+};
+constexpr size_t kSbeIn = 8; // About 250 ms of her SBE: the game thread takes them every frame.
+fight::Ring<SbeIn, kSbeIn> pilot_sbe_in, pilot_sbe_here;
+fight::Ring<pilot::ShowLine, kPilotLines> pilot_lines_in, pilot_lines_here;
+pilot::Driver driver;               // The game thread's.
+pilot::Driver::Counts drive_counts; // Under pilot_m, as are the two below.
+uint64_t drive_add_max_us = 0;
+std::atomic<bool> drift_reset{false}; // The worker's ask: the drift probe's maxima start again.
 
-// pilot.h's Game: plain reads (a fault is the latch's) and the two lookups.
+// The drawn side's calls (stage 3a's allowlist, PHASE11-STAGE3 3.5 and 3.6, M3-3 and M3-12), on the game thread only,
+// under the pilot latch: SB's Show handle API, the sequence SB's own skill presentation runs (FUN_142284a30 a new stage
+// and its handle, FUN_142285010 SetMainActor, FUN_1422853e0 AddShow, and the setters FUN_142285200 SetStep,
+// FUN_142285270 SetRate and FUN_1422852f0 Stop, keyed by that handle), and SB's own SetComponentTickEnabled of its
+// movement component (pilot::kCmcTick, 142158f40, vtable slot 0x350), called only once pilot.h checked the component's
+// vtable and that slot. The root's MoveComponent is called through the root's vtable (+0x4a0), as SB's SetActorLocation
+// calls it. Never SB's SetLocation or 142277990, never the engine base 140f32a70, never a write to
+// APawn::LastControlInputVector.
+constexpr uint64_t kNewHandle = 0x142284a30, kSetMainActor = 0x142285010, kAddShow = 0x1422853e0,
+                   kSetStep = 0x142285200, kSetRate = 0x142285270, kStopShow = 0x1422852f0;
+struct FString { // UE's: the characters with their NUL, and that count twice (no slack).
+  const wchar_t *data;
+  int32_t num, max;
+};
+using NewHandle = int32_t *(*)(void *reg, int32_t *out, uint8_t release_when_done);
+using SetMainActor = void (*)(void *reg, const int32_t *handle, const void *actor_guid);
+using AddShow = int32_t (*)(void *reg, const int32_t *handle, const FString *path, uint8_t as_given, float rate,
+                            float delay, uint8_t step_gate, uint8_t b4d);
+using SetStep = void (*)(void *reg, const int32_t *handle, int32_t slot, int32_t step, uint8_t jump);
+using SetRate = void (*)(void *reg, const int32_t *handle, int32_t slot, float rate);
+using StopShow = void (*)(void *reg, const int32_t *handle, float blend_out);
+using CmcTick = void (*)(void *cmc, uint8_t on);
+using MoveComponent = uint8_t (*)(void *root, const float *delta, const float *quat, uint8_t sweep, void *hit,
+                                  uint32_t flags, uint8_t teleport);
+uint64_t pilot_add_max_us = 0; // The game thread's: AddShow's longest call (a Show's first load is synchronous).
+
+// pilot.h's Game: plain reads and writes (a fault is the latch's), the two lookups, and the drawn side's calls.
 struct PilotGame {
+  struct Handle { // A stage handle as SB's functions take it.
+    int32_t w[4];
+    explicit Handle(const uint8_t *h) { std::memcpy(w, h, sizeof w); }
+  };
   bool read(uint64_t address, void *out, size_t n) {
     std::memcpy(out, reinterpret_cast<const void *>(address), n);
     return true;
   }
+  void write(uint64_t address, const void *in, size_t n) { std::memcpy(reinterpret_cast<void *>(address), in, n); }
   uint64_t fsb(uint64_t manager, uint32_t guid) {
     return reinterpret_cast<uintptr_t>(
         game_function<FindFsb>(kFindFsb)(reinterpret_cast<void *>(manager), static_cast<int32_t>(guid)));
@@ -765,6 +814,45 @@ struct PilotGame {
   uint64_t character(uint64_t map, const int32_t *guid) {
     return reinterpret_cast<uintptr_t>(
         game_function<FindCharacter>(kFindCharacter)(reinterpret_cast<void *>(map), guid));
+  }
+  void cmc(uint64_t cmc, bool on) { game_function<CmcTick>(pilot::kCmcTick)(reinterpret_cast<void *>(cmc), on); }
+  void move(uint64_t fn, uint64_t root, const float *delta, const float *quat) {
+    alignas(16) float q[4] = {quat[0], quat[1], quat[2], quat[3]}; // SB passes an aligned FQuat.
+    const float d[3] = {delta[0], delta[1], delta[2]};
+    reinterpret_cast<MoveComponent>(fn)(reinterpret_cast<void *>(root), d, q, 0, nullptr, 0, 1); // Teleport.
+  }
+  bool handle(uint64_t reg, uint8_t *out) {
+    int32_t h[4] = {};
+    game_function<NewHandle>(kNewHandle)(reinterpret_cast<void *>(reg), h, 1);
+    std::memcpy(out, h, sizeof h);
+    return h[0] || h[1] || h[2] || h[3];
+  }
+  void main_actor(uint64_t reg, const uint8_t *h, uint64_t guid) {
+    game_function<SetMainActor>(kSetMainActor)(reinterpret_cast<void *>(reg), Handle(h).w,
+                                               reinterpret_cast<const void *>(guid));
+  }
+  int32_t add(uint64_t reg, const uint8_t *h, const char *path, size_t len, uint8_t form, float rate, uint8_t gate,
+              uint8_t b4d) {
+    static wchar_t text[pilot::kMaxPath + 1]; // The game thread's alone; AddShow copies it.
+    len = std::min(len, pilot::kMaxPath);
+    for (size_t k = 0; k < len; ++k)
+      text[k] = wchar_t(uint8_t(path[k]));
+    text[len] = 0;
+    const FString s{text, int32_t(len + 1), int32_t(len + 1)};
+    const uint64_t start = clock_us();
+    const int32_t slot = game_function<AddShow>(kAddShow)(reinterpret_cast<void *>(reg), Handle(h).w, &s, form, rate,
+                                                          0.f, gate, b4d);
+    pilot_add_max_us = std::max(pilot_add_max_us, clock_us() - start);
+    return slot;
+  }
+  void step(uint64_t reg, const uint8_t *h, int32_t slot, int32_t step) {
+    game_function<SetStep>(kSetStep)(reinterpret_cast<void *>(reg), Handle(h).w, slot, step, 1);
+  }
+  void rate(uint64_t reg, const uint8_t *h, int32_t slot, float rate) {
+    game_function<SetRate>(kSetRate)(reinterpret_cast<void *>(reg), Handle(h).w, slot, rate);
+  }
+  void stop(uint64_t reg, const uint8_t *h) {
+    game_function<StopShow>(kStopShow)(reinterpret_cast<void *>(reg), Handle(h).w, 0.f);
   }
 };
 // Each frame: the newest table; every kSbeUs while this side owns pairs (and the table is on, or the probe runs), one
@@ -774,7 +862,7 @@ __declspec(noinline) void pilot_body() {
   const uint64_t start = clock_us();
   fight_mail.table(pilot_table, pilot_stream); // Busy: the table as it was.
   const fight::PilotTable &t = pilot_table;
-  const bool fresh = fight::fresh(t, start / 1000, fight_engine.latched()), peer = t.on;
+  const bool fresh = !blocked && fight::fresh(t, start / 1000, fight_engine.latched()), peer = t.on;
   if (pilot_told.forget(t))
     capturer.clear();
   pilot::Owned owned[fight::kMaxPairs];
@@ -797,6 +885,21 @@ __declspec(noinline) void pilot_body() {
     const uint64_t took = clock_us() - start;
     ++pilot_runs_here, pilot_us_here += took, pilot_max_us_here = std::max(pilot_max_us_here, took);
   }
+  // The drawn side: the copies this side draws (none once the table is off or stale, or after coop off: each is put
+  // back), hers as the last hand-over brought it, every copy driven at the ghost's draw time and the lines due played.
+  if (drift_reset.exchange(false))
+    driver.counts.drift_cm = driver.counts.drift_deg = 0;
+  pilot::Row rows[fight::kMaxPairs];
+  PilotGame g;
+  driver.rows(g, base, t.gen, t.side, rows, fresh ? fight::drawn(t, rows) : 0);
+  const double now_ms = start / 1000.0,
+               at = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
+  for (SbeIn m; pilot_sbe_here.pop(m);)
+    driver.sbe(m.data, m.size);
+  for (pilot::ShowLine l; pilot_lines_here.pop(l);)
+    driver.line(l, at);
+  driver.draw(g, base, now_ms, at);
+  driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count);
   if (!pilot_m.try_lock())
     return;
   pilot_waiting.move_to(pilot_lines);
@@ -808,9 +911,17 @@ __declspec(noinline) void pilot_body() {
   pilot_counts = capturer.counts;
   pilot_lost = pilot_lost_here, pilot_runs = pilot_runs_here, pilot_us = pilot_us_here;
   pilot_max_us = pilot_max_us_here;
+  pilot_sbe_in.move_to(pilot_sbe_here);
+  pilot_lines_in.move_to(pilot_lines_here);
+  drive_counts = driver.counts, drive_add_max_us = pilot_add_max_us;
   pilot_m.unlock();
 }
-// The first fault stops the capture for the run and asks the job to let every frozen copy go (Engine::stop_pilot).
+__declspec(noinline) void pilot_put_back() {
+  PilotGame g;
+  driver.fault(g, base);
+}
+// The first fault stops the capture and the drive for the run, puts every drawn copy back once (its replays stopped,
+// its movement component and speed override back), and asks the job to let every frozen copy go (Engine::stop_pilot).
 void guarded_pilot() {
   __try {
     pilot_body();
@@ -818,6 +929,12 @@ void guarded_pilot() {
     pilot_faulted = true;
     pilot_sending = false;
     fight_engine.stop_pilot();
+  }
+  if (!pilot_faulted)
+    return;
+  __try { // Once: coop_tick calls nothing here after a fault. A fault in it leaves the rest as it is.
+    pilot_put_back();
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
   }
 }
 
@@ -1071,10 +1188,38 @@ void take_table(const uint8_t *data, size_t size) {
   rebuild();
 }
 
-// The only way in: a table to take_table, a pose or a delta of this protocol to the game thread's inbox, anything else
-// counted.
+// Hers for the drawn side, from her (channel 1's SBE, channel 2's show lines) or from a replayed recording: an SBE as
+// it came, a show line parsed here (parse_show allocates: the worker's), both for the game thread under pilot_m. Full
+// rings drop the newest, counted.
+uint64_t pilot_in_lost = 0, pilot_in_bad = 0;
+void pilot_in(const uint8_t *data, size_t size) {
+  if (size >= 3 && !std::memcmp(data, "SBE", 3)) {
+    SbeIn m;
+    if (size > sizeof m.data) {
+      ++pilot_in_bad;
+      return;
+    }
+    std::memcpy(m.data, data, size);
+    m.size = size;
+    std::lock_guard<std::mutex> lock(pilot_m);
+    pilot_in_lost += !pilot_sbe_in.push(m);
+    return;
+  }
+  const pilot::ShowLine l = pilot::parse_show(reinterpret_cast<const char *>(data), size);
+  if (l.kind == pilot::Kind::invalid) {
+    ++pilot_in_bad;
+    return;
+  }
+  std::lock_guard<std::mutex> lock(pilot_m);
+  pilot_in_lost += !pilot_lines_in.push(l);
+}
+
+// The only way in: a table to take_table, a pose or a delta of this protocol to the game thread's inbox, an SBE or a
+// replayed show line to the drawn side, anything else counted.
 void wire_receive(const uint8_t *data, size_t size, uint64_t now_us) {
-  if (size >= 3 && !std::memcmp(data, "SBT", 3)) {
+  if (size >= 3 && (!std::memcmp(data, "SBE", 3) || !std::memcmp(data, "SBF", 3))) {
+    pilot_in(data, size);
+  } else if (size >= 3 && !std::memcmp(data, "SBT", 3)) {
     take_table(data, size);
   } else if (size >= kPoseHeader && size <= kMaxPose && data[0] == 'S' && data[1] == 'B' &&
              (data[2] == 'P' || data[2] == 'D') && data[3] == kProtocol) {
@@ -1589,27 +1734,31 @@ std::string ask_pilot(bool probe) {
     return "pilot probe refused: same-place enemies stopped for this run (a fault)";
   if (pilot_probe.exchange(true))
     return "pilot probe is already on";
-  return "pilot probe on: the SBE and show lines of the enemies this side owns go to coop-fight.log (one SBE line a "
-         "second) while the shared fight runs (alone: coop fight record, as host)";
+  return "pilot probe on: the SBE and show lines of the enemies this side owns, the lines it takes from her and how it "
+         "drives the copies it draws go to coop-fight.log (a line a second each) while the shared fight runs (alone: "
+         "coop fight record, as host)";
 }
 
 // Same-place enemies' output at each worker pass: the newest SBE and the show lines the game thread captured. Those
 // for her go to her while the shared fight runs on (SBE on channel 1 unreliable, the lines on channel 2 reliable) and
-// into a recording being made (coop record); with the probe, each line and one SBE line a second (with the counts)
-// go to coop-fight.log. A fault of the capture is logged once.
+// into a recording being made (coop record). Her show lines among this pass's channel 2 lines go to the drawn side.
+// With the probe, each line out and in, one SBE line a second with the capture's counts and one with the drawn side's
+// go to coop-fight.log. A fault is logged once.
 bool pilot_fault_logged = false;
+uint64_t pilot_drive_seen = 0; // The drawn side's counts as the last line had them (summed): no line while still.
 uint64_t pilot_next_line = 0, pilot_unsent = 0;
 fight::Ring<PilotLine, kPilotLines> pilot_taken;
 uint8_t pilot_last_sbe[pilot::kMaxSbe]; // The newest SBE since the probe's last line, for its next one.
 size_t pilot_last_size = 0;
 bool pilot_last_out = false;
-void pilot_pass(uint64_t now_ms, bool linked, bool (*send)(const std::string &, bool)) {
+void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &lines,
+                bool (*send)(const std::string &, bool)) {
   if (pilot_faulted && !pilot_fault_logged) {
     pilot_fault_logged = true;
     char text[300];
     std::snprintf(text, sizeof text,
-                  "same-place enemies fault 0x%08llx in %s reading 0x%llx: their capture stops for this run, the "
-                  "frozen copies are let go; the ghost, the link and the shared fight go on",
+                  "same-place enemies fault 0x%08llx in %s reading 0x%llx: their capture and drive stop for this run, "
+                  "the drawn copies are put back and let go; the ghost, the link and the shared fight go on",
                   static_cast<unsigned long long>(pilot_fault_code.load()), fault_where(pilot_fault_rva).c_str(),
                   static_cast<unsigned long long>(pilot_fault_address.load()));
     say(text);
@@ -1617,8 +1766,16 @@ void pilot_pass(uint64_t now_ms, bool linked, bool (*send)(const std::string &, 
   uint8_t sbe[pilot::kMaxSbe];
   size_t sbe_size = 0;
   bool sbe_peer = false;
+  const bool sharing = fight_worker.sharing(), probe = pilot_probe;
+  for (const std::string &text : lines)
+    if (fight::pilot_line(text)) {
+      pilot_in(reinterpret_cast<const uint8_t *>(text.data()), text.size());
+      if (probe)
+        trace_fight("pilot in " + text);
+    }
   pilot::Capturer::Counts counts;
-  uint64_t lost = 0, runs = 0, us = 0, max_us = 0;
+  pilot::Driver::Counts drive;
+  uint64_t lost = 0, runs = 0, us = 0, max_us = 0, add_us = 0;
   {
     std::lock_guard<std::mutex> lock(pilot_m);
     pilot_lines.move_to(pilot_taken);
@@ -1626,8 +1783,8 @@ void pilot_pass(uint64_t now_ms, bool linked, bool (*send)(const std::string &, 
     std::swap(sbe_size, pilot_sbe_size);
     sbe_peer = pilot_sbe_peer;
     counts = pilot_counts, lost = pilot_lost, runs = pilot_runs, us = pilot_us, max_us = pilot_max_us;
+    drive = drive_counts, add_us = drive_add_max_us;
   }
-  const bool sharing = fight_worker.sharing(), probe = pilot_probe;
   const auto record = [](const uint8_t *data, size_t size) {
     if (recorder && !recorder->add(data, size))
       say(stop_record("full", clock_us()));
@@ -1669,6 +1826,26 @@ void pilot_pass(uint64_t now_ms, bool linked, bool (*send)(const std::string &, 
                 (pilot_owned ? "the enemies this side owns were not found"
                              : "no enemy this side owns (only coop fight on or record pairs enemies)") + tail);
   pilot_last_size = 0;
+  const uint64_t moved = drive.frames + drive.unresolved + drive.sbe + drive.sbe_refused + drive.lines +
+                         drive.lines_refused + drive.not_drawn + pilot_in_bad + pilot_in_lost;
+  if (moved == pilot_drive_seen)
+    return;
+  pilot_drive_seen = moved;
+  char line[900];
+  std::snprintf(line, sizeof line,
+                "pilot drawn: %llu copy frames driven, %llu not found, %llu movement components taken out of the "
+                "game's manager (%llu found back in it, %llu refused), %llu released, %llu converged, %llu snaps, "
+                "drift up to %.1f cm/s and %.1f deg/s; SBE entries %llu taken, %llu refused; show lines %llu queued, "
+                "%llu refused, %llu unreadable, %llu over the queue; %llu Shows replayed (%llu late, %llu missing, %llu "
+                "without a stage, %llu without context; AddShow up to %llu us), %llu show-set, %llu show-stop, %llu "
+                "naming no replay, %llu for a copy not driven",
+                u(drive.frames), u(drive.unresolved), u(drive.cmc_out), u(drive.cmc_reenabled), u(drive.cmc_refused),
+                u(drive.released), u(drive.converged), u(drive.snaps), drive.drift_cm, drive.drift_deg, u(drive.sbe),
+                u(drive.sbe_refused), u(drive.lines), u(drive.lines_refused), u(pilot_in_bad), u(pilot_in_lost),
+                u(drive.shows), u(drive.late), u(drive.missing), u(drive.no_handle), u(drive.no_context), u(add_us),
+                u(drive.sets), u(drive.stops), u(drive.unknown), u(drive.not_drawn));
+  trace_fight(line);
+  drift_reset = true; // The drift maxima are the last second's from here.
 }
 } // namespace
 
@@ -1706,7 +1883,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   if (now_ms >= next_photo)
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
   fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
-  pilot_pass(now_ms, linked, send);
+  pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();
 }
 
@@ -1811,8 +1988,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The photo pause's own latch, after coop off too: its tag is released then, and nothing more is called.
   if (freeze_pinned && !freeze_faulted)
     guarded_freeze();
-  // Same-place enemies' capture, its own latch too.
-  if (pilot_pinned && !pilot_faulted && !blocked)
+  // Same-place enemies' capture and drive, their own latch too; after coop off while a drawn copy is held, to put it
+  // back.
+  if (pilot_pinned && !pilot_faulted && (!blocked || driver.holding()))
     guarded_pilot();
   return 0;
 }

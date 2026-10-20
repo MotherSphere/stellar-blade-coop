@@ -200,6 +200,7 @@ Platform-free headers, tested on the build machine:
 | `save_twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
 | `fight_sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight_engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
+| `pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
 | `photo_freeze.h` | The synced photo mode's pause |
 
 The Windows side:
