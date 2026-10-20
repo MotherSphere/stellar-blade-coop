@@ -301,23 +301,23 @@ end
 s,notes=Link.parse_settings('guest_kills=later')
 assert(#notes==1 and notes[1]=="settings: line 1: 'later' is not allowed for guest_kills (use at_once or confirmed); "
     .."guest_kills stays at_once" and s.guest_kills=='at_once',notes[1])
--- Two-player scaling, the host's for both games: enemy_hp_scale and enemy_balance_scale from 1.0 to 2.0, whole or with
+-- Two-player scaling, the host's for both games: enemy_hp_scale and enemy_balance_scale from 1.0 to 4.0, whole or with
 -- decimals (1.35 and 1.15 by default); kill_credit all (the default) or fought, in any case. A new file names all
 -- three; a file written before them reads the defaults with no line; a bad value keeps the default, with a line.
 assert(Link.DEFAULT:find('\nenemy_hp_scale=1.35\nenemy_balance_scale=1.15\n',1,true),'Written in a new file')
 assert(Link.DEFAULT:find('\nkill_credit=all\n',1,true))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.enemy_hp_scale==1.35 and s.enemy_balance_scale==1.15 and s.kill_credit=='all')
-for _,case in ipairs({{'1','2','FOUGHT'},{'2.0','1.5','all'},{'1.05','1.00','Fought'},{'1.','1.999','ALL'}}) do
+for _,case in ipairs({{'1','4','FOUGHT'},{'2.0','1.5','all'},{'1.05','1.00','Fought'},{'1.','3.999','ALL'}}) do
     s,notes=Link.parse_settings('enemy_hp_scale='..case[1]..'\nenemy_balance_scale='..case[2]..'\nkill_credit='
         ..case[3])
     assert(#notes==0 and s.enemy_hp_scale==tonumber(case[1]) and s.enemy_balance_scale==tonumber(case[2])
         and s.kill_credit==case[3]:lower(),case[1])
 end
-for _,bad in ipairs({'0.99','2.01','1,35','x','-1.2','1e0','0x1','','1.2.3','.5','135'}) do
+for _,bad in ipairs({'0.99','4.01','1,35','x','-1.2','1e0','0x1','','1.2.3','.5','135'}) do
     s,notes=Link.parse_settings('enemy_balance_scale='..bad)
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_balance_scale (use 1.0 to "
-        .."2.0); enemy_balance_scale stays 1.15" and s.enemy_balance_scale==1.15,bad..': '..tostring(notes[1]))
+        .."4.0); enemy_balance_scale stays 1.15" and s.enemy_balance_scale==1.15,bad..': '..tostring(notes[1]))
 end
 s,notes=Link.parse_settings('kill_credit=mine')
 assert(#notes==1 and notes[1]=="settings: line 1: 'mine' is not allowed for kill_credit (use all or fought); "

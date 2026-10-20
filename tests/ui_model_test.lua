@@ -218,13 +218,13 @@ for _,v in ipairs({'0','60','105','3600'}) do
 end
 on('ui_language')
 assert(select(3,menu.change(NONE,values,1))=='english')
--- The host's scaling: 1.0 to 2.0 in steps of 0.05, as the file holds it (no float residue: 1.35 then 1.4); kill credit
+-- The host's scaling: 1.0 to 4.0 in steps of 0.05, as the file holds it (no float residue: 1.35 then 1.4); kill credit
 -- all or fought.
 on('enemy_hp_scale')
 assert(select(3,menu.change(NONE,values,1))=='1.4' and select(3,menu.change(NONE,values,-1))=='1.3')
-assert(menu.change(NONE,{enemy_hp_scale='2'},1)==nil and menu.change(NONE,{enemy_hp_scale='1'},-1)==nil)
+assert(menu.change(NONE,{enemy_hp_scale='4'},1)==nil and menu.change(NONE,{enemy_hp_scale='1'},-1)==nil)
 assert(select(3,menu.change(NONE,{enemy_hp_scale='1.05'},-1))=='1' and
-    select(3,menu.change(NONE,{enemy_hp_scale='1.95'},1))=='2')
+    select(3,menu.change(NONE,{enemy_hp_scale='3.95'},1))=='4')
 file=assert(SF.set(Link.DEFAULT,'enemy_hp_scale',select(3,menu.change(NONE,values,1))))
 assert(M.read(file).enemy_hp_scale=='1.4' and Link.parse_settings(file).enemy_hp_scale==1.4)
 on('enemy_balance_scale')

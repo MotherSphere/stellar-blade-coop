@@ -165,7 +165,7 @@ int main() {
           "SBF10 up 4294967295 4294967295 4294967295 255 4294967295 10000000", "SBF10 down 3 77", "SBF10 dead 3 77",
           "SBF10 hp 3 1 0 77:1600:100:200", "SBF10 hp 3 2 9 77:0:0:0 78:5:6:7", "SBF10 hit 3 1 77 120 5 30 400 0",
           "SBF10 hit 3 4294967295 77 400 0 0 400 1", "SBF10 hit 3 2 77 0 0 0 0 0", "SBF10 cc 3 77 9900001",
-          "SBF10 cc 4294967295 4294967295 3000401", "SBF10 scale 3 135 115", "SBF10 scale 4294967295 200 100"}) {
+          "SBF10 cc 4294967295 4294967295 3000401", "SBF10 scale 3 135 115", "SBF10 scale 4294967295 400 100"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -238,8 +238,8 @@ int main() {
           "SBF10 cc 3 77 3000100", "SBF10 cc 3 77 9900003", "SBF10 cc 3 77 0", "SBF10 cc 3 77 -9900001",
           "SBF10 cc 3 77", "SBF10 cc 3 77 9900001 1", "SBF10 cc 0 77 9900001", "SBF10 cc 3 0 9900001",
           "SBF10 cc 3 77 99000010",
-          // scale: two whole percents from 100 to 200 (1.0 to 2.0 in coop-settings.txt).
-          "SBF10 scale 3 99 115", "SBF10 scale 3 135 201", "SBF10 scale 0 135 115", "SBF10 scale 3 135",
+          // scale: two whole percents from 100 to 400 (1.0 to 4.0 in coop-settings.txt).
+          "SBF10 scale 3 99 115", "SBF10 scale 3 135 401", "SBF10 scale 0 135 115", "SBF10 scale 3 135",
           "SBF10 scale 3 135 115 1", "SBF10 scale 3 1.35 1.15", "SBF10 scale 3 -135 115", "SBF10 scale 3 135  115"})
       assert(!valid(bad));
     const char nul[] = {'S', 'B', 'F', '7', ' ', 'o', 'n', '\0'};

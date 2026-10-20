@@ -291,13 +291,13 @@ int main() {
          (f.chars == std::vector<uint32_t>{15011001}));
   f = parse_request("fight replay fought");
   assert(f.fight == Fight::replay && !f.confirmed && f.fought && f.scale[0] == 100 && f.scale[1] == 100);
-  f = parse_request("fight record scale 200 100");
-  assert(f.fight == Fight::record && !f.fought && f.scale[0] == 200 && f.scale[1] == 100 && f.chars.empty());
+  f = parse_request("fight record scale 400 100");
+  assert(f.fight == Fight::record && !f.fought && f.scale[0] == 400 && f.scale[1] == 100 && f.chars.empty());
   f = parse_request("fight on 15011001");
   assert(!f.fought && f.scale[0] == 100 && f.scale[1] == 100);
   assert(parse_request("fight on fought scale 100 100" + sixteen.substr(8)).chars.size() == kMaxFightChars);
   for (const char *bad : {"fight on fought confirmed", "fight on scale 135 115 fought", "fight on fought fought",
-                          "fight on scale 135", "fight on scale 99 115", "fight on scale 135 201",
+                          "fight on scale 135", "fight on scale 99 115", "fight on scale 135 401",
                           "fight on scale 1.35 1.15", "fight on scale 135 115 scale 135 115", "fight on Fought",
                           "fight on 1 fought", "fight on 1 scale 135 115", "fight test kill fought",
                           "fight off scale 135 115", "fight status fought"})

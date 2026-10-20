@@ -791,7 +791,7 @@ coop('fight','on')
 assert(asked[#asked]=='fight on scale 135 115 15011001 2','By hand on your own save: the native part waits')
 -- guest_kills=confirmed and kill_credit=fought go with the modes that kill on the other side's word (on, replay), as
 -- one word each before the ids, in that order; the others never carry them. The host's scaling goes with the modes
--- that host (on, record), after them: each 1.0 to 2.0 setting as whole percents, rounded.
+-- that host (on, record), after them: each 1.0 to 4.0 setting as whole percents, rounded.
 settings_text='shared_enemies=on\nguest_kills=confirmed\nkill_credit=fought\nenemy_hp_scale=2\nenemy_balance_scale=1\n'
 load_main(true)
 status_text=COOP

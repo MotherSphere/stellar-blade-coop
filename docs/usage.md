@@ -432,7 +432,7 @@ the map.
 
 Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
 multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
-(no change) to `2.0`. Both games use the host's values for the whole session; the guest's are not used. An enemy gets
+(no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used. An enemy gets
 them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP stays at half.
 When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same share of HP and
 balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies or leaves the
@@ -560,7 +560,7 @@ fight_chars=auto
 # stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
 guest_kills=at_once
 # Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
-# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 2.0. kill_credit: all (every
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit: all (every
 # shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
@@ -604,8 +604,8 @@ card_details=on
 | `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
 | `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](#shared-enemies-experimental)) | `at_once` |
-| `enemy_hp_scale` | `1.0` to `2.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
-| `enemy_balance_scale` | `1.0` to `2.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
+| `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
+| `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
 | `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |

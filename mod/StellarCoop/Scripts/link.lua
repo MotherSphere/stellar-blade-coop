@@ -56,7 +56,7 @@ fight_chars=auto
 # stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
 guest_kills=at_once
 # Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
-# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 2.0. kill_credit: all (every
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit: all (every
 # shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
@@ -139,8 +139,8 @@ local function setting(name,text)
         return nil,'use 10 to 60'
     elseif name=='enemy_hp_scale' or name=='enemy_balance_scale' then
         local x=text:match('^%d+%.?%d*$') and tonumber(text)
-        if x and x>=1 and x<=2 then return x end
-        return nil,'use 1.0 to 2.0'
+        if x and x>=1 and x<=4 then return x end
+        return nil,'use 1.0 to 4.0'
     elseif name=='ui_scale' then
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end

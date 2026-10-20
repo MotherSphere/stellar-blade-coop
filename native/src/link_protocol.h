@@ -324,7 +324,7 @@ enum class SavesAsk { none, probe, convert, coop, main };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
-constexpr uint16_t kMinScale = 100, kMaxScale = 200; // Two-player scaling in percent: none, double.
+constexpr uint16_t kMinScale = 100, kMaxScale = 400; // Two-player scaling in percent: none, four times.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
