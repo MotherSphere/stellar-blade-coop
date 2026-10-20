@@ -1357,7 +1357,7 @@ int main() {
 
     // c. Size: a line of kMaxMessage goes, a longer or empty one is refused; one longer or empty from her is dropped.
     reset_drop_lines();
-    const std::string widest = fight_tag() + " off " + std::string(kMaxMessage - 9, 'r');
+    const std::string widest = fight_tag() + " off " + std::string(kMaxMessage - fight_tag().size() - 5, 'r');
     assert(widest.size() == kMaxMessage && t.b.send_fight(widest, true));
     assert(!t.b.send_fight(widest + "r", true) && !t.b.send_fight("", true));
     inbox(0, kFightChannel).push_back({kFriend, widest + "r"});

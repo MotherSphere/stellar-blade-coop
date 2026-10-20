@@ -96,7 +96,7 @@ build/host/pose_codec_test
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves
-    out, the enemies' state map, and the vitals read, against fake memory;
+    out, the enemies' state map, the two-player scaling, and the vitals read, against fake memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
     worlds linked through a delayed, lossy line;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.

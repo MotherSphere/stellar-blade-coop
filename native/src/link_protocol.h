@@ -22,13 +22,15 @@
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 9; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
-                             // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
-                             // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
-                             // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines, which
-                             // a protocol-7 peer would count as invalid and drop without a word; 9 adds the pose delta
-                             // (SBD) on channel 1, which a protocol-8 peer would count malformed. An older peer (6:
-                             // v0.1.1, 7: v0.2.0) is told why: the lobby tag, then the hello's reject, name both.
+constexpr int kProtocol = 10; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
+                              // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
+                              // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
+                              // which a protocol-7 peer would count as invalid and drop without a word; 9 adds the pose
+                              // delta (SBD) on channel 1, which a protocol-8 peer would count malformed; 10 adds the
+                              // shared fight's scale line, which a protocol-9 guest would drop as malformed, keeping
+                              // its copies at their own maxes while the host's grow. An older peer (6: v0.1.1, 7:
+                              // v0.2.0, 9: v0.3.0) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -167,7 +169,7 @@ inline std::string vit_line(const Vitals &v) {
     line += " " + std::to_string(x);
   return line;
 }
-// Channel 2's tag, versioned like channel 0's: "SBF9".
+// Channel 2's tag, versioned like channel 0's: "SBF10".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
@@ -305,9 +307,10 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [confirmed] [<charId> ...]" (guest_kills=confirmed; fight_chars, at most
-// kMaxFightChars; none: every Monster), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with
-// or without a sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to
+// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [<charId> ...]"
+// (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; fight_chars,
+// at most kMaxFightChars, none: every Monster), "fight off", "fight status", "fight test hp|sh|st <change>" (whole
+// units, with or without a sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to
 // kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves
 // probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make them, then switch
 // to them) and "saves main" (switch back to the player's own saves).
@@ -321,6 +324,7 @@ enum class SavesAsk { none, probe, convert, coop, main };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
+constexpr uint16_t kMinScale = 100, kMaxScale = 200; // Two-player scaling in percent: none, double.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
@@ -335,6 +339,8 @@ struct Request {
   SavesAsk saves = SavesAsk::none; // saves: which.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
+  bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
+  uint16_t scale[2] = {kMinScale, kMinScale}; // fight on, probe, record, replay: MaxHP and balance in % (a host's).
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
 };
@@ -354,8 +360,20 @@ inline Request parse_fight(const std::string &text) {
   if ((what == "off" || what == "status") && w.size() == 1) {
     r.fight = what == "off" ? Fight::off : Fight::status;
   } else if (what == "on" || what == "probe" || what == "record" || what == "replay") {
-    r.confirmed = w.size() > 1 && w[1] == "confirmed";
-    for (size_t i = 1 + r.confirmed; i < w.size(); ++i) {
+    size_t i = 1;
+    r.confirmed = i < w.size() && w[i] == "confirmed";
+    i += r.confirmed;
+    r.fought = i < w.size() && w[i] == "fought";
+    i += r.fought;
+    if (i < w.size() && w[i] == "scale") {
+      for (uint16_t &pct : r.scale) {
+        if (++i == w.size() || !number(w[i], v) || v < kMinScale || v > kMaxScale)
+          return Request();
+        pct = static_cast<uint16_t>(v);
+      }
+      ++i;
+    }
+    for (; i < w.size(); ++i) {
       if (r.chars.size() == kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
         return Request();
       r.chars.push_back(static_cast<uint32_t>(v));

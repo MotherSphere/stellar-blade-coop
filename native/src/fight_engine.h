@@ -65,6 +65,12 @@ constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
 // 3). Stored plainly, never clamped; SB's own MinimumHP effects add and take off deltas too, so ours composes.
 constexpr int kFloorStat = 107;
 constexpr size_t kMinimumHp = kStatBase + 4 * size_t(kFloorStat);
+// Two-player scaling (PHASE11-STAGE2-RE 4). MaxHP through stat 3, MaxHPValue: SetStat (FUN_141a684f0) derives MaxHP
+// (2) as stat 3 x (1 + stat 4, MaxHPRate) whenever either changes, so a delta on 2 itself would not last. Balance
+// through stat 13, MaxStamina, which SetStat stores as it comes: its derived table has no entry for 13 (the RE's
+// setstat_jumpidx), and ApplyStat's case for 13 only clamps Stamina to it. Both truncate to whole units, and a lower
+// max only clamps its value down.
+constexpr int kMaxHpValue = 3, kMaxHpRate = 4, kMaxStamina = 13;
 // FSBActor: its ESBActorType, a byte copied from its CharacterTable row when it is made (PHASE11-STAGE2-RE 5): 1 PC,
 // 2 NPC, 3 Monster, 4 BossMonster (the bosses and the Elite Alpha Naytibas); 0 none, never 5 or more.
 constexpr size_t kActorType = 0x368;
@@ -170,7 +176,8 @@ constexpr size_t kMaxCensus = 1024;         // Allocated map slots a census copi
 constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowlist (none: every Monster).
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
-constexpr size_t kMaxCaptures = kMaxTracked; // Overrides held at once: a floor on each copy the guest follows.
+// Overrides held at once: on each enemy the side follows, a floor (the guest's) and its MaxHP and MaxStamina scaled.
+constexpr size_t kMaxCaptures = 3 * kMaxTracked;
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -183,6 +190,7 @@ struct JobCounts {
   uint64_t cut = 0; // Map slots past kMaxCensus, and eligible enemies past kMaxSeen, summed over the censuses.
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
   uint64_t unread = 0;  // State maps and effect lists that failed their checks: read as holding nothing.
+  uint64_t unscaled = 0; // Enemies left at their own maxes: MaxHP not stat 3 x (1 + stat 4), or past kMaxStat scaled.
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
   uint64_t paused = 0;                         // Ticks a paused world put off.
@@ -201,6 +209,8 @@ struct Snapshot {
   uint32_t game_thread = 0;              // The thread that armed last.
   uint32_t turn = 0;                     // SB's logic turn at the last turn's work.
   size_t floors = 0;                     // Enemies holding our floor (guest_kills=confirmed).
+  size_t scaled = 0;                     // Enemies whose MaxHP we scaled.
+  uint16_t scale[kScales] = {kMinScale, kMinScale}; // The side's scaling: the host's own, or as its scale line said.
   size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
   bool eve = false;                      // The last census found our EVE (RE4).
 };
@@ -292,6 +302,10 @@ public:
   }
   // guest_kills=confirmed (F4's fallback): the guest's copies hold a 1 HP floor until the host's dead. Set while off.
   void confirm(bool on) { confirm_ = on; }
+  // The host's two-player scaling in percent (kMinScale: none; a guest's side takes the host's from its scale line),
+  // and kill_credit (all, or only the enemies our EVE hit). Set while off.
+  void scale(uint16_t hp, uint16_t balance) { scale_hp_ = hp, scale_balance_ = balance; }
+  void credit(bool all) { credit_all_ = all; }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
   // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
@@ -424,6 +438,9 @@ public:
       new (&host) Host();
       new (&guest) Guest();
       guest.confirm(confirm_);
+      guest.credit(credit_all_);
+      host.credit(credit_all_);
+      host.set_scale(scale_hp_, scale_balance_);
       session_seen_ = session;
       hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
       probing_seen_ = probing_;
@@ -455,11 +472,13 @@ public:
     uint32_t followed[kMaxTracked];
     size_t count = hosting ? host.tracked(followed) : guest.tracked(followed);
     size_t n = pass(g, logic, census, followed, count);
-    if (!latched_ && hosting)
+    if (!latched_ && hosting) {
       host.step(seen_, n, census, turn, now_ms, io);
-    else if (!latched_) {
+      hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance));
+    } else if (!latched_) {
       guest.step(seen_, n, census, turn, now_ms, io);
       hold_floors(g, logic, followed, guest.floored(followed));
+      hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance));
     }
     if (latched_) // Stopped in this turn: no other run comes, so our floors come off now.
       return lift_all(g, logic);
@@ -471,9 +490,15 @@ public:
     if (globals(g, net, logic, world) && plausible(logic))
       lift_all(g, logic);
   }
-  // The glue's, after a fault it does not lift from: the floors forgotten (they stay on their enemies until these leave
-  // the map), and how many, for the log.
-  size_t forget() { return std::exchange(captures_, size_t(0)) + std::exchange(lifting_, size_t(0)); }
+  // The glue's, after a fault it does not lift from: our overrides forgotten (they stay on their enemies until these
+  // leave the map), and how many, for the log.
+  size_t forget() {
+    size_t n = std::exchange(lifting_, size_t(0));
+    for (size_t i = 0; i < captures_; ++i)
+      n += caps_[i].delta != 0;
+    captures_ = 0;
+    return n;
+  }
 
   // This turn's enemies into seen() in fight_sync.h's order: each followed GUID found again by SB's lookup, dying or
   // not, then on a census every other eligible enemy; at most kMaxSeen. The census goes in two phases: the map is
@@ -487,6 +512,7 @@ public:
       // A life state we do not know is left out (gone, so down or unpaired), never read as a death.
       if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying) && stats(g, a)) {
         marks(g, la, a);
+        a.seen.scaled = scaled(a.seen.guid);
         seen_[n++] = a.seen;
       }
     }
@@ -511,6 +537,7 @@ public:
         ++counts.cut;
       else if (stats(g, a)) {
         marks(g, f.la, a);
+        a.seen.scaled = scaled(a.seen.guid);
         seen_[n++] = a.seen;
       }
     }
@@ -525,10 +552,16 @@ public:
     const JobCounts &c = counts;
     s.job.turns = c.turns, s.job.stale = c.stale, s.job.doubled = c.doubled, s.job.mode = c.mode;
     s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
-    s.job.unread = c.unread;
+    s.job.unread = c.unread, s.job.unscaled = c.unscaled;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
-    s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0, s.floors = captures_;
+    s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
+    for (size_t i = 0; i < captures_; ++i) {
+      s.floors += caps_[i].type == kFloorStat;
+      s.scaled += caps_[i].type == kMaxHpValue && caps_[i].delta;
+    }
+    for (int k = 0; k < kScales; ++k)
+      s.scale[k] = hosting_seen_ ? host.scale(k) : guest.scale(k);
     return s;
   }
 
@@ -806,7 +839,7 @@ private:
     w.guid = aim.seen.guid;
     w.stat = test < 0 ? kHp : test;
     w.delta = test < 0 ? -aim.seen.value[kHp] : change;
-    w.eve = test < 0;
+    w.kill = w.eve = test < 0;
     w.notify = w.delta < 0;
     int32_t after = 0;
     done.why = !w.delta || !write(g, logic, w, after) ? "refused: gone or dying"
@@ -869,8 +902,8 @@ private:
       ++counts.no_eve;
     if (latched_)
       return false;
-    for (size_t i = 0; w.eve && i < captures_; ++i) // A kill: our floor off first (ApplyStat reads it in the HP call).
-      if (caps_[i].guid == w.guid) {
+    for (size_t i = 0; w.kill && i < captures_; ++i) // A kill: our floor off first (ApplyStat reads it in the HP call).
+      if (caps_[i].guid == w.guid && caps_[i].type == kFloorStat) {
         lift(g, logic, i);
         break;
       }
@@ -883,32 +916,48 @@ private:
 
   // ---- Our overrides on enemies (PHASE11-DESIGN 7.9) ----
   // Each is an ApplyStat delta, undone by the opposite delta before the enemy goes back to plain play: when the side
-  // lets it go, before a kill, at off, at a new session, at a latch, and from the glue after a fault in our code. A
-  // capture whose enemy left the map needs no call: spawn init resets the stat when SB reuses the actor. Stage 2 has
-  // one kind: MinimumHP +kFloorHp on the guest's paired copies (guest_kills=confirmed).
+  // lets it go, at off, at a new session, at a latch, and from the glue after a fault in our code (a floor also before
+  // a kill). A capture whose enemy left the map needs no call: spawn init resets the stat when SB reuses the actor. Two
+  // kinds: MinimumHP +kFloorHp on the guest's paired copies (guest_kills=confirmed), and two-player scaling, MaxHPValue
+  // and MaxStamina raised by the host's percents on the enemies the side names. A capture of 0 marks an enemy whose
+  // scaling had nothing to do, so it is not tried again each turn.
   struct Capture {
     uint32_t guid = 0;
     int type = 0; // ESBActorStatType.
     int32_t delta = 0;
   };
+  bool captured(uint32_t guid, int type) const {
+    for (size_t i = 0; i < captures_; ++i)
+      if (caps_[i].guid == guid && caps_[i].type == type)
+        return true;
+    return false;
+  }
+  // We hold its MaxHP or MaxStamina scaled: the side must not take its maxes for the game's own (Seen::scaled).
+  bool scaled(uint32_t guid) const {
+    for (size_t i = 0; i < captures_; ++i)
+      if (caps_[i].guid == guid && caps_[i].delta && (caps_[i].type == kMaxHpValue || caps_[i].type == kMaxStamina))
+        return true;
+    return false;
+  }
+  // The captures of this type whose enemy want does not name come off.
+  template <class Game> void let_go(Game &g, uint64_t logic, int type, const uint32_t *want, size_t n) {
+    for (size_t i = 0; i < captures_;)
+      if (caps_[i].type == type && std::find(want, want + n, caps_[i].guid) == want + n)
+        lift(g, logic, i);
+      else
+        ++i;
+  }
   // After the guest's step: our floor on each copy it names, off every other. A floor goes on only on a fighting copy
   // whose HP stays at or above MinimumHP with ours added (a floor above the HP would raise it), and holds only when
   // MinimumHP then reads exactly kFloorHp more: else this build keeps the stat elsewhere, and the feature stops for the
   // run. Captured before the call, so the latch's lift_all and the glue's lift after a fault in our read-back undo it
   // too: the opposite delta cancels it wherever it went.
   template <class Game> void hold_floors(Game &g, uint64_t logic, const uint32_t *want, size_t n) {
-    for (size_t i = 0; i < captures_;)
-      if (std::find(want, want + n, caps_[i].guid) == want + n)
-        lift(g, logic, i);
-      else
-        ++i;
+    let_go(g, logic, kFloorStat, want, n);
     for (size_t k = 0; k < n && !latched_ && captures_ < kMaxCaptures; ++k) {
-      bool held = false;
-      for (size_t i = 0; i < captures_ && !held; ++i)
-        held = caps_[i].guid == want[k];
       Actor a;
       float before = 0, after = 0;
-      const uint64_t la = held ? 0 : g.find(logic, want[k]);
+      const uint64_t la = captured(want[k], kFloorStat) ? 0 : g.find(logic, want[k]);
       if (!la || !live(g, la, want[k], a) || !fighting(a) || !stats(g, a) || !get(g, a.fsb + kMinimumHp, before) ||
           !(float(a.seen.value[kHp]) >= before + float(kFloorHp)))
         continue;
@@ -918,16 +967,77 @@ private:
         latch("implausible floor");
     }
   }
+  // After the side's step: two-player scaling on each enemy it names (both percents kMinScale: it names none), off
+  // every other.
+  template <class Game>
+  void hold_scales(Game &g, uint64_t logic, const uint32_t *want, size_t n, uint16_t hp, uint16_t balance) {
+    let_go(g, logic, kMaxHpValue, want, n);
+    let_go(g, logic, kMaxStamina, want, n);
+    for (size_t k = 0; k < n && !latched_; ++k) {
+      scale_enemy(g, logic, want[k], kMaxHpValue, hp);
+      scale_enemy(g, logic, want[k], kMaxStamina, balance);
+    }
+  }
+  // One enemy's max of this type times pct / 100, once: stat 3 by round(stat 3 x (pct - 100) / 100), which MaxHP
+  // follows, or MaxStamina by its own share; then HP or Stamina raised in proportion (a rise: no number, no on-damaged
+  // effect). Captured before the call. An enemy gone, dying or unread this turn is tried at the next step. Nothing to
+  // do (100 %, no balance gauge, a MaxHP that is not stat 3 x (1 + stat 4) because something else changed it, a result
+  // past kMaxStat) takes a capture of 0. The stat must then read exactly what was added, else this build keeps it
+  // elsewhere and the feature stops for the run (the latch's lift_all takes the delta back off wherever it went).
+  template <class Game> void scale_enemy(Game &g, uint64_t logic, uint32_t guid, int type, uint16_t pct) {
+    if (captures_ == kMaxCaptures || captured(guid, type))
+      return;
+    Actor a;
+    const int stat = type == kMaxHpValue ? kHp : kStamina;
+    float base = 0, rate = 0;
+    const uint64_t la = g.find(logic, guid);
+    if (!la || !live(g, la, guid, a) || !fighting(a) || !stats(g, a) ||
+        !get(g, a.fsb + kStatBase + 4 * size_t(type), base) ||
+        (type == kMaxHpValue && !get(g, a.fsb + kStatBase + 4 * size_t(kMaxHpRate), rate)))
+      return;
+    const float max = a.seen.max[stat];
+    const int32_t value = a.seen.value[stat], add = int32_t(std::lround(double(base) * (pct - kMinScale) / kMinScale));
+    const bool fits = add >= 1 && max >= 1 && std::fabs(max - std::trunc(base * (1 + rate))) < 1 &&
+                      double(max) * pct / kMinScale <= kMaxStat;
+    counts.unscaled += add >= 1 && !fits;
+    caps_[captures_++] = Capture{guid, type, fits ? add : 0};
+    if (!fits)
+      return;
+    g.apply(la, type, float(add), 0, false);
+    float after = 0;
+    if (!get(g, a.fsb + kStatBase + 4 * size_t(type), after) || after != std::trunc(base + float(add)))
+      return latch("implausible scale");
+    if (!stats(g, a))
+      return;
+    const int32_t raise = int32_t(std::lround(double(value) * a.seen.max[stat] / max)) - value;
+    if (raise >= 1)
+      g.apply(la, kStatType[stat], float(raise), 0, false);
+  }
   // Capture i undone and dropped. Dropped first, so a fault in our reads of a torn actor does not stop the glue's lift
-  // of the others; lifting_ keeps it counted for forget() until the call is done.
+  // of the others; lifting_ keeps it counted for forget() until the call is done. Scaling on a fighting enemy also
+  // lowers its HP or Stamina in proportion (a drop with no number, at least 1 HP), so scaling it again later heals it
+  // of nothing; a dying one keeps what it has.
   template <class Game> void lift(Game &g, uint64_t logic, size_t i) {
     const Capture c = caps_[i];
     caps_[i] = caps_[--captures_];
+    if (!c.delta)
+      return;
     ++lifting_;
     Actor a;
     const uint64_t la = g.find(logic, c.guid);
-    if (la && live(g, la, c.guid, a))
+    if (la && live(g, la, c.guid, a)) {
+      const int stat = c.type == kMaxHpValue ? kHp : c.type == kMaxStamina ? kStamina : -1;
+      const bool share = stat >= 0 && fighting(a) && stats(g, a) && a.seen.max[stat] >= 1;
+      const float max = share ? a.seen.max[stat] : 0;
+      const int32_t value = share ? a.seen.value[stat] : 0;
       g.apply(la, c.type, float(-c.delta), 0, false);
+      if (share && stats(g, a)) {
+        const int32_t keep =
+            std::max(stat == kHp ? 1 : 0, int32_t(std::lround(double(value) * a.seen.max[stat] / max)));
+        if (keep < a.seen.value[stat])
+          g.apply(la, kStatType[stat], float(keep - a.seen.value[stat]), 0, false);
+      }
+    }
     --lifting_;
   }
   template <class Game> void lift_all(Game &g, uint64_t logic) {
@@ -939,7 +1049,8 @@ private:
   Job ring_[kRing];
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
-  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false};
+  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
+  std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
   std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.
@@ -1251,6 +1362,8 @@ private:
     }
     e_.allow(r.chars.data(), r.chars.size()); // While off: the job reads them only while on.
     e_.confirm(r.confirmed);
+    e_.scale(r.scale[kScaleHp], r.scale[kScaleBalance]);
+    e_.credit(!r.fought);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
     std::string said = update(gate, io);
@@ -1451,7 +1564,7 @@ private:
   std::string counts_line() const {
     const Snapshot &s = last_;
     using u = unsigned long long;
-    char head[320], tail[120];
+    char head[320], tail[160];
     if (ran_ == Fight::probe)
       std::snprintf(head, sizeof head, "fight=on mode=probe actors=%zu eve=%d turn=%u turns_per_s=%llu writes=%s",
                     s.actors, int(s.eve), s.turn, u(rate_), armed_ ? "armed" : "off");
@@ -1465,8 +1578,11 @@ private:
                     "desync=%llu",
                     name(ran_), s.paired, u(s.guest.claims), u(s.guest.corrections), u(s.guest.kills),
                     u(s.guest.floored), u(s.guest.desync));
-    std::snprintf(tail, sizeof tail, " sim_us=%llu/%llu threads=%u/%u/%u", u(mean_us_), u(s.max_us), s.thread,
-                  s.sb_thread, s.game_thread);
+    // The side's scaling: the host's own, or as the host's scale line said (100/100 before it, and without one).
+    std::snprintf(tail, sizeof tail, "%s sim_us=%llu/%llu threads=%u/%u/%u",
+                  ran_ == Fight::probe ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
+                                               std::to_string(s.scale[kScaleBalance])).c_str(),
+                  u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     return std::string(head) + tail;
   }
   // Each second while running: the status line's counts, and a line of them traced when the side's counts (the
@@ -1489,7 +1605,7 @@ private:
     said_counts_ = c, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
     using u = unsigned long long;
     const char *as = ran_ == Fight::record ? " (record)" : ran_ == Fight::replay ? " (replay)" : "";
-    char head[320], tail[640];
+    char head[640], tail[640];
     if (probe)
       std::snprintf(head, sizeof head,
                     "fight stats: probe, %zu actors, our EVE %s, turn %u (%llu a second), writes %s, %llu rejected",
@@ -1498,26 +1614,30 @@ private:
     else if (side_)
       std::snprintf(head, sizeof head,
                     "fight stats: host%s, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
-                    "floored), nodamage bypass %llu in state 3 and %llu in 4, %llu crowd controls told, %llu "
-                    "mirrored (%llu skipped), %llu stale, %llu over the rates, %llu bad, %llu ignored",
-                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.bypass3), u(c.bypass4),
-                    u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.rate), u(c.bad), u(c.ignored));
+                    "floored, %llu without credit), nodamage bypass %llu in state 3 and %llu in 4, %llu crowd controls "
+                    "told, %llu mirrored (%llu skipped), %llu stale, %llu over the rates, %llu bad, %llu ignored, %zu "
+                    "scaled (%u %% HP, %u %% balance)",
+                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.uncredited), u(c.bypass3),
+                    u(c.bypass4), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.rate), u(c.bad),
+                    u(c.ignored), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
     else
       std::snprintf(head, sizeof head,
-                    "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored), "
-                    "%llu desync guest-dead, %zu held at 1 HP, %llu crowd controls told, %llu mirrored (%llu "
-                    "skipped), %llu stale, %llu bad",
-                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), s.floors,
-                    u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.bad));
+                    "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored, "
+                    "%llu without credit), %llu desync guest-dead, %zu held at 1 HP, %llu crowd controls told, %llu "
+                    "mirrored (%llu skipped), %llu stale, %llu bad, %zu scaled (%u %% HP, %u %% balance)",
+                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.uncredited),
+                    u(c.desync), s.floors, u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.bad),
+                    s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
-                  "%llu state maps or effect lists unread; "
+                  "%llu state maps or effect lists unread, %llu enemies left unscaled; "
                   "%llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic "
                   "thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
-                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(s.lost), u(dropped_), u(unsent_),
+                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(j.unscaled), u(s.lost),
+                  u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.trace(std::string(head) + tail);
   }

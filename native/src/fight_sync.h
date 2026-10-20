@@ -1,27 +1,31 @@
 // Shared Naytibas, stages 1 and 2 (Phase 11): matched pairs with a host arbiter, as pure logic. Each world keeps
 // spawning its own enemies. The host announces the ones it arbitrates and decides their HP, Shield, Stamina (balance)
 // and death; the guest pairs each with its own copy by SB's spawn key, claims its own hits and corrects its copies
-// toward the host's values. A knockdown or a launch that starts on one copy is started on the other (both ways). Host
-// and Guest run inside our logic job on fixed arrays and never allocate; the text of channel 2, the record lines and
-// the replay are the worker's. The game is reached only through an Io (the engine reads the actors and calls SB's
+// toward the host's values. A knockdown or a launch that starts on one copy is started on the other (both ways). With
+// two-player scaling, both sides name the enemies whose MaxHP and balance the engine raises by the host's percents.
+// Host and Guest run inside our logic job on fixed arrays and never allocate; the text of channel 2, the record lines
+// and the replay are the worker's. The game is reached only through an Io (the engine reads the actors and calls SB's
 // ApplyStat and effect call), so tests/fight_sync_test.cpp drives this file with fake worlds on the build machine. No
 // Windows types.
 //
 // Channel 2 (link_core.h), plain text after link_protocol.h's fight_tag(), integers only (HP, Shield and Stamina are
 // whole units in the game). An enemy is named by the host's ActorGUID (hguid), which SB reuses only after 5,000,000
 // spawns; gen is the host's world generation.
-//   SBF9 on, SBF9 off <reason>                                     both, reliable: the feature's state
-//   SBF9 world <gen>                                               both, reliable: a world change, all pairs dropped
-//   SBF9 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>         host, reliable: an enemy it arbitrates
-//   SBF9 down <gen> <hguid>, SBF9 dead <gen> <hguid>               host, reliable: gone without a death, or its death
-//   SBF9 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...             host, unreliable: values; n: the turn's number,
+//   SBF10 on, SBF10 off <reason>                                   both, reliable: the feature's state
+//   SBF10 world <gen>                                              both, reliable: a world change, all pairs dropped
+//   SBF10 scale <gen> <hp %> <balance %>                           host, reliable, after its world when it scales:
+//                                                                  MaxHP and MaxStamina, kMinScale to kMaxScale
+//   SBF10 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
+//                                                                  game's own MaxHP (never a scaled one)
+//   SBF10 down <gen> <hguid>, SBF10 dead <gen> <hguid>             host, reliable: gone without a death, or its death
+//   SBF10 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...            host, unreliable: values; n: the turn's number,
 //                                                                  rising, shared by its lines; ack: last claim taken
-//   SBF9 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>   guest, reliable: drops since its last claim, the HP
+//   SBF10 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>  guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
-//   SBF9 cc <gen> <hguid> <effect>                                 both, reliable: a crowd control (kCcEffects) that
+//   SBF10 cc <gen> <hguid> <effect>                                both, reliable: a crowd control (kCcEffects) that
 //                                                                  started on our copy
-// The host answers the guest's on and world with its whole list (world, then every up), and the guest answers the
-// host's on with its own (hers may have come while the host was off), so either side may restart.
+// The host answers the guest's on and world with its whole list (world, its scale, then every up), and the guest
+// answers the host's on with its own (hers may have come while the host was off), so either side may restart.
 #pragma once
 
 #include <algorithm>
@@ -69,10 +73,14 @@ constexpr uint64_t kEchoMs = 1000; // Our mirror showing up on our copy this lat
 // 3), so the guest's own lethal hit leaves a copy at this HP until the host's dead.
 constexpr int32_t kFloorHp = 1;
 inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + kCc, int64_t(id)) != kCcEffects + kCc; }
+// Two-player scaling (FEATURE-PARITY C24): enemy_hp_scale and enemy_balance_scale in whole percents (link_protocol.h's
+// kMinScale, none, to kMaxScale), the host's for both worlds and fixed for its session.
+enum Scale : int { kScaleHp, kScaleBalance, kScales };
+inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || pct[kScaleBalance] > kMinScale; }
 
 // ---- Channel 2 ----
 
-enum class Type : uint8_t { invalid, on, off, world, up, down, dead, hp, cc, hit }; // world..cc: the host's recorded.
+enum class Type : uint8_t { invalid, on, off, world, scale, up, down, dead, hp, cc, hit }; // world..cc: the host's.
 // One enemy in an hp message.
 struct Values {
   uint32_t guid = 0;
@@ -91,6 +99,7 @@ struct Message {
   int32_t pre_hp = 0;          // hit: the copy's HP before them.
   bool lethal = false;         // hit: the copy died of them.
   int32_t effect = 0;          // cc: one of kCcEffects.
+  uint16_t scale[kScales] = {kMinScale, kMinScale}; // scale: MaxHP and MaxStamina in percent.
   Values entries[kHpPerMessage];
   uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
 };
@@ -106,6 +115,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
     return t + "off " + (why.empty() ? "?" : why);
   }
   case Type::world: return t + "world" + n(m.gen);
+  case Type::scale: return t + "scale" + n(m.gen) + n(m.scale[kScaleHp]) + n(m.scale[kScaleBalance]);
   case Type::up: return t + "up" + n(m.gen) + n(m.guid) + n(m.spawn) + n(m.index) + n(m.chr) + n(m.max_hp);
   case Type::down: return t + "down" + n(m.gen) + n(m.guid);
   case Type::dead: return t + "dead" + n(m.gen) + n(m.guid);
@@ -174,6 +184,13 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
   } else if (kind == "world") {
     ok = split(rest, f, 1, nullptr) && id(f[0], m.gen);
     type = Type::world;
+  } else if (kind == "scale") {
+    ok = split(rest, f, 3, nullptr) && id(f[0], m.gen);
+    for (int k = 0; ok && k < kScales; ++k) {
+      ok = number(f[1 + k], v) && v >= kMinScale && v <= kMaxScale;
+      m.scale[k] = static_cast<uint16_t>(v);
+    }
+    type = Type::scale;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;
@@ -233,6 +250,7 @@ struct Seen {
   bool stunned = false;                  // It holds Down (6), Groggy (7) or Airborne (8): a crowd control runs.
   bool immortal = false;                 // It holds Immortal (27): SB's own floor keeps its HP at 1 or more.
   bool dying = false;                    // Pending death or life state 3-5: it may stay in the map a while.
+  bool scaled = false;                   // The engine holds our two-player scaling on it: its maxes are not its own.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.
 };
@@ -253,7 +271,8 @@ struct Write {
   uint32_t guid = 0;
   int stat = kHp;
   int32_t delta = 0;   // Whole units, never 0.
-  bool eve = false;    // Kills only: the cause gives this world's EVE the kill rewards; null skips them.
+  bool kill = false;   // It takes all the HP: the engine lifts our floor first, in the same turn.
+  bool eve = false;    // Kills only: the cause gives this world's EVE the kill rewards; null skips them (kill_credit).
   bool notify = false; // A drop shows the enemy's bar and a number; rises go without.
 };
 
@@ -288,6 +307,7 @@ struct Counts {
   uint64_t claims = 0;               // Guest: claims sent. Host: claims applied.
   uint64_t corrections = 0;          // Guest: writes toward the host's values.
   uint64_t kills = 0;                // Kills we applied: the host's on a claim, the guest's on dead.
+  uint64_t uncredited = 0;           // Such kills with no cause: kill_credit=fought, and our EVE never hit it.
   uint64_t floored = 0;              // dead-floored: such a kill left HP above 0 (Immortal or MinimumHP).
   uint64_t refused = 0;              // Host: lethal claims refused.
   uint64_t desync = 0;               // Guest: desync guest-dead, our copy died of a hit the host's copy lived through.
@@ -386,6 +406,21 @@ class Host {
 public:
   Counts counts;
 
+  // Before the first step: our enemy_hp_scale and enemy_balance_scale in percent (the guest takes them from our scale
+  // line), and kill_credit (all: every kill we apply gives our EVE the rewards; else only one of an enemy she hit).
+  void set_scale(uint16_t hp, uint16_t balance) { scale_[kScaleHp] = hp, scale_[kScaleBalance] = balance; }
+  void credit(bool all) { credit_all_ = all; }
+  uint16_t scale(int which) const { return scale_[which]; }
+  // The enemies whose scaling the engine holds after this step: every one followed while her on held, until it leaves
+  // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling.
+  size_t scaled(uint32_t *guids) const {
+    size_t n = 0;
+    for (size_t i = 0; scaling(scale_) && i < count_; ++i)
+      if (enemies_[i].scaled)
+        guids[n++] = enemies_[i].guid;
+    return n;
+  }
+
   // Every enemy and queued claim dropped, a new generation, and the whole list again once the guest is on: our feature
   // restarted. A new session takes a new Host.
   void clear() {
@@ -460,6 +495,7 @@ public:
           ++counts.cc_told;
         }
         e.take(*s);
+        e.scaled = e.scaled || peer_on_;
         e.cc.apply(e.guid, *s, now, counts, io);
         ++i;
         continue;
@@ -470,8 +506,8 @@ public:
         io.send(note(s ? Type::dead : Type::down, e.guid));
       enemies_[i] = enemies_[--count_];
     }
-    for (size_t i = 0; i < n; ++i) {
-      if (dying(seen[i]) || find(seen[i].guid))
+    for (size_t i = 0; i < n; ++i) { // One we still hold scaled comes back at a census once the engine let it go.
+      if (dying(seen[i]) || seen[i].scaled || find(seen[i].guid))
         continue;
       const bool hurt = seen[i].value[kHp] < whole(seen[i].max[kHp]), room = count_ < kMaxPairs;
       Enemy *place = room ? &enemies_[count_++] : hurt ? idle() : nullptr;
@@ -484,6 +520,8 @@ public:
         io.send(note(Type::down, place->guid));
       Enemy &e = *place = Enemy();
       e.guid = seen[i].guid;
+      e.max_hp = std::max(1, whole(std::round(seen[i].max[kHp])));
+      e.scaled = peer_on_;
       e.take(seen[i]);
       e.cc.start(seen[i]);
       if (each)
@@ -495,6 +533,11 @@ public:
       w.type = Type::world;
       w.gen = gen_;
       io.send(w);
+      if (scaling(scale_)) {
+        w.type = Type::scale;
+        std::copy(scale_, scale_ + kScales, w.scale);
+        io.send(w);
+      }
       for (size_t i = 0; i < count_; ++i)
         io.send(up(enemies_[i]));
       next_hp_ = next_refresh_ = now; // Every value at once.
@@ -509,14 +552,19 @@ private:
   struct Enemy {
     uint32_t guid = 0, spawn = 0, chr = 0;
     uint8_t index = 0, nodamage = 0;
+    int32_t max_hp = 0; // The game's own MaxHP when it came, for up (the guest pairs her copy before scaling it).
     float max[kStats] = {};
     int32_t value[kStats] = {}, sent[kStats] = {};
     bool claimed = false; // A claim was taken since the last hp: its ack must travel with these values.
     bool hit = false;     // A claim was ever applied to it: it keeps its place.
+    bool fought = false;  // A drop between two passes: our EVE hit it (kill_credit=fought).
+    bool scaled = false;  // Followed while her on held: the engine scales it.
     uint64_t window = 0;  // The rate window's start and its claims.
     uint32_t in_window = 0;
     Mirror cc;
     void take(const Seen &s) {
+      for (int k = 0; k < kStats; ++k)
+        fought = fought || s.value[k] < value[k];
       spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage;
       std::copy(s.max, s.max + kStats, max);
       std::copy(s.value, s.value + kStats, value);
@@ -553,7 +601,7 @@ private:
     m.spawn = e.spawn;
     m.index = e.index;
     m.chr = e.chr;
-    m.max_hp = std::max(1, whole(std::round(e.max[kHp])));
+    m.max_hp = e.max_hp;
     return m;
   }
 
@@ -595,13 +643,13 @@ private:
     c.lethal = m.lethal;
   }
 
-  template <class Io> bool write(Enemy &e, int stat, int32_t delta, bool eve, Io &io) {
-    return io.apply(Write{e.guid, stat, delta, eve, true}, e.value[stat]);
+  template <class Io> bool write(Enemy &e, int stat, int32_t delta, bool kill, Io &io) {
+    return io.apply(Write{e.guid, stat, delta, kill, kill && (credit_all_ || e.fought), true}, e.value[stat]);
   }
 
   // A claim: Shield and Stamina, then HP, where the claim may kill. A kill passes our EVE as the cause, so this world
-  // gives her the kill rewards (F3); a plain change passes none, so effects aimed at the attacker never hit our EVE for
-  // the guest's hits.
+  // gives her the kill rewards (F3), unless kill_credit=fought and she never hit it; a plain change passes none, so
+  // effects aimed at the attacker never hit our EVE for the guest's hits.
   template <class Io> void apply(const Claim &k, Io &io) {
     Enemy *e = find(k.guid);
     if (!e) { // It died or left since the claim was taken.
@@ -629,6 +677,7 @@ private:
     if (!write(*e, kHp, -hp, true, io))
       return;
     ++counts.kills;
+    counts.uncredited += !credit_all_ && !e->fought;
     if (e->value[kHp] > 0) { // Immortal or MinimumHP held: it lives on, and so does the guest's copy.
       ++counts.floored;
       io.event(Event{"dead-floored", "", e->guid, e->spawn, e->index});
@@ -682,6 +731,8 @@ private:
   size_t claims_ = 0;
   uint32_t gen_ = 1, last_seq_ = 0, in_window_ = 0, batch_ = 0;
   uint64_t window_ = 0, next_hp_ = 0, next_refresh_ = 0;
+  uint16_t scale_[kScales] = {kMinScale, kMinScale};
+  bool credit_all_ = true;
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
@@ -704,8 +755,12 @@ public:
     drop();
     fence_.clear();
   }
-  // guest_kills=confirmed (F4's fallback) for this side, before its first step.
+  // guest_kills=confirmed (F4's fallback) and kill_credit (all, or only the enemies our EVE hit) for this side, before
+  // its first step.
   void confirm(bool on) { confirm_ = on; }
+  void credit(bool all) { credit_all_ = all; }
+  // The host's scaling from its scale line (kMinScale: none), until its next world, on or off.
+  uint16_t scale(int which) const { return scale_[which]; }
   size_t linked() const {
     size_t n = 0;
     for (size_t i = 0; i < count_; ++i)
@@ -721,6 +776,9 @@ public:
         guids[n++] = pairs_[i].local;
     return n;
   }
+  // With the host's scaling: the copies the engine scales after this step, as tracked() (a copy the host's dead kills
+  // this step keeps it: the engine lets a dying copy go without lowering its HP). Any other gets its own maxes back.
+  size_t scaled(uint32_t *guids) const { return scaling(scale_) ? tracked(guids) : 0; }
   // With confirm(): the copies whose floor the engine must hold after this step (every live pair, waiting or not), at
   // most kMaxTracked. Any other floor comes off: unpaired, dropped, dead (the engine lifts it before the kill).
   size_t floored(uint32_t *guids) const {
@@ -745,6 +803,7 @@ public:
       drop();
       known_gen_ = m.gen;
       return;
+    case Type::scale:
     case Type::up:
     case Type::down:
     case Type::dead:
@@ -757,6 +816,8 @@ public:
       break;
     default: ++counts.bad; return;
     }
+    if (m.type == Type::scale) // For the pairs to come: it follows the host's world, before its ups.
+      return (void)std::copy(m.scale, m.scale + kScales, scale_);
     Pair *p = find(m.guid);
     if (m.type == Type::up) {
       if (p) // Announced once a generation: a repeat changes nothing.
@@ -828,8 +889,10 @@ public:
       const Seen *s = p.local && (!p.lethal || p.held) ? fight::find(seen, n, p.local) : nullptr;
       if (s && !dying(*s)) {
         int32_t after = s->value[kHp];
-        if (io.apply(Write{p.local, kHp, -s->value[kHp], true, true}, after)) {
+        const bool eve = credit_all_ || p.fought; // kill_credit=fought: no rewards for one our EVE never hit.
+        if (io.apply(Write{p.local, kHp, -s->value[kHp], true, eve, true}, after)) {
           ++counts.kills;
+          counts.uncredited += !eve;
           if (after > 0) {
             ++counts.floored;
             io.event(Event{"dead-floored", "", p.hguid, p.spawn, p.index});
@@ -852,6 +915,7 @@ private:
     uint8_t index = 0;
     int32_t max_hp = 0;
     bool dead = false;           // The host's dead came: the next step kills the copy.
+    bool fought = false;         // Our EVE hit the copy (a drop we claimed) since it paired: kill_credit=fought.
     bool logged = false;         // Its unpaired reason was logged.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
     uint32_t lethal = 0;         // Our lethal claim's number while the host decides.
@@ -871,6 +935,7 @@ private:
     count_ = 0;
     known_gen_ = batch_ = 0;
     logged_ = 0;
+    std::fill(scale_, scale_ + kScales, kMinScale);
   }
   Pair *find(uint32_t hguid) {
     for (size_t i = 0; i < count_; ++i)
@@ -886,7 +951,7 @@ private:
   }
   static void unpair(Pair &p) {
     p.local = p.lethal = 0;
-    p.held = false;
+    p.held = p.fought = false;
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.logged = false;
@@ -920,8 +985,10 @@ private:
     const bool floor = confirm_ && !s.immortal && s.value[kHp] <= kFloorHp && s.value[kHp] < p.seen[kHp];
     bool owed = false;
     for (int k = 0; k < kStats; ++k) {
-      if (s.value[k] < p.seen[k])
+      if (s.value[k] < p.seen[k]) {
         p.unsent[k] = std::min(kMaxStat, p.unsent[k] + (p.seen[k] - s.value[k]));
+        p.fought = true;
+      }
       p.seen[k] = s.value[k];
       owed = owed || p.unsent[k];
     }
@@ -989,7 +1056,7 @@ private:
       if (target == p.stuck[k] || std::abs(gap) < std::max(1.0, kCorrectShare * double(s.max[k])))
         continue;
       int32_t after = p.seen[k];
-      if (!io.apply(Write{p.local, k, gap, false, gap < 0}, after))
+      if (!io.apply(Write{p.local, k, gap, false, false, gap < 0}, after))
         return;
       ++counts.corrections;
       if (after != target) // A floor or a clamp: no write again until the target moves.
@@ -998,7 +1065,8 @@ private:
     }
   }
 
-  // New pairs among the copies this pass; an announced enemy that fails a check stays local, logged once.
+  // New pairs among the copies this pass; an announced enemy that fails a check stays local, logged once. A copy the
+  // engine still holds scaled (its pair just ended) waits for a census after the engine let it go: its MaxHP is ours.
   template <class Io> void pair(const Seen *seen, size_t n, Io &io) {
     for (size_t i = 0; i < count_; ++i) {
       Pair &p = pairs_[i];
@@ -1007,7 +1075,7 @@ private:
       const Seen *match = nullptr;
       size_t found = 0;
       for (size_t k = 0; k < n; ++k)
-        if (!dying(seen[k]) && seen[k].spawn == p.spawn && seen[k].index == p.index)
+        if (!dying(seen[k]) && !seen[k].scaled && seen[k].spawn == p.spawn && seen[k].index == p.index)
           match = &seen[k], ++found;
       if (!found)
         continue;
@@ -1049,7 +1117,8 @@ private:
   size_t count_ = 0, next_ = 0; // next_: where the next turn's claims start.
   uint32_t known_gen_ = 0, own_gen_ = 0, seq_ = 0, batch_ = 0;
   uint64_t next_claim_ = 0;
-  bool confirm_ = false;
+  uint16_t scale_[kScales] = {kMinScale, kMinScale};
+  bool confirm_ = false, credit_all_ = true;
   struct Key {
     uint32_t spawn = 0;
     uint8_t index = 0;
@@ -1060,10 +1129,10 @@ private:
 
 // ---- Record and replay ----
 
-// The host's lines as sent (world, up, down, dead, hp, cc), each "<ms since the start> <SBF9 text>\n", in a text file
-// the worker writes at the stop; read back whole and checked, then played once into the guest role. The first line is a
-// world (the recorder starts with the host's list), so the guest takes the recorded generation; pairing goes by key, so
-// a recorded enemy pairs with the same spawn after a camp rest.
+// The host's lines as sent (world, scale, up, down, dead, hp, cc), each "<ms since the start> <SBF10 text>\n", in a
+// file the worker writes at the stop; read back whole and checked, then played once into the guest role. The first
+// line is a world (the recorder starts with the host's list), so the guest takes the recorded generation; pairing goes
+// by key, so a recorded enemy pairs with the same spawn after a camp rest.
 constexpr size_t kMaxRecording = size_t(4) << 20, kMaxRecordLines = 20000;
 struct Line {
   uint64_t ms = 0;

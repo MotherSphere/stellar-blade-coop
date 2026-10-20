@@ -90,7 +90,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`9:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`10:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -124,7 +124,7 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
 - `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
   `remove <SteamID>` refuses any player already in, friends included.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
-  removed from this session`). Every protocol 9 build shows it as `<host> refused the link: <reason>` and leaves. That
+  removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
   requests and messages, and sends `you cannot join this session again` each time they come back. Steam has no way to
   remove a lobby member, so a game that ignores the reject keeps the second place in the lobby. It gets the reject
@@ -166,11 +166,11 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC9 ping <seq> <ms>
-SBC9 pong <seq> <ms>
-SBC9 photo <0|1|s> <both|notice>
-SBC9 say <text>
-SBC9 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC10 ping <seq> <ms>
+SBC10 pong <seq> <ms>
+SBC10 photo <0|1|s> <both|notice>
+SBC10 say <text>
+SBC10 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -241,7 +241,8 @@ instead of misread:
 | 6 | Four effect slots in each pose |
 | 7 | Steam channel 2 for the shared enemies, and the photo line |
 | 8 | The say and vit lines, for the chat and the partner card |
-| 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 (this version) |
+| 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
+| 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers (this version) |
 
 ### Link health in the log
 

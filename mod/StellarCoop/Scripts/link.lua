@@ -10,10 +10,10 @@
 -- at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
--- coop-settings.txt's shared_enemies, fight_chars and guest_kills (Phase 11, experimental) are main.lua's coop fight;
--- its photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native
--- part through coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The
--- co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale and kill_credit
+-- (Phase 11, experimental) are main.lua's coop fight; its photo_sync, photo_freeze_max, photo_ghost and photo_name_tag
+-- the synced photo mode's (main.lua, and the native part through coop-state.txt); its auto_coop_save the co-op saves'
+-- (saves.lua), which also read saves() here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -55,6 +55,12 @@ fight_chars=auto
 # guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
 # stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
 guest_kills=at_once
+# Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 2.0. kill_credit: all (every
+# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
+enemy_hp_scale=1.35
+enemy_balance_scale=1.15
+kill_credit=all
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -81,8 +87,8 @@ card_details=on
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
-    dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',photo_sync='both',
-    photo_freeze_max='600',
+    dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
+    enemy_balance_scale='1.15',kill_credit='all',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
     partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
@@ -90,7 +96,7 @@ local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_ta
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
-    who_can_join={'friends','code','private'},
+    kill_credit={'all','fought'},who_can_join={'friends','code','private'},
     auto_coop_save={'ask','always','off'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
@@ -99,9 +105,9 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- A setting's value from its text, or nil and why it is refused. A key is keybind.lua's ({key='F7', mod='SHIFT' or nil,
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
--- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, who_can_join, auto_coop_save) one of
--- its words;
--- photo_freeze_max a whole number of seconds; ui_scale one of percent.
+-- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
+-- auto_coop_save) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of percent; the scales a
+-- number from 1 to 2, digits with a decimal point or none (main.lua sends them in whole percents).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -131,6 +137,10 @@ local function setting(name,text)
         local rate=text:match('^%d+$') and tonumber(text)
         if rate and rate>=10 and rate<=60 then return rate end
         return nil,'use 10 to 60'
+    elseif name=='enemy_hp_scale' or name=='enemy_balance_scale' then
+        local x=text:match('^%d+%.?%d*$') and tonumber(text)
+        if x and x>=1 and x<=2 then return x end
+        return nil,'use 1.0 to 2.0'
     elseif name=='ui_scale' then
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end

@@ -134,8 +134,12 @@ int main() {
   assert(parse_text("SBC6 ping 1 2").kind == Kind::invalid && parse_text("SBC6 pong 1 2").kind == Kind::invalid);
   // A v0.2.0 peer runs protocol 7: it would count say and vit as invalid and drop them, so a chat line would vanish
   // without a word. Protocol 8 makes her lobby tag and hello refuse the link instead; her lines are dropped too.
-  static_assert(kProtocol == 9, "9 adds pose deltas (SBD) on channel 1; 8 adds say and vit; 7 is v0.2.0's");
-  assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856");
+  // A v0.3.0 peer runs protocol 9: it would drop the shared fight's scale line as malformed and keep its copies at
+  // their own maxes while the host's are scaled, so the two HP bars would disagree. Protocol 10 refuses the link.
+  static_assert(kProtocol == 10, "10 adds the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
+  assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
+         lobby_tag(24463856) != "9:24463856");
+  assert(parse_text("SBC9 ping 1 2").kind == Kind::invalid && parse_text("SBC9 vit 1").kind == Kind::invalid);
   assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
   assert(parse_text("SBC8 say hi").kind == Kind::invalid && parse_text("SBC8 vit 1").kind == Kind::invalid);
   assert(fight_tag() == "SBF" + std::to_string(kProtocol));
@@ -279,6 +283,24 @@ int main() {
   for (const char *bad : {"fight on 1 confirmed", "fight on confirmed confirmed", "fight on Confirmed",
                           "fight on confirm", "fight on  confirmed", "fight test kill confirmed",
                           "fight off confirmed"})
+    assert(parse_request(bad).command == Command::none);
+  // kill_credit=fought: one word after confirmed (or the mode), before the ids. The host's two-player scaling: "scale"
+  // and two whole percents from 100 (none) to 200, MaxHP's then balance's, after those words. None: 100 and 100.
+  f = parse_request("fight on confirmed fought scale 135 115 15011001");
+  assert(f.fight == Fight::on && f.confirmed && f.fought && f.scale[0] == 135 && f.scale[1] == 115 &&
+         (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight replay fought");
+  assert(f.fight == Fight::replay && !f.confirmed && f.fought && f.scale[0] == 100 && f.scale[1] == 100);
+  f = parse_request("fight record scale 200 100");
+  assert(f.fight == Fight::record && !f.fought && f.scale[0] == 200 && f.scale[1] == 100 && f.chars.empty());
+  f = parse_request("fight on 15011001");
+  assert(!f.fought && f.scale[0] == 100 && f.scale[1] == 100);
+  assert(parse_request("fight on fought scale 100 100" + sixteen.substr(8)).chars.size() == kMaxFightChars);
+  for (const char *bad : {"fight on fought confirmed", "fight on scale 135 115 fought", "fight on fought fought",
+                          "fight on scale 135", "fight on scale 99 115", "fight on scale 135 201",
+                          "fight on scale 1.35 1.15", "fight on scale 135 115 scale 135 115", "fight on Fought",
+                          "fight on 1 fought", "fight on 1 scale 135 115", "fight test kill fought",
+                          "fight off scale 135 115", "fight status fought"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("fight off").fight == Fight::off && parse_request("fight status\r\n").fight == Fight::status);
   f = parse_request("fight test hp -10");

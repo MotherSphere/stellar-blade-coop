@@ -165,13 +165,14 @@ int main() {
     over_entries += entry('P', pose(a, k, 1'000'000 + k * 10'000));
   }
   std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good, protocol_6 = good, protocol_7 = good,
-              protocol_8 = good, d_age_0 = d1;
+              protocol_8 = good, protocol_9 = good, d_age_0 = d1;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x09");
+  assert(kHead == "SBR\x0a");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
   protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.
   protocol_8[3] = 8; // Chat's, before deltas: keyframes only.
+  protocol_9[3] = 9; // v0.3.0's: the same bytes, made before the shared enemies' scale line.
   std::memset(&d_age_0[kPoseHeader], 0, 4);
   const std::string bd_k1 = delta(b, pose(b, 30, 2'000'000), pose(b, 31, 2'016'667)); // Its age leads to k1's time.
   bad_byte_3[3] = char(coop::kProtocol + 1);
@@ -186,6 +187,7 @@ int main() {
       {protocol_6, "protocol"},
       {protocol_7, "protocol"},
       {protocol_8, "protocol"},
+      {protocol_9, "protocol"},
       {good + entry('X', p1), "kind"},
       {good + entry('p', p1), "kind"},
       {kHead + entry('X', t1) + entry('P', p1), "kind"},

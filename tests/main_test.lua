@@ -720,14 +720,15 @@ for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','now'},{'status','x'}
     assert(last()==FIGHT_USE and #asked==0,table.concat(bad,' ')..': '..last())
 end
 -- shared_enemies=off: coop fight on refuses; the T11a tools still run. fight_chars=auto (the default)
--- asks them with no ids: the native part then takes every common enemy. A test's change goes as a plain whole number;
--- a test never carries fight_chars.
+-- asks them with no ids: the native part then takes every common enemy. record, a mode that hosts, carries the host's
+-- scaling (1.35 and 1.15 by default) in whole percents. A test's change goes as a plain whole number; a test never
+-- carries fight_chars.
 coop('fight','on')
 assert(last()=='[StellarCoop] STOP: shared enemies are off in coop-settings.txt (shared_enemies=off)\n' and #asked==0)
 for _,mode in ipairs({'probe','record','replay'}) do
     coop('fight',mode)
-    assert(asked[#asked]=='fight '..mode and last()=='[StellarCoop] OK: asked the native part: fight '..mode..'\n',
-        last())
+    local line='fight '..mode..(mode=='record' and ' scale 135 115' or '')
+    assert(asked[#asked]==line and last()=='[StellarCoop] OK: asked the native part: '..line..'\n',last())
 end
 for _,case in ipairs({{{'hp','-10'},'fight test hp -10'},{{'hp','+5'},'fight test hp 5'},
         {{'sh','-1'},'fight test sh -1'},{{'st','10000000'},'fight test st 10000000'},
@@ -773,25 +774,35 @@ for _,judged in ipairs({COOP,with_slot('slot=main index=0 marker=4\n'),with_slot
     load_main(true)
     status_text=judged
     loops[2].f()
-    assert(#asked==1 and asked[1]=='fight on 15011001 2'
-        and logged('OK: shared_enemies=on: asked the native part: fight on 15011001 2'),table.concat(printed,'|'))
+    assert(#asked==1 and asked[1]=='fight on scale 135 115 15011001 2'
+        and logged('OK: shared_enemies=on: asked the native part: fight on scale 135 115 15011001 2'),
+        table.concat(printed,'|'))
     loops[2].f(); status_text=with_slot('slot=none index=4 marker=4\n'); loops[2].f(); status_text=COOP; loops[2].f()
     assert(#asked==1,'Once a load: a reload of the save asks nothing (the native part waits and resumes)')
 end
 for _,mode in ipairs({'on','probe','record','replay'}) do
-    coop('fight',mode); assert(asked[#asked]=='fight '..mode..' 15011001 2',asked[#asked])
+    coop('fight',mode)
+    assert(asked[#asked]=='fight '..mode..((mode=='on' or mode=='record') and ' scale 135 115' or '')..' 15011001 2',
+        asked[#asked])
 end
 coop('fight','test','kill'); assert(asked[#asked]=='fight test kill')
 status_text=with_slot('slot=main index=0 marker=4\n')
-coop('fight','on'); assert(asked[#asked]=='fight on 15011001 2','By hand on your own save: the native part waits')
--- guest_kills=confirmed goes with the guest's modes (on, replay) as one word before the ids; the others never carry it.
-settings_text='shared_enemies=on\nguest_kills=confirmed\n'
+coop('fight','on')
+assert(asked[#asked]=='fight on scale 135 115 15011001 2','By hand on your own save: the native part waits')
+-- guest_kills=confirmed and kill_credit=fought go with the modes that kill on the other side's word (on, replay), as
+-- one word each before the ids, in that order; the others never carry them. The host's scaling goes with the modes
+-- that host (on, record), after them: each 1.0 to 2.0 setting as whole percents, rounded.
+settings_text='shared_enemies=on\nguest_kills=confirmed\nkill_credit=fought\nenemy_hp_scale=2\nenemy_balance_scale=1\n'
 load_main(true)
 status_text=COOP
-for _,case in ipairs({{'on','fight on confirmed'},{'replay','fight replay confirmed'},{'probe','fight probe'},
-        {'record','fight record'}}) do
+for _,case in ipairs({{'on','fight on confirmed fought scale 200 100'},{'replay','fight replay confirmed fought'},
+        {'probe','fight probe'},{'record','fight record scale 200 100'}}) do
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
 end
+settings_text='shared_enemies=on\nkill_credit=FOUGHT\nenemy_hp_scale=1.234\nenemy_balance_scale=1.006\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on fought scale 123 101',asked[#asked])
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)
@@ -807,7 +818,7 @@ for _,text in ipairs({'','shared_enemies=on\n','shared_enemies=on\nfight_chars=a
     load_main(true)
     assert(logged('shared enemies: on (experimental), fight_chars auto'),table.concat(printed,'|'))
     status_text=COOP; loops[2].f()
-    assert(#asked==1 and asked[1]=='fight on',text)
+    assert(#asked==1 and asked[1]=='fight on scale 135 115',text)
 end
 -- And never with shared_enemies=off.
 settings_text='shared_enemies=off\n'
@@ -884,6 +895,18 @@ for _,step in ipairs({
     local got=fight_step(step[1])
     assert(got==step[2],tostring(step[1])..': '..got)
 end
+-- With the host's scaling (the line's scale=, which the guest has from the host's scale line), the on notice names it;
+-- 100 % and 100 % add nothing.
+for _,step in ipairs({{'fight=off why=coop fight off',''},
+        {'fight=on mode=on role=guest pairs=2 claims=0 corrections=0 kills=0 floored=0 desync=0 scale=135/115 '
+            ..'sim_us=5/9 threads=1/1/2',"Shared enemies on: 2 enemies linked. Enemy HP 135 %, balance 115 % (the "
+            .."host's setting)."},
+        {'fight=off why=coop fight off',''},
+        {'fight=on mode=on role=host enemies=1 claims=0 refused=0 kills=0 floored=0 scale=100/100 sim_us=9/20 '
+            ..'threads=1/1/2','Shared enemies on: 1 enemy linked.'}}) do
+    local got=fight_step(step[1])
+    assert(got==step[2],tostring(step[1])..': '..got)
+end
 -- The same notices in the game's language (French: 0 and 1 singular).
 kit_language='fr-FR'
 local HOST_N='fight=on mode=on role=host claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 enemies='
@@ -893,7 +916,9 @@ for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_N..'0',''},
         {HOST_N..'1','Ennemis partagés actifs : 1 ennemi lié.'},
         {'fight=off why=coop fight off',''},
         {'fight=waiting mode=on why=no friend linked',''},
-        {'fight=off','Ennemis partagés coupés. coop-link.log dit pourquoi.'}}) do
+        {'fight=off','Ennemis partagés coupés. coop-link.log dit pourquoi.'},
+        {HOST_N..'2 scale=150/100',"Ennemis partagés actifs : 2 ennemis liés. PV des ennemis 150 %, équilibre 100 % "
+            .."(réglage de l'hôte)."},{'fight=off why=coop fight off',''}}) do
     fight_text=step[1]
     local n=#said
     loops[2].f()
@@ -999,6 +1024,8 @@ for _,lang in ipairs({'en','fr'}) do
         local full=text:gsub('%%s',string.rep('W',32)):gsub('%%d','16')
         assert(Chat.clean(full)==full,lang..'.fight.'..k..': '..#full..' bytes')
     end
+    local scaled=Words[lang].fight.on:format(16)..' '..Words[lang].fight.scale:format(200,200) -- The longest on.
+    assert(Chat.clean(scaled)==scaled,lang..': '..#scaled..' bytes')
 end
 
 -- The co-op menu (menu.lua, ui_model.lua and ui_text.lua for real; the kit faked). menu_key opens it in a world only,
@@ -1141,7 +1168,8 @@ to('Shared enemies (experimental)'); assert(select(2,focus())=='On')
 quarter(); assert(#asked==fight_asks,'No slot line yet: it waits')
 status_text=with_slot('slot=main index=0 marker=4\n')
 quarter()
-assert(#asked==fight_asks+1 and asked[#asked]=='fight on' and logged('OK: shared_enemies=on: asked the native part: fight on'))
+assert(#asked==fight_asks+1 and asked[#asked]=='fight on scale 135 115'
+    and logged('OK: shared_enemies=on: asked the native part: fight on scale 135 115'))
 quarter(); assert(#asked==fight_asks+1,'Once')
 fight_text='fight=waiting mode=on why=not on a co-op save (slot=main index=0 marker=4)'
 key('RETURN')
@@ -1152,9 +1180,21 @@ assert(#asked==fight_asks+2 and asked[#asked]=='fight off'
     and logged('OK: shared_enemies=off: asked the native part: fight off'))
 quarter(); assert(#asked==fight_asks+2,'Once')
 fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
-key('RETURN'); quarter(); assert(#asked==fight_asks+3 and asked[#asked]=='fight on')
+key('RETURN'); quarter(); assert(#asked==fight_asks+3 and asked[#asked]=='fight on scale 135 115')
 key('RETURN'); quarter(); assert(#asked==fight_asks+3 and select(2,focus())=='Off','The probe goes on')
 fight_text=nil
+-- The host's scaling in percent, 5 a step, written as the file holds it; kill credit a choice. Neither asks anything:
+-- each counts from the next start of shared enemies.
+to("Enemy HP (host's)"); assert(select(2,focus())=='135 %')
+key('RIGHT_ARROW')
+assert(settings_text:find('\nenemy_hp_scale=1.4\n',1,true) and select(2,focus())=='140 %' and #asked==fight_asks+3)
+to("Enemy balance (host's)"); key('LEFT_ARROW')
+assert(settings_text:find('\nenemy_balance_scale=1.1\n',1,true) and select(2,focus())=='110 %')
+to('My kill rewards'); assert(select(2,focus())=='Every shared enemy')
+key('RETURN')
+assert(settings_text:find('\nkill_credit=fought\n',1,true) and select(2,focus())=='Enemies I hit'
+    and #asked==fight_asks+3)
+quarter(); assert(#asked==fight_asks+3)
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
@@ -1162,7 +1202,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^GHOST||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^Attack effects|Off|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)

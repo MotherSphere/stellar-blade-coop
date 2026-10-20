@@ -506,7 +506,7 @@ fight::Engine fight_engine; // Its ring of 8 jobs is never freed: SB's queue may
 fight::Mail fight_mail;
 std::atomic<bool> fight_faulted{false};
 std::atomic<uint64_t> fight_fault_code{0}, fight_fault_rva{0}, fight_fault_address{0};
-std::atomic<uint64_t> fight_floors_left{0}; // Our floors a fault left on enemies (guest_kills=confirmed), for the log.
+std::atomic<uint64_t> fight_floors_left{0}; // Our stat changes a fault left on enemies (floors, scaling), for the log.
 uint64_t sim_runs = 0, sim_us = 0, sim_max_us = 0; // The logic thread's.
 bool fight_ticked = false;                         // The game thread's: the fight was on at the last coop_tick.
 
@@ -565,9 +565,9 @@ __declspec(noinline) void lift_body() {
   WinGame g;
   fight_engine.lift(g);
 }
-// After a fault in Simulate, still on the logic thread: our floors come off once when the fault was in this DLL (one
-// of our reads, so the game's state is whole); they stay, counted for the log, when it was in the game's code or
-// another module's (an SB call broken half way, which a second call could hang). A fault here leaves the rest too.
+// After a fault in Simulate, still on the logic thread: our floors and scaling come off once when the fault was in this
+// DLL (one of our reads, so the game's state is whole); they stay, counted for the log, when it was in the game's code
+// or another module's (an SB call broken half way, which a second call could hang). A fault here leaves the rest too.
 void lift_after_fault() {
   if (fault_in_dll(fight_fault_rva)) {
     __try {
@@ -585,7 +585,7 @@ void job_simulate(void *self) {
   } __except (fault_filter(GetExceptionInformation(), fight_fault_code, fight_fault_rva, fight_fault_address)) {
     fight_engine.latch("fault");
     lift_after_fault();
-    fight_faulted = true; // Last: the worker's line about it counts the floors left.
+    fight_faulted = true; // Last: the worker's line about it counts the changes left.
   }
 }
 // The vtable SB's queue sees: slot 0 frees nothing (our jobs are static), slot 1 Simulate, slot 2 nothing.
@@ -1457,7 +1457,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     // In an SB call made from our job: its address as the decompiles name it; in this DLL: its offset; else (ntdll
     // under ApplyStat's heap, say) the address itself.
     const uint64_t at_address = fight_fault_rva + reinterpret_cast<uintptr_t>(&__ImageBase);
-    char where[64], text[300];
+    char where[64], text[400];
     if (at_address - base < kSizeOfImage)
       std::snprintf(where, sizeof where, "the game at 0x%llx",
                     static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
@@ -1470,7 +1470,10 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     std::snprintf(text, sizeof text, "shared fight fault 0x%08llx in %s reading 0x%llx: the ghost and the link go on%s",
                   static_cast<unsigned long long>(fight_fault_code.load()), where,
                   static_cast<unsigned long long>(fight_fault_address.load()),
-                  left ? ("; " + std::to_string(left) + " enemies keep a 1 HP floor until they leave the map").c_str()
+                  left ? ("; " + std::to_string(left) +
+                          " of our stat changes (1 HP floors, two-player scaling) stay until their enemies leave the "
+                          "map")
+                             .c_str()
                        : "");
     say(text);
   }

@@ -227,9 +227,10 @@ local commands={
     end,
     -- on needs shared_enemies=on, on any save: the native part waits for a co-op save. probe, test, record and replay
     -- are the solo T11a tools, on a co-op save only (the native part checks again, and says in the log why it
-    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy); on and
-    -- replay (the guest's modes) carry guest_kills=confirmed as one word before them. status answers with the fight=
-    -- line.
+    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). Before
+    -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
+    -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
+    -- (the modes that can host). status answers with the fight= line.
     fight=function(sub,a,b,extra)
         local line=fight_line(sub,a,b,extra)
         if not line then return false,FIGHT_USE end
@@ -244,6 +245,11 @@ local commands={
                 if not ok then return false,why end
             end
             if (sub=='on' or sub=='replay') and settings.guest_kills=='confirmed' then line=line..' confirmed' end
+            if (sub=='on' or sub=='replay') and settings.kill_credit=='fought' then line=line..' fought' end
+            if sub=='on' or sub=='record' then
+                line=line..string.format(' scale %d %d',math.floor(settings.enemy_hp_scale*100+0.5),
+                    math.floor(settings.enemy_balance_scale*100+0.5))
+            end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end
@@ -420,8 +426,9 @@ if link then
     -- A status read with no mode (before Steam, or unreadable) is no leave.
     local last_mode='none'
     -- The shared enemies' notices, from the fight= line (an unread status changes nothing), in the menu's language
-    -- (read only to say one): on with the count when its enemies go from none to some; off, or stopped for the run,
-    -- once it ran or waited, in any mode, unless our own player ended it (coop fight off, the menu's row, coop off);
+    -- (read only to say one): on with the count when its enemies go from none to some, and the host's scaling unless it
+    -- is 100 % and 100 % (the line's scale=, which the guest has from the host); off, or stopped for the run, once it
+    -- ran or waited, in any mode, unless our own player ended it (coop fight off, the menu's row, coop off);
     -- and while coop fight on waits or runs, one notice for what keeps it from sharing, said again only when that
     -- changes, and FIGHT_HOLD seconds after the last at the soonest (her lines set her state, so a friend flipping it
     -- cannot flood them): your save or hers not a co-op one, her shared enemies off or stopped for the run, or the two
@@ -442,7 +449,11 @@ if link then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
             if fight_count==0 and count>0 then
                 local words=fight_words()
-                say(count==1 and words.one or words.on:format(count))
+                local text,hp,balance=count==1 and words.one or words.on:format(count),line:match(' scale=(%d+)/(%d+)')
+                if hp and (hp~='100' or balance~='100') then
+                    text=text..' '..words.scale:format(tonumber(hp),tonumber(balance))
+                end
+                say(text)
             end
             fight_count=count
         elseif state=='off' or state=='stopped' then

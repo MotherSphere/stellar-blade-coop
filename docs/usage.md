@@ -68,13 +68,14 @@ or shows the mouse cursor for one of its own screens.
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies), Display (the size, sounds and language of the menu, the chat and the partner HUD) and
-Chat.
+title), Combat (shared enemies, the host's enemy scaling and your kill rewards), Display (the size, sounds and language
+of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says
-`Saved. It takes effect when the mod reloads (game start or Ctrl+R).`
+`Saved. It takes effect when the mod reloads (game start or Ctrl+R).`, and the three rows under Shared enemies, which
+count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game).
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
@@ -183,7 +184,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (9) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
+- Both players need the same protocol (10) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -378,7 +379,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 9). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 10). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -426,7 +427,25 @@ host's game refuses that kill: the enemy lives on in the host's game and stays d
 so the enemy dies on your screen about one ping later, and a refused kill leaves it alive at the host's HP. Only the
 guest's setting counts. The mod holds that 1 HP through the game's MinimumHP stat and sets the stat back when the
 enemy dies or stops being shared, and when shared enemies stop. After a fault inside the game's own code it leaves the
-stat as it is: the fault's line in `coop-link.log` then says how many enemies keep 1 HP until they leave the map.
+stat as it is: the fault's line in `coop-link.log` then says how many of these changes stay until their enemies leave
+the map.
+
+Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
+multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
+(no change) to `2.0`. Both games use the host's values for the whole session; the guest's are not used. An enemy gets
+them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP stays at half.
+When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same share of HP and
+balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies or leaves the
+16 shared places, even while the guest pauses. The mod changes the game's MaxHPValue and MaxStamina stats through the
+game's own code. An enemy whose maximum HP the game has changed in another way keeps its own (the stats line of
+`coop-fight.log` counts it as unscaled). The `Shared enemies on` notice names the values when they are not both 1.0,
+for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the
+`fight=` line of `coop status` has `scale=135/115`.
+
+`kill_credit` is each player's own. With `all`, the default, every shared enemy that dies gives you the kill in your
+game. With `fought`, an enemy your EVE never hit in your game (its HP, shield and balance never dropped to your hits)
+dies there with no killer, and your game skips its kill rewards. Whether it still drops loot is not tested yet. An enemy
+that your own hit kills always gives you the kill.
 
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
@@ -540,6 +559,12 @@ fight_chars=auto
 # guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
 # stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
 guest_kills=at_once
+# Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 2.0. kill_credit: all (every
+# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
+enemy_hp_scale=1.35
+enemy_balance_scale=1.15
+kill_credit=all
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -579,6 +604,9 @@ card_details=on
 | `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
 | `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](#shared-enemies-experimental)) | `at_once` |
+| `enemy_hp_scale` | `1.0` to `2.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
+| `enemy_balance_scale` | `1.0` to `2.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
+| `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
