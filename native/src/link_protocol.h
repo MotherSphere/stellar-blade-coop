@@ -305,12 +305,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at most kMaxFightChars; none: every Monster),
-// "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a sign) and "fight test
-// kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause held that long) and
-// "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in the log), "saves
-// convert" (make the co-op copies), "saves coop" (make them, then switch to them) and "saves main" (switch back to the
-// player's own saves).
+// Worker) "fight on|probe|record|replay [confirmed] [<charId> ...]" (guest_kills=confirmed; fight_chars, at most
+// kMaxFightChars; none: every Monster), "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with
+// or without a sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to
+// kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves
+// probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make them, then switch
+// to them) and "saves main" (switch back to the player's own saves).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy
@@ -334,6 +334,7 @@ struct Request {
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
+  bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
 };
@@ -353,8 +354,9 @@ inline Request parse_fight(const std::string &text) {
   if ((what == "off" || what == "status") && w.size() == 1) {
     r.fight = what == "off" ? Fight::off : Fight::status;
   } else if (what == "on" || what == "probe" || what == "record" || what == "replay") {
-    for (size_t i = 1; i < w.size(); ++i) {
-      if (i > kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
+    r.confirmed = w.size() > 1 && w[1] == "confirmed";
+    for (size_t i = 1 + r.confirmed; i < w.size(); ++i) {
+      if (r.chars.size() == kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
         return Request();
       r.chars.push_back(static_cast<uint32_t>(v));
     }

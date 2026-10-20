@@ -65,6 +65,9 @@ constexpr double kMaxHpSlack = 0.5;     // A pair's MaxHP may differ by this muc
 constexpr int32_t kCcEffects[] = {9900001, 3000300, 3000301, 3000303, 3000401};
 constexpr size_t kCc = sizeof kCcEffects / sizeof kCcEffects[0];
 constexpr uint64_t kEchoMs = 1000; // Our mirror showing up on our copy this late is still ours: never told back.
+// guest_kills=confirmed (F4's fallback): the floor the engine holds on the guest's copies (MinimumHP, PHASE11-STAGE2-RE
+// 3), so the guest's own lethal hit leaves a copy at this HP until the host's dead.
+constexpr int32_t kFloorHp = 1;
 inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + kCc, int64_t(id)) != kCcEffects + kCc; }
 
 // ---- Channel 2 ----
@@ -687,7 +690,9 @@ private:
 
 // Keeps the host's list of enemies and pairs each with its own copy: same key (EventSpawnId, SpawnIndex), same charId,
 // MaxHP within 0.5, one to one. Its own hits on a copy are claims; the copy is corrected toward the host's values less
-// the claims the host has not answered, so no claim in flight ever shows as a heal.
+// the claims the host has not answered, so no claim in flight ever shows as a heal. Our own lethal hit kills the copy
+// at once (F4), or, with confirm(), stops at the floor the engine holds on every paired copy (floored()) and waits for
+// the host's dead; a refusal then only resumes the pair.
 class Guest {
 public:
   Counts counts;
@@ -698,17 +703,29 @@ public:
     drop();
     fence_.clear();
   }
+  // guest_kills=confirmed (F4's fallback) for this side, before its first step.
+  void confirm(bool on) { confirm_ = on; }
   size_t linked() const {
     size_t n = 0;
     for (size_t i = 0; i < count_; ++i)
       n += pairs_[i].local && !pairs_[i].lethal;
     return n;
   }
-  // The copies' GUIDs the next pass must re-find, at most kMaxTracked.
+  // The copies' GUIDs the next pass must re-find, at most kMaxTracked: a copy held at the floor while the host decides
+  // on our lethal claim too.
   size_t tracked(uint32_t *guids) const {
     size_t n = 0;
     for (size_t i = 0; i < count_; ++i)
-      if (pairs_[i].local && !pairs_[i].lethal)
+      if (pairs_[i].local && (!pairs_[i].lethal || pairs_[i].held))
+        guids[n++] = pairs_[i].local;
+    return n;
+  }
+  // With confirm(): the copies whose floor the engine must hold after this step (every live pair, waiting or not), at
+  // most kMaxTracked. Any other floor comes off: unpaired, dropped, dead (the engine lifts it before the kill).
+  size_t floored(uint32_t *guids) const {
+    size_t n = 0;
+    for (size_t i = 0; confirm_ && i < count_; ++i)
+      if (pairs_[i].local && !pairs_[i].dead && (!pairs_[i].lethal || pairs_[i].held))
         guids[n++] = pairs_[i].local;
     return n;
   }
@@ -807,7 +824,7 @@ public:
         ++i;
         continue;
       }
-      const Seen *s = p.local && !p.lethal ? fight::find(seen, n, p.local) : nullptr;
+      const Seen *s = p.local && (!p.lethal || p.held) ? fight::find(seen, n, p.local) : nullptr;
       if (s && !dying(*s)) {
         int32_t after = s->value[kHp];
         if (io.apply(Write{p.local, kHp, -s->value[kHp], true, true}, after)) {
@@ -837,6 +854,7 @@ private:
     bool logged = false;         // Its unpaired reason was logged.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
     uint32_t lethal = 0;         // Our lethal claim's number while the host decides.
+    bool held = false;           // Our copy lives at the floor meanwhile (confirm()).
     int32_t seen[kStats] = {};   // The copy's values after our last pass or write (R35).
     int32_t unsent[kStats] = {}; // Drops not claimed yet.
     int32_t host[kStats] = {};   // The host's values from its last hp.
@@ -867,6 +885,7 @@ private:
   }
   static void unpair(Pair &p) {
     p.local = p.lethal = 0;
+    p.held = false;
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.logged = false;
@@ -882,6 +901,10 @@ private:
         p.pending[k++] = p.pending[i];
     p.pendings = k;
     if (p.lethal && ack >= p.lethal && p.host[kHp] > 0) { // It took our lethal claim and its copy lives (F4).
+      if (p.held) { // Ours lives too, at the floor: the pair goes on toward the host's values.
+        p.lethal = 0, p.held = false;
+        return;
+      }
       ++counts.desync;
       io.event(Event{"desync guest-dead", "", p.hguid, p.spawn, p.index});
       unpair(p);
@@ -891,6 +914,9 @@ private:
   // A paired copy this pass: its drops since our last pass are claims (rises are regen, never claimed), a crowd control
   // that started on it is told, the gap to the host's values is corrected, and the host's crowd control started.
   template <class Io> void follow(Pair &p, const Seen &s, uint64_t now, Io &io) {
+    // Our hit stopped at the floor. ponytail: a copy already at exactly kFloorHp shows no drop, so a hit on it claims
+    // nothing; the host's next value or hit moves it.
+    const bool floor = confirm_ && s.value[kHp] <= kFloorHp && s.value[kHp] < p.seen[kHp];
     bool owed = false;
     for (int k = 0; k < kStats; ++k) {
       if (s.value[k] < p.seen[k])
@@ -898,8 +924,10 @@ private:
       p.seen[k] = s.value[k];
       owed = owed || p.unsent[k];
     }
-    if (dying(s)) // Our own lethal hit: the copy dies here at once (F4); the host decides for its own.
+    if (dying(s) || floor) { // Our own lethal hit: the copy dies here at once (F4), or waits at the floor; the host
+      p.held = !dying(s);    // decides for its own.
       return claim(p, s, now, true, io);
+    }
     if (const int32_t id = p.cc.risen(s, now)) {
       Message m;
       m.type = Type::cc;
@@ -1017,6 +1045,7 @@ private:
   size_t count_ = 0, next_ = 0; // next_: where the next turn's claims start.
   uint32_t known_gen_ = 0, own_gen_ = 0, seq_ = 0, batch_ = 0;
   uint64_t next_claim_ = 0;
+  bool confirm_ = false;
   struct Key {
     uint32_t spawn = 0;
     uint8_t index = 0;

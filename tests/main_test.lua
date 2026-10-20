@@ -784,6 +784,15 @@ end
 coop('fight','test','kill'); assert(asked[#asked]=='fight test kill')
 status_text=with_slot('slot=main index=0 marker=4\n')
 coop('fight','on'); assert(asked[#asked]=='fight on 15011001 2','By hand on your own save: the native part waits')
+-- guest_kills=confirmed goes with the guest's modes (on, replay) as one word before the ids; the others never carry it.
+settings_text='shared_enemies=on\nguest_kills=confirmed\n'
+load_main(true)
+status_text=COOP
+for _,case in ipairs({{'on','fight on confirmed'},{'replay','fight replay confirmed'},{'probe','fight probe'},
+        {'record','fight record'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)
 status_text=plain; coop('fight','off'); status_text=COOP; loops[2].f()

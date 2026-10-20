@@ -23,7 +23,8 @@ namespace {
 struct World {
   struct Actor {
     Seen s;
-    int32_t floor = 0;
+    int32_t floor = 0;    // The game's own floor (MinimumHP, Immortal).
+    bool floored = false; // The engine's 1 HP floor (guest_kills=confirmed): holds hits too, lifted before a kill.
   };
   std::vector<Actor> actors;
   std::vector<Write> writes;
@@ -54,7 +55,7 @@ struct World {
   // A hit by this world's EVE, as the game applies it.
   void hit(uint32_t guid, int stat, int32_t amount) {
     Seen &s = actor(guid)->s;
-    s.value[stat] = std::max(0, s.value[stat] - amount);
+    s.value[stat] = std::max(stat == kHp && actor(guid)->floored ? 1 : 0, s.value[stat] - amount);
     s.dying = s.dying || s.value[kHp] == 0;
   }
   bool apply(const Write &w, int32_t &after) {
@@ -63,8 +64,9 @@ struct World {
       return false;
     assert(w.delta && w.stat >= 0 && w.stat < kStats);
     writes.push_back(w);
+    a->floored = a->floored && !w.eve; // The kill order: our floor off first, in the same turn.
     int32_t &v = a->s.value[w.stat];
-    int32_t next = v + w.delta, low = std::min(v, w.stat == kHp ? a->floor : 0);
+    int32_t next = v + w.delta, low = std::min(v, w.stat == kHp ? std::max(a->floor, int32_t(a->floored)) : 0);
     v = w.delta < 0 ? std::max(next, low) : std::min(next, whole(a->s.max[w.stat]));
     a->s.dying = v <= 0 && w.stat == kHp;
     assert(!a->s.dying || w.eve); // Every kill we apply gives this world's EVE the kill (F3).
@@ -97,6 +99,13 @@ struct World {
     return n;
   }
   int32_t hp(uint32_t guid) { return actor(guid)->s.value[kHp]; }
+  // The engine's floors after a guest's step: on the copies it names, off the others.
+  void hold(const Guest &side) {
+    uint32_t guids[kMaxTracked];
+    const size_t n = side.floored(guids);
+    for (Actor &a : actors)
+      a.floored = std::find(guids, guids + n, a.s.guid) != guids + n;
+  }
 };
 
 // One turn, its pass built as the engine's contract says: the GUIDs the side follows first, dying or not, then on a
@@ -859,6 +868,62 @@ int main() {
     gu.receive(msg("SBF9 dead 1 105"), g);
     step(gu, g, 8, 600);
     assert(g.writes.empty() && gu.counts.kills == 2 && g.count("dead") == 3);
+  }
+
+  // ---- Guest, guest_kills=confirmed: our copies hold a 1 HP floor, so our lethal hit waits for the host's word ----
+  {
+    World g;
+    g.add(501, 5001, 0);
+    g.add(502, 5002, 0);
+    g.add(503, 5003, 0);
+    Guest gu;
+    gu.confirm(true);
+    gu.receive(msg("SBF9 world 4"), g);
+    for (const char *up : {"SBF9 up 4 101 5001 0 900 1600", "SBF9 up 4 102 5002 0 900 1600",
+                           "SBF9 up 4 103 5003 0 900 1600"})
+      gu.receive(msg(up), g);
+    uint32_t guids[kMaxTracked];
+    assert(gu.floored(guids) == 0); // None paired yet.
+    step(gu, g, 1, 0);
+    g.hold(gu);
+    assert(gu.floored(guids) == 3 && guids[0] == 501 && guids[1] == 502 && guids[2] == 503);
+    // Our EVE's lethal hit stops at the floor: a lethal claim with the HP before it, and the copy lives at 1 HP, still
+    // followed and floored while the host decides.
+    g.hit(501, kHp, 1600);
+    step(gu, g, 2, 100);
+    g.hold(gu);
+    assert(g.lines() == "SBF9 hit 4 1 101 1599 0 0 1600 1\n" && g.hp(501) == 1 && !g.actor(501)->s.dying);
+    assert(gu.tracked(guids) == 3 && gu.floored(guids) == 3 && gu.linked() == 2);
+    // The host refuses it (its copy lives): no desync. The pair goes on, and the copy is raised to the host's HP with
+    // no number.
+    gu.receive(msg("SBF9 hp 4 1 1 101:300:100:200"), g);
+    assert(gu.counts.desync == 0 && gu.linked() == 3);
+    step(gu, g, 3, 200);
+    g.hold(gu);
+    assert(g.hp(501) == 300 && g.writes.size() == 1);
+    wrote(g, 0, 501, kHp, 299, false, false);
+    // Lethal again, and the host takes it: its dead kills our copy with our EVE as the cause (the engine lifts the
+    // floor first); the floor goes with the pair.
+    g.hit(501, kHp, 400);
+    step(gu, g, 4, 300);
+    g.hold(gu);
+    assert(g.lines() == "SBF9 hit 4 2 101 299 0 0 300 1\n");
+    gu.receive(msg("SBF9 dead 4 101"), g);
+    step(gu, g, 5, 400);
+    g.hold(gu);
+    wrote(g, 1, 501, kHp, -1, true, true);
+    assert(g.actor(501)->s.dying && gu.counts.kills == 1 && gu.counts.desync == 0 && gu.floored(guids) == 2);
+    // Every way out takes the floor off: down, gone, the host's off.
+    gu.receive(msg("SBF9 down 4 102"), g);
+    assert(gu.floored(guids) == 1 && guids[0] == 503);
+    gu.receive(msg("SBF9 off busy"), g);
+    assert(gu.floored(guids) == 0);
+    // At the default (at_once), none ever.
+    Guest plain;
+    plain.receive(msg("SBF9 world 4"), g);
+    plain.receive(msg("SBF9 up 4 103 5003 0 900 1600"), g);
+    step(plain, g, 6, 500);
+    assert(plain.linked() == 1 && plain.floored(guids) == 0);
   }
 
   // ---- Guest: a death frees its place at once ----

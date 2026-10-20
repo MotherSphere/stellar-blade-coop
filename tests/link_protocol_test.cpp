@@ -269,6 +269,17 @@ int main() {
     sixteen += " " + std::to_string(i);
   assert(parse_request(sixteen).chars.size() == kMaxFightChars);
   assert(parse_request(sixteen + " 17").command == Command::none);
+  // guest_kills=confirmed: one word right after the mode, before the ids.
+  f = parse_request("fight on confirmed 15011001");
+  assert(f.fight == Fight::on && f.confirmed && (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight replay confirmed");
+  assert(f.fight == Fight::replay && f.confirmed && f.chars.empty());
+  assert(!parse_request("fight on 15011001").confirmed && !parse_request("fight probe").confirmed);
+  assert(parse_request("fight on confirmed" + sixteen.substr(8)).chars.size() == kMaxFightChars);
+  for (const char *bad : {"fight on 1 confirmed", "fight on confirmed confirmed", "fight on Confirmed",
+                          "fight on confirm", "fight on  confirmed", "fight test kill confirmed",
+                          "fight off confirmed"})
+    assert(parse_request(bad).command == Command::none);
   assert(parse_request("fight off").fight == Fight::off && parse_request("fight status\r\n").fight == Fight::status);
   f = parse_request("fight test hp -10");
   assert(f.command == Command::fight && f.fight == Fight::test && f.stat == 0 && f.change == -10);

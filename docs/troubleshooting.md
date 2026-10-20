@@ -181,6 +181,9 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   are in fights at once, which is the most it shares. The others stay unshared until one of the 16 dies or leaves.
 - `fight=stopped why=<why>`: shared enemies stopped for this run, and the ghost and the link go on. A reason that
   starts with `implausible` means a value in the game's memory did not look as expected on this game build.
+- `fight desync guest-dead` in the guest's `coop-link.log`: an enemy died on the guest's screen and lives on in the
+  host's game, whose copy had more HP left. If it happens often, the guest can set `guest_kills=confirmed` in
+  `coop-settings.txt`: the guest's copies then keep 1 HP until the host's game kills its own.
 
 ### `Co-op saves off for this load: <why>`
 

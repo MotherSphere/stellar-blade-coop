@@ -419,6 +419,15 @@ other game starts the same effect on its copy, as if its own EVE had landed that
 the air or groggy finishes that first and skips it, and a copy the game holds immune to it stays up. Groggy needs
 nothing of this: each copy goes groggy when the shared balance gauge empties.
 
+When you are the guest and your hit kills a shared enemy, `guest_kills=at_once` (the default) kills it on your screen
+at once. If the host's copy had more HP left (more than 10 % of the enemy's maximum HP above what yours had), the
+host's game refuses that kill: the enemy lives on in the host's game and stays dead in yours, and `coop-link.log` says
+`desync guest-dead`. With `guest_kills=confirmed`, your copies keep at least 1 HP until the host's game kills its own,
+so the enemy dies on your screen about one ping later, and a refused kill leaves it alive at the host's HP. Only the
+guest's setting counts. The mod holds that 1 HP through the game's MinimumHP stat and sets the stat back when the
+enemy dies or stops being shared, and when shared enemies stop. After a fault inside the game's own code it leaves the
+stat as it is: the fault's line in `coop-link.log` then says how many enemies keep 1 HP until they leave the map.
+
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
 too. A file from version 0.2 says `shared_enemies=off` and keeps it off until you turn the row on. It starts by itself
@@ -527,6 +536,9 @@ send_rate=60
 # example fight_chars=15011001.
 shared_enemies=on
 fight_chars=auto
+# guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
+# stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
+guest_kills=at_once
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -565,6 +577,7 @@ card_details=on
 | `effects` | `on` or `off` | `off` |
 | `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
+| `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](#shared-enemies-experimental)) | `at_once` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |

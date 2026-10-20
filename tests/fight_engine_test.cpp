@@ -32,7 +32,6 @@ namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
 constexpr uint32_t kChar = 900;       // The allowlisted charId.
 constexpr int32_t kGetup = 3000310;   // Stands for Getup, which Down chains into (its ID is not in the export).
-constexpr size_t kMinimumHp = 0x2c4;  // FSBActor, stat 107: ApplyStat's HP floor.
 const int kVtable = 0;                // Stands for the glue's vtable: never called here.
 uint64_t rebased(uint64_t address) { return kBase + (address - kImageBase); }
 
@@ -124,6 +123,7 @@ struct Game {
   std::map<uint32_t, std::vector<Job *>> queue; // SB's job queue: turn -> jobs.
   bool processing = false;
   uint32_t late = 0; // Game-thread pushes land this many turns back: on a key already drained, never run.
+  uint64_t no_floor = 0; // A logic actor whose stat 107 ApplyStat leaves as it is.
   struct Call {
     uint64_t la;
     int type;
@@ -347,6 +347,11 @@ struct Game {
     Body &b = bodies[la];
     const int32_t life = mem.get<int32_t>(b.fsb + kLife);
     const float d = std::trunc(delta);
+    if (type == kFloorStat) { // MinimumHP: stored as it comes, never clamped (PHASE11-STAGE2-RE 3).
+      if (la != no_floor)
+        mem.put(b.fsb + kMinimumHp, mem.get<float>(b.fsb + kMinimumHp) + delta);
+      return;
+    }
     if (d == 0 || (type == 1 && (mem.get<uint8_t>(la + kPendingDeath) || (life >= 3 && life <= 5))))
       return;
     if (d < 0 && (type == 1 || type == 7) && (held(b, 3) || held(b, 4)) && !ignore)
@@ -758,6 +763,106 @@ int main() {
     g.mem.put<uint64_t>(g.body(102).list_at, 0x1235);
     frame(g, *e, t += 16);
     assert(e->counts.unread == unread + 2 && !e->latched());
+  }
+
+  // ---- guest_kills=confirmed: the 1 HP floor, ApplyStat(107, +1) on every paired copy, comes off on every way out:
+  // before a kill (in the same turn), at unpairing, at off ----
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->confirm(true);
+    e->set(true, false);
+    for (uint32_t i = 0; i < 4; ++i)
+      g.spawn(501 + i, 5001 + i, 0);
+    g.mem.put<float>(g.fsb(504) + kMinimumHp, 1600); // SB's own floor at its HP: ours would raise the HP, so none.
+    for (const char *line : {"SBF9 world 1", "SBF9 up 1 101 5001 0 900 1600", "SBF9 up 1 102 5002 0 900 1600",
+                             "SBF9 up 1 103 5003 0 900 1600", "SBF9 up 1 104 5004 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    const auto floor_of = [&](uint32_t guid) { return g.mem.get<float>(g.fsb(guid) + kMinimumHp); };
+    frame(g, *e, 0);
+    size_t raised = 0;
+    for (const Game::Call &c : g.calls)
+      raised += c.type == kFloorStat && c.delta == 1 && !c.cause && !c.notify;
+    assert(raised == 3 && floor_of(501) == 1 && floor_of(503) == 1 && floor_of(504) == 1600);
+    assert(e->snapshot().floors == 3 && e->guest.linked() == 4);
+    frame(g, *e, 16); // Held: never written twice.
+    assert(g.calls.size() == 3);
+    // Our EVE's lethal hit stops at 1 HP: a lethal claim, and the copy lives.
+    g.hit(501, kHp, 1600);
+    frame(g, *e, 32);
+    assert(g.hp(501) == 1 && g.body(501).deaths == 0 && has(lines(g), "SBF9 hit 1 1 101 1599 0 0 1600 1\n"));
+    // The host's dead: our floor comes off, then the kill with our EVE as the cause, in the same turn.
+    g.calls.clear();
+    g.inbox.push_back(msg("SBF9 dead 1 101"));
+    frame(g, *e, 48);
+    assert(g.calls.size() == 2 && g.calls[0].la == g.by_guid[501] && g.calls[0].type == kFloorStat &&
+           g.calls[0].delta == -1);
+    assert(g.calls[1].type == 1 && g.calls[1].delta == -1 && g.calls[1].cause == g.eve);
+    assert(g.body(501).deaths == 1 && g.body(501).killer == g.eve && floor_of(501) == 0 && e->snapshot().floors == 2);
+    // Unpaired (down): off at once. SB's own floor added since stays: ours comes off alone.
+    g.mem.put<float>(g.fsb(503) + kMinimumHp, 101);
+    g.inbox.push_back(msg("SBF9 down 1 102"));
+    frame(g, *e, 64);
+    assert(floor_of(502) == 0 && e->snapshot().floors == 1);
+    // Off (coop fight off, a lost host, a pause, coop off): the job's last run takes the rest off and pushes no more.
+    e->set(false, false);
+    frame(g, *e, 80);
+    assert(floor_of(503) == 100 && e->snapshot().floors == 0 && g.queue.empty() && !e->latched());
+  }
+  // A new session takes the old one's floors off before it starts; a latch (an implausible read) in the same turn;
+  // lift(), the glue's call after a fault in our code, from outside Simulate. A floor whose enemy left the map needs no
+  // call (spawn init resets stat 107); one the game would not raise turns the feature off.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->confirm(true);
+    const auto floor_of = [&](uint32_t guid) { return g.mem.get<float>(g.fsb(guid) + kMinimumHp); };
+    uint64_t t = 0;
+    const auto pair = [&] { // Pairs come at a census.
+      for (const char *line : {"SBF9 world 1", "SBF9 up 1 101 5001 0 900 1600", "SBF9 up 1 102 5002 0 900 1600"})
+        g.inbox.push_back(msg(line));
+      for (const uint64_t end = t + 16 * kCensusTurns; t <= end && e->snapshot().floors < 2; t += 16)
+        frame(g, *e, t);
+      assert(e->snapshot().floors == 2 && floor_of(501) == 1 && floor_of(502) == 1);
+    };
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    g.spawn(502, 5002, 0);
+    pair();
+    e->set(true, false); // A new session.
+    frame(g, *e, t += 16);
+    assert(e->snapshot().floors == 0 && floor_of(501) == 0 && floor_of(502) == 0);
+    pair();
+    g.mem.put<float>(g.stat_at(502, kHp), std::nanf(""));
+    frame(g, *e, t += 16);
+    assert(e->latched() && e->snapshot().floors == 0 && floor_of(501) == 0 && floor_of(502) == 0);
+
+    Game f;
+    auto e2 = engine(false, false);
+    e2->confirm(true);
+    e2->set(true, false);
+    f.spawn(501, 5001, 0);
+    f.spawn(502, 5002, 0);
+    for (const char *line : {"SBF9 world 1", "SBF9 up 1 101 5001 0 900 1600", "SBF9 up 1 102 5002 0 900 1600"})
+      f.inbox.push_back(msg(line));
+    frame(f, *e2, 0);
+    assert(e2->snapshot().floors == 2);
+    f.unlink(502);
+    const size_t calls = f.calls.size();
+    e2->latch("fault");
+    e2->lift(f);
+    assert(e2->snapshot().floors == 0 && f.mem.get<float>(f.fsb(501) + kMinimumHp) == 0 && f.calls.size() == calls + 1);
+    // The game would not raise it: off for the run, nothing held.
+    Game h;
+    auto e3 = engine(false, false);
+    e3->confirm(true);
+    e3->set(true, false);
+    h.spawn(501, 5001, 0);
+    h.no_floor = h.by_guid[501];
+    for (const char *line : {"SBF9 world 1", "SBF9 up 1 101 5001 0 900 1600"})
+      h.inbox.push_back(msg(line));
+    frame(h, *e3, 0);
+    assert(e3->latched() && !strcmp(e3->why(), "implausible floor") && e3->snapshot().floors == 0);
   }
 
   // ---- fight_chars=auto: with no list, every Monster (ActorType 3 at FSBActor +0x368), never a boss or an Alpha
@@ -1850,7 +1955,7 @@ int main() {
     assert(ask("fight replay 900") ==
            "shared fight replay refused: coop-fight-record.txt fails its check (first line)");
     io.file = recording;
-    assert(ask("fight replay 900").rfind("shared fight replay: ", 0) == 0 && e->on());
+    assert(ask("fight replay confirmed 900").rfind("shared fight replay: ", 0) == 0 && e->on());
     // A linked friend's dead line for the host's 102 once paired: it would kill 902 if it reached the guest.
     const std::vector<std::string> her = {"SBF9 dead 1 102"};
     for (const uint64_t from = t; t < from + 3500; t += 16) {
@@ -1868,6 +1973,19 @@ int main() {
     assert(followed && io.saying("fight replay: all ") == 1 && io.lines() == "SBF9 off shared enemies off\n" &&
            !io.saying("malformed"));
     assert(has(w.detail(), "fight=on mode=replay role=guest pairs=1 ") && has(w.detail(), " kills=1 "));
+    // guest_kills=confirmed came with the request: both copies held our floor, 901's came off right before its kill,
+    // and 902's comes off with coop fight off.
+    std::vector<int> on901;
+    for (const Game::Call &c : G.calls)
+      if (c.la == G.by_guid[901] && (c.type == kFloorStat || c.cause))
+        on901.push_back(c.type == kFloorStat ? int(c.delta) : 0);
+    assert((on901 == std::vector<int>{1, -1, 0}) && G.mem.get<float>(G.fsb(902) + kMinimumHp) == 1);
+    assert(ask("fight off") == "shared fight off: coop fight off");
+    for (const uint64_t from = t; t < from + 100; t += 16) {
+      frame(G, *e, t);
+      w.pass(t, false, false, true, none, gate, io);
+    }
+    assert(G.mem.get<float>(G.fsb(902) + kMinimumHp) == 0 && e->snapshot().floors == 0);
   }
   // A recording stops at its cap: the mode ends and the file is written whole. Lines before its first world (an older
   // session's) and the job's on are left out; the host gets a guest's on at the start.
@@ -1905,10 +2023,12 @@ int main() {
   // enemy 3 by the guest alone while her copy lives, and her lethal hit on it lands right after a heal that only the
   // host's world ran (refused there: desync guest-dead); the guest's copy of enemy 1 is in NoDamage for 3 s. About one
   // hit in three also knocks the enemy down, launches it or throws it at a wall, on that player's copy, when it is in
-  // no crowd control.
-  {
+  // no crowd control. Run at the default, then with the guest's guest_kills=confirmed (F4's fallback), where her
+  // refused lethal hit leaves her copy at 1 HP instead of a desync.
+  const auto two_pcs = [](bool confirmed) {
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
+    eg->confirm(confirmed);
     for (uint32_t i = 0; i < 4; ++i) {
       H.spawn(100 + i, 7000 + i, 0);
       G.spawn(900 + i, 7000 + i, 0);
@@ -1992,9 +2112,10 @@ int main() {
       if (all && end == 120000)
         end = t + 2000; // Two more seconds: no late line may kill anything twice.
     }
-    // 1. Both players' hits count on both screens (enemy 3: the guest's, then the host's after the desync).
+    // 1. Both players' hits count on both screens (enemy 3: the guest's, then the host's after the desync; with
+    // guest_kills=confirmed her copy lives on and she alone hits it to its death).
     for (uint32_t i = 0; i < 4; ++i)
-      assert(hits[i][0] && hits[i][1]);
+      assert((hits[i][0] || (confirmed && i == 3)) && hits[i][1]);
     // 2. The gap closes within 250 ms + RTT, but where an hp line was lost (the next comes with the 1 s refresh).
     assert(fast.size() > 40 && !slow.empty() && slow.size() <= to_guest.lost);
     for (uint64_t took : slow)
@@ -2005,17 +2126,26 @@ int main() {
       assert(H.body(100 + i).deaths == 1 && G.body(900 + i).deaths == 1);
       assert(H.body(100 + i).killer == H.eve && G.body(900 + i).killer == G.eve);
       assert(died_g[i] <= died_h[i] + 550);
-      if (i < 3)
+      if (i < 3 || confirmed)
         assert(died_h[i] <= died_g[i] + 550);
     }
     assert(eh->host.counts.kills >= 1 && eg->guest.counts.kills >= 1); // Both death paths ran.
-    // 4. The refused lethal claim is counted once on each side.
-    assert(desynced && eg->guest.counts.desync == 1 && eh->host.counts.refused == 1);
+    // 4. The refused lethal claim is counted once on each side; with guest_kills=confirmed it is no desync.
+    assert(desynced && eg->guest.counts.desync == (confirmed ? 0 : 1) && eh->host.counts.refused == 1);
     // No echo (R35): what she claimed is exactly what her EVE dealt, and the host took every claim; no heal shown on
-    // her screen.
+    // her screen, but the one that raises her copy from the floor to the host's HP after the refusal.
     assert(claimed == dealt && eh->host.counts.claims == eg->guest.counts.claims);
-    for (const Game::Call &c : G.calls)
-      assert(c.type != 1 || c.delta < 0);
+    size_t raised = 0, floors = 0;
+    for (const Game::Call &c : G.calls) {
+      raised += c.type == 1 && c.delta > 0;
+      floors += c.type == kFloorStat && c.delta > 0;
+      assert(c.type != 1 || c.delta < 0 || (confirmed && c.la == G.by_guid[903]));
+    }
+    assert(raised == (confirmed ? 1 : 0) && floors == (confirmed ? 4 : 0));
+    // Every floor came off again (each before its copy's kill); the host never holds one.
+    for (uint32_t i = 0; i < 4; ++i)
+      assert(G.mem.get<float>(G.fsb(900 + i) + kMinimumHp) == 0 && H.mem.get<float>(H.fsb(100 + i) + kMinimumHp) == 0);
+    assert(eg->snapshot().floors == 0 && eh->snapshot().floors == 0);
     // Crowd control both ways and never echoed: each side tells only its own EVE's knocks, and each cast answers one
     // told by the other side, on a copy in none (the fake checks), with that world's EVE as the caster.
     const Counts &hc = eh->host.counts, &gc = eg->guest.counts;
@@ -2030,9 +2160,11 @@ int main() {
     // 5. No latch, one arm each, no bad line.
     assert(!eh->latched() && !eg->latched() && eh->counts.arms == 1 && eg->counts.arms == 1);
     assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && eh->counts.no_eve == 0 && eg->counts.no_eve == 0);
-    std::printf("fight_engine_test: ok (gap closed within 550 ms after %zu hits, later after %zu with %llu hp lines "
+    std::printf("fight_engine_test: ok%s (gap closed within 550 ms after %zu hits, later after %zu with %llu hp lines "
                 "lost; %zu and %zu crowd controls mirrored)\n",
-                fast.size(), slow.size(), static_cast<unsigned long long>(to_guest.lost), G.casts.size(),
-                H.casts.size());
-  }
+                confirmed ? ", guest_kills=confirmed" : "", fast.size(), slow.size(),
+                static_cast<unsigned long long>(to_guest.lost), G.casts.size(), H.casts.size());
+  };
+  two_pcs(false);
+  two_pcs(true);
 }

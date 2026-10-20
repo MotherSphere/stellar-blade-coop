@@ -506,6 +506,7 @@ fight::Engine fight_engine; // Its ring of 8 jobs is never freed: SB's queue may
 fight::Mail fight_mail;
 std::atomic<bool> fight_faulted{false};
 std::atomic<uint64_t> fight_fault_code{0}, fight_fault_rva{0}, fight_fault_address{0};
+std::atomic<uint64_t> fight_floors_left{0}; // Our floors a fault left on enemies (guest_kills=confirmed), for the log.
 uint64_t sim_runs = 0, sim_us = 0, sim_max_us = 0; // The logic thread's.
 bool fight_ticked = false;                         // The game thread's: the fight was on at the last coop_tick.
 
@@ -554,14 +555,37 @@ __declspec(noinline) void simulate_body(fight::Job &job) {
   ++sim_runs, sim_us += took, sim_max_us = std::max(sim_max_us, took);
   fight_mail.exchange(fight_snapshot());
 }
+// A fault (fault_filter's rva) in this DLL's code.
+bool fault_in_dll(uint64_t rva) {
+  const auto *ours = reinterpret_cast<const IMAGE_NT_HEADERS *>(reinterpret_cast<const char *>(&__ImageBase) +
+                                                                __ImageBase.e_lfanew);
+  return rva < ours->OptionalHeader.SizeOfImage;
+}
+__declspec(noinline) void lift_body() {
+  WinGame g;
+  fight_engine.lift(g);
+}
+// After a fault in Simulate, still on the logic thread: our floors come off once when the fault was in this DLL (one
+// of our reads, so the game's state is whole); they stay, counted for the log, when it was in the game's code or
+// another module's (an SB call broken half way, which a second call could hang). A fault here leaves the rest too.
+void lift_after_fault() {
+  if (fault_in_dll(fight_fault_rva)) {
+    __try {
+      lift_body();
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+  }
+  fight_floors_left = fight_engine.forget();
+}
 // Slot 1, which SB's drain calls with the job, on its logic thread (the game thread in non-threaded mode). The first
 // fault turns the shared fight off for the run; SB's drain goes on with its next job.
 void job_simulate(void *self) {
   __try {
     simulate_body(*static_cast<fight::Job *>(self));
   } __except (fault_filter(GetExceptionInformation(), fight_fault_code, fight_fault_rva, fight_fault_address)) {
-    fight_faulted = true;
     fight_engine.latch("fault");
+    lift_after_fault();
+    fight_faulted = true; // Last: the worker's line about it counts the floors left.
   }
 }
 // The vtable SB's queue sees: slot 0 frees nothing (our jobs are static), slot 1 Simulate, slot 2 nothing.
@@ -1433,20 +1457,21 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     // In an SB call made from our job: its address as the decompiles name it; in this DLL: its offset; else (ntdll
     // under ApplyStat's heap, say) the address itself.
     const uint64_t at_address = fight_fault_rva + reinterpret_cast<uintptr_t>(&__ImageBase);
-    const auto *ours = reinterpret_cast<const IMAGE_NT_HEADERS *>(reinterpret_cast<const char *>(&__ImageBase) +
-                                                                  __ImageBase.e_lfanew);
-    char where[64], text[200];
+    char where[64], text[300];
     if (at_address - base < kSizeOfImage)
       std::snprintf(where, sizeof where, "the game at 0x%llx",
                     static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
-    else if (fight_fault_rva < ours->OptionalHeader.SizeOfImage)
+    else if (fault_in_dll(fight_fault_rva))
       std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx",
                     static_cast<unsigned long long>(fight_fault_rva.load()));
     else
       std::snprintf(where, sizeof where, "0x%llx (another module)", static_cast<unsigned long long>(at_address));
-    std::snprintf(text, sizeof text, "shared fight fault 0x%08llx in %s reading 0x%llx: the ghost and the link go on",
+    const uint64_t left = fight_floors_left;
+    std::snprintf(text, sizeof text, "shared fight fault 0x%08llx in %s reading 0x%llx: the ghost and the link go on%s",
                   static_cast<unsigned long long>(fight_fault_code.load()), where,
-                  static_cast<unsigned long long>(fight_fault_address.load()));
+                  static_cast<unsigned long long>(fight_fault_address.load()),
+                  left ? ("; " + std::to_string(left) + " enemies keep a 1 HP floor until they leave the map").c_str()
+                       : "");
     say(text);
   }
   FightIo io;

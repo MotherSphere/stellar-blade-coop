@@ -61,6 +61,10 @@ constexpr size_t kGuid = 0x20, kFsb = 0x60, kControlled = 0xbc, kPendingDeath = 
 // FSBActor: stat type t at kStatBase + 4 t (HP 1, MaxHP 2, Shield 7, MaxShield 8, Stamina 12, MaxStamina 13: each max
 // right after its value), the life state (1 Spawn, 6 Spawning; 3-5 dying or dead) and the player flag.
 constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
+// Stat 107, MinimumHP, at kStatBase + 4 * 107 = 0x2c4: ApplyStat holds any HP result at or above it (PHASE11-STAGE2-RE
+// 3). Stored plainly, never clamped; SB's own MinimumHP effects add and take off deltas too, so ours composes.
+constexpr int kFloorStat = 107;
+constexpr size_t kMinimumHp = kStatBase + 4 * size_t(kFloorStat);
 // FSBActor: its ESBActorType, a byte copied from its CharacterTable row when it is made (PHASE11-STAGE2-RE 5): 1 PC,
 // 2 NPC, 3 Monster, 4 BossMonster (the bosses and the Elite Alpha Naytibas); 0 none, never 5 or more.
 constexpr size_t kActorType = 0x368;
@@ -166,6 +170,7 @@ constexpr size_t kMaxCensus = 1024;         // Allocated map slots a census copi
 constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowlist (none: every Monster).
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
+constexpr size_t kMaxCaptures = kMaxTracked; // Overrides held at once: a floor on each copy the guest follows.
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -195,6 +200,7 @@ struct Snapshot {
   uint32_t thread = 0, sb_thread = 0;    // The thread Simulate last ran on, and SB's DAT_1470634f0 then.
   uint32_t game_thread = 0;              // The thread that armed last.
   uint32_t turn = 0;                     // SB's logic turn at the last turn's work.
+  size_t floors = 0;                     // Enemies holding our floor (guest_kills=confirmed).
   size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
   bool eve = false;                      // The last census found our EVE (RE4).
 };
@@ -284,6 +290,8 @@ public:
     chars_ = std::min(n, kMaxChars);
     std::copy(chars, chars + chars_, allowed_);
   }
+  // guest_kills=confirmed (F4's fallback): the guest's copies hold a 1 HP floor until the host's dead. Set while off.
+  void confirm(bool on) { confirm_ = on; }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
   // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
@@ -398,9 +406,13 @@ public:
       ++counts.doubled;
       return;
     }
-    if (!on_ || latched_)
+    const bool zero = plausible(net) && get(g, net + kNetMode, mode) && mode == 0;
+    if (!on_ || latched_) { // The job's last run (off, or stopped since): our floors come off.
+      if (zero)
+        lift_all(g, logic);
       return;
-    if (!plausible(net) || !get(g, net + kNetMode, mode) || mode != 0) {
+    }
+    if (!zero) {
       ++counts.mode;
       return;
     }
@@ -408,8 +420,10 @@ public:
     heartbeat_ms_ = now_ms;
     ++counts.turns;
     if (uint32_t session = session_; session != session_seen_) { // In place: both sides are kilobytes of arrays.
+      lift_all(g, logic); // The old session's floors, before its sides go.
       new (&host) Host();
       new (&guest) Guest();
+      guest.confirm(confirm_);
       session_seen_ = session;
       hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
       probing_seen_ = probing_;
@@ -441,12 +455,25 @@ public:
     uint32_t followed[kMaxTracked];
     size_t count = hosting ? host.tracked(followed) : guest.tracked(followed);
     size_t n = pass(g, logic, census, followed, count);
-    if (latched_)
-      return;
-    hosting ? host.step(seen_, n, census, turn, now_ms, io) : guest.step(seen_, n, census, turn, now_ms, io);
-    if (!latched_)
-      g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
+    if (!latched_ && hosting)
+      host.step(seen_, n, census, turn, now_ms, io);
+    else if (!latched_) {
+      guest.step(seen_, n, census, turn, now_ms, io);
+      hold_floors(g, logic, followed, guest.floored(followed));
+    }
+    if (latched_) // Stopped in this turn: no other run comes, so our floors come off now.
+      return lift_all(g, logic);
+    g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
   }
+  // The glue's, on the logic thread after a fault in our own code: the floors off once, from outside Simulate.
+  template <class Game> void lift(Game &g) {
+    uint64_t net = 0, logic = 0, world = 0;
+    if (globals(g, net, logic, world) && plausible(logic))
+      lift_all(g, logic);
+  }
+  // The glue's, after a fault it does not lift from: the floors forgotten (they stay on their enemies until these leave
+  // the map), and how many, for the log.
+  size_t forget() { return std::exchange(captures_, size_t(0)); }
 
   // This turn's enemies into seen() in fight_sync.h's order: each followed GUID found again by SB's lookup, dying or
   // not, then on a census every other eligible enemy; at most kMaxSeen. The census goes in two phases: the map is
@@ -501,7 +528,7 @@ public:
     s.job.unread = c.unread;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
-    s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
+    s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0, s.floors = captures_;
     return s;
   }
 
@@ -841,6 +868,11 @@ private:
       ++counts.no_eve;
     if (latched_)
       return false;
+    for (size_t i = 0; w.eve && i < captures_; ++i) // A kill: our floor off first (ApplyStat reads it in the HP call).
+      if (caps_[i].guid == w.guid) {
+        lift(g, logic, i);
+        break;
+      }
     g.apply(la, kStatType[w.stat], float(w.delta), cause, w.notify);
     if (!stats(g, a))
       return false;
@@ -848,11 +880,62 @@ private:
     return true;
   }
 
+  // ---- Our overrides on enemies (PHASE11-DESIGN 7.9) ----
+  // Each is an ApplyStat delta, undone by the opposite delta before the enemy goes back to plain play: when the side
+  // lets it go, before a kill, at off, at a new session, at a latch, and from the glue after a fault in our code. A
+  // capture whose enemy left the map needs no call: spawn init resets the stat when SB reuses the actor. Stage 2 has
+  // one kind: MinimumHP +kFloorHp on the guest's paired copies (guest_kills=confirmed).
+  struct Capture {
+    uint32_t guid = 0;
+    int type = 0; // ESBActorStatType.
+    int32_t delta = 0;
+  };
+  // After the guest's step: our floor on each copy it names, off every other. A floor goes on only on a fighting copy
+  // whose HP stays at or above MinimumHP with ours added (a floor above the HP would raise it), and holds only when
+  // MinimumHP then reads exactly kFloorHp more: else this build keeps the stat elsewhere, and the feature stops for the
+  // run.
+  template <class Game> void hold_floors(Game &g, uint64_t logic, const uint32_t *want, size_t n) {
+    for (size_t i = 0; i < captures_;)
+      if (std::find(want, want + n, caps_[i].guid) == want + n)
+        lift(g, logic, i);
+      else
+        ++i;
+    for (size_t k = 0; k < n && !latched_ && captures_ < kMaxCaptures; ++k) {
+      bool held = false;
+      for (size_t i = 0; i < captures_ && !held; ++i)
+        held = caps_[i].guid == want[k];
+      Actor a;
+      float before = 0, after = 0;
+      const uint64_t la = held ? 0 : g.find(logic, want[k]);
+      if (!la || !live(g, la, want[k], a) || !fighting(a) || !stats(g, a) || !get(g, a.fsb + kMinimumHp, before) ||
+          !(float(a.seen.value[kHp]) >= before + float(kFloorHp)))
+        continue;
+      g.apply(la, kFloorStat, float(kFloorHp), 0, false);
+      if (get(g, a.fsb + kMinimumHp, after) && after == before + float(kFloorHp))
+        caps_[captures_++] = Capture{want[k], kFloorStat, kFloorHp};
+      else
+        latch("implausible floor");
+    }
+  }
+  // Capture i undone and dropped.
+  template <class Game> void lift(Game &g, uint64_t logic, size_t i) {
+    const Capture c = caps_[i];
+    caps_[i] = caps_[--captures_];
+    Actor a;
+    const uint64_t la = g.find(logic, c.guid);
+    if (la && live(g, la, c.guid, a))
+      g.apply(la, c.type, float(-c.delta), 0, false);
+  }
+  template <class Game> void lift_all(Game &g, uint64_t logic) {
+    while (captures_)
+      lift(g, logic, 0);
+  }
+
   uint64_t base_ = 0;
   Job ring_[kRing];
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
-  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false};
+  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
   std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.
@@ -871,6 +954,8 @@ private:
   Found found_[kMaxCensus];
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
+  Capture caps_[kMaxCaptures];
+  size_t captures_ = 0;
 };
 
 // ---- Between the job and the worker ----
@@ -1161,6 +1246,7 @@ private:
         return std::string("shared fight replay refused: coop-fight-record.txt fails its check (") + why + ")";
     }
     e_.allow(r.chars.data(), r.chars.size()); // While off: the job reads them only while on.
+    e_.confirm(r.confirmed);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
     std::string said = update(gate, io);
@@ -1415,10 +1501,10 @@ private:
     else
       std::snprintf(head, sizeof head,
                     "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored), "
-                    "%llu desync guest-dead, %llu crowd controls told, %llu mirrored (%llu skipped), %llu stale, %llu "
-                    "bad",
-                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), u(c.cc_told),
-                    u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.bad));
+                    "%llu desync guest-dead, %zu held at 1 HP, %llu crowd controls told, %llu mirrored (%llu "
+                    "skipped), %llu stale, %llu bad",
+                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), s.floors,
+                    u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.bad));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "

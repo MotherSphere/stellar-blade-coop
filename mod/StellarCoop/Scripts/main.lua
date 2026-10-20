@@ -227,8 +227,9 @@ local commands={
     end,
     -- on needs shared_enemies=on, on any save: the native part waits for a co-op save. probe, test, record and replay
     -- are the solo T11a tools, on a co-op save only (the native part checks again, and says in the log why it
-    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). status
-    -- answers with the fight= line.
+    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy); on and
+    -- replay (the guest's modes) carry guest_kills=confirmed as one word before them. status answers with the fight=
+    -- line.
     fight=function(sub,a,b,extra)
         local line=fight_line(sub,a,b,extra)
         if not line then return false,FIGHT_USE end
@@ -242,6 +243,7 @@ local commands={
                 local ok,why=coop_slot('coop fight')
                 if not ok then return false,why end
             end
+            if (sub=='on' or sub=='replay') and settings.guest_kills=='confirmed' then line=line..' confirmed' end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end

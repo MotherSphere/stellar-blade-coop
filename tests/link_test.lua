@@ -290,7 +290,17 @@ local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
 assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==60
-    and s.name_tag==true and s.cloth==false)
+    and s.name_tag==true and s.cloth==false and s.guest_kills=='at_once')
+-- guest_kills: at_once (the default, F4) or confirmed (F4's fallback: the guest's copies hold a 1 HP floor until the
+-- host's game confirms the death), in any case; a new file names it; a bad value keeps at_once, with a line.
+assert(Link.DEFAULT:find('\nguest_kills=at_once\n',1,true),'Written in a new file')
+for _,case in ipairs({{'confirmed','confirmed'},{'Confirmed','confirmed'},{'AT_ONCE','at_once'}}) do
+    s,notes=Link.parse_settings('guest_kills='..case[1])
+    assert(#notes==0 and s.guest_kills==case[2],case[1])
+end
+s,notes=Link.parse_settings('guest_kills=later')
+assert(#notes==1 and notes[1]=="settings: line 1: 'later' is not allowed for guest_kills (use at_once or confirmed); "
+    .."guest_kills stays at_once" and s.guest_kills=='at_once',notes[1])
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
