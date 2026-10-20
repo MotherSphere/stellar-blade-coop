@@ -58,6 +58,24 @@ constexpr size_t kGuid = 0x20, kFsb = 0x60, kControlled = 0xbc, kPendingDeath = 
 // FSBActor: stat type t at kStatBase + 4 t (HP 1, MaxHP 2, Shield 7, MaxShield 8, Stamina 12, MaxStamina 13: each max
 // right after its value), the life state (1 Spawn, 6 Spawning; 3-5 dying or dead) and the player flag.
 constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
+// FSBActor: its ESBActorType, a byte copied from its CharacterTable row when it is made (PHASE11-STAGE2-RE 5): 1 PC,
+// 2 NPC, 3 Monster, 4 BossMonster (the bosses and the Elite Alpha Naytibas); 0 none, never 5 or more.
+constexpr size_t kActorType = 0x368;
+constexpr uint8_t kTypePc = 1, kTypeMonster = 3, kTypes = 5;
+// fight_chars=auto leaves out the odd Monsters until stage 5, the bosses' (CharacterTable and DifficultyStatGroupTable
+// exports, PHASE11-STAGE2-RE 5): by charId, M_Gorgon (50330, Rank Boss, 100,000 MaxHP) and the SE_M_TurretLaser_02 and
+// _03 turrets (35027002 and 35027003, 999,999); and any Monster whose MaxHP as read is above kMaxAutoHp. The other
+// Monsters stay below it on every difficulty: the most is WLB_M_RoyalGuardFemale_01's 213,125 on Hard (85,250 + 150 %),
+// then DEDA_M_GrubDashWithBoss_01's 156,000; the turrets have 899,999 in Story mode.
+constexpr uint32_t kAutoDenied[] = {50330, 35027002, 35027003};
+constexpr float kMaxAutoHp = 500'000;
+// Why fight_chars=auto leaves out a Monster of this charId and MaxHP, or nullptr when it shares it.
+inline const char *auto_out(uint32_t chr, float max_hp) {
+  for (uint32_t denied : kAutoDenied)
+    if (chr == denied)
+      return "charId";
+  return max_hp <= kMaxAutoHp ? nullptr : "MaxHP"; // NaN is out too.
+}
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
 // SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
@@ -92,7 +110,7 @@ constexpr size_t kRing = 8;
 constexpr uint32_t kCensusTurns = 15; // About 250 ms at 60 FPS.
 constexpr uint64_t kHeartbeatMs = 500, kFallbackMs = 500;
 constexpr size_t kMaxCensus = 1024;         // Allocated map slots a census copies; more are cut.
-constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowlist.
+constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowlist (none: every Monster).
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
 
@@ -103,7 +121,8 @@ struct JobCounts {
   uint64_t stale = 0;   // Runs of an old arm's job: nothing done (an orphan, an old key after an init without reset).
   uint64_t doubled = 0; // A second run in one turn: nothing done.
   uint64_t mode = 0;    // Runs in a net mode other than 0: nothing done, no re-push.
-  uint64_t censuses = 0, cut = 0, rejected = 0; // Census passes, slots past kMaxCensus, elements failing the test.
+  uint64_t censuses = 0, rejected = 0; // Census passes, elements failing the test.
+  uint64_t cut = 0; // Map slots past kMaxCensus, and eligible enemies past kMaxSeen, summed over the censuses.
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
@@ -134,6 +153,8 @@ struct Actor {
   uint8_t controlled = 0; // 1: the actor the local player controls.
   bool player = false, pending = false;
   bool eve = false; // The probe: our EVE (controlled and the actor manager's local player).
+  uint8_t type = 0; // The probe: its ActorType as read.
+  const char *out = nullptr; // The probe: why fight_chars=auto leaves this Monster out (auto_out), or nullptr.
   int32_t life = 0;
   Seen seen; // GUID, key, charId and dying; the stats once stats() read them.
 };
@@ -203,7 +224,9 @@ public:
     for (Job &j : ring_)
       j.vtable = vtable;
   }
-  // fight_chars (F8): the charIds this stage shares, at most kMaxChars. Set while off.
+  // fight_chars (F8): the charIds this stage shares, at most kMaxChars, of any type; none (fight_chars=auto): every
+  // Monster but those auto_out() leaves out, so not the bosses and the Alphas (BossMonster) before stage 5. Set while
+  // off.
   void allow(const uint32_t *chars, size_t n) {
     chars_ = std::min(n, kMaxChars);
     std::copy(chars, chars + chars_, allowed_);
@@ -398,10 +421,13 @@ public:
         counts.rejected += !latched_;
         continue;
       }
-      if (a.controlled == 1 && local && a.fsb == local)
+      if (a.controlled == 1 && local && a.fsb == local && pc(g, a))
         eve_ = f.guid;
-      if (n < kMaxSeen && eligible(a) && std::find(followed, followed + count, f.guid) == followed + count &&
-          stats(g, a))
+      if (std::find(followed, followed + count, f.guid) != followed + count || !eligible(g, a))
+        continue;
+      if (n == kMaxSeen)
+        ++counts.cut;
+      else if (stats(g, a))
         seen_[n++] = a.seen;
     }
     return latched_ ? 0 : n;
@@ -510,10 +536,37 @@ private:
     }
     return true;
   }
-  // Stage 1's enemy: not a player, spawned by an EventSpawn row, of an allowlisted type, fighting (no pending death).
-  bool eligible(const Actor &a) const {
-    return !a.controlled && !a.player && a.seen.spawn && fighting(a) &&
-           std::find(allowed_, allowed_ + chars_, a.seen.chr) != allowed_ + chars_;
+  // Stage 1's enemy: not a player, spawned by an EventSpawn row, fighting (no pending death), and of an allowlisted
+  // charId or, with no list, a Monster that auto_out() keeps. The type is read for such an actor only, and the MaxHP
+  // for such a Monster; a type past BossMonster is implausible.
+  template <class Game> bool eligible(Game &g, const Actor &a) {
+    if (a.controlled || a.player || !a.seen.spawn || !fighting(a))
+      return false;
+    if (chars_)
+      return std::find(allowed_, allowed_ + chars_, a.seen.chr) != allowed_ + chars_;
+    uint8_t type = 0;
+    if (!get(g, a.fsb + kActorType, type))
+      return false;
+    if (type >= kTypes) {
+      latch("implausible actor type");
+      return false;
+    }
+    float max_hp = 0;
+    return type == kTypeMonster && get(g, a.fsb + kStatBase + 4 * size_t(kStatType[kHp] + 1), max_hp) &&
+           !auto_out(a.seen.chr, max_hp);
+  }
+  // The probe: why fight_chars=auto leaves out this Monster, or nullptr. Never with a list.
+  const char *left_out(const Actor &a) const {
+    return chars_ || a.type != kTypeMonster ? nullptr : auto_out(a.seen.chr, a.seen.max[kHp]);
+  }
+  // With no list, our EVE must read as a PC: else +0x368 is not the ActorType on this build, and the feature turns off
+  // for the run. With a list the type is never read.
+  template <class Game> bool pc(Game &g, const Actor &a) {
+    uint8_t type = 0;
+    if (chars_ || !get(g, a.fsb + kActorType, type) || type == kTypePc)
+      return !latched_;
+    latch("implausible actor type");
+    return false;
   }
 
   // The census's first phase: {GUID, actor} of every allocated slot, with reads only (no SB call can move the map).
@@ -575,21 +628,24 @@ private:
     eve_ = 0;
     actors_ = 0;
     for (size_t i = 0; i < found_count_ && !latched_; ++i) {
-      if (!live(g, found_[i].la, found_[i].guid, a) || !raw(g, a)) {
+      if (!live(g, found_[i].la, found_[i].guid, a) || !raw(g, a) || !get(g, a.fsb + kActorType, a.type)) {
         counts.rejected += !latched_;
         continue;
       }
       a.eve = a.controlled == 1 && local && a.fsb == local;
+      if (a.eve && !pc(g, a))
+        return;
       if (a.eve)
         eve_ = a.seen.guid;
       ++actors_;
+      a.out = left_out(a);
       g.probe(a);
       if (a.seen.spawn && !a.player && keyed < kMaxSeen)
         seen_[keyed++] = a.seen;
       const float max = a.seen.max[kHp];
       const int32_t hp = a.seen.value[kHp];
       const double share = max > 0 && max <= float(kMaxStat) && hp >= 0 ? hp / double(max) : 2;
-      if (test != kNoTest && eligible(a) && share < low)
+      if (test != kNoTest && eligible(g, a) && share < low)
         low = share, aim = a;
     }
     if (latched_)
@@ -637,8 +693,10 @@ private:
     g.event(done);
     Actor b;
     const uint64_t la = g.find(logic, w.guid);
-    if (la && live(g, la, w.guid, b) && raw(g, b))
+    if (la && live(g, la, w.guid, b) && raw(g, b) && get(g, b.fsb + kActorType, b.type)) {
+      b.out = left_out(b);
       g.probe(b);
+    }
   }
 
   // The local player's FSBActor as SB finds it on the logic thread, or 0.
@@ -709,6 +767,11 @@ private:
 constexpr size_t kMail = 128;     // Lines or events each way between two hand-overs; more are lost (counted).
 constexpr uint64_t kGateMs = 250; // The gate asked again while on: it reads the game.
 constexpr uint64_t kStatsMs = 1000, kQuietMs = 60000; // The stats line: each second a side's count moved, else each minute.
+// What the worker waits for or why it is off, as its log, its fight= line and its off lines to her say it; her state
+// on our fight= line is sorted by them. The gate's reason off a co-op save starts with kNoCoopSave (fight_gate).
+constexpr const char *kNoCoopSave = "not on a co-op save", *kFeatureOff = "shared enemies off";
+constexpr uint64_t kTellMs = 5000; // Our state to her again, while we do not share.
+constexpr size_t kHerSaid = 32;    // Her offs said in the log, a link at most.
 
 // A FIFO of fixed size: no allocation.
 template <class T, size_t N> class Ring {
@@ -833,7 +896,10 @@ private:
 //     it waits for fight writes=armed too.
 // A mode runs while a save is loaded, our player is not in photo mode (SB's logic stands still there, so the job would
 // not run while her lines pile up; she hears our off, which stops her side's sharing too) and, for on, a friend is
-// linked. Any of them missing pauses it (a new session when all are back); the gate turns it off until asked again.
+// linked and the save is a co-op one (the gate's kNoCoopSave). Any of them missing pauses it (a new session when all
+// are back); any other refusal of the gate turns it off until asked again. While she is linked and we do not share,
+// she hears what we wait for (or why it last ended, or kFeatureOff) as an off line, when it changes and every kTellMs;
+// what she says the same way is her state on our fight= line.
 // The game's other pauses (its menu) leave it running: its logic still ticks. Its Io:
 //   bool send(const std::string &line, bool reliable): to her on channel 2; false when not queued;
 //   void say(const std::string &line): the log;
@@ -846,46 +912,12 @@ class Worker {
 public:
   Worker(Engine &e, Mail &mail) : e_(e), mail_(mail) {}
 
-  // A coop fight request (link_protocol.h's parse_request). The line for the log.
+  // A coop fight request (link_protocol.h's parse_request): on, probe, record and replay with no charIds share every
+  // Monster that auto_out() keeps. The line for the log; she hears what changed at once.
   template <class Gate, class Io> std::string ask(const Request &r, Gate &&gate, Io &io) {
-    switch (r.fight) {
-    case Fight::off: return mode_ == Fight::none ? "shared fight is not on" : end("coop fight off", io);
-    case Fight::status:
-      if (running_)
-        stats(now_, io, true);
-      return "shared fight status: " + detail();
-    case Fight::test: return test(r);
-    case Fight::none: return "shared fight: unknown request";
-    default: break;
-    }
-    if (e_.latched())
-      return std::string("shared fight off: stopped for this run (") + e_.why() + ")";
-    if (mode_ != Fight::none)
-      return std::string("shared fight is already on (") + name(mode_) + ")";
-    if (r.chars.empty() && r.fight != Fight::probe)
-      return "shared fight off: no fight_chars";
-    if (std::string why = gate(); !why.empty())
-      return "shared fight off: " + why;
-    if (r.fight == Fight::replay) {
-      if (!armed_)
-        return "shared fight replay refused: writes not armed yet (coop fight probe first)";
-      bool exists = false;
-      const std::string text = io.load(exists);
-      if (!exists)
-        return "shared fight replay refused: no coop-fight-record.txt (coop fight record makes one)";
-      if (const char *why = parse_recording(text, file_))
-        return std::string("shared fight replay refused: coop-fight-record.txt fails its check (") + why + ")";
-    }
-    e_.allow(r.chars.data(), r.chars.size()); // While off: the job reads them only while on.
-    chars_ = r.chars.size();
-    mode_ = r.fight;
-    recording_.clear(), record_lines_ = 0;
-    std::string said = update(gate, io);
-    return !said.empty() ? said
-                         : std::string("shared fight ") + name(mode_) + ": waiting for " +
-                               (mode_ == Fight::on && !linked_ ? "a linked friend"
-                                : !world_                      ? "a loaded save"
-                                                               : "the end of photo mode");
+    std::string said = asked(r, gate, io);
+    tell(now_, io);
+    return said;
   }
 
   // Every worker pass, after the link's tick: the job's lines out (while running: to her, or into the recording), its
@@ -895,6 +927,8 @@ public:
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
             Io &io, bool photo = false) {
     now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
+    if (!linked)
+      her_ = "?", her_said_ = 0;
     last_ = mail_.take(
         [&](const Message &m) { // A stopped session's last lines go nowhere: she dropped it.
           if (running_ && ran_ == Fight::record)
@@ -916,12 +950,13 @@ public:
           io.say("fight: a malformed line from her dropped (said once a session)");
         continue;
       }
-      if (m.type == Type::on)
-        her_off_ = false;
-      else if (m.type == Type::off && !her_off_) { // Said again only after her on: repeats cannot fill the log.
-        her_off_ = true;
+      // Her off said when her state changes, kHerSaid times a link at most: repeats cannot fill the log.
+      const char *state = her_state(m, reason);
+      if (std::strcmp(state, her_) != 0 && m.type == Type::off && her_said_ < kHerSaid) {
+        ++her_said_;
         io.say("fight: her shared fight off: " + reason);
       }
+      her_ = state;
       if (running_ && ran_ == Fight::on && !mail_.give(m))
         ++dropped_;
     }
@@ -942,15 +977,15 @@ public:
       said = end(std::string("stopped for this run (") + e_.why() + ")", io);
     } else if (record_full_) {
       said = end("the recording is full (4 MB or 20000 lines)", io);
-    } else if (running_ && world_ && now_ms >= next_gate_) { // A start asks it anyway; a load only pauses (update).
+    } else if ((running_ || mode_ == Fight::on) && world_ && now_ms >= next_gate_) { // A load only pauses (update).
       next_gate_ = now_ms + kGateMs;
-      if (std::string why = gate(); !why.empty())
-        said = end(why, io);
+      said = check(gate, io);
     }
     if (said.empty())
       said = update(gate, io);
     if (!said.empty())
       io.say(said);
+    tell(now_ms, io);
     if (running_ && now_ms >= next_stats_)
       stats(now_ms, io);
   }
@@ -967,20 +1002,104 @@ public:
   }
   // coop-status.txt's own line: "fight=on mode=<on|probe|record|replay> ..." with the counts as of the last second,
   // "fight=waiting mode=<mode> why=<what it waits for>", "fight=stopped why=<the latch>", or "fight=off", with
-  // " why=<why it last stopped>" once it ran. The why last: it has spaces.
+  // " why=<why it last stopped>" once it ran; while she is linked, " her=<on|own-save|off|stopped|waiting|?>" before
+  // the why. The why last: it has spaces.
   std::string detail() const {
+    const std::string her = linked_ ? std::string(" her=") + her_ : std::string();
     if (e_.latched())
-      return std::string("fight=stopped why=") + e_.why();
+      return "fight=stopped" + her + " why=" + e_.why();
     if (running_)
-      return detail_;
+      return detail_ + her;
     if (mode_ != Fight::none) {
       const char *why = waits();
-      return std::string("fight=waiting mode=") + name(mode_) + " why=" + (why ? why : "starting");
+      return std::string("fight=waiting mode=") + name(mode_) + her + " why=" + (why ? why : "starting");
     }
-    return last_why_.empty() ? "fight=off" : "fight=off why=" + last_why_;
+    return "fight=off" + her + (last_why_.empty() ? std::string() : " why=" + last_why_);
   }
 
 private:
+  // ask()'s answer. On waits for a co-op save (the gate's kNoCoopSave); the solo tools need one now, and any other
+  // refusal of the gate refuses them all.
+  template <class Gate, class Io> std::string asked(const Request &r, Gate &&gate, Io &io) {
+    switch (r.fight) {
+    case Fight::off: return mode_ == Fight::none ? "shared fight is not on" : end("coop fight off", io);
+    case Fight::status:
+      if (running_)
+        stats(now_, io, true);
+      return "shared fight status: " + detail();
+    case Fight::test: return test(r);
+    case Fight::none: return "shared fight: unknown request";
+    default: break;
+    }
+    if (e_.latched())
+      return std::string("shared fight off: stopped for this run (") + e_.why() + ")";
+    if (mode_ != Fight::none)
+      return std::string("shared fight is already on (") + name(mode_) + ")";
+    const std::string refused = gate();
+    coop_ = refused.empty(), gate_ms_ = now_;
+    if (!coop_ && !(r.fight == Fight::on && no_coop(refused)))
+      return "shared fight off: " + refused;
+    if (r.fight == Fight::replay) {
+      if (!armed_)
+        return "shared fight replay refused: writes not armed yet (coop fight probe first)";
+      bool exists = false;
+      const std::string text = io.load(exists);
+      if (!exists)
+        return "shared fight replay refused: no coop-fight-record.txt (coop fight record makes one)";
+      if (const char *why = parse_recording(text, file_))
+        return std::string("shared fight replay refused: coop-fight-record.txt fails its check (") + why + ")";
+    }
+    e_.allow(r.chars.data(), r.chars.size()); // While off: the job reads them only while on.
+    mode_ = r.fight;
+    recording_.clear(), record_lines_ = 0;
+    std::string said = update(gate, io);
+    return !said.empty() ? said
+                         : std::string("shared fight ") + name(mode_) + ": waiting for " +
+                               (mode_ == Fight::on && !linked_ ? "a linked friend"
+                                : !world_                      ? "a loaded save"
+                                : mode_ == Fight::on && !coop_ ? "a co-op save"
+                                                               : "the end of photo mode");
+  }
+  static bool no_coop(const std::string &why) { return why.rfind(kNoCoopSave, 0) == 0; }
+  // The gate asked again: why the mode ends, or empty. For on, a save that is not a co-op one only waits.
+  template <class Gate, class Io> std::string check(Gate &&gate, Io &io) {
+    const std::string why = gate();
+    coop_ = why.empty(), gate_ms_ = now_;
+    return coop_ || (mode_ == Fight::on && no_coop(why)) ? std::string() : end(why, io);
+  }
+  // While she is linked and we do not share: our state as an off line, when it changes and every kTellMs (a line sent
+  // as the link comes up may reach her before her side passed the handshake, which drops it). Sharing, she heard our
+  // on at its start. Not asked: why it last ended (coop fight off, coop off, the gate), or kFeatureOff before any end
+  // and while a solo tool runs.
+  template <class Io> void tell(uint64_t now_ms, Io &io) {
+    if (!linked_ || (running_ && ran_ == Fight::on)) {
+      told_.clear();
+      return;
+    }
+    const char *wait = mode_ == Fight::on ? waits() : nullptr;
+    const std::string why = e_.latched()          ? std::string("stopped for this run (") + e_.why() + ")"
+                            : mode_ == Fight::none && !last_why_.empty() ? last_why_
+                            : mode_ != Fight::on ? kFeatureOff
+                            : wait               ? wait
+                                                 : "starting";
+    if (why == told_ && now_ms < told_ms_ + kTellMs)
+      return;
+    Message off;
+    off.type = Type::off;
+    if (io.send(format(off, why), true))
+      told_ = why, told_ms_ = now_ms;
+  }
+  // Her state from her line: on (any line but off), own-save, off, stopped, or waiting for anything else. An older
+  // build's gate said "not on the co-op save".
+  static const char *her_state(const Message &m, const std::string &why) {
+    if (m.type != Type::off)
+      return "on";
+    if (no_coop(why) || why.rfind("not on the co-op save", 0) == 0)
+      return "own-save";
+    if (why == kFeatureOff || why == "coop fight off")
+      return "off";
+    return why.rfind("stopped for this run", 0) == 0 ? "stopped" : "waiting";
+  }
   static const char *name(Fight f) {
     return f == Fight::on ? "on" : f == Fight::probe ? "probe" : f == Fight::record ? "record" : "replay";
   }
@@ -989,6 +1108,7 @@ private:
   const char *waits() const {
     return mode_ == Fight::on && !linked_ ? "no friend linked"
            : !world_                      ? "no save loaded"
+           : mode_ == Fight::on && !coop_ ? kNoCoopSave
            : photo_                       ? "photo mode"
                                           : nullptr;
   }
@@ -996,12 +1116,12 @@ private:
   template <class Gate, class Io> std::string update(Gate &&gate, Io &io) {
     const char *why = waits();
     if (running_ && why)
-      return stop("paused", why, io);
+      return stop("paused", why);
     if (mode_ == Fight::none || why || (running_ && (ran_ != Fight::on || side_ == hosting_)))
       return std::string();
-    if (!running_) { // Asked again before each start: the save loaded since the last ask may be another slot.
-      if (std::string why = gate(); !why.empty())
-        return end(why, io);
+    if (!running_ && gate_ms_ != now_) { // Asked again before each start: the save may be another slot by now.
+      if (std::string why = check(gate, io); !why.empty() || !coop_)
+        return why; // On off a co-op save waits; the next check is due within kGateMs.
     }
     return start(io); // Or a new session on the other side.
   }
@@ -1042,14 +1162,9 @@ private:
       return "shared fight probe: read only, a census each second (coop fight test once fight writes=armed)";
     }
   }
-  // The job ends at its next turn; she hears why while linked; her lines it has not taken are dropped.
-  template <class Io> std::string stop(const char *how, const std::string &why, Io &io) {
+  // The job ends at its next turn (she hears why from tell()); her lines it has not taken are dropped.
+  std::string stop(const char *how, const std::string &why) {
     e_.set(false, side_);
-    if (running_ && ran_ == Fight::on && linked_) {
-      Message off;
-      off.type = Type::off;
-      io.send(format(off, why), true);
-    }
     running_ = false;
     mail_.clear();
     last_why_ = why;
@@ -1060,7 +1175,7 @@ private:
     const bool recorded = mode_ == Fight::record;
     mode_ = Fight::none;
     record_full_ = false;
-    std::string said = stop("off", why, io);
+    std::string said = stop("off", why);
     if (recorded)
       said += recording_.empty()      ? std::string("; nothing recorded")
               : io.save(recording_) ? "; " + std::to_string(record_lines_) + " lines written to coop-fight-record.txt"
@@ -1081,28 +1196,29 @@ private:
     recording_ += text;
     ++record_lines_;
   }
-  // A probe's actor: traced when new, and again when its line changed.
+  // A probe's actor: traced when new, and again when its line changed; left_out= says why fight_chars=auto would not
+  // share this Monster (auto_out: charId or MaxHP).
   // ponytail: shown_ keeps a line for each GUID this probe saw; fine for T11a's half hour, bound it for longer probes.
   template <class Io> void probed(const Actor &a, Io &io) {
     const Seen &s = a.seen;
-    char text[200];
-    std::snprintf(text, sizeof text, "fight probe guid=%u key=%u:%u chr=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s",
-                  s.guid, s.spawn, unsigned(s.index), s.chr, a.life, s.value[kHp], whole(s.max[kHp]),
+    char text[224];
+    std::snprintf(text, sizeof text,
+                  "fight probe guid=%u key=%u:%u chr=%u type=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s%s%s", s.guid,
+                  s.spawn, unsigned(s.index), s.chr, unsigned(a.type), a.life, s.value[kHp], whole(s.max[kHp]),
                   s.value[kShield], whole(s.max[kShield]), s.value[kStamina], whole(s.max[kStamina]),
                   a.eve ? " eve" : a.controlled == 1 ? " controlled" : "", a.player ? " player" : "",
-                  a.pending ? " pending" : "");
+                  a.pending ? " pending" : "", a.out ? " left_out=" : "", a.out ? a.out : "");
     std::string &said = shown_[s.guid];
     if (said != text)
       io.trace(said = text);
   }
-  // coop fight test: the probe's next turn writes to the eligible enemy with the lowest HP share (the one just hit).
+  // coop fight test: the probe's next turn writes to the eligible enemy with the lowest HP share (the one just hit): of
+  // the charIds asked with the probe, or with none a Monster that auto_out() keeps.
   std::string test(const Request &r) {
     if (!running_ || ran_ != Fight::probe)
       return "shared fight test refused: only while coop fight probe runs";
     if (!armed_)
       return "shared fight test refused: writes not armed yet (the probe has not found our EVE)";
-    if (!chars_)
-      return "shared fight test refused: no fight_chars (the enemies a test may write to)";
     if (r.stat < -1 || r.stat >= kStats)
       return "shared fight test refused: no such stat";
     e_.test(r.stat, r.change);
@@ -1196,9 +1312,13 @@ private:
   bool running_ = false, side_ = false, latch_said_ = false; // side_: hosting, as started.
   bool linked_ = false, hosting_ = false, world_ = false;    // As of the last pass.
   bool photo_ = false;                                       // Our player in photo mode, as of the last pass.
-  bool her_off_ = false;                                     // Her last off said, no on since.
+  bool coop_ = false;                                        // The gate passed at its last ask: a co-op save.
+  uint64_t gate_ms_ = UINT64_MAX;                            // When the gate was last asked.
   bool armed_ = false;                                       // fight writes=armed: tests may write, this run.
-  size_t chars_ = 0;                                         // fight_chars asked with the mode.
+  const char *her_ = "?";                                    // Her state as her last line said it (her_state).
+  size_t her_said_ = 0;                                      // Her offs said in the log since her link.
+  std::string told_;                                         // Our state as last told her (tell), or empty.
+  uint64_t told_ms_ = 0;
   uint64_t now_ = 0, next_gate_ = 0, next_stats_ = 0, said_ms_ = 0;
   uint64_t tick_ms_ = 0, tick_runs_ = 0, tick_us_ = 0, tick_turns_ = 0, mean_us_ = 0, rate_ = 0; // The last second.
   uint64_t unsent_ = 0, dropped_ = 0, malformed_ = 0;

@@ -67,17 +67,18 @@ int load_mode();
 // off only; the caller checks the title first.
 std::string saves_switch(bool coop);
 // Worker thread, Phase 11's shared fight (fight_engine.h's Worker). A coop fight request (Command::fight): on, probe,
-// record or replay with the charIds it shares (fight_chars), off, status or a probe's test; marker: the slot
-// StellarCoopSlot.txt names. A mode starts only on the pinned build, before coop off and on the co-op save
-// (slot=coop), else is refused with why; it then runs while a save is loaded and our player is not in SB's photo mode
-// (and, for on, a friend is linked). record and replay use coop-fight-record.txt in the mod folder. Returns the line
-// for the log.
+// record or replay with the charIds it shares (fight_chars; none: every Monster), off, status or a probe's test;
+// marker: the slot StellarCoopSlot.txt names. A mode starts only on the pinned build and before coop off, else is
+// refused with why; probe, record and replay also need a co-op save (slot=coop) then. It runs while a save is loaded
+// and our player is not in SB's photo mode (and, for on, a friend is linked and the save is a co-op one). record and
+// replay use coop-fight-record.txt in the mod folder. Returns the line for the log.
 std::string ask_fight(const coop::Request &request, int marker);
 // Worker, every pass after the link's tick. lines: her channel-2 lines; send: ours to her (hp unreliable, false when
 // not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send (or to the recording), logs
 // its events, its probe census, a fault and a stats line each second its counts move; starts, pauses or stops it for
-// the gates, and leaves it off until asked again once the co-op save is left or it latched. True while the job runs
-// (the worker then passes every 5 ms, not 50).
+// the gates (on waits for a co-op save; the solo tools stop off one), tells her our state while we do not share, and
+// leaves it off until asked again once it latched. True while the job runs (the worker then passes every 5 ms, not
+// 50).
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool));
 // Worker: coop-status.txt's fight line (fight_engine.h's Worker::detail).

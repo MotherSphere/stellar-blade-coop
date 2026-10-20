@@ -6,13 +6,13 @@
 -- <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code shows our join code and
 -- asks the native part to copy it; Chat (in a session) and Join with a code close it and open the chat's box or the
 -- code box (join.lua). A setting changed on the Options page rewrites its own line of coop-settings.txt (link.lua
--- keeps the file as it was as coop-settings.old.txt) and applies at once, but the name tag and the shared enemies, at
--- the next load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while
--- open: the status line, the rows of the session's state and, unless a row said something, the newest notice (the
--- feed hides under the menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit
--- off, it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would open the
--- pause menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it. No engine
--- call here: the kit makes them.
+-- keeps the file as it was as coop-settings.old.txt) and applies at once, but the name tag, at the next load; a key
+-- row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while open: the status line,
+-- the rows of the session's state and, unless a row said something, the newest notice (the feed hides under the
+-- menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit off, it closes. The
+-- game's input comes back 150 ms after a close, so the key that closed it (Esc would open the pause menu) never
+-- reaches the game, and is asked again each 250 ms while closed until the kit has given it. No engine call here: the
+-- kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
@@ -93,7 +93,7 @@ function Menu.new(o)
         if key=='ui_scale' then kit.scale(s.ui_scale) elseif key=='ui_sounds' then kit.sounds(s.ui_sounds)
         elseif key=='ui_language' then words=T.pick(kit.language(),s.ui_language) end
     end
-    -- A setting's new value: its line rewritten in the file as it is now (D-UI4), then in effect or, for the two read
+    -- A setting's new value: its line rewritten in the file as it is now (D-UI4), then in effect or, for the one read
     -- at a load only, said so.
     local function set(key,text)
         local file=link.settings_text()

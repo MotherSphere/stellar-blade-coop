@@ -54,7 +54,7 @@ M.OPTIONS={
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     {head='combat'},
-    reload(toggle('shared_enemies','off')),
+    toggle('shared_enemies','on'), -- At once: main.lua asks coop fight on or off.
     {head='display'},
     later(toggle('notices','on')),later(toggle('chat_feed','on')),
     later({key='status_overlay',values={'off','compact','detailed'},default='off'}),

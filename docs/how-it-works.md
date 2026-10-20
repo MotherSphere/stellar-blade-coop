@@ -394,8 +394,8 @@ drops the input.
   yet. The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read
   back every 250 ms; an entry that moves or changes stops it for the run.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
-  stats with the experimental shared enemies (`coop fight`, off by default), nothing is copied between the two players'
-  games. Beside the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest
+  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), nothing is copied between
+  the two players' games. Beside the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest
   `StellarCoopSaves.txt`; Lua only checks whether a copy exists, opening none of your own saves. See
   [saves.md](saves.md).
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,

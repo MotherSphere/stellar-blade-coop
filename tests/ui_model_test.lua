@@ -121,7 +121,7 @@ local s=Link.parse_settings('')
 local values=M.read('')
 assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='20'
     and values.name_tag=='on' and values.cloth=='off' and values.dyes=='off' and values.effects=='off'
-    and values.shared_enemies=='off' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
+    and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on')
 
@@ -169,10 +169,10 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo p
     ..'ui_scale ui_sounds '
     ..'ui_language head:chat chat',
     ids(menu,NONE))
--- The two the mod takes at its next load only: the name tag is part of the ghost's build, the shared fight starts once
--- a load.
+-- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at
+-- once (main.lua asks coop fight on or off).
 for _,row in ipairs(M.OPTIONS) do
-    assert((row.reload==true)==(row.key=='name_tag' or row.key=='shared_enemies'),tostring(row.key))
+    assert((row.reload==true)==(row.key=='name_tag'),tostring(row.key))
 end
 -- Each change is the one value to write: toggles flip, choices wrap, ranges stop at their ends.
 values=M.read('')

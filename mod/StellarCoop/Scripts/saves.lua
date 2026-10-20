@@ -10,8 +10,8 @@
 -- is no answer. A solo choice after a request asks "saves main", which withdraws a switch still to come. The title
 -- left closes it as Decide later; a pass under way is followed on, its result said as a notice. With always, no
 -- question: "saves coop" once a visit, its result a notice. With off, nothing: the manual co-op slot that
--- StellarCoopSlot.txt names is the only co-op save. In a session on your own save with shared_enemies=on, one notice a
--- session says how to switch. While the question is open the game ignores its keys (the kit's input; main.lua's binds
+-- StellarCoopSlot.txt names is the only co-op save (main.lua's shared enemies notice says how to switch in a session on
+-- your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
 -- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
 -- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
 -- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. No
@@ -30,7 +30,7 @@ local function exists(path)
     f:close()
     return true
 end
--- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place: auto_coop_save, ui_language, shared_enemies),
+-- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place: auto_coop_save, ui_language),
 -- theme=ui.THEME, say=function(text) (a notice), log=function(line), exists=function(path) and env=function(name)
 -- (io.open's and os.getenv's unless said: the tests' fakes)}.
 function Saves.new(o)
@@ -40,7 +40,7 @@ function Saves.new(o)
     local phase,open,cursor,back_at=nil,false,1,nil -- phase: nil, 'ask', 'wait' (a request out) or 'error'.
     local visit,asked,copies=false,false,false -- This visit of the title is answered; "saves coop" is out; copies seen.
     local before,waited,quiet,progress,why,idle=nil,0,0,nil,nil,0
-    local queued,told,stopped=nil,false,false -- queued: a notice to say once the kit is up or a world loads.
+    local queued,stopped=nil,false -- queued: a notice to say once the kit is up or a world loads.
     local lang=T.en
     local badged=false -- The badge is shown.
     -- At the top right, scaled from that corner; wide enough for the French title. Added first: the question draws over.
@@ -220,14 +220,6 @@ function Saves.new(o)
             pick()
             o.say(lang.saves[queued[1]]:format(queued[2] or lang.saves.see_log))
             queued=nil
-        end
-        local mode=link.mode()
-        if mode=='none' then told=false end
-        if world and not told and want~='off' and settings.shared_enemies and (mode=='host' or mode=='guest')
-            and info.slot=='main' and info.saves=='main' then
-            told=true
-            pick()
-            o.say(lang.saves.session)
         end
         draw() -- The kit may have built its root again meanwhile: on change only.
     end

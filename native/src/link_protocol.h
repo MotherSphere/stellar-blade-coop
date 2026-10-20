@@ -304,11 +304,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at most kMaxFightChars), "fight off", "fight
-// status", "fight test hp|sh|st <change>" (whole units, with or without a sign) and "fight test kill"; for the synced
-// photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the
-// co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op
-// copies), "saves coop" (make them, then switch to them) and "saves main" (switch back to the player's own saves).
+// Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at most kMaxFightChars; none: every Monster),
+// "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a sign) and "fight test
+// kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause held that long) and
+// "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in the log), "saves
+// convert" (make the co-op copies), "saves coop" (make them, then switch to them) and "saves main" (switch back to the
+// player's own saves).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy

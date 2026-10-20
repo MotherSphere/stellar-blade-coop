@@ -34,8 +34,9 @@ client that the game already runs, so the mod needs no other program and no serv
 - The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make
   separate co-op copies of them (see [docs/saves.md](docs/saves.md)).
 
-The ghost is display only. Items and progress are not shared. Enemies are shared only through the experimental
-`coop fight`, which is off by default and untested in game (see [docs/usage.md](docs/usage.md)).
+The ghost is display only. Items and progress are not shared. The experimental Shared enemies option (co-op menu,
+Options, Combat) is on by default and untested in game. It shares common enemies only while both players play a co-op
+save (see [docs/usage.md](docs/usage.md#shared-enemies-experimental)).
 
 ## Night Operation
 

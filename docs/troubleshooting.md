@@ -160,6 +160,28 @@ reason:
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI
   stopped (see the `[StellarCoop][UI]` lines). `auto_coop_save=always` still switches to the copies.
 
+### Enemies are not shared
+
+Shared enemies are on by default. Both players need Options > Combat > Shared enemies (experimental) set to On in the
+co-op menu. The `fight=` line of `coop status` says what is missing (see
+[usage.md: Shared enemies](usage.md#shared-enemies-experimental)):
+
+- `fight=off` with no `why=`, and `shared enemies: off (experimental)` in `UE4SS.log` at load: shared enemies are off
+  in your game.
+- `fight=waiting mode=on ... why=not on a co-op save`: you play your own save. Quit to the title screen and choose
+  Convert and play co-op (Play co-op once you have co-op copies), then load the same slot number.
+- `her=own-save`, `her=off` or `her=stopped`: your friend plays their own save, has shared enemies off, or theirs
+  stopped for the run (their `coop-link.log` says why). `her=?`: nothing came from their game yet. A friend on an
+  older build of the mod sends nothing until their shared enemies run.
+- `fight=on mode=on role=host enemies=0` or `role=guest pairs=0` while you both fight the same enemies: the two games
+  spawned them differently (another map, a different save), or `fight_chars=auto` leaves them out, or a `fight_chars`
+  list does not name them. `auto` leaves out bosses, Alpha Naytibas, the Gorgon, two turrets with 999,999 HP and any
+  enemy above 500,000 maximum HP; `coop fight probe` marks the last three with `left_out=`.
+- `fight full every place holds an enemy in a fight; a hurt one is not shared` in the host's `coop-link.log`: 16 enemies
+  are in fights at once, which is the most it shares. The others stay unshared until one of the 16 dies or leaves.
+- `fight=stopped why=<why>`: shared enemies stopped for this run, and the ghost and the link go on. A reason that
+  starts with `implausible` means a value in the game's memory did not look as expected on this game build.
+
 ### `Co-op saves off for this load: <why>`
 
 The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:

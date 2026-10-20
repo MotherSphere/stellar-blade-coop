@@ -6,9 +6,9 @@
 -- failed that switches after all is said on); a solo choice after a request asks "saves main"; Decide later, Esc and
 -- 60 s with no key close it for this visit; a left click takes the choice under the mouse; Don't ask again rewrites
 -- only auto_coop_save's line, then plays co-op; the title left closes it. With always, no question: the request at each
--- visit, its result as a notice. With off, nothing. In a session on your own save with shared enemies on, one notice a
--- session. The game's input is the question's while it is open and comes back 150 ms after it closes. While the game
--- uses the co-op copies, a badge at the top right of the title. English and French.
+-- visit, its result as a notice. With off, nothing. The game's input is the question's while it is open and comes back
+-- 150 ms after it closes. While the game uses the co-op copies, a badge at the top right of the title. English and
+-- French.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local Saves=require('saves')
@@ -404,29 +404,15 @@ for _=1,3 do quarter(false,true) end
 assert(#calls==0 and #asked==0 and #said==0 and #logs==0)
 settings.auto_coop_save='ask'
 
--- In a session on your own save with shared enemies on: one notice a session, in a world; again in the next one. Not
--- with shared enemies off, not on a co-op save, not with auto_coop_save=off, not when no switch can be made (saves=off
--- or ?: another build, or the name check failed).
+-- In a session on your own save with shared enemies on, nothing from here: main.lua's shared enemies notice says how to
+-- switch, once.
 settings.shared_enemies=true
 saves=new()
 info=at({slot='main'})
 mode='host'
 quarter(true,false); quarter(true,false)
-assert(#said==1 and said[1]=='You play your own save, and shared enemies run on co-op saves only. Quit to the title '
-    ..'to switch; the ghost works now.',said[1])
-mode='none'; quarter(true,false)
-mode='guest'; quarter(true,false); assert(#said==2,'The next session')
-mode=nil; quarter(true,false); mode='guest'; quarter(true,false); assert(#said==2,'An unread status ends nothing')
-for _,case in ipairs({{shared=false,slot='main',auto='ask'},{shared=true,slot='coop',auto='ask'},
-        {shared=true,slot='main',auto='off'},{shared=true,slot='none',auto='always'},
-        {shared=true,slot='main',auto='ask',saves='off'},{shared=true,slot='main',auto='always',saves='?'}}) do
-    settings.shared_enemies,settings.auto_coop_save=case.shared,case.auto
-    saves=new()
-    info=at({slot=case.slot,saves=case.saves or (case.slot=='coop' and 'coop' or 'main')})
-    quarter(true,false)
-    assert(#said==0,case.slot..' '..case.auto)
-end
-settings.shared_enemies,settings.auto_coop_save,mode=false,'ask','none'
+assert(#said==0,said[1])
+settings.shared_enemies,mode=false,'none'
 
 -- French: the game's culture, unless ui_language=english.
 state.language='fr-FR'

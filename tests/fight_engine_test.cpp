@@ -120,7 +120,7 @@ struct Game {
     mem.put(world + kManager, manager);
     mem.put(manager + kActorArray, players);
     grow(slots);
-    eve = spawn(1, 0, 0, 0); // Controlled, a player, and the manager's local actor.
+    eve = spawn(1, 0, 0, 0, 1600, kTypePc); // Controlled, a player, and the manager's local actor.
     mem.put<uint8_t>(eve + kControlled, 1);
     mem.put<uint8_t>(fsb(1) + kPlayer, 1);
     mem.put(players, fsb(1));
@@ -181,8 +181,10 @@ struct Game {
   }
 
   // ---- Actors ----
-  // A logic actor and its FSBActor, in the map: a Spawn-state enemy at full HP (MaxShield 100, MaxStamina 200).
-  uint64_t spawn(uint32_t guid, uint32_t spawn_id, uint8_t index, uint32_t chr = kChar, float max_hp = 1600) {
+  // A logic actor and its FSBActor, in the map: a Spawn-state enemy at full HP (MaxShield 100, MaxStamina 200), a
+  // Monster unless said.
+  uint64_t spawn(uint32_t guid, uint32_t spawn_id, uint8_t index, uint32_t chr = kChar, float max_hp = 1600,
+                 uint8_t type = kTypeMonster) {
     uint64_t la = mem.alloc(0x628), f = mem.alloc(0x2608);
     mem.put(la, rebased(kActorVtable));
     mem.put(la + kGuid, guid);
@@ -192,6 +194,7 @@ struct Game {
     mem.put(la + kSpawnId, spawn_id);
     mem.put(la + kSpawnIndex, index);
     mem.put<int32_t>(f + kLife, 1);
+    mem.put(f + kActorType, type);
     const float max[kStats] = {max_hp, 100, 200};
     for (int s = 0; s < kStats; ++s) {
       mem.put(f + kStatBase + 4 * size_t(kStatType[s]), max[s]);
@@ -480,6 +483,15 @@ int main() {
     size_t n = e->pass(g, g.logic, true, nullptr, 0);
     assert((guids(*e, n) == std::vector<uint32_t>{1003, 1135}) && !e->latched());
   }
+  // A zone's roster past kMaxSeen: the pass is full, and the rest counted as cut.
+  {
+    Game g(512);
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    for (uint32_t i = 0; i < kMaxSeen + 3; ++i)
+      g.spawn(2000 + i, 7000 + i, 0);
+    assert(e->pass(g, g.logic, true, nullptr, 0) == kMaxSeen && e->counts.cut == 3 && !e->latched());
+  }
   // An implausible map or enemy, or an unreadable read, turns the feature off for the run, not just the turn.
   for (int k = 0; k < 6; ++k) {
     Game g;
@@ -498,6 +510,122 @@ int main() {
     default: g.mem.put<uint64_t>(g.logic + kMapData, 0x7f0000000000); // Plausible, unmapped.
     }
     assert(e->pass(g, g.logic, true, nullptr, 0) == 0 && e->latched() && std::string(e->why()) == why);
+  }
+
+  // ---- fight_chars=auto: with no list, every Monster (ActorType 3 at FSBActor +0x368), never a boss or an Alpha
+  // (BossMonster, 4) until stage 5; an explicit list as before, the type unread ----
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    g.spawn(201, 5201, 0, 7001);              // A Monster, of any charId: in.
+    g.spawn(202, 5202, 0, 7002, 1600, 4);     // BossMonster: the bosses and the Elite Alphas.
+    g.spawn(203, 5203, 0, 7003, 1600, 2);     // An NPC.
+    g.spawn(204, 5204, 0, 7004, 1600, 0);     // None.
+    g.spawn(205, 0, 0, 7005, 1600, 0xff);     // No EventSpawnId: its type is never read, so never latched on.
+    g.spawn(206, 5206, 0, 7006, 1600, 0xff);  // Dying: likewise.
+    g.mem.put<int32_t>(g.fsb(206) + kLife, 4);
+    g.spawn(207, 5207, 0, 7007, 1600, 0xff);  // A player: likewise.
+    g.mem.put<uint8_t>(g.fsb(207) + kPlayer, 1);
+    size_t n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{201}) && !e->latched());
+    const uint32_t listed[] = {7002, 7005};
+    e->allow(listed, 2);
+    n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{202}) && !e->latched());
+  }
+  // The read checked: a type past BossMonster on an enemy that is otherwise in, or our EVE read as anything but a PC
+  // (the offset would be wrong on this build), turns the feature off for the run. With a list neither is read.
+  for (int k = 0; k < 4; ++k) {
+    Game g;
+    auto e = engine(false, true);
+    if (k < 3)
+      e->allow(nullptr, 0);
+    g.spawn(201, 5201, 0, kChar, 1600, k == 0 ? 5 : k == 1 ? 0xff : 3);
+    if (k >= 2)
+      g.mem.put<uint8_t>(g.fsb(1) + kActorType, kTypeMonster);
+    const size_t n = e->pass(g, g.logic, true, nullptr, 0);
+    if (k < 3)
+      assert(n == 0 && e->latched() && std::string(e->why()) == "implausible actor type");
+    else
+      assert((guids(*e, n) == std::vector<uint32_t>{201}) && !e->latched());
+  }
+  // The probe with no list: each actor's type in its line, and its test writes go to a Monster only, never to the
+  // Alpha with the lowest HP share.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->allow(nullptr, 0);
+    e->set(true, false, true);
+    g.spawn(301, 5301, 0, 7001, 1600, 4);
+    g.spawn(302, 5302, 0, 7002);
+    g.hit(301, kHp, 500);
+    g.hit(302, kHp, 100);
+    g.calls.clear();
+    e->test(kHp, -10);
+    frame(g, *e, 0);
+    assert(g.calls.size() == 1 && g.calls[0].la == g.by_guid[302] && count(g, "test", "applied") == 1);
+    const auto type = [&](uint32_t guid) {
+      for (const Actor &a : g.probes)
+        if (a.seen.guid == guid)
+          return int(a.type);
+      return -1;
+    };
+    assert(type(1) == kTypePc && type(301) == 4 && type(302) == kTypeMonster && !e->latched());
+  }
+  // ---- fight_chars=auto leaves out the odd Monsters until stage 5: M_Gorgon and the 999,999 HP turrets by charId, and
+  // any Monster above kMaxAutoHp MaxHP. A common one with a high MaxHP stays in, and a list still names any of them ----
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    g.spawn(211, 5211, 0, 50330, 100000);       // M_Gorgon (Rank Boss).
+    g.spawn(212, 5212, 0, 35027002, 999999);    // SE_M_TurretLaser_02.
+    g.spawn(213, 5213, 0, 35027003, 1600);      // SE_M_TurretLaser_03: its charId alone leaves it out.
+    g.spawn(214, 5214, 0, 7014, 999999);        // An unknown charId above kMaxAutoHp.
+    g.spawn(215, 5215, 0, 55050001, 213125);    // WLB_M_RoyalGuardFemale_01 on Hard: the most a kept Monster has.
+    g.spawn(216, 5216, 0, 7016, kMaxAutoHp);    // At kMaxAutoHp: in.
+    g.spawn(217, 5217, 0, 7017, kMaxAutoHp + 1); // Above it: out.
+    size_t n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{215, 216}) && !e->latched());
+    const uint32_t listed[] = {50330, 35027002, 7014};
+    e->allow(listed, 3);
+    n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{211, 212, 214}) && !e->latched());
+    assert(auto_out(50330, 1) && auto_out(7001, std::nanf("")) && !auto_out(7001, 0));
+  }
+  // The probe with no list marks why each of them is left out, on Monsters only, and its test writes skip them even
+  // with the lowest HP share; with a list it marks none.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->allow(nullptr, 0);
+    e->set(true, false, true);
+    g.spawn(311, 5311, 0, 50330, 100000);
+    g.spawn(312, 5312, 0, 7012, 999999);
+    g.spawn(313, 5313, 0, 7013);
+    g.spawn(314, 5314, 0, 50330, 100000, 4); // A BossMonster: not a Monster, so not marked.
+    g.hit(311, kHp, 90000);
+    g.hit(312, kHp, 900000);
+    g.calls.clear();
+    e->test(kHp, -10);
+    frame(g, *e, 0);
+    assert(g.calls.size() == 1 && g.calls[0].la == g.by_guid[313] && count(g, "test", "applied") == 1);
+    const auto out = [&](uint32_t guid) {
+      std::string why = "none";
+      for (const Actor &a : g.probes)
+        if (a.seen.guid == guid)
+          why = a.out ? a.out : "";
+      return why;
+    };
+    assert(out(311) == "charId" && out(312) == "MaxHP" && out(313).empty() && out(314).empty() && out(1).empty());
+    const uint32_t listed[] = {50330};
+    e->allow(listed, 1);
+    g.probes.clear();
+    e->test(kHp, -10);
+    frame(g, *e, 2000);
+    assert(out(311).empty() && out(312).empty() && g.calls.size() == 2 && g.calls[1].la == g.by_guid[311]);
+    assert(!e->latched());
   }
 
   // ---- The host's count is what it shares: none until her on and after her off, however many it follows ----
@@ -1017,25 +1145,28 @@ int main() {
     auto e = engine(false, false);
     Mail mail;
     Worker w(*e, mail);
-    std::string why = "not on the co-op save (slot=main index=0 marker=4)";
+    std::string why = std::string(kNoCoopSave) + " (slot=main index=0 marker=4 saves=main)";
     int asked = 0;
     bool loaded = true; // As fight_gate: slot=none while no save is loaded.
     const auto gate = [&] {
       ++asked;
-      return loaded ? why : "not on the co-op save (slot=none index=0 marker=4)";
+      return loaded ? why : std::string(kNoCoopSave) + " (slot=none index=0 marker=4 saves=main)";
     };
     const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
     const std::vector<std::string> none;
     Snapshot s;
     Message m;
     uint64_t t = 0;
-    assert(ask("fight on 900") == "shared fight off: " + why && !e->on());
+    // The solo tools need the co-op save; a hard gate (another build, coop off) refuses on too.
+    assert(ask("fight probe 900") == "shared fight off: " + why && ask("fight record") == "shared fight off: " + why);
+    why = "coop off";
+    assert(ask("fight on 900") == "shared fight off: coop off" && !e->on());
     why.clear();
-    assert(ask("fight on") == "shared fight off: no fight_chars");
     assert(ask("fight off") == "shared fight is not on" && w.status().empty());
     // On with no friend linked: it waits. Her link with a save loaded starts it as the guest, the gate asked first.
     assert(ask("fight on 900") == "shared fight on: waiting for a linked friend" && !e->on());
     assert(w.status() == " fight=waiting" && ask("fight on 900") == "shared fight is already on (on)");
+    assert(w.detail() == "fight=waiting mode=on why=no friend linked");
     asked = 0;
     w.pass(t, true, false, true, none, gate, io);
     assert(e->on() && asked == 1 && io.lines() == "SBF8 on\n" && io.said.back() == "shared fight on: as guest");
@@ -1048,7 +1179,7 @@ int main() {
                                                 "fight: her shared fight off: busy"}));
     assert(mail.exchange(s) && mail.receive(m) && m.type == Type::world && mail.receive(m) && m.type == Type::off &&
            !mail.receive(m));
-    // Her off again is not said again until her on.
+    // Her off again is not said again until her state changes.
     io.said.clear();
     w.pass(t += 16, true, false, true, {"SBF8 off busy", "SBF8 on", "SBF8 off later"}, gate, io);
     assert((io.said == std::vector<std::string>{"fight: her shared fight off: later"}));
@@ -1077,6 +1208,7 @@ int main() {
     for (; t <= 62100; t += 16)
       w.pass(t, true, false, true, none, gate, io);
     assert(io.said.empty() && io.traced.size() == 2);
+    assert(has(w.detail(), "fight=on mode=on role=guest pairs=1 ") && has(w.detail(), " her=waiting"));
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);
@@ -1089,9 +1221,10 @@ int main() {
     const uint32_t before = e->session();
     w.pass(t += 16, true, false, true, {"SBF8 world 8"}, gate, io, true);
     assert(!e->on() && io.lines() == "SBF8 off photo mode\n" && io.said.back() == "shared fight paused: photo mode");
-    assert(w.detail() == "fight=waiting mode=on why=photo mode" && mail.exchange(s) && !mail.receive(m));
-    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines().empty());
+    assert(w.detail() == "fight=waiting mode=on her=on why=photo mode" && mail.exchange(s) && !mail.receive(m));
+    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines() == "SBF8 off coop fight off\n");
     assert(ask("fight on 900") == "shared fight on: waiting for the end of photo mode" && !e->on());
+    assert(io.lines() == "SBF8 off photo mode\n");
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(e->on() && e->session() == before + 1 && io.lines() == "SBF8 on\n");
     assert(io.said.back() == "shared fight on: as guest");
@@ -1102,20 +1235,35 @@ int main() {
     w.pass(t += kGateMs, true, false, false, none, gate, io);
     assert(!e->on() && io.lines() == "SBF8 off no save loaded\n" && io.said.back() == "shared fight paused: no save loaded");
     assert(mail.exchange(s) && !mail.receive(m));
-    // The save loaded meanwhile is another slot: the gate, asked before the start, turns it off until asked again.
+    // The save loaded meanwhile is our own: on waits for a co-op save, and she hears why. Back on a co-op save, it
+    // starts again within 250 ms, nothing asked.
     loaded = true;
-    why = "not on the co-op save (slot=main index=0 marker=4)";
+    why = std::string(kNoCoopSave) + " (slot=main index=0 marker=4 saves=main)";
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(!e->on() && io.lines().empty() && io.said.back() == "shared fight off: " + why && w.status().empty());
+    assert(!e->on() && io.lines() == "SBF8 off not on a co-op save\n" && w.status() == " fight=waiting");
+    assert(w.detail() == "fight=waiting mode=on her=on why=not on a co-op save");
+    asked = 0;
+    for (const uint64_t end = t + 1000; t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(asked >= 3 && asked <= 4 && !e->on() && io.lines().empty());
     why.clear();
-    w.pass(t += 16, true, false, true, none, gate, io);
-    assert(!e->on());
-    // While on, the gate is asked every 250 ms, not at every pass; coop off turns it off.
-    assert(ask("fight on 900") == "shared fight on: as guest" && io.lines() == "SBF8 on\n");
+    for (const uint64_t end = t + 300; !e->on() && t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(e->on() && io.lines() == "SBF8 on\n" && io.said.back() == "shared fight on: as guest");
+    // While on, the gate is asked every 250 ms, not at every pass; our own save pauses it; coop off turns it off.
     asked = 0;
     for (const uint64_t end = t + 1000; t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
     assert(asked >= 3 && asked <= 4 && e->on());
+    why = std::string(kNoCoopSave) + " (slot=main index=1 marker=none saves=main)";
+    for (const uint64_t end = t + 300; e->on() && t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(!e->on() && io.lines() == "SBF8 off not on a co-op save\n" &&
+           io.said.back() == "shared fight paused: not on a co-op save");
+    why.clear();
+    for (const uint64_t end = t + 300; !e->on() && t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(e->on() && io.lines() == "SBF8 on\n");
     why = "coop off";
     for (const uint64_t end = t + 300; e->on() && t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
@@ -1142,6 +1290,66 @@ int main() {
     assert(mail.exchange(s));
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(io.said.empty() && io.lines().empty() && !e->on());
+  }
+  // fight on with no list is every Monster (fight_chars=auto). What we wait for, or that the feature is off, goes to
+  // her while she is linked and we are not sharing, when it changes and again every 5 s (a line sent as the link comes
+  // up may reach her before her side passed the handshake, which drops it); what she says the same way is her state
+  // on our fight= line while she is linked: on, own-save, off, stopped, waiting, or ? before her first line. Her offs
+  // go into the log when her state changes, 32 times a link at most.
+  {
+    Desk io;
+    auto e = engine(false, false);
+    Mail mail;
+    Worker w(*e, mail);
+    const auto gate = [] { return std::string(); };
+    const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
+    const std::vector<std::string> none;
+    uint64_t t = 0;
+    w.pass(t, false, false, true, none, gate, io);
+    assert(io.lines().empty() && w.detail() == "fight=off");
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(io.lines() == "SBF8 off shared enemies off\n" && w.detail() == "fight=off her=?");
+    for (const uint64_t end = t + 4900; t < end;)
+      w.pass(t += 16, true, false, true, none, gate, io);
+    assert(io.lines().empty());
+    w.pass(t += 200, true, false, true, none, gate, io);
+    assert(io.lines() == "SBF8 off shared enemies off\n");
+    const std::vector<std::pair<std::string, std::string>> hers = {
+        {"SBF8 off not on a co-op save", "own-save"},
+        {"SBF8 off not on the co-op save (slot=main index=1 marker=none)", "own-save"}, // An older build's gate.
+        {"SBF8 off shared enemies off", "off"},
+        {"SBF8 off coop fight off", "off"},
+        {"SBF8 off stopped for this run (fault)", "stopped"},
+        {"SBF8 off photo mode", "waiting"},
+        {"SBF8 off no save loaded", "waiting"},
+        {"SBF8 on", "on"},
+        {"SBF8 off no friend linked", "waiting"},
+        {"SBF8 world 3", "on"}};
+    io.said.clear();
+    for (const auto &[line, state] : hers) {
+      w.pass(t += 16, true, false, true, {line}, gate, io);
+      assert(w.detail() == "fight=off her=" + state);
+    }
+    assert((io.said == std::vector<std::string>{"fight: her shared fight off: not on a co-op save",
+                                                "fight: her shared fight off: shared enemies off",
+                                                "fight: her shared fight off: stopped for this run (fault)",
+                                                "fight: her shared fight off: photo mode",
+                                                "fight: her shared fight off: no friend linked"}));
+    // Her link lost: her state forgotten, not shown; ours told again once she is back.
+    w.pass(t += 16, false, false, true, none, gate, io);
+    assert(w.detail() == "fight=off" && io.lines().empty());
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(w.detail() == "fight=off her=?" && io.lines() == "SBF8 off shared enemies off\n");
+    // A friend flipping her state: 32 lines in the log a link, then none.
+    io.said.clear();
+    for (int i = 0; i < 40; ++i)
+      w.pass(t += 16, true, false, true, {"SBF8 on", "SBF8 off photo mode"}, gate, io);
+    assert(io.said.size() == 32);
+    // On with no list: taken (every Monster), and told while it waits.
+    assert(ask("fight on") == "shared fight on: as guest" && e->on() && io.lines() == "SBF8 on\n");
+    w.pass(t += 16, true, false, true, none, gate, io, true);
+    assert(!e->on() && io.lines() == "SBF8 off photo mode\n");
+    assert(w.detail() == "fight=waiting mode=on her=waiting why=photo mode");
   }
 
   // ---- The probe (T11a's read-only half): every live actor each second, the world fence, its test writes ----
@@ -1260,14 +1468,17 @@ int main() {
            "shared fight test refused: writes not armed yet (the probe has not found our EVE)");
     assert(ask("fight on 900") == "shared fight is already on (probe)");
     run(2000);
-    const std::string eve = "fight probe guid=1 key=0:0 chr=0 life=1 hp=1600/1600 sh=100/100 st=200/200 eve player";
-    const std::string fresh = "fight probe guid=101 key=5001:0 chr=900 life=1 hp=1600/1600 sh=100/100 st=200/200";
+    const std::string eve =
+        "fight probe guid=1 key=0:0 chr=0 type=1 life=1 hp=1600/1600 sh=100/100 st=200/200 eve player";
+    const std::string fresh =
+        "fight probe guid=101 key=5001:0 chr=900 type=3 life=1 hp=1600/1600 sh=100/100 st=200/200";
     assert(io.tracing(eve) == 1 && io.tracing(fresh) == 1 && io.saying("fight writes=armed: ") == 1);
     assert(io.tracing("fight stats: probe, 2 actors, our EVE found") == 1 && io.lines().empty());
     assert(!io.saying("fight probe guid=") && !io.saying("fight stats") && w.status() == " fight=probe");
     g.hit(101, kHp, 100);
     run(t + 1000);
-    assert(io.tracing(eve) == 1 && io.tracing("fight probe guid=101 key=5001:0 chr=900 life=1 hp=1500/1600 ") == 1);
+    assert(io.tracing(eve) == 1 &&
+           io.tracing("fight probe guid=101 key=5001:0 chr=900 type=3 life=1 hp=1500/1600 ") == 1);
     // A friend linked meanwhile: her lines never reach the probe's job.
     w.pass(t, true, false, true, {"SBF8 on", "SBF8 hit 1 1 101 10 0 0 1600 0"}, gate, io);
     frame(g, *e, t += 16);
@@ -1277,7 +1488,7 @@ int main() {
            "shared fight test asked: hp -10, on the eligible enemy with the lowest HP share");
     run(t + 48);
     assert(io.saying("fight test 5001:0 applied") == 1);
-    assert(io.tracing("guid=101 key=5001:0 chr=900 life=1 hp=1490/") == 1);
+    assert(io.tracing("guid=101 key=5001:0 chr=900 type=3 life=1 hp=1490/") == 1);
     assert(has(w.detail(), "fight=on mode=probe actors=2 eve=1 turn=") && has(w.detail(), " writes=armed sim_us="));
     assert(w.status() == " fight=probe");
     // coop fight status: the fight line, and a stats line at once.
@@ -1288,6 +1499,15 @@ int main() {
     assert(w.detail() == "fight=off why=coop fight off" && w.status().empty());
     assert(ask("fight test kill") == "shared fight test refused: only while coop fight probe runs");
     assert(ask("fight status") == "shared fight status: fight=off why=coop fight off");
+    // With no list, the line of a Monster that fight_chars=auto leaves out says why.
+    g.spawn(102, 5002, 0, 50330, 100000);
+    g.spawn(103, 5003, 0, 7003, 999999);
+    ask("fight probe");
+    run(t + 1000);
+    assert(io.tracing("chr=50330 type=3 life=1 hp=100000/100000 sh=100/100 st=200/200 left_out=charId") == 1);
+    assert(io.tracing("chr=7003 type=3 life=1 hp=999999/999999 sh=100/100 st=200/200 left_out=MaxHP") == 1);
+    assert(!io.tracing("chr=900 type=3 life=1 hp=1490/1600 sh=100/100 st=200/200 left_out"));
+    assert(io.tracing("chr=900 type=3 life=1 hp=1490/1600 sh=100/100 st=200/200") == 2);
   }
 
   // ---- Record on one PC, replay into another's guest: T11a's solo test of both roles ----
@@ -1327,7 +1547,8 @@ int main() {
       const std::string said = w.ask(coop::parse_request("fight off"), gate, io);
       assert(said.rfind("shared fight off: coop fight off; ", 0) == 0);
       assert(has(said, " lines written to coop-fight-record.txt"));
-      assert(io.has_file && io.sent.empty() && !e->on());
+      // The friend linked for a pass heard only that we do not share with her.
+      assert(io.has_file && io.lines() == "SBF8 off shared enemies off\n" && !e->on());
       std::vector<Line> lines;
       assert(!parse_recording(io.file, lines) && lines[0].message.type == Type::world);
       assert(has(io.file, " SBF8 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF8 up 1 102 5002 0 900 1600\n"));
@@ -1382,7 +1603,8 @@ int main() {
     bool followed = false; // The host's 300, before its kill.
     for (const Game::Call &c : G.calls)
       followed = followed || (c.la == G.by_guid[901] && c.type == 1 && c.delta == -300 && c.notify);
-    assert(followed && io.saying("fight replay: all ") == 1 && io.sent.empty() && !io.saying("malformed"));
+    assert(followed && io.saying("fight replay: all ") == 1 && io.lines() == "SBF8 off shared enemies off\n" &&
+           !io.saying("malformed"));
     assert(has(w.detail(), "fight=on mode=replay role=guest pairs=1 ") && has(w.detail(), " kills=1 "));
   }
   // A recording stops at its cap: the mode ends and the file is written whole. Lines before its first world (an older

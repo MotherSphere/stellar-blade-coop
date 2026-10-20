@@ -14,7 +14,8 @@
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
--- in coop-settings.txt, which also starts it once a load on a co-op save), on a co-op save only; the synced
+-- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
+-- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; the synced
 -- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
 -- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
 -- to test the pause alone; coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
@@ -57,7 +58,7 @@ end
 if settings then
     log(looks())
     log('shared enemies: '..(settings.shared_enemies and 'on' or 'off')..' (experimental), fight_chars '
-        ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'none'))
+        ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'auto'))
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
@@ -161,9 +162,13 @@ local function photo_state()
     log('photo sync: photo mode unreadable, off until the mod reloads: '..tostring(state))
     return '0'
 end
--- shared_enemies=on: coop fight on once a load, when the first save is judged (slot=coop asks it, slot=main says why
--- not); coop fight off before then cancels it.
+-- shared_enemies=on: coop fight on asked once a load, as soon as the native part judged the slot (coop, main, or none
+-- at the title: its build is pinned then); it then waits there for a friend, a co-op save and a loaded save. coop
+-- fight off before then cancels the ask. The co-op menu's row changes shared_enemies while the mod runs: on asks again
+-- the same way, off asks coop fight off at once when coop fight on waits or runs (fight_wanted: the value last acted
+-- on); a probe, record or replay goes on, as at a reload below.
 local fight_auto=settings~=nil and settings.shared_enemies
+local fight_wanted=fight_auto
 -- shared_enemies=off is a kill switch at a reload too (Ctrl+R): the native part outlives Lua, so a coop fight on that an
 -- earlier load started ends here, waiting or running (its fight= line, from the start of its own line). A probe, record
 -- or replay goes on: shared_enemies does not gate them.
@@ -220,24 +225,24 @@ local commands={
         if not ok then return false,why end
         return recruiter.run(sub,extra)
     end,
-    -- on needs shared_enemies=on and fight_chars; probe (fight_chars optional: a test writes only to them), test,
-    -- record and replay are the solo T11a tools. All but off and status run only on a co-op save; the native
-    -- part checks again, and says in the log why it refuses. status answers with the fight= line.
+    -- on needs shared_enemies=on, on any save: the native part waits for a co-op save. probe, test, record and replay
+    -- are the solo T11a tools, on a co-op save only (the native part checks again, and says in the log why it
+    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). status
+    -- answers with the fight= line.
     fight=function(sub,a,b,extra)
         local line=fight_line(sub,a,b,extra)
         if not line then return false,FIGHT_USE end
         if sub=='off' then fight_auto=false end
         if sub~='off' and sub~='status' then
             if not native_tick then return false,'the native tick is unavailable' end
-            local ok,why=coop_slot('coop fight')
-            if not ok then return false,why end
-            local chars=settings.fight_chars
             if sub=='on' and not settings.shared_enemies then
                 return false,'shared enemies are off in coop-settings.txt (shared_enemies=off)'
             end
-            if #chars==0 and (sub=='on' or sub=='record' or sub=='replay') then
-                return false,"no fight_chars in coop-settings.txt (coop fight probe logs the enemies' character ids)"
+            if sub~='on' then
+                local ok,why=coop_slot('coop fight')
+                if not ok then return false,why end
             end
+            local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end
         local ok,why=ask(line)()
@@ -412,30 +417,60 @@ if link then
     -- The ghost turns on when a session starts (none to host or guest): once, so coop puppet off holds until the next.
     -- A status read with no mode (before Steam, or unreadable) is no leave.
     local last_mode='none'
-    -- The shared fight's notices, from its fight= line: on when it first runs as coop fight on (again when its enemies
-    -- go from none to some), off with why once it ran or waited (any mode). An unread status changes nothing.
-    local fight_was,fight_count,fight_said=nil,0,false
+    -- The shared enemies' notices, from the fight= line (an unread status changes nothing), in the menu's language
+    -- (read only to say one): on with the count when its enemies go from none to some; off, or stopped for the run,
+    -- once it ran or waited, in any mode, unless our own player ended it (coop fight off, the menu's row, coop off);
+    -- and while coop fight on waits or runs, one notice for what keeps it from sharing, said again only when that
+    -- changes, and FIGHT_HOLD seconds after the last at the soonest (her lines set her state, so a friend flipping it
+    -- cannot flood them): your save or hers not a co-op one, her shared enemies off or stopped for the run, or the two
+    -- of you on different maps. Waits that end by themselves (no friend yet, a load, photo mode) say nothing. Sharing
+    -- with her on the same map, or the session's end, forgets what was said.
+    local P=require('partner')
+    local FIGHT_HOLD=5
+    local fight_was,fight_count,fight_told,fight_hold=nil,0,nil,0
+    local function fight_words() return words().fight end
     local function fight_notices()
+        if link.mode()=='none' then fight_told=nil end
         local line=link.fight()
         if not line then return end
-        local state,mode=line:match('^fight=(%a+)'),line:match(' mode=(%a+)')
+        local state,mode,her=line:match('^fight=(%a+)'),line:match(' mode=(%a+)'),line:match(' her=(%S+)')
+        local why=line:match(' why=(.*)$')
         local now=state=='on' and 'on '..tostring(mode) or state
         if now=='on on' then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
-            if not fight_said or (fight_count==0 and count>0) then
-                local w=words()
-                say((w.plural(count) and w.fight.many or w.fight.one):format(count))
+            if fight_count==0 and count>0 then
+                local words=fight_words()
+                say(count==1 and words.one or words.on:format(count))
             end
-            fight_said,fight_count=true,count
+            fight_count=count
         elseif state=='off' or state=='stopped' then
-            if fight_was and (fight_was:find('^on ') or fight_was=='waiting') then
-                local why,w=line:match(' why=(.*)$'),words().fight -- None: off from waiting before it ever ran.
-                if why and state=='stopped' then why=w.stopped:format(why) end
-                say(why and w.off:format(why) or w.off_plain)
+            if fight_was and (fight_was:find('^on ') or fight_was=='waiting') and why~='coop fight off'
+                and why~='coop off' then
+                say(fight_words()[state])
             end
-            fight_said,fight_count=false,0
+            fight_count=0
         end
         fight_was=now
+        if mode~='on' or (state~='on' and state~='waiting') then return end
+        local missing
+        if state=='waiting' and (why or ''):find('^not on a co%-op save') then missing='you'
+        elseif her=='own-save' then missing='her_save'
+        elseif her=='off' then missing='her_off'
+        elseif her=='stopped' then missing='her_stopped'
+        elseif state=='on' and her=='on' then
+            local mine=puppet.me()
+            local where=P.where(mine and mine.map,puppet.her_map())
+            if where=='elsewhere' then missing='map' elseif where=='same' then fight_told=nil end
+        end
+        if not missing or missing==fight_told or chat_clock<fight_hold then return end
+        fight_told,fight_hold=missing,chat_clock+FIGHT_HOLD
+        local words=fight_words()
+        if missing=='you' then -- How to switch, or the manual slot when the co-op copies are off.
+            local info=link.saves() or {}
+            say((settings.auto_coop_save=='off' or info.saves~='main') and words.you_manual or words.you)
+        else
+            say(words[missing]:format((link.friend()) or words.friend))
+        end
     end
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
@@ -456,15 +491,20 @@ if link then
         end
         local typed=chat.take(chat_clock) -- One of ours for the native part, two a second at most; never logged.
         if typed and not link.say(typed) then chat.fail() end
+        if settings.shared_enemies~=fight_wanted and not off then -- The co-op menu's row.
+            fight_wanted=settings.shared_enemies
+            fight_auto=fight_wanted
+            if not fight_wanted and (link.fight() or ''):find('^fight=%a+ mode=on ') then
+                local ok,message=ask('fight off')()
+                report(ok,'shared_enemies=off: '..tostring(message))
+            end
+        end
         if fight_auto and not off then
             local verdict=(slot_line() or ''):match('^slot=(%a+)')
-            if verdict=='coop' or verdict=='main' then
+            if verdict=='coop' or verdict=='main' or verdict=='none' then
                 fight_auto=false
-                local ok,message=false,'not on the co-op save'
-                if verdict=='coop' then ok,message=commands.fight('on') end
-                report(ok,'shared_enemies=on: '..message)
-                local w=words().fight
-                if not ok then say(w.off:format(verdict=='main' and w.not_coop or message)) end
+                local ok,message=commands.fight('on')
+                report(ok,'shared_enemies=on: '..tostring(message))
             end
         end
         fight_notices()
