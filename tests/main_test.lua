@@ -299,7 +299,7 @@ assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say;
 for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
-        assert(printed[k+2]=='[StellarCoop] shared enemies: off (experimental), fight_chars auto\n',printed[k+2])
+        assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto\n',printed[k+2])
         assert(printed[k+3]=='[StellarCoop] photo sync: both, longest pause 600 s, ghost in your photos on, its name '
             ..'tag off\n',printed[k+3])
     end
@@ -656,7 +656,7 @@ local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe |
     ..'record | replay\n'
 local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now '
 local COOP=with_slot('slot=coop index=4 marker=4\n')
-settings_text=''
+settings_text='shared_enemies=off\n'
 load_main(true)
 status_text=COOP
 for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','now'},{'status','x'},{'probe','1'},{'record','x'},
@@ -668,7 +668,7 @@ for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','now'},{'status','x'}
     coop('fight',table.unpack(bad))
     assert(last()==FIGHT_USE and #asked==0,table.concat(bad,' ')..': '..last())
 end
--- shared_enemies=off (the default): coop fight on refuses; the T11a tools still run. fight_chars=auto (the default)
+-- shared_enemies=off: coop fight on refuses; the T11a tools still run. fight_chars=auto (the default)
 -- asks them with no ids: the native part then takes every common enemy. A test's change goes as a plain whole number;
 -- a test never carries fight_chars.
 coop('fight','on')
@@ -739,8 +739,9 @@ status_text=plain; coop('fight','off'); status_text=COOP; loops[2].f()
 assert(#asked==1 and asked[1]=='fight off','Only the off')
 load_main(true)
 coop('off'); loops[2].f(); assert(#asked==1 and asked[1]=='off','Nothing after coop off')
--- shared_enemies=on with fight_chars=auto, or empty as in a file written before auto: asked with no ids.
-for _,text in ipairs({'shared_enemies=on\n','shared_enemies=on\nfight_chars=auto\n',
+-- shared_enemies=on (the default, as in an empty file) with fight_chars=auto, or empty as in a file written before
+-- auto: asked with no ids.
+for _,text in ipairs({'','shared_enemies=on\n','shared_enemies=on\nfight_chars=auto\n',
         'shared_enemies=on\nfight_chars=\n'}) do
     settings_text=text
     load_main(true)
@@ -748,8 +749,8 @@ for _,text in ipairs({'shared_enemies=on\n','shared_enemies=on\nfight_chars=auto
     status_text=COOP; loops[2].f()
     assert(#asked==1 and asked[1]=='fight on',text)
 end
--- And never with the default off.
-settings_text=''
+-- And never with shared_enemies=off.
+settings_text='shared_enemies=off\n'
 load_main(true)
 loops[2].f(); assert(#asked==0)
 -- shared_enemies=off at a reload (Ctrl+R) ends a coop fight on an earlier load started, waiting or running, from the
@@ -1028,12 +1029,10 @@ key('RETURN'); coop('host'); assert(asked[#asked]=='host' and select(2,focus())=
 to('Name tag'); key('RETURN')
 assert(settings_text:find('\nname_tag=off\n',1,true) and select(2,focus())=='Off'
     and menu_view.note.s=='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
--- Shared enemies at once: on asks coop fight on as soon as the native part judged the save, off asks coop fight off
--- while coop fight on waits or runs; a probe, record or replay goes on.
+-- Shared enemies at once: on (the default, so the load already asks coop fight on as soon as the native part judged
+-- the save), off asks coop fight off while coop fight on waits or runs; a probe, record or replay goes on.
 local fight_asks=#asked
-to('Shared enemies (experimental)'); key('RETURN')
-assert(settings_text:find('\nshared_enemies=on\n',1,true) and select(2,focus())=='On'
-    and menu_view.note.s~='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
+to('Shared enemies (experimental)'); assert(select(2,focus())=='On')
 quarter(); assert(#asked==fight_asks,'No slot line yet: it waits')
 status_text=with_slot('slot=main index=0 marker=4\n')
 quarter()
@@ -1041,7 +1040,8 @@ assert(#asked==fight_asks+1 and asked[#asked]=='fight on' and logged('OK: shared
 quarter(); assert(#asked==fight_asks+1,'Once')
 fight_text='fight=waiting mode=on why=not on a co-op save (slot=main index=0 marker=4)'
 key('RETURN')
-assert(settings_text:find('\nshared_enemies=off\n',1,true) and select(2,focus())=='Off')
+assert(settings_text:find('\nshared_enemies=off\n',1,true) and select(2,focus())=='Off'
+    and menu_view.note.s~='Saved. It takes effect when the mod reloads (game start or Ctrl+R).')
 quarter()
 assert(#asked==fight_asks+2 and asked[#asked]=='fight off'
     and logged('OK: shared_enemies=off: asked the native part: fight off'))

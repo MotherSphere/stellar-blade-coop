@@ -93,7 +93,7 @@ local s=Link.parse_settings('')
 local values=M.read('')
 assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='20'
     and values.name_tag=='on' and values.cloth=='off' and values.dyes=='off' and values.effects=='off'
-    and values.shared_enemies=='off' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
+    and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on')
 

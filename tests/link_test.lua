@@ -234,12 +234,12 @@ s,notes=Link.parse_settings('effects=on'); assert(#notes==0 and s.effects==true 
 s,notes=Link.parse_settings('cloth=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays off"
     and s.cloth==false,notes[1])
--- The shared enemies (Phase 11, experimental): shared_enemies on or off, off by default; fight_chars auto (the default:
+-- The shared enemies (Phase 11, experimental): shared_enemies on or off, on by default; fight_chars auto (the default:
 -- every common enemy, an empty list for the native part) or at most 16 whole character ids from 1 to 2^32-1 separated
 -- by spaces. An empty value is auto too: the files written before auto said fight_chars= and shared nothing. A bad
 -- value keeps the default, with a line.
 s,notes=Link.parse_settings('')
-assert(s.shared_enemies==false and #s.fight_chars==0,'Off and auto unless set')
+assert(s.shared_enemies==true and #s.fight_chars==0,'On and auto unless set')
 for _,auto in ipairs({'auto','AUTO',' Auto ',''}) do
     s,notes=Link.parse_settings('fight_chars='..auto)
     assert(#notes==0 and type(s.fight_chars)=='table' and #s.fight_chars==0,auto)
@@ -263,16 +263,18 @@ for _,bad in ipairs({string.rep('7 ',17),'0','4294967296','99999999999999999999'
 end
 s,notes=Link.parse_settings('shared_enemies=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_enemies (use on or off); "
-    .."shared_enemies stays off" and s.shared_enemies==false,notes[1])
--- A new file names both, off and auto; a file written before they existed keeps working unchanged: the same settings,
--- no line.
-assert(Link.DEFAULT:find('\nshared_enemies=off\nfight_chars=auto\n',1,true),'Both written in a new file')
+    .."shared_enemies stays on" and s.shared_enemies==true,notes[1])
+-- A new file names both, on and auto; a file written before they existed reads them as on and auto, with no line. An
+-- explicit off stays off.
+assert(Link.DEFAULT:find('\nshared_enemies=on\nfight_chars=auto\n',1,true),'Both written in a new file')
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0)
+assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==0)
+s,notes=Link.parse_settings((Link.DEFAULT:gsub('\nshared_enemies=on\n','\nshared_enemies=off\n')))
+assert(#notes==0 and s.shared_enemies==false)
 local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
 assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==20
+assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==20
     and s.name_tag==true and s.cloth==false)
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
@@ -307,7 +309,7 @@ assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.phot
 local before_photo=Link.DEFAULT:gsub('# Synced photo mode.*$','')
 assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
 s,notes=Link.parse_settings(before_photo)
-assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.shared_enemies==false)
+assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.shared_enemies==true)
 
 -- The file is the user's: written with the defaults when absent, never written again.
 local SETTINGS,writes='C:\\Mod\\coop-settings.txt',0

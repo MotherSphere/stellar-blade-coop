@@ -44,7 +44,7 @@ send_rate=20
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
 # shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
 # example fight_chars=15011001.
-shared_enemies=off
+shared_enemies=on
 fight_chars=auto
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
@@ -69,10 +69,10 @@ partner_card=on
 card_details=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
--- written before shared_enemies and fight_chars existed lacks them: off and auto, as here; one written before the photo
+-- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
-    dyes='off',effects='off',shared_enemies='off',fight_chars='auto',photo_sync='both',photo_freeze_max='600',
+    dyes='off',effects='off',shared_enemies='on',fight_chars='auto',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
     partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
