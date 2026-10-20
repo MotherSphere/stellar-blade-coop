@@ -2,8 +2,9 @@
 // field and its epoch oe stay so that 3b can hand enemies over) streams each enemy's root at 30 Hz and its Shows; the
 // drawn side writes its copy's root every frame from samples drawn on the ghost's own playback clock (pose_stream.h),
 // so an enemy and the owner's ghost are drawn at the same instant, and replays the Shows on the copy. No Windows types
-// and no engine call: the game is read through a callback (FNamePool), and tests/pilot_test.cpp drives every piece
-// here on the build machine. Nothing here allocates but format() and parse_show(), which are the worker's.
+// and no engine call of its own: the game is read and its two lookups called through a Game (Capturer, the FNamePool),
+// and tests/pilot_test.cpp drives every piece here on the build machine with fake memory. Nothing here allocates but
+// format(), parse_show() and sbe_text(), which are the worker's.
 //
 // SBE, little-endian, on channel 1 (unreliable), one message per capture for the pairs its sender owns:
 //   "SBE" (3 bytes), protocol (u8, kProtocol), gen (u16: the low 16 bits of the host's world generation, fight_sync.h),
@@ -26,13 +27,16 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <string_view>
 
-#include "fight_sync.h" // kMaxPairs, detail::id, and link_protocol.h's fight_tag, split, number, kMaxMessage
-#include "pose_codec.h"  // codec::put/get, kMaxWorld
-#include "pose_stream.h" // blend_transform
+#include "fight_sync.h"    // kMaxPairs, detail::id, and link_protocol.h's fight_tag, split, number, kMaxMessage
+#include "nightop_probe.h" // kImageBase, plausible
+#include "pose_codec.h"    // codec::put/get, kMaxWorld
+#include "pose_engine.h"   // UE's object array, UObject and transform offsets
+#include "pose_stream.h"   // blend_transform
 
 namespace coop::pilot {
 
@@ -906,6 +910,429 @@ inline bool compact_id(std::string_view pkg, std::string_view obj, uint8_t &form
     return false;
   len = total;
   return true;
+}
+
+
+// ---- The owner's capture (game thread, every 33 ms of clock) ----
+
+// The pinned build's globals the capture reads, never their getters (FUN_1420193a0, FUN_141a97cb0 and the class
+// getters allocate on a first call): the world (the actor manager FUN_141aace90 searches at +0xc8), SB's registry (the
+// character map FUN_14201b1e0 searches at +0x48), SB's show manager (its stages at +0x18, their count at +0x20), the
+// classes USBShowData and ASBCharacter (FUN_141ff2b70's, which FUN_14201b1e0's own IsA test takes), and the FNamePool.
+constexpr uint64_t kWorldAt = 0x147032570, kRegistryAt = 0x147032558, kShowsAt = 0x1470326d8,
+                   kShowDataClassAt = 0x14703c7c8, kCharacterClassAt = 0x147033f48, kNamePool = 0x146ffec40;
+constexpr size_t kActorManager = 0xc8, kCharacterMap = 0x48, kStageList = 0x18, kStageCount = 0x20;
+constexpr size_t kFsbGuid = 0x4a4; // FSBActor: its FGuid, the character map's key.
+// ASBCharacter: its root component and its show interface (a stage's main actor), and from +0xC64 the anim speed
+// fields GetSBSpeedForAnimGraph (0x1420cf5d0) reads (speed_read()).
+constexpr size_t kRootComponent = 0x178, kShowInterface = 0x560, kSpeedFields = 0xc64, kSpeedBytes = 0x18;
+// UE 4.26 UObject: its name (an FName) at +0x18, its outer at +0x20; UStruct: the struct base chain IsA walks.
+constexpr size_t kObjectName = 0x18, kOuter = 0x20, kBaseChain = 0x30, kBaseDepth = 0x38;
+// A show stage (the first kStageBytes): its main actor's weak pointer (index, serial; serial 0: none) and interface,
+// its players and their count, and the float at +0x9c (SkillPres_OnHit's).
+constexpr size_t kStageMainWeak = 0x18, kStageMain = 0x20, kStagePlayers = 0x88, kStagePlayerCount = 0x90,
+                 kStageField9c = 0x9c, kStageBytes = 0xa0;
+// A show player (ShowPlayer_Init, RE11's hit fields; the first kPlayerBytes): its USBShowData, its time (s), step,
+// +0x4d, step-driven byte, rate, hit levels, 2D direction, hit direction, hit position, bone-local position, normal,
+// +0xa8 (an int), the other actor's location, hit rotation, and its finished byte.
+constexpr size_t kPlayerData = 0x18, kPlayerTime = 0x2c, kPlayerStep = 0x48, kPlayer4d = 0x4d, kPlayerGate = 0x4e,
+                 kPlayerRate = 0x50, kPlayerHitLevel = 0x54, kPlayerHitLevel60 = 0x60, kPlayerDir2d = 0x68,
+                 kPlayerHitDir = 0x70, kPlayerHitPos = 0x84, kPlayerLocalPos = 0x90, kPlayerNormal = 0x9c,
+                 kPlayerA8 = 0xa8, kPlayerOtherLoc = 0xc0, kPlayerHitRot = 0xcc, kPlayerFinished = 0xe8,
+                 kPlayerBytes = 0xec;
+
+namespace detail {
+template <class T> T field(const uint8_t *bytes, size_t at) {
+  T v;
+  std::memcpy(&v, bytes + at, sizeof v);
+  return v;
+}
+} // namespace detail
+
+// UE's object array (pose_engine.h's layout) through read: the item of index, or 0.
+template <class Read> uint64_t object_item(Read &&read, uint64_t objects, int32_t index) {
+  int32_t count = 0;
+  uint64_t chunks = 0, chunk = 0;
+  if (index < 0 || !read(objects + pose::kElementCount, &count, sizeof count) || index >= count ||
+      !read(objects + pose::kChunkTable, &chunks, sizeof chunks) || !chunks ||
+      !read(chunks + 8 * uint64_t(index >> 16), &chunk, sizeof chunk) || !chunk)
+    return 0;
+  return chunk + pose::kItemBytes * uint64_t(index & 0xffff);
+}
+// pose_engine.h's alive() through read: a live UObject, its item holding it, neither pending kill nor unreachable.
+// index and serial take its item's (serial 0: no weak pointer was ever made to it).
+template <class Read>
+bool live(Read &&read, uint64_t objects, uint64_t object, int32_t *index = nullptr, int32_t *serial = nullptr) {
+  int32_t i = 0;
+  uint8_t item[pose::kItemBytes];
+  const bool indexed = nightop::plausible(object) && read(object + pose::kInternalIndex, &i, sizeof i);
+  const uint64_t at = indexed ? object_item(read, objects, i) : 0;
+  if (!at || !read(at, item, sizeof item) || detail::field<uint64_t>(item, 0) != object ||
+      (detail::field<int32_t>(item, pose::kItemFlags) & (pose::kPendingKill | pose::kUnreachable)))
+    return false;
+  if (index)
+    *index = i;
+  if (serial)
+    *serial = detail::field<int32_t>(item, pose::kItemSerial);
+  return true;
+}
+// IsA through UE 4.26's struct base chain, as FUN_14201c180 tests it: object's class holds cls's chain at cls's depth.
+template <class Read> bool is_a(Read &&read, uint64_t object, uint64_t cls) {
+  uint64_t own = 0, chain = 0, link = 0;
+  int32_t want = 0, depth = 0;
+  return nightop::plausible(cls) && read(object + pose::kClass, &own, sizeof own) && nightop::plausible(own) &&
+         read(cls + kBaseDepth, &want, sizeof want) && read(own + kBaseDepth, &depth, sizeof depth) && want >= 0 &&
+         want <= depth && depth < 64 && read(own + kBaseChain, &chain, sizeof chain) && nightop::plausible(chain) &&
+         read(chain + 8 * uint64_t(want), &link, sizeof link) && link == cls + kBaseChain;
+}
+// The anim speed (cm/s) from the kSpeedBytes at char+0xC64, in GetSBSpeedForAnimGraph's order: the override's speed
+// (+0xC6C) while its byte (+0xC68) is set, else +0xC74 while +0xC78 is above 0, else 0 while +0xC70 is, else the speed
+// now (+0xC64). Its two rare branches (a ladder's, an input vector's) are left out.
+inline float speed_read(const uint8_t *b) {
+  using detail::field;
+  if (b[4])
+    return field<float>(b, 8);
+  if (field<float>(b, 0x14) > 0)
+    return field<float>(b, 0x10);
+  return field<float>(b, 0xc) > 0 ? 0 : field<float>(b, 0);
+}
+
+// The compact id of each USBShowData seen, decoded once per object (its address, index and serial: another object at
+// the same address and index has another serial, unless no weak pointer was ever made to either) and kept as decoded,
+// or refused. Game thread; fixed memory, the oldest slot given up first.
+class Paths {
+public:
+  static constexpr size_t kSlots = 64;
+  // obj's form and path (path valid until the next call), false when refused: no live USBShowData (class exactly
+  // data_class), its package not a live outermost object, a name the pool refuses, or a path compact_id refuses.
+  template <class Read>
+  bool get(Read &&read, uint64_t objects, uint64_t pool, uint64_t data_class, uint64_t obj, uint8_t &form,
+           const char *&path, size_t &len, uint64_t &refused) {
+    int32_t index = 0, serial = 0;
+    if (!live(read, objects, obj, &index, &serial))
+      return false;
+    Slot *s = nullptr;
+    for (Slot &each : slots_)
+      s = !s && each.used && each.obj == obj && each.index == index && each.serial == serial ? &each : s;
+    if (!s) {
+      s = &slots_[next_];
+      next_ = (next_ + 1) % kSlots;
+      *s = Slot{true, obj, index, serial};
+      s->ok = decode(read, objects, pool, data_class, obj, *s);
+      refused += !s->ok;
+    }
+    form = s->form, path = s->path, len = s->len;
+    return s->ok;
+  }
+  void clear() { std::fill(slots_, slots_ + kSlots, Slot()); }
+
+private:
+  struct Slot {
+    bool used = false;
+    uint64_t obj = 0;
+    int32_t index = 0, serial = 0;
+    bool ok = false;
+    uint8_t form = 0, len = 0;
+    char path[kMaxPath + 1] = {};
+  };
+  template <class Read>
+  static bool decode(Read &&read, uint64_t objects, uint64_t pool, uint64_t data_class, uint64_t obj, Slot &s) {
+    constexpr size_t kName = 256;
+    uint64_t cls = 0, pkg = 0, outer = 1;
+    uint32_t pn[2] = {}, on[2] = {};
+    char p[kName], o[kName];
+    size_t pl = 0, ol = 0, len = 0;
+    if (!data_class || !read(obj + pose::kClass, &cls, sizeof cls) || cls != data_class ||
+        !read(obj + kOuter, &pkg, sizeof pkg) || !live(read, objects, pkg) ||
+        !read(pkg + kOuter, &outer, sizeof outer) || outer || !read(pkg + kObjectName, pn, sizeof pn) ||
+        !read(obj + kObjectName, on, sizeof on) ||
+        !fname(read, pool, pn[0], pn[1], p, kName, pl) || !fname(read, pool, on[0], on[1], o, kName, ol) ||
+        !compact_id(std::string_view(p, pl), std::string_view(o, ol), s.form, s.path, len))
+      return false;
+    s.len = uint8_t(len);
+    return true;
+  }
+  Slot slots_[kSlots];
+  size_t next_ = 0;
+};
+
+// One pair the capture reads, from the pair table: the host's GUID (on the wire), our copy's (for the lookups), its
+// owner epoch and its SBE flags (kBattle, kDying).
+struct Owned {
+  uint32_t hguid = 0, local = 0;
+  uint8_t oe = 0, flags = 0;
+};
+
+// The owner's side of stage 3a on the game thread: each owned pair found by its GUID through SB's two read-only lookups
+// (the FSBActor, then the character of its FGuid, which must be a live ASBCharacter), its root (world location and
+// rotation), flags and anim speed into one SBE message; then SB's show manager walked once for the stages whose main
+// actor is one of them, and player[0] of each (a PlayShowKey child is replayed by its parent) given to the pair's
+// Outbox: show lines for the new ones, with their context and path, show-set and show-stop for the others. A stage
+// belongs to a character by its weak pointer when it has one, else by the character's show interface. No pointer is
+// kept past the call: the Outbox compares addresses as numbers only.
+// The Game: read(address, out, n) as a Game's; uint64_t fsb(manager, guid): FUN_141aace90(manager, guid), 0 when none;
+// uint64_t character(map, const int32_t guid[4]): FUN_14201b1e0(map, guid), 0 when none or pending kill.
+class Capturer {
+public:
+  static constexpr size_t kMaxStages = 1024; // Stages walked a capture; more are cut.
+  static constexpr size_t kPerPair = 2 * Outbox::kLive; // player[0]s a capture keeps for one pair; more are cut.
+  struct Counts {
+    uint64_t captures = 0, entries = 0; // Captures; enemies in their SBE.
+    uint64_t unresolved = 0;            // Pairs left out of a capture: a lookup or a check failed.
+    uint64_t unnamed = 0;               // Show assets whose path did not decode, once each while kept in Paths.
+    uint64_t odd = 0;                   // player[0]s skipped at a capture for a rate or step out of range.
+    uint64_t cut = 0;                   // Stages or player[0]s past kMaxStages or kPerPair.
+    uint64_t waited = 0;                // New player[0]s an Outbox had no line id for yet (Outbox::diff).
+    uint64_t no_context = 0;            // Shows sent without their context (ctx_near refused it).
+    uint64_t shows = 0, sets = 0, stops = 0;
+  };
+  Counts counts;
+
+  // Forgets what each pair was told, so the next capture tells every player[0] again as new (the drawn side dropped
+  // them: a new session or world), and every path (a new world may put another asset at the same address and index).
+  void clear() {
+    for (Pair &p : pairs_)
+      p = Pair();
+    paths_.clear();
+  }
+  // One capture of pairs (n at most kMaxEnemies) at now (µs, the pose clock): the SBE into sbe (kMaxSbe bytes),
+  // stamped gen (the host's generation, its low 16 bits) and now, and its size (0: no pair resolved, nothing to send);
+  // each line to bool emit(const ShowLine &), false when it could not take it (a show it refused is never followed by
+  // a show-set or a show-stop). base: the game's image base.
+  template <class Game, class Emit>
+  size_t capture(Game &g, uint64_t base, uint32_t gen, const Owned *pairs, size_t n, uint64_t now, uint8_t *sbe,
+                 Emit &&emit) {
+    using detail::field;
+    auto read = [&g](uint64_t at, void *out, size_t size) { return g.read(at, out, size); };
+    auto global = [&](uint64_t address, uint64_t &out) {
+      return read(base + (address - nightop::kImageBase), &out, sizeof out);
+    };
+    n = std::min(n, kMaxEnemies);
+    ++counts.captures;
+    for (Pair &p : pairs_) // A pair no longer asked is forgotten: under its GUID again, it is a new pair.
+      if (p.hguid && std::none_of(pairs, pairs + n, [&](const Owned &o) { return o.hguid == p.hguid; }))
+        p = Pair();
+    const uint64_t objects = base + pose::kObjectsRva, pool = base + (kNamePool - nightop::kImageBase);
+    uint64_t world = 0, manager = 0, reg = 0, map = 0, character_class = 0, data_class = 0, shows = 0;
+    if (!global(kWorldAt, world) || !nightop::plausible(world) ||
+        !read(world + kActorManager, &manager, sizeof manager) || !nightop::plausible(manager) ||
+        !global(kRegistryAt, reg) || !nightop::plausible(reg) || !read(reg + kCharacterMap, &map, sizeof map) ||
+        !nightop::plausible(map) || !global(kCharacterClassAt, character_class) ||
+        !nightop::plausible(character_class)) {
+      counts.unresolved += n;
+      return 0;
+    }
+    struct Found {
+      size_t pair = 0; // Into pairs (and e).
+      uint64_t ch = 0;
+      int32_t index = 0, serial = 0;
+      Playing playing[kPerPair];
+      size_t count = 0;
+    } found[kMaxEnemies];
+    Entry e[kMaxEnemies];
+    size_t k = 0;
+    for (size_t i = 0; i < n; ++i) {
+      Found &f = found[k];
+      int32_t fguid[4] = {};
+      uint64_t root = 0;
+      uint8_t speed[kSpeedBytes];
+      float world_transform[12];
+      const uint64_t fsb = g.fsb(manager, pairs[i].local);
+      f = Found();
+      f.pair = i;
+      f.ch = nightop::plausible(fsb) && read(fsb + kFsbGuid, fguid, sizeof fguid) ? g.character(map, fguid) : 0;
+      if (!f.ch || !live(read, objects, f.ch, &f.index, &f.serial) || !is_a(read, f.ch, character_class) ||
+          !read(f.ch + kRootComponent, &root, sizeof root) || !live(read, objects, root) ||
+          !read(root + pose::kWorldTransform, world_transform, sizeof world_transform) ||
+          !read(f.ch + kSpeedFields, speed, sizeof speed)) {
+        ++counts.unresolved;
+        continue;
+      }
+      Entry &x = e[k];
+      x = Entry();
+      x.guid = pairs[i].hguid, x.oe = pairs[i].oe, x.flags = pairs[i].flags;
+      std::copy(world_transform + 4, world_transform + 7, x.loc);
+      float r[3];
+      rotator_of(world_transform, r);
+      for (int a = 0; a < 3; ++a)
+        x.rot[a] = axis_short(r[a]);
+      x.speed = speed_cm(speed_read(speed));
+      if (!entry_ok(x)) { // A location that is not finite, or past the world.
+        ++counts.unresolved;
+        continue;
+      }
+      ++k;
+    }
+    // One walk of the show manager for every pair found. Without a whole one (no manager or class, a count out of
+    // range, a list that does not read) no pair hears anything this capture: a stop then would only be a missed read.
+    int32_t stages = -1;
+    uint64_t list = 0;
+    bool walked = k && global(kShowDataClassAt, data_class) && nightop::plausible(data_class) &&
+                  global(kShowsAt, shows) && nightop::plausible(shows) &&
+                  read(shows + kStageCount, &stages, sizeof stages) && stages >= 0 && stages <= 65536 &&
+                  (!stages || (read(shows + kStageList, &list, sizeof list) && nightop::plausible(list)));
+    const size_t walk = walked ? std::min<size_t>(size_t(stages), kMaxStages) : 0;
+    counts.cut += walked ? size_t(stages) - walk : 0;
+    for (size_t at = 0; walked && at < walk;) {
+      uint64_t chunk[64];
+      const size_t m = std::min<size_t>(64, walk - at);
+      walked = read(list + 8 * at, chunk, 8 * m);
+      at += m;
+      for (size_t s = 0; walked && s < m; ++s) {
+        uint8_t st[kStageBytes];
+        if (!nightop::plausible(chunk[s]) || !read(chunk[s], st, sizeof st))
+          continue;
+        const int32_t weak_index = field<int32_t>(st, kStageMainWeak),
+                      weak_serial = field<int32_t>(st, kStageMainWeak + 4);
+        const uint64_t main = field<uint64_t>(st, kStageMain);
+        Found *f = nullptr;
+        for (size_t j = 0; j < k && !f; ++j)
+          f = (weak_serial ? weak_index == found[j].index && weak_serial == found[j].serial
+                           : main == found[j].ch + kShowInterface)
+                  ? &found[j]
+                  : nullptr;
+        const uint64_t players = field<uint64_t>(st, kStagePlayers);
+        const int32_t count = field<int32_t>(st, kStagePlayerCount);
+        uint64_t player = 0;
+        uint8_t pl[kPlayerBytes];
+        if (!f || count <= 0 || count > 4096 || !nightop::plausible(players) ||
+            !read(players, &player, sizeof player) || !nightop::plausible(player) || !read(player, pl, sizeof pl))
+          continue;
+        uint8_t form = 0;
+        const char *path = nullptr;
+        size_t len = 0;
+        const uint64_t data = field<uint64_t>(pl, kPlayerData);
+        if (!paths_.get(read, objects, pool, data_class, data, form, path, len, counts.unnamed))
+          continue;
+        const float rate = field<float>(pl, kPlayerRate);
+        const int32_t step = field<int32_t>(pl, kPlayerStep);
+        if (!(rate >= 0 && rate <= 1e6f) || step < 0 || uint32_t(step) > kMaxStep) {
+          ++counts.odd;
+          continue;
+        }
+        if (f->count == kPerPair) {
+          ++counts.cut;
+          continue;
+        }
+        f->playing[f->count++] = Playing{chunk[s], player, data,
+                                     uint32_t(std::min<double>(kMaxRate, std::nearbyint(double(rate) * 1000))),
+                                     uint32_t(step), pl[kPlayerFinished] != 0};
+      }
+    }
+    for (size_t j = 0; walked && j < k; ++j) {
+      const Owned &o = pairs[found[j].pair];
+      Pair *p = slot(o.hguid);
+      const float *loc = e[j].loc;
+      if (!p)
+        continue;
+      const auto tell = [&](Outbox::Event ev, uint8_t id, const Playing *pl) {
+        ShowLine l;
+        l.gen = gen, l.guid = o.hguid, l.oe = o.oe, l.id = id, l.t_ms = now / 1000;
+        uint64_t &word = p->told[id >> 6];
+        const uint64_t bit = uint64_t(1) << (id & 63);
+        if (ev == Outbox::kShow) {
+          if (show_line(read, objects, pool, data_class, *pl, loc, l) && emit(l))
+            word |= bit, ++counts.shows;
+          return;
+        }
+        if (!(word & bit)) // Its show never went out: nothing to set or stop.
+          return;
+        l.kind = ev == Outbox::kSet ? Kind::set : Kind::stop;
+        if (pl)
+          l.rate = pl->rate, l.step = pl->step;
+        if (ev == Outbox::kStop)
+          word &= ~bit;
+        if (emit(l))
+          ++(ev == Outbox::kSet ? counts.sets : counts.stops);
+      };
+      counts.waited += p->out.diff(found[j].playing, found[j].count, tell);
+    }
+    if (!k)
+      return 0;
+    counts.entries += k;
+    SbeHeader h;
+    h.gen = uint16_t(gen), h.seq = ++seq_, h.publication = now;
+    return encode_sbe(h, e, k, sbe);
+  }
+
+private:
+  struct Pair {
+    uint32_t hguid = 0; // 0: free.
+    Outbox out;
+    uint64_t told[4] = {}; // The line ids whose show went out, a bit each: only those get a show-set or a show-stop.
+  };
+  Pair *slot(uint32_t hguid) {
+    for (Pair &p : pairs_)
+      if (p.hguid == hguid)
+        return &p;
+    for (Pair &p : pairs_)
+      if (!p.hguid) {
+        p.hguid = hguid;
+        return &p;
+      }
+    return nullptr; // Never: at most kMaxEnemies are asked, and the others were forgotten.
+  }
+  // A new player[0]'s show line into l: its path (form and compact id), rate and step as the Outbox has them, gate,
+  // +0x4d, time (ms) and context, which goes as zeros when ctx_near refuses it against the enemy's location. False when
+  // the player or its path does not read.
+  template <class Read>
+  bool show_line(Read &read, uint64_t objects, uint64_t pool, uint64_t data_class, const Playing &p, const float *loc,
+                 ShowLine &l) {
+    using detail::field;
+    uint8_t pl[kPlayerBytes], form = 0;
+    const char *path = nullptr;
+    size_t len = 0;
+    if (!read(p.player, pl, sizeof pl) ||
+        !paths_.get(read, objects, pool, data_class, p.data, form, path, len, counts.unnamed) ||
+        !set_path(l, form, std::string_view(path, len)))
+      return false;
+    l.kind = Kind::show;
+    l.rate = p.rate, l.step = p.step;
+    l.gate = pl[kPlayerGate] != 0, l.b4d = pl[kPlayer4d];
+    const float time = field<float>(pl, kPlayerTime); // Seconds; NaN and below 0 go as 0.
+    l.time_ms = time > 0 ? uint32_t(std::min<double>(kMaxShowMs, std::nearbyint(double(time) * 1000))) : 0;
+    l.ctx[kHitLevel] = pl[kPlayerHitLevel], l.ctx[kHitLevel60] = pl[kPlayerHitLevel60];
+    l.ctx[kA8] = field<int32_t>(pl, kPlayerA8);
+    const auto floats = [&](int at, size_t offset, int count) { // A float that ctx_put refuses (NaN) goes as 0.
+      for (int c = 0; c < count; ++c)
+        ctx_put(field<float>(pl, offset + 4 * size_t(c)), l.ctx[at + c]);
+    };
+    floats(kDir2d, kPlayerDir2d, 2), floats(kHitDir, kPlayerHitDir, 3), floats(kHitPos, kPlayerHitPos, 3);
+    floats(kLocalPos, kPlayerLocalPos, 3), floats(kNormal, kPlayerNormal, 3), floats(kOtherLoc, kPlayerOtherLoc, 3);
+    floats(kHitRot, kPlayerHitRot, 3);
+    float field9c = 0;
+    if (read(p.stage + kStageField9c, &field9c, sizeof field9c))
+      ctx_put(field9c, l.ctx[kStage9c]);
+    if (!ctx_near(l, loc)) {
+      std::fill(l.ctx, l.ctx + kCtx, 0);
+      ++counts.no_context;
+    }
+    return true;
+  }
+  Pair pairs_[kMaxEnemies];
+  Paths paths_;
+  uint32_t seq_ = 0;
+};
+
+// The probe's line for one SBE message (the worker's: it allocates), or "sbe refused" for bytes decode_sbe refuses.
+inline std::string sbe_text(const uint8_t *data, size_t size) {
+  SbeHeader h;
+  Entry e[kMaxEnemies];
+  size_t n = 0;
+  if (!decode_sbe(data, size, h, e, n))
+    return "sbe refused";
+  char line[160];
+  std::snprintf(line, sizeof line, "sbe gen=%u seq=%u pub=%llu:", unsigned(h.gen), unsigned(h.seq),
+                static_cast<unsigned long long>(h.publication));
+  std::string text = line;
+  for (size_t i = 0; i < n; ++i) {
+    const double yaw = short_axis(e[i].rot[1]);
+    std::snprintf(line, sizeof line, "%s %u oe=%u flags=%u at %.0f,%.0f,%.0f yaw=%.1f speed=%u", i ? ";" : "",
+                  unsigned(e[i].guid), unsigned(e[i].oe), unsigned(e[i].flags), double(e[i].loc[0]),
+                  double(e[i].loc[1]), double(e[i].loc[2]), yaw > 180 ? yaw - 360 : yaw, unsigned(e[i].speed));
+    text += line;
+  }
+  return text;
 }
 
 } // namespace coop::pilot

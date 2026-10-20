@@ -109,6 +109,190 @@ std::string decoded(Pool &m, uint32_t index, uint32_t number = 0, size_t cap = 1
   return std::string(out, len);
 }
 
+// The game as the owner's capture reads it (Capturer), over Pool's FNamePool: UE's object array, the globals the
+// capture reads, enemies (FSBActor, character, root) that the two fake lookups find by GUID, and SB's show manager
+// with its stages and players. Every UObject made here is live in the object array, with a serial of its own.
+constexpr uint64_t kBase = 0x140000000, kObjectsAt = kBase + coop::pose::kObjectsRva, kChunks = 0x40000000,
+                   kChunk0 = 0x40001000;
+struct Scene : Pool {
+  struct Find { // The two lookups as SB's code answers them: 0 for a GUID it does not know.
+    Scene *s;
+    bool read(uint64_t at, void *out, size_t n) { return s->read(at, out, n); }
+    uint64_t fsb(uint64_t manager, uint32_t guid) {
+      ++s->fsb_calls;
+      return manager == s->manager && s->fsbs.count(guid) ? s->fsbs[guid] : 0;
+    }
+    uint64_t character(uint64_t registry, const int32_t *guid) {
+      ++s->character_calls;
+      const auto it = s->characters.find({guid[0], guid[1], guid[2], guid[3]});
+      return registry == s->registry && it != s->characters.end() ? it->second : 0;
+    }
+  };
+  std::map<uint32_t, uint64_t> fsbs;
+  std::map<std::vector<int32_t>, uint64_t> characters;
+  int fsb_calls = 0, character_calls = 0;
+  uint64_t next = 0x50000000, manager = 0, registry = 0, shows = 0, stage_list = 0, data_class = 0, enemy_class = 0;
+  int32_t next_index = 1;
+  uint32_t next_name = 0x800;
+  std::vector<uint64_t> stages;
+
+  uint64_t alloc(size_t size) {
+    const uint64_t at = next;
+    region(at, size);
+    next += (size + 0xfff) & ~uint64_t(0xfff);
+    return at;
+  }
+  // A UObject of class cls, live in the object array.
+  uint64_t object(size_t size, uint64_t cls) {
+    const uint64_t at = alloc(size);
+    const int32_t index = next_index++;
+    put<int32_t>(at + 0xc, index);
+    put<uint64_t>(at + 0x10, cls);
+    put<uint64_t>(kChunk0 + 24 * uint64_t(index), at);
+    put<int32_t>(kChunk0 + 24 * uint64_t(index) + 0x10, index * 7 + 3); // Its serial.
+    return at;
+  }
+  int32_t index(uint64_t object) {
+    int32_t i = 0;
+    assert(read(object + 0xc, &i, sizeof i));
+    return i;
+  }
+  uint64_t item(uint64_t object) { return kChunk0 + 24 * uint64_t(index(object)); }
+  int32_t serial(uint64_t object) {
+    int32_t v = 0;
+    assert(read(item(object) + 0x10, &v, sizeof v));
+    return v;
+  }
+  // A class whose struct base chain holds the given parents' chains (UE 4.26: +0x30 the chain, +0x38 its depth).
+  uint64_t klass(std::vector<uint64_t> parents) {
+    const uint64_t at = alloc(0x40), chain = alloc(8 * (parents.size() + 1));
+    parents.push_back(at);
+    for (size_t k = 0; k < parents.size(); ++k)
+      put<uint64_t>(chain + 8 * k, parents[k] + 0x30);
+    put<uint64_t>(at + 0x30, chain);
+    put<int32_t>(at + 0x38, int32_t(parents.size() - 1));
+    return at;
+  }
+  uint64_t global(uint64_t address, uint64_t value) {
+    region(address, 8);
+    put<uint64_t>(address, value);
+    return value;
+  }
+  uint32_t name(const std::string &text) {
+    const uint32_t at = next_name;
+    next_name += uint32_t(text.size() / 2 + 2);
+    return Pool::name(0, at, std::u16string(text.begin(), text.end()), false);
+  }
+
+  Scene() {
+    region(kObjectsAt, 0x28);
+    put<uint64_t>(kObjectsAt + 0x10, kChunks);
+    put<int32_t>(kObjectsAt + 0x24, 4096);
+    region(kChunks, 8);
+    put<uint64_t>(kChunks, kChunk0);
+    region(kChunk0, 24 * 4096);
+    const uint64_t world = global(kWorldAt, alloc(0x100));
+    manager = 0x5f000000;
+    put<uint64_t>(world + 0xc8, manager);
+    const uint64_t reg = global(kRegistryAt, alloc(0x100));
+    registry = 0x5f100000;
+    put<uint64_t>(reg + 0x48, registry);
+    const uint64_t uobject = klass({}), actor = klass({uobject});
+    const uint64_t character = global(kCharacterClassAt, klass({uobject, actor}));
+    enemy_class = klass({uobject, actor, character}); // A monster's blueprint class.
+    data_class = global(kShowDataClassAt, klass({uobject}));
+    shows = global(kShowsAt, alloc(0x30));
+    stage_list = alloc(8 * 64);
+    put<uint64_t>(shows + 0x18, stage_list);
+  }
+  // An enemy: its FSBActor (its FGuid at +0x4a4), its character and root, at x, y, z facing yaw. The character.
+  uint64_t enemy(uint32_t guid, float x, float y, float z, float yaw) {
+    const uint64_t fsb = alloc(0x500), ch = object(0xd00, enemy_class), root = object(0x220, data_class);
+    const std::vector<int32_t> fguid = {int32_t(guid), 11, 22, 33};
+    for (int k = 0; k < 4; ++k)
+      put<int32_t>(fsb + 0x4a4 + 4 * uint64_t(k), fguid[k]);
+    fsbs[guid] = fsb;
+    characters[fguid] = ch;
+    put<uint64_t>(ch + 0x178, root);
+    const float r[3] = {0, yaw, 0};
+    float q[4];
+    quat_of(r, q);
+    for (int k = 0; k < 4; ++k)
+      put<float>(root + 0x1f0 + 4 * uint64_t(k), q[k]);
+    put<float>(root + 0x200, x), put<float>(root + 0x204, y), put<float>(root + 0x208, z);
+    return ch;
+  }
+  // A Show asset: its package (outer none) named pkg and the USBShowData in it named obj.
+  uint64_t show(const std::string &pkg, const std::string &obj) {
+    const uint64_t package = object(0x30, enemy_class), data = object(0x60, data_class);
+    put<uint32_t>(package + 0x18, name(pkg));
+    put<uint64_t>(package + 0x20, 0);
+    put<uint32_t>(data + 0x18, name(obj));
+    put<uint64_t>(data + 0x20, package);
+    return data;
+  }
+  void list() {
+    for (size_t k = 0; k < stages.size(); ++k)
+      put<uint64_t>(stage_list + 8 * k, stages[k]);
+    put<int32_t>(shows + 0x20, int32_t(stages.size()));
+  }
+  // A stage whose main actor is ch: its weak pointer (index, serial) and its interface, ch + 0x560.
+  uint64_t stage(uint64_t ch, size_t players = 4) {
+    const uint64_t at = alloc(0x140), array = alloc(8 * players);
+    put<int32_t>(at + 0x18, index(ch));
+    put<int32_t>(at + 0x1c, serial(ch));
+    put<uint64_t>(at + 0x20, ch + 0x560);
+    put<uint64_t>(at + 0x88, array);
+    stages.push_back(at);
+    list();
+    return at;
+  }
+  // A player of data added to the stage, at rate and step, its context set from base (each field base + its offset).
+  uint64_t player(uint64_t stage, uint64_t data, float rate = 1, int32_t step = 0, float base = 0) {
+    const uint64_t at = alloc(0xf0);
+    int32_t n = 0;
+    assert(read(stage + 0x90, &n, sizeof n));
+    uint64_t array = 0;
+    assert(read(stage + 0x88, &array, sizeof array));
+    put<uint64_t>(array + 8 * uint64_t(n), at);
+    put<int32_t>(stage + 0x90, n + 1);
+    put<uint64_t>(at + 0x18, data);
+    put<uint64_t>(at + 0x20, stage);
+    put<uint8_t>(at + 0x28, 1);
+    put<float>(at + 0x2c, 0.0334f);
+    put<int32_t>(at + 0x48, step);
+    put<uint8_t>(at + 0x4d, 1);
+    put<uint8_t>(at + 0x4e, 1);
+    put<float>(at + 0x50, rate);
+    put<uint8_t>(at + 0x54, base ? 2 : 0);
+    put<uint8_t>(at + 0x60, base ? 3 : 0);
+    for (size_t off : {0x68, 0x6c, 0x70, 0x74, 0x78, 0x84, 0x88, 0x8c, 0x90, 0x94, 0x98, 0x9c, 0xa0, 0xa4, 0xc0,
+                       0xc4, 0xc8, 0xcc, 0xd0, 0xd4})
+      put<float>(at + off, base ? base + float(off) / 100 : 0);
+    put<int32_t>(at + 0xa8, base ? -7 : 0);
+    return at;
+  }
+};
+
+// One capture of the given pairs at now (µs): the SBE it wrote, decoded, and its lines.
+struct Captured {
+  size_t size = 0;
+  SbeHeader h;
+  Entry e[kMaxEnemies];
+  size_t n = 0;
+  std::vector<ShowLine> lines;
+};
+Captured capture(Capturer &c, Scene &s, const std::vector<Owned> &pairs, uint64_t now, uint32_t gen = 7) {
+  Captured out;
+  uint8_t sbe[kMaxSbe];
+  Scene::Find g{&s};
+  out.size = c.capture(g, kBase, gen, pairs.data(), pairs.size(), now, sbe,
+                       [&](const ShowLine &l) { return out.lines.push_back(l), true; });
+  if (out.size)
+    assert(decode_sbe(sbe, out.size, out.h, out.e, out.n));
+  return out;
+}
+
 ShowLine show_line() {
   ShowLine l;
   l.kind = Kind::show;
@@ -857,6 +1041,210 @@ int main() {
     assert(id("/Game/Art/Show/" + std::string(200, 'a'), std::string(200, 'a')) == "0:" + std::string(200, 'a'));
     assert(id("/Game/Art/Show/" + std::string(201, 'a'), std::string(201, 'a')) == "<refused>");
     assert(id("/Game/Art/Show/" + std::string(190, 'a'), "bb") == "<refused>"); // pkg.obj too long.
+  }
+
+  // ---- The owner's capture: each owned pair found by its GUID through SB's two lookups, its root, flags and anim
+  // speed into SBE; SB's show manager walked for its stages (the main actor's weak pointer first, the interface when
+  // the weak pointer is empty), player[0] of each with its context and its path, decoded once per object ----
+  {
+    Scene s;
+    Capturer c;
+    const uint64_t a = s.enemy(4101, 100, 200, 300, 90), b = s.enemy(4102, -500, 0, 10, -45);
+    const std::vector<Owned> both = {{101, 4101, 3, kBattle}, {102, 4102, 0, kDying}};
+    uint64_t t = 5'000'000;
+    const auto next = [&] { return t += 33'334; };
+    // Standing, no stage yet: one SBE with both, the host's GUIDs and the epochs, flags as the pair table says.
+    Captured r = capture(c, s, both, t);
+    assert(r.size == kHeaderBytes + 2 * kEntryBytes && r.n == 2 && r.h.gen == 7 && r.h.seq == 1 &&
+           r.h.publication == t && r.lines.empty());
+    assert(r.e[0].guid == 101 && r.e[0].oe == 3 && r.e[0].flags == kBattle && r.e[0].loc[0] == 100 &&
+           r.e[0].loc[1] == 200 && r.e[0].loc[2] == 300 && r.e[0].rot[0] == 0 && r.e[0].rot[1] == 16384 &&
+           r.e[0].rot[2] == 0 && r.e[0].speed == 0);
+    assert(r.e[1].guid == 102 && r.e[1].flags == kDying && r.e[1].loc[0] == -500 && r.e[1].rot[1] == axis_short(-45));
+    assert(s.fsb_calls == 2 && s.character_calls == 2 && c.counts.captures == 1 && c.counts.entries == 2);
+    // The probe's line for it (coop-fight.log), and for bytes decode_sbe refuses.
+    uint8_t raw[kMaxSbe];
+    const size_t raw_size = encode_sbe(r.h, r.e, r.n, raw);
+    assert(sbe_text(raw, raw_size) == "sbe gen=7 seq=1 pub=5000000: 101 oe=3 flags=1 at 100,200,300 yaw=90.0 speed=0; "
+                                      "102 oe=0 flags=2 at -500,0,10 yaw=-45.0 speed=0");
+    assert(sbe_text(raw, raw_size - 1) == "sbe refused");
+    // The anim speed in GetSBSpeedForAnimGraph's order: the override, then +0xC74 while +0xC78 > 0, then 0 while
+    // +0xC70 > 0, else +0xC64.
+    s.put<float>(a + 0xc64, 250.4f);
+    assert(capture(c, s, both, next()).e[0].speed == 250);
+    s.put<float>(a + 0xc70, 1);
+    assert(capture(c, s, both, next()).e[0].speed == 0);
+    s.put<float>(a + 0xc74, 99.6f), s.put<float>(a + 0xc78, 0.5f);
+    assert(capture(c, s, both, next()).e[0].speed == 100);
+    s.put<uint8_t>(a + 0xc68, 1), s.put<float>(a + 0xc6c, 600);
+    r = capture(c, s, both, next());
+    assert(r.e[0].speed == 600 && r.h.seq == 5);
+    // No world (a load): nothing read, no SBE.
+    uint64_t world = 0;
+    assert(s.read(kWorldAt, &world, sizeof world));
+    s.put<uint64_t>(kWorldAt, 0);
+    const int calls = s.fsb_calls;
+    assert(capture(c, s, both, next()).size == 0 && s.fsb_calls == calls && c.counts.unresolved == 2);
+    s.put<uint64_t>(kWorldAt, world);
+
+    // Stages: A's with two players (only player[0] is told), A's with an empty weak pointer and A's interface, B's
+    // with a finished player[0] (never told), a stale weak pointer (A's index under an older serial) with A's
+    // interface (not A's: the weak pointer decides), and a stage of an object that is no enemy here.
+    const uint64_t gorilla = s.show("/Game/Art/Show/CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03_ShortMoveLeft",
+                                    "M_GorillaB_S03_ShortMoveLeft");
+    const uint64_t fx = s.show("/Game/Art/FX/Show/Hit/HitReact_LightAtk", "HitReact_LightAtk");
+    const uint64_t s1 = s.stage(a);
+    const uint64_t p1 = s.player(s1, gorilla, 1.25f, 2, 10);
+    s.player(s1, fx);
+    s.put<float>(s1 + 0x9c, 0.25f);
+    const uint64_t s2 = s.stage(a);
+    s.put<int32_t>(s2 + 0x18, -1), s.put<int32_t>(s2 + 0x1c, 0); // Empty: SetMainActor's reset.
+    const uint64_t p2 = s.player(s2, fx, 0.5f);
+    const uint64_t p3 = s.player(s.stage(b), gorilla);
+    s.put<uint8_t>(p3 + 0xe8, 1);
+    const uint64_t s4 = s.stage(a);
+    s.put<int32_t>(s4 + 0x1c, s.serial(a) - 1);
+    s.player(s4, gorilla);
+    s.player(s.stage(s.object(0x600, s.enemy_class)), gorilla);
+    r = capture(c, s, both, t = 6'000'000);
+    assert(r.n == 2 && r.lines.size() == 2 && c.counts.shows == 2);
+    const ShowLine l1 = r.lines[0], l2 = r.lines[1];
+    assert(l1.kind == Kind::show && l1.gen == 7 && l1.guid == 101 && l1.oe == 3 && l1.id == 0 && l1.t_ms == 6000);
+    assert(l1.form == 0 &&
+           std::string(l1.path, l1.path_len) == "CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03_ShortMoveLeft");
+    assert(l1.rate == 1250 && l1.step == 2 && l1.gate == 1 && l1.b4d == 1 && l1.time_ms == 33);
+    // The context: the hit levels as bytes, +0xa8 as it is, each float times 100 (10 + its offset / 100 here).
+    assert(l1.ctx[kHitLevel] == 2 && l1.ctx[kHitLevel60] == 3 && l1.ctx[kA8] == -7 && l1.ctx[kStage9c] == 25);
+    assert(l1.ctx[kDir2d] == 1104 && l1.ctx[kDir2d + 1] == 1108 && l1.ctx[kHitDir + 2] == 1120);
+    assert(l1.ctx[kHitPos] == 1132 && l1.ctx[kLocalPos] == 1144 && l1.ctx[kNormal + 2] == 1164);
+    assert(l1.ctx[kOtherLoc] == 1192 && l1.ctx[kHitRot + 2] == 1212);
+    assert(l2.kind == Kind::show && l2.guid == 101 && l2.id == 1 && l2.form == 1 && l2.rate == 500 &&
+           std::string(l2.path, l2.path_len) == "/Game/Art/FX/Show/Hit/HitReact_LightAtk" &&
+           std::all_of(l2.ctx, l2.ctx + kCtx, [](int32_t v) { return v == 0; }));
+    // Each line passes the drawn side's checks as written.
+    for (const ShowLine &l : r.lines)
+      assert(same(parsed(format(l)), l) && ctx_near(l, r.e[0].loc));
+    // clear() forgets what was told: the same players are told again, under the same ids.
+    c.clear();
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 2 && r.lines[0].id == 0 && r.lines[1].id == 1 && same(r.lines[1], [&] {
+             ShowLine l = l2;
+             l.t_ms = t / 1000;
+             return l;
+           }()));
+
+    // Nothing changed: nothing said. A rate change: show-set; a step change too; player[0] finished: show-stop;
+    // B's player[0] no longer finished: told now.
+    assert(capture(c, s, both, next()).lines.empty());
+    s.put<float>(p1 + 0x50, 2.0f);
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 1 && r.lines[0].kind == Kind::set && r.lines[0].id == 0 && r.lines[0].rate == 2000 &&
+           r.lines[0].step == 2 && r.lines[0].t_ms == t / 1000 && same(parsed(format(r.lines[0])), r.lines[0]));
+    s.put<int32_t>(p1 + 0x48, 3);
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 1 && r.lines[0].kind == Kind::set && r.lines[0].step == 3);
+    s.put<uint8_t>(p2 + 0xe8, 1);
+    s.put<uint8_t>(p3 + 0xe8, 0);
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 2 && r.lines[0].kind == Kind::stop && r.lines[0].id == 1 && r.lines[0].guid == 101);
+    assert(r.lines[1].kind == Kind::show && r.lines[1].guid == 102 && r.lines[1].id == 0 && r.lines[1].oe == 0);
+    // A's first stage gone from the manager: show-stop. No show manager (null): nothing said, nothing stopped.
+    s.stages.erase(s.stages.begin());
+    s.list();
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 1 && r.lines[0].kind == Kind::stop && r.lines[0].id == 0 && c.counts.stops == 2);
+    s.put<uint64_t>(kShowsAt, 0);
+    r = capture(c, s, both, next());
+    assert(r.n == 2 && r.lines.empty());
+    s.put<uint64_t>(kShowsAt, s.shows);
+    assert(capture(c, s, both, next()).lines.empty());
+
+    // The path, decoded once per object: a new player of the same asset reads it from the cache even after its
+    // names went bad in the pool; the same address under another serial (a new object there) is decoded again and
+    // refused, once: its players are never told, and the two told before are stopped.
+    const auto spoil = [&](uint64_t object) {
+      uint32_t i = 0;
+      assert(s.read(object + 0x18, &i, sizeof i));
+      s.put<uint16_t>(kBlock0 + 2 * uint64_t(i & 0xffff), 0);
+    };
+    uint64_t package = 0;
+    assert(s.read(gorilla + 0x20, &package, sizeof package));
+    spoil(gorilla), spoil(package);
+    s.player(s.stage(a), gorilla);
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 1 && r.lines[0].kind == Kind::show && r.lines[0].guid == 101 && r.lines[0].id == 2 &&
+           r.lines[0].form == 0 && c.counts.unnamed == 0);
+    // clear() forgets the paths too (a new world may put another asset at the same address and index).
+    Capturer fresh = c;
+    fresh.clear();
+    assert(capture(fresh, s, both, next()).lines.empty() && fresh.counts.unnamed == c.counts.unnamed + 1);
+    s.put<int32_t>(s.item(gorilla) + 0x10, 12345);
+    s.player(s.stage(b), gorilla);
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 2 && r.lines[0].kind == Kind::stop && r.lines[0].guid == 101 && r.lines[0].id == 2);
+    assert(r.lines[1].kind == Kind::stop && r.lines[1].guid == 102 && r.lines[1].id == 0 && c.counts.unnamed == 1);
+    assert(capture(c, s, both, next()).lines.empty() && c.counts.unnamed == 1);
+
+    // Odd values: a NaN rate and a negative step are skipped, at each capture (counted), never told.
+    const uint64_t p7 = s.player(s.stage(b), fx, NAN);
+    s.player(s.stage(b), fx, 1, -1);
+    r = capture(c, s, both, next());
+    assert(r.lines.empty() && c.counts.odd == 2);
+    // A hit position more than 1 km from the enemy: the show goes without its context.
+    s.put<float>(p7 + 0x50, 1);
+    s.put<float>(p7 + 0x84, 200'000);
+    s.put<float>(p7 + 0x68, 5);
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 1 && r.lines[0].guid == 102 && r.lines[0].id == 1 && r.lines[0].ctx[kDir2d] == 0 &&
+           c.counts.no_context == 1 && c.counts.odd == 3);
+    // A pair no longer asked is forgotten: asked again, its players are told as new, from id 0.
+    assert(capture(c, s, {both[0]}, next()).lines.empty());
+    r = capture(c, s, both, next());
+    assert(r.lines.size() == 1 && r.lines[0].kind == Kind::show && r.lines[0].guid == 102 && r.lines[0].id == 0);
+
+    // B pending kill (SB's lookup would say null; ours refuses it too): left out of the SBE, its lines untouched.
+    const uint64_t flags_at = s.item(b) + 8, unresolved = c.counts.unresolved;
+    s.put<int32_t>(flags_at, coop::pose::kPendingKill);
+    r = capture(c, s, both, next());
+    assert(r.n == 1 && r.e[0].guid == 101 && r.lines.empty() && c.counts.unresolved == unresolved + 1);
+    s.put<int32_t>(flags_at, 0);
+    // The lookups failing: no FSBActor for B's GUID, then no character for its FGuid.
+    const uint64_t fsb_b = s.fsbs.at(4102);
+    s.fsbs.erase(4102);
+    r = capture(c, s, both, next());
+    assert(r.n == 1 && r.e[0].guid == 101 && r.lines.empty());
+    s.fsbs[4102] = fsb_b;
+    s.characters.erase({4102, 11, 22, 33});
+    r = capture(c, s, both, next());
+    assert(r.n == 1 && r.e[0].guid == 101 && r.lines.empty() && c.counts.unresolved == unresolved + 3);
+    s.characters[{4102, 11, 22, 33}] = b;
+    // A character of a class outside ASBCharacter's chain, or with a root that does not read, is no enemy.
+    s.put<uint64_t>(a + 0x10, s.data_class);
+    r = capture(c, s, both, next());
+    assert(r.n == 1 && r.e[0].guid == 102);
+    s.put<uint64_t>(a + 0x10, s.enemy_class);
+    uint64_t root = 0;
+    assert(s.read(a + 0x178, &root, sizeof root));
+    s.put<uint64_t>(a + 0x178, 0x7f0000000000);
+    r = capture(c, s, both, next());
+    assert(r.n == 1 && r.e[0].guid == 102 && c.counts.unresolved == unresolved + 5);
+    s.put<uint64_t>(a + 0x178, root);
+    r = capture(c, s, both, next());
+    assert(r.n == 2 && r.lines.empty()); // Back, with nothing changed on either.
+
+    // A show the glue had no room for (emit false) counts as never told: no show-set or show-stop follows it.
+    Capturer d;
+    uint8_t sbe[kMaxSbe];
+    Scene::Find g{&s};
+    std::vector<ShowLine> kept;
+    bool room = false;
+    const auto take = [&](const ShowLine &l) { return room && (kept.push_back(l), true); };
+    assert(d.capture(g, kBase, 7, both.data(), 2, next(), sbe, take) && kept.empty() && d.counts.shows == 0);
+    room = true;
+    s.put<float>(p7 + 0x50, 3);
+    assert(d.capture(g, kBase, 7, both.data(), 2, next(), sbe, take) && kept.empty() && d.counts.sets == 0);
+    s.put<uint8_t>(p7 + 0xe8, 1);
+    assert(d.capture(g, kBase, 7, both.data(), 2, next(), sbe, take) && kept.empty() && d.counts.stops == 0);
   }
 
   // ---- Two worlds: the host pilots the guest's copies through a fake Steam (exit criterion 1 of stage 3a) ----
