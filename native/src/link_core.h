@@ -72,9 +72,10 @@ constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 // Her photo lines a second: Lua writes ours at most 4 times, and each change of hers can pause or resume our game.
 constexpr uint64_t kPhotoPerSecond = 8;
 // Chat (UI-DESIGN 5.1): our lines a second (Lua paces two), hers kept a second, and the lines waiting for Lua (hers and
-// our failures). Vitals: ours go at most once each kVitalsEveryMs (10 a second), and again after kVitalsAgainMs
-// unchanged; hers show this long after her last.
-constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 100, kVitalsAgainMs = 1000,
+// our failures). Vitals: ours go at most once each kVitalsEveryMs, and again after kVitalsAgainMs unchanged; hers show
+// this long after her last. 90, under the 100 ms between reads: a read is timed on its own clock reading, so the link's
+// can see two reads up to a clock tick (15.6 ms on Windows) closer, and a change would wait a whole read more.
+constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90, kVitalsAgainMs = 1000,
                    kMateMs = 3000;
 constexpr size_t kChatInbox = 16;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.

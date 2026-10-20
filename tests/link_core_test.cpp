@@ -2031,13 +2031,13 @@ int main() {
     hit[vital::hp] = 1200;
     w.link.vitals(hit);
     assert(sent_to(kFriend, vit_line(hit)) == 1);
-    Vitals healed = hit; // Changed again within 100 ms: it waits, so at most 10 lines a second go.
+    Vitals healed = hit; // Changed again within 90 ms: it waits, so at most about 11 lines a second go.
     healed[vital::hp] = 1300;
     w.link.vitals(healed);
     w.tick();
     w.link.vitals(healed);
     assert(sent_to(kFriend, vit_line(healed)) == 0 && sent_to(kFriend, vit) == 2);
-    w.tick();
+    w.tick("", 0, 0, 44); // The next read, 100 ms later on its clock, which the link's saw 6 ms short: it goes.
     w.link.vitals(healed);
     assert(sent_to(kFriend, vit_line(healed)) == 1);
     w.tick("", 0, 0, 1000);
