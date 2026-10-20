@@ -847,7 +847,9 @@ constexpr uint32_t kPoolBlockCount = 8192, kBlockBytes = 0x20000;
 // Blocks[index >> 16] + (index & 0xffff) * 2, a u16 header (length hdr >> 6, wide hdr & 1), then its characters. A
 // number n > 0 appends "_" + (n - 1). False, len 0, on an unreadable read, a block past the pool's or its current one,
 // a null block, an entry that runs past its block, an empty name, a character outside ASCII 1 to 127 (it could never
-// pass path_ok), or an out too small. read as a Game's (safe_read). No engine call, no allocation.
+// pass path_ok), or an out too small. read as a Game's: on the game thread the capture's plain read under the pilot
+// latch, not safe_read (design 3.4 step 8 asks for it, but ReadProcessMemory costs a wineserver round trip a read and
+// these reads stay inside a block at or below CurrentBlock, never freed). No engine call, no allocation.
 template <class Read>
 bool fname(Read &&read, uint64_t pool, uint32_t index, uint32_t number, char *out, size_t cap, size_t &len) {
   len = 0;
@@ -997,9 +999,11 @@ inline float speed_read(const uint8_t *b) {
   return field<float>(b, 0xc) > 0 ? 0 : field<float>(b, 0);
 }
 
-// The compact id of each USBShowData seen, decoded once per object (its address, index and serial: another object at
-// the same address and index has another serial, unless no weak pointer was ever made to either) and kept as decoded,
-// or refused. Game thread; fixed memory, the oldest slot given up first.
+// The compact id of each USBShowData seen, decoded once per object and kept as decoded, or refused. An object is its
+// address, index and serial (another object at the same address and index has another serial, unless no weak pointer
+// was ever made to either), its FName and its package's: GC can free an asset and its package and load others at the
+// same addresses and index, and the two names are what the path is made of. Game thread; fixed memory, the oldest slot
+// given up first.
 class Paths {
 public:
   static constexpr size_t kSlots = 64;
@@ -1011,13 +1015,19 @@ public:
     int32_t index = 0, serial = 0;
     if (!live(read, objects, obj, &index, &serial))
       return false;
+    // obj's FName and outer, then a live outer's FName: 0 when unread, which decode refuses.
+    uint64_t own[2] = {}, outer_name = 0;
+    if (read(obj + kObjectName, own, sizeof own) && live(read, objects, own[1]))
+      read(own[1] + kObjectName, &outer_name, sizeof outer_name);
     Slot *s = nullptr;
     for (Slot &each : slots_)
-      s = !s && each.used && each.obj == obj && each.index == index && each.serial == serial ? &each : s;
+      if (!s && each.used && each.obj == obj && each.index == index && each.serial == serial && each.name == own[0] &&
+          each.outer_name == outer_name)
+        s = &each;
     if (!s) {
       s = &slots_[next_];
       next_ = (next_ + 1) % kSlots;
-      *s = Slot{true, obj, index, serial};
+      *s = Slot{true, obj, index, serial, own[0], outer_name};
       s->ok = decode(read, objects, pool, data_class, obj, *s);
       refused += !s->ok;
     }
@@ -1031,6 +1041,7 @@ private:
     bool used = false;
     uint64_t obj = 0;
     int32_t index = 0, serial = 0;
+    uint64_t name = 0, outer_name = 0;
     bool ok = false;
     uint8_t form = 0, len = 0;
     char path[kMaxPath + 1] = {};

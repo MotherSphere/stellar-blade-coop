@@ -1246,6 +1246,31 @@ int main() {
     s.put<uint8_t>(p7 + 0xe8, 1);
     assert(d.capture(g, kBase, 7, both.data(), 2, next(), sbe, take) && kept.empty() && d.counts.stops == 0);
   }
+  // The path cache knows an asset by its name and its package's too: GC freed one and loaded another at the same
+  // address and index, no weak pointer ever made to either (serial 0), under another name, then in another package.
+  {
+    Scene s;
+    Capturer c;
+    const uint64_t a = s.enemy(4101, 0, 0, 0, 0);
+    const std::vector<Owned> one = {{101, 4101, 0, 0}};
+    const uint64_t data = s.show("/Game/Art/Show/CH_A/Skill/S01", "S01");
+    uint64_t package = 0;
+    assert(s.read(data + 0x20, &package, sizeof package));
+    s.put<int32_t>(s.item(data) + 0x10, 0), s.put<int32_t>(s.item(package) + 0x10, 0);
+    uint64_t t = 1'000'000;
+    const auto told = [&](const char *path) {
+      s.player(s.stage(a), data);
+      const Captured r = capture(c, s, one, t += 33'334);
+      return r.lines.size() == 1 && r.lines[0].kind == Kind::show &&
+             std::string(r.lines[0].path, r.lines[0].path_len) == path;
+    };
+    assert(told("CH_A/Skill/S01"));
+    s.put<uint32_t>(data + 0x18, s.name("S02"));
+    s.put<uint32_t>(package + 0x18, s.name("/Game/Art/Show/CH_A/Skill/S02"));
+    assert(told("CH_A/Skill/S02"));
+    s.put<uint32_t>(package + 0x18, s.name("/Game/Art/Show/CH_B/Skill/S02"));
+    assert(told("CH_B/Skill/S02") && c.counts.unnamed == 0);
+  }
 
   // ---- Two worlds: the host pilots the guest's copies through a fake Steam (exit criterion 1 of stage 3a) ----
   // Channel 1 (unreliable, 2 % of 1200-byte segments lost) carries the host's SBE at 30 Hz and, at 60 Hz, a small

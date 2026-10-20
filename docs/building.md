@@ -113,8 +113,9 @@ build/host/pose_codec_test
     owner's capture against fake memory (each enemy found through the game's two lookups by GUID, its root, flags and
     animation speed into SBE; the show manager's stages matched by their main actor's weak pointer, a stale one refused,
     an empty one matched by the actor's show interface; only the first player of a stage, a finished one never told;
-    show-set and show-stop; each asset's path decoded once; a character pending kill, a failed lookup, a wrong class, no
-    world or no show manager), and two worlds through a delayed, lossy line (120 ms, plus or minus 30, 2 % lost), where
+    show-set and show-stop; each asset's path decoded once, and again when another asset takes its address and index
+    under another name or package; a character pending kill, a failed lookup, a wrong class, no world or no show
+    manager), and two worlds through a delayed, lossy line (120 ms, plus or minus 30, 2 % lost), where
     the guest's copies stay within 30 cm of the host's enemies at the same host time while they move (an 8 m/s lunge to
     a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and restore puts every copy back
     to local, with its CMC back in SB's movement manager and the speed override gone;
