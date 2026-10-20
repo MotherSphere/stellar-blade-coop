@@ -16,6 +16,7 @@
 -- menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local T=require('ui_text')
+local clean=require('chat').clean
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, changed by the co-op menu one line at a
 -- time (write_settings), never shipped (an update would replace it). F-key codes do not depend on the keyboard layout,
@@ -399,7 +400,8 @@ function Link.new(folder,fs)
     -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits)}; a field unread is nil.
     function self.saves() return saves end
     -- The status key's line, in words (ui_text.lua's T.en or T.fr; English when not given). Her name is an argument
-    -- to the words' formats, never one itself.
+    -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer
+    -- may hold a line separator or a bidi override in it.
     function self.summary(words)
         local w=(words or T.en).summary
         if dead then return w.stopped end
@@ -408,12 +410,14 @@ function Link.new(folder,fs)
         if rejoin then return w.rejoin:format(rejoin) end
         if mode=='none' then return w.none end
         local name,linked,lost=self.friend()
+        local who=name and clean(name)
+        if who=='' then who=w.friend end
         local text
         if not name and mode=='host' then text=w.alone
-        elseif not linked then text=w.connecting:format(name or w.friend)
-        elseif mode=='host' then text=w.hosting:format(name)
-        else text=w.guest:format(name) end
-        if linked and photo and photo.frozen and photo.peer=='1' then text=text..w.paused:format(name) end
+        elseif not linked then text=w.connecting:format(who or w.friend)
+        elseif mode=='host' then text=w.hosting:format(who)
+        else text=w.guest:format(who) end
+        if linked and photo and photo.frozen and photo.peer=='1' then text=text..w.paused:format(who) end
         return lost and text..w.lost or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.

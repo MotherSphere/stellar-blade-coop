@@ -467,6 +467,11 @@ assert(french(HEAD..'friend=1 0 Kaanta\n'..PHOTO)=='Co-op : vous hébergez Kaant
 assert(french(GUEST..'friend=1 1 Kaanta\n')=='Co-op : dans la partie de Kaanta. Connexion perdue.')
 assert(fresh.summary(Words.en)==fresh.summary() and fresh.summary()=="Co-op: in Kaanta's game. Connection lost.")
 assert(summary(HEAD..'friend=0 0 K%s%d\n')=='Co-op: K%s%d is connecting.')
+-- A stranger's name (a join code, the host's answer pending) cleaned as a chat line: no line separator, bidi override
+-- or zero-width character reaches the status line; nothing left reads as your friend.
+assert(summary(HEAD..'friend=0 0 x\u{2028}Co-op: hosting Kaanta.\n')=='Co-op: xCo-op: hosting Kaanta. is connecting.')
+assert(summary(HEAD..'friend=1 0 \u{202E}atnaaK\u{200B}\n')=='Co-op: hosting atnaaK.')
+assert(summary(GUEST..'friend=1 0 \u{2066} \n')=="Co-op: in your friend's game.")
 for _,group in ipairs({'summary','refused','ghost','fight'}) do -- Both languages complete.
     for k in pairs(Words.en[group]) do assert(Words.fr[group][k],group..'.'..k) end
     for k in pairs(Words.fr[group]) do assert(Words.en[group][k],group..'.'..k) end
