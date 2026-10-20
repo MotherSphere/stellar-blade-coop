@@ -1737,20 +1737,28 @@ private:
     p->lines.drop(l.id);
   }
   // A show's hit context into the player AddShow just made, as SB's skill path writes some of these fields after its
-  // own AddShow: that stage is the show manager's newest (FUN_142284a30 appends it) and holds our handle. Left out when
-  // all zero, when R33's 1 km rule refuses it against the copy, or when the stage or player does not read.
+  // own AddShow: FUN_142284a30 appended that stage to the show manager's list and stamped it with our handle, so it is
+  // among the newest kNewest (a child stage AddShow made may follow it). Left out when all zero, when R33's 1 km rule
+  // refuses it against the copy, or when the stage or player does not read.
+  static constexpr int32_t kNewest = 8;
   template <class Game, class Read>
   void context(Game &g, Read &read, const Globals &s, const Pair &p, const Live &live, const ShowLine &l) {
     if (std::all_of(l.ctx, l.ctx + kCtx, [](int32_t v) { return v == 0; }))
       return;
     int32_t stages = 0, players_n = 0;
     uint64_t list = 0, stage = 0, players = 0, player = 0;
-    uint8_t h[16];
-    if (!ctx_near(l, p.loc) || !read(s.shows + kStageCount, &stages, sizeof stages) || stages <= 0 ||
-        stages > 65536 || !read(s.shows + kStageList, &list, sizeof list) || !nightop::plausible(list) ||
-        !read(list + 8 * uint64_t(stages - 1), &stage, sizeof stage) || !nightop::plausible(stage) ||
-        !read(stage + kStageHandle, h, sizeof h) || std::memcmp(h, live.handle, sizeof h) ||
-        !read(stage + kStagePlayers, &players, sizeof players) || !nightop::plausible(players) ||
+    const auto mine = [&](int32_t k) { // Stage k of the list, into stage: ours?
+      uint8_t h[16];
+      return read(list + 8 * uint64_t(k), &stage, sizeof stage) && nightop::plausible(stage) &&
+             read(stage + kStageHandle, h, sizeof h) && !std::memcmp(h, live.handle, sizeof h);
+    };
+    const bool listed = ctx_near(l, p.loc) && read(s.shows + kStageCount, &stages, sizeof stages) && stages > 0 &&
+                        stages <= 65536 && read(s.shows + kStageList, &list, sizeof list) && nightop::plausible(list);
+    const int32_t last = std::max(0, stages - kNewest);
+    int32_t k = stages - 1;
+    while (listed && k >= last && !mine(k))
+      --k;
+    if (!listed || k < last || !read(stage + kStagePlayers, &players, sizeof players) || !nightop::plausible(players) ||
         !read(stage + kStagePlayerCount, &players_n, sizeof players_n) || live.slot >= players_n ||
         !read(players + 8 * uint64_t(live.slot), &player, sizeof player) || !nightop::plausible(player)) {
       ++counts.no_context;

@@ -333,7 +333,7 @@ struct Stage : Scene {
   size_t writes = 0;
   uint64_t root_vtable = 0, main_guid = 0;
   int32_t next_handle = 0;
-  bool mover = false, no_handle = false;
+  bool mover = false, no_handle = false, child = false; // child: AddShow also makes a child stage after ours.
   std::map<int32_t, uint64_t> by_handle; // A handle's first word: its stage.
 
   Stage() {
@@ -428,6 +428,12 @@ struct Stage : Scene {
         return t->calls.push_back("add -1"), -1;
       const uint64_t stage = t->by_handle.at(first(h));
       t->player(stage, 0, rate);
+      if (t->child) {
+        const uint64_t other = t->alloc(0x140);
+        t->put<uint64_t>(other + 0x88, t->alloc(8));
+        t->stages.push_back(other);
+        t->list();
+      }
       char line[300];
       std::snprintf(line, sizeof line, "add %d %s %u %.3f %u %u", first(h), p.c_str(), unsigned(form), double(rate),
                     unsigned(gate), unsigned(b4d));
@@ -1575,6 +1581,7 @@ int main() {
     l.ctx[kHitLevel] = 2, l.ctx[kHitLevel60] = 3, l.ctx[kDir2d] = 50, l.ctx[kHitPos] = 10050, l.ctx[kHitPos + 1] = 20025;
     l.ctx[kA8] = -7, l.ctx[kOtherLoc] = 9000, l.ctx[kHitRot + 1] = 9000, l.ctx[kStage9c] = 250;
     d.line(l, 1040);
+    s.child = true;                                              // A child stage after ours: ours is still found.
     d.line(show(6, 1050, "x", 1), 1040);                        // Another epoch.
     d.line(show(6, 1050, "x", 0, 8), 1040);                     // Another generation.
     d.line(show(6, 1050, "x"), std::numeric_limits<double>::quiet_NaN()); // No clock: never played.
@@ -1593,6 +1600,7 @@ int main() {
            near(s.get<float>(player + 0x88), 200.25, 1e-4) && s.get<int32_t>(player + 0xa8) == -7 &&
            near(s.get<float>(player + 0xc0), 90, 1e-4) && near(s.get<float>(player + 0xd0), 90, 1e-4) &&
            near(s.get<float>(stage + 0x9c), 2.5, 1e-6));
+    s.child = false;
     ShowLine set = l;
     set.kind = Kind::set, set.rate = 2000, set.step = 3, set.t_ms = 1060;
     d.line(set, 1052);
