@@ -1877,17 +1877,21 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
     return;
   pilot_next_line = now_ms + 1000;
   using u = unsigned long long;
-  const uint64_t ms = std::max<uint64_t>(1, now_ms - pilot_line_ms), bytes = pilot_bytes_in + pilot_bytes_out;
+  // The rate since the last line, or "-" for the first line after a gap (the first one, or piloting again): never an
+  // average over the gap.
+  const uint64_t ms = now_ms - pilot_line_ms, bytes = pilot_bytes_in + pilot_bytes_out;
+  char rate[24] = "-";
+  if (ms && ms <= 2000)
+    std::snprintf(rate, sizeof rate, "%llu", u((bytes - pilot_bytes_said) * 1000 / ms));
   pilot_line_ms = now_ms;
   char tail[480];
   std::snprintf(tail, sizeof tail,
                 "; %llu captures (mean %llu us, max %llu us), %llu enemies sent, %llu not found, %llu Show assets "
                 "unnamed, %llu players odd, %llu cut, %llu waiting for an id, %llu without context; %llu shows, %llu "
-                "show-set, %llu show-stop, %llu lost, %llu unsent; %llu B in and out, %llu B/s",
+                "show-set, %llu show-stop, %llu lost, %llu unsent; %llu B in and out, %s B/s",
                 u(counts.captures), u(runs ? us / runs : 0), u(max_us), u(counts.entries), u(counts.unresolved),
                 u(counts.unnamed), u(counts.odd), u(counts.cut), u(counts.waited), u(counts.no_context),
-                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent), u(bytes),
-                u((bytes - pilot_bytes_said) * 1000 / ms));
+                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent), u(bytes), rate);
   pilot_bytes_said = bytes;
   if (!probe)
     trace_fight("pilot stats: " + pilot_status() + tail);
@@ -1924,7 +1928,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
 std::string ask_fight(const coop::Request &request, int marker) {
   if (request.fight == Fight::pilot)
     return ask_pilot(request);
-  if (request.fight == Fight::on)
+  if (request.fight == Fight::on && fight_worker.mode() == Fight::none) // A refused on leaves a running test as it is.
     pilot_test = uint8_t(PilotTest::replay);
   FightIo io;
   return fight_worker.ask(request, [marker] { return fight_gate(marker); }, io);
