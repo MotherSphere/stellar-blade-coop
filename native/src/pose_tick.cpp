@@ -772,7 +772,9 @@ fight::Ring<SbeIn, kSbeIn> pilot_sbe_in, pilot_sbe_here;
 fight::Ring<pilot::ShowLine, kPilotLines> pilot_lines_in, pilot_lines_here;
 pilot::Driver driver;               // The game thread's, with the engine frame it last drove in.
 uint64_t drive_frame = UINT64_MAX;
-pilot::Driver::Counts drive_counts; // Under pilot_m, as are the two below.
+pilot::Driver::Counts drive_counts; // Under pilot_m, as are the three below.
+fight::Event pilot_events[pilot::Driver::kEvents]; // The Driver's event lines, for the worker's log.
+size_t pilot_events_n = 0;
 uint64_t drive_add_max_us = 0;
 std::atomic<bool> drift_reset{false}; // The worker's ask: the drift probe's maxima start again.
 
@@ -924,6 +926,9 @@ __declspec(noinline) void pilot_body() {
   pilot_max_us = pilot_max_us_here;
   pilot_sbe_in.move_to(pilot_sbe_here);
   pilot_lines_in.move_to(pilot_lines_here);
+  driver.events([](const fight::Event &e) {
+    return pilot_events_n < pilot::Driver::kEvents && (pilot_events[pilot_events_n++] = e, true);
+  });
   drive_counts = driver.counts, drive_add_max_us = pilot_add_max_us;
   pilot_m.unlock();
 }
@@ -1839,6 +1844,8 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
     }
   pilot::Capturer::Counts counts;
   pilot::Driver::Counts drive;
+  fight::Event events[pilot::Driver::kEvents];
+  size_t events_n = 0;
   uint64_t lost = 0, runs = 0, us = 0, max_us = 0, add_us = 0;
   {
     std::lock_guard<std::mutex> lock(pilot_m);
@@ -1848,7 +1855,11 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
     sbe_peer = pilot_sbe_peer;
     counts = pilot_counts, lost = pilot_lost, runs = pilot_runs, us = pilot_us, max_us = pilot_max_us;
     drive = drive_counts, add_us = drive_add_max_us;
+    std::copy(pilot_events, pilot_events + pilot_events_n, events);
+    std::swap(events_n, pilot_events_n);
   }
+  for (size_t i = 0; i < events_n; ++i) // One line each: a copy released, converged or snapped.
+    say("pilot " + fight::line(events[i]));
   const auto record = [](const uint8_t *data, size_t size) {
     if (recorder && !recorder->add(data, size))
       say(stop_record("full", clock_us()));
@@ -1914,12 +1925,13 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
                 "drift up to %.1f cm/s and %.1f deg/s; SBE entries %llu taken, %llu refused; show lines %llu queued, "
                 "%llu refused, %llu unreadable, %llu over the queue; %llu Shows replayed (%llu late, %llu missing, %llu "
                 "without a stage, %llu without context; AddShow up to %llu us), %llu deduped, %llu show-set, %llu "
-                "show-stop, %llu naming no replay, %llu for a copy not driven",
+                "show-stop, %llu naming no replay, %llu for a copy not driven; %llu event lines lost",
                 u(drive.frames), u(drive.unresolved), u(drive.cmc_out), u(drive.cmc_reenabled), u(drive.cmc_refused),
                 u(drive.released), u(drive.converged), u(drive.snaps), drive.drift_cm, drive.drift_deg, u(drive.sbe),
                 u(drive.sbe_refused), u(drive.lines), u(drive.lines_refused), u(pilot_in_bad), u(pilot_in_lost),
                 u(drive.shows), u(drive.late), u(drive.missing), u(drive.no_handle), u(drive.no_context), u(add_us),
-                u(drive.deduped), u(drive.sets), u(drive.stops), u(drive.unknown), u(drive.not_drawn));
+                u(drive.deduped), u(drive.sets), u(drive.stops), u(drive.unknown), u(drive.not_drawn),
+                u(drive.events_lost));
   trace_fight(line);
   drift_reset = true; // The drift maxima are the last second's from here.
 }

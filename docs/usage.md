@@ -582,8 +582,11 @@ that ends. [how-it-works.md](how-it-works.md#same-place-enemies) has the details
 - While it runs, `coop-fight.log` gets a `pilot stats:` line each second (the `pilot=` line, the host's reads of its
   enemies and their cost, the show lines sent, and the bytes both ways with the rate a second, `-` on the first line
   after a pause) and a `pilot drawn:` line when the guest's side changed (copies moved, movement components taken out,
-  releases, snaps, drift, Shows replayed, late or missing). `coop fight pilot probe` adds each `SBE` message and show
-  line sent and received, until `coop fight pilot off`. The `SBE` messages take about 13 KB/s with 16 enemies.
+  releases, snaps, drift, Shows replayed, late or missing, and those not replayed because the copy already plays them).
+  `coop fight pilot probe` adds each `SBE` message and show line sent and received, until `coop fight pilot off`. The
+  `SBE` messages take about 13 KB/s with 16 enemies.
+- The guest's `coop-link.log` gets a line for each copy released (`pilot released hguid=<n>`), back on the host's
+  stream (`pilot converged hguid=<n>`) or moved in one jump (`pilot snapped hguid=<n>`).
 - After an error in the game's own code, copies the mod already moved can keep their movement component out of the
   manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
   so.

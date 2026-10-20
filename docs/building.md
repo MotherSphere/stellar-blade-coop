@@ -129,7 +129,7 @@ build/host/pose_codec_test
     (each field at its offset), only on a copy driven that frame, show-set and show-stop (also while the copy is not
     found), a missing asset, a context too far away, the oldest replay giving way when eight are held; a Show the copy
     started itself less than 1 s before not replayed again, unlike another enemy's, an older one, a finished one or
-    one of its own replays; a release;
+    one of its own replays; a release; a log line per release, convergence and snap;
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
     change and driven only from the next frame), and two worlds through a delayed, lossy line (120 ms, plus or minus

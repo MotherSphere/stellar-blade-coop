@@ -1813,6 +1813,44 @@ int main() {
     assert(s.since(seen) == "write1 write4 move write12 handle 4 main 4 add 4 CH_M/Hit/M_Hit_F 0 1.000 0 0");
     assert(d.counts.deduped == 1 && d.counts.shows == 4);
   }
+  // The log's event lines: one per copy released, converged onto the stream again or snapped (a convergence that
+  // starts more than 2 m away, here after a warp), kept until taken.
+  {
+    Stage s;
+    s.copy(501, 100, 200, 20);
+    Stage::Game g = s.game();
+    Driver d;
+    Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    std::string said;
+    const auto take = [&](const coop::fight::Event &ev) { return said += coop::fight::line(ev) + "; ", true; };
+    d.draw(g, kBase, 5000, 1000); // Converging from where it stands...
+    d.events(take);
+    assert(said.empty());
+    d.draw(g, kBase, 5300, 1000); // ... and on the stream 300 ms later.
+    d.events(take);
+    assert(said == "converged hguid=4100; ");
+    said.clear();
+    row.release = true;
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.draw(g, kBase, 5316, 1000);
+    h.seq = 2, h.publication = 1'050'000, e = entry(4100, 900, 200, 20); // 8 m in 50 ms: a warp.
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    row.release = false;
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.draw(g, kBase, 5600, 1060); // Calm for 284 ms: back onto the stream, 8 m from where the game left it.
+    d.events([&](const coop::fight::Event &ev) { return said += coop::fight::line(ev) + "; ", false; });
+    assert(said == "released hguid=4100; snapped hguid=4100; " && d.counts.events_lost == 2);
+    assert(d.counts.released == 1 && d.counts.converged == 1 && d.counts.snaps == 1);
+    said.clear();
+    d.events(take);
+    assert(said.empty());
+  }
   // A pair forgotten takes its queued lines with it: drawn again later, nothing of its old life plays. With nothing
   // held, a frame reads nothing of the game.
   {

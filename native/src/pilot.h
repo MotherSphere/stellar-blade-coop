@@ -1419,6 +1419,7 @@ public:
     uint64_t no_context = 0;               // Shows replayed without their context (R33's 1 km rule, or no player).
     uint64_t deduped = 0;                  // Shows not replayed: the copy started the same asset itself (dedupe()).
     uint64_t sets = 0, stops = 0, unknown = 0; // show-set, show-stop; one naming no live replay.
+    uint64_t events_lost = 0;              // Event lines (events()) dropped: kEvents were waiting, or the taker refused.
     uint64_t not_drawn = 0;                // Shows due while their copy was not driven (released, local, not found).
     double drift_cm = 0, drift_deg = 0;    // The most a driven copy moved or turned (per second) between our write and
                                            // the next frame: a mover still at work inside the tick. Reset by the reader.
@@ -1426,6 +1427,15 @@ public:
   Counts counts;
 
   bool latched() const { return latched_; }
+  // The log's event lines (PHASE11-STAGE3 7 rule 13), one per copy released, converged onto the stream again or
+  // snapped, as fight::Event (what, the host's GUID), kEvents at most until events() hands them to take(const
+  // fight::Event &), oldest first; take returns false for one it drops.
+  static constexpr size_t kEvents = 32;
+  template <class F> void events(F &&take) {
+    for (size_t i = 0; i < events_n_; ++i)
+      counts.events_lost += !take(events_[i]);
+    events_n_ = 0;
+  }
   // coop fight pilot test: how far the drawn side goes (link_protocol.h's PilotTest; replay, all of it, by default). A
   // change puts each pair back once at its next frame, so nothing a larger step changed stays; the step then takes
   // again what it needs from the frame after.
@@ -1589,6 +1599,12 @@ private:
     void speed(uint8_t was) { g.write(f->ch + kSpeedOverride, &was, 1); }
   };
 
+  void event(const char *what, uint32_t hguid) {
+    if (events_n_ < kEvents)
+      events_[events_n_++] = fight::Event{what, "", hguid, 0, 0};
+    else
+      ++counts.events_lost;
+  }
   static Side other(Side s) { return s == kHost ? kGuest : kHost; }
   Side from() const { return other(side_); } // Her lines are the other side's.
   Owner owner(const Pair &p) const { return Owner{gen_, p.row.owner, p.row.oe}; }
@@ -1657,12 +1673,15 @@ private:
     const State was = p.copy.state();
     bool snapped = false;
     const State st = p.copy.step(c, own, has ? &d : nullptr, now, out, snapped);
-    counts.released += st == State::released && was != State::released;
-    counts.converged += was == State::converging && st == State::piloted;
+    if (st == State::released && was != State::released)
+      ++counts.released, event("released", p.row.hguid);
+    if (was == State::converging && st == State::piloted)
+      ++counts.converged, event("converged", p.row.hguid);
     p.battle = has && (d.flags & kBattle) && st != State::local;
     if (!mode(st).root_stream || limit_ == PilotTest::freeze)
       return put_back(g, reg, p, &f), false;
-    counts.snaps += d.snap || snapped;
+    if (d.snap || snapped)
+      ++counts.snaps, event("snapped", p.row.hguid);
     // Checks first, writes after: SB's movement component class with SB's override in slot 0x350, the root's vtable
     // and its move function inside the game.
     uint64_t root_vt = 0, move = 0;
@@ -1858,6 +1877,8 @@ private:
   uint32_t gen_ = 0;
   Side side_ = kHost;
   PilotTest limit_ = PilotTest::replay;
+  fight::Event events_[kEvents];
+  size_t events_n_ = 0;
   bool latched_ = false;
 };
 
