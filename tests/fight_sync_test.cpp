@@ -913,6 +913,15 @@ int main() {
     g.hold(gu);
     wrote(g, 1, 501, kHp, -1, true, true);
     assert(g.actor(501)->s.dying && gu.counts.kills == 1 && gu.counts.desync == 0 && gu.floored(guids) == 2);
+    // Under Immortal, 1 HP is SB's floor, not ours (her copy's AI holds it, the host's copy likely not): a plain claim,
+    // the pair goes on, and the host decides as at the default.
+    g.actor(502)->s.immortal = true;
+    g.actor(502)->floor = 1;
+    g.hit(502, kHp, 1600);
+    step(gu, g, 6, 500);
+    g.hold(gu);
+    assert(g.lines() == "SBF9 hit 4 3 102 1599 0 0 1600 0\n" && g.hp(502) == 1 && gu.linked() == 2);
+    assert(gu.tracked(guids) == 2 && gu.floored(guids) == 2);
     // Every way out takes the floor off: down, gone, the host's off.
     gu.receive(msg("SBF9 down 4 102"), g);
     assert(gu.floored(guids) == 1 && guids[0] == 503);
@@ -922,7 +931,7 @@ int main() {
     Guest plain;
     plain.receive(msg("SBF9 world 4"), g);
     plain.receive(msg("SBF9 up 4 103 5003 0 900 1600"), g);
-    step(plain, g, 6, 500);
+    step(plain, g, 7, 600);
     assert(plain.linked() == 1 && plain.floored(guids) == 0);
   }
 

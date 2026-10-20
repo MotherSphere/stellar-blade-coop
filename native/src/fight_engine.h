@@ -617,6 +617,7 @@ private:
     }
     a.seen.nodamage = a.states >> kNoDamageNoHit & 1 ? kNoDamageNoHit : a.states >> kNoDamage & 1 ? kNoDamage : 0;
     a.seen.stunned = a.states & kStunned;
+    a.seen.immortal = a.states >> 27 & 1;
   }
   // The kCcEffects running on la, as Seen::cc's bits; false, with none, when its list fails a check.
   template <class Game> bool effects(Game &g, uint64_t la, uint8_t &cc) {

@@ -231,6 +231,7 @@ struct Seen {
   uint8_t nodamage = 0;                  // 3 NoDamageNoHit, 4 NoDamage while that state holds, else 0.
   uint8_t cc = 0;                        // Bit i: kCcEffects[i] runs on it.
   bool stunned = false;                  // It holds Down (6), Groggy (7) or Airborne (8): a crowd control runs.
+  bool immortal = false;                 // It holds Immortal (27): SB's own floor keeps its HP at 1 or more.
   bool dying = false;                    // Pending death or life state 3-5: it may stay in the map a while.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.
@@ -914,9 +915,9 @@ private:
   // A paired copy this pass: its drops since our last pass are claims (rises are regen, never claimed), a crowd control
   // that started on it is told, the gap to the host's values is corrected, and the host's crowd control started.
   template <class Io> void follow(Pair &p, const Seen &s, uint64_t now, Io &io) {
-    // Our hit stopped at the floor. ponytail: a copy already at exactly kFloorHp shows no drop, so a hit on it claims
-    // nothing; the host's next value or hit moves it.
-    const bool floor = confirm_ && s.value[kHp] <= kFloorHp && s.value[kHp] < p.seen[kHp];
+    // Our hit stopped at the floor; under Immortal it is SB's, a plain claim as without confirm(). ponytail: a copy
+    // already at exactly kFloorHp shows no drop, so a hit on it claims nothing; the host's next value or hit moves it.
+    const bool floor = confirm_ && !s.immortal && s.value[kHp] <= kFloorHp && s.value[kHp] < p.seen[kHp];
     bool owed = false;
     for (int k = 0; k < kStats; ++k) {
       if (s.value[k] < p.seen[k])
@@ -924,8 +925,11 @@ private:
       p.seen[k] = s.value[k];
       owed = owed || p.unsent[k];
     }
-    if (dying(s) || floor) { // Our own lethal hit: the copy dies here at once (F4), or waits at the floor; the host
-      p.held = !dying(s);    // decides for its own.
+    // Our own lethal hit: the copy dies here at once (F4), or waits at the floor; the host decides for its own. A crowd
+    // control the hit started is told only if the host refuses and it still runs then, one answer later: one told now
+    // would launch the host's copy right before it dies.
+    if (dying(s) || floor) {
+      p.held = !dying(s);
       return claim(p, s, now, true, io);
     }
     if (const int32_t id = p.cc.risen(s, now)) {
