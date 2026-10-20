@@ -62,6 +62,20 @@ constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
 // 2 NPC, 3 Monster, 4 BossMonster (the bosses and the Elite Alpha Naytibas); 0 none, never 5 or more.
 constexpr size_t kActorType = 0x368;
 constexpr uint8_t kTypePc = 1, kTypeMonster = 3, kTypes = 5;
+// fight_chars=auto leaves out the odd Monsters until stage 5, the bosses' (CharacterTable and DifficultyStatGroupTable
+// exports, PHASE11-STAGE2-RE 5): by charId, M_Gorgon (50330, Rank Boss, 100,000 MaxHP) and the SE_M_TurretLaser_02 and
+// _03 turrets (35027002 and 35027003, 999,999); and any Monster whose MaxHP as read is above kMaxAutoHp. The other
+// Monsters stay below it on every difficulty: the most is WLB_M_RoyalGuardFemale_01's 213,125 on Hard (85,250 + 150 %),
+// then DEDA_M_GrubDashWithBoss_01's 156,000; the turrets have 899,999 in Story mode.
+constexpr uint32_t kAutoDenied[] = {50330, 35027002, 35027003};
+constexpr float kMaxAutoHp = 500'000;
+// Why fight_chars=auto leaves out a Monster of this charId and MaxHP, or nullptr when it shares it.
+inline const char *auto_out(uint32_t chr, float max_hp) {
+  for (uint32_t denied : kAutoDenied)
+    if (chr == denied)
+      return "charId";
+  return max_hp <= kMaxAutoHp ? nullptr : "MaxHP"; // NaN is out too.
+}
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
 // SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
@@ -140,6 +154,7 @@ struct Actor {
   bool player = false, pending = false;
   bool eve = false; // The probe: our EVE (controlled and the actor manager's local player).
   uint8_t type = 0; // The probe: its ActorType as read.
+  const char *out = nullptr; // The probe: why fight_chars=auto leaves this Monster out (auto_out), or nullptr.
   int32_t life = 0;
   Seen seen; // GUID, key, charId and dying; the stats once stats() read them.
 };
@@ -209,8 +224,9 @@ public:
     for (Job &j : ring_)
       j.vtable = vtable;
   }
-  // fight_chars (F8): the charIds this stage shares, at most kMaxChars; none (fight_chars=auto): every Monster, so not
-  // the bosses and the Alphas (BossMonster) before stage 5. Set while off.
+  // fight_chars (F8): the charIds this stage shares, at most kMaxChars, of any type; none (fight_chars=auto): every
+  // Monster but those auto_out() leaves out, so not the bosses and the Alphas (BossMonster) before stage 5. Set while
+  // off.
   void allow(const uint32_t *chars, size_t n) {
     chars_ = std::min(n, kMaxChars);
     std::copy(chars, chars + chars_, allowed_);
@@ -521,7 +537,8 @@ private:
     return true;
   }
   // Stage 1's enemy: not a player, spawned by an EventSpawn row, fighting (no pending death), and of an allowlisted
-  // charId or, with no list, a Monster. The type is read for such an actor only; one past BossMonster is implausible.
+  // charId or, with no list, a Monster that auto_out() keeps. The type is read for such an actor only, and the MaxHP
+  // for such a Monster; a type past BossMonster is implausible.
   template <class Game> bool eligible(Game &g, const Actor &a) {
     if (a.controlled || a.player || !a.seen.spawn || !fighting(a))
       return false;
@@ -534,7 +551,13 @@ private:
       latch("implausible actor type");
       return false;
     }
-    return type == kTypeMonster;
+    float max_hp = 0;
+    return type == kTypeMonster && get(g, a.fsb + kStatBase + 4 * size_t(kStatType[kHp] + 1), max_hp) &&
+           !auto_out(a.seen.chr, max_hp);
+  }
+  // The probe: why fight_chars=auto leaves out this Monster, or nullptr. Never with a list.
+  const char *left_out(const Actor &a) const {
+    return chars_ || a.type != kTypeMonster ? nullptr : auto_out(a.seen.chr, a.seen.max[kHp]);
   }
   // With no list, our EVE must read as a PC: else +0x368 is not the ActorType on this build, and the feature turns off
   // for the run. With a list the type is never read.
@@ -615,6 +638,7 @@ private:
       if (a.eve)
         eve_ = a.seen.guid;
       ++actors_;
+      a.out = left_out(a);
       g.probe(a);
       if (a.seen.spawn && !a.player && keyed < kMaxSeen)
         seen_[keyed++] = a.seen;
@@ -669,8 +693,10 @@ private:
     g.event(done);
     Actor b;
     const uint64_t la = g.find(logic, w.guid);
-    if (la && live(g, la, w.guid, b) && raw(g, b) && get(g, b.fsb + kActorType, b.type))
+    if (la && live(g, la, w.guid, b) && raw(g, b) && get(g, b.fsb + kActorType, b.type)) {
+      b.out = left_out(b);
       g.probe(b);
+    }
   }
 
   // The local player's FSBActor as SB finds it on the logic thread, or 0.
@@ -887,7 +913,7 @@ public:
   Worker(Engine &e, Mail &mail) : e_(e), mail_(mail) {}
 
   // A coop fight request (link_protocol.h's parse_request): on, probe, record and replay with no charIds share every
-  // Monster. The line for the log; she hears what changed at once.
+  // Monster that auto_out() keeps. The line for the log; she hears what changed at once.
   template <class Gate, class Io> std::string ask(const Request &r, Gate &&gate, Io &io) {
     std::string said = asked(r, gate, io);
     tell(now_, io);
@@ -1170,23 +1196,24 @@ private:
     recording_ += text;
     ++record_lines_;
   }
-  // A probe's actor: traced when new, and again when its line changed.
+  // A probe's actor: traced when new, and again when its line changed; left_out= says why fight_chars=auto would not
+  // share this Monster (auto_out: charId or MaxHP).
   // ponytail: shown_ keeps a line for each GUID this probe saw; fine for T11a's half hour, bound it for longer probes.
   template <class Io> void probed(const Actor &a, Io &io) {
     const Seen &s = a.seen;
     char text[224];
     std::snprintf(text, sizeof text,
-                  "fight probe guid=%u key=%u:%u chr=%u type=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s", s.guid,
+                  "fight probe guid=%u key=%u:%u chr=%u type=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s%s%s", s.guid,
                   s.spawn, unsigned(s.index), s.chr, unsigned(a.type), a.life, s.value[kHp], whole(s.max[kHp]),
                   s.value[kShield], whole(s.max[kShield]), s.value[kStamina], whole(s.max[kStamina]),
                   a.eve ? " eve" : a.controlled == 1 ? " controlled" : "", a.player ? " player" : "",
-                  a.pending ? " pending" : "");
+                  a.pending ? " pending" : "", a.out ? " left_out=" : "", a.out ? a.out : "");
     std::string &said = shown_[s.guid];
     if (said != text)
       io.trace(said = text);
   }
   // coop fight test: the probe's next turn writes to the eligible enemy with the lowest HP share (the one just hit): of
-  // the charIds asked with the probe, or with none a Monster.
+  // the charIds asked with the probe, or with none a Monster that auto_out() keeps.
   std::string test(const Request &r) {
     if (!running_ || ran_ != Fight::probe)
       return "shared fight test refused: only while coop fight probe runs";

@@ -573,6 +573,60 @@ int main() {
     };
     assert(type(1) == kTypePc && type(301) == 4 && type(302) == kTypeMonster && !e->latched());
   }
+  // ---- fight_chars=auto leaves out the odd Monsters until stage 5: M_Gorgon and the 999,999 HP turrets by charId, and
+  // any Monster above kMaxAutoHp MaxHP. A common one with a high MaxHP stays in, and a list still names any of them ----
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    g.spawn(211, 5211, 0, 50330, 100000);       // M_Gorgon (Rank Boss).
+    g.spawn(212, 5212, 0, 35027002, 999999);    // SE_M_TurretLaser_02.
+    g.spawn(213, 5213, 0, 35027003, 1600);      // SE_M_TurretLaser_03: its charId alone leaves it out.
+    g.spawn(214, 5214, 0, 7014, 999999);        // An unknown charId above kMaxAutoHp.
+    g.spawn(215, 5215, 0, 55050001, 213125);    // WLB_M_RoyalGuardFemale_01 on Hard: the most a kept Monster has.
+    g.spawn(216, 5216, 0, 7016, kMaxAutoHp);    // At kMaxAutoHp: in.
+    g.spawn(217, 5217, 0, 7017, kMaxAutoHp + 1); // Above it: out.
+    size_t n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{215, 216}) && !e->latched());
+    const uint32_t listed[] = {50330, 35027002, 7014};
+    e->allow(listed, 3);
+    n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{211, 212, 214}) && !e->latched());
+    assert(auto_out(50330, 1) && auto_out(7001, std::nanf("")) && !auto_out(7001, 0));
+  }
+  // The probe with no list marks why each of them is left out, on Monsters only, and its test writes skip them even
+  // with the lowest HP share; with a list it marks none.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->allow(nullptr, 0);
+    e->set(true, false, true);
+    g.spawn(311, 5311, 0, 50330, 100000);
+    g.spawn(312, 5312, 0, 7012, 999999);
+    g.spawn(313, 5313, 0, 7013);
+    g.spawn(314, 5314, 0, 50330, 100000, 4); // A BossMonster: not a Monster, so not marked.
+    g.hit(311, kHp, 90000);
+    g.hit(312, kHp, 900000);
+    g.calls.clear();
+    e->test(kHp, -10);
+    frame(g, *e, 0);
+    assert(g.calls.size() == 1 && g.calls[0].la == g.by_guid[313] && count(g, "test", "applied") == 1);
+    const auto out = [&](uint32_t guid) {
+      std::string why = "none";
+      for (const Actor &a : g.probes)
+        if (a.seen.guid == guid)
+          why = a.out ? a.out : "";
+      return why;
+    };
+    assert(out(311) == "charId" && out(312) == "MaxHP" && out(313).empty() && out(314).empty() && out(1).empty());
+    const uint32_t listed[] = {50330};
+    e->allow(listed, 1);
+    g.probes.clear();
+    e->test(kHp, -10);
+    frame(g, *e, 2000);
+    assert(out(311).empty() && out(312).empty() && g.calls.size() == 2 && g.calls[1].la == g.by_guid[311]);
+    assert(!e->latched());
+  }
 
   // ---- The host's count is what it shares: none until her on and after her off, however many it follows ----
   {
@@ -1445,6 +1499,15 @@ int main() {
     assert(w.detail() == "fight=off why=coop fight off" && w.status().empty());
     assert(ask("fight test kill") == "shared fight test refused: only while coop fight probe runs");
     assert(ask("fight status") == "shared fight status: fight=off why=coop fight off");
+    // With no list, the line of a Monster that fight_chars=auto leaves out says why.
+    g.spawn(102, 5002, 0, 50330, 100000);
+    g.spawn(103, 5003, 0, 7003, 999999);
+    ask("fight probe");
+    run(t + 1000);
+    assert(io.tracing("chr=50330 type=3 life=1 hp=100000/100000 sh=100/100 st=200/200 left_out=charId") == 1);
+    assert(io.tracing("chr=7003 type=3 life=1 hp=999999/999999 sh=100/100 st=200/200 left_out=MaxHP") == 1);
+    assert(!io.tracing("chr=900 type=3 life=1 hp=1490/1600 sh=100/100 st=200/200 left_out"));
+    assert(io.tracing("chr=900 type=3 life=1 hp=1490/1600 sh=100/100 st=200/200") == 2);
   }
 
   // ---- Record on one PC, replay into another's guest: T11a's solo test of both roles ----
