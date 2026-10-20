@@ -316,9 +316,10 @@ int main() {
   assert(parse_state("world=0 rate=30 photo=s sync=off max=30\n", s) && !s.world && s.rate == 30 && s.photo == 's' &&
          s.sync == Sync::off && s.max == 30);
   assert(parse_state("world=1 rate=20 photo=0 sync=both max=3600", s) && s.max == 3600);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=3600", s) && s.rate == 60); // Protocol 9: up to 60.
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :
-       {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=31" + tail,
+       {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=61" + tail,
         "world=1 rate=20x" + tail, "world=1 rate=20" + tail + " extra=1", std::string("world=1"),
         "world=Title rate=20" + tail, "world=t rate=20" + tail, "world=title1 rate=20" + tail, "title rate=20" + tail,
         std::string("world=1 rate=20"), "rate=20 world=1" + tail, "world=1  rate=20" + tail,

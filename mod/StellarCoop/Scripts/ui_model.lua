@@ -41,7 +41,7 @@ M.OPTIONS={
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
     toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
-    range('send_rate',10,30,1,20),
+    range('send_rate',10,60,1,60),
     {head='session'},
     {key='who_can_join',values={'friends','private'},default='friends'}, -- At the next host.
     later(toggle('rejoin','on')),

@@ -80,8 +80,8 @@ for _,bad in ipairs({{'host key','F7'},{'','F7'},{'host_key','F7\n'},{'host_key'
 end
 
 -- get(): the last line naming the key within what the mod reads, whose value accept() takes (any when absent).
-local function rate(value) local n=tonumber(value); return n and n>=10 and n<=30 end
-assert(F.get(Link.DEFAULT,'send_rate')=='20' and F.get(Link.DEFAULT,'cloth')==nil)
+local function rate(value) local n=tonumber(value); return n and n>=10 and n<=60 end
+assert(F.get(Link.DEFAULT,'send_rate')=='60' and F.get(Link.DEFAULT,'cloth')==nil)
 assert(F.get('SEND_RATE = 12 \r\n','send_rate')=='12','Name case, spaces and CR as the mod reads them')
 assert(F.get('send_rate=12\nsend_rate=99\n','send_rate')=='99')
 assert(F.get('send_rate=12\nsend_rate=99\n','send_rate',rate)=='12','The last value accept() takes')
@@ -90,7 +90,7 @@ assert(F.get('\239\187\191send_rate=12','send_rate')=='12')
 -- The same answer as the mod's parser, on texts with the same traps.
 for _,case in ipairs({Link.DEFAULT,'send_rate=12\nsend_rate=99\n','send_rate=x\n','  SEND_RATE=25\r\n',near,bom,
     pad..'send_rate=12\n','# send_rate=12\n','\239\187\191send_rate=13'}) do
-    assert(tonumber(F.get(case,'send_rate',rate) or '20')==Link.parse_settings(case).send_rate,case:sub(1,40))
+    assert(tonumber(F.get(case,'send_rate',rate) or '60')==Link.parse_settings(case).send_rate,case:sub(1,40))
 end
 
 print('settings_file_test ok')

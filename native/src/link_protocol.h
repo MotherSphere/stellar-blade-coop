@@ -381,7 +381,7 @@ inline Request parse_request(std::string text) {
 // PCs), a notice only, or nothing.
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
-// coop-state.txt, from Lua: "world=<0|1|title> rate=<10..30> photo=<0|1|s> sync=<both|notice|off> max=<0|30..3600>".
+// coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s> sync=<both|notice|off> max=<0|30..3600>".
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
@@ -403,7 +403,7 @@ inline bool parse_state(const std::string &text, State &out) {
   std::string f[5];
   uint64_t rate = 0, max = 0;
   if (!split(line, f, 5, nullptr) || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
-      f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 30 ||
+      f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 60 ||
       (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s") ||
       (f[3] != "sync=both" && f[3] != "sync=notice" && f[3] != "sync=off") || f[4].rfind("max=", 0) != 0 ||
       !number(std::string_view(f[4]).substr(4), max) || (max && (max < 30 || max > 3600)))

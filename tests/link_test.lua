@@ -131,7 +131,7 @@ local Link=require('link')
 local s,notes=Link.parse_settings('')
 assert(s.menu_key.key=='F5' and s.menu_key.mod==nil and s.status_key.key=='F6' and s.leave_key.key=='F8' and #notes==0)
 assert(s.host_key.key==nil and s.host_key.name=='none','Host is in the menu: no host key unless set')
-assert(s.name_tag==true and s.send_rate==20,'Empty text: the defaults')
+assert(s.name_tag==true and s.send_rate==60,'Empty text: the defaults')
 s,notes=Link.parse_settings('status_key=Shift+F7\n menu_key = f6 \n')
 assert(s.status_key.key=='F7' and s.status_key.mod=='SHIFT' and s.status_key.name=='Shift+F7' and #notes==0)
 assert(s.menu_key.key=='F6' and s.menu_key.mod==nil and s.leave_key.key=='F8','Spaces and case do not matter')
@@ -163,12 +163,14 @@ assert(s.menu_key.key=='F5' and s.host_key.name=='none' and s.status_key.key=='F
     'A shared key: all four go back')
 s,notes=Link.parse_settings('status_key=Alt+F7\nleave_key=Ctrl+F7\n')
 assert(#notes==0 and s.status_key.mod=='ALT' and s.leave_key.mod=='CONTROL','Another modifier is another key')
-for _,rate in ipairs({'9','31','x'}) do
+for _,rate in ipairs({'9','61','x'}) do
     s,notes=Link.parse_settings('send_rate='..rate)
-    local want="settings: line 1: '"..rate.."' is not allowed for send_rate (use 10 to 30); send_rate stays 20"
-    assert(#notes==1 and notes[1]==want and s.send_rate==20,notes[1])
+    local want="settings: line 1: '"..rate.."' is not allowed for send_rate (use 10 to 60); send_rate stays 60"
+    assert(#notes==1 and notes[1]==want and s.send_rate==60,notes[1])
 end
 s,notes=Link.parse_settings('send_rate=30'); assert(#notes==0 and s.send_rate==30)
+s,notes=Link.parse_settings('send_rate=60'); assert(#notes==0 and s.send_rate==60)
+assert(Link.DEFAULT:find('\nsend_rate=60\n',1,true),'A new file asks for 60')
 s,notes=Link.parse_settings('name_tag=maybe')
 assert(notes[1]=="settings: line 1: 'maybe' is not allowed for name_tag (use on or off); name_tag stays on" and s.name_tag)
 s,notes=Link.parse_settings('NAME_TAG=Off'); assert(#notes==0 and s.name_tag==false)
@@ -180,7 +182,7 @@ assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', igno
 local long='#'..string.rep('x',4088)..'\nsend_rate=25\n' -- The 4096th byte is the r of "send_r": the line is dropped.
 long=long..'#'..string.rep('x',5000-#long-2)..'\n'
 s,notes=Link.parse_settings(long)
-assert(#long==5000 and s.send_rate==20 and #notes==1 and notes[1]=='settings: only the first 4096 bytes are read',notes[1])
+assert(#long==5000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 4096 bytes are read',notes[1])
 s,notes=Link.parse_settings('\239\187\191menu_key=F7\n')
 assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
@@ -265,7 +267,7 @@ assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0)
 local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
 assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==20
+assert(#notes==0 and s.shared_enemies==false and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==60
     and s.name_tag==true and s.cloth==false)
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
@@ -314,7 +316,7 @@ assert(writes==0 and files[SETTINGS]=='send_rate=30\n' and s.send_rate==30 and #
 local read=fs.read
 fs.read=function(path) if path==SETTINGS then return nil end return read(path) end -- There but unreadable.
 s,notes=link.settings()
-assert(files[SETTINGS]=='send_rate=30\n' and s.send_rate==20,'Not replaced either')
+assert(files[SETTINGS]=='send_rate=30\n' and s.send_rate==60,'Not replaced either')
 assert(notes[1]=='settings: cannot write coop-settings.txt (cannot write coop-settings.txt: exists): defaults used',notes[1])
 fs.read,fs.write=read,write
 -- The menu's changes (D-UI4): the text as it is, and the whole file written back through a temporary one; before the
