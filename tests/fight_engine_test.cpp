@@ -1,13 +1,14 @@
-// Shared Naytibas, stage 1, the engine on the build machine against fake memory laid out like the pinned build: the
-// census over the actor map (free slots, inline and heap allocation bits, implausible pointers, players and dying
+// Shared Naytibas, stages 1 and 2, the engine on the build machine against fake memory laid out like the pinned build:
+// the census over the actor map (free slots, inline and heap allocation bits, implausible pointers, players and dying
 // actors left out), the liveness test, implausible reads latching, the two phases (a write that summons an actor and
-// moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the job's guards, its arming and
+// moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the state map and the NoDamage
+// counts; the effect list and the crowd control mirrored through SB's effect call; the job's guards, its arming and
 // re-arming, the ring and the latch, a job that never runs, a long pause, photo mode; a guest restarting mid-fight;
 // the hand-over between the job and the worker (Mail) and the worker's side (Worker: on and off, the gates, our photo
 // mode, channel 2's text, the log); the probe (T11a: every live actor, the world fence, test writes) in the engine and
 // through the worker; a recording made by one PC's host replayed into another's guest, and a recording at its cap;
-// then two PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost until every enemy died once
-// in each world: the stage's exit criteria.
+// then two PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost, knocking enemies down, until
+// every enemy died once in each world: the stage's exit criteria.
 #include "fight_engine.h"
 
 #include <algorithm>
@@ -30,6 +31,7 @@ using namespace coop::fight;
 namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
 constexpr uint32_t kChar = 900;       // The allowlisted charId.
+constexpr int32_t kGetup = 3000310;   // Stands for Getup, which Down chains into (its ID is not in the export).
 constexpr size_t kMinimumHp = 0x2c4;  // FSBActor, stat 107: ApplyStat's HP floor.
 const int kVtable = 0;                // Stands for the glue's vtable: never called here.
 uint64_t rebased(uint64_t address) { return kBase + (address - kImageBase); }
@@ -94,8 +96,9 @@ void put_states(Memory &mem, uint64_t fsb, const std::vector<std::pair<int32_t, 
 }
 
 // One PC's game: SB's globals, the net-mode cache, the logic singleton with its actor map (elements and allocation
-// bits, inline up to 128) and job queue, the world's actor manager, logic actors and FSBActors; this PC's EVE is
-// GUID 1. SB's lookup, ApplyStat, SendJob, remove-dead and Logic Reset act as the decompiles show; channel 2 is two
+// bits, inline up to 128) and job queue, the world's actor manager, logic actors with their effect lists and FSBActors
+// with their state maps; this PC's EVE is GUID 1. SB's lookup, ApplyStat, the effect call, SendJob, remove-dead and
+// Logic Reset act as the decompiles show; the crowd-control effects run down and chain each turn; channel 2 is two
 // queues, or the worker's Mail once set (as WinGame's in pose_tick.cpp).
 struct Game {
   Memory mem;
@@ -104,7 +107,14 @@ struct Game {
   struct Body {
     uint64_t fsb = 0, states_at = 0;          // Its state map's elements and buckets.
     std::map<int32_t, int32_t> states;        // The state map's counts by state (a key stays at 0 once added).
-    bool immortal = false;
+    bool immortal = false, immune = false;    // immune: SB's effect call refuses every effect on it.
+    struct Running {
+      uint64_t at;
+      int32_t id;
+      int left; // Turns.
+    };
+    std::vector<Running> effects; // Its effect list (logic actor +0x170), in order.
+    uint64_t list_at = 0;
     int deaths = 0;
     uint64_t killer = 0;  // The cause of its death.
     uint32_t gone_at = 0; // Once dying: the turn remove-dead takes it out of the map.
@@ -122,6 +132,12 @@ struct Game {
     bool notify, ignore;
   };
   std::vector<Call> calls;      // Every ApplyStat.
+  struct Cast {
+    uint64_t logic, la, caster;
+    int32_t id;
+  };
+  std::vector<Cast> casts;                                  // Every call of SB's effect function.
+  std::vector<std::pair<uint64_t, Body::Running>> starting; // Effects cast this turn: they start at its actor tick.
   std::function<void()> during; // Runs inside the next ApplyStat: a summon that moves the map.
   std::deque<Message> inbox;
   std::vector<Message> sent;
@@ -225,6 +241,8 @@ struct Game {
     }
     bodies[la].fsb = f;
     bodies[la].states_at = mem.alloc(0x600); // Elements (64 at most), then 8 buckets at +0x400.
+    bodies[la].list_at = mem.alloc(0x400);   // 128 effects at most.
+    mem.put(la + kEffects, bodies[la].list_at);
     by_guid[guid] = la;
     link(guid, la);
     return la;
@@ -232,11 +250,73 @@ struct Game {
   Body &body(uint32_t guid) { return bodies[by_guid[guid]]; }
   // A state's count on an actor, and its state map written again: HashSize 1 with the inline bucket for one key or
   // none, else 8 buckets on the heap (states 3 and 27 then chain in one).
-  void state(uint32_t guid, int32_t s, int32_t count) {
-    Body &b = body(guid);
+  void state(uint32_t guid, int32_t s, int32_t count) { put_state(body(guid), s, count); }
+  void put_state(Body &b, int32_t s, int32_t count) {
     b.states[s] = count;
     const std::vector<std::pair<int32_t, int32_t>> keys(b.states.begin(), b.states.end());
     put_states(mem, b.fsb, keys, b.states_at, keys.size() > 1 ? b.states_at + 0x400 : 0, keys.size() > 1 ? 8 : 1);
+  }
+
+  // ---- Effects (PHASE11-STAGE2-RE 2) ----
+  // The crowd-control rows as this fake runs them: the turns each lasts, what its end chains into, the state it holds
+  // (Down 6, Groggy 7, Airborne 8; Getup none).
+  struct Row {
+    int32_t id;
+    int turns;
+    int32_t next, state;
+  };
+  static const Row &row(int32_t id) {
+    static const Row rows[] = {{9900001, 6, 9900003, 8}, {9900003, 4, 3000300, 6}, {3000300, 4, kGetup, 6},
+                               {3000301, 4, kGetup, 6},  {3000303, 4, kGetup, 6},  {kGetup, 3, 0, 0},
+                               {3000401, 2, 3000402, 7}, {3000402, 6, 0, 7}};
+    for (const Row &r : rows)
+      if (r.id == id)
+        return r;
+    assert(false);
+    return rows[0];
+  }
+  // An effect starts on la: in its list, its state held one more time.
+  void start(uint64_t la, Body::Running e) {
+    Body &b = bodies[la];
+    const Row &r = row(e.id);
+    e.left = r.turns;
+    mem.put<int32_t>(e.at + kEffectId, e.id);
+    b.effects.push_back(e);
+    if (r.state)
+      put_state(b, r.state, b.states[r.state] + 1);
+    list(la);
+  }
+  void list(uint64_t la) {
+    Body &b = bodies[la];
+    mem.put<int32_t>(la + kEffectCount, int32_t(b.effects.size()));
+    for (size_t i = 0; i < b.effects.size(); ++i)
+      mem.put(b.list_at + 8 * i, b.effects[i].at);
+  }
+  // A hit of this PC's EVE that knocks guid down or launches it: the effect starts at once.
+  void knock(uint32_t guid, int32_t id) { start(by_guid[guid], {mem.alloc(0x110), id, 0}); }
+  bool in_cc(uint64_t la) {
+    const Body &b = bodies[la];
+    return held(b, 6) || held(b, 7) || held(b, 8);
+  }
+  // The actor tick's part: each effect runs down, and at its end its state goes and its chain starts; then the effects
+  // cast during the turn start (their start delay).
+  void run_effects() {
+    for (auto &[la, b] : bodies)
+      for (size_t i = 0; i < b.effects.size();) {
+        if (--b.effects[i].left > 0) {
+          ++i;
+          continue;
+        }
+        const Row &r = row(b.effects[i].id);
+        b.effects.erase(b.effects.begin() + long(i));
+        if (r.state)
+          put_state(b, r.state, b.states[r.state] - 1);
+        list(la);
+        if (r.next)
+          start(la, {mem.alloc(0x110), r.next, 0}); // At the end: run down from the next turn.
+      }
+    for (auto &[la, e] : std::exchange(starting, {}))
+      start(la, e);
   }
   static bool held(const Body &b, int32_t s) {
     auto it = b.states.find(s);
@@ -311,6 +391,7 @@ struct Game {
         e.simulate(*j, *this, now);
     }
     processing = false;
+    run_effects();
     mem.put(logic + kTurn, turn() + 1);
   }
   // Logic Reset: slot 0 with 1 on every queued job, the queue emptied, turn 0.
@@ -339,6 +420,16 @@ struct Game {
   }
   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify) {
     stat(la, type, delta, cause, notify, true);
+  }
+  // FUN_141ad08b0(logic, target, caster, id, &zero, 0, nullptr): the effect, which starts at this turn's actor tick, or
+  // 0 when the target refuses it. A copy in a crowd control never gets one from us.
+  uint64_t effect(uint64_t lg, uint64_t la, uint64_t caster, int32_t id) {
+    casts.push_back({lg, la, caster, id});
+    assert(!in_cc(la));
+    if (bodies[la].immune)
+      return 0;
+    starting.push_back({la, {mem.alloc(0x110), id, 0}});
+    return starting.back().second.at;
   }
   void push(Job *job) { queue[processing ? turn() + 1 : turn() - late].push_back(job); }
   bool receive(Message &m) {
@@ -610,6 +701,63 @@ int main() {
     g.inbox.push_back(msg("SBF9 hit 1 4 101 100 0 0 1500 0"));
     frame(g, *e, 32);
     assert(g.hp(101) == 1400 && e->host.counts.bypass3 == 1 && e->counts.unread >= 1 && !e->latched());
+  }
+
+  // ---- Crowd control: told when it starts on our copy, started on it by SB's effect call when hers ----
+  {
+    Game g;
+    auto e = engine(true, true);
+    g.spawn(101, 5001, 0);
+    g.spawn(102, 5002, 0);
+    g.inbox.push_back(msg("SBF9 on"));
+    frame(g, *e, 0);
+    lines(g);
+    // Our EVE knocks 101 down: told at the next turn, by its GUID; Getup after it is not.
+    g.knock(101, 3000300);
+    uint64_t t = 16;
+    frame(g, *e, t);
+    assert(lines(g) == "SBF9 cc 1 101 3000300\n");
+    for (t += 16; t < 200; t += 16)
+      frame(g, *e, t);
+    assert(!has(lines(g), " cc ") && g.body(101).effects.empty() && !g.in_cc(g.by_guid[101]));
+    // Hers on 102: SB's effect call on the logic singleton, with our EVE's logic actor as the caster. It starts at the
+    // turn's end, then chains (AirborneDown, Down, Getup); none of it is told back.
+    g.inbox.push_back(msg("SBF9 cc 1 102 9900001"));
+    frame(g, *e, t);
+    const Game::Cast &c = g.casts.at(0);
+    assert(c.logic == g.logic && c.la == g.by_guid[102] && c.caster == g.eve && c.id == 9900001);
+    assert(e->host.counts.cc_mirrored == 1);
+    bool airborne = false, down = false;
+    for (const uint64_t end = t + 400; (t += 16) < end;) {
+      frame(g, *e, t);
+      airborne = airborne || Game::held(g.body(102), 8);
+      down = down || (Game::held(g.body(102), 6) && !Game::held(g.body(102), 8));
+    }
+    assert(airborne && down && !g.in_cc(g.by_guid[102]) && !has(lines(g), " cc ") && e->host.counts.cc_told == 1);
+    // While 101 is in the air (our EVE's launch, told), hers for it is skipped; so is one the game refuses (an
+    // immunity), and one with no EVE of ours to cast it.
+    g.knock(101, 9900001);
+    g.inbox.push_back(msg("SBF9 cc 1 101 3000300"));
+    frame(g, *e, t += 16);
+    assert(lines(g) == "SBF9 cc 1 101 9900001\n" && g.casts.size() == 1 && e->host.counts.cc_skipped == 1);
+    g.body(102).immune = true;
+    g.inbox.push_back(msg("SBF9 cc 1 102 3000401"));
+    frame(g, *e, t += 16);
+    assert(g.casts.size() == 2 && e->host.counts.cc_skipped == 2 && e->host.counts.cc_mirrored == 1);
+    g.body(102).immune = false;
+    g.mem.put(g.players, g.mem.alloc(0x2608));
+    g.inbox.push_back(msg("SBF9 cc 1 102 3000401"));
+    frame(g, *e, t += 16);
+    assert(g.casts.size() == 2 && e->host.counts.cc_skipped == 3);
+    g.mem.put(g.players, g.fsb(1));
+    // A torn effect list (an implausible count, or pointer) reads as none, counted, and the shared fight goes on.
+    const size_t unread = e->counts.unread;
+    g.mem.put<int32_t>(g.by_guid[102] + kEffectCount, 100000);
+    frame(g, *e, t += 16);
+    g.mem.put<int32_t>(g.by_guid[102] + kEffectCount, 1);
+    g.mem.put<uint64_t>(g.body(102).list_at, 0x1235);
+    frame(g, *e, t += 16);
+    assert(e->counts.unread == unread + 2 && !e->latched());
   }
 
   // ---- fight_chars=auto: with no list, every Monster (ActorType 3 at FSBActor +0x368), never a boss or an Alpha
@@ -1461,6 +1609,7 @@ int main() {
     g.spawn(102, 5002, 0, 901); // Not on the allowlist.
     g.spawn(103, 0, 0);         // No EventSpawnId.
     g.mem.put<float>(g.stat_at(102, kHp), std::nanf("")); // Shown as -1: never latched on.
+    g.knock(101, 3000300); // Down, with its state.
     const auto probed = [&](uint32_t guid) {
       for (auto it = g.probes.rbegin(); it != g.probes.rend(); ++it)
         if (it->seen.guid == guid)
@@ -1474,6 +1623,7 @@ int main() {
     assert(g.probes.size() == 4 && g.calls.empty() && !e->latched());
     assert(probed(1).eve && probed(1).player && !probed(101).eve && probed(101).seen.spawn == 5001);
     assert(probed(101).seen.value[kHp] == 1600 && probed(101).seen.max[kHp] == 1600);
+    assert(probed(101).seen.cc == 1 << 1 && probed(101).seen.stunned && probed(101).states == 1u << 6);
     assert(probed(102).seen.value[kHp] == -1);
     Snapshot snap = e->snapshot();
     assert(snap.actors == 4 && snap.eve && snap.job.censuses == 1);
@@ -1574,6 +1724,11 @@ int main() {
     const std::string fresh =
         "fight probe guid=101 key=5001:0 chr=900 type=3 life=1 hp=1600/1600 sh=100/100 st=200/200";
     assert(io.tracing(eve) == 1 && io.tracing(fresh + " states=27") == 1 && io.saying("fight writes=armed: ") == 1);
+    g.knock(101, 9900001); // Long enough for the next census.
+    g.body(101).effects.back().left = 1000;
+    run(t + 1000);
+    assert(io.tracing(fresh + " states=8,27 cc=9900001") == 1);
+    g.body(101).effects.back().left = 1;
     assert(io.tracing("fight stats: probe, 2 actors, our EVE found") == 1 && io.lines().empty());
     assert(!io.saying("fight probe guid=") && !io.saying("fight stats") && w.status() == " fight=probe");
     g.hit(101, kHp, 100);
@@ -1637,6 +1792,8 @@ int main() {
       for (; t < 2500; t += 16) {
         if (t == 512)
           H.hit(101, kHp, 300);
+        if (t == 800)
+          H.knock(102, 3000300);
         if (t == 1504)
           H.hit(101, kHp, 1300);
         frame(H, *e, t);
@@ -1654,6 +1811,7 @@ int main() {
       assert(!parse_recording(io.file, lines) && lines[0].message.type == Type::world);
       assert(has(io.file, " SBF9 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF9 up 1 102 5002 0 900 1600\n"));
       assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF9 dead 1 101\n") && !has(io.file, " on"));
+      assert(has(io.file, " SBF9 cc 1 102 3000300\n"));
       recording = io.file;
       // A second session shows none of the first one's counts, not even before its job's first turn.
       assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: ", 0) == 0);
@@ -1701,6 +1859,9 @@ int main() {
     }
     assert(count(G, "paired") == 2 && G.body(901).deaths == 1 && G.body(901).killer == G.eve);
     assert(G.body(902).deaths == 0 && G.hp(902) == 1600 && !e->latched());
+    // The host's knockdown of 102, played: started on 902 with this PC's EVE as the caster.
+    assert(G.casts.size() == 1 && G.casts[0].la == G.by_guid[902] && G.casts[0].caster == G.eve &&
+           G.casts[0].id == 3000300);
     bool followed = false; // The host's 300, before its kill.
     for (const Game::Call &c : G.calls)
       followed = followed || (c.la == G.by_guid[901] && c.type == 1 && c.delta == -300 && c.notify);
@@ -1742,7 +1903,9 @@ int main() {
   // ---- Two PCs through channel 2: 120 +/- 30 ms each way, 2 % of hp lines lost ----
   // Four enemies on each side, paired by key. Each is hit every 1.5 s by one player picked at random, until dead;
   // enemy 3 by the guest alone while her copy lives, and her lethal hit on it lands right after a heal that only the
-  // host's world ran (refused there: desync guest-dead); the guest's copy of enemy 1 is in NoDamage for 3 s.
+  // host's world ran (refused there: desync guest-dead); the guest's copy of enemy 1 is in NoDamage for 3 s. About one
+  // hit in three also knocks the enemy down, launches it or throws it at a wall, on that player's copy, when it is in
+  // no crowd control.
   {
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
@@ -1754,6 +1917,9 @@ int main() {
     to_host.queue.emplace_back(120, "SBF9 on"); // Each worker sends its side's on.
     to_guest.queue.emplace_back(120, "SBF9 on");
     std::mt19937 rng(1); // A run where both death paths happen and a lost hp line waits for the refresh.
+    std::mt19937 knock_rng(9); // With rng: the knocks' cc lines take their share of its numbers.
+    const int32_t kKnocks[] = {9900001, 3000300, 3000401};
+    uint64_t knocks[2] = {}; // The host's EVE's, the guest's.
     uint64_t next_hit[4], hits[4][2] = {}, died_h[4] = {}, died_g[4] = {};
     int64_t pending[4] = {-1, -1, -1, -1}, dealt = 0, claimed = 0; // HP her EVE took off her copies, and claimed.
     std::vector<uint64_t> fast, slow; // Hit to equal HP on both screens: within 250 ms + RTT (300), or not.
@@ -1792,6 +1958,12 @@ int main() {
         }
         ++hits[i][who];
         pending[i] = int64_t(t);
+        Game &X = who == 0 ? H : G;
+        const uint32_t target = (who == 0 ? 100 : 900) + i;
+        if (knock_rng() % 3 == 0 && !X.dying(target) && !X.in_cc(X.by_guid[target])) {
+          X.knock(target, kKnocks[knock_rng() % 3]);
+          ++knocks[who];
+        }
       }
       frame(H, *eh, t);
       frame(G, *eg, t);
@@ -1824,7 +1996,7 @@ int main() {
     for (uint32_t i = 0; i < 4; ++i)
       assert(hits[i][0] && hits[i][1]);
     // 2. The gap closes within 250 ms + RTT, but where an hp line was lost (the next comes with the 1 s refresh).
-    assert(fast.size() > 40 && slow.size() <= to_guest.lost);
+    assert(fast.size() > 40 && !slow.empty() && slow.size() <= to_guest.lost);
     for (uint64_t took : slow)
       assert(took <= 1000 + 150 + 3 * 16);
     // 3. Exactly one death per world per kill, each with that world's EVE as the cause (F3); the guest's copy never
@@ -1844,11 +2016,23 @@ int main() {
     assert(claimed == dealt && eh->host.counts.claims == eg->guest.counts.claims);
     for (const Game::Call &c : G.calls)
       assert(c.type != 1 || c.delta < 0);
+    // Crowd control both ways and never echoed: each side tells only its own EVE's knocks, and each cast answers one
+    // told by the other side, on a copy in none (the fake checks), with that world's EVE as the caster.
+    const Counts &hc = eh->host.counts, &gc = eg->guest.counts;
+    assert(knocks[0] && knocks[1] && !H.casts.empty() && !G.casts.empty());
+    assert(hc.cc_told && hc.cc_told <= knocks[0] && gc.cc_told && gc.cc_told <= knocks[1]);
+    assert(G.casts.size() == gc.cc_mirrored && gc.cc_mirrored + gc.cc_skipped <= hc.cc_told);
+    assert(H.casts.size() == hc.cc_mirrored && hc.cc_mirrored + hc.cc_skipped <= gc.cc_told);
+    for (const Game::Cast &c : H.casts)
+      assert(c.caster == H.eve);
+    for (const Game::Cast &c : G.casts)
+      assert(c.caster == G.eve);
     // 5. No latch, one arm each, no bad line.
     assert(!eh->latched() && !eg->latched() && eh->counts.arms == 1 && eg->counts.arms == 1);
     assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && eh->counts.no_eve == 0 && eg->counts.no_eve == 0);
     std::printf("fight_engine_test: ok (gap closed within 550 ms after %zu hits, later after %zu with %llu hp lines "
-                "lost)\n",
-                fast.size(), slow.size(), static_cast<unsigned long long>(to_guest.lost));
+                "lost; %zu and %zu crowd controls mirrored)\n",
+                fast.size(), slow.size(), static_cast<unsigned long long>(to_guest.lost), G.casts.size(),
+                H.casts.size());
   }
 }

@@ -485,13 +485,19 @@ void guarded_tick() {
 
 // ---- The shared fight's job ----
 // SB's own functions on the pinned build (PHASE11-DESIGN.md 4.7): SendJob from the game thread to arm and from inside
-// our job to push it again (never with param_3 = 1); the actor lookup and ApplyStat only from inside our job.
-constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720;
+// our job to push it again (never with param_3 = 1); the actor lookup, ApplyStat and the effect call (stage 2,
+// PHASE11-STAGE2-RE 2) only from inside our job.
+constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720,
+                   kApplyEffect = 0x141ad08b0;
 constexpr uint64_t kLogicThreadId = 0x1470634f0; // DAT_1470634f0: the logic worker's thread ID during its tick, else 0.
 using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
 using FindActor = void *(*)(void *logic, int32_t guid);
 using ApplyStat = void (*)(void *la, int32_t stat, uint64_t key, float delta, uint32_t, void *cause, uint32_t,
                            int32_t skill_guid, uint32_t, uint8_t notify, uint8_t ignore_nodamage);
+// The logic singleton, the target, the caster, the EffectTable ID, where (a zero vector: the target's place), 0 to
+// start it now, and the skill's GUIDs (none). The effect started, or null when its row or the target refused it.
+using ApplyEffect = void *(*)(void *logic, void *target, void *caster, int32_t id, const float *at, uint8_t deferred,
+                              const int32_t *skill);
 template <class F> F game_function(uint64_t address) {
   return reinterpret_cast<F>(base + (address - nightop::kImageBase));
 }
@@ -516,6 +522,12 @@ struct WinGame {
   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify) {
     game_function<ApplyStat>(kApplyStat)(reinterpret_cast<void *>(la), type, 0, delta, 0,
                                          reinterpret_cast<void *>(cause), 0, 0, 0, notify, 1);
+  }
+  uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id) {
+    static const float kZero[3] = {};
+    return reinterpret_cast<uintptr_t>(game_function<ApplyEffect>(kApplyEffect)(
+        reinterpret_cast<void *>(logic), reinterpret_cast<void *>(la), reinterpret_cast<void *>(caster), id, kZero, 0,
+        nullptr));
   }
   void push(fight::Job *job) { game_function<SendJob>(kSendJob)(nullptr, job, 0); }
   bool receive(fight::Message &m) { return fight_mail.receive(m); }

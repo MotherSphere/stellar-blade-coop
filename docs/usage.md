@@ -414,6 +414,11 @@ enemy still fights only its own EVE, and positions are not shared. It changes en
 so it shares enemies only on a co-op save, and kills count in the co-op save. Back up your saves first (see
 [saves.md](saves.md)).
 
+When a hit knocks a shared enemy down (face up or face down), launches it or slams it into a wall on one screen, the
+other game starts the same effect on its copy, as if its own EVE had landed that hit. A copy that is already down, in
+the air or groggy finishes that first and skips it, and a copy the game holds immune to it stays up. Groggy needs
+nothing of this: each copy goes groggy when the shared balance gauge empties.
+
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
 too. A file from version 0.2 says `shared_enemies=off` and keeps it off until you turn the row on. It starts by itself

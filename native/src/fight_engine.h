@@ -1,11 +1,12 @@
-// Shared Naytibas, stage 1 (Phase 11): fight_sync.h's sides inside the game. SB's logic thread runs a job of ours once
-// a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's enemies and turns their writes into
-// SB's ApplyStat, then pushes itself for the next turn. The game thread arms the job after a world load and again when
-// it stopped running. Every access goes through a Game (the glue on Windows, under its SEH guard; fake memory and a
-// fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed arrays only: Simulate
-// never allocates (ApplyStat does internally, as for SB's own logic-thread callers). Mail carries the job's lines,
-// events and probe census to our worker thread and hers back without ever making the logic thread wait; Worker is the
-// worker's side: the user's coop fight requests, the gates, channel 2's text, the record and replay files and the log.
+// Shared Naytibas, stages 1 and 2 (Phase 11): fight_sync.h's sides inside the game. SB's logic thread runs a job of
+// ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's enemies and turns their
+// writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call, then pushes itself for the next
+// turn. The game thread arms the job after a world load and again when it stopped running. Every access goes through
+// a Game (the glue on Windows, under its SEH guard; fake memory and a fake ApplyStat in tests/fight_engine_test.cpp),
+// so nothing here is Windows-specific. Fixed arrays only: Simulate never allocates (ApplyStat and the effect call do
+// internally, as for SB's own logic-thread callers). Mail carries the job's lines, events and probe census to our
+// worker thread and hers back without ever making the logic thread wait; Worker is the worker's side: the user's coop
+// fight requests, the gates, channel 2's text, the record and replay files and the log.
 // Offsets and functions are for Stellar Blade's Steam build 24463856 (PHASE11-DESIGN.md 4.3-4.7); the caller runs it
 // only on the pinned build, with the feature on.
 //
@@ -14,6 +15,8 @@
 //   uint64_t find(uint64_t logic, uint32_t guid): FUN_141ad6ab0(logic, guid), the logic actor or 0;
 //   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify):
 //     FUN_141ba8720(la, type, 0, delta, 0, cause, 0, 0, 0, notify, true): every write passes NoDamage (fight_sync.h);
+//   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id):
+//     FUN_141ad08b0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
 //   void push(Job *job): FUN_141af3930(nullptr, job, 0), never param_3 = 1;
 //   bool receive(Message &m): the friend's next line, parsed by the worker; false when none;
 //   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
@@ -120,6 +123,12 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint32_t &held
   return true;
 }
 
+constexpr uint32_t kStunned = 1u << 6 | 1u << 7 | 1u << 8; // Of kStatesRead: Down, Groggy, Airborne.
+// Logic actor +0x170: the effects running on it, a TArray<effect *> (ArrayNum +0x178); an effect's EffectTable ID at
+// +0x104 (PHASE11-STAGE2-RE 2: SB's dispel walk FUN_141ba60d0 and effect end FUN_141bca730 read them so).
+constexpr size_t kEffects = 0x170, kEffectCount = 0x178, kEffectId = 0x104;
+constexpr int32_t kMaxEffects = 128; // A longer list is taken for a torn read.
+
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
 // SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
@@ -168,7 +177,7 @@ struct JobCounts {
   uint64_t censuses = 0, rejected = 0; // Census passes, elements failing the test.
   uint64_t cut = 0; // Map slots past kMaxCensus, and eligible enemies past kMaxSeen, summed over the censuses.
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
-  uint64_t unread = 0;  // State maps that failed their checks: read as holding nothing.
+  uint64_t unread = 0;  // State maps and effect lists that failed their checks: read as holding nothing.
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
   uint64_t paused = 0;                         // Ticks a paused world put off.
@@ -450,7 +459,7 @@ public:
       uint64_t la = g.find(logic, followed[i]);
       // A life state we do not know is left out (gone, so down or unpaired), never read as a death.
       if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying) && stats(g, a)) {
-        marks(g, a);
+        marks(g, la, a);
         seen_[n++] = a.seen;
       }
     }
@@ -474,7 +483,7 @@ public:
       if (n == kMaxSeen)
         ++counts.cut;
       else if (stats(g, a)) {
-        marks(g, a);
+        marks(g, f.la, a);
         seen_[n++] = a.seen;
       }
     }
@@ -502,6 +511,7 @@ private:
     Game &g;
     uint64_t logic;
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
+    bool effect(uint32_t guid, int32_t id) { return e.cast(g, logic, guid, id); }
     void send(const Message &m) { g.send(m); }
     void event(const Event &ev) { g.event(ev); }
   };
@@ -566,15 +576,42 @@ private:
     a.seen.dying = a.pending || (a.life >= 3 && a.life <= 5);
     return true;
   }
-  // What a fighting actor's state map holds of kStatesRead, into a.states and its Seen: NoDamageNoHit (3) before
-  // NoDamage (4), as ApplyStat blocks on either. A map that fails its checks holds nothing, counted, never latched: it
-  // only feeds the host's bypass counts. The life state gate is SB's: it changes no state while dying.
-  template <class Game> void marks(Game &g, Actor &a) {
-    a.states = 0;
-    if (fighting(a) && !held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb,
-                                    a.states))
-      ++counts.unread;
+  // What a fighting actor (logic actor la) holds, into a.states and its Seen: the states of kStatesRead (NoDamageNoHit
+  // before NoDamage, as ApplyStat blocks on either; stunned: Down, Groggy or Airborne) and the kCcEffects it runs. A
+  // map or a list that fails its checks holds nothing, counted, never latched: it only feeds the bypass counts and the
+  // crowd-control mirror, which then does nothing. SB changes no state while an actor is dying.
+  template <class Game> void marks(Game &g, uint64_t la, Actor &a) {
+    a.states = 0, a.seen.cc = 0;
+    if (fighting(a)) {
+      if (!held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, a.states))
+        ++counts.unread;
+      if (!effects(g, la, a.seen.cc))
+        ++counts.unread;
+    }
     a.seen.nodamage = a.states >> kNoDamageNoHit & 1 ? kNoDamageNoHit : a.states >> kNoDamage & 1 ? kNoDamage : 0;
+    a.seen.stunned = a.states & kStunned;
+  }
+  // The kCcEffects running on la, as Seen::cc's bits; false, with none, when its list fails a check.
+  template <class Game> bool effects(Game &g, uint64_t la, uint8_t &cc) {
+    cc = 0;
+    uint8_t h[kEffectCount + 4 - kEffects];
+    uint64_t list[kMaxEffects];
+    if (!g.read(la + kEffects, h, sizeof h))
+      return false;
+    const uint64_t data = nightop::get<uint64_t>(h, 0);
+    const int32_t num = nightop::get<int32_t>(h, kEffectCount - kEffects);
+    if (num < 0 || num > kMaxEffects || (num && (!plausible(data) || !g.read(data, list, 8 * size_t(num)))))
+      return false;
+    uint8_t bits = 0;
+    for (int32_t i = 0; i < num; ++i) {
+      int32_t id = 0;
+      if (!plausible(list[i]) || !g.read(list[i] + kEffectId, &id, sizeof id))
+        return false;
+      for (size_t k = 0; k < kCc; ++k)
+        bits |= id == kCcEffects[k] ? uint8_t(1u << k) : 0;
+    }
+    cc = bits;
+    return true;
   }
   // HP, Shield and Stamina with their maxes. Implausible (the feature off for the run) unless every one is finite and
   // within [0, 10,000,000], and HP <= MaxHP.
@@ -694,7 +731,7 @@ private:
       a.eve = a.controlled == 1 && local && a.fsb == local;
       if (a.eve && !pc(g, a))
         return;
-      marks(g, a);
+      marks(g, found_[i].la, a);
       if (a.eve)
         eve_ = a.seen.guid;
       ++actors_;
@@ -754,7 +791,7 @@ private:
     Actor b;
     const uint64_t la = g.find(logic, w.guid);
     if (la && live(g, la, w.guid, b) && raw(g, b) && get(g, b.fsb + kActorType, b.type)) {
-      marks(g, b);
+      marks(g, la, b);
       b.out = left_out(b);
       g.probe(b);
     }
@@ -777,6 +814,19 @@ private:
     Actor a;
     uint64_t la = eve_ ? g.find(logic, eve_) : 0;
     return la && live(g, la, eve_, a) && a.controlled == 1 && a.fsb && a.fsb == local_fsb(g) ? la : 0;
+  }
+
+  // One of the side's mirrored crowd controls (fight_sync.h's Io::effect): its actor found again and tested as for a
+  // write, then SB's effect call as SB's ApplyStat makes it for an attacker's effects, our EVE the caster as for a hit
+  // of hers: SB then weighs the copy's immunities (ImmuneDown and the like) and runs the effect's chain and end itself.
+  // No EVE of ours found: not started.
+  template <class Game> bool cast(Game &g, uint64_t logic, uint32_t guid, int32_t id) {
+    Actor a;
+    const uint64_t la = g.find(logic, guid);
+    if (!la || !live(g, la, guid, a) || !fighting(a))
+      return false;
+    const uint64_t caster = eve(g, logic);
+    return caster && !latched_ && g.effect(logic, la, caster, id);
   }
 
   // One of the side's writes: its actor found again by GUID and tested again (an earlier write may have summoned an
@@ -951,7 +1001,7 @@ private:
 //   probe (T11a): read only, each live actor traced when first seen and again when its line changes, a stats line
 //     each second the census moved; its test writes (coop fight test) wait for fight writes=armed: our job ran and its
 //     census found our EVE in this run;
-//   record: the host's side alone, as if a guest were on: its lines (world, up, down, dead, hp) go into
+//   record: the host's side alone, as if a guest were on: its lines (world, up, down, dead, hp, cc) go into
 //     coop-fight-record.txt, written when the mode ends;
 //   replay: that file played into the guest's side from its start; the guest's own lines go nowhere. It writes, so
 //     it waits for fight writes=armed too.
@@ -1244,10 +1294,10 @@ private:
     return said;
   }
 
-  // One of the host's lines (world, up, down, dead, hp) into the recording, from its first world (an older session's
-  // lines may still come); full: the mode ends at this pass.
+  // One of the host's lines (world, up, down, dead, hp, cc) into the recording, from its first world (an older
+  // session's lines may still come); full: the mode ends at this pass.
   void record(const Message &m) {
-    if (m.type < Type::world || m.type > Type::hp || record_full_ || (recording_.empty() && m.type != Type::world))
+    if (m.type < Type::world || m.type > Type::cc || record_full_ || (recording_.empty() && m.type != Type::world))
       return;
     const std::string text = record_line(now_ - record_start_, m);
     if (record_lines_ == kMaxRecordLines || recording_.size() + text.size() > kMaxRecording) {
@@ -1270,10 +1320,16 @@ private:
                            whole(s.max[kStamina]), a.eve ? " eve" : a.controlled == 1 ? " controlled" : "",
                            a.player ? " player" : "", a.pending ? " pending" : "", a.out ? " left_out=" : "",
                            a.out ? a.out : "");
-    const char *sep = " states="; // The states held among those read: states=3,27.
+    const char *sep = " states="; // The states held among those read, then the crowd controls: states=6,27 cc=3000300.
     for (const int32_t state : kStatesRead)
       if (a.states >> state & 1 && at > 0 && size_t(at) < sizeof text) {
         at += std::snprintf(text + at, sizeof text - size_t(at), "%s%d", sep, int(state));
+        sep = ",";
+      }
+    sep = " cc=";
+    for (size_t k = 0; k < kCc; ++k)
+      if (s.cc >> k & 1 && at > 0 && size_t(at) < sizeof text) {
+        at += std::snprintf(text + at, sizeof text - size_t(at), "%s%d", sep, int(kCcEffects[k]));
         sep = ",";
       }
     std::string &said = shown_[s.guid];
@@ -1352,21 +1408,22 @@ private:
     else if (side_)
       std::snprintf(head, sizeof head,
                     "fight stats: host%s, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
-                    "floored), nodamage bypass %llu in state 3 and %llu in 4, %llu stale, %llu over the rates, %llu "
-                    "bad, %llu ignored",
+                    "floored), nodamage bypass %llu in state 3 and %llu in 4, %llu crowd controls told, %llu "
+                    "mirrored (%llu skipped), %llu stale, %llu over the rates, %llu bad, %llu ignored",
                     as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.bypass3), u(c.bypass4),
-                    u(c.stale), u(c.rate), u(c.bad), u(c.ignored));
+                    u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.rate), u(c.bad), u(c.ignored));
     else
       std::snprintf(head, sizeof head,
                     "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored), "
-                    "%llu desync guest-dead, %llu stale, %llu bad",
-                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), u(c.stale),
-                    u(c.bad));
+                    "%llu desync guest-dead, %llu crowd controls told, %llu mirrored (%llu skipped), %llu stale, %llu "
+                    "bad",
+                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.desync), u(c.cc_told),
+                    u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.bad));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
-                  "%llu state maps unread; "
+                  "%llu state maps or effect lists unread; "
                   "%llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic "
                   "thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),

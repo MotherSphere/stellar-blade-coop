@@ -1,7 +1,8 @@
-// Shared Naytibas, stage 1, on the build machine: channel 2's text (round trips, every refusal, fuzz); the host's
-// announces, values, claims and death rules, and its checks of every claim (R33); the guest's pairing, claims (R35),
-// corrections and death rules; the world fence and the clearing on both sides; two fake worlds linked through a
-// delayed, lossy line until every enemy died once on each side; and record and replay.
+// Shared Naytibas, stages 1 and 2, on the build machine: channel 2's text (round trips, every refusal, fuzz); the
+// host's announces, values, claims and death rules, and its checks of every claim (R33); the guest's pairing, claims
+// (R35), corrections and death rules; the crowd control told and mirrored both ways; the world fence and the clearing
+// on both sides; two fake worlds linked through a delayed, lossy line until every enemy died once on each side; and
+// record and replay.
 #include "fight_sync.h"
 
 #include <algorithm>
@@ -16,9 +17,9 @@
 using namespace coop::fight;
 
 namespace {
-// A fake world: its enemies, and what our side wrote, sent and logged. apply() acts as ApplyStat does for our calls:
-// whole units, a drop stops at the floor (MinimumHP or Immortal, HP only) and a rise at the max, and HP 0 is a death,
-// after which every write is refused (the engine's re-find fails on a dying actor).
+// A fake world: its enemies, and what our side wrote, started, sent and logged. apply() acts as ApplyStat does for our
+// calls: whole units, a drop stops at the floor (MinimumHP or Immortal, HP only) and a rise at the max, and HP 0 is a
+// death, after which every write is refused (the engine's re-find fails on a dying actor).
 struct World {
   struct Actor {
     Seen s;
@@ -26,6 +27,8 @@ struct World {
   };
   std::vector<Actor> actors;
   std::vector<Write> writes;
+  std::vector<std::pair<uint32_t, int32_t>> effects; // The effects our side started: (GUID, EffectTable ID).
+  bool immune = false;                              // The game refuses every effect (an immunity).
   std::vector<Message> sent;
   std::vector<Event> events;
 
@@ -66,6 +69,15 @@ struct World {
     a->s.dying = v <= 0 && w.stat == kHp;
     assert(!a->s.dying || w.eve); // Every kill we apply gives this world's EVE the kill (F3).
     after = v;
+    return true;
+  }
+  // The game's effect call, as the engine makes it: refused on a dying or missing actor, or an immune one. What the
+  // effect does to the copy shows in its Seen at a later pass, which the tests set.
+  bool effect(uint32_t guid, int32_t id) {
+    Actor *a = actor(guid);
+    if (!a || a->s.dying || immune)
+      return false;
+    effects.push_back({guid, id});
     return true;
   }
   void send(const Message &m) { sent.push_back(m); }
@@ -142,7 +154,8 @@ int main() {
          {"SBF9 on", "SBF9 off not on the co-op save", "SBF9 world 3", "SBF9 up 3 77 50110 2 15011001 1600",
           "SBF9 up 4294967295 4294967295 4294967295 255 4294967295 10000000", "SBF9 down 3 77", "SBF9 dead 3 77",
           "SBF9 hp 3 1 0 77:1600:100:200", "SBF9 hp 3 2 9 77:0:0:0 78:5:6:7", "SBF9 hit 3 1 77 120 5 30 400 0",
-          "SBF9 hit 3 4294967295 77 400 0 0 400 1", "SBF9 hit 3 2 77 0 0 0 0 0"}) {
+          "SBF9 hit 3 4294967295 77 400 0 0 400 1", "SBF9 hit 3 2 77 0 0 0 0 0", "SBF9 cc 3 77 9900001",
+          "SBF9 cc 4294967295 4294967295 3000401"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -157,6 +170,8 @@ int main() {
     Message hit = msg("SBF9 hit 3 1 77 120 5 30 400 1");
     assert(hit.type == Type::hit && hit.seq == 1 && hit.guid == 77 && hit.delta[kHp] == 120 &&
            hit.delta[kShield] == 5 && hit.delta[kStamina] == 30 && hit.pre_hp == 400 && hit.lethal);
+    Message cc = msg("SBF9 cc 3 77 3000303");
+    assert(cc.type == Type::cc && cc.gen == 3 && cc.guid == 77 && cc.effect == 3000303);
     assert(msg("SBF9 world 007").gen == 7); // Leading zeros read as the number; we never write them.
 
     // off's reason: cleaned both ways, never empty, bounded; a peer's text never breaks our log line.
@@ -204,7 +219,11 @@ int main() {
           "SBF9 hit 3 0 77 1 0 0 1 0", "SBF9 hit 3 1 0 1 0 0 1 0", "SBF9 hit 0 1 77 1 0 0 1 0",
           "SBF9 hit 3 1 77 1 0 0 1 2", "SBF9 hit 3 1 77 1 0 0 1 00", "SBF9 hit 3 1 77 1 0 0 1",
           "SBF9 hit 3 1 77 1 0 0 1 0 0", "SBF9 hit 3 1 77 -1 0 0 1 0", "SBF9 hit 3 1 77 10000001 0 0 1 0",
-          "SBF9 hit 3 1 77 1 0 0 10000001 0", "SBF9 hit 3 1 77 1.5 0 0 1 0", "SBF9 hit 3 1 77 1 0 0 1 true"})
+          "SBF9 hit 3 1 77 1 0 0 10000001 0", "SBF9 hit 3 1 77 1.5 0 0 1 0", "SBF9 hit 3 1 77 1 0 0 1 true",
+          // cc: only the five mirrored effects (not Groggy 3000100, not the chain's AirborneDown 9900003).
+          "SBF9 cc 3 77 3000100", "SBF9 cc 3 77 9900003", "SBF9 cc 3 77 0", "SBF9 cc 3 77 -9900001",
+          "SBF9 cc 3 77", "SBF9 cc 3 77 9900001 1", "SBF9 cc 0 77 9900001", "SBF9 cc 3 0 9900001",
+          "SBF9 cc 3 77 99000010"})
       assert(!valid(bad));
     const char nul[] = {'S', 'B', 'F', '7', ' ', 'o', 'n', '\0'};
     assert(parse(nul, sizeof nul).type == Type::invalid && parse(nullptr, 3).type == Type::invalid);
@@ -215,7 +234,7 @@ int main() {
     std::mt19937 rng(77);
     const std::string seeds[] = {"SBF9 on", "SBF9 off why", "SBF9 world 3", "SBF9 up 3 77 50110 2 15011001 1600",
                                  "SBF9 dead 3 77", "SBF9 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
-                                 "SBF9 hit 3 1 77 120 5 30 400 1"};
+                                 "SBF9 hit 3 1 77 120 5 30 400 1", "SBF9 cc 3 77 9900001"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -223,7 +242,7 @@ int main() {
         for (char &c : text)
           c = static_cast<char>(rng() % 3 ? "0123456789: SBF9onfworldupdeadhpit"[rng() % 35] : char(rng()));
       } else {
-        text = seeds[rng() % 7];
+        text = seeds[rng() % 8];
         for (int k = rng() % 4; k >= 0 && !text.empty(); --k) {
           size_t at = rng() % text.size();
           switch (rng() % 3) {
@@ -423,6 +442,116 @@ int main() {
     h.receive(msg("SBF9 hit 1 9 112 0 3 0 1 0"), 700, w);
     step(h, w, 11, 700);
     assert(h.counts.bypass3 == 1 && h.counts.bypass4 == 1 && h.counts.claims == 9);
+  }
+
+  // ---- Host: crowd control told and mirrored (PHASE11-STAGE2-RE 2) ----
+  {
+    World w;
+    for (uint32_t i = 0; i < 3; ++i)
+      w.add(101 + i, 5001 + i, 0);
+    w.actor(103)->s.cc = 1, w.actor(103)->s.stunned = true; // Airborne since before she was on: never told.
+    Host h;
+    h.receive(msg("SBF9 on"), 0, w);
+    step(h, w, 1, 0);
+    w.lines();
+    // Our EVE knocks 101 down: at the next pass it runs Down and holds state 6. Told once, by the host's GUID.
+    Seen &a = w.actor(101)->s;
+    a.cc = 1 << 1, a.stunned = true;
+    step(h, w, 2, 100);
+    assert(w.lines() == "SBF9 cc 1 101 3000300\n" && h.counts.cc_told == 1);
+    step(h, w, 3, 150);
+    assert(w.sent.empty());
+    // A rise while it is still in that crowd control is its chain, which runs on her copy too: not told.
+    a.cc = 1 << 2;
+    step(h, w, 4, 200);
+    assert(w.sent.empty());
+    // Once it is out, the next is told; two at once give the first in kCcEffects' order (Down before WallHit).
+    a.cc = 0, a.stunned = false;
+    step(h, w, 5, 300);
+    a.cc = 1 << 4 | 1 << 1, a.stunned = true;
+    step(h, w, 6, 400);
+    assert(w.lines() == "SBF9 cc 1 101 3000300\n" && h.counts.cc_told == 2);
+    // Hers: started on our copy at our next step, through the game's effect call.
+    h.receive(msg("SBF9 cc 1 102 9900001"), 450, w);
+    assert(w.effects.empty());
+    step(h, w, 7, 450);
+    assert(w.effects.size() == 1 && w.effects[0] == std::make_pair(102u, 9900001) && h.counts.cc_mirrored == 1);
+    // It shows up a pass later (the effect's start delay): ours, never told back; then its chain, in the crowd control.
+    Seen &b = w.actor(102)->s;
+    step(h, w, 8, 470);
+    b.cc = 1, b.stunned = true;
+    step(h, w, 9, 490);
+    b.cc = 1 << 1;
+    step(h, w, 10, 520);
+    assert(w.sent.empty() && h.counts.cc_told == 2);
+    // A copy in a crowd control (101 still down, 103 in the air) or one running its own: skipped, counted.
+    h.receive(msg("SBF9 cc 1 101 9900001"), 550, w);
+    h.receive(msg("SBF9 cc 1 103 3000300"), 550, w);
+    step(h, w, 11, 550);
+    assert(w.effects.size() == 1 && h.counts.cc_skipped == 2);
+    // The game refusing it (an immunity): skipped too. Out of its crowd control, a new launch of 102 by our EVE is
+    // told, well within a second of her mirror: the guard held the one showing up of it, no more.
+    a.cc = 0, a.stunned = false, b.cc = 0, b.stunned = false;
+    step(h, w, 12, 600);
+    w.immune = true;
+    h.receive(msg("SBF9 cc 1 101 3000401"), 650, w);
+    step(h, w, 13, 650);
+    assert(w.effects.size() == 1 && h.counts.cc_skipped == 3 && h.counts.cc_mirrored == 1);
+    b.cc = 1, b.stunned = true;
+    step(h, w, 14, 700);
+    assert(w.lines() == "SBF9 cc 1 102 9900001\n");
+    // An old world's or an unknown enemy's: stale, never a bad line; a later one replaces one not applied yet.
+    h.receive(msg("SBF9 cc 2 101 3000300"), 1150, w);
+    h.receive(msg("SBF9 cc 1 999 3000300"), 1150, w);
+    assert(h.counts.stale == 2 && h.counts.bad == 0);
+    w.immune = false;
+    h.receive(msg("SBF9 cc 1 101 3000300"), 1150, w);
+    h.receive(msg("SBF9 cc 1 101 3000401"), 1150, w);
+    step(h, w, 15, 1150);
+    assert(w.effects.size() == 2 && w.effects[1] == std::make_pair(101u, 3000401));
+    // Her off: hers are no longer taken.
+    h.receive(msg("SBF9 off busy"), 1200, w);
+    h.receive(msg("SBF9 cc 1 102 3000300"), 1200, w);
+    assert(h.counts.stale == 3);
+  }
+
+  // ---- Guest: crowd control both ways on a pair ----
+  {
+    World g;
+    g.add(501, 5001, 0);
+    g.add(502, 5002, 0);
+    g.add(503, 5003, 0);
+    Guest gu;
+    gu.receive(msg("SBF9 world 1"), g);
+    gu.receive(msg("SBF9 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF9 up 1 102 5002 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    assert(gu.linked() == 2);
+    // The host's knockdown of 101: started on our copy 501 at our next step; it shows up later, never told back.
+    gu.receive(msg("SBF9 cc 1 101 3000300"), g);
+    step(gu, g, 2, 100);
+    assert(g.effects.size() == 1 && g.effects[0] == std::make_pair(501u, 3000300) && gu.counts.cc_mirrored == 1);
+    g.actor(501)->s.cc = 1 << 1, g.actor(501)->s.stunned = true;
+    step(gu, g, 3, 150);
+    assert(g.sent.empty());
+    // Our EVE launches 502: told by the host's GUID.
+    g.actor(502)->s.cc = 1, g.actor(502)->s.stunned = true;
+    step(gu, g, 4, 200);
+    assert(g.lines() == "SBF9 cc 1 102 9900001\n" && gu.counts.cc_told == 1);
+    // Another world's, an enemy we do not pair (503 has no host enemy) or never heard of: stale.
+    gu.receive(msg("SBF9 cc 2 101 3000300"), g);
+    gu.receive(msg("SBF9 cc 1 103 3000300"), g);
+    assert(gu.counts.stale == 2);
+    gu.receive(msg("SBF9 up 1 104 5099 0 900 1600"), g); // Announced, no copy here.
+    gu.receive(msg("SBF9 cc 1 104 3000300"), g);
+    assert(gu.counts.stale == 3);
+    // A copy in a crowd control skips the host's, counted; dead ones take none.
+    gu.receive(msg("SBF9 cc 1 102 3000401"), g);
+    step(gu, g, 5, 250);
+    assert(g.effects.size() == 1 && gu.counts.cc_skipped == 1);
+    gu.receive(msg("SBF9 dead 1 101"), g);
+    gu.receive(msg("SBF9 cc 1 101 3000300"), g);
+    assert(gu.counts.stale == 4);
   }
 
   // ---- Host: every claim checked (R33) ----

@@ -1,10 +1,11 @@
-// Shared Naytibas, stage 1 (Phase 11): matched pairs with a host arbiter, as pure logic. Each world keeps spawning its
-// own enemies. The host announces the ones it arbitrates and decides their HP, Shield, Stamina (balance) and death; the
-// guest pairs each with its own copy by SB's spawn key, claims its own hits and corrects its copies toward the host's
-// values. Host and Guest run inside our logic job on fixed arrays and never allocate; the text of channel 2, the record
-// lines and the replay are the worker's. The game is reached only through an Io (the engine reads the actors and calls
-// SB's ApplyStat), so tests/fight_sync_test.cpp drives this file with fake worlds on the build machine. No Windows
-// types.
+// Shared Naytibas, stages 1 and 2 (Phase 11): matched pairs with a host arbiter, as pure logic. Each world keeps
+// spawning its own enemies. The host announces the ones it arbitrates and decides their HP, Shield, Stamina (balance)
+// and death; the guest pairs each with its own copy by SB's spawn key, claims its own hits and corrects its copies
+// toward the host's values. A knockdown or a launch that starts on one copy is started on the other (both ways). Host
+// and Guest run inside our logic job on fixed arrays and never allocate; the text of channel 2, the record lines and
+// the replay are the worker's. The game is reached only through an Io (the engine reads the actors and calls SB's
+// ApplyStat and effect call), so tests/fight_sync_test.cpp drives this file with fake worlds on the build machine. No
+// Windows types.
 //
 // Channel 2 (link_core.h), plain text after link_protocol.h's fight_tag(), integers only (HP, Shield and Stamina are
 // whole units in the game). An enemy is named by the host's ActorGUID (hguid), which SB reuses only after 5,000,000
@@ -17,6 +18,8 @@
 //                                                                  rising, shared by its lines; ack: last claim taken
 //   SBF9 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>   guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
+//   SBF9 cc <gen> <hguid> <effect>                                 both, reliable: a crowd control (kCcEffects) that
+//                                                                  started on our copy
 // The host answers the guest's on and world with its whole list (world, then every up), and the guest answers the
 // host's on with its own (hers may have come while the host was off), so either side may restart.
 #pragma once
@@ -55,10 +58,18 @@ constexpr uint64_t kMaxBad = 16;                            // Bad lines before 
 constexpr double kLethalShare = 0.10;   // A lethal claim kills when the host's HP <= preHp + 10 % of MaxHP.
 constexpr double kCorrectShare = 0.005; // A gap is corrected from max(1, 0.5 % of the stat's max).
 constexpr double kMaxHpSlack = 0.5;     // A pair's MaxHP may differ by this much.
+// The crowd-control effects a pair's copies mirror (PHASE11-STAGE2-RE 2), by EffectTable ID, the first winning when
+// two start at once: Airborne, Down, DownFaceUp, DownFaceDown, WallHit. Each copy goes groggy by itself from the shared
+// Stamina, and KnockBack has no effect row. What they chain into (AirborneDown, then Down; Getup; WallHitStun...) runs
+// on each copy by itself.
+constexpr int32_t kCcEffects[] = {9900001, 3000300, 3000301, 3000303, 3000401};
+constexpr size_t kCc = sizeof kCcEffects / sizeof kCcEffects[0];
+constexpr uint64_t kEchoMs = 1000; // Our mirror showing up on our copy this late is still ours: never told back.
+inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + kCc, int64_t(id)) != kCcEffects + kCc; }
 
 // ---- Channel 2 ----
 
-enum class Type : uint8_t { invalid, on, off, world, up, down, dead, hp, hit }; // world..hp: what the host records.
+enum class Type : uint8_t { invalid, on, off, world, up, down, dead, hp, cc, hit }; // world..cc: the host's recorded.
 // One enemy in an hp message.
 struct Values {
   uint32_t guid = 0;
@@ -76,6 +87,7 @@ struct Message {
   int32_t delta[kStats] = {};  // hit: the drops, each >= 0.
   int32_t pre_hp = 0;          // hit: the copy's HP before them.
   bool lethal = false;         // hit: the copy died of them.
+  int32_t effect = 0;          // cc: one of kCcEffects.
   Values entries[kHpPerMessage];
   uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
 };
@@ -103,6 +115,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
     }
     return text;
   }
+  case Type::cc: return t + "cc" + n(m.gen) + n(m.guid) + n(uint32_t(m.effect));
   case Type::hit:
     return t + "hit" + n(m.gen) + n(m.seq) + n(m.guid) + n(m.delta[kHp]) + n(m.delta[kShield]) + n(m.delta[kStamina]) +
            n(m.pre_hp) + n(m.lethal);
@@ -172,6 +185,10 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
          whole(f[6], m.pre_hp) && (f[7] == "0" || f[7] == "1");
     m.lethal = f[7] == "1";
     type = Type::hit;
+  } else if (kind == "cc") {
+    ok = split(rest, f, 3, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && number(f[2], v) && cc_effect(v);
+    m.effect = int32_t(v);
+    type = Type::cc;
   } else if (kind == "hp") {
     ok = split(rest, f, 3, &tail) && id(f[0], m.gen) && id(f[1], m.batch) && number(f[2], v) && v <= UINT32_MAX;
     m.seq = static_cast<uint32_t>(v);
@@ -209,6 +226,8 @@ struct Seen {
   uint32_t guid = 0, spawn = 0, chr = 0; // ActorGUID, EventSpawnId, charId.
   uint8_t index = 0;                     // SpawnIndex.
   uint8_t nodamage = 0;                  // 3 NoDamageNoHit, 4 NoDamage while that state holds, else 0.
+  uint8_t cc = 0;                        // Bit i: kCcEffects[i] runs on it.
+  bool stunned = false;                  // It holds Down (6), Groggy (7) or Airborne (8): a crowd control runs.
   bool dying = false;                    // Pending death or life state 3-5: it may stay in the map a while.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.
@@ -255,6 +274,8 @@ inline std::string line(const Event &e) {
 // The Io both sides take, the engine in the game and fake worlds in the tests:
 //   bool apply(const Write &w, int32_t &after): re-finds the actor by GUID, and when it is alive calls ApplyStat and
 //     reads the stat back into after (whole units); false, after untouched, when it is gone;
+//   bool effect(uint32_t guid, int32_t id): re-finds the actor by GUID, and when it is alive starts that effect on it
+//     through SB's own call, as a hit of our EVE's would; false when it is gone or the game refused;
 //   void send(const Message &m): channel 2 (on/off are the caller's, but for the guest's answer to the host's on);
 //   void event(const Event &e): a log line.
 
@@ -271,6 +292,53 @@ struct Counts {
   uint64_t rate = 0;                 // Host: claims over the rates.
   uint64_t bad = 0;                  // Lines no honest peer sends.
   uint64_t ignored = 0;              // Host: lines from a peer ignored for bad lines.
+  uint64_t cc_told = 0;              // Crowd controls that started on our copy, told to the other side.
+  uint64_t cc_mirrored = 0;          // The other side's, started on our copy.
+  uint64_t cc_skipped = 0;           // The other side's not started: our copy in a crowd control, or the game refused.
+};
+
+// A copy's crowd control (kCcEffects and the stunned states) as our last pass saw it, and the other side's to start.
+// A crowd control is told when it starts on a copy that was in none: one that starts inside another is its chain, or
+// would only cut it short, so it is neither told nor started. The other side's starts on our copy only when that holds
+// none either, through the game's own call (Io::effect), so its chain and its end run as for a hit of ours. Our mirror
+// showing up on our copy at a later pass (an effect may start a turn late) is the one rise never told back.
+struct Mirror {
+  uint8_t held = 0;
+  bool stunned = false;
+  int32_t want = 0;  // The other side's effect, for our next pass; 0: none.
+  int32_t mine = 0;  // Our last mirror's effect until it shows up, at most kEchoMs after mine_ms.
+  uint64_t mine_ms = 0;
+
+  void start(const Seen &s) { *this = Mirror(), held = s.cc, stunned = s.stunned; }
+  // This pass: the effect to tell the other side, or 0.
+  int32_t risen(const Seen &s, uint64_t now) {
+    const uint8_t rise = s.cc & ~held;
+    const bool was = stunned;
+    held = s.cc, stunned = s.stunned;
+    size_t i = 0;
+    while (i < kCc && !(rise >> i & 1))
+      ++i;
+    if (i == kCc || was)
+      return 0;
+    if (kCcEffects[i] == mine && now < mine_ms + kEchoMs) { // Ours.
+      mine = 0;
+      return 0;
+    }
+    return kCcEffects[i];
+  }
+  // This pass: the other side's, started on our copy guid (seen as s) when it holds no crowd control.
+  template <class Io> void apply(uint32_t guid, const Seen &s, uint64_t now, Counts &c, Io &io) {
+    if (!want)
+      return;
+    const int32_t id = want;
+    want = 0;
+    if (s.cc || s.stunned || !io.effect(guid, id)) {
+      ++c.cc_skipped;
+      return;
+    }
+    ++c.cc_mirrored;
+    mine = id, mine_ms = now;
+  }
 };
 
 // A world change: the logic turn went backwards (every load, network start and Logic Reset), or this census pass shares
@@ -355,6 +423,12 @@ public:
       claims_ = 0;
       return;
     case Type::hit: return take(m, now, io);
+    case Type::cc: // Hers, for our copy at the next step (a later one replaces it).
+      if (Enemy *e = peer_on_ && m.gen == gen_ ? find(m.guid) : nullptr)
+        e->cc.want = m.effect;
+      else
+        ++counts.stale;
+      return;
     default: return bad("not a guest's line", io);
     }
   }
@@ -375,7 +449,14 @@ public:
       Enemy &e = enemies_[i];
       const Seen *s = fight::find(seen, n, e.guid);
       if (s && !dying(*s)) {
+        if (const int32_t id = e.cc.risen(*s, now); id && each) {
+          Message m = note(Type::cc, e.guid);
+          m.effect = id;
+          io.send(m);
+          ++counts.cc_told;
+        }
         e.take(*s);
+        e.cc.apply(e.guid, *s, now, counts, io);
         ++i;
         continue;
       }
@@ -400,6 +481,7 @@ public:
       Enemy &e = *place = Enemy();
       e.guid = seen[i].guid;
       e.take(seen[i]);
+      e.cc.start(seen[i]);
       if (each)
         io.send(up(e));
     }
@@ -429,6 +511,7 @@ private:
     bool hit = false;     // A claim was ever applied to it: it keeps its place.
     uint64_t window = 0;  // The rate window's start and its claims.
     uint32_t in_window = 0;
+    Mirror cc;
     void take(const Seen &s) {
       spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage;
       std::copy(s.max, s.max + kStats, max);
@@ -648,6 +731,7 @@ public:
     case Type::down:
     case Type::dead:
     case Type::hp:
+    case Type::cc:
       if (!known_gen_ || m.gen != known_gen_) {
         ++counts.stale;
         return;
@@ -672,6 +756,11 @@ public:
       *p = pairs_[--count_];
     } else if (m.type == Type::dead && p) {
       p->dead = true;
+    } else if (m.type == Type::cc) { // For our copy at the next step, while it is ours to follow.
+      if (p && p->local && !p->lethal && !p->dead)
+        p->cc.want = m.effect;
+      else
+        ++counts.stale;
     } else if (m.type == Type::hp) {
       if (m.batch < batch_) { // Unreliable lines may come out of order: an older turn's would undo newer values.
         ++counts.stale;
@@ -754,6 +843,7 @@ private:
     bool have_host = false;
     int32_t stuck[kStats] = {-1, -1, -1}; // A target a write could not reach; retried once the target changes.
     uint64_t next_claim = 0;
+    Mirror cc;
     Pending pending[kMaxPending]; // Claims sent, not in the host's values yet, oldest first.
     size_t pendings = 0;
   };
@@ -798,8 +888,8 @@ private:
     }
   }
 
-  // A paired copy this pass: its drops since our last pass are claims (rises are regen, never claimed), then the gap to
-  // the host's values is corrected.
+  // A paired copy this pass: its drops since our last pass are claims (rises are regen, never claimed), a crowd control
+  // that started on it is told, the gap to the host's values is corrected, and the host's crowd control started.
   template <class Io> void follow(Pair &p, const Seen &s, uint64_t now, Io &io) {
     bool owed = false;
     for (int k = 0; k < kStats; ++k) {
@@ -810,10 +900,20 @@ private:
     }
     if (dying(s)) // Our own lethal hit: the copy dies here at once (F4); the host decides for its own.
       return claim(p, s, now, true, io);
+    if (const int32_t id = p.cc.risen(s, now)) {
+      Message m;
+      m.type = Type::cc;
+      m.gen = known_gen_;
+      m.guid = p.hguid;
+      m.effect = id;
+      io.send(m);
+      ++counts.cc_told;
+    }
     if (owed && now >= p.next_claim && now >= next_claim_)
       claim(p, s, now, false, io);
     if (p.have_host)
       correct(p, s, io);
+    p.cc.apply(p.local, s, now, counts, io);
   }
 
   template <class Io> void claim(Pair &p, const Seen &s, uint64_t now, bool lethal, Io &io) {
@@ -891,6 +991,7 @@ private:
         continue;
       }
       p.local = match->guid;
+      p.cc.start(*match);
       std::copy(match->value, match->value + kStats, p.seen);
       std::fill(p.stuck, p.stuck + kStats, -1);
       p.next_claim = 0;
@@ -926,8 +1027,8 @@ private:
 
 // ---- Record and replay ----
 
-// The host's lines as sent (world, up, down, dead, hp), each "<ms since the start> <SBF9 text>\n", in a text file the
-// worker writes at the stop; read back whole and checked, then played once into the guest role. The first line is a
+// The host's lines as sent (world, up, down, dead, hp, cc), each "<ms since the start> <SBF9 text>\n", in a text file
+// the worker writes at the stop; read back whole and checked, then played once into the guest role. The first line is a
 // world (the recorder starts with the host's list), so the guest takes the recorded generation; pairing goes by key, so
 // a recorded enemy pairs with the same spawn after a camp rest.
 constexpr size_t kMaxRecording = size_t(4) << 20, kMaxRecordLines = 20000;
@@ -944,7 +1045,7 @@ inline bool parse_line(const std::string &text, Line &out) {
   Line l;
   l.message = parse(text.data() + space + 1, text.size() - space - 1);
   if (!number(std::string_view(text).substr(0, space), l.ms) || l.message.type < Type::world ||
-      l.message.type > Type::hp)
+      l.message.type > Type::cc)
     return false;
   out = l;
   return true;
