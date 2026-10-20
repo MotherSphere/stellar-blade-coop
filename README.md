@@ -13,9 +13,11 @@ client that the game already runs, so the mod needs no other program and no serv
 
 ## Features
 
-- F5 opens the co-op menu. Its first row hosts a session (friends-only, or invited only) and opens the Steam invite
-  dialog. The invited friend joins once their save has loaded, even if Steam had to start their game. The menu also
-  invites, joins, leaves and changes the settings. F6 shows the status and F8 leaves the session.
+- F5 opens the co-op menu. Its first row hosts a session: by default a friends-only one, with the Steam invite dialog.
+  Options can limit the session to invited friends, or open it to anyone who has its 7-character join code, with no
+  dialog. A player who is not the host's Steam friend waits until the host accepts them. The invited friend joins once
+  their save has loaded, even if Steam had to start their game. The menu also invites, joins, leaves and changes the
+  settings. F6 shows the status and F8 leaves the session.
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Three optional looks are off by default and untested in game: her ponytail as
   cloth, her hair colour, and her attack and skill effects.

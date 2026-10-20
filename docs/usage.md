@@ -192,9 +192,9 @@ Shared enemies run on [co-op saves](#co-op-saves) only.
 ### Join codes
 
 With Options > Session > Who can join set to With a code (`who_can_join=code`), Host a session creates a lobby that
-does not show in your friends' lists, and no invite dialog opens. The notice `Hosting. Your join code is 0CS-CBMH.`
+does not show in your friends' lists, and no invite dialog opens. The notice `Hosting. Your join code is CCS-CBMH.`
 gives its 7-character code. The menu's Copy my code row shows it too, and selecting it puts it on the clipboard
-(`Join code 0CS-CBMH copied.`). Send it to the other player, for example in Discord. Each new lobby gets a new code.
+(`Join code CCS-CBMH copied.`). Send it to the other player, for example in Discord. Each new lobby gets a new code.
 
 The other player opens the menu outside a session and selects Join with a code. A text box opens where the menu was.
 It works like the chat box: any keyboard layout, the game ignores its own keys, and the mod's keys do nothing.

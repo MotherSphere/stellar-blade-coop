@@ -54,6 +54,45 @@ StellarCoop is an experimental pre-release, played in only a few sessions betwee
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
 - The host set Options > Session > Who can join to Invited only (`who_can_join=private`): `coop join` and the Steam
   friends list do not find that session. The host invites the friend with the menu's Invite a friend row instead.
+- The host set Who can join to With a code (`who_can_join=code`): that session does not show in the friends list
+  either. Join with the host's code, or the host invites you. See "Join codes and the host's question" below.
+
+### Join codes and the host's question
+
+For the player who types the code:
+
+- `A join code is 7 letters and digits, like XXX-XXXX.` under the code box: the text does not have the shape of a
+  code. Type the 7 letters and digits, with or without the dash after the third.
+- `That is not a join code: check its 7 characters.`: the shape is right but the code's check fails, so a character
+  is wrong. I and L count as 1 and O as 0, and no code holds a U. Ask the host to copy the code (Copy my code, or
+  `coop copy`) and paste it. About 1 typo in 9 passes the check; it then usually leads to one of the two notices
+  below.
+- `Could not join: that game no longer exists.`: the host left, or hosted again, and each session has its own code.
+  Ask for the new code.
+- `Could not join: that is not a StellarCoop game.`: the code leads to another game's lobby. Check the code.
+- `Joined <host>'s game. Waiting to be let in.`: you are not on the host's Steam friends list, so the host has to
+  accept you. Your partner's ghost and card do not show until then. The host has 60 s to answer.
+- `<host> refused the link: <reason>`, with `you were not let in`, `no answer within 60 s`, `you were removed from
+  this session` or `you cannot join this session again`: the host refused or removed you, and your game left. That
+  session stays closed to you. A new session the host starts has a new code, and the host is asked again.
+
+For the host:
+
+- The question does not show: it opens in a world only, while the game is not paused and shows no menu or mouse
+  cursor, and while the chat box is closed. After `coop ui off` it never shows. From the console, `coop status` gives
+  the waiting player on its `pending=<SteamID> <name>` line; then type `coop allow <SteamID>` or
+  `coop deny <SteamID>`. With no answer, the player is refused after 60 s.
+- A refused player is still in the lobby. Steam cannot take a player out of a lobby: a StellarCoop game leaves when
+  it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
+  never links. Host again: the new session has a new code.
+- Players you do not know keep asking: host again for a new code, and give it only to the player you expect.
+- `No join code to copy.`: you do not host, or you host with Friends or Invited only. Set Who can join to With a code,
+  then host again.
+- `Could not copy the join code <code>.`: the Windows clipboard was busy. Select Copy my code again, or read the code
+  from that row. On Linux, if the code does not paste outside the game, read it from the row too: no test has yet
+  checked that Proton passes it on to the desktop's clipboard.
+- `Hosting without a join code (unexpected lobby id): ...`: Steam gave the lobby an id that a code cannot hold. The
+  invite dialog opens instead; invite the player from it.
 
 ### I do not see my friend's ghost
 
@@ -88,8 +127,8 @@ fault turned effects off until the game restarts; the ghost stays, without effec
 
 ### The game ignores its keys after the co-op menu or the chat
 
-Open the console (F10 or `~`) and type `coop ui reset`: the menu and the chat box close and the game gets its keys
-back. Without the console, press Ctrl+R or restart the game. `UI off until the mod reloads: <why>` in `UE4SS.log`
+Open the console (F10 or `~`) and type `coop ui reset`: the menu, the chat box and the code box close, an open
+host's question is answered with Deny, and the game gets its keys back. Without the console, press Ctrl+R or restart the game. `UI off until the mod reloads: <why>` in `UE4SS.log`
 means that the on-screen UI hit an engine error and turned itself off; notices then show on the line above EVE.
 `coop ui off` turns the UI off the same way by hand.
 

@@ -62,9 +62,9 @@ together. Two games with different protocols cannot link, and the player who tri
 ## Keys and settings
 
 - `F5` opens the co-op menu. Its first row, Host a session, opens a session and the Steam invite dialog, where you
-  pick your friend. The session is friends-only unless Options sets Who can join to Invited only. While you host, the
-  menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or ZQSD) move, Enter selects and Esc
-  goes back. See [usage.md](docs/usage.md#co-op-menu).
+  pick your friend. The session is friends-only unless Options sets Who can join to Invited only or With a code (see
+  below). While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
+  ZQSD) move, Enter selects and Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
 - `Enter`, during a session, opens the chat box. See [usage.md](docs/usage.md#session-chat).
@@ -74,6 +74,14 @@ save, and both ghosts turn on automatically. Session events (a friend joined or 
 show for 8 s in the feed at the top left of the screen and also go to `UE4SS.log`. While the on-screen UI is not up (in
 the first seconds after a load or a map change, during your own photo mode, or after an engine error), they show
 above EVE for 4 s instead.
+
+With Who can join set to With a code (`who_can_join=code`), Host a session opens no invite dialog. A notice and the
+menu's Copy my code row give a 7-character join code such as `CCS-CBMH`, and each new session gets a new one. Send it
+to the other player, who selects Join with a code in their co-op menu and types it. Your Steam friends get in at once.
+For a player who is not on your Steam friends list, in any session you host, a question asks whether to let them in:
+Accept or Deny. With no answer in 60 s, the player is refused. A refused player cannot come back to that session. To
+send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. See
+[usage.md](docs/usage.md#join-codes).
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
 changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as
