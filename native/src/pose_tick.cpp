@@ -705,7 +705,7 @@ void guarded_freeze() {
 } // namespace
 
 // At most about max bytes of the file (read on in 4 KB steps while under it): Lua's files and the remote table are
-// under 64 KB, a recording under 24 MiB, so a longer file reads past its cap and is refused by its parser.
+// under 64 KB, a recording under 25 MiB, so a longer file reads past its cap and is refused by its parser.
 std::string read_file(const std::wstring &path, bool &exists, size_t max) {
   // Shared for delete too: Lua removes and renames these files while the worker may be reading them.
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
@@ -1310,7 +1310,7 @@ std::string ask_record(bool on) {
   recorder->start(sent_table);
   record_start_us = clock_us();
   record_on = true;
-  return "record on: her poses into coop-record.bin for up to 120 s (or 24 MiB), until coop record off";
+  return "record on: her poses into coop-record.bin for up to 120 s (or 25 MiB), until coop record off";
 }
 
 std::string ask_replay(bool on) {
