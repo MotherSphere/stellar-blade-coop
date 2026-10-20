@@ -1654,8 +1654,8 @@ private:
     if (!mode(st).root_stream)
       return put_back(g, reg, p, &f);
     counts.snaps += d.snap || snapped;
-    // Checks first, writes after: SB's movement component class with SB's override in slot 0x350, the root's move
-    // function inside the game.
+    // Checks first, writes after: SB's movement component class with SB's override in slot 0x350, the root's vtable
+    // and its move function inside the game.
     uint64_t vt = 0, tick = 0, root_vt = 0, move = 0;
     uint8_t parallel = 0, override_was = 0;
     if (!read(f.cmc, &vt, sizeof vt) || vt != base + (kCmcVtable - nightop::kImageBase) ||
@@ -1665,7 +1665,7 @@ private:
       ++counts.cmc_refused;
       return put_back(g, reg, p, &f);
     }
-    if (!read(f.root, &root_vt, sizeof root_vt) || !nightop::plausible(root_vt) ||
+    if (!read(f.root, &root_vt, sizeof root_vt) || root_vt - base >= pose::kSizeOfImage ||
         !read(root_vt + kMoveSlot, &move, sizeof move) || move - base >= pose::kSizeOfImage ||
         !read(f.ch + kSpeedOverride, &override_was, 1)) {
       ++counts.unresolved;

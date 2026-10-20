@@ -765,7 +765,8 @@ struct SbeIn {
 constexpr size_t kSbeIn = 8; // About 250 ms of her SBE: the game thread takes them every frame.
 fight::Ring<SbeIn, kSbeIn> pilot_sbe_in, pilot_sbe_here;
 fight::Ring<pilot::ShowLine, kPilotLines> pilot_lines_in, pilot_lines_here;
-pilot::Driver driver;               // The game thread's.
+pilot::Driver driver;               // The game thread's, with the engine frame it last drove in.
+uint64_t drive_frame = UINT64_MAX;
 pilot::Driver::Counts drive_counts; // Under pilot_m, as are the two below.
 uint64_t drive_add_max_us = 0;
 std::atomic<bool> drift_reset{false}; // The worker's ask: the drift probe's maxima start again.
@@ -885,21 +886,25 @@ __declspec(noinline) void pilot_body() {
     const uint64_t took = clock_us() - start;
     ++pilot_runs_here, pilot_us_here += took, pilot_max_us_here = std::max(pilot_max_us_here, took);
   }
-  // The drawn side: the copies this side draws (none once the table is off or stale, or after coop off: each is put
-  // back), hers as the last hand-over brought it, every copy driven at the ghost's draw time and the lines due played.
-  if (drift_reset.exchange(false))
-    driver.counts.drift_cm = driver.counts.drift_deg = 0;
-  pilot::Row rows[fight::kMaxPairs];
-  PilotGame g;
-  driver.rows(g, base, t.gen, t.side, rows, fresh ? fight::drawn(t, rows) : 0);
-  const double now_ms = start / 1000.0,
-               at = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
-  for (SbeIn m; pilot_sbe_here.pop(m);)
-    driver.sbe(m.data, m.size);
-  for (pilot::ShowLine l; pilot_lines_here.pop(l);)
-    driver.line(l, at);
-  driver.draw(g, base, now_ms, at);
-  driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count);
+  // The drawn side, once an engine frame (game_tick's rule): the copies this side draws (none once the table is off or
+  // stale, or after coop off: each is put back), hers as the last hand-over brought it, every copy driven at the
+  // ghost's draw time and the lines due played.
+  if (const uint64_t frame = at<uint64_t>(base + kFrameCounterRva); frame != drive_frame) {
+    drive_frame = frame;
+    if (drift_reset.exchange(false))
+      driver.counts.drift_cm = driver.counts.drift_deg = 0;
+    pilot::Row rows[fight::kMaxPairs];
+    PilotGame g;
+    driver.rows(g, base, t.gen, t.side, rows, fresh ? fight::drawn(t, rows) : 0);
+    const double now_ms = start / 1000.0,
+                 draw = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
+    for (SbeIn m; pilot_sbe_here.pop(m);)
+      driver.sbe(m.data, m.size);
+    for (pilot::ShowLine l; pilot_lines_here.pop(l);)
+      driver.line(l, draw);
+    driver.draw(g, base, now_ms, draw);
+    driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count);
+  }
   if (!pilot_m.try_lock())
     return;
   pilot_waiting.move_to(pilot_lines);

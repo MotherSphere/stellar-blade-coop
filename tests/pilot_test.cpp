@@ -339,7 +339,8 @@ struct Stage : Scene {
   Stage() {
     region(kCmcVtable, kCmcTickSlot + 8);
     put<uint64_t>(kCmcVtable + kCmcTickSlot, kCmcTick);
-    root_vtable = alloc(kMoveSlot + 8);
+    root_vtable = 0x145d00000; // In the image, as a vtable is.
+    region(root_vtable, kMoveSlot + 8);
     put<uint64_t>(root_vtable + kMoveSlot, kMoveFn);
   }
   // An enemy as Scene makes it, with a movement component of SB's class in SB's manager (parallel 1, or 0: out of it).
@@ -1531,6 +1532,16 @@ int main() {
     d2.draw(g, kBase, 5000, 1000);
     d2.flags(battle, nb, refused, nr);
     assert(s.since(seen).empty() && s.writes == 0 && d2.counts.cmc_refused == 1 && nr == 1);
+    // A root whose vtable is not in the game's image: nothing written that frame, the pair kept.
+    s.put<uint64_t>(kCmcVtable + kCmcTickSlot, kCmcTick);
+    const uint64_t odd = s.alloc(kMoveSlot + 8);
+    s.put<uint64_t>(odd + kMoveSlot, kMoveFn);
+    s.put<uint64_t>(s.root(ch), odd);
+    Driver d3;
+    d3.rows(g, kBase, 7, kGuest, &row, 1);
+    d3.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    d3.draw(g, kBase, 5000, 1000);
+    assert(s.since(seen).empty() && s.writes == 0 && d3.counts.unresolved == 1 && d3.holding());
   }
   // Show replay through the handle API, at the draw time: a new stage and handle, SetMainActor with the copy's FSBActor
   // FGuid, AddShow (the path as sent, its form, rate, step gate and +0x4d), SetStep for a step-driven player, then the
