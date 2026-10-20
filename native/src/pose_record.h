@@ -21,7 +21,8 @@
 
 namespace coop::pose {
 
-// 120 s at 60 poses a second is 7200 entries; at the sender's byte budget (192 KiB/s) 22.5 MiB.
+// 120 s at 60 poses a second is 7200 entries; at the sender's byte budget (192 KiB/s) 22.5 MiB of poses. With the
+// largest table (64 KiB) resent every 5 s it is about 24 MiB: such a recording stops as full a few seconds early.
 constexpr size_t kMaxRecording = size_t(24) << 20, kMaxEntries = 8192, kEntryHeader = 5;
 constexpr uint64_t kMaxSpanUs = 130'000'000; // The recorder stops at 120 s.
 
@@ -126,7 +127,8 @@ struct Recording {
   };
   std::string file;
   std::vector<Entry> entries;
-  uint64_t first = 0; // The first pose's publication.
+  uint64_t first = 0, last = 0; // The first and the last pose's publication (a delta is a pose here).
+  size_t poses = 0;
 };
 
 // A whole coop-record.bin, checked before anything plays: null when it is good (then out holds it), else why not.
@@ -153,6 +155,8 @@ inline const char *parse_recording(std::string file, Recording &out) {
   if (!rules.poses)
     return "no pose";
   r.first = rules.first;
+  r.last = rules.last;
+  r.poses = rules.poses;
   r.file = std::move(file); // Entries hold offsets, not pointers: a short file's bytes move.
   out = std::move(r);
   return nullptr;

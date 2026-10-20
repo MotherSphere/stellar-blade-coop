@@ -1298,14 +1298,9 @@ std::string ask_replay(bool on) {
   Recording r;
   if (const char *why = parse_recording(std::move(file), r))
     return std::string("replay refused: coop-record.bin fails its check (") + why + ")";
-  size_t poses = 0;
-  uint64_t last = 0;
-  for (const Recording::Entry &e : r.entries)
-    if (e.kind == 'P')
-      ++poses, last = e.publication;
   char text[200];
-  std::snprintf(text, sizeof text, "replay on: %zu poses and %zu tables, %.1f s a loop, until coop replay off", poses,
-                r.entries.size() - poses, double(last - r.first) / 1e6);
+  std::snprintf(text, sizeof text, "replay on: %zu poses and %zu tables, %.1f s a loop, until coop replay off", r.poses,
+                r.entries.size() - r.poses, double(r.last - r.first) / 1e6);
   replay.start(std::move(r), clock_us());
   return text;
 }

@@ -100,7 +100,7 @@ int main() {
   const std::string p1 = pose(a, 1, 1'000'000), p2 = pose(a, 2, 1'050'000), p3 = pose(a, 3, 1'100'000);
   const std::string good = kHead + entry('T', t1) + entry('P', p1) + entry('P', p2) + entry('T', t1) + entry('P', p3);
   Recording r = recording(good);
-  assert(r.entries.size() == 5 && r.first == 1'000'000 && r.file == good);
+  assert(r.entries.size() == 5 && r.poses == 3 && r.first == 1'000'000 && r.last == 1'100'000 && r.file == good);
   assert(r.entries[1].kind == 'P' && r.entries[1].size == p1.size() && r.entries[4].publication == 1'100'000);
   assert(good.compare(r.entries[3].at, t1.size(), t1) == 0);
 
@@ -130,6 +130,9 @@ int main() {
   const std::string keyed = kHead + entry('T', t1) + entry('P', k1) + entry('D', d1) + entry('P', k2) +
                             entry('D', d2) + entry('T', t2) + entry('P', bk1) + entry('D', bd1);
   assert(rec.bytes() == keyed && rec.rules().poses == 6 && !parse(keyed));
+  // Read back, a delta counts as a pose, and the loop runs to the last delta (coop replay's line).
+  const Recording kr = recording(keyed);
+  assert(kr.poses == 6 && kr.entries.size() == 8 && kr.first == 2'000'000 && kr.last == 2'116'667);
   // Full at kMaxEntries: the file still reads back.
   assert(rec.start(t1));
   for (uint32_t k = 1; k < kMaxEntries; ++k) {
