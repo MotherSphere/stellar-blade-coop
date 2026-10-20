@@ -930,6 +930,7 @@ private:
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
     uint32_t lethal = 0;         // Our lethal claim's number while the host decides.
     bool held = false;           // Our copy lives at the floor meanwhile (confirm()).
+    bool quiet = false;          // Paired since our last correction: the next one shows no damage number.
     int32_t seen[kStats] = {};   // The copy's values after our last pass or write (R35).
     int32_t unsent[kStats] = {}; // Drops not claimed yet.
     int32_t host[kStats] = {};   // The host's values from its last hp.
@@ -1053,8 +1054,11 @@ private:
   }
 
   // Toward the host's value less what it has not taken yet, within [0, max] and never below 1 HP while the host says
-  // alive: deaths come only from dead or our own lethal hit.
+  // alive: deaths come only from dead or our own lethal hit. The first correction after a pair catches up on what came
+  // before it (the host's hits before we paired, or a fresh copy after our death or a pause), so its drop shows no
+  // damage number; the bar still moves.
   template <class Io> void correct(Pair &p, const Seen &s, Io &io) {
+    const bool quiet = std::exchange(p.quiet, false);
     for (int k : {kShield, kStamina, kHp}) {
       int32_t owed = p.unsent[k];
       for (size_t i = 0; i < p.pendings; ++i)
@@ -1066,7 +1070,7 @@ private:
       if (target == p.stuck[k] || std::abs(gap) < std::max(1.0, kCorrectShare * double(s.max[k])))
         continue;
       int32_t after = p.seen[k];
-      if (!io.apply(Write{p.local, k, gap, false, false, gap < 0}, after))
+      if (!io.apply(Write{p.local, k, gap, false, false, gap < 0 && !quiet}, after))
         return;
       ++counts.corrections;
       if (after != target) // A floor or a clamp: no write again until the target moves.
@@ -1101,6 +1105,7 @@ private:
         continue;
       }
       p.local = match->guid;
+      p.quiet = true;
       // Hurt when it pairs: fought (our EVE's hits, or the host's values before a pause or a re-pair: then it pays
       // as with kill_credit=all). HP only, as on the host.
       p.fought = match->value[kHp] < whole(match->max[kHp]);

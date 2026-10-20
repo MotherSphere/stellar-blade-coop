@@ -1253,14 +1253,18 @@ int main() {
     for (; count(g, "paired") < 2 && t < 1000; t += 16)
       frame(g, *e, t);
     assert(count(g, "paired") == 2 && t <= 15 * 16 + 16 && e->counts.rejected == 1); // At the census.
+    // The re-paired copy's first correction catches up without a damage number; the bar moves.
     g.inbox.push_back(msg("SBF10 hp 1 1 0 101:1000:100:200"));
     frame(g, *e, t);
     assert(g.calls.size() == 1 && g.calls[0].la == la && g.calls[0].type == 1 && g.calls[0].delta == -600 &&
-           !g.calls[0].cause && g.calls[0].notify && g.calls[0].ignore && g.hp(511) == 1000);
-    // A rise to the host's value shows no damage number (guest rule 2).
+           !g.calls[0].cause && !g.calls[0].notify && g.calls[0].ignore && g.hp(511) == 1000);
+    // A rise to the host's value shows no damage number (guest rule 2); a later drop shows one.
     g.inbox.push_back(msg("SBF10 hp 1 2 0 101:1200:100:200"));
     frame(g, *e, t + 16);
     assert(g.calls.size() == 2 && g.calls[1].delta == 200 && !g.calls[1].notify && g.hp(511) == 1200);
+    g.inbox.push_back(msg("SBF10 hp 1 3 0 101:1100:100:200"));
+    frame(g, *e, t + 32);
+    assert(g.calls.size() == 3 && g.calls[2].delta == -100 && g.calls[2].notify && g.hp(511) == 1100);
   }
 
   // ---- Kills: our EVE as the cause (F3), the floors ----

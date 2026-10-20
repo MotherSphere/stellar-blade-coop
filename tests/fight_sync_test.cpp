@@ -842,12 +842,12 @@ int main() {
     step(gu, g, 3, 200);
     assert(g.sent.empty() && g.writes.empty());
 
-    // The host's values, its ack holding our claim: corrected to them, a drop with a number, no cause. Our own write
-    // never becomes a claim (R35).
+    // The host's values, its ack holding our claim: corrected to them, no cause. The first correction since the pair
+    // catches up on what came before it: no damage number. Our own write never becomes a claim (R35).
     gu.receive(msg("SBF10 hp 4 1 1 101:1400:90:200"), g);
     step(gu, g, 4, 300);
     assert(g.writes.size() == 1 && g.hp(501) == 1400);
-    wrote(g, 0, 501, kHp, -130, false, true);
+    wrote(g, 0, 501, kHp, -130, false, false);
     step(gu, g, 5, 400);
     assert(g.sent.empty() && gu.counts.corrections == 1);
     // A rise: no number. The gap must reach max(1, 0.5 % of the max): 8 HP of 1600, 1 Shield of 100.
@@ -858,7 +858,7 @@ int main() {
     gu.receive(msg("SBF10 hp 4 3 1 101:1493:91:200"), g);
     step(gu, g, 7, 600);
     assert(g.writes.size() == 3);
-    gu.receive(msg("SBF10 hp 4 4 1 101:1492:91:200"), g);
+    gu.receive(msg("SBF10 hp 4 4 1 101:1492:91:200"), g); // A drop after the first correction: with a number.
     step(gu, g, 8, 700);
     wrote(g, 3, 501, kHp, -8, false, true);
 
@@ -1130,9 +1130,10 @@ int main() {
     g.add(512, 5002, 0);
     step(gu, g, 4, 300);
     step(gu, g, 5, 400);
-    // Neither the old copy's claim nor its floor carries over: 511 goes to the host's value, 512 stays at it.
+    // Neither the old copy's claim nor its floor carries over: 511 goes to the host's value, 512 stays at it. The
+    // fresh copy's first correction shows no damage number (a respawn after our death looks the same).
     assert(g.count("paired") == 4 && g.writes.size() == 2 && g.hp(511) == 1000 && g.hp(512) == 1600);
-    wrote(g, 1, 511, kHp, -600, false, true);
+    wrote(g, 1, 511, kHp, -600, false, false);
   }
 
   // ---- Guest: claims stay within our maxes, and the shared pace serves every enemy ----

@@ -413,7 +413,8 @@ enemy that both games spawned at the same spawn point, with the same character i
 balance gauge and death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's
 enemy still fights only its own EVE, and positions are not shared. It changes enemy stats through the game's own code,
 so it shares enemies only on a co-op save, and kills count in the co-op save. Back up your saves first (see
-[saves.md](saves.md)).
+[saves.md](saves.md)). When an enemy becomes shared, or shared again after a death, a load or photo mode, the guest's
+copy takes the host's HP without a damage number; later drops from the host's hits show one.
 
 When a hit knocks a shared enemy down (face up or face down), launches it or slams it into a wall on one screen, the
 other game starts the same effect on its copy, as if its own EVE had landed that hit. A copy that is already down, in
