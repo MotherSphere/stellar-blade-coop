@@ -2,8 +2,9 @@
 // field and its epoch oe stay so that 3b can hand enemies over) streams each enemy's root at 30 Hz and its Shows; the
 // drawn side writes its copy's root every frame from samples drawn on the ghost's own playback clock (pose_stream.h),
 // so an enemy and the owner's ghost are drawn at the same instant, and replays the Shows on the copy. No Windows types
-// and no engine call of its own: the game is read and its two lookups called through a Game (Capturer, the FNamePool),
-// and tests/pilot_test.cpp drives every piece here on the build machine with fake memory. Nothing here allocates but
+// and no engine call of its own: the game is read, written and called through a Game (Capturer and the FNamePool read
+// it, Driver writes the drawn copies and replays their Shows), and tests/pilot_test.cpp drives every piece here on the
+// build machine with fake memory. Nothing here allocates but
 // format(), parse_show() and sbe_text(), which are the worker's.
 //
 // SBE, little-endian, on channel 1 (unreliable), one message per capture for the pairs its sender owns:
@@ -1009,6 +1010,49 @@ inline float speed_read(const uint8_t *b) {
   return field<float>(b, 0xc) > 0 ? 0 : field<float>(b, 0);
 }
 
+// SB's globals both halves of stage 3a start from, read again each time, never kept: the actor manager FUN_141aace90
+// searches, SB's registry (the Show handle API's first argument) and the character map FUN_14201b1e0 searches in it,
+// ASBCharacter's class and SB's show manager. Each is 0 when null or implausible (and those read through it); true
+// when the lookups can run.
+struct Globals {
+  uint64_t manager = 0, reg = 0, map = 0, character_class = 0, shows = 0;
+};
+template <class Read> bool globals(Read &&read, uint64_t base, Globals &s) {
+  auto global = [&](uint64_t address, uint64_t &out) {
+    return read(base + (address - nightop::kImageBase), &out, sizeof out) && nightop::plausible(out);
+  };
+  s = Globals();
+  uint64_t world = 0;
+  if (!global(kWorldAt, world) || !read(world + kActorManager, &s.manager, sizeof s.manager) ||
+      !nightop::plausible(s.manager))
+    s.manager = 0;
+  if (!global(kRegistryAt, s.reg))
+    s.reg = 0;
+  else if (!read(s.reg + kCharacterMap, &s.map, sizeof s.map) || !nightop::plausible(s.map))
+    s.map = 0;
+  if (!global(kCharacterClassAt, s.character_class))
+    s.character_class = 0;
+  if (!global(kShowsAt, s.shows))
+    s.shows = 0;
+  return s.manager && s.map && s.character_class;
+}
+// One enemy found by its GUID through SB's two read-only lookups: its FSBActor, then the character of its FGuid, which
+// must be a live ASBCharacter (index and serial take its object item's), then its live root component. The character,
+// or 0.
+template <class Game, class Read>
+uint64_t find_character(Game &g, Read &read, uint64_t objects, const Globals &s, uint32_t guid, uint64_t &fsb,
+                        uint64_t &root, int32_t *index = nullptr, int32_t *serial = nullptr) {
+  int32_t fguid[4] = {};
+  fsb = g.fsb(s.manager, guid);
+  root = 0;
+  const uint64_t ch = nightop::plausible(fsb) && read(fsb + kFsbGuid, fguid, sizeof fguid) ? g.character(s.map, fguid)
+                                                                                          : 0;
+  if (!ch || !live(read, objects, ch, index, serial) || !is_a(read, ch, s.character_class) ||
+      !read(ch + kRootComponent, &root, sizeof root) || !live(read, objects, root))
+    return root = 0, 0;
+  return ch;
+}
+
 // The compact id of each USBShowData seen, decoded once per object and kept as decoded, or refused. An object is its
 // address, index and serial (another object at the same address and index has another serial, unless no weak pointer
 // was ever made to either), its FName and its package's: GC can free an asset and its package and load others at the
@@ -1125,21 +1169,15 @@ public:
                  Emit &&emit) {
     using detail::field;
     auto read = [&g](uint64_t at, void *out, size_t size) { return g.read(at, out, size); };
-    auto global = [&](uint64_t address, uint64_t &out) {
-      return read(base + (address - nightop::kImageBase), &out, sizeof out);
-    };
     n = std::min(n, kMaxEnemies);
     ++counts.captures;
     for (Pair &p : pairs_) // A pair no longer asked is forgotten: under its GUID again, it is a new pair.
       if (p.hguid && std::none_of(pairs, pairs + n, [&](const Owned &o) { return o.hguid == p.hguid; }))
         p = Pair();
     const uint64_t objects = base + pose::kObjectsRva, pool = base + (kNamePool - nightop::kImageBase);
-    uint64_t world = 0, manager = 0, reg = 0, map = 0, character_class = 0, data_class = 0, shows = 0;
-    if (!global(kWorldAt, world) || !nightop::plausible(world) ||
-        !read(world + kActorManager, &manager, sizeof manager) || !nightop::plausible(manager) ||
-        !global(kRegistryAt, reg) || !nightop::plausible(reg) || !read(reg + kCharacterMap, &map, sizeof map) ||
-        !nightop::plausible(map) || !global(kCharacterClassAt, character_class) ||
-        !nightop::plausible(character_class)) {
+    uint64_t data_class = 0;
+    Globals gl;
+    if (!globals(read, base, gl)) {
       counts.unresolved += n;
       return 0;
     }
@@ -1154,17 +1192,13 @@ public:
     size_t k = 0;
     for (size_t i = 0; i < n; ++i) {
       Found &f = found[k];
-      int32_t fguid[4] = {};
-      uint64_t root = 0;
+      uint64_t fsb = 0, root = 0;
       uint8_t speed[kSpeedBytes];
       float world_transform[12];
-      const uint64_t fsb = g.fsb(manager, pairs[i].local);
       f = Found();
       f.pair = i;
-      f.ch = nightop::plausible(fsb) && read(fsb + kFsbGuid, fguid, sizeof fguid) ? g.character(map, fguid) : 0;
-      if (!f.ch || !live(read, objects, f.ch, &f.index, &f.serial) || !is_a(read, f.ch, character_class) ||
-          !read(f.ch + kRootComponent, &root, sizeof root) || !live(read, objects, root) ||
-          !read(root + pose::kWorldTransform, world_transform, sizeof world_transform) ||
+      f.ch = find_character(g, read, objects, gl, pairs[i].local, fsb, root, &f.index, &f.serial);
+      if (!f.ch || !read(root + pose::kWorldTransform, world_transform, sizeof world_transform) ||
           !read(f.ch + kSpeedFields, speed, sizeof speed)) {
         ++counts.unresolved;
         continue;
@@ -1188,9 +1222,10 @@ public:
     // range, a list that does not read) no pair hears anything this capture: a stop then would only be a missed read.
     int32_t stages = -1;
     uint64_t list = 0;
-    bool walked = k && global(kShowDataClassAt, data_class) && nightop::plausible(data_class) &&
-                  global(kShowsAt, shows) && nightop::plausible(shows) &&
-                  read(shows + kStageCount, &stages, sizeof stages) && stages >= 0 && stages <= 65536 &&
+    const uint64_t shows = gl.shows;
+    bool walked = k && read(base + (kShowDataClassAt - nightop::kImageBase), &data_class, sizeof data_class) &&
+                  nightop::plausible(data_class) && shows && read(shows + kStageCount, &stages, sizeof stages) &&
+                  stages >= 0 && stages <= 65536 &&
                   (!stages || (read(shows + kStageList, &list, sizeof list) && nightop::plausible(list)));
     const size_t walk = walked ? std::min<size_t>(size_t(stages), kMaxStages) : 0;
     counts.cut += walked ? size_t(stages) - walk : 0;
@@ -1333,6 +1368,408 @@ private:
   Pair pairs_[kMaxEnemies];
   Paths paths_;
   uint32_t seq_ = 0;
+};
+
+// ---- The drawn side's write half (game thread, every frame) ----
+
+// The pinned build's movement component class, USBCharacterMovementComponent (its vtable, which ctor 1421414e0 sets),
+// and SB's own SetComponentTickEnabled in its slot 0x350 (142158f40): false takes the component out of SB's parallel
+// movement manager, true puts it back in, and +0x10cd says which. The engine base of that slot (140f32a70) does nothing
+// on this class and is never called; a component of another class is never driven.
+constexpr uint64_t kCmcVtable = 0x145c700d0, kCmcTick = 0x142158f40;
+constexpr size_t kCmcTickSlot = 0x350, kCmcParallel = 0x10cd, kCmcVelocity = 0xd4; // Velocity: UMovementComponent's.
+// ACharacter's movement component; ASBCharacter's speed override, the pair SB's own MoveToLocation writes: while its
+// byte is set, GetSBSpeedForAnimGraph takes the speed after it.
+constexpr size_t kCharacterMovement = 0x330, kSpeedOverride = 0xc68, kSpeedOverrideSpeed = 0xc6c;
+// The root component's MoveComponent, vtable +0x4a0, called as SB's SetActorLocation calls it, as a teleport.
+constexpr size_t kMoveSlot = 0x4a0;
+// Where FUN_142284a30 stamps the stage it makes with its handle.
+constexpr size_t kStageHandle = 0x128;
+
+// The angle between two unit quaternions, in degrees.
+inline double angle_deg(const float *a, const float *b) {
+  double dot = 0, d = 0, p = 0;
+  for (int k = 0; k < 4; ++k)
+    dot += double(a[k]) * b[k];
+  for (int k = 0; k < 4; ++k) {
+    const double bk = dot < 0 ? -double(b[k]) : double(b[k]);
+    d += (a[k] - bk) * (a[k] - bk), p += (a[k] + bk) * (a[k] + bk);
+  }
+  return 4 * std::atan2(std::sqrt(d), std::sqrt(p)) * 180 / kPi;
+}
+
+// The drawn side of stage 3a on the game thread. rows() takes the pairs this side draws (fight::drawn()); sbe() and
+// line() take her SBE and show lines, each only from the pair's owner at its epoch in this generation (R33); draw()
+// runs once a frame. Each drawn copy is found again by its GUID every frame through SB's two read-only lookups (no
+// pointer is kept), its state stepped (Copy), and while its root follows the stream: its movement component taken out
+// of SB's parallel manager (SB's class only, and again whenever something put it back), the speed override and the
+// owner's speed written, the root moved to the sample at the draw time and Velocity set to the samples' own. Lines due
+// at the draw time replay through SB's Show handle API, with their hit context. Every way back (the pair gone, a
+// release, a fault) puts the copy back in restore's order: the live replays stopped, then the movement component, only
+// if it was in SB's manager, then the speed override's byte. fault() does that once and stops every write for the run.
+// The Game: read, fsb() and character() as the Capturer's, and
+//   void write(uint64_t address, const void *in, size_t n): a plain write;
+//   void cmc(uint64_t cmc, bool on): SB's 142158f40, called only once this class checked the component;
+//   void move(uint64_t fn, uint64_t root, const float delta[3], const float quat[4]): fn, the root's vtable +0x4a0, as
+//     fn(root, delta, quat, no sweep, no hit result, no flags, a teleport);
+//   bool handle(uint64_t reg, uint8_t h[16]): FUN_142284a30(reg, h, 1) (the stage goes when its players finish), false
+//     when it made none;
+//   void main_actor(uint64_t reg, const uint8_t h[16], uint64_t guid): FUN_142285010, guid the address of the copy's
+//     FSBActor FGuid;
+//   int32_t add(uint64_t reg, const uint8_t h[16], const char *path, size_t len, uint8_t form, float rate, uint8_t gate,
+//     uint8_t b4d): FUN_1422853e0 with the path as an FString and no delay; the player's slot, or -1;
+//   void step(reg, h, int32_t slot, int32_t step): FUN_142285200(reg, h, slot, step, 1);
+//   void rate(reg, h, int32_t slot, float rate): FUN_142285270; void stop(reg, h): FUN_1422852f0(reg, h, 0).
+class Driver {
+public:
+  struct Counts {
+    uint64_t frames = 0;           // Copies driven (root, Velocity and speed written), over the frames.
+    uint64_t unresolved = 0;       // Drawn copies a frame skipped: a lookup or a check failed. Nothing written.
+    uint64_t cmc_out = 0;          // Movement components taken out of SB's manager...
+    uint64_t cmc_reenabled = 0;    // ... and found back in it while driven.
+    uint64_t cmc_refused = 0;      // Copies never driven: their movement component is not SB's class.
+    uint64_t released = 0, converged = 0, snaps = 0;
+    uint64_t sbe = 0, sbe_refused = 0;     // SBE entries taken; refused (not the owner's, another epoch or generation,
+                                           // a pair not drawn, not newer, or a message that does not decode).
+    uint64_t lines = 0, lines_refused = 0; // Show lines queued; refused (the same, no clock yet, the queue full).
+    uint64_t shows = 0, late = 0;          // Shows replayed; started past their stamp.
+    uint64_t missing = 0, no_handle = 0;   // AddShow found no asset; no stage made (no registry or show manager).
+    uint64_t no_context = 0;               // Shows replayed without their context (R33's 1 km rule, or no player).
+    uint64_t sets = 0, stops = 0, unknown = 0; // show-set, show-stop; one naming no live replay.
+    uint64_t not_drawn = 0;                // Lines due while their copy was not driven (released, local, not found).
+    double drift_cm = 0, drift_deg = 0;    // The most a driven copy moved or turned (per second) between our write and
+                                           // the next frame: a mover still at work inside the tick. Reset by the reader.
+  };
+  Counts counts;
+
+  bool latched() const { return latched_; }
+  // A pair still held: the glue runs one more frame after coop off, to put them back.
+  bool holding() const {
+    return std::any_of(pairs_, pairs_ + kMaxEnemies, [](const Pair &p) { return p.row.hguid != 0; });
+  }
+  // The pairs this side draws now (n at most kMaxEnemies; none while the table is off or stale) in the host's
+  // generation gen, this side side. A pair no longer drawn (or any, in a new generation) is put back and forgotten; a
+  // new one starts with no sample.
+  template <class Game> void rows(Game &g, uint64_t base, uint32_t gen, Side side, const Row *in, size_t n) {
+    if (latched_)
+      return;
+    n = in ? std::min(n, kMaxEnemies) : 0;
+    const bool same = gen == gen_ && side == side_;
+    gen_ = gen, side_ = side;
+    for (Pair &p : pairs_) {
+      const Row *now = nullptr;
+      for (size_t i = 0; same && p.row.hguid && !now && i < n; ++i)
+        now = in[i].hguid == p.row.hguid && in[i].local == p.row.local ? &in[i] : nullptr;
+      if (now)
+        p.row = *now;
+      else if (p.row.hguid)
+        forget(g, base, p);
+    }
+    for (size_t i = 0; i < n; ++i)
+      if (in[i].hguid && in[i].local && !pair(in[i].hguid))
+        for (Pair &p : pairs_)
+          if (!p.row.hguid) {
+            p.row = in[i];
+            break;
+          }
+  }
+  // One SBE message from her: each entry into its pair's samples.
+  void sbe(const uint8_t *data, size_t size) {
+    SbeHeader h;
+    Entry e[kMaxEnemies];
+    size_t n = 0;
+    if (latched_ || !decode_sbe(data, size, h, e, n)) {
+      counts.sbe_refused += !latched_;
+      return;
+    }
+    for (size_t i = 0; i < n; ++i) {
+      Pair *p = pair(e[i].guid);
+      const bool ok = p && takes_sbe(owner(*p), from(), h.gen, e[i].oe) && p->track.push(h.publication, e[i]);
+      ++(ok ? counts.sbe : counts.sbe_refused);
+    }
+  }
+  // One show line from her (parse_show's), queued for when the draw time at reaches its stamp.
+  void line(const ShowLine &l, double at) {
+    if (latched_)
+      return;
+    const Pair *p = pair(l.guid);
+    const bool ok = l.kind != Kind::invalid && p && takes(owner(*p), from(), l.gen, l.oe) && timeline_.push(l, at);
+    ++(ok ? counts.lines : counts.lines_refused);
+  }
+  // One frame at now (our clock, ms), drawing at at (the owner's clock, ms: the ghost's draw time; NaN without one).
+  template <class Game> void draw(Game &g, uint64_t base, double now, double at) {
+    if (latched_)
+      return;
+    auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
+    const uint64_t objects = base + pose::kObjectsRva;
+    Globals s;
+    const bool lookups = globals(read, base, s);
+    Found found[kMaxEnemies];
+    bool ok[kMaxEnemies] = {};
+    for (size_t i = 0; i < kMaxEnemies; ++i) {
+      Pair &p = pairs_[i];
+      if (!p.row.hguid)
+        continue;
+      ok[i] = lookups && find(g, read, objects, s, p.row.local, found[i]);
+      if (!ok[i]) { // A stale pair: skipped this frame, nothing written, nothing forgotten.
+        ++counts.unresolved;
+        p.wrote = false;
+        continue;
+      }
+      drive(g, read, base, s.reg, p, found[i], now, at);
+    }
+    for (const Timeline::Due *due; (due = timeline_.front(at));) {
+      const Timeline::Due d = *due;
+      timeline_.pop();
+      Pair *p = pair(d.line.guid);
+      const size_t i = p ? size_t(p - pairs_) : 0;
+      apply(g, read, s, p, p && ok[i] ? &found[i] : nullptr, d);
+    }
+  }
+  // The word back to the job: the drawn pairs whose stream says BattleMode, and those refused.
+  void flags(uint32_t *battle, uint8_t &nb, uint32_t *refused, uint8_t &nr) const {
+    nb = nr = 0;
+    for (const Pair &p : pairs_) {
+      if (p.row.hguid && p.battle)
+        battle[nb++] = p.row.hguid;
+      if (p.row.hguid && p.refused)
+        refused[nr++] = p.row.hguid;
+    }
+  }
+  // After a fault: every pair put back once (each found again by its GUID), then nothing more for the run.
+  template <class Game> void fault(Game &g, uint64_t base) {
+    if (latched_)
+      return;
+    latched_ = true; // First: a fault inside the put-back leaves the rest as it is.
+    timeline_.clear();
+    for (Pair &p : pairs_)
+      if (p.row.hguid)
+        forget(g, base, p);
+  }
+
+private:
+  struct Pair {
+    Row row;     // hguid 0: free.
+    Track track;
+    Copy copy;
+    Capture cap; // What we changed on the copy, to put back.
+    Lines lines; // Its live replays.
+    bool refused = false, battle = false;
+    bool wrote = false;                              // The last frame wrote its root: the drift probe compares.
+    float loc[3] = {}, quat[4] = {0, 0, 0, 1};       // As written then.
+    double at = 0;                                   // When (our clock, ms).
+  };
+  // One copy found this frame: its FSBActor, character, root and movement component.
+  struct Found {
+    uint64_t fsb = 0, ch = 0, root = 0, cmc = 0;
+  };
+  // The undo of one pair (restore's): the replays through the registry (none: no world, so no stages either), the
+  // movement component and the speed override's byte on the copy found this frame.
+  template <class Game> struct Put {
+    Game &g;
+    uint64_t reg;
+    const Found *f;
+    void stop(const Live &l) {
+      if (reg)
+        g.stop(reg, l.handle);
+    }
+    void cmc_on() { g.cmc(f->cmc, true); }
+    void speed(uint8_t was) { g.write(f->ch + kSpeedOverride, &was, 1); }
+  };
+
+  static Side other(Side s) { return s == kHost ? kGuest : kHost; }
+  Side from() const { return other(side_); } // Her lines are the other side's.
+  Owner owner(const Pair &p) const { return Owner{gen_, p.row.owner, p.row.oe}; }
+  Pair *pair(uint32_t hguid) {
+    for (Pair &p : pairs_)
+      if (hguid && p.row.hguid == hguid)
+        return &p;
+    return nullptr;
+  }
+  template <class Game, class Read>
+  static bool find(Game &g, Read &read, uint64_t objects, const Globals &s, uint32_t local, Found &f) {
+    f = Found();
+    f.ch = find_character(g, read, objects, s, local, f.fsb, f.root);
+    return f.ch && read(f.ch + kCharacterMovement, &f.cmc, sizeof f.cmc) && live(read, objects, f.cmc);
+  }
+  // Puts the pair back in restore's order when its copy was found (f); else only its replays stop, and what it held on
+  // the copy is kept for a later frame.
+  template <class Game> void put_back(Game &g, uint64_t reg, Pair &p, const Found *f) {
+    Put<Game> u{g, reg, f};
+    if (f)
+      return restore(p.cap, p.lines, u);
+    p.lines.each([&](const Live &l) {
+      if (!l.skipped)
+        u.stop(l);
+    });
+    p.lines.clear();
+  }
+  // The pair put back with its copy as found now (a copy that is gone holds nothing any more), then forgotten.
+  template <class Game> void forget(Game &g, uint64_t base, Pair &p) {
+    auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
+    Globals s;
+    Found f;
+    const bool found = globals(read, base, s) && find(g, read, base + pose::kObjectsRva, s, p.row.local, f);
+    put_back(g, s.reg, p, found ? &f : nullptr);
+    p = Pair();
+  }
+  template <class Game, class Read>
+  void drive(Game &g, Read &read, uint64_t base, uint64_t reg, Pair &p, const Found &f, double now, double at) {
+    float world[12]; // The root's world transform: rotation xyzw, translation, then scale.
+    if (!read(f.root + pose::kWorldTransform, world, sizeof world)) {
+      ++counts.unresolved;
+      p.wrote = false;
+      return;
+    }
+    Pose own;
+    std::copy(world, world + 4, own.quat);
+    std::copy(world + 4, world + 7, own.loc);
+    if (p.wrote && now > p.at) { // The drift probe: where the game left it since our last write.
+      const double dt = (now - p.at) / 1000, dx = own.loc[0] - p.loc[0], dy = own.loc[1] - p.loc[1],
+                   dz = own.loc[2] - p.loc[2];
+      counts.drift_cm = std::max(counts.drift_cm, std::sqrt(dx * dx + dy * dy + dz * dz) / dt);
+      counts.drift_deg = std::max(counts.drift_deg, angle_deg(own.quat, p.quat) / dt);
+    }
+    p.wrote = false;
+    Drawn d, out;
+    const bool has = p.track.sample(at, d);
+    Cues c;
+    c.eligible = !p.refused, c.frozen = p.row.frozen, c.release = p.row.release;
+    c.dying = p.row.dying || (has && (d.flags & kDying));
+    const State was = p.copy.state();
+    bool snapped = false;
+    const State st = p.copy.step(c, own, has ? &d : nullptr, now, out, snapped);
+    counts.released += st == State::released && was != State::released;
+    counts.converged += was == State::converging && st == State::piloted;
+    p.battle = has && (d.flags & kBattle) && st != State::local;
+    if (!mode(st).root_stream)
+      return put_back(g, reg, p, &f);
+    counts.snaps += d.snap || snapped;
+    // Checks first, writes after: SB's movement component class with SB's override in slot 0x350, the root's move
+    // function inside the game.
+    uint64_t vt = 0, tick = 0, root_vt = 0, move = 0;
+    uint8_t parallel = 0, override_was = 0;
+    if (!read(f.cmc, &vt, sizeof vt) || vt != base + (kCmcVtable - nightop::kImageBase) ||
+        !read(vt + kCmcTickSlot, &tick, sizeof tick) || tick != base + (kCmcTick - nightop::kImageBase) ||
+        !read(f.cmc + kCmcParallel, &parallel, 1)) {
+      p.refused = true;
+      ++counts.cmc_refused;
+      return put_back(g, reg, p, &f);
+    }
+    if (!read(f.root, &root_vt, sizeof root_vt) || !nightop::plausible(root_vt) ||
+        !read(root_vt + kMoveSlot, &move, sizeof move) || move - base >= pose::kSizeOfImage ||
+        !read(f.ch + kSpeedOverride, &override_was, 1)) {
+      ++counts.unresolved;
+      return;
+    }
+    if (parallel) {
+      ++(p.cap.cmc ? counts.cmc_reenabled : counts.cmc_out);
+      p.cap.took_cmc(true);
+      g.cmc(f.cmc, false);
+    }
+    p.cap.took_speed(override_was);
+    const uint8_t on = 1;
+    g.write(f.ch + kSpeedOverride, &on, 1);
+    g.write(f.ch + kSpeedOverrideSpeed, &out.speed, sizeof out.speed);
+    const float delta[3] = {out.loc[0] - own.loc[0], out.loc[1] - own.loc[1], out.loc[2] - own.loc[2]};
+    g.move(move, f.root, delta, out.quat);
+    g.write(f.cmc + kCmcVelocity, out.vel, sizeof out.vel);
+    std::copy(out.loc, out.loc + 3, p.loc);
+    std::copy(out.quat, out.quat + 4, p.quat);
+    p.at = now, p.wrote = true;
+    ++counts.frames;
+  }
+  // One line due now, on its pair's copy as found this frame (f).
+  template <class Game, class Read>
+  void apply(Game &g, Read &read, const Globals &s, Pair *p, const Found *f, const Timeline::Due &d) {
+    const ShowLine &l = d.line;
+    if (!p || !f || !mode(p->copy.state()).owner_shows) {
+      ++counts.not_drawn;
+      return;
+    }
+    Put<Game> u{g, s.reg, f};
+    if (l.kind == Kind::show) {
+      Live &live = p->lines.start(l.id, u); // A replay that held the id is stopped first.
+      if (!s.reg || !s.shows || !g.handle(s.reg, live.handle)) {
+        live.skipped = true;
+        ++counts.no_handle;
+        return;
+      }
+      g.main_actor(s.reg, live.handle, f->fsb + kFsbGuid);
+      live.slot = g.add(s.reg, live.handle, l.path, l.path_len, l.form, float(l.rate) / 1000, l.gate, l.b4d);
+      if (live.slot < 0) {
+        g.stop(s.reg, live.handle);
+        live.skipped = true;
+        ++counts.missing;
+        return;
+      }
+      ++counts.shows;
+      counts.late += d.late;
+      if (l.gate && l.step) // A step-driven player jumps to the owner's step at its next advance.
+        g.step(s.reg, live.handle, live.slot, int32_t(l.step));
+      return context(g, read, s, *p, live, l);
+    }
+    Live *live = p->lines.find(l.id);
+    if (!live) {
+      ++counts.unknown;
+      return;
+    }
+    if (l.kind == Kind::set) {
+      ++counts.sets;
+      if (!live->skipped) {
+        g.rate(s.reg, live->handle, live->slot, float(l.rate) / 1000);
+        g.step(s.reg, live->handle, live->slot, int32_t(l.step));
+      }
+      return;
+    }
+    ++counts.stops;
+    if (!live->skipped)
+      g.stop(s.reg, live->handle);
+    p->lines.drop(l.id);
+  }
+  // A show's hit context into the player AddShow just made, as SB's skill path writes some of these fields after its
+  // own AddShow: that stage is the show manager's newest (FUN_142284a30 appends it) and holds our handle. Left out when
+  // all zero, when R33's 1 km rule refuses it against the copy, or when the stage or player does not read.
+  template <class Game, class Read>
+  void context(Game &g, Read &read, const Globals &s, const Pair &p, const Live &live, const ShowLine &l) {
+    if (std::all_of(l.ctx, l.ctx + kCtx, [](int32_t v) { return v == 0; }))
+      return;
+    int32_t stages = 0, players_n = 0;
+    uint64_t list = 0, stage = 0, players = 0, player = 0;
+    uint8_t h[16];
+    if (!ctx_near(l, p.loc) || !read(s.shows + kStageCount, &stages, sizeof stages) || stages <= 0 ||
+        stages > 65536 || !read(s.shows + kStageList, &list, sizeof list) || !nightop::plausible(list) ||
+        !read(list + 8 * uint64_t(stages - 1), &stage, sizeof stage) || !nightop::plausible(stage) ||
+        !read(stage + kStageHandle, h, sizeof h) || std::memcmp(h, live.handle, sizeof h) ||
+        !read(stage + kStagePlayers, &players, sizeof players) || !nightop::plausible(players) ||
+        !read(stage + kStagePlayerCount, &players_n, sizeof players_n) || live.slot >= players_n ||
+        !read(players + 8 * uint64_t(live.slot), &player, sizeof player) || !nightop::plausible(player)) {
+      ++counts.no_context;
+      return;
+    }
+    const uint8_t levels[2] = {uint8_t(l.ctx[kHitLevel]), uint8_t(l.ctx[kHitLevel60])};
+    g.write(player + kPlayerHitLevel, &levels[0], 1);
+    g.write(player + kPlayerHitLevel60, &levels[1], 1);
+    const auto floats = [&](uint64_t to, int at, int n) {
+      float v[3];
+      for (int k = 0; k < n; ++k)
+        v[k] = ctx_float(l.ctx[at + k]);
+      g.write(to, v, sizeof(float) * size_t(n));
+    };
+    floats(player + kPlayerDir2d, kDir2d, 2), floats(player + kPlayerHitDir, kHitDir, 3);
+    floats(player + kPlayerHitPos, kHitPos, 3), floats(player + kPlayerLocalPos, kLocalPos, 3);
+    floats(player + kPlayerNormal, kNormal, 3), floats(player + kPlayerOtherLoc, kOtherLoc, 3);
+    floats(player + kPlayerHitRot, kHitRot, 3);
+    g.write(player + kPlayerA8, &l.ctx[kA8], sizeof l.ctx[kA8]);
+    if (l.ctx[kStage9c])
+      floats(stage + kStageField9c, kStage9c, 1);
+  }
+
+  Pair pairs_[kMaxEnemies];
+  Timeline timeline_;
+  uint32_t gen_ = 0;
+  Side side_ = kHost;
+  bool latched_ = false;
 };
 
 // The probe's line for one SBE message (the worker's: it allocates), or "sbe refused" for bytes decode_sbe refuses.

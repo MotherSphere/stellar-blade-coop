@@ -4,8 +4,11 @@
 // 3 m snaps and the velocity; the drawn copy's four states with the 2 m convergence snap; the capture list and its
 // restore order; the three show lines (round trips, the R33 refusals for both path forms and the context, a fuzz),
 // the timeline with its late flag, the line ids on both sides and the dedupe window; the FNamePool decode and the
-// compact id over fake blocks; and two worlds through a fake Steam (120 +/- 30 ms, 2 % loss): the guest's copies
-// against the host's enemies at the same host time, the show lines in order, and restore at host loss.
+// compact id over fake blocks; the owner's capture and the drawn side's write half (Driver: the movement component out
+// of SB's manager on SB's class only, the speed override, the root move and Velocity, the drift probe, a stale pair,
+// the Show replay through the handle API with its context and setters, restore's order on every way back, the latch)
+// against fake memory; and two worlds through a fake Steam (120 +/- 30 ms, 2 % loss): the guest's copies against the
+// host's enemies at the same host time, the show lines in order, and restore at host loss.
 #include "pilot.h"
 
 #include <cassert>
@@ -13,6 +16,7 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <random>
 #include <string>
@@ -316,6 +320,130 @@ struct Undo {
   void stop(const Live &l) { log += "stop" + std::to_string(l.id) + " "; }
   void cmc_on() { log += "cmc "; }
   void speed(uint8_t was) { log += "speed" + std::to_string(was) + " "; }
+};
+
+// The game as the drawn side's write half drives it (Driver), over Scene: each copy's movement component of SB's class
+// (its vtable holds SB's SetComponentTickEnabled in slot 0x350; +0x10cd: in SB's parallel manager), its root's
+// MoveComponent at vtable +0x4a0, which moves the root as the game would (or 1 cm short, a mover still inside the
+// tick), and SB's Show handle API over the show manager: a new handle appends a stage stamped with it, AddShow a player
+// to it (or -1 for the path "missing"). Every call goes into calls, in order; a plain write as "write<bytes>".
+constexpr uint64_t kMoveFn = kBase + 0x2000000;
+struct Stage : Scene {
+  std::vector<std::string> calls;
+  size_t writes = 0;
+  uint64_t root_vtable = 0, main_guid = 0;
+  int32_t next_handle = 0;
+  bool mover = false, no_handle = false;
+  std::map<int32_t, uint64_t> by_handle; // A handle's first word: its stage.
+
+  Stage() {
+    region(kCmcVtable, kCmcTickSlot + 8);
+    put<uint64_t>(kCmcVtable + kCmcTickSlot, kCmcTick);
+    root_vtable = alloc(kMoveSlot + 8);
+    put<uint64_t>(root_vtable + kMoveSlot, kMoveFn);
+  }
+  // An enemy as Scene makes it, with a movement component of SB's class in SB's manager (parallel 1, or 0: out of it).
+  uint64_t copy(uint32_t guid, float x, float y, float z, uint8_t parallel = 1) {
+    const uint64_t ch = enemy(guid, x, y, z, 0), cmc = object(0x1100, enemy_class);
+    put<uint64_t>(cmc, kCmcVtable);
+    put<uint8_t>(cmc + kCmcParallel, parallel);
+    put<uint64_t>(ch + kCharacterMovement, cmc);
+    put<uint64_t>(root(ch), root_vtable);
+    return ch;
+  }
+  template <class T> T get(uint64_t at) {
+    T v{};
+    assert(read(at, &v, sizeof v));
+    return v;
+  }
+  uint64_t root(uint64_t ch) { return get<uint64_t>(ch + 0x178); }
+  uint64_t cmc(uint64_t ch) { return get<uint64_t>(ch + kCharacterMovement); }
+  float x(uint64_t ch) { return get<float>(root(ch) + 0x200); }
+  // The calls since the last look, joined.
+  std::string since(size_t &from) {
+    std::string out;
+    for (; from < calls.size(); ++from)
+      out += (out.empty() ? "" : " ") + calls[from];
+    return out;
+  }
+  struct Game : Find {
+    Stage *t;
+    bool read(uint64_t at, void *out, size_t n) { // The game would fault on a null pointer's field: never read one.
+      assert(at >= 0x10000);
+      return Find::read(at, out, n);
+    }
+    void write(uint64_t at, const void *in, size_t n) {
+      ++t->writes;
+      t->calls.push_back("write" + std::to_string(n));
+      for (auto &[base, bytes] : t->regions)
+        if (at >= base && at + n <= base + bytes.size())
+          return (void)std::memcpy(bytes.data() + (at - base), in, n);
+      assert(!"write outside every region");
+    }
+    void cmc(uint64_t cmc, bool on) {
+      t->calls.push_back(on ? "cmc on" : "cmc off");
+      t->put<uint8_t>(cmc + kCmcParallel, on);
+    }
+    void move(uint64_t fn, uint64_t root, const float *delta, const float *quat) {
+      assert(fn == kMoveFn);
+      t->calls.push_back("move");
+      for (int k = 0; k < 3; ++k)
+        t->put<float>(root + 0x200 + 4 * uint64_t(k), t->get<float>(root + 0x200 + 4 * uint64_t(k)) + delta[k] -
+                                                          (t->mover && k == 0 ? 1.f : 0.f));
+      for (int k = 0; k < 4; ++k)
+        t->put<float>(root + 0x1f0 + 4 * uint64_t(k), quat[k]);
+    }
+    int32_t first(const uint8_t *h) {
+      int32_t v = 0;
+      std::memcpy(&v, h, 4);
+      return v;
+    }
+    bool handle(uint64_t reg, uint8_t *h) {
+      assert(reg == t->get<uint64_t>(kRegistryAt));
+      std::memset(h, 0, 16);
+      if (t->no_handle)
+        return t->calls.push_back("handle none"), false;
+      const int32_t words[4] = {++t->next_handle, 0x11, 0x22, 0x33};
+      std::memcpy(h, words, 16);
+      const uint64_t stage = t->alloc(0x140), players = t->alloc(8 * 8);
+      t->put<uint64_t>(stage + 0x88, players);
+      for (int k = 0; k < 4; ++k)
+        t->put<int32_t>(stage + kStageHandle + 4 * uint64_t(k), words[k]);
+      t->stages.push_back(stage);
+      t->list();
+      t->by_handle[words[0]] = stage;
+      t->calls.push_back("handle " + std::to_string(words[0]));
+      return true;
+    }
+    void main_actor(uint64_t reg, const uint8_t *h, uint64_t guid) {
+      assert(reg == t->get<uint64_t>(kRegistryAt));
+      t->main_guid = guid;
+      t->calls.push_back("main " + std::to_string(first(h)));
+    }
+    int32_t add(uint64_t, const uint8_t *h, const char *path, size_t len, uint8_t form, float rate, uint8_t gate,
+                uint8_t b4d) {
+      const std::string p(path, len);
+      if (p == "missing")
+        return t->calls.push_back("add -1"), -1;
+      const uint64_t stage = t->by_handle.at(first(h));
+      t->player(stage, 0, rate);
+      char line[300];
+      std::snprintf(line, sizeof line, "add %d %s %u %.3f %u %u", first(h), p.c_str(), unsigned(form), double(rate),
+                    unsigned(gate), unsigned(b4d));
+      t->calls.push_back(line);
+      return t->get<int32_t>(stage + 0x90) - 1;
+    }
+    void step(uint64_t, const uint8_t *h, int32_t slot, int32_t step) {
+      t->calls.push_back("step " + std::to_string(first(h)) + " " + std::to_string(slot) + " " + std::to_string(step));
+    }
+    void rate(uint64_t, const uint8_t *h, int32_t slot, float rate) {
+      char line[80];
+      std::snprintf(line, sizeof line, "rate %d %d %.3f", first(h), slot, double(rate));
+      t->calls.push_back(line);
+    }
+    void stop(uint64_t, const uint8_t *h) { t->calls.push_back("stop " + std::to_string(first(h))); }
+  };
+  Game game() { return Game{{this}, this}; }
 };
 } // namespace
 
@@ -1270,6 +1398,265 @@ int main() {
     assert(told("CH_A/Skill/S02"));
     s.put<uint32_t>(package + 0x18, s.name("/Game/Art/Show/CH_B/Skill/S02"));
     assert(told("CH_B/Skill/S02") && c.counts.unnamed == 0);
+  }
+
+  // ---- The drawn side's write half (Driver): each drawn copy found by its GUID every frame and driven from its samples
+  // at the draw time: its movement component out of SB's parallel manager through SB's own slot 0x350, only on SB's
+  // class, and again whenever it is back in; the speed override and Velocity written; the root moved through its
+  // vtable +0x4a0. The drift probe, a stale pair, the owner and epoch filters ----
+  {
+    Stage s;
+    const uint64_t ch = s.copy(501, 100, 200, 20), cmc = s.cmc(ch);
+    Stage::Game g = s.game();
+    Driver d;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    uint32_t sbe_seq = 0;
+    auto sbe = [&](uint64_t ms, float x, uint16_t speed, uint8_t flags = 0, uint32_t guid = 4100, uint8_t oe = 0,
+                   uint16_t gen = 7) {
+      SbeHeader h;
+      h.gen = gen, h.seq = ++sbe_seq, h.publication = ms * 1000;
+      Entry e = entry(guid, x, 200, 20);
+      e.speed = speed, e.flags = flags, e.oe = oe;
+      uint8_t bytes[kMaxSbe];
+      d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    };
+    sbe(1000, 100, 300);
+    sbe(1033, 110, 300);
+    sbe(1066, 120, 300, 0, 4100, 1); // Another epoch, another generation, a pair not drawn here: never taken.
+    sbe(1066, 120, 300, 0, 4100, 0, 8);
+    sbe(1066, 120, 300, 0, 4999);
+    assert(d.counts.sbe == 2 && d.counts.sbe_refused == 3);
+    size_t seen = 0;
+    d.draw(g, kBase, 5000, 1000); // Converging from where it stands (here: the sample's place).
+    assert(s.since(seen) == "cmc off write1 write4 move write12" && d.counts.cmc_out == 1 && d.counts.frames == 1);
+    assert(s.get<uint8_t>(cmc + kCmcParallel) == 0 && s.get<uint8_t>(ch + kSpeedOverride) == 1);
+    assert(near(s.get<float>(ch + kSpeedOverrideSpeed), 300, 1e-3) && near(s.x(ch), 100, 1e-3));
+    assert(near(s.get<float>(cmc + kCmcVelocity), 10 / 0.033, 0.01) && s.get<float>(cmc + kCmcVelocity + 4) == 0);
+    d.draw(g, kBase, 5016, 1016.5); // Halfway: moved 5 cm, no drift (the game put it where we wrote it).
+    assert(s.since(seen) == "write1 write4 move write12" && near(s.x(ch), 105, 1e-3) && d.counts.drift_cm < 0.01);
+    s.put<uint8_t>(cmc + kCmcParallel, 1); // Something put it back in SB's manager: out again, counted.
+    s.mover = true;                        // And something moves the root inside the tick: 1 cm in 16 ms.
+    d.draw(g, kBase, 5032, 1020);
+    assert(s.since(seen) == "cmc off write1 write4 move write12" && d.counts.cmc_reenabled == 1 &&
+           d.counts.cmc_out == 1);
+    d.draw(g, kBase, 5048, 1020);
+    assert(near(d.counts.drift_cm, 1000.0 / 16, 0.5) && d.counts.drift_deg < 0.01);
+    assert(s.since(seen) == "write1 write4 move write12");
+    s.mover = false;
+    // A stale pair (its character pending kill: the lookup finds none): nothing written, nothing called, nothing
+    // forgotten; found again, it goes on with its movement component still out.
+    const auto key = s.characters.begin()->first;
+    s.characters.erase(key);
+    d.draw(g, kBase, 5064, 1020);
+    assert(s.since(seen).empty() && d.counts.unresolved == 1 && d.holding());
+    s.characters[key] = ch;
+    d.draw(g, kBase, 5080, 1020);
+    assert(s.since(seen) == "write1 write4 move write12");
+    // Past the newest sample by more than 150 ms: held there, no speed, no velocity (its legs would run in place).
+    d.draw(g, kBase, 5400, 1300);
+    assert(near(s.x(ch), 110 + 10 * 150 / 33.0, 0.1) && s.get<float>(ch + kSpeedOverrideSpeed) == 0 &&
+           s.get<float>(cmc + kCmcVelocity) == 0);
+    // BattleMode in the stream goes into the word back.
+    sbe(1100, 120, 0, kBattle);
+    d.draw(g, kBase, 5416, 1100);
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies];
+    uint8_t nb = 0, nr = 0;
+    d.flags(battle, nb, refused, nr);
+    assert(nb == 1 && battle[0] == 4100 && nr == 0);
+    assert(s.since(seen) == "write1 write4 move write12 write1 write4 move write12");
+
+    // Restore when the pair goes (its row gone): SB's own speed override back, the component back in SB's manager
+    // because it was in it, nothing kept. One whose component was already out of SB's manager is never put in.
+    d.rows(g, kBase, 7, kGuest, nullptr, 0);
+    assert(s.since(seen) == "cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0 && !d.holding());
+    assert(s.get<uint8_t>(cmc + kCmcParallel) == 1);
+    const uint64_t out = s.copy(502, 0, 0, 0, 0);
+    const Row row2{4200, 502, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row2, 1);
+    sbe(1200, 0, 0, 0, 4200);
+    d.draw(g, kBase, 6000, 1200);
+    assert(s.since(seen) == "write1 write4 move write12");
+    d.rows(g, kBase, 7, kGuest, nullptr, 0);
+    assert(s.since(seen) == "write1" && s.get<uint8_t>(s.cmc(out) + kCmcParallel) == 0);
+  }
+  // Another class of movement component, or SB's vtable with another function in slot 0x350 (the engine base): never
+  // driven, nothing written or called on it, named in the word back for the job to let go; the copy stays local. A
+  // copy not frozen yet (our BlockAI not held) is not driven either.
+  {
+    Stage s;
+    const uint64_t ch = s.copy(501, 0, 0, 0), other = s.alloc(0x400);
+    s.put<uint64_t>(other + kCmcTickSlot, kCmcTick);
+    s.put<uint64_t>(s.cmc(ch), other);
+    Stage::Game g = s.game();
+    Driver d;
+    Row row{4100, 501, kHost, 0, false, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 0);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    size_t seen = 0;
+    d.draw(g, kBase, 5000, 1000);
+    assert(s.since(seen).empty() && d.counts.cmc_refused == 0); // Not frozen: local.
+    row.frozen = true;
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.draw(g, kBase, 5016, 1000);
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies];
+    uint8_t nb = 0, nr = 0;
+    d.flags(battle, nb, refused, nr);
+    assert(s.since(seen).empty() && s.writes == 0 && d.counts.cmc_refused == 1 && nr == 1 && refused[0] == 4100);
+    d.draw(g, kBase, 5032, 1000);
+    assert(s.since(seen).empty() && d.counts.cmc_refused == 1 && d.counts.frames == 0);
+    s.put<uint64_t>(s.cmc(ch), kCmcVtable); // SB's vtable, but slot 0x350 is not SB's override.
+    s.put<uint64_t>(kCmcVtable + kCmcTickSlot, 0x140f32a70);
+    Driver d2;
+    d2.rows(g, kBase, 7, kGuest, &row, 1);
+    d2.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    d2.draw(g, kBase, 5000, 1000);
+    d2.flags(battle, nb, refused, nr);
+    assert(s.since(seen).empty() && s.writes == 0 && d2.counts.cmc_refused == 1 && nr == 1);
+  }
+  // Show replay through the handle API, at the draw time: a new stage and handle, SetMainActor with the copy's FSBActor
+  // FGuid, AddShow (the path as sent, its form, rate, step gate and +0x4d), SetStep for a step-driven player, then the
+  // hit context written into the player AddShow made (found as the newest stage, stamped with our handle) and the
+  // stage's +0x9c; show-set as SetRate and SetStep, show-stop as Stop; a missing asset stopped at once; a context far from
+  // the copy left out; a line for a released copy not played; the owner, epoch and clock filters.
+  {
+    Stage s;
+    s.copy(501, 100, 200, 20);
+    Stage::Game g = s.game();
+    Driver d;
+    Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    size_t seen = 0;
+    d.draw(g, kBase, 5000, 1000);
+    s.since(seen);
+    auto show = [&](uint8_t id, uint64_t t_ms, const char *path, uint8_t oe = 0, uint32_t gen = 7) {
+      ShowLine l;
+      l.kind = Kind::show;
+      l.gen = gen, l.guid = 4100, l.oe = oe, l.id = id, l.t_ms = t_ms;
+      l.rate = 1500, l.step = 2, l.gate = 1, l.b4d = 1;
+      assert(set_path(l, 0, path));
+      return l;
+    };
+    ShowLine l = show(5, 1050, "CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03");
+    l.ctx[kHitLevel] = 2, l.ctx[kHitLevel60] = 3, l.ctx[kDir2d] = 50, l.ctx[kHitPos] = 10050, l.ctx[kHitPos + 1] = 20025;
+    l.ctx[kA8] = -7, l.ctx[kOtherLoc] = 9000, l.ctx[kHitRot + 1] = 9000, l.ctx[kStage9c] = 250;
+    d.line(l, 1040);
+    d.line(show(6, 1050, "x", 1), 1040);                        // Another epoch.
+    d.line(show(6, 1050, "x", 0, 8), 1040);                     // Another generation.
+    d.line(show(6, 1050, "x"), std::numeric_limits<double>::quiet_NaN()); // No clock: never played.
+    assert(d.counts.lines == 1 && d.counts.lines_refused == 3);
+    d.draw(g, kBase, 5016, 1049);
+    assert(s.since(seen) == "write1 write4 move write12"); // Not due yet.
+    d.draw(g, kBase, 5032, 1051);
+    std::string calls = s.since(seen);
+    assert(calls.rfind("write1 write4 move write12 handle 1 main 1 add 1 CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03 0 "
+                       "1.500 1 1 step 1 0 2 ",
+                       0) == 0);
+    assert(s.main_guid == s.fsbs[501] + kFsbGuid && d.counts.shows == 1 && d.counts.late == 0);
+    const uint64_t stage = s.by_handle[1], player = s.get<uint64_t>(s.get<uint64_t>(stage + 0x88));
+    assert(s.get<uint8_t>(player + 0x54) == 2 && s.get<uint8_t>(player + 0x60) == 3);
+    assert(near(s.get<float>(player + 0x68), 0.5, 1e-6) && near(s.get<float>(player + 0x84), 100.5, 1e-4) &&
+           near(s.get<float>(player + 0x88), 200.25, 1e-4) && s.get<int32_t>(player + 0xa8) == -7 &&
+           near(s.get<float>(player + 0xc0), 90, 1e-4) && near(s.get<float>(player + 0xd0), 90, 1e-4) &&
+           near(s.get<float>(stage + 0x9c), 2.5, 1e-6));
+    ShowLine set = l;
+    set.kind = Kind::set, set.rate = 2000, set.step = 3, set.t_ms = 1060;
+    d.line(set, 1052);
+    ShowLine stop = l;
+    stop.kind = Kind::stop, stop.t_ms = 1070;
+    d.line(stop, 1052);
+    ShowLine late_set = set; // After its stop: no replay of that id any more.
+    late_set.t_ms = 1080;
+    d.line(late_set, 1052);
+    d.draw(g, kBase, 5048, 1100);
+    assert(s.since(seen) == "write1 write4 move write12 rate 1 0 2.000 step 1 0 3 stop 1" && d.counts.sets == 1 &&
+           d.counts.stops == 1 && d.counts.unknown == 1);
+    // A missing asset: its stage stopped at once. A late line (pushed 200 ms after its stamp): played at once, counted.
+    // A context 2 km away from the copy: the Show plays without it.
+    d.line(show(7, 1100, "missing"), 1100);
+    ShowLine far = show(8, 1100, "Far/Show");
+    far.ctx[kHitPos] = 20000000, far.gate = 0;
+    d.line(far, 1300);
+    d.draw(g, kBase, 5064, 1300);
+    calls = s.since(seen);
+    assert(calls == "write1 write4 move write12 handle 2 main 2 add -1 stop 2 handle 3 main 3 add 3 Far/Show 0 1.500 0 1");
+    assert(d.counts.missing == 1 && d.counts.shows == 2 && d.counts.late == 1 && d.counts.no_context == 1);
+    const uint64_t far_player = s.get<uint64_t>(s.get<uint64_t>(s.by_handle[3] + 0x88));
+    assert(s.get<float>(far_player + 0x84) == 0);
+    // No stage made (the handle API gave none): skipped, counted; its show-set and show-stop find nothing to call.
+    s.no_handle = true;
+    d.line(show(9, 1310, "Some/Show"), 1305);
+    d.draw(g, kBase, 5080, 1310);
+    assert(s.since(seen) == "write1 write4 move write12 handle none" && d.counts.no_handle == 1);
+    s.no_handle = false;
+    // Released (Down, Groggy, Airborne, a takedown marker): the replays stop, the component goes back, our speed
+    // override comes off, in restore's order, and its lines are not played; 200 ms calm later it converges again.
+    row.release = true;
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.line(show(10, 1320, "Other/Show"), 1315);
+    d.draw(g, kBase, 5096, 1320);
+    assert(s.since(seen) == "stop 3 cmc on write1" && d.counts.released == 1 && d.counts.not_drawn == 1);
+    row.release = false;
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    d.draw(g, kBase, 5200, 1330);
+    assert(s.since(seen).empty());
+    d.draw(g, kBase, 5300, 1340);
+    assert(s.since(seen) == "cmc off write1 write4 move write12");
+  }
+  // Every way back in restore's order (the live replays stopped, then the movement component back only if it was in
+  // SB's manager, then SB's speed override): the rows gone (unpair, same_place off, host loss, fight off, session end);
+  // and once after a fault, which then stops every write and call for the run.
+  {
+    Stage s;
+    const uint64_t ch = s.copy(501, 0, 0, 0);
+    Stage::Game g = s.game();
+    Driver d;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    auto setup = [&](Driver &dr) {
+      dr.rows(g, kBase, 7, kGuest, &row, 1);
+      SbeHeader h;
+      h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+      Entry e = entry(4100, 0);
+      uint8_t bytes[kMaxSbe];
+      dr.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+      for (uint8_t id : {1, 2}) {
+        ShowLine l;
+        l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = id, l.t_ms = 1000, l.rate = 1000;
+        assert(set_path(l, 0, "A/B"));
+        dr.line(l, 1000);
+      }
+      dr.draw(g, kBase, 5000, 1000);
+    };
+    setup(d);
+    size_t seen = 0;
+    s.since(seen);
+    d.rows(g, kBase, 7, kGuest, nullptr, 0);
+    assert(s.since(seen) == "stop 1 stop 2 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0);
+    // A new generation (a new world) puts every pair back the same way first.
+    setup(d);
+    s.since(seen);
+    d.rows(g, kBase, 8, kGuest, &row, 1);
+    assert(s.since(seen) == "stop 3 stop 4 cmc on write1" && d.holding());
+    // A fault: put back once, then nothing more, whatever comes.
+    Driver f;
+    setup(f);
+    s.since(seen);
+    f.fault(g, kBase);
+    assert(s.since(seen) == "stop 5 stop 6 cmc on write1" && f.latched() && !f.holding());
+    const size_t writes = s.writes;
+    f.fault(g, kBase);
+    setup(f);
+    f.rows(g, kBase, 7, kGuest, nullptr, 0);
+    assert(s.since(seen).empty() && s.writes == writes && f.counts.frames == 1);
   }
 
   // ---- Two worlds: the host pilots the guest's copies through a fake Steam (exit criterion 1 of stage 3a) ----

@@ -116,10 +116,15 @@ build/host/pose_codec_test
     an empty one matched by the actor's show interface; only the first player of a stage, a finished one never told;
     show-set and show-stop; each asset's path decoded once, and again when another asset takes its address and index
     under another name or package; a character pending kill, a failed lookup, a wrong class, no world or no show
-    manager), and two worlds through a delayed, lossy line (120 ms, plus or minus 30, 2 % lost), where
-    the guest's copies stay within 30 cm of the host's enemies at the same host time while they move (an 8 m/s lunge to
-    a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and restore puts every copy back
-    to local, with its CMC back in SB's movement manager and the speed override gone;
+    manager), the drawn side's writes against fake memory (each copy found by its GUID every frame and skipped while
+    it is not; its movement component taken out of the game's parallel manager only when it is the game's class with
+    the game's own function in slot 0x350, and again when something put it back; the speed override, the root moved
+    through its vtable and Velocity; the drift probe; the Show replayed through the handle API with its hit context,
+    show-set and show-stop, a missing asset, a context too far away; a release; restore's order on every way back,
+    once after a fault and nothing after it), and two worlds through a delayed, lossy line (120 ms, plus or minus 30,
+    2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they move
+    (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and restore
+    puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
