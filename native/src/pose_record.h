@@ -4,8 +4,10 @@
 //
 // coop-record.bin, little-endian:
 //   "SBR" (3 bytes), protocol (u8, kProtocol)
-//   then entries: kind (u8, 'T' a table or 'P' a pose), size (u32), the exact wire bytes (SBT text or an SBP pose)
-// The first entry is a table, and each pose is of the latest table's generation, published after the pose before it.
+//   then entries: kind (u8, 'T' a table, 'P' a pose (a keyframe) or 'D' a delta), size (u32), the exact wire bytes
+//   (SBT text, an SBP pose or an SBD delta, pose_codec.h)
+// The first entry is a table, and each pose or delta is of the latest table's generation, published after the one
+// before it; a delta's keyframe is the latest pose since that table's first entry. Protocol 9 added the deltas.
 #pragma once
 
 #include <cstddef>
@@ -19,7 +21,9 @@
 
 namespace coop::pose {
 
-constexpr size_t kMaxRecording = size_t(24) << 20, kMaxEntries = 4096, kEntryHeader = 5;
+// 120 s at 60 poses a second is 7200 entries; at the sender's byte budget (192 KiB/s) 22.5 MiB of poses. With the
+// largest table (64 KiB) resent every 5 s it is about 24 MiB: such a recording stops as full a few seconds early.
+constexpr size_t kMaxRecording = size_t(24) << 20, kMaxEntries = 8192, kEntryHeader = 5;
 constexpr uint64_t kMaxSpanUs = 130'000'000; // The recorder stops at 120 s.
 
 namespace record {
@@ -27,7 +31,8 @@ namespace record {
 // still in flight from the table before); the reader refuses the file.
 struct Rules {
   uint64_t generation = 0;      // The latest table's; 0 before the first.
-  uint64_t first = 0, last = 0; // The first and the latest pose's publication.
+  uint64_t first = 0, last = 0; // The first and the latest pose's publication (a delta is a pose here).
+  uint64_t key = 0;             // The latest keyframe's publication under this generation; 0 before one.
   size_t entries = 0, poses = 0, tables = 0;
   // Null, and counted, when this entry may follow; else why not.
   const char *take(uint8_t kind, const uint8_t *data, size_t size) {
@@ -37,13 +42,15 @@ struct Rules {
       auto t = parse_table(std::string(reinterpret_cast<const char *>(data), size), false);
       if (!t)
         return "table";
+      key = t->generation == generation ? key : 0; // A new table: a new Live at the receiver, with no keyframe.
       generation = t->generation;
       ++tables;
-    } else if (kind == 'P') {
+    } else if (kind == 'P' || kind == 'D') {
       if (!generation)
         return "first entry";
-      // What the receiver's dispatcher takes as a pose.
-      if (size < kPoseHeader || size > kMaxPose || std::memcmp(data, "SBP", 3) || data[3] != kProtocol)
+      // What the receiver's dispatcher takes as a pose or a delta (with its age).
+      if (size < kPoseHeader + (kind == 'D' ? 4 : 0) || size > kMaxPose ||
+          std::memcmp(data, kind == 'P' ? "SBP" : "SBD", 3) || data[3] != kProtocol)
         return "pose";
       const uint8_t *at = data + 4;
       uint64_t pose_generation = codec::get(at, 8);
@@ -55,6 +62,14 @@ struct Rules {
         return "publication";
       if (poses && publication - first > kMaxSpanUs)
         return "span";
+      if (kind == 'D') { // Its keyframe is the latest one kept, as the receiver needs it.
+        const uint8_t *age_at = data + kPoseHeader;
+        const uint64_t age = codec::get(age_at, 4);
+        if (!key || !age || age > publication || publication - age != key)
+          return "key";
+      } else {
+        key = publication;
+      }
       if (!poses)
         first = publication;
       last = publication;
@@ -80,12 +95,13 @@ public:
     add(reinterpret_cast<const uint8_t *>(table.data()), table.size());
     return rules_.tables == 1;
   }
-  // A message wire_send sent, a table or a pose by its magic: kept when it may follow, else skipped. False when it
-  // does not fit (kMaxRecording or kMaxEntries): the recording is full and stops.
+  // A message wire_send sent, a table, a pose or a delta by its magic: kept when it may follow, else skipped. False
+  // when it does not fit (kMaxRecording or kMaxEntries): the recording is full and stops.
   bool add(const uint8_t *data, size_t size) {
     if (rules_.entries == kMaxEntries || bytes_.size() + kEntryHeader + size > kMaxRecording)
       return false;
-    uint8_t kind = size >= 3 && !std::memcmp(data, "SBT", 3) ? 'T' : 'P';
+    const bool magic = size >= 3;
+    uint8_t kind = magic && !std::memcmp(data, "SBT", 3) ? 'T' : magic && !std::memcmp(data, "SBD", 3) ? 'D' : 'P';
     if (rules_.take(kind, data, size))
       return true;
     bytes_ += char(kind);
@@ -107,11 +123,12 @@ struct Recording {
   struct Entry {
     uint8_t kind = 0;
     size_t at = 0, size = 0;
-    uint64_t publication = 0; // A pose's, as recorded.
+    uint64_t publication = 0; // A pose's or a delta's, as recorded.
   };
   std::string file;
   std::vector<Entry> entries;
-  uint64_t first = 0; // The first pose's publication.
+  uint64_t first = 0, last = 0; // The first and the last pose's publication (a delta is a pose here).
+  size_t poses = 0;
 };
 
 // A whole coop-record.bin, checked before anything plays: null when it is good (then out holds it), else why not.
@@ -132,22 +149,25 @@ inline const char *parse_recording(std::string file, Recording &out) {
       return "trailing bytes";
     if (const char *why = rules.take(data[at], data + at + kEntryHeader, size))
       return why;
-    r.entries.push_back({data[at], at + kEntryHeader, size, data[at] == 'P' ? rules.last : 0});
+    r.entries.push_back({data[at], at + kEntryHeader, size, data[at] != 'T' ? rules.last : 0});
     at += kEntryHeader + size;
   }
   if (!rules.poses)
     return "no pose";
   r.first = rules.first;
+  r.last = rules.last;
+  r.poses = rules.poses;
   r.file = std::move(file); // Entries hold offsets, not pointers: a short file's bytes move.
   out = std::move(r);
   return nullptr;
 }
 
-// A recording played in a loop, as if a peer sent it now: a table as soon as the replay reaches it, a pose once now
-// reaches its new publication. Each pose is re-stamped in place, so the receiver takes every loop as new poses: the
+// A recording played in a loop, as if a peer sent it now: a table as soon as the replay reaches it, a pose or a delta
+// once now reaches its new publication. Each is re-stamped in place, so the receiver takes every loop as new poses: the
 // sequence counts on from the last pose this replay ever sent, never restarting (Playback refuses a sequence not
 // above its newest); the publication keeps the recorded spacing from a base, which is the start for the first loop and
-// 100 ms after the last pose for each one after. Generation, map and the pose itself stay as recorded.
+// 100 ms after the last pose for each one after. Generation, map and the pose itself stay as recorded, a delta's age
+// too: its keyframe, in the same loop, moved by as much.
 class Replay {
 public:
   static constexpr uint64_t kLoopGapUs = 100'000;
@@ -164,7 +184,7 @@ public:
     while (next_ < r_.entries.size()) {
       const Recording::Entry &e = r_.entries[next_];
       uint8_t *data = reinterpret_cast<uint8_t *>(&r_.file[e.at]);
-      if (e.kind == 'P') {
+      if (e.kind != 'T') {
         uint64_t publication = base_ + (e.publication - r_.first);
         if (now < publication)
           return;

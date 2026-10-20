@@ -257,7 +257,7 @@ local function her_parts(o)
     }
 end
 local function remote_text(generation,parts,map)
-    local lines={'SBT 3','generation '..generation,'map '..(map or '/game/art/bg/worldmap/level_p/e04')}
+    local lines={'SBT 9','generation '..generation,'map '..(map or '/game/art/bg/worldmap/level_p/e04')}
     for i,p in ipairs(parts) do
         lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',i-1,p.lead or '-',p.parent or '-',p.socket or '-',
             p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')

@@ -96,7 +96,7 @@ inline void blend_transform(const float *a, const float *b, float alpha, float *
 // interval. Game thread; reset() allocates and runs on the worker (with the Live), so no frame ever allocates.
 class Playback {
 public:
-  static constexpr size_t kFrames = 8;
+  static constexpr size_t kFrames = 24; // 400 ms of poses at 60 a second (8 were 400 ms at 20).
   static constexpr double kIntervalCapMs = 1000, kStepMs = 250, kWindowMs = 5000, kSilentMs = 3000, kSpreadDecay = 0.01;
   struct Frame {
     uint32_t sequence = 0;
@@ -139,7 +139,8 @@ public:
       if (arrival - last_arrival_ > kSilentMs)
         count_ = 0; // Counted below as a stall; the poses from before the silence are not blended with this one.
       stats_.lost += scratch_.sequence - newest.sequence - 1;
-      double gap = publication - newest.publication / 1000.0;
+      // Over the sequence numbers between: lost poses (a lost keyframe's 15 keyless deltas) do not lengthen it.
+      double gap = (publication - newest.publication / 1000.0) / (scratch_.sequence - newest.sequence);
       if (gap > 0 && gap < kIntervalCapMs)
         interval_ = interval_ * 0.9 + gap * 0.1;
       if (arrival - last_arrival_ > std::max(250.0, 3 * interval_))

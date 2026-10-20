@@ -8,8 +8,8 @@
 //   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
-// (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h). Channel 2 carries the shared enemies' text lines, which
-// start with fight_tag() (fight_sync.h parses them).
+// (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h). Channel 2 carries the shared
+// enemies' text lines, which start with fight_tag() (fight_sync.h parses them).
 #pragma once
 
 #include <array>
@@ -22,11 +22,12 @@
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 8; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 9; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                              // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                              // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines, which
-                             // a protocol-7 peer would count as invalid and drop without a word. An older peer (6:
+                             // a protocol-7 peer would count as invalid and drop without a word; 9 adds the pose delta
+                             // (SBD) on channel 1, which a protocol-8 peer would count malformed. An older peer (6:
                              // v0.1.1, 7: v0.2.0) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
@@ -166,7 +167,7 @@ inline std::string vit_line(const Vitals &v) {
     line += " " + std::to_string(x);
   return line;
 }
-// Channel 2's tag, versioned like channel 0's: "SBF8".
+// Channel 2's tag, versioned like channel 0's: "SBF9".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
@@ -438,7 +439,7 @@ inline Request parse_request(std::string text) {
 // PCs), a notice only, or nothing.
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
-// coop-state.txt, from Lua: "world=<0|1|title> rate=<10..30> photo=<0|1|s> sync=<both|notice|off> max=<0|30..3600>".
+// coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s> sync=<both|notice|off> max=<0|30..3600>".
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
@@ -460,7 +461,7 @@ inline bool parse_state(const std::string &text, State &out) {
   std::string f[5];
   uint64_t rate = 0, max = 0;
   if (!split(line, f, 5, nullptr) || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
-      f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 30 ||
+      f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 60 ||
       (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s") ||
       (f[3] != "sync=both" && f[3] != "sync=notice" && f[3] != "sync=off") || f[4].rfind("max=", 0) != 0 ||
       !number(std::string_view(f[4]).substr(4), max) || (max && (max < 30 || max > 3600)))

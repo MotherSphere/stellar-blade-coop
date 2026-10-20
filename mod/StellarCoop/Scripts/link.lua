@@ -40,8 +40,8 @@ who_can_join=friends
 auto_coop_save=ask
 # Your friend's Steam name above her ghost: on or off.
 name_tag=on
-# Poses sent to your friend a second: 10 to 30.
-send_rate=20
+# Poses sent to your friend a second: 10 to 60.
+send_rate=60
 # What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
@@ -76,7 +76,7 @@ card_details=on
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
-local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='20',cloth='off',
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
     partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
@@ -123,8 +123,8 @@ local function setting(name,text)
         return nil,'use on or off'
     elseif name=='send_rate' then
         local rate=text:match('^%d+$') and tonumber(text)
-        if rate and rate>=10 and rate<=30 then return rate end
-        return nil,'use 10 to 30'
+        if rate and rate>=10 and rate<=60 then return rate end
+        return nil,'use 10 to 60'
     elseif name=='ui_scale' then
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end

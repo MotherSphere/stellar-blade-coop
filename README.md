@@ -77,7 +77,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same StellarCoop protocol (8 in this version) and the same game build.
+- To play together, both players need the same StellarCoop protocol (9 in this version) and the same game build.
 
 ## Disclaimer
 

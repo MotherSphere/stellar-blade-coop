@@ -320,7 +320,7 @@ load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
-assert(logged('keys: menu=F5 host=none status=F6 leave=F8, name tag on, 20 poses a second'),table.concat(printed,'|'))
+assert(logged('keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second'),table.concat(printed,'|'))
 assert(name_tag==true,'The name tag setting reaches the ghost')
 puppet_say('Kaanta is in b07, you are in e04.')
 assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the line above EVE')
@@ -529,13 +529,13 @@ assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost
 assert(captured[#captured]==true and last():find('OK: Capture 7',1,true),'The capture runs while the ghost is on')
 assert(remoted[1]==3 and remoted[2]==1 and remoted[3]=='loopback','The ghost learns the remote table every 250 ms')
 -- The world state every 250 ms, across a title round trip (a save loaded, the title, another save): never a request.
-assert(states[#states]=='world=0 rate=20' and logged('state: world=0 rate=20'),tostring(states[#states]))
+assert(states[#states]=='world=0 rate=60' and logged('state: world=0 rate=60'),tostring(states[#states]))
 before=#asked
-in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and logged('state: world=1 rate=20'))
-in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=20')
-at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=20','The title screen goes along')
+in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=60' and logged('state: world=1 rate=60'))
+in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=60')
+at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=60','The title screen goes along')
 at_title=false
-in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=20' and #asked==before,'No request written')
+in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=60' and #asked==before,'No request written')
 -- The photo mode with the state, read only with a save loaded: '1', 's' (a selfie wins), then '0', with photo_sync and
 -- photo_freeze_max. During our own, the notices are veiled, the ghost stays (photo_ghost=on) and its tag goes
 -- (photo_name_tag=off); nothing is asked of the native part.
@@ -693,7 +693,7 @@ link_mode='guest'; loops[2].f(); assert(toggles==3 and active,'Leave, then a gue
 -- A title round trip in a session (S6): only the world state changes; the lobby and the ghost are kept.
 before=#asked
 in_world=true; loops[2].f(); in_world=false; loops[2].f(); in_world=true; loops[2].f()
-assert(table.concat(states,' ',#states-2)=='world=1 rate=20 world=0 rate=20 world=1 rate=20',table.concat(states,' '))
+assert(table.concat(states,' ',#states-2)=='world=1 rate=60 world=0 rate=60 world=1 rate=60',table.concat(states,' '))
 assert(#asked==before and toggles==3 and active,'No leave, no toggle')
 link_mode='none'; loops[2].f(); assert(active,'A leave leaves the ghost on')
 link_mode='host'; loops[2].f(); assert(toggles==3 and active,'Already on when the next session starts: left on')
@@ -1104,7 +1104,7 @@ key('LEFT_ARROW'); assert(look.cloth==false and settings_text=='# mine\nname_tag
 to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
-to('Poses sent a second'); key('RIGHT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=21')
+to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=55')
 to('Who can join'); key('RETURN')
 assert(settings_text:find('\nwho_can_join=code\n',1,true) and select(2,focus())=='With a code')
 coop('host'); assert(asked[#asked]=='host code','At once: the next Host has a join code')
@@ -1196,7 +1196,7 @@ assert(#kit_calls==n and last()=='[StellarCoop] STOP: coop off is active until t
 -- the menu, nothing hosts by itself; a file that sets both keys keeps host_key hosting at once.
 settings_text='host_key=Shift+F5\nstatus_key=Shift+F6\nleave_key=Shift+F8\n'
 load_main(true)
-assert(logged('keys: menu=Shift+F5 host=none status=Shift+F6 leave=Shift+F8, name tag on, 20 poses a second'))
+assert(logged('keys: menu=Shift+F5 host=none status=Shift+F6 leave=Shift+F8, name tag on, 60 poses a second'))
 in_world,kit_ready=true,true; quarter()
 key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
 settings_text='menu_key=F5\nhost_key=F9\n'

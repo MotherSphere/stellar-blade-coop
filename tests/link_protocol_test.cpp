@@ -134,9 +134,10 @@ int main() {
   assert(parse_text("SBC6 ping 1 2").kind == Kind::invalid && parse_text("SBC6 pong 1 2").kind == Kind::invalid);
   // A v0.2.0 peer runs protocol 7: it would count say and vit as invalid and drop them, so a chat line would vanish
   // without a word. Protocol 8 makes her lobby tag and hello refuse the link instead; her lines are dropped too.
-  static_assert(kProtocol == 8, "8 adds say and vit; 7 is v0.2.0's");
-  assert(lobby_tag(24463856) != "7:24463856");
+  static_assert(kProtocol == 9, "9 adds pose deltas (SBD) on channel 1; 8 adds say and vit; 7 is v0.2.0's");
+  assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856");
   assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
+  assert(parse_text("SBC8 say hi").kind == Kind::invalid && parse_text("SBC8 vit 1").kind == Kind::invalid);
   assert(fight_tag() == "SBF" + std::to_string(kProtocol));
   for (const std::string &line : {fight_tag() + " on", fight_tag() + " world 3", fight_tag() + " ping 1 2"})
     assert(parse_text(line).kind == Kind::invalid);
@@ -388,9 +389,10 @@ int main() {
   assert(parse_state("world=0 rate=30 photo=s sync=off max=30\n", s) && !s.world && s.rate == 30 && s.photo == 's' &&
          s.sync == Sync::off && s.max == 30);
   assert(parse_state("world=1 rate=20 photo=0 sync=both max=3600", s) && s.max == 3600);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=3600", s) && s.rate == 60); // Protocol 9: up to 60.
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :
-       {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=31" + tail,
+       {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=61" + tail,
         "world=1 rate=20x" + tail, "world=1 rate=20" + tail + " extra=1", std::string("world=1"),
         "world=Title rate=20" + tail, "world=t rate=20" + tail, "world=title1 rate=20" + tail, "title rate=20" + tail,
         std::string("world=1 rate=20"), "rate=20 world=1" + tail, "world=1  rate=20" + tail,

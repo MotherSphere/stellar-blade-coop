@@ -90,7 +90,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`8:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`9:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -124,7 +124,7 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
 - `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
   `remove <SteamID>` refuses any player already in, friends included.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
-  removed from this session`). Every protocol 8 build shows it as `<host> refused the link: <reason>` and leaves. That
+  removed from this session`). Every protocol 9 build shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
   requests and messages, and sends `you cannot join this session again` each time they come back. Steam has no way to
   remove a lobby member, so a game that ignores the reject keeps the second place in the lobby. It gets the reject
@@ -138,8 +138,7 @@ press, so it ignores every key for 1 s after it shows, and `main.lua` gives it t
 `link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
 forgets them.
 
-None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject, which protocol 8 already
-has.
+None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject.
 
 ### Handshake
 
@@ -167,11 +166,11 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC8 ping <seq> <ms>
-SBC8 pong <seq> <ms>
-SBC8 photo <0|1|s> <both|notice>
-SBC8 say <text>
-SBC8 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC9 ping <seq> <ms>
+SBC9 pong <seq> <ms>
+SBC9 photo <0|1|s> <both|notice>
+SBC9 say <text>
+SBC9 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -207,16 +206,20 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 8` (sent reliable), and
-each pose as a binary message starting `SBP` and the protocol byte (sent unreliable, without Nagle delay).
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 9` (sent reliable), and
+each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
+without Nagle delay).
 
 - Your table goes to your friend at once and again every 5 s, so a table lost with a broken session, or sent before
   they accepted, arrives with a later resend. An identical table is ignored. A changed capture (a new outfit, the
   blade drawn) goes at once.
 - A table of theirs that needs a new ghost (a new generation or layout) is taken at most once every 2 s. One that comes
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
-- Poses go 20 a second by default (`send_rate`, 10 to 30).
-- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 64 messages
+- Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
+  sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
+  5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s, under
+  Steam's default send rate of 256 KiB/s.
+- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 160 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
   logged once (`ignored pose data from <id>: not in our lobby`). Channel 1 traffic does not count as hearing from a
@@ -237,7 +240,8 @@ instead of misread:
 | 5 | The table's material lines (dyes) |
 | 6 | Four effect slots in each pose |
 | 7 | Steam channel 2 for the shared enemies, and the photo line |
-| 8 | The say and vit lines, for the chat and the partner card (this version) |
+| 8 | The say and vit lines, for the chat and the partner card |
+| 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 (this version) |
 
 ### Link health in the log
 
@@ -295,19 +299,29 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - four effect slots of 15 bytes each: an index into a fixed list of effects (never a path), the part it hangs on, a
   serial for each new instance, and its rotation and translation relative to the part.
 
-A pose is at most 16 KiB; in the outfit measured it is about 4.7 KB. Every pose is a full keyframe, with no delta
-encoding. A world position beyond 1e7 cm, or not finite, is refused.
+A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
+is refused.
+
+Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
+its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
+and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
+whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
+like a keyframe, so a delta gives exactly the same pose. A delta whose keyframe was lost on the way is dropped and
+counted as keyless; the ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to
+41 % (combat) of the full pose.
 
 ### 4. Playback clock and interpolation
 
-The receiving side keeps the last 8 poses and draws the ghost a little in the past, so a late pose still arrives
-before it is needed:
+The receiving side keeps the last 24 poses (400 ms at 60 a second) and draws the ghost a little in the past, so a late
+pose still arrives before it is needed:
 
 - The clock tracks the lowest one-way lag seen (which, between two PCs, includes the offset between their clocks). It
   drops to any lower lag at once and otherwise rises 1 ms a second, so it follows drift both ways. A lag that stays
   250 ms above it for 5 s (a clock step) moves it at once.
 - Without jitter the ghost is drawn 1.5 send intervals behind the newest pose. With jitter it is drawn far enough back
   that a late pose is still ahead of it (the recent jitter peak, decaying, capped at 250 ms).
+- The send interval is the time between two poses' publications divided by the difference of their sequence numbers,
+  so lost poses, or the deltas dropped after a lost keyframe, do not push the ghost further back.
 - Between two poses the pose is interpolated. Past the newest one it is extrapolated by at most half an interval.
   After 3 s without a pose the old ones are dropped, so the ghost never slides across the gap.
 

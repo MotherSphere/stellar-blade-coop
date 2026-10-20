@@ -183,7 +183,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (8) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
+- Both players need the same protocol (9) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -378,7 +378,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 8). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 9). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -508,8 +508,8 @@ who_can_join=friends
 auto_coop_save=ask
 # Your friend's Steam name above her ghost: on or off.
 name_tag=on
-# Poses sent to your friend a second: 10 to 30.
-send_rate=20
+# Poses sent to your friend a second: 10 to 60.
+send_rate=60
 # What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
@@ -551,7 +551,7 @@ card_details=on
 | `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](#join-codes); `private`: only the friends you invite) | `friends` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
-| `send_rate` | `10` to `30` poses sent a second | `20` |
+| `send_rate` | `10` to `60` poses sent a second | `60` |
 | `cloth` | `on` or `off` | `off` |
 | `dyes` | `on` or `off` | `off` |
 | `effects` | `on` or `off` | `off` |
@@ -582,7 +582,7 @@ Rules:
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
-  `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 20 poses a second`. Another line says when a mod loaded
+  `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
   earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in
   use.
 

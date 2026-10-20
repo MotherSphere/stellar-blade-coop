@@ -635,10 +635,10 @@ int main() {
     g.spawn(101, 5001, 0);
     frame(g, *e, 0);
     assert(e->host.linked() == 1 && e->snapshot().hosted == 0);
-    g.inbox.push_back(msg("SBF8 on"));
+    g.inbox.push_back(msg("SBF9 on"));
     frame(g, *e, 16);
     assert(e->snapshot().hosted == 1);
-    g.inbox.push_back(msg("SBF8 off busy"));
+    g.inbox.push_back(msg("SBF9 off busy"));
     frame(g, *e, 32);
     assert(e->host.linked() == 1 && e->snapshot().hosted == 0);
   }
@@ -649,13 +649,13 @@ int main() {
     auto e = engine(true, true);
     for (uint32_t i = 0; i < 3; ++i)
       g.spawn(101 + i, 5001 + i, 0);
-    g.inbox.push_back(msg("SBF8 on")); // The guest's on: the host's whole list.
+    g.inbox.push_back(msg("SBF9 on")); // The guest's on: the host's whole list.
     frame(g, *e, 0);
-    assert(lines(g) == "SBF8 on\nSBF8 world 1\nSBF8 up 1 101 5001 0 900 1600\nSBF8 up 1 102 5002 0 900 1600\n"
-                       "SBF8 up 1 103 5003 0 900 1600\nSBF8 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
+    assert(lines(g) == "SBF9 on\nSBF9 world 1\nSBF9 up 1 101 5001 0 900 1600\nSBF9 up 1 102 5002 0 900 1600\n"
+                       "SBF9 up 1 103 5003 0 900 1600\nSBF9 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
                        "103:1600:100:200\n");
-    for (const char *hit : {"SBF8 hit 1 1 101 100 0 0 1600 0", "SBF8 hit 1 2 102 100 0 0 1600 0",
-                            "SBF8 hit 1 3 103 100 0 0 1600 0"})
+    for (const char *hit : {"SBF9 hit 1 1 101 100 0 0 1600 0", "SBF9 hit 1 2 102 100 0 0 1600 0",
+                            "SBF9 hit 1 3 103 100 0 0 1600 0"})
       g.inbox.push_back(msg(hit));
     const uint64_t old = g.data;
     g.during = [&] { // The first claim's ApplyStat summons, and the elements move: the old block is gone. The third
@@ -670,7 +670,7 @@ int main() {
     // The next census walks the moved map: the summon is announced.
     for (uint64_t t = 32; t <= 16 * 16; t += 16)
       frame(g, *e, t);
-    assert(has(lines(g), "SBF8 up 1 150 5050 0 900 1600\n") && !e->latched());
+    assert(has(lines(g), "SBF9 up 1 150 5050 0 900 1600\n") && !e->latched());
   }
 
   // ---- Pooled reuse: the same object under another GUID ----
@@ -679,8 +679,8 @@ int main() {
     auto e = engine(true, false);
     const uint64_t la = g.spawn(501, 5001, 0);
     g.spawn(502, 5002, 0); // Ours only: the census sets keep a GUID in common, so the swap is no world change.
-    g.inbox.push_back(msg("SBF8 world 1"));
-    g.inbox.push_back(msg("SBF8 up 1 101 5001 0 900 1600"));
+    g.inbox.push_back(msg("SBF9 world 1"));
+    g.inbox.push_back(msg("SBF9 up 1 101 5001 0 900 1600"));
     frame(g, *e, 0);
     assert(count(g, "paired") == 1);
     // Released and spawned again by the same key: another GUID, and its old element still names the object, which
@@ -694,12 +694,12 @@ int main() {
     for (; count(g, "paired") < 2 && t < 1000; t += 16)
       frame(g, *e, t);
     assert(count(g, "paired") == 2 && t <= 15 * 16 + 16 && e->counts.rejected == 1); // At the census.
-    g.inbox.push_back(msg("SBF8 hp 1 1 0 101:1000:100:200"));
+    g.inbox.push_back(msg("SBF9 hp 1 1 0 101:1000:100:200"));
     frame(g, *e, t);
     assert(g.calls.size() == 1 && g.calls[0].la == la && g.calls[0].type == 1 && g.calls[0].delta == -600 &&
            !g.calls[0].cause && g.calls[0].notify && g.calls[0].ignore && g.hp(511) == 1000);
     // A rise to the host's value shows no damage number (guest rule 2).
-    g.inbox.push_back(msg("SBF8 hp 1 2 0 101:1200:100:200"));
+    g.inbox.push_back(msg("SBF9 hp 1 2 0 101:1200:100:200"));
     frame(g, *e, t + 16);
     assert(g.calls.size() == 2 && g.calls[1].delta == 200 && !g.calls[1].notify && g.hp(511) == 1200);
   }
@@ -712,29 +712,29 @@ int main() {
       g.spawn(101 + i, 5001 + i, 0);
     g.body(104).immortal = true;
     g.mem.put<float>(g.fsb(105) + kMinimumHp, 100);
-    g.inbox.push_back(msg("SBF8 on"));
+    g.inbox.push_back(msg("SBF9 on"));
     frame(g, *e, 0);
     lines(g);
     // A lethal claim: the kill passes this PC's EVE, found by the census (+0xbc == 1, the manager's local actor).
-    g.inbox.push_back(msg("SBF8 hit 1 1 101 1600 0 0 1600 1"));
+    g.inbox.push_back(msg("SBF9 hit 1 1 101 1600 0 0 1600 1"));
     frame(g, *e, 16);
     const Game::Call &c = g.calls.back();
     assert(c.la == g.by_guid[101] && c.type == 1 && c.delta == -1600 && c.cause == g.eve && c.notify && c.ignore);
-    assert(g.body(101).deaths == 1 && g.body(101).killer == g.eve && lines(g) == "SBF8 dead 1 101\n");
+    assert(g.body(101).deaths == 1 && g.body(101).killer == g.eve && lines(g) == "SBF9 dead 1 101\n");
     // Immortal holds HP at 1, MinimumHP at its value: dead-floored, no dead.
-    g.inbox.push_back(msg("SBF8 hit 1 2 104 1600 0 0 1600 1"));
-    g.inbox.push_back(msg("SBF8 hit 1 3 105 1600 0 0 1600 1"));
+    g.inbox.push_back(msg("SBF9 hit 1 2 104 1600 0 0 1600 1"));
+    g.inbox.push_back(msg("SBF9 hit 1 3 105 1600 0 0 1600 1"));
     frame(g, *e, 32);
     assert(g.hp(104) == 1 && g.hp(105) == 100 && e->host.counts.floored == 2 && !has(lines(g), "dead"));
     // Still controlled, but no longer the manager's local actor: a null cause (no kill rewards), counted.
     g.mem.put(g.players, g.mem.alloc(0x2608));
-    g.inbox.push_back(msg("SBF8 hit 1 4 102 1600 0 0 1600 1"));
+    g.inbox.push_back(msg("SBF9 hit 1 4 102 1600 0 0 1600 1"));
     frame(g, *e, 48);
     assert(g.calls.back().cause == 0 && g.body(102).deaths == 1 && e->counts.no_eve == 1);
     // No EVE in the map at all: the same.
     g.mem.put(g.players, g.fsb(1));
     g.unlink(1);
-    g.inbox.push_back(msg("SBF8 hit 1 5 103 1600 0 0 1600 1"));
+    g.inbox.push_back(msg("SBF9 hit 1 5 103 1600 0 0 1600 1"));
     frame(g, *e, 64);
     assert(g.calls.back().cause == 0 && g.body(103).deaths == 1 && e->counts.no_eve == 2 && !e->latched());
   }
@@ -824,7 +824,7 @@ int main() {
 
     // Off: the job stops at its next turn. On again: armed at once, and a new session (a new Host, generation 1).
     g.spawn(101, 5001, 0);
-    g.inbox.push_back(msg("SBF8 on"));
+    g.inbox.push_back(msg("SBF9 on"));
     for (const uint64_t end = t + 300; t < end; t += 16)
       frame(g, *e, t);
     assert(e->host.linked() == 1);
@@ -887,12 +887,12 @@ int main() {
     const uint64_t tags = g.mem.alloc(0x220), pauser = rebased(coop::nightop::kGlobals) + kPauseAt;
     g.mem.put(pauser, tags);
     g.spawn(101, 5001, 0);
-    g.inbox.push_back(msg("SBF8 on"));
+    g.inbox.push_back(msg("SBF9 on"));
     uint64_t t = 0;
     for (; t < 1000; t += 16)
       frame(g, *e, t);
     const uint64_t turns = e->counts.turns;
-    assert(e->counts.arms == 1 && e->host.linked() == 1 && has(lines(g), "SBF8 on\n"));
+    assert(e->counts.arms == 1 && e->host.linked() == 1 && has(lines(g), "SBF9 on\n"));
     g.mem.put<int32_t>(tags + kTagsNum, 1); // A tag: the set's one element.
     for (const uint64_t end = t + 60000; t < end; t += 16) {
       assert(!e->arm(g, t));
@@ -908,7 +908,7 @@ int main() {
       frame(g, *e, t);
     const std::string sent = lines(g);
     assert(e->counts.arms == 2 && e->counts.turns > turns + 50 && e->counts.stale == 0 && !e->latched());
-    assert(e->host.linked() == 1 && !has(sent, "SBF8 on") && !has(sent, "SBF8 up") && has(sent, "SBF8 hp"));
+    assert(e->host.linked() == 1 && !has(sent, "SBF9 on") && !has(sent, "SBF9 up") && has(sent, "SBF9 hp"));
     assert(e->counts.paused == 60000 / 16);
     // An implausible pointer where the pause tags' singleton should be: off for the run.
     g.mem.put<uint64_t>(pauser, 0x1235);
@@ -1020,8 +1020,8 @@ int main() {
     auto eh = engine(true, true), eg = engine(true, false);
     H.spawn(100, 7000, 0, kChar, 100000);
     G.spawn(900, 7000, 0, kChar, 100000);
-    H.inbox.push_back(msg("SBF8 on")); // Each worker's on.
-    G.inbox.push_back(msg("SBF8 on"));
+    H.inbox.push_back(msg("SBF9 on")); // Each worker's on.
+    G.inbox.push_back(msg("SBF9 on"));
     const auto relay = [](Game &from, Game &to) {
       for (const Message &m : from.sent)
         to.inbox.push_back(msg(format(m)));
@@ -1046,7 +1046,7 @@ int main() {
       frame(G, *eg, t);
       claimed = !G.sent.empty() && G.sent.back().type == Type::hit;
     }
-    H.inbox.push_back(msg("SBF8 on"));
+    H.inbox.push_back(msg("SBF9 on"));
     eg->set(true, false);
     relay(G, H);
     for (const uint64_t end = t + 1000; t < end;)
@@ -1079,9 +1079,9 @@ int main() {
       return mail.take([&](const Message &m) { out.push_back(format(m)); },
                        [&](const Event &ev) { said.push_back(line(ev)); });
     };
-    mail.send(msg("SBF8 up 1 101 5001 0 900 1600"));
+    mail.send(msg("SBF9 up 1 101 5001 0 900 1600"));
     mail.event(Event{"paired", "", 101, 5001, 0});
-    mail.send(msg("SBF8 hp 1 1 0 101:1600:100:200"));
+    mail.send(msg("SBF9 hp 1 1 0 101:1600:100:200"));
     take();
     assert(out.empty() && said.empty());
     Snapshot s;
@@ -1091,40 +1091,40 @@ int main() {
     armed.arms = 5, armed.deferred = 2, armed.forced = 1, armed.paused = 3;
     mail.armed(armed, 77);
     Snapshot got = take();
-    assert((out == std::vector<std::string>{"SBF8 up 1 101 5001 0 900 1600", "SBF8 hp 1 1 0 101:1600:100:200"}));
+    assert((out == std::vector<std::string>{"SBF9 up 1 101 5001 0 900 1600", "SBF9 hp 1 1 0 101:1600:100:200"}));
     assert((said == std::vector<std::string>{"paired 5001:0 hguid=101"}) && got.runs == 7 && got.lost == 0);
     assert(got.job.arms == 5 && got.job.deferred == 2 && got.job.forced == 1 && got.job.paused == 3 &&
            got.game_thread == 77);
     // Hers: in at the next hand-over, in order; dropped when cleared before it.
     Message m;
-    assert(mail.give(msg("SBF8 world 3")) && mail.give(msg("SBF8 on")) && !mail.receive(m));
+    assert(mail.give(msg("SBF9 world 3")) && mail.give(msg("SBF9 on")) && !mail.receive(m));
     assert(mail.exchange(s) && mail.receive(m) && m.type == Type::world && m.gen == 3 && mail.receive(m) &&
            m.type == Type::on && !mail.receive(m));
-    assert(mail.give(msg("SBF8 world 4")));
+    assert(mail.give(msg("SBF9 world 4")));
     mail.clear();
     assert(mail.exchange(s) && !mail.receive(m));
     // Handed over but not taken yet: dropped too, even before a hand-over (the next try_lock may find it busy); hers
     // given after the clear still arrive.
-    assert(mail.give(msg("SBF8 world 5")) && mail.exchange(s));
+    assert(mail.give(msg("SBF9 world 5")) && mail.exchange(s));
     mail.clear();
-    assert(!mail.receive(m) && mail.give(msg("SBF8 world 6")) && mail.exchange(s));
+    assert(!mail.receive(m) && mail.give(msg("SBF9 world 6")) && mail.exchange(s));
     assert(mail.receive(m) && m.type == Type::world && m.gen == 6 && !mail.receive(m));
     // Full: one past kMail is lost on the job's side, refused on hers.
     out.clear();
     for (size_t i = 0; i <= kMail; ++i)
-      mail.send(msg("SBF8 on"));
+      mail.send(msg("SBF9 on"));
     assert(mail.exchange(s) && take().lost == 1 && out.size() == kMail);
     for (size_t i = 0; i < kMail; ++i)
-      assert(mail.give(msg("SBF8 on")));
-    assert(!mail.give(msg("SBF8 on")) && mail.exchange(s));
+      assert(mail.give(msg("SBF9 on")));
+    assert(!mail.give(msg("SBF9 on")) && mail.exchange(s));
     for (size_t i = 0; i < kMail; ++i)
       assert(mail.receive(m));
     assert(!mail.receive(m));
     // Busy: the worker holds the lock (its take), so the logic thread's hand-over returns at once.
     out.clear();
-    mail.send(msg("SBF8 world 5"));
+    mail.send(msg("SBF9 world 5"));
     assert(mail.exchange(s));
-    mail.send(msg("SBF8 world 6"));
+    mail.send(msg("SBF9 world 6"));
     bool busy = false;
     mail.take(
         [&](const Message &) {
@@ -1136,7 +1136,7 @@ int main() {
     take();
     assert(out.empty() && mail.exchange(s));
     take();
-    assert((out == std::vector<std::string>{"SBF8 world 6"}));
+    assert((out == std::vector<std::string>{"SBF9 world 6"}));
   }
   // The worker: refusals, waiting for her, starting and pausing with her link and the loaded save, her lines in and
   // ours out as text, the stats line, the gate while on, the lobby changing hands, off, and the latch.
@@ -1169,32 +1169,32 @@ int main() {
     assert(w.detail() == "fight=waiting mode=on why=no friend linked");
     asked = 0;
     w.pass(t, true, false, true, none, gate, io);
-    assert(e->on() && asked == 1 && io.lines() == "SBF8 on\n" && io.said.back() == "shared fight on: as guest");
+    assert(e->on() && asked == 1 && io.lines() == "SBF9 on\n" && io.said.back() == "shared fight on: as guest");
     assert(w.status() == " fight=on 0");
     // Her lines, parsed: the good ones reach the job at its next hand-over; a malformed one is said once, her off with
     // its reason.
     io.said.clear();
-    w.pass(t += 16, true, false, true, {"SBF8 world 2", "junk", "SBF8 nope", "SBF8 off busy"}, gate, io);
+    w.pass(t += 16, true, false, true, {"SBF9 world 2", "junk", "SBF9 nope", "SBF9 off busy"}, gate, io);
     assert((io.said == std::vector<std::string>{"fight: a malformed line from her dropped (said once a session)",
                                                 "fight: her shared fight off: busy"}));
     assert(mail.exchange(s) && mail.receive(m) && m.type == Type::world && mail.receive(m) && m.type == Type::off &&
            !mail.receive(m));
     // Her off again is not said again until her state changes.
     io.said.clear();
-    w.pass(t += 16, true, false, true, {"SBF8 off busy", "SBF8 on", "SBF8 off later"}, gate, io);
+    w.pass(t += 16, true, false, true, {"SBF9 off busy", "SBF9 on", "SBF9 off later"}, gate, io);
     assert((io.said == std::vector<std::string>{"fight: her shared fight off: later"}));
     assert(mail.exchange(s));
     while (mail.receive(m))
       ;
     // The job's lines go out as text (hp unreliable), its events into the log.
     io.said.clear();
-    mail.send(msg("SBF8 hit 2 1 101 100 0 0 1600 0"));
-    mail.send(msg("SBF8 hp 1 1 0 101:1500:100:200"));
+    mail.send(msg("SBF9 hit 2 1 101 100 0 0 1600 0"));
+    mail.send(msg("SBF9 hp 1 1 0 101:1500:100:200"));
     mail.event(Event{"paired", "", 101, 5001, 0});
     s.paired = 1, s.session = e->session(); // The session's first turn ran.
     assert(mail.exchange(s));
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(io.lines() == "SBF8 hit 2 1 101 100 0 0 1600 0\nSBF8 hp 1 1 0 101:1500:100:200 (unreliable)\n");
+    assert(io.lines() == "SBF9 hit 2 1 101 100 0 0 1600 0\nSBF9 hp 1 1 0 101:1500:100:200 (unreliable)\n");
     assert((io.said == std::vector<std::string>{"fight paired 5001:0 hguid=101"}) && w.status() == " fight=on 1");
     // A stats line traced in the second its side's counts moved, then none until they move again or a minute passed.
     io.said.clear(), io.traced.clear();
@@ -1215,32 +1215,32 @@ int main() {
     assert(!e->on() && io.lines().empty() && io.said.back() == "shared fight paused: no friend linked");
     assert(w.status() == " fight=waiting");
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(e->on() && io.lines() == "SBF8 on\n");
+    assert(e->on() && io.lines() == "SBF9 on\n");
     // Our player in photo mode: SB's logic stands still, so paused, and she hears why (her side stops sharing too); her
     // line not taken yet goes with the session. Asked meanwhile, it waits; a new session once it ends.
     const uint32_t before = e->session();
-    w.pass(t += 16, true, false, true, {"SBF8 world 8"}, gate, io, true);
-    assert(!e->on() && io.lines() == "SBF8 off photo mode\n" && io.said.back() == "shared fight paused: photo mode");
+    w.pass(t += 16, true, false, true, {"SBF9 world 8"}, gate, io, true);
+    assert(!e->on() && io.lines() == "SBF9 off photo mode\n" && io.said.back() == "shared fight paused: photo mode");
     assert(w.detail() == "fight=waiting mode=on her=on why=photo mode" && mail.exchange(s) && !mail.receive(m));
-    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines() == "SBF8 off coop fight off\n");
+    assert(ask("fight off") == "shared fight off: coop fight off" && io.lines() == "SBF9 off coop fight off\n");
     assert(ask("fight on 900") == "shared fight on: waiting for the end of photo mode" && !e->on());
-    assert(io.lines() == "SBF8 off photo mode\n");
+    assert(io.lines() == "SBF9 off photo mode\n");
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(e->on() && e->session() == before + 1 && io.lines() == "SBF8 on\n");
+    assert(e->on() && e->session() == before + 1 && io.lines() == "SBF9 on\n");
     assert(io.said.back() == "shared fight on: as guest");
     // A load (no save for a while), on a pass the gate is due: paused, not off; she hears why, and her line not taken
     // yet goes with the session.
-    w.pass(t += 16, true, false, true, {"SBF8 world 9"}, gate, io);
+    w.pass(t += 16, true, false, true, {"SBF9 world 9"}, gate, io);
     loaded = false;
     w.pass(t += kGateMs, true, false, false, none, gate, io);
-    assert(!e->on() && io.lines() == "SBF8 off no save loaded\n" && io.said.back() == "shared fight paused: no save loaded");
+    assert(!e->on() && io.lines() == "SBF9 off no save loaded\n" && io.said.back() == "shared fight paused: no save loaded");
     assert(mail.exchange(s) && !mail.receive(m));
     // The save loaded meanwhile is our own: on waits for a co-op save, and she hears why. Back on a co-op save, it
     // starts again within 250 ms, nothing asked.
     loaded = true;
     why = std::string(kNoCoopSave) + " (slot=main index=0 marker=4 saves=main)";
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(!e->on() && io.lines() == "SBF8 off not on a co-op save\n" && w.status() == " fight=waiting");
+    assert(!e->on() && io.lines() == "SBF9 off not on a co-op save\n" && w.status() == " fight=waiting");
     assert(w.detail() == "fight=waiting mode=on her=on why=not on a co-op save");
     asked = 0;
     for (const uint64_t end = t + 1000; t < end;)
@@ -1249,7 +1249,7 @@ int main() {
     why.clear();
     for (const uint64_t end = t + 300; !e->on() && t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
-    assert(e->on() && io.lines() == "SBF8 on\n" && io.said.back() == "shared fight on: as guest");
+    assert(e->on() && io.lines() == "SBF9 on\n" && io.said.back() == "shared fight on: as guest");
     // While on, the gate is asked every 250 ms, not at every pass; our own save pauses it; coop off turns it off.
     asked = 0;
     for (const uint64_t end = t + 1000; t < end;)
@@ -1258,35 +1258,35 @@ int main() {
     why = std::string(kNoCoopSave) + " (slot=main index=1 marker=none saves=main)";
     for (const uint64_t end = t + 300; e->on() && t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
-    assert(!e->on() && io.lines() == "SBF8 off not on a co-op save\n" &&
+    assert(!e->on() && io.lines() == "SBF9 off not on a co-op save\n" &&
            io.said.back() == "shared fight paused: not on a co-op save");
     why.clear();
     for (const uint64_t end = t + 300; !e->on() && t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
-    assert(e->on() && io.lines() == "SBF8 on\n");
+    assert(e->on() && io.lines() == "SBF9 on\n");
     why = "coop off";
     for (const uint64_t end = t + 300; e->on() && t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
-    assert(!e->on() && io.lines() == "SBF8 off coop off\n" && io.said.back() == "shared fight off: coop off");
+    assert(!e->on() && io.lines() == "SBF9 off coop off\n" && io.said.back() == "shared fight off: coop off");
     // The lobby changes hands: a new session on the other side.
     why.clear();
-    assert(ask("fight on 900") == "shared fight on: as guest" && io.lines() == "SBF8 on\n");
+    assert(ask("fight on 900") == "shared fight on: as guest" && io.lines() == "SBF9 on\n");
     w.pass(t += 16, true, true, true, none, gate, io);
-    assert(e->on() && io.lines() == "SBF8 on\n" && io.said.back() == "shared fight on: as host");
+    assert(e->on() && io.lines() == "SBF9 on\n" && io.said.back() == "shared fight on: as host");
     assert(ask("fight off") == "shared fight off: coop fight off" && !e->on());
-    assert(io.lines() == "SBF8 off coop fight off\n");
+    assert(io.lines() == "SBF9 off coop fight off\n");
     // The latch: said once, she hears it after what the job handed over before, its later lines go nowhere, and
     // nothing starts again this run.
-    assert(ask("fight on 900") == "shared fight on: as host" && io.lines() == "SBF8 on\n");
+    assert(ask("fight on 900") == "shared fight on: as host" && io.lines() == "SBF9 on\n");
     e->latch("fault");
-    mail.send(msg("SBF8 world 7"));
+    mail.send(msg("SBF9 world 7"));
     assert(mail.exchange(s));
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(!e->on() && io.said.back() == "shared fight off: stopped for this run (fault)");
-    assert(io.lines() == "SBF8 world 7\nSBF8 off stopped for this run (fault)\n" && w.status() == " fight=stopped");
+    assert(io.lines() == "SBF9 world 7\nSBF9 off stopped for this run (fault)\n" && w.status() == " fight=stopped");
     assert(ask("fight on 900") == "shared fight off: stopped for this run (fault)");
     io.said.clear();
-    mail.send(msg("SBF8 world 8"));
+    mail.send(msg("SBF9 world 8"));
     assert(mail.exchange(s));
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(io.said.empty() && io.lines().empty() && !e->on());
@@ -1308,23 +1308,23 @@ int main() {
     w.pass(t, false, false, true, none, gate, io);
     assert(io.lines().empty() && w.detail() == "fight=off");
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(io.lines() == "SBF8 off shared enemies off\n" && w.detail() == "fight=off her=?");
+    assert(io.lines() == "SBF9 off shared enemies off\n" && w.detail() == "fight=off her=?");
     for (const uint64_t end = t + 4900; t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
     assert(io.lines().empty());
     w.pass(t += 200, true, false, true, none, gate, io);
-    assert(io.lines() == "SBF8 off shared enemies off\n");
+    assert(io.lines() == "SBF9 off shared enemies off\n");
     const std::vector<std::pair<std::string, std::string>> hers = {
-        {"SBF8 off not on a co-op save", "own-save"},
-        {"SBF8 off not on the co-op save (slot=main index=1 marker=none)", "own-save"}, // An older build's gate.
-        {"SBF8 off shared enemies off", "off"},
-        {"SBF8 off coop fight off", "off"},
-        {"SBF8 off stopped for this run (fault)", "stopped"},
-        {"SBF8 off photo mode", "waiting"},
-        {"SBF8 off no save loaded", "waiting"},
-        {"SBF8 on", "on"},
-        {"SBF8 off no friend linked", "waiting"},
-        {"SBF8 world 3", "on"}};
+        {"SBF9 off not on a co-op save", "own-save"},
+        {"SBF9 off not on the co-op save (slot=main index=1 marker=none)", "own-save"}, // An older build's gate.
+        {"SBF9 off shared enemies off", "off"},
+        {"SBF9 off coop fight off", "off"},
+        {"SBF9 off stopped for this run (fault)", "stopped"},
+        {"SBF9 off photo mode", "waiting"},
+        {"SBF9 off no save loaded", "waiting"},
+        {"SBF9 on", "on"},
+        {"SBF9 off no friend linked", "waiting"},
+        {"SBF9 world 3", "on"}};
     io.said.clear();
     for (const auto &[line, state] : hers) {
       w.pass(t += 16, true, false, true, {line}, gate, io);
@@ -1339,16 +1339,16 @@ int main() {
     w.pass(t += 16, false, false, true, none, gate, io);
     assert(w.detail() == "fight=off" && io.lines().empty());
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(w.detail() == "fight=off her=?" && io.lines() == "SBF8 off shared enemies off\n");
+    assert(w.detail() == "fight=off her=?" && io.lines() == "SBF9 off shared enemies off\n");
     // A friend flipping her state: 32 lines in the log a link, then none.
     io.said.clear();
     for (int i = 0; i < 40; ++i)
-      w.pass(t += 16, true, false, true, {"SBF8 on", "SBF8 off photo mode"}, gate, io);
+      w.pass(t += 16, true, false, true, {"SBF9 on", "SBF9 off photo mode"}, gate, io);
     assert(io.said.size() == 32);
     // On with no list: taken (every Monster), and told while it waits.
-    assert(ask("fight on") == "shared fight on: as guest" && e->on() && io.lines() == "SBF8 on\n");
+    assert(ask("fight on") == "shared fight on: as guest" && e->on() && io.lines() == "SBF9 on\n");
     w.pass(t += 16, true, false, true, none, gate, io, true);
-    assert(!e->on() && io.lines() == "SBF8 off photo mode\n");
+    assert(!e->on() && io.lines() == "SBF9 off photo mode\n");
     assert(w.detail() == "fight=waiting mode=on her=waiting why=photo mode");
   }
 
@@ -1480,7 +1480,7 @@ int main() {
     assert(io.tracing(eve) == 1 &&
            io.tracing("fight probe guid=101 key=5001:0 chr=900 type=3 life=1 hp=1500/1600 ") == 1);
     // A friend linked meanwhile: her lines never reach the probe's job.
-    w.pass(t, true, false, true, {"SBF8 on", "SBF8 hit 1 1 101 10 0 0 1600 0"}, gate, io);
+    w.pass(t, true, false, true, {"SBF9 on", "SBF9 hit 1 1 101 10 0 0 1600 0"}, gate, io);
     frame(g, *e, t += 16);
     Message m;
     assert(!mail->receive(m) && !io.saying("malformed"));
@@ -1532,7 +1532,7 @@ int main() {
       w.pass(t, false, false, true, none, gate, io);
       assert(w.ask(coop::parse_request("fight record 900"), gate, io) ==
              "shared fight record: as host, into coop-fight-record.txt when coop fight off ends it");
-      const std::vector<std::string> her = {"SBF8 on", "SBF8 hit 1 1 101 10 0 0 1600 0"}; // Her guest's claim.
+      const std::vector<std::string> her = {"SBF9 on", "SBF9 hit 1 1 101 10 0 0 1600 0"}; // Her guest's claim.
       for (; t < 2500; t += 16) {
         if (t == 512)
           H.hit(101, kHp, 300);
@@ -1548,11 +1548,11 @@ int main() {
       assert(said.rfind("shared fight off: coop fight off; ", 0) == 0);
       assert(has(said, " lines written to coop-fight-record.txt"));
       // The friend linked for a pass heard only that we do not share with her.
-      assert(io.has_file && io.lines() == "SBF8 off shared enemies off\n" && !e->on());
+      assert(io.has_file && io.lines() == "SBF9 off shared enemies off\n" && !e->on());
       std::vector<Line> lines;
       assert(!parse_recording(io.file, lines) && lines[0].message.type == Type::world);
-      assert(has(io.file, " SBF8 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF8 up 1 102 5002 0 900 1600\n"));
-      assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF8 dead 1 101\n") && !has(io.file, " on"));
+      assert(has(io.file, " SBF9 up 1 101 5001 0 900 1600\n") && has(io.file, " SBF9 up 1 102 5002 0 900 1600\n"));
+      assert(has(io.file, " 101:1300:100:200") && has(io.file, " SBF9 dead 1 101\n") && !has(io.file, " on"));
       recording = io.file;
       // A second session shows none of the first one's counts, not even before its job's first turn.
       assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: ", 0) == 0);
@@ -1587,13 +1587,13 @@ int main() {
     assert(ask("fight replay 900") == "shared fight replay refused: no coop-fight-record.txt (coop fight record makes "
                                       "one)");
     io.has_file = true;
-    io.file = "0 SBF8 hp 1 1 0 101:1600:100:200\n";
+    io.file = "0 SBF9 hp 1 1 0 101:1600:100:200\n";
     assert(ask("fight replay 900") ==
            "shared fight replay refused: coop-fight-record.txt fails its check (first line)");
     io.file = recording;
     assert(ask("fight replay 900").rfind("shared fight replay: ", 0) == 0 && e->on());
     // A linked friend's dead line for the host's 102 once paired: it would kill 902 if it reached the guest.
-    const std::vector<std::string> her = {"SBF8 dead 1 102"};
+    const std::vector<std::string> her = {"SBF9 dead 1 102"};
     for (const uint64_t from = t; t < from + 3500; t += 16) {
       frame(G, *e, t);
       w.pass(t, t == from + 1008, false, true, t == from + 1008 ? her : none, gate, io);
@@ -1603,7 +1603,7 @@ int main() {
     bool followed = false; // The host's 300, before its kill.
     for (const Game::Call &c : G.calls)
       followed = followed || (c.la == G.by_guid[901] && c.type == 1 && c.delta == -300 && c.notify);
-    assert(followed && io.saying("fight replay: all ") == 1 && io.lines() == "SBF8 off shared enemies off\n" &&
+    assert(followed && io.saying("fight replay: all ") == 1 && io.lines() == "SBF9 off shared enemies off\n" &&
            !io.saying("malformed"));
     assert(has(w.detail(), "fight=on mode=replay role=guest pairs=1 ") && has(w.detail(), " kills=1 "));
   }
@@ -1622,12 +1622,12 @@ int main() {
     w.pass(t, false, false, true, none, gate, io);
     assert(w.ask(coop::parse_request("fight record 900"), gate, io).rfind("shared fight record: as host", 0) == 0);
     assert(mail->exchange(s) && mail->receive(m) && m.type == Type::on && !mail->receive(m));
-    mail->send(msg("SBF8 hp 1 1 0 101:1600:100:200"));
-    mail->send(msg("SBF8 on"));
-    mail->send(msg("SBF8 world 1"));
+    mail->send(msg("SBF9 hp 1 1 0 101:1600:100:200"));
+    mail->send(msg("SBF9 on"));
+    mail->send(msg("SBF9 world 1"));
     for (uint32_t batch = 1; e->on() && batch < 1000; ++batch) {
       for (size_t i = 0; i < kMail; ++i)
-        mail->send(msg("SBF8 hp 1 " + std::to_string(batch) + " 0 101:1600:100:200"));
+        mail->send(msg("SBF9 hp 1 " + std::to_string(batch) + " 0 101:1600:100:200"));
       assert(mail->exchange(s));
       w.pass(t += 16, false, false, true, none, gate, io);
     }
@@ -1650,8 +1650,8 @@ int main() {
       G.spawn(900 + i, 7000 + i, 0);
     }
     Wire to_host, to_guest;
-    to_host.queue.emplace_back(120, "SBF8 on"); // Each worker sends its side's on.
-    to_guest.queue.emplace_back(120, "SBF8 on");
+    to_host.queue.emplace_back(120, "SBF9 on"); // Each worker sends its side's on.
+    to_guest.queue.emplace_back(120, "SBF9 on");
     std::mt19937 rng(1); // A run where both death paths happen and a lost hp line waits for the refresh.
     uint64_t next_hit[4], hits[4][2] = {}, died_h[4] = {}, died_g[4] = {};
     int64_t pending[4] = {-1, -1, -1, -1}, dealt = 0, claimed = 0; // HP her EVE took off her copies, and claimed.

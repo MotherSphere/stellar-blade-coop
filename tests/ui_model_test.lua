@@ -119,7 +119,7 @@ end
 -- The settings the mod reads keep its defaults; the rest (not on this branch yet) the model's.
 local s=Link.parse_settings('')
 local values=M.read('')
-assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='20'
+assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='60'
     and values.name_tag=='on' and values.cloth=='off' and values.dyes=='off' and values.effects=='off'
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
@@ -132,7 +132,7 @@ assert(values.send_rate=='25' and values.name_tag=='off' and values.photo_sync==
     and values.status_key=='Shift+F7' and values.ui_scale=='100' and values.host_key=='F5' and values.chat_lines=='50'
     and values.photo_freeze_max=='0')
 assert(M.read(Link.DEFAULT).menu_key=='F5' and M.read(Link.DEFAULT).host_key=='none'
-    and M.read(Link.DEFAULT).send_rate=='20')
+    and M.read(Link.DEFAULT).send_rate=='60')
 -- The migration (D-UI2): a file with no menu_key line, as every file before the menu, gives the menu host_key's key and
 -- turns host_key off: Host is the menu's first row. The user's Shift+F5 file opens the menu on Shift+F5.
 local OLD='host_key=F5\nstatus_key=F6\nleave_key=F8\n'
@@ -197,8 +197,12 @@ assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='a
     and select(3,menu.change(NONE,values,-1))=='off' and not menu.current(NONE).reload)
 assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coop_save=x\n').auto_coop_save=='ask')
 on('send_rate')
-assert(select(3,menu.change(NONE,values,1))=='21' and select(3,menu.change(NONE,values,-1))=='19')
-assert(menu.change(NONE,{send_rate='30'},1)==nil and menu.change(NONE,{send_rate='10'},-1)==nil,'No change at an end')
+assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='55','60 by default, the top')
+-- 5 a step: an older file's 20 is 8 presses from 60. A value set in the file between steps moves by 5 too.
+assert(select(3,menu.change(NONE,{send_rate='20'},1))=='25' and select(3,menu.change(NONE,{send_rate='20'},-1))=='15')
+assert(select(3,menu.change(NONE,{send_rate='23'},1))=='28' and select(3,menu.change(NONE,{send_rate='58'},1))=='60'
+    and select(3,menu.change(NONE,{send_rate='12'},-1))=='10')
+assert(menu.change(NONE,{send_rate='60'},1)==nil and menu.change(NONE,{send_rate='10'},-1)==nil,'No change at an end')
 on('photo_freeze_max')
 assert(select(3,menu.change(NONE,values,-1))=='540' and select(3,menu.change(NONE,values,1))=='660')
 -- The longest photo pause: the file's range (0 for no limit, or 30 to 3600 s) in minutes; below a minute, no limit.
