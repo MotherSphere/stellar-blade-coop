@@ -166,16 +166,19 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 8` (sent reliable), and
-each pose as a binary message starting `SBP` and the protocol byte (sent unreliable, without Nagle delay).
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 9` (sent reliable), and
+each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
+without Nagle delay).
 
 - Your table goes to your friend at once and again every 5 s, so a table lost with a broken session, or sent before
   they accepted, arrives with a later resend. An identical table is ignored. A changed capture (a new outfit, the
   blade drawn) goes at once.
 - A table of theirs that needs a new ghost (a new generation or layout) is taken at most once every 2 s. One that comes
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
-- Poses go 20 a second by default (`send_rate`, 10 to 30).
-- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 64 messages
+- Poses go 60 a second by default (`send_rate`, 10 to 60). With deltas, 60 a second took 89 to 131 KiB/s in tests
+  with simulated idle, running and combat motion on a 5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a
+  pose back while its poses would pass 192 KiB/s, under Steam's default send rate of 256 KiB/s.
+- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 160 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
   logged once (`ignored pose data from <id>: not in our lobby`). Channel 1 traffic does not count as hearing from a
@@ -254,13 +257,21 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - four effect slots of 15 bytes each: an index into a fixed list of effects (never a path), the part it hangs on, a
   serial for each new instance, and its rotation and translation relative to the part.
 
-A pose is at most 16 KiB; in the outfit measured it is about 4.7 KB. Every pose is a full keyframe, with no delta
-encoding. A world position beyond 1e7 cm, or not finite, is refused.
+A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
+is refused.
+
+Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A delta has the same header, the age of
+its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
+and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
+whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
+like a keyframe, so a delta gives exactly the same pose. A delta whose keyframe was lost on the way is dropped and
+counted as keyless; the ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to
+41 % (combat) of the full pose.
 
 ### 4. Playback clock and interpolation
 
-The receiving side keeps the last 8 poses and draws the ghost a little in the past, so a late pose still arrives
-before it is needed:
+The receiving side keeps the last 24 poses (400 ms at 60 a second) and draws the ghost a little in the past, so a late
+pose still arrives before it is needed:
 
 - The clock tracks the lowest one-way lag seen (which, between two PCs, includes the offset between their clocks). It
   drops to any lower lag at once and otherwise rises 1 ms a second, so it follows drift both ways. A lag that stays

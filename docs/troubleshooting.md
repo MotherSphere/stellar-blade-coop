@@ -143,10 +143,11 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 
 - `native tick, last 60 s: ...`: the per-frame tick's count, mean and maximum cost, the largest gap between ticks and
   the gaps over 100 ms.
-- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, size, KB/s), tables in and refused, poses
-  received, foreign (of no table, or of one the ghost is not built on yet), malformed and rejected, losses, stalls, the
-  one-way delay, and poses drawn and written. Between two PCs the one-way delay includes the offset between their
-  clocks, so the value means nothing there.
+- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, size, KB/s; keyframes, deltas and their mean
+  size, and frames held back by the 192 KiB/s byte budget), tables in and refused, poses received, foreign (of no
+  table, or of one the ghost is not built on yet), malformed and rejected, keyless (deltas whose keyframe was lost),
+  losses, stalls, the one-way delay, and poses drawn and written. Between two PCs the one-way delay includes the
+  offset between their clocks, so the value means nothing there.
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
