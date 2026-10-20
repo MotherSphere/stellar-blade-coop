@@ -191,6 +191,32 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   host's game, whose copy had more HP left. If it happens often, the guest can set `guest_kills=confirmed` in
   `coop-settings.txt`: the guest's copies then keep 1 HP until the host's game kills its own.
 
+### Same place does not start, or stops
+
+Same place is experimental and off by default, and only the host's setting counts. `coop fight pilot status` prints
+the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-place-experimental)):
+
+- `pilot=refused why=...`: another game build, or `coop off`.
+- `pilot=off why=fight`: shared enemies are not running. See [Enemies are not shared](#enemies-are-not-shared).
+- `pilot=off why=setting`: you host and your `same_place` is off. Turn on Options > Combat > Same place (experimental)
+  in the co-op menu.
+- `pilot=off why=host`: you are the guest, and the host's game has it off: its row is off, it typed
+  `coop fight pilot off`, or an error stopped it there.
+- `pilot=off why=asked`: `coop fight pilot off` on this PC. `coop fight pilot on` or the next `coop fight on` lifts it.
+- `pilot=stopped`: an error stopped it until the game restarts, and `coop-link.log` has a `same-place enemies fault`
+  line. That line also says whether the copies the mod already moved went back to the game. If they did not, they
+  stand still until they leave the map or you rest at a camp.
+- `pilot=on piloted=0`: it runs, but no enemy is shared yet.
+- `fight pilot refused <key> hguid=<n> its movement component is not the game's` in the guest's `coop-link.log`: that
+  copy stays an ordinary enemy in her game.
+- `fight freeze-lost <key> hguid=<n> state 39 gone too often` in the guest's `coop-link.log`: the game took the mod's
+  freeze off a copy 5 times within 10 s. The copy stays an ordinary enemy until the pair ends.
+
+If copies slide, stand still or play no animation, keep `coop-fight.log` from both PCs: its `pilot drawn:` lines count
+the copies moved, the Shows replayed, late and missing, and the drift (how far the game moved a copy between two of the
+mod's writes, in cm/s and degrees a second). Drift above a few cm/s on a copy at rest means something in the game still
+moves it.
+
 ### `Co-op saves off for this load: <why>`
 
 The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:

@@ -254,7 +254,7 @@ instead of misread:
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
-| 11 | Same-place enemies: `SBE` on Steam channel 1 and the show lines on channel 2 (this version) |
+| 11 | Same-place enemies: `SBE` on Steam channel 1, the show lines and the host's place line on channel 2 (this version) |
 
 ### Link health in the log
 
@@ -389,6 +389,43 @@ pose's four slots, and the native part writes the drawn slots into four boxes be
 starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the run and
 the ghost stays. See [usage.md](usage.md#looks).
 
+## Same-place enemies
+
+Same place (`same_place`, experimental, off by default, not tested in game yet) builds on shared enemies: the same
+pairs, the same host and the same Steam channel 2. In this version the host's game moves every shared enemy, and the
+guest's game draws its copies (stage 3a of Phase 11).
+
+- The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
+  (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
+  guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
+  off line. Her own value is never read.
+- Every 33 ms the host's game thread reads each shared enemy: position, rotation, animation speed, BattleMode and
+  whether it is dying, into one `SBE` message on channel 1 (26 bytes an enemy, 16 enemies at most), stamped with the
+  pose clock. It also walks the game's Show manager (the game's animation sequences) for the Shows each enemy starts,
+  and sends `show`, `show-set` and `show-stop` lines on channel 2 with the asset's path and the hit context. Only two
+  lookups by GUID are called for this; the rest is plain reads.
+- On the guest's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel 2004400), only
+  in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5 times in any
+  10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the BlockAI dispel
+  effect (2000101) takes it off.
+- On the guest's game thread, each frame, each copy is found again by its GUID. Its movement component goes out of the
+  game's parallel movement manager through the game's own function for that (only on the game's class with the game's
+  function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the host's
+  speed, the root moves to the sample at the ghost's draw time, and Velocity follows the samples. Each Show is replayed
+  through the game's Show handle API when the draw time reaches its stamp, with its hit context written into the new
+  player.
+- A copy that is knocked down, groggy, in the air or in a takedown is released: the game moves it until 200 ms after
+  that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
+- Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
+  in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
+  its own SEH latch: the first fault stops it for the run, and after a fault in the mod's own reads every copy is put
+  back once.
+- `coop fight pilot test` limits the guest's side for solo tests from a recording: `freeze` (the BlockAI effect only),
+  `cmc` (the movement component out too, nothing written), `drive` (root, speed and Velocity too) or `replay` (all of
+  it, the default). Each change puts every copy back once.
+
+The commands, the notices and the solo test are in [usage.md](usage.md#same-place-experimental).
+
 ## Safety design
 
 StellarCoop reads and writes game memory, so it fails closed: a failed check or a fault stops the affected feature or
@@ -421,10 +458,10 @@ drops the input.
   yet. The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read
   back every 250 ms; an entry that moves or changes stops it for the run.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
-  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), nothing is copied between
-  the two players' games. Beside the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest
-  `StellarCoopSaves.txt`; Lua only checks whether a copy exists, opening none of your own saves. See
-  [saves.md](saves.md).
+  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), and their positions and
+  animations with the experimental same place (off by default), nothing is copied between the two players' games. Beside
+  the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
+  only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
   because the native part keeps the flag.
 - The DLL pins itself in memory, so a Lua reload that frees the script's libraries never unloads code the worker is

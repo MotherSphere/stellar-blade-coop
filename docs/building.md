@@ -76,10 +76,12 @@ build/host/pose_codec_test
 
 - Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`,
   `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
-  objects for those that call the engine. In the capture test, any write to the fake EVE fails the test.
+  objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
+  also covers `coop fight pilot`, the `same_place` setting and row, and the same place notices in both languages.
 - C++ tests cover the platform-free headers in `native/src`:
-  - `link_protocol_test`: the text protocol, with a fuzz loop, and the join codes (both real lobby ids, loose typing,
-    malformed codes, and the share of one-character typos the check turns away);
+  - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`
+    word and its `pilot` requests included), and the join codes (both real lobby ids, loose typing, malformed codes,
+    and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, joining with a code, and the host's
     approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting);
@@ -104,8 +106,11 @@ build/host/pose_codec_test
     owns and does not draw), the rows it drives (only those it draws) and how it reads the table (fresh
     for 1 s after the job published it and never once the engine is latched; the Shows told so far are told again only
     after a new session, a new generation or a change of the table's on, not after a stale table), against fake
-    memory;
-  - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
+    memory. Same place is the host's setting: the guest draws only while the host's last place line says on, and
+    never reads her own; `coop fight pilot off` and the pilot's latch stop it on either side (the host then sends
+    place 0), and the worker's `pilot=` words say why it does not run;
+  - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
+    line sent after the world and at each change, and held by the guest until the host's next world), and two fake
     worlds linked through a delayed, lossy line;
   - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
@@ -123,7 +128,8 @@ build/host/pose_codec_test
     (each field at its offset), only on a copy driven that frame, show-set and show-stop (also while the copy is not
     found), a missing asset, a context too far away, the oldest replay giving way when eight are held; a release;
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
-    back, once after a fault and nothing after it), and two worlds through a delayed, lossy line (120 ms, plus or minus
+    back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
+    change), and two worlds through a delayed, lossy line (120 ms, plus or minus
     30, 2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
@@ -138,8 +144,9 @@ build/host/pose_codec_test
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
 the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
-waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller, the save name's probe and
-`saves coop` on an exe that is not the game, logs `save name: saves=off` once, and logs a clean process exit. It also
+waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller, the save name's probe,
+`saves coop` and same-place enemies (`pilot=refused` in `coop-status.txt`, and a refused `coop fight pilot test`) on an
+exe that is not the game, logs `save name: saves=off` once, and logs a clean process exit. It also
 checks that `ReadProcessMemory` behaves as the poller needs, that the chat files an earlier run left are deleted at
 start, that a typed line is taken and never logged, that a request file the worker cannot delete is never run twice,
 and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. It runs wine

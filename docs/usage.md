@@ -68,24 +68,25 @@ or shows the mouse cursor for one of its own screens.
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies, the host's enemy scaling and your kill rewards), Display (the size, sounds and language
-of the menu, the chat and the partner HUD) and Chat.
+title), Combat (shared enemies, same place, the host's enemy scaling and your kill rewards), Display (the size, sounds
+and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says
-`Saved. It takes effect when the mod reloads (game start or Ctrl+R).`, and the three rows under Shared enemies, which
-count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game).
+`Saved. It takes effect when the mod reloads (game start or Ctrl+R).`, and the scaling and kill reward rows, which
+count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
+Same place row applies at once while shared enemies wait or run, and otherwise from their next start.
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
 The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, and the
-shared enemies' notices use the game's language when it is French, and English otherwise. So do the status line (under
-the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English. The notices of the Steam
-link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the error messages from the
-coop commands, shown in the menu or the code box.
+shared enemies' and same place notices use the game's language when it is French, and English otherwise. So do the
+status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English. The
+notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the error
+messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -307,6 +308,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
+| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay` | [Same place](#same-place-experimental) (experimental, off by default) and its solo test steps |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads |
@@ -404,17 +406,19 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 
 (`now no slot status` without the native part.)
 
-The ghost, the link and every other command except `coop fight` (below) run on any save.
+The ghost, the link and every other command except `coop fight` (below) run on any save. `coop fight pilot` runs on
+any save too, since same place only moves enemies while shared enemies run.
 
 ### Shared enemies (experimental)
 
 `coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each
 enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
 balance gauge and death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's
-enemy still fights only its own EVE, and positions are not shared. It changes enemy stats through the game's own code,
-so it shares enemies only on a co-op save, and kills count in the co-op save. Back up your saves first (see
-[saves.md](saves.md)). When an enemy becomes shared, or shared again after a death, a load or photo mode, the guest's
-copy takes the host's HP without a damage number; later drops from the host's hits show one.
+enemy still fights only its own EVE, and positions are not shared unless [same place](#same-place-experimental) is on.
+It changes enemy stats through the game's own code, so it shares enemies only on a co-op save, and kills count in the
+co-op save. Back up your saves first (see [saves.md](saves.md)). When an enemy becomes shared, or shared again after a
+death, a load or photo mode, the guest's copy takes the host's HP without a damage number; later drops from the host's
+hits show one.
 
 When a hit knocks a shared enemy down (face up or face down), launches it or slams it into a wall on one screen, the
 other game starts the same effect on its copy, as if its own EVE had landed that hit. A copy that is already down, in
@@ -541,6 +545,61 @@ copies follow them back to full health. A respawn on another map leaves your cop
 - The solo test tools stop on another slot with
   `STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>`.
 
+### Same place (experimental)
+
+With `same_place=on` in the host's game, each shared enemy stands in the same place on both screens. The host's game
+moves it. On the guest's screen, the copy follows the enemy in the host's game about 200 ms late, the same delay as the
+host's ghost, and plays the host's attacks, reactions, sounds and effects with the game's own animation files. The
+guest's hits land on that copy and count through shared enemies as before. In this version an enemy never attacks the
+guest: its AI runs in the host's game only, against the host's EVE. Same place has not been tested in game yet, and it
+is off by default.
+
+On the guest's side, the mod puts the game's own BlockAI effect on each copy, takes its movement component out of the
+game's movement manager, writes its position every frame from the host's stream and replays the host's Shows (the
+game's animation sequences) on it. A copy that is knocked down, groggy or in the air moves by the game's own rules until
+that ends. [how-it-works.md](how-it-works.md#same-place-enemies) has the details.
+
+- It needs shared enemies running, and only the host's value counts, as with the scaling: Options > Combat > Same
+  place (experimental) in the host's co-op menu, or `same_place=on` in its [coop-settings.txt](#coop-settingstxt).
+- While shared enemies wait or run, turning the row off stops same place at once on your side (as host, on both
+  screens), and turning it on starts it again. Otherwise the next start of shared enemies takes the row's value.
+- `coop fight pilot off` stops it on your side until the next `coop fight on`. As host, the guest's copies go back
+  too. `coop fight pilot on` starts it again (it needs `same_place=on`). `coop fight off`, `shared_enemies=off` and
+  `coop off` stop it with shared enemies. Each copy goes back to the game within a second and fights its own EVE again.
+- `coop fight pilot status` prints the `pilot=` line of `coop status`: `pilot=on piloted=<n>` (the enemies this game
+  moves as host, or the copies it moves as guest), `pilot=off why=<why>`, `pilot=stopped` (an error stopped it until
+  the game restarts) or `pilot=refused why=<why>` (another game build, or `coop off`), with `probe=on` and
+  `test=<step>` while those run. `why=` is `fight` (shared enemies are not running), `setting` (the host's
+  `same_place` is off), `host` (as guest: the host's game has it off) or `asked` (`coop fight pilot off`).
+- Notices, in the menu's language: `Same place: <n> enemies piloted.` when enemies start to be moved after none,
+  `Same place off: <name>'s game turned it off.` on the guest's screen when the host's game stops it, and
+  `Same place off: stopped by an error until the game restarts. coop-link.log says why.` Your own
+  `coop fight pilot off` and the row show nothing.
+- While it runs, `coop-fight.log` gets a `pilot stats:` line each second (the `pilot=` line, the host's reads of its
+  enemies and their cost, the show lines sent, and the bytes both ways with the rate a second) and a `pilot drawn:`
+  line when the guest's side changed (copies moved, movement components taken out, releases, snaps, drift, Shows
+  replayed, late or missing). `coop fight pilot probe` adds each `SBE` message and show line sent and received, until
+  `coop fight pilot off`. The `SBE` messages take about 13 KB/s with 16 enemies.
+- After an error in the game's own code, copies the mod already moved can keep their movement component out of the
+  manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
+  so.
+
+To test it alone (the T11d-solo test), record the host's side once, then play it into the guest's side after a camp
+rest:
+
+1. With `same_place=on`: `coop puppet`, then `coop fight probe` until `coop-link.log` says `fight writes=armed`, then
+   `coop fight off`.
+2. `coop record` and `coop fight record`, fight one enemy (a few hits from different sides and a skill or two), then
+   `coop fight off` and `coop record off`.
+3. Rest at a camp, so the enemy is back where it started.
+4. `coop fight pilot test <step>`, then `coop replay` and `coop fight replay`. Watch the enemy, then `coop fight off`
+   and `coop replay off`.
+
+The step says how far the guest's side goes: `freeze` (the BlockAI effect only: the enemy stands and plays its own
+animations), `cmc` (its movement component out of the game's manager too, nothing written: the `pilot drawn:` line's
+drift says how far the game still moves it), `drive` (its position, speed and velocity from the recording too, no Show
+replayed) or `replay` (all of it). It holds until the next `coop fight pilot test` or `coop fight on`.
+
 ### `coop off`
 
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
@@ -599,6 +658,10 @@ guest_kills=at_once
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
 kill_credit=all
+# Same place, experimental: on or off, the host's setting for both games (the guest's is not used). On, each shared
+# enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It never
+# attacks the guest yet.
+same_place=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -641,6 +704,7 @@ card_details=on
 | `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
 | `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
 | `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
+| `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
@@ -737,6 +801,7 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | Co-op saves switched on | `Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.` |
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
+| Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 
 ## Status lines
 
@@ -781,6 +846,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Shared enemies: `fight=on mode=<on|probe|record|replay> ...` with its counts, `fight=waiting mode=<mode> why=<what it
   waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see
   [Shared enemies](#shared-enemies-experimental)).
+- Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
+  [Same place](#same-place-experimental)).
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
   your friend gets (`notice` when your game cannot pause).
