@@ -99,6 +99,10 @@ build/host/pose_codec_test
     out, the enemies' state map, the two-player scaling, and the vitals read, against fake memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
     worlds linked through a delayed, lossy line;
+  - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
+    filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps),
+    the drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a
+    fuzz, their timeline and line ids, the 1 s dedupe window, and the FNamePool decode and compact id over fake blocks;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
