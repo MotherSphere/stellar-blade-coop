@@ -1,8 +1,9 @@
 // The loopback pipeline on the build machine, in simulated time: a 60 fps game thread captures and encodes a pose
-// every 50 ms, a 5 ms worker sends it into the delay line and hands what is due back, the game thread decodes it into
-// the playback and draws a pose every frame. The root's X is the publication time in ms, a straight line, so a drawn
-// pose that interpolates right lands exactly on the display time. Checks delay, jitter and loss against their
-// settings, tracking, stalls, a clock step both ways, silence and stale poses; and effect slots held, not blended.
+// every 50 ms (or every frame, as keyframes and deltas), a 5 ms worker sends it into the delay line and hands what is
+// due back, the game thread decodes it into the playback and draws a pose every frame. The root's X is the publication
+// time in ms, a straight line, so a drawn pose that interpolates right lands exactly on the display time. Checks delay,
+// jitter and loss against their settings, tracking, stalls, a clock step both ways, silence and stale poses; effect
+// slots held, not blended; and 60 poses a second with 100 ms of jitter, then with loss.
 #include "pose_codec.h"
 #include "pose_stream.h"
 
@@ -10,6 +11,7 @@
 #include <cmath>
 #include <cstdio>
 #include <random>
+#include <string>
 #include <vector>
 
 using namespace coop::pose;
@@ -24,7 +26,7 @@ Table table() {
 }
 
 struct Result {
-  uint64_t sent = 0, dropped = 0, received = 0, rejected = 0, frames = 0, on_line = 0;
+  uint64_t sent = 0, dropped = 0, received = 0, rejected = 0, keyless = 0, frames = 0, on_line = 0;
   double lag_ms = 0, max_gap_ms = 0;
   Playback::Stats stats;
   double behind_ms = 0;     // Mean.
@@ -41,6 +43,8 @@ struct Scenario {
   double check_from = 5;                            // Tracking counts from here (the clock settles first).
   double check_after_pause = 1.5, check_after_step = 6.5; // ... and skips this long after a pause or a step.
   uint64_t tracking_percent = 99; // Frames drawn exactly at the display time (the rest: past the extrapolation cap).
+  uint64_t interval_us = 50000;   // Between two captures.
+  bool keyed = false;             // Through KeyedEncoder and KeyedDecoder (protocol 9), not as keyframes only.
 };
 
 Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
@@ -57,6 +61,10 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   line.set({s.delay, s.jitter, s.loss}, 12345);
   Playback playback;
   playback.reset(bone_bytes);
+  KeyedEncoder sender;
+  KeyedDecoder receiver;
+  sender.reset(pose_size(t));
+  receiver.reset(pose_size(t));
   std::vector<uint8_t> out(kMaxPose), sent_message;
   const Effect no_fx[kEffectSlots];
   Effect drawn_fx[kEffectSlots];
@@ -87,22 +95,26 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
       continue;
     next_frame += frame_us;
     ++r.frames;
-    // Game thread: capture at 20 Hz (from the first frame at or after the schedule).
+    // Game thread: capture every interval (from the first frame at or after the schedule).
     bool paused = s.pause_at >= 0 && second >= s.pause_at && second < s.pause_at + s.pause_seconds;
     if (now >= next_capture && !paused) {
-      next_capture = (next_capture && now - next_capture < 50000 ? next_capture : now) + 50000;
+      next_capture = (next_capture && now - next_capture < s.interval_us ? next_capture : now) + s.interval_us;
       double clock_ms = now / 1000.0 + (s.step_at >= 0 && second >= s.step_at ? s.step_ms : 0) -
                         (s.drift_from >= 0 && second > s.drift_from ? (second - s.drift_from) * s.drift_ms_per_s : 0);
       float root[10] = {0, 0, 0, 1, float(clock_ms - 10000), 0, 0, 1, 1, 1}; // X: publication ms (offset for precision).
       PoseHeader h{t.generation, uint64_t(clock_ms * 1000), ++sequence, 0};
       size_t n = encode_pose(t, h, root, bones.data(), no_fx, out.data(), clamped);
+      if (s.keyed)
+        n = sender.encode(t, out.data(), n, h.publication);
       sent_message.assign(out.begin(), out.begin() + long(n)); // Overwrites one the worker has not taken (counted lost).
     }
     for (size_t i = 0; i < inbox.size(); ++i) {
       Playback::Frame &f = playback.scratch();
       PoseHeader h;
-      if (decode_pose(t, inbox[i].data(), inbox[i].size(), h, f.root, f.bones.data(), f.fx)) {
-        ++r.rejected;
+      const char *why = s.keyed ? receiver.decode(t, inbox[i].data(), inbox[i].size(), h, f.root, f.bones.data(), f.fx)
+                                : decode_pose(t, inbox[i].data(), inbox[i].size(), h, f.root, f.bones.data(), f.fx);
+      if (why) {
+        ++(std::string(why) == "key" ? r.keyless : r.rejected); // key: a delta whose keyframe was lost on the line.
         continue;
       }
       f.sequence = h.sequence;
@@ -155,11 +167,13 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   r.latency_start_ms = start_frames ? start_latency / double(start_frames) : 0;
   r.latency_end_ms = end_frames ? end_latency / double(end_frames) : 0;
   r.on_line = line.queued();
-  std::printf("  %u/%u/%u%%: sent %llu, lost on the line %llu (%.1f%%), received %llu, rejected %llu, mean lag %.1f ms, "
+  std::printf("  %u/%u/%u%% at %.0f Hz%s: sent %llu, lost on the line %llu (%.1f%%), received %llu, rejected %llu, "
+              "keyless %llu, mean lag %.1f ms, "
               "max gap %.0f ms, stalls %llu, stale %llu, lost %llu, extrapolated %llu of %llu drawn, %.1f ms behind the "
               "newest, tracking %llu of %llu frames, worst bone %.4f cm\n",
-              s.delay, s.jitter, s.loss, (unsigned long long)r.sent, (unsigned long long)r.dropped,
-              r.sent ? 100.0 * r.dropped / r.sent : 0, (unsigned long long)r.received, (unsigned long long)r.rejected,
+              s.delay, s.jitter, s.loss, 1e6 / double(s.interval_us), s.keyed ? ", keyed" : "",
+              (unsigned long long)r.sent, (unsigned long long)r.dropped, r.sent ? 100.0 * r.dropped / r.sent : 0,
+              (unsigned long long)r.received, (unsigned long long)r.rejected, (unsigned long long)r.keyless,
               r.lag_ms, r.max_gap_ms, (unsigned long long)r.stats.stalls, (unsigned long long)r.stats.stale,
               (unsigned long long)r.stats.lost, (unsigned long long)r.stats.extrapolated,
               (unsigned long long)r.stats.drawn, r.behind_ms, (unsigned long long)matched,
@@ -241,6 +255,24 @@ int main() {
   Result long_drift = run(drift);
   assert(long_drift.stats.steps == 0 && std::fabs(long_drift.latency_end_ms - long_drift.latency_start_ms) < 15);
   assert(run(back).stats.steps == 1); // The step back is taken once.
+
+  // 60 poses a second as keyframes and deltas, with 100 ms of jitter: the draw point sits up to about 220 ms behind the
+  // newest pose, inside the 400 ms of poses the playback keeps (24 frames), so every frame still interpolates; with 8
+  // frames (133 ms at this rate) 5 % of them drew the oldest pose as it was.
+  Scenario fast{120, 100, 0};
+  fast.interval_us = 16667;
+  fast.keyed = true;
+  Result f = run(fast);
+  assert(f.keyless == 0 && f.received == f.sent - f.on_line && f.stats.stalls == 0 && f.stats.stale == 0);
+  assert(f.received > 3500);
+  // The same with 1 % segment loss for 2 minutes: a lost keyframe (4 segments) makes its deltas keyless until the next
+  // keyframe, at most 250 ms later; nothing is ever drawn from a wrong pose (the worst bone check).
+  Scenario fast_lossy{120, 30, 1, 120};
+  fast_lossy.interval_us = 16667;
+  fast_lossy.keyed = true;
+  fast_lossy.tracking_percent = 90;
+  Result g = run(fast_lossy);
+  assert(g.keyless > 0 && g.keyless * 10 < g.sent && g.stats.stale == 0);
 
   // A stale pose (not newer than the newest) is refused and counted.
   {

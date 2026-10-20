@@ -8,8 +8,8 @@
 //   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
-// (pose_table.h) and its pose "SBP<protocol>" (pose_codec.h). Channel 2 carries the shared enemies' text lines, which
-// start with fight_tag() (fight_sync.h parses them).
+// (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h). Channel 2 carries the shared
+// enemies' text lines, which start with fight_tag() (fight_sync.h parses them).
 #pragma once
 
 #include <array>
@@ -20,11 +20,12 @@
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 8; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 9; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                              // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                              // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines, which
-                             // a protocol-7 peer would count as invalid and drop without a word. An older peer (6:
+                             // a protocol-7 peer would count as invalid and drop without a word; 9 adds the pose delta
+                             // (SBD) on channel 1, which a protocol-8 peer would count malformed. An older peer (6:
                              // v0.1.1, 7: v0.2.0) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
@@ -164,7 +165,7 @@ inline std::string vit_line(const Vitals &v) {
     line += " " + std::to_string(x);
   return line;
 }
-// Channel 2's tag, versioned like channel 0's: "SBF8".
+// Channel 2's tag, versioned like channel 0's: "SBF9".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.

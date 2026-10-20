@@ -133,8 +133,8 @@ int main() {
   assert(parse_text("SBC6 ping 1 2").kind == Kind::invalid && parse_text("SBC6 pong 1 2").kind == Kind::invalid);
   // A v0.2.0 peer runs protocol 7: it would count say and vit as invalid and drop them, so a chat line would vanish
   // without a word. Protocol 8 makes her lobby tag and hello refuse the link instead; her lines are dropped too.
-  static_assert(kProtocol == 8, "8 adds say and vit; 7 is v0.2.0's");
-  assert(lobby_tag(24463856) != "7:24463856");
+  static_assert(kProtocol == 9, "9 adds pose deltas (SBD) on channel 1; 8 adds say and vit; 7 is v0.2.0's");
+  assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856");
   assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
   assert(fight_tag() == "SBF" + std::to_string(kProtocol));
   for (const std::string &line : {fight_tag() + " on", fight_tag() + " world 3", fight_tag() + " ping 1 2"})

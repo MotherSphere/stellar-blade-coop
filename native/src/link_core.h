@@ -61,7 +61,7 @@ constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpd
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
-constexpr uint64_t kBinaryPerSecond = 64, kBinaryBytesPerSecond = 1 << 20; // ~21/s, ~170 KB/s expected
+constexpr uint64_t kBinaryPerSecond = 160, kBinaryBytesPerSecond = 1 << 20; // ~61/s, ~200 KB/s at most expected
 // Channel 2, per member: lines waiting each way, and lines a second (each within kMaxMessage). The host's busiest
 // second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths); the guest paces her claims to
 // 41. A full outbox, sent at once when Steam takes lines again after refusing them, fits in one second with the
@@ -963,8 +963,8 @@ private:
     }
   }
 
-  // Per member and channel, one window a second. Channel 1: 64 messages and 1 MiB, about three times her 20 Hz stream
-  // with its table; channel 2: kFightPerSecond lines. Only what passes is counted.
+  // Per member and channel, one window a second. Channel 1: 160 messages and 1 MiB, 2.6 times her 60 Hz stream with
+  // its table, and 5 times her byte budget (pose_codec.h); channel 2: kFightPerSecond lines. Only what passes counts.
   bool over_rate(Window &w, size_t size, uint64_t count, uint64_t bytes) {
     if (now_ - w.at >= 1000) {
       w.at = now_;

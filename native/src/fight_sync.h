@@ -9,13 +9,13 @@
 // Channel 2 (link_core.h), plain text after link_protocol.h's fight_tag(), integers only (HP, Shield and Stamina are
 // whole units in the game). An enemy is named by the host's ActorGUID (hguid), which SB reuses only after 5,000,000
 // spawns; gen is the host's world generation.
-//   SBF8 on, SBF8 off <reason>                                     both, reliable: the feature's state
-//   SBF8 world <gen>                                               both, reliable: a world change, all pairs dropped
-//   SBF8 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>         host, reliable: an enemy it arbitrates
-//   SBF8 down <gen> <hguid>, SBF8 dead <gen> <hguid>               host, reliable: gone without a death, or its death
-//   SBF8 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...             host, unreliable: values; n: the turn's number,
+//   SBF9 on, SBF9 off <reason>                                     both, reliable: the feature's state
+//   SBF9 world <gen>                                               both, reliable: a world change, all pairs dropped
+//   SBF9 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>         host, reliable: an enemy it arbitrates
+//   SBF9 down <gen> <hguid>, SBF9 dead <gen> <hguid>               host, reliable: gone without a death, or its death
+//   SBF9 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...             host, unreliable: values; n: the turn's number,
 //                                                                  rising, shared by its lines; ack: last claim taken
-//   SBF8 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>   guest, reliable: drops since its last claim, the HP
+//   SBF9 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>   guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
 // The host answers the guest's on and world with its whole list (world, then every up), and the guest answers the
 // host's on with its own (hers may have come while the host was off), so either side may restart.
@@ -903,7 +903,7 @@ private:
 
 // ---- Record and replay ----
 
-// The host's lines as sent (world, up, down, dead, hp), each "<ms since the start> <SBF8 text>\n", in a text file the
+// The host's lines as sent (world, up, down, dead, hp), each "<ms since the start> <SBF9 text>\n", in a text file the
 // worker writes at the stop; read back whole and checked, then played once into the guest role. The first line is a
 // world (the recorder starts with the host's list), so the guest takes the recorded generation; pairing goes by key, so
 // a recorded enemy pairs with the same spawn after a camp rest.

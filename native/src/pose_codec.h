@@ -1,6 +1,7 @@
-// Codec v1 for EVE's pose on the wire (Phase 3): keyframes only, the sister repository's NetPose quantization ported
-// (rotation as the smallest three of its unit quaternion, translation in 1/32 cm, scale in 1/4096), no deltas, no
-// deflate. No Windows types: tests/pose_codec_test.cpp checks it on the build machine, fuzzing the decoder.
+// Codec v2 for EVE's pose on the wire: the sister repository's NetPose quantization ported (rotation as the smallest
+// three of its unit quaternion, translation in 1/32 cm, scale in 1/4096) in keyframes (Phase 3), and since protocol 9
+// deltas against the latest keyframe, so 60 poses a second fit the link (POSE60). No deflate. No Windows types:
+// tests/pose_codec_test.cpp checks it on the build machine, fuzzing the decoders.
 //
 // A pose message, little-endian:
 //   "SBP" (3 bytes), protocol (u8, kProtocol)
@@ -15,12 +16,27 @@
 //   slot), its rotation (6 B) and translation (3 i16) relative to the part; an empty slot is 15 zero bytes
 // A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.
+//
+// A delta (protocol 9): the units of a pose that differ from the sender's latest keyframe. A unit is one 6-byte field
+// of a leader bone (its rotation, translation or scale) or one effect slot. Little-endian:
+//   "SBD" (3 bytes), protocol (u8), then generation, sequence, publication and map as in a pose (the same offsets)
+//   age (u32): its publication minus its keyframe's, in microseconds, 1 or more (the keyframe's sequence would not
+//   survive the replay's re-stamping; this does, as the replay moves every publication of a loop alike)
+//   world (24 bytes): the world transform, as in the pose
+//   mask: a bit per unit (byte u / 8, bit u % 8), in pose order: per leader bone its rotation, translation and scale,
+//   then the kEffectSlots slots; padding bits 0
+//   then each unit the mask names, its exact bytes in the pose
+// The receiver rebuilds the pose's bytes from its held keyframe and decodes them with decode_pose, so a delta comes
+// back exactly as the keyframe path would give it, and passes every check a pose does. A delta is always smaller than
+// its pose: the sender sends the keyframe when it would not be.
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
 #include "link_protocol.h" // kProtocol
 #include "pose_table.h"    // Table, pose_size, kMaxPose, kTransformBytes
@@ -242,5 +258,214 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
   }
   return nullptr; // in == data + size: pose_size(t) matched and every field above has a fixed width.
 }
+
+// ---- Codec v2: deltas against a keyframe ----
+
+// A keyframe at least this often: after a lost one the ghost waits at most this long for the next.
+constexpr uint64_t kKeyEveryUs = 250'000;
+// The sender's poses at most this many bytes a second, with this much burst: under Steam's default send rate (262144
+// B/s), with room for the table's resends and channel 2. A pose waits while the budget is spent.
+constexpr int64_t kPoseBytesPerSecond = 196'608, kPoseBurst = 2 * kMaxPose;
+constexpr size_t kWorldAt = kPoseHeader + 1; // The world transform in a pose: after component 0's status.
+
+// Each unit of a pose of t, in order, as f(offset in the pose, bytes); stops when f returns false.
+template <class F> void each_unit(const Table &t, F &&f) {
+  size_t at = kPoseHeader; // kPoseHeader counts the component count byte.
+  for (size_t i = 0; i < t.eve.size(); ++i) {
+    at += 1 + (i == 0 ? kWorldBytes : 0);
+    if (!t.eve[i].leader)
+      continue;
+    for (size_t k = 0; k < size_t(t.eve[i].bones) * 3; ++k, at += kBoneBytes / 3)
+      if (!f(at, kBoneBytes / 3))
+        return;
+  }
+  for (size_t n = 0; n < kEffectSlots; ++n, at += kEffectBytes)
+    if (!f(at, kEffectBytes))
+      return;
+}
+inline size_t delta_units(const Table &t) {
+  size_t units = kEffectSlots;
+  for (const Part &p : t.eve)
+    units += p.leader ? size_t(p.bones) * 3 : 0;
+  return units;
+}
+// A delta's bytes before its units: header, age, world and mask.
+inline size_t delta_fixed(const Table &t) { return kPoseHeader + 4 + kWorldBytes + (delta_units(t) + 7) / 8; }
+
+// The delta of full (a pose of t that encode_pose wrote) against key (an earlier one, age µs before) into out, which
+// holds limit bytes. Returns its size, or 0 when it would not be smaller than limit (send the pose then).
+inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *full, uint32_t age, uint8_t *out,
+                           size_t limit) {
+  const size_t fixed = delta_fixed(t);
+  if (!pose_size(t) || !age || fixed >= limit)
+    return 0;
+  std::memcpy(out, full, kPoseHeader);
+  out[2] = 'D';
+  uint8_t *at = out + kPoseHeader;
+  codec::put(at, age, 4);
+  std::memcpy(at, full + kWorldAt, kWorldBytes);
+  uint8_t *mask = at + kWorldBytes;
+  std::memset(mask, 0, size_t(out + fixed - mask));
+  size_t size = fixed, u = 0;
+  bool fits = true;
+  each_unit(t, [&](size_t o, size_t n) {
+    if (std::memcmp(key + o, full + o, n)) {
+      if (size + n >= limit)
+        return fits = false;
+      mask[u / 8] |= uint8_t(1u << (u % 8));
+      std::memcpy(out + size, full + o, n);
+      size += n;
+    }
+    ++u;
+    return true;
+  });
+  return fits ? size : 0;
+}
+
+// A delta of t applied to key (a keyframe of t that decoded, published at key_publication; 0: none held): the pose's
+// bytes into rebuilt (pose_size(t) bytes), for decode_pose. Returns null when it applies, else why not: "key" when it
+// names another keyframe than the one held (the receiver drops it as keyless, not as malformed).
+inline const char *apply_delta(const Table &t, const uint8_t *key, uint64_t key_publication, const uint8_t *data,
+                               size_t size, uint8_t *rebuilt) {
+  using namespace codec;
+  const size_t full = pose_size(t), fixed = delta_fixed(t);
+  if (!full || size < fixed || size >= full)
+    return "size";
+  if (data[0] != 'S' || data[1] != 'B' || data[2] != 'D')
+    return "magic";
+  if (data[3] != kProtocol)
+    return "protocol";
+  const uint8_t *in = data + 4;
+  const uint64_t generation = get(in, 8);
+  in += 4; // The sequence.
+  const uint64_t publication = get(in, 8);
+  in = data + kPoseHeader; // Past the map and the component count.
+  const uint64_t age = get(in, 4);
+  if (generation != t.generation)
+    return "generation";
+  if (!key_publication || !age || age > publication || publication - age != key_publication)
+    return "key";
+  const uint8_t *mask = in + kWorldBytes;
+  const size_t units = delta_units(t);
+  for (size_t u = units; u < (units + 7) / 8 * 8; ++u)
+    if (mask[u / 8] >> (u % 8) & 1)
+      return "mask";
+  size_t need = fixed, u = 0;
+  each_unit(t, [&](size_t, size_t n) {
+    need += (mask[u / 8] >> (u % 8) & 1) ? n : 0;
+    ++u;
+    return true;
+  });
+  if (need != size)
+    return "size";
+  std::memcpy(rebuilt, key, full);
+  std::memcpy(rebuilt, data, kPoseHeader);
+  rebuilt[2] = 'P';
+  std::memcpy(rebuilt + kWorldAt, in, kWorldBytes);
+  const uint8_t *next = data + fixed;
+  u = 0;
+  each_unit(t, [&](size_t o, size_t n) {
+    if (mask[u / 8] >> (u % 8) & 1) {
+      std::memcpy(rebuilt + o, next, n);
+      next += n;
+    }
+    ++u;
+    return true;
+  });
+  return nullptr;
+}
+
+// The sender's side: which pose goes as a keyframe and which as a delta, and the byte budget. reset() allocates (the
+// worker, with the Live); due() and encode() never do. Game thread.
+class KeyedEncoder {
+public:
+  void reset(size_t pose_bytes) {
+    key_.assign(pose_bytes, 0);
+    delta_.assign(pose_bytes, 0);
+    key_publication_ = 0;
+    lost_ = false;
+    credit_ = kPoseBurst * 1'000'000;
+    credited_ = 0;
+  }
+  // Whether the budget lets a pose go at now (µs). It fills at kPoseBytesPerSecond up to kPoseBurst; each pose sent
+  // takes its size, so it may go below 0, and then the next pose waits.
+  bool due(uint64_t now) {
+    if (now > credited_) {
+      if (credited_) // In byte-microseconds: no rounding at any frame rate.
+        credit_ = std::min(kPoseBurst * 1'000'000,
+                           credit_ + int64_t(std::min<uint64_t>(now - credited_, 1'000'000)) * kPoseBytesPerSecond);
+      credited_ = now;
+    }
+    return credit_ >= 0;
+  }
+  // The pose encode_pose just wrote into buf (size bytes, of t), published at publication: left as it is and held as
+  // the keyframe, or replaced in buf by its smaller delta. A keyframe when none is held, when the held one was lost on
+  // its way out (lose()), 250 ms after it, or when the clock did not move on. Returns the bytes to send.
+  size_t encode(const Table &t, uint8_t *buf, size_t size, uint64_t publication) {
+    if (!size)
+      return 0;
+    size_t n = 0;
+    if (key_publication_ && !lost_ && size == key_.size() && publication > key_publication_ &&
+        publication - key_publication_ < kKeyEveryUs)
+      n = encode_delta(t, key_.data(), buf, uint32_t(publication - key_publication_), delta_.data(), size);
+    if (n) {
+      std::memcpy(buf, delta_.data(), n);
+    } else {
+      n = size;
+      if (size == key_.size()) {
+        std::memcpy(key_.data(), buf, size);
+        key_publication_ = publication;
+        lost_ = false;
+      }
+    }
+    credit_ -= int64_t(n) * 1'000'000;
+    return n;
+  }
+  // The keyframe handed out never reached the worker (a newer pose replaced it): the next pose is a keyframe.
+  void lose() { lost_ = true; }
+
+private:
+  std::vector<uint8_t> key_, delta_;
+  uint64_t key_publication_ = 0, credited_ = 0;
+  int64_t credit_ = 0;
+  bool lost_ = false;
+};
+
+// The receiver's side: the keyframe held, and the rebuilt pose. reset() allocates (the worker, with the Live); decode()
+// never does. Game thread.
+class KeyedDecoder {
+public:
+  void reset(size_t pose_bytes) {
+    key_.assign(pose_bytes, 0);
+    rebuilt_.assign(pose_bytes, 0);
+    key_publication_ = 0;
+    key_sequence_ = 0;
+  }
+  // A keyframe or a delta of t into root, bones and fx, as decode_pose: null when good, else why not ("key": a delta
+  // whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the one held (its
+  // sequence, which never restarts in the sender's run, unlike its clock after a step).
+  const char *decode(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root, uint8_t *bones,
+                     Effect *fx) {
+    if (size >= 3 && data[2] == 'D') {
+      if (key_.size() != pose_size(t))
+        return "key";
+      if (const char *why = apply_delta(t, key_.data(), key_publication_, data, size, rebuilt_.data()))
+        return why;
+      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx);
+    }
+    const char *why = decode_pose(t, data, size, h, root, bones, fx);
+    if (!why && size == key_.size() && (!key_publication_ || h.sequence > key_sequence_)) {
+      std::memcpy(key_.data(), data, size);
+      key_publication_ = h.publication;
+      key_sequence_ = h.sequence;
+    }
+    return why;
+  }
+
+private:
+  std::vector<uint8_t> key_, rebuilt_;
+  uint64_t key_publication_ = 0;
+  uint32_t key_sequence_ = 0;
+};
 
 } // namespace coop::pose

@@ -96,7 +96,7 @@ inline void blend_transform(const float *a, const float *b, float alpha, float *
 // interval. Game thread; reset() allocates and runs on the worker (with the Live), so no frame ever allocates.
 class Playback {
 public:
-  static constexpr size_t kFrames = 8;
+  static constexpr size_t kFrames = 24; // 400 ms of poses at 60 a second (8 were 400 ms at 20).
   static constexpr double kIntervalCapMs = 1000, kStepMs = 250, kWindowMs = 5000, kSilentMs = 3000, kSpreadDecay = 0.01;
   struct Frame {
     uint32_t sequence = 0;
