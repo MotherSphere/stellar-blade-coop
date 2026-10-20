@@ -445,11 +445,14 @@ struct Live {
   uint8_t id = 0;
   int32_t slot = -1;
   uint8_t handle[16] = {};
-  double until_ms = 0; // When it is over (local ms), 0 while unknown.
+  uint32_t order = 0; // Its start, counted by Lines.
 };
 // One drawn pair's replays by line id (R33: a show-set or show-stop names an id a show started). A show with a live id
-// takes its entry over (ids wrap); with all kLive taken, the one that ends first gives way. Either way the replay it
-// held is stopped first (u.stop(live), as restore does; a stale handle does nothing), so no handle is ever lost.
+// takes its entry over (ids wrap); with all kLive taken, the oldest start gives way: the owner tells at most kLive
+// players at once (Outbox), so a full table holds at least one replay whose show-stop was lost. Either way the replay
+// it held is stopped first (u.stop(live), as restore does; a stale handle does nothing), so no handle is ever lost.
+// ponytail: the oldest start stands in for "over by now" (design 3.6 drops an entry after its duration); a Show
+// outliving kLive newer starts on one copy loses its entry, so restore no longer stops it and it plays to its end.
 class Lines {
 public:
   static constexpr size_t kLive = 8;
@@ -458,13 +461,12 @@ public:
     for (Live &l : live_)
       if (!at && !l.used)
         at = &l;
-    auto end = [](const Live &l) { return l.until_ms > 0 ? l.until_ms : HUGE_VAL; };
     if (!at)
-      at = std::min_element(live_, live_ + kLive, [&](const Live &x, const Live &y) { return end(x) < end(y); });
+      at = std::min_element(live_, live_ + kLive, [](const Live &x, const Live &y) { return x.order < y.order; });
     if (at->used && !at->skipped)
       u.stop(*at);
     *at = Live();
-    at->used = true, at->id = id;
+    at->used = true, at->id = id, at->order = ++started_;
     return *at;
   }
   Live *find(uint8_t id) {
@@ -477,12 +479,6 @@ public:
     if (Live *l = find(id))
       *l = Live();
   }
-  // Drops the replays that are over by now (local ms).
-  void sweep(double now) {
-    for (Live &l : live_)
-      if (l.used && l.until_ms > 0 && now >= l.until_ms)
-        l = Live();
-  }
   void clear() { std::fill(live_, live_ + kLive, Live()); }
   template <class F> void each(F &&f) {
     for (Live &l : live_)
@@ -492,12 +488,14 @@ public:
 
 private:
   Live live_[kLive];
+  uint32_t started_ = 0;
 };
 
 // What the game thread changed on one drawn copy, to put back as it was (R31). The BlockAI is Simulate's (it dispels
 // 2000101 itself); BattleMode_5s expires by itself.
 struct Capture {
   bool cmc = false, cmc_was = false; // Its CMC taken out of SB's manager; whether it was in it before (cmc+0x10cd).
+  bool vel = false;                  // Its CMC's Velocity written by us.
   bool speed = false;                // char+0xC68 set by us...
   uint8_t speed_was = 0;             // ... and its value before.
   // A later take (SB turned the CMC back on, a second write) keeps the value from before our first one.
@@ -510,19 +508,22 @@ struct Capture {
       speed = true, speed_was = was;
   }
 };
+// u.still() zeroes the CMC's Velocity, so neither SB's movement nor the AnimBP's IsMoving starts from the stream's;
 // u.cmc_on() returns the CMC to SB's manager (slot 0x350, true), only if it was in it; u.speed(old) writes char+0xC68.
 template <class Undo> void give_cmc(Capture &c, Undo &&u) {
+  if (c.vel)
+    u.still();
   if (c.cmc && c.cmc_was)
     u.cmc_on();
-  c.cmc = false;
+  c.cmc = c.vel = false;
 }
 template <class Undo> void give_speed(Capture &c, Undo &&u) {
   if (c.speed)
     u.speed(c.speed_was);
   c.speed = false;
 }
-// Puts one copy back, once (a second call does nothing): each live replay stopped (u.stop(live)), then the CMC, then
-// char+0xC68. Session end, unpair, host loss, fight off, same_place off and the first fault.
+// Puts one copy back, once (a second call does nothing): each live replay stopped (u.stop(live)), then the CMC (its
+// Velocity first), then char+0xC68. Session end, unpair, host loss, fight off, same_place off and the first fault.
 template <class Undo> void restore(Capture &c, Lines &lines, Undo &&u) {
   lines.each([&](const Live &l) {
     if (!l.skipped)
@@ -1394,6 +1395,14 @@ constexpr size_t kMoveSlot = 0x4a0;
 // Where FUN_142284a30 stamps the stage it makes with its handle.
 constexpr size_t kStageHandle = 0x128;
 
+// A movement component of SB's class with SB's override in slot 0x350: the only kind driven, and the only one 142158f40
+// is called on or a Velocity written to.
+template <class Read> bool sb_cmc(Read &read, uint64_t base, uint64_t cmc) {
+  uint64_t vt = 0, tick = 0;
+  return read(cmc, &vt, sizeof vt) && vt == base + (kCmcVtable - nightop::kImageBase) &&
+         read(vt + kCmcTickSlot, &tick, sizeof tick) && tick == base + (kCmcTick - nightop::kImageBase);
+}
+
 // The angle between two unit quaternions, in degrees.
 inline double angle_deg(const float *a, const float *b) {
   double dot = 0, d = 0, p = 0;
@@ -1411,13 +1420,14 @@ inline double angle_deg(const float *a, const float *b) {
 // runs once a frame. Each drawn copy is found again by its GUID every frame through SB's two read-only lookups (no
 // pointer is kept), its state stepped (Copy), and while its root follows the stream: its movement component taken out
 // of SB's parallel manager (SB's class only, and again whenever something put it back), the speed override and the
-// owner's speed written, the root moved to the sample at the draw time and Velocity set to the samples' own. Lines due
-// at the draw time replay through SB's Show handle API, with their hit context. Every way back (the pair gone, a
-// release, a fault) puts the copy back in restore's order: the live replays stopped, then the movement component, only
-// if it was in SB's manager, then the speed override's byte. fault() does that once and stops every write for the run.
+// owner's speed written, the root moved to the sample at the draw time and Velocity set to the samples' own. Shows due
+// at the draw time replay through SB's Show handle API on a copy driven that frame, with their hit context. Every way
+// back (the pair gone, a release, a fault) puts the copy back in restore's order: the live replays stopped, then
+// Velocity zeroed and the movement component back, only if it was in SB's manager (both only on SB's class), then the
+// speed override's byte. fault() does that once and stops every write for the run.
 // The Game: read, fsb() and character() as the Capturer's, and
 //   void write(uint64_t address, const void *in, size_t n): a plain write;
-//   void cmc(uint64_t cmc, bool on): SB's 142158f40, called only once this class checked the component;
+//   void cmc(uint64_t cmc, bool on): SB's 142158f40, called only on a component sb_cmc() passed that frame;
 //   void move(uint64_t fn, uint64_t root, const float delta[3], const float quat[4]): fn, the root's vtable +0x4a0, as
 //     fn(root, delta, quat, no sweep, no hit result, no flags, a teleport);
 //   bool handle(uint64_t reg, uint8_t h[16]): FUN_142284a30(reg, h, 1) (the stage goes when its players finish), false
@@ -1444,7 +1454,7 @@ public:
     uint64_t missing = 0, no_handle = 0;   // AddShow found no asset; no stage made (no registry or show manager).
     uint64_t no_context = 0;               // Shows replayed without their context (R33's 1 km rule, or no player).
     uint64_t sets = 0, stops = 0, unknown = 0; // show-set, show-stop; one naming no live replay.
-    uint64_t not_drawn = 0;                // Lines due while their copy was not driven (released, local, not found).
+    uint64_t not_drawn = 0;                // Shows due while their copy was not driven (released, local, not found).
     double drift_cm = 0, drift_deg = 0;    // The most a driven copy moved or turned (per second) between our write and
                                            // the next frame: a mover still at work inside the tick. Reset by the reader.
   };
@@ -1509,22 +1519,20 @@ public:
     if (latched_ || !holding()) // Nothing held: no line either (forget() drops a pair's), and nothing to read.
       return;
     auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
-    const uint64_t objects = base + pose::kObjectsRva;
     Globals s;
     const bool lookups = globals(read, base, s);
     Found found[kMaxEnemies];
-    bool ok[kMaxEnemies] = {};
+    bool ok[kMaxEnemies] = {}; // Driven this frame: only such a copy starts a replay.
     for (size_t i = 0; i < kMaxEnemies; ++i) {
       Pair &p = pairs_[i];
       if (!p.row.hguid)
         continue;
-      ok[i] = lookups && find(g, read, objects, s, p.row.local, found[i]);
-      if (!ok[i]) { // A stale pair: skipped this frame, nothing written, nothing forgotten.
-        ++counts.unresolved;
+      if (!lookups || !find(g, read, base, s, p.row.local, found[i])) { // A stale pair: skipped this frame, nothing
+        ++counts.unresolved;                                           // written, nothing forgotten.
         p.wrote = false;
         continue;
       }
-      drive(g, read, base, s.reg, p, found[i], now, at);
+      ok[i] = drive(g, read, base, s.reg, p, found[i], now, at);
     }
     for (const Timeline::Due *due; (due = timeline_.front(at));) {
       const Timeline::Due d = *due;
@@ -1567,12 +1575,14 @@ private:
     float loc[3] = {}, quat[4] = {0, 0, 0, 1};       // As written then.
     double at = 0;                                   // When (our clock, ms).
   };
-  // One copy found this frame: its FSBActor, character, root and movement component.
+  // One copy found this frame: its FSBActor, character, root and movement component, and whether that is SB's class
+  // (sb_cmc, checked again each frame).
   struct Found {
     uint64_t fsb = 0, ch = 0, root = 0, cmc = 0;
+    bool sb = false;
   };
   // The undo of one pair (restore's): the replays through the registry (none: no world, so no stages either), the
-  // movement component and the speed override's byte on the copy found this frame.
+  // movement component (only SB's class) and the speed override's byte on the copy found this frame.
   template <class Game> struct Put {
     Game &g;
     uint64_t reg;
@@ -1581,7 +1591,15 @@ private:
       if (reg)
         g.stop(reg, l.handle);
     }
-    void cmc_on() { g.cmc(f->cmc, true); }
+    void still() {
+      const float zero[3] = {};
+      if (f->sb)
+        g.write(f->cmc + kCmcVelocity, zero, sizeof zero);
+    }
+    void cmc_on() {
+      if (f->sb)
+        g.cmc(f->cmc, true);
+    }
     void speed(uint8_t was) { g.write(f->ch + kSpeedOverride, &was, 1); }
   };
 
@@ -1595,13 +1613,17 @@ private:
     return nullptr;
   }
   template <class Game, class Read>
-  static bool find(Game &g, Read &read, uint64_t objects, const Globals &s, uint32_t local, Found &f) {
+  static bool find(Game &g, Read &read, uint64_t base, const Globals &s, uint32_t local, Found &f) {
+    const uint64_t objects = base + pose::kObjectsRva;
     f = Found();
     f.ch = find_character(g, read, objects, s, local, f.fsb, f.root);
-    return f.ch && read(f.ch + kCharacterMovement, &f.cmc, sizeof f.cmc) && live(read, objects, f.cmc);
+    if (!f.ch || !read(f.ch + kCharacterMovement, &f.cmc, sizeof f.cmc) || !live(read, objects, f.cmc))
+      return false;
+    f.sb = sb_cmc(read, base, f.cmc);
+    return true;
   }
-  // Puts the pair back in restore's order when its copy was found (f); else only its replays stop, and what it held on
-  // the copy is kept for a later frame.
+  // Puts the pair back in restore's order on its copy as found now (f). Without one (forget() on a copy no lookup
+  // finds: gone, or pending kill) only its replays stop; what we changed on the copy goes with it.
   template <class Game> void put_back(Game &g, uint64_t reg, Pair &p, const Found *f) {
     Put<Game> u{g, reg, f};
     if (f)
@@ -1617,18 +1639,19 @@ private:
     auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
     Globals s;
     Found f;
-    const bool found = globals(read, base, s) && find(g, read, base + pose::kObjectsRva, s, p.row.local, f);
+    const bool found = globals(read, base, s) && find(g, read, base, s, p.row.local, f);
     put_back(g, s.reg, p, found ? &f : nullptr);
     timeline_.drop(p.row.hguid);
     p = Pair();
   }
+  // The pair's copy stepped and, while its root follows the stream, driven: true when this frame wrote it.
   template <class Game, class Read>
-  void drive(Game &g, Read &read, uint64_t base, uint64_t reg, Pair &p, const Found &f, double now, double at) {
+  bool drive(Game &g, Read &read, uint64_t base, uint64_t reg, Pair &p, const Found &f, double now, double at) {
     float world[12]; // The root's world transform: rotation xyzw, translation, then scale.
     if (!read(f.root + pose::kWorldTransform, world, sizeof world)) {
       ++counts.unresolved;
       p.wrote = false;
-      return;
+      return false;
     }
     Pose own;
     std::copy(world, world + 4, own.quat);
@@ -1652,24 +1675,22 @@ private:
     counts.converged += was == State::converging && st == State::piloted;
     p.battle = has && (d.flags & kBattle) && st != State::local;
     if (!mode(st).root_stream)
-      return put_back(g, reg, p, &f);
+      return put_back(g, reg, p, &f), false;
     counts.snaps += d.snap || snapped;
     // Checks first, writes after: SB's movement component class with SB's override in slot 0x350, the root's vtable
     // and its move function inside the game.
-    uint64_t vt = 0, tick = 0, root_vt = 0, move = 0;
+    uint64_t root_vt = 0, move = 0;
     uint8_t parallel = 0, override_was = 0;
-    if (!read(f.cmc, &vt, sizeof vt) || vt != base + (kCmcVtable - nightop::kImageBase) ||
-        !read(vt + kCmcTickSlot, &tick, sizeof tick) || tick != base + (kCmcTick - nightop::kImageBase) ||
-        !read(f.cmc + kCmcParallel, &parallel, 1)) {
+    if (!f.sb || !read(f.cmc + kCmcParallel, &parallel, 1)) {
       p.refused = true;
       ++counts.cmc_refused;
-      return put_back(g, reg, p, &f);
+      return put_back(g, reg, p, &f), false;
     }
     if (!read(f.root, &root_vt, sizeof root_vt) || root_vt - base >= pose::kSizeOfImage ||
         !read(root_vt + kMoveSlot, &move, sizeof move) || move - base >= pose::kSizeOfImage ||
         !read(f.ch + kSpeedOverride, &override_was, 1)) {
       ++counts.unresolved;
-      return;
+      return false;
     }
     if (parallel) {
       ++(p.cap.cmc ? counts.cmc_reenabled : counts.cmc_out);
@@ -1683,16 +1704,20 @@ private:
     const float delta[3] = {out.loc[0] - own.loc[0], out.loc[1] - own.loc[1], out.loc[2] - own.loc[2]};
     g.move(move, f.root, delta, out.quat);
     g.write(f.cmc + kCmcVelocity, out.vel, sizeof out.vel);
+    p.cap.vel = true;
     std::copy(out.loc, out.loc + 3, p.loc);
     std::copy(out.quat, out.quat + 4, p.quat);
     p.at = now, p.wrote = true;
     ++counts.frames;
+    return true;
   }
-  // One line due now, on its pair's copy as found this frame (f).
+  // One line due now, on its pair's copy as driven this frame (f; null when this frame did not drive it). A show
+  // plays only on a driven copy; a show-set or show-stop needs only its replay's handle, so it applies while the
+  // replay is held whatever the copy does this frame, and a show-stop always lets its entry go.
   template <class Game, class Read>
   void apply(Game &g, Read &read, const Globals &s, Pair *p, const Found *f, const Timeline::Due &d) {
     const ShowLine &l = d.line;
-    if (!p || !f || !mode(p->copy.state()).owner_shows) {
+    if (!p || (l.kind == Kind::show && !f)) {
       ++counts.not_drawn;
       return;
     }
@@ -1725,7 +1750,7 @@ private:
     }
     if (l.kind == Kind::set) {
       ++counts.sets;
-      if (!live->skipped) {
+      if (!live->skipped && s.reg) {
         g.rate(s.reg, live->handle, live->slot, float(l.rate) / 1000);
         g.step(s.reg, live->handle, live->slot, int32_t(l.step));
       }
@@ -1733,7 +1758,7 @@ private:
     }
     ++counts.stops;
     if (!live->skipped)
-      g.stop(s.reg, live->handle);
+      u.stop(*live);
     p->lines.drop(l.id);
   }
   // A show's hit context into the player AddShow just made, as SB's skill path writes some of these fields after its

@@ -318,6 +318,7 @@ bool same(const ShowLine &a, const ShowLine &b) {
 struct Undo {
   std::string log;
   void stop(const Live &l) { log += "stop" + std::to_string(l.id) + " "; }
+  void still() { log += "still "; }
   void cmc_on() { log += "cmc "; }
   void speed(uint8_t was) { log += "speed" + std::to_string(was) + " "; }
 };
@@ -821,6 +822,14 @@ int main() {
     give_cmc(cap, u);
     give_speed(cap, u); // A release gives both back, the replays stay.
     assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 " && !cap.cmc && !cap.speed);
+    cap.vel = true; // Our Velocity on it: zeroed before the component goes back, even one that stays out.
+    cap.took_cmc(true);
+    restore(cap, lines, u);
+    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 still cmc " && !cap.vel);
+    cap.vel = true;
+    cap.took_cmc(false);
+    give_cmc(cap, u);
+    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 still cmc still " && !cap.vel && !cap.cmc);
   }
 
   // ---- The show lines ----
@@ -1102,13 +1111,17 @@ int main() {
     lines.drop(3);
     assert(!lines.find(3));
     for (uint8_t id = 10; id < 10 + Lines::kLive; ++id)
-      lines.start(id, u).until_ms = 1000 + (17 - id); // The last one started ends first.
-    lines.start(50, u); // Full: the one that ends first (id 17) gives way, stopped.
-    assert(!lines.find(17) && lines.find(10) && lines.find(16) && lines.find(50) && u.log == "stop3 stop17 ");
-    lines.sweep(1002);
-    assert(!lines.find(16) && !lines.find(15) && lines.find(14) && lines.find(50)); // Over: dropped; 0 never ends.
+      lines.start(id, u);
+    lines.drop(12);
+    lines.start(12, u); // Started again: now the newest.
+    lines.start(50, u); // Full (its show-stops lost): the oldest start (id 10) gives way, stopped.
+    assert(!lines.find(10) && lines.find(11) && lines.find(17) && lines.find(50) && u.log == "stop3 stop10 ");
+    lines.start(51, u); // Then 11, then 13: never the one just started.
+    lines.start(52, u);
+    assert(!lines.find(11) && !lines.find(13) && lines.find(12) && lines.find(50) && lines.find(51));
+    assert(u.log == "stop3 stop10 stop11 stop13 ");
     lines.clear();
-    assert(!lines.find(13) && !lines.find(50));
+    assert(!lines.find(12) && !lines.find(50));
   }
 
   // ---- Dedupe: the copy's own start of the same asset within 1 s ----
@@ -1487,11 +1500,13 @@ int main() {
     assert(nb == 1 && battle[0] == 4100 && nr == 0);
     assert(s.since(seen) == "write1 write4 move write12 write1 write4 move write12");
 
-    // Restore when the pair goes (its row gone): SB's own speed override back, the component back in SB's manager
-    // because it was in it, nothing kept. One whose component was already out of SB's manager is never put in.
+    // Restore when the pair goes (its row gone): our Velocity zeroed, the component back in SB's manager because it
+    // was in it, SB's own speed override back, nothing kept. One whose component was already out of SB's manager is
+    // never put in (its Velocity still zeroed).
+    assert(s.get<float>(cmc + kCmcVelocity) > 100);
     d.rows(g, kBase, 7, kGuest, nullptr, 0);
-    assert(s.since(seen) == "cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0 && !d.holding());
-    assert(s.get<uint8_t>(cmc + kCmcParallel) == 1);
+    assert(s.since(seen) == "write12 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0 && !d.holding());
+    assert(s.get<uint8_t>(cmc + kCmcParallel) == 1 && s.get<float>(cmc + kCmcVelocity) == 0);
     const uint64_t out = s.copy(502, 0, 0, 0, 0);
     const Row row2{4200, 502, kHost, 0, true, false, false};
     d.rows(g, kBase, 7, kGuest, &row2, 1);
@@ -1499,11 +1514,11 @@ int main() {
     d.draw(g, kBase, 6000, 1200);
     assert(s.since(seen) == "write1 write4 move write12");
     d.rows(g, kBase, 7, kGuest, nullptr, 0);
-    assert(s.since(seen) == "write1" && s.get<uint8_t>(s.cmc(out) + kCmcParallel) == 0);
+    assert(s.since(seen) == "write12 write1" && s.get<uint8_t>(s.cmc(out) + kCmcParallel) == 0);
   }
   // Another class of movement component, or SB's vtable with another function in slot 0x350 (the engine base): never
-  // driven, nothing written or called on it, named in the word back for the job to let go; the copy stays local. A
-  // copy not frozen yet (our BlockAI not held) is not driven either.
+  // driven, nothing written or called on it (not even a Show due in the frame it is refused), named in the word back
+  // for the job to let go; the copy stays local. A copy not frozen yet (our BlockAI not held) is not driven either.
   {
     Stage s;
     const uint64_t ch = s.copy(501, 0, 0, 0), other = s.alloc(0x400);
@@ -1521,6 +1536,10 @@ int main() {
     size_t seen = 0;
     d.draw(g, kBase, 5000, 1000);
     assert(s.since(seen).empty() && d.counts.cmc_refused == 0); // Not frozen: local.
+    ShowLine due;
+    due.kind = Kind::show, due.gen = 7, due.guid = 4100, due.id = 1, due.t_ms = 1000, due.rate = 1000;
+    assert(set_path(due, 0, "A/B"));
+    d.line(due, 1000);
     row.frozen = true;
     d.rows(g, kBase, 7, kGuest, &row, 1);
     d.draw(g, kBase, 5016, 1000);
@@ -1528,6 +1547,7 @@ int main() {
     uint8_t nb = 0, nr = 0;
     d.flags(battle, nb, refused, nr);
     assert(s.since(seen).empty() && s.writes == 0 && d.counts.cmc_refused == 1 && nr == 1 && refused[0] == 4100);
+    assert(d.counts.not_drawn == 1 && d.counts.shows == 0);
     d.draw(g, kBase, 5032, 1000);
     assert(s.since(seen).empty() && d.counts.cmc_refused == 1 && d.counts.frames == 0);
     s.put<uint64_t>(s.cmc(ch), kCmcVtable); // SB's vtable, but slot 0x350 is not SB's override.
@@ -1538,7 +1558,8 @@ int main() {
     d2.draw(g, kBase, 5000, 1000);
     d2.flags(battle, nb, refused, nr);
     assert(s.since(seen).empty() && s.writes == 0 && d2.counts.cmc_refused == 1 && nr == 1);
-    // A root whose vtable is not in the game's image: nothing written that frame, the pair kept.
+    // A root whose vtable is not in the game's image: nothing written or called that frame (its Show not played),
+    // the pair kept.
     s.put<uint64_t>(kCmcVtable + kCmcTickSlot, kCmcTick);
     const uint64_t odd = s.alloc(kMoveSlot + 8);
     s.put<uint64_t>(odd + kMoveSlot, kMoveFn);
@@ -1546,17 +1567,48 @@ int main() {
     Driver d3;
     d3.rows(g, kBase, 7, kGuest, &row, 1);
     d3.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    d3.line(due, 1000);
     d3.draw(g, kBase, 5000, 1000);
     assert(s.since(seen).empty() && s.writes == 0 && d3.counts.unresolved == 1 && d3.holding());
+    assert(d3.counts.not_drawn == 1 && d3.counts.shows == 0);
+  }
+  // A movement component that changes class between frames (a pooled actor back under the same GUID): refused, and on
+  // the way back neither SB's 142158f40 nor a Velocity write touches it; only SB's speed override byte goes back. The
+  // same when the pair goes.
+  for (bool unpair : {false, true}) {
+    Stage s;
+    const uint64_t ch = s.copy(501, 0, 0, 0), cmc = s.cmc(ch);
+    Stage::Game g = s.game();
+    Driver d;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 0);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    size_t seen = 0;
+    d.draw(g, kBase, 5000, 1000);
+    assert(s.since(seen) == "cmc off write1 write4 move write12");
+    const uint64_t other = s.alloc(0x400);
+    s.put<uint64_t>(other + kCmcTickSlot, kCmcTick);
+    s.put<uint64_t>(cmc, other);
+    if (unpair)
+      d.rows(g, kBase, 7, kGuest, nullptr, 0);
+    else
+      d.draw(g, kBase, 5016, 1000);
+    assert(s.since(seen) == "write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0 && s.get<uint8_t>(cmc + kCmcParallel) == 0);
+    assert(d.counts.cmc_refused == (unpair ? 0u : 1u) && d.holding() == !unpair);
   }
   // Show replay through the handle API, at the draw time: a new stage and handle, SetMainActor with the copy's FSBActor
   // FGuid, AddShow (the path as sent, its form, rate, step gate and +0x4d), SetStep for a step-driven player, then the
   // hit context written into the player AddShow made (found as the newest stage, stamped with our handle) and the
   // stage's +0x9c; show-set as SetRate and SetStep, show-stop as Stop; a missing asset stopped at once; a context far from
-  // the copy left out; a line for a released copy not played; the owner, epoch and clock filters.
+  // the copy left out; a show-set and show-stop that reach their replay while the copy is not found; a line for a
+  // released copy not played; the owner, epoch and clock filters.
   {
     Stage s;
-    s.copy(501, 100, 200, 20);
+    const uint64_t ch = s.copy(501, 100, 200, 20);
     Stage::Game g = s.game();
     Driver d;
     Row row{4100, 501, kHost, 0, true, false, false};
@@ -1578,8 +1630,9 @@ int main() {
       return l;
     };
     ShowLine l = show(5, 1050, "CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03");
-    l.ctx[kHitLevel] = 2, l.ctx[kHitLevel60] = 3, l.ctx[kDir2d] = 50, l.ctx[kHitPos] = 10050, l.ctx[kHitPos + 1] = 20025;
-    l.ctx[kA8] = -7, l.ctx[kOtherLoc] = 9000, l.ctx[kHitRot + 1] = 9000, l.ctx[kStage9c] = 250;
+    for (int k = kDir2d; k < kCtx; ++k) // Each float its own value (its index plus 1, a fraction off): a swap shows.
+      l.ctx[k] = 100 * (k + 1) + 25;
+    l.ctx[kHitLevel] = 2, l.ctx[kHitLevel60] = 3, l.ctx[kA8] = -7;
     d.line(l, 1040);
     s.child = true;                                              // A child stage after ours: ours is still found.
     d.line(show(6, 1050, "x", 1), 1040);                        // Another epoch.
@@ -1596,10 +1649,16 @@ int main() {
     assert(s.main_guid == s.fsbs[501] + kFsbGuid && d.counts.shows == 1 && d.counts.late == 0);
     const uint64_t stage = s.by_handle[1], player = s.get<uint64_t>(s.get<uint64_t>(stage + 0x88));
     assert(s.get<uint8_t>(player + 0x54) == 2 && s.get<uint8_t>(player + 0x60) == 3);
-    assert(near(s.get<float>(player + 0x68), 0.5, 1e-6) && near(s.get<float>(player + 0x84), 100.5, 1e-4) &&
-           near(s.get<float>(player + 0x88), 200.25, 1e-4) && s.get<int32_t>(player + 0xa8) == -7 &&
-           near(s.get<float>(player + 0xc0), 90, 1e-4) && near(s.get<float>(player + 0xd0), 90, 1e-4) &&
-           near(s.get<float>(stage + 0x9c), 2.5, 1e-6));
+    assert(s.get<int32_t>(player + 0xa8) == -7 && near(s.get<float>(stage + 0x9c), kStage9c + 1.25, 1e-6));
+    struct Field {
+      int at, n;
+      size_t offset;
+    };
+    for (const Field &f : {Field{kDir2d, 2, 0x68}, Field{kHitDir, 3, 0x70}, Field{kHitPos, 3, 0x84},
+                           Field{kLocalPos, 3, 0x90}, Field{kNormal, 3, 0x9c}, Field{kOtherLoc, 3, 0xc0},
+                           Field{kHitRot, 3, 0xcc}})
+      for (int k = 0; k < f.n; ++k)
+        assert(near(s.get<float>(player + f.offset + 4 * size_t(k)), f.at + k + 1.25, 1e-5));
     s.child = false;
     ShowLine set = l;
     set.kind = Kind::set, set.rate = 2000, set.step = 3, set.t_ms = 1060;
@@ -1631,13 +1690,27 @@ int main() {
     d.draw(g, kBase, 5080, 1310);
     assert(s.since(seen) == "write1 write4 move write12 handle none" && d.counts.no_handle == 1);
     s.no_handle = false;
+    // The copy not found this frame (pending kill, say): a show due is not played, but a show-set and a show-stop
+    // still reach their replay by its handle, and the stop lets its entry go (restore has nothing left to stop).
+    const auto key = s.characters.begin()->first;
+    s.characters.erase(key);
+    ShowLine far_set = far, far_stop = far;
+    far_set.kind = Kind::set, far_set.rate = 500, far_set.t_ms = 1311;
+    far_stop.kind = Kind::stop, far_stop.t_ms = 1312;
+    d.line(far_set, 1310);
+    d.line(far_stop, 1310);
+    d.line(show(11, 1312, "Lost/Show"), 1310);
+    d.draw(g, kBase, 5088, 1312);
+    assert(s.since(seen) == "rate 3 0 0.500 step 3 0 2 stop 3" && d.counts.sets == 2 && d.counts.stops == 2);
+    assert(d.counts.not_drawn == 1 && d.counts.shows == 2);
+    s.characters[key] = ch;
     // Released (Down, Groggy, Airborne, a takedown marker): the replays stop, the component goes back, our speed
     // override comes off, in restore's order, and its lines are not played; 200 ms calm later it converges again.
     row.release = true;
     d.rows(g, kBase, 7, kGuest, &row, 1);
     d.line(show(10, 1320, "Other/Show"), 1315);
     d.draw(g, kBase, 5096, 1320);
-    assert(s.since(seen) == "stop 3 cmc on write1" && d.counts.released == 1 && d.counts.not_drawn == 1);
+    assert(s.since(seen) == "write12 cmc on write1" && d.counts.released == 1 && d.counts.not_drawn == 2);
     row.release = false;
     d.rows(g, kBase, 7, kGuest, &row, 1);
     d.draw(g, kBase, 5200, 1330);
@@ -1702,18 +1775,18 @@ int main() {
     size_t seen = 0;
     s.since(seen);
     d.rows(g, kBase, 7, kGuest, nullptr, 0);
-    assert(s.since(seen) == "stop 1 stop 2 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0);
+    assert(s.since(seen) == "stop 1 stop 2 write12 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0);
     // A new generation (a new world) puts every pair back the same way first.
     setup(d);
     s.since(seen);
     d.rows(g, kBase, 8, kGuest, &row, 1);
-    assert(s.since(seen) == "stop 3 stop 4 cmc on write1" && d.holding());
+    assert(s.since(seen) == "stop 3 stop 4 write12 cmc on write1" && d.holding());
     // A fault: put back once, then nothing more, whatever comes.
     Driver f;
     setup(f);
     s.since(seen);
     f.fault(g, kBase);
-    assert(s.since(seen) == "stop 5 stop 6 cmc on write1" && f.latched() && !f.holding());
+    assert(s.since(seen) == "stop 5 stop 6 write12 cmc on write1" && f.latched() && !f.holding());
     const size_t writes = s.writes;
     f.fault(g, kBase);
     setup(f);
@@ -1792,6 +1865,7 @@ int main() {
         assert(at != c.live.end()); // Never one stopped twice, nor one never started.
         c.live.erase(at);
       }
+      void still() {}
       void cmc_on() { c.cmc = true; }
       void speed(uint8_t was) { c.speed = was; }
     };
