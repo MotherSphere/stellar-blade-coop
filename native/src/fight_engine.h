@@ -76,6 +76,50 @@ inline const char *auto_out(uint32_t chr, float max_hp) {
       return "charId";
   return max_hp <= kMaxAutoHp ? nullptr : "MaxHP"; // NaN is out too.
 }
+// FSBActor +0x560: SB's TMap<ESBActorState, int32 reference count>, 0x50 bytes (PHASE11-STAGE2-RE 1): elements of 0x10
+// bytes {key, count, hash next, hash index} at +0x00, ArrayNum +0x08, NumFree +0x34, the inline bucket +0x38 (HashSize
+// 1), the buckets at +0x40 when that is set, HashSize +0x48. A key hashes to itself. A state is held while its key is
+// there with a count other than 0, as FUN_141a64b40 (a leaf SB calls on the logic thread) tells; read here without it.
+constexpr size_t kStateMap = 0x560;
+constexpr int32_t kNoDamageNoHit = 3, kNoDamage = 4;
+constexpr int32_t kStatesRead[] = {kNoDamageNoHit, kNoDamage, 6, 7, 8, 27}; // And Down, Groggy, Airborne, Immortal.
+// The states of kStatesRead that fsb holds, as bits by state number; false when the map fails a check (a torn read
+// during a game-thread change: the walk never loops or leaves the array). read as a Game's.
+template <class Read> bool held_states(Read &&read, uint64_t fsb, uint32_t &held) {
+  held = 0;
+  uint8_t m[0x50];
+  if (!read(fsb + kStateMap, m, sizeof m))
+    return false;
+  const uint64_t data = nightop::get<uint64_t>(m, 0), heap = nightop::get<uint64_t>(m, 0x40);
+  const int32_t num = nightop::get<int32_t>(m, 0x08), gaps = nightop::get<int32_t>(m, 0x34),
+                size = nightop::get<int32_t>(m, 0x48);
+  if (num == gaps) // Empty: SB's own early out.
+    return true;
+  if (num < 0 || num > 4096 || size <= 0 || (size & (size - 1)) || !plausible(data) || (heap && !plausible(heap)))
+    return false;
+  uint32_t bits = 0;
+  for (const int32_t state : kStatesRead) {
+    const int32_t slot = state & (size - 1);
+    int32_t at = -1;
+    if (heap ? !read(heap + 4 * uint64_t(slot), &at, sizeof at) : slot != 0)
+      return false;
+    if (!heap)
+      at = nightop::get<int32_t>(m, 0x38);
+    for (int32_t steps = 0; at != -1; ++steps) {
+      int32_t e[3];
+      if (at < 0 || at >= num || steps > num || !read(data + 16 * uint64_t(at), e, sizeof e))
+        return false;
+      if (e[0] == state) {
+        bits |= e[1] ? 1u << state : 0;
+        break;
+      }
+      at = e[2];
+    }
+  }
+  held = bits;
+  return true;
+}
+
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
 // SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
@@ -124,6 +168,7 @@ struct JobCounts {
   uint64_t censuses = 0, rejected = 0; // Census passes, elements failing the test.
   uint64_t cut = 0; // Map slots past kMaxCensus, and eligible enemies past kMaxSeen, summed over the censuses.
   uint64_t no_eve = 0;  // Kills given a null cause: no local EVE found, so no kill rewards.
+  uint64_t unread = 0;  // State maps that failed their checks: read as holding nothing.
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
   uint64_t paused = 0;                         // Ticks a paused world put off.
@@ -146,8 +191,6 @@ struct Snapshot {
 };
 
 // One logic actor as the liveness test and the reads see it.
-// ponytail: Seen::nodamage stays 0. The state map at FSBActor +0x560 is not decoded (SB asks FUN_141a64b40, which is
-// not on the allowlist), so the host's bypass3/bypass4 counts stay 0; decode it before stage 2 needs them.
 struct Actor {
   uint64_t fsb = 0;
   uint8_t controlled = 0; // 1: the actor the local player controls.
@@ -155,6 +198,7 @@ struct Actor {
   bool eve = false; // The probe: our EVE (controlled and the actor manager's local player).
   uint8_t type = 0; // The probe: its ActorType as read.
   const char *out = nullptr; // The probe: why fight_chars=auto leaves this Monster out (auto_out), or nullptr.
+  uint32_t states = 0;       // Of kStatesRead, those held (bits by state), once marks() read them.
   int32_t life = 0;
   Seen seen; // GUID, key, charId and dying; the stats once stats() read them.
 };
@@ -405,8 +449,10 @@ public:
     for (size_t i = 0; i < count && n < kMaxSeen && !latched_; ++i) {
       uint64_t la = g.find(logic, followed[i]);
       // A life state we do not know is left out (gone, so down or unpaired), never read as a death.
-      if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying) && stats(g, a))
+      if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying) && stats(g, a)) {
+        marks(g, a);
         seen_[n++] = a.seen;
+      }
     }
     if (latched_ || !census)
       return latched_ ? 0 : n;
@@ -427,8 +473,10 @@ public:
         continue;
       if (n == kMaxSeen)
         ++counts.cut;
-      else if (stats(g, a))
+      else if (stats(g, a)) {
+        marks(g, a);
         seen_[n++] = a.seen;
+      }
     }
     return latched_ ? 0 : n;
   }
@@ -441,6 +489,7 @@ public:
     const JobCounts &c = counts;
     s.job.turns = c.turns, s.job.stale = c.stale, s.job.doubled = c.doubled, s.job.mode = c.mode;
     s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
+    s.job.unread = c.unread;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
@@ -516,6 +565,16 @@ private:
     a.player = player;
     a.seen.dying = a.pending || (a.life >= 3 && a.life <= 5);
     return true;
+  }
+  // What a fighting actor's state map holds of kStatesRead, into a.states and its Seen: NoDamageNoHit (3) before
+  // NoDamage (4), as ApplyStat blocks on either. A map that fails its checks holds nothing, counted, never latched: it
+  // only feeds the host's bypass counts. The life state gate is SB's: it changes no state while dying.
+  template <class Game> void marks(Game &g, Actor &a) {
+    a.states = 0;
+    if (fighting(a) && !held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb,
+                                    a.states))
+      ++counts.unread;
+    a.seen.nodamage = a.states >> kNoDamageNoHit & 1 ? kNoDamageNoHit : a.states >> kNoDamage & 1 ? kNoDamage : 0;
   }
   // HP, Shield and Stamina with their maxes. Implausible (the feature off for the run) unless every one is finite and
   // within [0, 10,000,000], and HP <= MaxHP.
@@ -635,6 +694,7 @@ private:
       a.eve = a.controlled == 1 && local && a.fsb == local;
       if (a.eve && !pc(g, a))
         return;
+      marks(g, a);
       if (a.eve)
         eve_ = a.seen.guid;
       ++actors_;
@@ -694,6 +754,7 @@ private:
     Actor b;
     const uint64_t la = g.find(logic, w.guid);
     if (la && live(g, la, w.guid, b) && raw(g, b) && get(g, b.fsb + kActorType, b.type)) {
+      marks(g, b);
       b.out = left_out(b);
       g.probe(b);
     }
@@ -1201,13 +1262,20 @@ private:
   // ponytail: shown_ keeps a line for each GUID this probe saw; fine for T11a's half hour, bound it for longer probes.
   template <class Io> void probed(const Actor &a, Io &io) {
     const Seen &s = a.seen;
-    char text[224];
-    std::snprintf(text, sizeof text,
-                  "fight probe guid=%u key=%u:%u chr=%u type=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s%s%s", s.guid,
-                  s.spawn, unsigned(s.index), s.chr, unsigned(a.type), a.life, s.value[kHp], whole(s.max[kHp]),
-                  s.value[kShield], whole(s.max[kShield]), s.value[kStamina], whole(s.max[kStamina]),
-                  a.eve ? " eve" : a.controlled == 1 ? " controlled" : "", a.player ? " player" : "",
-                  a.pending ? " pending" : "", a.out ? " left_out=" : "", a.out ? a.out : "");
+    char text[320];
+    int at = std::snprintf(text, sizeof text,
+                           "fight probe guid=%u key=%u:%u chr=%u type=%u life=%d hp=%d/%d sh=%d/%d st=%d/%d%s%s%s%s%s",
+                           s.guid, s.spawn, unsigned(s.index), s.chr, unsigned(a.type), a.life, s.value[kHp],
+                           whole(s.max[kHp]), s.value[kShield], whole(s.max[kShield]), s.value[kStamina],
+                           whole(s.max[kStamina]), a.eve ? " eve" : a.controlled == 1 ? " controlled" : "",
+                           a.player ? " player" : "", a.pending ? " pending" : "", a.out ? " left_out=" : "",
+                           a.out ? a.out : "");
+    const char *sep = " states="; // The states held among those read: states=3,27.
+    for (const int32_t state : kStatesRead)
+      if (a.states >> state & 1 && at > 0 && size_t(at) < sizeof text) {
+        at += std::snprintf(text + at, sizeof text - size_t(at), "%s%d", sep, int(state));
+        sep = ",";
+      }
     std::string &said = shown_[s.guid];
     if (said != text)
       io.trace(said = text);
@@ -1297,11 +1365,12 @@ private:
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
-                  "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE; "
+                  "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
+                  "%llu state maps unread; "
                   "%llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max %llu us; logic "
                   "thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
-                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(s.lost), u(dropped_), u(unsent_),
+                  u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.trace(std::string(head) + tail);
   }

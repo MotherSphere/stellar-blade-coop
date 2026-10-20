@@ -464,7 +464,9 @@ shows when a check of the game's memory turned it off for the run. These notices
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, type, HP, Shield, Stamina) to
   `coop-fight.log`, where you find the ids for `fight_chars`. With no `fight_chars` list, the line of a Monster that
   `auto` leaves out ends with `left_out=charId` (the Gorgon or a turret) or `left_out=MaxHP` (more than 500,000
-  maximum HP). Once the log says `fight writes=armed`,
+  maximum HP). A line ends with `states=` when the actor holds one of the game states the mod reads: 3
+  (NoDamageNoHit, during a grab), 4 (NoDamage), 6 (Down), 7 (Groggy), 8 (Airborne) or 27 (Immortal). Once the log says
+  `fight writes=armed`,
   `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the shared enemy with
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
   `coop fight replay` plays that file into the guest's side.

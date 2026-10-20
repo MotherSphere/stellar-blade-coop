@@ -71,6 +71,28 @@ struct Memory {
   }
 };
 
+// SB's state map at fsb + 0x560 (PHASE11-STAGE2-RE 1): the (state, count) pairs as elements in order at data, each
+// bucket's chain newest first, HashSize size with its buckets inline (heap 0) or at heap; NumFree 0.
+void put_states(Memory &mem, uint64_t fsb, const std::vector<std::pair<int32_t, int32_t>> &keys, uint64_t data,
+                uint64_t heap, int32_t size) {
+  const uint64_t map = fsb + kStateMap;
+  std::vector<int32_t> bucket(size_t(size), -1);
+  for (size_t i = 0; i < keys.size(); ++i) {
+    const int32_t slot = keys[i].first & (size - 1), e[4] = {keys[i].first, keys[i].second, bucket[size_t(slot)], slot};
+    std::memcpy(mem.at(data + 16 * i, 16), e, 16);
+    bucket[size_t(slot)] = int32_t(i);
+  }
+  mem.put(map, data);
+  mem.put<int32_t>(map + 0x08, int32_t(keys.size()));
+  mem.put<int32_t>(map + 0x34, 0);
+  mem.put<uint64_t>(map + 0x40, heap);
+  mem.put<int32_t>(map + 0x48, size);
+  if (heap)
+    std::memcpy(mem.at(heap, 4 * bucket.size()), bucket.data(), 4 * bucket.size());
+  else
+    mem.put<int32_t>(map + 0x38, bucket[0]);
+}
+
 // One PC's game: SB's globals, the net-mode cache, the logic singleton with its actor map (elements and allocation
 // bits, inline up to 128) and job queue, the world's actor manager, logic actors and FSBActors; this PC's EVE is
 // GUID 1. SB's lookup, ApplyStat, SendJob, remove-dead and Logic Reset act as the decompiles show; channel 2 is two
@@ -80,8 +102,9 @@ struct Game {
   uint64_t net = 0, logic = 0, world = 0, manager = 0, players = 0, data = 0, heap = 0, eve = 0;
   int32_t capacity = 0;
   struct Body {
-    uint64_t fsb = 0;
-    bool nodamage = false, immortal = false;
+    uint64_t fsb = 0, states_at = 0;          // Its state map's elements and buckets.
+    std::map<int32_t, int32_t> states;        // The state map's counts by state (a key stays at 0 once added).
+    bool immortal = false;
     int deaths = 0;
     uint64_t killer = 0;  // The cause of its death.
     uint32_t gone_at = 0; // Once dying: the turn remove-dead takes it out of the map.
@@ -201,11 +224,24 @@ struct Game {
       mem.put(f + kStatBase + 4 * size_t(kStatType[s] + 1), max[s]);
     }
     bodies[la].fsb = f;
+    bodies[la].states_at = mem.alloc(0x600); // Elements (64 at most), then 8 buckets at +0x400.
     by_guid[guid] = la;
     link(guid, la);
     return la;
   }
   Body &body(uint32_t guid) { return bodies[by_guid[guid]]; }
+  // A state's count on an actor, and its state map written again: HashSize 1 with the inline bucket for one key or
+  // none, else 8 buckets on the heap (states 3 and 27 then chain in one).
+  void state(uint32_t guid, int32_t s, int32_t count) {
+    Body &b = body(guid);
+    b.states[s] = count;
+    const std::vector<std::pair<int32_t, int32_t>> keys(b.states.begin(), b.states.end());
+    put_states(mem, b.fsb, keys, b.states_at, keys.size() > 1 ? b.states_at + 0x400 : 0, keys.size() > 1 ? 8 : 1);
+  }
+  static bool held(const Body &b, int32_t s) {
+    auto it = b.states.find(s);
+    return it != b.states.end() && it->second;
+  }
   uint64_t fsb(uint32_t guid) { return body(guid).fsb; }
   uint64_t stat_at(uint32_t guid, int s) { return fsb(guid) + kStatBase + 4 * size_t(kStatType[s]); }
   int32_t hp(uint32_t guid) { return int32_t(mem.get<float>(stat_at(guid, kHp))); }
@@ -233,7 +269,7 @@ struct Game {
     const float d = std::trunc(delta);
     if (d == 0 || (type == 1 && (mem.get<uint8_t>(la + kPendingDeath) || (life >= 3 && life <= 5))))
       return;
-    if (d < 0 && (type == 1 || type == 7) && b.nodamage && !ignore)
+    if (d < 0 && (type == 1 || type == 7) && (held(b, 3) || held(b, 4)) && !ignore)
       return;
     const uint64_t at = b.fsb + kStatBase + 4 * uint64_t(type);
     const float v = mem.get<float>(at), max = mem.get<float>(at + 4);
@@ -510,6 +546,70 @@ int main() {
     default: g.mem.put<uint64_t>(g.logic + kMapData, 0x7f0000000000); // Plausible, unmapped.
     }
     assert(e->pass(g, g.logic, true, nullptr, 0) == 0 && e->latched() && std::string(e->why()) == why);
+  }
+
+  // ---- The state map at FSBActor +0x560, read without SB's call (PHASE11-STAGE2-RE 1) ----
+  {
+    Memory mem;
+    const uint64_t fsb = mem.alloc(0x600), data = mem.alloc(0x800), heap = mem.alloc(0x200);
+    const auto read = [&](uint64_t at, void *out, size_t n) { return mem.read(at, out, n); };
+    uint32_t held = 99;
+    // A fresh actor's empty map (ArrayNum == NumFree): nothing held, and nothing else read.
+    assert(held_states(read, fsb, held) && held == 0);
+    // One key: HashSize 1 and the inline bucket. A key at 0 is not held; any other count is.
+    put_states(mem, fsb, {{4, 2}}, data, 0, 1);
+    assert(held_states(read, fsb, held) && held == 1u << 4);
+    put_states(mem, fsb, {{4, 0}}, data, 0, 1);
+    assert(held_states(read, fsb, held) && held == 0);
+    // After ClearAllStates: keys 1 to 105 at 0, then NoDamageNoHit and Airborne held, 128 buckets on the heap.
+    std::vector<std::pair<int32_t, int32_t>> all;
+    for (int32_t s = 1; s <= 105; ++s)
+      all.push_back({s, s == 3 || s == 8 ? 1 : 0});
+    put_states(mem, fsb, all, data, heap, 128);
+    assert(held_states(read, fsb, held) && held == (1u << 3 | 1u << 8));
+    // 8 buckets: 3, 11, 19 and 27 share one, and the walk follows its chain to each; Down held.
+    put_states(mem, fsb, {{3, 0}, {11, 1}, {27, 1}, {19, 2}, {6, 1}}, data, heap, 8);
+    assert(held_states(read, fsb, held) && held == (1u << 27 | 1u << 6));
+    // A torn map is refused, never walked for long or out of its array: a chain looping on itself, a link past
+    // ArrayNum, a HashSize that is no power of two, several buckets with none on the heap, an implausible array.
+    put_states(mem, fsb, {{3, 0}, {11, 0}}, data, heap, 8);
+    mem.put<int32_t>(data + 8, 1); // 3 links back to 11: the walk for 27 would never end.
+    assert(!held_states(read, fsb, held) && held == 0);
+    put_states(mem, fsb, {{3, 1}}, data, heap, 8);
+    mem.put<int32_t>(heap + 4 * 3, 2);
+    assert(!held_states(read, fsb, held));
+    put_states(mem, fsb, {{3, 1}}, data, heap, 3);
+    assert(!held_states(read, fsb, held));
+    put_states(mem, fsb, {{3, 1}, {4, 1}}, data, 0, 8);
+    assert(!held_states(read, fsb, held));
+    put_states(mem, fsb, {{3, 1}}, data, heap, 8);
+    mem.put<uint64_t>(fsb + kStateMap, 0x1235);
+    assert(!held_states(read, fsb, held));
+  }
+
+  // ---- NoDamage windows: the host counts each claim it applies during one, from its copy's state map ----
+  {
+    Game g;
+    auto e = engine(true, true);
+    for (uint32_t i = 0; i < 3; ++i)
+      g.spawn(101 + i, 5001 + i, 0);
+    g.state(101, 3, 1); // NoDamageNoHit: a grab.
+    g.state(102, 4, 2); // NoDamage, held twice.
+    g.state(103, 4, 0); // NoDamage gone: its key stays at 0.
+    g.inbox.push_back(msg("SBF9 on"));
+    frame(g, *e, 0);
+    for (const char *hit : {"SBF9 hit 1 1 101 100 0 0 1600 0", "SBF9 hit 1 2 102 100 0 0 1600 0",
+                            "SBF9 hit 1 3 103 100 0 0 1600 0"})
+      g.inbox.push_back(msg(hit));
+    frame(g, *e, 16);
+    // Every claim passes NoDamage; the two in a window are counted, each under its state.
+    assert(g.hp(101) == 1500 && g.hp(102) == 1500 && g.hp(103) == 1500);
+    assert(e->host.counts.bypass3 == 1 && e->host.counts.bypass4 == 1 && e->host.counts.claims == 3);
+    // A torn map reads as no window, counted, and the shared fight goes on.
+    g.mem.put<int32_t>(g.fsb(101) + kStateMap + 0x48, 3);
+    g.inbox.push_back(msg("SBF9 hit 1 4 101 100 0 0 1500 0"));
+    frame(g, *e, 32);
+    assert(g.hp(101) == 1400 && e->host.counts.bypass3 == 1 && e->counts.unread >= 1 && !e->latched());
   }
 
   // ---- fight_chars=auto: with no list, every Monster (ActorType 3 at FSBActor +0x368), never a boss or an Alpha
@@ -1458,6 +1558,7 @@ int main() {
       }
     };
     g.spawn(101, 5001, 0);
+    g.state(101, 27, 1); // Immortal: the probe's line names the states it holds among those read.
     assert(ask("fight test hp -10") == "shared fight test refused: only while coop fight probe runs");
     assert(ask("fight probe 900") == "shared fight probe: waiting for a loaded save" && !e->on());
     assert(w.detail() == "fight=waiting mode=probe why=no save loaded" && w.status() == " fight=waiting");
@@ -1472,7 +1573,7 @@ int main() {
         "fight probe guid=1 key=0:0 chr=0 type=1 life=1 hp=1600/1600 sh=100/100 st=200/200 eve player";
     const std::string fresh =
         "fight probe guid=101 key=5001:0 chr=900 type=3 life=1 hp=1600/1600 sh=100/100 st=200/200";
-    assert(io.tracing(eve) == 1 && io.tracing(fresh) == 1 && io.saying("fight writes=armed: ") == 1);
+    assert(io.tracing(eve) == 1 && io.tracing(fresh + " states=27") == 1 && io.saying("fight writes=armed: ") == 1);
     assert(io.tracing("fight stats: probe, 2 actors, our EVE found") == 1 && io.lines().empty());
     assert(!io.saying("fight probe guid=") && !io.saying("fight stats") && w.status() == " fight=probe");
     g.hit(101, kHp, 100);
@@ -1663,7 +1764,7 @@ int main() {
     for (; t < end; t += 16) {
       to_host.deliver(t, H);
       to_guest.deliver(t, G);
-      G.body(901).nodamage = t >= 6000 && t < 9000;
+      G.state(901, 4, t >= 6000 && t < 9000);
       for (uint32_t i = 0; i < 4; ++i) {
         if (t < next_hit[i])
           continue;
