@@ -1523,6 +1523,29 @@ int main() {
     frame(g, *e, t += 16);
     assert(!g.table.on && g.casts.size() == 6 && !std::strcmp(e->snapshot().pilot_why, "stopped"));
   }
+  // On the guest's side "host" means the host's list came and says place 0. The host's off line (a load, photo mode),
+  // its on line (a restart) and the wait for its world say "fight", as the shared fight's own notices do.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    uint64_t t = 0;
+    const auto why = [&](std::initializer_list<const char *> in) {
+      for (const char *line : in)
+        g.inbox.push_back(msg(line));
+      frame(g, *e, t += 16);
+      const char *w = e->snapshot().pilot_why;
+      return std::string(w ? w : "on");
+    };
+    assert(why({}) == "fight");
+    assert(why({"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"}) == "on");
+    assert(why({"SBF11 off photo mode"}) == "fight");
+    assert(why({"SBF11 on"}) == "fight");
+    assert(why({"SBF11 world 2"}) == "host"); // Its list, with no place line: the host's same_place is off.
+    assert(why({"SBF11 place 2 1", "SBF11 up 2 101 5001 0 900 1600"}) == "on");
+    assert(why({"SBF11 place 2 0"}) == "host");
+  }
   {
     Game g;
     auto e = engine(true, true);

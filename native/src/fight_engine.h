@@ -1295,11 +1295,14 @@ private:
     const uint32_t *refused = flags_.refused,
                    *refused_end = refused + std::min<size_t>(flags_.refused_count, kMaxPairs);
     // Why same-place enemies do not run on this side, or null: the pilot's latch, coop fight pilot off, then the host's
-    // same_place (its own, or its place line on the guest's side) and, on the host's side, her side off.
+    // same_place (its own, or its place line on the guest's side) and, on the host's side, her side off. On the
+    // guest's, "host" only once the host's list came (its world line, with its place line in the same step): before
+    // it (the host's off or on line, or our own world fence) the shared fight is not running, not the host's choice.
     pilot_why_ = pilot_stopped_               ? "stopped"
                  : pilot_off_                 ? "asked"
                  : hosting && !same_place_    ? "setting"
                  : hosting && !host.peer_on() ? "fight"
+                 : !hosting && !guest.gen()   ? "fight"
                  : !hosting && !guest.place() ? "host"
                                               : nullptr;
     table_.on = !pilot_why_;
@@ -1712,6 +1715,7 @@ public:
     return std::strcmp(why, "stopped") == 0 ? std::string("stopped") : std::string("off why=") + why;
   }
   bool piloting() const { return pilot().rfind("on ", 0) == 0; }
+  Fight mode() const { return mode_; } // What was asked last (none: idle, or ended).
   // For the status line: " fight=on <enemies the host arbitrates or pairs the guest follows>", " fight=probe" (no
   // count: its actors may change at each census, and Lua logs each new status line), " fight=waiting" (asked but
   // paused), " fight=stopped" (latched for the run), or empty.
