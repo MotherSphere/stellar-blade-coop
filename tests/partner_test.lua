@@ -218,9 +218,12 @@ local function texts(g)
 end
 local function frame(dt) now=now+(dt or 0.034); hud.tick(now) end
 setup()
--- Three groups: the card top left (under the feed: 96 to 296), the marker scaled from its bottom centre (her head),
--- the arrow from its diamond; none shown before the first slow.
+-- Three groups: the card top left (above the feed: 96 to 316, the feed from 330), the marker scaled from its bottom
+-- centre (her head), the arrow from its diamond; none shown before the first slow. Both scale from their top left: the
+-- open chat's first line (330 + 32 a scale unit) clears the card up to ui_scale=124.
 assert(groups.card.place.x==96 and groups.card.place.y==96 and groups.card.place.y+groups.card.place.h<=330)
+local function card_clear(s) return 96+groups.card.place.h*s<=330+32*s end
+assert(card_clear(1.24),groups.card.place.h)
 assert(groups.marker.place.pivot.X==0.5 and groups.marker.place.pivot.Y==1 and groups.arrow.place.pivot.X==0.5)
 assert(not groups.card.place.shown and not groups.marker.place.shown and not groups.arrow.place.shown)
 assert(not groups.card.place.hit and not groups.marker.place.hit,'Hit tests pass through the HUD')

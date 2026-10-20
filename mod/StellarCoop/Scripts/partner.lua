@@ -100,9 +100,10 @@ local TWEEN,GREY,NAME=0.3,0.45,20 -- s a gauge moves; a greyed card's opacity; c
 local MW,MH,AW,AH,AC=320,120,160,180,80 -- Marker and arrow sizes in layout units; the arrow's diamond centre in it.
 -- The card in layout units: its place (under it from y 330, the feed), its size, where its rows start (after their
 -- labels' column), its name's line, and each row's label, top and height (HP: 3 rows of 15-unit dots; SH: 2 of 10;
--- BE: 30-unit cubes).
-local CX,CY,CW,CH,ROW_X,NAME_Y=96,96,744,232,120,50
-local HP_ROW,SH_ROW,BE_ROW={'HP',82,45},{'SH',140,20},{'BE',173,30}
+-- BE: 30-unit cubes). Rows 9 units apart and 6 from the rails keep it short: the open chat's first line (330 + 32 per
+-- scale) stays clear of it up to ui_scale=124.
+local CX,CY,CW,CH,ROW_X,NAME_Y=96,96,744,220,120,46
+local HP_ROW,SH_ROW,BE_ROW={'HP',79,45},{'SH',133,20},{'BE',162,30}
 local MID,RIGHT={X=0,Y=0.5},{X=1,Y=0.5} -- A text centred on its line, from its left or its right end.
 local TWEENED={'hp','shield','beta'}
 -- o: {kit=ui.kit's, link= (chatting, friend, mate, ping), puppet= (anchor, her_map, me), settings= (main.lua's: the
