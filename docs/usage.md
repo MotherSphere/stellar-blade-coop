@@ -365,29 +365,36 @@ so it shares enemies only on a co-op save, and kills count in the co-op save. Ba
 
 To use it, both players turn on Options > Combat > Shared enemies (experimental) in the [co-op menu](#options)
 (`shared_enemies=on` in [coop-settings.txt](#coop-settingstxt)) and play a [co-op save](#co-op-saves). The row takes
-effect at once. It then starts by itself once you are linked, both on a co-op save and on the same map. Turning the row
-off stops it.
+effect at once. It then starts by itself once you are linked and both on a co-op save. Enemies get linked only while
+you are on the same map. Turning the row off stops it, but not the solo test tools below.
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the
 game's BossMonster type) are not shared yet. A list of character ids instead, for example
 `fight_chars=15011001 15011002` (16 at most), shares those enemies only, of any type. A file written before `auto`
 existed has `fight_chars=` with nothing after it, which counts as `auto`.
 
+The host shares 16 enemies at a time. When all 16 places are taken, an enemy the host hurts takes the place of one at
+full HP that the friend never hit. When every place holds an enemy in a fight, `coop-link.log` says
+`fight full every place holds an enemy in a fight; a hurt one is not shared`, and the next enemies stay unshared until
+one of the 16 dies or leaves.
+
 While something keeps it from sharing, one notice says what. It shows again only when that changes, or in the next
-session:
+session, and 5 seconds after the last one at the soonest:
 
 | What is missing | Notice |
 | --- | --- |
-| You play your own save | `Shared enemies need a co-op save, and this is your own save. Quit to the title screen and switch to the co-op saves (Play co-op), then Continue or load the same slot number. The ghost works on any save.` |
+| You play your own save | `Shared enemies need a co-op save, and this is your own save. Quit to the title screen and choose Convert and play co-op (Play co-op once you have co-op copies), then Continue or load the same slot number. The ghost works on any save.` |
 | The same, with `auto_coop_save=off` or when the co-op copies cannot be used (`saves=off` or `saves=?`) | `Shared enemies need a co-op save, and this is your own save. With the co-op copies off, only the manual co-op slot counts (see INSTALL.md). The ghost works on any save.` |
-| Your friend plays their own save | `Shared enemies wait: <name> plays their own save. They can switch at the title screen with Play co-op.` |
+| Your friend plays their own save | `Shared enemies wait: <name> plays their own save. They can switch at the title screen with Convert and play co-op (Play co-op once they have co-op copies).` |
 | Your friend has shared enemies off | `Shared enemies wait: <name> has them off (co-op menu, Options, Combat).` |
 | Shared enemies stopped in your friend's game | `Shared enemies stopped for this run in <name>'s game. Their coop-link.log says why.` |
 | You are on different maps | `Shared enemies wait until you and <name> are on the same map.` |
 
 Waiting for a friend, a load or the end of photo mode shows nothing. `Shared enemies on: <n> enemies linked.` shows when
-enemies get linked after none (the host counts none until the friend's side is on), and
-`Shared enemies off: <why>.` when it stops after it ran or waited. These notices use the menu's language.
+enemies get linked after none (the host counts none until the friend's side is on).
+`Shared enemies off. coop-link.log says why.` shows when it stops after it ran or waited, unless you stopped it yourself
+(the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
+shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
 - `coop fight on` asks for it by hand (it needs `shared_enemies=on`) and `coop fight off` stops it until the mod
   reloads or the row is turned off and on again. It waits for a linked friend, a loaded save and a co-op save, and pauses
@@ -397,7 +404,7 @@ enemies get linked after none (the host counts none until the friend's side is o
 - `coop fight status` prints the `fight=` line of `coop status`, for example
   `fight=on mode=on role=host enemies=3 ... her=on`. While a friend is linked, `her=` gives their side: `on`,
   `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run), `waiting` (a load, photo
-  mode) or `?` (nothing heard from their game yet).
+  mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their game yet).
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, type, HP, Shield, Stamina) to
   `coop-fight.log`, where you find the ids for `fight_chars`. Once the log says `fight writes=armed`,
   `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the shared enemy with
