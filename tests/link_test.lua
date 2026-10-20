@@ -326,7 +326,8 @@ assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
 s,notes=Link.parse_settings(before_photo)
 assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.shared_enemies==true)
 
--- The file is the user's: written with the defaults when absent, never written again.
+-- The file is the user's: written with the defaults when absent, never written again (but for the old send rate:
+-- below).
 local SETTINGS,writes='C:\\Mod\\coop-settings.txt',0
 fs.write=function(path,text) writes=writes+1; return write(path,text) end
 s,notes=link.settings()
@@ -363,6 +364,39 @@ assert(second.write_settings('send_rate=14\n') and files[SETTINGS]=='send_rate=1
 fs.rename=rename
 files[SETTINGS],files[OLD_FILE]=nil,nil
 assert(link.settings_text()==nil)
+-- send_rate=20, the default up to 30 poses a second: read as 60, and the file rewritten once through settings_file.set,
+-- its old comment turned into the new one (or the new one added at the end), the file as it was kept as
+-- coop-settings.old.txt. A file with the new comment keeps 20 (picked in the menu), and any other rate stays.
+local NOTE,OLD_NOTE='# Poses sent to your friend a second: 10 to 60.','# Poses sent to your friend a second: 10 to 30.'
+local old_template=Link.DEFAULT:gsub(NOTE:gsub('%p','%%%0'),OLD_NOTE):gsub('send_rate=60','send_rate=20')
+assert(old_template~=Link.DEFAULT and old_template:find(OLD_NOTE,1,true) and old_template:find('\nsend_rate=20\n'))
+files[SETTINGS]=old_template
+s,notes=require('link').new('C:\\Mod',fs).settings()
+assert(s.send_rate==60 and files[SETTINGS]==Link.DEFAULT and files[OLD_FILE]==old_template,files[SETTINGS])
+assert(#notes==1 and notes[1]=='settings: send_rate=20, the old default, is now 60 in coop-settings.txt',notes[1])
+writes=0
+fs.write=function(path,text) writes=writes+1; return write(path,text) end
+s,notes=require('link').new('C:\\Mod',fs).settings()
+assert(s.send_rate==60 and writes==0 and #notes==0,'Once only')
+for _,case in ipairs({{'send_rate=20\n','send_rate=60\n'..NOTE..'\n'},
+        {'a=1\r\nsend_rate=20','a=1\r\nsend_rate=60\r\n'..NOTE..'\r\n'},
+        {'send_rate=20\nsend_rate=x\n','send_rate=20\nsend_rate=60\n'..NOTE..'\n'}}) do
+    files[SETTINGS]=case[1]
+    s=require('link').new('C:\\Mod',fs).settings()
+    assert(s.send_rate==60 and files[SETTINGS]==case[2],files[SETTINGS])
+end
+for _,text in ipairs({NOTE..'\nsend_rate=20\n','send_rate=25\n','send_rate=10\n','# no rate\n'}) do
+    files[SETTINGS],writes=text,0
+    s,notes=require('link').new('C:\\Mod',fs).settings()
+    assert(writes==0 and files[SETTINGS]==text and #notes==0 and s.send_rate==(tonumber(text:match('send_rate=(%d+)')) or 60))
+end
+fs.write=function() return false end
+files[SETTINGS]='send_rate=20\n'
+s,notes=require('link').new('C:\\Mod',fs).settings()
+assert(s.send_rate==60 and files[SETTINGS]=='send_rate=20\n' and notes[1]:find('^settings: send_rate=20, the old default, '
+    ..'read as 60 %(coop%-settings%.txt not rewritten: '),notes[1])
+fs.write=write
+files[SETTINGS],files[OLD_FILE]=nil,nil
 
 -- coop-state.txt: written once per change; a failed write is not remembered, so the next call writes it.
 local STATE_FILE,state_writes='C:\\Mod\\coop-state.txt',0

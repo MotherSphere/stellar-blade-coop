@@ -15,12 +15,13 @@
 -- through coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op
 -- menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
+local SF=require('settings_file')
 local T=require('ui_text')
 local clean=require('chat').clean
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, changed by the co-op menu one line at a
--- time (write_settings), never shipped (an update would replace it). F-key codes do not depend on the keyboard layout,
--- and Stellar Blade binds none of them.
+-- time (write_settings) and once for the old default send rate (Link.migrate_rate), never shipped (an update would
+-- replace it). F-key codes do not depend on the keyboard layout, and Stellar Blade binds none of them.
 Link.DEFAULT=[[
 # StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
@@ -131,6 +132,23 @@ local function setting(name,text)
         return nil,'use 75 to 150'
     end
     return K.parse(name,text)
+end
+-- send_rate=20 was the default up to 30 poses a second. A file from then (no RATE_NOTE, the comment Link.DEFAULT now
+-- has) that still says 20: its text with send_rate=60 and RATE_NOTE (in place of the old comment, else at the end), so
+-- it is changed once and a 20 picked later stays. nil for any other file, and nil, why when the line cannot be set.
+-- ponytail: an old file that kept another rate and gets 20 from the menu later is still changed at the next load; the
+-- menu's write (ui_model.lua) could add RATE_NOTE too if that ever matters.
+local RATE_NOTE='# Poses sent to your friend a second: 10 to 60.'
+local OLD_RATE_NOTE='# Poses sent to your friend a second: 10 to 30.'
+function Link.migrate_rate(text)
+    local rate=SF.get(text,'send_rate',function(value) return setting('send_rate',value)~=nil end)
+    if tonumber(rate)~=20 or text:find(RATE_NOTE,1,true) then return nil end
+    local new,why=SF.set(text,'send_rate','60')
+    if not new then return nil,why end
+    local at,stop=new:find(OLD_RATE_NOTE,1,true)
+    if at then return new:sub(1,at-1)..RATE_NOTE..new:sub(stop+1) end
+    local nl=new:find('\r\n',1,true) and '\r\n' or '\n'
+    return new..((new=='' or new:sub(-1)=='\n') and '' or nl)..RATE_NOTE..nl
 end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
@@ -431,6 +449,18 @@ function Link.new(folder,fs)
             local ok,why=put('coop-settings.txt',text,true)
             wrote=ok and 'settings: coop-settings.txt written with the defaults'
                 or 'settings: cannot write coop-settings.txt ('..tostring(why)..'): defaults used'
+        else -- The old default send rate, read as the new one even when the file cannot be rewritten.
+            local new,why=Link.migrate_rate(text)
+            if new then
+                local ok
+                ok,why=self.write_settings(new)
+                text=new
+                wrote=ok and 'settings: send_rate=20, the old default, is now 60 in coop-settings.txt'
+                    or 'settings: send_rate=20, the old default, read as 60 (coop-settings.txt not rewritten: '
+                        ..tostring(why)..')'
+            elseif why then
+                wrote='settings: send_rate=20, the old default, kept: '..why
+            end
         end
         local settings,notes=Link.parse_settings(text)
         if wrote then table.insert(notes,1,wrote) end

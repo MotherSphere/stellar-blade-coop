@@ -47,7 +47,7 @@ M.OPTIONS={
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
     toggle('cloth','off'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
-    range('send_rate',10,60,5,60), -- 5 a step: an older file's 20 is 8 presses from 60.
+    range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
     later(toggle('rejoin','on')),
