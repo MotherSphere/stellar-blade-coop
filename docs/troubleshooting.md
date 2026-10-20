@@ -147,7 +147,8 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   size, and frames held back by the 192 KiB/s byte budget), tables in and refused, poses received, foreign (of no
   table, or of one the ghost is not built on yet), malformed and rejected, keyless (deltas whose keyframe was lost),
   losses, stalls, the one-way delay, and poses drawn and written. Between two PCs the one-way delay includes the
-  offset between their clocks, so the value means nothing there.
+  offset between their clocks, so the value means nothing there. At 60 poses a second a lost keyframe leaves a gap of
+  about 270 ms, so it also counts as one stall, and the deltas dropped with it count as both keyless and missing.
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.

@@ -175,9 +175,10 @@ without Nagle delay).
   blade drawn) goes at once.
 - A table of theirs that needs a new ghost (a new generation or layout) is taken at most once every 2 s. One that comes
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
-- Poses go 60 a second by default (`send_rate`, 10 to 60). With deltas, 60 a second took 89 to 131 KiB/s in tests
-  with simulated idle, running and combat motion on a 5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a
-  pose back while its poses would pass 192 KiB/s, under Steam's default send rate of 256 KiB/s.
+- Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
+  sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
+  5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s, under
+  Steam's default send rate of 256 KiB/s.
 - Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 160 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
@@ -278,6 +279,8 @@ pose still arrives before it is needed:
   250 ms above it for 5 s (a clock step) moves it at once.
 - Without jitter the ghost is drawn 1.5 send intervals behind the newest pose. With jitter it is drawn far enough back
   that a late pose is still ahead of it (the recent jitter peak, decaying, capped at 250 ms).
+- The send interval is the time between two poses' publications divided by the difference of their sequence numbers,
+  so lost poses, or the deltas dropped after a lost keyframe, do not push the ghost further back.
 - Between two poses the pose is interpolated. Past the newest one it is extrapolated by at most half an interval.
   After 3 s without a pose the old ones are dropped, so the ghost never slides across the gap.
 

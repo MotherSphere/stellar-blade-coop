@@ -88,8 +88,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
   friends you invite can join). It counts for the next session you host.
 - `name_tag`: `on` or `off`, your friend's Steam name above their ghost. While the partner marker shows their name
   (`partner_bar=on`, the default), the name tag is hidden.
-- `send_rate`: poses sent to your friend per second, from 10 to 60 (60 by default). A file made by an older version
-  keeps its own value, usually 20: set 60 in the menu or in the file.
+- `send_rate`: poses sent to your friend per second, from 10 to 60 (60 by default), at most one per game frame. The
+  ghost you see moves at your friend's rate, so both of you need the new value. A file made by an older version keeps
+  its own value, usually 20: set 60 in the menu (5 a step) or in the file.
 - `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default. The file
   names them only in a comment, so add a line such as `cloth=on` to turn one on.
   - `cloth`: her ponytail swings as cloth. Off, it stays rigid.
