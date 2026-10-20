@@ -84,7 +84,7 @@ build/host/pose_codec_test
     and channel 2 with their checks, the photo line, the chat and vitals lines, joining with a code, and the host's
     approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting);
   - `pose_engine_test`: the pose path against fake memory;
-  - `pose_codec_test`: the codec's round trips and a decoder fuzz;
+  - `pose_codec_test`: the codec's round trips, the deltas against a keyframe, and a decoder fuzz;
   - `pose_table_test`: the component table and the display file, with a parser fuzz;
   - `pose_record_test`: the recording's reader, with a fuzz, and its replay;
   - `pose_stream_test`: the loopback pipeline in simulated time;
@@ -95,7 +95,8 @@ build/host/pose_codec_test
     write, the manifest, the backup before the first copy, torn reads and failed writes, and the requests and the
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
-  - `fight_engine_test`: the shared enemies' side inside the game, and the vitals read, against fake memory;
+  - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves
+    out, and the vitals read, against fake memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
     worlds linked through a delayed, lossy line;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
@@ -164,7 +165,7 @@ Platform-free headers, tested on the build machine:
 | `pose_core.h` | The pose path's limits, one part, one effect slot, hex addresses |
 | `pose_table.h` | The component table, the mesh path rule and the display file |
 | `pose_engine.h` | Engine memory reads and writes, and the build pin |
-| `pose_codec.h` | The pose's wire format |
+| `pose_codec.h` | The pose's wire format: keyframes and deltas |
 | `pose_stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose_record.h` | The recording, its check and its replay |
 | `nightop_probe.h` | The `coop no` poller's reads, lines and verdict |

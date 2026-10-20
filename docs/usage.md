@@ -581,9 +581,9 @@ Rules:
   `F8`.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
-- A file written before the 60 poses a second that still says `send_rate=20`, the old default, reads 60. The mod
-  writes `send_rate=60` and the new comment into it once, keeps the file as it was as `coop-settings.old.txt`, and
-  logs a `[StellarCoop] settings:` line. Any other rate stays.
+- A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
+  60. The mod writes `send_rate=60` and the new comment into it once, keeps the file as it was as
+  `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. Any other rate stays.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
   earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in
