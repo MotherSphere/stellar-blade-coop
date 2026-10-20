@@ -301,21 +301,25 @@ local TEX,GAUGE='/Game/Art/UI/Texture/','/Game/Art/UI/Texture/HUD/Gauge/'
 -- The key icons of the game's own menus (80 by 80; PC_ActionAssist's are 128 with a shadow, two of them named in
 -- another case).
 local KEY,SOUND=TEX..'Interaction/PC/KeyIcon_KeyBoard_','/Game/Sound/UI/'
--- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them. Each
--- path in the case of the game's files: the game finds none in another (key_arrows and chevron were missing so).
+-- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them. alt:
+-- the one tried when it is missing. Each path in the case of the game's files as a pak export gives them (the chevron's
+-- 'WorkShop'; a pak listing says 'Workshop'). key_arrows and chevron were missing in game with another case; that the
+-- case was the cause is unproven (the engine's name lookups ignore case), so both have a fallback.
 Ui.ASSETS={{'Bold',GAME_FONT},{'Mideum',path('/Game/Art/Font/Mideum')},{'AGENCYB',path('/Game/Art/Font/AGENCYB')},
     {'FZSHANGYTJW',path('/Game/Art/Font/English/FZSHANGYTJW_Font')},{'Roboto',ENGINE_FONT},{'dot',DOTS},
     {'dot_bg',path(GAUGE..'Hp_Dot1_5x_bg')},{'small',path(GAUGE..'Hp_Dot_12')},{'small_bg',path(GAUGE..'Hp_Dot_12bg')}}
 for i=0,4 do table.insert(Ui.ASSETS,{'cube'..i,path(GAUGE..'Beta_cube_0'..i)}) end
 for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common/selectdot'},
-        {'chevron',TEX..'WorkShop/TriPatternUp'},{'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
+        {'chevron',TEX..'WorkShop/TriPatternUp',alt=TEX..'HUD/triangle'},
+        {'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
         {'key_enter',KEY..'Enter'},{'key_escape',KEY..'Escape'},{'key_space',KEY..'SpaceBar'},{'key_up',KEY..'Up'},
-        {'key_arrows',KEY..'DirectionAll'},{'key_move',KEY..'MoveAll'},{'key_move_azerty',KEY..'MoveAll_AZERTY'},
+        {'key_arrows',KEY..'DirectionAll',alt=TEX..'Interaction/PC_ActionAssist/KeyIcon_KeyBoard_directionAll'},
+        {'key_move',KEY..'MoveAll'},{'key_move_azerty',KEY..'MoveAll_AZERTY'},
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
         {'move',SOUND..'UI_Common_Hover_Cue',1},{'select',SOUND..'ui_button_Confirm_Cue',1},
         {'back',SOUND..'ui_button_cancel',1},{'change',SOUND..'MainMenu/UI_Setting_Select_Cue',1},
         {'chat',SOUND..'ui_notice_Cue',0.5},{'alert',SOUND..'ui_SystemNotice_Cue',1}}) do
-    table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3]})
+    table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3],alt=a.alt and path(a.alt)})
 end
 local VOLUME={}
 for _,a in ipairs(Ui.ASSETS) do VOLUME[a[1]]=a.volume end
@@ -333,8 +337,9 @@ end
 local STYLES={title={'Bold',56},item={'Bold',40},name={'Bold',36},hint={'Bold',30},body={'Mideum',34},
     status={'Mideum',30},head={'Mideum',28},num={'AGENCYB',30},label={'FZSHANGYTJW',30}}
 local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children only.
--- Row height; tween seconds; slide units; rebuilds in a row for a root that left the viewport, then off.
-local ROW,OPEN,CLOSE,SLIDE,LOSSES=76,0.16,0.12,32,3
+-- Row height; tween seconds; slide units; rebuilds in a row for a root that left the viewport, then off; units an
+-- inside group keeps from the viewport's edges.
+local ROW,OPEN,CLOSE,SLIDE,LOSSES,SAFE=76,0.16,0.12,32,3,48
 -- A key hint's icon, square, as the game's photo mode draws these icons beside its text; its label's top below the
 -- icon's, so the hint style's line sits on the icon's middle.
 local KEY_ICON,KEY_TEXT=66,9
@@ -475,8 +480,9 @@ function Ui.kit(opts)
             if tex and not t and flat==false then hide(w); w.gone=true end
             return put(g,w,x,y,width,height)
         end
-        -- A line of text in a style (STYLES) and colour: set(text), color(c), show(on).
-        local function text(x,y,str,style,color)
+        -- A line of text in a style (STYLES) and colour, its point (x, y) at align of its box (top left unless said;
+        -- {X=0, Y=0.5}: centred on that line): set(text), color(c), show(on).
+        local function text(x,y,str,style,color,align)
             local w=make(n,'TextBlock',n.tree.o)
             local st=STYLES[style] or STYLES.body
             local f=get(st[1]) or get('Roboto')
@@ -489,6 +495,7 @@ function Ui.kit(opts)
             w.o:SetText(FText(str))
             paint(w.o,color,n)
             put(g,w,x,y)
+            if align then w.slot:SetAlignment(align) end
             return {set=function(s) s=s or ''; if s~=str then str=s; upd(w,function(x2) x2:SetText(FText(s)) end) end end,
                 color=function(c) if c~=color then color=c; upd(w,function(x2) paint(x2,c) end) end end,
                 show=function(on) show_w(w,on) end}
@@ -732,7 +739,7 @@ function Ui.kit(opts)
         if classes() then return true end
         for _,a in ipairs(Ui.ASSETS) do
             if cache[a[1]]==nil and not (look and a.volume) then
-                local x=load(a[2])
+                local x=load(a[2]) or a.alt and load(a.alt)
                 cache[a[1]]=x and {o=x,full=U.text(x:GetFullName())} or false
                 return true
             end
@@ -817,9 +824,9 @@ function Ui.kit(opts)
         end
         return said_once()
     end
-    -- A group: place {x, y, w, h in layout units, pivot (of the scale, top left unless said), shown, hit (its rows
-    -- take the mouse: the menu)}; build(b) makes its widgets with the builders above at each root build and returns
-    -- its view. Added before the first slow, or the root is built again.
+    -- A group: place {x, y, w, h in layout units, pivot (of the scale, top left unless said), shown, hit (its rows take
+    -- the mouse: the menu), inside (move keeps it on screen: the partner HUD's)}; build(b) makes its widgets with the
+    -- builders above at each root build and returns its view. Added before the first slow, or the root is built again.
     function self.add(name,place,build_view)
         local def={name=name,place=place,shown=place.shown==true,build=build_view}
         order[#order+1]=def
@@ -853,10 +860,38 @@ function Ui.kit(opts)
             end
         end)
     end
-    -- A group's place (the marker follows her): on change only.
+    -- The viewport in layout units ({w, h, s=its DPI scale}): its pixels over its DPI scale, read at most once a second
+    -- (logged when its size changes); nil with no player controller or scale (a map loads). In a run: a raise turns
+    -- the kit off.
+    local function viewport(now)
+        if screen and now<screen.at+1 then return screen end
+        local pc=controller()
+        if not pc then return nil end
+        local lib,was=U.find(LAYOUT),screen
+        local px,s=value_of(lib:GetViewportSize(pc)),tonumber(lib:GetViewportScale(pc))
+        screen=s and s>0 and px.X>0 and px.Y>0 and {w=px.X/s,h=px.Y/s,s=s,at=now} or nil
+        if screen and not (was and was.w==screen.w and was.h==screen.h) then
+            log(string.format('UI viewport: %.0fx%.0f units (%.0fx%.0f pixels at DPI scale %.3g)',screen.w,screen.h,
+                px.X,px.Y,s))
+        end
+        return screen
+    end
+    -- Where an inside group goes for x, y: its box, scaled around its pivot, SAFE units inside the viewport, its left
+    -- and top edges winning when it does not fit; x, y while the viewport is unread.
+    local function inside(p,x,y)
+        local v=viewport(os.clock())
+        if not v then return x,y end
+        local pivot=p.pivot or {X=0,Y=0}
+        local left,top=x+pivot.X*p.w*(1-scale),y+pivot.Y*p.h*(1-scale)
+        local function fit(at,size,room) return math.max(SAFE,math.min(at,room-SAFE-size*scale)) end
+        return x+fit(left,p.w,v.w)-left,y+fit(top,p.h,v.h)-top
+    end
+    -- A group's place (the marker follows her), kept on screen for an inside one: on change only.
     function self.move(name,x,y)
         local g=built and built.groups[name]
-        if not g or (g.x==x and g.y==y) then return end
+        if not g then return end
+        if by[name].place.inside then run(function() x,y=inside(by[name].place,x,y) end) end
+        if off or (g.x==x and g.y==y) then return end
         g.x,g.y=x,y
         upd(g,function() g.slot:SetPosition({X=x,Y=y}) end)
     end
@@ -879,13 +914,7 @@ function Ui.kit(opts)
         run(function()
             local pc=controller()
             local camera=pc and valid(pc.PlayerCameraManager)
-            if not camera then return end
-            if not screen or now>=screen.at+1 then
-                local lib=U.find(LAYOUT)
-                local px,s=value_of(lib:GetViewportSize(pc)),tonumber(lib:GetViewportScale(pc))
-                screen=s and s>0 and px.X>0 and px.Y>0 and {w=px.X/s,h=px.Y/s,s=s,at=now} or nil
-                if not screen then return end
-            end
+            if not (camera and viewport(now)) then return end
             local c,r=value_of(camera:GetCameraLocation()),value_of(camera:GetCameraRotation())
             v={camera={X=c.X,Y=c.Y,Z=c.Z},rotation={Pitch=r.Pitch,Yaw=r.Yaw},anchor=at,width=screen.w,
                 height=screen.h}
@@ -911,7 +940,8 @@ function Ui.kit(opts)
         for _,g in pairs(built and built.groups or {}) do upd(g,function(x) x:SetRenderScale({X=s,Y=s}) end) end
     end
     function self.sounds(on) sounding=on end -- ui_sounds.
-    -- One of the game's UI sounds (Ui.ASSETS' with a volume), as a UI sound of our root's world.
+    -- One of the game's UI sounds (Ui.ASSETS' with a volume), as a UI sound of our root's world. This engine's
+    -- PlaySound2D takes all its 8 parameters: world, sound, volume, pitch, start time, concurrency, owner, UI sound.
     function self.sound(name)
         if off or quiet or not sounding or not built then return end
         local e=VOLUME[name] and cache[name]
@@ -919,7 +949,7 @@ function Ui.kit(opts)
         local ok,why=pcall(function()
             local root,s=alive(built.root),valid(e.o)
             if not (s and U.text(s:GetFullName())==e.full) then cache[name]=nil; return end -- Freed: a later slow finds it.
-            if root then U.find(STATICS):PlaySound2D(root,s,VOLUME[name],1,0) end
+            if root then U.find(STATICS):PlaySound2D(root,s,VOLUME[name],1,0,nil,nil,true) end
         end)
         if not ok then
             quiet=true

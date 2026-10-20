@@ -123,10 +123,11 @@ assert(cubes(0,0,8)=='nil nil nil nil nil nil nil nil nil','Burst before its unl
 
 
 -- The partner HUD (P.hud) on a fake kit: the marker over her head (name, HP dots, shield line, the distance past
--- 15 m) placed from the kit's projection, the arrow on the edge (turned towards her, the distance, three HP pips,
--- whole on screen) with the hysteresis carried from one update to the next, at most 30 updates a second and no
--- projection while there is nothing to place; the top-left card by the player cluster's rules, its gauges tweened over
--- 150 ms; her states (DOWN, elsewhere, connection lost, no vitals: greyed), the alert sound on DOWN and on a lost link;
+-- 15 m) placed from the kit's projection, the arrow on the edge (turned towards her, the distance, three HP pips) with
+-- the hysteresis carried from one update to the next, all three kept inside the screen by the kit, every frame and no
+-- projection while there is nothing to place; the top-left card (her name, then her HP, SH and BE rows, all inside its
+-- panel) by the player cluster's rules, its gauges moving over 300 ms from where they are drawn to her latest value;
+-- her states (DOWN, elsewhere, connection lost, no vitals: greyed), the alert sound on DOWN and on a lost link;
 -- each part on its own setting, changed at once; the name tag left to the marker while it is up.
 local T=require('ui_text')
 local THEME={text='text',grey='grey',teal='teal',error='error',white='white',dim='dim',beta='beta',burst='burst'}
@@ -142,10 +143,10 @@ local function element(kind)
 end
 local function builder(g)
     local b={}
-    function b.panel() end
-    function b.text(x,y,str,style,color)
+    function b.panel(...) g.panel={...} end
+    function b.text(x,y,str,style,color,align)
         local e=element('text')
-        e.v,e.c,e.x,e.y,e.style={str},color,x,y,style
+        e.v,e.c,e.x,e.y,e.style,e.align={str},color,x,y,style,align or {X=0,Y=0}
         g[#g+1]=e
         return e
     end
@@ -217,58 +218,78 @@ local function texts(g)
 end
 local function frame(dt) now=now+(dt or 0.034); hud.tick(now) end
 setup()
--- Three groups: the card top left (under the feed: 96 to 296), the marker scaled from its bottom centre (her head),
--- the arrow from its diamond; none shown before the first slow.
+-- Three groups: the card top left (above the feed: 96 to 316, the feed from 330), the marker scaled from its bottom
+-- centre (her head), the arrow from its diamond; none shown before the first slow. Both scale from their top left: the
+-- open chat's first line (330 + 32 a scale unit) clears the card up to ui_scale=124.
 assert(groups.card.place.x==96 and groups.card.place.y==96 and groups.card.place.y+groups.card.place.h<=330)
+local function card_clear(s) return 96+groups.card.place.h*s<=330+32*s end
+assert(card_clear(1.24),groups.card.place.h)
 assert(groups.marker.place.pivot.X==0.5 and groups.marker.place.pivot.Y==1 and groups.arrow.place.pivot.X==0.5)
 assert(not groups.card.place.shown and not groups.marker.place.shown and not groups.arrow.place.shown)
 assert(not groups.card.place.hit and not groups.marker.place.hit,'Hit tests pass through the HUD')
+assert(groups.card.place.inside and groups.marker.place.inside and groups.arrow.place.inside,
+    'The kit keeps all three inside the screen')
 -- The card: her name in teal, the ping and her map in grey, her gauges by the player cluster's rules at once (the
--- first values are not tweened): HP 40 columns by 3 rows of the big dots, the shield's blocks, Beta and Burst cubes
--- (8 at most each).
+-- first values are not tweened): HP 40 columns by 3 rows of the big dots, the shield's blocks, Beta cubes (8 at
+-- most); no Burst row.
 hud.slow()
 frame()
-assert(shown.card==true and faded.card==1)
+assert(shown.card==true and faded.card==1 and moved.card[1]==96 and moved.card[2]==96,'Moved: the kit keeps it inside')
 local card=texts('card')
 assert(card[1].v[1]=='Kaanta' and card[1].c=='teal' and card[1].style=='name')
 local info=card[2]
 assert(info.v[1]=='118 ms · e04' and info.c=='grey',info.v[1])
-local hp,sh,be,bu=by('card','hp'),by('card','shield'),by('card','cubes',1),by('card','cubes',2)
-assert(hp.args[1]==40 and hp.args[2]==3 and hp.args[3]=='big' and sh.args[1]=='small' and be.args[1]==8
-    and bu.args[1]==8)
+local hp,sh,be=by('card','hp'),by('card','shield'),by('card','cubes',1)
+assert(hp.args[1]==40 and hp.args[2]==3 and hp.args[3]=='big' and sh.args[1]=='small' and be.args[1]==8)
+assert(by('card','cubes',2)==nil,'No Burst row')
 assert(hp.v[1]==500 and hp.v[2]==1000 and sh.v[1]==150 and sh.v[2]==300 and sh.v[3]==3 and be.v[1]==450
-    and be.v[2]==1000 and bu.v[1]==0 and bu.v[2]==0)
-for _,label in ipairs({'HP','SH','BE','BU'}) do
-    local found=false
-    for _,e in ipairs(card) do found=found or e.v[1]==label end
-    assert(found,label)
+    and be.v[2]==1000)
+-- Her name, then exactly three rows stacked under it: HP, SH, BE, each label centred on its row in a column of its
+-- own; all inside the panel, 24 units from its sides and clear of its dotted rails (22 units from its top and bottom
+-- edges). Her state sits at the right end of her name's line. A font's line is 4/3 units a point.
+local panel=groups.card.panel
+assert(panel[1]==0 and panel[2]==0 and panel[3]==groups.card.place.w and panel[4]==groups.card.place.h)
+local labels={}
+for _,e in ipairs(card) do if e.style=='label' then labels[#labels+1]=e end end
+assert(#labels==3 and labels[1].v[1]=='HP' and labels[2].v[1]=='SH' and labels[3].v[1]=='BE')
+assert(card[1].align.Y==0.5 and card[1].y-36*2/3>=22 and info.align.X==1 and info.align.Y==0.5
+    and info.x==panel[3]-24 and info.y==card[1].y)
+local bottom=card[1].y+36*2/3
+for i,row in ipairs({{hp,40*15,3*15},{sh,59*10,2*10},{be,7*41+30,30}}) do
+    local e,w,h=row[1],row[2],row[3]
+    assert(e.y>=bottom+8 and e.x>=labels[i].x+80 and e.x+w<=panel[3]-24,i)
+    assert(labels[i].x>=24 and labels[i].align.Y==0.5 and math.abs(labels[i].y-(e.y+h/2))<1e-9,i)
+    bottom=e.y+h
 end
+assert(bottom<=panel[4]-22-6,'Clear of the bottom rail')
 -- The marker: her anchor 10 m ahead and 2.2 m up, 90 degrees of view: 1920 units a unit of up over forward. Its
 -- bottom centre on her head, her name in teal, 30 small dots of HP, the shield line, no distance within 15 m.
 local m=texts('marker')
 assert(shown.marker==true and shown.arrow~=true)
-assert(math.abs(moved.marker[1]-(1920-160))<1e-6 and math.abs(moved.marker[2]-(1080-0.22*1920-110))<1e-6,
+local MH=groups.marker.place.h
+assert(math.abs(moved.marker[1]-(1920-160))<1e-6 and math.abs(moved.marker[2]-(1080-0.22*1920-MH))<1e-6,
     moved.marker[1]..' '..moved.marker[2])
 assert(m[1].v[1]=='Kaanta' and m[1].c=='teal' and m[2].v[1]=='')
 local mhp,line=by('marker','hp'),by('marker','bar')
 assert(mhp.args[1]==30 and mhp.args[2]==1 and mhp.args[3]=='small' and mhp.v[1]==500 and mhp.v[2]==1000)
 assert(line.v[1]==0.5,'Shield 150 of 300')
--- At most 30 updates a second: one projection a 1/30 s, none in between.
+-- Its texts centred on their lines, inside its box: the name on top, the distance under the shield line.
+assert(m[1].align.Y==0.5 and m[1].y-30*2/3>=0 and m[2].align.Y==0.5 and m[2].y-30*2/3>=line.y+line.args[2]
+    and m[2].y+30*2/3<=MH)
+-- Every frame: one projection each, so the marker follows the camera at the game's frame rate.
 local p=projects
-frame(0.01); frame(0.01)
-assert(projects==p,'Not yet')
-frame(0.02)
-assert(projects==p+1)
+frame(0.008); frame(0.008)
+assert(projects==p+2)
 -- 20 m away: the distance shows on the marker.
 puppet.at,puppet.feet=at(2000,0,220),at(2000,0,0)
 frame()
 assert(m[2].v[1]=='20 m' and shown.marker)
--- Behind her: the arrow at the bottom centre, turned down (its art points up), the distance and three HP pips; the
--- whole arrow on screen, its diamond 80 units into its group.
+-- Behind her: the arrow at the bottom centre, turned down (its art points up), the distance and three HP pips; its
+-- diamond, 80 units into its group, on the edge's point (the kit keeps the whole arrow on screen).
 puppet.at,puppet.feet=at(-1000,0,0),at(-1000,0,0)
 frame()
 assert(shown.arrow==true and shown.marker==false)
-assert(moved.arrow[1]==W/2-80 and moved.arrow[2]==H-180,moved.arrow[1]..' '..moved.arrow[2])
+assert(moved.arrow[1]==W/2-80 and moved.arrow[2]==H-48-80,moved.arrow[1]..' '..moved.arrow[2])
 local chevron,diamond,pips=by('arrow','image',1),by('arrow','image',2),by('arrow','dots')
 assert(chevron.args[3]=='chevron' and diamond.args[3]=='diamond' and chevron.args[5].Y==2,'It turns around the diamond')
 assert(math.abs(chevron.angle%360-180)<1e-6 and chevron.c=='teal' and diamond.c=='teal')
@@ -277,7 +298,7 @@ assert(texts('arrow')[1].v[1]=='10 m','On the arrow, any distance')
 -- To her right: right edge, middle, pointing right.
 puppet.at=at(1000,5000,0)
 frame()
-assert(moved.arrow[1]==W-160 and moved.arrow[2]==H/2-80 and math.abs(chevron.angle-90)<1e-6)
+assert(moved.arrow[1]==W-48-80 and moved.arrow[2]==H/2-80 and math.abs(chevron.angle-90)<1e-6)
 -- The hysteresis carries over: the marker 60 units from the left edge stays one, then at 40 is the arrow, which turns
 -- back into the marker only 72 units in.
 local function x_at(x) puppet.at=at(1920,x-1920,0); frame() end
@@ -289,7 +310,7 @@ x_at(120); assert(shown.marker)
 -- The engine's own projection, when the kit has one, places the marker.
 kit.screen={x=700,y=800}
 frame()
-assert(moved.marker[1]==700-160 and moved.marker[2]==800-110)
+assert(moved.marker[1]==700-160 and moved.marker[2]==800-MH)
 kit.screen=nil
 -- No anchor (her ghost hidden: no pose for a second, another map) and her link fine: nothing, no projection.
 puppet.at=nil
@@ -305,16 +326,30 @@ kit.blind=false
 frame()
 assert(shown.marker)
 
--- The gauges tween over 150 ms on the card and the marker: halfway at 75 ms, there at 150.
+-- The gauges move over 300 ms on the card and the marker, a bit longer than the 250 ms between two reads of her
+-- vitals: halfway at 150 ms, there at 300, set each frame meanwhile.
 link.vit=vitals({hp=1000,shield=300})
 hud.slow()
-frame(0.075)
-assert(math.abs(hp.v[1]-750)<1e-6 and math.abs(mhp.v[1]-750)<1e-6 and math.abs(sh.v[1]-225)<1e-6,hp.v[1])
-frame(0.075)
-assert(hp.v[1]==1000 and sh.v[1]==300 and line.v[1]==1)
 local calls=hp.calls
+frame(0.15)
+assert(math.abs(hp.v[1]-750)<1e-6 and math.abs(mhp.v[1]-750)<1e-6 and math.abs(sh.v[1]-225)<1e-6,hp.v[1])
+frame(0.15)
+assert(hp.v[1]==1000 and sh.v[1]==300 and line.v[1]==1 and hp.calls==calls+2)
+calls=hp.calls
 frame(); frame()
 assert(hp.calls==calls,'Done: no more sets')
+-- A value that comes while one moves: from where the gauge is drawn, so it goes on without a jump or a stop.
+link.vit=vitals({hp=600,shield=300})
+hud.slow(); frame(0.15)
+assert(math.abs(hp.v[1]-800)<1e-6,hp.v[1])
+link.vit=vitals({hp=200,shield=300})
+hud.slow()
+assert(math.abs(hp.v[1]-800)<1e-6,'No jump')
+frame(0.15)
+assert(math.abs(hp.v[1]-500)<1e-6,hp.v[1])
+link.vit=vitals({hp=1000,shield=300})
+hud.slow(); frame(0.31)
+assert(hp.v[1]==1000,hp.v[1])
 
 -- Her states, on the card's info: DOWN in red (life 3 to 5, or 0 HP), with the alert once; another map, with its
 -- name; the link lost (grey, the card faded, the arrow grey at her last place even once her ghost hides, the alert);
@@ -339,13 +374,13 @@ assert(info.v[1]=='connection lost' and info.c=='grey' and faded.card<1 and #sou
 assert(shown.arrow and chevron.c=='grey' and diamond.c=='grey')
 puppet.at=nil -- Her ghost hides with no poses: the arrow stays at her last place.
 frame()
-assert(shown.arrow and moved.arrow[2]==H-180)
+assert(shown.arrow and moved.arrow[2]==H-48-80)
 link.lost=false
 hud.slow(); frame()
 assert(not shown.arrow and not shown.marker,'Back: no anchor until her next pose')
 assert(info.v[1]=='118 ms · e04' and faded.card==1)
 puppet.at=at(1000,0,220)
-frame(0.2) -- The tween from 0 HP done.
+frame(0.3) -- The tween from 0 HP done.
 local kept=hp.v[1]
 assert(kept==500)
 link.vit=nil
@@ -369,7 +404,7 @@ hud.slow(); frame()
 assert(not shown.arrow,'Forgotten for good')
 puppet.at=at(1000,0,220)
 link.vit=vitals()
-hud.slow(); frame(0.2)
+hud.slow(); frame(0.3)
 assert(faded.card==1 and info.v[1]=='118 ms · e04')
 -- No ping yet: the map alone; card_details off: nothing there in a normal state.
 link.ping_ms=nil
@@ -432,10 +467,10 @@ assert(shown.card==false)
 link.session,link.vit=true,nil
 hud.slow(); frame()
 assert(shown.card==true and info.v[1]=='—')
-assert(hp.v[1]==0 and hp.v[2]==0 and sh.v[2]==0 and be.v[2]==0 and bu.v[2]==0 and mhp.v[1]==0 and line.v[1]==0
+assert(hp.v[1]==0 and hp.v[2]==0 and sh.v[2]==0 and be.v[2]==0 and mhp.v[1]==0 and line.v[1]==0
     and pips.v[1]==0,'A new session: empty, not the last partner\'s gauges')
 link.vit=vitals()
-hud.slow(); frame(0.2)
+hud.slow(); frame(0.3)
 assert(hp.v[1]==500 and info.v[1]=='e04')
 -- A new root (the look in, or the root out of the viewport) keeps a shown arrow shown: placed and turned in the same
 -- slow, before it ever draws at its corner.
@@ -447,7 +482,7 @@ for _,name in ipairs({'card','marker','arrow'}) do before[name],view_of[name]=vi
 moved={}
 p=projects
 hud.slow()
-assert(projects==p+1 and moved.arrow[1]==W/2-80 and moved.arrow[2]==H-180,'Placed at once')
+assert(projects==p+1 and moved.arrow[1]==W/2-80 and moved.arrow[2]==H-48-80,'Placed at once')
 assert(math.abs(view_of.arrow.chevron.angle%360-180)<1e-6,'Turned at once')
 for name,v in pairs(before) do view_of[name]=v end
 puppet.at=at(1000,0,220)

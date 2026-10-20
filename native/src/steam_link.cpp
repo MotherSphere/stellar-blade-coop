@@ -374,7 +374,7 @@ private:
 coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool chat_was = false;    // A chat session held at the last pass.
-uint64_t next_vitals = 0; // Our vitals are read every 250 ms in a chat session (500 after a read over 1 ms).
+uint64_t next_vitals = 0; // Our vitals are read every 100 ms in a chat session (500 after a read over 1 ms).
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
 bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
@@ -575,7 +575,7 @@ bool step() {
           link->notice(copied ? "Join code " + code + " copied." : "Could not copy the join code " + code + ".");
         }
         // Chat and vitals (UI-DESIGN 5): a session's end deletes both files (a fail line from before its start still
-        // reaches Lua); Lua's line goes; ours are read every 250 ms; her lines (or our failures) go to Lua once it took
+        // reaches Lua); Lua's line goes; ours are read every 100 ms; her lines (or our failures) go to Lua once it took
         // the last file.
         const bool chatting = !switched_off && link->chatting();
         if (chat_was && !chatting)
@@ -589,7 +589,7 @@ bool step() {
             uint64_t took_us = 0;
             if (coop::pose::local_vitals(mine, took_us))
               link->vitals(mine);
-            next_vitals = now + (took_us > 1000 ? 500 : 250); // UI-DESIGN 7.3: 2 Hz after a read over 1 ms.
+            next_vitals = now + (took_us > 1000 ? 500 : 100); // 10 Hz; 2 Hz after a read over 1 ms (UI-DESIGN 7.3).
           }
           const std::wstring chat = folder + L"coop-chat.txt";
           if (link->chat_waiting() && GetFileAttributesW(chat.c_str()) == INVALID_FILE_ATTRIBUTES) {

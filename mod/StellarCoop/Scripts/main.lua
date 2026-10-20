@@ -377,7 +377,7 @@ LoopInGameThreadWithDelay(1,function()
     recruiter.tick() -- Likewise for coop recruiter.
     ui.tick() -- Likewise for coop ui test.
     -- The open and close tweens, the game's input back after a close, the chat box focused again, the partner's marker
-    -- (at most 30 times a second, from the ghost's place just set).
+    -- (each frame, from the ghost's place just set).
     if kit then
         local now=os.clock()
         ok,message=kit.tick(now)

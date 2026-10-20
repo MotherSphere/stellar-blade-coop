@@ -49,11 +49,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
 
-`main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost,
-the notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the
-menu or the chat box closes, and your friend's marker and gauges (at most 30 updates a second). The other runs every
-250 ms: link status changes, session start, notices to show, chat lines in and out, the UI's root, the menu's rows and
-status line, the chat's feed, your friend's card, the capture and the remote table.
+`main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
+notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
+the chat box closes, and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
+start, notices to show, chat lines in and out, the UI's root, the menu's rows and status line, the chat's feed, your
+friend's card, the capture and the remote table.
 
 ### Files shared by Lua and the native part
 
@@ -190,11 +190,11 @@ only: `chat this session: <n> in, <n> out, <n> dropped`.
 
 The vit line is sent unreliable. It carries your EVE's numbers for your friend's partner card, in whole units: HP,
 shield and shield blocks, Beta, Burst and Tachy with their maximums, and the life state. It is sent when a number
-changes and once a second. During a session the native worker reads the numbers every 250 ms, or 500 ms after a read
-that took over 1 ms (game build 24463856 only). Each read is eight `ReadProcessMemory` calls on the worker, never on
-the game thread, on the EVE that the game's actor manager marks as the local player. A vit line is invalid if a value
-is over 10,000,000, HP is over its maximum, there are more than 64 shield blocks or the life state is over 255. Your
-friend's last line shows in `coop status` as `mate=` for 3 s.
+changes, at most 10 times a second, and once a second otherwise. During a session the native worker reads the numbers
+every 100 ms, or 500 ms after a read that took over 1 ms (game build 24463856 only). Each read is eight
+`ReadProcessMemory` calls on the worker, never on the game thread, on the EVE that the game's actor manager marks as the
+local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
+blocks or the life state is over 255. Your friend's last line shows in `coop status` as `mate=` for 3 s.
 
 Say and vit lines from a friend who has not passed the handshake are ignored, without a log line.
 

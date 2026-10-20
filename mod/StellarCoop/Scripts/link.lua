@@ -3,8 +3,8 @@
 -- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table), coop-puppet.txt (the
 -- ghost's object path, for the next load) and coop-state.txt (a save loaded, the send rate). The native part writes
 -- coop-remote.txt (the table the ghost is built from) the same way. Each line of the native coop-status.txt that
--- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight=
--- line) every second and her vitals (mate=) four times a second, so they stay in coop status, out of the log. The chat
+-- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight= line)
+-- every second and her vitals (mate=) up to 10 times a second, so they stay in coop status, out of the log. The chat
 -- has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see say()). The same read gives the
 -- session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is never
 -- at the start of one.

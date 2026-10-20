@@ -44,7 +44,7 @@ void block(); // coop off: no engine access until the game restarts.
 // Worker thread: coop loopback runs (its line in status() says loopback=), so with no friend linked the chat echoes
 // and our vitals stand in for hers (UI-DESIGN 5.4).
 bool loopback();
-// Worker thread, every 250 ms in a chat session: our EVE's vitals for the friend's partner card (fight_engine.h's
+// Worker thread, every 100 ms in a chat session: our EVE's vitals for the friend's partner card (fight_engine.h's
 // vitals()); false off the pinned build, after coop off, or when they cannot be read (no world, a load). took_us: the
 // read's time (0 when none ran), whose worst goes in a 60 s line (UI-DESIGN 7.3).
 bool local_vitals(coop::Vitals &out, uint64_t &took_us);

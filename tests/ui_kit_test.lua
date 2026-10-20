@@ -83,6 +83,12 @@ special['TextBlock.SetFont']=function(s,_,info)
     s.font.FontObject,s.font.Size=info.FontObject,info.Size
 end
 special['Image.SetBrushFromTexture']=function(s,_,texture,match) assert(match==true); s.brush.ResourceObject=texture end
+-- As this engine's UE4SS: PlaySound2D takes all 8 parameters (WorldContextObject, Sound, VolumeMultiplier,
+-- PitchMultiplier, StartTime, ConcurrencySettings, OwningActor, bIsUISound), nil ones included.
+special['GameplayStatics.PlaySound2D']=function(_,_,...)
+    local n=select('#',...)
+    if n~=8 then error('UFunction expected 8 parameters, received '..n,0) end
+end
 StaticFindObject=function(path) call('find '..path); return registry[path] or invalid end
 LoadAsset=function(path) call('load '..path); if loadable[path] then registry[path]=loadable[path] end end
 StaticConstructObject=function(class,outer)
@@ -132,7 +138,10 @@ local function reset()
             'EditableTextBox'}) do
         registry['/Script/UMG.'..c]=object(c)
     end
-    for _,a in ipairs(Ui.ASSETS) do registry[a[2]]=object(a[1]) end
+    for _,a in ipairs(Ui.ASSETS) do
+        registry[a[2]]=object(a[1])
+        if a.alt then registry[a.alt]=object(a[1]..'_alt') end
+    end
 end
 local store={save=function(path) saved=path end,load=function() return saved end,clear=function() saved=nil end}
 local function count(prefix)
@@ -188,15 +197,21 @@ for _,a in ipairs(Ui.ASSETS) do if a.volume then SOUNDS=SOUNDS+1 end end
 assert(PATHS.Bold=='/Game/Art/Font/Bold.Bold' and PATHS.FZSHANGYTJW=='/Game/Art/Font/English/FZSHANGYTJW_Font.'
     ..'FZSHANGYTJW_Font' and PATHS.dot=='/Game/Art/UI/Texture/HUD/Gauge/Hp_Dot1_5x.Hp_Dot1_5x')
 assert(PATHS.open=='/Game/Sound/UI/MainMenu/Ui_MoveIn_Cue.Ui_MoveIn_Cue')
--- The key icons of the game's own menus (Interaction/PC, 80 by 80), and every path in the case of the game's files:
--- the game finds none in another case (UE4SS.log of 2026-10-19: key_arrows, PC_ActionAssist's 'directionAll', and
--- chevron, in 'WorkShop', missing).
+-- The key icons of the game's own menus (Interaction/PC, 80 by 80), and every path in the case of the game's files as a
+-- pak export gives them (UE4SS.log of 2026-10-19: key_arrows, PC_ActionAssist's 'directionAll', and chevron, in
+-- 'WorkShop', missing with another case). The chevron falls back to the HUD's triangle (it points up too), the arrows
+-- to PC_ActionAssist's 'directionAll'.
 for name,file in pairs({key_enter='Enter',key_escape='Escape',key_space='SpaceBar',key_up='Up',
         key_arrows='DirectionAll',key_move='MoveAll',key_move_azerty='MoveAll_AZERTY'}) do
     assert(PATHS[name]=='/Game/Art/UI/Texture/Interaction/PC/KeyIcon_KeyBoard_'..file..'.KeyIcon_KeyBoard_'..file,
         PATHS[name])
 end
-assert(PATHS.chevron=='/Game/Art/UI/Texture/WorkShop/TriPatternUp.TriPatternUp',PATHS.chevron)
+local ALT={}
+for _,a in ipairs(Ui.ASSETS) do ALT[a[1]]=a.alt end
+assert(PATHS.chevron=='/Game/Art/UI/Texture/WorkShop/TriPatternUp.TriPatternUp'
+    and ALT.chevron=='/Game/Art/UI/Texture/HUD/triangle.triangle',PATHS.chevron)
+assert(ALT.key_arrows=='/Game/Art/UI/Texture/Interaction/PC_ActionAssist/KeyIcon_KeyBoard_directionAll.'
+    ..'KeyIcon_KeyBoard_directionAll',ALT.key_arrows)
 -- Colours as the engine takes them: linear, from the hex Slate shows (#ADD1C4).
 assert(math.abs(T.teal.R-0.418)<0.001 and math.abs(T.teal.G-0.637)<0.001 and T.teal.A==1 and T.panel.A==0.78)
 
@@ -433,12 +448,16 @@ stores[pc].props.PlayerCameraManager=nil
 assert(k.project(anchor,clock+3)==nil,'No camera')
 stores[pc].props.PlayerCameraManager=cam
 
--- The game's sounds: PlaySound2D with our root as the world, volume, pitch 1, from the start; the chat line quieter;
--- off by the setting; a raise turns the sounds off only.
+-- The game's sounds: PlaySound2D with all its 8 parameters (the fake refuses fewer, as the game's UE4SS does): our
+-- root as the world, volume, pitch 1, from the start, no concurrency or owner, a UI sound; the chat line quieter; off
+-- by the setting; a raise turns the sounds off only.
 local statics=registry['/Script/Engine.Default__GameplayStatics']
+n=#logs
 k.sound('open')
 local played=stores[statics].last.PlaySound2D
-assert(played[1]==root and played[2]==asset('open') and played[3]==1 and played[4]==1 and played[5]==0 and #played==5)
+assert(#logs==n,logs[#logs])
+assert(played[1]==root and played[2]==asset('open') and played[3]==1 and played[4]==1 and played[5]==0
+    and played[6]==nil and played[7]==nil and played[8]==true)
 k.sound('chat'); assert(stores[statics].last.PlaySound2D[3]==0.5)
 n=#calls; k.sound('link'); assert(#calls==n,'A texture is no sound')
 k.sounds(false); n=#calls; k.sound('move'); assert(#calls==n)
@@ -694,6 +713,54 @@ for _,o in ipairs(of('Image')) do
     if size(o)=='30x30' and vis(o)==3 then lit=lit+1; assert(stores[o].brush.ResourceObject,'No textureless cube') end
 end
 assert(lit==8+4*3,'8 bases, and 3 quarters on each of the 4 full cubes')
+
+-- The chevron missing: the HUD's triangle instead, no look note; neither: none (no white square).
+reset()
+registry[PATHS.chevron]=nil
+k=kit()
+up(k)
+local alt=registry[ALT.chevron]
+local found=0
+for _,o in ipairs(of('Image')) do if stores[o].brush.ResourceObject==alt then found=found+1 end end
+assert(found==1 and not logs[#logs]:find('chevron'),logs[#logs])
+reset()
+registry[PATHS.chevron],registry[ALT.chevron]=nil,nil
+k=kit()
+up(k)
+assert(logs[#logs]:find('chevron missing'),logs[#logs])
+
+-- An inside group (the partner HUD's card, marker and arrow): where it is moved, but its box, scaled around its pivot
+-- by ui_scale, kept 48 units inside the viewport in layout units (its left and top edges win when it does not fit);
+-- on change only; as asked while the viewport is unread. The viewport is read once a second and logged when its size
+-- changes. A text's alignment is its slot's.
+reset()
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=1920,Y=1080} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0.5 end
+k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
+k.add('tag',{x=0,y=0,w=320,h=120,pivot={X=0.5,Y=1},shown=true,inside=true},function(b)
+    b.text(10,22,'Alex','name',T.teal,{X=0,Y=0.5})
+end)
+up(k)
+local tag=stores[stores[stores[viewport[1]].props.WidgetTree].props.RootWidget].children[1]
+local function placed(x,y) local p=stores[stores[tag].slot].last.SetPosition[1]; return p.X==x and p.Y==y end
+assert(stores[stores[of('TextBlock')[1]].slot].last.SetAlignment[1].Y==0.5,'Centred on its line')
+k.move('tag',1000,500)
+assert(placed(1000,500) and logs[#logs]=='UI viewport: 3840x2160 units (1920x1080 pixels at DPI scale 0.5)',
+    logs[#logs])
+k.move('tag',-100,-50); assert(placed(48,48))
+k.move('tag',3800,2100); assert(placed(3840-48-320,2160-48-120),pos(tag))
+n=#calls; k.move('tag',3800,2100); assert(#calls==n,'On change only')
+k.scale(150) -- 480 by 180 around its bottom centre: 80 units more each side, 60 more above.
+k.move('tag',3800,2100); assert(placed(3392,1992),pos(tag))
+k.move('tag',0,0); assert(placed(128,108),pos(tag))
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=200,Y=100} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 1 end
+k.move('tag',500,500); assert(placed(500,500),'Read once a second')
+clock=clock+1
+k.move('tag',500,500); assert(placed(128,108),'Too small: its left and top edges win')
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0 end
+clock=clock+1
+k.move('tag',700,600); assert(placed(700,600) and k.ready(),'Unread: as asked')
 
 -- Hidden from the start (the title screen): nothing looked up or built, however long.
 reset()

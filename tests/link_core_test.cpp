@@ -2024,9 +2024,9 @@ int main() {
     assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
   }
 
-  // Vitals between two Links: ours go unreliable on change and each second; hers show as the status's mate= line while
-  // she is linked and her last one is under 3 s old; before the handshake they are ignored with no log line; a
-  // malformed one is an invalid message. A session's end forgets hers.
+  // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the
+  // status's mate= line while she is linked and her last one is under 3 s old; before the handshake they are ignored
+  // with no log line; a malformed one is an invalid message. A session's end forgets hers.
   reset();
   {
     World w;
@@ -2065,9 +2065,18 @@ int main() {
     hit[vital::hp] = 1200;
     w.link.vitals(hit);
     assert(sent_to(kFriend, vit_line(hit)) == 1);
+    Vitals healed = hit; // Changed again within 90 ms: it waits, so at most about 11 lines a second go.
+    healed[vital::hp] = 1300;
+    w.link.vitals(healed);
+    w.tick();
+    w.link.vitals(healed);
+    assert(sent_to(kFriend, vit_line(healed)) == 0 && sent_to(kFriend, vit) == 2);
+    w.tick("", 0, 0, 44); // The next read, 100 ms later on its clock, which the link's saw 6 ms short: it goes.
+    w.link.vitals(healed);
+    assert(sent_to(kFriend, vit_line(healed)) == 1);
     w.tick("", 0, 0, 1000);
-    w.link.vitals(hit);
-    assert(sent_to(kFriend, vit_line(hit)) == 2); // The keepalive.
+    w.link.vitals(healed);
+    assert(sent_to(kFriend, vit_line(healed)) == 2); // The keepalive.
     F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " vit 1601 1600 0 0 0 0 0 0 0 0 0 1"});
     w.tick();
     assert(saw("invalid message from Kaanta") && w.status().find("\nmate=900 ") != std::string::npos);
