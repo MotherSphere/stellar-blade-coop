@@ -375,7 +375,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   rate. The table is never lost. The ghost is yours, so it walks 2 m to your right. `coop loopback 0 0 0` shows it with
   no delay. New settings drop what is in flight and send the table again. `coop loopback off` removes the ghost.
 - `coop record` records what is sent (the table and your poses), with or without the loopback or a linked friend, for
-  up to 120 s or 24 MiB, or until `coop record off`. The recording is kept in memory. When it stops, it is written to
+  up to 120 s or 25 MiB, or until `coop record off`. The recording is kept in memory. When it stops, it is written to
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the

@@ -440,9 +440,10 @@ These solo tools run the whole pipeline on one PC, so most of the mod can be tes
   like a single relay route. What comes back is handled exactly like a friend's data: the table is checked and the ghost
   built from it, and the poses are decoded and drawn on the playback clock. Because the ghost is yours, it walks 2 m to
   your right.
-- A recording keeps what is sent (the table and the poses, as the exact wire bytes) in memory for up to 120 s or 24 MiB,
+- A recording keeps what is sent (the table and the poses, as the exact wire bytes) in memory for up to 120 s or 25 MiB,
   and writes it to `coop-record.bin` when it stops. The file holds `SBR` and the protocol, then entries of a kind (`T` a
-  table or `P` a pose), a size and the bytes.
+  table, `P` a keyframe, `D` a delta, `E` a same-place enemies' `SBE` or `S` a show line), a size and the bytes.
+  `SBE` messages and show lines come after the first pose and are re-stamped with the poses on replay.
 - A replay reads and checks the whole file before anything plays (the tests fuzz the reader), then plays it in a loop as
   the remote side, each pose re-stamped as if sent now. A file made under another protocol is refused.
 
