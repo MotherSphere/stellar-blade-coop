@@ -128,11 +128,11 @@ box closes and what you typed is lost. Alt+Enter never opens it.
 During a session (or `coop loopback`, where your own values stand in for your friend's), three parts show your
 friend, in teal:
 
-- The card, at the top left above the feed: their Steam name; their HP (three rows of dots), shield blocks, Beta and
-  Burst cubes, filled by the same rules as your own gauges at the bottom left; and one line beside the name. That line
-  shows their ping and map, for example `118 ms · e04` (`card_details`), `DOWN` in red while they are down, or
-  `elsewhere · b07` while they are on another map. It shows `connection lost`, or `—` when no HP has come from them for
-  3 s; both grey the card out and keep their last values.
+- The card, at the top left above the feed: their Steam name, then one row each for their HP (three lines of dots),
+  shield blocks and Beta cubes, filled by the same rules as your own gauges at the bottom left. The right end of the
+  name's line shows their ping and map, for example `118 ms · e04` (`card_details`), `DOWN` in red while they are down,
+  or `elsewhere · b07` while they are on another map. It shows `connection lost`, or `—` when no HP has come from them
+  for 3 s; both grey the card out and keep their last values.
 - The marker over their ghost's head: their name, a row of HP dots, a shield line, and the distance once they are more
   than 15 m away. While the marker shows their name, the ghost's own name tag is hidden. With the marker off, or the
   on-screen UI stopped, the name tag is back (`name_tag`).
@@ -141,13 +141,14 @@ friend, in teal:
 
 While nothing comes from your friend (connection lost, or no HP for 3 s), the marker and the arrow turn grey and stay
 where your friend was last seen, until they are back or one of you changes map. On another map there is no marker and
-no arrow; the card says where they are.
+no arrow; the card says where they are. The card, the marker and the arrow stay inside the screen at any resolution
+and `ui_scale`. From `ui_scale=125` the card covers the top line of the chat while the chat box is open.
 
-The gauges move over 150 ms. They run up to about half a second behind your friend's own screen, plus the network
-delay. The game's alert sound plays when your friend goes down and when the connection is lost (unless
-`ui_sounds=off`). Options > Partner turns each part on or off at once: `partner_bar` (the marker), `partner_arrow`,
-`partner_card` and `card_details`. The card, the marker and the arrow hide while the game is paused or shows one of its
-own screens (a shop, a dialogue choice). Your own photo mode hides them too, like the rest of the mod's screen.
+The gauges move over 300 ms. They run up to about 0.65 s behind your friend's own screen, plus the network delay. The
+game's alert sound plays when your friend goes down and when the connection is lost (unless `ui_sounds=off`). Options >
+Partner turns each part on or off at once: `partner_bar` (the marker), `partner_arrow`, `partner_card` and
+`card_details`. The card, the marker and the arrow hide while the game is paused or shows one of its own screens (a
+shop, a dialogue choice). Your own photo mode hides them too, like the rest of the mod's screen.
 
 ## Playing with a friend
 

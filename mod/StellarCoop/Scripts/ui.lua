@@ -299,9 +299,10 @@ local THEME=Ui.THEME
 local function path(p) return p..'.'..p:match('[^/]+$') end
 local TEX,GAUGE='/Game/Art/UI/Texture/','/Game/Art/UI/Texture/HUD/Gauge/'
 local KEY,SOUND=TEX..'Interaction/PC_ActionAssist/KeyIcon_KeyBoard_','/Game/Sound/UI/'
--- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them. A path
--- is found only in the case of the game's own package name, which its widgets' references give (the chevron's
--- 'WorkShop'; a pak listing says 'Workshop'); alt: the one tried when it is missing.
+-- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them. alt:
+-- the one tried when it is missing. Paths use the case of the game's widgets' references (the chevron's 'WorkShop'; a
+-- pak listing says 'Workshop'). Why the chevron was missing in game is unproven: the engine's name lookups ignore case,
+-- so the HUD's triangle may be what shows.
 Ui.ASSETS={{'Bold',GAME_FONT},{'Mideum',path('/Game/Art/Font/Mideum')},{'AGENCYB',path('/Game/Art/Font/AGENCYB')},
     {'FZSHANGYTJW',path('/Game/Art/Font/English/FZSHANGYTJW_Font')},{'Roboto',ENGINE_FONT},{'dot',DOTS},
     {'dot_bg',path(GAUGE..'Hp_Dot1_5x_bg')},{'small',path(GAUGE..'Hp_Dot_12')},{'small_bg',path(GAUGE..'Hp_Dot_12bg')}}

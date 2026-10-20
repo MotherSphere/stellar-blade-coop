@@ -198,8 +198,8 @@ assert(PATHS.Bold=='/Game/Art/Font/Bold.Bold' and PATHS.FZSHANGYTJW=='/Game/Art/
     ..'FZSHANGYTJW_Font' and PATHS.dot=='/Game/Art/UI/Texture/HUD/Gauge/Hp_Dot1_5x.Hp_Dot1_5x')
 assert(PATHS.key_move_azerty=='/Game/Art/UI/Texture/Interaction/PC_ActionAssist/KeyIcon_KeyBoard_MoveAll_AZERTY.'
     ..'KeyIcon_KeyBoard_MoveAll_AZERTY' and PATHS.open=='/Game/Sound/UI/MainMenu/Ui_MoveIn_Cue.Ui_MoveIn_Cue')
--- A path is found only in the case of the game's own package name ('WorkShop', as its widgets name it; a pak listing
--- shows 'Workshop'): the chevron, with the HUD's triangle (it points up too) when that one is missing.
+-- The chevron in the case of the game's widgets' references ('WorkShop'; a pak listing shows 'Workshop'), with the
+-- HUD's triangle (it points up too) when that one is missing.
 local ALT={}
 for _,a in ipairs(Ui.ASSETS) do ALT[a[1]]=a.alt end
 assert(PATHS.chevron=='/Game/Art/UI/Texture/WorkShop/TriPatternUp.TriPatternUp'

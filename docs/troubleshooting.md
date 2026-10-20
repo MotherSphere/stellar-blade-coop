@@ -151,7 +151,7 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
-  slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 250.
+  slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
 ghost <x> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the ghost and of the co-op
