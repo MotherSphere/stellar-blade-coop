@@ -3,10 +3,11 @@
 // samples drawn on the ghost's own playback clock, with interpolation, the 150 ms extrapolation cap, the warp, hole and
 // 3 m snaps and the velocity; the drawn copy's four states with the 2 m convergence snap; the capture list and its
 // restore order; the three show lines (round trips, the R33 refusals for both path forms and the context, a fuzz),
-// the timeline with its late flag, the line ids on both sides and the dedupe window; the FNamePool decode and the
+// the timeline with its late flag, the line ids on both sides; the FNamePool decode and the
 // compact id over fake blocks; the owner's capture and the drawn side's write half (Driver: the movement component out
 // of SB's manager on SB's class only, the speed override, the root move and Velocity, the drift probe, a stale pair,
-// the Show replay through the handle API with its context and setters, restore's order on every way back, the latch)
+// the Show replay through the handle API with its context and setters, the dedupe of a Show the copy started
+// itself, restore's order on every way back, the latch)
 // against fake memory; and two worlds through a fake Steam (120 +/- 30 ms, 2 % loss): the guest's copies against the
 // host's enemies at the same host time, the show lines in order, and restore at host loss.
 #include "pilot.h"
@@ -1124,23 +1125,6 @@ int main() {
     assert(!lines.find(12) && !lines.find(50));
   }
 
-  // ---- Dedupe: the copy's own start of the same asset within 1 s ----
-  {
-    Recent r;
-    const uint64_t a = path_hash(0, "A/B"), b = path_hash(0, "A/C");
-    assert(a != b && a != path_hash(1, "A/B") && a == path_hash(0, "A/B"));
-    assert(!r.has(a, 0));
-    r.note(a, 1000);
-    assert(r.has(a, 1000) && r.has(a, 2000) && !r.has(a, 2001) && !r.has(b, 1500));
-    r.note(b, 1200);
-    assert(r.has(a, 1500) && r.has(b, 1500)); // Both kept.
-    for (uint64_t k = 0; k < Recent::kSlots; ++k)
-      r.note(100 + k, 1500);
-    assert(!r.has(a, 1500)); // Pushed out by newer starts.
-    r.clear();
-    assert(!r.has(100, 1500));
-  }
-
   // ---- FNamePool ----
   {
     Pool m;
@@ -1772,6 +1756,62 @@ int main() {
     assert(s.since(seen).empty());
     d.draw(g, kBase, 5300, 1340);
     assert(s.since(seen) == "cmc off write1 write4 move write12");
+  }
+  // Dedupe: a show is not replayed while the copy plays the same asset, started by the game itself at most 1 s ago
+  // (her hit's reaction, a mirrored crowd control, its death Show). It is held as skipped, so its show-set and
+  // show-stop call nothing. Another enemy's start, a stage our own replay made, an older start or a finished one do
+  // not count.
+  {
+    Stage s;
+    const uint64_t ch = s.copy(501, 100, 200, 20), other = s.copy(502, 0, 0, 0);
+    Stage::Game g = s.game();
+    Driver d;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    size_t seen = 0;
+    d.draw(g, kBase, 5000, 1000);
+    s.since(seen);
+    const uint64_t front = s.show("/Game/Art/Show/CH_M/Hit/M_Hit_F", "M_Hit_F"),
+                   back = s.show("/Game/Art/Show/CH_M/Hit/M_Hit_B", "M_Hit_B");
+    const uint64_t own = s.player(s.stage(ch), front); // The copy's own start, 33 ms in.
+    s.player(s.stage(other), back);                    // Another enemy's.
+    auto show = [&](Kind kind, uint8_t id, uint64_t t_ms, const char *path) {
+      ShowLine l;
+      l.kind = kind, l.gen = 7, l.guid = 4100, l.id = id, l.t_ms = t_ms, l.rate = 1000;
+      assert(set_path(l, 0, path));
+      return l;
+    };
+    d.line(show(Kind::show, 1, 1010, "CH_M/Hit/M_Hit_F"), 1000);
+    d.line(show(Kind::set, 1, 1011, "CH_M/Hit/M_Hit_F"), 1000);
+    d.line(show(Kind::stop, 1, 1012, "CH_M/Hit/M_Hit_F"), 1000);
+    d.draw(g, kBase, 5016, 1012);
+    assert(s.since(seen) == "write1 write4 move write12" && d.counts.deduped == 1 && d.counts.shows == 0);
+    assert(d.counts.sets == 1 && d.counts.stops == 1 && d.counts.unknown == 0);
+    d.line(show(Kind::show, 2, 1020, "CH_M/Hit/M_Hit_B"), 1012);
+    d.draw(g, kBase, 5032, 1020);
+    assert(s.since(seen) == "write1 write4 move write12 handle 1 main 1 add 1 CH_M/Hit/M_Hit_B 0 1.000 0 0");
+    // Our replay's stage, on the copy as SetMainActor makes it, playing M_Hit_B: still replayed.
+    const uint64_t mine = s.by_handle[1];
+    s.put<int32_t>(mine + 0x18, s.index(ch));
+    s.put<int32_t>(mine + 0x1c, s.serial(ch));
+    s.put<uint64_t>(s.get<uint64_t>(s.get<uint64_t>(mine + 0x88)) + 0x18, back);
+    d.line(show(Kind::show, 3, 1030, "CH_M/Hit/M_Hit_B"), 1020);
+    d.draw(g, kBase, 5048, 1030);
+    assert(s.since(seen) == "write1 write4 move write12 handle 2 main 2 add 2 CH_M/Hit/M_Hit_B 0 1.000 0 0");
+    s.put<float>(own + 0x2c, 1.5f); // The copy's own start 1.5 s in: replayed.
+    d.line(show(Kind::show, 4, 1040, "CH_M/Hit/M_Hit_F"), 1030);
+    d.draw(g, kBase, 5064, 1040);
+    assert(s.since(seen) == "write1 write4 move write12 handle 3 main 3 add 3 CH_M/Hit/M_Hit_F 0 1.000 0 0");
+    s.put<float>(own + 0x2c, 0.5f), s.put<uint8_t>(own + 0xe8, 1); // Finished: replayed.
+    d.line(show(Kind::show, 5, 1050, "CH_M/Hit/M_Hit_F"), 1040);
+    d.draw(g, kBase, 5080, 1050);
+    assert(s.since(seen) == "write1 write4 move write12 handle 4 main 4 add 4 CH_M/Hit/M_Hit_F 0 1.000 0 0");
+    assert(d.counts.deduped == 1 && d.counts.shows == 4);
   }
   // A pair forgotten takes its queued lines with it: drawn again later, nothing of its old life plays. With nothing
   // held, a frame reads nothing of the game.

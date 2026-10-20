@@ -414,7 +414,8 @@ guest's game draws its copies (stage 3a of Phase 11).
   function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the host's
   speed, the root moves to the sample at the ghost's draw time, and Velocity follows the samples. Each Show is replayed
   through the game's Show handle API when the draw time reaches its stamp, with its hit context written into the new
-  player.
+  player. A Show that the guest's own game started on the copy less than 1 s before (her hit's reaction, a mirrored
+  crowd control, its death) and still plays is not replayed a second time.
 - A copy that is knocked down, groggy, in the air or in a takedown is released: the game moves it until 200 ms after
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back

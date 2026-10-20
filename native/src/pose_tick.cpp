@@ -1913,13 +1913,13 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
                 "game's manager (%llu found back in it, %llu refused), %llu released, %llu converged, %llu snaps, "
                 "drift up to %.1f cm/s and %.1f deg/s; SBE entries %llu taken, %llu refused; show lines %llu queued, "
                 "%llu refused, %llu unreadable, %llu over the queue; %llu Shows replayed (%llu late, %llu missing, %llu "
-                "without a stage, %llu without context; AddShow up to %llu us), %llu show-set, %llu show-stop, %llu "
-                "naming no replay, %llu for a copy not driven",
+                "without a stage, %llu without context; AddShow up to %llu us), %llu deduped, %llu show-set, %llu "
+                "show-stop, %llu naming no replay, %llu for a copy not driven",
                 u(drive.frames), u(drive.unresolved), u(drive.cmc_out), u(drive.cmc_reenabled), u(drive.cmc_refused),
                 u(drive.released), u(drive.converged), u(drive.snaps), drive.drift_cm, drive.drift_deg, u(drive.sbe),
                 u(drive.sbe_refused), u(drive.lines), u(drive.lines_refused), u(pilot_in_bad), u(pilot_in_lost),
                 u(drive.shows), u(drive.late), u(drive.missing), u(drive.no_handle), u(drive.no_context), u(add_us),
-                u(drive.sets), u(drive.stops), u(drive.unknown), u(drive.not_drawn));
+                u(drive.deduped), u(drive.sets), u(drive.stops), u(drive.unknown), u(drive.not_drawn));
   trace_fight(line);
   drift_reset = true; // The drift maxima are the last second's from here.
 }

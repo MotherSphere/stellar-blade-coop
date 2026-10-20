@@ -604,35 +604,6 @@ private:
   uint8_t next_ = 0;
 };
 
-// The dedupe window: a replayed start is skipped when the copy started the same asset itself within kWindowMs (her
-// hit's reaction, a mirrored crowd control, its death Show) and still plays it. note() takes each start of the copy's
-// own; has() answers the first half only, and the caller checks the second on the copy's stages.
-class Recent {
-public:
-  static constexpr size_t kSlots = 4;
-  static constexpr double kWindowMs = 1000;
-  void note(uint64_t hash, double now) {
-    slot_[next_] = {hash, now, true};
-    next_ = (next_ + 1) % kSlots;
-  }
-  bool has(uint64_t hash, double now) const {
-    for (const Start &s : slot_)
-      if (s.used && s.hash == hash && now - s.at <= kWindowMs)
-        return true;
-    return false;
-  }
-  void clear() { std::fill(slot_, slot_ + kSlots, Start()), next_ = 0; }
-
-private:
-  struct Start {
-    uint64_t hash = 0;
-    double at = 0;
-    bool used = false;
-  };
-  Start slot_[kSlots];
-  size_t next_ = 0;
-};
-
 // ---- Show lines ----
 
 constexpr size_t kMaxPath = 200;
@@ -657,15 +628,6 @@ inline bool path_ok(uint8_t form, std::string_view p) {
       return true;
   return false;
 }
-// The asset's identity for the dedupe window: FNV-1a over form and path.
-inline uint64_t path_hash(uint8_t form, std::string_view p) {
-  uint64_t h = 14695981039346656037ull;
-  h = (h ^ form) * 1099511628211ull;
-  for (char c : p)
-    h = (h ^ uint8_t(c)) * 1099511628211ull;
-  return h;
-}
-
 // The hit context of a Show player, read when the owner first sees it, in this order: its hit level bytes (+0x54,
 // +0x60), 2D direction (+0x68, +0x6c), hit direction (+0x70), hit position (+0x84, world), bone-local position (+0x90),
 // normal (+0x9c), +0xa8 (an int), the other actor's location (+0xc0, world), hit rotation (+0xcc), then the stage's
@@ -1422,7 +1384,8 @@ inline double angle_deg(const float *a, const float *b) {
 // pointer is kept), its state stepped (Copy), and while its root follows the stream: its movement component taken out
 // of SB's parallel manager (SB's class only, and again whenever something put it back), the speed override and the
 // owner's speed written, the root moved to the sample at the draw time and Velocity set to the samples' own. Shows due
-// at the draw time replay through SB's Show handle API on a copy driven that frame, with their hit context. Every way
+// at the draw time replay through SB's Show handle API on a copy driven that frame, with their hit context, unless the
+// copy already plays the same asset, started by the game itself within a second (dedupe()). Every way
 // back (the pair gone, a release, a fault) puts the copy back in restore's order: the live replays stopped, then
 // Velocity zeroed and the movement component back, only if it was in SB's manager (both only on SB's class), then the
 // speed override's byte. fault() does that once and stops every write for the run.
@@ -1454,6 +1417,7 @@ public:
     uint64_t shows = 0, late = 0;          // Shows replayed; started past their stamp.
     uint64_t missing = 0, no_handle = 0;   // AddShow found no asset; no stage made (no registry or show manager).
     uint64_t no_context = 0;               // Shows replayed without their context (R33's 1 km rule, or no player).
+    uint64_t deduped = 0;                  // Shows not replayed: the copy started the same asset itself (dedupe()).
     uint64_t sets = 0, stops = 0, unknown = 0; // show-set, show-stop; one naming no live replay.
     uint64_t not_drawn = 0;                // Shows due while their copy was not driven (released, local, not found).
     double drift_cm = 0, drift_deg = 0;    // The most a driven copy moved or turned (per second) between our write and
@@ -1532,6 +1496,7 @@ public:
     auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
     Globals s;
     const bool lookups = globals(read, base, s);
+    base_ = base;
     Found found[kMaxEnemies];
     bool ok[kMaxEnemies] = {}; // Driven this frame: only such a copy starts a replay.
     for (size_t i = 0; i < kMaxEnemies; ++i) {
@@ -1599,6 +1564,7 @@ private:
   // (sb_cmc, checked again each frame).
   struct Found {
     uint64_t fsb = 0, ch = 0, root = 0, cmc = 0;
+    int32_t index = 0, serial = 0; // The character's object item: a stage's main actor weak pointer names it so.
     bool sb = false;
   };
   // The undo of one pair (restore's): the replays through the registry (none: no world, so no stages either), the
@@ -1636,7 +1602,7 @@ private:
   static bool find(Game &g, Read &read, uint64_t base, const Globals &s, uint32_t local, Found &f) {
     const uint64_t objects = base + pose::kObjectsRva;
     f = Found();
-    f.ch = find_character(g, read, objects, s, local, f.fsb, f.root);
+    f.ch = find_character(g, read, objects, s, local, f.fsb, f.root, &f.index, &f.serial);
     if (!f.ch || !read(f.ch + kCharacterMovement, &f.cmc, sizeof f.cmc) || !live(read, objects, f.cmc))
       return false;
     f.sb = sb_cmc(read, base, f.cmc);
@@ -1750,6 +1716,11 @@ private:
     Put<Game> u{g, s.reg, f};
     if (l.kind == Kind::show) {
       Live &live = p->lines.start(l.id, u); // A replay that held the id is stopped first.
+      if (dedupe(read, s, *p, *f, l)) {
+        live.skipped = true;
+        ++counts.deduped;
+        return;
+      }
       if (!s.reg || !s.shows || !g.handle(s.reg, live.handle)) {
         live.skipped = true;
         ++counts.no_handle;
@@ -1786,6 +1757,53 @@ private:
     if (!live->skipped)
       u.stop(*live);
     p->lines.drop(l.id);
+  }
+  // Dedupe (3.6): the copy already plays the line's asset, started by the game itself at most kDedupeS ago (her hit's
+  // reaction, a mirrored crowd control, its death Show): a stage of the copy's (by its main actor's weak pointer, else
+  // its show interface) that none of its live replays made, whose player[0] is unfinished, at most kDedupeS into its
+  // own time, and holds the same asset (form and path as the owner's capture names it). Only the newest kMaxStages
+  // stages are looked at.
+  static constexpr float kDedupeS = 1;
+  template <class Read> bool dedupe(Read &read, const Globals &s, Pair &p, const Found &f, const ShowLine &l) {
+    using detail::field;
+    uint64_t data_class = 0, list = 0;
+    int32_t stages = 0;
+    if (!s.shows || !read(base_ + (kShowDataClassAt - nightop::kImageBase), &data_class, sizeof data_class) ||
+        !nightop::plausible(data_class) || !read(s.shows + kStageCount, &stages, sizeof stages) || stages <= 0 ||
+        stages > 65536 || !read(s.shows + kStageList, &list, sizeof list) || !nightop::plausible(list))
+      return false;
+    const uint64_t objects = base_ + pose::kObjectsRva, pool = base_ + (kNamePool - nightop::kImageBase);
+    const int32_t last = std::max(0, stages - int32_t(Capturer::kMaxStages));
+    for (int32_t k = stages - 1; k >= last; --k) {
+      uint64_t stage = 0, players = 0, player = 0;
+      uint8_t st[kStageBytes], h[16], pl[kPlayerBytes];
+      if (!read(list + 8 * uint64_t(k), &stage, sizeof stage) || !nightop::plausible(stage) ||
+          !read(stage, st, sizeof st))
+        continue;
+      const int32_t weak_index = field<int32_t>(st, kStageMainWeak), weak_serial = field<int32_t>(st, kStageMainWeak + 4);
+      if (weak_serial ? weak_index != f.index || weak_serial != f.serial
+                      : field<uint64_t>(st, kStageMain) != f.ch + kShowInterface)
+        continue; // Not the copy's.
+      bool ours = !read(stage + kStageHandle, h, sizeof h);
+      p.lines.each([&](const Live &live) { // A replay AddShow took (the one being started has no handle yet).
+        ours = ours || (!live.skipped && live.slot >= 0 && !std::memcmp(live.handle, h, sizeof h));
+      });
+      const int32_t count = field<int32_t>(st, kStagePlayerCount);
+      players = field<uint64_t>(st, kStagePlayers);
+      if (ours || count <= 0 || count > 4096 || !nightop::plausible(players) || !read(players, &player, sizeof player) ||
+          !nightop::plausible(player) || !read(player, pl, sizeof pl))
+        continue;
+      const float time = field<float>(pl, kPlayerTime);
+      uint8_t form = 0;
+      const char *path = nullptr;
+      size_t len = 0;
+      uint64_t unnamed = 0;
+      if (!pl[kPlayerFinished] && time >= 0 && time <= kDedupeS &&
+          paths_.get(read, objects, pool, data_class, field<uint64_t>(pl, kPlayerData), form, path, len, unnamed) &&
+          form == l.form && len == l.path_len && !std::memcmp(path, l.path, len))
+        return true;
+    }
+    return false;
   }
   // A show's hit context into the player AddShow just made, as SB's skill path writes some of these fields after its
   // own AddShow: FUN_142284a30 appended that stage to the show manager's list and stamped it with our handle, so it is
@@ -1835,6 +1853,8 @@ private:
 
   Pair pairs_[kMaxEnemies];
   Timeline timeline_;
+  Paths paths_;        // dedupe()'s names of the copies' own Shows.
+  uint64_t base_ = 0;  // The game's image base, as draw() had it.
   uint32_t gen_ = 0;
   Side side_ = kHost;
   PilotTest limit_ = PilotTest::replay;

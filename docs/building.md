@@ -116,7 +116,7 @@ build/host/pose_codec_test
   - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
-    their timeline and line ids, the 1 s dedupe window, the FNamePool decode and compact id over fake blocks, the
+    their timeline and line ids, the FNamePool decode and compact id over fake blocks, the
     owner's capture against fake memory (each enemy found through the game's two lookups by GUID, its root, flags and
     animation speed into SBE; the show manager's stages matched by their main actor's weak pointer, a stale one refused,
     an empty one matched by the actor's show interface; only the first player of a stage, a finished one never told;
@@ -127,7 +127,9 @@ build/host/pose_codec_test
     the game's own function in slot 0x350, and again when something put it back; the speed override, the root moved
     through its vtable and Velocity; the drift probe; the Show replayed through the handle API with its hit context
     (each field at its offset), only on a copy driven that frame, show-set and show-stop (also while the copy is not
-    found), a missing asset, a context too far away, the oldest replay giving way when eight are held; a release;
+    found), a missing asset, a context too far away, the oldest replay giving way when eight are held; a Show the copy
+    started itself less than 1 s before not replayed again, unlike another enemy's, an older one, a finished one or
+    one of its own replays; a release;
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
     change and driven only from the next frame), and two worlds through a delayed, lossy line (120 ms, plus or minus
