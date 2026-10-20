@@ -123,7 +123,9 @@ struct Game {
   std::map<uint32_t, std::vector<Job *>> queue; // SB's job queue: turn -> jobs.
   bool processing = false;
   uint32_t late = 0; // Game-thread pushes land this many turns back: on a key already drained, never run.
-  uint64_t no_floor = 0; // A logic actor whose stat 107 ApplyStat leaves as it is.
+  uint64_t no_floor = 0; // A logic actor whose stat 107 this build keeps elsewhere: ApplyStat moves elsewhere instead.
+  float elsewhere = 0;
+  uint64_t torn = 0; // A logic actor whose reads fault (an exception here, SEH in the glue).
   struct Call {
     uint64_t la;
     int type;
@@ -350,6 +352,8 @@ struct Game {
     if (type == kFloorStat) { // MinimumHP: stored as it comes, never clamped (PHASE11-STAGE2-RE 3).
       if (la != no_floor)
         mem.put(b.fsb + kMinimumHp, mem.get<float>(b.fsb + kMinimumHp) + delta);
+      else
+        elsewhere += delta;
       return;
     }
     if (d == 0 || (type == 1 && (mem.get<uint8_t>(la + kPendingDeath) || (life >= 3 && life <= 5))))
@@ -409,7 +413,11 @@ struct Game {
   }
 
   // ---- The Game the engine takes ----
-  bool read(uint64_t address, void *out, size_t n) { return mem.read(address, out, n); }
+  bool read(uint64_t address, void *out, size_t n) {
+    if (torn && address >= torn && address < torn + 0x628)
+      throw torn;
+    return mem.read(address, out, n);
+  }
   // FUN_141ad6ab0: the element by key, then the value's own test (+0x20 set, +0x491, +0x60); no GUID compare.
   uint64_t find(uint64_t lg, uint32_t guid) {
     assert(lg == logic);
@@ -852,6 +860,30 @@ int main() {
     e2->latch("fault");
     e2->lift(f);
     assert(e2->snapshot().floors == 0 && f.mem.get<float>(f.fsb(501) + kMinimumHp) == 0 && f.calls.size() == calls + 1);
+    assert(e2->forget() == 0);
+    // A fault in our read of one torn actor while the floors come off: the glue's lift() after it takes the others
+    // off, and forget() still counts that one for the log.
+    Game w;
+    auto e4 = engine(false, false);
+    e4->confirm(true);
+    e4->set(true, false);
+    for (uint32_t guid : {501u, 502u, 503u})
+      w.spawn(guid, 5000 + guid, 0);
+    for (const char *line : {"SBF9 world 1", "SBF9 up 1 101 5501 0 900 1600", "SBF9 up 1 102 5502 0 900 1600",
+                             "SBF9 up 1 103 5503 0 900 1600"})
+      w.inbox.push_back(msg(line));
+    frame(w, *e4, 0);
+    assert(e4->snapshot().floors == 3);
+    w.torn = w.by_guid[502];
+    e4->latch("fault");
+    for (int pass = 0; pass < 2; ++pass) { // The fault in Simulate's lift_all, then the glue's lift after it.
+      try {
+        e4->lift(w);
+      } catch (uint64_t) {
+      }
+    }
+    assert(w.mem.get<float>(w.fsb(501) + kMinimumHp) == 0 && w.mem.get<float>(w.fsb(503) + kMinimumHp) == 0);
+    assert(w.mem.get<float>(w.fsb(502) + kMinimumHp) == 1 && e4->forget() == 1 && e4->forget() == 0);
     // The game would not raise it: off for the run, nothing held.
     Game h;
     auto e3 = engine(false, false);
@@ -863,6 +895,11 @@ int main() {
       h.inbox.push_back(msg(line));
     frame(h, *e3, 0);
     assert(e3->latched() && !strcmp(e3->why(), "implausible floor") && e3->snapshot().floors == 0);
+    // Its +1 went somewhere: the latch's lift took it back off there.
+    size_t moved = 0;
+    for (const Game::Call &c : h.calls)
+      moved += c.type == kFloorStat;
+    assert(moved == 2 && h.elsewhere == 0 && e3->forget() == 0);
   }
 
   // ---- fight_chars=auto: with no list, every Monster (ActorType 3 at FSBActor +0x368), never a boss or an Alpha

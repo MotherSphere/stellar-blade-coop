@@ -473,7 +473,7 @@ public:
   }
   // The glue's, after a fault it does not lift from: the floors forgotten (they stay on their enemies until these leave
   // the map), and how many, for the log.
-  size_t forget() { return std::exchange(captures_, size_t(0)); }
+  size_t forget() { return std::exchange(captures_, size_t(0)) + std::exchange(lifting_, size_t(0)); }
 
   // This turn's enemies into seen() in fight_sync.h's order: each followed GUID found again by SB's lookup, dying or
   // not, then on a census every other eligible enemy; at most kMaxSeen. The census goes in two phases: the map is
@@ -893,7 +893,8 @@ private:
   // After the guest's step: our floor on each copy it names, off every other. A floor goes on only on a fighting copy
   // whose HP stays at or above MinimumHP with ours added (a floor above the HP would raise it), and holds only when
   // MinimumHP then reads exactly kFloorHp more: else this build keeps the stat elsewhere, and the feature stops for the
-  // run.
+  // run. Captured before the call, so the latch's lift_all and the glue's lift after a fault in our read-back undo it
+  // too: the opposite delta cancels it wherever it went.
   template <class Game> void hold_floors(Game &g, uint64_t logic, const uint32_t *want, size_t n) {
     for (size_t i = 0; i < captures_;)
       if (std::find(want, want + n, caps_[i].guid) == want + n)
@@ -910,21 +911,23 @@ private:
       if (!la || !live(g, la, want[k], a) || !fighting(a) || !stats(g, a) || !get(g, a.fsb + kMinimumHp, before) ||
           !(float(a.seen.value[kHp]) >= before + float(kFloorHp)))
         continue;
+      caps_[captures_++] = Capture{want[k], kFloorStat, kFloorHp};
       g.apply(la, kFloorStat, float(kFloorHp), 0, false);
-      if (get(g, a.fsb + kMinimumHp, after) && after == before + float(kFloorHp))
-        caps_[captures_++] = Capture{want[k], kFloorStat, kFloorHp};
-      else
+      if (!get(g, a.fsb + kMinimumHp, after) || after != before + float(kFloorHp))
         latch("implausible floor");
     }
   }
-  // Capture i undone and dropped.
+  // Capture i undone and dropped. Dropped first, so a fault in our reads of a torn actor does not stop the glue's lift
+  // of the others; lifting_ keeps it counted for forget() until the call is done.
   template <class Game> void lift(Game &g, uint64_t logic, size_t i) {
     const Capture c = caps_[i];
     caps_[i] = caps_[--captures_];
+    ++lifting_;
     Actor a;
     const uint64_t la = g.find(logic, c.guid);
     if (la && live(g, la, c.guid, a))
       g.apply(la, c.type, float(-c.delta), 0, false);
+    --lifting_;
   }
   template <class Game> void lift_all(Game &g, uint64_t logic) {
     while (captures_)
@@ -955,7 +958,7 @@ private:
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
   Capture caps_[kMaxCaptures];
-  size_t captures_ = 0;
+  size_t captures_ = 0, lifting_ = 0; // lifting_: captures dropped whose lift a fault cut short.
 };
 
 // ---- Between the job and the worker ----
