@@ -828,6 +828,7 @@ public:
   void credit(bool all) { credit_all_ = all; }
   // The host's scaling from its scale line (kMinScale: none), until its next world, on or off.
   uint16_t scale(int which) const { return scale_[which]; }
+  uint32_t gen() const { return known_gen_; } // The host's generation, from its world line; 0 before one.
   size_t linked() const {
     size_t n = 0;
     for (size_t i = 0; i < count_; ++i)

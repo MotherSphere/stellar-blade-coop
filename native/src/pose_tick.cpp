@@ -28,6 +28,13 @@
 // The synced photo mode's pause (photo_freeze.h) is the game thread's too: while the friend's photo mode asks for it
 // (the link's photo line) or coop freeze runs, coop_tick holds a pause tag of ours in SB's set through SB's own
 // pause-tag function, under its own SEH latch, and releases it on every way out, coop off included.
+//
+// Same-place enemies (stage 3a, pilot.h), the owner's read half: each frame coop_tick takes the job's newest pair table
+// (Mail, try_lock), and every 33 ms of clock, for the pairs this side owns while same_place is on or the pilot probe
+// runs, reads each enemy (found by GUID through SB's two read-only lookups) and SB's show manager into one SBE message
+// and the show lines, under its own SEH latch, pilot, whose first fault also asks the job to let every frozen copy go.
+// The worker sends them to her while the shared fight runs on (SBE on channel 1, the lines on channel 2), puts them in
+// a recording being made, and logs them to coop-fight.log while the probe runs.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -150,6 +157,10 @@ std::atomic<uint64_t> send_us{50'000};
 // GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
 // "different from the last call", never "last + 1".
 constexpr uint32_t kFrameCounterRva = 0x706b508;
+
+// Same-place enemies' SBE goes to her (the pilot capture's, below): the poses give up kSbeBytesPerSecond of their
+// budget meanwhile. Game thread.
+bool pilot_sending = false;
 
 // Cost counters, game thread writes, worker reads and resets every 60 s.
 std::atomic<uint64_t> window_ticks{0}, window_us{0}, window_max_us{0}, window_max_gap_us{0}, window_long_gaps{0};
@@ -344,7 +355,7 @@ void stream(uint64_t now_us) {
     live.playback.clear();
   }
   const bool capture_due = (loopback_on || record_on || peer_on) && live.capture.generation && now_us >= next_capture;
-  if (capture_due && !live.encoder.due(now_us)) {
+  if (capture_due && !live.encoder.due(now_us, pilot_sending)) {
     ++window_held; // The byte budget is spent: read again next frame.
   } else if (capture_due) {
     Io r = read_eve(live.capture, live.capture_root, live.capture_bones.data());
@@ -702,6 +713,116 @@ void guarded_freeze() {
     }
   }
   freeze_held = false;
+}
+
+// ---- Same-place enemies: the owner's capture (pilot.h's Capturer), the game thread's read half ----
+// SB's two read-only lookups by GUID (stage 3a's allowlist, PHASE11-STAGE3 3.4): FSBActorManager::FindActor, an
+// ActorGUID's FSBActor (it logs, and so allocates, only when its two maps disagree), and the registry's character of
+// an FSBActor's FGuid (none when pending kill or not an ASBCharacter).
+constexpr uint64_t kFindFsb = 0x141aace90, kFindCharacter = 0x14201b1e0;
+using FindFsb = void *(*)(void *manager, int32_t guid);
+using FindCharacter = void *(*)(void *map, const int32_t *guid);
+constexpr uint64_t kSbeUs = 1'000'000 / pilot::kSbeHz;
+constexpr uint64_t kTableMs = 1000; // A pair table older than this: the job stopped running, so nothing is captured.
+constexpr size_t kPilotLines = 64;
+struct PilotLine {
+  pilot::ShowLine line;
+  bool peer = false; // For her: the table was on (same_place, her side on). Else the probe's alone.
+};
+// The worker's asks and what the game thread did.
+std::atomic<bool> pilot_pinned{false}, pilot_faulted{false}, pilot_probe{false};
+std::atomic<uint64_t> pilot_fault_code{0}, pilot_fault_rva{0}, pilot_fault_address{0};
+std::atomic<uint32_t> pilot_owned{0}; // The pairs the last frame would capture.
+// The game thread's.
+pilot::Capturer capturer;
+fight::PilotTable pilot_table;
+fight::StreamFlags pilot_stream; // The drawn copies' word back (the write half's): none yet.
+uint32_t pilot_session = 0, pilot_gen = 0;
+bool pilot_peer = false; // The lines told so far were for her: a change, a new session or world tells every Show again.
+uint64_t next_sbe = 0, pilot_lost_here = 0;
+uint64_t pilot_runs_here = 0, pilot_us_here = 0, pilot_max_us_here = 0;
+fight::Ring<PilotLine, kPilotLines> pilot_waiting; // Lines a busy lock kept here.
+uint8_t sbe_back[pilot::kMaxSbe];
+size_t sbe_back_size = 0;
+bool sbe_back_peer = false;
+// Handed over under pilot_m, which the game thread takes with try_lock only and holds for copies of our own memory.
+std::mutex pilot_m;
+fight::Ring<PilotLine, kPilotLines> pilot_lines;
+uint8_t pilot_sbe[pilot::kMaxSbe];
+size_t pilot_sbe_size = 0;
+bool pilot_sbe_peer = false;
+pilot::Capturer::Counts pilot_counts;
+uint64_t pilot_lost = 0, pilot_runs = 0, pilot_us = 0, pilot_max_us = 0;
+
+// pilot.h's Game: plain reads (a fault is the latch's) and the two lookups.
+struct PilotGame {
+  bool read(uint64_t address, void *out, size_t n) {
+    std::memcpy(out, reinterpret_cast<const void *>(address), n);
+    return true;
+  }
+  uint64_t fsb(uint64_t manager, uint32_t guid) {
+    return reinterpret_cast<uintptr_t>(
+        game_function<FindFsb>(kFindFsb)(reinterpret_cast<void *>(manager), static_cast<int32_t>(guid)));
+  }
+  uint64_t character(uint64_t map, const int32_t *guid) {
+    return reinterpret_cast<uintptr_t>(
+        game_function<FindCharacter>(kFindCharacter)(reinterpret_cast<void *>(map), guid));
+  }
+};
+// Each frame: the newest table; every kSbeUs while this side owns pairs (and the table is on, or the probe runs), one
+// capture; then what it made handed to the worker when the lock is free (else at a later frame: the newest SBE, every
+// line kept in order).
+__declspec(noinline) void pilot_body() {
+  const uint64_t start = clock_us();
+  fight_mail.table(pilot_table, pilot_stream); // Busy: the table as it was.
+  const fight::PilotTable &t = pilot_table;
+  const bool fresh = t.ms && start / 1000 < t.ms + kTableMs, peer = fresh && t.on;
+  if (t.session != pilot_session || t.gen != pilot_gen || peer != pilot_peer) {
+    capturer.clear();
+    pilot_session = t.session, pilot_gen = t.gen, pilot_peer = peer;
+  }
+  pilot::Owned owned[fight::kMaxPairs];
+  const size_t n = fresh && (peer || pilot_probe) ? fight::owned(t, owned) : 0;
+  pilot_owned = uint32_t(n);
+  if (!n)
+    pilot_sending = false;
+  if (n && start >= next_sbe) {
+    next_sbe = (next_sbe && start - next_sbe < kSbeUs ? next_sbe : start) + kSbeUs;
+    PilotGame g;
+    const size_t size = capturer.capture(g, base, t.gen, owned, n, start, sbe_back, [peer](const pilot::ShowLine &l) {
+      if (pilot_waiting.push(PilotLine{l, peer}))
+        return true;
+      ++pilot_lost_here;
+      return false;
+    });
+    if (size)
+      sbe_back_size = size, sbe_back_peer = peer;
+    pilot_sending = peer && size;
+    const uint64_t took = clock_us() - start;
+    ++pilot_runs_here, pilot_us_here += took, pilot_max_us_here = std::max(pilot_max_us_here, took);
+  }
+  if (!pilot_m.try_lock())
+    return;
+  pilot_waiting.move_to(pilot_lines);
+  if (sbe_back_size) {
+    std::memcpy(pilot_sbe, sbe_back, sbe_back_size);
+    pilot_sbe_size = sbe_back_size, pilot_sbe_peer = sbe_back_peer;
+    sbe_back_size = 0;
+  }
+  pilot_counts = capturer.counts;
+  pilot_lost = pilot_lost_here, pilot_runs = pilot_runs_here, pilot_us = pilot_us_here;
+  pilot_max_us = pilot_max_us_here;
+  pilot_m.unlock();
+}
+// The first fault stops the capture for the run and asks the job to let every frozen copy go (Engine::stop_pilot).
+void guarded_pilot() {
+  __try {
+    pilot_body();
+  } __except (fault_filter(GetExceptionInformation(), pilot_fault_code, pilot_fault_rva, pilot_fault_address)) {
+    pilot_faulted = true;
+    pilot_sending = false;
+    fight_engine.stop_pilot();
+  }
 }
 
 } // namespace
@@ -1075,6 +1196,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     if (pinned) // Before any fight on: SB's image base and our jobs' vtable.
       fight_engine.init(base, &kJobVtable);
     freeze_pinned = pinned; // After base: the game thread's pause calls need it.
+    pilot_pinned = pinned;  // The same for the pilot's capture.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
   if (faulted && !fault_logged) {
@@ -1443,9 +1565,120 @@ std::string fight_gate(int marker) {
   const std::string where = slot::line(loaded_slot(), marker, world, saves_now());
   return where.rfind("slot=coop ", 0) == 0 ? std::string() : std::string(fight::kNoCoopSave) + " (" + where + ")";
 }
+
+// Where a fault (fault_filter's rva) was: in an SB call, its address as the decompiles name it; in this DLL, its
+// offset; else (ntdll under ApplyStat's heap, say) the address itself.
+std::string fault_where(uint64_t rva) {
+  const uint64_t at_address = rva + reinterpret_cast<uintptr_t>(&__ImageBase);
+  char where[64];
+  if (at_address - base < kSizeOfImage)
+    std::snprintf(where, sizeof where, "the game at 0x%llx",
+                  static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
+  else if (fault_in_dll(rva))
+    std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx", static_cast<unsigned long long>(rva));
+  else
+    std::snprintf(where, sizeof where, "0x%llx (another module)", static_cast<unsigned long long>(at_address));
+  return where;
+}
+
+// coop fight pilot probe|off: while on, same-place enemies' lines this side sends go to coop-fight.log.
+std::string ask_pilot(bool probe) {
+  if (!probe)
+    return pilot_probe.exchange(false) ? "pilot probe off" : "pilot probe is not on";
+  if (!pinned)
+    return "pilot probe refused: " + engine_reason;
+  if (blocked)
+    return "pilot probe refused: coop off";
+  if (pilot_faulted)
+    return "pilot probe refused: same-place enemies stopped for this run (a fault)";
+  if (pilot_probe.exchange(true))
+    return "pilot probe is already on";
+  return "pilot probe on: the SBE and show lines of the enemies this side owns go to coop-fight.log (one SBE line a "
+         "second) while the shared fight runs (alone: coop fight record, as host)";
+}
+
+// Same-place enemies' output at each worker pass: the newest SBE and the show lines the game thread captured. Those
+// for her go to her while the shared fight runs on (SBE on channel 1 unreliable, the lines on channel 2 reliable) and
+// into a recording being made (coop record); with the probe, each line and one SBE line a second (with the counts)
+// go to coop-fight.log. A fault of the capture is logged once.
+bool pilot_fault_logged = false;
+uint64_t pilot_next_line = 0, pilot_unsent = 0;
+fight::Ring<PilotLine, kPilotLines> pilot_taken;
+uint8_t pilot_last_sbe[pilot::kMaxSbe]; // The newest SBE since the probe's last line, for its next one.
+size_t pilot_last_size = 0;
+bool pilot_last_out = false;
+void pilot_pass(uint64_t now_ms, bool linked, bool (*send)(const std::string &, bool)) {
+  if (pilot_faulted && !pilot_fault_logged) {
+    pilot_fault_logged = true;
+    char text[300];
+    std::snprintf(text, sizeof text,
+                  "same-place enemies fault 0x%08llx in %s reading 0x%llx: their capture stops for this run, the "
+                  "frozen copies are let go; the ghost, the link and the shared fight go on",
+                  static_cast<unsigned long long>(pilot_fault_code.load()), fault_where(pilot_fault_rva).c_str(),
+                  static_cast<unsigned long long>(pilot_fault_address.load()));
+    say(text);
+  }
+  uint8_t sbe[pilot::kMaxSbe];
+  size_t sbe_size = 0;
+  bool sbe_peer = false;
+  pilot::Capturer::Counts counts;
+  uint64_t lost = 0, runs = 0, us = 0, max_us = 0;
+  {
+    std::lock_guard<std::mutex> lock(pilot_m);
+    pilot_lines.move_to(pilot_taken);
+    std::memcpy(sbe, pilot_sbe, pilot_sbe_size);
+    std::swap(sbe_size, pilot_sbe_size);
+    sbe_peer = pilot_sbe_peer;
+    counts = pilot_counts, lost = pilot_lost, runs = pilot_runs, us = pilot_us, max_us = pilot_max_us;
+  }
+  const bool sharing = fight_worker.sharing(), probe = pilot_probe;
+  const auto record = [](const uint8_t *data, size_t size) {
+    if (recorder && !recorder->add(data, size))
+      say(stop_record("full", clock_us()));
+  };
+  if (sbe_size && sbe_peer) {
+    if (sharing && peer_on && peer_send)
+      peer_send(sbe, sbe_size, false);
+    record(sbe, sbe_size);
+  }
+  if (sbe_size) {
+    std::memcpy(pilot_last_sbe, sbe, sbe_size);
+    pilot_last_size = sbe_size, pilot_last_out = sbe_peer && sharing && peer_on;
+  }
+  for (PilotLine l; pilot_taken.pop(l);) {
+    const std::string text = pilot::format(l.line);
+    const bool out = l.peer && sharing && linked && send(text, true);
+    pilot_unsent += l.peer && sharing && linked && !out;
+    if (l.peer)
+      record(reinterpret_cast<const uint8_t *>(text.data()), text.size());
+    if (probe)
+      trace_fight((out ? "pilot out " : "pilot ") + text);
+  }
+  if (!probe || now_ms < pilot_next_line)
+    return;
+  pilot_next_line = now_ms + 1000;
+  using u = unsigned long long;
+  char tail[400];
+  std::snprintf(tail, sizeof tail,
+                "; %llu captures (mean %llu us, max %llu us), %llu enemies sent, %llu not found, %llu Show assets "
+                "unnamed, %llu players odd, %llu cut, %llu waiting for an id, %llu without context; %llu shows, %llu "
+                "show-set, %llu show-stop, %llu lost, %llu unsent",
+                u(counts.captures), u(runs ? us / runs : 0), u(max_us), u(counts.entries), u(counts.unresolved),
+                u(counts.unnamed), u(counts.odd), u(counts.cut), u(counts.waited), u(counts.no_context),
+                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent));
+  if (pilot_last_size)
+    trace_fight((pilot_last_out ? "pilot out " : "pilot ") + pilot::sbe_text(pilot_last_sbe, pilot_last_size) + tail);
+  else
+    trace_fight(std::string("pilot probe: no SBE in the last second: ") +
+                (pilot_owned ? "the enemies this side owns were not found"
+                             : "no enemy this side owns (only coop fight on or record pairs enemies)") + tail);
+  pilot_last_size = 0;
+}
 } // namespace
 
 std::string ask_fight(const coop::Request &request, int marker) {
+  if (request.fight == Fight::pilot)
+    return ask_pilot(!request.off);
   FightIo io;
   return fight_worker.ask(request, [marker] { return fight_gate(marker); }, io);
 }
@@ -1457,21 +1690,10 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   fight_send = send;
   if (fight_faulted && !fight_fault_logged) {
     fight_fault_logged = true;
-    // In an SB call made from our job: its address as the decompiles name it; in this DLL: its offset; else (ntdll
-    // under ApplyStat's heap, say) the address itself.
-    const uint64_t at_address = fight_fault_rva + reinterpret_cast<uintptr_t>(&__ImageBase);
-    char where[64], text[400];
-    if (at_address - base < kSizeOfImage)
-      std::snprintf(where, sizeof where, "the game at 0x%llx",
-                    static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
-    else if (fault_in_dll(fight_fault_rva))
-      std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx",
-                    static_cast<unsigned long long>(fight_fault_rva.load()));
-    else
-      std::snprintf(where, sizeof where, "0x%llx (another module)", static_cast<unsigned long long>(at_address));
+    char text[400];
     const uint64_t left = fight_floors_left;
     std::snprintf(text, sizeof text, "shared fight fault 0x%08llx in %s reading 0x%llx: the ghost and the link go on%s",
-                  static_cast<unsigned long long>(fight_fault_code.load()), where,
+                  static_cast<unsigned long long>(fight_fault_code.load()), fault_where(fight_fault_rva).c_str(),
                   static_cast<unsigned long long>(fight_fault_address.load()),
                   left ? ("; " + std::to_string(left) +
                           " of our changes on enemies (1 HP floors, two-player scaling, frozen copies) stay until "
@@ -1488,6 +1710,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   if (now_ms >= next_photo)
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
   fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
+  pilot_pass(now_ms, linked, send);
   return fight_engine.on();
 }
 
@@ -1592,5 +1815,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The photo pause's own latch, after coop off too: its tag is released then, and nothing more is called.
   if (freeze_pinned && !freeze_faulted)
     guarded_freeze();
+  // Same-place enemies' capture, its own latch too.
+  if (pilot_pinned && !pilot_faulted && !blocked)
+    guarded_pilot();
   return 0;
 }

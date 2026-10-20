@@ -321,16 +321,17 @@ inline uint64_t code_lobby(std::string_view text) {
 // Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [<charId> ...]"
 // (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; fight_chars,
 // at most kMaxFightChars, none: every Monster), "fight off", "fight status", "fight test hp|sh|st <change>" (whole
-// units, with or without a sign) and "fight test kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to
-// kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves
-// probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make them, then switch
-// to them) and "saves main" (switch back to the player's own saves).
+// units, with or without a sign), "fight test kill", "fight pilot probe" and "fight pilot off" (same-place enemies'
+// lines this side sends, into coop-fight.log: pose_tick.cpp's); for the synced photo mode's solo tests "freeze
+// <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
+// save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
+// them, then switch to them) and "saves main" (switch back to the player's own saves).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
-enum class Fight { none, on, off, status, probe, test, record, replay };
+enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 enum class SavesAsk { none, probe, convert, coop, main };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
@@ -341,7 +342,7 @@ struct Request {
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
-  bool off = false;                      // loopback off, record off, replay off, freeze off.
+  bool off = false;                      // loopback off, record off, replay off, freeze off, fight pilot off.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -393,6 +394,9 @@ inline Request parse_fight(const std::string &text) {
               : what == "probe"  ? Fight::probe
               : what == "record" ? Fight::record
                                  : Fight::replay;
+  } else if (what == "pilot" && w.size() == 2 && (w[1] == "probe" || w[1] == "off")) { // Same-place enemies' probe.
+    r.fight = Fight::pilot;
+    r.off = w[1] == "off";
   } else if (what == "test" && w.size() == 2 && w[1] == "kill") {
     r.fight = Fight::test;
     r.stat = -1;

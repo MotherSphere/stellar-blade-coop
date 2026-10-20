@@ -329,6 +329,14 @@ int main() {
   assert(f.fight == Fight::test && f.stat == 2 && f.change == 10000000);
   f = parse_request("fight test kill");
   assert(f.command == Command::fight && f.fight == Fight::test && f.stat == -1);
+  // Same-place enemies' probe: on, and off.
+  f = parse_request("fight pilot probe\n");
+  assert(f.command == Command::fight && f.fight == Fight::pilot && !f.off);
+  f = parse_request("fight pilot off");
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.off);
+  for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on", "fight pilot  probe",
+                          "fight pilot Probe", "fight pilot off 1"})
+    assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);
   for (const char *bad : {"fight", "fight ", "fight on x", "fight on 0", "fight on 4294967296", "fight on  1",
                           "fight on -1", "fight off now", "fight status 1", "fight test", "fight test hp",
                           "fight test hp 0", "fight test hp -0", "fight test hp 10000001", "fight test hp --1",

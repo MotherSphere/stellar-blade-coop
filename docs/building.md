@@ -100,17 +100,21 @@ build/host/pose_codec_test
     out, the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put
     back after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd
     control, taken off before a kill and on every way out, a refused dispel tried again) with the pair table for the
-    game thread, against fake memory;
+    game thread and the rows it captures (only those the side owns and does not draw), against fake memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
     worlds linked through a delayed, lossy line;
   - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
-    filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps),
-    the drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a
-    fuzz, their timeline and line ids, the 1 s dedupe window, the FNamePool decode and compact id over fake blocks,
-    and two worlds through a delayed, lossy line (120 ms, plus or minus 30, 2 % lost), where the guest's copies stay
-    within 30 cm of the host's enemies at the same host time while they move (an 8 m/s lunge to a dead stop included)
-    and 5 cm at rest, the show lines apply in the host's order, and restore puts every copy back to local, with its
-    CMC back in SB's movement manager and the speed override gone;
+    filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
+    drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
+    their timeline and line ids, the 1 s dedupe window, the FNamePool decode and compact id over fake blocks, the
+    owner's capture against fake memory (each enemy found through the game's two lookups by GUID, its root, flags and
+    animation speed into SBE; the show manager's stages matched by their main actor's weak pointer, a stale one refused,
+    an empty one matched by the actor's show interface; only the first player of a stage, a finished one never told;
+    show-set and show-stop; each asset's path decoded once; a character pending kill, a failed lookup, a wrong class, no
+    world or no show manager), and two worlds through a delayed, lossy line (120 ms, plus or minus 30, 2 % lost), where
+    the guest's copies stay within 30 cm of the host's enemies at the same host time while they move (an 8 m/s lunge to
+    a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and restore puts every copy back
+    to local, with its CMC back in SB's movement manager and the speed override gone;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;

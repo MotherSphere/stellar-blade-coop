@@ -181,7 +181,9 @@ struct PilotPair {
 // The pair table the job hands the game thread after each turn (Mail::publish): the side's pairs, at most kMaxPairs.
 struct PilotTable {
   bool on = false; // same_place on, no pilot latch, and on the host her on: owners capture, drawn copies follow.
-  uint32_t session = 0, turn = 0; // The session and SB's logic turn it comes from.
+  pilot::Side side = pilot::kHost; // This side.
+  uint32_t gen = 0;                // The host's generation: the host's own, or as its world line said (the guest).
+  uint32_t session = 0, turn = 0;  // The session and SB's logic turn it comes from.
   // Our clock then: a table that stops coming is the game thread's to time out. Once the engine is latched, the table
   // is off whatever it says: a fault's lift publishes nothing.
   uint64_t ms = 0;
@@ -193,6 +195,17 @@ struct StreamFlags {
   uint32_t battle[kMaxPairs] = {};
   uint8_t count = 0;
 };
+// The rows the game thread captures (pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns and
+// does not draw, with their SBE flags. Never a drawn copy, so a replayed Show is never sent back (R35).
+inline size_t owned(const PilotTable &t, pilot::Owned *out) {
+  size_t n = 0;
+  for (uint8_t r = 0; r < t.count && r < kMaxPairs; ++r) {
+    const PilotPair &p = t.pairs[r];
+    if (p.owner == t.side && !(p.bits & kRowDrawn) && p.local)
+      out[n++] = pilot::Owned{p.hguid, p.local, p.oe, uint8_t(p.bits & (kRowBattle | kRowDying))};
+  }
+  return n;
+}
 
 // FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1d150) sets for slow
 // motion; 1 otherwise [L]. Read for the stats line only, to size slow motion before stage 3 (FEATURE-PARITY C33).
@@ -1232,6 +1245,8 @@ private:
     const Seen *seen[kMaxPairs];
     size_t drawn = 0, kept = 0;
     table_.on = same_place_ && !pilot_stopped_ && (!hosting || host.peer_on());
+    table_.side = hosting ? pilot::kHost : pilot::kGuest;
+    table_.gen = hosting ? host.gen() : guest.gen();
     table_.count = 0;
     for (size_t i = 0; i < count && table_.count < kMaxPairs; ++i) {
       const uint8_t r = table_.count++;
@@ -1615,6 +1630,8 @@ public:
       stats(now_ms, io);
   }
 
+  // The mode on runs with her: our lines go to her (same-place enemies' too).
+  bool sharing() const { return running_ && ran_ == Fight::on; }
   // For the status line: " fight=on <enemies the host arbitrates or pairs the guest follows>", " fight=probe" (no
   // count: its actors may change at each census, and Lua logs each new status line), " fight=waiting" (asked but
   // paused), " fight=stopped" (latched for the run), or empty.

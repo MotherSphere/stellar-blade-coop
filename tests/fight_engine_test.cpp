@@ -998,6 +998,9 @@ int main() {
     const PilotPair &p = g.table.pairs[0];
     assert(g.table.on && g.table.count == 1 && g.table.session == e->session() && p.hguid == 101 && p.local == 501 &&
            p.owner == coop::pilot::kHost && p.oe == 0 && p.bits == kRowDrawn);
+    // The guest's side, in the host's generation (its world line's): a copy she draws is never hers to capture.
+    coop::pilot::Owned owned_rows[kMaxPairs];
+    assert(g.table.side == coop::pilot::kGuest && g.table.gen == 1 && owned(g.table, owned_rows) == 0);
     frame(g, *e, t += 16);
     assert(Game::held(g.body(501), kBlockAiState) && p.bits == (kRowDrawn | kRowFrozen) && g.table.ms == t);
     assert(g.casts.size() == 2 && e->counts.frozen == 1);
@@ -1137,9 +1140,21 @@ int main() {
     frame(g, *e, 16);
     const PilotPair &p = g.table.pairs[0];
     assert(g.table.on && p.hguid == 101 && p.local == 101 && p.owner == coop::pilot::kHost && p.bits == kRowBattle);
+    assert(g.table.side == coop::pilot::kHost && g.table.gen == e->host.gen() && g.table.gen != 0);
     g.state(102, kDelayDeath, 1);
     frame(g, *e, 32);
     assert(g.table.pairs[1].bits == kRowDying && g.casts.empty());
+    // The game thread captures both, with their SBE flags; a row the side draws, or another side's, never.
+    coop::pilot::Owned o[kMaxPairs];
+    assert(owned(g.table, o) == 2 && o[0].hguid == 101 && o[0].local == 101 && o[0].oe == 0 &&
+           o[0].flags == coop::pilot::kBattle && o[1].hguid == 102 && o[1].flags == coop::pilot::kDying);
+    PilotTable mixed = g.table;
+    mixed.pairs[0].bits |= kRowDrawn | kRowFrozen | kRowRelease;
+    mixed.pairs[1].owner = coop::pilot::kGuest;
+    mixed.pairs[1].oe = 4;
+    assert(owned(mixed, o) == 0);
+    mixed.side = coop::pilot::kGuest; // 3b's: hers, at her epoch.
+    assert(owned(mixed, o) == 1 && o[0].hguid == 102 && o[0].oe == 4 && o[0].flags == coop::pilot::kDying);
     e->same_place(false);
     frame(g, *e, 48);
     assert(!g.table.on && g.casts.empty());
