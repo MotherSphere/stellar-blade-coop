@@ -1251,6 +1251,52 @@ int main() {
       frame(g, *e, t);
     assert(battles() == 2 && mail.table(table, stream) && !table.on);
   }
+  // The rows the game thread drives (drawn(): the pairs this side draws while the table is on, with what the job read
+  // on each copy). A copy the game thread refused to drive (its movement component is not the game's: pilot.h's
+  // Driver) comes back in its word: the job lets it go as if its freeze were lost (BlockAI_Dispel, local while the pair
+  // lasts), whatever the word says after.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    g.spawn(502, 5002, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600", "SBF11 up 1 102 5002 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    frame(g, *e, t += 16);
+    g.state(501, kDelayDeath, 1);
+    g.knock(502, 2006004);
+    frame(g, *e, t += 16);
+    coop::pilot::Row rows[kMaxPairs];
+    assert(drawn(g.table, rows) == 2 && rows[0].hguid == 101 && rows[0].local == 501 &&
+           rows[0].owner == coop::pilot::kHost && rows[0].oe == 0 && rows[0].frozen && rows[0].dying &&
+           !rows[0].release && rows[1].hguid == 102 && rows[1].frozen && rows[1].release && !rows[1].dying);
+    PilotTable off = g.table, mine = g.table;
+    off.on = false;
+    mine.side = coop::pilot::kHost; // The host's own rows are its capture's, never driven.
+    assert(drawn(off, rows) == 0 && drawn(mine, rows) == 0);
+    const auto dispels = [&](uint32_t guid) {
+      size_t n = 0;
+      for (const Game::Cast &c : g.casts)
+        n += c.id == kDispel && c.la == g.by_guid[guid] && c.caster == c.la;
+      return n;
+    };
+    g.flags.refused[0] = 102;
+    g.flags.refused_count = 1;
+    frame(g, *e, t += 16); // The job takes the word at this turn's end, and lets the copy go at the next.
+    assert(dispels(502) == 0);
+    frame(g, *e, t += 16);
+    assert(dispels(502) == 1 && dispels(501) == 0 && count(g, "pilot refused") == 1 && e->counts.thawed == 1);
+    assert(drawn(g.table, rows) == 1 && rows[0].hguid == 101 && g.table.count == 2 &&
+           g.table.pairs[1].bits == kRowRelease);
+    g.flags.refused_count = 0;
+    for (uint32_t i = 0; i < 2 * kCensusTurns; ++i)
+      frame(g, *e, t += 16);
+    assert(dispels(502) == 1 && drawn(g.table, rows) == 1 && count(g, "pilot refused") == 1);
+  }
   // Every way out takes our freeze off with BlockAI_Dispel, the copy its own caster: same_place off, the host lost (its
   // off), coop fight off, a new session, a latch in the same turn, the glue's lift after a fault in our code, the game
   // thread's pilot latch (none again this run). A freeze a fault in the game's code left is counted for the log.

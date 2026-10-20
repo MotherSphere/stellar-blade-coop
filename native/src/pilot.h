@@ -336,6 +336,16 @@ constexpr Mode mode(State s) {
   return Mode{false, true, false, false, false};
 }
 
+// One pair this side draws, from the pair table (fight::drawn()): the host's GUID, our copy's, its owner and epoch, and
+// what the logic side read on the copy: our BlockAI held (state 39), a release (Down, Groggy, Airborne or a takedown
+// marker) and dying.
+struct Row {
+  uint32_t hguid = 0, local = 0;
+  Side owner = kHost;
+  uint8_t oe = 0;
+  bool frozen = false, release = false, dying = false;
+};
+
 // One frame's facts about the pair.
 struct Cues {
   bool eligible = false; // same_place on (the host's), both on the shared fight, the pair up, owned by the other side.

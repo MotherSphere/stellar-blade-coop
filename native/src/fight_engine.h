@@ -190,10 +190,14 @@ struct PilotTable {
   uint8_t count = 0;
   PilotPair pairs[kMaxPairs];
 };
-// What the game thread says back: the drawn pairs (by the host's GUID) whose owner's stream says BattleMode.
+// What the game thread says back, by the host's GUID: the drawn pairs whose owner's stream says BattleMode, and those
+// whose copy it refused to drive (its movement component is not the game's), which the job lets go as if their freeze
+// were lost.
 struct StreamFlags {
   uint32_t battle[kMaxPairs] = {};
   uint8_t count = 0;
+  uint32_t refused[kMaxPairs] = {};
+  uint8_t refused_count = 0;
 };
 // The rows the game thread captures (pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns and
 // does not draw, with their SBE flags. Never a drawn copy, so a replayed Show is never sent back (R35).
@@ -203,6 +207,18 @@ inline size_t owned(const PilotTable &t, pilot::Owned *out) {
     const PilotPair &p = t.pairs[r];
     if (p.owner == t.side && !(p.bits & kRowDrawn) && p.local)
       out[n++] = pilot::Owned{p.hguid, p.local, p.oe, uint8_t(p.bits & (kRowBattle | kRowDying))};
+  }
+  return n;
+}
+// The rows the game thread drives (pilot.h's Driver) into out, at most kMaxPairs: the pairs this side draws while the
+// table is on, with what the job read on each copy.
+inline size_t drawn(const PilotTable &t, pilot::Row *out) {
+  size_t n = 0;
+  for (uint8_t r = 0; t.on && r < t.count && r < kMaxPairs; ++r) {
+    const PilotPair &p = t.pairs[r];
+    if ((p.bits & kRowDrawn) && p.owner != t.side && p.local)
+      out[n++] = pilot::Row{p.hguid, p.local, p.owner, p.oe, (p.bits & kRowFrozen) != 0, (p.bits & kRowRelease) != 0,
+                            (p.bits & kRowDying) != 0};
   }
   return n;
 }
@@ -1263,6 +1279,8 @@ private:
     const size_t count = hosting ? host.tracked(local) : guest.tracked(local, hguid);
     const Seen *seen[kMaxPairs];
     size_t drawn = 0, kept = 0;
+    const uint32_t *refused = flags_.refused,
+                   *refused_end = refused + std::min<size_t>(flags_.refused_count, kMaxPairs);
     table_.on = same_place_ && !pilot_stopped_ && (!hosting || host.peer_on());
     table_.side = hosting ? pilot::kHost : pilot::kGuest;
     table_.gen = hosting ? host.gen() : guest.gen();
@@ -1274,7 +1292,11 @@ private:
       p.hguid = hosting ? local[i] : hguid[i];
       const Seen *s = seen[r] = fight::find(seen_, n, p.local);
       p.bits = s ? uint8_t(marks_[s - seen_] | (dying(*s) ? kRowDying : 0)) : 0;
-      const bool gone = std::find(lost_, lost_ + lost_count_, p.local) != lost_ + lost_count_;
+      bool gone = std::find(lost_, lost_ + lost_count_, p.local) != lost_ + lost_count_;
+      if (!gone && s && std::find(refused, refused_end, p.hguid) != refused_end) {
+        gone = true; // The game thread would not drive it: lost the same way.
+        g.event(Event{"pilot refused", "its movement component is not the game's", p.hguid, s->spawn, s->index});
+      }
       if (gone)
         lost[kept++] = p.local; // Lost for as long as its pair lasts.
       else if (s && table_.on && p.owner != (hosting ? pilot::kHost : pilot::kGuest))
