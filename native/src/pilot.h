@@ -55,7 +55,14 @@ struct Entry {
   uint16_t speed = 0;   // speed_cm().
 };
 
-// One message into out (kMaxSbe bytes at least); its size, 0 when n > kMaxEnemies.
+// An entry decode_sbe takes: a GUID, known flags, a finite location within pose::kMaxWorld (NaN fails).
+inline bool entry_ok(const Entry &e) {
+  return e.guid && !(e.flags & ~(kBattle | kDying)) && std::fabs(e.loc[0]) <= pose::kMaxWorld &&
+         std::fabs(e.loc[1]) <= pose::kMaxWorld && std::fabs(e.loc[2]) <= pose::kMaxWorld;
+}
+
+// One message into out (kMaxSbe bytes at least); its size, 0 when n > kMaxEnemies. An entry decode_sbe would refuse
+// (entry_ok, or a GUID already written) is left out, so one bad read never costs the other enemies their message.
 inline size_t encode_sbe(const SbeHeader &h, const Entry *e, size_t n, uint8_t *out) {
   using namespace pose::codec;
   if (n > kMaxEnemies)
@@ -67,8 +74,15 @@ inline size_t encode_sbe(const SbeHeader &h, const Entry *e, size_t n, uint8_t *
   put(o, h.gen, 2);
   put(o, h.seq, 4);
   put(o, h.publication, 8);
-  put(o, n, 1);
+  uint8_t *count = o++;
+  *count = 0;
   for (size_t i = 0; i < n; ++i) {
+    bool ok = entry_ok(e[i]);
+    for (size_t k = 0; ok && k < i; ++k)
+      ok = !entry_ok(e[k]) || e[k].guid != e[i].guid;
+    if (!ok)
+      continue;
+    ++*count;
     put(o, e[i].guid, 4);
     put(o, e[i].oe, 1);
     put(o, e[i].flags, 1);
@@ -101,12 +115,12 @@ inline bool decode_sbe(const uint8_t *data, size_t size, SbeHeader &h, Entry *ou
     e.guid = uint32_t(get(in, 4));
     e.oe = uint8_t(get(in, 1));
     e.flags = uint8_t(get(in, 1));
-    bool ok = e.guid && !(e.flags & ~(kBattle | kDying));
     for (float &f : e.loc)
-      ok = (f = get_float(in), std::fabs(f) <= pose::kMaxWorld) && ok; // NaN fails.
+      f = get_float(in);
     for (uint16_t &r : e.rot)
       r = uint16_t(get(in, 2));
     e.speed = uint16_t(get(in, 2));
+    bool ok = entry_ok(e);
     for (size_t k = 0; ok && k < i; ++k)
       ok = out[k].guid != e.guid;
     if (!ok)
@@ -184,19 +198,19 @@ inline uint16_t speed_cm(float v) { return v > 0 ? uint16_t(std::min(65535.0, st
 // The pose to write on a drawn copy at one draw time.
 struct Drawn {
   float loc[3] = {}, quat[4] = {0, 0, 0, 1}, vel[3] = {}; // cm, xyzw, cm/s (the samples' own derivative).
-  float speed = 0;                                       // The owner's anim speed, cm/s.
+  float speed = 0;                                       // The owner's anim speed, cm/s; 0 while held.
   uint8_t flags = 0;                                     // The older sample's (held, never blended).
   bool snap = false;         // A jump this frame: across a warp or a hole, or 3 m or more from the last draw.
-  bool extrapolated = false; // Past the newest sample.
+  bool extrapolated = false; // Past the newest sample, or past the last one before a cut.
   bool held = false;         // Standing on one sample: before the oldest, at a cut, or past the extrapolation cap.
 };
 
 // One enemy's recent samples by publication time (the owner's pose clock, as its ghost's poses), sampled at the
 // ghost's draw time (pose::Playback::display_ms), so the drawn copy and the owner's ghost show one instant (R13).
 // Between two samples: linear position and nlerp rotation; past the newest, along the last velocity for at most
-// kExtrapolateMs, then held. Two samples more than kWarpCm apart within kWarpMs (a warp) or more than kGapMs apart (a
-// hole) are never blended: the copy holds the older until the newer's time, then snaps to it. Fixed memory: game
-// thread.
+// kExtrapolateMs, then held, never beyond pose::kMaxWorld. Two samples more than kWarpCm apart within kWarpMs (a warp)
+// or more than kGapMs apart (a hole) are never blended: until the newer's time the copy goes on as before it arrived
+// (extrapolated from the pair before, within the cap), then snaps to it. Fixed memory: game thread.
 class Track {
 public:
   static constexpr size_t kSamples = 16; // About 500 ms at 30 Hz: more than the ghost's draw delay.
@@ -229,8 +243,14 @@ public:
   bool sample(double at, Drawn &out) {
     if (!count_ || !std::isfinite(at))
       return false;
-    size_t b = newest_, a = count_ == 1 ? b : prev(b);
-    for (size_t k = 2; k < count_ && at < ms(a); ++k) {
+    size_t b = newest_, a = count_ == 1 ? b : prev(b), k = 2;
+    for (; k < count_ && at < ms(a); ++k) {
+      b = a;
+      a = prev(a);
+    }
+    // Before a cut's time the copy goes on from the pair before it, as it did before the cut arrived: it never steps
+    // back, and snaps once at the cut.
+    if (s_[b].cut && at < ms(b) && at >= ms(a) && k < count_ && !s_[a].cut) {
       b = a;
       a = prev(a);
     }
@@ -242,21 +262,23 @@ public:
     } else if (s_[b].cut) {
       alpha = at < ms(b) ? 0 : 1; // b is the newest when at passed it.
     } else {
-      const double cap = ms(b) + kExtrapolateMs; // Only past the newest: the loop leaves at < ms(b) otherwise.
+      const double cap = ms(b) + kExtrapolateMs; // Past b only when b is the newest or the last before a cut.
       alpha = (std::min(at, cap) - ms(a)) / (ms(b) - ms(a));
       moving = at <= cap;
     }
     out.held = !moving;
-    out.extrapolated = at > ms(newest_);
+    out.extrapolated = at > ms(b);
     const Sample &sa = s_[a], &sb = s_[b], &base = alpha >= 1 ? sb : sa;
     float t[10];
     pose::blend_transform(sa.root, sb.root, float(alpha), t, 4, 7);
     std::copy(t, t + 4, out.quat);
-    std::copy(t + 4, t + 7, out.loc);
+    for (int i = 0; i < 3; ++i) // Extrapolation could leave the world the samples were checked against.
+      out.loc[i] = std::clamp(t[4 + i], -pose::kMaxWorld, pose::kMaxWorld);
     const double span_s = (ms(b) - ms(a)) / 1000;
-    for (int k = 0; moving && k < 3; ++k)
-      out.vel[k] = float((sb.root[4 + k] - sa.root[4 + k]) / span_s);
-    out.speed = float(sa.speed + std::min(alpha, 1.0) * (sb.speed - sa.speed));
+    for (int i = 0; moving && i < 3; ++i)
+      out.vel[i] = float((sb.root[4 + i] - sa.root[4 + i]) / span_s);
+    // A held copy stands still: no speed, or its legs would run in place.
+    out.speed = moving ? float(sa.speed + std::min(alpha, 1.0) * (sb.speed - sa.speed)) : 0;
     out.flags = base.flags;
     out.snap = has_last_ && (distance(last_, out.loc) >= kSnapCm || (base.cut && base.publication != last_base_));
     std::copy(out.loc, out.loc + 3, last_);
@@ -409,12 +431,12 @@ struct Live {
   double until_ms = 0; // When it is over (local ms), 0 while unknown.
 };
 // One drawn pair's replays by line id (R33: a show-set or show-stop names an id a show started). A show with a live id
-// takes its entry over (ids wrap); with all kLive taken, the one that ends first gives way, without a stop: it is most
-// likely over, and SB releases a finished stage by itself (+0xa6).
+// takes its entry over (ids wrap); with all kLive taken, the one that ends first gives way. Either way the replay it
+// held is stopped first (u.stop(live), as restore does; a stale handle does nothing), so no handle is ever lost.
 class Lines {
 public:
   static constexpr size_t kLive = 8;
-  Live &start(uint8_t id) {
+  template <class Undo> Live &start(uint8_t id, Undo &&u) {
     Live *at = find(id);
     for (Live &l : live_)
       if (!at && !l.used)
@@ -422,6 +444,8 @@ public:
     auto end = [](const Live &l) { return l.until_ms > 0 ? l.until_ms : HUGE_VAL; };
     if (!at)
       at = std::min_element(live_, live_ + kLive, [&](const Live &x, const Live &y) { return end(x) < end(y); });
+    if (at->used && !at->skipped)
+      u.stop(*at);
     *at = Live();
     at->used = true, at->id = id;
     return *at;
@@ -536,7 +560,11 @@ public:
         ++waited;
         continue;
       }
-      *free = Sent{true, next_++, p.stage, p.player, p.data, p.rate, p.step};
+      uint8_t id = next_; // Past the ids still live (at most kLive - 1 others): one never names two players.
+      while (std::any_of(sent_, sent_ + kLive, [&](const Sent &s) { return s.used && s.id == id; }))
+        ++id;
+      next_ = uint8_t(id + 1);
+      *free = Sent{true, id, p.stage, p.player, p.data, p.rate, p.step};
       emit(kShow, free->id, &p);
     }
     return waited;
@@ -558,7 +586,8 @@ private:
 };
 
 // The dedupe window: a replayed start is skipped when the copy started the same asset itself within kWindowMs (her
-// hit's reaction, a mirrored crowd control, its death Show). note() takes each start of the copy's own.
+// hit's reaction, a mirrored crowd control, its death Show) and still plays it. note() takes each start of the copy's
+// own; has() answers the first half only, and the caller checks the second on the copy's stages.
 class Recent {
 public:
   static constexpr size_t kSlots = 4;
@@ -755,10 +784,11 @@ inline ShowLine parse_show(const char *data, size_t size) {
             number(f[4], l.t_ms);
   if (ok && kind == Kind::set)
     ok = upto(f[5], kMaxRate, l.rate) && upto(f[6], kMaxStep, l.step);
-  if (ok && kind == Kind::show)
+  if (ok && kind == Kind::show) // The hit levels are bytes (ShowPlayer_Init writes one at +0x54 and +0x60).
     ok = upto(f[5], 1, l.form) && upto(f[6], kMaxRate, l.rate) && upto(f[7], kMaxStep, l.step) &&
          upto(f[8], 1, l.gate) && upto(f[9], 255, l.b4d) && upto(f[10], kMaxShowMs, l.time_ms) &&
-         detail::ctx(f[11], l.ctx) && set_path(l, l.form, f[12]);
+         detail::ctx(f[11], l.ctx) && uint32_t(l.ctx[kHitLevel]) <= 255 && uint32_t(l.ctx[kHitLevel60]) <= 255 &&
+         set_path(l, l.form, f[12]);
   if (!ok)
     return ShowLine();
   l.kind = kind;
@@ -767,8 +797,9 @@ inline ShowLine parse_show(const char *data, size_t size) {
 
 // The drawn side's queue of lines: each is due when the draw time (the owner's clock, ms) reaches its stamp, in
 // arrival order (one sender's stamps only rise). A line pushed more than kLateMs after its stamp is late (it starts at
-// once, show-late); one stamped more than kMaxWaitMs ahead of the clock waits that long at most. Fixed memory: game
-// thread.
+// once, show-late); one stamped more than kMaxWaitMs ahead of the clock waits that long at most. Without a clock the
+// copy is local (Track::sample fails), so nothing would replay: the line is refused rather than kept with no bound on
+// its wait. Fixed memory: game thread.
 class Timeline {
 public:
   static constexpr size_t kLines = 32;
@@ -778,13 +809,13 @@ public:
     double due = 0;
     bool late = false;
   };
-  // at: the draw time now, NaN without a clock (the line waits, not late). False when full: the line is dropped.
+  // at: the draw time now. False when full or without a clock (NaN): the line is dropped.
   bool push(const ShowLine &l, double at) {
-    if (count_ == kLines)
+    if (count_ == kLines || !std::isfinite(at))
       return false;
     Due &d = q_[(head_ + count_++) % kLines];
     d.line = l;
-    d.due = std::min(double(l.t_ms), at + kMaxWaitMs); // NaN at: the stamp (std::min keeps its first argument).
+    d.due = std::min(double(l.t_ms), at + kMaxWaitMs);
     d.late = at - double(l.t_ms) > kLateMs;
     return true;
   }

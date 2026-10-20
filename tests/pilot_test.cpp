@@ -186,6 +186,19 @@ int main() {
       assert(refused([&](uint8_t *c) { std::memcpy(c + e1 + 6 + 4, &f, 4); }, size));
     assert(!refused([&](uint8_t *c) { float f = -9.9e6f; std::memcpy(c + e1 + 6 + 8, &f, 4); }, size));
 
+    // The encoder leaves out what the decoder would refuse, so one bad read costs only its own enemy.
+    {
+      Entry mixed[] = {entry(7, 1), entry(8, NAN), entry(0, 2), entry(7, 3), entry(9, 4), entry(10, 0, 1.1e7f),
+                       entry(11, 5)};
+      mixed[4].flags = 4;
+      uint8_t mix[kMaxSbe];
+      const size_t m = encode_sbe(h, mixed, 7, mix);
+      assert(m == kHeaderBytes + 2 * kEntryBytes && decode_sbe(mix, m, got, out, n) && n == 2);
+      assert(same_entry(out[0], mixed[0]) && same_entry(out[1], mixed[6]));
+      Entry dup_of_bad[] = {entry(8, NAN), entry(8, 1)}; // A refused entry does not shadow a good one's GUID.
+      assert(encode_sbe(h, dup_of_bad, 2, mix) == kHeaderBytes + kEntryBytes);
+    }
+
     // Fuzz: random bytes and mutated messages never crash, and whatever decodes re-encodes to the same bytes.
     std::mt19937 rng(11);
     size_t accepted = 0;
@@ -284,13 +297,15 @@ int main() {
     assert(t.sample(2050, d) && d.extrapolated && !d.held && near(d.loc[0], 2050, 1e-2) && near(d.vel[0], 1000, 1e-2));
     assert(t.sample(2140, d) && d.extrapolated && !d.held && near(d.loc[0], 2140, 1e-2));
     assert(t.sample(2400, d) && d.extrapolated && d.held && near(d.loc[0], 2140, 1e-2) && d.vel[0] == 0);
+    assert(d.speed == 0); // Held: standing, no legs running in place.
     // Before the oldest kept sample: held there. The ring keeps kSamples (16 at 33 ms: about 500 ms).
     assert(t.sample(0, d) && d.held && near(d.loc[0], 1990 - 33 * (Track::kSamples - 1), 1e-2) && d.vel[0] == 0);
+    assert(d.speed == 0);
     // A draw time that jumps 3 m or more counts as a snap (a clock step); the next frame does not.
     assert(t.sample(1600, d) && !d.snap && t.sample(1940, d) && d.snap && t.sample(1945, d) && !d.snap);
   }
-  // A warp (more than 3 m within 100 ms) and a hole (more than 250 ms between two samples) are never blended: the copy
-  // holds the older sample until the newer one's time, then snaps to it once.
+  // A warp (more than 3 m within 100 ms) and a hole (more than 250 ms between two samples) are never blended: until the
+  // newer sample's time the copy goes on from the pair before (extrapolated, within the 150 ms cap), then snaps once.
   for (int hole = 0; hole < 2; ++hole) {
     Track t;
     Drawn d;
@@ -298,14 +313,49 @@ int main() {
     const uint64_t next = hole ? 1033 + 300 : 1066;
     const float x = hole ? 100 : 500; // A slow step after the hole; 4.67 m in 33 ms for the warp.
     assert(t.push(next * 1000, entry(1, x)) && t.push((next + 33) * 1000, entry(1, x + 33)));
-    assert(t.sample(1040, d) && d.held && d.loc[0] == 33 && d.vel[0] == 0 && !d.snap);
-    assert(t.sample(double(next) - 1, d) && d.held && d.loc[0] == 33 && !d.snap);
+    assert(t.sample(1040, d) && !d.held && d.extrapolated && near(d.loc[0], 40, 1e-2) && near(d.vel[0], 1000, 1e-2));
+    assert(!d.snap);
+    const float before = hole ? 183 : float(next) - 1001; // The hole's draw stops at the cap: 1033 + 150 ms.
+    assert(t.sample(double(next) - 1, d) && d.held == bool(hole) && near(d.loc[0], before, 1e-2) && !d.snap);
     assert(t.sample(double(next) + 1, d) && !d.held && near(d.loc[0], x + 1, 1e-2) && d.snap);
     assert(t.sample(double(next) + 2, d) && !d.snap);
     // Past a newest sample that follows a cut: held, never extrapolated from across it.
     Track u;
     assert(u.push(1000 * 1000, entry(1, 0)) && u.push(next * 1000, entry(1, x)));
     assert(u.sample(double(next) + 50, d) && d.held && d.loc[0] == x && d.vel[0] == 0);
+    // Before it, with nothing blendable behind: held on the older sample, as before the cut arrived.
+    assert(u.sample(double(next) - 1, d) && d.held && d.loc[0] == 0 && d.vel[0] == 0);
+  }
+  // In arrival order: samples reach the drawn side 25 ms ahead of its draw time, so a cut arrives while the copy is
+  // still drawn before it. An enemy that only moves forward never steps back, and the cut snaps exactly once.
+  for (int hole = 0; hole < 2; ++hole) {
+    Track t;
+    Drawn d;
+    std::vector<uint64_t> stamps = {1000, 1033};
+    for (uint64_t ms = hole ? 1333 : 1066; ms <= 1700; ms += 33)
+      stamps.push_back(ms);
+    auto x_at = [&](uint64_t ms) { return float(ms - 1000) + (!hole && ms >= 1066 ? 500 : 0); };
+    size_t pushed = 0;
+    int snaps = 0;
+    float last = -1;
+    for (double at = 1000; at < 1650; at += 1000.0 / 60) {
+      while (pushed < stamps.size() && double(stamps[pushed]) <= at + 25) {
+        assert(t.push(stamps[pushed] * 1000, entry(1, x_at(stamps[pushed]))));
+        ++pushed;
+      }
+      assert(t.sample(at, d));
+      assert(d.loc[0] >= last - 1e-3);
+      last = d.loc[0];
+      snaps += d.snap;
+    }
+    assert(snaps == 1);
+  }
+  // Extrapolation never leaves the world the samples were checked against: 200 km in 101 ms is no warp.
+  {
+    Track t;
+    Drawn d;
+    assert(t.push(1000 * 1000, entry(1, -1e7f)) && t.push(1101 * 1000, entry(1, 1e7f)));
+    assert(t.sample(1250, d) && !d.held && d.loc[0] == coop::pose::kMaxWorld);
   }
   // 3.5 m in 150 ms is no warp (it is past 100 ms): blended.
   {
@@ -434,9 +484,10 @@ int main() {
     cap.took_cmc(false); // A later take (SB turned it back on) keeps the value from before our first call.
     cap.took_speed(0);
     cap.took_speed(1);
-    Live &a = lines.start(4), &b = lines.start(5);
+    Live &a = lines.start(4, u), &b = lines.start(5, u);
     a.slot = 0, b.slot = 1;
-    lines.start(6).skipped = true; // Deduped: nothing of ours plays.
+    lines.start(6, u).skipped = true; // Deduped: nothing of ours plays.
+    assert(u.log.empty());
     restore(cap, lines, u);
     assert(u.log == "stop4 stop5 cmc speed0 ");
     restore(cap, lines, u); // Once.
@@ -461,9 +512,10 @@ int main() {
     assert(same(parsed(text), l));
     for (int k = 0; k < kCtx; ++k)
       l.ctx[k] = (k % 2 ? -1 : 1) * k * 1000;
-    l.ctx[kCtx - 1] = INT32_MIN, l.ctx[0] = INT32_MAX;
+    l.ctx[kCtx - 1] = INT32_MIN, l.ctx[kDir2d] = INT32_MAX;
+    l.ctx[kHitLevel] = 255, l.ctx[kHitLevel60] = 7; // Bytes in the game.
     text = format(l);
-    assert(text.find(" 2147483647,-1000,2000,") != std::string::npos && same(parsed(text), l));
+    assert(text.find(" 255,7,2147483647,-3000,") != std::string::npos && same(parsed(text), l));
     ShowLine s;
     s.kind = Kind::set, s.gen = 7, s.guid = 4100, s.oe = 3, s.id = 250, s.t_ms = 99, s.rate = 0, s.step = 65535;
     assert(format(s) == tag + " show-set 7 4100 3 250 99 0 65535" && same(parsed(format(s)), s));
@@ -499,7 +551,10 @@ int main() {
         {6, "x"}, {7, "2"}, {8, "10001"}, {9, "65536"}, {10, "2"}, {11, "256"}, {12, "3600001"},
         // The context: "-" or exactly 24 whole numbers within int32.
         {13, ""}, {13, "1,2"}, {13, "--"}, {13, ctx + ",1"}, {13, ctx.substr(2)}, {13, "+1" + ctx.substr(1)},
-        {13, "2147483648" + ctx.substr(1)}, {13, ctx.substr(0, ctx.size() - 1)}, {13, "x" + ctx.substr(1)},
+        {13, "1,1,2147483648" + ctx.substr(5)}, {13, ctx.substr(0, ctx.size() - 1)}, {13, "x" + ctx.substr(1)},
+        // The hit levels (the first two) are bytes.
+        {13, "256" + ctx.substr(1)}, {13, "-1" + ctx.substr(1)}, {13, "1,256" + ctx.substr(3)},
+        {13, "1,-1" + ctx.substr(3)}, {13, "2147483647" + ctx.substr(1)},
         // Form 0: no leading '/', no '..', only [A-Za-z0-9_/.], at most 200 characters.
         {14, "/Game/Art/Show/A"}, {14, "A/../B"}, {14, "A\\B"}, {14, "A:B"}, {14, "\xc3\x84"},
         {14, std::string(201, 'a')}};
@@ -507,7 +562,8 @@ int main() {
       assert(parsed(with(field, value)).kind == Kind::invalid);
     assert(parsed(with(14, std::string(200, 'a'))).kind == Kind::show);
     assert(parsed(with(13, ctx)).kind == Kind::show && parsed(with(13, ctx)).ctx[23] == 1);
-    assert(parsed(with(13, "-2147483648" + ctx.substr(1))).ctx[0] == INT32_MIN);
+    assert(parsed(with(13, "1,1,-2147483648" + ctx.substr(5))).ctx[kDir2d] == INT32_MIN);
+    assert(parsed(with(13, "255,255" + ctx.substr(3))).ctx[kHitLevel60] == 255);
     // Form 1 must start with a Show root and hold more than it.
     for (const char *path : {"/Game/Art/Show/", "/Game/Art/X/A", "/Game/Art/Show/../../Maps/A", "Game/Art/Show/A",
                              "/Game/Art/Show/A:B"}) {
@@ -615,8 +671,10 @@ int main() {
     a.t_ms = 99999;
     assert(tl.push(a, 3000) && !tl.front(3000 + Timeline::kMaxWaitMs - 1) && tl.front(3000 + Timeline::kMaxWaitMs));
     tl.pop();
-    // Without a clock (NaN): kept, never due, never late.
-    assert(tl.push(a, NAN) && !tl.front(NAN) && tl.front(1e9) && !tl.front(1e9)->late);
+    // Without a clock (NaN) the copy is local: the line is refused, so a far stamp can never block the queue.
+    a.t_ms = UINT64_MAX;
+    assert(!tl.push(a, NAN) && !tl.front(1e30));
+    a.t_ms = 99999;
     tl.clear();
     for (size_t k = 0; k < Timeline::kLines; ++k)
       assert(tl.push(a, 0));
@@ -666,6 +724,25 @@ int main() {
     }
     assert(log.find("stop255 show0@1256 ") != std::string::npos);
     log.clear();
+    // One Show stays live while 300 others come and go: no new show ever takes an id still live.
+    {
+      Outbox wrap;
+      bool live[256] = {};
+      size_t shows = 0;
+      auto check = [&](Outbox::Event e, uint8_t id, const Playing *) {
+        if (e == Outbox::kShow)
+          assert(!live[id]), live[id] = true, ++shows;
+        else if (e == Outbox::kStop)
+          assert(live[id]), live[id] = false;
+      };
+      Playing pair[2] = {p[0], p[0]};
+      pair[0].stage = 1;
+      for (int k = 0; k < 300; ++k) {
+        pair[1].stage = 2000 + k;
+        wrap.diff(pair, 2, check);
+      }
+      assert(shows == 301 && live[0]);
+    }
     Playing finished = p[2];
     finished.stage = 5, finished.finished = true;
     box.clear();
@@ -673,17 +750,22 @@ int main() {
     assert(log.empty());
 
     Lines lines;
+    Undo u;
     assert(!lines.find(3)); // R33: a show-set or show-stop for an id no show started.
-    Live &l3 = lines.start(3);
+    Live &l3 = lines.start(3, u);
     l3.slot = 7;
-    assert(lines.find(3) == &l3 && lines.find(3)->slot == 7);
-    assert(lines.start(3).slot == -1 && lines.find(3)->slot == -1); // The same id again (it wrapped): a new entry.
+    assert(lines.find(3) == &l3 && lines.find(3)->slot == 7 && u.log.empty());
+    assert(lines.start(3, u).slot == -1 && lines.find(3)->slot == -1); // The same id again (it wrapped): a new entry,
+    assert(u.log == "stop3 ");                                         // the old replay stopped first.
+    lines.find(3)->skipped = true;
+    lines.start(3, u); // A skipped one has nothing of ours to stop.
+    assert(u.log == "stop3 ");
     lines.drop(3);
     assert(!lines.find(3));
     for (uint8_t id = 10; id < 10 + Lines::kLive; ++id)
-      lines.start(id).until_ms = 1000 + (17 - id); // The last one started ends first.
-    lines.start(50); // Full: the one that ends first (id 17) gives way.
-    assert(!lines.find(17) && lines.find(10) && lines.find(16) && lines.find(50));
+      lines.start(id, u).until_ms = 1000 + (17 - id); // The last one started ends first.
+    lines.start(50, u); // Full: the one that ends first (id 17) gives way, stopped.
+    assert(!lines.find(17) && lines.find(10) && lines.find(16) && lines.find(50) && u.log == "stop3 stop17 ");
     lines.sweep(1002);
     assert(!lines.find(16) && !lines.find(15) && lines.find(14) && lines.find(50)); // Over: dropped; 0 never ends.
     lines.clear();
