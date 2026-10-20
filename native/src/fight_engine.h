@@ -94,7 +94,7 @@ inline const char *auto_out(uint32_t chr, float max_hp) {
 // 1), the buckets at +0x40 when that is set, HashSize +0x48. A key hashes to itself. A state is held while its key is
 // there with a count other than 0, as FUN_141a64b40 (a leaf SB calls on the logic thread) tells; read here without it.
 constexpr size_t kStateMap = 0x560;
-constexpr int32_t kNoDamageNoHit = 3, kNoDamage = 4;
+constexpr int32_t kNoDamage = 4; // And fight_sync.h's kNoDamageNoHit, 3.
 constexpr int32_t kStatesRead[] = {kNoDamageNoHit, kNoDamage, 6, 7, 8, 27}; // And Down, Groggy, Airborne, Immortal.
 // The states of kStatesRead that fsb holds, as bits by state number; false when the map fails a check (a torn read
 // during a game-thread change: the walk never loops or leaves the array). read as a Game's.
@@ -1625,20 +1625,22 @@ private:
     else if (side_)
       std::snprintf(head, sizeof head,
                     "fight stats: host%s, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
-                    "floored, %llu without credit), nodamage bypass %llu in state 3 and %llu in 4, %llu crowd controls "
-                    "told, %llu mirrored (%llu skipped), %llu stale, %llu over the rates, %llu bad, %llu ignored, %zu "
-                    "scaled (%u %% HP, %u %% balance)",
-                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.uncredited), u(c.bypass3),
-                    u(c.bypass4), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.rate), u(c.bad),
-                    u(c.ignored), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
+                    "floored, %llu without credit, %llu held in state 3, %llu held-expired), nodamage bypass %llu in "
+                    "state 3 and %llu in 4, %llu crowd controls told, %llu mirrored (%llu skipped), %llu stale, %llu "
+                    "over the rates, %llu bad, %llu ignored, %zu scaled (%u %% HP, %u %% balance)",
+                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
+                    u(c.expired), u(c.bypass3), u(c.bypass4), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped),
+                    u(c.stale), u(c.rate), u(c.bad), u(c.ignored), s.scaled, s.scale[kScaleHp],
+                    s.scale[kScaleBalance]);
     else
       std::snprintf(head, sizeof head,
                     "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored, "
-                    "%llu without credit), %llu desync guest-dead, %zu held at 1 HP, %llu crowd controls told, %llu "
-                    "mirrored (%llu skipped), %llu stale, %llu bad, %zu scaled (%u %% HP, %u %% balance)",
-                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.uncredited),
-                    u(c.desync), s.floors, u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.bad),
-                    s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
+                    "%llu without credit, %llu held in state 3, %llu held-expired), %llu desync guest-dead, %zu held "
+                    "at 1 HP, %llu crowd controls told, %llu mirrored (%llu skipped), %llu stale, %llu bad, %zu scaled "
+                    "(%u %% HP, %u %% balance)",
+                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
+                    u(c.expired), u(c.desync), s.floors, u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped), u(c.stale),
+                    u(c.bad), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "

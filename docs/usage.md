@@ -431,6 +431,11 @@ enemy dies or stops being shared, and when shared enemies stop. After a fault in
 stat as it is: the fault's line in `coop-link.log` then says how many of these changes stay until their enemies leave
 the map.
 
+A kill decided in the other game waits while your copy of the enemy holds the game's NoDamageNoHit state (it grabs
+your EVE, burrows or warps in), because the game never kills an enemy in the middle of a grab. Your copy dies when the
+state ends, or after 6 seconds anyway. When the guest's hit is the kill, the host's copy waits at 1 HP.
+`coop-link.log` says `fight kill held <key>`, then `fight held-expired <key>` when the 6 seconds ran out.
+
 Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
 multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
 (no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used. An enemy gets

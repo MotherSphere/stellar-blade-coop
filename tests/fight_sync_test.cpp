@@ -464,6 +464,45 @@ int main() {
     assert(h.counts.bypass3 == 1 && h.counts.bypass4 == 1 && h.counts.claims == 9);
   }
 
+  // ---- Host: a kill waits while our copy holds NoDamageNoHit (PHASE11-STAGE2-RE 7) ----
+  {
+    World w;
+    w.add(101, 5001, 0).s.nodamage = 3; // Grabbing our EVE.
+    w.add(102, 5002, 0).s.nodamage = 3;
+    w.add(103, 5003, 0).s.nodamage = 4; // NoDamage alone: no wait.
+    Host h;
+    h.receive(msg("SBF10 on"), 0, w);
+    step(h, w, 1, 0);
+    w.lines();
+    // Her lethal claim: Shield at once, HP down to 1 (no kill), and 0 in our values, so she never reads a refusal.
+    h.receive(msg("SBF10 hit 1 1 101 1600 10 0 1600 1"), 100, w);
+    h.receive(msg("SBF10 hit 1 2 102 1600 0 0 1600 1"), 100, w);
+    h.receive(msg("SBF10 hit 1 3 103 1600 0 0 1600 1"), 100, w);
+    step(h, w, 2, 100);
+    wrote(w, 0, 101, kShield, -10, false, true);
+    wrote(w, 1, 101, kHp, -1599, false, true);
+    wrote(w, 2, 102, kHp, -1599, false, true);
+    wrote(w, 3, 103, kHp, -1600, true, true);
+    assert(w.hp(101) == 1 && w.hp(102) == 1 && h.counts.held == 2 && w.count("kill held", "NoDamageNoHit") == 2);
+    assert(w.lines() == "SBF10 dead 1 103\nSBF10 hp 1 2 3 101:0:90:200 102:0:100:200\n" && h.linked() == 2);
+    // A later claim on a waiting kill changes Shield and Stamina only.
+    h.receive(msg("SBF10 hit 1 4 101 50 5 0 1 1"), 200, w);
+    step(h, w, 3, 200);
+    assert(w.writes.size() == 5 && w.hp(101) == 1 && w.actor(101)->s.value[kShield] == 85);
+    assert(w.lines() == "SBF10 hp 1 3 4 101:0:85:200\n");
+    // The state ends: the kill goes, our EVE the cause. The other one goes after kHoldMs, still in the state.
+    w.actor(101)->s.nodamage = 0;
+    step(h, w, 4, 300);
+    wrote(w, 5, 101, kHp, -1, true, true);
+    assert(w.lines() == "SBF10 dead 1 101\n" && h.counts.expired == 0 && h.counts.kills == 2);
+    step(h, w, 5, 100 + kHoldMs - 1);
+    assert(w.lines() == "SBF10 hp 1 4 4 102:0:100:200\n" && h.linked() == 1); // The refresh: still 0.
+    step(h, w, 6, 100 + kHoldMs);
+    wrote(w, 6, 102, kHp, -1, true, true);
+    assert(w.lines() == "SBF10 dead 1 102\n" && h.counts.expired == 1 && w.count("held-expired") == 1);
+    assert(h.counts.kills == 3 && h.linked() == 0);
+  }
+
   // ---- Host: two-player scaling and kill credit ----
   // Its scale line follows its world, before the ups, which keep the game's own MaxHP so the guest pairs her copies
   // before scaling them. It names for the engine every enemy it follows once her on came, and keeps naming it after
@@ -1106,6 +1145,45 @@ int main() {
     gu.receive(msg("SBF10 up 1 116 5016 0 900 1600"), g);
     step(gu, g, 2, 20);
     assert(g.count("unpaired", "cap") == 0 && gu.linked() == 16 && g.actor(500)->s.dying);
+  }
+
+  // ---- Guest: the host's dead waits while our copy holds NoDamageNoHit ----
+  {
+    World g;
+    g.add(501, 5001, 0);
+    g.add(502, 5002, 0);
+    g.add(509, 5009, 0); // Ours only: the census sets keep a GUID in common, so no world change.
+    Guest gu;
+    gu.receive(msg("SBF10 world 1"), g);
+    gu.receive(msg("SBF10 up 1 101 5001 0 900 1600"), g);
+    gu.receive(msg("SBF10 up 1 102 5002 0 900 1600"), g);
+    step(gu, g, 1, 0);
+    g.actor(501)->s.nodamage = 3; // Grabbing our EVE.
+    g.actor(502)->s.nodamage = 3;
+    gu.receive(msg("SBF10 dead 1 101"), g);
+    gu.receive(msg("SBF10 dead 1 102"), g);
+    step(gu, g, 2, 100);
+    assert(g.writes.empty() && gu.counts.held == 2 && g.count("kill held", "NoDamageNoHit") == 2);
+    g.actor(501)->s.nodamage = 0; // The grab ends: the kill goes, our EVE the cause.
+    step(gu, g, 3, 200);
+    assert(g.writes.size() == 1 && g.actor(501)->s.dying && gu.counts.expired == 0);
+    wrote(g, 0, 501, kHp, -1600, true, true);
+    step(gu, g, 4, 100 + kHoldMs - 1);
+    assert(g.writes.size() == 1);
+    step(gu, g, 5, 100 + kHoldMs); // Still in the state after kHoldMs: the kill goes anyway.
+    wrote(g, 1, 502, kHp, -1600, true, true);
+    assert(gu.counts.expired == 1 && g.count("held-expired") == 1 && g.count("dead") == 2 && gu.counts.kills == 2);
+    // Our own lethal hit while the host's kill waits: its 0 HP is no refusal, so no desync.
+    g.add(503, 5003, 0);
+    gu.receive(msg("SBF10 up 1 103 5003 0 900 1600"), g);
+    step(gu, g, 6, 6200);
+    g.hit(503, kHp, 1600);
+    step(gu, g, 7, 6300);
+    assert(g.lines() == "SBF10 hit 1 1 103 1600 0 0 1600 1\n");
+    gu.receive(msg("SBF10 hp 1 1 1 103:0:100:200"), g);
+    gu.receive(msg("SBF10 dead 1 103"), g);
+    step(gu, g, 8, 6400);
+    assert(gu.counts.desync == 0 && g.count("dead") == 3 && gu.linked() == 0);
   }
 
   // ---- Guest: a copy that respawns under its key starts clean ----

@@ -19,7 +19,8 @@
 //                                                                  game's own MaxHP (never a scaled one)
 //   SBF10 down <gen> <hguid>, SBF10 dead <gen> <hguid>             host, reliable: gone without a death, or its death
 //   SBF10 hp <gen> <n> <ack> <hguid>:<hp>:<sh>:<st> ...            host, unreliable: values; n: the turn's number,
-//                                                                  rising, shared by its lines; ack: last claim taken
+//                                                                  rising, shared by its lines; ack: last claim taken;
+//                                                                  hp 0 while a kill waits (Host::apply)
 //   SBF10 hit <gen> <seq> <hguid> <dHp> <dSh> <dSt> <preHp> <0|1>  guest, reliable: drops since its last claim, the HP
 //                                                                  before them, and whether its copy died
 //   SBF10 cc <gen> <hguid> <effect>                                both, reliable: a crowd control (kCcEffects) that
@@ -69,6 +70,11 @@ constexpr double kMaxHpSlack = 0.5;     // A pair's MaxHP may differ by this muc
 constexpr int32_t kCcEffects[] = {9900001, 3000300, 3000301, 3000303, 3000401};
 constexpr size_t kCc = sizeof kCcEffects / sizeof kCcEffects[0];
 constexpr uint64_t kEchoMs = 1000; // Our mirror showing up on our copy this late is still ours: never told back.
+// A kill on the other side's word waits while our copy holds NoDamageNoHit (a grab of our EVE, a burrow, a warp-in):
+// killing it inside a link animation is a path the game never takes (PHASE11-STAGE2-RE 7). The longest such window of
+// a common enemy is 4 s; after this the kill goes anyway.
+constexpr int32_t kNoDamageNoHit = 3;
+constexpr uint64_t kHoldMs = 6000;
 // guest_kills=confirmed (F4's fallback): the floor the engine holds on the guest's copies (MinimumHP, PHASE11-STAGE2-RE
 // 3), so the guest's own lethal hit leaves a copy at this HP until the host's dead.
 constexpr int32_t kFloorHp = 1;
@@ -310,6 +316,7 @@ struct Counts {
   uint64_t uncredited = 0;           // Such kills with no cause: kill_credit=fought, and our EVE never hit it.
   uint64_t floored = 0;              // dead-floored: such a kill left HP above 0 (Immortal or MinimumHP).
   uint64_t refused = 0;              // Host: lethal claims refused.
+  uint64_t held = 0, expired = 0;    // Kills that waited for NoDamageNoHit to end; those applied after kHoldMs anyway.
   uint64_t desync = 0;               // Guest: desync guest-dead, our copy died of a hit the host's copy lived through.
   uint64_t bypass3 = 0, bypass4 = 0; // Host: claims applied while its copy was in NoDamageNoHit (3) or NoDamage (4).
   uint64_t stale = 0;                // Lines true once: an old world, an enemy gone, a side off, out of order.
@@ -547,8 +554,13 @@ public:
       next_hp_ = next_refresh_ = now; // Every value at once.
     }
     for (size_t c = 0; c < claims_; ++c)
-      apply(claim_[c], io);
+      apply(claim_[c], now, io);
     claims_ = 0;
+    for (size_t i = 0; i < count_;) { // The kills that wait: once NoDamageNoHit ends, or after kHoldMs anyway.
+      Enemy &e = enemies_[i];
+      if (!e.holding || (e.nodamage == kNoDamageNoHit && now < e.hold_ms + kHoldMs) || !kill(e, io))
+        ++i;
+    }
     values(now, io);
   }
 
@@ -563,6 +575,8 @@ private:
     bool hit = false;     // A claim was ever applied to it: it keeps its place.
     bool fought = false;  // Hurt when it came, or a drop between two passes: our EVE hit it (kill_credit=fought).
     bool scaled = false;  // Followed while her on held: the engine scales it.
+    bool holding = false; // Her claim's kill waits since hold_ms while it holds NoDamageNoHit; our hp lines say 0.
+    uint64_t hold_ms = 0;
     // Scaled from this step: its values wait for the next pass, which reads them scaled. Sent now, they would reach
     // her before the engine scales it, and her copy, already scaled, would take a drop with a number, then a heal.
     bool due = false;
@@ -657,8 +671,9 @@ private:
 
   // A claim: Shield and Stamina, then HP, where the claim may kill. A kill passes our EVE as the cause, so this world
   // gives her the kill rewards (F3), unless kill_credit=fought and she never hit it; a plain change passes none, so
-  // effects aimed at the attacker never hit our EVE for the guest's hits.
-  template <class Io> void apply(const Claim &k, Io &io) {
+  // effects aimed at the attacker never hit our EVE for the guest's hits. While our copy holds NoDamageNoHit, the kill
+  // waits (kHoldMs at most) with the copy at 1 HP, and our hp lines say 0 so she never reads a refusal into it.
+  template <class Io> void apply(const Claim &k, uint64_t now, Io &io) {
     Enemy *e = find(k.guid);
     if (!e) { // It died or left since the claim was taken.
       ++counts.stale;
@@ -671,6 +686,8 @@ private:
     for (int s : {kShield, kStamina})
       if (k.delta[s] && !write(*e, s, -k.delta[s], false, io))
         return;
+    if (e->holding) // Its kill waits already.
+      return;
     int32_t hp = e->value[kHp];
     bool lethal_ok = k.lethal && double(hp) <= double(k.pre_hp) + kLethalShare * double(e->max[kHp]);
     if (k.delta[kHp] < hp && !lethal_ok) {
@@ -682,18 +699,36 @@ private:
       }
       return;
     }
-    if (!write(*e, kHp, -hp, true, io))
-      return;
-    ++counts.kills;
-    counts.uncredited += !credit_all_ && !e->fought;
-    if (e->value[kHp] > 0) { // Immortal or MinimumHP held: it lives on, and so does the guest's copy.
-      ++counts.floored;
-      io.event(Event{"dead-floored", "", e->guid, e->spawn, e->index});
+    if (e->nodamage == kNoDamageNoHit) {
+      e->holding = true, e->hold_ms = now;
+      ++counts.held;
+      io.event(Event{"kill held", "NoDamageNoHit", e->guid, e->spawn, e->index});
+      if (hp > 1)
+        write(*e, kHp, 1 - hp, false, io);
       return;
     }
-    io.event(Event{"dead", "", e->guid, e->spawn, e->index});
-    io.send(note(Type::dead, e->guid));
-    *e = enemies_[--count_];
+    kill(*e, io);
+  }
+  // The kill of a claim, now: true when e left our list (its dead sent). A kill that a floor holds keeps it.
+  template <class Io> bool kill(Enemy &e, Io &io) {
+    if (e.holding && e.nodamage == kNoDamageNoHit) {
+      ++counts.expired;
+      io.event(Event{"held-expired", "", e.guid, e.spawn, e.index});
+    }
+    e.holding = false;
+    if (e.value[kHp] <= 0 || !write(e, kHp, -e.value[kHp], true, io))
+      return false;
+    ++counts.kills;
+    counts.uncredited += !credit_all_ && !e.fought;
+    if (e.value[kHp] > 0) { // Immortal or MinimumHP held: it lives on, and so does the guest's copy.
+      ++counts.floored;
+      io.event(Event{"dead-floored", "", e.guid, e.spawn, e.index});
+      return false;
+    }
+    io.event(Event{"dead", "", e.guid, e.spawn, e.index});
+    io.send(note(Type::dead, e.guid));
+    e = enemies_[--count_];
+    return true;
   }
 
   // hp: the enemies whose values changed or took a claim, at most each kHpMs; all of them each kRefreshMs. None that
@@ -711,12 +746,16 @@ private:
     m.batch = batch_ + 1;
     for (size_t i = 0; i < count_; ++i) {
       Enemy &e = enemies_[i];
-      if (e.due || (!all && !e.claimed && std::equal(e.value, e.value + kStats, e.sent)))
+      int32_t value[kStats];
+      std::copy(e.value, e.value + kStats, value);
+      if (e.holding) // It dies once the state ends.
+        value[kHp] = 0;
+      if (e.due || (!all && !e.claimed && std::equal(value, value + kStats, e.sent)))
         continue;
       Values &v = m.entries[m.count++];
       v.guid = e.guid;
-      std::copy(e.value, e.value + kStats, v.value);
-      std::copy(e.value, e.value + kStats, e.sent);
+      std::copy(value, value + kStats, v.value);
+      std::copy(value, value + kStats, e.sent);
       e.claimed = false;
       if (m.count == kHpPerMessage) {
         io.send(m);
@@ -889,7 +928,7 @@ public:
     pair(seen, n, io);
     // The host's deaths, after the pairing so an enemy killed right after its up dies here too: each kills our copy
     // with our EVE as the cause, so this world gives her the kill (F3). An unpaired one waits for a census, the only
-    // pass that can pair it.
+    // pass that can pair it. A copy in NoDamageNoHit waits for it to end, kHoldMs at most (as on the host).
     for (size_t i = 0; i < count_;) {
       Pair &p = pairs_[i];
       if (!p.dead || (!p.local && !census)) {
@@ -897,6 +936,19 @@ public:
         continue;
       }
       const Seen *s = p.local && (!p.lethal || p.held) ? fight::find(seen, n, p.local) : nullptr;
+      if (s && !dying(*s) && s->nodamage == kNoDamageNoHit) {
+        if (!p.holding) {
+          p.holding = true, p.hold_ms = now;
+          ++counts.held;
+          io.event(Event{"kill held", "NoDamageNoHit", p.hguid, p.spawn, p.index});
+        }
+        if (now < p.hold_ms + kHoldMs) {
+          ++i;
+          continue;
+        }
+        ++counts.expired;
+        io.event(Event{"held-expired", "", p.hguid, p.spawn, p.index});
+      }
       if (s && !dying(*s)) {
         int32_t after = s->value[kHp];
         const bool eve = credit_all_ || p.fought; // kill_credit=fought: no rewards for one our EVE never hit.
@@ -925,6 +977,8 @@ private:
     uint8_t index = 0;
     int32_t max_hp = 0;
     bool dead = false;           // The host's dead came: the next step kills the copy.
+    bool holding = false;        // That kill waits since hold_ms while our copy holds NoDamageNoHit.
+    uint64_t hold_ms = 0;
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
     bool logged = false;         // Its unpaired reason was logged.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
