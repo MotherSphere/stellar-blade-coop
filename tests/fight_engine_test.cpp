@@ -110,6 +110,7 @@ struct Game {
     uint64_t fsb = 0, states_at = 0;          // Its state map's elements and buckets.
     std::map<int32_t, int32_t> states;        // The state map's counts by state (a key stays at 0 once added).
     bool immortal = false, immune = false;    // immune: SB's effect call refuses every effect on it.
+    int32_t refuses = 0;                      // An effect row SB's effect call refuses on it.
     struct Running {
       uint64_t at;
       int32_t id;
@@ -493,7 +494,7 @@ struct Game {
   uint64_t effect(uint64_t lg, uint64_t la, uint64_t caster, int32_t id) {
     casts.push_back({lg, la, caster, id, ++ops});
     assert(!cc_effect(uint64_t(id)) || !in_cc(la));
-    if (bodies[la].immune)
+    if (bodies[la].immune || id == bodies[la].refuses)
       return 0;
     starting.push_back({la, {mem.alloc(0x110), id, 0}});
     return starting.back().second.at;
@@ -1269,6 +1270,141 @@ int main() {
     } else {
       assert(g.casts.size() == 3);
     }
+  }
+  // The game refuses our BlockAI_Dispel (effect init under NoDamageNoHit, an immunity): said once, never counted as
+  // taken off, and tried again each turn while the session lasts; at its end, said as left frozen.
+  for (const bool end : {false, true}) {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    frame(g, *e, t += 16);
+    g.body(501).refuses = kDispel;
+    const auto dispels = [&] {
+      size_t n = 0;
+      for (const Game::Cast &c : g.casts)
+        n += c.id == kDispel;
+      return n;
+    };
+    if (end) {
+      e->set(false, false);
+      frame(g, *e, t += 16);
+      frame(g, *e, t += 16);
+      assert(dispels() == 1 && count(g, "thaw refused", "left frozen") == 1 && e->counts.thawed == 0);
+      assert(e->counts.thaw_refused == 1 && e->forget() == 0 && Game::held(g.body(501), kBlockAiState));
+      continue;
+    }
+    e->same_place(false);
+    for (int k = 0; k < 3; ++k)
+      frame(g, *e, t += 16);
+    assert(dispels() == 3 && count(g, "thaw refused", "trying again") == 1 && count(g, "thaw refused") == 1);
+    assert(e->counts.thawed == 0 && e->counts.thaw_refused == 1 && Game::held(g.body(501), kBlockAiState));
+    g.body(501).refuses = 0;
+    frame(g, *e, t += 16);
+    frame(g, *e, t += 16);
+    assert(dispels() == 4 && count(g, "thawed", "after a refusal") == 1 && e->counts.thawed == 1);
+    assert(!Game::held(g.body(501), kBlockAiState) && e->forget() == 0);
+  }
+  // Freezes again count over any 10 s: five near the end of the first freeze's 10 s and a sixth just past it is one
+  // too many.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    while (t < kRefreezeMs - 1500)
+      frame(g, *e, t += 16);
+    assert(e->counts.frozen == 1 && e->counts.refrozen == 0);
+    const auto again = [&] {
+      g.dispel(501);
+      for (uint32_t i = 0; i < kCensusTurns; ++i)
+        frame(g, *e, t += 16);
+    };
+    for (int k = 0; k < 5; ++k)
+      again();
+    assert(t < kRefreezeMs && e->counts.refrozen == 5);
+    while (t < kRefreezeMs)
+      frame(g, *e, t += 16);
+    again();
+    assert(e->counts.refrozen == 5 && e->counts.freeze_lost == 1);
+  }
+  // A crowd control we mirror starts inside SB's call: a copy given one in this turn is not frozen in it (SkillCancel
+  // would cut it), and is once it ends.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    assert(e->guest.linked() == 1 && g.casts.empty());
+    e->same_place(true);
+    g.inbox.push_back(msg("SBF11 cc 1 101 3000300"));
+    frame(g, *e, t += 16);
+    assert(g.casts.size() == 1 && g.casts[0].id == 3000300 && e->counts.frozen == 0);
+    while (g.in_cc(g.by_guid[501]))
+      frame(g, *e, t += 16);
+    assert(g.casts.size() == 1);
+    frame(g, *e, t += 16);
+    assert(g.casts.size() == 3 && g.casts[1].id == kBlockAi && e->counts.frozen == 1);
+  }
+  // More pairs than the table's rows (16 live and a kill held): the held one comes last, so every live copy is drawn.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.inbox.push_back(msg("SBF11 world 1"));
+    for (uint32_t i = 0; i < kMaxPairs + 1; ++i) {
+      g.spawn(501 + i, 5001 + i, 0);
+      if (i < kMaxPairs)
+        g.inbox.push_back(msg(("SBF11 up 1 " + std::to_string(101 + i) + " " + std::to_string(5001 + i) +
+                               " 0 900 1600").c_str()));
+    }
+    uint64_t t = 0;
+    frame(g, *e, t);
+    assert(e->guest.linked() == kMaxPairs && e->counts.frozen == kMaxPairs);
+    g.state(501, kNoDamageNoHit, 1);
+    g.inbox.push_back(msg("SBF11 dead 1 101"));
+    g.inbox.push_back(msg("SBF11 up 1 117 5017 0 900 1600"));
+    for (uint32_t i = 0; i <= kCensusTurns; ++i)
+      frame(g, *e, t += 16);
+    assert(count(g, "kill held") == 1 && g.table.count == kMaxPairs && e->counts.frozen == kMaxPairs + 1);
+    for (uint8_t r = 0; r < g.table.count; ++r)
+      assert(g.table.pairs[r].local != 501 && (g.table.pairs[r].bits & kRowDrawn));
+  }
+  // A table the job no longer fills is published empty: a probe session started in the turn after an off, and a net
+  // mode other than 0.
+  for (const bool probe : {true, false}) {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    frame(g, *e, 0);
+    frame(g, *e, 16);
+    assert(g.table.on && g.table.count == 1);
+    if (probe) {
+      e->set(false, false);
+      e->set(true, false, true);
+    } else {
+      g.mem.put<int32_t>(g.net + kNetMode, 1);
+    }
+    frame(g, *e, 32);
+    assert(!g.table.on && g.table.count == 0 && g.table.turn == 2 && e->counts.mode == (probe ? 0 : 1));
   }
 
   // ---- Two-player scaling (PHASE11-STAGE2-RE 4): on each enemy the side names, MaxHPValue (stat 3, which MaxHP
