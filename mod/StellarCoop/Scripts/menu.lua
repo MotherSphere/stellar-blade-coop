@@ -37,7 +37,7 @@ function Menu.new(o)
         b.text(300,58,o.version or '','num')
         for i=1,ROWS do v.rows[i]=b.row(24,130+(i-1)*76,1192) end
         v.status,v.note=b.text(48,1290,'','status'),b.text(48,1340,'','status')
-        v.hints=b.hints(48,1410,320,{{'arrows',''},{'enter',''},{'escape',''}})
+        v.hints=b.hints(48,1400,320,{{'move',''},{'enter',''},{'escape',''}})
         return v
     end)
     local function context()

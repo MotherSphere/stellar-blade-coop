@@ -202,7 +202,12 @@ local function builder(group)
         r.hovered=function() return r.hover==true end
         return r
     end
-    function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
+    function b.hints(_,_,_,list) -- Its labels; keys: the icons asked, in order ('move enter escape').
+        local out,keys={},{}
+        for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
+        out.keys=table.concat(keys,' ')
+        return out
+    end
     return b
 end
 local function said_kit(word) return function(...) kit_calls[#kit_calls+1]=table.concat({word,tostring((...))},' ') end end
@@ -871,7 +876,7 @@ assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store'
     'The kit gets the settings, the UI log and its own path store')
 assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')
 local top=menu_place.y+menu_place.h*menu_place.pivot.Y*(1-1.5)
-assert(top+36*1.5>=0 and top+1458*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
+assert(top+36*1.5>=0 and top+(1400+66)*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
 quarter(); assert(kit_calls[#kit_calls]=='slow false','No world: the HUD hidden')
 in_world=true; quarter(); assert(kit_calls[#kit_calls]=='slow true')
 key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n','Its root not up yet')
@@ -886,6 +891,7 @@ assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||norma
     ..'Options||normal\nHELP||disabled\nWrite a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
+assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
 key('S'); assert(focus()=='Join a friend' and kit_sounds[#kit_sounds]=='move')
 key('W'); key('Z'); assert(focus()=='Close','Up wraps over the headers')
 key('DOWN_ARROW'); assert(focus()=='Host a session')

@@ -298,14 +298,17 @@ Ui.THEME={text=hex('ECECEC'),grey=hex('B5B5B5'),dim=hex('6E6E6E'),teal=hex('ADD1
 local THEME=Ui.THEME
 local function path(p) return p..'.'..p:match('[^/]+$') end
 local TEX,GAUGE='/Game/Art/UI/Texture/','/Game/Art/UI/Texture/HUD/Gauge/'
-local KEY,SOUND=TEX..'Interaction/PC_ActionAssist/KeyIcon_KeyBoard_','/Game/Sound/UI/'
--- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them.
+-- The key icons of the game's own menus (80 by 80; PC_ActionAssist's are 128 with a shadow, two of them named in
+-- another case).
+local KEY,SOUND=TEX..'Interaction/PC/KeyIcon_KeyBoard_','/Game/Sound/UI/'
+-- Name and object path, in warm-up order; the sounds (with their volume) last: the build does not wait for them. Each
+-- path in the case of the game's files: the game finds none in another (key_arrows and chevron were missing so).
 Ui.ASSETS={{'Bold',GAME_FONT},{'Mideum',path('/Game/Art/Font/Mideum')},{'AGENCYB',path('/Game/Art/Font/AGENCYB')},
     {'FZSHANGYTJW',path('/Game/Art/Font/English/FZSHANGYTJW_Font')},{'Roboto',ENGINE_FONT},{'dot',DOTS},
     {'dot_bg',path(GAUGE..'Hp_Dot1_5x_bg')},{'small',path(GAUGE..'Hp_Dot_12')},{'small_bg',path(GAUGE..'Hp_Dot_12bg')}}
 for i=0,4 do table.insert(Ui.ASSETS,{'cube'..i,path(GAUGE..'Beta_cube_0'..i)}) end
 for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common/selectdot'},
-        {'chevron',TEX..'Workshop/TriPatternUp'},{'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
+        {'chevron',TEX..'WorkShop/TriPatternUp'},{'diamond',TEX..'HUD/Tracking_Icon/TrackingMarker'},
         {'key_enter',KEY..'Enter'},{'key_escape',KEY..'Escape'},{'key_space',KEY..'SpaceBar'},{'key_up',KEY..'Up'},
         {'key_arrows',KEY..'DirectionAll'},{'key_move',KEY..'MoveAll'},{'key_move_azerty',KEY..'MoveAll_AZERTY'},
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
@@ -332,6 +335,9 @@ local STYLES={title={'Bold',56},item={'Bold',40},name={'Bold',36},hint={'Bold',3
 local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children only.
 -- Row height; tween seconds; slide units; rebuilds in a row for a root that left the viewport, then off.
 local ROW,OPEN,CLOSE,SLIDE,LOSSES=76,0.16,0.12,32,3
+-- A key hint's icon, square, as the game's photo mode draws these icons beside its text; its label's top below the
+-- icon's, so the hint style's line sits on the icon's middle.
+local KEY_ICON,KEY_TEXT=66,9
 local function make(n,class,outer)
     local x=valid(StaticConstructObject(n.classes[class],outer))
     if not x then error(class..' not constructed',0) end
@@ -353,8 +359,9 @@ local function controller()
     local pc=valid(UE.GetPlayerController())
     return pc and pc:IsA(U.find('/Script/Engine.PlayerController')) and pc or nil
 end
--- opts: {log=function(line), store={save,load,clear} (link.store('coop-ui.txt')), azerty=true for the AZERTY move
--- keys, scale=ui_scale (75 to 150 %), sounds=false for ui_sounds=off}.
+-- opts: {log=function(line), store={save,load,clear} (link.store('coop-ui.txt')), azerty=true or false for the AZERTY
+-- move keys (unset: AZERTY when the game's language is French, read at each build), scale=ui_scale (75 to 150 %),
+-- sounds=false for ui_sounds=off}.
 function Ui.kit(opts)
     opts=opts or {}
     local log=opts.log or function() end
@@ -649,14 +656,14 @@ function Ui.kit(opts)
                 focus=function() upd(w,function(x2) x2:SetKeyboardFocus() end) end,
                 hint=function(s) upd(w,function(x2) set_hint(x2,s) end) end}
         end
-        -- Key hints cell units apart, {{key, label}, ...}; keys: move (ZQSD with azerty), arrows, up, enter, space,
-        -- escape. A missing icon leaves its label. Returns the labels (text's views: the language may change).
+        -- Key hints cell units apart, {{key, label}, ...}; keys: move (WASD, ZQSD with azerty), arrows, up, enter,
+        -- space, escape. A missing icon leaves its label. Returns the labels (text's views: the language may change).
         function b.hints(x,y,cell,list)
             local labels={}
             for i,hint in ipairs(list) do
-                local key=(hint[1]=='move' and opts.azerty) and 'move_azerty' or hint[1]
-                image(x+(i-1)*cell,y,48,48,'key_'..key,THEME.white,false,false)
-                labels[i]=text(x+(i-1)*cell+60,y+4,hint[2],'hint')
+                local key=(hint[1]=='move' and n.azerty) and 'move_azerty' or hint[1]
+                image(x+(i-1)*cell,y,KEY_ICON,KEY_ICON,'key_'..key,THEME.white,false,false)
+                labels[i]=text(x+(i-1)*cell+KEY_ICON+12,y+KEY_TEXT,hint[2],'hint')
             end
             return labels
         end
@@ -673,7 +680,9 @@ function Ui.kit(opts)
             if x and U.text(x:GetFullName())==e.full then assets[name]=x elseif e then cache[name]=nil end
         end
         local started=os.clock()
-        local n={classes={},assets=assets,count=0,look={},groups={},views={},size=#order}
+        local n={classes={},assets=assets,count=0,look={},groups={},views={},size=#order,azerty=opts.azerty}
+        -- French players type on AZERTY keyboards. W, A and Z, Q all move, so either icon is true on any layout.
+        if n.azerty==nil then n.azerty=(self.language() or ''):lower():find('^fr')~=nil end
         for _,name in ipairs(KIT_UMG) do n.classes[name]=U.find('/Script/UMG.'..name) end
         pending=n
         n.root=make(n,'UserWidget',pc)

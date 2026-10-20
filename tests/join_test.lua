@@ -34,7 +34,12 @@ function kit.add(name,place,build)
         r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end
         return r
     end
-    function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
+    function b.hints(_,_,_,list) -- Its labels; keys: the icons asked, in order ('move enter escape').
+        local out,keys={},{}
+        for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
+        out.keys=table.concat(keys,' ')
+        return out
+    end
     built[name]={place=place,view=build(b)}
 end
 function kit.ready() return state.ready and not state.off end
@@ -92,7 +97,7 @@ state.off=false
 field.text='old'
 assert(box.open()==true and box.is_open() and since(0)=='show code true|input true code')
 assert(field.text=='' and field.hint=='XXX-XXXX' and code.title.s=='JOIN WITH A CODE' and code.note.s==''
-    and code.note.c=='red' and code.hints[1].s=='Join' and code.hints[2].s=='Cancel')
+    and code.note.c=='red' and code.hints[1].s=='Join' and code.hints[2].s=='Cancel' and code.hints.keys=='enter escape')
 clock=0.04; box.tick(clock); assert(field.focuses==0)
 clock=0.06; box.tick(clock); assert(field.focuses==1)
 box.tick(clock); assert(field.focuses==1,'Once')
@@ -163,6 +168,7 @@ ask.slow(true)
 assert(ask.is_open() and since(n)=='menu closed|show ask true|input true ask|sound alert')
 assert(q.title.s=='Stranger wants to join' and q.about.s=='Not on your Steam friends list. Denied in 60 s if you do '
     ..'not answer.' and shown_rows()=='Accept|normal Deny|focus' and q.hints[1].s=='Move' and q.hints[3].s=='Deny')
+assert(q.hints.keys=='arrows enter escape','The arrows only: it opens on its own while she walks')
 -- It opened on its own: for 1 s every key does nothing (a walk forward then a jump, a stray Enter or Esc).
 local runs
 n,runs=#calls,#ran

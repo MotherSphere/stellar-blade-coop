@@ -55,7 +55,7 @@ function Saves.new(o)
         local v={title=b.text(1218,716,'','title'),body={},rows={}}
         for i=1,BODY do v.body[i]=b.text(1218,800+(i-1)*46,'','body') end
         for i=1,4 do v.rows[i]=b.row(1194,1050+(i-1)*76,1452) end
-        v.hints=b.hints(1218,1390,400,{{'arrows',''},{'enter',''},{'escape',''}})
+        v.hints=b.hints(1218,1380,400,{{'move',''},{'enter',''},{'escape',''}})
         return v
     end)
     local function pick() lang=T.pick(kit.language(),settings.ui_language) end

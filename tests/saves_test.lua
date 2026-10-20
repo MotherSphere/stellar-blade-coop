@@ -35,7 +35,12 @@ function kit.add(name,place,build)
         r.hovered=function() return r.hover==true end
         return r
     end
-    function b.hints(_,_,_,list) local out={}; for i,h in ipairs(list) do out[i]=b.text(0,0,h[2]) end; return out end
+    function b.hints(_,_,_,list) -- Its labels; keys: the icons asked, in order ('move enter escape').
+        local out,keys={},{}
+        for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
+        out.keys=table.concat(keys,' ')
+        return out
+    end
     built[name]={place=place,view=build(b)}
 end
 function kit.ready() main_thread(); return state.ready and not state.off end
@@ -133,6 +138,7 @@ assert(screen()=='CO-OP SAVES\nPlay co-op on copies of your saves?\n'
     ..'Don\'t ask again|Always co-op|normal',screen())
 local v=built.saves.view
 assert(v.hints[1].s=='Move' and v.hints[2].s=='Select' and v.hints[3].s=='Decide later','Esc decides later')
+assert(v.hints.keys=='move enter escape','It moves on W, A, S, D (Z, Q on AZERTY) and the arrows, as the menu')
 -- No co-op copy in this account's folder: each slot's looked at, by its full path.
 assert(#opened==5 and opened[1]=='C:\\Users\\Ana\\AppData\\Local\\SB\\Saved\\SaveGames\\76561198000000001\\'
     ..'StellarBladeCoop00.sav' and opened[5]:find('StellarBladeCoop04.sav$'),opened[1])

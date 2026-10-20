@@ -187,8 +187,16 @@ for _,a in ipairs(Ui.ASSETS) do if a.volume then SOUNDS=SOUNDS+1 end end
 -- The asset paths are the game's (a few, verbatim).
 assert(PATHS.Bold=='/Game/Art/Font/Bold.Bold' and PATHS.FZSHANGYTJW=='/Game/Art/Font/English/FZSHANGYTJW_Font.'
     ..'FZSHANGYTJW_Font' and PATHS.dot=='/Game/Art/UI/Texture/HUD/Gauge/Hp_Dot1_5x.Hp_Dot1_5x')
-assert(PATHS.key_move_azerty=='/Game/Art/UI/Texture/Interaction/PC_ActionAssist/KeyIcon_KeyBoard_MoveAll_AZERTY.'
-    ..'KeyIcon_KeyBoard_MoveAll_AZERTY' and PATHS.open=='/Game/Sound/UI/MainMenu/Ui_MoveIn_Cue.Ui_MoveIn_Cue')
+assert(PATHS.open=='/Game/Sound/UI/MainMenu/Ui_MoveIn_Cue.Ui_MoveIn_Cue')
+-- The key icons of the game's own menus (Interaction/PC, 80 by 80), and every path in the case of the game's files:
+-- the game finds none in another case (UE4SS.log of 2026-10-19: key_arrows, PC_ActionAssist's 'directionAll', and
+-- chevron, in 'WorkShop', missing).
+for name,file in pairs({key_enter='Enter',key_escape='Escape',key_space='SpaceBar',key_up='Up',
+        key_arrows='DirectionAll',key_move='MoveAll',key_move_azerty='MoveAll_AZERTY'}) do
+    assert(PATHS[name]=='/Game/Art/UI/Texture/Interaction/PC/KeyIcon_KeyBoard_'..file..'.KeyIcon_KeyBoard_'..file,
+        PATHS[name])
+end
+assert(PATHS.chevron=='/Game/Art/UI/Texture/WorkShop/TriPatternUp.TriPatternUp',PATHS.chevron)
 -- Colours as the engine takes them: linear, from the hex Slate shows (#ADD1C4).
 assert(math.abs(T.teal.R-0.418)<0.001 and math.abs(T.teal.G-0.637)<0.001 and T.teal.A==1 and T.panel.A==0.78)
 
@@ -292,8 +300,9 @@ assert(#shield_bg==5 and pos(shield_bg[2])=='144,130' and size(shield_bg[5])=='1
 assert(#textured('cube0')==8 and #textured('cube4')==8 and pos(textured('cube0')[2])=='65,160')
 for _,o in ipairs(textured('cube0')) do assert(vis(o)==1,'No cube before her values') end
 assert(#textured('key_move_azerty')==1 and #textured('key_move')==0 and #textured('key_escape')==1)
-assert(pos(textured('key_enter')[1])=='340,1400' and size(textured('key_enter')[1])=='48x48')
-assert(pos(select(2,text('Select')))=='400,1404' and text('Select').font.Size==30,'Its label beside it')
+-- 66 units square, as the game's photo mode draws these icons beside its text; the label after it, on its middle.
+assert(pos(textured('key_enter')[1])=='340,1400' and size(textured('key_enter')[1])=='66x66')
+assert(pos(select(2,text('Select')))=='418,1409' and text('Select').font.Size==30,'Its label beside it')
 
 -- Reuse: updates touch the engine only on change; the gauges follow the player cluster's rules.
 n=#calls
@@ -641,12 +650,28 @@ for _,o in ipairs(of('Image')) do
 end
 assert(flat==1,'The HP dots as flat teal')
 local hidden_key=0
-for _,o in ipairs(of('Image')) do if size(o)=='48x48' and vis(o)==1 then hidden_key=hidden_key+1 end end
+for _,o in ipairs(of('Image')) do if size(o)=='66x66' and vis(o)==1 then hidden_key=hidden_key+1 end end
 assert(hidden_key==1,'No icon for a missing key, the label stays')
 local dots={}
 for _,o in ipairs(of('Image')) do if size(o)=='20x20' then dots[#dots+1]=o end end
 k.view('card').dot.show(true)
 assert(#dots==1 and vis(dots[1])==1,'Nor a white square for a missing image, shown or not')
+-- The move keys' icon without azerty=: ZQSD when the game's language is French (its players' AZERTY keyboards), WASD
+-- in any other language or when it is unread. Both are true on any layout: W, A and Z, Q all move. azerty= decides
+-- when given.
+for _,case in ipairs({{'fr-FR',nil,'key_move_azerty'},{'fr',nil,'key_move_azerty'},{'en-US',nil,'key_move'},
+        {false,nil,'key_move'},{'fr-FR',false,'key_move'},{'en-US',true,'key_move_azerty'}}) do
+    reset()
+    special['KismetInternationalizationLibrary.GetCurrentLanguage']=function()
+        if not case[1] then error('unread',0) end
+        return case[1]
+    end
+    k=kit({azerty=case[2]})
+    up(k)
+    local other=case[3]=='key_move' and 'key_move_azerty' or 'key_move'
+    assert(#textured(case[3])==1 and #textured(other)==0,tostring(case[1])..' '..tostring(case[2]))
+end
+special['KismetInternationalizationLibrary.GetCurrentLanguage']=nil
 -- A sound not in this build: silent, never looked up again.
 reset()
 registry[PATHS.alert]=nil
