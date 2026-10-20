@@ -64,7 +64,7 @@ local status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n
 local link_mode='none' -- What link.mode() says, as of the last changes().
 local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 local mate_v=nil -- link.mate(): her vitals.
-local friend_linked=true -- link.friend()'s linked.
+local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked.
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 local said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
@@ -91,7 +91,7 @@ local fake_link={
         said_lines[#said_lines+1]=text
         return true
     end,
-    friend=function() return 'Kaanta',friend_linked,false end,
+    friend=function() return friend_name,friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -903,11 +903,10 @@ assert(language_reads==languages,'The language is read only to say a notice')
 -- you on different maps. Waits that end by themselves (no friend, a load, photo mode) say nothing and forget nothing;
 -- sharing with her on the same map forgets what was said, and so does the session's end. Never for a solo tool.
 local HOST_ON='fight=on mode=on role=host enemies=0 claims=0 refused=0 kills=0 floored=0 sim_us=0/0 threads=0/0/0'
-local YOU='Shared enemies need a co-op save, and this is your own save. Quit to the title screen and choose Convert '
-    ..'and play co-op (Play co-op once you have co-op copies), then Continue or load the same slot number. The ghost '
-    ..'works on any save.'
-local YOU_MANUAL='Shared enemies need a co-op save, and this is your own save. With the co-op copies off, only the '
-    ..'manual co-op slot counts (see INSTALL.md). The ghost works on any save.'
+local YOU='Shared enemies need a co-op save, not your own. Quit to the title screen, choose Convert and play co-op (or '
+    ..'Play co-op), then Continue or load the same slot.'
+local YOU_MANUAL='Shared enemies need a co-op save, not your own. With the co-op copies off, only the manual co-op '
+    ..'slot counts (see INSTALL.md).'
 fight_text=nil
 link_mode,saves_info='host',{slot='main',saves='main'}
 loops[2].f()
@@ -917,7 +916,7 @@ for _,step in ipairs({
         {'fight=waiting mode=on her=? why=no save loaded',''},
         {'fight=waiting mode=on her=own-save why=not on a co-op save',''},
         {HOST_ON..' her=own-save','Shared enemies wait: Kaanta plays their own save. They can switch at the title '
-            ..'screen with Convert and play co-op (Play co-op once they have co-op copies).'},
+            ..'screen with Convert and play co-op (or Play co-op).'},
         {HOST_ON..' her=own-save',''},
         {HOST_ON..' her=off','Shared enemies wait: Kaanta has them off (co-op menu, Options, Combat).'},
         {HOST_ON..' her=stopped',"Shared enemies stopped for this run in Kaanta's game. Their coop-link.log says why."},
@@ -951,12 +950,10 @@ assert(fight_step('fight=waiting mode=on her=? why=not on a co-op save (slot=mai
 link_mode='none'; fight_step('fight=waiting mode=on why=no friend linked')
 link_mode,saves_info,kit_language='guest',{slot='main',saves='main'},'fr-FR'
 assert(fight_step('fight=waiting mode=on her=? why=not on a co-op save')=='Les ennemis partagés demandent une '
-    ..'sauvegarde co-op, et vous jouez sur votre propre sauvegarde. Revenez à l\'écran titre et choisissez Convertir '
-    ..'et jouer en co-op (Jouer en co-op si vous avez déjà des copies co-op), puis Continuer ou chargez le même '
-    ..'numéro d\'emplacement. Le fantôme fonctionne sur toutes les sauvegardes.')
+    ..'sauvegarde co-op, pas la vôtre. À l\'écran titre, choisissez Convertir et jouer en co-op (ou Jouer en co-op), '
+    ..'puis Continuer ou chargez le même emplacement.')
 assert(fight_step(HOST_ON..' her=own-save')=='Ennemis partagés en attente : Kaanta joue sur sa propre sauvegarde. Le '
-    ..'passage se fait à l\'écran titre, avec Convertir et jouer en co-op (Jouer en co-op si ses copies co-op '
-    ..'existent déjà).')
+    ..'passage se fait à l\'écran titre avec Convertir et jouer en co-op (ou Jouer en co-op).')
 assert(fight_step('fight=stopped why=fault')=='Ennemis partagés arrêtés jusqu\'au redémarrage du jeu. coop-link.log '
     ..'dit pourquoi.')
 -- A friend flipping her state every 250 ms: one notice, then the cause as it stands once 5 s passed, and so on.
@@ -968,6 +965,14 @@ for i=1,40 do
     if got~='' then flips[#flips+1]=i end
 end
 assert(#flips==2 and flips[1]==1 and flips[2]>=21,table.concat(flips,','))
+-- No name known (a stranger who joined with a code, or a name of controls only): your friend, in lower case.
+for _,name in ipairs({'','\u{202E}'}) do
+    friend_name=name
+    local got=fight_step(HOST_ON..(name=='' and ' her=stopped' or ' her=off'))
+    assert(got==(name=='' and "Shared enemies stopped for this run in your friend's game. Their coop-link.log says why."
+        or 'Shared enemies wait: your friend has them off (co-op menu, Options, Combat).'),got)
+end
+friend_name='Kaanta'
 link_mode,saves_info,kit_language='none',{},nil
 settings_text='shared_enemies=on\nauto_coop_save=off\n'
 load_main(true)
@@ -979,6 +984,13 @@ status_text=plain
 local Words=require('ui_text') -- Both languages complete.
 for k in pairs(Words.en.fight) do assert(Words.fr.fight[k],k) end
 for k in pairs(Words.fr.fight) do assert(Words.en.fight[k],k) end
+-- Every notice fits the feed's 200 bytes a line (Chat.clean cuts the rest) with a 32-character Steam name.
+for _,lang in ipairs({'en','fr'}) do
+    for k,text in pairs(Words[lang].fight) do
+        local full=text:gsub('%%s',string.rep('W',32)):gsub('%%d','16')
+        assert(Chat.clean(full)==full,lang..'.fight.'..k..': '..#full..' bytes')
+    end
+end
 
 -- The co-op menu (menu.lua, ui_model.lua and ui_text.lua for real; the kit faked). menu_key opens it in a world only,
 -- with its root up and the game not paused; its keys move, wrap over headers, select and go back; Host closes it and

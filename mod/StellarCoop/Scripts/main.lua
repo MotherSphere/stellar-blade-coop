@@ -469,7 +469,8 @@ if link then
             local info=link.saves() or {}
             say((settings.auto_coop_save=='off' or info.saves~='main') and words.you_manual or words.you)
         else
-            say(words[missing]:format((link.friend()) or words.friend))
+            local name=require('chat').clean((link.friend()) or '') -- '' (a stranger's unknown name) as nil.
+            say(words[missing]:format(name~='' and name or words.friend))
         end
     end
     LoopInGameThreadWithDelay(250,function()

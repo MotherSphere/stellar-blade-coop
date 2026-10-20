@@ -67,14 +67,13 @@ T.en={
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
         off='Shared enemies off. coop-link.log says why.',
-        stopped='Shared enemies stopped until the game restarts. coop-link.log says why.',friend='Your friend',
-        you='Shared enemies need a co-op save, and this is your own save. Quit to the title screen and choose Convert '
-            ..'and play co-op (Play co-op once you have co-op copies), then Continue or load the same slot number. The '
-            ..'ghost works on any save.',
-        you_manual='Shared enemies need a co-op save, and this is your own save. With the co-op copies off, only the '
-            ..'manual co-op slot counts (see INSTALL.md). The ghost works on any save.',
+        stopped='Shared enemies stopped until the game restarts. coop-link.log says why.',friend='your friend',
+        you='Shared enemies need a co-op save, not your own. Quit to the title screen, choose Convert and play co-op '
+            ..'(or Play co-op), then Continue or load the same slot.',
+        you_manual='Shared enemies need a co-op save, not your own. With the co-op copies off, only the manual co-op '
+            ..'slot counts (see INSTALL.md).',
         her_save='Shared enemies wait: %s plays their own save. They can switch at the title screen with Convert and '
-            ..'play co-op (Play co-op once they have co-op copies).',
+            ..'play co-op (or Play co-op).',
         her_off='Shared enemies wait: %s has them off (co-op menu, Options, Combat).',
         her_stopped="Shared enemies stopped for this run in %s's game. Their coop-link.log says why.",
         map='Shared enemies wait until you and %s are on the same map.'},
@@ -142,16 +141,13 @@ T.fr={
     fight={on='Ennemis partagés actifs : %d ennemis liés.',one='Ennemis partagés actifs : 1 ennemi lié.',
         off='Ennemis partagés coupés. coop-link.log dit pourquoi.',
         stopped="Ennemis partagés arrêtés jusqu'au redémarrage du jeu. coop-link.log dit pourquoi.",
-        friend='Votre partenaire',
-        you='Les ennemis partagés demandent une sauvegarde co-op, et vous jouez sur votre propre sauvegarde. Revenez à '
-            .."l'écran titre et choisissez Convertir et jouer en co-op (Jouer en co-op si vous avez déjà des copies "
-            .."co-op), puis Continuer ou chargez le même numéro d'emplacement. Le fantôme fonctionne sur toutes les "
-            ..'sauvegardes.',
-        you_manual='Les ennemis partagés demandent une sauvegarde co-op, et vous jouez sur votre propre sauvegarde. '
-            ..'Avec les copies co-op coupées, seul l\'emplacement co-op manuel compte (voir INSTALL.md). Le fantôme '
-            ..'fonctionne sur toutes les sauvegardes.',
-        her_save="Ennemis partagés en attente : %s joue sur sa propre sauvegarde. Le passage se fait à l'écran titre, "
-            ..'avec Convertir et jouer en co-op (Jouer en co-op si ses copies co-op existent déjà).',
+        friend='votre partenaire',
+        you="Les ennemis partagés demandent une sauvegarde co-op, pas la vôtre. À l'écran titre, choisissez Convertir "
+            ..'et jouer en co-op (ou Jouer en co-op), puis Continuer ou chargez le même emplacement.',
+        you_manual='Les ennemis partagés demandent une sauvegarde co-op, pas la vôtre. Avec les copies co-op coupées, '
+            .."seul l'emplacement co-op manuel compte (voir INSTALL.md).",
+        her_save="Ennemis partagés en attente : %s joue sur sa propre sauvegarde. Le passage se fait à l'écran titre "
+            ..'avec Convertir et jouer en co-op (ou Jouer en co-op).',
         her_off='Ennemis partagés en attente : ils sont coupés chez %s (menu co-op, Options, Combat).',
         her_stopped='Ennemis partagés arrêtés pour cette partie chez %s. Son coop-link.log dit pourquoi.',
         map="Ennemis partagés en attente : vous et %s n'êtes pas sur la même zone."},

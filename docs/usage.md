@@ -438,9 +438,9 @@ session, and 5 seconds after the last one at the soonest:
 
 | What is missing | Notice |
 | --- | --- |
-| You play your own save | `Shared enemies need a co-op save, and this is your own save. Quit to the title screen and choose Convert and play co-op (Play co-op once you have co-op copies), then Continue or load the same slot number. The ghost works on any save.` |
-| The same, with `auto_coop_save=off` or when the co-op copies cannot be used (`saves=off` or `saves=?`) | `Shared enemies need a co-op save, and this is your own save. With the co-op copies off, only the manual co-op slot counts (see INSTALL.md). The ghost works on any save.` |
-| Your friend plays their own save | `Shared enemies wait: <name> plays their own save. They can switch at the title screen with Convert and play co-op (Play co-op once they have co-op copies).` |
+| You play your own save | `Shared enemies need a co-op save, not your own. Quit to the title screen, choose Convert and play co-op (or Play co-op), then Continue or load the same slot.` |
+| The same, with `auto_coop_save=off` or when the co-op copies cannot be used (`saves=off` or `saves=?`) | `Shared enemies need a co-op save, not your own. With the co-op copies off, only the manual co-op slot counts (see INSTALL.md).` |
+| Your friend plays their own save | `Shared enemies wait: <name> plays their own save. They can switch at the title screen with Convert and play co-op (or Play co-op).` |
 | Your friend has shared enemies off | `Shared enemies wait: <name> has them off (co-op menu, Options, Combat).` |
 | Shared enemies stopped in your friend's game | `Shared enemies stopped for this run in <name>'s game. Their coop-link.log says why.` |
 | You are on different maps | `Shared enemies wait until you and <name> are on the same map.` |
