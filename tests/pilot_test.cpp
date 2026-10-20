@@ -864,18 +864,21 @@ int main() {
   // stand-in for each pose, which only feeds the ghost's playback clock; channel 2 (reliable) carries the show lines.
   // Both are 120 +/- 30 ms one way and keep their order (pose_stream.h's DelayLine, the loopback's line), and the
   // guest's worker takes them every 5 ms. Her clock runs 7.65 s ahead of the host's and her frames come 5 ms after his.
-  // Four paired enemies: one circling at 4 m/s, one standing, one walking 8 m (6 m/s at most) and resting 2 s at each
-  // end, one running a curve at up to 8 m/s; each plays Shows (the walker two at once) whose rate goes up halfway. For
-  // 50 s she draws each copy at the ghost's draw time and replays each line once that time reaches its stamp; then the
-  // host is lost. Against the host's own position at the same host time, the copy stays within 30 cm while it moves
-  // and 5 cm at rest, with no snap; every line applies in the host's order, once its stamp is reached and within about
-  // a frame of it, none late, each show-set and show-stop naming a live replay; restore stops every live replay and
-  // leaves no copy frozen, out of SB's movement manager or with our speed override.
+  // Five paired enemies: one circling at 4 m/s, one standing, one walking 8 m (6 m/s at most) and resting 2 s at each
+  // end, one running a curve at up to 8 m/s, one lunging 3.2 m at 8 m/s to a dead stop and back every 2 s; each plays
+  // Shows (the walker two at once) whose rate goes up halfway. For 50 s she draws each copy at the ghost's draw time
+  // and replays each line once that time reaches its stamp; then the host is lost. Against the host's own position at
+  // the same host time, the copy stays within 30 cm while it moves (the lunge's stop, drawn past the newest SBE, is
+  // the worst) and 5 cm at rest, with no snap; against the host 60 ms earlier it does not, so the bound sees a clock
+  // that far off. Every line applies in the host's order, once its stamp is reached and within about a frame of it,
+  // none late, each show-set and show-stop naming a live replay. Restore stops every live replay and puts each copy
+  // back to local, its CMC in SB's movement manager and our speed override gone; the AI hold's dispel is the logic
+  // side's (fight_engine_test).
   {
     using coop::pose::DelayLine;
     using coop::pose::Playback;
     constexpr uint32_t kGen = 5;
-    constexpr int kN = 4;
+    constexpr int kN = 5;
     constexpr uint64_t kOffset = 7'654'321, kFrame = 16'667, kEnd = 50'000'000, kFreeze = 300'000, kWarm = 2'000'000;
     // Enemy i of the host at host time ms: location (cm) and yaw (degrees).
     auto truth = [](int i, double ms, float *loc, float &yaw) {
@@ -890,17 +893,21 @@ int main() {
         const double c = std::fmod(s, 8);
         double u = c < 2 ? 0 : c < 4 ? (c - 2) / 2 : c < 6 ? 1 : 1 - (c - 6) / 2;
         loc[0] = float(2000 + 800 * u * u * (3 - 2 * u)), loc[1] = 0;
-      } else { // 5 m/s along X, 3 m to each side every 3 s.
+      } else if (i == 3) { // 5 m/s along X, 3 m to each side every 3 s.
         const double w = 2 * kPi / 3;
         loc[0] = float(4000 + 500 * s), loc[1] = float(300 * std::sin(w * s));
         yaw = float(std::atan2(300 * w * std::cos(w * s), 500) * 180 / kPi);
+      } else { // An attack lunge: 0.4 s at 8 m/s along X, a dead stop, 0.6 s at rest, then back the same way.
+        const double c = std::fmod(s, 2), u = c < 0.4 ? c : c < 1 ? 0.4 : c < 1.4 ? 1.4 - c : 0;
+        loc[0] = float(-3000 + 800 * u), loc[1] = -500;
       }
     };
     // Enemy i's Shows: one every `every` ms from `from`, each `last` ms long, its rate 1.5 from halfway.
     struct Plan {
       uint64_t from, every, last;
     };
-    const Plan plan[kN] = {{1000, 1500, 1000}, {1100, 2000, 700}, {1200, 600, 1000}, {1300, 900, 400}};
+    const Plan plan[kN] = {
+        {1000, 1500, 1000}, {1100, 2000, 700}, {1200, 600, 1000}, {1300, 900, 400}, {1400, 2000, 500}};
 
     // The guest's copy of each enemy, as the game thread sees it, and what restore puts back.
     struct Fake {
@@ -953,7 +960,7 @@ int main() {
     std::vector<In> in1, in2;
     uint32_t pose_seq = 0, sbe_seq = 0;
     uint64_t handles = 0, host_frames = 0, next_host = 1000, next_guest = 6000; // The pose clock is never 0.
-    double worst_moving = 0, worst_rest = 0, worst_turn = 0, worst_after = 0;
+    double worst_moving = 0, worst_rest = 0, worst_turn = 0, worst_after = 0, worst_60 = 0;
     size_t moving = 0, rest = 0, snaps = 0, late = 0, unknown = 0, not_drawn = 0, refused = 0, extrapolated = 0;
     for (uint64_t t = 1000; t <= kEnd; t += 1000) {
       if (t >= next_host) { // The host's frame: a pose every frame, SBE and the Shows every other one.
@@ -1066,12 +1073,16 @@ int main() {
         if (t < kWarm)
           continue;
         assert(st == State::piloted);
-        float host[3], before[3], yaw = 0, was = 0;
+        float host[3], before[3], early[3], yaw = 0, was = 0;
         truth(i, at, host, yaw);
         truth(i, at - 300, before, was);
-        const double err = std::sqrt((c.loc[0] - host[0]) * (c.loc[0] - host[0]) +
-                                     (c.loc[1] - host[1]) * (c.loc[1] - host[1]) +
-                                     (c.loc[2] - host[2]) * (c.loc[2] - host[2]));
+        truth(i, at - 60, early, was);
+        auto off = [&](const float *h) -> double {
+          return std::sqrt((c.loc[0] - h[0]) * (c.loc[0] - h[0]) + (c.loc[1] - h[1]) * (c.loc[1] - h[1]) +
+                           (c.loc[2] - h[2]) * (c.loc[2] - h[2]));
+        };
+        const double err = off(host);
+        worst_60 = std::max(worst_60, off(early));
         const bool still = host[0] == before[0] && host[1] == before[1];
         (still ? worst_rest : worst_moving) = std::max(still ? worst_rest : worst_moving, err);
         ++(still ? rest : moving);
@@ -1126,13 +1137,15 @@ int main() {
       in_flight += s_i.size() - a_i.size();
     }
     std::printf("pilot_test: two worlds, 50 s: copy within %.2f cm of the host moving (%zu frames), %.3f cm at rest "
-                "(%zu), %.2f deg; %zu snaps, %zu extrapolated; %zu of %zu lines applied in order, at most %.1f ms "
-                "after their stamp, %zu late, %zu in flight\n",
-                worst_moving, moving, worst_rest, rest, worst_turn, snaps, extrapolated, applied.size(), sent.size(),
-                worst_after, late, in_flight);
+                "(%zu), %.2f deg, %.1f cm against the host 60 ms earlier; %zu snaps, %zu extrapolated; %zu of %zu "
+                "lines applied in order, at most %.1f ms after their stamp, %zu late, %zu in flight\n",
+                worst_moving, moving, worst_rest, rest, worst_turn, worst_60, snaps, extrapolated, applied.size(),
+                sent.size(), worst_after, late, in_flight);
     assert(worst_moving < 30 && worst_rest < 5 && moving > 4000 && rest > 2000 && worst_turn < 5 && snaps == 0);
+    assert(worst_60 > 30);
     assert(late == 0 && unknown == 0 && not_drawn == 0 && refused == 0 && worst_after < 34 && applied.size() > 500);
-    // The host is lost: each copy put back once, every live replay stopped, then local (Simulate dispels 2000101).
+    // The host is lost: each copy put back once, every live replay stopped, then local, its mode no longer asking for
+    // the AI hold (Simulate dispels 2000101; fight_engine_test covers that).
     size_t live = 0;
     for (Fake &c : copies)
       live += c.live.size();
