@@ -79,7 +79,10 @@ T.en={
             ..'play co-op (or Play co-op).',
         her_off='Shared enemies wait: %s has them off (co-op menu, Options, Combat).',
         her_stopped="Shared enemies stopped for this run in %s's game. Their coop-link.log says why.",
-        map='Shared enemies wait until you and %s are on the same map.'},
+        map='Shared enemies wait until you and %s are on the same map.',
+        maxhp="Shared enemies: some enemies have another max HP in %s's game (another difficulty or New Game+). They "
+            ..'stay unshared.',
+        host_down='Shared enemies: %s is down. Once they respawn, the enemies you share go back to full health.'},
 }
 T.fr={
     title='CO-OP',
@@ -156,7 +159,11 @@ T.fr={
             ..'avec Convertir et jouer en co-op (ou Jouer en co-op).',
         her_off='Ennemis partagés en attente : ils sont coupés chez %s (menu co-op, Options, Combat).',
         her_stopped='Ennemis partagés arrêtés pour cette partie chez %s. Son coop-link.log dit pourquoi.',
-        map="Ennemis partagés en attente : vous et %s n'êtes pas sur la même zone."},
+        map="Ennemis partagés en attente : vous et %s n'êtes pas sur la même zone.",
+        maxhp="Ennemis partagés : certains ennemis ont d'autres PV max dans la partie de %s (autre difficulté ou New "
+            ..'Game+). Ils ne sont pas partagés.',
+        host_down='Ennemis partagés : %s est à terre. Après sa réapparition, vos ennemis partagés reviennent à pleine '
+            ..'santé.'},
 }
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(culture,setting)

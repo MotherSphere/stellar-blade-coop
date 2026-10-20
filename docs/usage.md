@@ -500,15 +500,27 @@ enemies get linked after none (the host counts none until the friend's side is o
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
+The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
+game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
+leaves, when an enemy of the host's cannot be paired because its maximum HP differs (by more than 0.5, before any
+scaling). `Shared enemies: <name> is down. Once they respawn, the enemies you share go back to full health.` shows each
+time the host goes down while enemies are linked: the host's respawn resets the enemies in the host's game, and your
+copies follow them back to full health. A respawn on another map leaves your copies unshared, with the HP they had.
+
 - `coop fight on` asks for it by hand (it needs `shared_enemies=on`) and `coop fight off` stops it until the mod
   reloads or the row is turned off and on again. It waits for a linked friend, a loaded save and a co-op save, and pauses
   while either player is in photo mode (selfies and the pause menu do not pause it). Loading your own save pauses it
   until you load a co-op save again. Setting `shared_enemies=off` in the file and pressing Ctrl+R also stops it (the
   solo test tools below keep running).
 - `coop fight status` prints the `fight=` line of `coop status`, for example
-  `fight=on mode=on role=host enemies=3 ... her=on`. While a friend is linked, `her=` gives their side: `on`,
-  `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run), `waiting` (a load, photo
-  mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their game yet).
+  `fight=on mode=on role=host enemies=3 ... her=on`. The guest's line has `unpaired=<n>` (the host's enemies it could
+  not pair) and `maxhp=<n>` (those of them with another maximum HP), and the answer then lists up to 8 of them by spawn
+  key and reason (`charId`, `maxhp` or `duplicate`), for example
+  `; unpaired: 5003:0 charId, 5005:1 maxhp; 3 of ours not on the host's list`. The last count is the guest's own
+  enemies that the host's list lacked since the host's last world change. While a friend is linked, `her=` gives
+  their side: `on`, `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run),
+  `waiting` (a load, photo mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their
+  game yet).
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, type, HP, Shield, Stamina) to
   `coop-fight.log`, where you find the ids for `fight_chars`. With no `fight_chars` list, the line of a Monster that
   `auto` leaves out has `left_out=charId` (the Gorgon or a turret) or `left_out=MaxHP` (more than 500,000

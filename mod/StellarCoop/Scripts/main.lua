@@ -433,11 +433,19 @@ if link then
     -- changes, and FIGHT_HOLD seconds after the last at the soonest (her lines set her state, so a friend flipping it
     -- cannot flood them): your save or hers not a co-op one, her shared enemies off or stopped for the run, or the two
     -- of you on different maps. Waits that end by themselves (no friend yet, a load, photo mode) say nothing. Sharing
-    -- with her on the same map, or the session's end, forgets what was said.
+    -- with her on the same map, or the session's end, forgets what was said. Sharing as the guest, two more: once
+    -- until it stops or the friend leaves, when the host has enemies we cannot pair for their MaxHP (the line's
+    -- maxhp=: another difficulty or New Game+); and each time the host goes down (her vitals, as the partner card reads
+    -- them) while enemies are linked: its respawn resets its enemies, and ours heal back to them.
     local P=require('partner')
     local FIGHT_HOLD=5
     local fight_was,fight_count,fight_told,fight_hold=nil,0,nil,0
+    local fight_maxhp,host_down=false,false
     local function fight_words() return words().fight end
+    local function her_name(words) -- '' (a stranger's unknown name) as your friend.
+        local name=require('chat').clean((link.friend()) or '')
+        return name~='' and name or words.friend
+    end
     local function fight_notices()
         if link.mode()=='none' then fight_told=nil end
         local line=link.fight()
@@ -456,12 +464,22 @@ if link then
                 say(text)
             end
             fight_count=count
+            if not fight_maxhp and (tonumber(line:match(' maxhp=(%d+)')) or 0)>0 then
+                fight_maxhp=true
+                say(fight_words().maxhp:format(her_name(fight_words())))
+            end
+            local m=line:find(' role=guest ') and link.mate()
+            local down=m and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) or false
+            if down and not host_down and count>0 then say(fight_words().host_down:format(her_name(fight_words()))) end
+            host_down=down
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') and why~='coop fight off'
                 and why~='coop off' then
                 say(fight_words()[state])
             end
-            fight_count=0
+            fight_count,fight_maxhp,host_down=0,false,false
+        elseif why=='no friend linked' then -- The friend left: the next one hears about MaxHP again.
+            fight_maxhp,host_down=false,false
         end
         fight_was=now
         if mode~='on' or (state~='on' and state~='waiting') then return end
@@ -482,8 +500,7 @@ if link then
             local info=link.saves() or {}
             say((settings.auto_coop_save=='off' or info.saves~='main') and words.you_manual or words.you)
         else
-            local name=require('chat').clean((link.friend()) or '') -- '' (a stranger's unknown name) as nil.
-            say(words[missing]:format(name~='' and name or words.friend))
+            say(words[missing]:format(her_name(words)))
         end
     end
     LoopInGameThreadWithDelay(250,function()

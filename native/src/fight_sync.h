@@ -34,6 +34,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -307,6 +308,14 @@ inline std::string line(const Event &e) {
 //     through SB's own call, as a hit of our EVE's would; false when it is gone or the game refused;
 //   void send(const Message &m): channel 2 (on/off are the caller's, but for the guest's answer to the host's on);
 //   void event(const Event &e): a log line.
+
+// A host enemy the guest could not pair, for coop fight status: its key and why ("charId", "maxhp", "duplicate").
+struct Unshared {
+  uint32_t spawn = 0;
+  uint8_t index = 0;
+  const char *why = "";
+};
+constexpr size_t kMaxUnshared = 8; // coop fight status lists this many.
 
 // Counters since the side started, for the stats line.
 struct Counts {
@@ -828,6 +837,24 @@ public:
   // back, a copy the host's dead killed this step too: the engine takes a dying copy's scaling off without lowering
   // its HP.
   size_t scaled(uint32_t *guids) const { return scaling(scale_) ? tracked(guids) : 0; }
+  // The host's enemies left unpaired for a reason (unshared, logged once each), the first max of them into out: how
+  // many in all, and in maxhp how many of them for MaxHP (another difficulty or New Game+ in one game).
+  size_t unshared(Unshared *out, size_t max, size_t &maxhp) const {
+    size_t n = 0;
+    maxhp = 0;
+    for (size_t i = 0; i < count_; ++i) {
+      const Pair &p = pairs_[i];
+      if (p.local || p.dead || !p.why)
+        continue;
+      if (n < max)
+        out[n] = Unshared{p.spawn, p.index, p.why};
+      ++n;
+      maxhp += std::strcmp(p.why, "maxhp") == 0;
+    }
+    return n;
+  }
+  // Keys of ours the host's list lacked at a census since its last world (logged once each).
+  size_t lonely() const { return logged_; }
   // With confirm(): the copies whose floor the engine must hold after this step (every live pair, waiting or not), at
   // most kMaxTracked. Any other floor comes off: unpaired, dropped, dead (the engine lifts it before the kill).
   size_t floored(uint32_t *guids) const {
@@ -981,6 +1008,7 @@ private:
     uint64_t hold_ms = 0;
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
     bool logged = false;         // Its unpaired reason was logged.
+    const char *why = nullptr;   // That reason, while it stays unpaired for it.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
     uint32_t lethal = 0;         // Our lethal claim's number while the host decides.
     bool held = false;           // Our copy lives at the floor meanwhile (confirm()).
@@ -1020,6 +1048,7 @@ private:
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.logged = false;
+    p.why = nullptr;
   }
 
   // The host's values for one enemy, with the last claim they hold.
@@ -1152,6 +1181,7 @@ private:
                         : match->chr != p.chr                    ? "charId"
                         : !max_ok                                ? "maxhp"
                                                                  : nullptr;
+      p.why = why;
       if (why) {
         if (!p.logged)
           io.event(Event{"unpaired", why, p.hguid, p.spawn, p.index});

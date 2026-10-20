@@ -1794,6 +1794,18 @@ int main() {
       w.pass(t, true, false, true, none, gate, io);
     assert(io.said.empty() && io.traced.size() == 2);
     assert(has(w.detail(), "fight=on mode=on role=guest pairs=1 ") && has(w.detail(), " her=waiting"));
+    // coop fight status lists the host's enemies left unpaired and ours the host lacks; the fight= line counts them.
+    s.unshared[0] = Unshared{5003, 0, "charId"}, s.unshared[1] = Unshared{5005, 1, "maxhp"};
+    s.unshared_all = 2, s.maxhp = 1, s.lonely = 3;
+    assert(mail.exchange(s));
+    w.pass(t += 16, true, false, true, none, gate, io);
+    const std::string status = ask("fight status");
+    assert(has(status, " desync=0 unpaired=2 maxhp=1 ") &&
+           has(status, "; unpaired: 5003:0 charId, 5005:1 maxhp; 3 of ours not on the host's list"));
+    s.unshared_all = s.maxhp = s.lonely = 0;
+    assert(mail.exchange(s));
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(!has(ask("fight status"), "; unpaired"));
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);

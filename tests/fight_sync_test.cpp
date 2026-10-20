@@ -836,6 +836,13 @@ int main() {
     assert(g.count("unpaired", "charId") == 1 && g.count("unpaired", "maxhp") == 1 &&
            g.count("unpaired", "duplicate") == 3);
     assert(g.count("unpaired", "no host enemy") == 1);
+    // coop fight status lists them in the host's order, the first kMaxUnshared, and counts those for MaxHP apart.
+    Unshared list[kMaxUnshared];
+    size_t maxhp = 9;
+    assert(gu.unshared(list, kMaxUnshared, maxhp) == 5 && maxhp == 1 && gu.lonely() == 1);
+    assert(list[0].spawn == 5003 && std::string(list[0].why) == "charId" && list[1].spawn == 5005 &&
+           std::string(list[1].why) == "maxhp" && list[4].spawn == 5007 && std::string(list[4].why) == "duplicate");
+    assert(gu.unshared(list, 2, maxhp) == 5 && maxhp == 1);
 
     // A repeated up changes nothing; past 16 announced enemies, the next is refused.
     gu.receive(msg("SBF10 up 1 101 5099 0 900 1600"), g);

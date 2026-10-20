@@ -907,8 +907,40 @@ for _,step in ipairs({{'fight=off why=coop fight off',''},
     local got=fight_step(step[1])
     assert(got==step[2],tostring(step[1])..': '..got)
 end
--- The same notices in the game's language (French: 0 and 1 singular).
+-- Sharing as the guest: once when the host has enemies we cannot pair for their MaxHP (until it stops or the friend
+-- leaves); each time the host goes down while enemies are linked (her vitals: HP 0, or a life state 3-5).
+local GUEST_ON='fight=on mode=on role=guest claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=1 sim_us=5/9 '
+    ..'threads=1/1/2 pairs='
+local MAXHP="Shared enemies: some enemies have another max HP in Kaanta's game (another difficulty or New Game+). They "
+    ..'stay unshared.'
+local DOWN='Shared enemies: Kaanta is down. Once they respawn, the enemies you share go back to full health.'
+local function vitals(hp,life) return {hp=hp,max_hp=1000,life=life} end
+for _,step in ipairs({{'fight=off why=coop fight off',''},
+        {GUEST_ON..'2 maxhp=0','Shared enemies on: 2 enemies linked.'},
+        {GUEST_ON..'2 maxhp=1',MAXHP},{GUEST_ON..'2 maxhp=2',''},
+        {GUEST_ON..'2 maxhp=2',DOWN,vitals(0,1)},{GUEST_ON..'2 maxhp=2','',vitals(0,1)},
+        {GUEST_ON..'2 maxhp=2','',vitals(1000,1)},{GUEST_ON..'2 maxhp=2',DOWN,vitals(500,3)},
+        {GUEST_ON..'0 maxhp=2','',vitals(1000,1)},{GUEST_ON..'0 maxhp=2','',vitals(0,1)}, -- None linked: nothing.
+        {'fight=waiting mode=on why=photo mode',''},{GUEST_ON..'0 maxhp=2',''},
+        {'fight=waiting mode=on why=no friend linked',''},{GUEST_ON..'0 maxhp=1',MAXHP},
+        {'fight=off why=coop fight off',''},{GUEST_ON..'1 maxhp=1','Shared enemies on: 1 enemy linked.|'..MAXHP},
+        {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2','',
+            vitals(0,3)}, -- The host hears nothing of either.
+        {'fight=off why=coop fight off',''}}) do
+    mate_v=step[3]
+    local got=fight_step(step[1])
+    assert(got==step[2],tostring(step[1])..': '..got)
+end
+mate_v=nil
 kit_language='fr-FR'
+assert(fight_step(GUEST_ON..'1 maxhp=1')=="Ennemis partagés actifs : 1 ennemi lié.|Ennemis partagés : certains "
+    .."ennemis ont d'autres PV max dans la partie de Kaanta (autre difficulté ou New Game+). Ils ne sont pas partagés.")
+mate_v=vitals(0,3)
+assert(fight_step(GUEST_ON..'1 maxhp=1')=='Ennemis partagés : Kaanta est à terre. Après sa réapparition, vos '
+    ..'ennemis partagés reviennent à pleine santé.')
+mate_v=nil
+fight_step('fight=off why=coop fight off')
+-- The same notices in the game's language (French: 0 and 1 singular).
 local HOST_N='fight=on mode=on role=host claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 enemies='
 for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_N..'0',''},
         {HOST_N..'3','Ennemis partagés actifs : 3 ennemis liés.'},

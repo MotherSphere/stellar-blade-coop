@@ -220,6 +220,10 @@ struct Snapshot {
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // The side's scaling: the host's own, or as its scale line said.
   size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
   bool eve = false;                      // The last census found our EVE (RE4).
+  // The guest's side: the host's enemies left unpaired (Guest::unshared), the first kMaxUnshared of them, how many
+  // for MaxHP, and our keys the host's list lacked (Guest::lonely).
+  Unshared unshared[kMaxUnshared];
+  size_t unshared_all = 0, maxhp = 0, lonely = 0;
 };
 
 // One logic actor as the liveness test and the reads see it.
@@ -579,6 +583,10 @@ public:
     }
     for (int k = 0; k < kScales; ++k)
       s.scale[k] = hosting_seen_ ? host.scale(k) : guest.scale(k);
+    if (!hosting_seen_) {
+      s.unshared_all = guest.unshared(s.unshared, kMaxUnshared, s.maxhp);
+      s.lonely = guest.lonely();
+    }
     return s;
   }
 
@@ -1379,7 +1387,7 @@ private:
     case Fight::status:
       if (running_)
         stats(now_, io, true);
-      return "shared fight status: " + detail();
+      return "shared fight status: " + detail() + unshared();
     case Fight::test: return test(r);
     case Fight::none: return "shared fight: unknown request";
     default: break;
@@ -1601,8 +1609,25 @@ private:
 
   // Until the new session's first turn, the snapshot's sides are the last session's: none of them are this one's.
   void own_session() {
-    if (last_.session != e_.session())
+    if (last_.session != e_.session()) {
       last_.host = last_.guest = Counts{}, last_.hosted = last_.paired = 0;
+      last_.unshared_all = last_.maxhp = last_.lonely = 0;
+    }
+  }
+  // coop fight status, the guest sharing: the host's enemies it left unpaired and why, then our own the host lacks.
+  std::string unshared() const {
+    const Snapshot &s = last_;
+    if (!running_ || side_ || ran_ == Fight::probe || (!s.unshared_all && !s.lonely))
+      return std::string();
+    std::string text = "; unpaired:";
+    for (size_t i = 0; i < s.unshared_all && i < kMaxUnshared; ++i)
+      text += std::string(i ? ", " : " ") + std::to_string(s.unshared[i].spawn) + ":" +
+              std::to_string(s.unshared[i].index) + " " + s.unshared[i].why;
+    if (s.unshared_all > kMaxUnshared)
+      text += " (" + std::to_string(s.unshared_all - kMaxUnshared) + " more)";
+    if (!s.unshared_all)
+      text += " none of the host's";
+    return text + "; " + std::to_string(s.lonely) + " of ours not on the host's list";
   }
   // The status line's counts as of the last second.
   std::string counts_line() const {
@@ -1619,9 +1644,9 @@ private:
     else
       std::snprintf(head, sizeof head,
                     "fight=on mode=%s role=guest pairs=%zu claims=%llu corrections=%llu kills=%llu floored=%llu "
-                    "desync=%llu",
+                    "desync=%llu unpaired=%zu maxhp=%zu",
                     name(ran_), s.paired, u(s.guest.claims), u(s.guest.corrections), u(s.guest.kills),
-                    u(s.guest.floored), u(s.guest.desync));
+                    u(s.guest.floored), u(s.guest.desync), s.unshared_all, s.maxhp);
     // The side's scaling: the host's own, or as the host's scale line said (100/100 before it, and without one).
     std::snprintf(tail, sizeof tail, "%s sim_us=%llu/%llu threads=%u/%u/%u",
                   ran_ == Fight::probe ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
