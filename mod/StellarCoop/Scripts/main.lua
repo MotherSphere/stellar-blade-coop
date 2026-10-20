@@ -429,8 +429,9 @@ if link then
             fight_said,fight_count=true,count
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') then
-                local why,w=line:match(' why=(.*)$') or 'off',words().fight
-                say(w.off:format(state=='stopped' and w.stopped:format(why) or why))
+                local why,w=line:match(' why=(.*)$'),words().fight -- None: off from waiting before it ever ran.
+                if why and state=='stopped' then why=w.stopped:format(why) end
+                say(why and w.off:format(why) or w.off_plain)
             end
             fight_said,fight_count=false,0
         end

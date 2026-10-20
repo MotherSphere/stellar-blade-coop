@@ -171,16 +171,19 @@ end}
 local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui test's arguments, its ticks and stops.
 -- The kit (ui.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes the
 -- engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
--- row was last set to. kit_ready: its root is up; kit_off: it turned off.
+-- row was last set to. kit_ready: its root is up; kit_off: it turned off; kit_language: the game's culture, read only
+-- while on (once off the kit gives the last one read).
 local kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
 local menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
+local kit_language_seen
 -- The groups' views by name; who holds the input (nil: the menu); the chat box's text and how often it was focused;
 -- the code box's text.
 local kit_views,kit_holder,box_text,box_focuses,code_text={},nil,'',0,''
 local kit_order,kit_projects={},0 -- The groups in the order added; the projections asked (the partner marker's).
 local kit_shown={} -- Each group shown or not, as the kit keeps it.
 local function builder(group)
-    local b={panel=function() end}
+    local b={}
+    function b.panel(_,y,_,h) b.bottom=y+h end
     local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
     for _,kind in ipairs({'image','dots','hp','shield','cubes','bar','shade'}) do b[kind]=gauge end
     function b.text(_,_,s)
@@ -202,10 +205,11 @@ local function builder(group)
         r.hovered=function() return r.hover==true end
         return r
     end
-    function b.hints(_,_,_,list) -- Its labels; keys: the icons asked, in order ('move enter escape').
+    -- Its labels; keys: the icons asked, in order ('move enter escape'); y: the row's top; bottom: the panel's.
+    function b.hints(_,y,_,list)
         local out,keys={},{}
         for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
-        out.keys=table.concat(keys,' ')
+        out.keys,out.y,out.bottom=table.concat(keys,' '),y,b.bottom
         return out
     end
     return b
@@ -243,7 +247,9 @@ end,kit=function(opts)
             kit_calls[#kit_calls+1]='input'..word
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
-        paused=function() return kit_paused end,language=function() return kit_language end,stop=said_kit('stop'),
+        paused=function() return kit_paused end,
+        language=function() if not kit_off then kit_language_seen=kit_language end; return kit_language_seen end,
+        stop=said_kit('stop'),
         reset=said_kit('reset'),
         move=function() end,fade=function() end,
         project=function(anchor)
@@ -294,7 +300,7 @@ local function load_main(with_native)
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
-    menu_place,kit_input,input_asks=nil,false,0
+    menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
     kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out,code_text={},nil,'',0,{},nil,{},''
     kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
@@ -854,6 +860,7 @@ for _,step in ipairs({
         {'fight=off why=coop fight off','Shared fight off: coop fight off'},
         {'fight=waiting mode=on why=no friend linked',''},
         {'fight=off why=coop fight off','Shared fight off: coop fight off'},
+        {'fight=waiting mode=on why=no friend linked',''},{'fight=off','Shared fight off.'},
         {'fight=on mode=replay role=guest pairs=2 claims=0 corrections=1 kills=0 floored=0 desync=0 sim_us=5/9 '
             ..'threads=1/1/2',''},
         {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2',
@@ -870,7 +877,8 @@ for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_ON..'0','Combat 
         {HOST_ON..'3','Combat partagé actif : 3 ennemis liés'},
         {'fight=stopped why=fault',"Combat partagé coupé : arrêté jusqu'au redémarrage du jeu (fault)"},
         {HOST_ON..'1','Combat partagé actif : 1 ennemi lié'},
-        {'fight=off why=coop fight off','Combat partagé coupé : coop fight off'}}) do
+        {'fight=off why=coop fight off','Combat partagé coupé : coop fight off'},
+        {'fight=waiting mode=on why=no friend linked',''},{'fight=off','Combat partagé coupé.'}}) do
     fight_text=step[1]
     local n=#said
     loops[2].f()
@@ -907,7 +915,9 @@ assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store'
     'The kit gets the settings, the UI log and its own path store')
 assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')
 local top=menu_place.y+menu_place.h*menu_place.pivot.Y*(1-1.5)
-assert(top+36*1.5>=0 and top+(1400+66)*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
+local hints_end=menu_view.hints.y+66 -- The key icons are 66 units high (ui.lua's KEY_ICON).
+assert(hints_end<=menu_view.hints.bottom,'The key hints stay inside the panel')
+assert(top+36*1.5>=0 and top+hints_end*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
 quarter(); assert(kit_calls[#kit_calls]=='slow false','No world: the HUD hidden')
 in_world=true; quarter(); assert(kit_calls[#kit_calls]=='slow true')
 key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n','Its root not up yet')
@@ -975,6 +985,11 @@ kit_off=true
 key('F5'); key('F5')
 local MENU_OFF='[StellarCoop] STOP: the co-op menu is off (the UI stopped, see the log): use the coop commands\n'
 assert(last()==MENU_OFF)
+-- In a French game the refusal goes on the line above EVE in French: the kit off keeps the language it last read.
+kit_off,kit_language=false,'fr-FR'; key('F5'); key('F5')
+kit_off,kit_language=true,nil; key('F5')
+assert(last()==MENU_OFF and said[#said]=="Le menu co-op est coupé (l'interface s'est arrêtée, voir UE4SS.log) : "
+    ..'utilisez les commandes coop.',said[#said])
 -- Off between two slow ticks (a refused input mode, a draw that faults): closed at the next key, no row run unseen.
 link_mode,kit_off,input_refused='none',false,true
 asks=#asked

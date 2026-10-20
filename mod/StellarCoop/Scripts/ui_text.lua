@@ -1,6 +1,7 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the status line's and the
--- notices' words that the Lua side writes (D-UI8): English and French. The game's language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english;
--- any other language reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
+-- notices' words that the Lua side writes (D-UI8): English and French. The game's language picks them
+-- (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language reads English until
+-- translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
 local T={}
 T.en={
     title='CO-OP',
@@ -66,7 +67,7 @@ T.en={
     ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.'},
     -- The shared fight's notices (main.lua): one for a count plural() calls singular; why= stays the native part's.
     fight={one='Shared fight on: %d enemy linked',many='Shared fight on: %d enemies linked',off='Shared fight off: %s',
-        stopped='stopped for this run (%s)',not_coop='not on the co-op save'},
+        off_plain='Shared fight off.',stopped='stopped for this run (%s)',not_coop='not on the co-op save'},
     plural=function(n) return n~=1 end,
 }
 T.fr={
@@ -132,8 +133,8 @@ T.fr={
         paused="Le menu co-op ne s'ouvre pas quand le jeu est en pause ou affiche un menu."},
     ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',away='%s est dans %s, vous êtes dans %s.'},
     fight={one='Combat partagé actif : %d ennemi lié',many='Combat partagé actif : %d ennemis liés',
-        off='Combat partagé coupé : %s',stopped="arrêté jusqu'au redémarrage du jeu (%s)",
-        not_coop='pas sur la sauvegarde co-op'},
+        off='Combat partagé coupé : %s',off_plain='Combat partagé coupé.',
+        stopped="arrêté jusqu'au redémarrage du jeu (%s)",not_coop='pas sur la sauvegarde co-op'},
     plural=function(n) return n>1 end, -- 0 and 1 are singular in French.
 }
 -- The words for the game's culture (nil when unread) and ui_language.

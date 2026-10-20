@@ -83,7 +83,9 @@ works at once.
 The menu, the chat, the partner HUD, the code box, the host's question and the co-op saves' question and notices use
 the game's language when it is French, and English otherwise. So do the status line (under the menu and on F6) and the
 notices of the ghost and of the shared fight. `ui_language=english` keeps them all in English. The notices of the
-Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English.
+Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English. Error messages from the coop
+commands, shown in the menu or the code box, and the reasons the native part adds to a notice (`coop fight off`,
+`fault`) also stay in English.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the

@@ -950,10 +950,13 @@ function Ui.kit(opts)
         end)
         return ok and paused==true
     end
-    -- The game's text culture ('fr-FR'...; ui_text.lua picks the words), or nil when unread.
+    -- The game's text culture ('fr-FR'...; ui_text.lua picks the words), or nil when unread. Once off, the last one
+    -- read with no engine call: the notices that fall back to the line above EVE keep the game's language.
+    local culture_seen
     function self.language()
-        if off then return nil end
+        if off then return culture_seen end
         local ok,culture=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
+        if ok and culture then culture_seen=culture end
         return ok and culture or nil
     end
     -- coop ui reset, the escape hatch (UI-DESIGN 7.5): the game's input given back now whoever holds it, even when this

@@ -878,7 +878,7 @@ k.slow(true,true)
 k.input(true); k.reset()
 assert(count(LIB..'SetInputMode_GameAndUIEx')==3,'coop ui reset at the title too')
 -- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
--- (nil when unread); nothing once off.
+-- (nil when unread); nothing once off, where the language is the last one read (the fallback notices keep it).
 reset()
 k=kit()
 pc.bShowMouseCursor=false
@@ -895,7 +895,7 @@ assert(k.paused()==false and k.language()==nil)
 special['GameplayStatics.IsGamePaused'],special['KismetInternationalizationLibrary.GetCurrentLanguage']=nil,nil
 k.stop()
 n=#calls
-assert(k.paused()==false and k.language()==nil and #calls==n)
+assert(k.paused()==false and k.language()=='fr-FR' and #calls==n)
 
 -- The chat box (b.field): an EditableTextBox that keeps its keyboard focus on Enter and reverts on Esc, in Mideum 34,
 -- white on the dark glass, with its hint, all set before AddToViewport; it takes the mouse in its hit group (a click

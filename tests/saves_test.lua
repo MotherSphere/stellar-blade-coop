@@ -22,7 +22,8 @@ local calls,state,built={},{ready=true,whole=true,off=false,language=nil},{}
 local holder,inputting=nil,false
 local kit={}
 function kit.add(name,place,build)
-    local b={panel=function() end}
+    local b={}
+    function b.panel(_,y,_,h) b.bottom=y+h end
     function b.shade(x,y,w,h,color) built.shade={x=x,y=y,w=w,h=h,color=color} end
     function b.text(_,_,s)
         local t={s=s}
@@ -35,10 +36,11 @@ function kit.add(name,place,build)
         r.hovered=function() return r.hover==true end
         return r
     end
-    function b.hints(_,_,_,list) -- Its labels; keys: the icons asked, in order ('move enter escape').
+    -- Its labels; keys: the icons asked, in order ('move enter escape'); y: the row's top; bottom: the panel's.
+    function b.hints(_,y,_,list)
         local out,keys={},{}
         for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
-        out.keys=table.concat(keys,' ')
+        out.keys,out.y,out.bottom=table.concat(keys,' '),y,b.bottom
         return out
     end
     built[name]={place=place,view=build(b)}
@@ -139,6 +141,7 @@ assert(screen()=='CO-OP SAVES\nPlay co-op on copies of your saves?\n'
 local v=built.saves.view
 assert(v.hints[1].s=='Move' and v.hints[2].s=='Select' and v.hints[3].s=='Decide later','Esc decides later')
 assert(v.hints.keys=='move enter escape','It moves on W, A, S, D (Z, Q on AZERTY) and the arrows, as the menu')
+assert(v.hints.y+66<=v.hints.bottom,'The key icons (66 units high) stay inside the panel')
 -- No co-op copy in this account's folder: each slot's looked at, by its full path.
 assert(#opened==5 and opened[1]=='C:\\Users\\Ana\\AppData\\Local\\SB\\Saved\\SaveGames\\76561198000000001\\'
     ..'StellarBladeCoop00.sav' and opened[5]:find('StellarBladeCoop04.sav$'),opened[1])

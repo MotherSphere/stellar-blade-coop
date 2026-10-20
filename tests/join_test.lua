@@ -17,7 +17,8 @@ local fields={} -- The field of each group: {text=, hint=, focuses=}.
 local kit={}
 function kit.add(name,place,build)
     placed[#placed+1]=name
-    local b={panel=function() end}
+    local b={}
+    function b.panel(_,y,_,h) b.bottom=y+h end
     function b.text(_,_,s,_,color)
         local t={s=s,c=color}
         t.set,t.color=function(v) t.s=v end,function(c) t.c=c end
@@ -34,10 +35,11 @@ function kit.add(name,place,build)
         r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end
         return r
     end
-    function b.hints(_,_,_,list) -- Its labels; keys: the icons asked, in order ('move enter escape').
+    -- Its labels; keys: the icons asked, in order ('move enter escape'); y: the row's top; bottom: the panel's.
+    function b.hints(_,y,_,list)
         local out,keys={},{}
         for i,h in ipairs(list) do out[i],keys[i]=b.text(0,0,h[2]),h[1] end
-        out.keys=table.concat(keys,' ')
+        out.keys,out.y,out.bottom=table.concat(keys,' '),y,b.bottom
         return out
     end
     built[name]={place=place,view=build(b)}
@@ -169,6 +171,7 @@ assert(ask.is_open() and since(n)=='menu closed|show ask true|input true ask|sou
 assert(q.title.s=='Stranger wants to join' and q.about.s=='Not on your Steam friends list. Denied in 60 s if you do '
     ..'not answer.' and shown_rows()=='Accept|normal Deny|focus' and q.hints[1].s=='Move' and q.hints[3].s=='Deny')
 assert(q.hints.keys=='arrows enter escape','The arrows only: it opens on its own while she walks')
+assert(q.hints.y+66<=q.hints.bottom and code.hints.y+66<=code.hints.bottom,'The key icons stay inside both panels')
 -- It opened on its own: for 1 s every key does nothing (a walk forward then a jump, a stray Enter or Esc).
 local runs
 n,runs=#calls,#ran
