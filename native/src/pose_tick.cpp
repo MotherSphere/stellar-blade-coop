@@ -772,7 +772,9 @@ fight::Ring<SbeIn, kSbeIn> pilot_sbe_in, pilot_sbe_here;
 fight::Ring<pilot::ShowLine, kPilotLines> pilot_lines_in, pilot_lines_here;
 pilot::Driver driver;               // The game thread's, with the engine frame it last drove in.
 uint64_t drive_frame = UINT64_MAX;
-pilot::Driver::Counts drive_counts; // Under pilot_m, as are the three below.
+uint64_t drive_runs_here = 0, drive_us_here = 0, drive_max_us_here = 0; // Its frames holding a copy, and their cost.
+pilot::Driver::Counts drive_counts; // Under pilot_m, as are the four below.
+uint64_t drive_runs = 0, drive_us = 0, drive_max_us = 0; // The drawn side's frames that held a copy, and their cost.
 fight::Event pilot_events[pilot::Driver::kEvents]; // The Driver's event lines, for the worker's log.
 size_t pilot_events_n = 0;
 uint64_t drive_add_max_us = 0;
@@ -912,6 +914,10 @@ __declspec(noinline) void pilot_body() {
       driver.line(l, draw);
     driver.draw(g, base, now_ms, draw);
     driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count);
+    if (driver.holding()) { // From the frame's start, the capture included (PHASE11-STAGE3 5: under 0.5 ms a frame).
+      const uint64_t took = clock_us() - start;
+      ++drive_runs_here, drive_us_here += took, drive_max_us_here = std::max(drive_max_us_here, took);
+    }
   }
   if (!pilot_m.try_lock())
     return;
@@ -930,6 +936,7 @@ __declspec(noinline) void pilot_body() {
     return pilot_events_n < pilot::Driver::kEvents && (pilot_events[pilot_events_n++] = e, true);
   });
   drive_counts = driver.counts, drive_add_max_us = pilot_add_max_us;
+  drive_runs = drive_runs_here, drive_us = drive_us_here, drive_max_us = drive_max_us_here;
   pilot_m.unlock();
 }
 __declspec(noinline) void pilot_put_back() {
@@ -1846,7 +1853,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   pilot::Driver::Counts drive;
   fight::Event events[pilot::Driver::kEvents];
   size_t events_n = 0;
-  uint64_t lost = 0, runs = 0, us = 0, max_us = 0, add_us = 0;
+  uint64_t lost = 0, runs = 0, us = 0, max_us = 0, add_us = 0, frames = 0, frame_us = 0, frame_max_us = 0;
   {
     std::lock_guard<std::mutex> lock(pilot_m);
     pilot_lines.move_to(pilot_taken);
@@ -1855,6 +1862,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
     sbe_peer = pilot_sbe_peer;
     counts = pilot_counts, lost = pilot_lost, runs = pilot_runs, us = pilot_us, max_us = pilot_max_us;
     drive = drive_counts, add_us = drive_add_max_us;
+    frames = drive_runs, frame_us = drive_us, frame_max_us = drive_max_us;
     std::copy(pilot_events, pilot_events + pilot_events_n, events);
     std::swap(events_n, pilot_events_n);
   }
@@ -1918,20 +1926,21 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   if (moved == pilot_drive_seen && !now)
     return;
   pilot_drive_seen = moved;
-  char line[900];
+  char line[1280];
   std::snprintf(line, sizeof line,
                 "pilot drawn: %llu copy frames driven, %llu not found, %llu movement components taken out of the "
                 "game's manager (%llu found back in it, %llu refused), %llu released, %llu converged, %llu snaps, "
                 "drift up to %.1f cm/s and %.1f deg/s; SBE entries %llu taken, %llu refused; show lines %llu queued, "
                 "%llu refused, %llu unreadable, %llu over the queue; %llu Shows replayed (%llu late, %llu missing, %llu "
                 "without a stage, %llu without context; AddShow up to %llu us), %llu deduped, %llu show-set, %llu "
-                "show-stop, %llu naming no replay, %llu for a copy not driven; %llu event lines lost",
+                "show-stop, %llu naming no replay, %llu for a copy not driven; %llu event lines lost; game thread "
+                "%llu us a frame (mean, %llu frames), max %llu us",
                 u(drive.frames), u(drive.unresolved), u(drive.cmc_out), u(drive.cmc_reenabled), u(drive.cmc_refused),
                 u(drive.released), u(drive.converged), u(drive.snaps), drive.drift_cm, drive.drift_deg, u(drive.sbe),
                 u(drive.sbe_refused), u(drive.lines), u(drive.lines_refused), u(pilot_in_bad), u(pilot_in_lost),
                 u(drive.shows), u(drive.late), u(drive.missing), u(drive.no_handle), u(drive.no_context), u(add_us),
                 u(drive.deduped), u(drive.sets), u(drive.stops), u(drive.unknown), u(drive.not_drawn),
-                u(drive.events_lost));
+                u(drive.events_lost), u(frames ? frame_us / frames : 0), u(frames), u(frame_max_us));
   trace_fight(line);
   drift_reset = true; // The drift maxima are the last second's from here.
 }
