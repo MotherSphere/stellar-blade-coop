@@ -1,11 +1,13 @@
-// Shared Naytibas, stages 1 and 2 (Phase 11): fight_sync.h's sides inside the game. SB's logic thread runs a job of
-// ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's enemies and turns their
-// writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call, then pushes itself for the next
-// turn. The game thread arms the job after a world load and again when it stopped running. Every access goes through
-// a Game (the glue on Windows, under its SEH guard; fake memory and a fake ApplyStat in tests/fight_engine_test.cpp),
-// so nothing here is Windows-specific. Fixed arrays only: Simulate never allocates (ApplyStat and the effect call do
-// internally, as for SB's own logic-thread callers). Mail carries the job's lines, events and probe census to our
-// worker thread and hers back without ever making the logic thread wait; Worker is the worker's side: the user's coop
+// Shared Naytibas, stages 1 and 2 (Phase 11), and stage 3a's logic side: fight_sync.h's sides inside the game. SB's
+// logic thread runs a job of ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's
+// enemies and turns their writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call; with
+// same_place on, it freezes the copies this side draws through the same effect call and hands the game thread the
+// pair table (pilot.h's sides); then it pushes itself for the next turn. The game thread arms the job after a world
+// load and again when it stopped running. Every access goes through a Game (the glue on Windows, under its SEH
+// guard; fake memory and a fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed
+// arrays only: Simulate never allocates (ApplyStat and the effect call do internally, as for SB's own logic-thread
+// callers). Mail carries the job's lines, events and probe census to our worker thread and hers back, and the pair
+// table to the game thread, without ever making the logic thread wait; Worker is the worker's side: the user's coop
 // fight requests, the gates, channel 2's text, the record and replay files and the log.
 // Offsets and functions are for Stellar Blade's Steam build 24463856 (PHASE11-DESIGN.md 4.3-4.7); the caller runs it
 // only on the pinned build, with the feature on.
@@ -20,7 +22,9 @@
 //   void push(Job *job): FUN_141af3930(nullptr, job, 0), never param_3 = 1;
 //   bool receive(Message &m): the friend's next line, parsed by the worker; false when none;
 //   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
-//     calls SB.
+//     calls SB;
+//   bool publish(const PilotTable &t, StreamFlags &f): Mail::publish, the pair table to the game thread and its word
+//     back.
 #pragma once
 
 #include <algorithm>
@@ -30,6 +34,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <iterator>
 #include <map>
 #include <mutex>
 #include <new>
@@ -38,6 +43,7 @@
 
 #include "fight_sync.h"    // Host, Guest, Seen, Write, Message, Event, kStatType
 #include "nightop_probe.h" // kImageBase, kGlobals, plausible, get
+#include "pilot.h"         // Side, kBattle, kDying: same-place enemies' pair table
 
 namespace coop::fight {
 
@@ -95,10 +101,12 @@ inline const char *auto_out(uint32_t chr, float max_hp) {
 // there with a count other than 0, as FUN_141a64b40 (a leaf SB calls on the logic thread) tells; read here without it.
 constexpr size_t kStateMap = 0x560;
 constexpr int32_t kNoDamage = 4; // And fight_sync.h's kNoDamageNoHit, 3.
-constexpr int32_t kStatesRead[] = {kNoDamageNoHit, kNoDamage, 6, 7, 8, 27}; // And Down, Groggy, Airborne, Immortal.
+constexpr int32_t kBattleState = 30, kDelayDeath = 32, kBlockAiState = 39; // BattleMode, DelayDeath, BlockAI.
+// Then Down, Groggy, Airborne, Immortal, and same-place enemies' three.
+constexpr int32_t kStatesRead[] = {kNoDamageNoHit, kNoDamage, 6, 7, 8, 27, kBattleState, kDelayDeath, kBlockAiState};
 // The states of kStatesRead that fsb holds, as bits by state number; false when the map fails a check (a torn read
 // during a game-thread change: the walk never loops or leaves the array). read as a Game's.
-template <class Read> bool held_states(Read &&read, uint64_t fsb, uint32_t &held) {
+template <class Read> bool held_states(Read &&read, uint64_t fsb, uint64_t &held) {
   held = 0;
   uint8_t m[0x50];
   if (!read(fsb + kStateMap, m, sizeof m))
@@ -110,7 +118,7 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint32_t &held
     return true;
   if (num < 0 || num > 4096 || size <= 0 || (size & (size - 1)) || !plausible(data) || (heap && !plausible(heap)))
     return false;
-  uint32_t bits = 0;
+  uint64_t bits = 0;
   for (const int32_t state : kStatesRead) {
     const int32_t slot = state & (size - 1);
     int32_t at = -1;
@@ -123,7 +131,7 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint32_t &held
       if (at < 0 || at >= num || steps > num || !read(data + 16 * uint64_t(at), e, sizeof e))
         return false;
       if (e[0] == state) {
-        bits |= e[1] ? 1u << state : 0;
+        bits |= e[1] ? uint64_t(1) << state : 0;
         break;
       }
       at = e[2];
@@ -133,11 +141,56 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint32_t &held
   return true;
 }
 
-constexpr uint32_t kStunned = 1u << 6 | 1u << 7 | 1u << 8; // Of kStatesRead: Down, Groggy, Airborne.
+constexpr uint64_t kStunned = 1u << 6 | 1u << 7 | 1u << 8; // Of kStatesRead: Down, Groggy, Airborne.
 // Logic actor +0x170: the effects running on it, a TArray<effect *> (ArrayNum +0x178); an effect's EffectTable ID at
 // +0x104 (PHASE11-STAGE2-RE 2: SB's dispel walk FUN_141ba60d0 and effect end FUN_141bca730 read them so).
 constexpr size_t kEffects = 0x170, kEffectCount = 0x178, kEffectId = 0x104;
 constexpr int32_t kMaxEffects = 128; // A longer list is taken for a torn read.
+
+// ---- Same-place enemies (stage 3a, PHASE11-STAGE3 3.5, 3.7): the logic side ----
+// The EffectTable rows our job starts through SB's effect call on a copy this side draws, the copy its own caster as
+// their Self filter has it: BlockAI_Infinite (state 39, which stops the copy's behaviour tree and move task; no HitMe
+// chain wakes it), SkillCancel (0.1 s: ends a skill already running, which BlockAI does not), BlockAI_Dispel (ends
+// every BlockAI-flagged effect, ours and SB's) and BattleMode_5s.
+constexpr int32_t kBlockAi = 2000100, kSkillCancel = 2004400, kDispel = 2000101, kBattleMode = 2002701;
+// A takedown under way: Check_LinkSkillHit_Skill or LinkState_MonsterHit in the actor's effect list.
+constexpr int32_t kMarkers[] = {5000039, 2006004};
+// SB ends BlockAI at a spawn Show's end and in a few rows (BodyBag, Skulling, DollHead, Maelstrom): a census that finds
+// state 39 gone on a copy we froze freezes it again, kRefreezes times in kRefreezeMs at most; the next time the copy
+// goes local for as long as its pair lasts (freeze-lost).
+constexpr uint64_t kRefreezeMs = 10000;
+constexpr uint32_t kRefreezes = 5;
+// A frozen copy never enters BattleMode, and a backstab needs an enemy out of it: while the owner's stream says
+// BattleMode, BattleMode_5s on the copy this often.
+constexpr uint64_t kBattleMs = 2000;
+// A pair table row's bits: pilot.h's SBE flags (BattleMode held; dying: HP 0, a pending death, Dead or DelayDeath),
+// then frozen (our freeze on it and state 39 held), release (Down, Groggy, Airborne or a takedown marker: SB moves the
+// copy, and pilot.h's Copy lets it) and drawn (this side draws it: same_place on, the other side owns the pair, its
+// freeze not lost).
+constexpr uint8_t kRowBattle = pilot::kBattle, kRowDying = pilot::kDying, kRowFrozen = 4, kRowRelease = 8,
+                  kRowDrawn = 16;
+constexpr uint8_t kReady = 0x80; // A pass's only, never in a row: life state 1, no pending death, no NoDamageNoHit.
+
+// One pair as the logic thread saw it at its last turn, for the game thread (pilot.h).
+struct PilotPair {
+  uint32_t hguid = 0, local = 0;    // The host's ActorGUID and our copy's (the same on the host).
+  pilot::Side owner = pilot::kHost; // Whose AI runs it: the host's in 3a.
+  uint8_t oe = 0;                   // The owner epoch (3b's hand-overs): 0 in 3a.
+  uint8_t bits = 0;                 // kRow*.
+};
+// The pair table the job hands the game thread after each turn (Mail::publish): the side's pairs, at most kMaxPairs.
+struct PilotTable {
+  bool on = false; // same_place on, no pilot latch, and on the host her on: owners capture, drawn copies follow.
+  uint32_t session = 0, turn = 0; // The session and SB's logic turn it comes from.
+  uint64_t ms = 0;                // Our clock then: a table that stops coming is the game thread's to time out.
+  uint8_t count = 0;
+  PilotPair pairs[kMaxPairs];
+};
+// What the game thread says back: the drawn pairs (by the host's GUID) whose owner's stream says BattleMode.
+struct StreamFlags {
+  uint32_t battle[kMaxPairs] = {};
+  uint8_t count = 0;
+};
 
 // FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1d150) sets for slow
 // motion; 1 otherwise [L]. Read for the stats line only, to size slow motion before stage 3 (FEATURE-PARITY C33).
@@ -181,8 +234,9 @@ constexpr size_t kMaxCensus = 1024;         // Allocated map slots a census copi
 constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowlist (none: every Monster).
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
-// Overrides held at once: on each enemy the side follows, a floor (the guest's) and its MaxHP and MaxStamina scaled.
-constexpr size_t kMaxCaptures = 3 * kMaxTracked;
+// Overrides held at once: on each enemy the side follows, a floor (the guest's), its MaxHP and MaxStamina scaled, and
+// same-place enemies' freeze.
+constexpr size_t kMaxCaptures = 4 * kMaxTracked;
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -201,6 +255,9 @@ struct JobCounts {
   // The game thread's:
   uint64_t arms = 0, deferred = 0, forced = 0; // Pushes; ticks a logic task in flight put off; pushes made anyway.
   uint64_t paused = 0;                         // Ticks a paused world put off.
+  // The logic thread's, same-place enemies: freezes, freezes again (state 39 gone), freezes lost (kRefreezes used
+  // up), our freezes taken off (BlockAI_Dispel), BattleMode_5s started.
+  uint64_t frozen = 0, refrozen = 0, freeze_lost = 0, thawed = 0, battles = 0;
 };
 
 // What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's
@@ -234,7 +291,8 @@ struct Actor {
   bool eve = false; // The probe: our EVE (controlled and the actor manager's local player).
   uint8_t type = 0; // The probe: its ActorType as read.
   const char *out = nullptr; // The probe: why fight_chars=auto leaves this Monster out (auto_out), or nullptr.
-  uint32_t states = 0;       // Of kStatesRead, those held (bits by state), once marks() read them.
+  uint64_t states = 0;       // Of kStatesRead, those held (bits by state), once marks() read them.
+  uint8_t pilot = 0;         // Same-place enemies' row bits and kReady as marks() read them (state 39: kRowFrozen).
   int32_t life = 0;
   Seen seen; // GUID, key, charId and dying; the stats once stats() read them.
 };
@@ -320,6 +378,12 @@ public:
   // and kill_credit (all, or only the enemies our EVE hit). Set while off.
   void scale(uint16_t hp, uint16_t balance) { scale_hp_ = hp, scale_balance_ = balance; }
   void credit(bool all) { credit_all_ = all; }
+  // Any thread: same_place, the host's for both games. On, this side freezes the copies it draws (those the other side
+  // owns) and its pair table tells the game thread to capture or draw; off takes every freeze off at the next turn.
+  void same_place(bool on) { same_place_ = on; }
+  // Any thread: the game thread's pilot latch (its first fault): every freeze off at the next turn, none again in this
+  // run.
+  void stop_pilot() { pilot_stopped_ = true; }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
   // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
@@ -435,10 +499,10 @@ public:
       return;
     }
     const bool zero = plausible(net) && get(g, net + kNetMode, mode) && mode == 0;
-    if (!on_ || latched_) { // The job's last run (off, or stopped since): our floors come off.
+    if (!on_ || latched_) { // The job's last run (off, or stopped since): our overrides come off.
       if (zero)
         lift_all(g, logic);
-      return;
+      return publish(g, turn, now_ms);
     }
     if (!zero) {
       ++counts.mode;
@@ -460,6 +524,8 @@ public:
       probing_seen_ = probing_;
       census_turn_ = kNever;
       eve_ = 0;
+      lost_count_ = 0;
+      flags_ = StreamFlags();
       probe_fence_.clear();
       next_probe_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
@@ -496,9 +562,13 @@ public:
       hold_floors(g, logic, followed, guest.floored(followed));
       hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance));
     }
-    if (latched_) // Stopped in this turn: no other run comes, so our floors come off now.
-      return lift_all(g, logic);
-    g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
+    if (!latched_)
+      pilot_turn(g, logic, n, census, now_ms);
+    if (latched_) // Stopped in this turn: no other run comes, so our overrides come off now.
+      lift_all(g, logic);
+    publish(g, turn, now_ms);
+    if (!latched_)
+      g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
   }
   // The glue's, on the logic thread after a fault in our own code: the floors off once, from outside Simulate.
   template <class Game> void lift(Game &g) {
@@ -532,6 +602,7 @@ public:
         marks(g, la, a);
         a.seen.scaled = scaled(a.seen.guid);
         fsbs_[n] = a.fsb;
+        marks_[n] = a.pilot;
         seen_[n++] = a.seen;
       }
     }
@@ -558,6 +629,7 @@ public:
         marks(g, f.la, a);
         a.seen.scaled = scaled(a.seen.guid);
         fsbs_[n] = a.fsb;
+        marks_[n] = a.pilot;
         seen_[n++] = a.seen;
       }
     }
@@ -574,6 +646,8 @@ public:
     s.job.censuses = c.censuses, s.job.cut = c.cut, s.job.rejected = c.rejected, s.job.no_eve = c.no_eve;
     s.job.unread = c.unread, s.job.unscaled = c.unscaled;
     s.job.slow_turns = c.slow_turns, s.job.slow_starts = c.slow_starts, s.job.slow_min = c.slow_min;
+    s.job.frozen = c.frozen, s.job.refrozen = c.refrozen, s.job.freeze_lost = c.freeze_lost, s.job.thawed = c.thawed;
+    s.job.battles = c.battles;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
@@ -661,25 +735,35 @@ private:
     a.seen.dying = a.pending || a.life == 3; // Leaving (4, 5) dies only with its HP gone: Seen's dying().
     return true;
   }
-  // What a fighting actor (logic actor la) holds, into a.states and its Seen: the states of kStatesRead (NoDamageNoHit
-  // before NoDamage, as ApplyStat blocks on either; stunned: Down, Groggy or Airborne) and the kCcEffects it runs. A
-  // map or a list that fails its checks holds nothing, counted, never latched: it only feeds the bypass counts and the
-  // crowd-control mirror, which then does nothing. SB changes no state while an actor is dying.
+  // What a fighting actor (logic actor la) holds, into a.states, a.pilot and its Seen: the states of kStatesRead
+  // (NoDamageNoHit before NoDamage, as ApplyStat blocks on either; stunned: Down, Groggy or Airborne), the kCcEffects
+  // and kMarkers it runs. A map or a list that fails its checks holds nothing, counted, never latched: it only feeds
+  // the bypass counts, the crowd-control mirror, which then does nothing, and the pair table, where it is not kReady.
+  // SB changes no state while an actor is dying.
   template <class Game> void marks(Game &g, uint64_t la, Actor &a) {
     a.states = 0, a.seen.cc = 0;
+    bool read = false, marker = false;
     if (fighting(a)) {
-      if (!held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, a.states))
+      read = held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, a.states);
+      counts.unread += !read;
+      if (!effects(g, la, a.seen.cc, marker)) {
         ++counts.unread;
-      if (!effects(g, la, a.seen.cc))
-        ++counts.unread;
+        read = false;
+      }
     }
-    a.seen.nodamage = a.states >> kNoDamageNoHit & 1 ? kNoDamageNoHit : a.states >> kNoDamage & 1 ? kNoDamage : 0;
+    const auto held = [&](int32_t state) { return a.states >> state & 1; };
+    a.seen.nodamage = held(kNoDamageNoHit) ? kNoDamageNoHit : held(kNoDamage) ? kNoDamage : 0;
     a.seen.stunned = a.states & kStunned;
-    a.seen.immortal = a.states >> 27 & 1;
+    a.seen.immortal = held(27);
+    a.pilot = uint8_t((held(kBattleState) ? kRowBattle : 0) | (held(kDelayDeath) ? kRowDying : 0) |
+                      (held(kBlockAiState) ? kRowFrozen : 0) | (a.seen.stunned || marker ? kRowRelease : 0) |
+                      (read && a.life == 1 && !a.pending && !held(kNoDamageNoHit) ? kReady : 0));
   }
-  // The kCcEffects running on la, as Seen::cc's bits; false, with none, when its list fails a check.
-  template <class Game> bool effects(Game &g, uint64_t la, uint8_t &cc) {
+  // The kCcEffects running on la, as Seen::cc's bits, and whether a kMarkers one does; false, with none, when its list
+  // fails a check.
+  template <class Game> bool effects(Game &g, uint64_t la, uint8_t &cc, bool &marker) {
     cc = 0;
+    marker = false;
     uint8_t h[kEffectCount + 4 - kEffects];
     uint64_t list[kMaxEffects];
     if (!g.read(la + kEffects, h, sizeof h))
@@ -689,14 +773,17 @@ private:
     if (num < 0 || num > kMaxEffects || (num && (!plausible(data) || !g.read(data, list, 8 * size_t(num)))))
       return false;
     uint8_t bits = 0;
+    bool found = false;
     for (int32_t i = 0; i < num; ++i) {
       int32_t id = 0;
       if (!plausible(list[i]) || !g.read(list[i] + kEffectId, &id, sizeof id))
         return false;
       for (size_t k = 0; k < kCc; ++k)
         bits |= id == kCcEffects[k] ? uint8_t(1u << k) : 0;
+      found = found || std::find(std::begin(kMarkers), std::end(kMarkers), id) != std::end(kMarkers);
     }
     cc = bits;
+    marker = found;
     return true;
   }
   // HP, Shield and Stamina with their maxes. Implausible (the feature off for the run) unless every one is finite and
@@ -946,11 +1033,13 @@ private:
       ++counts.no_eve;
     if (latched_)
       return false;
-    for (size_t i = 0; w.kill && i < captures_; ++i) // A kill: our floor off first (ApplyStat reads it in the HP call).
-      if (caps_[i].guid == w.guid && caps_[i].type == kFloorStat) {
+    // A kill: our floor off first (ApplyStat reads it in the HP call), and our freeze, so SB's death runs on a copy
+    // that is not frozen.
+    for (size_t i = 0; w.kill && i < captures_;)
+      if (caps_[i].guid == w.guid && (caps_[i].type == kFloorStat || caps_[i].type == kFreeze))
         lift(g, logic, i);
-        break;
-      }
+      else
+        ++i;
     g.apply(la, kStatType[w.stat], float(w.delta), cause, w.notify);
     if (!stats(g, a))
       return false;
@@ -959,17 +1048,22 @@ private:
   }
 
   // ---- Our overrides on enemies (PHASE11-DESIGN 7.9) ----
-  // Each is an ApplyStat delta, undone by the opposite delta before the enemy goes back to plain play: when the side
-  // lets it go, at off, at a new session, at a latch, and from the glue after a fault in our code (a floor also before
-  // a kill). A capture whose enemy left the map needs no call: spawn init resets the stat when SB reuses the actor. Two
-  // kinds: MinimumHP +kFloorHp on the guest's paired copies (guest_kills=confirmed), and two-player scaling, MaxHPValue
-  // and MaxStamina raised by the host's percents on the enemies the side names. A capture of 0 marks an enemy whose
-  // scaling had nothing to do, so it is not tried again each turn.
+  // Each is undone before the enemy goes back to plain play: when the side lets it go, at off, at a new session, at a
+  // latch, and from the glue after a fault in our code (a floor and a freeze also before a kill). A capture whose enemy
+  // left the map needs no call: spawn init resets the stat and clears the effects when SB reuses the actor. Three
+  // kinds: MinimumHP +kFloorHp on the guest's paired copies (guest_kills=confirmed) and two-player scaling, MaxHPValue
+  // and MaxStamina raised by the host's percents on the enemies the side names, both ApplyStat deltas undone by the
+  // opposite delta; and same-place enemies' freeze (kFreeze), undone by BlockAI_Dispel. A capture of 0 marks an enemy
+  // whose scaling had nothing to do, so it is not tried again each turn.
+  static constexpr int kFreeze = -1; // Not a stat: BlockAI_Infinite and SkillCancel on a copy this side draws.
   struct Capture {
     uint32_t guid = 0;
-    int type = 0; // ESBActorStatType.
+    int type = 0; // ESBActorStatType, or kFreeze.
     int32_t delta = 0;
     bool raised = false; // Scaling: HP or Stamina raised in proportion too (set before that call): lowered at the lift.
+    // A freeze: the turn of our last one, the freezes again since window (ms), the next BattleMode_5s (ms).
+    uint32_t turn = 0, tries = 0;
+    uint64_t window = 0, battle = 0;
   };
   bool captured(uint32_t guid, int type) const {
     for (size_t i = 0; i < captures_; ++i)
@@ -1064,6 +1158,7 @@ private:
   // under way) on a fighting enemy also lowers its HP or Stamina in proportion (a drop with no number, at least 1 HP),
   // so scaling it again later heals it of nothing; a dying one keeps what it has, and so does one whose scaling
   // stopped before its raise (only the max comes back).
+  // A freeze comes off a copy still fighting (a dying one's death and spawn init clear it).
   template <class Game> void lift(Game &g, uint64_t logic, size_t i) {
     const Capture c = caps_[i];
     caps_[i] = caps_[--captures_];
@@ -1072,7 +1167,11 @@ private:
     ++lifting_;
     Actor a;
     const uint64_t la = g.find(logic, c.guid);
-    if (la && live(g, la, c.guid, a)) {
+    const bool found = la && live(g, la, c.guid, a);
+    if (found && c.type == kFreeze && fighting(a)) {
+      ++counts.thawed;
+      g.effect(logic, la, la, kDispel);
+    } else if (found && c.type != kFreeze) {
       const int stat = c.type == kMaxHpValue ? kHp : c.type == kMaxStamina ? kStamina : -1;
       const bool share = c.raised && stat >= 0 && fighting(a) && stats(g, a) && a.seen.max[stat] >= 1;
       const float max = share ? a.seen.max[stat] : 0;
@@ -1092,11 +1191,113 @@ private:
       lift(g, logic, 0);
   }
 
+  // ---- Same-place enemies (PHASE11-STAGE3 3.5, 3.7) ----
+  // After the side's step (n: this pass's enemies): the pair table from the side's pairs and this pass's marks, then
+  // our freeze held on each copy this side draws, and taken off every other. In 3a the host owns every pair.
+  template <class Game> void pilot_turn(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
+    const bool hosting = hosting_seen_;
+    uint32_t local[kMaxTracked], hguid[kMaxTracked], want[kMaxPairs], lost[kMaxPairs];
+    const size_t count = hosting ? host.tracked(local) : guest.tracked(local, hguid);
+    const Seen *seen[kMaxPairs];
+    size_t drawn = 0, kept = 0;
+    table_.on = same_place_ && !pilot_stopped_ && (!hosting || host.peer_on());
+    table_.count = 0;
+    for (size_t i = 0; i < count && table_.count < kMaxPairs; ++i) {
+      const uint8_t r = table_.count++;
+      PilotPair &p = table_.pairs[r] = PilotPair();
+      p.local = local[i];
+      p.hguid = hosting ? local[i] : hguid[i];
+      const Seen *s = seen[r] = fight::find(seen_, n, p.local);
+      p.bits = s ? uint8_t(marks_[s - seen_] | (dying(*s) ? kRowDying : 0)) : 0;
+      const bool gone = std::find(lost_, lost_ + lost_count_, p.local) != lost_ + lost_count_;
+      if (gone)
+        lost[kept++] = p.local; // Lost for as long as its pair lasts.
+      else if (s && table_.on && p.owner != (hosting ? pilot::kHost : pilot::kGuest))
+        p.bits |= kRowDrawn, want[drawn++] = p.local;
+    }
+    std::copy(lost, lost + kept, lost_);
+    lost_count_ = kept;
+    let_go(g, logic, kFreeze, want, drawn);
+    for (uint8_t r = 0; r < table_.count && !latched_; ++r)
+      if (table_.pairs[r].bits & kRowDrawn)
+        hold_freeze(g, logic, table_.pairs[r], *seen[r], census, now);
+    for (uint8_t r = 0; r < table_.count; ++r) { // Frozen: ours, and state 39 held since.
+      PilotPair &p = table_.pairs[r];
+      if (!(p.bits & kRowDrawn) || !captured(p.local, kFreeze))
+        p.bits &= uint8_t(~kRowFrozen);
+      p.bits &= uint8_t(~kReady);
+    }
+  }
+  // Our freeze on one drawn copy (seen this pass), started while it is kReady with no release flag and no death:
+  // effect init refuses some rows under NoDamageNoHit, and a crowd control or a takedown is SB's to finish. Captured
+  // before the calls, so every way out takes it off. A census that finds state 39 gone, a turn after our last freeze at
+  // least, freezes it again, kRefreezes times in kRefreezeMs at most, then loses it: dispelled, not drawn. While the
+  // owner's stream says BattleMode, BattleMode_5s on it each kBattleMs.
+  template <class Game>
+  void hold_freeze(Game &g, uint64_t logic, PilotPair &p, const Seen &s, bool census, uint64_t now) {
+    const bool ready = (p.bits & kReady) && !(p.bits & (kRowRelease | kRowDying));
+    size_t i = 0;
+    while (i < captures_ && !(caps_[i].guid == p.local && caps_[i].type == kFreeze))
+      ++i;
+    if (i == captures_) {
+      if (!ready || captures_ == kMaxCaptures)
+        return;
+      caps_[captures_++] = Capture{p.local, kFreeze, 1, false, turn_, 0, now, 0};
+      ++counts.frozen;
+      g.event(Event{"frozen", "", p.hguid, s.spawn, s.index});
+      return freeze(g, logic, p.local);
+    }
+    Capture &c = caps_[i];
+    if (census && ready && c.turn != turn_ && !(p.bits & kRowFrozen)) {
+      if (now - c.window >= kRefreezeMs)
+        c.window = now, c.tries = 0;
+      if (c.tries == kRefreezes) {
+        ++counts.freeze_lost;
+        g.event(Event{"freeze-lost", "state 39 gone too often", p.hguid, s.spawn, s.index});
+        if (lost_count_ < kMaxPairs)
+          lost_[lost_count_++] = p.local;
+        p.bits &= uint8_t(~kRowDrawn);
+        return lift(g, logic, i);
+      }
+      ++c.tries;
+      c.turn = turn_;
+      ++counts.refrozen;
+      g.event(Event{"frozen again", "state 39 gone", p.hguid, s.spawn, s.index});
+      return freeze(g, logic, p.local);
+    }
+    const uint32_t *battle = flags_.battle, *end = battle + std::min<size_t>(flags_.count, kMaxPairs);
+    if (ready && now >= c.battle && std::find(battle, end, p.hguid) != end) {
+      c.battle = now + kBattleMs;
+      ++counts.battles;
+      self_cast(g, logic, p.local, kBattleMode);
+    }
+  }
+  // BlockAI_Infinite, then SkillCancel once it started.
+  template <class Game> void freeze(Game &g, uint64_t logic, uint32_t guid) {
+    if (self_cast(g, logic, guid, kBlockAi))
+      self_cast(g, logic, guid, kSkillCancel);
+  }
+  // One of our effects on a copy, the copy its own caster: found again by GUID and tested as for a write, in life
+  // state 1. The effect, or 0 when gone or refused.
+  template <class Game> uint64_t self_cast(Game &g, uint64_t logic, uint32_t guid, int32_t id) {
+    Actor a;
+    const uint64_t la = g.find(logic, guid);
+    return la && live(g, la, guid, a) && a.life == 1 && !a.pending && !latched_ ? g.effect(logic, la, la, id) : 0;
+  }
+  // The pair table to the game thread (none once off or latched), and what it says back, for the next turn.
+  template <class Game> void publish(Game &g, uint32_t turn, uint64_t now) {
+    if (!on_ || latched_)
+      table_ = PilotTable();
+    table_.session = session_seen_, table_.turn = turn, table_.ms = now;
+    g.publish(table_, flags_);
+  }
+
   uint64_t base_ = 0;
   Job ring_[kRing];
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
+  std::atomic<bool> same_place_{false}, pilot_stopped_{false};
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
@@ -1117,9 +1318,14 @@ private:
   size_t found_count_ = 0;
   Seen seen_[kMaxSeen];
   uint64_t fsbs_[kMaxSeen] = {}; // Each one's FSBActor, for this turn only.
+  uint8_t marks_[kMaxSeen] = {};  // Each one's Actor::pilot.
   bool slow_ = false;            // The last turn ran in slow motion.
   Capture caps_[kMaxCaptures];
   size_t captures_ = 0, lifting_ = 0; // lifting_: captures dropped whose lift a fault cut short.
+  PilotTable table_;
+  StreamFlags flags_;         // The game thread's word, as of the last publish.
+  uint32_t lost_[kMaxPairs] = {}; // Copies whose freeze was lost, while their pairs last.
+  size_t lost_count_ = 0;
 };
 
 // ---- Between the job and the worker ----
@@ -1167,9 +1373,28 @@ private:
 // The job's lines, events and probe census to the worker, hers to the job. Each thread queues into rings of its
 // own; the logic thread swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next
 // hand-over does it), and touches only our own memory while it holds it, so no fault in the game can leave it held.
-// The worker may wait.
+// The worker may wait. Same-place enemies' pair table goes to the game thread, and its StreamFlags come back, under a
+// lock of their own that both threads take with try_lock only.
 class Mail {
 public:
+  // The logic thread, after each turn: its table out, the game thread's flags in. False when busy.
+  bool publish(const PilotTable &t, StreamFlags &f) {
+    if (!pilot_.try_lock())
+      return false;
+    table_ = t;
+    f = flags_;
+    pilot_.unlock();
+    return true;
+  }
+  // The game thread, each frame: the newest table in, its flags out. False when busy (the table as it was).
+  bool table(PilotTable &t, const StreamFlags &f) {
+    if (!pilot_.try_lock())
+      return false;
+    t = table_;
+    flags_ = f;
+    pilot_.unlock();
+    return true;
+  }
   // The logic thread: the Game's receive, send, event and probe. None while a clear() waits for its hand-over.
   bool receive(Message &m) { return !drop_in_ && in_.pop(m); }
   void send(const Message &m) { lost_ += !out_.push(m); }
@@ -1242,6 +1467,9 @@ private:
   std::atomic<bool> drop_in_{false}; // Set by clear(), done by the next exchange(): in_ is the logic thread's.
   std::atomic<uint64_t> arms_{0}, deferred_{0}, forced_{0}, paused_{0};
   std::atomic<uint32_t> game_thread_{0};
+  std::mutex pilot_;
+  PilotTable table_;
+  StreamFlags flags_;
 };
 
 // The worker's side, on our own thread, which never calls SB: the user's coop fight requests, the gates, channel 2's
@@ -1683,7 +1911,7 @@ private:
     said_counts_ = c, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
     using u = unsigned long long;
     const char *as = ran_ == Fight::record ? " (record)" : ran_ == Fight::replay ? " (replay)" : "";
-    char head[640], tail[800];
+    char head[640], tail[1024];
     if (probe)
       std::snprintf(head, sizeof head,
                     "fight stats: probe, %zu actors, our EVE %s, turn %u (%llu a second), writes %s, %llu rejected",
@@ -1713,11 +1941,13 @@ private:
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
                   "%llu state maps or effect lists unread, %llu enemies left unscaled, slow motion %llu times (%llu "
-                  "turns, lowest %llu %%); %llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu "
-                  "us, max %llu us; logic thread %u (SB's %u), game thread %u",
+                  "turns, lowest %llu %%), same place %llu frozen (%llu again, %llu lost, %llu taken off, %llu "
+                  "BattleMode_5s); %llu lost, %llu dropped, %llu unsent, %llu malformed; Simulate mean %llu us, max "
+                  "%llu us; logic thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
                   u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(j.unscaled), u(j.slow_starts),
-                  u(j.slow_turns), u(j.slow_min), u(s.lost),
+                  u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
+                  u(j.battles), u(s.lost),
                   u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.trace(std::string(head) + tail);

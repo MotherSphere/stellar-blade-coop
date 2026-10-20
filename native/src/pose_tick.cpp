@@ -506,7 +506,7 @@ fight::Engine fight_engine; // Its ring of 8 jobs is never freed: SB's queue may
 fight::Mail fight_mail;
 std::atomic<bool> fight_faulted{false};
 std::atomic<uint64_t> fight_fault_code{0}, fight_fault_rva{0}, fight_fault_address{0};
-std::atomic<uint64_t> fight_floors_left{0}; // Our stat changes a fault left on enemies (floors, scaling), for the log.
+std::atomic<uint64_t> fight_floors_left{0}; // What a fault left on enemies (floors, scaling, freezes), for the log.
 uint64_t sim_runs = 0, sim_us = 0, sim_max_us = 0; // The logic thread's.
 bool fight_ticked = false;                         // The game thread's: the fight was on at the last coop_tick.
 
@@ -535,6 +535,7 @@ struct WinGame {
   void send(const fight::Message &m) { fight_mail.send(m); }
   void event(const fight::Event &e) { fight_mail.event(e); }
   void probe(const fight::Actor &a) { fight_mail.probe(a); }
+  bool publish(const fight::PilotTable &t, fight::StreamFlags &f) { return fight_mail.publish(t, f); }
 };
 
 // The logic thread's side for the worker: the engine's counts, our time in Simulate and the thread it ran on.
@@ -565,9 +566,10 @@ __declspec(noinline) void lift_body() {
   WinGame g;
   fight_engine.lift(g);
 }
-// After a fault in Simulate, still on the logic thread: our floors and scaling come off once when the fault was in this
-// DLL (one of our reads, so the game's state is whole); they stay, counted for the log, when it was in the game's code
-// or another module's (an SB call broken half way, which a second call could hang). A fault here leaves the rest too.
+// After a fault in Simulate, still on the logic thread: our floors, scaling and freezes come off once when the fault
+// was in this DLL (one of our reads, so the game's state is whole); they stay, counted for the log, when it was in the
+// game's code or another module's (an SB call broken half way, which a second call could hang). A fault here leaves
+// the rest too.
 void lift_after_fault() {
   if (fault_in_dll(fight_fault_rva)) {
     __try {
@@ -1472,8 +1474,8 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
                   static_cast<unsigned long long>(fight_fault_code.load()), where,
                   static_cast<unsigned long long>(fight_fault_address.load()),
                   left ? ("; " + std::to_string(left) +
-                          " of our stat changes (1 HP floors, two-player scaling) stay until their enemies leave the "
-                          "map")
+                          " of our changes on enemies (1 HP floors, two-player scaling, frozen copies) stay until "
+                          "their enemies leave the map")
                              .c_str()
                        : "");
     say(text);

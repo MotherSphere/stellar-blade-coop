@@ -835,12 +835,15 @@ public:
     return n;
   }
   // The copies' GUIDs the next pass must re-find, at most kMaxTracked: a copy held at the floor while the host decides
-  // on our lethal claim too.
-  size_t tracked(uint32_t *guids) const {
+  // on our lethal claim too. hguids, when given, takes the host's GUID of each.
+  size_t tracked(uint32_t *guids, uint32_t *hguids = nullptr) const {
     size_t n = 0;
     for (size_t i = 0; i < count_; ++i)
-      if (pairs_[i].local && (!pairs_[i].lethal || pairs_[i].held))
+      if (pairs_[i].local && (!pairs_[i].lethal || pairs_[i].held)) {
+        if (hguids)
+          hguids[n] = pairs_[i].hguid;
         guids[n++] = pairs_[i].local;
+      }
     return n;
   }
   // With the host's scaling: the copies the engine scales after this step, as tracked(). Any other gets its own maxes

@@ -97,7 +97,9 @@ build/host/pose_codec_test
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves
-    out, the enemies' state map, the two-player scaling, and the vitals read, against fake memory;
+    out, the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put
+    back after the game's own dispel, freeze-lost after 5 tries in 10 s, taken off before a kill and on every way out)
+    with the pair table for the game thread, against fake memory;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules, and two fake
     worlds linked through a delayed, lossy line;
   - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
