@@ -1464,7 +1464,7 @@ public:
   bool latched() const { return latched_; }
   // coop fight pilot test: how far the drawn side goes (link_protocol.h's PilotTest; replay, all of it, by default). A
   // change puts each pair back once at its next frame, so nothing a larger step changed stays; the step then takes
-  // again what it needs.
+  // again what it needs from the frame after.
   void limit(PilotTest t) {
     if (t == limit_)
       return;
@@ -1543,8 +1543,13 @@ public:
         p.wrote = false;
         continue;
       }
-      if (std::exchange(p.reset, false))
+      if (std::exchange(p.reset, false)) {
+        // Put back alone this frame, driven from the next: its movement component is never re-added and taken out
+        // again before the game's manager ticks.
         put_back(g, s.reg, p, &found[i]);
+        p.wrote = false;
+        continue;
+      }
       ok[i] = drive(g, read, base, s.reg, p, found[i], now, at) && limit_ == PilotTest::replay;
     }
     for (const Timeline::Due *due; (due = timeline_.front(at));) {

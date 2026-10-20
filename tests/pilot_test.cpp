@@ -1576,7 +1576,7 @@ int main() {
   // here (our freeze is the job's); cmc: its movement component out too, nothing written, and the drift probe reads how
   // far the game moves the copy at rest; drive: root, speed and Velocity too, but no Show replayed (counted as a Show
   // for a copy not driven); replay: all of it, the default. A change puts each pair back once at its next frame, so
-  // nothing a larger step changed stays.
+  // nothing a larger step changed stays, and drives it again only from the frame after.
   {
     Stage s;
     const uint64_t ch = s.copy(501, 100, 200, 20), cmc = s.cmc(ch);
@@ -1596,28 +1596,34 @@ int main() {
     d.draw(g, kBase, 5000, 1000);
     assert(s.since(seen).empty() && d.counts.frames == 0 && s.get<uint8_t>(cmc + kCmcParallel) == 1);
     d.limit(coop::PilotTest::cmc);
-    d.draw(g, kBase, 5016, 1016);
+    d.draw(g, kBase, 5016, 1016); // Each change: put back alone at the next frame (nothing was ours yet), then taken.
+    assert(s.since(seen).empty() && d.counts.cmc_out == 0);
+    d.draw(g, kBase, 5032, 1016);
     assert(s.since(seen) == "cmc off" && d.counts.cmc_out == 1 && d.counts.frames == 0 && near(s.x(ch), 100, 1e-3));
     s.put<float>(s.root(ch) + 0x200, 101); // The game moves it 1 cm in 16 ms: a mover the drive would fight.
-    d.draw(g, kBase, 5032, 1020);
+    d.draw(g, kBase, 5048, 1020);
     assert(s.since(seen).empty() && near(d.counts.drift_cm, 1000.0 / 16, 0.5));
     d.limit(coop::PilotTest::drive);
     ShowLine l;
     l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = 1, l.t_ms = 1030, l.rate = 1000;
     assert(set_path(l, 0, "A/B"));
     d.line(l, 1020);
-    d.draw(g, kBase, 5048, 1033); // Put back first (only the component: nothing else was ours), then driven.
-    assert(s.since(seen) == "cmc on cmc off write1 write4 move write12" && near(s.x(ch), 110, 1e-3));
-    assert(d.counts.shows == 0 && d.counts.not_drawn == 1);
-    d.limit(coop::PilotTest::freeze); // All of it back at once.
-    d.draw(g, kBase, 5064, 1033);
-    assert(s.since(seen) == "write12 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0);
+    d.draw(g, kBase, 5064, 1033); // Only the component was ours: back in the game's manager, and not taken out
+    assert(s.since(seen) == "cmc on" && near(s.x(ch), 101, 1e-3)); // again in the same frame.
+    assert(d.counts.shows == 0 && d.counts.not_drawn == 1 && d.counts.frames == 0);
     d.draw(g, kBase, 5080, 1033);
+    assert(s.since(seen) == "cmc off write1 write4 move write12" && near(s.x(ch), 110, 1e-3));
+    d.limit(coop::PilotTest::freeze); // All of it back at once.
+    d.draw(g, kBase, 5096, 1033);
+    assert(s.since(seen) == "write12 cmc on write1" && s.get<uint8_t>(ch + kSpeedOverride) == 0);
+    d.draw(g, kBase, 5112, 1033);
     assert(s.since(seen).empty());
     d.limit(coop::PilotTest::replay);
     l.id = 2, l.t_ms = 1040;
     d.line(l, 1033);
-    d.draw(g, kBase, 5096, 1040);
+    d.draw(g, kBase, 5128, 1033); // Nothing of ours left to put back.
+    assert(s.since(seen).empty() && d.counts.shows == 0);
+    d.draw(g, kBase, 5144, 1040);
     assert(s.since(seen).rfind("cmc off write1 write4 move write12 handle 1 main 1 add 1 A/B 0 1.000 0 0", 0) == 0);
     assert(d.counts.shows == 1);
   }
