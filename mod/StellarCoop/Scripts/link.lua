@@ -15,6 +15,7 @@
 -- through coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op
 -- menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
+local T=require('ui_text')
 local Link={}
 -- coop-settings.txt is the user's (N5): written with these defaults when absent, changed by the co-op menu one line at a
 -- time (write_settings), never shipped (an update would replace it). F-key codes do not depend on the keyboard layout,
@@ -397,21 +398,23 @@ function Link.new(folder,fs)
     -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
     -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits)}; a field unread is nil.
     function self.saves() return saves end
-    -- The status key's line.
-    function self.summary()
-        if dead then return 'Co-op: the Steam link stopped; coop status says why.' end
-        if not mode then return 'Co-op: waiting for Steam.' end
-        if held then return 'Co-op: invite held until your save has loaded.' end
-        if rejoin then return "Co-op: rejoining your friend's game (try "..rejoin..'/3).' end
-        if mode=='none' then return 'Co-op: not in a session.' end
+    -- The status key's line, in words (ui_text.lua's T.en or T.fr; English when not given). Her name is an argument
+    -- to the words' formats, never one itself.
+    function self.summary(words)
+        local w=(words or T.en).summary
+        if dead then return w.stopped end
+        if not mode then return w.waiting end
+        if held then return w.held end
+        if rejoin then return w.rejoin:format(rejoin) end
+        if mode=='none' then return w.none end
         local name,linked,lost=self.friend()
         local text
-        if not name and mode=='host' then text='Co-op: hosting, no friend yet.'
-        elseif not linked then text='Co-op: '..(name or 'your friend')..' is connecting.'
-        elseif mode=='host' then text='Co-op: hosting '..name..'.'
-        else text='Co-op: in '..name.."'s game." end
-        if linked and photo and photo.frozen and photo.peer=='1' then text=text..' Paused by '..name..'.' end
-        return lost and text..' Connection lost.' or text
+        if not name and mode=='host' then text=w.alone
+        elseif not linked then text=w.connecting:format(name or w.friend)
+        elseif mode=='host' then text=w.hosting:format(name)
+        else text=w.guest:format(name) end
+        if linked and photo and photo.frozen and photo.peer=='1' then text=text..w.paused:format(name) end
+        return lost and text..w.lost or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
     function self.settings()

@@ -25,6 +25,7 @@
 -- finds and destroys one left standing; after a level change it comes back once EVE has been in the world 2 s.
 local UE=require('UEHelpers')
 local U=require('unreal')
+local T=require('ui_text')
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Puppet={}
 local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
@@ -97,9 +98,11 @@ end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
 -- Steam name. capture gives yaw_delta(), the loopback's offset. say(text) puts a line on screen; name_tag: the tag.
--- look: what else the ghost shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more).
-function Puppet.new(link,capture,say,name_tag,look)
+-- look: what else the ghost shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words:
+-- the words for the screen now (ui_text.lua's T.en or T.fr; English when nil).
+function Puppet.new(link,capture,say,name_tag,look,words)
     look=look or {}
+    words=words or function() return T.en end
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end}
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
@@ -385,7 +388,7 @@ function Puppet.new(link,capture,say,name_tag,look)
     local function retry()
         tries=tries+1
         failed=tries<3 and os.clock()+2 or math.huge
-        if tries==3 then say('Ghost failed 3 times: the reason is in UE4SS.log.') end
+        if tries==3 then say(words().ghost.failed) end
     end
     -- One frame of the build, on the game thread: build_ghost(eve) first, then a step, and finish() after the last.
     local function step(eve)
@@ -718,7 +721,7 @@ function Puppet.new(link,capture,say,name_tag,look)
             -- A friend away is said on screen too, by the maps' last segments ('b07').
             if source=='peer' and pair~=said_pair then
                 said_pair=pair
-                say(string.format('%s is in %s, you are in %s.',whose(),remote.map:match('[^/]*$'),map:match('[^/]*$')))
+                say(words().ghost.away:format(whose(),remote.map:match('[^/]*$'),map:match('[^/]*$')))
             end
             return true,string.format('Ghost hidden: she is on %s, you are on %s.',remote.map,map)
         end

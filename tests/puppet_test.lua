@@ -274,10 +274,13 @@ local link={remote_table=function() return remote_file end,store=function() retu
     friend=function() return 'Kaanta',true,false end,
     request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
+local Words=require('ui_text')
+local words=Words.en -- The words for the screen (main.lua's: the game's language).
 local function new(path_left,name_tag,look)
     stored=path_left
     package.loaded.puppet=nil
-    return require('puppet').new(link,capture,function(text) said[#said+1]=text end,name_tag~=false,look)
+    return require('puppet').new(link,capture,function(text) said[#said+1]=text end,name_tag~=false,look,
+        function() return words end)
 end
 local ghost=new(nil)
 local count=0
@@ -298,7 +301,7 @@ local function build()
 end
 local GAVE_UP='Ghost failed 3 times: the reason is in UE4SS.log.'
 -- Fails the table's build 3 times, 2 s apart: then it is said on screen once and never tried again by itself.
-local function give_up()
+local function give_up(gave_up)
     local said_before=#said
     fail_add=true
     for k=1,3 do
@@ -308,7 +311,7 @@ local function give_up()
         assert(#said==said_before+(k<3 and 0 or 1),'Said once, after the 3rd')
     end
     fail_add=false
-    assert(said[#said]==GAVE_UP,said[#said])
+    assert(said[#said]==(gave_up or GAVE_UP),said[#said])
     local spawned_before=#spawned
     for _=1,5 do assert(ghost.tick()==nil); clock=clock+2 end
     assert(#spawned==spawned_before,'Never a 4th time by itself')
@@ -514,6 +517,11 @@ assert(#said==2 and said[2]=='Kaanta is in b07, you are in e04.',tostring(said[2
 send(542,her_parts(),'peer','/game/art/bg/worldmap/level_p/b07') -- A new outfit, or a new EVE, on the same map.
 ghost.tick()
 assert(#said==2,'A new table on the same pair: not said again')
+words=Words.fr
+send(543,her_parts(),'peer','/game/art/bg/worldmap/level_p/a01')
+ghost.tick()
+assert(#said==3 and said[3]=='Kaanta est dans a01, vous êtes dans e04.',tostring(said[3]))
+words=Words.en
 send(505,her_parts())
 ok,message=build()
 assert(message:find('^Ghost 505 built'),message)
@@ -667,7 +675,9 @@ ok,message=build()
 assert(message:find('^Ghost 605 built'),message)
 -- Toggled off and on again: a table given up is tried again at once.
 send(606,her_parts())
-give_up()
+words=Words.fr
+give_up('Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.') -- In the game's language.
+words=Words.en
 ghost.toggle()
 ghost.toggle()
 ok,message=build()

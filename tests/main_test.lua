@@ -93,7 +93,7 @@ local fake_link={
     end,
     friend=function() return 'Kaanta',friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
-    summary=function() return 'Co-op: not in a session.' end,
+    summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     join_code=Link.join_code,
     code=function() return link_code,link_refused end,
@@ -339,7 +339,7 @@ flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-
 assert(last():find('OK: asked the native part: leave',1,true),last())
 press('F5'); flush()
 assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the co-op menu opens in the game world '
-    ..'only\n' and said[#said]=='the co-op menu opens in the game world only','F5 opens the menu, never hosts')
+    ..'only\n' and said[#said]=='The co-op menu opens in the game world only.','F5 opens the menu, never hosts')
 press('F7'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F7') and not logged('key Shift+F5'),
     'Keys no action holds: nothing')
 clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
@@ -348,6 +348,13 @@ press('RETURN'); assert(executes==executed+5,'Enter is queued: the chat decides 
 press('F6'); flush()
 assert(#asked==1 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
 assert(said[#said]=='Co-op: not in a session.','The summary on screen too')
+kit_language='fr-FR'; press('F6'); flush()
+assert(last()=='[StellarCoop] OK: Co-op: not in a session.\n' and said[#said]=='Co-op : aucune session en cours.',
+    "The log in English, the screen in the game's language")
+press('F5'); flush()
+assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n'
+    and said[#said]=='Le menu co-op ne s\'ouvre que dans le monde du jeu.',said[#said])
+kit_language=nil
 asked={}
 coop('host'); assert(asked[1]=='host' and last():find('OK: asked the native part: host',1,true),last())
 coop('invite'); coop('leave'); coop('report')
@@ -501,6 +508,9 @@ assert(on_line:find('|Kaanta: secret one|Kaanta joined.|',1,true) and on_line:fi
 local made=table.concat(chat_calls,'|',calls+1)
 assert(made:find('^session false|receive Kaanta secret one [%d.]+|fail|session true|receive Kaanta secret two [%d.]+$'),
     made)
+kit_language='fr-FR'; chatting=true; chat_lines={{text='secret three'}}; loops[2].f(); chatting=nil
+assert(table.concat(said,'|'):find('|Kaanta : secret three|',1,true),"In the game's language")
+kit_language=nil
 chatting=false
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
 assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
@@ -769,6 +779,11 @@ end
 local shown=fight_notices_since(said_before)
 assert(#shown==1 and shown[1]=='Shared fight off: not on the co-op save',table.concat(shown,'|'))
 status_text=COOP; loops[2].f(); assert(#asked==0,'coop fight on starts it from here')
+load_main(true)
+kit_language='fr-FR'; said_before=#said
+status_text=with_slot('slot=main index=0 marker=4\n'); loops[2].f(); kit_language=nil
+assert(logged('STOP: shared_enemies=on: not on the co-op save')
+    and said[said_before+1]=='Combat partagé coupé : pas sur la sauvegarde co-op',tostring(said[said_before+1]))
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)
 status_text=plain; coop('fight','off'); status_text=COOP; loops[2].f()
@@ -848,6 +863,22 @@ for _,step in ipairs({
     local got=fight_step(step[1])
     assert(got==step[2],tostring(step[1])..': '..got)
 end
+-- The same notices in the game's language (French: 0 and 1 singular); why= stays as the native part writes it.
+kit_language='fr-FR'
+local HOST_ON='fight=on mode=on role=host claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 enemies='
+for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_ON..'0','Combat partagé actif : 0 ennemi lié'},
+        {HOST_ON..'3','Combat partagé actif : 3 ennemis liés'},
+        {'fight=stopped why=fault',"Combat partagé coupé : arrêté jusqu'au redémarrage du jeu (fault)"},
+        {HOST_ON..'1','Combat partagé actif : 1 ennemi lié'},
+        {'fight=off why=coop fight off','Combat partagé coupé : coop fight off'}}) do
+    fight_text=step[1]
+    local n=#said
+    loops[2].f()
+    local got={}
+    for i=n+1,#said do if said[i]:find('^Combat partagé') then got[#got+1]=said[i] end end
+    assert(table.concat(got,'|')==step[2],step[1]..': '..table.concat(got,'|'))
+end
+kit_language=nil
 local reads=fight_reads
 loops[1].f(); loops[1].f(); assert(fight_reads==reads,'No shared fight work in the per-frame loop')
 fight_text=nil
@@ -883,6 +914,11 @@ key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game 
 kit_ready,kit_paused=true,true
 key('F5')
 assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused or shows a menu\n',last())
+local function fed() return chat_calls[#chat_calls]:match('^system (.-) [%d.]+$') end -- The newest in the feed.
+assert(fed()=='The co-op menu does not open while the game is paused or shows a menu.',chat_calls[#chat_calls])
+kit_language='fr-FR'; key('F5'); kit_language=nil
+assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused or shows a menu\n'
+    and fed()=="Le menu co-op ne s'ouvre pas quand le jeu est en pause ou affiche un menu.",chat_calls[#chat_calls])
 kit_paused=false
 key('F5')
 assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
@@ -983,6 +1019,7 @@ assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=en
 assert(screen():find('^GHOST||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
+assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)
 -- A write that fails: said, nothing changed.
 write_refusal='cannot write coop-settings.txt: busy'
 local before_text=settings_text

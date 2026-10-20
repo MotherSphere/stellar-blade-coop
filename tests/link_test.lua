@@ -449,6 +449,29 @@ assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=1 frozen=0 sync=both
 assert(summary(HEAD..'friend=1 0 photo=0 peer_photo=1 frozen=1 sync=both\n')=='Co-op: hosting photo=0 peer_photo=1 '
     ..'frozen=1 sync=both.','A name is no photo line')
 assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.','Gone with the line')
+-- The same line in the menu's words (ui_text.lua's, French when the game is), every state; her name as it came, a '%'
+-- in it never read as a format; English without words.
+local Words=require('ui_text')
+local function french(status) files[STATUS]=status; fresh.changes(); return fresh.summary(Words.fr) end
+assert(french(nil)=='Co-op : en attente de Steam.')
+assert(french('stopped=fault 0xc0000005\n')=="Co-op : le lien Steam s'est arrêté ; coop status dit pourquoi.")
+assert(french('mod=v steam=ready\nlink=none lobby=0 held=7000\n')
+    =='Co-op : invitation en attente du chargement de votre sauvegarde.')
+assert(french('mod=v steam=ready\nlink=none lobby=0 rejoin=2/3\n')
+    =='Co-op : reconnexion à la partie de votre partenaire (essai 2/3).')
+assert(french('mod=v steam=ready\nlink=none lobby=0\n')=='Co-op : aucune session en cours.')
+assert(french('mod=v steam=ready\nlink=host lobby=7\n')=="Co-op : vous hébergez, personne n'a encore rejoint.")
+assert(french(GUEST)=='Co-op : votre partenaire se connecte.')
+assert(french(HEAD..'friend=0 1 K%s%d\n')=='Co-op : K%s%d se connecte. Connexion perdue.')
+assert(french(HEAD..'friend=1 0 Kaanta\n'..PHOTO)=='Co-op : vous hébergez Kaanta. Jeu mis en pause par Kaanta.')
+assert(french(GUEST..'friend=1 1 Kaanta\n')=='Co-op : dans la partie de Kaanta. Connexion perdue.')
+assert(fresh.summary(Words.en)==fresh.summary() and fresh.summary()=="Co-op: in Kaanta's game. Connection lost.")
+assert(summary(HEAD..'friend=0 0 K%s%d\n')=='Co-op: K%s%d is connecting.')
+for _,group in ipairs({'summary','refused','ghost','fight'}) do -- Both languages complete.
+    for k in pairs(Words.en[group]) do assert(Words.fr[group][k],group..'.'..k) end
+    for k in pairs(Words.fr[group]) do assert(Words.en[group][k],group..'.'..k) end
+end
+summary(HEAD..'friend=1 0 Kaanta\n') -- Back to the status the photo line's test starts from.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
 lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')

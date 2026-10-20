@@ -76,7 +76,11 @@ local kit,menu,box,hud,saves_ui,code_box,approval
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
 -- the UI is off or failed.
 local function say(text) if not (box and box.say(text)) then notice.say(text) end end
-local puppet=require('puppet').new(link,capture,say,settings and settings.name_tag,look)
+-- The words for the screen (ui_text.lua): the game's language unless ui_language=english; English while unread. The
+-- log keeps English.
+local T=require('ui_text')
+local function words() return T.pick(kit and kit.language(),settings and settings.ui_language) end
+local puppet=require('puppet').new(link,capture,say,settings and settings.name_tag,look,words)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local function native_off()
@@ -419,13 +423,14 @@ if link then
         if now=='on on' then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
             if not fight_said or (fight_count==0 and count>0) then
-                say(string.format('Shared fight on: %d %s linked',count,count==1 and 'enemy' or 'enemies'))
+                local w=words()
+                say((w.plural(count) and w.fight.many or w.fight.one):format(count))
             end
             fight_said,fight_count=true,count
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') then
-                local why=line:match(' why=(.*)$') or 'off'
-                say('Shared fight off: '..(state=='stopped' and 'stopped for this run ('..why..')' or why))
+                local why,w=line:match(' why=(.*)$') or 'off',words().fight
+                say(w.off:format(state=='stopped' and w.stopped:format(why) or why))
             end
             fight_said,fight_count=false,0
         end
@@ -442,7 +447,10 @@ if link then
             else
                 local got=chat.receive((link.friend()) or '',line.text,chat_clock)
                 -- While the feed cannot show it (the UI off or failed, or still warming): on the line above EVE.
-                if got and not kit.ready() then notice.say((got.name~='' and got.name or 'Partner')..': '..got.text) end
+                if got and not kit.ready() then
+                    local w=words().chat
+                    notice.say(w.said:format(got.name~='' and got.name or w.partner)..got.text)
+                end
             end
         end
         local typed=chat.take(chat_clock) -- One of ours for the native part, two a second at most; never logged.
@@ -454,7 +462,8 @@ if link then
                 local ok,message=false,'not on the co-op save'
                 if verdict=='coop' then ok,message=commands.fight('on') end
                 report(ok,'shared_enemies=on: '..message)
-                if not ok then say('Shared fight off: '..message) end
+                local w=words().fight
+                if not ok then say(w.off:format(verdict=='main' and w.not_coop or message)) end
             end
         end
         fight_notices()
@@ -502,7 +511,7 @@ end
 -- key callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
 -- off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
 -- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
--- in the log and on screen; coop status keeps the full status.
+-- in the log in English and on screen in the menu's words; coop status keeps the full status.
 if settings then
     local K=require('keybind')
     local ACTIONS={'menu','host','status','leave'}
@@ -526,14 +535,13 @@ if settings then
             if settings[action..'_key'].name==name then
                 log('key '..name..': '..action)
                 if action=='status' then
-                    local summary=link.summary()
-                    report(true,summary)
-                    say(summary)
+                    report(true,link.summary())
+                    say(link.summary(words()))
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else
-                    local ok,why=menu.toggle()
-                    if why then report(ok,why); say(why) end
+                    local ok,why,shown=menu.toggle()
+                    if why then report(ok,why); say(shown or why) end
                 end
                 return
             end

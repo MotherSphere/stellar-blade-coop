@@ -1,5 +1,5 @@
--- The co-op menu's, the chat's, the partner HUD's, the co-op saves' and the join codes' words (D-UI8): English and
--- French. The game's language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english;
+-- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the status line's and the
+-- notices' words that the Lua side writes (D-UI8): English and French. The game's language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english;
 -- any other language reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
 local T={}
 T.en={
@@ -51,6 +51,23 @@ T.en={
         off='Co-op saves off for this load: %s. You play your own saves.',
         session='You play your own save, and shared enemies run on co-op saves only. Quit to the title to switch; the '
             ..'ghost works now.'},
+    -- The status line (link.lua's summary(): under the menu, and the status key's notice); %s: her Steam name, or
+    -- friend.
+    summary={stopped='Co-op: the Steam link stopped; coop status says why.',waiting='Co-op: waiting for Steam.',
+        held='Co-op: invite held until your save has loaded.',rejoin="Co-op: rejoining your friend's game (try %s/3).",
+        none='Co-op: not in a session.',alone='Co-op: hosting, no friend yet.',connecting='Co-op: %s is connecting.',
+        friend='your friend',hosting='Co-op: hosting %s.',guest="Co-op: in %s's game.",paused=' Paused by %s.',
+        lost=' Connection lost.'},
+    -- Why the menu key did not open the menu (menu.lua).
+    refused={off='The co-op menu is off (the UI stopped, see UE4SS.log): use the coop commands.',
+        world='The co-op menu opens in the game world only.',
+        paused='The co-op menu does not open while the game is paused or shows a menu.'},
+    -- The ghost's notices (puppet.lua): her name, her map, yours.
+    ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.'},
+    -- The shared fight's notices (main.lua): one for a count plural() calls singular; why= stays the native part's.
+    fight={one='Shared fight on: %d enemy linked',many='Shared fight on: %d enemies linked',off='Shared fight off: %s',
+        stopped='stopped for this run (%s)',not_coop='not on the co-op save'},
+    plural=function(n) return n~=1 end,
 }
 T.fr={
     title='CO-OP',
@@ -104,6 +121,20 @@ T.fr={
         off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.',
         session='Vous jouez sur votre propre sauvegarde, et les ennemis partagés ne fonctionnent que sur les '
             .."sauvegardes co-op. Revenez à l'écran titre pour changer ; le fantôme fonctionne déjà."},
+    summary={stopped="Co-op : le lien Steam s'est arrêté ; coop status dit pourquoi.",
+        waiting='Co-op : en attente de Steam.',held='Co-op : invitation en attente du chargement de votre sauvegarde.',
+        rejoin='Co-op : reconnexion à la partie de votre partenaire (essai %s/3).',
+        none='Co-op : aucune session en cours.',alone="Co-op : vous hébergez, personne n'a encore rejoint.",
+        connecting='Co-op : %s se connecte.',friend='votre partenaire',hosting='Co-op : vous hébergez %s.',
+        guest='Co-op : dans la partie de %s.',paused=' Jeu mis en pause par %s.',lost=' Connexion perdue.'},
+    refused={off="Le menu co-op est coupé (l'interface s'est arrêtée, voir UE4SS.log) : utilisez les commandes coop.",
+        world="Le menu co-op ne s'ouvre que dans le monde du jeu.",
+        paused="Le menu co-op ne s'ouvre pas quand le jeu est en pause ou affiche un menu."},
+    ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',away='%s est dans %s, vous êtes dans %s.'},
+    fight={one='Combat partagé actif : %d ennemi lié',many='Combat partagé actif : %d ennemis liés',
+        off='Combat partagé coupé : %s',stopped="arrêté jusqu'au redémarrage du jeu (%s)",
+        not_coop='pas sur la sauvegarde co-op'},
+    plural=function(n) return n>1 end, -- 0 and 1 are singular in French.
 }
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(culture,setting)

@@ -78,7 +78,7 @@ function Menu.new(o)
         end
         local ping,_,linked=link.ping(),link.friend()
         v.title.set(words.title)
-        v.status.set(link.summary()..(linked and ping and ' · '..ping..' ms' or ''))
+        v.status.set(link.summary(words)..(linked and ping and ' · '..ping..' ms' or ''))
         v.note.set(note or (o.chat and o.chat.notice()) or '')
         for i,hint in ipairs({'move','select','back'}) do v.hints[i].set(words.hint[hint]) end
     end
@@ -110,19 +110,23 @@ function Menu.new(o)
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
     function self.is_open() return open end
-    -- menu_key: open, or close; nothing and why when it cannot open (the kit off when it took the game's input: the
-    -- menu would be open unseen).
+    -- menu_key: open, or close; when it cannot open, false, why for the log and the same for the screen in the menu's
+    -- words (the kit off when it took the game's input: the menu would be open unseen).
     function self.toggle()
         if open then return self.close() end
-        if kit.off() then return false,OFF end
-        if not (world and kit.ready()) then return false,'the co-op menu opens in the game world only' end
-        if kit.paused() then return false,'the co-op menu does not open while the game is paused or shows a menu' end
+        words=T.pick(kit.language(),settings.ui_language)
+        if kit.off() then return false,OFF,words.refused.off end
+        if not (world and kit.ready()) then
+            return false,'the co-op menu opens in the game world only',words.refused.world
+        end
+        if kit.paused() then
+            return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused
+        end
         model,open,capturing,note,page,back_at=M.new(),true,nil,nil,nil,nil
         values=M.read(link.settings_text() or '')
-        words=T.pick(kit.language(),settings.ui_language)
         kit.show('menu',true,os.clock())
         kit.input(true)
-        if kit.off() then self.close(); return false,OFF end
+        if kit.off() then self.close(); return false,OFF,words.refused.off end
         kit.sound('open')
         draw()
     end
