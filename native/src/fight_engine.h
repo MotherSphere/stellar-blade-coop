@@ -1415,6 +1415,7 @@ private:
     e_.allow(r.chars.data(), r.chars.size()); // While off: the job reads them only while on.
     e_.confirm(r.confirmed);
     e_.scale(r.scale[kScaleHp], r.scale[kScaleBalance]);
+    std::copy(r.scale, r.scale + kScales, own_scale_);
     e_.credit(!r.fought);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
@@ -1509,6 +1510,12 @@ private:
     switch (ran_) {
     case Fight::on:
       io.send(format(on), true);
+      if (!host && scaling(own_scale_) && !scale_said_) { // Said once a run (FEATURE-PARITY 5: a host's key).
+        scale_said_ = true;
+        io.say("shared fight: as guest, the host's enemy_hp_scale and enemy_balance_scale count for both games; ours (" +
+               std::to_string(own_scale_[kScaleHp]) + " %, " + std::to_string(own_scale_[kScaleBalance]) +
+               " %) are not used");
+      }
       return std::string("shared fight on: as ") + (host ? "host" : "guest");
     case Fight::record:
       mail_.give(on); // As a guest's on: the host announces its enemies and sends their values.
@@ -1723,6 +1730,8 @@ private:
   bool coop_ = false;                                        // The gate passed at its last ask: a co-op save.
   uint64_t gate_ms_ = UINT64_MAX;                            // When the gate was last asked.
   bool armed_ = false;                                       // fight writes=armed: tests may write, this run.
+  uint16_t own_scale_[kScales] = {kMinScale, kMinScale};      // Our enemy_hp_scale and enemy_balance_scale, as asked.
+  bool scale_said_ = false;                                  // Ours not used as the guest: said this run.
   const char *her_ = "?";                                    // Her state as her last line said it (her_state).
   size_t her_said_ = 0;                                      // Her offs said in the log since her link.
   std::string told_;                                         // Our state as last told her (tell), or empty.

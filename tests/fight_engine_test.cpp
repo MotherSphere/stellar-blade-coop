@@ -1948,6 +1948,17 @@ int main() {
     w.pass(t += 16, true, false, true, none, gate, io, true);
     assert(!e->on() && io.lines() == "SBF10 off photo mode\n");
     assert(w.detail() == "fight=waiting mode=on her=waiting why=photo mode");
+    // As the guest, our own scaling is not used: said once a run, before the start line.
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(ask("fight off").rfind("shared fight off", 0) == 0);
+    io.said.clear();
+    assert(ask("fight on scale 135 115") == "shared fight on: as guest");
+    const std::string ours = "shared fight: as guest, the host's enemy_hp_scale and enemy_balance_scale count for "
+                             "both games; ours (135 %, 115 %) are not used";
+    assert(io.said == std::vector<std::string>{ours});
+    assert(ask("fight off").rfind("shared fight off", 0) == 0 && ask("fight on scale 135 115") ==
+           "shared fight on: as guest");
+    assert(io.said.size() == 1);
   }
 
   // ---- The probe (T11a's read-only half): every live actor each second, the world fence, its test writes ----

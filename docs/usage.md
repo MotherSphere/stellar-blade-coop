@@ -438,7 +438,8 @@ state ends, or after 6 seconds anyway. When the guest's hit is the kill, the hos
 
 Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
 multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
-(no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used. An enemy gets
+(no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used, and the
+guest's `coop-link.log` says so once a run when they are not both `1.0`. An enemy gets
 them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP stays at half.
 When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same share of HP and
 balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies or leaves the
