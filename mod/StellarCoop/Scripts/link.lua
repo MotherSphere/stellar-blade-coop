@@ -62,9 +62,10 @@ guest_kills=at_once
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
 kill_credit=all
-# Same place, experimental: on or off, the host's setting for both games (the guest's is not used). On, each shared
-# enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It never
-# attacks the guest yet.
+# Same place, experimental: on or off, the host's setting for both games. As guest, yours decides nothing at a start;
+# the co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
+# shared enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It
+# never attacks the guest yet.
 same_place=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no

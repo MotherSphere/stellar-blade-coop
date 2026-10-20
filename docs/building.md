@@ -108,7 +108,8 @@ build/host/pose_codec_test
     after a new session, a new generation or a change of the table's on, not after a stale table), against fake
     memory. Same place is the host's setting: the guest draws only while the host's last place line says on, and
     never reads her own; `coop fight pilot off` and the pilot's latch stop it on either side (the host then sends
-    place 0), and the worker's `pilot=` words say why it does not run;
+    place 0), and the worker's `pilot=` words say why it does not run (on the guest's side, `host` only once the
+    host's list came, `fight` after its off or on line);
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world), and two fake
     worlds linked through a delayed, lossy line;
@@ -129,7 +130,7 @@ build/host/pose_codec_test
     found), a missing asset, a context too far away, the oldest replay giving way when eight are held; a release;
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
-    change), and two worlds through a delayed, lossy line (120 ms, plus or minus
+    change and driven only from the next frame), and two worlds through a delayed, lossy line (120 ms, plus or minus
     30, 2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
@@ -146,11 +147,11 @@ build/host/pose_codec_test
 the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
 waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller, the save name's probe,
 `saves coop` and same-place enemies (`pilot=refused` in `coop-status.txt`, and a refused `coop fight pilot test`) on an
-exe that is not the game, logs `save name: saves=off` once, and logs a clean process exit. It also
-checks that `ReadProcessMemory` behaves as the poller needs, that the chat files an earlier run left are deleted at
-start, that a typed line is taken and never logged, that a request file the worker cannot delete is never run twice,
-and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. It runs wine
-with no display, so that clipboard stays inside wine and the desktop's clipboard is never touched.
+exe that is not the game, takes `coop fight pilot off` there, logs `save name: saves=off` once, and logs a clean process
+exit. It also checks that `ReadProcessMemory` behaves as the poller needs, that the chat files an earlier run left are
+deleted at start, that a typed line is taken and never logged, that a request file the worker cannot delete is never run
+twice, and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. It
+runs wine with no display, so that clipboard stays inside wine and the desktop's clipboard is never touched.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]

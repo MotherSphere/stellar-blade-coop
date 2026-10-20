@@ -76,7 +76,8 @@ Left and right change a value, and Enter does the same as right. Each change rew
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says
 `Saved. It takes effect when the mod reloads (game start or Ctrl+R).`, and the scaling and kill reward rows, which
 count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
-Same place row applies at once while shared enemies wait or run, and otherwise from their next start.
+Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
+while they wait or run, and only on your screen).
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
@@ -562,10 +563,13 @@ that ends. [how-it-works.md](how-it-works.md#same-place-enemies) has the details
 - It needs shared enemies running, and only the host's value counts, as with the scaling: Options > Combat > Same
   place (experimental) in the host's co-op menu, or `same_place=on` in its [coop-settings.txt](#coop-settingstxt).
 - While shared enemies wait or run, turning the row off stops same place at once on your side (as host, on both
-  screens), and turning it on starts it again. Otherwise the next start of shared enemies takes the row's value.
+  screens), and turning it on starts it again. Otherwise, as host, the next start of shared enemies takes the row's
+  value. As guest, the host's value decides at every start.
 - `coop fight pilot off` stops it on your side until the next `coop fight on`. As host, the guest's copies go back
   too. `coop fight pilot on` starts it again (it needs `same_place=on`). `coop fight off`, `shared_enemies=off` and
-  `coop off` stop it with shared enemies. Each copy goes back to the game within a second and fights its own EVE again.
+  `coop off` stop it with shared enemies. As host, a reload (Ctrl+R) with `same_place=off` in coop-settings.txt stops
+  it too while shared enemies run or wait. Each copy goes back to the game within a second and fights its own EVE
+  again.
 - `coop fight pilot status` prints the `pilot=` line of `coop status`: `pilot=on piloted=<n>` (the enemies this game
   moves as host, or the copies it moves as guest), `pilot=off why=<why>`, `pilot=stopped` (an error stopped it until
   the game restarts) or `pilot=refused why=<why>` (another game build, or `coop off`), with `probe=on` and
@@ -576,10 +580,10 @@ that ends. [how-it-works.md](how-it-works.md#same-place-enemies) has the details
   `Same place off: stopped by an error until the game restarts. coop-link.log says why.` Your own
   `coop fight pilot off` and the row show nothing.
 - While it runs, `coop-fight.log` gets a `pilot stats:` line each second (the `pilot=` line, the host's reads of its
-  enemies and their cost, the show lines sent, and the bytes both ways with the rate a second) and a `pilot drawn:`
-  line when the guest's side changed (copies moved, movement components taken out, releases, snaps, drift, Shows
-  replayed, late or missing). `coop fight pilot probe` adds each `SBE` message and show line sent and received, until
-  `coop fight pilot off`. The `SBE` messages take about 13 KB/s with 16 enemies.
+  enemies and their cost, the show lines sent, and the bytes both ways with the rate a second, `-` on the first line
+  after a pause) and a `pilot drawn:` line when the guest's side changed (copies moved, movement components taken out,
+  releases, snaps, drift, Shows replayed, late or missing). `coop fight pilot probe` adds each `SBE` message and show
+  line sent and received, until `coop fight pilot off`. The `SBE` messages take about 13 KB/s with 16 enemies.
 - After an error in the game's own code, copies the mod already moved can keep their movement component out of the
   manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
   so.
@@ -658,9 +662,10 @@ guest_kills=at_once
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
 kill_credit=all
-# Same place, experimental: on or off, the host's setting for both games (the guest's is not used). On, each shared
-# enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It never
-# attacks the guest yet.
+# Same place, experimental: on or off, the host's setting for both games. As guest, yours decides nothing at a start;
+# the co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
+# shared enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It
+# never attacks the guest yet.
 same_place=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no

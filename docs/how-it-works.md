@@ -398,7 +398,8 @@ guest's game draws its copies (stage 3a of Phase 11).
 - The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
-  off line. Her own value is never read.
+  off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
+  again, while shared enemies wait or run (`coop fight pilot off` and `on`).
 - Every 33 ms the host's game thread reads each shared enemy: position, rotation, animation speed, BattleMode and
   whether it is dying, into one `SBE` message on channel 1 (26 bytes an enemy, 16 enemies at most), stamped with the
   pose clock. It also walks the game's Show manager (the game's animation sequences) for the Shows each enemy starts,
