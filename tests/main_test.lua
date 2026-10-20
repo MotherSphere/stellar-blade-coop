@@ -931,7 +931,7 @@ key('LEFT_ARROW'); assert(look.cloth==false and settings_text=='# mine\nname_tag
 to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
-to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=59')
+to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=55')
 to('Who can join'); key('RETURN')
 assert(settings_text:find('\nwho_can_join=private\n',1,true) and select(2,focus())=='Invited only')
 coop('host'); assert(asked[#asked]=='host private','At once: the next Host is private')

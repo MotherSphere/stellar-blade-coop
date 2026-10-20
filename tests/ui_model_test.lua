@@ -168,8 +168,11 @@ assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='a
     and select(3,menu.change(NONE,values,-1))=='off' and not menu.current(NONE).reload)
 assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coop_save=x\n').auto_coop_save=='ask')
 on('send_rate')
-assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='59','60 by default, the top')
-assert(select(3,menu.change(NONE,{send_rate='20'},1))=='21' and select(3,menu.change(NONE,{send_rate='20'},-1))=='19')
+assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='55','60 by default, the top')
+-- 5 a step: an older file's 20 is 8 presses from 60. A value set in the file between steps moves by 5 too.
+assert(select(3,menu.change(NONE,{send_rate='20'},1))=='25' and select(3,menu.change(NONE,{send_rate='20'},-1))=='15')
+assert(select(3,menu.change(NONE,{send_rate='23'},1))=='28' and select(3,menu.change(NONE,{send_rate='58'},1))=='60'
+    and select(3,menu.change(NONE,{send_rate='12'},-1))=='10')
 assert(menu.change(NONE,{send_rate='60'},1)==nil and menu.change(NONE,{send_rate='10'},-1)==nil,'No change at an end')
 on('photo_freeze_max')
 assert(select(3,menu.change(NONE,values,-1))=='540' and select(3,menu.change(NONE,values,1))=='660')
