@@ -925,6 +925,7 @@ private:
     uint32_t guid = 0;
     int type = 0; // ESBActorStatType.
     int32_t delta = 0;
+    bool raised = false; // Scaling: HP or Stamina raised in proportion too (set before that call): lowered at the lift.
   };
   bool captured(uint32_t guid, int type) const {
     for (size_t i = 0; i < captures_; ++i)
@@ -1009,14 +1010,16 @@ private:
       return latch("implausible scale");
     if (!stats(g, a))
       return;
+    caps_[captures_ - 1].raised = true; // Ours still: nothing lifted since the capture.
     const int32_t raise = int32_t(std::lround(double(value) * a.seen.max[stat] / max)) - value;
     if (raise >= 1)
       g.apply(la, kStatType[stat], float(raise), 0, false);
   }
   // Capture i undone and dropped. Dropped first, so a fault in our reads of a torn actor does not stop the glue's lift
-  // of the others; lifting_ keeps it counted for forget() until the call is done. Scaling on a fighting enemy also
-  // lowers its HP or Stamina in proportion (a drop with no number, at least 1 HP), so scaling it again later heals it
-  // of nothing; a dying one keeps what it has.
+  // of the others; lifting_ keeps it counted for forget() until the call is done. Scaling whose raise came (or was
+  // under way) on a fighting enemy also lowers its HP or Stamina in proportion (a drop with no number, at least 1 HP),
+  // so scaling it again later heals it of nothing; a dying one keeps what it has, and so does one whose scaling
+  // stopped before its raise (only the max comes back).
   template <class Game> void lift(Game &g, uint64_t logic, size_t i) {
     const Capture c = caps_[i];
     caps_[i] = caps_[--captures_];
@@ -1027,7 +1030,7 @@ private:
     const uint64_t la = g.find(logic, c.guid);
     if (la && live(g, la, c.guid, a)) {
       const int stat = c.type == kMaxHpValue ? kHp : c.type == kMaxStamina ? kStamina : -1;
-      const bool share = stat >= 0 && fighting(a) && stats(g, a) && a.seen.max[stat] >= 1;
+      const bool share = c.raised && stat >= 0 && fighting(a) && stats(g, a) && a.seen.max[stat] >= 1;
       const float max = share ? a.seen.max[stat] : 0;
       const int32_t value = share ? a.seen.value[stat] : 0;
       g.apply(la, c.type, float(-c.delta), 0, false);
@@ -1201,8 +1204,9 @@ private:
 //   probe (T11a): read only, each live actor traced when first seen and again when its line changes, a stats line
 //     each second the census moved; its test writes (coop fight test) wait for fight writes=armed: our job ran and its
 //     census found our EVE in this run;
-//   record: the host's side alone, as if a guest were on: its lines (world, up, down, dead, hp, cc) go into
-//     coop-fight-record.txt, written when the mode ends;
+//   record: the host's side alone, as if a guest were on: its lines (world, scale, up, down, dead, hp, cc) go into
+//     coop-fight-record.txt, written when the mode ends. With scaling it writes (the enemies' maxes), so it waits for
+//     fight writes=armed too;
 //   replay: that file played into the guest's side from its start; the guest's own lines go nowhere. It writes, so
 //     it waits for fight writes=armed too.
 // A mode runs while a save is loaded, our player is not in photo mode (SB's logic stands still there, so the job would
@@ -1350,6 +1354,8 @@ private:
     coop_ = refused.empty(), gate_ms_ = now_;
     if (!coop_ && !(r.fight == Fight::on && no_coop(refused)))
       return "shared fight off: " + refused;
+    if (r.fight == Fight::record && scaling(r.scale) && !armed_)
+      return "shared fight record refused: its scaling writes, and writes are not armed yet (coop fight probe first)";
     if (r.fight == Fight::replay) {
       if (!armed_)
         return "shared fight replay refused: writes not armed yet (coop fight probe first)";

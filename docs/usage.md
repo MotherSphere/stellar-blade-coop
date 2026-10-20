@@ -436,16 +436,21 @@ multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15
 them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP stays at half.
 When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same share of HP and
 balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies or leaves the
-16 shared places, even while the guest pauses. The mod changes the game's MaxHPValue and MaxStamina stats through the
-game's own code. An enemy whose maximum HP the game has changed in another way keeps its own (the stats line of
-`coop-fight.log` counts it as unscaled). The `Shared enemies on` notice names the values when they are not both 1.0,
+16 shared places, even while the guest pauses. That covers every enemy in the 16 places, also one the guest's game
+never links (it is in another part of the map, or its copy does not match), which the host then fights alone at the
+higher values. The mod changes the game's MaxHPValue and MaxStamina stats through the game's own code. An enemy whose
+maximum HP the game has changed in another way keeps its own (the stats line of `coop-fight.log` counts it as
+unscaled). The `Shared enemies on` notice names the values when they are not both 1.0,
 for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the
 `fight=` line of `coop status` has `scale=135/115`.
 
 `kill_credit` is each player's own. With `all`, the default, every shared enemy that dies gives you the kill in your
 game. With `fought`, an enemy your EVE never hit in your game (its HP, shield and balance never dropped to your hits)
-dies there with no killer, and your game skips its kill rewards. Whether it still drops loot is not tested yet. An enemy
-that your own hit kills always gives you the kill.
+dies there with no killer, and your game skips its kill rewards. An enemy that is already hurt when it becomes shared
+in your game counts as fought, even if only the other player hurt it. This happens after either player's photo mode,
+when shared enemies restart, and when an enemy stops being shared and comes back; an enemy back at full HP by then
+counts as not fought. Whether an enemy with no killer still drops loot is not tested yet. An enemy that your own hit
+kills always gives you the kill.
 
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
@@ -503,7 +508,8 @@ shows when a check of the game's memory turned it off for the run. These notices
   (DownFaceUp), 3000303 (DownFaceDown) or 3000401 (WallHit). Once the log says `fight writes=armed`,
   `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the shared enemy with
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
-  `coop fight replay` plays that file into the guest's side.
+  `coop fight replay` plays that file into the guest's side. Both change enemies (record through the host's scaling,
+  when it is above 1.0), so the mod refuses them until the log says `fight writes=armed`.
 - The solo test tools stop on another slot with
   `STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>`.
 

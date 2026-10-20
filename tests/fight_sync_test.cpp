@@ -467,9 +467,11 @@ int main() {
   // ---- Host: two-player scaling and kill credit ----
   // Its scale line follows its world, before the ups, which keep the game's own MaxHP so the guest pairs her copies
   // before scaling them. It names for the engine every enemy it follows once her on came, and keeps naming it after
-  // her off until it leaves the list. An enemy the engine still holds scaled waits for a census before it is taken in.
-  // kill_credit=fought: a kill on her claim gives our EVE the rewards only for an enemy our EVE hit (a drop between
-  // two passes, the balance gauge too).
+  // her off until it leaves the list. An enemy named for the first time sends its values one step later, once the
+  // engine scaled it: sent at once, they would reach her unscaled, and her scaled copy would show a drop, then a heal.
+  // An enemy the engine still holds scaled waits for a census before it is taken in. kill_credit=fought: a kill on her
+  // claim gives our EVE the rewards only for an enemy our EVE hit (a drop between two passes, the balance gauge too),
+  // or one already hurt when it was taken in.
   {
     World w;
     w.add(101, 5001, 0);
@@ -483,7 +485,7 @@ int main() {
     h.receive(msg("SBF10 on"), 5, w);
     step(h, w, 2, 10);
     assert(w.lines() == "SBF10 world 1\nSBF10 scale 1 135 115\nSBF10 up 1 101 5001 0 900 1600\n"
-                        "SBF10 up 1 102 5002 0 900 1600\nSBF10 hp 1 1 0 101:1600:100:200 102:1600:100:200\n");
+                        "SBF10 up 1 102 5002 0 900 1600\n"); // Their values wait for the engine's scaling.
     assert(h.scaled(guids) == 2 && guids[0] == 101 && guids[1] == 102 && h.scale(kScaleHp) == 135 &&
            h.scale(kScaleBalance) == 115);
     for (uint32_t guid : {101u, 102u}) { // The engine's scaling: MaxHP and balance up, each raised in proportion.
@@ -491,7 +493,7 @@ int main() {
       s.max[kHp] = 2160, s.value[kHp] = 2160, s.max[kStamina] = 230, s.value[kStamina] = 230, s.scaled = true;
     }
     step(h, w, 3, 100);
-    assert(w.lines() == "SBF10 hp 1 2 0 101:2160:100:230 102:2160:100:230\n" && h.linked() == 2);
+    assert(w.lines() == "SBF10 hp 1 1 0 101:2160:100:230 102:2160:100:230\n" && h.linked() == 2);
     h.receive(msg("SBF10 world 4"), 110, w); // Her world changed: the whole list again, with the game's own MaxHP.
     step(h, w, 4, 110);
     assert(w.lines().rfind("SBF10 world 1\nSBF10 scale 1 135 115\nSBF10 up 1 101 5001 0 900 1600\n", 0) == 0);
@@ -509,7 +511,8 @@ int main() {
     h.receive(msg("SBF10 on"), 150, w);
     step(h, w, 8, 150);
     assert(h.scaled(guids) == 3 && guids[2] == 103);
-    w.lines();
+    const std::string again = w.lines(); // 103's values wait a step; 101 and 102 were scaled already.
+    assert(has(again, "SBF10 hp 1 3 0 101:") && !has(again, "103:"));
     w.hit(102, kStamina, 10);
     step(h, w, 9, 160);
     w.writes.clear();
@@ -521,6 +524,15 @@ int main() {
     wrote(w, 1, 102, kHp, -2160, true, true);
     assert(h.counts.kills == 2 && h.counts.uncredited == 1 && w.lines() == "SBF10 dead 1 101\nSBF10 dead 1 102\n");
     assert(h.scaled(guids) == 1 && guids[0] == 103); // The dead left the list: the engine lets them go.
+    // One our EVE hurt before it was taken in (a full list, a pause, shared enemies started mid-fight): fought.
+    w.add(104, 5004, 0);
+    w.hit(104, kHp, 100);
+    step(h, w, 11, 300);
+    w.writes.clear();
+    h.receive(msg("SBF10 hit 1 3 104 1500 0 0 1500 1"), 310, w);
+    step(h, w, 12, 310);
+    wrote(w, 0, 104, kHp, -1500, true, true);
+    assert(h.counts.kills == 3 && h.counts.uncredited == 1);
     // Without scaling: no scale line, nothing named; the default kill credit pays every kill.
     World v;
     v.add(201, 6001, 0);
@@ -956,7 +968,7 @@ int main() {
   // The host's scale line, of its generation, holds until its next world, on or off; with it every pair is named for
   // the engine (scaled(), as tracked()). A copy the engine still holds scaled never pairs: its MaxHP is not the game's.
   // Raising it is our write, never a claim. kill_credit=fought: the host's dead kills with our EVE as the cause only a
-  // copy our EVE hit.
+  // copy our EVE hit, or one already hurt when it paired.
   {
     World w;
     w.add(901, 5001, 0);
@@ -998,6 +1010,18 @@ int main() {
     // The host's next world drops its scaling with the pairs, until its next scale line.
     g.receive(msg("SBF10 world 2"), w);
     assert(g.scale(kScaleHp) == 100 && g.scale(kScaleBalance) == 100 && g.scaled(guids) == 0);
+    // Our hits before the pair (the host paused, or its up came late) make a hurt copy: fought.
+    Seen &own = w.actor(903)->s; // The engine let it go, at its own maxes.
+    own.max[kHp] = 1600, own.value[kHp] = 1600, own.max[kStamina] = 200, own.value[kStamina] = 200, own.scaled = false;
+    w.hit(903, kHp, 100);
+    g.receive(msg("SBF10 up 2 103 5003 0 900 1600"), w);
+    step(g, w, 6, 300);
+    assert(g.linked() == 1);
+    w.writes.clear();
+    g.receive(msg("SBF10 dead 2 103"), w);
+    step(g, w, 7, 316);
+    wrote(w, 0, 903, kHp, -1500, true, true);
+    assert(g.counts.kills == 3 && g.counts.uncredited == 1);
   }
 
   // ---- Guest, guest_kills=confirmed: our copies hold a 1 HP floor, so our lethal hit waits for the host's word ----

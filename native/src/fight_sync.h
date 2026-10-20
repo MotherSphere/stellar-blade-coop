@@ -495,7 +495,8 @@ public:
           ++counts.cc_told;
         }
         e.take(*s);
-        e.scaled = e.scaled || peer_on_;
+        if (!e.scaled && peer_on_)
+          e.scaled = true, e.due = scaling(scale_);
         e.cc.apply(e.guid, *s, now, counts, io);
         ++i;
         continue;
@@ -521,8 +522,11 @@ public:
       Enemy &e = *place = Enemy();
       e.guid = seen[i].guid;
       e.max_hp = std::max(1, whole(std::round(seen[i].max[kHp])));
-      e.scaled = peer_on_;
       e.take(seen[i]);
+      e.scaled = peer_on_, e.due = peer_on_ && scaling(scale_);
+      // Hurt before it was shared (by our EVE, or by her claims before a pause or a restart): fought. HP only, as for
+      // a fight above: whether Shield and balance always start full is not known.
+      e.fought = hurt;
       e.cc.start(seen[i]);
       if (each)
         io.send(up(e));
@@ -557,12 +561,16 @@ private:
     int32_t value[kStats] = {}, sent[kStats] = {};
     bool claimed = false; // A claim was taken since the last hp: its ack must travel with these values.
     bool hit = false;     // A claim was ever applied to it: it keeps its place.
-    bool fought = false;  // A drop between two passes: our EVE hit it (kill_credit=fought).
+    bool fought = false;  // Hurt when it came, or a drop between two passes: our EVE hit it (kill_credit=fought).
     bool scaled = false;  // Followed while her on held: the engine scales it.
-    uint64_t window = 0;  // The rate window's start and its claims.
+    // Scaled from this step: its values wait for the next pass, which reads them scaled. Sent now, they would reach
+    // her before the engine scales it, and her copy, already scaled, would take a drop with a number, then a heal.
+    bool due = false;
+    uint64_t window = 0; // The rate window's start and its claims.
     uint32_t in_window = 0;
     Mirror cc;
     void take(const Seen &s) {
+      due = false;
       for (int k = 0; k < kStats; ++k)
         fought = fought || s.value[k] < value[k];
       spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage;
@@ -688,7 +696,8 @@ private:
     *e = enemies_[--count_];
   }
 
-  // hp: the enemies whose values changed or took a claim, at most each kHpMs; all of them each kRefreshMs.
+  // hp: the enemies whose values changed or took a claim, at most each kHpMs; all of them each kRefreshMs. None that
+  // is due: its first values go at the next step, scaled.
   template <class Io> void values(uint64_t now, Io &io) {
     if (!peer_on_ || now < next_hp_)
       return;
@@ -702,7 +711,7 @@ private:
     m.batch = batch_ + 1;
     for (size_t i = 0; i < count_; ++i) {
       Enemy &e = enemies_[i];
-      if (!all && !e.claimed && std::equal(e.value, e.value + kStats, e.sent))
+      if (e.due || (!all && !e.claimed && std::equal(e.value, e.value + kStats, e.sent)))
         continue;
       Values &v = m.entries[m.count++];
       v.guid = e.guid;
@@ -776,8 +785,9 @@ public:
         guids[n++] = pairs_[i].local;
     return n;
   }
-  // With the host's scaling: the copies the engine scales after this step, as tracked() (a copy the host's dead kills
-  // this step keeps it: the engine lets a dying copy go without lowering its HP). Any other gets its own maxes back.
+  // With the host's scaling: the copies the engine scales after this step, as tracked(). Any other gets its own maxes
+  // back, a copy the host's dead killed this step too: the engine takes a dying copy's scaling off without lowering
+  // its HP.
   size_t scaled(uint32_t *guids) const { return scaling(scale_) ? tracked(guids) : 0; }
   // With confirm(): the copies whose floor the engine must hold after this step (every live pair, waiting or not), at
   // most kMaxTracked. Any other floor comes off: unpaired, dropped, dead (the engine lifts it before the kill).
@@ -915,7 +925,7 @@ private:
     uint8_t index = 0;
     int32_t max_hp = 0;
     bool dead = false;           // The host's dead came: the next step kills the copy.
-    bool fought = false;         // Our EVE hit the copy (a drop we claimed) since it paired: kill_credit=fought.
+    bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
     bool logged = false;         // Its unpaired reason was logged.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
     uint32_t lethal = 0;         // Our lethal claim's number while the host decides.
@@ -1091,6 +1101,9 @@ private:
         continue;
       }
       p.local = match->guid;
+      // Hurt when it pairs: fought (our EVE's hits, or the host's values before a pause or a re-pair: then it pays
+      // as with kill_credit=all). HP only, as on the host.
+      p.fought = match->value[kHp] < whole(match->max[kHp]);
       p.cc.start(*match);
       std::copy(match->value, match->value + kStats, p.seen);
       std::fill(p.stuck, p.stuck + kStats, -1);

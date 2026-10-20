@@ -955,7 +955,8 @@ int main() {
     assert(g.calls.empty() && stat(101, 2) == 1600); // Her on has not come.
     g.inbox.push_back(msg("SBF10 on"));
     frame(g, *e, 16);
-    assert(has(lines(g), "SBF10 world 1\nSBF10 scale 1 135 115\nSBF10 up 1 101 5001 0 900 1600\n"));
+    const std::string first = lines(g); // Their values wait for the next turn, which reads them scaled.
+    assert(has(first, "SBF10 world 1\nSBF10 scale 1 135 115\nSBF10 up 1 101 5001 0 900 1600\n") && !has(first, " hp "));
     assert(made(0, 101, {{3, 560}, {1, 560}, {13, 30}, {12, 30}}));
     assert(made(0, 102, {{3, 560}, {1, 280}, {13, 30}, {12, 15}}));
     assert(stat(101, 3) == 2160 && stat(101, 2) == 2160 && stat(101, 1) == 2160 && stat(101, 13) == 230);
@@ -1045,6 +1046,23 @@ int main() {
     for (const Game::Call &c : h.calls)
       moved += c.type == kMaxHpValue;
     assert(moved == 2 && h.elsewhere == 0 && e->forget() == 0);
+  }
+  // A stat 3 that reads back wrong once MaxHP rose: the latch's lift takes the max back and leaves HP alone, since
+  // the raise in proportion never came.
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->scale(135, 100);
+    e->set(true, true);
+    g.spawn(101, 5001, 0);
+    frame(g, *e, 0);
+    g.calls.clear();
+    g.during = [&] { g.mem.put<float>(g.fsb(101) + kStatBase + 4 * size_t(kMaxHpValue), 1601); }; // Off by one.
+    g.inbox.push_back(msg("SBF10 on"));
+    frame(g, *e, 16);
+    assert(e->latched() && !strcmp(e->why(), "implausible scale") && g.calls.size() == 2);
+    assert(g.calls[0].type == kMaxHpValue && g.calls[0].delta == 560 && g.calls[1].delta == -560);
+    assert(g.mem.get<float>(g.fsb(101) + kStatBase + 4) == 1600 && g.mem.get<float>(g.fsb(101) + kStatBase + 8) == 1601);
   }
 
   // ---- fight_chars=auto: with no list, every Monster (ActorType 3 at FSBActor +0x368), never a boss or an Alpha
@@ -2188,9 +2206,18 @@ int main() {
       H.spawn(101, 5001, 0);
       uint64_t t = 0;
       w.pass(t, false, false, true, none, gate, io);
-      const std::string said = w.ask(coop::parse_request("fight record scale 135 115 900"), gate, io);
-      assert(said.rfind("shared fight record:", 0) == 0);
-      for (; t < 1500; t += 16) {
+      const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
+      // Its scaling writes: refused before fight writes=armed, as a replay is.
+      assert(ask("fight record scale 135 115 900") == "shared fight record refused: its scaling writes, and writes are "
+                                                       "not armed yet (coop fight probe first)");
+      assert(ask("fight probe").rfind("shared fight probe: ", 0) == 0);
+      for (; !io.saying("fight writes=armed: ") && t < 1000; t += 16) {
+        frame(H, *e, t);
+        w.pass(t, false, false, true, none, gate, io);
+      }
+      assert(ask("fight off") == "shared fight off: coop fight off");
+      assert(ask("fight record scale 135 115 900").rfind("shared fight record:", 0) == 0);
+      for (const uint64_t from = t; t < from + 1500; t += 16) {
         frame(H, *e, t);
         w.pass(t, false, false, true, none, gate, io);
       }
@@ -2370,8 +2397,9 @@ int main() {
     // guest_kills=confirmed her copy lives on and she alone hits it to its death).
     for (uint32_t i = 0; i < 4; ++i)
       assert((hits[i][0] || (confirmed && i == 3)) && hits[i][1]);
-    // 2. The gap closes within 250 ms + RTT, but where an hp line was lost (the next comes with the 1 s refresh).
-    assert(fast.size() > 40 && !slow.empty() && slow.size() <= to_guest.lost);
+    // 2. The gap closes within 250 ms + RTT, but where an hp line was lost (the next comes with the 1 s refresh). The
+    // first run's numbers lose one that a gap waits on; the second's lost lines may all fall between hits.
+    assert(fast.size() > 40 && (confirmed || !slow.empty()) && slow.size() <= to_guest.lost);
     for (uint64_t took : slow)
       assert(took <= 1000 + 150 + 3 * 16);
     // 3. Exactly one death per world per kill, each with that world's EVE as the cause (F3); the guest's copy never
@@ -2430,4 +2458,37 @@ int main() {
   };
   two_pcs(false);
   two_pcs(true);
+
+  // ---- Scaling as the guest joins, and for an enemy that spawns later: her copy never takes a drop ----
+  // At 135/115 and with no hit at all, for each phase of her census against the host's turns: an hp line the host
+  // sent before its engine scaled the enemy would bring her scaled copy down to the unscaled HP (a drop with a
+  // number), then back up.
+  for (uint64_t late = 0; late < 2 * kCensusTurns; ++late) {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->scale(135, 115);
+    H.spawn(50, 6000, 0);
+    G.spawn(950, 6000, 0);
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF10 on");
+    to_guest.queue.emplace_back(120, "SBF10 on");
+    std::mt19937 rng(1);
+    for (uint64_t t = 0; t < 4000; t += 16) {
+      if (t == 2000)
+        H.spawn(100, 7000, 0);
+      if (t == 1504)
+        G.spawn(900, 7000, 0);
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      frame(H, *eh, t);
+      if (t >= late * 16)
+        frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    for (const Game::Call &c : G.calls)
+      assert(c.type != 1 || c.delta > 0); // HP only rises, with the scaling.
+    assert(G.hp(950) == 2160 && G.hp(900) == 2160 && H.hp(50) == 2160 && H.hp(100) == 2160);
+  }
+  std::printf("fight_engine_test: ok (scaling at join and at a later spawn: no drop for any census phase)\n");
 }
