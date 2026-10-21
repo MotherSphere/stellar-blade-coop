@@ -476,17 +476,16 @@ quarter(false,true); saves.nav('back')
 quarter(true,false); assert(#said==0,'Own saves: the manual slot is the co-op save')
 info=at({saves='coop',marker='4'})
 quarter(true,false)
-assert(#said==1 and said[1]=='Co-op now plays StellarBladeCoop04.sav, the co-op copy of your manual co-op slot 4. '
-    ..'StellarCoopSlot.txt and StellarBladeSave04.sav are no longer needed for co-op: with the game closed, you can '
-    ..'move them out of the save folder.',said[1])
+assert(#said==1 and said[1]=='Co-op now plays StellarBladeCoop04.sav. With the game closed, you can move '
+    ..'StellarCoopSlot.txt out of the save folder, and StellarBladeSave04.sav unless you played it after that copy was '
+    ..'made.',said[1])
 quarter(false,true); quarter(true,false); assert(#said==1,'Once a Lua load')
 state.language='fr-FR'
 saves=new()
 info=at({saves='coop',marker='2'})
 quarter(true,false)
-assert(said[1]=='Le co-op utilise maintenant StellarBladeCoop02.sav, la copie co-op de votre emplacement co-op manuel '
-    ..'2. StellarCoopSlot.txt et StellarBladeSave02.sav ne servent plus au co-op : jeu fermé, vous pouvez les sortir '
-    ..'du dossier des sauvegardes.',said[1])
+assert(said[1]=='Le co-op utilise désormais StellarBladeCoop02.sav. Jeu fermé, vous pouvez sortir StellarCoopSlot.txt '
+    ..'du dossier, et StellarBladeSave02.sav sauf si vous y avez joué après cette copie.',said[1])
 state.language=nil
 
 -- Another game build (a game update: link.saves()'s build): the co-op saves are off; with ask or always, said once a Lua

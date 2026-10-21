@@ -58,10 +58,9 @@ T.en={
         off='Co-op saves off for this load: %s. You play your own saves.',
         build='Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves '
             ..'until StellarCoop is updated.',
-        -- The manual co-op slot's digit, three times.
-        manual='Co-op now plays StellarBladeCoop0%s.sav, the co-op copy of your manual co-op slot %s. StellarCoopSlot.txt '
-            ..'and StellarBladeSave0%s.sav are no longer needed for co-op: with the game closed, you can move them out of '
-            ..'the save folder.'},
+        -- The manual co-op slot's digit, twice.
+        manual='Co-op now plays StellarBladeCoop0%s.sav. With the game closed, you can move StellarCoopSlot.txt out of '
+            ..'the save folder, and StellarBladeSave0%s.sav unless you played it after that copy was made.'},
     -- The status line (link.lua's summary(): under the menu, and the status key's notice); %s: her Steam name, or
     -- friend.
     summary={stopped='Co-op: the Steam link stopped; coop status says why.',waiting='Co-op: waiting for Steam.',
@@ -157,9 +156,8 @@ T.fr={
         off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.',
         build='Sauvegardes co-op coupées : StellarCoop ne prend pas en charge cette version du jeu. Vous jouez sur vos '
             .."propres sauvegardes jusqu'à une mise à jour de StellarCoop.",
-        manual='Le co-op utilise maintenant StellarBladeCoop0%s.sav, la copie co-op de votre emplacement co-op manuel %s. '
-            ..'StellarCoopSlot.txt et StellarBladeSave0%s.sav ne servent plus au co-op : jeu fermé, vous pouvez les '
-            ..'sortir du dossier des sauvegardes.'},
+        manual='Le co-op utilise désormais StellarBladeCoop0%s.sav. Jeu fermé, vous pouvez sortir StellarCoopSlot.txt du '
+            ..'dossier, et StellarBladeSave0%s.sav sauf si vous y avez joué après cette copie.'},
     summary={stopped="Co-op : le lien Steam s'est arrêté ; coop status dit pourquoi.",
         waiting='Co-op : en attente de Steam.',held='Co-op : invitation en attente du chargement de votre sauvegarde.',
         rejoin='Co-op : reconnexion à la partie de votre partenaire (essai %s/3).',

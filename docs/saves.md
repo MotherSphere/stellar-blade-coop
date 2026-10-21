@@ -149,9 +149,12 @@ With the game using your own saves (`saves=main` or `saves=off`), the co-op save
 save with `auto_coop_save=off`.
 
 Once the game uses the co-op copies (`saves=coop`), the manual slot no longer counts: co-op plays its copy,
-`StellarBladeCoop0N.sav`, made from `StellarBladeSave0N.sav` like every other copy. A notice says so once a load and
-names the two files co-op no longer needs. The mod moves nothing: with the game closed, you can move
-`StellarCoopSlot.txt` and `StellarBladeSave0N.sav` out of the save folder, or keep them for `auto_coop_save=off`.
+`StellarBladeCoop0N.sav`. A copy not played in co-op follows `StellarBladeSave0N.sav` at each pass; a copy played in
+co-op is kept, so progress you made later in `StellarBladeSave0N.sav` (through the manual slot, with the copies off) is
+not in it; `coop saves refresh N` replaces that copy with it (the old copy is backed up first). A notice says once a
+load which files co-op no longer needs. The mod moves nothing: with the game closed, you can move `StellarCoopSlot.txt`
+out of the save folder, and `StellarBladeSave0N.sav` unless you played it after its copy was made, or keep both for
+`auto_coop_save=off`.
 
 [INSTALL.md: Manual co-op slot](../INSTALL.md#manual-co-op-slot-auto_coop_saveoff) says how to make it; on Linux,
 `tools/save_guard.py slot` does it:

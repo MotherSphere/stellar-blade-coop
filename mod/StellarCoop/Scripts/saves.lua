@@ -239,7 +239,7 @@ function Saves.new(o)
         if manual==nil and info.saves=='coop' and info.marker then manual=info.marker end
         if manual and (world or kit.ready()) then
             pick()
-            o.say(lang.saves.manual:format(manual,manual,manual))
+            o.say(lang.saves.manual:format(manual,manual))
             manual=false
         end
         draw() -- The kit may have built its root again meanwhile: on change only.
