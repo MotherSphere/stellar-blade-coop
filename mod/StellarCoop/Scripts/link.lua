@@ -422,7 +422,8 @@ function Link.new(folder,fs)
     -- Race lines (race_model.lua's). The native part takes coop-race.txt at every pass and sends each line, in order;
     -- a write before it took the last file would replace it, so a cp and a fin sent close together lost the cp. So
     -- race() queues each line, and race_flush() writes every pending one into one new file once the last is gone:
-    -- changes() calls it, and the race each frame.
+    -- changes() calls it, and the race each frame. It never removes the last: one the native part holds open while it
+    -- takes it cannot be read, so the rename fails while it is there and the lines wait for the next flush.
     -- ponytail: 512 lines at most, the oldest dropped, for a native part that never takes them (a fault, another
     -- build); steam_link.cpp reads that many.
     local race_queue={}
@@ -432,7 +433,7 @@ function Link.new(folder,fs)
     end
     function self.race_flush()
         if race_queue[1] and not fs.read(path('coop-race.txt'))
-            and put('coop-race.txt',table.concat(race_queue,'\n')..'\n') then
+            and put('coop-race.txt',table.concat(race_queue,'\n')..'\n',true) then
             race_queue={}
         end
     end

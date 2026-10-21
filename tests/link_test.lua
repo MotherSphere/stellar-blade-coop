@@ -820,6 +820,19 @@ fs.write=write
 link.race_flush()
 assert(files[RACE]=='end 7\n' and not files[RACE..'.tmp'])
 files[RACE]=nil
+-- The native part holds the file open while it takes it, so it reads as missing: the flush leaves it alone and the
+-- line waits for the next one.
+local read=fs.read
+fs.read=function(path) if path==RACE then return nil end return read(path) end
+files[RACE]='go 7 4000\n'
+link.race('cp 7 1 1 1000')
+link.race_flush()
+assert(files[RACE]=='go 7 4000\n','Never removed under the native part')
+fs.read=read
+files[RACE]=nil
+link.race_flush()
+assert(files[RACE]=='cp 7 1 1 1000\n' and not files[RACE..'.tmp'],'Written once it is gone')
+files[RACE]=nil
 files[CHAT]='race track 7 2 1 0 0 0 90 /game/map\nin Coucou\nrace cps 7 1 4000 0 0 1200 8000 0 0 1200\nrace \n'
     ..'in race 9\nrace go 7 4000\n'
 chat=link.take_chat()
