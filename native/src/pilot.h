@@ -468,6 +468,8 @@ public:
   static constexpr size_t kSamples = 16; // About 500 ms at 30 Hz: more than the ghost's draw delay.
   static constexpr double kExtrapolateMs = 150, kGapMs = 250, kWarpMs = 100;
   static constexpr float kWarpCm = 300, kSnapCm = 300;
+  // cm/s. A blend over one 33 ms SBE period stays under kWarpCm in 33 ms (9091 cm/s); a faster one is a peer's stamps.
+  static constexpr float kMaxSpeed = 10000;
 
   void clear() { count_ = newest_ = 0, has_last_ = false; }
   // One entry stamped with its message's publication (µs); false when it is not newer than the newest.
@@ -529,6 +531,9 @@ public:
     const double span_s = (ms(b) - ms(a)) / 1000;
     for (int i = 0; moving && i < 3; ++i)
       out.vel[i] = float((sb.root[4 + i] - sa.root[4 + i]) / span_s);
+    const float still[3] = {}, v = distance(out.vel, still);
+    for (float &f : out.vel) // Bounded along its direction (kMaxSpeed).
+      f = v > kMaxSpeed ? f / v * kMaxSpeed : f;
     // A held copy stands still: no speed, or its legs would run in place.
     out.speed = moving ? float(sa.speed + std::min(alpha, 1.0) * (sb.speed - sa.speed)) : 0;
     out.flags = base.flags;

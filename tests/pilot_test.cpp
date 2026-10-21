@@ -1039,6 +1039,14 @@ int main() {
     Drawn d;
     assert(t.push(1000 * 1000, entry(1, -1e7f)) && t.push(1101 * 1000, entry(1, 1e7f)));
     assert(t.sample(1250, d) && !d.held && d.loc[0] == coop::pose::kMaxWorld);
+    // Nor does its velocity pass Track::kMaxSpeed, along the samples' direction.
+    assert(d.vel[0] == Track::kMaxSpeed && d.vel[1] == 0 && d.vel[2] == 0);
+    // 3 m in 1 µs (no warp: a peer's stamps): the velocity stays bounded too.
+    Track u;
+    Entry e = entry(1, 180, 240);
+    assert(u.push(1'000'000, entry(1, 0)) && u.push(1'000'001, e));
+    assert(u.sample(1000.1, d) && !d.held);
+    assert(near(d.vel[0], Track::kMaxSpeed * 0.6f, 0.1) && near(d.vel[1], Track::kMaxSpeed * 0.8f, 0.1));
   }
   // 3.5 m in 150 ms is no warp (it is past 100 ms): blended.
   {
