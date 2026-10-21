@@ -1314,13 +1314,24 @@ assert(doro and doro.attached.parent==actor.parts[1] and actor.parts[1].visible=
 -- Off: the Doro gone, each part shown as the table says (her ponytail hidden there).
 assert(ghost.doro(false)==nil and doro.destroyed)
 for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
+-- A Doro call that fails at a pose: Doro mode off, its Doro gone, the parts as the table says, the ghost kept.
+assert(ghost.doro(true)==nil and actor.parts[1].visible==false)
+doro=actor.parts[#actor.parts]
+doro.SetPlayRate=function() error('no rate') end
+box=actor.mailbox
+clock=clock+0.1
+box.RelativeScale3D.Z,box.RelativeLocation=54,{X=160,Y=0,Z=30}
+ok,message=ghost.place()
+assert(ok==false and message:find('^Doro mode off on the ghost: .*no rate'),tostring(message))
+assert(doro.destroyed and not actor.destroyed and actor.hidden==false and ghost.active(),'The ghost kept')
+for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
 -- No Doro mesh on this PC: the ghost stays her.
 meshes[DORO.mesh].destroyed=true
 local doro_mesh=meshes[DORO.mesh]
 meshes[DORO.mesh]=nil
 ok,message=ghost.doro(true)
 assert(ok==false and message:find('^Doro mode off on the ghost: .*the Doro mesh is missing on this PC'),tostring(message))
-assert(actor.parts[1].visible==true and #actor.parts==7,'Drawn as her, no Doro added')
+assert(actor.parts[1].visible==true and #actor.parts==8,'Drawn as her, no Doro added')
 meshes[DORO.mesh],doro_mesh.destroyed=doro_mesh,nil
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.

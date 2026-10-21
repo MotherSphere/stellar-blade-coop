@@ -3,8 +3,9 @@
 -- emotes only while standing, the smoothing), Doro.apply's calls; the look (only parts not already hidden are hidden,
 -- listed and written to coop-look.txt before EVE changes; the Doro placed at her main mesh each frame; the 250 ms check
 -- hides again and counts, and logs the flags the game changed; off clears only those parts and restores the tick
--- option; a map change turns it off; its first error turns it off until the mod reloads; a restore from an earlier
--- Lua load's file; a stale path only clears the file) and the probe's steps and lines.
+-- option, and keeps the file when a step fails; a map change turns it off, with no call on an object that took the
+-- place of one it met; its first error turns it off until the mod reloads; a restore from an earlier Lua load's file; a
+-- stale path only clears the file) and the probe's steps and lines.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -52,7 +53,7 @@ local function component(actor)
         c.calls[#c.calls+1]=table.concat(words,' ')
     end
     function c:K2_AttachToComponent(parent) self.parent=parent; said('attach') end
-    function c:SetSkeletalMesh(m) self.mesh=m; said('mesh',m.key) end
+    function c:SetSkeletalMesh(m) self.mesh,self.SkeletalMesh=m,m; said('mesh',m.key) end
     function c:SetRelativeScale3D(v) self.scale=v; said('scale',v.X) end
     function c:SetCollisionEnabled(n) said('collision',n) end
     function c:SetAnimationMode(n) said('mode',n) end
@@ -87,9 +88,10 @@ local world=object({SpawnActor=function(_,c,at,rot)
     end
     function a:K2_GetRootComponent() return self.components[1] end
     function a:K2_DestroyActor() self.destroyed=true end
-    function a:GetFullName() return 'Actor /Game/Map.Map:PersistentLevel.Actor_'..#spawned end
+    local n=#spawned+1
+    function a:GetFullName() return 'Actor /Game/Map.Map:PersistentLevel.Actor_'..n end
     a.spawned_at,a.spawned_rot=at,rot
-    spawned[#spawned+1]=a
+    spawned[n]=a
     return a
 end,GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end})
 -- A mesh component of EVE's: hidden (bHiddenInGame) or not, visible (bVisible) or not; its writes counted.
@@ -108,6 +110,9 @@ local function eve_of(name)
     local e=object({velocity={X=0,Y=0,Z=0},sprint=false,falling=false})
     e.parts={part('CharacterMesh0',false),part('Mesh_Face',false),part('SBHair',false),part('SBPonytail',true),
         part('Blade',false,false)}
+    for _,p in ipairs(e.parts) do
+        function p:GetFullName() return 'MeshComponent /Game/Map.Map:PersistentLevel.'..name..'.'..self.name end
+    end
     e.Mesh=e.parts[1]
     e.Mesh.VisibilityBasedAnimTickOption=3
     e.Mesh.K2_GetComponentLocation=function() return {X=10,Y=20,Z=-87} end
@@ -308,6 +313,19 @@ clock=101
 look.tick()
 assert(last()=='speed v=500 sb=512 sprint=1',last())
 eve.sprint=false
+-- Her falling flag with no vertical speed: held at 0.5 s. Evade was collected meanwhile: found again, and counted on
+-- the minute line.
+local evade=assets[Doro.ASSETS.evade]
+evade.destroyed=true
+assets[Doro.ASSETS.evade]=object({key='evade',GetFullName=evade.GetFullName,IsA=evade.IsA})
+Doro.reloads.n,Doro.reloads.ms=0,0
+eve.falling=true
+clock=101.05
+root.calls={}
+look.tick()
+assert(table.concat(root.calls,'|')=='play evade false|rate 0|at 0.5',table.concat(root.calls,'|'))
+assert(Doro.reloads.n==1)
+eve.falling=false
 -- The 250 ms check: a part the game showed is hidden again and counted; a flag the game changed is logged once; the
 -- tick option the game set back is set to 0 again.
 face.bHiddenInGame=false
@@ -324,7 +342,7 @@ look.tick()
 assert(#logs==lines and face.writes==2,'Nothing changed: nothing said or written')
 clock=160.1
 look.tick()
-assert(last()=='look hid=4 tick=3->0 rehid=1/min retick=1/min',last())
+assert(last()=='look hid=4 tick=3->0 rehid=1/min retick=1/min reload=1/min reload_ms=0' and Doro.reloads.n==0,last())
 -- Off: only the listed parts are shown again, the tick option is back, the file and the Doro are gone.
 ok,why=look.off('coop race look off')
 assert(ok and why=='Doro look off (coop race look off): 4 parts shown again, tick option 3 back.',why)
@@ -332,6 +350,29 @@ for _,p in ipairs({body,face,hair,blade}) do assert(p.bHiddenInGame==false,p.nam
 assert(pony.bHiddenInGame==true and pony.writes==0,'The game\'s own hidden part stays hidden')
 assert(body.VisibilityBasedAnimTickOption==3 and stored==nil and doro.destroyed)
 assert(not look.active() and select(2,look.off('again'))=='The Doro look is off already.')
+-- A step of off that fails keeps the file: the next Lua load tries again.
+assert(look.on())
+local set=hair.SetHiddenInGame
+hair.SetHiddenInGame=function() error('no write') end
+ok,why=look.off('test')
+hair.SetHiddenInGame=set
+assert(not ok and why:find('3 parts shown again',1,true) and why:find('no write',1,true) and stored~=nil,why)
+hair:SetHiddenInGame(false,false)
+stored=nil
+-- After travel a new object can sit where a freed one was, and valid() passes it; its path differs. The look then
+-- goes off with no call on any of them.
+local other=eve_of('EVE_3')
+player=other
+assert(look.on())
+local foreign=spawned[#spawned]
+for _,o in ipairs({other,foreign,table.unpack(other.parts)}) do
+    o.GetFullName=function() return 'Other /Game/Other.Other:PersistentLevel.Other' end
+end
+ok,why=look.tick()
+assert(ok and why:find('^Doro look off %(map change%): 0 parts shown again'),why)
+assert(not foreign.destroyed and other.Mesh.VisibilityBasedAnimTickOption==0 and stored==nil)
+for _,p in ipairs(other.parts) do assert(p.writes==(p.name=='SBPonytail' and 0 or 1),p.name) end
+player=eve
 -- A map change (another EVE, or none): off by itself, EVE's flags restored where she still is.
 assert(look.on())
 player=eve_of('EVE_2')
@@ -363,6 +404,14 @@ ok,why=look2.on()
 assert(not ok and why:find('^Doro look not turned on: cannot write coop%-look%.txt%. Doro look off %(error%): 0 '),why)
 assert(body.writes==writes and body.bHiddenInGame==false and body.VisibilityBasedAnimTickOption==3,'Never written')
 assert(spawned[#spawned].destroyed,'Its Doro gone')
+-- Her rotation unreadable for the yaw line, a log line only: the look stays on.
+local look3=Doro.new({log=log,store=store})
+local rotation=eve.K2_GetActorRotation
+eve.K2_GetActorRotation=function() error('no rotation') end
+ok,why=look3.on()
+eve.K2_GetActorRotation=rotation
+assert(ok and look3.active(),why)
+look3.off('test')
 
 -- An earlier Lua load left its look on (Ctrl+R): the next load's first tick shows the listed parts, sets the tick
 -- option back, destroys that load's Doro and clears the file. Once.
@@ -392,6 +441,14 @@ writes=body.writes
 fresh=Doro.new({log=log,store=store})
 fresh.restore()
 assert(stored==nil and body.writes==writes and last()=='look restored 0 parts from coop-look.txt',last())
+-- An actor at the saved path whose root shows another mesh is no Doro of ours: left standing.
+local stranger=world:SpawnActor(class('/Script/Engine.Actor'),{},{})
+stranger:AddComponentByClass(class('/Script/Engine.SkeletalMeshComponent'),false,'identity',false)
+    :SetSkeletalMesh(assets[Doro.ASSETS.idle])
+by_path['/Game/Map.Map:PersistentLevel.Actor_77']=stranger
+stored='/Game/Map.Map:PersistentLevel.EVE_9\t3\t/Game/Map.Map:PersistentLevel.Actor_77\tCharacterMesh0'
+Doro.new({log=log,store=store}).restore()
+assert(not stranger.destroyed and stored==nil)
 
 -- The probe: a Doro 3 m ahead of her, facing her; each step logged as it starts, the held frames read back, one line
 -- at the end with both clocks; its Doro gone after.
@@ -431,6 +488,24 @@ end
 local failed=0
 for k=lines+1,#logs do if logs[k]:find('^probe phase=two_legs_%d+ failed: .*no instance$') then failed=failed+1 end end
 assert(failed==3 and last():find('^probe anim=%? bs=failed rate=ok '),last())
+-- Another object where its Doro was (a map change): the probe ends at its next step with no call on it, and coop off
+-- destroys nothing.
+probe=Doro.new({log=log,store=store})
+assert(probe.probe())
+probe.tick()
+p=spawned[#spawned]
+p.GetFullName=function() return 'Other /Game/Other.Other:PersistentLevel.Other' end
+p.components[1].calls={}
+clock=clock+3
+probe.tick()
+assert(last()=='probe ended at phase=turn_90l: its Doro is gone' and #p.components[1].calls==0,last())
+assert(probe.tick()==nil and not p.destroyed)
+probe=Doro.new({log=log,store=store})
+assert(probe.probe())
+p=spawned[#spawned]
+p.GetFullName=function() return 'Other /Game/Other.Other:PersistentLevel.Other' end
+probe.stop()
+assert(not p.destroyed)
 
 -- coop off: the look off (logged), the probe's Doro gone.
 local all=Doro.new({log=log,store=store})
