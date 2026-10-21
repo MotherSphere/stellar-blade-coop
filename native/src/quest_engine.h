@@ -1080,14 +1080,16 @@ private:
   }
   template <class Io> void start(Mode mode, uint64_t partner, const std::string &slot, Io &io) {
     Setup s;
-    s.mode = mode, s.deny = deny_;
+    s.mode = mode, s.deny = deny_, keep_ = false;
     if (mode == Mode::host || mode == Mode::guest) {
       s.partner = partner;
       const int n = slot_index(slot);
       std::string text;
       size_t bad = 0;
-      if (n < 0 || !io.load(n, text, kMaxRecord))
-        io.say("quests: the record of co-op slot " + std::to_string(n) + " could not be read: steps start anew"),
+      keep_ = n < 0 || !io.load(n, text, kMaxRecord); // Never replaced by a shorter one: it stays for a later side.
+      if (keep_)
+        io.say("quests: the record of co-op slot " + std::to_string(n) +
+               " could not be read: it stays as it is and is not written while this side runs"),
             text.clear();
       s.record = parse_record(text, &bad);
       if (bad)
@@ -1120,7 +1122,7 @@ private:
         if (notes_.size() > kNotes)
           notes_.erase(notes_.begin());
       }
-    if (o.record_changed && o.slot >= 0)
+    if (o.record_changed && o.slot >= 0 && !keep_)
       record_ = std::move(o.record), record_slot_ = o.slot, record_dirty_ = true;
     if (record_dirty_ && now_ms >= record_at_ + kRecordMs) {
       record_at_ = now_ms, record_dirty_ = false;
@@ -1161,7 +1163,7 @@ private:
   size_t recorded_ = 0;
   int record_slot_ = -1;
   bool started_ = false, blocked_ = false, record_dirty_ = false, recording_dirty_ = false, unsent_said_ = false,
-       full_said_ = false;
+       full_said_ = false, keep_ = false; // keep_: this side's record file could not be read, so it is not written.
   std::vector<std::string> notes_, answer_;
 };
 

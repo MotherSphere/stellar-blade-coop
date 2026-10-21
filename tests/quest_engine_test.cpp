@@ -1326,6 +1326,27 @@ void workers() {
     said.insert(said.end(), swap->io.sent.begin(), swap->io.sent.end());
   }
   assert(said == (std::vector<std::string>{q("off link"), q("on 0")}) && swap->io.loads[2] == 2);
+  // A record that cannot be read (a file another program holds open): the side runs with no marks from it, and the
+  // file is left as it is for that side, never replaced by a shorter one.
+  {
+    auto lock = std::make_unique<Desktop>();
+    lock->hosting = true, lock->partner = kGuestId, lock->io.unreadable = true;
+    lock->io.records[2] = "h 76561198000000002 54 3 1 - - - .\n";
+    lock->w.ask(on, lock->io);
+    for (int n = 0; n < 3; ++n)
+      lock->pass(now), now += 250;
+    lock->in = {q("on 0")};
+    for (int n = 0; n < 3; ++n)
+      lock->pass(now), now += 250;
+    lock->pc.acquire(at("Quest_Sub_001"));
+    for (int n = 0; n < 8; ++n)
+      lock->pass(now), now += 250;
+    assert(has(lock->io.traced, "quests: snapshot 1, 0 quests"));
+    assert(lock->state() == "quests=on mode=on role=host partner=on" && lock->io.saves[2] == 0);
+    assert(has(lock->io.said, "quests: the record of co-op slot 2 could not be read: it stays as it is and is not "
+                              "written while this side runs"));
+    assert(lock->io.records[2] == "h 76561198000000002 54 3 1 - - - .\n");
+  }
   // Another quest_deny asked while it runs: the side starts anew with it, her off first.
   said.clear();
   assert(swap->w.ask(parse_request("quests on deny 54"), swap->io).rfind("quests on: ", 0) == 0);
