@@ -650,7 +650,7 @@ component back and points the enemy at its own EVE with the game's force target 
   manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
   so.
 
-To test it alone (the T11d-solo test), record the host's side once, then play it into the guest's side after a camp
+To test it alone, record the host's side once, then play it into the guest's side after a camp
 rest:
 
 1. With `same_place=on`: `coop puppet`, then `coop fight probe` until `coop-link.log` says `fight writes=armed`, then
