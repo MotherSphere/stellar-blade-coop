@@ -914,20 +914,22 @@ sharing goes on from where both games stand.
 `coop quests status` answers with the `quests=` line and writes the whole status into `UE4SS.log` as
 `quests_status=<n> ...` lines: the role, the zone, how many steps her game made and how many the game refused, and for
 each quest that waits, why (`waits for its zone <zone>`, `waits for your own kill`, `hand it in at your board`, `not on
-your board yet`, `unseen by the host`, `behind the host, not shared`, `ahead of the host`). `coop-quests.log` in the mod
-folder logs each step made, held or refused with the events it starts, each snapshot, and a stats line each minute.
+your board yet`, `unseen by the host`, `behind the host, not shared`, `ahead of the host`), with the quest's number.
+`coop-quests.log` in the mod folder logs each step the host sends, each step her game made, held or refused with the
+events it starts, and each snapshot. Its stats line each minute counts the quests tracked, the steps made and refused,
+the holds by reason and the quests ahead, with the mean and longest time of a pass in microseconds.
 
 - `quests=off`: not asked, or `coop quests off`.
 - `quests=waiting mode=on why=friend`: no friend linked. `why=save`: this game does not play a co-op save (a notice
-  says so). `why=game`: the game's world or quest data is not loaded yet.
+  says so once one of your own saves is loaded). `why=game`: the game's world or quest data is not loaded yet.
 - `quests=on mode=on role=<host|guest> partner=<on|off>`: running; `partner=off` while your friend's side is off.
 - `quests=stopped`: stopped for this run after an error; the ghost, the link and shared enemies go on.
 
 To test alone on a co-op save, `coop quests record` writes the host's side of your play to `coop-quests-record.txt` in
-the mod folder, at most once a second. Load another co-op save whose quests stand before those steps, then
-`coop quests replay` plays the recording into it as the guest's side: each step goes once you stand in the zone where
-it was recorded. `coop quests probe` only reads: it logs what it finds of your quests in `coop-quests.log` and makes no
-step. `coop quests off` ends any of them.
+the mod folder, at most once a second. Load another co-op save whose quests stand before those steps (the load ends the
+recording, and the file keeps it), then `coop quests replay` plays the recording into it as the guest's side: each step
+goes once you stand in the zone where it was recorded. Loading another save ends a replay too. `coop quests probe` only
+reads: it logs what it finds of your quests in `coop-quests.log` and makes no step. `coop quests off` ends any of them.
 
 ### `coop off`
 
@@ -1232,7 +1234,8 @@ as `[StellarCoop] link: ...`. Each load logs the save slot as `link: slot=...`.
 
 ## Files in the mod folder
 
-Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes these files, and
+Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save folder files listed in
+[saves.md](saves.md#what-the-mod-reads-and-writes). An install never removes these files, and
 `tools/install.py --uninstall` backs them up before it removes the folder.
 
 | File | Written by | What it is |
