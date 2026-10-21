@@ -2741,6 +2741,26 @@ int main() {
              }) == 2);
     assert(count(G, "spawns probe") == 12 && e->snapshot().spawning);
   }
+  // A crowded zone: at most kProbeTold verdicts a census, so the events of one hand-over (kMail) never overflow; the
+  // rest come at the next censuses.
+  {
+    Game G;
+    auto e = engine(false, false);
+    e->same_spawns(true);
+    e->set(true, false, true);
+    G.spawns();
+    G.zone(0xA1, 40);
+    G.enter(0xA1);
+    for (uint32_t id = 1; id <= 40; ++id)
+      G.spawn_row(id, 2, 0xA1), G.spawn(100 + id, id, 0);
+    size_t first = 0;
+    for (uint64_t t = 0; t <= 2000; t += 16) {
+      frame(G, *e, t);
+      if (!first)
+        first = count(G, "spawns probe");
+    }
+    assert(first == kProbeTold && count(G, "spawns probe", "takes part") == 40 && !e->latched());
+  }
 
   // ---- Same spawns' two game calls on fake memory: their arguments; none with no spawn manager or after a latch ----
   // The host holds keys 1 and 5:2 (where it stands, at its yaw), she holds 3 and 4. FUN_141c1c9a0 gets SB's spawn

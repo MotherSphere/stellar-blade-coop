@@ -501,6 +501,7 @@ private:
 };
 
 constexpr size_t kMail = 128; // Lines or events each way between two hand-overs; more are lost (counted).
+constexpr size_t kProbeTold = kMail / 4; // coop fight spawn probe's verdicts a census.
 
 class Engine {
 public:
@@ -1172,8 +1173,9 @@ private:
   // coop fight spawn probe (fight probe spawns), alone on one game: our epoch as same spawns count it (logged as it
   // moves), then once an epoch for each Monster the shared fight shares, how its spawn row stands in our zone: "spawns
   // probe <key> takes part", save-row, keep-row, event-row, another zone or no row; "spawns probe no zone" once an
-  // epoch while our zone has no ZoneTable ID. Only the two read-only lookups run: no line goes out, and SB's spawn and
-  // despawn are never called.
+  // epoch while our zone has no ZoneTable ID. At most kProbeTold verdicts a census (each may log its row's spawns leave
+  // too), so a crowded zone never fills the kMail events of one hand-over; the rest come at the next censuses. Only the
+  // two read-only lookups run: no line goes out, and SB's spawn and despawn are never called.
   template <class Game> void spawn_probe(Game &g, uint64_t logic, uint64_t now) {
     uint64_t alias = 0, manager = 0;
     uint32_t state = 0;
@@ -1193,7 +1195,8 @@ private:
       return;
     }
     SpawnRow row;
-    for (size_t i = 0; i < mines_ && probed_ < kMaxSeen && !latched_; ++i) {
+    size_t told = 0;
+    for (size_t i = 0; i < mines_ && probed_ < kMaxSeen && told < kProbeTold && !latched_; ++i) {
       const Mine &m = mine_[i];
       if (!m.monster || listed(probed_at_, probed_, m.key))
         continue;
@@ -1203,7 +1206,7 @@ private:
                                                          : "takes part";
       if (latched_)
         return;
-      probed_at_[probed_++] = m.key;
+      probed_at_[probed_++] = m.key, ++told;
       g.event(Event{"spawns probe", why, 0, m.key.spawn, m.key.index});
     }
   }
