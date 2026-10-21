@@ -7,7 +7,8 @@
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
 //   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
-//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
+//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ),
+//   SBC<protocol> race <text> (a Doro race line, race_model.lua's, printable ASCII; the link reads no further).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
@@ -38,8 +39,9 @@ constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (
                               // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
                               // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
-                              // 2. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1) is told why: the lobby tag, then the hello's reject, name both.
+                              // 2 and the race lines on channel 0. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10:
+                              // stage 2's builds, 11: v0.4.0-beta.1) is told why: the lobby tag, then the hello's
+                              // reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -138,12 +140,13 @@ inline bool plausible_vitals(const Vitals &v) {
   return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, race };
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
                          // 's', then 1 for both. paks: the count of .pak mods, their hash.
-  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
+  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. race:
+                         // the text after "race ", printable ASCII.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
 };
 
@@ -171,6 +174,8 @@ inline std::string say_line(const std::string &text) {
   const std::string line = chat_clean(text);
   return line.empty() ? line : "SBC" + std::to_string(kProtocol) + " say " + line;
 }
+// A race line, reliable: Lua's text as it is. One that parse() would not read as Kind::race is never sent.
+inline std::string race_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " race " + text; }
 // Our vitals, unreliable: on change and each second (link_core.h).
 inline std::string vit_line(const Vitals &v) {
   std::string line = "SBC" + std::to_string(kProtocol) + " vit";
@@ -262,6 +267,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "say") {
     m.text = chat_clean(rest);
     m.kind = m.text.empty() ? Kind::invalid : Kind::say;
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "race") {
+    if (std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
+      m.kind = Kind::race;
+      m.text = rest;
+    }
   } else if (split(text, f, 2 + m.vitals.size(), nullptr) && f[0] == versioned_tag && f[1] == "vit") {
     uint64_t x = 0;
     for (size_t i = 0; i < m.vitals.size(); ++i) {

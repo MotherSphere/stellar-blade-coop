@@ -2021,7 +2021,8 @@ int main() {
     t.tick(t.a, 0);
     assert(t.a.take_chat().size() == 10 && count("A: dropped chat lines from Kaanta: over the rate limit") == 1);
     // At most kChatInbox wait for Lua; the rest are dropped.
-    for (int second = 0; second < 2; ++second) {
+    static_assert(kChatInbox == 64, "room for a race's lines beside the chat's");
+    for (int second = 0; second < 7; ++second) {
       t.tick(t.a, 1000);
       for (int i = 0; i < 10; ++i)
         inbox(0, kChannel).push_back({kFriend, say_line("waiting")});
@@ -2041,7 +2042,8 @@ int main() {
     t.tick(t.b, 50, "leave");
     t.tick(t.a, 50);
     assert(!t.a.chatting() && !t.a.chat_waiting() && !t.b.chatting());
-    assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
+    assert(saw("A: chat this session: 79 in, 1 out, 8 dropped; race lines: 0 in, 0 out, 0 dropped") &&
+           saw("B: chat this session: 1 in, 4 out, 0 dropped; race lines: 0 in, 0 out, 0 dropped"));
   }
 
   // Pak mods: ours goes once to the friend past the handshake (again after her next hello); hers, once it came, shows
@@ -2166,6 +2168,110 @@ int main() {
            w.link.take_chat() == Texts{"fail"});
     for (auto &e : events)
       assert(e.find("écho") == std::string::npos);
+  }
+
+  // Race lines (race_model.lua's, from coop-race.txt): reliable on channel 0 to the friend past the handshake only, or
+  // back as hers in the loopback with no friend; anything parse() would not read as a race line never goes. 40 a
+  // second each way: our 41st is dropped and counted, hers past 40 too, with one log line a minute and never a text.
+  // Hers wait for Lua in the chat's inbox as "race <text>", kChatInbox lines with the chat's; the session's end
+  // empties them and logs the counts.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    assert(!w.link.race("ready 7 1") && F.sent.empty()); // No session.
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    const std::string race = "SBC" + std::to_string(kProtocol) + " race ";
+    assert(!w.link.race("ready 7 1") && sent_to(kFriend, race) == 0); // In the lobby, before the handshake.
+    F.inbox.push_back({kFriend, race_line("cp 7 1 1 900")});          // Hers before it: ignored, no log line.
+    size_t logged = events.size();
+    w.tick();
+    assert(!w.link.chat_waiting() && events.size() == logged);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(w.link.linked() && w.link.race("ready 7 1") && sent_to(kFriend, race_line("ready 7 1")) == 1);
+    for (const char *bad : {"", "caf\xc3\xa9", "a\tb"})
+      assert(!w.link.race(bad));
+    assert(!w.link.race(std::string(kMaxMessage, '~')) && sent_to(kFriend, race) == 1);
+    for (auto &s : F.sent)
+      if (s.text.rfind(race, 0) == 0)
+        assert(s.flags == kReliable && s.channel == kChannel && s.to == kFriend);
+    // Ours: 40 in a second, then the 41st is dropped; the next second takes lines again.
+    w.tick("", 0, 0, 1000);
+    for (int i = 1; i <= 40; ++i)
+      assert(w.link.race("cp 7 1 2 " + std::to_string(i)));
+    assert(!w.link.race("fin 7 41 0") && sent_to(kFriend, race) == 41 && sent_to(kFriend, race_line("fin")) == 0);
+    w.tick("", 0, 0, 1000);
+    assert(w.link.race("fin 7 41 0") && sent_to(kFriend, race_line("fin 7 41 0")) == 1);
+    // A refused send is a dropped line.
+    F.send_result = 25;
+    assert(!w.link.race("end 7"));
+    F.send_result = 1;
+    // Hers, beside her chat lines, in order.
+    F.inbox.push_back({kFriend, race_line("go 7 4000")});
+    F.inbox.push_back({kFriend, say_line("salut")});
+    F.inbox.push_back({kFriend, race_line("abort 7 false_start")});
+    w.tick();
+    assert((w.link.take_chat() == Texts{"race go 7 4000", "in salut", "race abort 7 false_start"}));
+    // Her flood: 40 a second kept, the rest dropped with one log line, which never holds a text.
+    w.tick("", 0, 0, 1000);
+    for (int i = 0; i < 45; ++i)
+      F.inbox.push_back({kFriend, race_line("cp 7 1 3 " + std::to_string(1000 + i))});
+    for (int pass = 0; pass < 3; ++pass)
+      w.tick("", 0, 0, 0);
+    Texts got = w.link.take_chat();
+    assert(got.size() == 40 && got.front() == "race cp 7 1 3 1000" && got.back() == "race cp 7 1 3 1039");
+    assert(count("dropped race lines from Kaanta: over the rate limit") == 1);
+    // 64 wait for Lua at most, race and chat lines together; the rest are dropped, still without a second log line.
+    for (int second = 0; second < 2; ++second) {
+      w.tick("", 0, 0, 1000);
+      for (int i = 0; i < 40; ++i)
+        F.inbox.push_back({kFriend, race_line("cp 7 2 4 " + std::to_string(i))});
+      for (int pass = 0; pass < 3; ++pass)
+        w.tick("", 0, 0, 0);
+    }
+    assert(w.link.chat_waiting() && w.link.take_chat().size() == kChatInbox);
+    assert(count("dropped race lines from Kaanta") == 1);
+    // The 60 s line lets the next drop be logged again.
+    w.tick("", 0, 0, 60000);
+    w.tick("", 0, 0, 1000);
+    for (int i = 0; i < 41; ++i)
+      F.inbox.push_back({kFriend, race_line("cp 7 3 5 " + std::to_string(i))});
+    for (int pass = 0; pass < 3; ++pass)
+      w.tick("", 0, 0, 0);
+    assert(count("dropped race lines from Kaanta: over the rate limit") == 2);
+    // The session ends with lines waiting: they go, and the counts reach the log.
+    assert(w.link.chat_waiting());
+    w.tick("leave");
+    assert(!w.link.chatting() && !w.link.chat_waiting());
+    assert(saw("chat this session: 1 in, 0 out, 0 dropped; race lines: 146 in, 42 out, 28 dropped"));
+    for (auto &e : events)
+      assert(e.find("cp 7") == std::string::npos && e.find("go 7") == std::string::npos);
+  }
+
+  // coop loopback with no friend: our race lines come back as hers, under our own 40 a second; its end empties them.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.link.loopback(true);
+    w.tick();
+    assert(w.link.race("track 7 2 1 0 0 0 90 /game/map") && w.link.race("ready 7 1") && F.sent.empty());
+    assert((w.link.take_chat() == Texts{"race track 7 2 1 0 0 0 90 /game/map", "race ready 7 1"}));
+    for (int i = 0; i < 38; ++i)
+      assert(w.link.race("cp 7 1 1 " + std::to_string(i)));
+    assert(!w.link.race("fin 7 40 0") && w.link.take_chat().size() == 38);
+    assert(w.link.race("caf\xc3\xa9") == false && !w.link.chat_waiting());
+    w.tick("", 0, 0, 1000);
+    assert(w.link.race("end 7"));
+    w.link.loopback(false);
+    w.tick();
+    assert(!w.link.chat_waiting() && saw("race lines: 41 in, 41 out, 2 dropped") && !w.link.race("end 7"));
   }
 
   // who_can_join=code, one Link: an invisible lobby (joined by id) with no invite dialog, and its code on

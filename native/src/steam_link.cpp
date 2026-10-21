@@ -7,7 +7,8 @@
 // also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), the
 // shared quests' lines on the same channel (Phase 12, pose_tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
-// and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
+// the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files, and the
+// race lines Lua writes into coop-race.txt (hers reach Lua through coop-chat.txt). It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h), and
 // puts our join code on the clipboard on the copy request (clipboard.h).
 #define WIN32_LEAN_AND_MEAN
@@ -51,9 +52,10 @@ using coop::pose::write_text;
 std::wstring folder;           // This DLL's folder, with its trailing separator.
 wchar_t log_path[MAX_PATH];    // coop-link.log, kept for the last line written at process exit.
 // The chat's two files (UI-DESIGN 5.2) and their temporaries: coop-say.txt, Lua's typed line, taken at every pass;
-// coop-chat.txt, our lines for Lua, written only while Lua has taken the last. Each lives about 250 ms at most, and all
-// four are deleted at worker start, when a chat session ends, and at process exit (so kept for DllMain).
-wchar_t chat_files[4][MAX_PATH];
+// coop-chat.txt, our lines for Lua, written only while Lua has taken the last. Each lives about 250 ms at most. Beside
+// them coop-race.txt, Lua's race lines, taken at every pass too. All six are deleted at worker start, when a chat
+// session ends, and at process exit (so kept for DllMain).
+wchar_t chat_files[6][MAX_PATH];
 void delete_chat() {
   for (const wchar_t *path : chat_files)
     DeleteFileW(path);
@@ -115,20 +117,24 @@ std::string utc_stamp() {
   return stamp;
 }
 
-// The whole file, then deleted; empty when there is none, or when it cannot be deleted (Lua's busy check holds it
-// open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is complete.
-std::string take_text(const std::wstring &path) {
+// The whole file (its first max bytes), then deleted; empty when there is none, or when it cannot be deleted (Lua's
+// busy check holds it open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is
+// complete.
+std::string take_text(const std::wstring &path, DWORD max = 256) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
     return {};
-  char buffer[256];
+  std::string text(max, '\0');
   DWORD n = 0;
-  bool ok = ReadFile(f, buffer, sizeof buffer, &n, nullptr);
+  bool ok = ReadFile(f, text.data(), max, &n, nullptr);
   CloseHandle(f);
-  if (!DeleteFileW(path.c_str()))
+  if (!DeleteFileW(path.c_str()) || !ok)
     return {};
-  return ok ? std::string(buffer, n) : std::string();
+  text.resize(n);
+  return text;
 }
+// coop-race.txt: Lua's queue holds 512 lines at most (link.lua), each shorter than kMaxMessage.
+constexpr DWORD kRaceFile = 512 * coop::kMaxMessage;
 
 // Appends raw bytes to coop-link.log; stack only, so it is also safe at process exit.
 void append_raw(const char *text, DWORD size) {
@@ -492,6 +498,7 @@ bool step() {
     std::string request = take_text(folder + L"coop-request.txt");
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
+    const std::string raced = take_text(folder + L"coop-race.txt", kRaceFile); // Never logged either.
     coop::Command command = coop::parse_request(request).command;
     if (switched_off && !request.empty() && command != coop::Command::report) {
       event("coop off is active until the game restarts: request ignored");
@@ -625,6 +632,10 @@ bool step() {
         if (!switched_off) {
           if (!typed.empty())
             link->say(typed);
+          // Each whole line, in order; a line cut by kRaceFile is no line.
+          for (size_t at = 0, end; (end = raced.find('\n', at)) != std::string::npos; at = end + 1)
+            if (end > at)
+              link->race(raced.substr(at, end - at));
           coop::Vitals mine;
           if (const uint64_t now = GetTickCount64(); chatting && now >= next_vitals) {
             uint64_t took_us = 0;
@@ -759,8 +770,9 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved) {
   if (log.size() + 4 >= MAX_PATH)
     return TRUE; // A path this long would not be loggable, nor coop-chat.txt.tmp deletable; stay idle.
   lstrcpyW(log_path, log.c_str());
-  const wchar_t *const chat_names[4] = {L"coop-say.txt", L"coop-say.txt.tmp", L"coop-chat.txt", L"coop-chat.txt.tmp"};
-  for (int i = 0; i < 4; ++i)
+  const wchar_t *const chat_names[6] = {L"coop-say.txt",      L"coop-say.txt.tmp", L"coop-chat.txt",
+                                        L"coop-chat.txt.tmp", L"coop-race.txt",    L"coop-race.txt.tmp"};
+  for (int i = 0; i < 6; ++i)
     lstrcpynW(chat_files[i], (folder + chat_names[i]).c_str(), MAX_PATH);
   if (HANDLE thread = CreateThread(nullptr, 0, worker, nullptr, 0, nullptr))
     CloseHandle(thread);
