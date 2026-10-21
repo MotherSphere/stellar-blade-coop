@@ -208,7 +208,7 @@ nr={o=nil,runs={},ticks=0,stops={},raise=nil}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
-        tick=function() nr.ticks=nr.ticks+1 end,
+        tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
             if nr.raise then error(nr.raise,0) end
@@ -497,6 +497,11 @@ nr.o.log('start: x'); assert(last()=='[StellarCoop][NR] start: x\n',last())
 assert(nr.o.status()==status_text and nr.o.paused()==false)
 kit_paused=true; assert(nr.o.paused()==true); kit_paused=false
 kit_off,kit_paused=true,true; assert(nr.o.paused()==true,'The kit off'); kit_off,kit_paused=false,false
+-- Its HUD on the kit with the theme and the settings; its notices through tell, in the menu's words and in English.
+assert(nr.hud and nr.hud.kit and nr.hud.kit.paused and nr.hud.theme and nr.hud.theme.teal and nr.hud.settings
+    and nr.hud.settings.ui_language,'night.hud')
+nr.o.tell(function(w) return w.night.wave_notice:format(2,5) end)
+assert(said[#said]=='Night Operation: wave 2/5.' and said_en[#said]=='Night Operation: wave 2/5.',said[#said])
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())

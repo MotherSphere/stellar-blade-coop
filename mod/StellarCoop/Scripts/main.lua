@@ -138,9 +138,11 @@ end
 local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
 -- Night Operation's solo run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
--- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off.
+-- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
+-- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell).
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
-    status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end})
+    status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
+    tell=tell})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
@@ -474,16 +476,18 @@ local function run(name,a,b,c,d)
     report(ok,message)
     return ok,message
 end
--- The chat's box and feed (chat.lua's view), the partner HUD (partner.lua's), the code box (join.lua), the co-op menu
--- (menu.lua), the host's question (join.lua) and the co-op saves' question (saves.lua) on the Uplink kit (ui.lua),
--- with the Steam link only: its root is built in a world or on the title screen, after one lookup a 250 ms tick. The
--- feed and the HUD first: the menu draws over them, the questions over all.
+-- The chat's box and feed (chat.lua's view), the partner HUD (partner.lua's), Night Operation's card and result panel
+-- (nightop_run.lua's), the code box (join.lua), the co-op menu (menu.lua), the host's question (join.lua) and the
+-- co-op saves' question (saves.lua) on the Uplink kit (ui.lua), with the Steam link only: its root is built in a world
+-- or on the title screen, after one lookup a 250 ms tick. The feed and the HUDs first: the menu draws over them, the
+-- questions over all.
 if settings then
     local Ui=require('ui')
     kit=Ui.kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,sounds=settings.ui_sounds})
     box=require('chat').view({kit=kit,model=chat,settings=settings,theme=Ui.THEME,
         covered=function() return menu.is_open() end})
     hud=require('partner').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
+    night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     local Join=require('join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
     menu=require('menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,

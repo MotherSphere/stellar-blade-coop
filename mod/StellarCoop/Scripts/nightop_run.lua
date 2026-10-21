@@ -1,15 +1,18 @@
 -- coop nightop: Night Operation's solo run on a co-op save (main.lua checks the slot), on the game thread. Five timed
 -- waves of the game's base monsters come at EVE where she stands. nightop_waves.lua holds the schedule, the keys and
 -- the run's states; this file is the game side: the start checks and the census, the one spawn call, the bodies it
--- tracks, their aggro and stuck moves, the abort watch and the end. The run has no rule row: its clock is game time and
--- it ends itself. Never called here: a table row added, a rule or remain-time request, EndRule, ResetZone, a zone event
--- other than nightop.lua's heal, EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip
--- or quest call, RegisterHook, NotifyOnNewObject. No console word reaches a game call: start's words only set flags.
+-- tracks, their aggro and stuck moves, the abort watch and the end, and what the player sees: a card at the top centre
+-- and a result panel on the Uplink kit (ui.lua), or notices while the kit is off. The run has no rule row: its clock is
+-- game time and it ends itself. Never called here: a table row added, a rule or remain-time request, EndRule,
+-- ResetZone, a zone event other than nightop.lua's heal, EnterZone, a hide, a collision or pool flag write, a destroy,
+-- a save, inventory, equip or quest call, RegisterHook, NotifyOnNewObject. No console word reaches a game call: start's
+-- words only set flags. The HUD itself calls the game for one thing only: its own result words (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local U=require('unreal')
 local W=require('nightop_waves')
 local N=require('nightop')
+local T=require('ui_text')
 local Run={}
 local MASK=0xFFFFFFFF
 local XION='/game/art/bg/worldmap/level_p/e04' -- Its people and quest scripts stay out of a fight.
@@ -23,6 +26,15 @@ local FINDS={1,2.5}
 local ADOPT,AGGRO,AGAIN=0.5,0.6,4
 local STUCK,EVERY,BELOW,AWAY,NEAR,MOVES=2.5,3,10,40,7,2 -- The stuck rule: seconds, then metres, then moves per body.
 local SLOW=5 -- ms: a live-list refresh this slow gets its own line.
+-- The HUD in the kit's layout units (3840 by 2160), both groups at the top centre and scaled from there: the card
+-- (its title over one line) and, in its place once the run ends, the result panel (a heading, a line under it, then
+-- four rows: a label at the left, its value at the right).
+local HUD_W,CARD_H,RESULT_H,HUD_Y=1100,160,450,96
+local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
+-- The game's own words for the result (StringTable_UI, in its 23 cultures), and ui_text.lua's words for each abort
+-- reason (stop and coop off: stop).
+local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
+local WHY={['map change']='map',left='left',slot='slot',link='link',error='error'}
 local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
@@ -120,10 +132,54 @@ local function census(eve)
         #named>0 and ': '..table.concat(named,', ')..(#c.keys>8 and ', ...' or '') or '')
     return c
 end
+local function clock_text(seconds) return string.format('%d:%02d',seconds//60,seconds%60) end
+-- The card's title and line for the run's state s at game time now, in words w (ui_text.lua's): the countdown, then
+-- the wave or, once it is down, the next one's countdown, each with the run time left and the score.
+function Run.card(s,now,w)
+    local n=w.night
+    if s.phase=='countdown' then return n.title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
+    local rt=now-s.t0
+    local head=s.phase=='breather' and n.next:format(math.max(0,math.ceil((s.next_at or rt)-rt)))
+        or n.wave:format(s.wave,#W.SCHEDULE)
+    return n.title,head..'  '..clock_text(math.max(0,math.ceil(W.LIMIT-rt)))..'  '..n.score:format(s.score)
+end
+-- An ended run's heading, the line under it ('' after a success) and its rows {label, value}, in words w. game(key):
+-- the game's own text for a StringTable_UI key, or nil; read for the heading and a death's line only.
+function Run.result(s,w,game)
+    local n=w.night
+    local won=s.outcome=='success'
+    local head=game(won and 'UI_Night_OperationSuccess' or 'UI_Night_OperationFail') or (won and n.success or n.fail)
+    local sub=''
+    if s.outcome=='failed' then sub=game('UI_Night_OperationFail_Des') or n.died
+    elseif s.outcome=='time' then sub=n.time_up
+    elseif s.outcome=='aborted' then sub=n.why[WHY[s.reason] or 'stop'] end
+    return head,sub,{{n.waves,s.clears..'/'..#W.SCHEDULE},{n.kills,tostring(s.kills)},{n.points,tostring(s.score)},
+        {n.time,clock_text(math.floor(s.time))}}
+end
+local function no_text() return nil end
+-- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table's id is not
+-- a name yet (nothing is called then) or the key not registered, or on any error.
+local function game_text(key)
+    local ok,text=pcall(function()
+        local id=FName(STRINGS,EFindName.FNAME_Find)
+        if id:GetComparisonIndex()==0
+            or not U.find('/Script/Engine.Default__KismetStringTableLibrary'):IsRegisteredTableEntry(id,key) then
+            return nil
+        end
+        return U.text(U.find('/Script/Engine.Default__KismetTextLibrary'):TextFromStringTable(id,key))
+    end)
+    return ok and text~='' and text or nil
+end
 -- log(text) writes an [NR] line; status() is the native part's status text; paused() whether the game is paused or
--- shows one of its screens (the UI kit's), when no body is read.
+-- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
+-- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off.
 function Run.new(o)
-    local log,status,paused=o.log,o.status,o.paused or function() return false end
+    local log,status,paused,tell=o.log,o.status,o.paused or function() return false end,o.tell
+    local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
+    -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
+    local panel=nil
+    -- What the HUD shows goes to the notices instead while there is no kit or it is off.
+    local function notify(build) if tell and not (hud and not hud.kit.off()) then tell(build) end end
     local r=nil -- The run, nil when idle: s is nightop_waves.lua's state.
     local function clock(eve) return U.find('/Script/Engine.Default__GameplayStatics'):GetTimeSeconds(eve) end
     -- The live list: the addresses of the latest FindAllOf('SBCharacter'), timed. Returns the characters.
@@ -295,16 +351,34 @@ function Run.new(o)
             log(string.format('kill %s %s +%d = %d',hex(b.key),alias(b),W.points(b.id),before))
         end
         r.killed={}
+        for k=1,r.s.wave do
+            if r.s.clear_at[k] and not r.told[k] then
+                r.told[k]=true
+                notify(function(w) return w.night.clear_notice:format(k) end)
+            end
+        end
         for _,e in ipairs(events) do
             if e.what=='wave' then
                 local ids=W.SCHEDULE[e.wave].ids
                 for slot=0,#ids-1 do r.queue[#r.queue+1]={k=e.wave,slot=slot} end
                 log(string.format('wave %d/%d at run time %.1f s: %d monsters',e.wave,#W.SCHEDULE,r.now-r.s.t0,#ids))
+                notify(function(w) return w.night.wave_notice:format(e.wave,#W.SCHEDULE) end)
             elseif e.what=='heal' then
                 local ok,healed=pcall(N.heal)
                 log(string.format('heal after wave %d: %s',e.wave,ok and healed and 'asked'
                     or 'not asked ('..(ok and 'the heal row is not a name in this game run' or why(healed))..')'))
-            elseif e.what=='end' then finish() end
+            elseif e.what=='end' then
+                finish()
+                local s=r.s
+                panel={s=s,left=W.RESULT/TICK}
+                local more=false -- With the kit off: the result, then what ended it unless it was a success.
+                notify(function(w)
+                    local head,line,rows=Run.result(s,w,no_text)
+                    more=line~=''
+                    return w.night.end_notice:format(head,s.clears,#W.SCHEDULE,s.kills,s.score,rows[4][2])
+                end)
+                if more then notify(function(w) return select(2,Run.result(s,w,no_text)) end) end
+            end
         end
     end
     -- Adapted from Survival Protocol's death watch: once a second, a death when the screen's animation starts. The
@@ -398,10 +472,12 @@ function Run.new(o)
         local yaw=U.value_of(eve:K2_GetActorRotation()).Yaw
         r={s=W.new{run=run,seed=W.seed(t,run),now=now},p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
             nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},live_at=-math.huge,
-            now=now,ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0}
+            now=now,ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={}}
+        panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
         log(string.format('start: run 0x%02X seed 0x%08X at %s yaw %.0f map %s%s; %s',run,W.seed(t,run),xyz(at),yaw,
             map,flag and ' '..flag or '',c.text))
+        notify(function(w) return w.night.start_notice:format(W.COUNTDOWN) end)
         return true,string.format('Night Operation starts in %d s (run 0x%02X)',W.COUNTDOWN,run)
     end
     local function stop(reason)
@@ -431,21 +507,92 @@ function Run.new(o)
         end
         return true,text
     end
-    -- Every 250 ms. A Lua error ends the run as aborted (error), with one STOP line and no retry; in the result's 10 s,
-    -- it drops the run at once.
-    function self.tick()
-        if not r then return end
-        local ok,e=pcall(tick)
-        if ok or not r then return end
-        log('STOP: '..why(e))
-        r.killed={} -- Kills of the failed tick are not counted: none is logged.
-        local ended,e2=pcall(function()
-            if r.s.phase~='result' then step({killed={},done={},abort='error'}) else r=nil end
-        end)
-        if not ended then
-            log('STOP: '..why(e2))
-            r=nil
+    -- The HUD each tick, after the run's: the card while a run is on, else the result panel until it was seen for its
+    -- 10 s (a death screen, a pause or a load hide it meanwhile), both hidden while the game is paused or shows one of
+    -- its screens, as the partner card. The words follow the game's language unless ui_language=english, picked again
+    -- at each build of the kit's root; the panel reads the game's own heading once for those words.
+    local picked,lang,words=nil,nil,nil
+    local function draw()
+        local kit=hud.kit
+        if kit.off() then return end -- The notices say it.
+        local running=r~=nil and r.s.phase~='result'
+        local away=(running or panel~=nil) and kit.paused()
+        local card,res=kit.view('night'),kit.view('night_result')
+        local result=panel~=nil and not running and not away and res~=nil
+        kit.show('night',running and not away)
+        kit.show('night_result',result)
+        if not (card and (running and not away or result)) then return end
+        if card~=picked or hud.settings.ui_language~=lang then
+            picked,lang=card,hud.settings.ui_language
+            words=T.pick(kit.language(),lang)
         end
+        if running then
+            local title,line=Run.card(r.s,r.now,words)
+            card.title.set(title)
+            card.line.set(line)
+            return
+        end
+        if panel.words~=words then
+            panel.words,panel.head,panel.sub,panel.rows=words,
+                Run.result(panel.s,words,lang~='english' and game_text or no_text)
+        end
+        res.head.set(panel.head)
+        res.head.color(panel.s.outcome=='success' and hud.theme.teal or hud.theme.warn)
+        res.sub.set(panel.sub)
+        for i,v in ipairs(panel.rows) do
+            res.rows[i].label.set(v[1])
+            res.rows[i].value.set(v[2])
+        end
+        panel.left=panel.left-1
+        if panel.left<=0 then panel=nil end
+    end
+    -- Every 250 ms. A Lua error ends the run as aborted (error), with one STOP line and no retry; in the result's 10 s,
+    -- it drops the run at once. Then the HUD: an error in it gives one STOP line, and notices from then on.
+    function self.tick()
+        if r then
+            local ok,e=pcall(tick)
+            if not ok and r then
+                log('STOP: '..why(e))
+                r.killed={} -- Kills of the failed tick are not counted: none is logged.
+                local ended,e2=pcall(function()
+                    if r.s.phase~='result' then step({killed={},done={},abort='error'}) else r=nil end
+                end)
+                if not ended then
+                    log('STOP: '..why(e2))
+                    r=nil
+                end
+            end
+        end
+        if not hud then return end
+        local ok,e=pcall(draw)
+        if not ok then
+            log('STOP: HUD: '..why(e))
+            pcall(function() hud.kit.show('night',false); hud.kit.show('night_result',false) end)
+            hud=nil
+        end
+    end
+    -- The HUD's two groups on the Uplink kit, before its first build (main.lua, after the partner HUD): o is {kit,
+    -- theme=ui.THEME, settings= (main.lua's, ui_language read at each update)}.
+    function self.hud(o)
+        hud=o
+        local kit,theme=o.kit,o.theme
+        local x=(3840-HUD_W)/2
+        kit.add('night',{x=x,y=HUD_Y,w=HUD_W,h=CARD_H,pivot={X=0.5,Y=0}},function(b)
+            b.panel(0,0,HUD_W,CARD_H)
+            return {title=b.text(HUD_W/2,48,'','name',theme.warn,MIDDLE),
+                line=b.text(HUD_W/2,104,'','item',theme.text,MIDDLE)}
+        end)
+        kit.add('night_result',{x=x,y=HUD_Y,w=HUD_W,h=RESULT_H,pivot={X=0.5,Y=0}},function(b)
+            b.panel(0,0,HUD_W,RESULT_H)
+            local v={head=b.text(HUD_W/2,70,'','title',theme.teal,MIDDLE),
+                sub=b.text(HUD_W/2,136,'','body',theme.grey,MIDDLE),rows={}}
+            for i=1,4 do
+                local y=200+(i-1)*56
+                v.rows[i]={label=b.text(96,y,'','body',theme.text,LEFT),
+                    value=b.text(HUD_W-96,y,'','item',theme.text,RIGHT)}
+            end
+            return v
+        end)
     end
     -- coop off (or any reason): the run ends as aborted.
     function self.stop(reason) return stop(reason or 'stop') end

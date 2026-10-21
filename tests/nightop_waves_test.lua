@@ -155,11 +155,16 @@ local function kill(s,rt,wave,from,to) return at(s,rt,{killed=keys(wave,from or 
 local s=start()
 assert(s.phase=='countdown' and s.score==0 and s.order[1][1]==4,'The run keeps its gate order')
 assert(at(s,-0.25)=='' and s.phase=='countdown')
+-- next_at, the next wave's run time (the HUD's next wave countdown): wave 1's 0 in the countdown, 10 s after a clear
+-- when that comes before the schedule, the schedule otherwise, none once wave 5 is up.
+assert(s.next_at==0,tostring(s.next_at))
 assert(at(s,0)=='wave 1' and s.phase=='wave' and s.wave==1,'Wave 1 at run time 0, 5 s after the start')
 assert(at(s,0.25)=='','Once')
 -- Wave 1 cleared at 20: the next comes 10 s later, before its scheduled 75 s.
 assert(kill(s,20,1)=='' and s.phase=='breather' and s.score==wave_points(1))
+assert(s.next_at==30,tostring(s.next_at))
 assert(at(s,29.75)=='' and at(s,30)=='wave 2' and s.phase=='wave')
+assert(s.next_at==150,'Wave 3 on its schedule, set in the tick wave 2 starts: '..tostring(s.next_at))
 -- Wave 2 still up at 150: wave 3 comes on time (3 alive + 5 fits under 8).
 assert(at(s,149.75)=='' and at(s,150)=='wave 3')
 -- Wave 2 down while wave 3 runs: the heal after wave 2.
@@ -169,6 +174,7 @@ assert(at(s,240)=='' and at(s,250)=='' and s.wave==3)
 assert(kill(s,251,3,0,0)=='wave 4','It starts in the tick it fits')
 -- Wave 5 at 330 (4 of wave 3 and 4 of wave 4 alive: 8 + 4 > 8): waits until wave 4 is down.
 assert(at(s,330)=='' and kill(s,331,4)=='heal 4, wave 5')
+assert(s.next_at==nil,'No wave after wave 5')
 -- Wave 5 down with wave 3 bodies still up: no success.
 assert(kill(s,340,5)=='' and s.phase=='wave' and s.score==wave_points(1)+wave_points(2)+W.points(W.SCHEDULE[3].ids[1])
     +wave_points(4)+wave_points(5))

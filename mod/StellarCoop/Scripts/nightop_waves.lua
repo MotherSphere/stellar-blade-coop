@@ -141,10 +141,19 @@ local function body(s,out,key,killed,rt)
         if W.HEALS[k] then out[#out+1]={what='heal',wave=k} end
     end
 end
+-- The next wave's run time: its scheduled one, or 10 s after the current wave is down when that is sooner; nil after
+-- wave 5.
+local function due(s)
+    local coming=W.SCHEDULE[s.wave+1]
+    if not coming then return nil end
+    local clear=s.clear_at[s.wave]
+    return clear and math.min(coming.at,clear+W.BREATHER) or coming.at
+end
 -- One tick. input: {killed={key,...}, done={key,...}, dead=EVE died, abort=a reason}, each body reported at least once.
 -- Returns the events, in order: {what='wave',wave=k} (spawn it), {what='heal',wave=k}, {what='end',outcome='success'
 -- |'time'|'failed'|'aborted',reason=}, {what='idle'} once the 10 s result is over. s holds phase, wave, score, kills,
--- clears and, once ended, outcome, reason and time (run time at the end).
+-- clears, next_at (the next wave's run time, nil after wave 5) and, once ended, outcome, reason and time (run time at
+-- the end).
 function W.step(s,input,now)
     local out={}
     if s.phase=='idle' then return out end
@@ -163,18 +172,14 @@ function W.step(s,input,now)
     if input.abort then return finish(s,{},now,'aborted',input.abort) end
     if s.wave==#W.SCHEDULE and s.up==0 then return finish(s,out,now,'success') end
     if rt>=W.LIMIT then return finish(s,out,now,'time') end
-    local coming=W.SCHEDULE[s.wave+1]
-    if coming then
-        local at=coming.at
-        local clear=s.clear_at[s.wave]
-        if clear and clear+W.BREATHER<at then at=clear+W.BREATHER end
-        if rt>=at and s.up+#coming.ids<=W.CAP then
-            s.wave=s.wave+1
-            s.left[s.wave]=#coming.ids
-            s.up=s.up+#coming.ids
-            out[#out+1]={what='wave',wave=s.wave}
-        end
+    local at=due(s)
+    if at and rt>=at and s.up+#W.SCHEDULE[s.wave+1].ids<=W.CAP then
+        s.wave=s.wave+1
+        s.left[s.wave]=#W.SCHEDULE[s.wave].ids
+        s.up=s.up+s.left[s.wave]
+        out[#out+1]={what='wave',wave=s.wave}
     end
+    s.next_at=due(s)
     if s.wave>0 then s.phase=(s.left[s.wave]==0 and s.wave<#W.SCHEDULE) and 'breather' or 'wave' end
     return out
 end

@@ -3,8 +3,9 @@
 -- placeholders in T.en's order (Lua's format has no positional arguments; a percent sign, %%, may stand anywhere, as
 -- Turkish puts it first); T.pick's choice (the game's culture through culture(), English with ui_language=english,
 -- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
--- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, and the co-op
--- saves' question, with its invite line, within its 5 rows (Chat.wrap).
+-- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
+-- saves' question, with its invite line, within its 5 rows (Chat.wrap), and Night Operation's card and result panel
+-- within their columns.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
@@ -66,6 +67,13 @@ local function notices(w)
     for _,text in ipairs({w.saves.on,fill(w.saves.off),w.saves.off:format(w.saves.see_log),w.saves.build,
         w.saves.manual:format('4','4'),w.chat.no_session,
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
+    -- Night Operation's notices (nightop_run.lua, with the UI off): the start, a wave, a clear, the end and why.
+    local n=w.night
+    for _,text in ipairs({n.start_notice:format(5),n.wave_notice:format(5,5),n.clear_notice:format(5),n.died,
+        n.time_up,n.end_notice:format(n.success,5,5,20,9999,'8:00'),n.end_notice:format(n.fail,5,5,20,9999,'8:00')}) do
+        lines[#lines+1]=text
+    end
+    for _,text in pairs(n.why) do lines[#lines+1]=text end
     local s=w.summary
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
         lines[#lines+1]=fill(s[k])..fill(s.paused)..s.lost -- Paused and lost added to each, beyond what can happen.
@@ -109,5 +117,20 @@ for name in pairs(R.TEXT) do
         for _,text in ipairs(texts) do rows=rows+#Chat.wrap(text,78) end
         assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..texts[1])
     end
+    -- Night Operation's card (nightop_run.lua: 1100 units wide, 24 in from each side; title Bold 36, its line Bold 40,
+    -- about 23 units a column), with the longest numbers; its result panel: the heading Bold 56 (about 32 units a
+    -- column), the line under it and the row labels Mideum 34 (18 units a column, as the feed's) from 96 units in, a
+    -- label before its value's 5 Bold 40 columns at the right end.
+    local n=w.night
+    fits(name..'.night.title',n.title,44)
+    fits(name..'.night.starts',n.starts:format(5),44)
+    for _,head in ipairs({n.wave:format(5,5),n.next:format(10)}) do
+        fits(name..'.night line',head..'  8:00  '..n.score:format(9999),44)
+    end
+    fits(name..'.night.success',n.success,32)
+    fits(name..'.night.fail',n.fail,32)
+    for _,text in ipairs({n.died,n.time_up}) do fits(name..'.night: '..text,text,54) end
+    for k,text in pairs(n.why) do fits(name..'.night.why.'..k,text,54) end
+    for _,k in ipairs({'waves','kills','points','time'}) do fits(name..'.night.'..k,n[k],40) end
 end
 print('ui_text_test ok')

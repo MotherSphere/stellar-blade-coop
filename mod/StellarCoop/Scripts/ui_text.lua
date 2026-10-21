@@ -1,9 +1,9 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
--- place's, same spawns', the status line's and the notices' words that the Lua side writes. T.en is English; another
--- language's table sits under its game culture name as recruiter_text.lua's culture() gives it (T.fr, T.de,
--- T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The game's language picks
--- the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word missing from one,
--- reads English. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...), or
+-- place's, same spawns', Night Operation's, the status line's and the notices' words that the Lua side writes. T.en is
+-- English; another language's table sits under its game culture name as recruiter_text.lua's culture() gives it (T.fr,
+-- T.de, T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The game's language
+-- picks the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word missing from
+-- one, reads English. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...), or
 -- <setting>_<id> where one setting's value needs other words (aggro_game).
 local T={}
 T.en={
@@ -111,6 +111,20 @@ T.en={
         stopped='Same spawns stopped by an error until the game restarts. coop-link.log says why.',
         differ="Same spawns: some enemies differ between your game and %s's (other .pak mods or fight_chars) and "
             ..'stay as they are. coop-link.log names them.'},
+    -- Night Operation's run (nightop_run.lua): its card at the top centre (the title, then the countdown, the wave or
+    -- the next wave's countdown, each with the time left and the score), its result panel (the heading, the line under
+    -- it, the rows) and its notices while the UI is off. success, fail and died are the game's own words, its
+    -- StringTable_UI rows UI_Night_OperationSuccess, UI_Night_OperationFail and UI_Night_OperationFail_Des, which the
+    -- panel reads from the game when it can; why: what ended a stopped run, by its reason.
+    night={title='NIGHT OPERATION',starts='STARTS IN %d',wave='WAVE %d/%d',next='NEXT WAVE IN %d',score='SCORE %d',
+        success='Operation Successful',fail='Operation Failed',died='All players have died.',time_up='Time is up.',
+        why={stop='Stopped with coop nightop stop.',map='Ended by a map change or a load.',
+            left='You were more than 80 m from the start for 10 s.',slot='This save is no longer a co-op save.',
+            link='A Steam session started. This mode is solo for now.',
+            error='Stopped by an error. UE4SS.log says why.'},
+        waves='Waves cleared',kills='Kills',points='Score',time='Time',start_notice='Night Operation starts in %d s.',
+        wave_notice='Night Operation: wave %d/%d.',clear_notice='Night Operation: wave %d cleared.',
+        end_notice='%s: %d/%d waves cleared, %d kills, score %d, time %s.'},
 }
 T.fr={
     title='CO-OP',
@@ -214,6 +228,18 @@ T.fr={
         stopped="Mêmes apparitions arrêtées par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi.",
         differ='Mêmes apparitions : certains ennemis diffèrent entre votre partie et celle de %s (autres mods .pak ou '
             ..'fight_chars) et restent tels quels. coop-link.log les nomme.'},
+    night={title='OPÉRATION NOCTURNE',starts='DÉBUT DANS %d',wave='VAGUE %d/%d',next='VAGUE SUIVANTE DANS %d',
+        score='SCORE %d',success='Opération réussie',fail="Échec de l'opération",died='Tous les joueurs sont morts.',
+        time_up='Temps écoulé.',
+        why={stop='Arrêtée avec coop nightop stop.',map='Terminée par un changement de carte ou un chargement.',
+            left='Vous étiez à plus de 80 m du départ pendant 10 s.',
+            slot="Cette sauvegarde n'est plus une sauvegarde co-op.",
+            link="Session Steam ouverte : mode solo pour l'instant.",
+            error='Arrêtée par une erreur. UE4SS.log dit pourquoi.'},
+        waves='Vagues terminées',kills='Ennemis vaincus',points='Score',time='Temps',
+        start_notice="L'opération nocturne commence dans %d s.",wave_notice='Opération nocturne : vague %d/%d.',
+        clear_notice='Opération nocturne : vague %d terminée.',
+        end_notice='%s : %d/%d vagues terminées, %d ennemis vaincus, score %d, temps %s.'},
 }
 T.ar={
     title='اللعب التعاوني',
@@ -309,6 +335,16 @@ T.ar={
         stopped='أوقف خطأ تطابق الظهور حتى إعادة تشغيل اللعبة. يذكر coop-link.log السبب.',
         differ='تطابق الظهور: بعض أعداء %s مختلفون (تعديلات .pak أو fight_chars) فيبقون كما هم. يسميهم '
             ..'coop-link.log.'},
+    night={title='التشغيل الليلي',starts='يبدأ خلال %d',wave='الموجة %d/%d',next='الموجة التالية خلال %d',
+        score='النقاط %d',success='تم التشغيل بنجاح',fail='فشل التشغيل',died='لقد مات كل اللاعبون.',
+        time_up='انتهى الوقت.',
+        why={stop='أُوقف بالأمر coop nightop stop.',map='انتهى بتغيير الخريطة أو بالتحميل.',
+            left='ابتعدت أكثر من 80 م عن نقطة البداية لمدة 10 ث.',slot='لم يعد هذا الحفظ حفظًا تعاونيًا.',
+            link='بدأت جلسة Steam. هذا الوضع فردي حاليًا.',error='أوقفه خطأ. السبب في UE4SS.log.'},
+        waves='الموجات المنجزة',kills='الأعداء المهزومون',points='النقاط',time='الوقت',
+        start_notice='يبدأ التشغيل الليلي خلال %d ث.',wave_notice='التشغيل الليلي: الموجة %d/%d.',
+        clear_notice='التشغيل الليلي: أُنجزت الموجة %d.',
+        end_notice='%s: الموجات %d/%d، الأعداء %d، النقاط %d، الوقت %s.'},
 }
 T.da={
     title='CO-OP',
@@ -409,6 +445,16 @@ T.da={
         stopped='Samme spawns stoppet af en fejl, indtil spillet genstartes. coop-link.log forklarer hvorfor.',
         differ='Samme spawns: nogle fjender er forskellige i dit spil og hos %s (andre .pak-mods eller fight_chars) '
             ..'og forbliver, som de er. coop-link.log nævner dem.'},
+    night={title='NATMISSION',starts='STARTER OM %d',wave='BØLGE %d/%d',next='NÆSTE BØLGE OM %d',score='POINT %d',
+        success='Missionen er fuldført',fail='Mission mislykkedes',died='Alle spillere døde.',time_up='Tiden er gået.',
+        why={stop='Stoppet med coop nightop stop.',map='Afsluttet af et kortskift eller en indlæsning.',
+            left='Du var over 80 m fra startpunktet i 10 s.',slot='Dette gemte spil er ikke længere et co-op-spil.',
+            link='Steam-session startet. Kun solo indtil videre.',
+            error='Stoppet af en fejl. UE4SS.log forklarer hvorfor.'},
+        waves='Bølger klaret',kills='Fjender besejret',points='Point',time='Tid',
+        start_notice='Natmissionen starter om %d s.',wave_notice='Natmission: bølge %d/%d.',
+        clear_notice='Natmission: bølge %d klaret.',
+        end_notice='%s: %d/%d bølger klaret, %d fjender besejret, %d point, tid %s.'},
 }
 T.de={
     title='KOOP',
@@ -516,6 +562,18 @@ T.de={
             ..'coop-link.log.',
         differ='Gleiche Spawns: Du und %s habt teils andere Gegner (andere .pak-Mods oder fight_chars). Sie bleiben, '
             ..'wie sie sind; coop-link.log nennt sie.'},
+    night={title='NÄCHTLICHER EINSATZ',starts='START IN %d',wave='WELLE %d/%d',next='NÄCHSTE WELLE IN %d',
+        score='PUNKTE %d',success='Einsatz erfolgreich',fail='Einsatz gescheitert',died='Alle Spieler sind gestorben.',
+        time_up='Die Zeit ist abgelaufen.',
+        why={stop='Mit coop nightop stop beendet.',map='Durch Kartenwechsel oder Laden beendet.',
+            left='Du warst 10 Sek. lang über 80 m vom Start entfernt.',
+            slot='Dieser Speicherstand ist kein Koop-Speicherstand mehr.',
+            link='Steam-Sitzung gestartet: Der Modus ist vorerst solo.',
+            error='Durch Fehler beendet. UE4SS.log nennt den Grund.'},
+        waves='Wellen geschafft',kills='Besiegte Gegner',points='Punkte',time='Zeit',
+        start_notice='Der nächtliche Einsatz beginnt in %d Sek.',wave_notice='Nächtlicher Einsatz: Welle %d/%d.',
+        clear_notice='Nächtlicher Einsatz: Welle %d geschafft.',
+        end_notice='%s: %d/%d Wellen geschafft, %d besiegte Gegner, %d Punkte, Zeit %s.'},
 }
 T.es={
     title='CO-OP',
@@ -622,6 +680,17 @@ T.es={
             ..'motivo.',
         differ='Mismas apariciones: algunos enemigos difieren entre tu partida y la de %s (otros mods .pak o '
             ..'fight_chars) y se quedan como están. coop-link.log los enumera.'},
+    night={title='OPERACIÓN NOCTURNA',starts='EMPIEZA EN %d',wave='OLEADA %d/%d',next='SIGUIENTE OLEADA EN %d',
+        score='PUNTOS %d',success='Operación exitosa',fail='Operación fallida',died='Todos los jugadores han muerto.',
+        time_up='Se acabó el tiempo.',
+        why={stop='Detenida con coop nightop stop.',map='Terminada por un cambio de mapa o una carga.',
+            left='Estuviste a más de 80 m del inicio durante 10 s.',slot='Esta partida ya no es una partida co-op.',
+            link='Sesión de Steam iniciada: modo individual por ahora.',
+            error='Detenida por un error. UE4SS.log indica el motivo.'},
+        waves='Oleadas superadas',kills='Enemigos abatidos',points='Puntos',time='Tiempo',
+        start_notice='La operación nocturna empieza en %d s.',wave_notice='Operación nocturna: oleada %d/%d.',
+        clear_notice='Operación nocturna: oleada %d superada.',
+        end_notice='%s: %d/%d oleadas superadas, %d enemigos abatidos, %d puntos, tiempo %s.'},
 }
 T['es-MX']={
     title='CO-OP',
@@ -726,6 +795,17 @@ T['es-MX']={
         stopped='Mismas apariciones detenidas por un error hasta que reinicies el juego. coop-link.log dice por qué.',
         differ='Mismas apariciones: algunos enemigos difieren entre tu partida y la de %s (otros mods .pak o '
             ..'fight_chars) y se quedan como están. coop-link.log los nombra.'},
+    night={title='OPERACIÓN NOCTURNA',starts='EMPIEZA EN %d',wave='OLEADA %d/%d',next='SIGUIENTE OLEADA EN %d',
+        score='PUNTOS %d',success='Operación exitosa',fail='Operación fallida',died='Todos los jugadores han muerto.',
+        time_up='Se acabó el tiempo.',
+        why={stop='Detenida con coop nightop stop.',map='Terminó por un cambio de mapa o una carga.',
+            left='Estuviste a más de 80 m del inicio durante 10 s.',slot='Esta partida ya no es una partida co-op.',
+            link='Sesión de Steam iniciada: modo individual por ahora.',
+            error='Detenida por un error. UE4SS.log dice por qué.'},
+        waves='Oleadas superadas',kills='Enemigos derrotados',points='Puntos',time='Tiempo',
+        start_notice='La operación nocturna empieza en %d s.',wave_notice='Operación nocturna: oleada %d/%d.',
+        clear_notice='Operación nocturna: oleada %d superada.',
+        end_notice='%s: %d/%d oleadas superadas, %d enemigos derrotados, %d puntos, tiempo %s.'},
 }
 T.fi={
     title='CO-OP',
@@ -833,6 +913,17 @@ T.fi={
             ..'coop-link.log-tiedostossa.',
         differ='Samat viholliset: %s pelaa peliä, jossa osa vihollisista eroaa pelistäsi (muut .pak-modit tai '
             ..'fight_chars). Ne jäävät ennalleen. coop-link.log nimeää ne.'},
+    night={title='YÖOPERAATIO',starts='ALKUUN %d',wave='AALTO %d/%d',next='SEURAAVAAN AALTOON %d',score='PISTEET %d',
+        success='Operaatio onnistui',fail='Operaatio epäonnistui',died='Kaikki pelaajat kuolivat.',
+        time_up='Aika loppui.',
+        why={stop='Pysäytetty komennolla coop nightop stop.',map='Päättyi kartan vaihtoon tai lataukseen.',
+            left='Olit yli 80 m:n päässä aloituspisteestä 10 s.',slot='Tämä tallennus ei ole enää co-op-tallennus.',
+            link='Steam-istunto alkoi: tila on vielä vain yksinpeli.',
+            error='Pysähtyi virheeseen. UE4SS.log kertoo syyn.'},
+        waves='Aaltoja selvitetty',kills='Vihollisia kaadettu',points='Pisteet',time='Aika',
+        start_notice='Yöoperaatio alkaa %d s:n päästä.',wave_notice='Yöoperaatio: aalto %d/%d.',
+        clear_notice='Yöoperaatio: aalto %d selvitetty.',
+        end_notice='%s: %d/%d aaltoa selvitetty, %d vihollista kaadettu, %d pistettä, aika %s.'},
 }
 T.it={
     title='CO-OP',
@@ -935,6 +1026,18 @@ T.it={
         stopped='Stessi spawn fermati da un errore fino al riavvio del gioco. Il motivo è in coop-link.log.',
         differ='Stessi spawn: alcuni nemici sono diversi tra te e %s (altre mod .pak o fight_chars) e restano come '
             ..'sono. coop-link.log li elenca.'},
+    night={title='OPERAZIONE NOTTURNA',starts='INIZIO TRA %d',wave='ONDATA %d/%d',next='PROSSIMA ONDATA TRA %d',
+        score='PUNTI %d',success='Operazione riuscita',fail='Operazione non riuscita',
+        died='Tutti i giocatori hanno perso la vita.',time_up='Tempo scaduto.',
+        why={stop='Interrotta con coop nightop stop.',map='Terminata da un cambio di mappa o da un caricamento.',
+            left='Sei rimasta a oltre 80 m dalla partenza per 10 s.',
+            slot='Questo salvataggio non è più un salvataggio co-op.',
+            link='Sessione Steam avviata: per ora solo in singolo.',
+            error='Interrotta da un errore. Il motivo è in UE4SS.log.'},
+        waves='Ondate superate',kills='Nemici sconfitti',points='Punti',time='Tempo',
+        start_notice="L'operazione notturna inizia tra %d s.",wave_notice='Operazione notturna: ondata %d/%d.',
+        clear_notice='Operazione notturna: ondata %d superata.',
+        end_notice='%s: %d/%d ondate superate, %d nemici sconfitti, %d punti, tempo %s.'},
 }
 T.ja={
     title='協力プレイ',
@@ -1031,6 +1134,13 @@ T.ja={
         stopped='敵配置の同期：エラーのためゲームを再起動するまで停止。理由はcoop-link.logにあります。',
         differ='敵配置の同期：%sのゲームと違う敵がいます（.pak MODやfight_charsの違い）。その敵はそのままです。'
             ..'詳細はcoop-link.log。'},
+    night={title='夜間オペレーション',starts='開始まで %d',wave='ウェーブ %d/%d',next='次のウェーブまで %d',score='スコア %d',success='オペレーション成功',
+        fail='オペレーション失敗',died='全プレイヤーが死亡した。',time_up='時間切れ。',
+        why={stop='coop nightop stopで中止。',map='マップ移動かロードで終了。',left='開始地点から80 m以上離れて10秒経過。',slot='このセーブは協力プレイ用ではなくなった。',
+            link='Steamセッション開始。このモードは今はソロ専用。',error='エラーで中止。理由はUE4SS.logで確認。'},
+        waves='クリアしたウェーブ',kills='撃破数',points='スコア',time='時間',start_notice='夜間オペレーションは%d秒後に開始。',
+        wave_notice='夜間オペレーション：ウェーブ%d/%d。',clear_notice='夜間オペレーション：ウェーブ%dクリア。',
+        end_notice='%s：ウェーブ%d/%d、撃破%d、スコア%d、時間%s。'},
 }
 T.ko={
     title='코옵',
@@ -1124,6 +1234,13 @@ T.ko={
         stopped='오류로 게임을 다시 시작할 때까지 스폰 동기화가 중지됩니다. 이유는 coop-link.log 참고.',
         differ='스폰 동기화: 일부 적이 %s의 게임과 달라(다른 .pak 모드 또는 fight_chars) 그대로 둡니다. 목록은 '
             ..'coop-link.log에 있습니다.'},
+    night={title='야간 작전',starts='시작까지 %d',wave='웨이브 %d/%d',next='다음 웨이브까지 %d',score='점수 %d',success='작전 성공',
+        fail='작전 실패',died='모든 플레이어가 사망했습니다.',time_up='시간 종료.',
+        why={stop='coop nightop stop으로 중지됨.',map='맵 이동이나 로드로 종료됨.',left='시작 지점에서 80 m 넘게 10초 동안 벗어남.',
+            slot='이 세이브는 더 이상 코옵 세이브가 아님.',link='Steam 세션이 시작됨. 이 모드는 아직 솔로 전용.',error='오류로 중지됨. 이유는 UE4SS.log에서 확인.'},
+        waves='클리어한 웨이브',kills='처치 수',points='점수',time='시간',start_notice='야간 작전이 %d초 후 시작됩니다.',
+        wave_notice='야간 작전: 웨이브 %d/%d.',clear_notice='야간 작전: 웨이브 %d 클리어.',
+        end_notice='%s: 웨이브 %d/%d, 처치 %d, 점수 %d, 시간 %s.'},
 }
 T.nl={
     title='CO-OP',
@@ -1226,6 +1343,18 @@ T.nl={
         stopped='Zelfde spawns gestopt door een fout tot de game opnieuw start. coop-link.log zegt waarom.',
         differ='Zelfde spawns: sommige vijanden verschillen tussen jouw game en die van %s (andere .pak-mods of '
             ..'fight_chars) en blijven zoals ze zijn. coop-link.log noemt ze.'},
+    night={title='NACHTELIJKE MISSIE',starts='START OVER %d',wave='GOLF %d/%d',next='VOLGENDE GOLF OVER %d',
+        score='SCORE %d',success='Missie geslaagd',fail='Missie mislukt',died='Alle spelers zijn dood.',
+        time_up='De tijd is om.',
+        why={stop='Gestopt met coop nightop stop.',map='Beëindigd door een kaartwissel of het laden.',
+            left='Je was 10 s lang meer dan 80 m van het startpunt.',
+            slot='Deze opgeslagen game is geen co-opgame meer.',
+            link='Steam-sessie gestart: deze modus is voorlopig solo.',
+            error='Gestopt door een fout. UE4SS.log zegt waarom.'},
+        waves='Golven voltooid',kills='Vijanden verslagen',points='Score',time='Tijd',
+        start_notice='De nachtelijke missie begint over %d s.',wave_notice='Nachtelijke missie: golf %d/%d.',
+        clear_notice='Nachtelijke missie: golf %d voltooid.',
+        end_notice='%s: %d/%d golven voltooid, %d vijanden verslagen, score %d, tijd %s.'},
 }
 T.no={
     title='CO-OP',
@@ -1327,6 +1456,16 @@ T.no={
         stopped='Samme spawns stoppet av en feil til spillet startes på nytt. coop-link.log sier hvorfor.',
         differ='Samme spawns: noen fiender er ulike i ditt spill og spillet til %s (andre .pak-modder eller '
             ..'fight_chars) og blir som de er. coop-link.log viser hvilke.'},
+    night={title='NATTOPERASJON',starts='STARTER OM %d',wave='BØLGE %d/%d',next='NESTE BØLGE OM %d',score='POENG %d',
+        success='Operasjon vellykket',fail='Operasjon mislyktes',died='Alle spillerne er døde.',time_up='Tiden er ute.',
+        why={stop='Stoppet med coop nightop stop.',map='Avsluttet av et kartbytte eller en innlasting.',
+            left='Du var mer enn 80 m fra startpunktet i 10 s.',slot='Denne lagringen er ikke lenger en co-op-lagring.',
+            link='Steam-økt startet: modusen er bare solo foreløpig.',
+            error='Stoppet av en feil. UE4SS.log sier hvorfor.'},
+        waves='Bølger klart',kills='Fiender beseiret',points='Poeng',time='Tid',
+        start_notice='Nattoperasjonen starter om %d s.',wave_notice='Nattoperasjon: bølge %d/%d.',
+        clear_notice='Nattoperasjon: bølge %d klart.',
+        end_notice='%s: %d/%d bølger klart, %d fiender beseiret, %d poeng, tid %s.'},
 }
 T.pl={
     title='CO-OP',
@@ -1428,6 +1567,16 @@ T.pl={
         stopped='Te same spawny: zatrzymano przez błąd do restartu gry. coop-link.log podaje powód.',
         differ='Te same spawny: część wrogów różni się od tych, które ma %s (inne mody .pak lub '
             ..'fight_chars), i zostaje bez zmian. Lista jest w coop-link.log.'},
+    night={title='NOCNA OPERACJA',starts='START ZA %d',wave='FALA %d/%d',next='NASTĘPNA FALA ZA %d',score='PUNKTY %d',
+        success='Operacja udana',fail='Operacja nieudana',died='Wszyscy gracze zginęli.',time_up='Czas minął.',
+        why={stop='Zatrzymana przez coop nightop stop.',map='Zakończona przez zmianę mapy lub wczytanie.',
+            left='Przez 10 s byłaś ponad 80 m od punktu startu.',slot='Ten zapis nie jest już zapisem co-op.',
+            link='Rozpoczęto sesję Steam: ten tryb jest na razie solo.',
+            error='Zatrzymana przez błąd. Powód podaje UE4SS.log.'},
+        waves='Ukończone fale',kills='Pokonani wrogowie',points='Punkty',time='Czas',
+        start_notice='Nocna operacja zaczyna się za %d s.',wave_notice='Nocna operacja: fala %d/%d.',
+        clear_notice='Nocna operacja: fala %d ukończona.',
+        end_notice='%s: ukończone fale %d/%d, pokonani wrogowie %d, punkty %d, czas %s.'},
 }
 T.pt={
     title='CO-OP',
@@ -1531,6 +1680,17 @@ T.pt={
         stopped='Mesmas aparições paradas por um erro até o jogo reiniciar. O coop-link.log diz porquê.',
         differ='Mesmas aparições: tu e %s têm alguns inimigos diferentes (outros mods .pak ou fight_chars), que '
             ..'ficam como estão. O coop-link.log indica quais.'},
+    night={title='OPERAÇÃO NOTURNA',starts='INÍCIO EM %d',wave='VAGA %d/%d',next='PRÓXIMA VAGA EM %d',score='PONTOS %d',
+        success='Operação concluída',fail='Operação falhada',died='Todos os jogadores morreram.',
+        time_up='O tempo acabou.',
+        why={stop='Interrompida com coop nightop stop.',map='Terminada por mudança de mapa ou carregamento.',
+            left='Estiveste a mais de 80 m do início durante 10 s.',slot='Estes dados guardados já não são co-op.',
+            link='Sessão Steam iniciada: modo a solo por agora.',
+            error='Interrompida por um erro. O UE4SS.log diz porquê.'},
+        waves='Vagas superadas',kills='Inimigos abatidos',points='Pontos',time='Tempo',
+        start_notice='A operação noturna começa dentro de %d s.',wave_notice='Operação noturna: vaga %d/%d.',
+        clear_notice='Operação noturna: vaga %d superada.',
+        end_notice='%s: %d/%d vagas superadas, %d inimigos abatidos, %d pontos, tempo %s.'},
 }
 T['pt-BR']={
     title='CO-OP',
@@ -1633,6 +1793,17 @@ T['pt-BR']={
         stopped='Mesmos spawns parados por um erro até o jogo reiniciar. O coop-link.log diz o motivo.',
         differ='Mesmos spawns: alguns inimigos diferem entre o seu jogo e o de %s (outros mods .pak ou fight_chars) '
             ..'e ficam como estão. O coop-link.log mostra quais.'},
+    night={title='OPERAÇÃO NOTURNA',starts='COMEÇA EM %d',wave='ONDA %d/%d',next='PRÓXIMA ONDA EM %d',score='PONTOS %d',
+        success='Operação Bem-sucedida',fail='Operação Fracassada',died='Todos os jogadores morreram.',
+        time_up='O tempo acabou.',
+        why={stop='Interrompida com coop nightop stop.',map='Encerrada por troca de mapa ou carregamento.',
+            left='Você ficou a mais de 80 m do início por 10 s.',slot='Este jogo salvo não é mais co-op.',
+            link='Sessão Steam iniciada: modo solo por enquanto.',
+            error='Interrompida por um erro. O UE4SS.log diz o motivo.'},
+        waves='Ondas vencidas',kills='Inimigos abatidos',points='Pontos',time='Tempo',
+        start_notice='A Operação Noturna começa em %d s.',wave_notice='Operação Noturna: onda %d/%d.',
+        clear_notice='Operação Noturna: onda %d vencida.',
+        end_notice='%s: %d/%d ondas vencidas, %d inimigos abatidos, %d pontos, tempo %s.'},
 }
 T.ru={
     title='КООПЕРАТИВ',
@@ -1731,6 +1902,16 @@ T.ru={
         stopped='Общие появления остановлены ошибкой до перезапуска игры. Причина в coop-link.log.',
         differ='Общие появления: часть врагов у партнера (%s) другая (моды .pak, fight_chars) и не меняется. '
             ..'См. coop-link.log.'},
+    night={title='НОЧНАЯ ОПЕРАЦИЯ',starts='СТАРТ ЧЕРЕЗ %d',wave='ВОЛНА %d/%d',next='СЛЕДУЮЩАЯ ВОЛНА ЧЕРЕЗ %d',
+        score='ОЧКИ %d',success='Операция успешна',fail='Операция завершилась неудачей',died='Все игроки погибли.',
+        time_up='Время вышло.',
+        why={stop='Остановлена командой coop nightop stop.',map='Завершена сменой карты или загрузкой.',
+            left='Вы были дальше 80 м от точки старта 10 сек.',slot='Это сохранение больше не кооперативное.',
+            link='Началась сессия Steam. Режим пока одиночный.',error='Остановлена из-за ошибки. Причина в UE4SS.log.'},
+        waves='Пройдено волн',kills='Убито врагов',points='Очки',time='Время',
+        start_notice='Ночная операция начнется через %d сек.',wave_notice='Ночная операция: волна %d/%d.',
+        clear_notice='Ночная операция: волна %d пройдена.',
+        end_notice='%s: волны %d/%d, убито врагов %d, очки %d, время %s.'},
 }
 T.sv={
     title='CO-OP',
@@ -1827,6 +2008,17 @@ T.sv={
         stopped='Samma spawns: ett fel stoppade funktionen tills spelet startas om. coop-link.log säger varför.',
         differ='Samma spawns: vissa fiender skiljer sig mellan ditt spel och spelet hos %s (andra .pak-moddar eller '
             ..'fight_chars) och lämnas orörda. coop-link.log namnger dem.'},
+    night={title='NATTINSATS',starts='STARTAR OM %d',wave='VÅG %d/%d',next='NÄSTA VÅG OM %d',score='POÄNG %d',
+        success='Insatsen lyckades',fail='Insatsen misslyckades',died='Alla spelare har dött.',time_up='Tiden är ute.',
+        why={stop='Stoppad med coop nightop stop.',map='Avslutad av ett kartbyte eller en laddning.',
+            left='Du var mer än 80 m från startpunkten i 10 s.',
+            slot='Den här sparfilen är inte längre en co-op-sparfil.',
+            link='Steam-session startad: läget är solo tills vidare.',
+            error='Stoppad av ett fel. UE4SS.log säger varför.'},
+        waves='Vågor klarade',kills='Besegrade fiender',points='Poäng',time='Tid',
+        start_notice='Nattinsatsen startar om %d s.',wave_notice='Nattinsats: våg %d/%d.',
+        clear_notice='Nattinsats: våg %d klarad.',
+        end_notice='%s: %d/%d vågor klarade, %d besegrade fiender, %d poäng, tid %s.'},
 }
 T.th={
     title='CO-OP',
@@ -1914,6 +2106,14 @@ T.th={
         guest='จุดเกิดเดียวกัน: ห่าง %s ไม่เกิน 100 ม. เกมคุณมีศัตรูแบบเกมเขา',
         stopped='จุดเกิดเดียวกันหยุดเพราะข้อผิดพลาดจนกว่าจะรีสตาร์ตเกม ดูใน coop-link.log',
         differ='จุดเกิดเดียวกัน: ศัตรูบางตัวต่างจากเกม %s จึงคงเดิม ดูใน coop-link.log'},
+    night={title='ปฏิบัติการกลางคืน',starts='เริ่มใน %d',wave='คลื่น %d/%d',next='คลื่นถัดไปใน %d',score='คะแนน %d',
+        success='ปฏิบัติการสำเร็จ',fail='ปฏิบัติการล้มเหลว',died='ผู้เล่นทุกคนตายหมดแล้ว',time_up='หมดเวลา',
+        why={stop='หยุดด้วย coop nightop stop',map='จบเพราะเปลี่ยนแผนที่หรือโหลดเกม',
+            left='คุณอยู่ห่างจุดเริ่มเกิน 80 ม. นาน 10 วินาที',slot='เซฟนี้ไม่ใช่เซฟ co-op แล้ว',
+            link='เริ่มเซสชัน Steam แล้ว โหมดนี้ยังเล่นได้คนเดียว',error='หยุดเพราะข้อผิดพลาด ดูสาเหตุใน UE4SS.log'},
+        waves='คลื่นที่ผ่าน',kills='ศัตรูที่โค่นได้',points='คะแนน',time='เวลา',
+        start_notice='ปฏิบัติการกลางคืนเริ่มใน %d วินาที',wave_notice='ปฏิบัติการกลางคืน: คลื่น %d/%d',
+        clear_notice='ปฏิบัติการกลางคืน: ผ่านคลื่น %d',end_notice='%s: คลื่น %d/%d ศัตรู %d คะแนน %d เวลา %s'},
 }
 T.tr={
     title='CO-OP',
@@ -2015,6 +2215,16 @@ T.tr={
             ..'dosyasında.',
         differ='Aynı doğma noktaları: bazı düşmanlar seninle %s arasında farklı (başka .pak modları ya da fight_chars) '
             ..'ve değişmez. Listesi coop-link.log dosyasında.'},
+    night={title='GECE OPERASYONU',starts='BAŞLAMAYA %d',wave='DALGA %d/%d',next='SONRAKİ DALGAYA %d',score='PUAN %d',
+        success='Operasyon Başarılı',fail='Operasyon Başarısız',died='Tüm oyuncular öldü.',time_up='Süre doldu.',
+        why={stop='coop nightop stop ile durduruldu.',map='Harita değişimi ya da yükleme ile sona erdi.',
+            left="10 sn boyunca başlangıçtan 80 m'den fazla uzaktaydın.",slot='Bu kayıt artık co-op kaydı değil.',
+            link='Steam oturumu başladı: bu mod şimdilik tek oyunculu.',
+            error='Hata nedeniyle durduruldu. Nedeni UE4SS.log içinde.'},
+        waves='Temizlenen dalgalar',kills='Yenilen düşmanlar',points='Puan',time='Süre',
+        start_notice='Gece Operasyonu %d sn sonra başlıyor.',wave_notice='Gece Operasyonu: dalga %d/%d.',
+        clear_notice='Gece Operasyonu: dalga %d temizlendi.',
+        end_notice='%s: %d/%d dalga temizlendi, %d düşman yenildi, %d puan, süre %s.'},
 }
 T['zh-Hans']={
     title='合作模式',
@@ -2101,6 +2311,12 @@ T['zh-Hans']={
         stopped='同步刷怪因错误停止，重启游戏前不会恢复。原因见coop-link.log。',
         differ='同步刷怪：部分敌人在你和%s的游戏中不同（其他.pak模组或fight_chars），将保持原样。'
             ..'coop-link.log列出了这些敌人。'},
+    night={title='暗夜行动',starts='开始倒计时 %d',wave='波次 %d/%d',next='下一波倒计时 %d',score='得分 %d',success='行动成功',fail='行动失败',
+        died='全部玩家均已死亡。',time_up='时间到。',
+        why={stop='已通过coop nightop stop停止。',map='因切换地图或读取而结束。',left='离开起点超过80米达10秒。',slot='此存档已不再是合作存档。',
+            link='已进入Steam房间。此模式目前仅限单人。',error='因错误而停止。原因见UE4SS.log。'},
+        waves='已清除波次',kills='击败敌人',points='得分',time='时间',start_notice='暗夜行动将在%d秒后开始。',wave_notice='暗夜行动：第%d/%d波。',
+        clear_notice='暗夜行动：第%d波已清除。',end_notice='%s：波次%d/%d，击败%d，得分%d，时间%s。'},
 }
 T['zh-Hant']={
     title='合作模式',
@@ -2186,6 +2402,12 @@ T['zh-Hant']={
         stopped='敵人生成同步因錯誤而停止，重新啟動遊戲前不會恢復。原因請見coop-link.log。',
         differ='敵人生成同步：部分敵人在你與%s的遊戲中不同（其他.pak模組或fight_chars），維持原樣。'
             ..'coop-link.log列有這些敵人。'},
+    night={title='夜間行動',starts='開始倒數 %d',wave='波次 %d/%d',next='下一波倒數 %d',score='得分 %d',success='行動成功',fail='行動失敗',
+        died='玩家已全數死亡。',time_up='時間到。',
+        why={stop='已透過coop nightop stop停止。',map='因切換地圖或讀取而結束。',left='離開起點超過80公尺達10秒。',slot='此存檔已不再是合作存檔。',
+            link='已進入Steam房間。此模式目前僅限單人。',error='因錯誤而停止。原因請見UE4SS.log。'},
+        waves='已清除波次',kills='擊敗敵人',points='得分',time='時間',start_notice='夜間行動將於%d秒後開始。',wave_notice='夜間行動：第%d/%d波。',
+        clear_notice='夜間行動：第%d波已清除。',end_notice='%s：波次%d/%d，擊敗%d，得分%d，時間%s。'},
 }
 local culture=require('recruiter_text').culture
 -- A table and the tables in it read T.en's word for a key they lack.

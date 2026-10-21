@@ -9,7 +9,11 @@
 -- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
 -- refuse; a signed key read; aggro after a new controller; a body near EVE far from the start is not moved; a refused
 -- teleport; a load (slot=none) and a new world on the same map; a death screen first found playing; an error in the
--- result's 10 s.
+-- result's 10 s. The HUD on a fake kit: the card and the result panel at the top centre; the countdown, the wave, the
+-- next wave's countdown, the time left and the score in the game's language; hidden while paused; the result panel
+-- with the game's own heading when it can be read (none with ui_language=english), shown for 10 s of ticks it can be
+-- seen, after a respawn or a load too; notices at the start, each wave, each clear and the end with the kit off; a HUD
+-- error turns it to notices.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -590,5 +594,153 @@ local spawned=count('PC:ServerRequest_CreateActor')
 assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
 tick(8)
 assert(count('PC:ServerRequest_CreateActor')==spawned and #bodies==7)
+assert(#violations==0,violations[1])
+
+-- 9. The HUD (nightop_run.lua's hud) on a fake kit: groups, words in the game's language (fr-FR), hidden under a pause.
+local Tx=require('ui_text')
+local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
+local game_words={UI_Night_OperationSuccess='Réussite (jeu)',UI_Night_OperationFail='Échec (jeu)',
+    UI_Night_OperationFail_Des='Tous morts (jeu)'}
+by_path['/Script/Engine.Default__KismetStringTableLibrary']=uobject('STL','KismetStringTableLibrary',
+    {IsRegisteredTableEntry=function(_,id,key) return id:ToString()==STRINGS and game_words[key]~=nil end})
+by_path['/Script/Engine.Default__KismetTextLibrary']=uobject('KTL','KismetTextLibrary',{
+    TextFromStringTable=function(_,id,key)
+        assert(id:ToString()==STRINGS)
+        return {ToString=function() return game_words[key] end}
+    end})
+local kit={groups={},shown={},is_off=false,away=false,up=true,lang='fr-FR'}
+function kit.add(name,place,build)
+    local g={place=place,texts={}}
+    local b={}
+    function b.panel(...) g.panel={...} end
+    function b.text(x,y,str,style,color,align)
+        local e={text=str,c=color,x=x,y=y,style=style,align=align}
+        function e.set(t) if kit.raise then error(kit.raise,0) end; e.text=t end
+        function e.color(c) e.c=c end
+        g.texts[#g.texts+1]=e
+        return e
+    end
+    g.view=build(b)
+    kit.groups[name]=g
+end
+function kit.view(name) return not kit.is_off and kit.up and kit.groups[name] and kit.groups[name].view or nil end
+function kit.show(name,on) kit.shows=(kit.shows or 0)+1; kit.shown[name]=on==true end
+function kit.off() return kit.is_off end
+function kit.paused() return kit.away end
+function kit.language() return kit.lang end
+local told={} -- main.lua's tell: the notice in English (T.en), as the line above EVE also gets it.
+local settings={ui_language='game'}
+lines={}
+local night=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+    tell=function(build) told[#told+1]=build(Tx.en) end})
+night.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+for _,name in ipairs({'night','night_result'}) do
+    local p=kit.groups[name].place
+    assert(p.x+p.w/2==1920 and p.y==96 and p.pivot.X==0.5 and p.pivot.Y==0 and not p.shown and not p.hit,name)
+end
+local card,res=kit.groups.night.view,kit.groups.night_result.view
+night.tick()
+assert(not kit.shown.night and not kit.shown.night_result,'No run: hidden')
+bodies,calls={},{}
+local function begin2()
+    ok,message=night.command('start')
+    assert(ok,message)
+    t0=gt+5
+end
+begin2()
+tick=function(k) for _=1,k or 1 do gt=gt+0.25; night.tick() end end -- From here on, this run's ticks.
+tick()
+assert(kit.shown.night and not kit.shown.night_result and card.title.text=='OPÉRATION NOCTURNE','The card')
+assert(card.line.text=='DÉBUT DANS 5',card.line.text)
+tick(19)
+assert(card.line.text=='VAGUE 1/5  8:00  SCORE 0',card.line.text)
+tick(4)
+assert(card.line.text=='VAGUE 1/5  7:59  SCORE 0',card.line.text)
+kit.away=true; tick(); assert(not kit.shown.night,'Paused: hidden')
+kit.away=false; tick(); assert(kit.shown.night)
+for _=1,40 do tick() end
+for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+tick()
+local rt2=gt-t0
+assert(card.line.text==string.format('VAGUE SUIVANTE DANS 10  %d:%02d  SCORE 40',math.ceil(480-rt2)//60,
+    math.ceil(480-rt2)%60),card.line.text)
+tick(4)
+assert(card.line.text:find('^VAGUE SUIVANTE DANS 9  '),card.line.text)
+assert(#told==0,'The kit is up: no notice')
+-- The end: the result panel in the card's place, ui_text's heading while the game's table is not a name yet.
+ok,message=night.command('stop')
+tick()
+assert(not kit.shown.night and kit.shown.night_result,'The result panel')
+assert(res.head.text=="Échec de l'opération" and res.sub.text=='Arrêtée avec coop nightop stop.',res.head.text)
+local function row(i) return res.rows[i].label.text..'='..res.rows[i].value.text end
+assert(row(1)=='Vagues terminées=1/5' and row(2)=='Ennemis vaincus=4' and row(3)=='Score=40',row(1)..row(2)..row(3))
+local t=math.floor(rt2+1) -- Stopped 4 ticks after the clear.
+assert(row(4)==string.format('Temps=%d:%02d',t//60,t%60),row(4))
+-- Shown for 40 ticks it can be seen (paused ones, or with the root down, do not count), past the run's own 10 s.
+kit.away=true; tick(20); assert(not kit.shown.night_result)
+kit.away=false; kit.up=false; tick(20); kit.up=true
+tick(38); assert(kit.shown.night_result,'38 + 1 seen')
+tick(); assert(kit.shown.night_result,'40 seen')
+tick(); assert(not kit.shown.night_result,'Then hidden')
+-- The game's own words once its table is a name: a death's heading and line.
+FName(STRINGS)
+bodies={}
+begin2()
+tick(8)
+dying=true
+tick(8)
+dying=false
+assert(kit.shown.night_result and res.head.text=='Échec (jeu)' and res.sub.text=='Tous morts (jeu)',res.head.text)
+-- ui_language=english: English words, no game text read.
+settings.ui_language='english'
+local stl=count('STL:IsRegisteredTableEntry')
+bodies={}
+begin2()
+tick(4)
+assert(card.title.text=='NIGHT OPERATION' and card.line.text=='STARTS IN 4',card.line.text)
+night.stop('map change')
+tick()
+assert(res.head.text=='Operation Failed' and res.sub.text=='Ended by a map change or a load.',res.sub.text)
+assert(count('STL:IsRegisteredTableEntry')==stl,'No game text read')
+settings.ui_language='game'
+assert(res.head.c=='warn','A failure in the warning colour')
+-- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
+-- off as a stop), the rows.
+local function ended(outcome,reason) return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5} end
+local function game(key) return key=='UI_Night_OperationSuccess' and 'Won (game)' or nil end
+local head,line,rows=Run.result(ended('success'),Tx.en,game)
+assert(head=='Won (game)' and line=='' and rows[1][1]=='Waves cleared' and rows[1][2]=='5/5' and rows[2][2]=='20')
+assert(rows[3][1]=='Score' and rows[3][2]=='1059' and rows[4][1]=='Time' and rows[4][2]=='6:40')
+head,line=Run.result(ended('time'),Tx.en,game)
+assert(head=='Operation Failed' and line=='Time is up.')
+for reason,word in pairs({stop='stop',['coop off']='stop',['map change']='map',left='left',slot='slot',link='link',
+        error='error'}) do
+    assert(select(2,Run.result(ended('aborted',reason),Tx.en,game))==Tx.en.night.why[word],reason)
+end
+-- With the kit off: notices at the start, each wave and each clear, and the end, in the menu's words.
+kit.is_off=true
+bodies,told,kit.shows={},{},0
+begin2()
+assert(told[1]=='Night Operation starts in 5 s.',told[1])
+tick(40)
+assert(told[2]=='Night Operation: wave 1/5.',tostring(told[2]))
+for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+tick()
+assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
+night.command('stop')
+assert(told[4]:find('^Operation Failed: 1/5 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
+assert(told[5]=='Stopped with coop nightop stop.' and #told==5,tostring(told[5]))
+assert(kit.shows==0,'Nothing drawn with the kit off')
+kit.is_off=false
+-- A HUD error: one STOP line, then notices; the run goes on.
+bodies,told={},{}
+begin2()
+kit.raise='boom'
+tick()
+kit.raise=nil
+assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
+tick(20)
+assert(told[1]=='Night Operation: wave 1/5.',tostring(told[1]))
+night.stop('stop')
 assert(#violations==0,violations[1])
 print('nightop_run_test ok')
