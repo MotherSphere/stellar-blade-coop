@@ -230,9 +230,15 @@ The run ends on both screens, each with its result panel. The line under the hea
 | Time up | `Time is up.` | `Time is up.` |
 | The host's EVE died | `Your EVE died.` | `Your partner's EVE died.` |
 | The guest's EVE died | `Your partner's EVE died.` | `Your EVE died.` |
-| On the host's side: a stop (`coop nightop stop` or `coop off`), a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
+| On the host's side: `coop nightop stop`, a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
 | The same on the guest's side | `Your partner left the run.` | Her reason, as in the solo run |
-| The session ended, or the partner's night line stopped for 5 s | `The link to your partner was lost.` | `The link to your partner was lost.` |
+| The session ended: `coop leave` (F8) or `coop off` on either side | `The link to your partner was lost.` | `The link to your partner was lost.` |
+
+A player who types `coop off` ends their own run as a stop (`result: aborted (coop off)` in `UE4SS.log`); only the
+partner reads the lost line. A game's night line stops while that game does not tick, for example during a load. Once it
+has not reached the other game for 5 s, the other player's run ends with `The link to your partner was lost.` The player
+whose game stalled reads their own reason if their game found one first (`Ended by a map change or a load.` after a
+load), else the same lost line.
 
 A death on either side ends both runs as failed: there is no revive. The game's own `All players have died.` line is
 not used, since only one EVE died. A host who stops while he still waits for the guest's answer drops the run with no
@@ -244,7 +250,8 @@ With shared enemies on (the default, see [usage.md](usage.md#shared-enemies-expe
 with its copy in the other game by its spawn key, like a field enemy: one HP bar, balance gauge and death, decided by
 the host's game, with the host's `enemy_hp_scale` and `enemy_balance_scale`. A copy dies in your world only if you took
 part in its fight (see [how-it-works.md](how-it-works.md#achievements)). A copy that stays alive in your world for that
-reason keeps your wave open until you kill it or the time runs out.
+reason keeps your wave open until you kill it, it is still out of reach after its two moves (as in the solo run), or
+the time runs out.
 
 With same place on (the default), a pair's two copies stand in the same place on both screens: one game runs the
 monster's AI and the other draws its copy (see [usage.md](usage.md#same-place-experimental)). The guest's game then
@@ -252,7 +259,8 @@ leaves the push towards her EVE and the stuck moves of a monster to same place w
 enemies run as the guest, same place draws at least one copy (`pilot=on piloted=1` or more in `coop status`), and the
 host's night line lists that monster as found and not yet down, killed, written off or lost in his world. `UE4SS.log`
 says so once a monster, for example `[StellarCoop][NR] aggro 0xD82A0200: left to the pilot`. A monster that the host's
-game never found keeps the solo run's rules in her world, and so does her copy once the host's copy is done.
+game never found keeps the solo run's rules in her world. Once the host's copy is done, her copy gets the stuck moves
+back, but the pushes towards her EVE that were skipped are not made again.
 
 Same spawns leave wave monsters out, since none of the game's spawn rows holds their keys. No wave has a boss.
 

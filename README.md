@@ -31,8 +31,9 @@ client that the game already runs, so the mod needs no other program and no serv
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
-- The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make
-  separate co-op copies of them (see [docs/saves.md](docs/saves.md)).
+- The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night
+  Operation's shop, on a co-op save. It reads your saves only to make separate co-op copies of them (see
+  [docs/saves.md](docs/saves.md)).
 
 The ghost is display only, and items are not shared. The experimental Shared enemies option (co-op menu, Options,
 Combat) is on by default and untested in game. It shares common enemies only while both players play a co-op save (see
@@ -97,7 +98,7 @@ runs on your own copy of the game.
 
 ## Credits
 
-Night Operation's solo run (`coop nightop`) adapts code from
+Night Operation's run (`coop nightop`) adapts code from
 [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus Mods, Stellar Blade
 mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The adapted parts are:
 

@@ -85,9 +85,8 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` and the boss
-    tests included),
-    and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the
-    check turns away);
+    tests included), Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes
+    (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
@@ -155,7 +154,9 @@ build/host/pose_codec_test
     frozen boss copy (SetBattleMode once a copy and no BattleMode_5s on boss copies from the next session, a phase line
     and the threshold's dispel 5 s later, the copy held at 1 HP with no claim and the host's HP back after 10 s, or its
     HP from the start when the test stops early, a summon made, frozen and frozen again, then removed as unpaired, or at
-    once when the freeze is refused; one test at a time, none left after the session ends);
+    once when the freeze is refused; one test at a time, none left after the session ends); Night Operation's wave
+    monsters, taken like any keyed Monster, and paired by their keys in two worlds, where the host's kill reaches her
+    copy only when she took part;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss

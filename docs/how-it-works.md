@@ -221,7 +221,7 @@ ones killed and done in her world, and a refusal or abort word. Each game writes
 once a second, never twice in one Lua tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and
 `night in: ...`.
 
-The native part checks only the bytes: 1 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
+The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
 words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the
 lobby and a `g` line only as a guest, and a received line from the wrong side counts as invalid. At most 8 lines a
 second go each way; the rest are dropped, with one log line a minute. The last line received is the `night=` line of
