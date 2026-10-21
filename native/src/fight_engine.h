@@ -41,9 +41,10 @@
 //     FUN_141ad1290(logic, chr, at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0, 0), SB's NewActor as
 //     SpawnRequest::Execute calls it: the new logic actor, or 0 (a boss's summons on the guest's side too, stage 5);
 //   bosses (stage 5), from inside our job only:
-//   void battle(uint64_t fsb): FUN_141a7cd30(fsb, 1, 0, 0, 0, 1), SetBattleMode's wrapper with the arguments of SB's
-//     FSBActor::AddTargetedByEnemy, so the boss's EventOnBattle runs (arena walls); from the logic thread SB queues it
-//     for its game thread.
+//   void battle(uint64_t fsb, bool on): SetBattleMode's wrapper; on: FUN_141a7cd30(fsb, 1, 0, 0, 0, 1), the arguments
+//     of SB's FSBActor::AddTargetedByEnemy, so the boss's EventOnBattle runs (arena walls); off: FUN_141a7cd30(fsb, 0,
+//     0, 0, 1, 1), the arguments of SB's own battle-off calls (FUN_141a63ba0 adding PeacefulMode, the actor update
+//     FUN_141a59780, the safe-location warp FUN_141bb0bf0); from the logic thread SB queues it for its game thread.
 #pragma once
 
 #include <algorithm>
@@ -328,6 +329,10 @@ constexpr size_t kMaxSummoned = kMaxTracked; // Summons the host keys at once.
 // A summon the guest made that no pair holds this many turns later (about 3 s at 60 FPS: the host's up comes first)
 // is despawned: the host's own is not shared (its list full), or gone.
 constexpr uint32_t kSummonWaitTurns = 180;
+// The host repeats bstart each kRefreshMs while its boss is in battle mode: a copy of hers that got none for this long
+// leaves battle mode (the host's boss left it). As long as the link's own loss delay, so a stall the link survives
+// never ends it.
+constexpr uint64_t kBattleEndMs = 10000;
 // The solo probes (Engine::trial()): how long bstart follows its copy, when phase sends its second line, how long
 // finish holds its copy at 1 HP and summon follows its summon; the summon row it makes (M_Marionette_SummonDollHead2:
 // SE_M_DollHead_02 with 5025010 and 5025013) and how far ahead of our EVE.
@@ -361,9 +366,9 @@ constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowli
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
 // Overrides held at once: on each enemy the side follows, a floor (the guest's), its MaxHP and MaxStamina scaled, and
-// same-place enemies' freeze; the finish guard on the guest's boss pairs; and the extra enemies and bosses' summons
-// made on this side.
-constexpr size_t kMaxCaptures = 4 * kMaxTracked + kMaxPairs + kMaxExtras + kMaxSummoned;
+// same-place enemies' freeze; the finish guard and battle mode on the guest's boss pairs; and the extra enemies and
+// bosses' summons made on this side.
+constexpr size_t kMaxCaptures = 4 * kMaxTracked + 2 * kMaxPairs + kMaxExtras + kMaxSummoned;
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -1474,6 +1479,10 @@ private:
   // Not a stat: the finish guard ran on this boss copy of the guest's (stage 5), so it may hold our Passive_Immortal at
   // 1 HP with its FinishReady ended. Undone when its pair goes without the host's dead: FinishReady_Dispel.
   static constexpr int kGuard = -4;
+  // Not a stat: SetBattleMode put this boss copy of the guest's in battle mode at the host's bstart (stage 5); key the
+  // host's GUID, battle its last bstart (ms). Undone by SetBattleMode off once the copy is no longer drawn (its pair
+  // gone, same place off), no bstart came for kBattleEndMs, and on every lift path.
+  static constexpr int kBattleOn = -5;
   static constexpr const char *kUnlisted = "its row's effects refused"; // A summon's (make_extra()).
   struct Capture {
     uint32_t guid = 0;
@@ -1623,6 +1632,15 @@ private:
         const bool off = g.effect(logic, la, la, kFinishDispel) != 0;
         g.event(Event{"finish guard ended", off ? "Immortal off" : "the game refused its dispel", 0, a.seen.spawn,
                       a.seen.index});
+      }
+    } else if (c.type == kBattleOn) {
+      // Out of battle mode as SB's own calls leave it (its boss bar and music [L]; the arena walls are its spawn row's
+      // events, not this call's); a dying copy needs none (the call's body refuses life states 3 to 5). The host's next
+      // bstart for it calls again.
+      guest.started(c.key, false);
+      if (found && fighting(a)) {
+        g.battle(a.fsb, false);
+        g.event(Event{"battle off", "", c.key, a.seen.spawn, a.seen.index});
       }
     } else if (thaw && c.game_froze) {
       g.event(Event{"thaw skipped", "the game froze it first", 0, a.seen.spawn, a.seen.index});
@@ -2182,12 +2200,19 @@ private:
       return boss_lines(g, logic, n, now);
     for (Message m; boss_in_.pop(m) && !latched_;)
       if (m.type == Type::bstart)
-        bstart_in(g, logic, m, n);
+        bstart_in(g, logic, m, n, now);
       else if (m.type == Type::phase)
         phase_in(g, logic, m, n);
       else
         summon_in(g, logic, m, n);
     trial(g, logic, n, census, now); // Before the guard, so a finish test reads the stance as the game left it.
+    // Our battle mode comes off a copy no longer drawn (its pair gone, same place off) and one whose host's boss left
+    // battle mode: no bstart for kBattleEndMs.
+    for (size_t i = 0; i < captures_ && !latched_;)
+      if (caps_[i].type == kBattleOn && (!drawn_boss(caps_[i].guid, n) || now - caps_[i].battle >= kBattleEndMs))
+        lift(g, logic, i);
+      else
+        ++i;
     uint32_t local[kMaxTracked], hguid[kMaxTracked], guarded[kMaxPairs];
     const size_t count = guest.tracked(local, hguid);
     size_t guards = 0;
@@ -2336,10 +2361,10 @@ private:
     return nullptr;
   }
   // The guest: the host's bstart (checked: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and
-  // the reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy. The
-  // host's repeats while its boss is in battle mode bring back one refused before (no pair yet, not drawn yet). Null
-  // when called, else why not.
-  template <class Game> const char *bstart_in(Game &g, uint64_t logic, const Message &m, size_t n) {
+  // the reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy while
+  // it stays in battle mode (kBattleOn, captured before the call). The host's repeats while its boss is in battle mode
+  // keep ours on, and bring back one refused before (no pair yet, not drawn yet). Null when called, else why not.
+  template <class Game> const char *bstart_in(Game &g, uint64_t logic, const Message &m, size_t n, uint64_t now) {
     uint32_t local = 0;
     Actor a;
     const char *why = guest.boss_line(m, local);
@@ -2348,14 +2373,21 @@ private:
       why = !drawn_boss(local, n)                                       ? "not drawn"
             : !la || !live(g, la, local, a) || a.life != 1 || a.pending ? "gone"
             : !senders_made(g)                                          ? "not made"
+            : captures_ == kMaxCaptures                                 ? "full"
                                                                         : nullptr;
     if (latched_)
       return "latched";
+    for (size_t i = 0; why && !std::strcmp(why, "again") && i < captures_; ++i)
+      if (caps_[i].type == kBattleOn && caps_[i].key == m.guid)
+        caps_[i].battle = now;
     if (why) {
       guest.counts.stale += std::strcmp(why, "again") != 0;
       return why;
     }
-    g.battle(a.fsb);
+    Capture c{local, kBattleOn, 1};
+    c.key = m.guid, c.battle = now;
+    caps_[captures_++] = c;
+    g.battle(a.fsb, true);
     guest.started(m.guid);
     ++counts.bstarts;
     g.event(Event{"bstart", "", m.guid});
@@ -2597,7 +2629,7 @@ private:
       std::snprintf(e.note, sizeof e.note, "%s", battle_note(note, sizeof note, trial_.last = battle_now(g, fsb)));
       g.event(e);
       m.type = Type::bstart;
-      const char *why = bstart_in(g, logic, m, n);
+      const char *why = bstart_in(g, logic, m, n, now);
       if (latched_)
         return;
       e = told(why ? "SetBattleMode not called:" : "SetBattleMode called");

@@ -262,6 +262,10 @@ guest's copy of a boss follows the host's through the lines in
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
   logs `fight bstart sent <key> hguid=<n>` when its boss enters battle mode.
+- Her copy stays in battle mode after the host's fight: her game logs `fight battle off <key> hguid=<n>` when it takes
+  the copy out of battle mode, at most 10 s after the host's last bstart, or at once when the pair ends. Without that
+  line her copy is still paired and drawn, and the host's game still sends a bstart each second: the host's boss is
+  still in battle mode. Leaving battle mode does not take arena walls down; the game's own events for that boss do.
 - Her copy's HP stops at a phase threshold while the host's boss fights on: look for `fight phase hguid=<n>` lines.
   `fight phase hguid=<n> the game refused a row` means the game refused a phase effect on her frozen copy. Her game
   tries again at the host's next line (every second in battle mode) and logs the refusal once until a line goes

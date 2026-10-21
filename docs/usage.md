@@ -774,8 +774,9 @@ BossMonster type) that both games hold: one HP bar, balance gauge and death, as 
 by default and have not been tested in game yet. With same place on, the guest's copy is frozen like any
 copy her game draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode,
 which phase effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events,
-the phase changes and the summoned enemies, which are shared like any other. Without same place, each game runs these
-for its own copy. A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then
+the phase changes and the summoned enemies, which are shared like any other. Her copy leaves battle mode up to 10 s
+after the host's boss does, and at once when it stops being shared. Without same place, each game runs these for its
+own copy. A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then
 leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss stops being shared first (the link
 drops, the host's world changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own
 hit ends that boss in her game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless
@@ -818,10 +819,12 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
 - `coop fight pilot test bstart` logs the copy's battle mode, first-time latch, on-battle flag, states 30 and 39 and
   whether its AI runs a task (`before: b58=<0|1> 45a=<n> 45b=<n> state30=<0|1> state39=<0|1> ai=<0|1>`), starts the
   boss fight on the copy as the host's game would (`SetBattleMode called`, or `SetBattleMode not called: <why>`, where
-  `again` means it already ran on this copy), then logs each change of those values for 1 s (`after <ms> ms: ...`, then
-  `done: ...`). From the next `coop fight replay` until the next `coop fight on`, boss copies get no `BattleMode_5s`
-  from the recording, so a second run after a reload shows the boss start alone. The replay that ran the test still
-  gets it on its boss copies, so its other tests find the copy as the guest's side would.
+  `again` means it already ran on this copy and the copy is still in battle mode), then logs each change of those values
+  for 1 s (`after <ms> ms: ...`, then `done: ...`). A replay has no host to repeat the boss start, so the copy leaves
+  battle mode 10 s after the call (`fight battle off` in `coop-link.log`), and a test after that calls it again. From
+  the next `coop fight replay` until the next `coop fight on`, boss copies get no `BattleMode_5s` from the recording, so
+  a second run after a reload shows the boss start alone. The replay that ran the test still gets it on its boss copies,
+  so its other tests find the copy as the guest's side would.
 - `coop fight pilot test phase` sends the copy the first phase row of its boss that it lacks (5005115 for GorillaB),
   and 5 s later the dispel of its HP threshold, as the host's phase lines would. Each line logs `line: <rows>; floor
   <stat 107>` and `cast: <n> taken, <n> refused`, and at the next turn `next turn: floor <stat 107>; rows <the rows
