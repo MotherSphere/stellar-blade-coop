@@ -4,8 +4,8 @@
 // from samples drawn on the ghost's own playback clock (pose_stream.h), so an enemy and the owner's ghost are drawn at
 // the same instant, and replays the Shows on the copy. No Windows types
 // and no engine call of its own: the game is read, written and called through a Game (Capturer and the FNamePool read
-// it, Driver writes the drawn copies and replays their Shows), and tests/pilot_test.cpp drives every piece here on the
-// build machine with fake memory. Nothing here allocates but
+// it, Driver writes the drawn copies and replays their Shows, Taker points a copy this side takes over at its EVE), and
+// tests/pilot_test.cpp drives every piece here on the build machine with fake memory. Nothing here allocates but
 // format(), parse_show() and sbe_text(), which are the worker's.
 //
 // SBE, little-endian, on channel 1 (unreliable), one message per capture for the pairs its sender owns:
@@ -2093,6 +2093,242 @@ private:
   size_t next_stopped_ = 0;
   size_t events_n_ = 0;
   bool latched_ = false;
+};
+
+// ---- Stage 3b: a pair this side takes over (game thread) ----
+
+// SB's globals block (nightop::kGlobals), read one word at a time: the net-mode cache, whose cached net mode is at
+// +0x14 (0 standalone), and the logic singleton, whose +0x5c0 is the logic task in flight (0: none).
+constexpr uint64_t kNetCacheAt = 0x147032528, kLogicSingletonAt = 0x147032568;
+constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
+// The world's actor manager (Globals::manager): its FSBActor array, their count and the local player's index, as SB
+// finds its own EVE; an FSBActor's player flag.
+constexpr size_t kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c, kFsbPlayer = 0x49a;
+// FSBActor: its AI block, SB's force target's first argument; in it the AI's owner (the call does nothing without
+// one), the target (an FSBActor), the detect result and the aggro level.
+constexpr size_t kAi = 0x710, kAiOwner = 0x718, kAiTarget = 0x9b8, kAiResult = 0x774, kAiLevel = 0x77c;
+constexpr float kTargetHold = 100;      // The hold SB's own AggroToConstructor effect gives.
+constexpr uint64_t kTakeMs = 250;       // A take-over waits this long at most for a logic task or for its copy.
+constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads its enemy this long.
+
+// The side that takes a pair over (stage 3b, PHASE11-STAGE3 3.8). The job thaws the copy in the turn its owner
+// changes; in the frame the table says so, the Driver puts the copy back (rows(): our replays stopped, its movement
+// component back in SB's manager if we took it out), and then step() points the copy's AI at our EVE with SB's force
+// target, FUN_141a36010(fsb + kAi, our EVE's FSBActor, 0, kTargetHold): detect result 3, aggro level 1 and SB's
+// TargetedByEnemy jobs (the HUD and music). Only with the cached net mode 0 and no logic task in flight (M3-4: in net
+// mode 3 its senders become ServerRequest_*, and SB's own callers run inside logic tasks). A task in flight, or a copy
+// the lookups miss, puts it off a frame at a time for kTakeMs. Another net mode, a task still in flight after that, no
+// EVE of ours or a copy without AI refuse it: the pair stays in refused() while the table says it is ours at that
+// epoch, and the job gives it back with own-no target. A copy still missing after kTakeMs is dropped (the job gives an
+// unpaired copy back by itself). A take-over is a pair this side owns at an epoch it did not own it at in the last
+// fresh table with same-place enemies on; never at epoch 0, every pair's first, the host's. coop fight pilot test target
+// (test()) forces the target on the first pair this side owns, however it came to own it, and notes its target, aggro
+// level and detect result whenever they change for kTargetTestMs. Nothing after fault(). Fixed memory, no pointer kept.
+// The Game: read, fsb() and character() as the Capturer's, and
+//   void target(uint64_t ai, uint64_t eve): FUN_141a36010(ai, eve, 0, kTargetHold).
+class Taker {
+public:
+  struct Counts {
+    uint64_t taken = 0;      // Pairs taken over.
+    uint64_t targeted = 0;   // Force target calls (the test's too).
+    uint64_t waited = 0;     // Frames a take-over was put off.
+    uint64_t refused = 0;    // Take-overs refused.
+    uint64_t gone = 0;       // Take-overs dropped: the copy not found within kTakeMs.
+    uint64_t notes_lost = 0; // Log lines dropped: kNotes were waiting.
+  };
+  Counts counts;
+  // The log's lines (PHASE11-STAGE3 7 rule 13), kNotes at most until notes() hands them to take(const char *), oldest
+  // first.
+  static constexpr size_t kNotes = 16, kNoteBytes = 120;
+  template <class F> void notes(F &&take) {
+    for (size_t i = 0; i < notes_n_; ++i)
+      take(static_cast<const char *>(notes_[i]));
+    notes_n_ = 0;
+  }
+  void test() { test_ = true; }
+  void fault() { latched_ = true; }
+  // The take-overs refused, by the host's GUID and the epoch, for the job's own-no (StreamFlags).
+  void refused(uint32_t *hguid, uint8_t *oe, uint8_t &n) const {
+    n = 0;
+    for (const Pair &p : pairs_)
+      if (p.hguid && p.state == kRefused)
+        hguid[n] = p.hguid, oe[n++] = p.oe;
+  }
+  // One frame at now (ms), after Driver::rows(): the n pairs this side owns in the host's generation gen, as the
+  // newest fresh table has them (in null: no fresh table), on while same-place enemies run there. What step() knows of
+  // its pairs changes only with a fresh table that is on: a stale or off one takes nothing over and forgets nothing.
+  template <class Game>
+  void step(Game &g, uint64_t base, uint32_t gen, const Owned *in, size_t n, bool on, uint64_t now) {
+    if (latched_)
+      return;
+    n = in ? std::min(n, kMaxEnemies) : 0;
+    if (in && on) {
+      if (gen != gen_)
+        std::fill(pairs_, pairs_ + kMaxEnemies, Pair()), gen_ = gen;
+      for (Pair &p : pairs_)
+        if (p.hguid && std::none_of(in, in + n, [&p](const Owned &o) { return o.hguid == p.hguid && o.oe == p.oe; }))
+          p = Pair();
+      for (size_t i = 0; i < n; ++i) {
+        Pair *p = in[i].hguid && !find(in[i].hguid) ? free_slot() : nullptr;
+        if (!p)
+          continue;
+        *p = Pair{in[i].hguid, in[i].local, in[i].oe, in[i].oe ? kWaiting : kDone, now};
+        counts.taken += p->state == kWaiting;
+      }
+      for (Pair &p : pairs_)
+        if (p.state == kWaiting)
+          take(g, base, p, now);
+    }
+    if (std::exchange(test_, false)) {
+      if (!n)
+        std::snprintf(note(), kNoteBytes, "target test: no enemy this side owns");
+      else
+        probe_ = Pair{in[0].hguid, in[0].local, in[0].oe, kWaiting, now}, read_ = Reading();
+    }
+    if (probe_.hguid)
+      look(g, base, now);
+  }
+
+private:
+  enum State : uint8_t { kDone, kWaiting, kRefused };
+  struct Pair {
+    uint32_t hguid = 0, local = 0; // 0: free.
+    uint8_t oe = 0;
+    State state = kDone;
+    uint64_t since = 0; // When it became ours (ms), or the test was asked.
+  };
+  // What the test read on its enemy last: when the test forced it (ms), the target (0 none, 1 our EVE, 2 another
+  // actor), the aggro level and the detect result, and whether a reading was noted yet.
+  struct Reading {
+    uint64_t at = 0;
+    int kind = 0;
+    int32_t level = 0, result = 0;
+    bool noted = false;
+  };
+  enum Aim : uint8_t { kForced, kBusy, kMissing, kShut, kNoEve, kNoAi };
+  static constexpr const char *kWhy[] = {"forced", "a logic task in flight", "copy not found", "not net mode 0",
+                                         "no EVE of ours", "no AI on the copy"};
+
+  char *note() {
+    if (notes_n_ < kNotes)
+      return notes_[notes_n_++];
+    ++counts.notes_lost;
+    return spare_;
+  }
+  const Pair *find(uint32_t hguid) const {
+    for (const Pair &p : pairs_)
+      if (p.hguid == hguid)
+        return &p;
+    return nullptr;
+  }
+  Pair *free_slot() {
+    for (Pair &p : pairs_)
+      if (!p.hguid)
+        return &p;
+    return nullptr;
+  }
+  // Our EVE's FSBActor (the actor manager's local player, with its player flag), or 0.
+  template <class Read> static uint64_t local_eve(Read &read, uint64_t manager) {
+    uint64_t array = 0, eve = 0;
+    int32_t count = 0, index = -1;
+    uint8_t player = 0;
+    return manager && read(manager + kActorArray, &array, sizeof array) &&
+                   read(manager + kActorCount, &count, sizeof count) &&
+                   read(manager + kLocalIndex, &index, sizeof index) && index >= 0 && index < count &&
+                   nightop::plausible(array) && read(array + 8 * uint64_t(index), &eve, sizeof eve) &&
+                   nightop::plausible(eve) && read(eve + kFsbPlayer, &player, sizeof player) && player
+               ? eve
+               : 0;
+  }
+  // The gates, then the copy by its GUID, our EVE and the copy's AI, then SB's force target on it. fsb: the copy's.
+  template <class Game> Aim force(Game &g, uint64_t base, uint32_t local, uint64_t &fsb) {
+    auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
+    uint64_t net = 0, logic = 0, task = 0, root = 0, owner = 0;
+    int32_t mode = -1;
+    fsb = 0;
+    if (!read(base + (kNetCacheAt - nightop::kImageBase), &net, sizeof net) || !nightop::plausible(net) ||
+        !read(net + kNetMode, &mode, sizeof mode) || mode != 0 ||
+        !read(base + (kLogicSingletonAt - nightop::kImageBase), &logic, sizeof logic) ||
+        !nightop::plausible(logic) || !read(logic + kLogicTask, &task, sizeof task))
+      return kShut;
+    if (task)
+      return kBusy;
+    Globals s;
+    if (!globals(read, base, s) || !find_character(g, read, base + pose::kObjectsRva, s, local, fsb, root))
+      return kMissing;
+    const uint64_t eve = local_eve(read, s.manager);
+    if (!eve || eve == fsb)
+      return kNoEve;
+    if (!read(fsb + kAiOwner, &owner, sizeof owner) || !owner)
+      return kNoAi;
+    g.target(fsb + kAi, eve);
+    ++counts.targeted;
+    return kForced;
+  }
+  // One try at p's take-over.
+  template <class Game> void take(Game &g, uint64_t base, Pair &p, uint64_t now) {
+    uint64_t fsb = 0;
+    const Aim a = force(g, base, p.local, fsb);
+    if ((a == kBusy || a == kMissing) && now - p.since < kTakeMs) {
+      ++counts.waited;
+      return;
+    }
+    p.state = a == kForced || a == kMissing ? kDone : kRefused;
+    counts.gone += a == kMissing;
+    counts.refused += p.state == kRefused;
+    if (a == kForced)
+      std::snprintf(note(), kNoteBytes, "taken hguid=%u oe=%u: target our EVE", unsigned(p.hguid), unsigned(p.oe));
+    else
+      std::snprintf(note(), kNoteBytes, "take-over %s hguid=%u oe=%u: %s", a == kMissing ? "dropped" : "refused",
+                    unsigned(p.hguid), unsigned(p.oe), kWhy[a]);
+  }
+  // The test: its force target, put off as a take-over is, then its enemy's target, aggro level and detect result
+  // each frame after, noted when they change, for kTargetTestMs.
+  template <class Game> void look(Game &g, uint64_t base, uint64_t now) {
+    auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
+    uint64_t fsb = 0;
+    if (probe_.state == kWaiting) {
+      const Aim a = force(g, base, probe_.local, fsb);
+      if ((a == kBusy || a == kMissing) && now - probe_.since < kTakeMs)
+        return;
+      std::snprintf(note(), kNoteBytes, a == kForced ? "target test hguid=%u: %s" : "target test hguid=%u refused: %s",
+                    unsigned(probe_.hguid), kWhy[a]);
+      if (a == kForced)
+        probe_.state = kDone, read_.at = now;
+      else
+        probe_ = Pair();
+      return;
+    }
+    Globals s;
+    uint64_t root = 0, target = 0;
+    Reading r = read_;
+    if (now - read_.at > kTargetTestMs || !globals(read, base, s) ||
+        !find_character(g, read, base + pose::kObjectsRva, s, probe_.local, fsb, root) ||
+        !read(fsb + kAiTarget, &target, sizeof target) || !read(fsb + kAiLevel, &r.level, sizeof r.level) ||
+        !read(fsb + kAiResult, &r.result, sizeof r.result)) {
+      if (now - read_.at <= kTargetTestMs)
+        std::snprintf(note(), kNoteBytes, "target test hguid=%u: copy not found", unsigned(probe_.hguid));
+      probe_ = Pair();
+      return;
+    }
+    r.kind = !target ? 0 : target == local_eve(read, s.manager) ? 1 : 2;
+    if (read_.noted && r.kind == read_.kind && r.level == read_.level && r.result == read_.result)
+      return;
+    static const char *const kTargets[] = {"none", "our EVE", "another actor"};
+    std::snprintf(note(), kNoteBytes, "target test hguid=%u +%llu ms: target %s, aggro level %d, detect result %d",
+                  unsigned(probe_.hguid), static_cast<unsigned long long>(now - read_.at), kTargets[r.kind],
+                  int(r.level), int(r.result));
+    read_ = r, read_.noted = true;
+  }
+
+  Pair pairs_[kMaxEnemies];
+  Pair probe_;     // The test's enemy (hguid 0: none).
+  Reading read_;   // What the test read last.
+  uint32_t gen_ = 0;
+  char notes_[kNotes][kNoteBytes] = {};
+  char spare_[kNoteBytes] = {}; // A note past kNotes is written here and dropped.
+  size_t notes_n_ = 0;
+  bool test_ = false, latched_ = false;
 };
 
 // The probe's line for one SBE message (the worker's: it allocates), or "sbe refused" for bytes decode_sbe refuses.

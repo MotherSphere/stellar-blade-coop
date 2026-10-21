@@ -9,8 +9,10 @@
 // the Show replay through the handle API with its context and setters, the dedupe of a Show the copy started
 // itself, restore's order on every way back, the latch)
 // against fake memory; stage 3b's owners (the host's rule: last hit, nearer EVE, guards, hold; own-no on the host's
-// side, own lines on hers, give-backs, place 0 and clears) with random hand-overs across a delayed link, and the
-// capture that never tells a replay of ours on a pair just taken over (R35); and two worlds through a fake Steam
+// side, own lines on hers, give-backs, place 0 and clears) with random hand-overs across a delayed link, the capture
+// that never tells a replay of ours on a pair just taken over (R35), and the take-over itself (Taker: the copy put back
+// first, then SB's force target, its net mode and logic task gates, a stale copy, the refusals named for the job's
+// own-no, the latch, coop fight pilot test target); and two worlds through a fake Steam
 // (120 +/- 30 ms, 2 % loss): the guest's copies against the host's enemies at the same host time, the show lines in
 // order, and restore at host loss.
 #include "pilot.h"
@@ -215,7 +217,7 @@ struct Scene : Pool {
   }
   // An enemy: its FSBActor (its FGuid at +0x4a4), its character and root, at x, y, z facing yaw. The character.
   uint64_t enemy(uint32_t guid, float x, float y, float z, float yaw) {
-    const uint64_t fsb = alloc(0x500), ch = object(0xd00, enemy_class), root = object(0x220, data_class);
+    const uint64_t fsb = alloc(0xa00), ch = object(0xd00, enemy_class), root = object(0x220, data_class);
     const std::vector<int32_t> fguid = {int32_t(guid), 11, 22, 33};
     for (int k = 0; k < 4; ++k)
       put<int32_t>(fsb + 0x4a4 + 4 * uint64_t(k), fguid[k]);
@@ -454,9 +456,45 @@ struct Stage : Scene {
       t->calls.push_back(line);
     }
     void stop(uint64_t, const uint8_t *h) { t->calls.push_back("stop " + std::to_string(first(h))); }
+    // SB's force target as it leaves the AI: target, detect result 3, aggro level 1.
+    void target(uint64_t ai, uint64_t eve) {
+      t->calls.push_back("target");
+      t->target_ai = ai, t->target_eve = eve;
+      t->put<uint64_t>(ai - kAi + kAiTarget, eve);
+      t->put<int32_t>(ai - kAi + kAiResult, 3);
+      t->put<int32_t>(ai - kAi + kAiLevel, 1);
+    }
   };
+  uint64_t target_ai = 0, target_eve = 0;
   Game game() { return Game{{this}, this}; }
 };
+
+// Stage with one copy (GUID 501, the host's 4100) whose AI has an owner, SB's globals at net mode 0 with no logic task
+// in flight, and our EVE as the actor manager's local player: what a take-over (Taker) reads.
+struct Takeover : Stage {
+  uint64_t ch = 0, fsb = 0, net = 0, logic = 0, eve = 0;
+  Takeover() {
+    ch = copy(501, 100, 200, 20);
+    fsb = fsbs[501];
+    put<uint64_t>(fsb + kAiOwner, 0x5e000000);
+    net = global(kNetCacheAt, alloc(0x20));
+    logic = global(kLogicSingletonAt, alloc(0x600));
+    eve = alloc(0xa00);
+    put<uint8_t>(eve + kFsbPlayer, 1);
+    const uint64_t actors = alloc(0x20);
+    put<uint64_t>(actors + 8, eve);
+    region(manager, 0x40);
+    put<uint64_t>(manager + kActorArray, actors);
+    put<int32_t>(manager + kActorCount, 2);
+    put<int32_t>(manager + kLocalIndex, 1);
+  }
+};
+// The notes a Taker holds, one a line.
+std::string notes(Taker &t) {
+  std::string out;
+  t.notes([&](const char *n) { out += std::string(n) + "\n"; });
+  return out;
+}
 } // namespace
 
 int main() {
@@ -2195,6 +2233,166 @@ int main() {
     lines.clear();
     blind.capture(f, kBase, 7, &mine, 1, 2'066'000, sbe, emit);
     assert(lines.size() == 2 && blind.counts.echoes == 0);
+  }
+
+  // ---- Stage 3b, a take-over on the game thread (Taker). In the frame the table makes a pair ours at a new epoch the
+  // Driver puts the copy back (its replay stopped, Velocity zeroed, its movement component back in SB's manager, the
+  // speed override's byte), and then SB's force target points its AI at our EVE: FUN_141a36010(fsb + 0x710, our EVE,
+  // 0, 100.0f). Epoch 0 is never a take-over, nor a pair still ours at the same epoch; a table that is stale or off
+  // changes nothing the Taker knows ----
+  {
+    Takeover s;
+    Stage::Game g = s.game();
+    Driver d;
+    Taker t;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    ShowLine l;
+    l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = 1, l.t_ms = 1000, l.rate = 1000;
+    assert(set_path(l, 0, "A/B"));
+    d.line(l, 1000);
+    d.draw(g, kBase, 5000, 1000);
+    t.step(g, kBase, 7, nullptr, 0, true, 5000);
+    assert(d.counts.shows == 1 && d.counts.cmc_out == 1 && t.counts.targeted == 0);
+    size_t seen = s.calls.size();
+    const Owned mine{4100, 501, 1, 0};
+    d.rows(g, kBase, 7, kGuest, nullptr, 0); // The table: hers now, at epoch 1.
+    t.step(g, kBase, 7, &mine, 1, true, 5016);
+    assert(s.since(seen) == "stop 1 write12 cmc on write1 target");
+    assert(s.target_ai == s.fsb + kAi && s.target_eve == s.eve && t.counts.taken == 1 && t.counts.targeted == 1);
+    assert(s.get<uint8_t>(s.cmc(s.ch) + kCmcParallel) == 1 && s.get<uint8_t>(s.ch + kSpeedOverride) == 0);
+    assert(notes(t) == "taken hguid=4100 oe=1: target our EVE\n");
+    t.step(g, kBase, 7, &mine, 1, true, 5032);  // Still ours at that epoch.
+    t.step(g, kBase, 7, nullptr, 0, true, 5048); // No fresh table.
+    t.step(g, kBase, 7, &mine, 0, false, 5064);  // Same-place enemies off: nothing forgotten...
+    t.step(g, kBase, 7, &mine, 1, true, 5080);   // ... so on again, it is no new take-over.
+    const Owned first{4100, 501, 0, 0};          // Epoch 0: the host's from the start, never taken over.
+    t.step(g, kBase, 7, &first, 1, true, 5096);
+    assert(s.since(seen).empty() && t.counts.taken == 1 && notes(t).empty());
+    t.step(g, kBase, 8, &mine, 1, true, 5112); // A new generation: everything known goes, so epoch 1 is new.
+    assert(s.since(seen) == "target" && t.counts.taken == 2);
+    uint32_t hg[kMaxEnemies];
+    uint8_t oe[kMaxEnemies], nr = 9;
+    t.refused(hg, oe, nr);
+    assert(nr == 0);
+  }
+  // The gates refuse with no call: another net mode at once; a logic task in flight puts it off a frame at a time
+  // and refuses it once it lasts 250 ms. A refused pair is named for the job's own-no while the table says it is ours
+  // at that epoch, and never tried again at it.
+  {
+    Takeover s;
+    Stage::Game g = s.game();
+    Taker t;
+    uint32_t hg[kMaxEnemies];
+    uint8_t oe[kMaxEnemies], nr = 0;
+    size_t seen = s.calls.size();
+    const Owned one{4100, 501, 1, 0};
+    s.put<int32_t>(s.net + kNetMode, 3);
+    t.step(g, kBase, 7, &one, 1, true, 1000);
+    t.refused(hg, oe, nr);
+    assert(s.since(seen).empty() && t.counts.refused == 1 && nr == 1 && hg[0] == 4100 && oe[0] == 1);
+    assert(notes(t) == "take-over refused hguid=4100 oe=1: not net mode 0\n");
+    s.put<int32_t>(s.net + kNetMode, 0);
+    t.step(g, kBase, 7, &one, 1, true, 1016);
+    t.step(g, kBase, 7, nullptr, 0, true, 1032);
+    t.refused(hg, oe, nr);
+    assert(s.since(seen).empty() && nr == 1);
+    t.step(g, kBase, 7, &one, 0, true, 1048); // Fresh and on, no longer ours: forgotten.
+    t.refused(hg, oe, nr);
+    assert(nr == 0);
+    const Owned three{4100, 501, 3, 0};
+    s.put<uint64_t>(s.logic + kLogicTask, 0x7000);
+    t.step(g, kBase, 7, &three, 1, true, 2000);
+    t.step(g, kBase, 7, &three, 1, true, 2200);
+    assert(s.since(seen).empty() && t.counts.waited == 2 && notes(t).empty());
+    s.put<uint64_t>(s.logic + kLogicTask, 0);
+    t.step(g, kBase, 7, &three, 1, true, 2249);
+    assert(s.since(seen) == "target" && t.counts.targeted == 1);
+    const Owned five{4100, 501, 5, 0};
+    s.put<uint64_t>(s.logic + kLogicTask, 0x7000);
+    for (uint64_t ms = 3000; ms <= 3250; ms += 50)
+      t.step(g, kBase, 7, &five, 1, true, ms);
+    t.refused(hg, oe, nr);
+    assert(s.since(seen).empty() && t.counts.refused == 2 && nr == 1 && oe[0] == 5);
+    assert(notes(t) == "taken hguid=4100 oe=3: target our EVE\n"
+                       "take-over refused hguid=4100 oe=5: a logic task in flight\n");
+    s.put<uint64_t>(s.logic + kLogicTask, 0);
+    // A stale copy (its character pending kill: the lookup misses it): skipped, called once found again in time;
+    // missing for 250 ms, dropped without an own-no (the job gives an unpaired copy back by itself).
+    const auto key = s.characters.begin()->first;
+    s.characters.erase(key);
+    const Owned seven{4100, 501, 7, 0};
+    t.step(g, kBase, 7, &seven, 1, true, 4000);
+    assert(s.since(seen).empty());
+    s.characters[key] = s.ch;
+    t.step(g, kBase, 7, &seven, 1, true, 4016);
+    assert(s.since(seen) == "target");
+    s.characters.erase(key);
+    const Owned nine{4100, 501, 9, 0};
+    t.step(g, kBase, 7, &nine, 1, true, 5000);
+    t.step(g, kBase, 7, &nine, 1, true, 5250);
+    t.refused(hg, oe, nr);
+    assert(s.since(seen).empty() && t.counts.gone == 1 && nr == 0);
+    s.characters[key] = s.ch;
+    // No EVE of ours, or a copy whose AI has no owner: refused.
+    s.put<int32_t>(s.manager + kLocalIndex, 2);
+    const Owned eleven{4100, 501, 11, 0};
+    t.step(g, kBase, 7, &eleven, 1, true, 6000);
+    s.put<int32_t>(s.manager + kLocalIndex, 1);
+    s.put<uint64_t>(s.fsb + kAiOwner, 0);
+    const Owned thirteen{4100, 501, 13, 0};
+    t.step(g, kBase, 7, &thirteen, 1, true, 6016);
+    assert(s.since(seen).empty() && t.counts.refused == 4);
+    assert(notes(t) == "taken hguid=4100 oe=7: target our EVE\n"
+                       "take-over dropped hguid=4100 oe=9: copy not found\n"
+                       "take-over refused hguid=4100 oe=11: no EVE of ours\n"
+                       "take-over refused hguid=4100 oe=13: no AI on the copy\n");
+    // After the pilot's latch: nothing, whatever comes.
+    s.put<uint64_t>(s.fsb + kAiOwner, 0x5e000000);
+    t.fault();
+    const Owned fifteen{4100, 501, 15, 0};
+    t.test();
+    t.step(g, kBase, 7, &fifteen, 1, true, 7000);
+    assert(s.since(seen).empty() && notes(t).empty());
+  }
+  // coop fight pilot test target: SB's force target on the first pair this side owns (here the host's own, epoch 0),
+  // then its target, aggro level and detect result each frame for a second, noted when they change.
+  {
+    Takeover s;
+    Stage::Game g = s.game();
+    Taker t;
+    size_t seen = s.calls.size();
+    const Owned mine{4100, 501, 0, 0};
+    t.test();
+    t.step(g, kBase, 7, &mine, 0, true, 900);
+    assert(notes(t) == "target test: no enemy this side owns\n");
+    s.put<int32_t>(s.net + kNetMode, 3);
+    t.test();
+    t.step(g, kBase, 7, &mine, 1, true, 950);
+    assert(s.since(seen).empty() && notes(t) == "target test hguid=4100 refused: not net mode 0\n");
+    s.put<int32_t>(s.net + kNetMode, 0);
+    t.test();
+    t.step(g, kBase, 7, &mine, 1, true, 1000);
+    assert(s.since(seen) == "target" && notes(t) == "target test hguid=4100: forced\n" && t.counts.taken == 0);
+    t.step(g, kBase, 7, &mine, 1, true, 1016);
+    t.step(g, kBase, 7, &mine, 1, true, 1032);
+    assert(notes(t) == "target test hguid=4100 +16 ms: target our EVE, aggro level 1, detect result 3\n");
+    s.put<uint64_t>(s.fsb + kAiTarget, s.fsb); // Another actor.
+    t.step(g, kBase, 7, &mine, 1, true, 1048);
+    s.put<uint64_t>(s.fsb + kAiTarget, 0);
+    s.put<int32_t>(s.fsb + kAiLevel, 0);
+    t.step(g, kBase, 7, &mine, 1, true, 1064);
+    t.step(g, kBase, 7, nullptr, 0, true, 2001); // Past the second: over, without a word.
+    s.put<int32_t>(s.fsb + kAiLevel, 1);
+    t.step(g, kBase, 7, &mine, 1, true, 2016);
+    assert(s.since(seen).empty());
+    assert(notes(t) == "target test hguid=4100 +48 ms: target another actor, aggro level 1, detect result 3\n"
+                       "target test hguid=4100 +64 ms: target none, aggro level 0, detect result 3\n");
   }
 
   // ---- Two worlds: the host pilots the guest's copies through a fake Steam (exit criterion 1 of stage 3a) ----
