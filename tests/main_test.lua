@@ -21,7 +21,8 @@
 -- takes the notices into its feed while the UI is up, join codes (join.lua on the fake kit: who_can_join=code, the
 -- menu's Copy my code, Join with a code and Remove rows, the code box and the host's question taking the keys), the
 -- co-op saves' question (saves.lua on the fake kit) shows on
--- the title screen and takes the menu's keys while open, coop saves reaches the native part, coop no, coop recruiter and
+-- the title screen and takes the menu's keys while open, the co-op line opens at a camp phone booth (booth.lua on a
+-- fake FindAllOf) and its hint shows there, coop saves reaches the native part, coop no, coop recruiter and
 -- coop fight accept the co-op saves (slot=coop saves=coop), coop quests (the shared quests, experimental) checks its
 -- arguments, the co-op slot and its settings, carries quest_deny, asks force only when typed twice, starts once a load
 -- with shared_quests=on, ends at a reload with shared_quests=off, follows the menu's row and says its notices on
@@ -108,7 +109,7 @@ local link_mode='none' -- What link.mode() says, as of the last changes().
 local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 local mate_v=nil -- link.mate(): her vitals.
 local paks_v=nil -- link.paks(): her .pak mods against ours.
-local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked.
+local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
@@ -137,7 +138,6 @@ local fake_link={
         said_lines[#said_lines+1]=text
         return true
     end,
-    friend=function() return friend_name,friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -175,6 +175,7 @@ fake_link.night=function(line) fake_link.nights[#fake_link.nights+1]=line; retur
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
 fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
+fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 local native_ok
 local captured,remoted={},nil
 local fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
@@ -190,6 +191,22 @@ local the_notice,name_tag,look,rebuilds
 local veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
 local her_anchor,markers=nil,{} -- puppet.anchor(); puppet.marker's arguments (the name tag left to the UI marker).
 local her_map_v='/game/e04' -- puppet.her_map(): her map, from her table (yours is /game/e04).
+-- The camp phone booths (booth.lua for real): FindAllOf of the two booth classes gives bt.world's booths of that class
+-- (none by default, so every case scans an empty world) and counts the calls in bt.scans; any other class raises.
+-- bt.me: puppet.me(). A global: this chunk is at Lua's 200 locals.
+bt={world={},scans=0,me={at={X=0,Y=0,Z=0},map='/game/e04'}}
+FindAllOf=function(class)
+    assert(class=='Env_Camp_TeleportMachine_C' or class=='Env_Camp_TeleportMachine_Standalone_C',class)
+    bt.scans=bt.scans+1
+    local list={}
+    for _,b in ipairs(bt.world) do
+        if b.class==class then
+            list[#list+1]={type=function() return 'UObject' end,IsValid=function() return true end,
+                K2_GetActorLocation=function() return b.at end,EnvActorName=b.id}
+        end
+    end
+    return #list>0 and list or nil
+end
 package.loaded.puppet={new=function(link,capture,say,tag,looks)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
@@ -204,7 +221,7 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         world=function() return in_world,at_title end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
-        me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end,
+        me=function() return bt.me end,marker=function(on) markers[#markers+1]=on end,
         collide=function(on) package.loaded.puppet.collide=on end} -- Each 250 ms: no room for one more local.
 end}
 -- The real parser; files: the records file on an in-memory disk (disk.files), which say the paths they got (in nr).
@@ -2377,7 +2394,7 @@ settings_text,in_world,kit_ready='',false,false
 -- and arrow, projected through the kit each frame and never without her anchor; nothing after coop off.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
-assert(table.concat(kit_order,' ')=='chat feed card marker arrow code menu ask badge saves',
+assert(table.concat(kit_order,' ')=='chat feed card marker arrow code menu line_hint ask badge saves',
     table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,
@@ -2445,6 +2462,137 @@ coop('ui','off'); kit_off=true
 quarter(); assert(asked[#asked]=='saves coop','coop ui off: always still asks')
 kit_off,settings_text=false,''
 saves_info,at_title,chatting,chat_active={},false,false,false
+
+-- The co-op line (booth.lua, menu.lua, ui_model.lua and ui_text.lua for real on the fake kit; booth_test and
+-- ui_model_test test them alone). Within 3 m of a camp phone booth the menu key opens the line: its header, the session
+-- rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as before. Co-op menu
+-- turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the same commands and
+-- close as from the main page. The hint shows at a booth with nothing open, and hides with the menu, a box or a
+-- question open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off. In
+-- a function: this chunk is at Lua's 200 locals. The clock moves by quarters only (the frame time test below).
+(function()
+    local CAMP='Env_Camp_TeleportMachine_C'
+    local function lines_with(text)
+        local n=0
+        for _,line in ipairs(printed) do if line:find(text,1,true) then n=n+1 end end
+        return n
+    end
+    local function starts(text) return screen():sub(1,#text)==text end
+    settings_text,status_text,link_mode,chat_feed,friend_name,friend_linked='',plain,'none',nil,'Kaanta',false
+    link_code,link_stranger,link_pending,saves_info,at_title,photo_mode=nil,nil,nil,{},false,false
+    bt.world={{class=CAMP,id='Xion_10_EnvS_016',at={X=250,Y=0,Z=0}}}
+    bt.me,bt.scans={at={X=0,Y=0,Z=0},map='/game/e04'},0
+    load_main(true)
+    in_world,kit_ready=true,true; quarter()
+    assert(bt.scans==2 and logged('booths: 1 on /game/e04 (0.0 ms)'),'One scan, both classes')
+    assert(not kit_shown.line_hint,'The hint from the next 250 ms: the list was empty when it was asked')
+    quarter()
+    assert(kit_shown.line_hint and kit_views.line_hint.text.s=='F5  Co-op line',kit_views.line_hint.text.s)
+    kit_language='fr-FR'; quarter()
+    assert(kit_views.line_hint.text.s=='F5  Ligne co-op','In the game\'s language: '..kit_views.line_hint.text.s)
+    kit_language=nil; quarter()
+    -- Free: Host, Join, Join with a code.
+    key('F5')
+    assert(kit_shown.menu and not kit_shown.line_hint,'The line open, the hint hidden')
+    assert(last()=='[StellarCoop] line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 2.5 m\n',last())
+    assert(screen()=='CO-OP LINE||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
+        ..'Co-op menu||normal\nHang up||normal',screen())
+    assert(menu_view.title.s=='CO-OP' and menu_view.note.s=='The line is free. Host a session or join a friend.')
+    local scans=bt.scans
+    clock=clock+5; quarter()
+    assert(bt.scans==scans and not kit_shown.line_hint,'Open: no scan, no hint')
+    to('Co-op menu'); key('RETURN')
+    assert(kit_shown.menu and starts('SESSION||disabled\nHost a session||focus\n') and menu_view.note.s=='',screen())
+    key('ESCAPE'); assert(not kit_shown.menu,'Esc closes the main page reached from the line')
+    quarter(); assert(kit_shown.line_hint and bt.scans==scans+2,'Closed: the hint back, the scan due')
+    key('F5'); to('Hang up'); key('RETURN')
+    assert(not kit_shown.menu and kit_sounds[#kit_sounds]=='close','Hang up closes')
+    key('F5'); key('ESCAPE'); assert(not kit_shown.menu,'Esc closes the line')
+    -- The sentence by state: open (hosting alone or her connection lost), linked (as host or guest, her name or your
+    -- friend), nothing while connecting, as a guest whose connection is lost, or before Steam.
+    link_mode='host'; key('F5')
+    assert(screen()=='CO-OP LINE||disabled\nInvite a friend (Steam)||focus\nLeave the session||normal\n'
+        ..'Co-op menu||normal\nHang up||normal',screen())
+    assert(menu_view.note.s=='Your session is open. Invite a friend from here.',menu_view.note.s)
+    friend_linked=true; quarter(); assert(menu_view.note.s=='On the line with Kaanta.',menu_view.note.s)
+    friend_name=nil; quarter(); assert(menu_view.note.s=='On the line with your friend.',menu_view.note.s)
+    friend_name,link_mode='Kaanta','guest'; quarter()
+    assert(screen()=='CO-OP LINE||disabled\nLeave the session||focus\nCo-op menu||normal\nHang up||normal'
+        and menu_view.note.s=='On the line with Kaanta.',screen())
+    fake_link.lost=true; quarter(); assert(menu_view.note.s=='','A guest, her connection lost: no sentence')
+    link_mode='host'; quarter()
+    assert(menu_view.note.s=='Your session is open. Invite a friend from here.','A host, her connection lost')
+    fake_link.lost,link_mode=nil,'guest'
+    friend_linked=false; quarter(); assert(menu_view.note.s=='','Connecting: no sentence')
+    link_mode=nil; quarter()
+    assert(screen()=='CO-OP LINE||disabled\nCo-op menu||focus\nHang up||normal' and menu_view.note.s=='',screen())
+    -- Leave from the line still asks for a second Select; Invite runs and closes.
+    link_mode,friend_linked='host',true; quarter()
+    to('Leave the session')
+    local n=#asked
+    key('RETURN'); assert(#asked==n and menu_view.note.s=='Select again within 3 s to leave.')
+    key('RETURN'); assert(asked[#asked]=='leave' and kit_shown.menu)
+    to('Invite a friend (Steam)'); key('RETURN')
+    assert(asked[#asked]=='invite' and #asked==n+2 and not kit_shown.menu,'Invite from the line')
+    -- 3.1 m away: the main page as before, the same Invite.
+    bt.me.at.X=-60; quarter()
+    assert(not kit_shown.line_hint,'Out of reach: no hint')
+    local said_line=lines_with('line: booth')
+    key('F5')
+    assert(starts('SESSION||disabled\nLeave the session||focus\n') and lines_with('line: booth')==said_line,screen())
+    to('Invite a friend (Steam)'); key('RETURN')
+    assert(asked[#asked]=='invite' and #asked==n+3 and not kit_shown.menu,'Invite from the main page')
+    -- Host, from the line and from the main page.
+    link_mode,friend_linked='none',false
+    key('F5'); assert(focus()=='Host a session' and starts('SESSION||disabled'))
+    key('RETURN'); assert(asked[#asked]=='host' and #asked==n+4 and not kit_shown.menu,'Host from the main page')
+    bt.me.at.X=0; quarter(); quarter()
+    key('F5'); assert(focus()=='Host a session' and starts('CO-OP LINE||disabled'))
+    key('RETURN'); assert(asked[#asked]=='host' and #asked==n+5 and not kit_shown.menu,'Host from the line')
+    -- The hint hides while a box is open: the code box (Join with a code, from the line), the chat's box.
+    clock=clock+0.25; loops[1].f(); quarter(); assert(kit_shown.line_hint)
+    key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code)
+    quarter(); assert(not kit_shown.line_hint,'The code box open')
+    key('ESCAPE'); quarter(); assert(not kit_shown.code and kit_shown.line_hint)
+    link_mode,chat_active='host',true
+    key('RETURN'); clock=clock+0.25; loops[1].f(); assert(kit_shown.chat)
+    quarter(); assert(not kit_shown.line_hint,'The chat\'s box open')
+    key('ESCAPE'); quarter(); assert(not kit_shown.chat and kit_shown.line_hint)
+    chat_active=false
+    -- The host's question.
+    link_pending={id='76561198000000008',name='Two'}
+    quarter(); assert(kit_shown.ask)
+    quarter(); assert(not kit_shown.line_hint,'The host\'s question open')
+    clock=clock+1; key('ESCAPE'); link_pending=nil
+    quarter(); assert(not kit_shown.ask and kit_shown.line_hint)
+    -- Paused: no hint, no scan.
+    link_mode='none'
+    scans=bt.scans
+    kit_paused=true
+    for _=1,20 do quarter() end
+    assert(not kit_shown.line_hint and bt.scans==scans,'Paused')
+    kit_paused=false; quarter(); assert(kit_shown.line_hint and bt.scans==scans+2)
+    -- The co-op saves' question, still open on the first 250 ms back in the world (it closes after the menu's turn).
+    saves_info={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
+    in_world,at_title=false,true; quarter(); assert(kit_shown.saves and not kit_shown.line_hint)
+    in_world,at_title=true,false; quarter()
+    assert(not kit_shown.saves and not kit_shown.line_hint,'The saves\' question was open')
+    quarter(); assert(kit_shown.line_hint)
+    saves_info={}
+    -- coop off: hidden, and no scan after.
+    coop('off')
+    assert(not kit_shown.line_hint,'coop off hides it')
+    scans=bt.scans
+    for _=1,40 do quarter() end
+    assert(bt.scans==scans and not kit_shown.line_hint,'No scan after coop off')
+    -- The hint names the menu key as set.
+    settings_text='menu_key=Shift+F7\n'
+    load_main(true)
+    in_world,kit_ready=true,true; quarter(); quarter()
+    assert(kit_views.line_hint.text.s=='Shift+F7  Co-op line',kit_views.line_hint.text.s)
+    coop('off')
+    bt.world,link_mode,in_world,kit_ready,settings_text={},'none',false,false,''
+end)()
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true

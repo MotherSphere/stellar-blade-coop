@@ -4,7 +4,8 @@
 -- [off], coop replay [off]), in the outfit it was captured in (coop basesuit: on the base suit instead; coop look: its
 -- cloth, dyes or effects on or off until the mod reloads); the Steam link between two players (coop host, invite, join,
 -- leave, status, report, copy, allow, deny, remove; the co-op menu on F5, whose rows host, invite, join, leave and
--- change the settings (menu.lua), status and leave on F6 and F8, unless coop-settings.txt says otherwise; join codes
+-- change the settings (menu.lua), within 3 m of a camp phone booth the co-op line instead (booth.lua), status and
+-- leave on F6 and F8, unless coop-settings.txt says otherwise; join codes
 -- and the host's question on a player who is not her Steam friend: join.lua), the session chat on Enter (chat.lua), its
 -- notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's card, marker and off-screen
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
@@ -599,7 +600,8 @@ end
 -- (nightop_run.lua's), the code box (join.lua), the co-op menu (menu.lua), the host's question (join.lua) and the
 -- co-op saves' question (saves.lua) on the Uplink kit (ui.lua), with the Steam link only: its root is built in a world
 -- or on the title screen, after one lookup a 250 ms tick. The feed and the HUDs first: the menu draws over them, the
--- questions over all.
+-- questions over all. The camp phone booths near EVE (booth.lua): the menu key opens the co-op line at one.
+local booth=require('booth').new(log)
 if settings then
     local Ui=require('ui')
     kit=Ui.kit({log=ui_log,store=link.store('coop-ui.txt'),scale=settings.ui_scale,sounds=settings.ui_sounds})
@@ -976,7 +978,10 @@ if link then
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
-            menu.slow(shown)
+            menu.slow(shown,not (box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open())
+                and booth.near(puppet.me()) or nil)
+            booth.tick(os.clock(),shown and kit.ready() and not kit.off() and not kit.paused() and not menu.is_open()
+                and puppet.me() or nil)
             box.slow(chat_clock)
             code_box.slow(shown)
             approval.slow(shown) -- After the chat's: it waits while the box is open.
@@ -1032,7 +1037,7 @@ if settings then
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else
-                    local ok,why,shown,en=menu.toggle()
+                    local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
                     if why then report(ok,why); say(shown or why,en) end
                 end
                 return

@@ -5,8 +5,9 @@
 -- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
 -- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
 -- saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card and result panel within
--- their columns, and the challenges' words: a name for each of challenges.lua's ids, as the card's title, the Best
--- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes.
+-- their columns, the challenges' words: a name for each of challenges.lua's ids, as the card's title, the Best row and
+-- the lines under the heading within their columns, the notices with the longest name within 200 bytes, the co-op
+-- line's hint and sentences within theirs, and no Thai word that ends on a leading vowel.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
@@ -160,5 +161,25 @@ for name in pairs(R.TEXT) do
     for _,text in ipairs({n.died,n.time_up,n.mate_died,n.you_died}) do fits(name..'.night: '..text,text,54) end
     for k,text in pairs(n.why) do fits(name..'.night.why.'..k,text,54) end
     for _,k in ipairs({'waves','kills','points','time'}) do fits(name..'.night.'..k,n[k],40) end
+    -- The co-op line (menu.lua): the booth hint's word after the longest menu key name, within the hint's 700 units;
+    -- each sentence in the menu's note (the status style, 78 columns as the saves' question's body) with a 32-byte
+    -- name, and within the feed's line.
+    fits(name..'.line.prompt','Shift+F12  '..w.line.prompt,700//UNIT)
+    for _,k in ipairs({'free','open','linked'}) do
+        local text=fill(w.line[k])
+        fits(name..'.line.'..k,text,78)
+        assert(Chat.clean(text)==text,name..'.line.'..k..': '..#text..' bytes or a control')
+    end
 end
+-- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
+local function thai(t,at)
+    for k,v in pairs(t) do
+        if type(v)=='table' then thai(v,at..k..'.')
+        elseif v~='' then
+            local last=utf8.codepoint(v,utf8.offset(v,-1))
+            assert(not (last>=0xE40 and last<=0xE44),at..k..' ends on a leading vowel')
+        end
+    end
+end
+if T.th then thai(T.th,'th.') end
 print('ui_text_test ok')

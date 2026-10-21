@@ -66,7 +66,8 @@ together. Two games with different protocols cannot link, and the player who tri
 - `F5` opens the co-op menu. Its first row, Host a session, opens a session and the Steam invite dialog, where you
   pick your friend. The session is friends-only unless Options sets Who can join to Invited only or With a code (see
   below). While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
-  ZQSD) move, Enter selects and Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
+  ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
+  page with the same session rows. See [usage.md](docs/usage.md#co-op-menu).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
 - `Enter`, during a session, opens the chat box. See [usage.md](docs/usage.md#session-chat).

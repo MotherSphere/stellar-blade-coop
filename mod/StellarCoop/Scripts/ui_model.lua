@@ -1,4 +1,5 @@
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
+-- the co-op line's (a camp phone booth's page: the main page's session rows, Co-op menu and Hang up),
 -- the Options tree (every co-op setting as a toggle, a choice, a range or a key; those whose feature is not built yet
 -- wait, hidden), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of that row
 -- within 3 s, values read as the mod reads coop-settings.txt (link.parse_settings), and each change as the one value
@@ -27,6 +28,11 @@ M.MAIN={
     {id='report'},
     {id='close'},
 }
+local function main_row(id) for _,row in ipairs(M.MAIN) do if row.id==id then return row end end end
+-- The co-op line: the main page's own session rows (the same tables: the same show and confirm), then Co-op menu (the
+-- main page) and Hang up (closed).
+M.LINE={{head='line'},main_row('host'),main_row('invite'),main_row('copy'),main_row('join'),main_row('join_code'),
+    main_row('remove'),main_row('leave'),{id='menu'},{id='hangup'}}
 local function toggle(key,default) return {key=key,values={'on','off'},default=default} end
 local function range(key,min,max,step,default) return {key=key,min=min,max=max,step=step,default=tostring(default)} end
 local function bind(key,default) return {key=key,bind=true,default=default} end
@@ -128,14 +134,15 @@ function M.rebind(values,key,text)
     if other then return nil,'clash',other end
     return 'set',key,new.name
 end
-function M.new()
-    local self,page,id,index,asked={},'main',nil,1,nil -- asked: {id=, at=} the first Select of a confirm row.
+-- start: the page it opens on, 'main' (the default) or 'line'.
+function M.new(start)
+    local self,page,id,index,asked={},start or 'main',nil,1,nil -- asked: {id=, at=} the first Select of a confirm row.
     local function name(row) return row.id or row.key end
     function self.page() return page end
     -- The page's rows shown in this state, headers included, but none with no row under it.
     function self.rows(ctx)
         local rows={}
-        for _,row in ipairs(page=='main' and M.MAIN or M.OPTIONS) do
+        for _,row in ipairs(page=='main' and M.MAIN or page=='line' and M.LINE or M.OPTIONS) do
             if row.head and rows[#rows] and rows[#rows].head then rows[#rows]=nil end
             if not row.later and (not row.show or row.show(ctx)) then rows[#rows+1]=row end
         end
@@ -176,8 +183,9 @@ function M.new()
         return 'set',row.key,new
     end
     -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
-    -- 'join_code', 'chat', 'report', 'close'); 'confirm_leave' or 'confirm_remove' (the row runs on a second Select of
-    -- it within 3 s); 'options' (the page changed); 'rebind', key; or a setting's next value, as change().
+    -- 'join_code', 'chat', 'report', 'close', which Hang up gives too); 'confirm_leave' or 'confirm_remove' (the row
+    -- runs on a second Select of it within 3 s); 'options' or 'main' (the page changed: Co-op menu gives 'main');
+    -- 'rebind', key; or a setting's next value, as change().
     function self.select(ctx,now,values)
         local row=self.current(ctx)
         if row.confirm then
@@ -186,15 +194,17 @@ function M.new()
             return 'confirm_'..row.id
         end
         if row.id=='options' then page,id,index='options',nil,1; return 'options' end
+        if row.id=='menu' then page,id,index='main',nil,1; return 'main' end
+        if row.id=='hangup' then return 'close' end
         if row.bind then return 'rebind',row.key end
         if row.key then return self.change(ctx,values,1) end
         return row.id
     end
     -- The menu closed (by menu_key; back() calls it for Esc): a first Select on Leave or Remove is forgotten.
     function self.close() asked=nil end
-    -- Back (Esc): from Options to the main page, on its Options row; from the main page, 'close'.
+    -- Back (Esc): from Options to the main page, on its Options row; from the main page or the line, 'close'.
     function self.back()
-        if page=='main' then self.close(); return 'close' end
+        if page~='options' then self.close(); return 'close' end
         page,id,asked='main','options',nil
         return nil
     end
