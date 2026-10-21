@@ -171,7 +171,7 @@ int main() {
           "SBF11 own 3 77 G 1", "SBF11 own 4294967295 4294967295 H 255", "SBF11 own 3 77 H 0",
           "SBF11 own-no 3 77 0 unpaired", "SBF11 own-no 3 77 255 state", "SBF11 own-no 3 77 9 off",
           "SBF11 own-no 3 77 9 epoch", "SBF11 own-no 3 77 9 aggro", "SBF11 own-no 3 77 9 full",
-          "SBF11 own-no 3 77 9 target"}) {
+          "SBF11 own-no 3 77 9 target", "SBF11 exec 3 77 1", "SBF11 exec 4294967295 4294967295 0"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -200,6 +200,8 @@ int main() {
     assert(!msg("SBF11 own 3 77 H 1").to_guest);
     Message no = msg("SBF11 own-no 3 77 4 epoch");
     assert(no.type == Type::own_no && no.gen == 3 && no.guid == 77 && no.oe == 4 && no.why == kEpoch);
+    Message exec = msg("SBF11 exec 3 77 1");
+    assert(exec.type == Type::exec && exec.gen == 3 && exec.guid == 77 && exec.exec && !msg("SBF11 exec 3 77 0").exec);
     Message odd;
     odd.type = Type::own_no, odd.gen = 3, odd.guid = 77, odd.why = 99; // Never written: read as unpaired.
     assert(format(odd) == "SBF11 own-no 3 77 0 unpaired");
@@ -268,7 +270,10 @@ int main() {
           "SBF11 own 3 77 G -1", "SBF11 own 0 77 G 1", "SBF11 own 3 0 G 1", "SBF11 own 3 77 G 1 1",
           "SBF11 own 3 77 HG 1", "SBF11 own-no 3 77 1", "SBF11 own-no 3 77 1 why", "SBF11 own-no 3 77 1 State",
           "SBF11 own-no 3 77 256 off", "SBF11 own-no 0 77 1 off", "SBF11 own-no 3 0 1 off", "SBF11 own-no 3 77 1 off x",
-          "SBF11 own-no 3 77 off", "SBF11 own_no 3 77 1 off", "SBF11 ownno 3 77 1 off"})
+          "SBF11 own-no 3 77 off", "SBF11 own_no 3 77 1 off", "SBF11 ownno 3 77 1 off",
+          // exec: 1 or 0 for one enemy.
+          "SBF11 exec 3 77", "SBF11 exec 3 77 2", "SBF11 exec 3 77 01", "SBF11 exec 0 77 1", "SBF11 exec 3 0 1",
+          "SBF11 exec 3 77 1 1", "SBF11 exec 3 77 on", "SBF11 exec 3 77 -1", "SBF11 execs 3 77 1"})
       assert(!valid(bad));
     const char nul[] = {'S', 'B', 'F', '7', ' ', 'o', 'n', '\0'};
     assert(parse(nul, sizeof nul).type == Type::invalid && parse(nullptr, 3).type == Type::invalid);
@@ -290,7 +295,7 @@ int main() {
                                  "SBF11 dead 3 77", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
                                  "SBF11 hit 3 1 77 120 5 30 400 1", "SBF11 cc 3 77 9900001",
                                  "SBF11 scale 3 135 115", "SBF11 place 3 1", "SBF11 aggro 3 host",
-                                 "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state"};
+                                 "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state", "SBF11 exec 3 77 1"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -709,6 +714,130 @@ int main() {
     plain.receive(msg("SBF11 on"), 0, u);
     step(plain, u, 1, 0);
     assert(!has(u.lines(), "aggro"));
+  }
+
+  // ---- Host: her takedowns (stage 3c, PHASE11-STAGE3 3.9) ----
+  // Her exec 1 counts while same place runs on our side with aggro=game, for an enemy we follow whose copy is a Monster
+  // in life state 1 holding Groggy or a takedown marker (Seen::takedown), and once an enemy in 2 s, refused ones
+  // included; otherwise it is refused (counted) or stale, never a bad line. While her takedown runs, her lethal claim
+  // waits with our copy at 1 HP (our hp lines say 0), and so does our own dead when our copy dies meanwhile, her claims
+  // on it then stale. Her exec 0 lets a held kill go in that step, a held dead at the next. Without it both go 6 s after
+  // her exec 1 (held-expired), and a takedown with no kill times out. Her off forgets them all. An exec line is never
+  // the host's (a bad line on the guest's side) and never recorded.
+  {
+    World w;
+    for (uint32_t g = 101; g <= 106; ++g)
+      w.add(g, 5000 + g, 0).s.takedown = g != 105;
+    Host h;
+    h.set_place(true);
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    w.lines();
+    // 101: her lethal claim waits for her exec 0.
+    h.receive(msg("SBF11 exec 1 101 1"), 100, w);
+    h.receive(msg("SBF11 exec 1 105 1"), 100, w); // No Groggy or marker on our copy.
+    step(h, w, 2, 100);
+    assert(h.executing(101, 100) && !h.executing(105, 100) && !h.executing(999, 100));
+    assert(h.counts.execs == 1 && h.counts.exec_refused == 1 && w.count("exec", "her takedown begins") == 1);
+    assert(w.count("exec refused", "no Groggy or takedown on our copy") == 1);
+    h.receive(msg("SBF11 hit 1 1 101 1600 0 0 1600 1"), 200, w);
+    step(h, w, 3, 200);
+    assert(w.hp(101) == 1 && h.counts.held == 1 && w.count("kill held", "her takedown") == 1);
+    assert(has(w.lines(), " 101:0:100:200"));
+    step(h, w, 4, 3000);
+    assert(w.hp(101) == 1 && !has(w.lines(), "dead"));
+    h.receive(msg("SBF11 exec 1 101 0"), 3100, w);
+    step(h, w, 5, 3100);
+    wrote(w, w.writes.size() - 1, 101, kHp, -1, true, true);
+    assert(w.lines() == "SBF11 dead 1 101\n" && h.counts.kills == 1 && h.counts.expired == 0);
+    assert(!h.executing(101, 3100) && w.count("exec", "her takedown ended") == 1);
+    // 102: our own EVE kills our copy during her takedown. Our dead waits for her exec 0, our hp lines say 0 for it,
+    // and her claim on it meanwhile is stale.
+    h.receive(msg("SBF11 exec 1 102 1"), 3200, w);
+    step(h, w, 6, 3200);
+    w.hit(102, kHp, 1600);
+    step(h, w, 7, 3300);
+    std::string sent = w.lines();
+    assert(!has(sent, "dead") && has(sent, " 102:0:100:200") && h.linked() == 5);
+    assert(w.count("dead held", "her takedown") == 1 && h.counts.held == 2);
+    const uint64_t stale = h.counts.stale;
+    h.receive(msg("SBF11 hit 1 2 102 10 0 0 1600 0"), 3400, w);
+    step(h, w, 8, 3400);
+    assert(h.counts.stale == stale + 1 && !has(w.lines(), "dead"));
+    h.receive(msg("SBF11 exec 1 102 0"), 3500, w);
+    step(h, w, 9, 3500);
+    assert(!has(w.lines(), "dead"));
+    step(h, w, 10, 3600);
+    assert(w.lines() == "SBF11 dead 1 102\n" && w.count("dead") == 2 && h.linked() == 4 && h.counts.expired == 0);
+    // No exec 0: her lethal claim on 103 and our dead of 106 go 6 s after her exec 1 (held-expired). 104: no kill; it
+    // times out.
+    for (const char *line : {"SBF11 exec 1 103 1", "SBF11 exec 1 104 1", "SBF11 exec 1 106 1"})
+      h.receive(msg(line), 4000, w);
+    step(h, w, 11, 4000);
+    h.receive(msg("SBF11 hit 1 3 103 1600 0 0 1600 1"), 5000, w);
+    w.hit(106, kHp, 1600);
+    step(h, w, 12, 5000);
+    step(h, w, 13, 4000 + kHoldMs - 1);
+    assert(w.hp(103) == 1 && h.executing(104, 4000 + kHoldMs - 1) && !has(w.lines(), "dead"));
+    step(h, w, 14, 4000 + kHoldMs);
+    sent = w.lines();
+    assert(has(sent, "SBF11 dead 1 103\n") && has(sent, "SBF11 dead 1 106\n") && h.counts.expired == 2);
+    assert(w.count("held-expired") == 2 && h.counts.held == 4);
+    assert(!h.executing(104, 4000 + kHoldMs) && w.count("exec", "her takedown timed out") == 1);
+    // The rate: one exec 1 an enemy in 2 s, the refused ones included.
+    w.actor(105)->s.takedown = true;
+    step(h, w, 15, 10050);
+    h.receive(msg("SBF11 exec 1 105 1"), 10100, w); // 10 s after its refused one.
+    step(h, w, 16, 10100);
+    assert(h.executing(105, 10100) && h.counts.execs == 6);
+    h.receive(msg("SBF11 exec 1 105 0"), 10200, w);
+    h.receive(msg("SBF11 exec 1 105 1"), 11000, w);
+    step(h, w, 17, 11000);
+    assert(!h.executing(105, 11000) && h.counts.exec_refused == 2 && w.count("exec refused", "within 2 s") == 1);
+    h.receive(msg("SBF11 exec 1 105 1"), 12200, w); // 1.2 s after that refused one.
+    step(h, w, 18, 12200);
+    assert(!h.executing(105, 12200) && h.counts.exec_refused == 3);
+    h.receive(msg("SBF11 exec 1 105 1"), 14300, w);
+    step(h, w, 19, 14300);
+    assert(h.executing(105, 14300) && h.counts.execs == 7);
+    // Stale: an enemy we do not follow, another world, an exec 0 with none running, aggro=host, same place off here.
+    const uint64_t stale2 = h.counts.stale;
+    h.receive(msg("SBF11 exec 1 999 1"), 14400, w);
+    h.receive(msg("SBF11 exec 2 104 1"), 14400, w);
+    h.receive(msg("SBF11 exec 1 104 0"), 14400, w);
+    h.set_aggro(true);
+    h.receive(msg("SBF11 exec 1 104 1"), 14400, w);
+    step(h, w, 20, 14400);
+    h.set_aggro(false), h.set_place(false);
+    h.receive(msg("SBF11 exec 1 104 1"), 14500, w);
+    step(h, w, 21, 14500);
+    assert(h.counts.stale == stale2 + 5 && h.counts.bad == 0 && !h.executing(104, 14500) && h.counts.execs == 7);
+    h.set_place(true);
+    step(h, w, 22, 14600);
+    // Her off forgets her takedowns: a kill held for one goes at the next step.
+    h.receive(msg("SBF11 hit 1 4 105 1600 0 0 1600 1"), 14700, w);
+    step(h, w, 23, 14700);
+    assert(w.hp(105) == 1 && h.executing(105, 14700));
+    h.receive(msg("SBF11 off photo mode"), 14800, w);
+    step(h, w, 24, 14800);
+    assert(w.actor(105)->s.dying && !h.executing(105, 14800) && h.counts.expired == 2);
+    // So do her on and her world (she restarted, or dropped every pair).
+    h.receive(msg("SBF11 on"), 15000, w);
+    h.receive(msg("SBF11 exec 1 104 1"), 15000, w);
+    step(h, w, 25, 15000);
+    assert(h.executing(104, 15000));
+    h.receive(msg("SBF11 on"), 15016, w);
+    assert(!h.executing(104, 15016));
+    h.receive(msg("SBF11 exec 1 104 1"), 17100, w);
+    step(h, w, 26, 17100);
+    assert(h.executing(104, 17100));
+    h.receive(msg("SBF11 world 1"), 17116, w);
+    assert(!h.executing(104, 17116));
+    Guest gu;
+    World v;
+    gu.receive(msg("SBF11 exec 1 101 1"), v);
+    Line l;
+    assert(gu.counts.bad == 1 && !parse_line("10 SBF11 exec 1 101 1", l));
   }
 
   // ---- Host: crowd control told and mirrored (PHASE11-STAGE2-RE 2) ----

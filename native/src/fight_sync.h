@@ -34,6 +34,8 @@
 //   SBF11 own-no <gen> <hguid> <oe> <why>                          guest, reliable: she does not run it at epoch oe
 //                                                                  (an own G refused, or one she gives back); why
 //                                                                  one of kOwnNo
+//   SBF11 exec <gen> <hguid> <1|0>                                 guest, reliable: a takedown of hers on her copy of
+//                                                                  a same-place enemy begins (1) or ends (0), stage 3c
 // The host answers the guest's on and world with its whole list (world, its scale and place, then every up), and the
 // guest
 // answers the host's on with its own (hers may have come while the host was off), so either side may restart.
@@ -101,13 +103,16 @@ inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || p
 // Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
 // side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair, or her game thread refused
 // the take-over (SB's force target needs net mode 0 and no logic task in flight: pilot.h's Taker).
+// Stage 3c (PHASE11-STAGE3 3.9): her takedowns. The host takes one exec 1 an enemy in kExecMs (R33). While hers runs,
+// it holds her lethal claim and its own dead for that enemy until her exec 0, kHoldMs at most from her exec 1.
+constexpr uint64_t kExecMs = 2000;
 constexpr const char *kOwnNo[] = {"unpaired", "state", "off", "epoch", "aggro", "full", "target"};
 enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kTarget, kOwnNoCount };
 
 // ---- Channel 2 ----
 
-// world..cc: the host's lines a recording keeps; hit and own-no: the guest's; own: the host's, never recorded.
-enum class Type : uint8_t { invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no };
+// world..cc: the host's lines a recording keeps; hit, own-no and exec: the guest's; own: the host's, never recorded.
+enum class Type : uint8_t { invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec };
 // One enemy in an hp message.
 struct Values {
   uint32_t guid = 0;
@@ -132,6 +137,7 @@ struct Message {
   bool to_guest = false;                            // own: G (H otherwise).
   uint8_t oe = 0;                                   // own, own-no: the owner epoch.
   uint8_t why = kUnpaired;                          // own-no: one of OwnNo.
+  bool exec = false;                                // exec: her takedown begins (1) or ends (0).
   Values entries[kHpPerMessage];
   uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
 };
@@ -170,6 +176,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::own_no:
     return t + "own-no" + n(m.gen) + n(m.guid) + n(m.oe) + " " +
            kOwnNo[m.why < kOwnNoCount ? m.why : uint8_t(kUnpaired)];
+  case Type::exec: return t + "exec" + n(m.gen) + n(m.guid) + n(m.exec);
   case Type::invalid: break;
   }
   return std::string();
@@ -250,6 +257,10 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     ok = ok && at != std::end(kOwnNo);
     m.why = static_cast<uint8_t>(at - std::begin(kOwnNo));
     type = Type::own_no;
+  } else if (kind == "exec") {
+    ok = split(rest, f, 3, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && (f[2] == "0" || f[2] == "1");
+    m.exec = f[2] == "1";
+    type = Type::exec;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;
@@ -318,6 +329,8 @@ struct Seen {
   bool immortal = false;                 // It holds Immortal (27): SB's own floor keeps its HP at 1 or more.
   bool dying = false;                    // Pending death or life state 3 (Dead): it may stay in the map a while.
   bool scaled = false;                   // The engine holds our two-player scaling on it: its maxes are not its own.
+  bool marked = false; // A takedown runs on it: Check_LinkSkillHit_Skill (5000039) or LinkState_MonsterHit (2006004).
+  bool takedown = false; // A Monster in life state 1 holding Groggy (7) or a takedown marker: R33's test of an exec 1.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.
 };
@@ -385,7 +398,8 @@ struct Counts {
   uint64_t uncredited = 0;           // Such kills with no cause: kill_credit=fought, and our EVE never hit it.
   uint64_t floored = 0;              // dead-floored: such a kill left HP above 0 (Immortal or MinimumHP).
   uint64_t refused = 0;              // Host: lethal claims refused.
-  uint64_t held = 0, expired = 0;    // Kills that waited for NoDamageNoHit to end; those applied after kHoldMs anyway.
+  uint64_t held = 0, expired = 0;    // Kills that waited for NoDamageNoHit to end or her takedown (a dead of ours too,
+                                     // stage 3c); those that went after kHoldMs anyway.
   uint64_t desync = 0;               // Guest: desync guest-dead, our copy died of a hit the host's copy lived through.
   uint64_t bypass3 = 0, bypass4 = 0; // Host: claims applied while its copy was in NoDamageNoHit (3) or NoDamage (4).
   uint64_t stale = 0;                // Lines true once: an old world, an enemy gone, a side off, out of order.
@@ -395,6 +409,7 @@ struct Counts {
   uint64_t cc_told = 0;              // Crowd controls that started on our copy, told to the other side.
   uint64_t cc_mirrored = 0;          // The other side's, started on our copy.
   uint64_t cc_skipped = 0;           // The other side's not started: our copy in a crowd control, or the game refused.
+  uint64_t execs = 0, exec_refused = 0; // Host: her exec 1 taken; refused (no Groggy or marker on ours, or too soon).
 };
 
 // A copy's crowd control (kCcEffects and the stunned states) as our last pass saw it, and the other side's to start.
@@ -517,6 +532,13 @@ public:
   size_t linked() const { return count_; }
   bool peer_on() const { return peer_on_; } // Her on came, and no off since.
   bool ignored() const { return ignored_; } // Too many bad lines: nothing of hers counts until the session ends.
+  // Her takedown runs on this enemy at now (stage 3c): her exec 1 taken, no exec 0 since, at most kHoldMs ago.
+  bool executing(uint32_t guid, uint64_t now) const {
+    for (size_t i = 0; i < count_; ++i)
+      if (enemies_[i].guid == guid)
+        return running(enemies_[i], now);
+    return false;
+  }
   // This step's hits on one enemy (stage 3b's last hit): ours, a drop on our copy that no claim of hers made; hers, a
   // claim with a drop in it, taken. False when we do not follow it.
   bool struck(uint32_t guid, bool &ours, bool &hers) const {
@@ -553,17 +575,22 @@ public:
     case Type::on: // She (re)started: her claim numbers may start over, and she needs the list.
       peer_on_ = announce_ = true;
       last_seq_ = 0;
-      claims_ = 0;
-      return;
+      return forget();
     case Type::off:
       peer_on_ = false;
-      claims_ = 0;
-      return;
+      return forget();
     case Type::world: // Her world changed and she dropped every pair.
       announce_ = true;
-      claims_ = 0;
-      return;
+      return forget();
     case Type::hit: return take(m, now, io);
+    case Type::exec: // Hers, in order with her claims, for the next step (R33 there).
+      if (!peer_on_ || m.gen != gen_)
+        ++counts.stale;
+      else if (claims_ == kMaxClaims)
+        ++counts.rate;
+      else
+        claim_[claims_++] = Claim{m.guid, {}, 0, false, int8_t(m.exec)};
+      return;
     case Type::cc: // Hers, for our copy at the next step (a later one replaces it).
       if (Enemy *e = peer_on_ && m.gen == gen_ ? find(m.guid) : nullptr)
         e->cc.want = m.effect;
@@ -603,10 +630,27 @@ public:
         ++i;
         continue;
       }
-      if (s) // Our EVE or the game killed it.
+      // Our EVE or the game killed it. While her takedown runs on it (stage 3c), our dead waits for its end: her copy
+      // dies when she finishes it, not under her. Seen dying once, it stays dead when it leaves the map meanwhile.
+      const bool was = e.died;
+      e.died = e.died || s;
+      e.struck_ours = e.struck_hers = false;
+      if (e.died && running(e, now)) {
+        if (!was) {
+          ++counts.held;
+          io.event(Event{"dead held", "her takedown", e.guid, e.spawn, e.index});
+        }
+        ++i;
+        continue;
+      }
+      if (was && e.exec_ms) { // No exec 0 within kHoldMs.
+        ++counts.expired;
+        io.event(Event{"held-expired", "", e.guid, e.spawn, e.index});
+      }
+      if (e.died)
         io.event(Event{"dead", "", e.guid, e.spawn, e.index});
       if (each)
-        io.send(note(s ? Type::dead : Type::down, e.guid));
+        io.send(note(e.died ? Type::dead : Type::down, e.guid));
       enemies_[i] = enemies_[--count_];
     }
     for (size_t i = 0; i < n; ++i) { // One we still hold scaled comes back at a census once the engine let it go.
@@ -663,9 +707,13 @@ public:
     for (size_t c = 0; c < claims_; ++c)
       apply(claim_[c], now, io);
     claims_ = 0;
-    for (size_t i = 0; i < count_;) { // The kills that wait: once NoDamageNoHit ends, or after kHoldMs anyway.
+    for (size_t i = 0; i < count_;) { // The kills that wait: once NoDamageNoHit or her takedown ends, or after kHoldMs.
       Enemy &e = enemies_[i];
-      if (!e.holding || (e.nodamage == kNoDamageNoHit && now < e.hold_ms + kHoldMs) || !kill(e, io))
+      if (!e.holding && e.exec_ms && !running(e, now)) {
+        e.exec_ms = 0;
+        io.event(Event{"exec", "her takedown timed out", e.guid, e.spawn, e.index});
+      }
+      if (!e.holding || (e.nodamage == kNoDamageNoHit && now < e.hold_ms + kHoldMs) || running(e, now) || !kill(e, io))
         ++i;
     }
     values(now, io);
@@ -682,7 +730,11 @@ private:
     bool hit = false;     // A claim was ever applied to it: it keeps its place.
     bool fought = false;  // Hurt when it came, or a drop between two passes: our EVE hit it (kill_credit=fought).
     bool scaled = false;  // Followed while her on held: the engine scales it.
-    bool holding = false; // Her claim's kill waits since hold_ms while it holds NoDamageNoHit; our hp lines say 0.
+    bool holding = false; // Her claim's kill waits since hold_ms while it holds NoDamageNoHit or her takedown runs;
+                          // our hp lines say 0.
+    bool died = false;    // Dead in our world while her takedown runs (stage 3c): our dead waits; hp lines say 0.
+    bool takedown = false; // Seen::takedown at the last pass.
+    uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
     bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
     // Scaled from this step: its values wait for the next pass, which reads them scaled. Sent now, they would reach
@@ -697,7 +749,7 @@ private:
       for (int k = 0; k < kStats; ++k)
         struck_ours = struck_ours || s.value[k] < value[k];
       fought = fought || struck_ours;
-      spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage;
+      spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage, takedown = s.takedown;
       std::copy(s.max, s.max + kStats, max);
       std::copy(s.value, s.value + kStats, value);
     }
@@ -706,7 +758,14 @@ private:
     uint32_t guid = 0;
     int32_t delta[kStats] = {}, pre_hp = 0;
     bool lethal = false;
+    int8_t exec = -1; // An exec line instead: 1 or 0.
   };
+  static bool running(const Enemy &e, uint64_t now) { return e.exec_ms && now < e.exec_ms + kHoldMs; }
+  void forget() { // Her claims not applied yet and her takedowns: she restarted, or stopped.
+    claims_ = 0;
+    for (size_t i = 0; i < count_; ++i)
+      enemies_[i].exec_ms = 0;
+  }
 
   Enemy *find(uint32_t guid) {
     for (size_t i = 0; i < count_; ++i)
@@ -768,7 +827,7 @@ private:
       return;
     }
     ++in_window_, ++e->in_window;
-    Claim &c = claim_[claims_++];
+    Claim &c = claim_[claims_++] = Claim(); // The slot may hold an exec line.
     c.guid = m.guid;
     for (int s = 0; s < kStats; ++s)
       c.delta[s] = std::min(m.delta[s], whole(e->max[s]));
@@ -785,8 +844,10 @@ private:
   // effects aimed at the attacker never hit our EVE for the guest's hits. While our copy holds NoDamageNoHit, the kill
   // waits (kHoldMs at most) with the copy at 1 HP, and our hp lines say 0 so she never reads a refusal into it.
   template <class Io> void apply(const Claim &k, uint64_t now, Io &io) {
+    if (k.exec >= 0)
+      return exec(k, now, io);
     Enemy *e = find(k.guid);
-    if (!e) { // It died or left since the claim was taken.
+    if (!e || e->died) { // It died or left since the claim was taken.
       ++counts.stale;
       return;
     }
@@ -811,23 +872,51 @@ private:
       }
       return;
     }
-    if (e->nodamage == kNoDamageNoHit) {
+    if (e->nodamage == kNoDamageNoHit || running(*e, now)) {
       e->holding = true, e->hold_ms = now;
       ++counts.held;
-      io.event(Event{"kill held", "NoDamageNoHit", e->guid, e->spawn, e->index});
+      io.event(Event{"kill held", running(*e, now) ? "her takedown" : "NoDamageNoHit", e->guid, e->spawn, e->index});
       if (hp > 1)
         write(*e, kHp, 1 - hp, false, io);
       return;
     }
     kill(*e, io);
   }
+  // Her exec line (R33). exec 1 counts while same place runs on our side with aggro=game, for an enemy we follow whose
+  // copy is a Monster in life state 1 holding Groggy or a takedown marker, and once an enemy in kExecMs, refused ones
+  // included. Else it is refused (a Groggy ended or lines crossed: counted, logged) or stale (another setting, an
+  // enemy gone), never a bad line. exec 0 ends hers.
+  template <class Io> void exec(const Claim &k, uint64_t now, Io &io) {
+    Enemy *e = find(k.guid);
+    if (!k.exec) {
+      if (!e || !e->exec_ms)
+        ++counts.stale;
+      else
+        e->exec_ms = 0, io.event(Event{"exec", "her takedown ended", e->guid, e->spawn, e->index});
+      return;
+    }
+    if (!e || e->died || !place_ || host_only_) {
+      ++counts.stale;
+      return;
+    }
+    const bool soon = e->exec_last && now - e->exec_last < kExecMs;
+    e->exec_last = now;
+    if (soon || !e->takedown) {
+      ++counts.exec_refused;
+      return io.event(Event{"exec refused", soon ? "within 2 s" : "no Groggy or takedown on our copy", e->guid,
+                            e->spawn, e->index});
+    }
+    e->exec_ms = now;
+    ++counts.execs;
+    io.event(Event{"exec", "her takedown begins", e->guid, e->spawn, e->index});
+  }
   // The kill of a claim, now: true when e left our list (its dead sent). A kill that a floor holds keeps it.
   template <class Io> bool kill(Enemy &e, Io &io) {
-    if (e.holding && e.nodamage == kNoDamageNoHit) {
+    if (e.holding && (e.nodamage == kNoDamageNoHit || e.exec_ms)) {
       ++counts.expired;
       io.event(Event{"held-expired", "", e.guid, e.spawn, e.index});
     }
-    e.holding = false;
+    e.holding = false, e.exec_ms = 0;
     if (e.value[kHp] <= 0 || !write(e, kHp, -e.value[kHp], true, io))
       return false;
     ++counts.kills;
@@ -860,7 +949,7 @@ private:
       Enemy &e = enemies_[i];
       int32_t value[kStats];
       std::copy(e.value, e.value + kStats, value);
-      if (e.holding) // It dies once the state ends.
+      if (e.holding || e.died) // It dies once the state or her takedown ends.
         value[kHp] = 0;
       if (e.due || (!all && !e.claimed && std::equal(value, value + kStats, e.sent)))
         continue;
