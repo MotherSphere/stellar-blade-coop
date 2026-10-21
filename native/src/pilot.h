@@ -2121,9 +2121,10 @@ constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads i
 // EVE of ours or a copy without AI refuse it: the pair stays in refused() while the table says it is ours at that
 // epoch, and the job gives it back with own-no target. A copy still missing after kTakeMs is dropped (the job gives an
 // unpaired copy back by itself). A take-over is a pair this side owns at an epoch it did not own it at in the last
-// fresh table with same-place enemies on; never at epoch 0, every pair's first, the host's. coop fight pilot test target
-// (test()) forces the target on the first pair this side owns, however it came to own it, and notes its target, aggro
-// level and detect result whenever they change for kTargetTestMs. Nothing after fault(). Fixed memory, no pointer kept.
+// fresh table with same-place enemies on; never at epoch 0, every pair's first, the host's. coop fight pilot test
+// target (test()) forces the target on the first pair this side owns, however it came to own it, and notes its target,
+// aggro level and detect result whenever they change for kTargetTestMs. Nothing after fault(). Fixed memory, no
+// pointer kept.
 // The Game: read, fsb() and character() as the Capturer's, and
 //   void target(uint64_t ai, uint64_t eve): FUN_141a36010(ai, eve, 0, kTargetHold).
 class Taker {

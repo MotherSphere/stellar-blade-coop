@@ -352,7 +352,8 @@ int main() {
                           "fight on Aggro-host", "fight off aggro-host", "fight pilot aggro-host"})
     assert(parse_request(bad).command == Command::none);
   // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
-  // too), its status, and how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before).
+  // too), its status, how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before), and
+  // the force target test.
   f = parse_request("fight pilot probe\n");
   assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::probe && !f.off);
   f = parse_request("fight pilot off");
@@ -365,9 +366,11 @@ int main() {
     f = parse_request(std::string("fight pilot test ") + word);
     assert(f.fight == Fight::pilot && f.pilot == PilotAsk::test && f.test == test);
   }
+  f = parse_request("fight pilot test target"); // SB's force target once (stage 3b), not a step of the drawn side.
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::target);
   for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on 1", "fight pilot  probe",
                           "fight pilot Probe", "fight pilot off 1", "fight pilot status 1", "fight pilot test",
-                          "fight pilot test target", "fight pilot test exec", "fight pilot test freeze 1",
+                          "fight pilot test target 1", "fight pilot test exec", "fight pilot test freeze 1",
                           "fight pilot test Freeze", "fight pilot test  cmc", "fight pilot tests drive"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);
   for (const char *bad : {"fight", "fight ", "fight on x", "fight on 0", "fight on 4294967296", "fight on  1",

@@ -39,8 +39,11 @@
 // recording) come to the game thread through the same lock, and each frame every copy this side draws is found again
 // by its GUID and driven at the ghost's draw time (pilot.h's Driver): its movement component out of SB's manager, the
 // speed override, the root moved, Velocity set, her Shows replayed through SB's Show handle API, as far as coop fight
-// pilot test lets it (all of it unless asked). The first fault stops all of it for the run and, when it was in this
-// DLL, puts every copy back once. coop fight pilot off turns it off on this side until the next start.
+// pilot test lets it (all of it unless asked). Stage 3b moves pairs between the two sides: in the frame a pair becomes
+// ours at a new epoch, its copy put back first, SB's force target points its AI at our EVE (pilot.h's Taker), only in
+// net mode 0 with no logic task in flight; a refusal goes back to the job, which gives the pair back. The first fault
+// stops all of it for the run and, when it was in this DLL, puts every copy back once. coop fight pilot off turns it
+// off on this side until the next start.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -779,6 +782,13 @@ fight::Event pilot_events[pilot::Driver::kEvents]; // The Driver's event lines, 
 size_t pilot_events_n = 0;
 uint64_t drive_add_max_us = 0;
 std::atomic<bool> drift_reset{false}; // The worker's ask: the drift probe's maxima start again.
+// Stage 3b's take-over (pilot.h's Taker), the game thread's: its notes and counts go to the worker under pilot_m.
+pilot::Taker taker;
+std::atomic<bool> pilot_target_ask{false}; // coop fight pilot test target, for the next frame.
+std::atomic<uint32_t> pilot_drawn{0};      // The pairs the last frame drew.
+char taker_notes[pilot::Taker::kNotes][pilot::Taker::kNoteBytes];
+size_t taker_notes_n = 0;
+pilot::Taker::Counts take_counts;
 
 // The drawn side's calls (stage 3a's allowlist, PHASE11-STAGE3 3.5 and 3.6, M3-3 and M3-12), on the game thread only,
 // under the pilot latch: SB's Show handle API, the sequence SB's own skill presentation runs (FUN_142284a30 a new stage
@@ -805,6 +815,12 @@ using CmcTick = void (*)(void *cmc, uint8_t on);
 using MoveComponent = uint8_t (*)(void *root, const float *delta, const float *quat, uint8_t sweep, void *hit,
                                   uint32_t flags, uint8_t teleport);
 uint64_t pilot_add_max_us = 0; // The game thread's: AddShow's longest call (a Show's first load is synchronous).
+// Stage 3b's call (PHASE11-STAGE3 3.8, M3-4), on the game thread only, under the pilot latch: SB's force target,
+// FUN_141a36010(the copy's FSBActor + 0x710, our EVE's FSBActor, unused, the hold in XMM3), which pilot.h's Taker makes
+// only with the cached net mode 0 and no logic task in flight (logic + 0x5c0 == 0): in net mode 3 its senders become
+// ServerRequest_ActorAdd/RemoveTargetedByEnemy, which the mod never sends.
+constexpr uint64_t kForceTarget = 0x141a36010;
+using ForceTarget = void (*)(void *ai, void *target, uint64_t unused, float hold);
 
 // pilot.h's Game: plain reads and writes (a fault is the latch's), the two lookups, and the drawn side's calls.
 struct PilotGame {
@@ -864,10 +880,14 @@ struct PilotGame {
   void stop(uint64_t reg, const uint8_t *h) {
     game_function<StopShow>(kStopShow)(reinterpret_cast<void *>(reg), Handle(h).w, 0.f);
   }
+  void target(uint64_t ai, uint64_t eve) {
+    game_function<ForceTarget>(kForceTarget)(reinterpret_cast<void *>(ai), reinterpret_cast<void *>(eve), 0,
+                                             pilot::kTargetHold);
+  }
 };
 // Each frame: the newest table; every kSbeUs while this side owns pairs (and the table is on, or the probe runs), one
-// capture; then what it made handed to the worker when the lock is free (else at a later frame: the newest SBE, every
-// line kept in order).
+// capture; once an engine frame the drawn copies and the take-overs; then what it made handed to the worker when the
+// lock is free (else at a later frame: the newest SBE, every line kept in order).
 __declspec(noinline) void pilot_body() {
   const uint64_t start = clock_us();
   fight_mail.table(pilot_table, pilot_stream); // Busy: the table as it was.
@@ -908,7 +928,15 @@ __declspec(noinline) void pilot_body() {
     pilot::Row rows[fight::kMaxPairs];
     PilotGame g;
     driver.limit(PilotTest(pilot_test.load()));
-    driver.rows(g, base, t.gen, t.side, rows, fresh ? fight::drawn(t, rows) : 0);
+    const size_t drawn = fresh ? fight::drawn(t, rows) : 0;
+    pilot_drawn = uint32_t(drawn);
+    driver.rows(g, base, t.gen, t.side, rows, drawn);
+    // A pair this side now owns at a new epoch, its copy put back by rows() just above: SB's force target toward our
+    // EVE (PHASE11-STAGE3 3.8); the take-overs it refused go back to the job for its own-no.
+    if (pilot_target_ask.exchange(false))
+      taker.test();
+    taker.step(g, base, t.gen, fresh ? owned : nullptr, n, t.on, start / 1000);
+    taker.refused(pilot_stream.untaken, pilot_stream.untaken_oe, pilot_stream.untaken_count);
     const double now_ms = start / 1000.0,
                  draw = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
     for (SbeIn m; pilot_sbe_here.pop(m);)
@@ -941,6 +969,13 @@ __declspec(noinline) void pilot_body() {
   });
   drive_counts = driver.counts, drive_add_max_us = pilot_add_max_us;
   drive_runs = drive_runs_here, drive_us = drive_us_here, drive_max_us = drive_max_us_here;
+  taker.notes([](const char *text) {
+    if (taker_notes_n < pilot::Taker::kNotes)
+      std::snprintf(taker_notes[taker_notes_n++], pilot::Taker::kNoteBytes, "%s", text);
+    else
+      ++taker.counts.notes_lost;
+  });
+  take_counts = taker.counts;
   pilot_m.unlock();
 }
 __declspec(noinline) void pilot_put_back() {
@@ -958,6 +993,7 @@ void guarded_pilot() {
   } __except (fault_filter(GetExceptionInformation(), pilot_fault_code, pilot_fault_rva, pilot_fault_address)) {
     pilot_faulted = true;
     pilot_sending = false;
+    taker.fault();
     fight_engine.stop_pilot();
   }
   if (!pilot_faulted || !fault_in_dll(pilot_fault_rva))
@@ -1760,11 +1796,12 @@ std::string fault_where(uint64_t rva) {
   return where;
 }
 
-// coop fight pilot probe|on|off|status|test <how far>. probe: while on, same-place enemies' lines this side sends go
-// to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it), and a pilot off
-// lifted; off: the probe off and same-place enemies off on this side until the next coop fight on, probe, record or
-// replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the pilot line, and the
-// stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on.
+// coop fight pilot probe|on|off|status|test <how far>|test target. probe: while on, same-place enemies' lines this side
+// sends go to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it), and a
+// pilot off lifted; off: the probe off and same-place enemies off on this side until the next coop fight on, probe,
+// record or replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the pilot
+// line, and the stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on;
+// test target: SB's force target once, on the first enemy this side owns (pilot.h's Taker::test).
 bool pilot_stats_now = false;
 std::string ask_pilot(const coop::Request &request) {
   switch (request.pilot) {
@@ -1778,9 +1815,10 @@ std::string ask_pilot(const coop::Request &request) {
   case PilotAsk::status: pilot_stats_now = true; return "same-place enemies: " + pilot_status();
   default: break;
   }
-  const char *what = request.pilot == PilotAsk::test ? "pilot test"
-                     : request.pilot == PilotAsk::on ? "pilot on"
-                                                     : "pilot probe";
+  const char *what = request.pilot == PilotAsk::test     ? "pilot test"
+                     : request.pilot == PilotAsk::target ? "pilot test target"
+                     : request.pilot == PilotAsk::on     ? "pilot on"
+                                                         : "pilot probe";
   if (!pinned)
     return std::string(what) + " refused: " + engine_reason;
   if (blocked)
@@ -1792,6 +1830,12 @@ std::string ask_pilot(const coop::Request &request) {
     fight_engine.pilot_off(false);
     return "same-place enemies on: as host, for both games once the shared fight runs; as guest, the host's setting "
            "decides";
+  }
+  if (request.pilot == PilotAsk::target) {
+    pilot_target_ask = true;
+    return "pilot test target: the game's force target on the first enemy this side owns, toward our EVE, at the next "
+           "frame (only in net mode 0 with no logic task in flight); coop-link.log says what it did, then the enemy's "
+           "target, aggro level and detect result each time they change for a second";
   }
   if (request.pilot == PilotAsk::test) {
     static const char *const kSay[] = {
@@ -1857,6 +1901,9 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   pilot::Driver::Counts drive;
   fight::Event events[pilot::Driver::kEvents];
   size_t events_n = 0;
+  char notes[pilot::Taker::kNotes][pilot::Taker::kNoteBytes];
+  size_t notes_n = 0;
+  pilot::Taker::Counts take;
   uint64_t lost = 0, runs = 0, us = 0, max_us = 0, add_us = 0, frames = 0, frame_us = 0, frame_max_us = 0;
   {
     std::lock_guard<std::mutex> lock(pilot_m);
@@ -1869,9 +1916,14 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
     frames = drive_runs, frame_us = drive_us, frame_max_us = drive_max_us;
     std::copy(pilot_events, pilot_events + pilot_events_n, events);
     std::swap(events_n, pilot_events_n);
+    std::memcpy(notes, taker_notes, sizeof notes);
+    std::swap(notes_n, taker_notes_n);
+    take = take_counts;
   }
   for (size_t i = 0; i < events_n; ++i) // One line each: a copy released, converged or snapped.
     say("pilot " + fight::line(events[i]));
+  for (size_t i = 0; i < notes_n; ++i) // A take-over done, refused or dropped; the target test's lines.
+    say(std::string("pilot ") + notes[i]);
   const auto record = [](const uint8_t *data, size_t size) {
     if (recorder && !recorder->add(data, size))
       say(stop_record("full", clock_us()));
@@ -1907,14 +1959,16 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   if (ms && ms <= 2000)
     std::snprintf(rate, sizeof rate, "%llu", u((bytes - pilot_bytes_said) * 1000 / ms));
   pilot_line_ms = now_ms;
-  char tail[480];
+  char tail[640];
   std::snprintf(tail, sizeof tail,
                 "; %llu captures (mean %llu us, max %llu us), %llu enemies sent, %llu not found, %llu Show assets "
                 "unnamed, %llu players odd, %llu cut, %llu waiting for an id, %llu without context; %llu shows, %llu "
-                "show-set, %llu show-stop, %llu lost, %llu unsent; %llu B in and out, %s B/s",
+                "show-set, %llu show-stop, %llu lost, %llu unsent; %llu taken over (%llu force targets, %llu frames "
+                "put off, %llu refused, %llu dropped, %llu notes lost); %llu B in and out, %s B/s",
                 u(counts.captures), u(runs ? us / runs : 0), u(max_us), u(counts.entries), u(counts.unresolved),
                 u(counts.unnamed), u(counts.odd), u(counts.cut), u(counts.waited), u(counts.no_context),
-                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent), u(bytes), rate);
+                u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent), u(take.taken),
+                u(take.targeted), u(take.waited), u(take.refused), u(take.gone), u(take.notes_lost), u(bytes), rate);
   pilot_bytes_said = bytes;
   if (!probe)
     trace_fight("pilot stats: " + pilot_status() + tail);
@@ -1962,7 +2016,8 @@ std::string ask_fight(const coop::Request &request, int marker) {
 std::string fight_status() { return fight_worker.detail(); }
 
 // coop-status.txt's pilot line: "pilot=refused why=<why>" off the pinned build or after coop off, "pilot=stopped" after
-// the pilot's latch, else the shared fight's word (Worker::pilot: "on piloted=<n>", "off why=<word>" or "stopped"),
+// the pilot's latch, else the shared fight's word (Worker::pilot: "on piloted=<n>", to which " owned=<n> drawn=<n>"
+// is added, "off why=<word>" or "stopped"),
 // with " probe=on" while the probe runs and " test=<freeze|cmc|drive>" while a test holds the drawn side back, before
 // the why (the last field: engine reasons have spaces).
 std::string pilot_status() {
@@ -1976,6 +2031,8 @@ std::string pilot_status() {
   std::string word = fight_worker.pilot(), why;
   if (const size_t at = word.find(" why="); at != std::string::npos)
     why = word.substr(at), word.resize(at);
+  if (word.rfind("on ", 0) == 0) // The pairs whose AI runs here (captured) and those drawn, as of the last frame.
+    word += " owned=" + std::to_string(pilot_owned.load()) + " drawn=" + std::to_string(pilot_drawn.load());
   const uint8_t test = pilot_test;
   return "pilot=" + word + (pilot_probe ? " probe=on" : "") +
          (test < uint8_t(PilotTest::replay) ? std::string(" test=") + kTests[test] : std::string()) + why;
