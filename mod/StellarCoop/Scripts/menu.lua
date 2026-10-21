@@ -65,7 +65,9 @@ function Menu.new(o)
         end
         return row.key=='ui_scale' and words.percent:format(n) or v
     end
-    -- The page as it is now, scrolled to keep the cursor's row and the one above it in view.
+    -- The page as it is now, scrolled to keep the cursor's row and the ones above and below it in view (the mouse on
+    -- the first or last slot scrolls by one).
+    -- ponytail: one row a pass of the mouse over an edge slot; bind the mouse wheel if testers find it slow.
     local function draw()
         local v=open and kit.view('menu')
         if not v then return end
@@ -75,7 +77,7 @@ function Menu.new(o)
         local at=1
         for i,row in ipairs(rows) do if row==current then at=i end end
         top=math.max(0,math.min(top,#rows-ROWS))
-        if at<=top+1 then top=math.max(0,at-2) elseif at>top+ROWS then top=at-ROWS end
+        if at<=top+1 then top=math.max(0,at-2) elseif at>=top+ROWS then top=math.min(#rows-ROWS,at-ROWS+1) end
         for i,w in ipairs(v.rows) do
             local row=rows[top+i]
             if not row then w.set('','','normal')
@@ -239,7 +241,7 @@ function Menu.new(o)
     end
     -- Each frame: the game's input back, once due. While open, every 100 ms: the row the mouse moved onto (another
     -- slot than at the last look) takes the focus, so a resting mouse never takes it back from the keys, nor the row
-    -- under the mouse as the menu opens.
+    -- under the mouse as the menu opens; never while a key row waits for a key.
     -- ponytail: 15 hovered() calls a look; a mouse-moved check through GetMousePosition first if the Lua frame time
     -- line shows a cost.
     function self.tick(now)
@@ -252,7 +254,7 @@ function Menu.new(o)
             local slot,row=under()
             local moved=hover~=false and slot~=hover
             hover=slot
-            if moved and row and model.point(context(),row) then
+            if moved and row and not capturing and model.point(context(),row) then
                 kit.sound('move')
                 draw()
             end

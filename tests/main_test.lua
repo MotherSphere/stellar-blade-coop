@@ -1942,11 +1942,13 @@ loops[2].f(); assert(#asked==fight_asks+5,'The next start carries them')
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
--- The language: the game's (French here), English when set so; the page scrolled to keep the cursor in view.
+-- The language: the game's (French here), English when set so; the page scrolled to keep the cursor and the row below
+-- it in view.
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^COMBAT||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^Shared enemies %(experimental%)|') and screen():find('\nCHAT||disabled$')
+    and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows, the one below the cursor in view')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)
@@ -2371,6 +2373,19 @@ end)()
     hover(6); key('LEFT_MOUSE_BUTTON')
     assert(focus()=='Open this menu' and kit_sounds[#kit_sounds]=='select','A click selects the row under the mouse')
     assert(kit_said('click nil')>clicks,'The kit puts our focus back')
+    -- A key row waiting for a key: the mouse moves nothing, and the row it moved onto meanwhile is not taken after; a
+    -- right click stops the wait.
+    key('RETURN'); assert(select(2,focus())=='Press a key')
+    clock=clock+0.125; hover(3); clock=clock+0.125; hover(4)
+    assert(focus()=='Open this menu' and select(2,focus())=='Press a key','Waiting: the mouse moves nothing')
+    key('RIGHT_MOUSE_BUTTON'); clock=clock+0.125; hover(4)
+    assert(focus()=='Open this menu' and select(2,focus())~='Press a key','Right click: not waiting, nothing taken')
+    -- The mouse onto the last slot scrolls the page down by one, onto the first up by one.
+    local last=rows[15].l
+    clock=clock+0.125; hover(15)
+    assert(focus()==last and rows[14].l==last and rows[15].l~=last,'The last slot: one row down')
+    clock=clock+0.125; hover(1)
+    assert(focus()=='Open this menu' and rows[1].l=='CONTROLS' and rows[2].st=='focus','The first slot: one row up')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')
     -- Hosting: Leave on two clicks within 3 s, as with Enter.
