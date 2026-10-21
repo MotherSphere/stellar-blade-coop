@@ -112,7 +112,8 @@ build/host/pose_codec_test
     place 0), and the worker's `pilot=` words say why it does not run (on the guest's side, `host` only once the
     host's list came, `fight` after its off or on line); stage 3b's hand-overs on both sides (the host's rule and its
     own lines, its freeze and thaw, her answers and give-backs with each own-no reason, `target` for a take-over her
-    game thread refused) and in two worlds, where an enemy has no AI copy or two for one hop at most;
+    game thread refused, a pair kept from her for 30 s after her own-no about it, the table's taken mark only after a
+    hand-over) and in two worlds, where an enemy has no AI copy or two for one hop at most;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only), and two fake
@@ -137,8 +138,9 @@ build/host/pose_codec_test
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
     change and driven only from the next frame); stage 3b's owners (the host's rule, its guards and hold, random
-    hand-overs over a delayed link) and the take-over (the copy put back first, then the game's force target; its net
-    mode and logic task gates, a stale copy, the refusals named for the job's own-no, the latch, `coop fight pilot test
+    hand-overs over a delayed link, the 30 s pause after an own-no) and the take-over (the copy put back first, then
+    the game's force target, only on a pair a hand-over brought; its net mode and logic task gates, a stale or missing
+    copy, the refusals named for the job's own-no, the latch, `coop fight pilot test
     target`), and two worlds through a delayed, lossy line (120 ms, plus or minus
     30, 2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
