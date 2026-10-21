@@ -2220,7 +2220,7 @@ std::string pilot_status() {
 }
 
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
-                bool (*send)(const std::string &, bool)) {
+                bool (*send)(const std::string &, bool), coop::Life mate) {
   fight_send = send;
   if (fight_faulted && !fight_fault_logged) {
     fight_fault_logged = true;
@@ -2243,7 +2243,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   static uint64_t next_photo = 0;
   if (now_ms >= next_photo)
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
-  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
+  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo, mate);
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();
 }

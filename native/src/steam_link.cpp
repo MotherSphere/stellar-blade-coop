@@ -659,7 +659,8 @@ bool step() {
         [](const std::string &line) { return link && link->send_fight(line, true); }, quest_files);
     bool fighting = coop::pose::fight_pass(
         GetTickCount64(), linked, linked && link->host(), coop_marker, channel2,
-        [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); });
+        [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); },
+        linked ? link->mate_life() : coop::Life::unknown);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {

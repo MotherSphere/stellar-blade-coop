@@ -210,8 +210,9 @@ struct Own {
 // owns it from now, at the next epoch. force: the host's at once, guards or not (a copy the host cannot draw, whose AI
 // runs already, or a peer whose lines no longer count). A takedown (stage 3c) gives the pair to its executor at once,
 // guards and hold or not, the host's before hers, and counts as the executor's hit all through it, so the pair stays
-// theirs after it; never with host_only or force, nor to her before no_until.
-inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool force = false) {
+// theirs after it; never with host_only or force, nor to her before no_until. give: hers in place of the rule's choice
+// (the host's EVE down, hers alive), once the guards let it; never with host_only or force, nor before no_until.
+inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool force = false, bool give = false) {
   const bool exec = !host_only && !force && (f.host_exec || f.guest_exec);
   if (exec)
     o.hitter = f.host_exec ? kHost : kGuest, o.hit = true, o.hit_ms = now;
@@ -225,6 +226,7 @@ inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool forc
   if (f.closer != o.nearer)
     o.nearer = f.closer, o.nearer_ms = now;
   const Side want = host_only || force                         ? kHost
+                    : give                                     ? kGuest
                     : o.hit && now - o.hit_ms < kLastHitMs     ? o.hitter
                     : o.nearer && now - o.nearer_ms >= kNearMs ? other(o.owner)
                                                                : o.owner;

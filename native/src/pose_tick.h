@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "link_protocol.h" // Request, State, Vitals
+#include "link_protocol.h" // Request, State, Vitals, Life
 #include "save_slot.h"     // Saves
 
 namespace coop::pose {
@@ -77,10 +77,10 @@ std::string ask_fight(const coop::Request &request, int marker);
 // not queued); hosting: we own the lobby. Hands her lines to the job and its lines to send (or to the recording), logs
 // its events, its probe census, a fault and a stats line each second its counts move; starts, pauses or stops it for
 // the gates (on waits for a co-op save; the solo tools stop off one), tells her our state while we do not share, and
-// leaves it off until asked again once it latched. True while the job runs (the worker then passes every 5 ms, not
-// 50).
+// leaves it off until asked again once it latched. mate: her life (Link::mate_life()), for the job's group rules. True
+// while the job runs (the worker then passes every 5 ms, not 50).
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
-                bool (*send)(const std::string &, bool));
+                bool (*send)(const std::string &, bool), coop::Life mate);
 // Worker: coop-status.txt's fight line (fight_engine.h's Worker::detail).
 std::string fight_status();
 // The shared quests' record beside each co-op slot, in this account's save folder (steam_link.cpp's, through

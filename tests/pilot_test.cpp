@@ -702,6 +702,40 @@ int main() {
     p.hguid = 12, p.no_until = 80000;
     assert(!rule(p, mine, 79000, false) && p.owner == kHost && rule(p, mine, 80000, false) && p.owner == kGuest);
   }
+  // A down EVE (fight_engine.h's hand_over, from her vitals and our EVE's life state). Hers down: force on every turn,
+  // so a pair of hers is the host's at once through every guard, and stays his through a 20 s down although her last
+  // hit is under kLastHitMs. His down with hers alive: give on every turn, so a pair of his goes to her once the 4 s
+  // hold and the busy guard let it, never before her own-no pause ends; a boss (host_only) stays his. Her state
+  // unknown: neither, the rule as always. Back up, the rule runs as before.
+  {
+    Facts hers, busy, calm, ours;
+    hers.guest_hit = true, busy.busy = true, ours.host_hit = true;
+    Own o;
+    o.hguid = 4100, o.since = 1000;
+    assert(!rule(o, hers, 2000, false) && rule(o, calm, 5000, false) && o.owner == kGuest && o.oe == 1);
+    Facts hers_busy = busy;
+    hers_busy.guest_hit = true;
+    assert(rule(o, hers_busy, 6000, false, true) && o.owner == kHost && o.oe == 2 && o.since == 6000);
+    for (uint64_t t = 6016; t < 26000; t += 16)
+      assert(!rule(o, calm, t, false, true) && o.owner == kHost);
+    assert(!rule(o, calm, 26000, false) && o.owner == kHost && o.oe == 2); // Up again: her hit is 24 s old.
+    Own g;
+    g.hguid = 4101, g.since = 30000;
+    assert(!rule(g, calm, 31000, false, false, true) && !rule(g, busy, 34000, false, false, true));
+    assert(rule(g, calm, 34016, false, false, true) && g.owner == kGuest && g.oe == 1 && g.taken);
+    assert(!rule(g, calm, 40000, false, false, true) && g.owner == kGuest); // Hers already.
+    Own boss;
+    boss.hguid = 4102;
+    for (uint64_t t = 30000; t < 50000; t += 1000)
+      assert(!rule(boss, calm, t, true, false, true) && boss.owner == kHost);
+    Own paused;
+    paused.hguid = 4103, paused.no_until = 60000;
+    assert(!rule(paused, calm, 59999, false, false, true) && rule(paused, calm, 60000, false, false, true));
+    Own unknown;
+    unknown.hguid = 4104;
+    assert(!rule(unknown, ours, 30000, false) && !rule(unknown, calm, 39999, false) && unknown.owner == kHost);
+    assert(!rule(g, calm, 44000, false) && rule(g, ours, 44016, false) && g.owner == kHost && g.oe == 2);
+  }
   // Nearer: an enemy nobody hit for 10 s goes to the other player once her EVE has stood 3 m closer than the owner's
   // for 2 s without a break; back the same way, 4 s after it changed hands at the earliest. Within 10 s of a hit the
   // last hitter keeps it however near the other one stands.

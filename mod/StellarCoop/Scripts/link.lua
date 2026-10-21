@@ -4,10 +4,10 @@
 -- ghost's object path, for the next load) and coop-state.txt (a save loaded, the send rate). The native part writes
 -- coop-remote.txt (the table the ghost is built from) the same way. Each line of the native coop-status.txt that
 -- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight= line)
--- every second and her vitals (mate=) up to 10 times a second, so they stay in coop status, out of the log. The chat
--- has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see say()). The same read gives the
--- session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is never
--- at the start of one.
+-- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
+-- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
+-- say()). The same read gives the session's mode, the friend and the notices for the screen, each from the start of its
+-- own line: a Steam name is never at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
@@ -325,12 +325,13 @@ function Link.new(folder,fs)
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
     -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
-    -- peer=,frozen=}; mate: her vitals; ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a
-    -- rejoin got her lobby back and waits for the handshake (kept across changes() until she is linked or we are no
-    -- longer a guest); saves: the co-op saves' state (saves()); paks: her .pak mods against ours (paks()); quests: the
-    -- shared quests' line; noted: their notes listed; noted_shown: the last note number handed out.
+    -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the first peer's RTT in ms;
+    -- loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits for the handshake (kept across
+    -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
+    -- .pak mods against ours (paks()); quests: the shared quests' line; noted: their notes listed; noted_shown: the
+    -- last note number handed out.
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
-    local mate,ping,loopback,rejoined,saves,paks=nil,nil,false,false,{},nil
+    local mate,life,ping,loopback,rejoined,saves,paks=nil,nil,nil,false,false,{},nil
     local quests,noted,noted_shown=nil,nil,nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
@@ -438,7 +439,7 @@ function Link.new(folder,fs)
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
-        mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
+        mate,life,ping,loopback,saves,paks=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil
         quests,noted=nil,nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title (saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
@@ -449,7 +450,8 @@ function Link.new(folder,fs)
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
-            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=') then
+            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=')
+                and not line:find('^life=') then
                 new[#new+1]=line
             end
             if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.
@@ -463,6 +465,8 @@ function Link.new(folder,fs)
                     for i,key in ipairs(VITALS) do mate[key]=tonumber(v[i]) end
                 end
             end
+            local own,hp=line:match('^life=(%d+) (%d+)$')
+            if own then life={state=tonumber(own),hp=tonumber(hp)} end
             if not mode and line:find('^link=') then
                 mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
                 lobby=line:match(' lobby=(%d+)')
@@ -505,6 +509,9 @@ function Link.new(folder,fs)
     -- Her vitals for the partner card ({hp=, max_hp=, shield=, max_shield=, blocks=, beta=, max_beta=, burst=,
     -- max_burst=, tachy=, max_tachy=, life=}, whole units; your own during coop loopback), or nil: none for 3 s.
     function self.mate() return mate end
+    -- Our life state (1 Spawn, 6 Spawning; 3-5 dying or dead) and HP from our last vitals read ({state=, hp=}), or nil:
+    -- no session, or no read for 3 s.
+    function self.life() return life end
     -- The friend's round trip in ms, or nil before the first pong.
     function self.ping() return ping or nil end
     -- A chat session holds once Steam is ready: a friend linked (lost or not), a rejoin under way (until she is linked

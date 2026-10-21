@@ -779,6 +779,7 @@ public:
       zone_told_ = false;
       probe_fence_.clear();
       next_probe_ = 0;
+      mate_ = Life::unknown, mate_ms_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
       // from it (a late claim number would make the new guest's claims look like lies, and 16 of them ignore her).
       Message on;
@@ -798,8 +799,14 @@ public:
     }
     const bool hosting = hosting_seen_;
     Io<Game> io{*this, g, logic};
+    eve_life_ = eve_life(g);
+    host.set_down(hosting && eve_life_ >= 3 && eve_life_ <= 5);
     Message m;
     while (g.receive(m)) {
+      if (m.type == Type::mate) { // The worker's, never hers: her life.
+        mate_ = m.life, mate_ms_ = now_ms;
+        continue;
+      }
       // The host takes only her on, off and world (R33): a place, down or dead from her is a bad line, and from an
       // ignored peer nothing counts. Each of the three also ends the hand-over pause after her own-no off.
       if (!hosting)
@@ -1416,7 +1423,8 @@ private:
     return la && live(g, la, eve_, a) && a.controlled == 1 && a.fsb && a.fsb == local_fsb(g) ? la : 0;
   }
   // Our EVE took part in the fight of our copy guid (together only, kLastPlayer): the game's last player on it is her,
-  // or, with nearby, she stands within kPartCm of it now. No EVE of ours found, or a read that fails: no.
+  // or, with nearby, she is alive (life state 1 or 6) and stands within kPartCm of it now, so a dead EVE gets no kill
+  // made next to her body. No EVE of ours found, or a read that fails: no.
   // ponytail: the distance is read at the kill only; one who fought it and stepped back counts through fought or
   // +0x638. A time window (near in the last 10 s) is the upgrade if a test shows a miss.
   template <class Game> bool took_part(Game &g, uint64_t logic, uint32_t guid, bool nearby) {
@@ -1428,8 +1436,15 @@ private:
       return false;
     if (g.read(la + kLastPlayer, &last, sizeof last) && last == eve_ && !lent(guid))
       return true;
-    return nearby && g.read(a.fsb + kLocation, at, sizeof at) && g.read(fsb + kLocation, here, sizeof here) &&
-           within(at, here, kPartCm);
+    const int32_t life = eve_life(g);
+    return nearby && (life == 1 || life == 6) && g.read(a.fsb + kLocation, at, sizeof at) &&
+           g.read(fsb + kLocation, here, sizeof here) && within(at, here, kPartCm);
+  }
+  // Our EVE's life state (FSBActor +0x2600, as live() and vitals() read it), or 0 when unread.
+  template <class Game> int32_t eve_life(Game &g) {
+    const uint64_t fsb = local_fsb(g);
+    int32_t life = 0;
+    return plausible(fsb) && g.read(fsb + kLife, &life, sizeof life) ? life : 0;
   }
   // A copy whose +0x638 our own effect call made our EVE (cast()): the other side's crowd control, not her part.
   bool lent(uint32_t guid) const {
@@ -2942,6 +2957,10 @@ private:
     const uint64_t eve_fsb = local_fsb(g);
     const bool eve_ok = plausible(eve_fsb) && g.read(eve_fsb + kLocation, eve_at, sizeof eve_at);
     const uint32_t *skills = flags_.skill, *skills_end = skills + std::min<size_t>(flags_.skill_count, kMaxPairs);
+    // A down EVE: hers (her vitals through the worker, unknown kMateMs after the last) brings every pair back to us at
+    // once and keeps it ours; ours (life state 3-5) with hers alive gives her the common pairs once the guards let it.
+    const Life her = now - mate_ms_ < kMateMs ? mate_ : Life::unknown;
+    const bool her_down = her == Life::down, give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
     for (size_t i = 0; i < count && !latched_; ++i) {
       pilot::Own *o = owners_.find(guids[i]);
       const Seen *s = fight::find(seen_, n, guids[i]);
@@ -2964,16 +2983,18 @@ private:
       f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
                  pilot::closer(o->owner, enemy, eve_at, flags_.her) &&
                  within(enemy, o->owner == pilot::kHost ? flags_.her : eve_at, kPartCm);
-      const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_;
+      const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_ || host.ignored();
       // A boss stays ours, as with aggro=host (stage 5: bosses attack the host first).
-      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || host.ignored()))
+      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || her_down, give))
         continue;
       Message own;
       own.type = Type::own;
       own.gen = host.gen(), own.guid = guids[i], own.to_guest = o->owner == pilot::kGuest, own.oe = o->oe;
       g.send(own);
       ++counts.owns;
-      g.event(Event{"own", own.to_guest ? "to her" : "back", guids[i], s->spawn, s->index});
+      const char *why = own.to_guest ? (give ? "to her: our EVE is down" : "to her")
+                                     : (her_down && !lost ? "back: her EVE is down" : "back");
+      g.event(Event{"own", why, guids[i], s->spawn, s->index});
     }
   }
   // The guest: the host's own lines in order, each about a pair of the host's current list (its generation), the pair
@@ -3191,6 +3212,11 @@ private:
   std::atomic<uint8_t> boss_test_{0}; // A solo probe asked (boss_test()), 0 for none.
   std::atomic<bool> calm_{false};
   bool calm_seen_ = false; // calm_ as this session started.
+  // A down EVE: her life as the worker's last mate message said it, and when; our EVE's life state this turn (0:
+  // unread).
+  Life mate_ = Life::unknown;
+  uint64_t mate_ms_ = 0;
+  int32_t eve_life_ = 0;
 };
 
 // ---- Between the job and the worker ----
@@ -3200,8 +3226,9 @@ constexpr uint64_t kStatsMs = 1000, kQuietMs = 60000; // The stats line: each se
 // What the worker waits for or why it is off, as its log, its fight= line and its off lines to her say it; her state
 // on our fight= line is sorted by them. The gate's reason off a co-op save starts with kNoCoopSave (fight_gate).
 constexpr const char *kNoCoopSave = "not on a co-op save", *kFeatureOff = "shared enemies off";
-constexpr uint64_t kTellMs = 5000; // Our state to her again, while we do not share.
-constexpr size_t kHerSaid = 32;    // Her offs said in the log, a link at most.
+constexpr uint64_t kTellMs = 5000;      // Our state to her again, while we do not share.
+constexpr uint64_t kMateEveryMs = 1000; // Her life to the job again, while it is down or alive.
+constexpr size_t kHerSaid = 32;         // Her offs said in the log, a link at most.
 
 // The job's lines, events and probe census to the worker, hers to the job. Each thread queues into rings of its
 // own; the logic thread swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next
@@ -3344,10 +3371,12 @@ public:
 
   // Every worker pass, after the link's tick: the job's lines out (while running: to her, or into the recording), its
   // events and probe census into the log, her lines in (parsed here, strictly) or the replay's, the gates, then the
-  // stats. photo: our player in photo mode (photo_mode()).
+  // stats. photo: our player in photo mode (photo_mode()). mate: her life (link_core.h's mate_life()), which the job
+  // gets while the mode runs with her as a local mate message: at each change, and while it is down or alive each
+  // kMateEveryMs and at each new session (the job reads unknown at its start, and kMateMs after the last).
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
-            Io &io, bool photo = false) {
+            Io &io, bool photo = false, Life mate = Life::unknown) {
     now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
     if (!linked)
       her_ = "?", her_said_ = 0;
@@ -3410,6 +3439,15 @@ public:
     if (!said.empty())
       io.say(said);
     tell(now_ms, io);
+    const bool again = mate_session_ != e_.session() || now_ms >= mate_at_ + kMateEveryMs; // Unknown needs none.
+    if (running_ && ran_ == Fight::on && (mate != mate_ || (mate != Life::unknown && again))) {
+      Message m;
+      m.type = Type::mate, m.life = mate;
+      if (mail_.give(m))
+        mate_ = mate, mate_at_ = now_ms, mate_session_ = e_.session();
+      else
+        ++dropped_;
+    }
     if (running_ && now_ms >= next_stats_)
       stats(now_ms, io);
   }
@@ -3868,6 +3906,9 @@ private:
   size_t her_said_ = 0;                                      // Her offs said in the log since her link.
   std::string told_;                                         // Our state as last told her (tell), or empty.
   uint64_t told_ms_ = 0;
+  Life mate_ = Life::unknown;                                // Her life as last given the job, when, in which session.
+  uint64_t mate_at_ = 0;
+  uint32_t mate_session_ = 0;
   uint64_t now_ = 0, next_gate_ = 0, next_stats_ = 0, said_ms_ = 0;
   uint64_t tick_ms_ = 0, tick_runs_ = 0, tick_us_ = 0, tick_turns_ = 0, mean_us_ = 0, rate_ = 0; // The last second.
   uint64_t unsent_ = 0, dropped_ = 0, malformed_ = 0;

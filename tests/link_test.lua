@@ -796,7 +796,17 @@ local mate=fresh.mate()
 assert(mate.hp==900 and mate.max_hp==1600 and mate.shield==0 and mate.max_shield==50 and mate.blocks==5
     and mate.beta==200 and mate.max_beta==1000 and mate.burst==0 and mate.max_burst==0 and mate.tachy==0
     and mate.max_tachy==0 and mate.life==1)
-assert(fresh.ping()==118 and fresh.chatting()==true)
+assert(fresh.ping()==118 and fresh.chatting()==true and fresh.life()==nil)
+-- Our life state and HP (life=, out of the log too), from the start of its own line only, whole numbers only.
+files[STATUS]=HEAD..'friend=1 0 x\n'..MATE..'life=3 0\nlast=#9 x\n'
+lines=fresh.changes()
+for _,line in ipairs(lines) do assert(not line:find('^life='),'life= stays out of the log') end
+assert(fresh.life().state==3 and fresh.life().hp==0 and fresh.mate().hp==900)
+for _,bad in ipairs({'life=1\n','life=1 2 3\n','life=-1 5\n','life=x 5\n','friend=1 0 x life=1 5\n'}) do
+    files[STATUS]=HEAD..'friend=1 0 x\n'..bad
+    fresh.changes()
+    assert(fresh.life()==nil,bad)
+end
 files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=-1 session=1 '
     ..'session_ping=-1\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
 fresh.changes()

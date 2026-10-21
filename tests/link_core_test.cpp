@@ -2145,6 +2145,59 @@ int main() {
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
   }
 
+  // Our life= line and her life for the shared fight's job (mate_life()). life=<state> <hp> comes from our last vitals
+  // read while a chat session holds and that read is under 3 s old (a load reads none), before the notices. Hers is
+  // down in life state 3-5 or at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any other state, before her first
+  // line, once her last one is 3 s old, and once the session ends.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    w.link.vitals(mine);
+    assert(w.status().find("\nlife=") == std::string::npos); // No session yet.
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(w.link.mate_life() == Life::unknown && w.status().find("\nlife=") == std::string::npos);
+    w.link.vitals(mine);
+    assert(w.status().find("\nlife=1 1500\n") != std::string::npos);
+    assert(w.status().find("\nlife=") < w.status().find("\nnotice="));
+    mine[vital::life] = 3, mine[vital::hp] = 0;
+    w.tick();
+    w.link.vitals(mine);
+    assert(w.status().find("\nlife=3 0\n") != std::string::npos);
+    w.tick("", 0, 0, 2999);
+    assert(w.status().find("\nlife=3 0\n") != std::string::npos);
+    w.tick("", 0, 0, 1);
+    assert(w.status().find("\nlife=") == std::string::npos); // Our last read is 3 s old.
+    Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    const auto heard = [&](uint32_t life, uint32_t hp, uint32_t max_hp = 1600) {
+      hers[vital::life] = life, hers[vital::hp] = hp, hers[vital::max_hp] = max_hp;
+      F.inbox.push_back({kFriend, vit_line(hers)});
+      w.tick();
+      return w.link.mate_life();
+    };
+    assert(heard(1, 900) == Life::alive && heard(6, 1600) == Life::alive);
+    assert(heard(3, 900) == Life::down && heard(4, 0) == Life::down && heard(5, 0) == Life::down);
+    assert(heard(1, 0) == Life::down && heard(1, 0, 0) == Life::alive);
+    assert(heard(0, 900) == Life::unknown && heard(2, 900) == Life::unknown && heard(7, 900) == Life::unknown);
+    assert(heard(3, 0) == Life::down);
+    w.tick("", 0, 0, 2999);
+    assert(w.link.mate_life() == Life::down);
+    w.tick("", 0, 0, 1);
+    assert(w.link.mate_life() == Life::unknown); // Her last line is 3 s old.
+    assert(heard(1, 900) == Life::alive);
+    w.link.vitals(mine);
+    w.tick("leave");
+    assert(w.link.mate_life() == Life::unknown && w.status().find("\nlife=") == std::string::npos);
+  }
+
   // coop loopback with no friend (UI-DESIGN 5.4, the solo tests): a chat session of its own, where our lines come
   // back as hers and our vitals stand in for hers; turning it off ends that session.
   reset();

@@ -137,6 +137,18 @@ inline bool plausible_vitals(const Vitals &v) {
       return false;
   return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
 }
+// Her vitals count this long after her last line (link_core.h).
+constexpr uint64_t kMateMs = 3000;
+// A player's life as her vitals say it, by the partner card's rule (partner.lua): down in life state 3-5 or at 0 HP of
+// a MaxHP above 0, alive in 1 or 6, unknown in any other state. link_core.h's mate_life() says unknown too without her
+// vitals or kMateMs after her last line; the shared fight's job hears it as a local message (fight_engine.h).
+enum class Life : uint8_t { unknown, alive, down };
+inline Life life_of(const Vitals &v) {
+  const uint32_t state = v[vital::life];
+  return (state >= 3 && state <= 5) || (v[vital::hp] == 0 && v[vital::max_hp] > 0) ? Life::down
+         : state == 1 || state == 6                                                   ? Life::alive
+                                                                                      : Life::unknown;
+}
 
 enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
 struct Message {

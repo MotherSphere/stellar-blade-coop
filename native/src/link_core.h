@@ -78,10 +78,10 @@ constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
 constexpr uint64_t kPhotoPerSecond = 8;
 // Chat (UI-DESIGN 5.1): our lines a second (Lua paces two), hers kept a second, and the lines waiting for Lua (hers and
 // our failures). Vitals: ours go at most once each kVitalsEveryMs, and again after kVitalsAgainMs unchanged; hers show
-// this long after her last. 90, under the 100 ms between reads: a read is timed on its own clock reading, so the link's
-// can see two reads up to a clock tick (15.6 ms on Windows) closer, and a change would wait a whole read more.
-constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90, kVitalsAgainMs = 1000,
-                   kMateMs = 3000;
+// kMateMs (link_protocol.h) after her last. 90, under the 100 ms between reads: a read is timed on its own clock
+// reading, so the link's can see two reads up to a clock tick (15.6 ms on Windows) closer, and a change would wait a
+// whole read more.
+constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90, kVitalsAgainMs = 1000;
 constexpr size_t kChatInbox = 16;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
@@ -488,8 +488,11 @@ public:
   }
   // Our vitals (pose_tick.cpp's local_vitals(), every 100 ms in a session, 500 after a slow read), unreliable to the
   // friend past the handshake on change (at most once each kVitalsEveryMs) and each kVitalsAgainMs, which also heals
-  // reordering; in the loopback with no friend, hers. Worker thread, after tick().
+  // reordering; in the loopback with no friend, hers. Kept in a session for our life= line, sent or not. Worker thread,
+  // after tick().
   void vitals(const Vitals &mine) {
+    if (chatting())
+      own_ = mine, own_at_ = now_, has_own_ = true;
     if (!linked()) {
       if (loopback_)
         mate_ = mine, mate_at_ = now_, has_mate_ = true;
@@ -504,6 +507,11 @@ public:
         sent = true;
     if (sent)
       vitals_ = mine, vitals_at_ = now_, vitals_sent_ = true;
+  }
+  // Her life for the shared fight (fight_engine.h's Worker), as of the last tick(): life_of() her vitals while a
+  // session holds and her last line is under kMateMs old, else unknown.
+  Life mate_life() const {
+    return has_mate_ && chatting() && now_ - mate_at_ < kMateMs ? life_of(mate_) : Life::unknown;
   }
   // For coop-chat.txt (steam_link.cpp), oldest first: "in <text>" (hers, chat_clean()) and "fail" (ours could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
@@ -573,6 +581,10 @@ public:
         s += (i ? " " : "") + std::to_string(mate_[i]);
       s += "\n";
     }
+    // Our life state and HP, from our last vitals read while a session holds and it is under kMateMs old (the revive's
+    // read, which the partner card's line does not give).
+    if (has_own_ && chatting() && now_ - own_at_ < kMateMs)
+      s += "life=" + std::to_string(own_[vital::life]) + " " + std::to_string(own_[vital::hp]) + "\n";
     uint64_t n = notice_count_ - notices_.size();
     for (auto &text : notices_)
       s += "notice=" + std::to_string(++n) + " " + text + "\n";
@@ -1168,7 +1180,7 @@ private:
           std::to_string(chat_dropped_) + " dropped");
     chat_.clear();
     chat_in_ = chat_out_ = chat_dropped_ = 0;
-    has_mate_ = vitals_sent_ = false;
+    has_mate_ = has_own_ = vitals_sent_ = false;
   }
   // A line for Lua while fewer than kChatInbox wait; false when it is dropped.
   bool for_lua(std::string line) {
@@ -1557,8 +1569,8 @@ private:
   std::vector<std::string> chat_;
   uint64_t chat_in_ = 0, chat_out_ = 0, chat_dropped_ = 0;
   Window say_window_;
-  Vitals vitals_{}, mate_{};
-  uint64_t vitals_at_ = 0, mate_at_ = 0;
-  bool vitals_sent_ = false, has_mate_ = false;
+  Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
+  uint64_t vitals_at_ = 0, mate_at_ = 0, own_at_ = 0;
+  bool vitals_sent_ = false, has_mate_ = false, has_own_ = false;
 };
 } // namespace coop
