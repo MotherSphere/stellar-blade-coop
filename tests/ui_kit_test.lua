@@ -1009,6 +1009,80 @@ special['GameplayStatics.IsGamePaused']=function() return true end
 assert(k.paused(true)==true,'Off, always still reads the pause')
 special['GameplayStatics.IsGamePaused']=nil
 
+-- The focus watchdog. The root is made focusable before AddToViewport, so the input mode focuses it. While our UI
+-- holds the game's input and the world shows, each slow reads whether the root or a widget in it has the focus: armed
+-- by a first yes since the input was taken, then 1 s of no (a yes starts it over) fires it once: lost() is true once,
+-- with who held the input. Never armed 2 s after the take: one log line a Lua load, nothing fires. A read that raises
+-- counts for nothing. A refused bIsFocusable: one log line a Lua load, nothing read.
+;(function()
+    local has,below=false,false -- The root's own focus, a widget's in it (the chat's box), as the engine reads them.
+    special['UserWidget.HasAnyUserFocus']=function() return has end
+    special['UserWidget.HasFocusedDescendants']=function() return below end
+    local function last(name) for i=#calls,1,-1 do if calls[i]==name then return i end end end
+    local function lines(text) local c=0; for _,m in ipairs(logs) do if m==text then c=c+1 end end return c end
+    local NEVER='focus watchdog: our root never took the focus'
+    reset()
+    local k=kit()
+    local function quarter() clock=clock+0.25; k.slow(true) end
+    up(k)
+    assert(stores[viewport[1]].props.bIsFocusable==true and last('set UserWidget.bIsFocusable')<last('UserWidget.'
+        ..'AddToViewport') and last('set UserWidget.bIsFocusable')>last('construct UserWidget'),
+        'Focusable, set before AddToViewport')
+    for _=1,8 do quarter() end
+    assert(count('UserWidget.HasAnyUserFocus')==0,'The game has its input: nothing read')
+    k.input(true)
+    has=true; quarter(); has=false
+    for _=1,4 do quarter() end
+    assert(k.lost()==false,'Not before 1 s')
+    quarter()
+    local lost,who=k.lost()
+    assert(lost==true and who=='menu','1 s without the focus')
+    assert(k.lost()==false,'Once')
+    for _=1,8 do quarter() end
+    assert(k.lost()==false,'Not again for that take')
+    -- A yes in between starts the second over; the chat's box (a widget in the root) holds the focus too.
+    k.input(true,'chat')
+    below=true; quarter(); below=false; quarter(); quarter(); below=true; quarter(); below=false
+    for _=1,4 do quarter() end
+    assert(k.lost()==false,'Started over')
+    quarter()
+    lost,who=k.lost()
+    assert(lost and who=='chat')
+    -- Never armed: nothing fires; one line 2 s after the take, once a Lua load.
+    k.input(false,'chat'); k.input(true)
+    for _=1,7 do quarter() end
+    assert(lines(NEVER)==0,'Not before 2 s')
+    quarter()
+    assert(lines(NEVER)==1)
+    for _=1,12 do quarter() end
+    k.input(false); k.input(true)
+    for _=1,12 do quarter() end
+    assert(k.lost()==false and lines(NEVER)==1,'Never armed: nothing fires, said once')
+    -- A read that raises, the world hidden, the input given back: nothing read or counted.
+    has=true; quarter(); has=false
+    raise['UserWidget.HasAnyUserFocus']='no slate widget'
+    for _=1,8 do quarter() end
+    raise['UserWidget.HasAnyUserFocus']=nil
+    assert(k.lost()==false and not k.off(),'A raise: nothing')
+    local n=count('UserWidget.HasAnyUserFocus')
+    for _=1,8 do clock=clock+0.25; k.slow(false) end
+    assert(count('UserWidget.HasAnyUserFocus')==n and k.lost()==false,'Hidden: nothing read')
+    k.input(false)
+    for _=1,8 do quarter() end
+    assert(count('UserWidget.HasAnyUserFocus')==n and k.lost()==false,'Given back: nothing read')
+    -- Refused: said once a Lua load (two builds), the watchdog unarmed, nothing read.
+    reset()
+    raise['set UserWidget.bIsFocusable']='no such property'
+    k=kit()
+    up(k)
+    assert(not k.off() and lines('focus watchdog off: the UI root refused bIsFocusable (no such property)')==1,
+        table.concat(logs,'|'))
+    k.input(true)
+    for _=1,20 do quarter() end
+    assert(count('UserWidget.HasAnyUserFocus')==0 and lines(NEVER)==0 and k.lost()==false)
+    special['UserWidget.HasAnyUserFocus'],special['UserWidget.HasFocusedDescendants']=nil,nil
+end)()
+
 -- The chat box (b.field): an EditableTextBox that keeps its keyboard focus on Enter and reverts on Esc, in Mideum 34,
 -- white on the dark glass, with its hint, all set before AddToViewport; it takes the mouse in its hit group (a click
 -- focuses it). input(true, 'chat') puts the game's input on it with its keyboard focus. Who holds the input gives it

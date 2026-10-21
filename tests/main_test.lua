@@ -316,6 +316,7 @@ end,kit=function(opts)
         end,
         stop=said_kit('stop'),
         reset=said_kit('reset'),
+        lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end, -- A global: Lua's 200 locals.
         move=function() end,fade=function() end,
         project=function(anchor)
             kit_projects=kit_projects+1
@@ -373,7 +374,7 @@ local function load_main(with_native)
         end
         return true
     end
-    pd.q,pd.calls={},0
+    pd.q,pd.calls,kit_lost={},0,nil
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
@@ -2378,6 +2379,32 @@ end)()
     for i,r in ipairs(rows) do if r.l=='Close' then hover(i) end end
     key('LEFT_MOUSE_BUTTON'); assert(not kit_shown.menu,'Close')
     link_mode,in_world,kit_ready='none',false,false
+end)()
+
+-- The focus watchdog (the kit's lost(); ui_kit_test tests when it fires): the 250 ms loop then runs what coop ui reset
+-- runs, before the menu's slow (the menu closed, an open host's question denied, the game's input given back now), and
+-- logs who lost the focus; no notice on screen.
+;(function()
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    key('F5'); assert(kit_shown.menu and kit_input)
+    local calls,feed,lines=#kit_calls,#chat_calls,#said
+    quarter(); assert(kit_shown.menu and not kit_said('reset nil'),'Not fired: nothing')
+    kit_lost='menu'; quarter()
+    assert(not kit_shown.menu and kit_said('reset nil')>kit_said('slow true') and kit_said('slow true')>calls,
+        'Closed after the kit\'s slow, the input given back now')
+    assert(logged('focus watchdog: menu lost the focus for 1 s: co-op UI closed, the game has its input back'),
+        'Logged')
+    for i=feed+1,#chat_calls do assert(not chat_calls[i]:find('focus',1,true),'Nothing in the feed') end
+    for i=lines+1,#said do assert(not said[i]:find('focus',1,true),'Nothing on the line above EVE') end
+    link_mode='host'
+    link_pending={id='76561198000000004',name='Six'}
+    quarter(); assert(kit_shown.ask and kit_holder=='ask')
+    kit_lost='ask'; quarter()
+    assert(asked[#asked]=='deny 76561198000000004' and not kit_shown.ask
+        and logged('focus watchdog: ask lost the focus for 1 s: co-op UI closed, the game has its input back'))
+    link_mode,link_pending,in_world,kit_ready='none',nil,false,false
 end)()
 
 -- Without the native tick export, the pose path's commands say so.

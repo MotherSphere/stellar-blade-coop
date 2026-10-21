@@ -102,6 +102,13 @@ local notice=require('notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
 -- host's question: with the Steam link.
 local kit,menu,box,hud,saves_ui,code_box,approval
+-- coop ui reset and the focus watchdog: the menu, the chat's box and the code box closed, an open host's question
+-- denied, the co-op saves' question closed as Decide later, the game's input given back now and the menu's mouse
+-- cursor put back; why, when given, logged.
+local function ui_reset(why)
+    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(); kit.reset()
+    if why then log(why) end
+end
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
 -- the UI is off or failed. en: the same line in English (T.en's words), which that line shows when its font cannot
 -- draw the other.
@@ -485,7 +492,7 @@ local commands={
                 menu.stop(); box.stop(); code_box.stop(); kit.stop()
                 return true,'co-op UI off until the mod reloads: notices on the line above EVE'
             end
-            menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(); kit.reset()
+            ui_reset()
             return true,'co-op UI reset: menu and chat closed, the game has its input back'
         end
         if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then
@@ -928,6 +935,11 @@ if link then
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
+            local dropped,who=kit.lost() -- The focus watchdog fired: as coop ui reset, nothing said on screen.
+            if dropped then
+                ui_reset('focus watchdog: '..who..' lost the focus for 1 s: co-op UI closed, the game has its input '
+                    ..'back')
+            end
             menu.slow(shown)
             box.slow(chat_clock)
             code_box.slow(shown)
