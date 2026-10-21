@@ -109,6 +109,8 @@ void put_states(Memory &mem, uint64_t fsb, const std::vector<std::pair<int32_t, 
 // with their state maps; this PC's EVE is GUID 1. SB's lookup, ApplyStat, the effect call, SendJob, remove-dead and
 // Logic Reset act as the decompiles show; the crowd-control effects run down and chain each turn; channel 2 is two
 // queues, or the worker's Mail once set (as WinGame's in pose_tick.cpp).
+constexpr size_t kRowEventSpawnId = 0x10; // An EventSpawnTable row's EventSpawnId, as SB's Execute reads it.
+
 struct Game {
   Memory mem;
   uint64_t net = 0, logic = 0, world = 0, manager = 0, players = 0, data = 0, heap = 0, eve = 0;
@@ -644,6 +646,7 @@ struct Game {
   }
   void spawn_row(uint32_t id, uint8_t save, uint64_t zone_alias, uint8_t spawn_type = 0, bool keep = false) {
     const uint64_t r = spawn_rows[id] = mem.alloc(0x100);
+    mem.put(r + kRowEventSpawnId, id);
     mem.put(r + kRowSpawnType, spawn_type);
     mem.put(r + kRowSaveType, save);
     mem.put<uint8_t>(r + kRowKeep, keep);
@@ -665,8 +668,33 @@ struct Game {
     ++lookups;
     return zone_rows.count(alias) ? zone_rows[alias] : 0;
   }
+  // The spawn filter's hook (pose_tick.cpp's filter_execute) on SB's spawn request of a key: with the engine's gate
+  // on, the request's row found again (SB's by its FName; here by its EventSpawnId), the row's EventSpawnId (+0x10)
+  // and the request's SpawnIndex looked up in the engine's table; a key it holds is refused (counted in filtered), and
+  // nothing spawns. SB's own spawns (respawn) and ours (create) both meet it.
+  Engine *filter = nullptr;
+  uint64_t filtered = 0;
+  bool filters(uint32_t id, uint8_t index) {
+    if (!filter || !filter->filtering() || !spawn_rows.count(id))
+      return false;
+    ++filter->blocks().seen;
+    if (!filter->blocks().has(mem.get<uint32_t>(spawn_rows[id] + kRowEventSpawnId), index))
+      return false;
+    ++filter->blocks().refused, ++filtered;
+    return true;
+  }
+  // SB's own spawn of a row of ours (an entry or a reset of our zone), outside our job: an actor of the row's
+  // character in Spawn state, unless the filter refuses it.
+  void respawn(uint32_t id, uint8_t index) {
+    if (filters(id, index))
+      return;
+    const auto c = row_char.count(id) ? row_char[id] : std::make_pair(kChar, kTypeMonster);
+    spawn(next_guid++, id, index, c.first, 1600, c.second);
+  }
   void create(uint64_t manager, uint32_t id, uint8_t index, const float *at, const float *rot) {
     assert(manager == spawn_manager && processing && spawn_rows.count(id));
+    if (filters(id, index))
+      return;
     const auto c = row_char.count(id) ? row_char[id] : std::make_pair(kChar, kTypeMonster);
     spawn(next_guid, id, index, c.first, 1600, c.second);
     place(next_guid, at[0], at[1], rot[1]);
@@ -2833,6 +2861,128 @@ int main() {
     assert(count(G, "spawns leave", "save-row") == 1 && count(G, "spawns leave", "keep-row") == 1); // Once each.
     assert(count(G, "spawns leave") == 2 && count(H, "spawns leave", "save-row") == 1 && count(H, "spawns leave") == 1);
     assert(std::none_of(G.made.begin(), G.made.end(), [](const Game::Made &m) { return m.id == 24; }));
+  }
+
+  // ---- The spawn filter (spawn_filter=on, the guest's): her blocked keys in the table the glue's hook reads ----
+  // Two worlds through channel 2, same spawns on, the EVEs 20 m apart: the host holds keys 1-4, she holds 1-6. She
+  // despawns 5 and 6 on the host's drops; with the filter the table then holds both, so her own reset (her spawn
+  // manager 1, then 3) respawns neither: the fake hook refuses both. Without it the table stays empty, both come back
+  // and the host's drops remove them again. The host's game then holds 5 again: its spawn line takes 5 off her list
+  // before her spawn of it, which the hook lets through, and 6 stays blocked. The host's own filter flag changes
+  // nothing on its side. The end of the session empties the table.
+  for (const bool filter : {false, true}) {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->same_spawns(true);
+    eh->filter(filter), eg->filter(filter);
+    H.filter = eh.get(), G.filter = eg.get();
+    for (Game *w : {&H, &G}) {
+      const uint64_t here = w == &H ? 0xA1 : 0xB7;
+      w->spawns();
+      w->zone(here, 40);
+      w->enter(here);
+      for (uint32_t id = 1; id <= 6; ++id)
+        w->spawn_row(id, 2, here);
+      w->place(1, 0, w == &H ? 0.f : 2000.f);
+      w->flags.her_ok = true;
+      w->flags.her[1] = w == &H ? 2000.f : 0.f;
+    }
+    for (uint32_t id = 1; id <= 4; ++id)
+      H.spawn(100 + id, id, 0), H.place(100 + id, 300.f * float(id), 500);
+    for (uint32_t id = 1; id <= 6; ++id)
+      G.spawn(900 + id, id, 0);
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF12 on");
+    to_guest.queue.emplace_back(120, "SBF12 on");
+    std::mt19937 rng(17);
+    using Keys = std::vector<std::pair<uint32_t, uint8_t>>;
+    const Keys four = {{1, 0}, {2, 0}, {3, 0}, {4, 0}}, five = {{1, 0}, {2, 0}, {3, 0}, {4, 0}, {5, 0}};
+    uint64_t dropped_at = 0;
+    bool blocked_after_drop = false, back_after_reset = false;
+    for (uint64_t t = 0; t <= 20000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 6000)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 1); // Her zone resets (a death of hers, a camp rest).
+      if (t == 6240) {
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 3);
+        G.respawn(5, 0), G.respawn(6, 0); // SB respawns her ResetZone rows.
+        back_after_reset = G.keys().size() == 6;
+      }
+      if (t == 12000) // The host's game holds 5 again.
+        H.spawn(105, 5, 0), H.place(105, 1500, 500);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+      if (!dropped_at && G.keys() == four) {
+        dropped_at = t;
+        blocked_after_drop = eg->blocks().has(5, 0) && eg->blocks().has(6, 0);
+      }
+      assert(!eh->filtering() && !eh->blocks().has(5, 0) && !eh->blocks().has(6, 0));
+    }
+    const Snapshot sg = eg->snapshot();
+    assert(!eh->latched() && !eg->latched() && dropped_at && dropped_at < 6000 && eg->guest.counts.bad == 0);
+    assert(blocked_after_drop == filter && back_after_reset == !filter);
+    assert(G.filtered == (filter ? 2u : 0u) && H.filtered == 0 && eg->filtering() == filter);
+    assert(G.keys() == five); // 5 back through her own spawn, 6 gone (refused, or despawned again).
+    assert(sg.spawns.despawned == (filter ? 2u : 4u) && count(G, "spawned") == 1);
+    assert(eg->blocks().has(6, 0) == filter && !eg->blocks().has(5, 0));
+    std::printf("fight_engine_test: spawn filter %s: her 5 and 6 despawned at %llu ms, %llu of her spawns refused\n",
+                filter ? "on" : "off", static_cast<unsigned long long>(dropped_at),
+                static_cast<unsigned long long>(G.filtered));
+    // The end of her session: the table empties at the job's last turn, and the gate closes.
+    eg->set(false, false);
+    for (uint64_t t = 20016; t <= 20200; t += 16)
+      frame(G, *eg, t);
+    assert(!eg->filtering() && !eg->blocks().has(6, 0));
+  }
+  // The gate itself: the guest's side or the spawn probe with spawns, asked with filter, until a latch or the end.
+  {
+    auto e = engine(false, false);
+    assert(!e->filtering());
+    e->set(true, false);
+    assert(!e->filtering()); // No filter asked.
+    e->filter(true);
+    e->set(true, false);
+    assert(e->filtering());
+    e->set(true, true); // The host's side.
+    assert(!e->filtering());
+    e->set(true, false, true); // The probe without spawns.
+    assert(!e->filtering());
+    e->same_spawns(true);
+    e->set(true, false, true); // coop fight spawn probe.
+    assert(e->filtering());
+    e->set(false, false);
+    assert(!e->filtering());
+    e->set(true, false);
+    e->latch("test");
+    assert(!e->filtering());
+  }
+  // A key she still blocks when the session ends, and her table published empty at the next session's first turn,
+  // whatever the old one held: a host's session after it never filters.
+  {
+    Game G;
+    auto e = engine(true, false);
+    e->filter(true);
+    e->set(true, false);
+    G.spawns(), G.zone(0xB7, 40), G.enter(0xB7), G.spawn_row(6, 2, 0xB7);
+    G.spawn(906, 6, 0);
+    G.flags.her_ok = true;
+    G.inbox.push_back(msg("SBF12 on"));
+    uint64_t t = 0;
+    for (; t <= 6000; t += 16) {
+      if (t == 1008)
+        G.inbox.push_back(msg("SBF12 world 1")), G.inbox.push_back(msg("SBF12 epoch 1 40 1"));
+      if (t == 4800)
+        G.inbox.push_back(msg("SBF12 drop 1 1 6 0"));
+      frame(G, *e, t);
+    }
+    assert(e->blocks().has(6, 0) && G.despawned.size() == 1);
+    // The host's off: her side clears at once, and so does the table.
+    G.inbox.push_back(msg("SBF12 off coop fight off"));
+    frame(G, *e, t += 16);
+    assert(!e->blocks().has(6, 0));
   }
 
   // ---- Bosses (stage 5), two worlds through channel 2 with same spawns on, the EVEs 20 m apart: boss A, which both
@@ -5597,6 +5747,58 @@ int main() {
     ask("fight probe spawns");
     run(t + 1000);
     assert(has(w.detail(), " writes=armed spawns=probe sim_us=") && io.saying("fight spawns probe 5001:0 no row") == 1);
+  }
+
+  // ---- The spawn filter through the worker: "filter" with fight on as the guest's side, or with the spawn probe,
+  // opens the hook's gate; the stats line says the hook's counts while it is installed ----
+  {
+    Game g;
+    auto mail = std::make_unique<Mail>();
+    g.mail = mail.get();
+    auto e = engine(false, false);
+    Worker w(*e, *mail);
+    Desk io;
+    const auto gate = [] { return std::string(); };
+    const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
+    const std::vector<std::string> none;
+    uint64_t t = 0;
+    bool linked = false, hosting = false;
+    const auto run = [&](uint64_t until) {
+      for (; t < until; t += 16) {
+        frame(g, *e, t);
+        w.pass(t, linked, hosting, true, none, gate, io);
+      }
+    };
+    g.spawns(), g.zone(0xA1, 40), g.enter(0xA1);
+    run(100);
+    assert(ask("fight probe spawns filter").rfind("shared fight probe: ", 0) == 0);
+    run(t + 1000);
+    assert(e->filtering() && has(w.detail(), " spawns=probe "));
+    ask("fight status");
+    assert(io.tracing("fight stats: probe") && !io.tracing("; filter "));
+    e->blocks().installed = true, e->blocks().seen = 7; // The glue's hook, installed, saw 7 requests.
+    ask("fight status");
+    assert(io.tracing("fight stats: probe") && io.tracing("; filter 7 seen, 0 refused; job: ") == 1);
+    ask("fight off");
+    run(t + 100);
+    assert(!e->filtering());
+    ask("fight probe spawns");
+    run(t + 100);
+    assert(!e->filtering());
+    ask("fight off");
+    linked = true;
+    run(t + 100);
+    assert(ask("fight on filter") == "shared fight on: as guest" && e->filtering());
+    e->blocks().refused = 2;
+    ask("fight status");
+    assert(io.tracing("fight stats: guest") && io.tracing("; filter 7 seen, 2 refused; bosses: ") == 1);
+    ask("fight off");
+    run(t + 100);
+    assert(!e->filtering());
+    hosting = true;
+    run(t + 100);
+    assert(ask("fight on filter") == "shared fight on: as host" && !e->filtering());
+    ask("fight off");
   }
 
   // ---- Record on one PC, replay into another's guest: T11a's solo test of both roles ----

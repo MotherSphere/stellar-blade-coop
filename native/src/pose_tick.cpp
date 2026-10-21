@@ -45,6 +45,11 @@
 // stops all of it for the run and, when it was in this DLL, puts every copy back once. coop fight pilot off turns it
 // off on this side until the next start.
 //
+// The spawn filter (spawn_filter=on, the guest's own, off by default) swaps one pointer of the game's image, once a
+// run: the Execute slot of SB's spawn request vtable, for a hook that refuses a request whose key the shared fight's
+// engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
+// first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
+//
 // The shared quests (Phase 12, quest_engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
 // SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
 // through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands the game
@@ -2251,6 +2256,169 @@ std::string pilot_status() {
          (test < uint8_t(PilotTest::replay) ? std::string(" test=") + kTests[test] : std::string()) + why;
 }
 
+namespace {
+// ---- The spawn filter (spawn_filter=on, the guest's) ----
+// SB's SpawnRequest vtable (.rdata 0x145c10018) holds its destructor, then Execute (0x141c10a90) in the slot at
+// 0x145c10020. RequestSpawn (FUN_141c1ca40) calls Execute directly only while the slot holds it, and through the slot
+// otherwise; the consumer of its delayed queue (FUN_141c1cd20) always calls through the slot; neither has a CFG check.
+// So one aligned 8-byte store into the slot routes both call sites through filter_execute from then on, and no
+// instruction byte of the game changes. The worker makes it once a run, by a compare-and-swap from Execute only, and
+// undoes it at coop off and after a fault in the hook, by a compare-and-swap from our hook only: another mod's value
+// is never overwritten. The DLL is pinned (never unloaded), so a thread still inside the hook after the undo is safe.
+constexpr uint64_t kSpawnSlot = 0x145c10020, kExecute = 0x141c10a90, kRowByName = 0x141a9a780;
+// SpawnRequest: its row's name (an FName, +0x28) and the SpawnIndex byte Execute passes NewActor (+0x30); the
+// EventSpawnTable row: the EventSpawnId Execute passes NewActor (+0x10).
+constexpr size_t kRequestName = 0x28, kRequestIndex = 0x30, kRowSpawnId = 0x10;
+using Execute = void *(*)(void *request);
+// The table holder (DAT_147032510, which the getter FUN_141a97f20 returns; never called here, since it makes one when
+// none is made), an unused argument and the row's name: the EventSpawnTable row, or null. It runs the row's lazy init,
+// as Execute's own first call does.
+using RowByName = void *(*)(void *holder, uint64_t unused, const void *name);
+enum class Filter : uint8_t { untried, on, refused, off };
+Filter filter_state = Filter::untried; // The worker's.
+std::atomic<bool> filter_faulted{false};
+std::atomic<uint64_t> filter_fault_code{0}, filter_fault_rva{0}, filter_fault_address{0};
+bool filter_fault_logged = false;
+// The keys the hook refused, for the worker's log: a ring of 16 entries, each the low 24 bits of its push number << 40
+// | spawnId << 8 | index, so the worker skips an entry not written yet or already written over.
+constexpr uint64_t kFilterRing = 16;
+std::atomic<uint64_t> filter_ring[kFilterRing] = {}, filter_pushed{0};
+uint64_t filter_read = 0, filter_unlogged = 0; // The worker's.
+
+// The request's key as Execute finds it (spawnId << 8 | index), or 0 when its row is not found. Out of line, since
+// clang-cl catches a fault only in a function the __try calls.
+__declspec(noinline) uint64_t filter_key_body(const uint8_t *request) {
+  void *const holder = *reinterpret_cast<void *const *>(base + (fight::kTables - nightop::kImageBase));
+  const auto *row = holder ? static_cast<const uint8_t *>(
+                                 game_function<RowByName>(kRowByName)(holder, 0, request + kRequestName))
+                           : nullptr;
+  if (!row)
+    return 0;
+  uint32_t id = 0;
+  std::memcpy(&id, row + kRowSpawnId, sizeof id);
+  return uint64_t(id) << 8 | request[kRequestIndex];
+}
+// Under the filter's own latch: after its first fault every request goes straight to Execute, and the worker swaps
+// the slot back.
+uint64_t filter_key(const uint8_t *request) {
+  __try {
+    return filter_key_body(request);
+  } __except (fault_filter(GetExceptionInformation(), filter_fault_code, filter_fault_rva, filter_fault_address)) {
+    filter_faulted = true;
+    return 0;
+  }
+}
+// The slot's target once swapped, on whichever thread SB spawns from: Execute, as SB would call it, unless the gate is
+// open (fight::Engine::filtering: the guest's session asked with filter, or coop fight spawn probe) and the engine's
+// table holds the request's key. That request gets null, which every caller takes (the immediate path returns it,
+// the delayed one ignores it), and is counted and pushed for the log. Execute reads RCX only, so a one-argument hook
+// forwards all it needs; it runs outside the guard, so a fault inside the game's own code is never taken for ours.
+void *filter_execute(void *request) {
+  const auto execute = game_function<Execute>(kExecute);
+  if (filter_faulted || !fight_engine.filtering())
+    return execute(request);
+  fight::BlockTable &table = fight_engine.blocks();
+  ++table.seen;
+  const uint64_t key = filter_key(static_cast<const uint8_t *>(request));
+  if (!key || !table.has(uint32_t(key >> 8), uint8_t(key)))
+    return execute(request);
+  ++table.refused;
+  const uint64_t n = filter_pushed.fetch_add(1);
+  filter_ring[n % kFilterRing] = (n & 0xffffff) << 40 | key;
+  return nullptr;
+}
+// The slot's address in the game, as the decompiles name it, and what a value in it points at.
+const char kSlotName[] = "0x145c10020";
+std::string slot_value(uint64_t value) {
+  char text[64];
+  if (value - base < kSizeOfImage)
+    std::snprintf(text, sizeof text, "0x%llx in the game",
+                  static_cast<unsigned long long>(value - base + nightop::kImageBase));
+  else
+    std::snprintf(text, sizeof text, "0x%llx outside the game", static_cast<unsigned long long>(value));
+  return text;
+}
+// The slot's compare-and-swap from from to to, its page writable for the store only: what the slot held (from when
+// the swap was made), or false when the page's protection would not change.
+bool swap_slot(uint64_t from, uint64_t to, uint64_t &held) {
+  void *const slot = reinterpret_cast<void *>(base + (kSpawnSlot - nightop::kImageBase));
+  DWORD old = 0;
+  if (!VirtualProtect(slot, sizeof(uint64_t), PAGE_READWRITE, &old))
+    return false;
+  held = static_cast<uint64_t>(InterlockedCompareExchange64(static_cast<volatile LONG64 *>(slot),
+                                                            static_cast<LONG64>(to), static_cast<LONG64>(from)));
+  VirtualProtect(slot, sizeof(uint64_t), old, &old);
+  return true;
+}
+uint64_t execute_address() { return base + (kExecute - nightop::kImageBase); }
+uint64_t hook_address() { return reinterpret_cast<uintptr_t>(&filter_execute); }
+// Once a run, on the worker thread, when the gate first opens on the pinned build before coop off and before a fault
+// of the hook: the slot swapped from Execute to the hook. A slot that holds anything else (another mod's hook) is
+// refused and never written.
+void filter_install() {
+  const uint64_t execute = execute_address();
+  uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (kSpawnSlot - nightop::kImageBase));
+  const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(execute, hook_address(), held);
+  const bool on = page_ok && held == execute;
+  filter_state = on ? Filter::on : Filter::refused;
+  fight_engine.blocks().installed = on;
+  if (on)
+    say(std::string("spawn filter on: ") + kSlotName + " swapped from the game's Execute to our filter");
+  else if (slot_ok && !page_ok)
+    say("spawn filter refused: the page of " + std::string(kSlotName) + " would not become writable (error " +
+        std::to_string(GetLastError()) + "); every spawn goes on as without the filter");
+  else
+    say("spawn filter refused: " + std::string(kSlotName) + " holds " + slot_value(held) +
+        ", not the game's Execute (another mod's hook?); left as it is, every spawn goes on as without the filter");
+}
+// The slot back to Execute by a compare-and-swap from our hook only, at coop off and after a fault of the hook. If the
+// swap cannot be made, the hook stays and passes every request on: the gate is shut at coop off, and the latch after
+// a fault.
+void filter_undo(const char *why) {
+  if (filter_state != Filter::on)
+    return;
+  filter_state = Filter::off;
+  fight_engine.blocks().installed = false;
+  uint64_t held = 0;
+  if (!swap_slot(hook_address(), execute_address(), held))
+    say(std::string("spawn filter off (") + why + "): the page of " + kSlotName +
+        " would not become writable; our filter stays in it and passes every spawn on");
+  else if (held == hook_address())
+    say(std::string("spawn filter off (") + why + "): " + kSlotName + " holds the game's Execute again");
+  else
+    say(std::string("spawn filter off (") + why + "): " + kSlotName + " holds " + slot_value(held) +
+        ", left as it is");
+}
+// Each fight pass, on the worker thread: the hook's fault said once (and the slot swapped back), the swap when the
+// gate first opens, and the keys the hook refused since the last pass.
+void filter_pass() {
+  if (filter_faulted && !filter_fault_logged) {
+    filter_fault_logged = true;
+    char text[300];
+    std::snprintf(text, sizeof text, "spawn filter fault 0x%08llx in %s reading 0x%llx: off for this run",
+                  static_cast<unsigned long long>(filter_fault_code.load()), fault_where(filter_fault_rva).c_str(),
+                  static_cast<unsigned long long>(filter_fault_address.load()));
+    say(text);
+    filter_undo("a fault");
+  }
+  if (filter_state == Filter::untried && pinned && !blocked && !filter_faulted && fight_engine.filtering())
+    filter_install();
+  const uint64_t pushed = filter_pushed;
+  if (pushed - filter_read > kFilterRing)
+    filter_unlogged += pushed - filter_read - kFilterRing, filter_read = pushed - kFilterRing;
+  for (; filter_read < pushed; ++filter_read) {
+    const uint64_t entry = filter_ring[filter_read % kFilterRing];
+    if (entry >> 40 != (filter_read & 0xffffff)) {
+      ++filter_unlogged;
+      continue;
+    }
+    say("spawn filter refused " + std::to_string(uint32_t(entry >> 8)) + ":" + std::to_string(entry & 0xff));
+  }
+  if (filter_unlogged)
+    say("spawn filter: " + std::to_string(std::exchange(filter_unlogged, 0)) + " more refused, not listed");
+}
+} // namespace
+
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool)) {
   fight_send = send;
@@ -2276,6 +2444,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   if (now_ms >= next_photo)
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
   fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo);
+  filter_pass();
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();
 }
@@ -2396,6 +2565,7 @@ void block() {
   engine_on = false;
   quest_worker.block(); // Its side ends; the game thread's passes stop with it.
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
+  filter_undo("coop off");
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
