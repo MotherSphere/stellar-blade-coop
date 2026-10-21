@@ -2483,7 +2483,8 @@ int main() {
   // happens either while they stand 200 m apart; then her set becomes the host's: 1-4 created where the host's stand
   // (they pair through stage 1), 9-12 despawned, her four left; nothing ever dies in either world. The host's zone then
   // resets (its spawn manager 3, 1, 3: epoch 2), and a spawn line of epoch 1 that comes after is dropped; her rounds of
-  // epoch 2 are answered with nothing to change.
+  // epoch 2 are answered with nothing to change. A drop line of epoch 2 for key 5, which stage 1 pairs on her side, is
+  // stale: the host's dead ends that enemy, never a despawn.
   for (const bool on : {false, true}) {
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
@@ -2518,7 +2519,7 @@ int main() {
     to_guest.queue.emplace_back(120, "SBF11 on");
     std::mt19937 rng(11);
     bool spawn_lines = false;
-    uint64_t same_at = 0;
+    uint64_t same_at = 0, stale_before = 0;
     std::vector<std::pair<uint32_t, uint8_t>> want;
     for (uint32_t id = 1; id <= 8; ++id)
       want.emplace_back(id, 0);
@@ -2535,6 +2536,11 @@ int main() {
         H.mem.put<uint32_t>(H.spawn_manager + kSpawnState, 3);
       if (t == 12000 && on) // A spawn line of epoch 1 that comes after epoch 2: dropped.
         G.inbox.push_back(msg("SBF11 spawn " + std::to_string(eg->guest.gen()) + " 1 9 0 900 0 0 0 0"));
+      if (t == 15008 && on) { // Paired on her side: stale.
+        assert(eg->guest.linked() == 8 && eg->snapshot().epoch == 2);
+        stale_before = eg->snapshot().spawns.stale;
+        G.inbox.push_back(msg("SBF11 drop " + std::to_string(eg->guest.gen()) + " 2 5 0"));
+      }
       frame(H, *eh, t);
       frame(G, *eg, t);
       for (Game *w : {&H, &G})
@@ -2570,6 +2576,7 @@ int main() {
     for (uint32_t guid : G.despawned)
       assert(guid >= 909 && guid <= 912);
     assert(sh.spawning && sg.spawning && sh.epoch == 2 && sg.epoch == 2 && sg.spawns.stale >= 1 && G.made.size() == 4);
+    assert(sg.spawns.stale > stale_before && stale_before >= 1 && count(G, "drop refused") == 0);
     assert(sh.spawns.answered >= 2 && sh.spawns.stale >= 1); // Answered at epoch 2 too; her round of epoch 1 dropped.
     assert(eg->guest.linked() == 8); // The created four paired through stage 1.
     assert(count(G, "spawned") == 4 && count(G, "despawned") == 4 && count(H, "spawns epoch", "reset") == 1);
