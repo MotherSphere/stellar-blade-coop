@@ -965,6 +965,8 @@ public:
       return "quests replay refused: no recording yet (coop quests record makes one)";
     if (ask_ == r.quests && deny == deny_ && r.quests != Quests::replay)
       return std::string("quests ") + word + ": already asked, " + state();
+    if (started_ && ask_ == r.quests) // Another quest_deny, or a replay from its start: a new side, her off first.
+      e_.off("asked"), started_ = false;
     ask_ = r.quests, deny_ = deny, replay_ = std::move(replay);
     if (!unknown.empty())
       io.say("quests: quest_deny names no shared quest: " + unknown);

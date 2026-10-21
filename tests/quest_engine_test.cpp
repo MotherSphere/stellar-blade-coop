@@ -1326,6 +1326,14 @@ void workers() {
     said.insert(said.end(), swap->io.sent.begin(), swap->io.sent.end());
   }
   assert(said == (std::vector<std::string>{q("off link"), q("on 0")}) && swap->io.loads[2] == 2);
+  // Another quest_deny asked while it runs: the side starts anew with it, her off first.
+  said.clear();
+  assert(swap->w.ask(parse_request("quests on deny 54"), swap->io).rfind("quests on: ", 0) == 0);
+  for (int n = 0; n < 3; ++n) {
+    swap->pass(now), now += 250;
+    said.insert(said.end(), swap->io.sent.begin(), swap->io.sent.end());
+  }
+  assert(said == (std::vector<std::string>{q("off asked"), q("on 0")}) && swap->io.loads[2] == 3);
 
   // record, then replay: the recording written at most once a second, read at replay's ask.
   auto rec = std::make_unique<Desktop>(), play = std::make_unique<Desktop>();
@@ -1348,6 +1356,12 @@ void workers() {
   for (int n = 0; n < 6; ++n)
     play->pass(now), now += 250;
   assert(play->state() == "quests=on mode=replay role=replay" && play->pc.w.v[at("Quest_Sub_001")].state == 1);
+  // The same replay asked again plays the recording from its start: a new side, which logs it again.
+  const size_t replays = count(play->io.traced, "quests: replay of ");
+  assert(play->w.ask(parse_request("quests replay"), play->io) == "quests replay: runs once a co-op save is loaded");
+  for (int n = 0; n < 3; ++n)
+    play->pass(now), now += 250;
+  assert(count(play->io.traced, "quests: replay of ") == replays + 1);
 }
 } // namespace
 
