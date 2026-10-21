@@ -128,7 +128,8 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='off'
-    and values.aggro=='game' and values.same_spawns=='off' and values.enemy_extra=='0')
+    and values.aggro=='game' and values.same_spawns=='off' and values.enemy_extra=='0' and values.bosses=='off'
+    and values.boss_hp_scale=='2.0')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -171,8 +172,8 @@ menu.select(NONE,0)
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
     ..'photo_name_tag head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies same_place '
-    ..'aggro same_spawns enemy_extra enemy_hp_scale enemy_balance_scale kill_credit head:display ui_scale ui_sounds '
-    ..'ui_language head:chat chat',
+    ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
+    ..'ui_scale ui_sounds ui_language head:chat chat',
     ids(menu,NONE))
 -- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at
 -- once (main.lua asks coop fight on or off).
@@ -230,6 +231,13 @@ file=assert(SF.set(Link.DEFAULT,'enemy_hp_scale',select(3,menu.change(NONE,value
 assert(M.read(file).enemy_hp_scale=='1.4' and Link.parse_settings(file).enemy_hp_scale==1.4)
 on('enemy_balance_scale')
 assert(select(3,menu.change(NONE,values,-1))=='1.1')
+-- The host's boss_hp_scale the same way, from its 2.0.
+on('boss_hp_scale')
+assert(select(3,menu.change(NONE,values,1))=='2.05' and select(3,menu.change(NONE,values,-1))=='1.95')
+file=assert(SF.set(Link.DEFAULT,'boss_hp_scale',select(3,menu.change(NONE,values,1))))
+assert(M.read(file).boss_hp_scale=='2.05' and Link.parse_settings(file).boss_hp_scale==2.05)
+on('bosses')
+assert(select(3,menu.change(NONE,values,1))=='on')
 on('kill_credit')
 assert(select(3,menu.change(NONE,values,1))=='fought' and select(3,menu.change(NONE,values,-1))=='fought')
 on('ui_scale')

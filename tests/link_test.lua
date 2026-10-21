@@ -411,6 +411,23 @@ for _,bad in ipairs({'4','-1','1.5','two','03'}) do
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_extra (use 0 to 3); "
         .."enemy_extra stays 0" and s.enemy_extra==0,notes[1])
 end
+-- bosses (stage 5, experimental, the host's): on or off in any case, off by default and in a file written before it;
+-- boss_hp_scale (the host's) from 1.0 to 4.0 like the other scales, 2.0 by default. A new file names both right after
+-- enemy_extra, with their comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nenemy_extra=0\n# Shared bosses, experimental, ',1,true)
+    and Link.DEFAULT:find('\nbosses=off\nboss_hp_scale=2.0\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.bosses==false and s.boss_hp_scale==2)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.bosses==false and s.boss_hp_scale==2)
+for _,case in ipairs({{'on',true,'1'},{'ON',true,'4'},{'Off',false,'2.55'}}) do
+    s,notes=Link.parse_settings('bosses='..case[1]..'\nboss_hp_scale='..case[3])
+    assert(#notes==0 and s.bosses==case[2] and s.boss_hp_scale==tonumber(case[3]),case[1])
+end
+s,notes=Link.parse_settings('bosses=yes\nboss_hp_scale=4.5')
+assert(#notes==2 and notes[1]=="settings: line 1: 'yes' is not allowed for bosses (use on or off); bosses stays off"
+    and notes[2]=="settings: line 2: '4.5' is not allowed for boss_hp_scale (use 1.0 to 4.0); boss_hp_scale stays 2.0"
+    and s.bosses==false and s.boss_hp_scale==2,table.concat(notes,'|'))
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one

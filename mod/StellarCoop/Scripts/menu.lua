@@ -53,7 +53,7 @@ function Menu.new(o)
         if row.key=='photo_freeze_max' then
             return n==0 and words.no_limit or (n%60==0 and words.minutes:format(n//60) or words.seconds:format(n))
         end
-        if row.key=='enemy_hp_scale' or row.key=='enemy_balance_scale' then -- 1.35 in the file, 135 % here.
+        if row.key=='enemy_hp_scale' or row.key=='enemy_balance_scale' or row.key=='boss_hp_scale' then -- 1.35: 135 %.
             return words.percent:format(math.floor(n*100+0.5))
         end
         return row.key=='ui_scale' and words.percent:format(n) or v

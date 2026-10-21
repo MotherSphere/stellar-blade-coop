@@ -11,7 +11,8 @@
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
--- same_place, aggro and same_spawns (Phase 11, experimental) are main.lua's coop fight; its photo_sync,
+-- same_place, aggro, same_spawns, enemy_extra, bosses and boss_hp_scale (Phase 11, experimental) are main.lua's coop
+-- fight; its photo_sync,
 -- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
 -- coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op menu
 -- (menu.lua) changes the file, one line at a time (D-UI4).
@@ -48,9 +49,9 @@ send_rate=60
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
-# shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
-# example fight_chars=15011001.
+# death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
+# and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
+# for example fight_chars=15011001.
 shared_enemies=on
 fight_chars=auto
 # guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
@@ -78,6 +79,12 @@ same_spawns=off
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
+# Shared bosses, experimental, the host's for both games: on or off, off until it has been tested in game. On, a boss
+# or an Alpha Naytiba that both games hold shares one HP bar and one death, as a common enemy does. With
+# same_place=on it fights the host only. boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place
+# of enemy_hp_scale, from 1.0 (no change) to 4.0.
+bosses=off
+boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -106,11 +113,13 @@ card_details=on
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
     enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',same_spawns='off',enemy_extra='0',
+    bosses='off',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',
     ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     who_can_join='friends',auto_coop_save='ask'}
-local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,photo_ghost=true,photo_name_tag=true,
-    ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true} -- On or off.
+local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
+    photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
+    card_details=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -125,7 +134,7 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
 -- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
 -- auto_coop_save, aggro) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of percent; the scales a
--- number from 1 to 2, digits with a decimal point or none (main.lua sends them in whole percents).
+-- number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole percents).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -155,7 +164,7 @@ local function setting(name,text)
         local rate=text:match('^%d+$') and tonumber(text)
         if rate and rate>=10 and rate<=60 then return rate end
         return nil,'use 10 to 60'
-    elseif name=='enemy_hp_scale' or name=='enemy_balance_scale' then
+    elseif name=='enemy_hp_scale' or name=='enemy_balance_scale' or name=='boss_hp_scale' then
         local x=text:match('^%d+%.?%d*$') and tonumber(text)
         if x and x>=1 and x<=4 then return x end
         return nil,'use 1.0 to 4.0'

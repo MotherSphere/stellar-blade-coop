@@ -335,7 +335,8 @@ for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
         assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto, same place off '
-            ..'(experimental), same spawns off (experimental), extra enemies 0\n',printed[k+2])
+            ..'(experimental), same spawns off (experimental), extra enemies 0, bosses off (experimental), boss HP '
+            ..'200 %\n',printed[k+2])
         assert(printed[k+3]=='[StellarCoop] photo sync: both, longest pause 600 s, ghost in your photos on, its name '
             ..'tag off\n',printed[k+3])
     end
@@ -820,7 +821,7 @@ settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 status_text=plain
 load_main(true)
 assert(logged('shared enemies: on (experimental), fight_chars 15011001 2, same place off (experimental), same spawns '
-    ..'off (experimental), extra enemies 0'),
+    ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),
     table.concat(printed,'|'))
 for _,waiting in ipairs({plain,with_slot('slot=unknown index=? marker=4\n'),
         with_slot('friend=1 0 slot=coop index=4 marker=4\n')}) do
@@ -864,7 +865,7 @@ coop('fight','on'); assert(asked[#asked]=='fight on fought scale 123 101',asked[
 settings_text='shared_enemies=on\nsame_place=on\nfight_chars=15011001 2\n'
 load_main(true)
 assert(logged('shared enemies: on (experimental), fight_chars 15011001 2, same place on (experimental), same spawns '
-    ..'off (experimental), extra enemies 0'),
+    ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),
     table.concat(printed,'|'))
 status_text=COOP
 loops[2].f()
@@ -892,7 +893,7 @@ settings_text='shared_enemies=on\nsame_place=on\naggro=host\nsame_spawns=on\nfig
 load_main(true)
 status_text=COOP
 assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place on (experimental), same spawns on '
-    ..'(experimental), extra enemies 0'),table.concat(printed,'|'))
+    ..'(experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),table.concat(printed,'|'))
 for _,case in ipairs({{'on','fight on scale 135 115 place aggro-host spawns 15011001'},{'record','fight record scale '
         ..'135 115 place aggro-host 15011001'},{'replay','fight replay 15011001'},{'probe','fight probe 15011001'}}) do
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
@@ -908,7 +909,7 @@ settings_text='shared_enemies=on\nsame_spawns=on\nenemy_extra=2\nfight_chars=150
 load_main(true)
 status_text=COOP
 assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place off (experimental), same spawns on '
-    ..'(experimental), extra enemies 2'),table.concat(printed,'|'))
+    ..'(experimental), extra enemies 2, bosses off (experimental), boss HP 200 %'),table.concat(printed,'|'))
 for _,case in ipairs({{'on','fight on scale 135 115 spawns extra 2 15011001'},{'record','fight record scale 135 115 '
         ..'15011001'},{'replay','fight replay 15011001'},{'probe','fight probe 15011001'}}) do
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
@@ -919,6 +920,27 @@ for _,text in ipairs({'shared_enemies=on\nenemy_extra=3\n','shared_enemies=on\ns
     status_text=COOP
     coop('fight','on'); assert(not asked[#asked]:find('extra',1,true),asked[#asked])
 end
+-- bosses=on (the host's) goes with on and record as "bosses" and boss_hp_scale in whole percents, after aggro-host,
+-- before spawns and the ids; the guest takes the host's, so replay and probe never carry it. Off: none, whatever
+-- boss_hp_scale says.
+settings_text='shared_enemies=on\naggro=host\nbosses=on\nboss_hp_scale=2.5\nsame_spawns=on\nfight_chars=15011001\n'
+load_main(true)
+status_text=COOP
+assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place off (experimental), same spawns on '
+    ..'(experimental), extra enemies 0, bosses on (experimental), boss HP 250 %'),table.concat(printed,'|'))
+for _,case in ipairs({{'on','fight on scale 135 115 aggro-host bosses 250 spawns 15011001'},{'record','fight record '
+        ..'scale 135 115 aggro-host bosses 250 15011001'},{'replay','fight replay 15011001'},
+        {'probe','fight probe 15011001'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+settings_text='shared_enemies=on\nbosses=on\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 bosses 200',asked[#asked])
+settings_text='shared_enemies=on\nboss_hp_scale=3\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115',asked[#asked])
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)
@@ -933,7 +955,7 @@ for _,text in ipairs({'','shared_enemies=on\n','shared_enemies=on\nfight_chars=a
     settings_text=text
     load_main(true)
     assert(logged('shared enemies: on (experimental), fight_chars auto, same place off (experimental), same spawns '
-        ..'off (experimental), extra enemies 0'),
+        ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),
         table.concat(printed,'|'))
     status_text=COOP; loops[2].f()
     assert(#asked==1 and asked[1]=='fight on scale 135 115',text)
@@ -1537,6 +1559,15 @@ to("Extra enemies (host's)"); assert(select(2,focus())=='0')
 key('RIGHT_ARROW')
 assert(settings_text:find('\nenemy_extra=1\n',1,true) and select(2,focus())=='1')
 loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it')
+-- Shared bosses, the host's for both games: Off by default; Boss HP (host's) 200 % by default, 5 % a step. Both count
+-- from the next start of shared enemies, so neither row asks anything.
+to('Shared bosses (experimental)'); assert(select(2,focus())=='Off')
+key('RETURN')
+assert(settings_text:find('\nbosses=on\n',1,true) and select(2,focus())=='On')
+to("Boss HP (host's)"); assert(select(2,focus())=='200 %')
+key('RIGHT_ARROW')
+assert(settings_text:find('\nboss_hp_scale=2.05\n',1,true) and select(2,focus())=='205 %')
+loops[2].f(); assert(#asked==fight_asks+5,'The next start carries them')
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
@@ -1544,7 +1575,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^SAVES||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^COMBAT||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)
