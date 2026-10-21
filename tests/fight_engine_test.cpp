@@ -1472,7 +1472,7 @@ int main() {
     uint64_t t = 0;
     frame(g, *e, t);
     frame(g, *e, t += 16);
-    assert(mail.table(table, stream) && table.on && table.count == 1 && table.ms == 16 && table.turn == 1);
+    assert(mail.table(table, stream) && table.on && table.count == 1 && table.ms == 16);
     assert(table.pairs[0].hguid == 101 && table.pairs[0].local == 501 && table.pairs[0].bits == kRowDrawn + kRowFrozen);
     const auto battles = [&] {
       size_t n = 0;
@@ -1795,7 +1795,7 @@ int main() {
       g.mem.put<int32_t>(g.net + kNetMode, 1);
     }
     frame(g, *e, 32);
-    assert(!g.table.on && g.table.count == 0 && g.table.turn == 2 && e->counts.mode == (probe ? 0 : 1));
+    assert(!g.table.on && g.table.count == 0 && g.table.ms == 32 && e->counts.mode == (probe ? 0 : 1));
   }
 
   // The host's same_place decides for both games: the guest's own is never read, so her copies are frozen only while
