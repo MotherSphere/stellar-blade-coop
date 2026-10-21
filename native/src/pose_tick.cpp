@@ -937,6 +937,11 @@ __declspec(noinline) void pilot_body() {
       taker.test();
     taker.step(g, base, t.gen, fresh ? owned : nullptr, n, t.on, start / 1000);
     taker.refused(pilot_stream.untaken, pilot_stream.untaken_oe, pilot_stream.untaken_count);
+    // Where her ghost's main mesh was last drawn in our world, for the host's nearer rule (stage 3b); none before its
+    // first pose (a drawn root's scale is never 0).
+    pilot_stream.her_ok = session && session->drawn() && !session->ghost_gone && session->draw_root[7] > 0;
+    if (pilot_stream.her_ok)
+      std::copy(session->draw_root + 4, session->draw_root + 7, pilot_stream.her);
     const double now_ms = start / 1000.0,
                  draw = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
     for (SbeIn m; pilot_sbe_here.pop(m);)
