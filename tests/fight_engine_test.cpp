@@ -3192,6 +3192,19 @@ int main() {
       assert(w.pilot() == "off why=setting"); // pilot off ended with the start; same_place off this time.
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(!has(io.file, "place"));
+      // aggro-host: the host's aggro=host, kept as an aggro line after the place line, read back with the recording;
+      // the next start without it is aggro=game again (no line).
+      assert(w.ask(coop::parse_request("fight record place aggro-host"), gate, io).rfind("shared fight record: ", 0) ==
+             0);
+      run(200);
+      w.ask(coop::parse_request("fight off"), gate, io);
+      std::vector<Line> back;
+      assert(has(io.file, " SBF11 place 1 1\n") && has(io.file, " SBF11 aggro 1 host\n") &&
+             !parse_recording(io.file, back));
+      assert(w.ask(coop::parse_request("fight record place"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(200);
+      w.ask(coop::parse_request("fight off"), gate, io);
+      assert(has(io.file, " SBF11 place 1 1\n") && !has(io.file, "aggro"));
     }
     Game G;
     auto mail = std::make_unique<Mail>();

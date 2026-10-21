@@ -341,6 +341,16 @@ int main() {
                           "fight on place fought", "fight on Place", "fight off place", "fight status place",
                           "fight test kill place", "fight on  place"})
     assert(parse_request(bad).command == Command::none);
+  // Stage 3b: aggro=host as "aggro-host", one word after place (or where place would be), before the ids; none:
+  // aggro=game.
+  f = parse_request("fight on scale 135 115 place aggro-host 15011001");
+  assert(f.place && f.aggro_host && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight record aggro-host").aggro_host && !parse_request("fight record aggro-host").place);
+  assert(!parse_request("fight on place").aggro_host && !parse_request("fight on place 1").aggro_host);
+  for (const char *bad : {"fight on aggro-host place", "fight on place aggro-host aggro-host", "fight on 1 aggro-host",
+                          "fight on aggro-host scale 135 115", "fight on aggro", "fight on aggro-game",
+                          "fight on Aggro-host", "fight off aggro-host", "fight pilot aggro-host"})
+    assert(parse_request(bad).command == Command::none);
   // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
   // too), its status, and how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before).
   f = parse_request("fight pilot probe\n");

@@ -320,9 +320,10 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [<charId> ...]"
-// (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale each; the host's
-// same_place=on; fight_chars, at most kMaxFightChars, none: every Monster), "fight off", "fight status", "fight test
+// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [aggro-host]
+// [<charId> ...]" (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale
+// each; the host's same_place=on; the host's aggro=host; fight_chars, at most kMaxFightChars, none: every Monster),
+// "fight off", "fight status", "fight test
 // hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
 // (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
 // same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
@@ -364,6 +365,7 @@ struct Request {
   bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
   uint16_t scale[2] = {kMinScale, kMinScale}; // fight on, probe, record, replay: MaxHP and balance in % (a host's).
   bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
+  bool aggro_host = false;     // fight on, probe, record, replay: aggro=host (a host's; aggro=game otherwise).
   PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
   PilotTest test = PilotTest::replay;    // fight pilot test: how far.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
@@ -400,6 +402,8 @@ inline Request parse_fight(const std::string &text) {
     }
     r.place = i < w.size() && w[i] == "place";
     i += r.place;
+    r.aggro_host = i < w.size() && w[i] == "aggro-host";
+    i += r.aggro_host;
     for (; i < w.size(); ++i) {
       if (r.chars.size() == kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
         return Request();

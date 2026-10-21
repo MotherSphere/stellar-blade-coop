@@ -1951,6 +1951,7 @@ private:
     std::copy(r.scale, r.scale + kScales, own_scale_);
     e_.credit(!r.fought);
     e_.same_place(r.place);
+    e_.aggro(r.aggro_host);
     e_.pilot_off(false);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
