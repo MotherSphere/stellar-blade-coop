@@ -1180,7 +1180,8 @@ private:
   // Stage 1's enemy: not a player, spawned by an EventSpawn row, fighting (no pending death), and of an allowlisted
   // charId or, with no list, a Monster that auto_out() keeps, or a BossMonster while the side's bosses are on (stage
   // 5: the host's own setting, or as its bosses line said). The type is read for such an actor only, and the MaxHP
-  // for such a Monster; a type past BossMonster is implausible.
+  // for such a Monster; a type past BossMonster is implausible. Night Operation's wave monsters (keys 0xD8...) are
+  // enemies here like any keyed Monster: both worlds hold the same keys, so their copies pair.
   template <class Game> bool eligible(Game &g, const Actor &a) {
     if (a.controlled || a.player || !a.seen.spawn || !fighting(a))
       return false;

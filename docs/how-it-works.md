@@ -44,9 +44,10 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
-| `nightop.lua` | The `coop no` probe, and the heal that the solo run fires |
-| `nightop_waves.lua` | The solo run's waves, keys, score, timers and states, with no engine call |
-| `nightop_run.lua` | The `coop nightop` solo run: start checks, spawns, the monsters it tracks, its card and result panel |
+| `nightop.lua` | The `coop no` probe, and the heal that a Night Operation run fires |
+| `nightop_waves.lua` | The run's waves, keys, score, timers and states, alone or for two players, and the night line's two formats, with no engine call |
+| `nightop_run.lua` | The `coop nightop` run: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
+| `nightop_shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
@@ -63,9 +64,10 @@ Apart from the call to `coop_tick`, Lua and the native part exchange data throug
 file is written in full beside its final name and then renamed over it, so the reader never sees half a file:
 
 - Lua writes `coop-request.txt` (a console request), `coop-session.txt` (a new token per Lua load, so the native part
-  drops what an older load published), `coop-components.txt` (EVE's capture), `coop-display.txt` (the ghost it built)
-  and `coop-state.txt` (whether a save is loaded or the title screen is shown, the send rate, and the synced photo
-  mode's state and settings).
+  drops what an older load published), `coop-components.txt` (EVE's capture), `coop-display.txt` (the ghost it built),
+  `coop-state.txt` (whether a save is loaded or the title screen is shown, the send rate, and the synced photo mode's
+  state and settings) and `coop-night.txt` (our side of a Night Operation run, which the native part takes at its next
+  pass and sends to the friend; a newer line replaces one not taken yet).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
   table), `coop-link.log` and `coop-report.txt`.
 - The chat has two files that exist for a moment only. Lua writes a typed line into `coop-say.txt` once the native
@@ -177,6 +179,8 @@ SBC12 paks <count> <hash>
 SBC12 camps? <id>
 SBC12 camps <id> <world> <camp>:<m> ...
 SBC12 camps <id> none <title|loading|nocamp|busy>
+SBC12 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>
+SBC12 night g <n> <run> <state> <up> <killed> <done> <why>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -216,7 +220,26 @@ The camps lines carry the [follow](#following-the-host), both reliable: the gues
 guest's keeps only the answer to her last number. A world or camp name is letters, digits and `_`, at most 64
 characters. Both lines show in `coop status` (`camps?=`, `camps=`) until the session ends.
 
-Say, vit and paks lines from a friend who has not passed the handshake are ignored, without a log line.
+The night line carries a Night Operation run between the two games (see
+[night-operation.md](night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
+one side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the
+phase (`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves
+cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, and the outcome
+once the run ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`). The guest's `g` line has a
+counter, the run number, her state (`ready`, `refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the
+ones killed and done in her world, and a refusal or abort word. Each game writes its line when it changes and at least
+once a second, never twice in one Lua tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and
+`night in: ...`.
+
+The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
+words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the
+lobby and a `g` line only as a guest, and a received line from the wrong side counts as invalid. At most 8 lines a
+second go each way; the rest are dropped, with one log line a minute. The last line received is the `night=` line of
+`coop-status.txt` while the session holds, and is cleared when the friend is lost or the session ends. Lua checks every
+field and refuses the whole line on one bad field. A co-op run ends as lost once the friend's counter has not moved for
+5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run.
+
+Say, vit, paks, camps and night lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -267,7 +290,7 @@ instead of misread:
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
-| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines and the photo line's `c` on channel 0 (this version) |
+| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c` and Night Operation's night line on channel 0 (this version) |
 
 ### Link health in the log
 
@@ -919,8 +942,11 @@ claim the host accepts):
   where the host's did and she stood in the host's zone when its line came. A kill task waits for her own copy to
   complete it, by her own kill or by a shared enemy that died in her world under the rule above. `coop quests force`
   never applies a step of a quest she is behind on.
-- Night Operation runs only without a Steam session: its start refuses one, and a session that starts ends the run. Its
-  kills are the player's own.
+- Night Operation keeps the same rule. With shared enemies off, each world fights its own copy of each wave monster,
+  and each kill is that player's own. With them on, a wave monster pairs like a field enemy, and its death reaches a
+  player's save only by the took-part test above. The shop's points go only to a player whose own game ran the run from
+  its countdown to a success or a time up: each game credits its own player, a guest whose game missed the countdown
+  gets none, and no line between the games carries points.
 - The travel to the host is meant to reach only camps the guest's save has activated, and never to activate one, since
   activating a camp counts toward achievements ([Following the host](#following-the-host)). A revive changes only the
   downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills too. The cutscene wait
@@ -958,11 +984,13 @@ drops the input.
   before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
   every 250 ms; an entry that moves or changes stops it for the run.
-- Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
-  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and
-  animations with the experimental same place (on by default), and the quest steps of the experimental shared quests
-  (off by default, co-op saves only, made by the guest's game through its own quest functions), nothing is copied
-  between the two players' games. Beside
+- Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only
+  for a Night Operation shop buy (`coop nightop buy`, co-op saves only), through the game's own request
+  (`ServerRequest_ItemBucketItemAdd`) with one of four items and 1 to 10 of it. Apart from enemy stats with the
+  experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and animations with the
+  experimental same place (on by default), the quest steps of the experimental shared quests (off by default, co-op
+  saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night
+  line, nothing is copied between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
   only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - The follow and the revive call the game's own functions on the local player only. A travel runs on the guest's own

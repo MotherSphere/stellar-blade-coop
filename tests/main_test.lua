@@ -2,7 +2,8 @@
 -- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
 -- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
--- on any slot even when that raises), coop nightop reaches Night Operation's run on the co-op save slot only, its stop
+-- on any slot even when that raises), coop nightop reaches Night Operation's run (its shop too, with link.store for the
+-- wallets) on the co-op save slot only, its stop
 -- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), the friend's revive (group.lua)
 -- is built with the link and ticked every 250 ms until coop off (its photo state and cut go into the state), coop
 -- revive test reaches its probe, coop look changes
@@ -166,6 +167,9 @@ local fake_link={
 -- link.quests() says Q.line (the quests= line) and link.quest_notes() hands out Q.notes once; in fake_link.Q, as the
 -- main chunk is at Lua's 200 locals.
 fake_link.Q={notes={}}
+-- link.night's lines (coop-night.txt), in fake_link.nights for the same reason.
+fake_link.nights={}
+fake_link.night=function(line) fake_link.nights[#fake_link.nights+1]=line; return true end
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
 fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
@@ -240,7 +244,7 @@ package.loaded.travel={new=function(o)
 end}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
-    return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
+    return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         running=function() return nr.running==true end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
@@ -376,7 +380,8 @@ package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
+    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
+    ..'recruiter [off] | '
     ..'fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
@@ -541,6 +546,19 @@ assert(nr.hud and nr.hud.kit and nr.hud.kit.paused and nr.hud.theme and nr.hud.t
     and nr.hud.settings.ui_language,'night.hud')
 nr.o.tell(function(w) return w.night.wave_notice:format(2,5) end)
 assert(said[#said]=='Night Operation: wave 2/5.' and said_en[#said]=='Night Operation: wave 2/5.',said[#said])
+-- Its night line goes through link.night; the partner's name is link.friend's; the shop's wallet is a link.store file.
+assert(nr.o.send('h 1 42 ask')==true and fake_link.nights[#fake_link.nights]=='h 1 42 ask')
+assert(nr.o.friend()=='Kaanta')
+do -- In a block: this chunk is at Lua's 200 locals.
+    local real_store=fake_link.store
+    fake_link.store=function(name) return 'store '..name end
+    assert(nr.o.store('coop-night-7-4.txt')=='store coop-night-7-4.txt')
+    fake_link.store=real_store
+end
+-- Its shop words reach it, on the co-op save.
+coop('nightop','buy','2','3','4')
+assert(nr.runs[#nr.runs][1]=='buy' and nr.runs[#nr.runs][2]=='2' and nr.runs[#nr.runs][3]=='3'
+    and nr.runs[#nr.runs][4]=='4','A fourth word reaches it too')
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())

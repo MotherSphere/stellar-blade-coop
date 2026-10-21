@@ -2129,6 +2129,78 @@ int main() {
     assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
   }
 
+  // Night Operation's line between two Links (A hosts, B is her guest): nothing goes before the handshake; then an "h"
+  // line goes only from A and a "g" line only from B, reliable on channel 0; each side keeps the other's last as its
+  // status's night= line; a line of the wrong side, or one night_ok() refuses, is invalid there; eight a second each
+  // way, the ninth dropped with one log line a minute; the line goes when the peer is lost or the session ends.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    assert(!t.a.night("h 1 2") && F.sent.empty()); // Not linked: nothing goes.
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t) && t.a.host() && !t.b.host());
+    const std::string night = "SBC" + std::to_string(kProtocol) + " night ";
+    assert(t.a.night("h 1 42 ask") && sent_to(kFriend, night + "h 1 42 ask") == 1);
+    assert(!t.a.night("g 1 42 ready") && !t.b.night("h 1 42 ask") && !t.a.night("h 1  42") && !t.a.night("H 1"));
+    assert(t.b.night("g 1 42 ready") && sent_to(kMe, night + "g 1 42 ready") == 1);
+    for (auto &s : F.sent)
+      if (s.text.rfind(night, 0) == 0)
+        assert(s.flags == kReliable && s.channel == kChannel);
+    t.tick(t.a, 50);
+    t.tick(t.b, 50);
+    assert(t.a.status(Counters{}).find("\nnight=g 1 42 ready\n") != std::string::npos);
+    assert(t.b.status(Counters{}).find("\nnight=h 1 42 ask\n") != std::string::npos);
+    assert(t.a.status(Counters{}).find("\nfriend=") < t.a.status(Counters{}).find("\nnight="));
+    // The wrong side's line, or a malformed one: invalid, and the last good line stays.
+    inbox(0, kChannel).push_back({kFriend, night + "h 9 9 forged"});
+    inbox(1, kChannel).push_back({kMe, night + "h 2  42"});
+    t.tick(t.a, 50);
+    t.tick(t.b, 50);
+    assert(saw("A: invalid message from Kaanta") && saw("B: invalid message from Me"));
+    assert(t.a.status(Counters{}).find("\nnight=g 1 42 ready\n") != std::string::npos);
+    assert(t.b.status(Counters{}).find("\nnight=h 1 42 ask\n") != std::string::npos);
+    // Eight a second each way: our ninth is refused, her ninth dropped, each logged once a minute.
+    t.tick(t.a, 1000);
+    t.tick(t.b, 1000);
+    for (int i = 0; i < 8; ++i)
+      assert(t.a.night("h " + std::to_string(10 + i) + " 42 wave"));
+    assert(!t.a.night("h 18 42 wave") && !t.a.night("h 19 42 wave"));
+    assert(count("A: dropped our night lines: over the rate limit") == 1);
+    for (int i = 0; i < 10; ++i)
+      inbox(0, kChannel).push_back({kFriend, night_line("g " + std::to_string(20 + i) + " 42 run")});
+    t.tick(t.a, 0);
+    assert(t.a.status(Counters{}).find("\nnight=g 27 42 run\n") != std::string::npos);
+    assert(count("A: dropped night lines from Kaanta: over the rate limit") == 1);
+    t.tick(t.a, 1000);
+    for (int i = 0; i < 10; ++i)
+      inbox(0, kChannel).push_back({kFriend, night_line("g " + std::to_string(30 + i) + " 42 run")});
+    t.tick(t.a, 0);
+    assert(count("A: dropped night lines from Kaanta: over the rate limit") == 1); // Once a minute.
+    t.tick(t.b, 0);
+    assert(t.b.status(Counters{}).find("\nnight=h 17 42 wave\n") != std::string::npos);
+    // Her silence of 10 s: lost, and her line goes from our status; it comes back with her next one.
+    for (int i = 0; i < 11; ++i)
+      t.tick(t.a, 1000);
+    assert(saw("A: Kaanta silent for 10 s: lost") && t.a.status(Counters{}).find("\nnight=") == std::string::npos);
+    assert(t.b.night("g 40 42 run"));
+    t.tick(t.a, 50);
+    assert(t.a.status(Counters{}).find("\nnight=g 40 42 run\n") != std::string::npos);
+    // B leaves: the line goes on both sides, and nothing more goes from either.
+    t.tick(t.b, 50, "leave");
+    t.tick(t.a, 50);
+    assert(!t.a.linked() && !t.b.linked());
+    assert(t.a.status(Counters{}).find("\nnight=") == std::string::npos &&
+           t.b.status(Counters{}).find("\nnight=") == std::string::npos);
+    const size_t sent = F.sent.size();
+    assert(!t.a.night("h 41 42 end") && !t.b.night("g 41 42 run") && F.sent.size() == sent);
+  }
+
   // Pak mods: ours goes once to the friend past the handshake (again after her next hello); hers, once it came, shows
   // as the status's paks= line against ours and is logged when it changes; before the handshake it is ignored with no
   // log line.

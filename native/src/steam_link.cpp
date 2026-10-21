@@ -7,7 +7,8 @@
 // also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), the
 // shared quests' lines on the same channel (Phase 12, pose_tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
-// and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
+// the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files, and
+// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status). It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h), and
 // puts our join code on the clipboard on the copy request (clipboard.h). The follow's camps lines go through the link
 // (link_core.h), its travel request to the game thread (pose_tick.cpp).
@@ -122,7 +123,7 @@ std::string take_text(const std::wstring &path) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
     return {};
-  char buffer[256];
+  char buffer[512]; // A request, a chat line or a night line (link_protocol.h's kMaxNight) and its line end.
   DWORD n = 0;
   bool ok = ReadFile(f, buffer, sizeof buffer, &n, nullptr);
   CloseHandle(f);
@@ -493,6 +494,10 @@ bool step() {
     std::string request = take_text(folder + L"coop-request.txt");
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
+    // Night Operation's line (nightop_run.lua), taken at every pass too: the newest state goes, an old one never waits.
+    std::string night = take_text(folder + L"coop-night.txt");
+    while (!night.empty() && (night.back() == '\n' || night.back() == '\r'))
+      night.pop_back();
     coop::Command command = coop::parse_request(request).command;
     if (switched_off && !request.empty() && command != coop::Command::report) {
       event("coop off is active until the game restarts: request ignored");
@@ -632,6 +637,8 @@ bool step() {
         if (!switched_off) {
           if (!typed.empty())
             link->say(typed);
+          if (!night.empty() && link->linked())
+            link->night(night); // Lua logs its lines; the link logs a refusal past the rate.
           coop::Vitals mine;
           if (const uint64_t now = GetTickCount64(); chatting && now >= next_vitals) {
             uint64_t took_us = 0;
@@ -706,8 +713,9 @@ DWORD WINAPI worker(void *) {
   delete_chat();                                       // And chat lines nobody took.
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
-  for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt"})
-    DeleteFileW((folder + stale).c_str()); // Tables and addresses from a previous run mean nothing now.
+  for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
+                               L"coop-night.txt"})
+    DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   write_header();
   log_paks();
   log_open = true;

@@ -1,8 +1,7 @@
 // The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
 // not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines, the
-// follow's camps lines,
-// channel 1, where the pose path's tables and poses and the pilot's enemy roots (SBE) travel, and channel 2, where the
-// shared enemies' lines and the pilot's show lines travel.
+// follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and poses and the
+// pilot's enemy roots (SBE) travel, and channel 2, where the shared enemies' lines and the pilot's show lines travel.
 // Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the
 // build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
@@ -84,6 +83,8 @@ constexpr uint64_t kPhotoPerSecond = 8;
 // whole read more.
 constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90, kVitalsAgainMs = 1000;
 constexpr size_t kChatInbox = 16;
+// Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
+constexpr uint64_t kNightPerSecond = 8;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
 // A guest who lost the host's lobby tries again this long after the loss, and gives up at kRejoinMs (D5.10).
@@ -279,12 +280,14 @@ struct Peer {
   std::string photo_sent;
   Window photo_window;
   Window say_window;       // Her chat lines.
+  Window night_window;     // Her night lines.
   // Her .pak mods beyond the base game's (pak_list.h) from her paks line, once one came; our paks line as she last got
   // it (sent again after each hello of hers, like the photo line).
   bool has_paks = false;
   uint64_t paks_count = 0, paks_hash = 0;
   std::string paks_sent;
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
+  bool night_logged = false; // The same for her night lines.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
@@ -520,6 +523,26 @@ public:
   Life mate_life() const {
     return has_mate_ && chatting() && now_ - mate_at_ < kMateMs ? life_of(mate_) : Life::unknown;
   }
+  // Night Operation's line (nightop_run.lua, through coop-night.txt): reliable on channel 0 to the friend past the
+  // handshake, an "h" line only while we own the lobby and a "g" line only as her guest, at most kNightPerSecond a
+  // second (one log line a minute past it). False when it cannot go. Her last one is the status's night= line while
+  // the session holds. Worker thread, after tick().
+  bool night(const std::string &payload) {
+    if (!linked() || !night_ok(payload) || payload[0] != (host_ ? 'h' : 'g'))
+      return false;
+    if (over_rate(night_window_, 1, kNightPerSecond, kNightPerSecond * kMaxMessage)) {
+      if (!night_logged_)
+        event("dropped our night lines: over the rate limit");
+      night_logged_ = true;
+      return false;
+    }
+    const std::string line = night_line(payload);
+    bool sent = false;
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) == kResultOk)
+        sent = true;
+    return sent;
+  }
   // For coop-chat.txt (steam_link.cpp), oldest first: "in <text>" (hers, chat_clean()) and "fail" (ours could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
@@ -598,6 +621,9 @@ public:
       s += "camps?=" + std::to_string(camps_ask_) + "\n";
     if (linked() && !camps_answer_.empty())
       s += "camps=" + camps_answer_ + "\n";
+    // Her last night line (nightop_run.lua's), while a session holds; gone when she is lost or the session ends.
+    if (!night_.empty() && linked())
+      s += "night=" + night_ + "\n";
     uint64_t n = notice_count_ - notices_.size();
     for (auto &text : notices_)
       s += "notice=" + std::to_string(++n) + " " + text + "\n";
@@ -1195,11 +1221,12 @@ private:
   }
 
   // linked() changes only before this point of a pass (requests, calls, members, channel 0): a session that starts or
-  // ends empties channel 2's queues both ways.
+  // ends empties channel 2's queues both ways, and forgets her night line.
   void fight_session() {
     if (linked() == fight_linked_)
       return;
     fight_linked_ = !fight_linked_;
+    night_.clear();
     fight_in_.clear();
     fight_out_.clear();
     fight_waiting_ = false;
@@ -1421,6 +1448,23 @@ private:
         camps_answer_ = line.substr(line.find(" camps ") + 7);
       break;
     }
+    case Kind::night: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      if (message.text[0] != (host_ ? 'g' : 'h')) { // A host hears only a guest's lines, a guest only the host's.
+        if (++peer.invalid == 1)
+          event("invalid message from " + peer.name);
+        break;
+      }
+      if (over_rate(peer.night_window, 1, kNightPerSecond, kNightPerSecond * kMaxMessage)) {
+        if (!peer.night_logged)
+          event("dropped night lines from " + peer.name + ": over the rate limit");
+        peer.night_logged = true;
+        break;
+      }
+      night_ = message.text;
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1515,6 +1559,7 @@ private:
       }
       if (!peer.asking && !peer.lost && now_ - peer.last_heard >= kLostAfterMs) {
         peer.lost = true;
+        night_.clear(); // Her night line is stale now: nightop_run.lua's watch sees it gone.
         event(peer.name + " silent for 10 s: lost");
         notice(peer.name + ": connection lost.");
       }
@@ -1569,8 +1614,9 @@ private:
       p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
-      p.drop_logged = p.fight_logged = p.say_logged = false;
+      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = false;
     }
+    night_logged_ = false;
   }
 
   // Relay availability: every second in a lobby, every 5 s outside, "unknown" until the first reading.
@@ -1649,5 +1695,9 @@ private:
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   uint64_t vitals_at_ = 0, mate_at_ = 0, own_at_ = 0;
   bool vitals_sent_ = false, has_mate_ = false, has_own_ = false;
+  // Night Operation: her last night line (empty: none in this session), our rate window and its drop line.
+  std::string night_;
+  Window night_window_;
+  bool night_logged_ = false;
 };
 } // namespace coop

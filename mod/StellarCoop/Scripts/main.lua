@@ -11,8 +11,9 @@
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
 -- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
--- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop],
--- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
+-- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop|
+-- shop|buy <n> [count]], Night Operation's run (nightop_run.lua) and its reward shop (nightop_shop.lua), on a co-op
+-- save only (stop anywhere); coop recruiter [off], the cut
 -- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; the friend's revive
 -- (group.lua, revive in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at
 -- the death screen (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene
@@ -116,7 +117,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -149,12 +150,14 @@ end
 -- Its one entry, commands.no, runs only on a co-op save (coop_slot).
 local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
--- Night Operation's solo run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
+-- Night Operation's run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
 -- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
--- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell).
+-- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell). Linked, its night line
+-- goes out through link.night and the partner's name comes from link.friend. The shop's wallets are link.store files.
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
-    tell=tell})
+    tell=tell,send=function(line) if link then return link.night(line) end end,
+    friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end})
 -- The friend's revive (group.lua) and the follow (travel.lua), with the Steam link only: built and ticked below.
 local group,travel=nil,nil
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
@@ -342,12 +345,12 @@ local commands={
         if not ok then return false,why end
         return nightop.run(sub,extra)
     end,
-    nightop=function(sub,a,b)
+    nightop=function(sub,a,b,c)
         if sub~='stop' then
             local ok,why=coop_slot('coop nightop')
             if not ok then return false,why end
         end
-        return night.command(sub,a,b)
+        return night.command(sub,a,b,c)
     end,
     -- test: the revive's solo probe at the death screen, on a co-op save only (group.lua says why not).
     revive=function(sub,extra)

@@ -16,12 +16,13 @@ SITES = {'nightop.lua', 'recruiter.lua'}
 ADD_ROWS = {'nightop.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
-# coop nightop's one CreateActor (its spawn choke point), and the friend's revive's ActorRespawn and ActorRevival on our
-# own EVE (one call each, their log lines, the probe's answer and the header).
+# coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point), and
+# the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
+# answer and the header).
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
 RATIONED = {'MultiplayTest_ZoneE_059': {'recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop.lua': 3, 'recruiter.lua': 4}, 'AddRow': {'nightop.lua': 3},
-            'ServerRequest_': {'nightop.lua': 10, 'nightop_run.lua': 1, 'group.lua': 7}}
+            'ServerRequest_': {'nightop.lua': 10, 'nightop_run.lua': 1, 'nightop_shop.lua': 1, 'group.lua': 7}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -98,6 +99,7 @@ def scan_of(files):
 
 N, M, H, W = f'{SCRIPTS}/nightop.lua', f'{SCRIPTS}/main.lua', 'native/src/link_core.h', 'tests/wine/smoke.cpp'
 R, NR, GR = f'{SCRIPTS}/recruiter.lua', f'{SCRIPTS}/nightop_run.lua', f'{SCRIPTS}/group.lua'
+NS = f'{SCRIPTS}/nightop_shop.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
 
@@ -111,7 +113,10 @@ NIGHTOP = padded('nightop.lua', GUARDED + "dt:AddRow(RULE,row)\npc:ServerRequest
 RECRUITER = padded('recruiter.lua', GUARDED.replace('NightOp', 'Recruiter') + "local JOIN='MultiplayTest_ZoneE_059'\n")
 RUN = padded('nightop_run.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n")
 GROUP = padded('group.lua', 'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n')
-CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
+SHOP = padded('nightop_shop.lua',
+              "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
+CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP,
+         M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n'}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
@@ -169,6 +174,8 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L5'}, {NR: None}),
           ({'L5'}, {GR: GROUP + 'pc:ServerRequest_ActorRevival(me,true)\n'}),
           ({'L5'}, {GR: None}),
+          ({'L5'}, {NS: SHOP + "log('no ServerRequest_ItemBucketItemRemove here')\n"}),
+          ({'L5'}, {NS: None}),
           *[({'N1'}, {H: f'// {a}\n'}) for a in ('0x141ca2c50', '0x1423058C0', 'FUN_141CA47C0', '1ca4540', '1aBcb40')],
           ({'N1'}, {W: 'auto job = 0x141abcb40;\n'}),
           ({'N2'}, {H: 'void StartMatchMaking();\n'}),

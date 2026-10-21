@@ -15,7 +15,22 @@
 -- seen, after a respawn or a load too; notices at the start, each wave, each clear and the end with the kit off; a HUD
 -- error turns it to notices. The card while the cap holds a wave past its time; the game's text only once its table is
 -- loaded and its id a name; a success's panel and its single notice; a result the panel still holds goes to the notices
--- when the kit turns off or the HUD fails, and a new run drops it.
+-- when the kit turns off or the HUD fails, and a new run drops it. Two players, each game in its own fake world with
+-- the night line relayed between them: the ask, her answer and both countdowns; the same keys on the same spots; one
+-- score from kills in either world; a wave that waits for both; a lost line repaired by the next; each end on both
+-- screens with its words (a death on either side, a stop, a travel, a lost link, a game that stops ticking); each of
+-- her refusals in order, a run byte she found taken skipped, no answer in 5 s; the line on change and once a second;
+-- a status not read for a tick ends nothing; her stop during her ask ends his countdown; a success with the same time
+-- and score on both, her clock moved by her round trip, and each clear and heal on both. Shared waves: his line names
+-- the keys he tracks and has not done; she leaves the aggro and stuck moves of those to the pilot only while her fight
+-- line is on as the guest and the pilot draws a copy, one line a key, and keeps them for a key he lacks; a key he
+-- kills or writes off goes back to her stuck rule, so a copy stuck in both worlds still closes the wave; a death in
+-- both worlds at once scores once, a key killed in her world alone scores once however many lines carry it, a copy
+-- alive in her world keeps the wave open, and no other field of her line moves the score. Points: coop nightop shop and
+-- buy reach the shop (a buy refused during a run, sold in the result's 10 s); a solo success and a time up credit the
+-- final score to the wallet of this SteamID and slot, capped, an abort or a death none; for two players, each game
+-- credits its own wallet after a success with a notice, none after her death, and none for her run when no line of his
+-- countdown reached her; a credit refused or raising is a notice, and his end line still goes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -73,7 +88,7 @@ local eve_at,eve_yaw={X=0,Y=0,Z=1000},30
 local eve=uobject('EVE','BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0',{
     IsA=function(_,c) return c==SBCharacter end,K2_GetActorLocation=function() return eve_at end,
     K2_GetActorRotation=function() return {Pitch=0,Yaw=eve_yaw,Roll=0} end,GetWorld=function() return world end},
-    {BroadcastSpawnInfo={EventSpawnId=0},InteractionState=0})
+    {BroadcastSpawnInfo={EventSpawnId=0,ActorGuid=0x51},InteractionState=0})
 local bodies={} -- What the game holds, in FindAllOf's order after EVE.
 local spawn_ai,fill_key,signed,teleport_ok=true,true,false,true
 local function ai()
@@ -119,7 +134,8 @@ local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.S
     IsA=function(_,c) return c==SBPC end,
     ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
         monster(id,at,fill_key and key or 0,spawn_ai)
-    end})
+    end,
+    ServerRequest_ItemBucketItemAdd=function() end})
 local player,controller=eve,pc
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return controller end}
 local clock_fails=nil
@@ -156,13 +172,31 @@ FindAllOf=function(name)
     return list
 end
 local link_line,engine,slot_line='link=none lobby=0','engine=on remote=0 0 none','slot=coop index=4 marker=4'
+local unread=false -- The status file not read: status() gives nil.
+local steam_id='76561198000000009'
 local function status()
-    return 'mod=v proto=9 steam=ready\n'..link_line..'\n'..engine..'\n'..slot_line..'\nlast=#1 ready\n'
+    if unread then return nil end
+    return 'mod=v proto=9 steam=ready steamid='..steam_id..'\n'..link_line..'\n'..engine..'\n'..slot_line
+        ..'\nlast=#1 ready\n'
 end
+-- What link.store wrote, by file name: the shop's wallets. faults: a wallet's save that raises ('raise') or fails (the
+-- reason it gives).
+local files,faults={},{}
+local function store(name)
+    return {save=function(text)
+            if faults[name]=='raise' then error('wallet on fire') end
+            if faults[name] then return false,faults[name] end
+            files[name]=text..'\n'
+            return true
+        end,
+        load=function() local t=files[name]; return t and t:match('^[^\r\n]+') end}
+end
+local WALLET='coop-night-76561198000000009-4.txt'
 
 local lines={}
 local Run=require('nightop_run')
-local run=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end})
+local run=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+    store=store})
 local function tick(n) for _=1,n or 1 do gt=gt+0.25; run.tick() end end
 local function logged(text) for _,l in ipairs(lines) do if l==text then return true end end end
 local function last() return lines[#lines] end
@@ -170,12 +204,24 @@ local function since(i) return table.concat(lines,'\n',i+1) end
 local ok,message
 
 -- 1. Refusals: one reason each, nothing spawned, no run; junk words reach nothing.
-local USE='Use: coop nightop [start [noaggro|nomove] | stop]'
-for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},{'START'},{nil,'x'}}) do
+local USE='Use: coop nightop [start [noaggro|nomove] | stop | shop | buy <n> [count]]'
+for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},{'START'},{nil,'x'},{'shop','x'},
+        {'SHOP'}}) do
     ok,message=run.command(table.unpack(args,1,3))
     assert(not ok and message==USE,tostring(message))
 end
 assert(#calls==0,'Junk words call nothing')
+-- The shop's words reach it: the list, a buy (its own words checked there), no grant call.
+ok,message=run.command('shop')
+assert(ok and message:find('^Night Operation shop, 0 points: 1 HP_Potion 15, '),message)
+ok,message=run.command('buy','1','x')
+assert(not ok and message=='Use: coop nightop buy <item 1-4> [count 1-10]',message)
+ok,message=run.command('buy','1','2','3')
+assert(not ok and message=='Use: coop nightop buy <item 1-4> [count 1-10]',message)
+ok,message=run.command('buy','4')
+assert(not ok and message=='ConcussionGrenade x1 needs 8 points; you have 0',message)
+assert(count('PC:ServerRequest_ItemBucketItemAdd')==0)
+calls={}
 local function refused(text)
     local before=#calls
     ok,message=run.command('start')
@@ -183,10 +229,12 @@ local function refused(text)
     for i=before+1,#calls do assert(calls[i].what~='PC:ServerRequest_CreateActor','No spawn') end
     assert(#lines==0,'Nothing logged')
 end
-link_line='link=host lobby=7'
-refused('Night Operation is solo for now: leave the Steam session first (coop leave)')
-link_line='link=guest lobby=7'
-refused('Night Operation is solo for now: leave the Steam session first (coop leave)')
+link_line='link=host lobby=7' -- Hosting, no partner past the handshake yet.
+refused('no partner linked yet: a co-op run starts once they are')
+link_line='link=host lobby=7\nfriend=0 0 Kaanta'
+refused('no partner linked yet: a co-op run starts once they are')
+link_line='link=guest lobby=7\nfriend=1 0 Kaanta'
+refused('the host starts a co-op run')
 link_line='steam=waiting'
 refused('the Steam link is not ready yet: try again in a moment')
 link_line='link=none lobby=0'
@@ -255,6 +303,8 @@ assert(lines[1]==string.format('start: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30
     ..'%d',byte,W.seed(T,byte),byte0,byte0),lines[1])
 ok,message=run.command('start')
 assert(not ok and message=='a run is on: coop nightop stop ends it')
+ok,message=run.command('buy','1')
+assert(not ok and message=='a Night Operation run is on: buy once it ends',message)
 local s=W.new{run=byte,seed=W.seed(T,byte),now=g0} -- The same draws, for the spots.
 tick(19)
 assert(count('PC:ServerRequest_CreateActor')==0 and #lines==1,'Countdown: nothing')
@@ -338,7 +388,18 @@ local rt=gt-(g0+5)
 local bonus=math.floor(480-rt)
 local result=string.format('result: success waves=5/5 kills=20 score=%d time=%d:%02d find_ms=0.0/0.0',580+bonus,
     math.floor(rt)//60,math.floor(rt)%60)
-assert(last()==result,last()..' / '..result)
+assert(lines[#lines-1]==result,lines[#lines-1]..' / '..result)
+-- A success credits its final score: one point a 25, 42 at most.
+local paid=math.min((580+bonus)//25,42)
+assert(last()==string.format('credit +%d = %d (score %d, %s)',paid,paid,580+bonus,WALLET),last())
+assert(files[WALLET]==paid..'\n')
+ok,message=run.command('shop')
+assert(ok and message:find(string.format('^Night Operation shop, %d points:',paid)),message)
+-- The result's 10 s: the run is over, so the shop sells.
+ok,message=run.command('buy','3')
+assert(ok and message==string.format('bought 1 PulseGrenade for 6 points; %d left',paid-6),message)
+assert(count('PC:ServerRequest_ItemBucketItemAdd')==1)
+paid=paid-6
 assert(#violations==0,violations[1])
 -- No body read after the end; 10 s later the run is idle and the bare command gives the census alone.
 local after=#calls
@@ -584,6 +645,7 @@ clock_fails=nil
 assert(#lines==n+1 and lines[#lines]=='STOP: boom',since(n))
 ok,message=run.command()
 assert(not run.stop('stop') and ok and message:find('^census:'),'Idle: '..message)
+assert(files[WALLET]==paid..'\n','No point for an abort or a death')
 
 -- 8. Time up: nothing killed, so wave 3 never fits under the cap; the monsters stay, nothing spawns after the end.
 bodies,calls,lines={},{},{}
@@ -594,6 +656,7 @@ for _=1,2000 do
     for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=m.at.Z} end
 end
 assert(result_line()=='result: time waves=0/5 kills=0 score=0 time=8:00 find_ms=0.0/0.0',result_line())
+assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),'A time up credits its score: '..last())
 local spawned=count('PC:ServerRequest_CreateActor')
 assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
 tick(8)
@@ -715,7 +778,8 @@ byte=tonumber(message:match('run 0x(%x+)'),16)
 for k=1,5 do play(k) end
 assert(kit.shown.night_result and res.head.text=='Réussite (jeu)' and res.sub.text=='' and res.head.c=='teal',
     res.head.text)
-assert(#told==0,'The kit is up: no notice')
+assert(#told==1 and told[1]==Tx.en.night.unpaid,'The kit is up: only the points notice (no wallet store here)')
+told={}
 -- ui_language=english: English words, no game text read.
 settings.ui_language='english'
 local stl=count('STL:IsRegisteredTableEntry')
@@ -733,6 +797,9 @@ assert(res.head.c=='warn','A failure in the warning colour, after a success')
 local held={phase='breather',t0=0,wave=2,next_at=90,score=40}
 assert(select(2,Run.card(held,85,Tx.en))=='NEXT WAVE IN 5  6:35  SCORE 40',select(2,Run.card(held,85,Tx.en)))
 assert(select(2,Run.card(held,95,Tx.en))=='WAVE 2/5  6:25  SCORE 40',select(2,Run.card(held,95,Tx.en)))
+-- The ask: the host waits for her; her card counts down from her answer.
+assert(select(2,Run.card({phase='ask',role='host',t0=10},7,Tx.en))=='WAITING FOR PARTNER')
+assert(select(2,Run.card({phase='ask',role='guest',t0=10},7,Tx.en))=='STARTS IN 3')
 -- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
 -- off as a stop), the rows.
 local function ended(outcome,reason) return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5} end
@@ -783,15 +850,17 @@ assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
 night.command('stop')
 assert(told[4]:find('^Operation Failed: 1/5 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
 assert(told[5]=='Stopped with coop nightop stop.' and #told==5,tostring(told[5]))
--- A success: its result alone, with no line after it.
+-- A success: its result alone, with no line after it; then the points notice (no wallet store here: unpaid).
 bodies,lines,told={},{},{}
 begin2()
 byte=tonumber(message:match('run 0x(%x+)'),16)
 for k=1,5 do play(k) end
-assert(told[#told-1]=='Night Operation: wave 5 cleared.',tostring(told[#told-1]))
-assert(told[#told]:find('^Operation Successful: 5/5 waves cleared, 20 kills, score %d+, time %d:%d%d%.$'),told[#told])
+assert(told[#told-2]=='Night Operation: wave 5 cleared.',tostring(told[#told-2]))
+assert(told[#told-1]:find('^Operation Successful: 5/5 waves cleared, 20 kills, score %d+, time %d:%d%d%.$'),
+    told[#told-1])
+assert(told[#told]==Tx.en.night.unpaid,told[#told])
 tick(2)
-assert(told[#told]:find('^Operation Successful'),'One end notice')
+assert(told[#told]==Tx.en.night.unpaid and told[#told-1]:find('^Operation Successful'),'One end notice')
 assert(kit.shows==0,'Nothing drawn with the kit off')
 kit.is_off=false
 -- A HUD error: one STOP line, both groups hidden, then notices; the run goes on.
@@ -825,5 +894,490 @@ kit.raise=nil
 assert(lines[#lines]=='STOP: HUD: boom' and not kit.shown.night_result,lines[#lines])
 assert(told[1]=='Operation Failed: 0/5 waves cleared, 0 kills, score 0, time 0:00.' and #told==2,tostring(told[1]))
 assert(told[2]=='Ended by a map change or a load.',tostring(told[2]))
+assert(#violations==0,violations[1])
+
+-- 10. Two players: the host's run and the guest's, each in its own fake world (its bodies, EVE, game time, map, slot
+-- and status), their night lines relayed as the native part does (the newest wins, none while the session is gone, a
+-- line can be lost).
+local Hs,Gs
+local function side(name,mate_name,x,t)
+    local w={bodies={},gt=t,eve_at={X=x,Y=0,Z=1000},map='/Game/Art/BG/WorldMap/Level_P/F02.F02',
+        link=name=='host' and 'link=host lobby=7' or 'link=guest lobby=7',friend='friend=1 0 '..mate_name,
+        slot='slot=coop index=4 marker=4',dying=false,lines={},told={},sent={},ticks={},drop=0,
+        steamid=name=='host' and '76561198000000001' or '76561198000000002'}
+    w.wallet='coop-night-'..w.steamid..'-4.txt'
+    w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
+        store=store,
+        tell=function(build) w.told[#w.told+1]=build(Tx.en) end,friend=function() return mate_name end,
+        send=function(line)
+            w.sent[#w.sent+1]=line
+            if w.link:find('none') then return true end -- The native part sends nothing outside a session.
+            if w.drop>0 then w.drop=w.drop-1 else w.other.night=line end
+            return true
+        end})
+    return w
+end
+local function enter(w)
+    bodies,gt,eve_at,map,slot_line,dying,paused,steam_id=w.bodies,w.gt,w.eve_at,w.map,w.slot,w.dying,w.paused,w.steamid
+    link_line=w.link..'\n'..w.friend..'\npeer=9 name=x hello=1 accepted=1 compatible=1 lost=0 invalid=0 rtt_ms='
+        ..(w.rtt or 40)..' session=3 session_ping=20'
+        ..(w.night and not w.link:find('none') and '\nnight='..w.night or '')..(w.fight and '\n'..w.fight or '')
+end
+local function leave(w) w.bodies,w.gt,w.eve_at,w.map,w.dying=bodies,gt,eve_at,map,dying end
+local function on(w,f)
+    enter(w)
+    local a,b=f()
+    leave(w)
+    link_line,slot_line,map,eve_at,dying,paused,steam_id='link=none lobby=0','slot=coop index=4 marker=4',
+        '/Game/Art/BG/WorldMap/Level_P/F02.F02',{X=0,Y=0,Z=1000},false,false,'76561198000000009'
+    return a,b
+end
+local function pair()
+    Hs,Gs=side('host','Kaanta',0,1000.0),side('guest','Me',1000,5000.0) -- Her world's clock is its own.
+    Hs.other,Gs.other=Gs,Hs
+end
+-- One tick of each game, the host's first; only=one of them for a game that does not tick.
+local function round(n,only)
+    for _=1,n or 1 do
+        for _,w in ipairs({Hs,Gs}) do
+            if not only or only==w then
+                local before=#w.sent
+                on(w,function() gt=gt+0.25; w.run.tick() end)
+                assert(#w.sent-before<=1,'One line a tick at most')
+            end
+        end
+    end
+end
+-- A side's run as coop nightop says it: phase, wave, run time (s), score, kills; nil when idle.
+local function state(w)
+    local _,text=on(w,function() return w.run.command() end)
+    local phase,wave,rt,score,kills=text:match('^run 0x%x+: (%a+), wave (%d)/5, run time (%-?%d+) s, score (%d+), '
+        ..'kills (%d+);')
+    if not phase then return nil end
+    return {phase=phase,wave=tonumber(wave),rt=tonumber(rt),score=tonumber(score),kills=tonumber(kills)}
+end
+local function host_start()
+    local ok2,text=on(Hs,function() return Hs.run.command('start') end)
+    assert(ok2,text)
+    return tonumber(text:match('run 0x(%x+)'),16),text
+end
+local function has(list,text) for _,l in ipairs(list) do if l==text then return true end end end
+local function find(list,pattern) for _,l in ipairs(list) do if l:find(pattern) then return l end end end
+local function kill_all(w,wave)
+    for _,m in ipairs(w.bodies) do
+        local _,k=W.decode(m.key)
+        if k==wave then m.st,m.ctl=1,nil end
+    end
+end
+
+-- Start: the host asks, the guest (10 m away, on her own clock) is ready at once, both count down 5 s from her answer,
+-- and the same keys stand on the same spots in both worlds. The run time on both cards stays within 1 s.
+pair()
+local run,text=host_start()
+local byte1=run
+assert(text==string.format('Night Operation: waiting for Kaanta to join (run 0x%02X)',run),text)
+local ok2
+ok2,text=on(Gs,function() return Gs.run.command('start') end)
+assert(not ok2 and text=='the host starts a co-op run')
+round()
+local seed=W.seed(T,run)
+assert(Hs.sent[1]==string.format('h 1 %d %d ask 0 -5000 0 0 0 0 0 0 1000 30 /game/art/bg/worldmap/level_p/f02 -',run,
+    seed),Hs.sent[1])
+assert(Gs.sent[1]==string.format('g 1 %d ready 0 0 0 -',run),Gs.sent[1])
+assert(has(Gs.lines,'night in: '..Hs.sent[1]) and has(Hs.lines,'night out: '..Hs.sent[1]))
+assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map ',run,seed)),Gs.lines[2])
+assert(state(Hs).phase=='ask' and state(Gs).phase=='ask')
+round()
+assert(Hs.sent[2]:find(string.format('^h 2 %d %d count 0 %%-5000 ',run,seed)),Hs.sent[2])
+assert(has(Hs.lines,string.format('Kaanta is ready: run 0x%02X starts in 5 s',run)))
+assert(Hs.told[1]=='Night Operation starts in 5 s.' and Gs.told[1]=='Me started Night Operation. It begins in 5 s.',
+    tostring(Gs.told[1]))
+assert(state(Gs).phase=='countdown' and math.abs(state(Gs).rt-state(Hs).rt)<=1)
+round(26)
+assert(#Hs.bodies==4 and #Gs.bodies==4,#Gs.bodies)
+for i=1,4 do
+    local a,b=Hs.bodies[i],Gs.bodies[i]
+    assert(a.key==b.key and a.at.X==b.at.X and a.at.Y==b.at.Y and a.at.Z==b.at.Z and a.id==b.id,'The same spot')
+end
+local h,g=state(Hs),state(Gs)
+assert(h.phase=='wave' and g.phase=='wave' and h.wave==1 and g.wave==1 and math.abs(h.rt-g.rt)<=1)
+-- Kills in her world score for both cards; the wave waits for his world; once both are clear, the breather on both.
+round(12)
+kill_all(Gs,1)
+round(3)
+h,g=state(Hs),state(Gs)
+assert(h.score==40 and h.kills==4 and h.phase=='wave' and g.score==40 and g.kills==4 and g.phase=='wave',h.phase)
+kill_all(Hs,1)
+round(3)
+h,g=state(Hs),state(Gs)
+assert(h.score==40 and h.kills==4 and h.phase=='breather' and g.phase=='breather' and g.score==40,g.phase)
+-- A line lost on the way: the next one, within a second, says the same.
+Hs.drop=1
+local was=#Hs.sent
+round(6)
+assert(#Hs.sent>=was+2 and Gs.night~=Hs.sent[was+1] and state(Gs).phase=='breather')
+-- Wave 2 on both, ten seconds after the clear; the lines out stay at one a second while nothing changes.
+round(40)
+h,g=state(Hs),state(Gs)
+assert(h.wave==2 and g.wave==2 and #Gs.bodies==7 and math.abs(h.rt-g.rt)<=1,g.wave)
+was=#Hs.sent
+round(8)
+assert(#Hs.sent-was>=2 and #Hs.sent-was<=3,#Hs.sent-was)
+-- Her death ends both runs, each with its own words.
+Gs.dying=true
+round(5)
+assert(find(Gs.lines,'^result: failed %(guest%) waves=1/5 kills=4 score=40 '),Gs.lines[#Gs.lines])
+assert(find(Hs.lines,'^result: failed %(guest%) waves=1/5 kills=4 score=40 '),Hs.lines[#Hs.lines])
+assert(Gs.told[#Gs.told]=='Your EVE died.' and Hs.told[#Hs.told]=="Your partner's EVE died.",Hs.told[#Hs.told])
+assert(Gs.sent[#Gs.sent]:find(string.format('^g %%d+ %d dead ',run)),Gs.sent[#Gs.sent])
+-- The lines go on through the 10 s result, then stop.
+round(41)
+was=#Hs.sent+#Gs.sent
+round(8)
+assert(#Hs.sent+#Gs.sent==was and not state(Hs) and not state(Gs))
+
+-- His death: failed (host), each side's words.
+local function running()
+    pair()
+    local byte=host_start()
+    round(30)
+    assert(state(Hs).phase=='wave' and state(Gs).phase=='wave')
+    return byte
+end
+running()
+Hs.dying=true
+round(5)
+assert(Hs.told[#Hs.told]=='Your EVE died.' and Gs.told[#Gs.told]=="Your partner's EVE died.",Gs.told[#Gs.told])
+-- A host stop: his words, hers say her partner left.
+running()
+on(Hs,function() return Hs.run.command('stop') end)
+round(2)
+assert(Hs.told[#Hs.told]=='Stopped with coop nightop stop.' and Gs.told[#Gs.told]=='Your partner left the run.')
+assert(find(Gs.lines,'^result: aborted %(mate%) '),Gs.lines[#Gs.lines])
+-- Her travel: her map change, his line says she left.
+running()
+Gs.map='/Game/Art/BG/WorldMap/Level_P/F03.F03'
+round(2)
+assert(Gs.told[#Gs.told]=='Ended by a map change or a load.' and Hs.told[#Hs.told]=='Your partner left the run.')
+assert(find(Hs.lines,'^result: aborted %(mate%) '),Hs.lines[#Hs.lines])
+-- He leaves the session: her link at none ends hers at once; his ends once her line has been still for 5 s.
+running()
+Gs.link='link=none lobby=0'
+round(1)
+assert(Gs.told[#Gs.told]=='The link to your partner was lost.' and find(Gs.lines,'^result: aborted %(lost%) '))
+round(16) -- Her last line came 0 to 3 ticks before the link went (one a second at least).
+assert(not find(Hs.lines,'^result: '),'Her line still under 5 s: not yet')
+round(5)
+assert(find(Hs.lines,'^result: aborted %(lost%) ') and Hs.told[#Hs.told]=='The link to your partner was lost.')
+-- Her game stops ticking (a load): his run ends as lost 5 s later; a host whose link reads none ends at once.
+running()
+round(16,Hs)
+assert(not find(Hs.lines,'^result: '))
+round(5,Hs)
+assert(find(Hs.lines,'^result: aborted %(lost%) '))
+running()
+Hs.link='link=none lobby=0'
+round(1)
+assert(find(Hs.lines,'^result: aborted %(lost%) '),Hs.lines[#Hs.lines])
+-- His game stops ticking (a hitch, no load): hers ends as lost 5 s later, and her abort line ends his as lost too.
+running()
+round(21,Gs)
+assert(Gs.told[#Gs.told]=='The link to your partner was lost.' and find(Gs.lines,'^result: aborted %(lost%) '))
+round(1)
+assert(find(Hs.lines,'^result: aborted %(lost%) ') and Hs.told[#Hs.told]=='The link to your partner was lost.',
+    Hs.lines[#Hs.lines])
+
+-- Her checks, in order, each refusal word said to him as a notice; his run is dropped with no result.
+local function refused_with(text_want,setup)
+    pair()
+    setup()
+    host_start()
+    round(3)
+    assert(Hs.told[#Hs.told]==text_want,tostring(Hs.told[#Hs.told]))
+    assert(not state(Hs) and not find(Hs.lines,'^result: '),'Dropped, no result')
+end
+refused_with('Kaanta cannot join the run: not on a co-op save.',function()
+    Gs.slot='slot=main index=0 marker=0'
+    Gs.map='/Game/Art/BG/WorldMap/Level_P/F03.F03' -- The slot is checked first.
+end)
+refused_with('Kaanta cannot join the run: on another map.',function()
+    Gs.map='/Game/Art/BG/WorldMap/Level_P/F03.F03'
+    Gs.eve_at={X=7000,Y=0,Z=1000}
+end)
+refused_with('Kaanta cannot join the run: more than 50 m from you.',function() Gs.eve_at={X=5001,Y=0,Z=1000} end)
+refused_with('Kaanta cannot join the run: enemies or people within 40 m.',function()
+    on(Gs,function() monster(50110,{X=3000,Y=0,Z=1000},0,true) end)
+end)
+refused_with('Kaanta cannot join the run: already in a run.',function() -- Paused: busy, and no body read.
+    Gs.paused=true
+    on(Gs,function() monster(50110,{X=3000,Y=0,Z=1000},0,true) end)
+end)
+assert(#violations==0,violations[1])
+refused_with('Kaanta cannot join the run: monsters of an earlier run are still there.',function()
+    on(Gs,function() monster(50110,{X=9000,Y=0,Z=0},W.key(byte1,1,0),false).st=1 end)
+end)
+assert(find(Gs.lines,string.format('^ask for run 0x%02X refused: taken; census: ',byte1)))
+-- A byte she found taken: his next run skips it for the rest of this Lua load.
+local again=host_start()
+assert(again~=byte1,'The taken byte skipped')
+round(2)
+assert(state(Hs).phase=='countdown')
+-- Busy: her run of the last ask is still on (his end never reached her), and he asks again.
+running()
+kill_all(Hs,1) -- Nobody living near him: he may start again.
+Hs.drop=1000
+on(Hs,function() Hs.run.command('stop'); assert(Hs.run.command('start')) end)
+Hs.drop=0
+round(2)
+assert(Hs.told[#Hs.told]=='Kaanta cannot join the run: already in a run.',tostring(Hs.told[#Hs.told]))
+round(20)
+assert(find(Gs.lines,'^result: aborted %(lost%) '),'Her old run: lost')
+-- No answer for 5 s: dropped, said as no answer; the ask went once a second.
+pair()
+host_start()
+round(19,Hs)
+assert(state(Hs) and state(Hs).phase=='ask')
+round(1,Hs)
+assert(Hs.told[#Hs.told]=='Kaanta cannot join the run: no answer.' and not state(Hs) and #Hs.sent==5,#Hs.sent)
+-- Her ask is dropped too when his countdown never comes.
+pair()
+host_start()
+round(1)
+Hs.drop=1000
+round(20)
+assert(not state(Gs) and find(Gs.lines,'dropped: no countdown from the host'),Gs.lines[#Gs.lines])
+-- A line that fails the codec is logged as refused and changes nothing.
+pair()
+host_start()
+round(1)
+Gs.night='h 1 1 dance'
+round(1,Gs)
+assert(has(Gs.lines,'night in: h 1 1 dance (refused)'))
+-- A status not read for a tick ends nothing: not his ask, not hers, not a run on either side.
+pair()
+host_start()
+unread=true
+round(1,Hs)
+unread=false
+round(1)
+unread=true
+round(1,Gs)
+unread=false
+round(2)
+assert(state(Hs) and state(Gs) and state(Hs).phase=='countdown' and state(Gs).phase=='countdown',Gs.lines[#Gs.lines])
+round(28)
+unread=true
+round(1)
+unread=false
+round(3)
+assert(state(Hs).phase=='wave' and state(Gs).phase=='wave' and not find(Hs.lines,'^result: ')
+    and not find(Gs.lines,'^result: '),'Still on')
+-- Her stop while she waits for his countdown (his lines lost on the way): her line says abort, so his run ends at once
+-- as her leaving, before any spawn; hers ends with her own words.
+pair()
+run=host_start()
+round(1)
+Hs.drop=1000
+round(1)
+assert(state(Hs).phase=='countdown' and state(Gs).phase=='ask')
+assert(on(Gs,function() return Gs.run.command('stop') end))
+round(2)
+assert(find(Gs.lines,'^result: aborted %(stop%) waves=0/5 '),Gs.lines[#Gs.lines])
+assert(Gs.told[#Gs.told]=='Stopped with coop nightop stop.',tostring(Gs.told[#Gs.told]))
+assert(Gs.sent[#Gs.sent]:find(string.format('^g %%d+ %d abort 0 0 0 stop$',run)),Gs.sent[#Gs.sent])
+assert(find(Hs.lines,'^result: aborted %(mate%) waves=0/5 '),Hs.lines[#Hs.lines])
+assert(Hs.told[#Hs.told]=='Your partner left the run.' and #Hs.bodies==0,tostring(Hs.told[#Hs.told]))
+-- A success on both screens: one score and one time, though her round trip (2 s) moves her clock on; each wave's
+-- clear and heal on both sides, the last wave's clear too. Each game credits its own wallet with the same points and
+-- says so; no run before this one (deaths, stops, travels, lost links, refusals) credited any.
+assert(not files['coop-night-76561198000000001-4.txt'] and not files['coop-night-76561198000000002-4.txt'],
+    'Nothing for an end that is not a success or a time up')
+local function both_succeed()
+    pair()
+    Gs.rtt=2000
+    host_start()
+    for k=1,5 do
+        local found_k,n=string.format('^wave %d find %%+2%%.5 s',k),0
+        while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
+            round()
+            n=n+1
+            assert(n<400,'Wave '..k..' on both')
+        end
+        kill_all(Hs,k)
+        kill_all(Gs,k)
+        round(3)
+    end
+    round(2)
+end
+both_succeed()
+local hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
+assert(hr and hr:find('^result: success waves=5/5 kills=20 score=%d+ time='),hr)
+assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),gr)
+local score=tonumber(hr:match(' score=(%d+) '))
+local points=math.min(score//25,42)
+assert(points>0)
+for _,w in ipairs({Hs,Gs}) do
+    for k=1,5 do assert(has(w.told,string.format('Night Operation: wave %d cleared.',k)),k) end
+    assert(find(w.lines,'^heal after wave 2: ') and find(w.lines,'^heal after wave 4: '),'Both heals')
+    assert(files[w.wallet]==points..'\n',w.wallet)
+    assert(has(w.lines,string.format('credit +%d = %d (score %d, %s)',points,points,score,w.wallet)))
+    assert(w.told[#w.told]==string.format('Night Operation: +%d points, %d in all.',points,points),w.told[#w.told])
+end
+assert(#violations==0,violations[1])
+-- A credit that fails is a notice, and his end line still goes: his wallet's save raises, hers is not written.
+faults[Hs.wallet],faults[Gs.wallet]='raise','disk full'
+both_succeed()
+faults[Hs.wallet],faults[Gs.wallet]=nil,nil
+assert(find(Hs.lines,'^result: success ') and find(Gs.lines,'^result: success '))
+assert(has(Hs.lines,'STOP: points: wallet on fire') and Hs.sent[#Hs.sent]:find('^h %d+ %d+ %d+ end '),Hs.sent[#Hs.sent])
+assert(has(Gs.lines,'no points: points not written: disk full'),Gs.lines[#Gs.lines])
+for _,w in ipairs({Hs,Gs}) do
+    assert(w.told[#w.told]=='Night Operation: the points could not be saved. UE4SS.log says why.',w.told[#w.told])
+    assert(files[w.wallet]==points..'\n','Its wallet unchanged')
+end
+assert(#violations==0,violations[1])
+-- Her run hears no line of his countdown (all lost on the way), then his first wave and his success: it follows them
+-- to the end, and earns nothing. His ask line, changed field by field, stands for his later lines.
+pair()
+host_start()
+round(1)
+Hs.drop=1000
+round(1)
+assert(state(Hs).phase=='countdown' and state(Gs).phase=='ask')
+local his=W.decode_host(Hs.sent[1])
+his.n,his.phase,his.wave,his.rt=50,'wave',1,1000
+Gs.night=W.encode_host(his)
+round(1,Gs)
+assert(state(Gs).phase=='wave',Gs.lines[#Gs.lines])
+his.n,his.phase,his.rt,his.score,his.outcome=51,'end',2000,500,'success'
+Gs.night=W.encode_host(his)
+round(1,Gs)
+assert(find(Gs.lines,'^result: success '),Gs.lines[#Gs.lines])
+assert(Gs.lines[#Gs.lines]=='no points: this run did not go through its countdown',Gs.lines[#Gs.lines])
+assert(files[Gs.wallet]==points..'\n','Her wallet unchanged')
+
+-- Shared waves. Her status as the shared fight writes it: its line on as the guest, the pilot's line on.
+local FIGHT='fight=on mode=on role=guest pairs=4 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0'
+local PILOT='pilot=on piloted=4 owned=0 drawn=4'
+local function body(w,key) for _,m in ipairs(w.bodies) do if m.key==key then return m end end end
+local function kill(w,key) local m=body(w,key); m.st,m.ctl=1,nil end
+local function lines_of(w,pattern)
+    local n=0
+    for _,l in ipairs(w.lines) do n=n+(l:find(pattern) and 1 or 0) end
+    return n
+end
+-- Wave 1 found on both sides and both aggro rounds past, her fight and pilot lines as given. gone: the host's copy of
+-- that slot is gone before his find (his spawn failed), so his line lacks its key. far: her copy of slot 3 is 60 m from
+-- the start and 50 m from her EVE (the stuck rule's case).
+local function shared(fight,pilot,gone)
+    pair()
+    Gs.fight=fight and pilot and fight..'\n'..pilot or fight or pilot
+    local byte=host_start()
+    local n=0
+    while #Hs.bodies<4 or #Gs.bodies<4 do
+        round()
+        n=n+1
+        assert(n<60,'Wave 1 on both')
+    end
+    if gone then table.remove(Hs.bodies,gone+1).freed=true end
+    body(Gs,W.key(byte,1,3)).at={X=-6000,Y=0,Z=1000}
+    round(40)
+    assert(state(Hs).phase=='wave' and state(Gs).phase=='wave')
+    return byte
+end
+local function skipped(w,key) return lines_of(w,'^aggro '..string.format('0x%08X',key)..': left to the pilot$') end
+local function aggroed(w,key) return lines_of(w,'^aggro '..string.format('0x%08X',key)..': damage ') end
+local function moved(w,key) return lines_of(w,'^moved '..string.format('0x%08X',key)..' ') end
+-- On: his line names his four keys; she leaves each one's aggro and stuck moves to the pilot, one line a key though
+-- both aggro timers and several stuck checks fired; he still pushes his own; her adopt rule stays.
+run=shared(FIGHT,PILOT)
+assert(Hs.sent[#Hs.sent]:find(string.format('^h %%d+ %d %d wave 1 %%d+ 0 0 0 f ',run,W.seed(T,run))),Hs.sent[#Hs.sent])
+for slot=0,3 do
+    local key=W.key(run,1,slot)
+    assert(skipped(Gs,key)==1 and aggroed(Gs,key)==0 and aggroed(Hs,key)==1,slot)
+end
+assert(moved(Gs,W.key(run,1,3))==0 and not find(Gs.lines,'^written off '),'No stuck move on a piloted key')
+-- The pilot off or drawing no copy (her world fights her copies itself), or her fight line not on as the guest: the
+-- solo rules.
+for _,case in ipairs({{FIGHT,'pilot=off why=host'},{FIGHT,'pilot=on piloted=0 owned=0 drawn=0'},{'fight=off',PILOT},
+    {'fight=waiting mode=on why=starting',PILOT},{FIGHT,nil},{nil,PILOT}}) do
+    run=shared(case[1],case[2])
+    for slot=0,3 do
+        local key=W.key(run,1,slot)
+        assert(skipped(Gs,key)==0 and aggroed(Gs,key)==1,tostring(case[1])..' '..tostring(case[2]))
+    end
+    assert(moved(Gs,W.key(run,1,3))==1,'The stuck rule on her far copy')
+end
+-- A key his line lacks (his copy of slot 0 never found): hers keeps the solo rules, the others go to the pilot.
+run=shared(FIGHT,PILOT,0)
+assert(Hs.sent[#Hs.sent]:find(string.format('^h %%d+ %d %d wave 1 %%d+ 0 0 0 e ',run,W.seed(T,run))),Hs.sent[#Hs.sent])
+assert(skipped(Gs,W.key(run,1,0))==0 and aggroed(Gs,W.key(run,1,0))==1)
+for slot=1,3 do assert(skipped(Gs,W.key(run,1,slot))==1 and aggroed(Gs,W.key(run,1,slot))==0,slot) end
+-- The pilot turns off mid-run: her stuck rule takes the far copy back at its next check.
+run=shared(FIGHT,PILOT)
+Gs.fight=FIGHT..'\npilot=stopped'
+round(14)
+assert(moved(Gs,W.key(run,1,3))==1,'Back to the stuck rule')
+-- A copy stuck in both worlds where no move works (the pilot holds hers where his is): he writes his off, the key
+-- leaves his line, and she writes hers off, so the wave clears on both sides.
+run=shared(FIGHT,PILOT)
+local stuck=W.key(run,1,2)
+body(Hs,stuck).at,body(Gs,stuck).at={X=-6000,Y=0,Z=1000},{X=-6000,Y=0,Z=1000}
+teleport_ok=false
+for _,slot in ipairs({0,1,3}) do
+    kill(Hs,W.key(run,1,slot))
+    kill(Gs,W.key(run,1,slot))
+end
+local n=0
+repeat
+    round()
+    n=n+1
+    h,g=state(Hs),state(Gs)
+until n==160 or h.phase=='breather' and g.phase=='breather'
+teleport_ok=true
+local off='^written off '..string.format('0x%08X',stuck)..' '
+assert(find(Hs.lines,off) and find(Gs.lines,off) and h.phase=='breather' and g.phase=='breather',g.phase)
+
+-- One score for both. A death in both worlds in one tick (the engine's kill of a paired copy she took part in)
+-- scores once; a key killed in her world alone scores once, through every line that carries it, and not again when
+-- his copy dies later; his kills with her copies alive (she took no part: the engine leaves them) keep the wave open
+-- until she kills them.
+run=shared(FIGHT,PILOT)
+local p=W.points(W.SCHEDULE[1].ids[1])
+kill(Hs,W.key(run,1,0))
+kill(Gs,W.key(run,1,0))
+round(3)
+h,g=state(Hs),state(Gs)
+assert(h.score==p and h.kills==1 and g.score==p and g.kills==1,h.score)
+kill(Gs,W.key(run,1,1))
+was=#Gs.sent
+round(12)
+local carried=0
+for i=was+1,#Gs.sent do carried=carried+(W.decode_mate(Gs.sent[i]).killed[W.key(run,1,1)] and 1 or 0) end
+h=state(Hs)
+assert(h.score==2*p and h.kills==2 and carried>=3,carried)
+kill(Hs,W.key(run,1,1))
+round(3)
+h=state(Hs)
+assert(h.score==2*p and h.kills==2,h.score)
+kill(Hs,W.key(run,1,2))
+kill(Hs,W.key(run,1,3))
+round(40)
+h,g=state(Hs),state(Gs)
+assert(h.score==4*p and h.kills==4 and h.phase=='wave' and g.phase=='wave','Her two copies keep the wave open')
+assert(moved(Gs,W.key(run,1,3))==1,'His kill gives her far copy back to her stuck rule')
+-- No field of her line but its keys counts: a line with a new number and her up count changed scores nothing.
+local mate=W.decode_mate(Gs.sent[#Gs.sent])
+assert(mate and mate.state=='run' and mate.up==2,Gs.sent[#Gs.sent])
+mate.n,mate.up=(mate.n+100)%65536,40
+Hs.night=W.encode_mate(mate)
+round(1,Hs)
+assert(state(Hs).score==4*p and state(Hs).kills==4)
+kill(Gs,W.key(run,1,2))
+kill(Gs,W.key(run,1,3))
+round(3)
+h,g=state(Hs),state(Gs)
+assert(h.score==4*p and h.kills==4 and h.phase=='breather' and g.phase=='breather' and g.score==4*p,h.phase)
+for _,l in ipairs(Gs.sent) do assert(W.decode_mate(l),l) end -- Her line: keys and counts, no score.
 assert(#violations==0,violations[1])
 print('nightop_run_test ok')

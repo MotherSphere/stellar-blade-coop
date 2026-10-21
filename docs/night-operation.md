@@ -1,9 +1,9 @@
 # Night Operation
 
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
-Much of it is still in the game files. StellarCoop has a solo run of its waves, `coop nightop`, and two research
-previews that test parts of the cut mode. The previews are not playable modes, and the solo run has not been tested in
-game yet.
+Much of it is still in the game files. StellarCoop has a run of its waves, `coop nightop`, which you play alone or with
+a linked partner, and a shop that sells four items for the points runs earn. Two research previews test other parts of
+the cut mode; they are not playable modes. The run and the shop have not been tested in game yet.
 
 ## What the game files contain
 
@@ -21,25 +21,33 @@ StellarCoop never contacts those servers. They belong to Shift Up and served a m
 
 ## The plan
 
-The plan is to bring Night Operation back as a mode you play with friends over Steam, without Shift Up's servers:
+The plan is to bring Night Operation back as a mode you play with friends over Steam, without Shift Up's servers. These
+parts exist:
 
-- The recruiter stands next to Roxanne in Xion's Scrap Market. His Join choice starts StellarCoop's Steam friends
-  matchmaking.
-- Every player gets the same waves, and kills are synced between the games.
-- The players share a timer and a score.
-- Two players first, then up to six.
-- The mode runs on a co-op save, a copy of your save, and never on your own saves.
-- The recruiter's lines are translated into the game's 23 languages.
+- The run, alone or for two linked players. Both games get the same waves, both screens show one timer and one score,
+  and with shared enemies on, each wave monster has one HP bar and one death in both games
+  (see [The co-op run](#the-co-op-run)).
+- The reward shop, on the console (see [The reward shop](#the-reward-shop)).
+- The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market, and his lines show in any of the
+  game's 23 languages.
+- Everything runs on a co-op save, a copy of your save, and never on your own saves.
 
-The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The solo run
-below has the waves, a timer and a score on one PC, with no Steam session. Waves for two players, kills in sync and a
-shared timer and score do not exist yet. The previews test how the cut mode's parts behave.
+These parts do not exist yet:
+
+- The recruiter's Join choice starting StellarCoop's Steam friends matchmaking. Today the host types
+  `coop nightop start`.
+- More players, up to six. The Steam link holds two.
+- A boss wave, and a revive for a fallen partner during a run.
+
+The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The previews
+test how the cut mode's parts behave.
 
 ## The solo run (`coop nightop`)
 
 `coop nightop start` sends five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
-a score. It runs on a co-op save with no Steam session, and it has not been tested in game yet. Each step is logged in
-`UE4SS.log` as `[StellarCoop][NR]` lines.
+a score. It runs on a co-op save. With no Steam session it is a solo run, described in this section; with a partner
+linked, see [The co-op run](#the-co-op-run). It has not been tested in game yet. Each step is logged in `UE4SS.log` as
+`[StellarCoop][NR]` lines.
 
 The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
 rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
@@ -52,11 +60,13 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
 | `coop nightop stop` | End the run, on any save. `coop off` ends it too |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world, this run's included, each with its run number (8 at most are named) |
+| `coop nightop shop` | Your points and the four items of the [reward shop](#the-reward-shop) |
+| `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points |
 
 ### Before your first run
 
-1. Load a co-op save, as in step 1 of [Before you try a preview](#before-you-try-a-preview). Leave any Steam session
-   (`coop leave`): the run is solo.
+1. Load a co-op save, as in step 1 of [Before you try a preview](#before-you-try-a-preview). For a solo run, leave any
+   Steam session (`coop leave`).
 2. Back up your saves and keep Steam Cloud off for Stellar Blade (steps 2 and 3 there). Whether the game saves a wave
    monster that is still alive when it saves is not known yet.
 3. If you used `coop no rule` in this game run, restart the game: a run does not start while the probe's rule is set.
@@ -71,7 +81,8 @@ The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is th
 with one `STOP:` line, and changes nothing, when:
 
 - the save is not a co-op save;
-- a Steam session is linked, or the Steam link is not ready yet;
+- the Steam link is not ready yet;
+- you are the guest in a session (`the host starts a co-op run`), or you host one with no partner linked;
 - a run is already on;
 - the `coop no` probe's rule is set in this game run;
 - EVE is not in the world;
@@ -125,8 +136,8 @@ A run ends in one of four ways:
 - Time up: run time reaches 8:00.
 - Failed: EVE dies. The game's death screen and respawn run as usual.
 - Aborted: `coop nightop stop` or `coop off`; fast travel, a map change or a load; EVE more than 80 m from the start
-  point for 10 s; a save that is no longer a co-op save; a Steam session that starts; or an error in the run, which
-  `UE4SS.log` names.
+  point for 10 s; a save that is no longer a co-op save; a Steam session that starts during a solo run; or an error in
+  the run, which `UE4SS.log` names.
 
 The log then has one line such as `result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4`.
 `find_ms` is the mean and the longest time the mod took to list the game's characters, which it does once a second
@@ -162,6 +173,144 @@ word typed after `start` reaches a game call: `noaggro` and `nomove` only turn o
 Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
 kills and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
 Restoring a backup does not take an unlocked achievement back.
+
+## The co-op run
+
+With a partner linked over the Steam link, the host starts the run for both players. Each game spawns the same waves
+at the same points around the host's start point, and both cards show one timer and one score. The waves, the score
+for each kill, the heals and the 8-minute limit are those of the solo run. The Steam link holds two players, so a run
+has two at most, each on a co-op save.
+
+### Starting a run together
+
+Both players stand together on open ground outside Xion. The host types `coop nightop start`. His game makes the
+checks of [Starting a run](#starting-a-run) on his side and answers
+`OK: Night Operation: waiting for <partner> to join (run 0x2A)`, and his card reads `WAITING FOR PARTNER`. On the
+guest's game the same command answers `STOP: the host starts a co-op run`.
+
+The guest's game asks her nothing. It checks her side at once, and the first check that fails gives the reason that
+the host gets as a notice, `<partner> cannot join the run: <reason>.`:
+
+| Check on the guest's game | Reason in the host's notice |
+| --- | --- |
+| A co-op save is loaded | `not on a co-op save` |
+| No run of hers is on, and her game is not paused and shows none of its screens | `already in a run` |
+| Her EVE is in the world, on the host's map | `on another map` |
+| Her EVE stands within 50 m of the host's start point | `more than 50 m from you` |
+| No living character but her EVE stands within 40 m | `enemies or people within 40 m` |
+| No monster left by an earlier run with the same run number is in her world | `monsters of an earlier run are still there` |
+
+With no answer within 5 s, the reason is `no answer`. A refused run is dropped with no result. After a refusal for
+monsters of an earlier run, the host's next starts skip that run number until the mod reloads.
+
+When she answers that she is ready, both cards count down from `STARTS IN 5`, and the guest gets the notice
+`<host> started Night Operation. It begins in <n> s.` From then on each game spawns its own copy of each monster.
+
+### During the run
+
+- The host's game decides when each wave starts and when and how the run ends. The guest's game follows the host's
+  night line, which comes at least once a second (see
+  [how-it-works.md](how-it-works.md#channel-0-text)).
+- A monster scores once, when it dies in either world. With shared enemies on, a death in both worlds also scores
+  once.
+- A wave is down once each of its monsters is down, written off, missing or no longer tracked in both worlds, so the
+  next wave waits for the slower player or for its run time. The cap of 8 counts the monsters not done in both worlds.
+  Both games fire the full heal once wave 2, and again once wave 4, is down.
+- The timer is the host's game time. His pause stops it on both cards, while the guest's game keeps running and her
+  monsters keep fighting. Her pause stops only her spawns and reads; she spawns the waves she missed when it ends. Her
+  card shows his run time plus half the ping's round trip, and moves only when it is more than 1 s off.
+
+### How a co-op run ends
+
+The run ends on both screens, each with its result panel. The line under the heading says who ended the run:
+
+| What ended the run | Host's line | Guest's line |
+| --- | --- | --- |
+| Success | none | none |
+| Time up | `Time is up.` | `Time is up.` |
+| The host's EVE died | `Your EVE died.` | `Your partner's EVE died.` |
+| The guest's EVE died | `Your partner's EVE died.` | `Your EVE died.` |
+| On the host's side: `coop nightop stop`, a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
+| The same on the guest's side | `Your partner left the run.` | Her reason, as in the solo run |
+| The session ended: `coop leave` (F8) or `coop off` on either side | `The link to your partner was lost.` | `The link to your partner was lost.` |
+
+A player who types `coop off` ends their own run as a stop (`result: aborted (coop off)` in `UE4SS.log`); only the
+partner reads the lost line. A game's night line stops while that game does not tick, for example during a load. Once it
+has not reached the other game for 5 s, the other player's run ends with `The link to your partner was lost.` The player
+whose game stalled reads their own reason if their game found one first (`Ended by a map change or a load.` after a
+load), else the same lost line.
+
+A death on either side ends both runs as failed: there is no revive. The game's own `All players have died.` line is
+not used, since only one EVE died. A host who stops while he still waits for the guest's answer drops the run with no
+result.
+
+### Shared waves
+
+With shared enemies on (the default, see [usage.md](usage.md#shared-enemies-experimental)), each wave monster pairs
+with its copy in the other game by its spawn key, like a field enemy: one HP bar, balance gauge and death, decided by
+the host's game, with the host's `enemy_hp_scale` and `enemy_balance_scale`. A copy dies in your world only if you took
+part in its fight (see [how-it-works.md](how-it-works.md#achievements)). A copy that stays alive in your world for that
+reason keeps your wave open until you kill it, it is still out of reach after its two moves (as in the solo run), or
+the time runs out.
+
+With same place on (the default), a pair's two copies stand in the same place on both screens: one game runs the
+monster's AI and the other draws its copy (see [usage.md](usage.md#same-place-experimental)). The guest's game then
+leaves the push towards her EVE and the stuck moves of a monster to same place while all of these hold: her shared
+enemies run as the guest, same place draws at least one copy (`pilot=on piloted=1` or more in `coop status`), and the
+host's night line lists that monster as found and not yet down, killed, written off or lost in his world. `UE4SS.log`
+says so once a monster, for example `[StellarCoop][NR] aggro 0xD82A0200: left to the pilot`. A monster that the host's
+game never found keeps the solo run's rules in her world. Once the host's copy is done, her copy gets the stuck moves
+back, but the pushes towards her EVE that were skipped are not made again.
+
+Same spawns leave wave monsters out, since none of the game's spawn rows holds their keys. No wave has a boss.
+
+With `shared_enemies=off` on either PC, nothing pairs: each player fights the monsters of their own world, and the
+wave starts, the timer and the score are still shared.
+
+## The reward shop
+
+A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final
+score, at most 42 a run. A full run with a score of about 730 gives 29. Your game adds them to your own points and
+shows `Night Operation: +29 points, 41 in all.` A solo run counts too. A failed or aborted run gives nothing, and a
+guest whose game missed the countdown gets nothing either. Each game credits only its own player: no line between the
+two games carries points. If the points cannot be written, a notice says so and `UE4SS.log` says why.
+
+`coop nightop shop` lists your points and the four items:
+
+```
+OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, 4 ConcussionGrenade 8. coop nightop buy <n> [count] buys up to 10.
+```
+
+| # | Item | Points | At a camp |
+| --- | --- | --- | --- |
+| 1 | `HP_Potion` | 15 | 400 gold |
+| 2 | `HP_Potion_Small` | 10 | 300 gold |
+| 3 | `PulseGrenade` | 6 | 300 gold |
+| 4 | `ConcussionGrenade` | 8 | 400 gold |
+
+The items and their prices come from the cut mode's own shop table, `Shop_NightOperation`. It lists 12 items; these
+four are the ones every camp shop sells with no story condition, so a buy here skips no story gate.
+
+`coop nightop buy <n> [count]` buys 1 to 10 of item n, 1 when the count is left out. The answer reads
+`OK: bought 2 HP_Potion for 30 points; 11 left`. The game's own request for adding an item puts it in the inventory
+of the co-op save, with the game's pickup message. The buy takes no points and answers with one `STOP:` line when:
+
+- the save is not a co-op save, or the Steam link has not given the mod your Steam ID yet;
+- the item number or the count is not a whole number in range, or a word follows them;
+- a run is on;
+- the game is paused or shows one of its screens;
+- EVE or the player controller is not in the world, or EVE's GUID reads 0;
+- you have too few points, for example `STOP: HP_Potion x1 needs 15 points; you have 11`;
+- the game's request raises an error.
+
+The points go once the game's request has returned. If the game turns the item down without an error, the points
+are gone all the same, so check the inventory after a buy. The first potion or grenade a save gets can open the game's
+guide for it, as a buy at a camp does. In the game's tables, none of the four items feeds a Steam achievement.
+
+Your points are kept per Steam ID and co-op slot, in `coop-night-<steamid>-<index>.txt` in the mod folder, one line
+with the number. The game never reads that file, so restoring a save backup does not give points back or take them
+away. `coop off` leaves the file as it is, an install never removes it, and `tools/install.py --uninstall` backs it up
+with the mod's other files.
 
 ## The two previews
 
@@ -298,12 +447,13 @@ game in these ways:
   checks that the shipped zone event table is the only one in memory, so no other copy of the row can run. If any check
   fails, it stops, and no recruiter is spawned.
 - Each preview fires zone events through one guarded function that accepts only its own short list: the heal event and
-  eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. The solo
-  run fires only the heal, through the probe's function. No console argument reaches that function.
-- `tests/matchmaking_scan_test.py` scans every script and native source of the mod and fails if any of them could
-  reach the matchmaking path. The Join row may appear only as the recruiter's constant, which the recruiter neutralizes
-  and never fires. The test also sets how many calls each file may make that fire zone events, add table rows or make
-  game requests. The only console call it allows is main.lua's photo pause, which sets `SB.PhotoMode.PauseMethod` to 0
-  or 1. It first runs on planted violations, so no rule passes vacuously.
+  eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. A run,
+  solo or co-op, fires only the heal, through the probe's function. No console argument reaches that function.
+- `tests/matchmaking_scan_test.py` scans every script and native source of the mod and fails if any of them could reach
+  the matchmaking path. The Join row may appear only as the recruiter's constant, which the recruiter neutralizes and
+  never fires. The test also sets how many calls each file may make that fire zone events, add table rows or make game
+  requests: the run has one spawn request and the shop one item request. The only console call it allows is main.lua's
+  photo pause, which sets `SB.PhotoMode.PauseMethod` to 0 or 1. It first runs on planted violations, so no rule passes
+  vacuously.
 - The mod has no code that talks to Shift Up's services. Its only network use is the Steam link between friends,
   through the Steam client the game already runs (see [how-it-works.md](how-it-works.md#the-steam-link)).

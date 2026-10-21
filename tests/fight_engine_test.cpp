@@ -863,6 +863,19 @@ int main() {
     n = e->pass(g, g.logic, true, one, 1);
     assert((guids(*e, n) == std::vector<uint32_t>{112, 101}) && !e->latched());
   }
+  // Night Operation's wave monsters (keys 0xD8..., nightop_waves.lua's W.key) are enemies of stage 1 like any keyed
+  // Monster, with the allowlist or without.
+  for (bool list : {true, false}) {
+    Game g;
+    auto e = engine(false, true);
+    if (!list)
+      e->allow(nullptr, 0);
+    g.spawn(101, 0xD8010100, 0);
+    g.spawn(102, 0xD42B5F51, 0);
+    g.spawn(103, 0xD82A0503, 3);
+    size_t n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{101, 102, 103}) && !e->latched());
+  }
   // Heap allocation bits (past 128 slots), read word by word.
   {
     Game g(256);
@@ -4942,6 +4955,43 @@ int main() {
     frame(g, *e, 16);
     assert(g.body(921).deaths == (state == 6 ? 1 : 0) && g.body(922).deaths == 1 && g.body(922).killer == g.eve);
     assert(e->guest.counts.unshared == (state == 6 ? 0u : 1u));
+  }
+
+  // ---- Night Operation's waves, shared: both worlds hold the same wave keys, the host's copies pair, his kill reaches
+  // her copy only when she took part (one 29.9 m from her EVE dies, ours; one 30.1 m away lives on: dead-unshared) ----
+  {
+    const uint32_t k1 = 0xD8010100, k2 = 0xD8010101;
+    Game H;
+    auto eh = engine(true, true);
+    H.spawn(101, k1, 0);
+    H.spawn(102, k2, 0);
+    H.inbox.push_back(msg("SBF12 on"));
+    frame(H, *eh, 0);
+    const std::string up1 = "SBF12 up 1 101 " + std::to_string(k1) + " 0 900 1600",
+                      up2 = "SBF12 up 1 102 " + std::to_string(k2) + " 0 900 1600";
+    std::string sent = lines(H);
+    assert(eh->host.linked() == 2 && has(sent, up1 + "\n") && has(sent, up2 + "\n") && !eh->latched());
+    H.hit(101, kHp, 1600);
+    H.hit(102, kHp, 1600);
+    frame(H, *eh, 16);
+    sent = lines(H);
+    assert(H.body(101).deaths == 1 && has(sent, "SBF12 dead 1 101\n") && has(sent, "SBF12 dead 1 102\n"));
+    Game G;
+    auto eg = engine(true, false);
+    G.spawn(901, k1, 0);
+    G.place(901, 2990, 0);
+    G.spawn(902, k2, 0);
+    G.place(902, 3010, 0);
+    for (const std::string &line : {std::string("SBF12 world 1"), up1, up2})
+      G.inbox.push_back(msg(line));
+    frame(G, *eg, 0);
+    assert(eg->guest.linked() == 2);
+    G.inbox.push_back(msg("SBF12 dead 1 101"));
+    G.inbox.push_back(msg("SBF12 dead 1 102"));
+    frame(G, *eg, 16);
+    assert(G.body(901).deaths == 1 && G.body(901).killer == G.eve);
+    assert(!G.body(902).deaths && G.hp(902) == 1600 && eg->guest.counts.kills == 1 && eg->guest.counts.unshared == 1);
+    assert(count(G, "dead-unshared", "not taken part") == 1 && !eg->latched());
   }
 
   // ---- Together only: our effect call naming our EVE as the game's last player ----
