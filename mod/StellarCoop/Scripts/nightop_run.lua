@@ -97,16 +97,6 @@ local function move(c,e,l)
     local to={X=e.X+(l.X-e.X)/d*NEAR*100,Y=e.Y+(l.Y-e.Y)/d*NEAR*100,Z=e.Z+50}
     return to,c:K2_TeleportTo(to,{Pitch=0,Yaw=U.yaw_to(to,e),Roll=0})==false
 end
--- Adapted from Survival Protocol's death watch: the live HUD's death screen (the copy under GameEngine) plays an
--- animation from EVE's death on and none while she lives.
-local function death_screen()
-    local found=nil
-    U.each(FindAllOf('WB_MainHUD_Master_C') or {},function(_,m)
-        m=not found and U.valid(m)
-        if m and U.text(m:GetFullName()):find('GameEngine',1,true) then found=U.valid(m.WB_MainHUD_Dead) end
-    end)
-    return found
-end
 -- One FindAllOf: the living characters but EVE within CLEAR m and the nearest of them, and every body that carries a
 -- wave key (at most 8 named), with its run byte.
 local function census(eve)
@@ -395,7 +385,7 @@ function Run.new(o)
         if not U.valid(r.screen) then
             if r.ticks<r.look_at then return false end
             r.look_at,r.playing=r.ticks+40,nil
-            r.screen=death_screen()
+            r.screen=U.death_screen()
             if not r.screen then return false end
         end
         local playing,was=r.screen:IsAnyAnimationPlaying()==true,r.playing
@@ -611,6 +601,8 @@ function Run.new(o)
     end
     -- coop off (or any reason): the run ends as aborted.
     function self.stop(reason) return stop(reason or 'stop') end
+    -- A run is under way (its result panel aside): the follow's travel waits for its end.
+    function self.running() return r~=nil and r.s.phase~='result' end
     return self
 end
 return Run

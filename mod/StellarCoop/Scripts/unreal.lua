@@ -1,4 +1,5 @@
--- Helpers over UE4SS objects, shared by the capture (capture.lua) and the ghost (puppet.lua).
+-- Helpers over UE4SS objects, shared by the capture (capture.lua), the ghost (puppet.lua) and the game-side scripts
+-- (nightop_run.lua, group.lua).
 local U={}
 function U.kind(value)
     if type(value)~='userdata' and type(value)~='table' then return nil end
@@ -76,6 +77,18 @@ function U.label(actor,size)
         error(why,0)
     end
     return label
+end
+-- The live HUD's death screen (the copy under GameEngine), whose animation plays from EVE's death on and none while she
+-- lives; nil when not found. FindAllOf walks every object: its callers keep what it returns and look again only while
+-- it is gone. Adapted from Survival Protocol's death watch, by SchizoEffective (nexusmods.com/stellarblade/mods/4009),
+-- used with permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
+function U.death_screen()
+    local found=nil
+    U.each(FindAllOf('WB_MainHUD_Master_C') or {},function(_,m)
+        m=not found and U.valid(m)
+        if m and U.text(m:GetFullName()):find('GameEngine',1,true) then found=U.valid(m.WB_MainHUD_Dead) end
+    end)
+    return found
 end
 -- The yaw in degrees that turns something at from towards to (a TextRender's text reads from its +X side).
 function U.yaw_to(from,to) return math.deg(math.atan(to.Y-from.Y,to.X-from.X)) end

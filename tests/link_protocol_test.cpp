@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstring>
 #include <random>
+#include <string>
+#include <vector>
 
 using namespace coop;
 
@@ -39,9 +41,9 @@ int main() {
   std::string other = "SBC" + std::to_string(kProtocol + 1) + " ping 1 2";
   assert(parse_text(other).kind == Kind::invalid);
 
-  // The synced photo mode's line: each state with each mode round-trips; another protocol's, or any other word, is
-  // dropped.
-  for (char state : {'0', '1', 's'})
+  // The synced photo mode's line: each state with each mode round-trips, c (the host's cutscene) too; another
+  // protocol's, or any other word, is dropped.
+  for (char state : {'0', '1', 's', 'c'})
     for (bool both : {false, true}) {
       m = parse_text(photo_line(state, both));
       assert(m.kind == Kind::photo && m.a == static_cast<uint64_t>(state) && m.b == both);
@@ -49,6 +51,9 @@ int main() {
   assert(photo_line('1', true) == "SBC" + std::to_string(kProtocol) + " photo 1 both");
   assert(photo_line('s', false) == "SBC" + std::to_string(kProtocol) + " photo s notice");
   assert(parse_text("SBC" + std::to_string(kProtocol + 1) + " photo 1 both").kind == Kind::invalid);
+  assert(photo_line('c', false) == "SBC" + std::to_string(kProtocol) + " photo c notice");
+  for (const char *bad : {" photo x both", " photo C both", " photo cc notice", " photo c", " photo c off"})
+    assert(parse_text("SBC" + std::to_string(kProtocol) + bad).kind == Kind::invalid);
 
   // Chat (UI-DESIGN 4.2, 5.1): the line both players see, cleaned as chat.lua's Chat.clean cleans it. Well-formed
   // UTF-8 only; C0, DEL, C1, the bidi and zero-width controls dropped (a ZWJ too); ASCII spaces trimmed; 200 bytes at
@@ -216,7 +221,7 @@ int main() {
     }
     Message f = parse(text.data(), text.size());
     if (f.kind == Kind::photo) // Only a state and a mode, whatever the bytes.
-      assert((f.a == '0' || f.a == '1' || f.a == 's') && f.b <= 1 && text == photo_line(char(f.a), f.b));
+      assert((f.a == '0' || f.a == '1' || f.a == 's' || f.a == 'c') && f.b <= 1 && text == photo_line(char(f.a), f.b));
     if (f.kind == Kind::say) // Cleaned, never empty.
       assert(!f.text.empty() && f.text == chat_clean(f.text));
     if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
@@ -563,6 +568,12 @@ int main() {
          s.sync == Sync::off && s.max == 30);
   assert(parse_state("world=1 rate=20 photo=0 sync=both max=3600", s) && s.max == 3600);
   assert(parse_state("world=1 rate=60 photo=0 sync=both max=3600", s) && s.rate == 60); // Protocol 9: up to 60.
+  // The host's cutscene (photo=c, the host's Lua alone writes it) and the guest's cutscene_wait on her map (cut=1, the
+  // sixth field; without it, 0).
+  assert(parse_state("world=1 rate=60 photo=c sync=both max=600", s) && s.photo == 'c' && !s.cut);
+  assert(parse_state("world=1 rate=60 photo=0 sync=off max=600 cut=1\n", s) && s.photo == '0' && s.cut);
+  assert(parse_state("world=1 rate=60 photo=1 sync=both max=600 cut=0", s) && s.photo == '1' && !s.cut);
+  assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1\r\n").size() <= kMaxState);
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :
        {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=61" + tail,
@@ -579,16 +590,85 @@ int main() {
         std::string("world=1 rate=20 photo=1 sync=both max="),
         std::string("world=1 rate=20 photo=1 sync=both max=-1"),
         std::string("world=1 rate=20 sync=both photo=1 max=600"), std::string("world=1 rate=20 photo=1 sync=both"),
+        std::string("world=1 rate=20 photo=x sync=both max=600"),
+        std::string("world=1 rate=20 photo=C sync=both max=600"),
+        "world=1 rate=20" + tail + " cut=2", "world=1 rate=20" + tail + " cut=", "world=1 rate=20" + tail + " cut=1 x",
+        "world=1 rate=20" + tail + " cut=01", "world=1 rate=20" + tail + "  cut=1", "world=1 rate=20" + tail + " Cut=1",
         "world=1 rate=25" + tail + "\n" + std::string(64 - 41, '\n')}) { // The last is 65 bytes.
     State keep;
-    keep.world = true, keep.rate = 7, keep.photo = 's', keep.sync = Sync::notice, keep.max = 99;
+    keep.world = true, keep.rate = 7, keep.photo = 's', keep.sync = Sync::notice, keep.max = 99, keep.cut = true;
     State out = keep;
     assert(!parse_state(bad, out) && out.world && out.rate == 7 && out.photo == 's' && out.sync == Sync::notice &&
-           out.max == 99);
+           out.max == 99 && out.cut);
   }
   State fresh; // Before Lua writes one: photo sync off, the default cap.
   assert(!fresh.world && !fresh.title && fresh.rate == 20 && fresh.photo == '0' && fresh.sync == Sync::off &&
-         fresh.max == 600);
+         fresh.max == 600 && !fresh.cut);
+
+  // The follow's camps lines: the guest's camps? <id> and the host's answer, camps <id> <world> <alias>:<m> ... (1 to 8
+  // camps) or camps <id> none <why>. Each round-trips; an id or a distance past 65535, a 9th camp, a 65-character
+  // alias or world, any character but letters, digits and '_', an empty field, a missing distance, a reason not in the
+  // list and a line past 512 bytes are dropped. Another protocol's too.
+  const std::string tag = "SBC" + std::to_string(kProtocol);
+  assert(camps_ask_line(7) == tag + " camps? 7");
+  m = parse_text(camps_ask_line(65535));
+  assert(m.kind == Kind::camps_ask && m.a == 65535);
+  const std::vector<Camp> near = {{"Xion_Camp_10", 12}, {"Xion_Camp_10_01", 0}, {"DED10_Camp_07", 65535}};
+  const std::string answer = camps_line(9, "Xion", near);
+  assert(answer == tag + " camps 9 Xion Xion_Camp_10:12 Xion_Camp_10_01:0 DED10_Camp_07:65535");
+  m = parse_text(answer);
+  assert(m.kind == Kind::camps && m.a == 9 && m.text == "Xion" && m.why.empty() && m.camps.size() == 3 &&
+         m.camps[0].alias == "Xion_Camp_10" && m.camps[0].m == 12 && m.camps[2].alias == "DED10_Camp_07" &&
+         m.camps[2].m == 65535);
+  assert(camps_line(m) == answer);
+  for (const char *why : {"title", "loading", "nocamp", "busy"}) {
+    m = parse_text(camps_none_line(3, why));
+    assert(m.kind == Kind::camps && m.a == 3 && m.text == "none" && m.why == why && m.camps.empty());
+    assert(camps_line(m) == tag + " camps 3 none " + why);
+  }
+  std::vector<Camp> eight(8, Camp{"SE01_Camp_00", 5});
+  m = parse_text(camps_line(1, "SpaceElevator", eight));
+  assert(m.kind == Kind::camps && m.camps.size() == 8);
+  std::vector<Camp> nine(9, Camp{"SE01_Camp_00", 5});
+  assert(parse_text(camps_line(1, "SpaceElevator", nine)).kind == Kind::invalid);
+  const std::string a64(64, 'a'), a65(65, 'a');
+  assert(parse_text(tag + " camps 1 Xion " + a64 + ":1").kind == Kind::camps);
+  assert(parse_text(tag + " camps 1 " + a64 + " X:1").kind == Kind::camps);
+  for (const std::string &bad :
+       {tag + " camps? 65536", tag + " camps? x", tag + " camps? -1", tag + " camps?", tag + " camps? 1 2",
+        tag + " camps 65536 Xion A:1", tag + " camps 1 Xion " + a65 + ":1", tag + " camps 1 " + a65 + " A:1",
+        tag + " camps 1 Xion A:65536", tag + " camps 1 Xion A:-1", tag + " camps 1 Xion A:", tag + " camps 1 Xion A",
+        tag + " camps 1 Xion :1", tag + " camps 1 Xion A-B:1", tag + " camps 1 Xion A.B:1", tag + " camps 1 Xi/on A:1",
+        tag + " camps 1 Xion A:1  B:2", tag + " camps 1 Xion A:1 ", tag + " camps 1 Xion", tag + " camps 1 none",
+        tag + " camps 1 none why", tag + " camps 1 none busy busy", tag + " camps x Xion A:1", tag + " camps 1 Xion A:1:2",
+        "SBC" + std::to_string(kProtocol + 1) + " camps? 1"})
+    assert(parse_text(bad).kind == Kind::invalid);
+  std::vector<Camp> wide(7, Camp{a64, 1}); // 18 bytes of head, then 67 a camp: one more of 22 characters ends at 512.
+  wide.push_back(Camp{std::string(22, 'b'), 1});
+  assert(camps_line(1, "Xion", wide).size() == 512 && parse_text(camps_line(1, "Xion", wide)).kind == Kind::camps);
+  wide.back().alias += 'b';
+  assert(camps_line(1, "Xion", wide).size() == 513 && parse_text(camps_line(1, "Xion", wide)).kind == Kind::invalid);
+
+  // The follow's request words from Lua: camps? <id> and the answers go out on the wire as written (the parsed line
+  // built again); travel <alias> <FName index> <FName number> goes to the game thread. Anything off is refused.
+  Request cr = parse_request("camps? 12\n");
+  assert(cr.command == Command::camps && cr.line == tag + " camps? 12");
+  cr = parse_request("camps 12 Xion Xion_Camp_10:012 SE01_Camp_00:7");
+  assert(cr.command == Command::camps && cr.line == tag + " camps 12 Xion Xion_Camp_10:12 SE01_Camp_00:7");
+  cr = parse_request("camps 12 none nocamp");
+  assert(cr.command == Command::camps && cr.line == tag + " camps 12 none nocamp");
+  for (const char *bad : {"camps?", "camps? 70000", "camps 1 Xion A:70000", "camps 1 none why", "camps", "camps 1"})
+    assert(parse_request(bad).command == Command::none);
+  Request tr = parse_request("travel Xion_Camp_10 4096 11\r\n");
+  assert(tr.command == Command::travel && tr.alias == "Xion_Camp_10" && tr.index == 4096 && tr.number == 11);
+  tr = parse_request("travel SE01_Camp_00 4294967295 0");
+  assert(tr.command == Command::travel && tr.index == 4294967295u && tr.number == 0);
+  for (const std::string &bad :
+       {std::string("travel Xion_Camp_10 0 0"), std::string("travel Xion_Camp_10 4294967296 0"),
+        std::string("travel Xion_Camp_10 1 4294967296"), std::string("travel Xion-Camp 1 0"),
+        std::string("travel ") + a65 + " 1 0", std::string("travel Xion_Camp_10 1"), std::string("travel"),
+        std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
+    assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
   assert(connect_lobby(L"SB-Win64-Shipping.exe -DistributionPlatform=Steam +connect_lobby 109775241234567890") ==

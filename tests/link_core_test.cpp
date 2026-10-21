@@ -1866,6 +1866,91 @@ int main() {
     assert(fresh_notices(t.b, mb) == Texts({"Session ended: Me left.", "Game resumed."}));
   }
 
+  // The host's cutscene ('c' on the photo line, which only the host's Lua writes): it pauses the guest whose Lua wrote
+  // cut=1 (her cutscene_wait=on with the host on her map), with a log line each way and no notice; never the host, and
+  // never a guest with cut=0. photo_freeze_max caps it as it caps photos, until the host's next cutscene. photo_sync
+  // takes no part: the host sends it with photo_sync=off, and the guest pauses for it with hers off.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked() && t.a.host() && !t.b.host());
+    Side sa, sb;
+    bool cut_a = false, cut_b = true;
+    auto pass = [&](uint64_t ms = 50) {
+      t.a.photo(sa.photo, sa.sync, sa.max, cut_a);
+      t.tick(t.a, ms);
+      t.b.photo(sb.photo, sb.sync, sb.max, cut_b);
+      t.tick(t.b, 0);
+    };
+    const auto since = [](size_t from, const std::string &text) {
+      for (size_t i = from; i < events.size(); ++i)
+        if (events[i] == text)
+          return true;
+      return false;
+    };
+    uint64_t ma = 0, mb = 0;
+    fresh_notices(t.a, ma), fresh_notices(t.b, mb);
+    pass();
+    pass();
+    size_t from = events.size();
+    sa.photo = 'c';
+    pass();
+    assert(t.b.photo_freeze() && last_photo(kMe, kFriend) == photo_line('c', true));
+    assert(t.b.photo_status(true) == "photo=0 peer_photo=c frozen=1 sync=both");
+    assert(t.a.photo_status(false) == "photo=c peer_photo=0 frozen=0 sync=both");
+    assert(since(from, "B: Me photo=c both") && since(from, "B: cutscene pause on: Me watches a cutscene"));
+    assert(fresh_notices(t.b, mb).empty() && fresh_notices(t.a, ma).empty());
+    sa.photo = '0';
+    from = events.size();
+    pass();
+    assert(!t.b.photo_freeze() && since(from, "B: cutscene pause off") && fresh_notices(t.b, mb).empty());
+    cut_b = false; // Her cutscene_wait=off, or the host on another map.
+    sa.photo = 'c';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb).empty());
+    sa.photo = '0', cut_a = true, sb.photo = 'c'; // A 'c' from the guest reaches the host: never a pause there.
+    pass();
+    pass();
+    assert(!t.a.photo_freeze() && fresh_notices(t.a, ma).empty() && fresh_notices(t.b, mb).empty());
+    sb.photo = '0', cut_a = false, cut_b = true, sb.max = 60; // The cap.
+    sa.photo = 'c';
+    pass();
+    for (int i = 0; i < 59; ++i)
+      pass(1000);
+    assert(t.b.photo_freeze());
+    from = events.size();
+    pass(1000);
+    assert(!t.b.photo_freeze() && since(from, "B: cutscene pause off: photo_freeze_max (1 min) reached"));
+    assert(fresh_notices(t.b, mb).empty());
+    pass(1000);
+    assert(!t.b.photo_freeze());
+    sa.photo = '1'; // Straight from the capped cutscene into photo mode: a new pause, with its own cap.
+    pass();
+    assert(t.b.photo_freeze());
+    sa.photo = '0';
+    pass();
+    fresh_notices(t.b, mb);
+    sa.photo = 'c'; // The host's next cutscene pauses her again.
+    pass();
+    assert(t.b.photo_freeze());
+    sa.photo = '0';
+    pass();
+    sa.sync = Sync::off, sb.sync = Sync::off, sa.photo = 'c';
+    pass();
+    assert(t.b.photo_freeze() && last_photo(kMe, kFriend) == photo_line('c', false) && fresh_notices(t.b, mb).empty());
+  }
+
   // The settings differ: B on photo_sync=notice gets a notice and no pause, and A hears once a session that B's game
   // does not pause for photos; A on notice pauses nobody, and B says why; B on off sends "0 notice", shows nothing and
   // pauses for nobody, and turning it off releases a friend B's photo mode paused. Her hello gets our line again (a
@@ -2143,6 +2228,126 @@ int main() {
     assert(w.status().find("\nmate=1500 ") != std::string::npos);
     w.tick("leave");
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
+  }
+
+  // The follow's camps lines (travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me) and B
+  // (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<id>; another within
+  // 2 s is dropped there with a log line. A's answer to her last id reaches B's status as camps=<id> ...; an answer
+  // with another id, and one that comes after she asked again, is dropped. The host never asks and the guest never
+  // answers: both requests are refused, and such a line from the friend is dropped. A session's end forgets both.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("camps? 1");
+    assert(saw("camps line not sent: no session") && F.sent.empty());
+  }
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto status = [](const Link &l) { return l.status(Counters{}); };
+    t.tick(t.b, 50, "camps? 1");
+    assert(sent_to(kMe, camps_ask_line(1)) == 1 && saw("B: sent camps? 1"));
+    for (auto &s : F.sent)
+      if (s.text.find(" camps") != std::string::npos)
+        assert(s.flags == kReliable && s.channel == kChannel);
+    t.tick(t.a, 50);
+    assert(status(t.a).find("\ncamps?=1\n") != std::string::npos && saw("A: camps? 1 from Kaanta"));
+    assert(status(t.a).find("\ncamps?=1\n") < status(t.a).find("\nnotice="));
+    t.tick(t.a, 50, "camps 1 Xion Xion_Camp_10:12 SE01_Camp_00:300");
+    assert(sent_to(kFriend, camps_line(1, "Xion", {{"Xion_Camp_10", 12}, {"SE01_Camp_00", 300}})) == 1);
+    t.tick(t.b, 50);
+    assert(status(t.b).find("\ncamps=1 Xion Xion_Camp_10:12 SE01_Camp_00:300\n") != std::string::npos);
+    t.tick(t.b, 500, "camps? 2");                              // 1.2 s after her first: dropped on A.
+    assert(status(t.b).find("\ncamps=") == std::string::npos); // Her new request: the old answer goes.
+    t.tick(t.a, 50);
+    assert(saw("A: dropped a camps line from Kaanta: over the rate limit (one each 2 s)") &&
+           status(t.a).find("\ncamps?=1\n") != std::string::npos);
+    t.tick(t.a, 50, "camps 1 Xion Xion_Camp_10:12"); // An answer to her last request but one.
+    t.tick(t.b, 50);
+    assert(saw("B: dropped a camps line from Me: not the id of our last request") &&
+           status(t.b).find("\ncamps=") == std::string::npos);
+    t.tick(t.b, 2000, "camps? 3");
+    t.tick(t.a, 50);
+    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos);
+    t.tick(t.a, 50, "camps 3 none busy");
+    t.tick(t.b, 50);
+    assert(status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
+    t.tick(t.a, 50, "camps? 4");
+    t.tick(t.b, 50, "camps 3 Xion A:1");
+    assert(saw("A: camps line not sent: the host does not ask") &&
+           saw("B: camps line not sent: only the host answers"));
+    F.inbox.push_back({kFriend, camps_line(3, "Xion", {{"A", 1}})}); // From her, to the host.
+    t.tick(t.a, 50);
+    assert(saw("A: dropped a camps line from Kaanta: an answer to the host"));
+    t.b.tick(t.now, "", 0, 0); // Unchanged: the request and the answer stay for Lua.
+    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos &&
+           status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
+    t.tick(t.b, 50, "leave");
+    t.tick(t.a, 600);
+    assert(!t.a.linked() && !t.b.linked());
+    assert(status(t.a).find("camps") == std::string::npos && status(t.b).find("camps") == std::string::npos);
+  }
+
+  // Our life= line and her life for the shared fight's job (mate_life()). life=<state> <hp> comes from our last vitals
+  // read while a chat session holds and that read is under 3 s old (a load reads none), before the notices. Hers is
+  // down in life state 3-5 or at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any other state, before her first
+  // line, once her last one is 3 s old, and once the session ends.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    w.link.vitals(mine);
+    assert(w.status().find("\nlife=") == std::string::npos); // No session yet.
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(w.link.mate_life() == Life::unknown && w.status().find("\nlife=") == std::string::npos);
+    w.link.vitals(mine);
+    assert(w.status().find("\nlife=1 1500\n") != std::string::npos);
+    assert(w.status().find("\nlife=") < w.status().find("\nnotice="));
+    mine[vital::life] = 3, mine[vital::hp] = 0;
+    w.tick();
+    w.link.vitals(mine);
+    assert(w.status().find("\nlife=3 0\n") != std::string::npos);
+    w.tick("", 0, 0, 2999);
+    assert(w.status().find("\nlife=3 0\n") != std::string::npos);
+    w.tick("", 0, 0, 1);
+    assert(w.status().find("\nlife=") == std::string::npos); // Our last read is 3 s old.
+    Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    const auto heard = [&](uint32_t life, uint32_t hp, uint32_t max_hp = 1600) {
+      hers[vital::life] = life, hers[vital::hp] = hp, hers[vital::max_hp] = max_hp;
+      F.inbox.push_back({kFriend, vit_line(hers)});
+      w.tick();
+      return w.link.mate_life();
+    };
+    assert(heard(1, 900) == Life::alive && heard(6, 1600) == Life::alive);
+    assert(heard(3, 900) == Life::down && heard(4, 0) == Life::down && heard(5, 0) == Life::down);
+    assert(heard(1, 0) == Life::down && heard(1, 0, 0) == Life::alive);
+    assert(heard(0, 900) == Life::unknown && heard(2, 900) == Life::unknown && heard(7, 900) == Life::unknown);
+    assert(heard(3, 0) == Life::down);
+    w.tick("", 0, 0, 2999);
+    assert(w.link.mate_life() == Life::down);
+    w.tick("", 0, 0, 1);
+    assert(w.link.mate_life() == Life::unknown); // Her last line is 3 s old.
+    assert(heard(1, 900) == Life::alive);
+    w.link.vitals(mine);
+    w.tick("leave");
+    assert(w.link.mate_life() == Life::unknown && w.status().find("\nlife=") == std::string::npos);
   }
 
   // coop loopback with no friend (UI-DESIGN 5.4, the solo tests): a chat session of its own, where our lines come

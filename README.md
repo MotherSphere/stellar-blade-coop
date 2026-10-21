@@ -29,6 +29,15 @@ client that the game already runs, so the mod needs no other program and no serv
 - Your friend's card at the top left shows their name with their ping and map, then their HP, shield and Beta. A
   marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
+- Group play, not tested in game yet:
+  - as the guest, F7 takes you to the camp nearest the host through the game's own fast travel when the host is on
+    another map or more than 150 m away;
+  - when one EVE is down, the shared enemies near the other one fight it, and a down EVE gets no kill by standing near
+    one; with the experimental revive (off by default), a friend who stands next to the downed EVE for 3 s revives it
+    where it fell;
+  - the guest's game pauses while a cutscene plays in the host's game;
+  - in a shared area only the host's camp rest brings the enemies back, and a notice tells the guest so;
+  - the experimental solid partner option (off by default) stops your EVE at your friend's ghost.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make
@@ -94,7 +103,7 @@ runs on your own copy of the game.
 
 ## Credits
 
-Night Operation's solo run (`coop nightop`) adapts code from
+Night Operation's solo run (`coop nightop`) and the friend's revive adapt code from
 [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus Mods, Stellar Blade
 mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The adapted parts are:
 
@@ -107,8 +116,9 @@ mod 4009), used with the author's permission and distributed here under GPL-3.0-
 - telling a dying monster from one that can be executed;
 - watching for EVE's death screen, a map load, and EVE leaving the start point.
 
-`mod/StellarCoop/Scripts/nightop_run.lua` and `nightop_waves.lua` mark each adapted function. StellarCoop contains no
-file from Survival Protocol.
+`mod/StellarCoop/Scripts/nightop_run.lua`, `nightop_waves.lua` and `unreal.lua` mark each adapted function. The death
+screen lookup is `U.death_screen()` in `unreal.lua`, used by the solo run and by the revive in `group.lua`. StellarCoop
+contains no file from Survival Protocol.
 
 ## License
 

@@ -552,6 +552,8 @@ for _=1,4 do -- The tick that sees it reads no body.
 end
 assert(result_line():find('^result: failed waves=0/5 '),result_line())
 dying=false
+-- The helper is unreal.lua's (group.lua reads the same screen): the live HUD's copy, never the class default's.
+assert(require('unreal').death_screen()==dead_w)
 -- The death screen not found at the start, then found with its animation already playing: a death too.
 local all_huds=huds
 huds={}

@@ -326,16 +326,66 @@ With same place on, the guest's copy of a boss follows the host's through the li
 
 ### A kill or an achievement did not count
 
-A shared enemy dies in your game only if you took part in its fight
-([usage.md: Shared enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit,
-that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy
-stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it yourself to get them.
-The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
-`fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count them as
-`not taken part`. With `kill_credit=fought` the 30 m do not count. A `kill_credit=all` line from 0.4.0-beta.1 reads
-as `together`. A `fight last player <key> set by a mirrored crowd control` line means that a knockdown the other
-player started made the game record your EVE as that enemy's last player. The mod then stops counting that record for
-this enemy, so only your hit or the 30 m make its kill yours.
+A shared enemy dies in your game only if you took part in its fight ([usage.md: Shared
+enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit, that never targeted
+you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy stays alive at full HP,
+and its kill, loot and achievements do not reach your save. Fight it yourself to get them. The guest's `coop-link.log`
+says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says `fight kill-unshared <key> hguid=<n> not
+taken part`, and the `fight stats:` lines in `coop-fight.log` count them as `not taken part`. With `kill_credit=fought`
+the 30 m do not count, and they never count while your EVE is down. A `kill_credit=all` line from 0.4.0-beta.1 reads as
+`together`. A `fight last player <key> set by a mirrored crowd control` line means that a knockdown the other player
+started made the game record your EVE as that enemy's last player. The mod then stops counting that record for this
+enemy, so only your hit or the 30 m make its kill yours.
+
+### Travel to the host does not start
+
+Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
+`[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in
+`coop-link.log` as `travel refused <camp>: <why>`.
+
+- `You cannot travel now. Try again in a moment.`: something of the moment held it back: your EVE down, a respawn or
+  another travel under way, the game paused, in photo mode or in a menu (the co-op menu too), a Night Operation run, a
+  cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
+  last travel. The log line names which.
+- `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
+  the camps it sent could be used, or the game refused each one (`travel: SB refused <camp>`), for example a camp your
+  save has not activated.
+- `The travel did not start. UE4SS.log says why.`: the host's game is on the title screen (`none title`), no answer
+  came from the host's game in 10 s, the native part gave no result in 5 s or refused the call
+  (`the native part refused: <why>`), or the warp never started 10 s after the game took the call (`refused:stuck`).
+  After a warp that never started, the travel stays off on that map until you change map. A fault turns the travel off
+  until the game restarts (`travel off: fault ...` in `coop-link.log`).
+- No notice at all: `follow_host=off`, `follow_key=none` (use `coop travel host`), you are the host, your own save is
+  loaded, or the host is within 150 m of you on your map. Press F7 and read the `travel refused:` line.
+- A second F7 within 2.5 s is refused in the log only (`one request to the host each 2.5 s`).
+
+### A revive is not offered
+
+The revive is experimental and off by default. Each player's own `revive` setting decides for their own EVE, and your
+friend's `<name> is down` notice shows whatever that setting says. The downed player's `UE4SS.log` has a
+`[StellarCoop][GR] revive waits: <why>` line each time the reason changes:
+
+- `revive=off`: turn on Options > Session > Friend can revive me before the fight.
+- `friend not alive`, `friend on another map` or `friend far`: your friend's EVE must stand within 2 m of yours across,
+  and 1 m up or down, for 3 s with no gap. A body that fell into a pit or below the map cannot be reached.
+- `boss fight`: no revive during a boss fight on your side, nor in the 10 s after the host's last boss start.
+- `no shared fight`: the revive needs shared enemies running, with both players on co-op saves.
+- `a respawn or a warp is under way`: you pressed the death screen's respawn first.
+- `no death screen`, `the game is not standalone`, `no warp read`, `no SB player controller` or
+  `a coop no probe rule is set in this game run`: the game is not in a state the revive supports; respawn at a camp.
+- `revive off for this run: <why>`: a Lua error turned the revive off until the next Lua load.
+
+After a call, the `revive result` line gives the life state, HP and death screen before and after. If the death screen
+stays up over a living EVE, the mod hides it.
+
+### Stuck at a doorway with the solid partner
+
+With `collide=on`, your friend's ghost stops your EVE. It lets her through after 2 s of contact, until you are 50 cm
+apart, so wait 2 s and walk on. If the ghost still blocks a door, a ladder or a ledge, or a dodge stops at it, turn
+Options > Ghost > Solid partner off (`collide=off`): it applies at once. `coop status` shows `collide=on solid=<0|1>
+changes=...`, and each contact writes a `Solid partner contact:` line in `UE4SS.log`; send both with a bug report. A
+`Solid partner off on this ghost: <why>` line means the capsule could not be built or failed. That ghost then has no
+collision until it is built again (a level change or a new outfit).
 
 ### Same spawns do not start, or enemies appear and vanish
 

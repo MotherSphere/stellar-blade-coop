@@ -1,11 +1,13 @@
 -- Key settings for the menu's rebind (Options > Controls). The grammar is coop-settings.txt's (link.lua): F1 to F12
 -- but F10, with at most one of Shift+, Ctrl+, Alt+; F-key codes do not depend on the keyboard layout and Stellar Blade
--- binds none of them. Two additions: Enter for the chat key (D-UI3) and none for the host key, once the menu holds Host
--- (D-UI2). A key is {key=UE4SS Key name or nil for none, mod=UE4SS ModifierKey name or nil, name=as the file writes it}.
+-- binds none of them. Two additions: Enter for the chat key (D-UI3), and none for the host key (once the menu holds
+-- Host, D-UI2) and the follow key. A key is {key=UE4SS Key name or nil for none, mod=UE4SS ModifierKey name or nil,
+-- name=as the file writes it}.
 local K={}
 local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
 local WRITTEN={SHIFT='Shift',CONTROL='Ctrl',ALT='Alt'} -- UE4SS's ModifierKey name, then as written.
-local EXTRA={chat_key={ENTER={key='RETURN',name='Enter'}},host_key={NONE={name='none'}}}
+local EXTRA={chat_key={ENTER={key='RETURN',name='Enter'}},host_key={NONE={name='none'}},
+    follow_key={NONE={name='none'}}}
 -- A key setting's value from its text, or nil and why it is refused.
 function K.parse(name,text)
     local extra=EXTRA[name] and EXTRA[name][text:upper()]

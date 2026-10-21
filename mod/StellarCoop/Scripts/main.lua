@@ -13,7 +13,13 @@
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop],
 -- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
--- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
+-- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; the friend's revive
+-- (group.lua, revive in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at
+-- the death screen (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene
+-- (group.lua and the native part's photo pause, cutscene_wait in coop-settings.txt or the co-op menu); the guest's
+-- travel to the camp nearest the host (travel.lua, follow_host and follow_key in coop-settings.txt or the co-op menu:
+-- F7 unless set), with coop travel host (as follow_key) and coop travel probe <camp>, its solo test on a co-op save
+-- (not in the usage line); coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
@@ -110,7 +116,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -131,9 +137,9 @@ local function answer(verb)
 end
 -- Host by who_can_join: code (an invisible lobby with a join code), private (invited only), friends.
 local HOSTS={code='host code',private='host private'}
--- coop no, coop recruiter and coop fight run only on a co-op save (D2, N9): the native part's slot=coop, from the start
--- of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
--- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight and coop revive test run only on a co-op save (D2, N9): the native part's
+-- slot=coop, from the start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual
+-- co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -149,6 +155,8 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell})
+-- The friend's revive (group.lua) and the follow (travel.lua), with the Steam link only: built and ticked below.
+local group,travel=nil,nil
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
@@ -341,6 +349,22 @@ local commands={
         end
         return night.command(sub,a,b)
     end,
+    -- test: the revive's solo probe at the death screen, on a co-op save only (group.lua says why not).
+    revive=function(sub,extra)
+        if sub~='test' or extra~=nil then return false,'Use: coop revive test' end
+        if not group then return false,'the Steam link needs the native part' end
+        local ok,why=coop_slot('coop revive test')
+        if not ok then return false,why end
+        return group.test()
+    end,
+    -- host: as follow_key (the travel to the camp nearest the host, or always's start cancelled); probe <camp>: its
+    -- solo test, the native call alone (travel.lua says why not).
+    travel=function(sub,arg,extra)
+        if not travel then return false,'the Steam link needs the native part' end
+        if sub=='host' and arg==nil then return travel.press() end
+        if sub=='probe' and arg~=nil and extra==nil then return travel.probe(arg) end
+        return false,'Use: coop travel host'
+    end,
     recruiter=function(sub,extra)
         local ok,why=coop_slot('coop recruiter')
         if not ok then return false,why end
@@ -505,6 +529,10 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(night.stop,'coop off')
         if not stopped then log('nightop: '..tostring(e)) end
+        if group then -- A death screen the revive hid comes back.
+            stopped,e=pcall(group.stop)
+            if not stopped then log('revive: '..tostring(e)) end
+        end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -645,10 +673,25 @@ if link then
     -- stops same spawns too), and as guest once a session when its spawns_differ= first counts an enemy. Forgotten
     -- with fight_maxhp.
     local spawns_on,spawns_stopped,spawns_differ=false,false,false
+    -- Camp rests in a shared area, as the guest, from the same line's epoch=<zone>/<n>/<resets>: in a shared area only
+    -- the host's rest brings its enemies back for both. Said when the host's epoch n moves in the same zone while their
+    -- vitals read alive and they were not down in the last REST_CALM seconds (a respawn of theirs has host_down), and
+    -- when our own resets move while spawns= reads on and our life= read alive for the REST_CALM seconds before (our
+    -- own respawn says nothing). rest: the line's last zone, n and resets, when the host last read down, and since when
+    -- ours reads alive. Forgotten with fight_maxhp.
+    local REST_CALM,rest=10,{}
     local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
         local name=require('chat').clean((link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
+    group=require('group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
+        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end})
+    -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
+    -- during a cutscene in our game.
+    travel=require('travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
+        log=function(m) print('[StellarCoop][TR] '..tostring(m)..'\n') end,
+        paused=function() return kit.paused(true) or menu.is_open() or photo_state()~='0' end,
+        night=function() return night.running() end,cutscene=function() return group.cutscene_playing() end})
     local function fight_notices()
         if link.mode()=='none' then fight_told=nil end
         local line=link.fight()
@@ -671,12 +714,29 @@ if link then
                 fight_maxhp=true
                 tell(function(w) return w.fight.maxhp:format(her_name(w)) end)
             end
-            local m=line:find(' role=guest ') and link.mate()
+            local guest=line:find(' role=guest ')~=nil
+            local m=guest and link.mate()
             local down=m and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) or false
             if down and not host_down and count>0 then
                 tell(function(w) return w.fight.host_down:format(her_name(w)) end)
             end
             host_down=down
+            if down then rest.down_at=chat_clock end
+            local life=link.life()
+            local alive=life and (life.state==1 or life.state==6) and life.hp>0
+            rest.alive_since=alive and (rest.alive_since or chat_clock) or nil
+            local zone,n,resets=line:match(' epoch=(%d+)/(%d+)/(%d+)')
+            if zone and guest then
+                if rest.zone==zone and rest.n~=n and m and (m.life==1 or m.life==6) and not down
+                    and (not rest.down_at or chat_clock-rest.down_at>=REST_CALM) then
+                    tell(function(w) return w.group.rest:format(her_name(w)) end)
+                end
+                if rest.resets and resets~=rest.resets and line:find(' spawns=on ') and rest.alive_since
+                    and chat_clock-rest.alive_since>=REST_CALM then
+                    tell(function(w) return w.group.rest_guest:format(her_name(w)) end)
+                end
+                rest.zone,rest.n,rest.resets=zone,n,resets
+            end
             local spawns=line:match(' spawns=(%a+)')
             if spawns=='on' and not spawns_on then
                 spawns_on=true
@@ -696,10 +756,10 @@ if link then
                 tell(function(w) return w.fight[state] end)
             end
             fight_count,fight_maxhp,host_down=0,false,false
-            spawns_on,spawns_stopped,spawns_differ=false,false,false
+            spawns_on,spawns_stopped,spawns_differ,rest=false,false,false,{}
         elseif why=='no friend linked' then -- The friend left: the next one hears about MaxHP again.
             fight_maxhp,host_down=false,false
-            spawns_on,spawns_stopped,spawns_differ=false,false,false
+            spawns_on,spawns_stopped,spawns_differ,rest=false,false,false,{}
         end
         fight_was=now
         if mode~='on' or (state~='on' and state~='waiting') then return end
@@ -805,6 +865,8 @@ if link then
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
         chat_clock=chat_clock+0.25
+        if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
+        if not off then travel.tick(chat_clock) end -- The follow: likewise.
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
         if off or chatting~=nil then chat.session(not off and chatting) end
         for _,line in ipairs(link.take_chat()) do
@@ -876,7 +938,10 @@ if link then
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             notice.veil(own)
             puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
-            local line=link.state(world,settings.send_rate,photo,settings.photo_sync,settings.photo_freeze_max,title)
+            puppet.collide(settings.collide) -- The solid partner, as the co-op menu last set it.
+            -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (group.lua).
+            local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
+                settings.photo_freeze_max,title,group.cut())
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown
@@ -900,19 +965,19 @@ if link then
 end
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
--- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line or
--- Leave. The host's question takes the navigation keys, Enter and Esc first while it is open. Enter goes to the menu's
--- key capture, then selects; the navigation keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z;
--- down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc), and to the co-op saves' question while
--- it is open. The code box takes Enter (join) and Esc (cancel). With all closed, Enter opens the chat's box, then
--- sends, and Esc cancels; while the question or a box is open our F-keys do nothing. A
--- key callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
--- off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
--- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
--- in the log in English and on screen in the menu's words; coop status keeps the full status.
+-- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line,
+-- Leave or the follow (follow_key, coop travel host). The host's question takes the navigation keys, Enter and Esc
+-- first while it is open. Enter goes to the menu's key capture, then selects; the navigation keys go to the menu while
+-- it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q; right arrow or D; Enter or
+-- Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter (join) and Esc (cancel).
+-- With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question or a box is open our
+-- F-keys do nothing. A key callback runs on UE4SS's key thread: it only hands the press to the game thread, where the
+-- console's checks (coop off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls
+-- the plain bind for a Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives
+-- a one-line summary, in the log in English and on screen in the menu's words; coop status keeps the full status.
 if settings then
     local K=require('keybind')
-    local ACTIONS={'menu','host','status','leave'}
+    local ACTIONS={'menu','host','status','leave','follow'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=settings[action..'_key']
@@ -935,6 +1000,7 @@ if settings then
                 if action=='status' then
                     report(true,link.summary())
                     tell(link.summary)
+                elseif action=='follow' then run('travel','host')
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else

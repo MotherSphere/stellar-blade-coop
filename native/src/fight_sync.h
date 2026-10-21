@@ -266,10 +266,10 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 // ---- Channel 2 ----
 
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
-// bstart and phase: the host's, never recorded.
+// bstart and phase: the host's, never recorded. mate: the worker's own to the job (fight_engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn,
-  drop, epoch, bstart, phase
+  drop, epoch, bstart, phase, mate
 };
 // One enemy in an hp message.
 struct Values {
@@ -306,7 +306,8 @@ struct Message {
   int32_t ids[kMaxPhaseIds] = {}; // phase: EffectTable IDs, idn of them, each once.
   uint8_t idn = 0;
   Values entries[kHpPerMessage];
-  uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
+  uint8_t count = 0;         // hp: entries used, 1..kHpPerMessage.
+  Life life = Life::unknown; // mate: her life as her vitals say it (link_core.h's mate_life()).
 };
 
 // The text of a message; off carries reason (cleaned, "?" when empty).
@@ -365,6 +366,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
       ids += (i ? "," : "") + std::to_string(m.ids[i]);
     return t + "phase" + n(m.gen) + n(m.guid) + n(m.oe) + " " + (ids.empty() ? "-" : ids);
   }
+  case Type::mate: // Never on the wire.
   case Type::invalid: break;
   }
   return std::string();
@@ -860,6 +862,15 @@ public:
   // our aggro, in each whole list.
   void set_bosses(uint16_t pct) { boss_ = pct; }
   uint16_t bosses() const { return boss_; }
+  // Each turn, before her lines: our EVE is down (life state 3-5). While it is, her claims on our bosses are dropped
+  // (their numbers still acknowledged, so her copy's HP comes back to ours) and logged once a boss a down: a boss's AI
+  // is ours, so it fights nobody then, and nobody wins its fight in our world while we are dead.
+  void set_down(bool down) {
+    if (down != down_)
+      for (size_t i = 0; i < count_; ++i)
+        enemies_[i].down_said = false;
+    down_ = down;
+  }
   // The enemies whose scaling the engine holds after this step: every one followed while her on held, until it leaves
   // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling; with a
   // boss's alone, every one too (the engine picks each one's percent by its type).
@@ -1095,6 +1106,7 @@ private:
     bool takedown = false, monster = false; // Seen::takedown and Seen::monster at the last pass.
     bool boss = false;                      // Seen::boss: never a common enemy's place to take (stage 5).
     bool finish = false;                    // Seen::finish: only our own finisher ends it (stage 5).
+    bool down_said = false;                 // A claim of hers dropped in this down of ours, logged (set_down()).
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
     bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
@@ -1186,6 +1198,12 @@ private:
     Enemy *e = peer_on_ && m.gen == gen_ ? find(m.guid) : nullptr;
     if (!e) { // A side off, an old world, an enemy gone or dead: races, not lies.
       ++counts.stale;
+      return;
+    }
+    if (down_ && e->boss) { // set_down(); claimed: our next values carry its number.
+      e->claimed = true;
+      if (!std::exchange(e->down_said, true))
+        io.event(Event{"claim dropped", "on our boss while our EVE is down", e->guid});
       return;
     }
     if (now - window_ >= 1000)
@@ -1383,6 +1401,7 @@ private:
   bool place_ = false, told_place_ = false; // Our same_place, and as the guest last heard it.
   bool host_only_ = false, told_aggro_ = false; // Our aggro=host, and as the guest last heard it.
   uint16_t boss_ = 0;                            // Our boss_hp_scale with bosses=on; 0: off.
+  bool down_ = false;                            // set_down(): our EVE is down.
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;

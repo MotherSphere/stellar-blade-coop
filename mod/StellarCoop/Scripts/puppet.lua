@@ -25,6 +25,7 @@
 -- The same table again with a part hung elsewhere (a blade drawn) or shown or hidden is applied in place; a new
 -- generation (her outfit) is a new ghost. The ghost's path is kept in a file, so the next Lua load (a hot reload)
 -- finds and destroys one left standing; after a level change it comes back once EVE has been in the world 2 s.
+-- collide=on adds one capsule that blocks your EVE alone (Puppet.solid); no other part of the ghost has collision.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local T=require('ui_text')
@@ -47,6 +48,47 @@ local EFFECTS=require('capture').EFFECTS -- What the wire's effect indexes name,
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
 local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
+-- The solid partner (collide=on, off by default): one capsule on the ghost that only your EVE's movement meets. cm and
+-- s, for Puppet.solid: inside her by more than SLACK, out again past LEAVE; feet STEP apart in height; contact within
+-- TOUCH, STUCK of it with no gap of GAP, then free until PART apart.
+local SLACK,LEAVE,STEP,TOUCH,STUCK,GAP,PART=1,20,60,5,2,0.5,50
+local WALKS={[1]=true,[2]=true,[3]=true} -- EMovementMode: Walking, NavWalking, Falling.
+local CHANGES={'solid','a','b','c','d','e','g'} -- The order status() counts the capsule's changes in.
+-- Whether the solid partner's capsule blocks your EVE now: true, or false and the first rule that opens it.
+-- i: on (collide=on), shown (the ghost shown, your EVE found), h and v (cm across and up or down between the centres
+-- of her capsule and the ghost's, which sit as high above their feet), r and hh (the two radii and the two half
+-- heights added), mode (your EVE's MovementMode), down (the friend's vitals missing or down; false for a replay or
+-- the loopback, which have none) and now (s). k keeps the rules' state from one frame to the next.
+-- a: on and shown. b: not inside her (h at least r - 1 cm, or v at least hh); once inside, open until h is past r + 20
+-- cm, so the ghost walks through her (an overlap of 1 cm or less stays solid: her movement pushes her out). c: their
+-- feet less than 60 cm apart in height (her on its head, a ladder, an elevator that moved in one world only). d: your
+-- EVE walking or falling (swimming, climbing, a zipline pass). e: not 2 s of contact (h under r + 5 cm) with no gap of
+-- 0.5 s, so a ghost stepping back for a pose cannot hold it; once tripped, open until 50 cm apart (a partner standing
+-- in a doorway). g: the friend's vitals there and not down, so a downed friend is never a wall and can be reached for a
+-- revive. No rule tells a dodge from a run yet: each contact's line (place()) logs what could.
+function Puppet.solid(k,i)
+    if not (i.on and i.shown) then
+        k.inside,k.since,k.stuck=nil,nil,nil
+        return false,'a'
+    end
+    if i.h<i.r-SLACK and i.v<i.hh then k.inside=true elseif i.h>i.r+LEAVE then k.inside=nil end
+    if k.stuck and i.h>=i.r+PART then k.stuck=nil end
+    local touch=i.h<i.r+TOUCH
+    if k.since and not touch then k.gap=k.gap or i.now end
+    if k.gap and i.now-k.gap>=GAP then k.since,k.gap=nil,nil end
+    if touch then
+        k.since,k.gap=k.since or i.now,nil
+        if i.now-k.since>=STUCK then k.stuck=true end
+    end
+    if k.inside then return false,'b' end
+    if i.v>=STEP then return false,'c' end
+    if not WALKS[i.mode] then return false,'d' end
+    if k.stuck then return false,'e' end
+    if i.down then return false,'g' end
+    return true
+end
+-- The partner card's rule (partner.lua): down in life state 3 to 5, or at 0 HP of a maximum above 0.
+local function down(m) return m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0 end
 -- Her ponytail's AdditiveMasterBoneArray in her Blueprint: body bones its 22-bone mesh lacks and its cloth's collision
 -- bodies hang on. SB's UpdateMasterBoneMap maps each to the leader's bone of that name.
 local COLLISION_BONES={'Bip001-R-Thigh','Bip001-L-Thigh','Bip001-L-UpperArm','Bip001-L-Forearm','Bip001-R-UpperArm',
@@ -525,6 +567,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     -- The UI marker carries her name (main.lua, every 250 ms: partner_bar on and the UI's root up): the tag hides, and
     -- is the fallback again once it goes (UI-DESIGN D-UI5). place() applies it.
     function self.marker(on) marked=on==true end
+    -- collide=on (main.lua, every 250 ms): the solid partner's capsule, built the first time the ghost shows with it on
+    -- and closed while it is off. eve_now: your EVE, as tick() found her this frame.
+    local collide,eve_now=false,nil
+    function self.collide(on) collide=on==true end
     -- Where the UI marker goes: 2.2 m over her feet, and her feet, both as placed at her last pose; nil while the ghost
     -- is hidden or not built.
     function self.anchor()
@@ -573,10 +619,127 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         local tail=stray>0 and string.format(' stray_parts=%d',stray) or ''
         if not wanted then return 'ghost=off'..tail end
         if ghost and ghost.built then
-            return string.format('ghost=on parts=%d leaders=%d basesuit=%d left_out=%d table=%d source=%s',ghost.count,
-                ghost.leaders,basesuit and 1 or 0,ghost.left_out,ghost.generation,tostring(source))..tail
+            -- collide=: off or on, then the capsule closed or solid and its changes counted by what made them.
+            local s,solid=ghost.capsule,' collide='..(collide and 'on' or 'off')
+            if s==false then
+                solid=' collide=failed'
+            elseif s then
+                local changes={}
+                for _,key in ipairs(CHANGES) do
+                    if s.changes[key] then changes[#changes+1]=key..':'..s.changes[key] end
+                end
+                solid=string.format('%s solid=%d changes=%s',solid,s.on and 1 or 0,
+                    #changes>0 and table.concat(changes,',') or 'none')
+            end
+            return string.format('ghost=on parts=%d leaders=%d basesuit=%d left_out=%d table=%d source=%s%s',
+                ghost.count,ghost.leaders,basesuit and 1 or 0,ghost.left_out,ghost.generation,tostring(source),
+                solid)..tail
         end
         return (hidden_pair and 'ghost=hidden map' or 'ghost=waiting')..tail
+    end
+    -- One field that fails says why in place ('?(...)'), without the error's file and line (in the game a path that
+    -- alone fills the 60 characters): the rest of the line still prints.
+    local function try(f)
+        local ok,v=pcall(f)
+        return ok and v or '?('..tostring(v):gsub('^.-:%d+: ',''):sub(1,60)..')'
+    end
+    -- The solid partner's capsule on the ghost (collide=on): your EVE's capsule's size, as high above the ghost's feet
+    -- as hers is above her own, hung on its main mesh and upright whatever the mesh's tilt. Of her capsule's object
+    -- type and blocking that type alone (WorldDynamic, which her capsule blocks, if hers does not block its own type),
+    -- so monsters, NPCs, the camera and every trace pass through it; no overlap events; never a step. Closed (no
+    -- collision) until place() finds it may block, and the ghost's only collision: its parts have none, its tag and
+    -- any effect started on it get none. A failure while it is set up removes it. Returns the line for the log: her
+    -- capsule as read, the camera boom's probe channel, and the ghost's other parts with collision on (0 expected).
+    local function solid_body(g,eve)
+        local cap=eve.CapsuleComponent
+        local channel=cap:GetCollisionObjectType()
+        local response=cap:GetCollisionResponseToChannel(channel)
+        local ours=response==2 and channel or 1 -- ECR_Block; else ECC_WorldDynamic.
+        local up=-value_of(eve.Mesh.RelativeLocation).Z
+        local radius,half=cap:GetUnscaledCapsuleRadius(),cap:GetUnscaledCapsuleHalfHeight()
+        local c=valid(g.actor:AddComponentByClass(find('/Script/Engine.CapsuleComponent'),false,
+            find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform({X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},
+            {X=1,Y=1,Z=1}),false)) -- On the root, its main mesh.
+        assert(c,'the capsule could not be added')
+        c:SetCollisionEnabled(0) -- First: whatever fails next, it never blocks.
+        local made,why=pcall(function()
+            c:K2_SetRelativeLocation({X=0,Y=0,Z=up},false,{},true)
+            c:SetAbsolute(false,true,false)
+            c:SetCapsuleSize(radius,half,false)
+            c:SetGenerateOverlapEvents(false)
+            c:SetCollisionObjectType(ours)
+            c:SetCollisionResponseToAllChannels(0) -- ECR_Ignore
+            c:SetCollisionResponseToChannel(channel,2)
+            c.CanCharacterStepUpOn=0 -- ECB_No
+            if g.tag then g.tag:SetCollisionEnabled(0) end
+            g.actor:SetActorEnableCollision(true,false)
+        end)
+        if not made then
+            pcall(function() c:K2_DestroyComponent(g.actor) end)
+            error(why,0)
+        end
+        g.capsule={c=c,up=up,r=2*radius,hh=2*half,k={},on=false,changes={}}
+        local probe=try(function()
+            return valid(eve:GetComponentByClass(find('/Script/Engine.SpringArmComponent'))).ProbeChannel
+        end)
+        local others=try(function()
+            local n=0
+            each(g.actor:K2_GetComponentsByClass(find('/Script/Engine.PrimitiveComponent')),function(_,p)
+                p=valid(p)
+                if p and address(p)~=address(c) and p:K2_IsCollisionEnabled() then n=n+1 end
+            end)
+            return n
+        end)
+        return string.format('Solid partner built: her capsule type %s response %s, radius %g, half height %g, %g cm '
+            ..'above her feet; ours type %s; camera probe channel %s; other parts with collision %s.',tostring(channel),
+            tostring(response),radius,half,up,tostring(ours),tostring(probe),tostring(others))
+    end
+    -- One frame of the solid partner, after the ghost was placed: its capsule built the first time it shows with
+    -- collide on, then Puppet.solid on where both stand now, and the capsule closed or made solid on a change only.
+    -- The start of a contact (within 5 cm, again once more than 20 cm apart) gives one line: her speed across,
+    -- GetMaxSpeed(), her MovementMode and her move's root motion data, to tell a dodge from a run.
+    local function solidity(g)
+        local eve=valid(eve_now)
+        local line
+        if not g.capsule then
+            if g.hidden or not eve then return nil end
+            line=solid_body(g,eve)
+        end
+        local s=g.capsule
+        local i,touch={on=collide,shown=not g.hidden and eve~=nil,now=os.clock()},false
+        if i.on and i.shown then
+            local at,f=value_of(eve:K2_GetActorLocation()),g.feet
+            i.h,i.v,i.r,i.hh=math.sqrt((at.X-f.X)^2+(at.Y-f.Y)^2),math.abs(at.Z-f.Z-s.up),s.r,s.hh
+            i.mode=eve.CharacterMovement.MovementMode
+            local m=source=='peer' and files.mate and files.mate()
+            i.down=source=='peer' and (not m or down(m))
+            if i.h<s.r+TOUCH then
+                touch,s.touching=not s.touching,true
+            elseif i.h>s.r+LEAVE then
+                s.touching=nil
+            end
+        else
+            s.touching=nil
+        end
+        local on,rule=Puppet.solid(s.k,i)
+        if on~=s.on then
+            s.c:SetCollisionEnabled(on and 1 or 0) -- QueryOnly: her movement's sweeps are queries.
+            s.on=on
+            local key=on and 'solid' or rule
+            s.changes[key]=(s.changes[key] or 0)+1
+        end
+        if touch then
+            local read,contact=pcall(function()
+                local cmc=eve.CharacterMovement
+                local v,data=value_of(cmc.Velocity),valid(cmc.RootMotionData.pRootMotionData)
+                return string.format('Solid partner contact: speed=%.0f max=%.0f mode=%s root_motion=%s solid=%d',
+                    math.sqrt(v.X^2+v.Y^2),cmc:GetMaxSpeed(),tostring(i.mode),data and text(data:GetFName()) or 'none',
+                    on and 1 or 0)
+            end)
+            contact=read and contact or 'Solid partner contact: not read ('..tostring(contact)..')'
+            line=line and line..' '..contact or contact
+        end
+        return line
     end
     -- A slot's effect started on its part, or why not (nil when started).
     local function start(g,slot,asset,part,at,rotation)
@@ -592,6 +755,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         slot.fx=valid(g.fx_lib:SpawnSystemAttached(system,built.target,FName('None'),at,rotation,
             0 --[[KeepRelativeOffset]],true,true,0 --[[no pooling]],true))
         if not slot.fx then return 'spawn failed: nothing spawned' end
+        if g.capsule then slot.fx:SetCollisionEnabled(0) end -- The capsule stays the ghost's only collision.
     end
     -- Each slot as the native part wrote its box (scale: asset + 1, part + 1, serial + 1; location and rotation
     -- relative to the part): a new key stops the slot's instance and starts the new one; the same key moves the one
@@ -697,7 +861,20 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
         end)
         if not ok then retry(); return false,clear('stopped: '..tostring(why)) end
+        -- The solid partner, in its own pcall: a failure leaves this ghost without it (closed), never stops the ghost.
+        local line
+        if g.capsule~=false and (collide or g.capsule) then
+            local ran,result=pcall(solidity,g)
+            if ran then
+                line=result
+            else
+                if g.capsule then pcall(function() g.capsule.c:SetCollisionEnabled(0) end) end
+                g.capsule=false
+                said[#said+1]='Solid partner off on this ghost: '..tostring(result)
+            end
+        end
         if #said>0 then return false,table.concat(said,' ') end
+        if line then return true,line end
     end
     local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
     -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
@@ -724,12 +901,6 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         'Env_Camp_TeleportMachine_Tetrapod_C'} -- Leaf classes: exact whether FindAllOf returns subclasses or not.
     local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end
     local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
-    -- One field that fails says why in place ('?(...)'), without the error's file and line (in the game a path that
-    -- alone fills the 60 characters): the rest of the line still prints.
-    local function try(f)
-        local ok,v=pcall(f)
-        return ok and v or '?('..tostring(v):gsub('^.-:%d+: ',''):sub(1,60)..')'
-    end
     -- The nearest valid object of these classes to at: '<id>:<class>@x,y,z <unit>=<metres>', or 'none'.
     local function nearest(classes,at,id,unit)
         local best,line=nil,'none'
@@ -781,6 +952,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         sweep()
         if not wanted then return end
         local eve=her(valid(UE.GetPlayer()))
+        eve_now=eve
         local at=eve and address(eve) or nil
         if at~=her_at then -- A new EVE (travel, a load) or none: the ghost goes, a failed table is tried again.
             her_at,back_since,failed,tries=at,nil,nil,0

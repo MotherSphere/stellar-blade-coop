@@ -2189,6 +2189,149 @@ int main() {
     assert(e->host.ignored() && has(lines(g), "SBF12 own 1 101 H 2\n"));
     assert(row.owner == coop::pilot::kHost && !(row.bits & kRowDrawn));
   }
+  // ---- A down EVE, the host's side ----
+  // Her life comes as the worker's local mate message, never a wire line. Hers down: the pair she runs comes back in
+  // the next turn, her stream's AI task or not, with one log line, and stays ours through a 20 s down while her claims
+  // keep coming; with no mate message for 3 s her state reads unknown and her last hit gives the pair back to her. Ours
+  // down (life state 3 on our EVE): nothing goes to her while her state is unknown; with hers alive a common pair goes
+  // to her with one log line, and the boss stays ours. Her claims on the boss are dropped while we are down, their
+  // numbers still acknowledged, logged once a down, and count again once we are up; the pair she took stays hers. Her
+  // claims on a common pair still count while we are down. A down EVE's hand-overs move a pair only within 30 m of the
+  // EVE that takes it (its force target makes that EVE the enemy's last player): 102, 60 m from both EVEs, stays hers
+  // while she is down until it comes within 30 m of ours, and ours while we are down until her ghost stands by it. A
+  // pair the down rule gave stays where it went at any distance: 101 ours while she is down, hers while we are.
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    e->same_place(true);
+    e->bosses(100);
+    e->set(true, true);
+    g.spawn(101, 5001, 0);
+    g.spawn(102, 5002, 0);
+    g.place(102, 6000, 0);
+    g.spawn(130, 30, 0, 35026001, 1600, kTypeBoss); // Marionette.
+    g.flags.her_ok = true; // Her ghost where our EVE stands.
+    g.inbox.push_back(msg("SBF12 on"));
+    uint64_t t = 0, last = 0;
+    uint32_t claim = 0;
+    frame(g, *e, t);
+    const auto life = [&](coop::Life state) { // Taken at the next frame.
+      Message m;
+      m.type = Type::mate, m.life = state;
+      g.inbox.push_back(m);
+      last = t + 16;
+    };
+    const auto hers = [&](uint32_t guid, int32_t hp) {
+      g.inbox.push_back(msg("SBF12 hit 1 " + std::to_string(++claim) + " " + std::to_string(guid) + " " +
+                            std::to_string(hp) + " 0 5 " + std::to_string(g.hp(guid)) + " 0"));
+    };
+    const auto owner = [&](uint32_t hguid) {
+      for (uint8_t r = 0; r < g.table.count; ++r)
+        if (g.table.pairs[r].hguid == hguid)
+          return g.table.pairs[r].owner;
+      assert(false);
+      return coop::pilot::kHost;
+    };
+    const auto until = [&](uint64_t end, const std::string &line) { // Frames until the line goes out.
+      for (std::string sent; t < end; frame(g, *e, t += 16))
+        if (has(sent = lines(g), line))
+          return true;
+      return false;
+    };
+    hers(101, 0), hers(102, 0);
+    frame(g, *e, t = 1008);
+    assert(until(4100, "SBF12 own 1 101 G 1\n") && owner(101) == coop::pilot::kGuest);
+    frame(g, *e, t += 16);
+    assert(owner(102) == coop::pilot::kGuest && owner(130) == coop::pilot::kHost);
+    // Hers down.
+    g.flags.skill[0] = 101, g.flags.skill_count = 1;
+    life(coop::Life::down);
+    frame(g, *e, t += 16);
+    assert(has(lines(g), "SBF12 own 1 101 H 2\n") && count(g, "own", "back: her EVE is down") == 1);
+    std::string sent;
+    g.place(101, 6000, 0);
+    for (const uint64_t down = t; t < down + 20000; sent += lines(g)) {
+      if ((t - down) % 1008 == 0)
+        life(coop::Life::down), hers(101, 0);
+      frame(g, *e, t += 16);
+    }
+    assert(!has(sent, "own") && owner(101) == coop::pilot::kHost && claim > 20);
+    g.place(101, 0, 0);
+    assert(owner(102) == coop::pilot::kGuest); // 60 m from our EVE: hers still.
+    g.place(102, 1000, 0);
+    frame(g, *e, t += 16);
+    assert(has(lines(g), "SBF12 own 1 102 H 2\n") && count(g, "own", "back: her EVE is down") == 2);
+    // Her state unknown 3 s after the last mate message: her hits under 10 s old give it back.
+    g.flags.skill_count = 0;
+    uint64_t back = 0;
+    for (uint64_t next = t; !back && t < last + 6000;) {
+      if (t >= next)
+        hers(101, 0), next = t + 1000;
+      frame(g, *e, t += 16);
+      if (has(lines(g), "SBF12 own 1 101 G 3\n"))
+        back = t;
+    }
+    assert(back >= last + 3000 && back <= last + 3016 && count(g, "own", "to her") == 3);
+    // Ours down. Our hit takes it back first, once she held it 4 s.
+    frame(g, *e, t += 16);
+    g.hit(101, kShield, 5);
+    assert(until(back + 4100, "SBF12 own 1 101 H 4\n"));
+    g.place(102, 6000, 0);
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 3);
+    assert(!until(t + 10000, "own")); // Her state unknown: nothing.
+    sent.clear();
+    for (const uint64_t end = t + 6000; t < end; sent += lines(g)) {
+      if (t % 1008 == 0)
+        life(coop::Life::alive);
+      frame(g, *e, t += 16);
+    }
+    assert(has(sent, "SBF12 own 1 101 G 5\n") && !has(sent, "own 1 130 ") && owner(101) == coop::pilot::kGuest);
+    assert(owner(130) == coop::pilot::kHost && count(g, "own", "to her: our EVE is down") == 1);
+    assert(!has(sent, "own 1 102 ") && owner(102) == coop::pilot::kHost); // 60 m from her ghost: ours still.
+    g.flags.her[0] = 6000;
+    life(coop::Life::alive);
+    assert(until(t + 2000, "SBF12 own 1 102 G 3\n") && count(g, "own", "to her: our EVE is down") == 2);
+    sent.clear();
+    for (const uint64_t end = t + 4000; t < end; sent += lines(g)) { // 101 by our EVE, her ghost 60 m away.
+      if (t % 1008 == 0)
+        life(coop::Life::alive);
+      frame(g, *e, t += 16);
+    }
+    assert(!has(sent, "own") && owner(101) == coop::pilot::kGuest);
+    g.flags.her[0] = 0;
+    // Her claims on the boss while we are down: dropped, logged once, their numbers acknowledged. Hers on a common
+    // pair count.
+    life(coop::Life::alive);
+    const int32_t common = g.hp(101);
+    hers(101, 100);
+    hers(130, 100);
+    hers(130, 100);
+    frame(g, *e, t += 16);
+    hers(130, 100);
+    bool acked = false;
+    for (int i = 0; i < 12 && !acked; ++i) {
+      frame(g, *e, t += 16);
+      for (const Message &m : g.sent)
+        acked = acked || (m.type == Type::hp && m.seq == claim);
+      g.sent.clear();
+    }
+    assert(acked && g.hp(130) == 1600 && count(g, "claim dropped") == 1 && e->host.counts.bad == 0);
+    assert(g.hp(101) == common - 100);
+    // Up: her claims count, and the pair she took stays hers.
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 1);
+    hers(130, 100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1500 && count(g, "claim dropped") == 1);
+    assert(!until(t + 3000, "own") && owner(101) == coop::pilot::kGuest);
+    // Down again: logged again.
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 4);
+    hers(130, 100);
+    frame(g, *e, t += 16);
+    hers(130, 100);
+    frame(g, *e, t += 16);
+    assert(g.hp(130) == 1500 && count(g, "claim dropped") == 2 && !e->latched());
+  }
   // ---- Stage 3b, the guest's side ----
   // An own G at her epoch plus one, for a paired copy in life state 1 while same-place enemies run here: hers, her
   // freeze off (BlockAI_Dispel) in that turn, captured from then on. An own H: drawn and frozen again at once. Else the
@@ -2825,6 +2968,8 @@ int main() {
     for (uint32_t guid : G.despawned)
       assert(guid >= 909 && guid <= 912);
     assert(sh.spawning && sg.spawning && sh.epoch == 2 && sg.epoch == 2 && sg.spawns.stale >= 1 && G.made.size() == 4);
+    // The fight= line's epoch: the host's own zone and n with its one reset; hers the host's, with no reset of hers.
+    assert(sh.zone == 40 && sh.resets == 1 && sg.zone == 40 && sg.resets == 0);
     assert(sg.spawns.stale > stale_before && stale_before >= 1 && count(G, "drop refused") == 0);
     assert(sh.spawns.answered >= 2 && sh.spawns.stale >= 1); // Answered at epoch 2 too; her round of epoch 1 dropped.
     assert(eg->guest.linked() == 8); // The created four paired through stage 1.
@@ -2833,6 +2978,25 @@ int main() {
     assert(count(G, "spawns leave", "save-row") == 1 && count(G, "spawns leave", "keep-row") == 1); // Once each.
     assert(count(G, "spawns leave") == 2 && count(H, "spawns leave", "save-row") == 1 && count(H, "spawns leave") == 1);
     assert(std::none_of(G.made.begin(), G.made.end(), [](const Game::Made &m) { return m.id == 24; }));
+    // Her own zone resets count in the fight= line's resets only where she shares the host's zone, within 100 m of his
+    // ghost: one 20 m from it counts, one 200 m away does not.
+    for (uint64_t t = 20016; t <= 26000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 20512 || t == 23504)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 1);
+      if (t == 21008 || t == 24000)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 3);
+      if (t == 22000) {
+        assert(eg->snapshot().resets == 1);
+        G.flags.her[1] = -18000;
+      }
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    assert(eg->snapshot().resets == 1 && count(G, "spawns epoch", "reset") == 2 && eh->snapshot().resets == 1);
   }
 
   // ---- Bosses (stage 5), two worlds through channel 2 with same spawns on, the EVEs 20 m apart: boss A, which both
@@ -2972,6 +3136,60 @@ int main() {
     assert(count(H, "summon sent") == 2 && eh->counts.summons == 2);
   }
 
+  // ---- The fight= line's boss= and battle=, at each census ----
+  // The host: a boss it follows in battle mode (+0xb58) reads boss; the enemies in BattleMode (state 30) within 30 m of
+  // our EVE count in battle, one 40 m away does not. The guest: the host's bstart taken holds boss for 10 s after it,
+  // with her copy out of battle mode too.
+  {
+    Game H;
+    auto eh = engine(false, true);
+    eh->allow(nullptr, 0);
+    eh->same_place(true);
+    eh->bosses(100);
+    eh->set(true, true);
+    H.spawn(130, 30, 0, 35026001, 1600, kTypeBoss);
+    for (uint32_t i = 0; i < 3; ++i) {
+      H.spawn(101 + i, 5001 + i, 0);
+      H.place(101 + i, i == 0 ? 1000.f : i == 1 ? 2990.f : 4000.f, 0);
+    }
+    H.inbox.push_back(msg("SBF12 on"));
+    uint64_t t = 0;
+    const auto run = [&](Game &w, Engine &e, uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(w, e, t);
+    };
+    run(H, *eh, 500);
+    assert(eh->host.linked() == 4 && !eh->snapshot().boss && eh->snapshot().battle == 0);
+    for (uint32_t guid : {101u, 102u, 103u})
+      H.state(guid, kBattleState, 1);
+    H.mem.put<uint8_t>(H.fsb(130) + kBattleFlag, 1);
+    run(H, *eh, 1000);
+    assert(eh->snapshot().boss && eh->snapshot().battle == 2);
+    H.mem.put<uint8_t>(H.fsb(130) + kBattleFlag, 0);
+    H.state(101, kBattleState, 0);
+    run(H, *eh, 1500);
+    assert(!eh->snapshot().boss && eh->snapshot().battle == 1);
+    Game G;
+    G.spawns(); // The job sender and the reg made.
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(930, 30, 0, 35026001, 1600, kTypeBoss);
+    for (const char *line : {"SBF12 world 1", "SBF12 place 1 1", "SBF12 bosses 1 100",
+                             "SBF12 up 1 130 30 0 35026001 1600"})
+      G.inbox.push_back(msg(line));
+    t = 0;
+    run(G, *eg, 496);
+    assert(eg->guest.linked() == 1 && G.table.on && !eg->snapshot().boss);
+    G.inbox.push_back(msg("SBF12 bstart 1 130"));
+    run(G, *eg, 800);
+    assert(G.battles.size() == 1 && eg->snapshot().boss);
+    G.mem.put<uint8_t>(G.fsb(930) + kBattleFlag, 0);
+    run(G, *eg, 10200);
+    assert(eg->snapshot().boss);
+    run(G, *eg, 10800);
+    assert(!eg->snapshot().boss);
+  }
   // ---- Bosses (stage 5), the guest's side, the host's lines fed in: her copies of Marionette (930) and GorillaB (931)
   // paired and drawn, a common enemy (932) too ----
   // bstart: SetBattleMode on her copy once, whatever the host's repeats; none for a copy she does not pair. phase: the
@@ -3373,8 +3591,9 @@ int main() {
 
   // ---- Bosses (stage 5), the guest's side: bstart far from her copy ----
   // No SetBattleMode on her boss copy while our EVE stands over 30 m from it and is not its game's last player: its
-  // battle-start events would run in her world for a fight she is not in. The host's repeat once she stands within 30 m
-  // starts it.
+  // battle-start events would run in her world for a fight she is not in. Nor while our EVE is down within 30 m of it:
+  // a down EVE never takes part. Either way the fight= line's boss= reads the bstart, so no revive runs in the host's
+  // boss fight. The host's repeat once she stands within 30 m, alive, starts it.
   {
     Game G;
     G.spawns();
@@ -3392,13 +3611,22 @@ int main() {
         frame(G, *eg, t);
     };
     run(500);
-    assert(eg->guest.linked() == 1 && G.table.on);
+    assert(eg->guest.linked() == 1 && G.table.on && !eg->snapshot().boss);
+    G.place(930, 2000, 0);
+    G.mem.put<int32_t>(G.fsb(1) + kLife, 3);
     G.inbox.push_back(msg("SBF12 bstart 1 130"));
-    run(600);
-    assert(G.battles.empty() && eg->counts.bstarts == 0);
+    run(800);
+    assert(G.battles.empty() && eg->counts.bstarts == 0 && eg->snapshot().boss);
+    run(11000);
+    assert(!eg->snapshot().boss);
+    G.mem.put<int32_t>(G.fsb(1) + kLife, 1);
+    G.place(930, 6000, 0);
+    G.inbox.push_back(msg("SBF12 bstart 1 130"));
+    run(11300);
+    assert(G.battles.empty() && eg->counts.bstarts == 0 && eg->snapshot().boss);
     G.place(930, 2000, 0);
     G.inbox.push_back(msg("SBF12 bstart 1 130"));
-    run(700);
+    run(11400);
     assert((G.battles == std::vector<uint64_t>{G.fsb(930)}) && eg->counts.bstarts == 1);
   }
 
@@ -4694,6 +4922,27 @@ int main() {
     frame(n, *en, 16);
     assert(!n.body(908).deaths && en->guest.counts.unshared == 1 && !en->counts.no_eve);
   }
+  // A down EVE (life state 3, 4 or 5) takes part only by its own record: the host's dead for a copy 10 m from our dead
+  // EVE finds no part (dead-unshared), one whose last player is our EVE dies ours. Spawning (6) counts as alive.
+  for (const int32_t state : {3, 4, 5, 6}) {
+    Game g;
+    auto e = engine(true, false);
+    g.inbox.push_back(msg("SBF12 world 1"));
+    for (uint32_t i = 0; i < 2; ++i) {
+      g.spawn(921 + i, 5021 + i, 0);
+      g.place(921 + i, i ? 6000.f : 1000.f, 0);
+      g.inbox.push_back(msg("SBF12 up 1 " + std::to_string(121 + i) + " " + std::to_string(5021 + i) + " 0 900 1600"));
+    }
+    g.mem.put<uint32_t>(g.by_guid[922] + kLastPlayer, 1);
+    frame(g, *e, 0);
+    assert(e->guest.linked() == 2);
+    g.mem.put<int32_t>(g.fsb(1) + kLife, state);
+    g.inbox.push_back(msg("SBF12 dead 1 121"));
+    g.inbox.push_back(msg("SBF12 dead 1 122"));
+    frame(g, *e, 16);
+    assert(g.body(921).deaths == (state == 6 ? 1 : 0) && g.body(922).deaths == 1 && g.body(922).killer == g.eve);
+    assert(e->guest.counts.unshared == (state == 6 ? 0u : 1u));
+  }
 
   // ---- Together only: our effect call naming our EVE as the game's last player ----
   // The host's crowd control mirrored on her copy 911, 60 m from our EVE: when SB's effect call stores our EVE at the
@@ -5163,6 +5412,59 @@ int main() {
     take();
     assert((out == std::vector<std::string>{"SBF12 world 6"}));
   }
+  // The worker hands her life (link_core.h's mate_life()) to the job as a local mate message: at each change, again
+  // each second while it is down or alive, and at each new session; none while the mode does not run with her. No
+  // line carries it: format() writes nothing for it, and parse() never makes one.
+  {
+    Desk io;
+    auto e = engine(false, false);
+    Mail mail;
+    Worker w(*e, mail);
+    const auto gate = [] { return std::string(); };
+    const std::vector<std::string> none;
+    Snapshot s;
+    uint64_t t = 0;
+    const auto given = [&] { // The mate messages the job takes at its next hand-over, in order.
+      std::vector<coop::Life> out;
+      Message m;
+      assert(mail.exchange(s));
+      while (mail.receive(m))
+        if (m.type == Type::mate)
+          out.push_back(m.life);
+      return out;
+    };
+    using L = std::vector<coop::Life>;
+    w.pass(t, true, false, true, none, gate, io, false, coop::Life::down);
+    assert(given().empty()); // Not asked.
+    w.ask(coop::parse_request("fight on 900"), gate, io);
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::down);
+    assert(e->on() && given() == L{coop::Life::down});
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::down);
+    assert(given().empty());
+    w.pass(t = 1000, true, false, true, none, gate, io, false, coop::Life::down);
+    assert(given().empty());
+    w.pass(t = 1016, true, false, true, none, gate, io, false, coop::Life::down);
+    assert(given() == L{coop::Life::down});
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::alive);
+    assert(given() == L{coop::Life::alive});
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::unknown);
+    assert(given() == L{coop::Life::unknown});
+    for (t += 16; t < 4000; t += 16) {
+      w.pass(t, true, false, true, none, gate, io, false, coop::Life::unknown);
+      assert(given().empty());
+    }
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::alive);
+    assert(given() == L{coop::Life::alive});
+    w.pass(t += 16, true, false, true, none, gate, io, true, coop::Life::alive); // Photo mode: paused.
+    assert(!e->on() && given().empty());
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::alive); // A new session.
+    assert(e->on() && given() == L{coop::Life::alive});
+    assert(!has(io.lines(), "mate"));
+    Message m;
+    m.type = Type::mate, m.life = coop::Life::down;
+    const std::string line = "SBF12 mate 2";
+    assert(format(m).empty() && parse(line.data(), line.size()).type == Type::invalid);
+  }
   // The worker: refusals, waiting for her, starting and pausing with her link and the loaded save, her lines in and
   // ours out as text, the stats line, the gate while on, the lobby changing hands, off, and the latch.
   {
@@ -5261,6 +5563,14 @@ int main() {
     w.pass(t += 1000, true, false, true, none, gate, io);
     assert(has(w.detail(), " spawns=stopped spawned=4 despawned=3 spawns_differ=2 scale="));
     s.spawning = false, s.pilot_why = "fight", s.spawns = SpawnCounts();
+    // The revive's and the travel's guards last: a boss in battle mode, the enemies in battle mode near our EVE, and
+    // the epoch's zone, n and our own resets.
+    assert(has(w.detail(), " bosses=off boss=0 battle=0 epoch=0/0/0"));
+    s.boss = true, s.battle = 3, s.zone = 40, s.epoch = 2, s.resets = 1;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
+    assert(has(w.detail(), " bosses=off boss=1 battle=3 epoch=40/2/1 her="));
+    s.boss = false, s.battle = 0, s.zone = 0, s.epoch = 0, s.resets = 0;
     assert(mail.exchange(s));
     w.pass(t += 1000, true, false, true, none, gate, io);
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.

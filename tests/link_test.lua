@@ -273,8 +273,8 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==4 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
-    and s.leave_key.name=='F8')
+assert(keys==5 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+    and s.leave_key.name=='F8' and s.follow_key.name=='F7')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
 -- The menu's own: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game or english; a new file names them.
 assert(s.ui_scale==100 and math.type(s.ui_scale)=='integer' and s.ui_sounds==true and s.ui_language=='game')
@@ -508,6 +508,62 @@ for _,bad in ipairs({'Quest;Sub','a\tb','Quête',('1'):rep(201)}) do
         and s.quest_deny=='',notes[1])
 end
 
+-- revive (experimental, your own): on or off in any case, off by default and in a file written before it. A new file
+-- names it right after quest_deny, with its comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nquest_deny=\n# Revive, experimental: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('\nrevive=off\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.revive==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.revive==false)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('revive='..case[1])
+    assert(#notes==0 and s.revive==case[2],case[1])
+end
+s,notes=Link.parse_settings('revive=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for revive (use on or off); revive stays off"
+    and s.revive==false,notes[1])
+-- cutscene_wait (yours, as the guest): on or off in any case, on by default and in a file written before it, named
+-- right after photo_pause with its comment (it takes photo sync's pause and its cap).
+assert(Link.DEFAULT:find('\nphoto_pause=full\n# Cutscene wait: on or off.',1,true)
+    and Link.DEFAULT:find('\ncutscene_wait=on\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.cutscene_wait==true)
+s,notes=Link.parse_settings('CUTSCENE_WAIT=Off')
+assert(#notes==0 and s.cutscene_wait==false)
+s,notes=Link.parse_settings('cutscene_wait=2')
+assert(#notes==1 and s.cutscene_wait==true and notes[1]:find("'2' is not allowed for cutscene_wait",1,true))
+-- follow_host (yours, as the guest): ask, always or off in any case, ask by default and in a file written before it;
+-- follow_key F7 by default, an F-key as the other keys, or none. A file written before follow_key that holds F7 for
+-- another action keeps it there: follow_key reads none, with no line.
+assert(Link.DEFAULT:find('\nfollow_host=ask\n',1,true) and Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.follow_host=='ask' and s.follow_key.name=='F7' and s.follow_key.key=='F7')
+s,notes=Link.parse_settings('follow_host=ALWAYS\nfollow_key=Shift+F9\n')
+assert(#notes==0 and s.follow_host=='always' and s.follow_key.name=='Shift+F9' and s.follow_key.mod=='SHIFT')
+s,notes=Link.parse_settings('follow_host=off\nfollow_key=none\n')
+assert(#notes==0 and s.follow_host=='off' and s.follow_key.key==nil and s.follow_key.name=='none')
+s,notes=Link.parse_settings('follow_host=yes\n')
+assert(#notes==1 and s.follow_host=='ask'
+    and notes[1]:find("'yes' is not allowed for follow_host (use ask, always or off)",1,true),notes[1])
+s,notes=Link.parse_settings('status_key=F7\n')
+assert(#notes==0 and s.status_key.name=='F7' and s.follow_key.name=='none','An older file keeps its F7')
+s,notes=Link.parse_settings('status_key=F7\nfollow_key=F7\n')
+assert(#notes==1 and notes[1]=='settings: F7 is set for two actions: default keys used' and s.follow_key.name=='F7'
+    and s.status_key.name=='F6')
+-- collide (experimental, your own): on or off in any case, off by default and in a file written before it, named
+-- right after follow_host with its comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nfollow_host=ask\n# Solid partner, experimental: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('\ncollide=off\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.collide==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.collide==false)
+s,notes=Link.parse_settings('COLLIDE=On')
+assert(#notes==0 and s.collide==true)
+s,notes=Link.parse_settings('collide=solid')
+assert(#notes==1 and notes[1]=="settings: line 1: 'solid' is not allowed for collide (use on or off); collide stays off"
+    and s.collide==false,notes[1])
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
 -- written before them reads the defaults with no line. A bad value keeps the default, with a line.
@@ -646,6 +702,12 @@ assert(link.state(true,30,'1','off',0)=='world=1 rate=30 photo=1 sync=off max=0'
 assert(link.state(false,30,'0','notice',3600,true)=='world=title rate=30 photo=0 sync=notice max=3600'
     and state_writes==6 and #files[STATE_FILE]<=64)
 assert(link.state(true,30,'0','notice',3600,true)=='world=1 rate=30 photo=0 sync=notice max=3600','A save wins')
+-- The host's cutscene (photo=c) and the guest's ask for its pause (cut=1, after the rest; none while it is not asked),
+-- the longest line still within the 64 bytes.
+assert(link.state(false,60,'c','notice',3600,true,true)=='world=title rate=60 photo=c sync=notice max=3600 cut=1'
+    and #files[STATE_FILE]<=64)
+assert(link.state(true,60,'0','both',600,nil,false)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(true,60,'0','both',600,nil,true)=='world=1 rate=60 photo=0 sync=both max=600 cut=1')
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
@@ -751,6 +813,17 @@ summary(HEAD..'friend=1 0 Kaanta\n') -- Back to the status the photo line's test
 files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
 lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
+-- The photo line as read (group.lua's cutscene notice): ours, hers and our pause; nil without the line.
+local seen=fresh.photo()
+assert(seen.mine=='0' and seen.peer=='1' and seen.frozen==true)
+files[STATUS]=HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=c frozen=1 sync=both\n'
+fresh.changes()
+assert(fresh.photo().peer=='c' and fresh.photo().frozen==true)
+assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=c frozen=1 sync=both\n')=='Co-op: hosting Kaanta.',
+    'A cutscene pause is no photo pause')
+files[STATUS]=HEAD..'friend=1 0 Kaanta\n'
+fresh.changes()
+assert(fresh.photo()==nil)
 files[STATUS]=nil
 
 -- Chat (UI-DESIGN 4.2, 5.2): coop-say.txt, a typed line, is written only while the last one is gone, whole (beside,
@@ -796,7 +869,32 @@ local mate=fresh.mate()
 assert(mate.hp==900 and mate.max_hp==1600 and mate.shield==0 and mate.max_shield==50 and mate.blocks==5
     and mate.beta==200 and mate.max_beta==1000 and mate.burst==0 and mate.max_burst==0 and mate.tachy==0
     and mate.max_tachy==0 and mate.life==1)
-assert(fresh.ping()==118 and fresh.chatting()==true)
+assert(fresh.ping()==118 and fresh.chatting()==true and fresh.life()==nil)
+-- Our life state and HP (life=, out of the log too), from the start of its own line only, whole numbers only.
+files[STATUS]=HEAD..'friend=1 0 x\n'..MATE..'life=3 0\nlast=#9 x\n'
+lines=fresh.changes()
+for _,line in ipairs(lines) do assert(not line:find('^life='),'life= stays out of the log') end
+assert(fresh.life().state==3 and fresh.life().hp==0 and fresh.mate().hp==900)
+for _,bad in ipairs({'life=1\n','life=1 2 3\n','life=-1 5\n','life=x 5\n','friend=1 0 x life=1 5\n'}) do
+    files[STATUS]=HEAD..'friend=1 0 x\n'..bad
+    fresh.changes()
+    assert(fresh.life()==nil,bad)
+end
+-- The follow's camps lines: the host's camps?=<id> (her last request) and the guest's camps=<answer>, from the start of
+-- their own lines only, each in the log once.
+files[STATUS]=HEAD..'friend=1 0 x\ncamps?=41\ncamps=7 Xion Xion_Camp_10:12\n'
+lines=fresh.changes()
+local asked,answer=fresh.camps()
+assert(asked==41 and answer=='7 Xion Xion_Camp_10:12')
+local logged=table.concat(lines,'\n')
+assert(logged:find('camps?=41',1,true) and logged:find('camps=7 Xion',1,true))
+assert(#fresh.changes()==0,'Unchanged: not logged again')
+for _,bad in ipairs({'friend=1 0 x camps?=41 camps=7 x\n','camps?=x\ncamps=\n','camps?=1 2\n'}) do
+    files[STATUS]=HEAD..bad
+    fresh.changes()
+    asked,answer=fresh.camps()
+    assert(asked==nil and answer==nil,bad)
+end
 files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=-1 session=1 '
     ..'session_ping=-1\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
 fresh.changes()

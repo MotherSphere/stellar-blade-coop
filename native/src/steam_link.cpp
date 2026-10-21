@@ -9,7 +9,8 @@
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
 // and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h), and
-// puts our join code on the clipboard on the copy request (clipboard.h).
+// puts our join code on the clipboard on the copy request (clipboard.h). The follow's camps lines go through the link
+// (link_core.h), its travel request to the game thread (pose_tick.cpp).
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -525,6 +526,10 @@ bool step() {
       event(coop::pose::ask_quests(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::travel: // The follow's call: the game thread's.
+      event(coop::pose::ask_travel(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::freeze: {
       coop::Request r = coop::parse_request(request);
       event(coop::pose::ask_freeze(!r.off, r.ms, GetTickCount64()));
@@ -577,10 +582,12 @@ bool step() {
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.
       link->world(coop::pose::world_loaded());
-      // Ours as Lua last wrote it; photo_sync=both is sent as notice while this game cannot pause.
+      // Ours as Lua last wrote it; photo_sync=both is sent as notice while this game cannot pause. cut: the guest's Lua
+      // asks for the pause during the host's cutscene.
       const coop::State lua = coop::pose::lua_state();
       link->photo(lua.photo,
-                  lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max);
+                  lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max,
+                  lua.cut);
       link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
@@ -659,7 +666,8 @@ bool step() {
         [](const std::string &line) { return link && link->send_fight(line, true); }, quest_files);
     bool fighting = coop::pose::fight_pass(
         GetTickCount64(), linked, linked && link->host(), coop_marker, channel2,
-        [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); });
+        [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); },
+        linked ? link->mate_life() : coop::Life::unknown);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {

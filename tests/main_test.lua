@@ -3,7 +3,10 @@
 -- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
 -- on any slot even when that raises), coop nightop reaches Night Operation's run on the co-op save slot only, its stop
--- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
+-- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), the friend's revive (group.lua)
+-- is built with the link and ticked every 250 ms until coop off (its photo state and cut go into the state), coop
+-- revive test reaches its probe, coop look changes
+-- what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
 -- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
@@ -153,8 +156,9 @@ local fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title)
+    state=function(world,rate,photo,sync,max,title,cut)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
+        gr.cuts[#gr.cuts+1]=cut
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -164,6 +168,7 @@ local fake_link={
 fake_link.Q={notes={}}
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
+fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
 local native_ok
 local captured,remoted={},nil
 local fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
@@ -193,7 +198,8 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         world=function() return in_world,at_title end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
-        me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
+        me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end,
+        collide=function(on) package.loaded.puppet.collide=on end} -- Each 250 ms: no room for one more local.
 end}
 package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings} -- The real parser.
 local said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
@@ -212,9 +218,30 @@ end}
 -- Night Operation's run: what nightop_run.new got (o), coop nightop's words, its ticks and stops, a stop that raises. A
 -- global: this chunk is at Lua's 200 locals.
 nr={o=nil,runs={},ticks=0,stops={},raise=nil}
+-- The friend's revive and the cutscene wait (group.lua): what group.new got (o), its ticks' clocks, coop revive test's
+-- answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its cut, and the cut
+-- each state write got (cuts). A global too.
+gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
+package.loaded.group={new=function(o)
+    gr.o=o
+    return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
+        test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
+        photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
+        cutscene_playing=function() return gr.playing==true end}
+end}
+-- The follow (travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop travel probe's
+-- camps. A global too.
+tv={o=nil,ticks={},presses=0,probes={}}
+package.loaded.travel={new=function(o)
+    tv.o=o
+    return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
+        press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
+        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end}
+end}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
+        running=function() return nr.running==true end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
@@ -347,7 +374,7 @@ package.loaded.chat={new=function(lines,on)
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
-    ..'status | report | where | loopback '
+    ..'status | report | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
     ..'fight on|off|status|probe|test|record|replay|pilot|'
@@ -366,6 +393,7 @@ local function load_main(with_native)
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     nr.o,nr.runs,nr.ticks,nr.stops=nil,{},0,{}
+    gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
@@ -419,11 +447,13 @@ press('F5'); flush()
 assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the co-op menu opens in the game world '
     ..'only\n' and said[#said]=='The co-op menu opens in the game world only.'
     and said_en[#said]=='The co-op menu opens in the game world only.','F5 opens the menu, never hosts')
-press('F7'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F7') and not logged('key Shift+F5'),
+press('F9'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F9') and not logged('key Shift+F5'),
     'Keys no action holds: nothing')
 clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
 press('DOWN_ARROW'); press('ESCAPE'); assert(executes==executed+4,'Menu keys while closed: not queued')
 press('RETURN'); assert(executes==executed+5,'Enter is queued: the chat decides on the game thread')
+press('F7'); flush() -- follow_key: the travel to the host, as coop travel host.
+assert(tv.presses==1 and logged('key F7: follow') and last()=='[StellarCoop] OK: asked the host for camps\n',last())
 press('F6'); flush()
 assert(#asked==1 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
 assert(said[#said]=='Co-op: not in a session.','The summary on screen too')
@@ -667,6 +697,16 @@ photo_error,photo_mode,reads=nil,true,photo_reads
 loops[2].f(); loops[2].f()
 assert(photo_reads==reads and photos[#photos]=='0 both 600' and veils[#veils]==false,'Off for this load')
 photo_mode=false
+-- The host's cutscene and the guest's ask for its pause (group.lua decides both): our own photo state goes to
+-- group.lua, what it gives back to the state with its cut, and our veils keep our own.
+gr.wire,gr.cut=nil,false
+loops[2].f()
+assert(gr.owns[#gr.owns]=='0' and photos[#photos]=='0 both 600' and gr.cuts[#gr.cuts]==false)
+gr.wire,gr.cut='c',true
+loops[2].f()
+assert(gr.owns[#gr.owns]=='0' and photos[#photos]=='c both 600' and gr.cuts[#gr.cuts]==true and veils[#veils]==false
+    and photo_veils[#photo_veils][2]==false,'Our veils read our own state')
+gr.wire,gr.cut=nil,false
 -- coop freeze: 1 to 3600 whole seconds, or off; anything else is its usage line and asks nothing.
 coop('freeze','10')
 assert(asked[#asked]=='freeze 10' and last()=='[StellarCoop] OK: asked the native part: freeze 10\n',last())
@@ -686,6 +726,42 @@ for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'rese
 end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
 assert(notice_stops==0 and ui_stops==0)
+-- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
+-- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
+assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui_text').en)=='Kaanta'
+    and type(gr.o.tell)=='function' and type(gr.o.log)=='function' and gr.o.puppet.her_map()=='/game/e04')
+gr.o.log('revive waits: friend far'); assert(last()=='[StellarCoop][GR] revive waits: friend far\n',last())
+gr.count=#gr.ticks
+loops[2].f(); assert(#gr.ticks==gr.count+1 and gr.ticks[#gr.ticks]-gr.ticks[#gr.ticks-1]==0.25)
+coop('revive','test')
+assert(gr.tests==0 and last()=='[StellarCoop] STOP: coop revive test runs only on a co-op save (INSTALL.md: Co-op '
+    ..'saves); now no slot status\n',last())
+gr.status,status_text=status_text,with_slot('slot=coop index=4 marker=4\n')
+coop('revive','test'); assert(gr.tests==1 and last()=='[StellarCoop] OK: ServerRequest_ActorRespawn asked\n',last())
+status_text=gr.status
+for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
+    coop('revive',table.unpack(bad))
+    assert(gr.tests==1 and last()=='[StellarCoop] STOP: Use: coop revive test\n',last())
+end
+-- The follow: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's clock; it
+-- waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and during a
+-- cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; anything else its usage line.
+assert(tv.o.link==fake_link and tv.o.settings.follow_host=='ask' and tv.o.settings.follow_key.name=='F7'
+    and tv.o.name(require('ui_text').en)=='Kaanta' and type(tv.o.tell)=='function' and tv.o.puppet.her_map()=='/game/e04')
+tv.o.log('travel: answered camps 1 none title'); assert(last()=='[StellarCoop][TR] travel: answered camps 1 none title\n')
+assert(tv.o.paused()==false and tv.o.night()==false and tv.o.cutscene()==false)
+kit_paused=true; assert(tv.o.paused()==true); kit_paused=false
+nr.running=true; assert(tv.o.night()==true); nr.running=nil
+gr.playing=true; assert(tv.o.cutscene()==true); gr.playing=nil
+tv.count=#tv.ticks
+loops[2].f(); assert(#tv.ticks==tv.count+1 and tv.ticks[#tv.ticks]==gr.ticks[#gr.ticks])
+coop('travel','host'); assert(tv.presses==2 and last()=='[StellarCoop] OK: asked the host for camps\n',last())
+coop('travel','probe','DED10_Camp_07')
+assert(tv.probes[1]=='DED10_Camp_07' and last()=='[StellarCoop] OK: travel DED10_Camp_07 asked\n',last())
+for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'}}) do
+    coop('travel',table.unpack(bad))
+    assert(tv.presses==2 and #tv.probes==1 and last()=='[StellarCoop] STOP: Use: coop travel host\n',last())
+end
 nr.ticked=nr.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
@@ -693,10 +769,13 @@ assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
 assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
+assert(gr.stops==1,'off gives back a death screen the revive hid')
 local written=#states
 takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
+assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
+assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
 chatting=true; loops[2].f(); chatting=false
@@ -786,6 +865,11 @@ assert(logged('photo sync: notice, longest pause no limit, ghost in your photos 
 in_world,photo_mode=true,true; loops[2].f()
 assert(photos[#photos]=='1 notice 0' and veils[#veils]==true)
 assert(photo_veils[#photo_veils][1]==true and photo_veils[#photo_veils][2]==false,'The ghost goes, its tag would stay')
+assert(package.loaded.puppet.collide==false,'collide=off by default, to the ghost each 250 ms')
+settings_text='collide=on\n'
+load_main(true)
+loops[2].f()
+assert(package.loaded.puppet.collide==true,'collide=on')
 settings_text='photo_sync=yes\nphoto_freeze_max=29\n'
 load_main(true)
 assert(logged("settings: line 1: 'yes' is not allowed for photo_sync (use both, notice or off); photo_sync stays both"))
@@ -1441,6 +1525,56 @@ assert(fight_step(GUEST_ON..'1 maxhp=1')=='Ennemis partagés : Kaanta est à ter
     ..'ennemis partagés reviennent à pleine santé.')
 mate_v=nil
 fight_step('fight=off why=coop fight off')
+-- Camp rests in a shared area, as the guest, from the line's epoch=<zone>/<n>/<resets>: the host's n moving in the same
+-- zone while their vitals read alive and they were not down in the last 10 s says their game reset the area; our own
+-- resets moving with spawns=on and our life alive for the 10 s before says only their rest brings the enemies back.
+-- Nothing for the first epoch line, another zone, a respawn of either player, no life read, spawns off, or as the host.
+do
+    local REST,MINE="Enemies are back: the area reset in Kaanta's game.",
+        "Shared area: only Kaanta's camp rest brings its enemies back."
+    local function guest(zone,n,resets,spawns)
+        return 'fight=on mode=on role=guest pairs=2 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 '
+            ..'maxhp=0'..(spawns=='off' and ' spawns=off' or ' spawns=on spawned=0 despawned=0 spawns_differ=0')
+            ..' scale=100/100 sim_us=5/9 threads=1/1/2 bosses=off boss=0 battle=0 epoch='..zone..'/'..n..'/'..resets
+    end
+    local function rest_tick(text,ticks) -- The rest notices said in ticks of 250 ms (one by default).
+        fight_text=text
+        local n,out=#said,{}
+        for _=1,ticks or 1 do loops[2].f() end
+        for i=n+1,#said do
+            if said[i]:find('^Enemies are back') or said[i]:find('^Shared area') or said[i]:find('^Les ennemis')
+                or said[i]:find('^Zone partagée') then out[#out+1]=said[i] end
+        end
+        return table.concat(out,'|')
+    end
+    local up,down,language={state=1,hp=500},{state=3,hp=0},kit_language
+    mate_v,fake_link.Q.life,kit_language=vitals(1000,1),up,nil
+    for _,step in ipairs({{guest(40,1,0),'',41},{guest(40,2,0),REST},{guest(40,2,0),''},{guest(41,3,0),''},
+            {guest(41,3,1),MINE},{guest(41,4,2),REST..'|'..MINE},
+            {guest(41,4,2),'',2,vitals(0,4)},{guest(41,5,2),'',36},{guest(41,6,2),''}, -- Their respawn: nothing.
+            {guest(41,6,2),'',3},{guest(41,7,2),REST},
+            {guest(41,7,2),'',4,nil,down},{guest(41,7,3),'',36},{guest(41,7,4),''}, -- Our respawn: nothing.
+            {guest(41,7,4),'',3},{guest(41,7,5),MINE},
+            {guest(41,7,6),'',1,nil,false},{guest(41,7,6),'',41},{guest(41,7,7),MINE}, -- No read, then 10 s up.
+            {guest(41,7,8,'off'),''},
+            {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 '
+                ..'bosses=off boss=0 battle=0 epoch=41/8/9',''},
+            {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 '
+                ..'bosses=off boss=0 battle=0 epoch=41/9/10',''}}) do
+        if step[4] then mate_v=step[4] end
+        if step[5]~=nil then fake_link.Q.life=step[5] or nil end
+        local got=rest_tick(step[1],step[3])
+        assert(got==step[2],step[1]..': '..got)
+        mate_v,fake_link.Q.life=vitals(1000,1),up
+    end
+    fight_step('fight=off why=coop fight off')
+    kit_language='fr-FR'
+    assert(rest_tick(guest(40,1,0),41)=='' and rest_tick(guest(40,2,1))=='Les ennemis sont revenus : la zone a été '
+        ..'réinitialisée dans la partie de Kaanta.|Zone partagée : seul le repos de Kaanta au camp fait revenir ses '
+        ..'ennemis.')
+    mate_v,fake_link.Q.life,kit_language=nil,nil,language
+    fight_step('fight=off why=coop fight off')
+end
 -- The same notices in the game's language (French: 0 and 1 singular), each with its English for the line above EVE.
 local HOST_N='fight=on mode=on role=host claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 enemies='
 for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_N..'0',''},
@@ -1796,7 +1930,8 @@ link_mode='none'
 settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
-    ..'Leave the session|F8|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\nLongest pause|10 min|normal\n'),screen())
+    ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
 assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
@@ -1946,8 +2081,8 @@ key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
 -- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; the new
 -- key works at once (every F-key is bound). The file had no menu_key line: host_key=none is written with it, so the old
--- key never hosts again by itself.
-settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\n'
+-- key never hosts again by itself. The follow key is off F7 here, for the status key below.
+settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\n'
 key('F5'); to('Options'); key('RETURN')
 assert(focus()=='Open this menu')
 key('RETURN'); assert(select(2,focus())=='Press a key' and menu_view.note.s:find('^Press F1 to F12'))
@@ -1957,7 +2092,7 @@ key('RETURN')
 assert(menu_view.note.s=='Use F1 to F12, with at most one of Shift, Ctrl, Alt.','Enter is the chat key only')
 key('ESCAPE'); assert(select(2,focus())=='F5' and menu_view.note.s=='' and focus()=='Open this menu','Esc: not waiting')
 key('RETURN'); key('F7','SHIFT')
-assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nmenu_key=Shift+F7\n'
+assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\nmenu_key=Shift+F7\n'
     and select(2,focus())=='Shift+F7')
 clock=clock+1
 key('F5'); assert(kit_calls[#kit_calls]~='show false' and not logged('key F5: host'),'F5 is nobody\'s now')
@@ -1977,6 +2112,9 @@ do
 end
 clock=clock+1
 key('F7'); assert(logged('key F7: status'))
+-- The follow key took the file's F9 with the menu key's change (every key comes from the file): F9 follows now.
+clock=clock+1
+key('F9'); assert(logged('key F9: follow'))
 -- coop off: closed, the kit stopped (it gives the game its input back), no key opens it again.
 coop('off')
 assert(kit_calls[#kit_calls]=='stop nil')
@@ -2278,4 +2416,5 @@ loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native pa
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n','No native part needed')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
+coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
 io.stdout:write('main_test ok\n')

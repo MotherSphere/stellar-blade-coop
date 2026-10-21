@@ -13,11 +13,12 @@ The keys work with or without the console. They need the native part (`StellarCo
 | --- | --- | --- |
 | F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session | (none) |
 | F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
+| F7 | As the guest, travel to the camp nearest the host ([Following the host](#following-the-host)), or cancel the travel that `follow_host=always` is about to start | `coop travel host` |
 | F8 | Leave the session | `coop leave` |
 | Enter | During a session, open the [chat](#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change F5, F6 and F8 in the menu's Options page or in [coop-settings.txt](#coop-settingstxt), and `host_key`
+You can change F5, F6, F7 and F8 in the menu's Options page or in [coop-settings.txt](#coop-settingstxt), and `host_key`
 in the file only. A key passes its action to the game thread, where the same checks as for the console command apply
 (`coop off` included). The log says `key F5: menu`. The other keys then log the usual `OK:` or `STOP:` line; the menu
 key logs one only when the menu cannot open.
@@ -66,9 +67,11 @@ or shows the mouse cursor for one of its own screens.
 ### Options
 
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
-(the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
-looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the title
-and [shared quests](#shared-quests-experimental)), Combat (shared enemies, same place, who same-place enemies attack,
+(the menu, status, leave and travel keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost
+(the looks, the [solid partner](#solid-partner-experimental) and the send rate), Session (who can join a session you
+host, the [revive](#revive-by-your-friend-experimental), the [cutscene wait](#cutscene-wait) and
+[following the host](#following-the-host)), Saves (the [co-op saves](#co-op-saves) at the title and
+[shared quests](#shared-quests-experimental)), Combat (shared enemies, same place, who same-place enemies attack,
 same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards), Display (the size,
 sounds and language of the menu, the chat and the partner HUD) and Chat.
 
@@ -190,7 +193,8 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (11) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
+- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see
+  [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -239,6 +243,84 @@ join`, with Accept and Deny. It opens on its own, maybe while you walk or use th
   (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
   its `pending=` line.
+
+### Following the host
+
+As the guest on a co-op save, you can go where the host plays through the game's own fast travel. When the host is on
+another map, or more than 150 m from you on yours, one notice offers it:
+`<host> is in <map>. Press F7 to travel to the camp nearest them.` F7 (`follow_key`) asks the host's game for the 8
+camps nearest their EVE, and your game travels to the first of them that it can use (`Travelling to <host>.`). Nothing
+changes in the host's game. This has not been tested in game yet.
+
+- `follow_host=ask` (the default) shows that notice. With `always`, it reads
+  `Following <host> in 5 s. Press F7 to stay.` and the travel starts 5 s later unless you press F7. With `off`, nothing
+  shows and F7 does nothing.
+- With `follow_key=none`, no notice shows and `always` starts nothing. `coop travel host` still travels.
+- The travel is meant to reach only camps your save has activated, as the game's camp menu does, because activating a
+  camp counts toward the game's camp trophies. The mod relies on the game's fast travel to refuse any other camp, and
+  then tries the next camp of the list, 3 calls at most. That refusal has not been checked in game yet.
+- Only the 120 camps, phone booths and tetrapods of the game's camp table that lead to one story map can be used.
+  Autosave points and the camps of the developer test maps are never sent or taken.
+- The travel waits while your EVE is down, while a respawn or another travel is under way, while the game is paused,
+  in photo mode or in a menu (the co-op menu included), during a Night Operation run or a cutscene, during a boss fight
+  on your side, while an enemy near you is in battle, and for 10 s after the last travel. F7 then shows
+  `You cannot travel now. Try again in a moment.`
+- `No camp you have found is near <host>.` means that no camp of the host's answer could be used.
+  `The travel did not start. UE4SS.log says why.` covers the other failures (see
+  [troubleshooting.md](troubleshooting.md#travel-to-the-host-does-not-start)).
+- The place a travel brought you to shows no notice. The host's next map change does.
+
+### A player down
+
+When one EVE dies, the other player keeps playing (see [how-it-works.md](how-it-works.md#a-player-down)):
+
+- With [same place](#same-place-experimental) on and `aggro=game` (the defaults), the shared enemies near the living
+  EVE fight it. While the guest is on the death screen, the host's game takes back each shared enemy that her game ran
+  and that stands within 30 m of the host's EVE, and keeps it until she is up. While the host is on the death screen,
+  the guest's game takes the host's common enemies within 30 m of her EVE. Bosses stay the host's.
+- While the host is down, the guest's hits on the host's bosses do not count, and the boss's HP goes back to the
+  host's.
+- A down EVE takes no part in a kill by standing near it (the 30 m of `kill_credit=together`). Its own hits and the
+  enemy's record of fighting it still count.
+- With both players down, nobody can revive: each respawns at a camp in their own game.
+
+### Revive by your friend (experimental)
+
+With `revive=on` (Options > Session > Friend can revive me; off by default, not tested in game yet), your friend can
+revive you where you fell. On the death screen you see `<name> can revive you: wait, or respawn at a camp.` Your
+friend sees `<name> is down. Stand next to them for 3 s to revive them.` Once their EVE has stood within 2 m of yours
+across, and 1 m up or down, for 3 s in a row, your game calls the game's own in-place respawn on your EVE. You get up
+where you fell with full health, and your recovery items are refilled as at a camp respawn. The zone does not reset.
+You see `Revived by <name>.` and your friend sees `You revived <name>.` Until then the death screen's respawn works as
+usual.
+
+The revive also needs shared enemies running (`shared_enemies=on`, both on co-op saves), your friend alive on your map,
+no boss fight on your side and no respawn under way. Only the downed player's setting counts.
+
+### Camp rests in a shared area
+
+Either player can rest at a camp. While both play in one zone within 100 m of each other with same spawns on, only the
+host's rest brings the enemies back for both: the host's game resets the zone, and same spawns makes the guest's
+enemies follow. The guest's own rest heals her and resets her own game, then same spawns removes again each enemy the
+host's game does not have. Two notices on the guest's screen say which case applied:
+
+- `Enemies are back: the area reset in <host>'s game.` when the host's zone resets (a camp rest, or the game resetting
+  the zone) while the host is alive;
+- `Shared area: only <host>'s camp rest brings its enemies back.` after her own rest there.
+
+A respawn after a death shows neither. Away from the host (another zone, more than 100 m, or same spawns off), the
+guest's rest works as in solo play.
+
+### Known limits
+
+- The friend's `<name> is down` notice does not know the downed player's `revive` setting, since no line carries it.
+  With `revive=off` (the default) on the downed side, standing next to them does nothing.
+- On one map a shared enemy keeps one HP bar at any distance: the host's hits on an enemy 500 m from the guest lower
+  her copy's HP too. Its death reaches her game only if she took part in its fight (`kill_credit`).
+- A boss fight that the guest starts alone can pair with the host's copy of that boss. Her boss then takes the HP of
+  the host's copy.
+- A revive refills the recovery items, as a camp respawn does, and the enemies keep their HP. A death resets the zone,
+  a boss fight included, which is why no revive runs during a boss fight.
 
 ## Co-op saves
 
@@ -310,6 +392,17 @@ says `photo pause: no player controller at coop off`. Whether the game keeps the
 checked, so choose Full before you remove the mod. The setting does not change your friend's game, and the synced photo
 pause above works the same with both values.
 
+### Cutscene wait
+
+While a cutscene plays in the host's game and both EVEs are on one map, the guest's game holds the same pause as photo
+sync, and the guest sees `<host> is watching a cutscene. Your game waits until it ends.` once per pause. The pause ends
+when the cutscene ends, and otherwise as the photo pause does (connection lost, F8, `coop off` or `photo_freeze_max`).
+It works with any `photo_sync` value. `cutscene_wait=off` (Options > Session > Wait for host cutscenes) keeps the
+guest's game running. Only the host's cutscenes pause the other game.
+
+Each game looks for the game's own cutscene player once a second while linked. Whether every story scene, dialogue and
+boss intro counts as a cutscene there has not been checked in game yet.
+
 ## Console commands
 
 The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)) and opens with F10 or `~`.
@@ -327,6 +420,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
+| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](#following-the-host)) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop where` | Print one line of positions to compare between two PCs |
@@ -350,6 +444,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
+| `coop revive test` | Solo test of the [revive](#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
@@ -504,18 +599,18 @@ for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % 
 
 `kill_credit` is each player's own and decides when you took part in a shared enemy's fight. With `together`, the
 default, you took part when your EVE hit it, when it targeted your EVE, or when your EVE stands within 30 m of it as it
-dies. With `fought`, the distance does not count. Whether it targeted you or your hit landed comes from the game's
-record of the last player an enemy fought, the record the game itself uses to credit a kill. An enemy that your own hit
-kills always gives you the kill. When the other player kills a shared enemy you took no part in, your copy does not die:
-it stops being shared and stays alive in your game, back at full HP, so its kill rewards, drops, quest kills and
-achievements never reach your save, and one hit of yours later does not finish what the other player's hits did. A boss
-copy goes back to full HP the same way. Whether you can then beat that boss alone before the area reloads has not been
-tested in game. The guest's `coop-link.log` then says `fight dead-unshared <key> hguid=<n> not taken part`, the host's
-says `fight kill-unshared <key> hguid=<n> not taken part`, and the host's game does not share that enemy again in this
-session. Damage dealt before an enemy became shared does not count as yours, since the other player may have dealt it.
-When a knockdown the other player started, mirrored on your copy, makes the game record your EVE as that enemy's last
-player, the log says `fight last player <key> set by a mirrored crowd control` and that record no longer counts for
-this enemy: your hit or the 30 m still do.
+dies. With `fought`, the distance does not count, and with either value it does not count while your EVE is down.
+Whether it targeted you or your hit landed comes from the game's record of the last player an enemy fought, the record
+the game itself uses to credit a kill. An enemy that your own hit kills always gives you the kill. When the other player
+kills a shared enemy you took no part in, your copy does not die: it stops being shared and stays alive in your game,
+back at full HP, so its kill rewards, drops, quest kills and achievements never reach your save, and one hit of yours
+later does not finish what the other player's hits did. A boss copy goes back to full HP the same way. Whether you can
+then beat that boss alone before the area reloads has not been tested in game. The guest's `coop-link.log` then says
+`fight dead-unshared <key> hguid=<n> not taken part`, the host's says `fight kill-unshared <key> hguid=<n> not taken
+part`, and the host's game does not share that enemy again in this session. Damage dealt before an enemy became shared
+does not count as yours, since the other player may have dealt it. When a knockdown the other player started, mirrored
+on your copy, makes the game record your EVE as that enemy's last player, the log says `fight last player <key> set by a
+mirrored crowd control` and that record no longer counts for this enemy: your hit or the 30 m still do.
 `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone (see
 [coop-settings.txt](#coop-settingstxt)).
 
@@ -996,11 +1091,13 @@ The file the mod writes:
 # StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
-# the co-op menu, whose first row hosts; host_key hosts at once, or none.
+# the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
+# below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
+follow_key=F7
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -1061,6 +1158,11 @@ boss_hp_scale=2.0
 # never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
 shared_quests=off
 quest_deny=
+# Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
+# your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
+# recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
+# never happens during a boss fight on your side.
+revive=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -1072,6 +1174,19 @@ photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
 photo_pause=full
+# Cutscene wait: on or off. Yours, as the guest: on, your game pauses while a cutscene plays in the host's game and you
+# are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
+cutscene_wait=on
+# Follow the host, as the guest, on a co-op save: ask, always or off. When the host is on another map, or more than
+# 150 m from you on yours, ask shows a notice once and follow_key then takes you to the camp nearest them through the
+# game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
+# follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
+follow_host=ask
+# Solid partner, experimental: on or off, off by default. Yours: on, your EVE cannot walk through your friend's ghost
+# while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
+# apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge into it
+# stops at it. Enemies, NPCs and the camera pass through it.
+collide=off
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
@@ -1093,6 +1208,7 @@ card_details=on
 | `host_key` | same, or `none`: a key that hosts at once, without the menu | `none` |
 | `status_key` | same as `menu_key` | `F6` |
 | `leave_key` | same as `menu_key` | `F8` |
+| `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](#following-the-host)) | `F7` |
 | `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](#join-codes); `private`: only the friends you invite) | `friends` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
@@ -1114,10 +1230,14 @@ card_details=on
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `shared_quests` | `on` or `off`: [shared quests](#shared-quests-experimental), experimental; both players need it on | `off` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
+| `revive` | `on` or `off`: your friend may [revive](#revive-by-your-friend-experimental) your EVE where she fell, experimental | `off` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
 | `photo_name_tag` | `on` or `off`: its name tag in your own photos | `off` |
+| `cutscene_wait` | `on` or `off`: as the guest, your game [waits](#cutscene-wait) while a cutscene plays in the host's game | `on` |
+| `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](#following-the-host) | `ask` |
+| `collide` | `on` or `off`: the [solid partner](#solid-partner-experimental), experimental | `off` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
@@ -1134,8 +1254,10 @@ Rules:
   first 8192 bytes are read.
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
-- If two actions share one key, all four keys go back to their defaults: `F5` for the menu, `none` to host, `F6` and
-  `F8`.
+- If two actions share one key, all five keys go back to their defaults: `F5` for the menu, `none` to host, `F6`,
+  `F7` and `F8`.
+- A file written before `follow_key` existed that already holds `F7` for another action keeps it there: `follow_key`
+  then reads `none`, with no log line.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
@@ -1185,6 +1307,28 @@ The three looks have not been tested in game yet. Back up your saves before you 
   `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
 
+## Solid partner (experimental)
+
+With `collide=on` (Options > Ghost > Solid partner; off by default, not tested in game yet), your EVE cannot walk
+through your friend's ghost, as with an NPC in town. It is your own setting and changes nothing in your friend's game.
+Only your EVE is stopped: enemies, NPCs, the camera and attacks pass through the ghost. If a game update changes her
+capsule's collision, the mod falls back to a capsule that the enemies run by your PC meet too, and its build line in
+`UE4SS.log` says `ours type 1`.
+
+The ghost lets your EVE through:
+
+- once it overlaps her by more than 1 cm, until they are more than 20 cm apart (the ghost shows your friend about one
+  ping late, so it can step into you; a smaller overlap stays solid and can move you by up to 1 cm);
+- while your feet are 60 cm or more apart in height (one of you on a ledge, a ladder or an elevator);
+- while your EVE swims, climbs, rides a zipline or does anything but walk, run or fall;
+- after 2 s of contact, until you are 50 cm apart (a friend standing in a doorway);
+- while your friend is down, or their vitals have not arrived for 3 s;
+- while the ghost is hidden.
+
+A dodge into the ghost stops at it, where it would pass through an enemy. Turn it off in the menu if it gets in your
+way (see [troubleshooting.md](troubleshooting.md#stuck-at-a-doorway-with-the-solid-partner)). `coop status` shows
+`collide=` on the ghost's line.
+
 ## Notices
 
 Each session event shows in the feed at the top left of the screen, in grey with the time, for 8 s (see
@@ -1221,6 +1365,11 @@ a Steam name or a chat line shows as `?`.
 | Too many players | `Left: the lobby has more than 2 players.` |
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
+| [Following the host](#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |
+| Your friend down | `<name> is down. Stand next to them for 3 s to revive them.`, then `You revived <name>.` when they get up next to you |
+| You down, with your friend alive on your map | `<name> can revive you: wait, or respawn at a camp.`, then `Revived by <name>.` ([revive](#revive-by-your-friend-experimental)) |
+| A camp rest in a shared area (guest) | `Enemies are back: the area reset in <host>'s game.` or `Shared area: only <host>'s camp rest brings its enemies back.` |
+| The host's cutscene (guest) | `<host> is watching a cutscene. Your game waits until it ends.` |
 | Ghost failed 3 times on one table | `Ghost failed 3 times: the reason is in UE4SS.log.` |
 | Your friend's photo mode pauses you | `<name> is taking photos: game paused. Esc > Photo Mode to join in.`, then `Game resumed.` or `Paused for <n> min: game resumed.` (`photo_freeze_max`) |
 | Your friend's photo mode, no pause | `<name> is taking photos.` (your `photo_sync=notice`), `<name> is taking photos (their photo sync gives notices only).` or `<name> is taking a selfie.` |
@@ -1256,17 +1405,21 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 - Steam: `mod=<version> proto=8 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
-- Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
-  held and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the
-  join code (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this
-  lobby; then a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer.
-  Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a
-  `friend=<linked 0|1> <lost 0|1> <name>` line, a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst
-  and Tachy for the partner card (while their last reading is under 3 s old; your own during `coop loopback`), and the
-  last 8 notices as `notice=<n> <text>`.
+- Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
+  and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
+  (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this lobby; then
+  a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer. Then a
+  `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, a
+  `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card (while their last
+  reading is under 3 s old; your own during `coop loopback`), a `life=<state> <hp>` line with your own EVE's life state
+  (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, and the last 8 notices as `notice=<n> <text>`. While you
+  host, `camps?=<id>` is the guest's last request for the camps nearest you; as the guest, `camps=<id> <answer>` is the
+  host's last answer ([Following the host](#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
-  `nightop=on` or `nightop=rule` while the probe's poller runs.
+  `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
+  travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
+  requests handled so far), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
@@ -1275,24 +1428,29 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   and `?`. After `coop off` it keeps the last value read, since the game keeps that file name until it exits.
 - Co-op save copies: `convert=<idle|busy <done>/<jobs>|done|error:<why>>`, the last copy pass (`idle` before any).
 - Shared enemies: `fight=on mode=<on|probe|record|replay> ...` with its counts, `fight=waiting mode=<mode> why=<what it
-  waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see
-  [Shared enemies](#shared-enemies-experimental)).
+  waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see [Shared
+  enemies](#shared-enemies-experimental)). While it runs, the line ends with `boss=<0|1>` (a boss fight on your side),
+  `battle=<n>` (enemies in battle within 30 m of your EVE) and `epoch=<zone>/<n>/<resets>` (same spawns' zone and epoch,
+  and how often your own zone reset this run).
 - Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
   [Same place](#same-place-experimental)).
 - Shared quests: `quests=off`, `quests=waiting mode=<mode> why=<friend|save|game>`, `quests=on mode=<mode>
   role=<role> partner=<on|off>` or `quests=stopped` (see [Shared quests](#shared-quests-experimental)), then the last 8
   quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->` and the last `coop quests status` answer as
   `quests_status=<n> <line>` lines.
-- Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
-  (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
-  your friend gets (`notice` when your game cannot pause).
+- Photo mode: `photo=<0|1|s|c> peer_photo=<0|1|s|c> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's (`s`
+  for selfie mode, `c` on the host while a cutscene plays: the [cutscene wait](#cutscene-wait)), whether your game holds
+  the photo pause (`coop freeze` holds it too), and the `photo_sync` your friend gets (`notice` when your game cannot
+  pause).
 - Last event: `last=<the last coop-link.log event>`.
-- Ghost: `ghost=on parts=<n> leaders=<n> basesuit=<0|1> left_out=<n> table=<generation> source=<source>`,
-  `ghost=waiting`, `ghost=hidden map` or `ghost=off`, plus `stray_parts=<n>` if ghost parts that are not this load's
-  ghost stand in the world.
+- Ghost: `ghost=on parts=<n> leaders=<n> basesuit=<0|1> left_out=<n> table=<generation> source=<source>
+  collide=<on|off|failed>`, `ghost=waiting`, `ghost=hidden map` or `ghost=off`, plus `stray_parts=<n>` if ghost parts
+  that are not this load's ghost stand in the world. Once the [solid partner](#solid-partner-experimental)'s capsule
+  exists, `collide=` adds `solid=<0|1>` and `changes=`, the times it turned solid and the times each rule let your EVE
+  through (`a` hidden or off, `b` overlap, `c` height, `d` movement mode, `e` 2 s of contact, `g` your friend down).
 
-Each changed status line, except the per-peer ones, the `fight=` line and the `mate=` line, also goes to `UE4SS.log`
-as `[StellarCoop] link: ...`. Each load logs the save slot as `link: slot=...`.
+Each changed status line, except the per-peer ones, the `fight=` line and the `mate=` and `life=` lines, also goes to
+`UE4SS.log` as `[StellarCoop] link: ...`. Each load logs the save slot as `link: slot=...`.
 
 ## Files in the mod folder
 
