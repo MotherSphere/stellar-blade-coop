@@ -178,6 +178,10 @@ local function cloth_part(actor)
     function s:GetAnimInstance() return {SetBlendSpaceInput=function(_,v) s.input=v.X end} end
     function s:SetPlayRate(r) self.rate=r end
     function s:SetPosition(at,notifies) assert(notifies==false); self.position=at end
+    function s:K2_SetRelativeRotation(r,sweep,_,teleport)
+        assert(sweep==false and teleport==false)
+        self.turned=r
+    end
     return s
 end
 local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua to either is unproven in the game.
@@ -1263,7 +1267,7 @@ assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read 
 spawn_fails=false
 
 -- Doro mode (coop race look): every part hidden and one Doro hung on part 0, her feet, never named in the display
--- file; animated from her feet between poses; a new table keeps the parts hidden and a rebuild the mode; off removes the
+-- file; animated from her feet between poses (while a race drives, by its top speed, leaned by her yaw); a new table keeps the parts hidden and a rebuild the mode; off removes the
 -- Doro and shows the parts as the table says; a Doro that cannot be made leaves the ghost drawn as her.
 local DORO=require('doro').ASSETS
 mesh(DORO.mesh,{'root','pelvis'})
@@ -1321,6 +1325,25 @@ ghost.emote(nil)
 clock=clock+0.1
 pose_at(61,{X=110,Y=0,Z=90})
 assert(doro.playing.asset==meshes[DORO.two],'Cleared: her blend space again')
+-- While a race drives: all fours from 60% of its top speed, her yaw turning leans the Doro on her main mesh; turned
+-- back once it no longer drives.
+ghost.drive(2200)
+local x=110
+local function run(yaw)
+    clock,x=clock+0.1,x+150
+    box.RelativeRotation={Pitch=0,Yaw=yaw,Roll=0}
+    pose_at(62+x/1000,{X=x,Y=0,Z=90})
+end
+for k=1,10 do run(k*3) end -- 1500 cm/s, turning right at 30 deg/s.
+assert(doro.playing.asset==meshes[DORO.four] and math.abs(doro.rate-3)<1e-3,tostring(doro.rate))
+assert(doro.turned and doro.turned.Pitch>0 and doro.turned.Yaw==0 and doro.turned.Roll==0,'Leaned right')
+ghost.drive(nil)
+run(33)
+assert(doro.turned.Pitch==0 and doro.turned.Roll==0,'Upright again')
+doro.turned=nil
+run(36)
+assert(doro.turned==nil,'Once')
+box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 -- Off: the Doro gone, each part shown as the table says (her ponytail hidden there).
 assert(ghost.doro(false)==nil and doro.destroyed)
 for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end

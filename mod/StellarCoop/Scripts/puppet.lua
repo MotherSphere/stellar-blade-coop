@@ -152,6 +152,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
     local doro_on,doro_log,doro_emote=false,nil,nil -- Doro mode, where its [DR] lines go, the race's emote.
+    local doro_top=nil -- While a race drives: its top speed (cm/s), for her Doro's dash, play rate and tilt.
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
     local function whose() return source=='peer' and files.friend() or tostring(source) end
     local function clear(why)
@@ -583,6 +584,8 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     end
     -- The race's results on her Doro: 'win' or 'lose' while she stands (Doro.pick), nil for none.
     function self.emote(e) doro_emote=e end
+    -- While a race drives: its top speed, so her Doro dashes, plays and leans by it as yours does; nil after.
+    function self.drive(top) doro_top=top end
     function self.active() return wanted end
     function self.toggle()
         sweep()
@@ -665,19 +668,28 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     end
     -- Doro mode, at each pose: her speed and vertical speed from her feet over at least 50 ms (os.clock may step by
     -- whole ms), the same mapping as your own Doro's but with no sprint or falling flag; a teleport starts it again
-    -- from standing. Her speed is logged once a second.
+    -- from standing. While a race drives, its lean and landing pitch from her yaw and feet, as a turn of the Doro on
+    -- her main mesh. Her speed is logged once a second.
     local function feed(g,jump)
         local now,f,from=os.clock(),g.feet,g.doro_from
+        local drive=doro_top and {top=doro_top,yaw=g.yaw or 0}
+        local c,speed
         if jump or not from then
             g.doro_state,g.doro_from={},{X=f.X,Y=f.Y,Z=f.Z,at=now}
-            return Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=0,vz=0,emote=doro_emote,now=now}))
+            c=Doro.pick(g.doro_state,{speed=0,vz=0,emote=doro_emote,now=now,drive=drive})
+        else
+            local dt=now-from.at
+            if dt<0.05 then return end
+            speed=math.sqrt((f.X-from.X)^2+(f.Y-from.Y)^2)/dt
+            g.doro_from={X=f.X,Y=f.Y,Z=f.Z,at=now}
+            c=Doro.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,emote=doro_emote,now=now,drive=drive})
         end
-        local dt=now-from.at
-        if dt<0.05 then return end
-        local speed=math.sqrt((f.X-from.X)^2+(f.Y-from.Y)^2)/dt
-        g.doro_from={X=f.X,Y=f.Y,Z=f.Z,at=now}
-        Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,emote=doro_emote,now=now}))
-        if doro_log and now>=(g.doro_said or 0) then
+        Doro.apply(g.doro,c)
+        if c.tilt or g.doro_tilted then
+            g.doro.mesh:K2_SetRelativeRotation(Doro.tilted({Pitch=0,Yaw=0,Roll=0},c.tilt),false,{},false)
+            g.doro_tilted=c.tilt~=nil
+        end
+        if speed and doro_log and now>=(g.doro_said or 0) then
             g.doro_said=now+1
             doro_log(string.format('ghost doro speed=%.0f',speed))
         end
@@ -721,7 +733,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 local jump=g.hidden or not f or (x-f.X)^2+(y-f.Y)^2+(at.Z-f.Z)^2>TELEPORT^2
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
                     {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},jump)
-                g.feet={X=x,Y=y,Z=at.Z}
+                g.feet,g.yaw={X=x,Y=y,Z=at.Z},rotation.Yaw
                 if g.doro then -- Its own pcall: a failure ends Doro mode (the ghost drawn as her), never the ghost.
                     local fed,doro_why=pcall(feed,g,jump)
                     if not fed then
