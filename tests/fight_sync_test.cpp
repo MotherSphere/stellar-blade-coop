@@ -793,7 +793,7 @@ int main() {
     h.receive(msg("SBF11 exec 1 105 0"), 10200, w);
     h.receive(msg("SBF11 exec 1 105 1"), 11000, w);
     step(h, w, 17, 11000);
-    assert(!h.executing(105, 11000) && h.counts.exec_refused == 2 && w.count("exec refused", "within 2 s") == 1);
+    assert(!h.executing(105, 11000) && h.counts.exec_refused == 2 && w.count("exec refused") == 1); // Not logged.
     h.receive(msg("SBF11 exec 1 105 1"), 12200, w); // 1.2 s after that refused one.
     step(h, w, 18, 12200);
     assert(!h.executing(105, 12200) && h.counts.exec_refused == 3);
@@ -838,6 +838,47 @@ int main() {
     gu.receive(msg("SBF11 exec 1 101 1"), v);
     Line l;
     assert(gu.counts.bad == 1 && !parse_line("10 SBF11 exec 1 101 1", l));
+  }
+
+  // An exec 1 never restarts hers while it runs (refused: one runs already), and her lethal claim waits kHoldMs at most
+  // from its arrival, even when an exec 0 and an exec 1 in one step start another takedown (M3-5). Refusals within 2 s
+  // are counted, not logged: a flood of exec lines writes no log line for each.
+  {
+    World w;
+    w.add(101, 5101, 0).s.takedown = true;
+    w.add(102, 5102, 0).s.takedown = true;
+    Host h;
+    h.set_place(true);
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    h.receive(msg("SBF11 exec 1 101 1"), 1000, w);
+    h.receive(msg("SBF11 exec 1 102 1"), 1000, w);
+    step(h, w, 2, 1000);
+    h.receive(msg("SBF11 hit 1 1 101 1600 0 0 1600 1"), 1100, w);
+    step(h, w, 3, 1100);
+    assert(w.hp(101) == 1 && h.counts.held == 1 && h.counts.execs == 2);
+    h.receive(msg("SBF11 exec 1 101 0"), 3000, w);
+    h.receive(msg("SBF11 exec 1 101 1"), 3000, w);
+    h.receive(msg("SBF11 exec 1 102 1"), 3000, w);
+    step(h, w, 4, 3000);
+    assert(h.executing(101, 3000) && h.counts.execs == 3);
+    assert(h.counts.exec_refused == 1 && w.count("exec refused", "one runs already") == 1);
+    w.lines();
+    step(h, w, 5, 1000 + kHoldMs - 1);
+    assert(h.executing(102, 1000 + kHoldMs - 1));
+    step(h, w, 6, 1000 + kHoldMs);
+    assert(!h.executing(102, 1000 + kHoldMs) && w.count("exec", "her takedown timed out") == 1);
+    step(h, w, 7, 1100 + kHoldMs - 1);
+    assert(w.hp(101) == 1 && !has(w.lines(), "dead"));
+    step(h, w, 8, 1100 + kHoldMs);
+    assert(w.lines() == "SBF11 dead 1 101\n" && h.counts.expired == 1 && w.count("held-expired") == 1);
+    h.receive(msg("SBF11 exec 1 102 1"), 9000, w);
+    for (uint64_t k = 1; k <= 50; ++k)
+      h.receive(msg("SBF11 exec 1 102 1"), 9000 + k, w);
+    step(h, w, 9, 9050);
+    assert(h.counts.execs == 4 && h.counts.exec_refused == 51 && w.count("exec refused") == 1);
+    step(h, w, 10, 9050 + kHoldMs - 1); // Taken at that step.
+    assert(h.executing(102, 9050 + kHoldMs - 1) && !h.executing(102, 9050 + kHoldMs));
   }
 
   // ---- Host: crowd control told and mirrored (PHASE11-STAGE2-RE 2) ----

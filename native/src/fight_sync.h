@@ -101,7 +101,8 @@ inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + k
 enum Scale : int { kScaleHp, kScaleBalance, kScales };
 inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || pct[kScaleBalance] > kMinScale; }
 // Stage 3c (PHASE11-STAGE3 3.9): her takedowns. The host takes one exec 1 an enemy in kExecMs (R33). While hers runs,
-// it holds her lethal claim and its own dead for that enemy until her exec 0, kHoldMs at most from her exec 1.
+// it holds her lethal claim and its own dead for that enemy until her exec 0, kHoldMs at most from her exec 1, and her
+// lethal claim kHoldMs at most from its own arrival (M3-5).
 constexpr uint64_t kExecMs = 2000;
 // Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
 // side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair, or her game thread refused
@@ -412,7 +413,7 @@ struct Counts {
   uint64_t cc_mirrored = 0;          // The other side's, started on our copy.
   uint64_t cc_skipped = 0;           // The other side's not started: our copy in a crowd control, or the game refused.
   uint64_t execs = 0;                // Host: her exec 1 taken. Guest: our exec 1 sent (stage 3c, the engine's).
-  uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, or too soon).
+  uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, too soon, one runs).
 };
 
 // A copy's crowd control (kCcEffects and the stunned states) as our last pass saw it, and the other side's to start.
@@ -710,13 +711,15 @@ public:
     for (size_t c = 0; c < claims_; ++c)
       apply(claim_[c], now, io);
     claims_ = 0;
-    for (size_t i = 0; i < count_;) { // The kills that wait: once NoDamageNoHit or her takedown ends, or after kHoldMs.
+    // The kills that wait: once NoDamageNoHit and her takedown end, or kHoldMs after the claim came.
+    for (size_t i = 0; i < count_;) {
       Enemy &e = enemies_[i];
       if (!e.holding && e.exec_ms && !running(e, now)) {
         e.exec_ms = 0;
         io.event(Event{"exec", "her takedown timed out", e.guid, e.spawn, e.index});
       }
-      if (!e.holding || (e.nodamage == kNoDamageNoHit && now < e.hold_ms + kHoldMs) || running(e, now) || !kill(e, io))
+      const bool wait = (e.nodamage == kNoDamageNoHit || running(e, now)) && now < e.hold_ms + kHoldMs;
+      if (!e.holding || wait || !kill(e, io))
         ++i;
     }
     values(now, io);
@@ -887,8 +890,9 @@ private:
   }
   // Her exec line (R33). exec 1 counts while same place runs on our side with aggro=game, for an enemy we follow whose
   // copy is a Monster in life state 1 holding Groggy or a takedown marker, and once an enemy in kExecMs, refused ones
-  // included. Else it is refused (a Groggy ended or lines crossed: counted, logged) or stale (another setting, an
-  // enemy gone), never a bad line. exec 0 ends hers.
+  // included. Else it is refused (counted; logged, at most once an enemy in kExecMs: a Groggy ended, lines crossed, or
+  // one of hers runs already, which an exec 1 never restarts) or stale (another setting, an enemy gone), never a bad
+  // line. exec 0 ends hers.
   template <class Io> void exec(const Claim &k, uint64_t now, Io &io) {
     Enemy *e = find(k.guid);
     if (!k.exec) {
@@ -902,11 +906,13 @@ private:
       ++counts.stale;
       return;
     }
-    const bool soon = e->exec_last && now - e->exec_last < kExecMs;
+    const bool soon = e->exec_last && now - e->exec_last < kExecMs, runs = running(*e, now);
     e->exec_last = now;
-    if (soon || !e->takedown) {
+    if (soon || runs || !e->takedown) {
       ++counts.exec_refused;
-      return io.event(Event{"exec refused", soon ? "within 2 s" : "no Groggy or takedown on our copy", e->guid,
+      if (soon) // Not logged: a flood of them would fill the log.
+        return;
+      return io.event(Event{"exec refused", runs ? "one runs already" : "no Groggy or takedown on our copy", e->guid,
                             e->spawn, e->index});
     }
     e->exec_ms = now;
