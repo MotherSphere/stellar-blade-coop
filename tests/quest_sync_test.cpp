@@ -2,9 +2,10 @@
 // acquire folded in, a Request's hand-in events left out), quest_deny, tuples from live quests, the lines and their
 // strict parser (bounds, the largest legal line, fuzzed junk), the record file, and a host and a guest over the
 // parser with fake quest objects: snapshot and diffs, one step a pass, every hold and what clears it, forced steps,
-// chained quests in SB's order, her own progress shown as ahead, a host that goes back to an older save, repeated and
-// stale lines, counts past the arrays, and every check each side makes on the other's lines. Nothing here completes
-// a quest by itself: the fake does it inside the last task, as the game does.
+// chained quests in SB's order, only steps made together (a guest behind or elsewhere gets none of that quest), her
+// own progress shown as ahead, a host that goes back to an older save, repeated and stale lines, counts past the
+// arrays, and every check each side makes on the other's lines. Nothing here completes a quest by itself: the fake
+// does it inside the last task, as the game does.
 #include "quest_sync.h"
 
 #include <cassert>
@@ -476,13 +477,13 @@ void snapshot_from_live() {
   const size_t s17 = at("Quest_Sub_017");
   k.hw.acquire(s17), k.hw.play(s17), k.hw.play(s17); // Done since, in solo play.
   k.step();
-  assert(k.sent.size() == 3 && starts(k.sent[0], "snap 1 1") && k.sent[1] == q("q 1 8 54 3 - 0:t.0:t - t") &&
-         starts(k.sent[2], "end 1 1 "));
+  assert(k.sent.size() == 4 && starts(k.sent[0], "snap 1 1") && k.sent[1] == q("q 1 8 54 3 - 0:t.0:t - t") &&
+         starts(k.sent[2], "end 1 1 ") && k.sent[3] == q("at 1 Zone_Xion_10"));
   assert(k.host.take_changed() && k.host.record().find('h', kGuestId, 54)->e.seq == 8);
-  // She acquires it, then both groups apply (their env changes act in Zone_Xion_10, where she stands).
+  // The host did it alone: nothing of it reaches her, no acquire, no completion; she is behind on it, told once.
   k.steps(3);
-  assert(k.gw.tuple(s17).state == 3 && k.applied == 3 && k.gw.completes == 2);
-  assert(k.guest.snapshot_complete());
+  assert(k.gw.tuple(s17).state == 0 && k.applied == 0 && k.guest.planned(54).why == Why::behind);
+  assert(k.guest.behind == std::vector<uint16_t>{54} && k.guest.snapshot_complete());
 }
 
 void session() {
@@ -505,11 +506,12 @@ void session() {
   p = k.step();
   assert(k.sent.back() == q("q 1 2 54 1 - 0:t - .") && p.act == Act::complete && p.group == 0);
   assert(k.gw.tuple(s17).groups == 1 && k.gw.v[s17].active == 1);
-  // The next one while she stands elsewhere: it waits there, then applies on her arrival; her own last task
-  // completes the quest (no quest-complete step exists).
-  k.guest_zone = "Zone_WLA_10";
+  // The next one made with her in Zone_WLA_10, its events acting in Zone_Xion_10: it waits there, then applies on her
+  // arrival; her own last task completes the quest (no quest-complete step exists).
+  k.host_zone = k.guest_zone = "Zone_WLA_10";
   k.hw.play(s17);
   p = k.step();
+  assert(k.sent.front() == q("at 1 Zone_WLA_10"));
   assert(!p.ready() && k.said_has("wait 1 54 3 Zone_Xion_10"));
   assert(k.guest.planned(54).why == Why::zone && k.guest.planned(54).zone == "Zone_Xion_10");
   assert(k.said_has("at 1 Zone_WLA_10"));
@@ -522,7 +524,7 @@ void session() {
   assert(k.said_has("have 1 54 3"));
   // Two quests at once: one step a pass, in row order; a held one never blocks the other.
   k.hw.acquire(s1), k.hw.acquire(at("Quest_Sub_002"));
-  k.guest_zone = "Zone_WLA_30";
+  k.host_zone = k.guest_zone = "Zone_WLA_30";
   int before = k.applied;
   k.step();
   assert(k.applied == before + 1);
@@ -602,7 +604,7 @@ void holds() {
   // Quest_Epic_02 up to its kill in group 6, done by the host: held for her own kill, and only that quest waits.
   for (int g = 0; g < 7; ++g)
     k.hw.play(e2);
-  k.guest_zone = "Zone_DED20";
+  k.host_zone = k.guest_zone = "Zone_DED20";
   for (int i = 0; i < 12; ++i)
     k.step();
   assert(k.gw.v[e2].active == 6);
@@ -621,10 +623,11 @@ void holds() {
   k.step();
   assert(k.gw.v[e2].active == 7 && k.guest.planned(15).why == Why::done && k.said_has("have 1 15 2"));
   // A forced kill: Quest_Sub_006 group 3, the kill first among five tasks; force applies it once where she stands.
+  k.host_zone = k.guest_zone = "Zone_WLA_10";
   k.hw.acquire(s6);
+  k.step();
   for (int n = 0; n < 8; ++n) // Groups 0 to 2, then group 3's five tasks.
     k.hw.play(s6);
-  k.guest_zone = "Zone_WLA_10";
   for (int i = 0; i < 8; ++i)
     k.step();
   assert(k.gw.v[s6].active == 3 && k.gw.v[s6].task[3][0][0] == 1);
@@ -635,7 +638,7 @@ void holds() {
   k.steps(4);
   assert(k.gw.v[s6].active == 4);
   // A zone hold is never forced: group 4 ends anywhere, group 5 in Zone_WLA_10 or Zone_Xion_10.
-  k.guest_zone = "Zone_DED20";
+  k.host_zone = k.guest_zone = "Zone_DED20";
   k.hw.play(s6), k.hw.play(s6);
   k.steps(2);
   assert(k.gw.v[s6].active == 5 && k.guest.planned(45).why == Why::zone);
@@ -659,7 +662,7 @@ void requests() {
   k.step();
   p = k.guest.planned(77);
   assert(p.why == Why::zone && p.zone == "Zone_WLA_10");
-  k.guest_zone = "Zone_WLA_10";
+  k.host_zone = k.guest_zone = "Zone_WLA_10";
   p = k.step();
   assert(p.act == Act::accept && p.ready() && k.gw.v[r6].state == 1 && k.gw.v[r6].groups == 2);
   // Its task, done by the host: hers reaches state 2 and stops there, as the host's did.
@@ -691,15 +694,13 @@ void marks_from_the_host() {
   const size_t w = at("Quest_WALN10_001"), r12 = at("Quest_Request_012");
   k.hw.acquire(w);
   k.step();
-  k.host_zone = "Zone_WLB_20", k.guest_zone = "Zone_WLA_10";
+  k.host_zone = k.guest_zone = "Zone_WLB_20";
   k.hw.play(w);
   Plan p = k.step();
-  assert(k.sent.size() == 2 && k.sent[0] == q("zone 1 1 Zone_WLB_20") && k.sent[1] == q("q 1 2 134 3 - 0:z1 - z1"));
-  p = k.guest.planned(134);
-  assert(p.why == Why::zone && p.zone == "Zone_WLB_20" && step(R("Quest_WALN10_001"), 1).warp);
-  k.guest_zone = "Zone_WLB_20";
-  k.step();
-  assert(k.gw.v[w].state == 3);
+  assert(k.sent.size() == 3 && k.sent[0] == q("at 1 Zone_WLB_20") && k.sent[1] == q("zone 1 1 Zone_WLB_20") &&
+         k.sent[2] == q("q 1 2 134 3 - 0:z1 - z1"));
+  // She stood there with the host: applied at once (its warp moves her, as in solo play).
+  assert(p.ready() && k.gw.v[w].state == 3 && step(R("Quest_WALN10_001"), 1).warp);
   // A record line keeps the alias.
   assert(record_text(k.host.record(), 0).find("134 2 3 - 0:Zone_WLB_20 - Zone_WLB_20\n") != std::string::npos);
   // Done while the guest was off: at her next on, the snapshot marks it '?' (the host did not see where).
@@ -715,13 +716,13 @@ void marks_from_the_host() {
   k.on();
   p = k.step();
   assert(starts(k.sent[0], "snap 2 2") && std::count(k.sent.begin(), k.sent.end(), q("q 2 2 80 2 - 0:? - .")) == 1);
+  // It moved while she was off: never hers, even once on her board, even forced.
   k.gw.v[r12].state = 0;
-  k.step(); // Accepted.
-  k.step();
-  assert(k.guest.planned(80).why == Why::kill); // Its only task is a kill: K before '?'.
+  k.steps(2);
+  assert(k.gw.v[r12].state == 0 && k.guest.planned(80).why == Why::behind);
   assert(k.guest.force(80));
   k.step();
-  assert(k.gw.v[r12].state == 2);
+  assert(k.gw.v[r12].state == 0 && k.guest.forced().why == Why::behind && !k.guest.forced().forced);
   // The planner's gate on one quest. Her Quest_Sub_006 is in group 3 (five tasks, the first a kill); the host's
   // line has one more task done there.
   World g6;
@@ -806,9 +807,79 @@ void before_the_session() {
   k.host_zone = "Zone_WLA_10";
   k.hw.play(s28);
   k.step();
-  assert(k.sent == std::vector<std::string>{q("q 1 1 71 1 - 0:?.0:- - .")});
+  assert(k.sent == (std::vector<std::string>{q("at 1 Zone_WLA_10"), q("q 1 1 71 1 - 0:?.0:- - .")}));
+  // Its start was the host's alone, so none of it is hers.
   k.step();
-  assert(k.gw.v[s28].state == 1 && k.guest.planned(71).why == Why::unseen);
+  assert(k.gw.v[s28].state == 0 && k.guest.planned(71).why == Why::behind);
+}
+
+// Only steps made together reach her: her quest stood where the host's stood before the step, and she stood in the
+// host's zone when its line came. Otherwise she is behind on that quest: nothing of it is applied, no completion (so no
+// reward or trophy she did not earn), one notice; once her own play brings her to the host's state, the next step is
+// shared again.
+void together() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  const size_t s1 = at("Quest_Sub_001"), s2 = at("Quest_Sub_002"), s17 = at("Quest_Sub_017");
+  auto seq = [&](uint16_t id) { return std::to_string(k.host.record().find('h', kGuestId, id)->e.seq); };
+  k.host_zone = k.guest_zone = "Zone_WLA_30";
+  k.hw.acquire(s1), k.gw.acquire(s1); // Both took Quest_Sub_001 before the session.
+  k.step();
+  // The host's first step on it: hers stood at the same point, and she stands with the host. Shared.
+  k.hw.play(s1);
+  k.step();
+  assert(k.gw.tuple(s1) == k.hw.tuple(s1) && k.applied == 1);
+  // The next one while she stands elsewhere: not hers, nor anything after it, the completion included.
+  k.guest_zone = "Zone_DED20";
+  k.hw.play(s1);
+  k.step();
+  assert(k.guest.planned(41).why == Why::behind && k.guest.behind == std::vector<uint16_t>{41});
+  k.guest_zone = "Zone_WLA_30"; // Even back where the host stands.
+  k.hw.play(s1), k.hw.play(s1);
+  k.steps(4);
+  assert(k.hw.v[s1].state == 3 && k.gw.tuple(s1).groups == 1 && k.gw.completes == 1 && k.applied == 1);
+  assert(k.guest.behind.size() == 1 && std::count_if(k.guest.log.begin(), k.guest.log.end(), [](const std::string &l) {
+           return l.find("behind the host") != std::string::npos;
+         }) == 1);
+  // She plays it herself up to the host's state: nothing left to share.
+  k.gw.play(s1), k.gw.play(s1), k.gw.play(s1);
+  k.step();
+  assert(k.said_has("have 1 41 " + seq(41)) && k.guest.planned(41).why == Why::done);
+  // Behind on Quest_Sub_002 (its group 0 made while she stood elsewhere), she makes that step herself; the host's next
+  // step finds her where it stood, with it, and is shared again.
+  k.host_zone = k.guest_zone = "Zone_WLB_30";
+  k.hw.acquire(s2);
+  k.step();
+  assert(k.gw.v[s2].state == 1);
+  k.guest_zone = "Zone_WLB_20";
+  k.hw.play(s2);
+  k.step();
+  assert(k.guest.planned(42).why == Why::behind && k.gw.tuple(s2).groups == 0);
+  k.guest_zone = "Zone_WLB_30";
+  k.gw.play(s2);
+  k.step();
+  assert(k.guest.planned(42).why == Why::done);
+  k.hw.play(s2);
+  k.step();
+  assert(k.gw.tuple(s2).groups == 2 && (k.guest.behind == std::vector<uint16_t>{41, 42}));
+  // A quest the host starts with her there: shared from its acquire to its end.
+  k.host_zone = k.guest_zone = "Zone_Xion_10";
+  k.hw.acquire(s17);
+  k.step();
+  k.hw.play(s17);
+  k.step();
+  k.hw.play(s17);
+  k.steps(2);
+  assert(k.gw.tuple(s17).state == 3 && k.gw.tuple(s17) == k.hw.tuple(s17));
+  // one_step: one SB transition, never two.
+  const Row &r1 = R("Quest_Sub_001");
+  World a, b;
+  a.acquire(s1), b.acquire(s1), b.play(s1);
+  assert(one_step(r1, Tuple(), a.tuple(s1)) && one_step(r1, a.tuple(s1), b.tuple(s1)));
+  assert(!one_step(r1, Tuple(), b.tuple(s1)) && !one_step(r1, b.tuple(s1), a.tuple(s1)));
+  assert(!one_step(r1, a.tuple(s1), a.tuple(s1)));
+  b.play(s1);
+  assert(!one_step(r1, a.tuple(s1), b.tuple(s1)));
 }
 
 // A quest SB acquires inside another's step waits for her copy of that step: Quest_Epic_06's last group, a kill,
@@ -824,11 +895,12 @@ void chains() {
     assert(w->v[e6].state == 1);
   }
   k.step();
-  for (int g = 0; g < 3; ++g)
-    k.hw.play(e6);
+  k.host_zone = k.guest_zone = "Zone_WLB_40"; // Where group 0 ends.
+  k.hw.play(e6);
+  k.step();
+  k.hw.play(e6), k.hw.play(e6);
   assert(k.hw.v[e6].state == 3 && k.hw.v[e7].state == 1);
-  k.guest_zone = "Zone_WLB_40"; // Where group 0 ends.
-  k.steps(3);
+  k.steps(2);
   assert(k.gw.v[e6].active == 2 && k.guest.planned(19).why == Why::kill && k.applied == 2);
   const Plan p = k.guest.planned(20);
   assert(p.act == Act::acquire && p.why == Why::chain && k.guest.force(20));
@@ -936,7 +1008,7 @@ void idempotence() {
   World gw;
   Guest guest(Record(), kHostId);
   const size_t s17 = at("Quest_Sub_017");
-  for (const char *l : {"snap 1 1", "q 1 1 54 1 - - - .", "end 1 1 0"})
+  for (const char *l : {"snap 1 0", "end 1 0 0", "at 1 Zone_Xion_10", "q 1 1 54 1 - - - ."})
     guest.receive(wire(q(l)));
   assert(!guest.snapshot_complete()); // Wrong digest: logged, the lines it took still count.
   std::vector<std::string> out;
@@ -983,7 +1055,8 @@ void checks() {
   assert(in("zone 2 5 Zone_E") && in("q 2 1 80 2 - 0:z5 - ."));           // and taken once it is.
   assert(!in("q 2 1 139 2 - 0:z1 - .") && in("q 2 1 134 3 - 0:z2 - z2") && in("q 2 1 82 1 # - - ."));
   assert(*g.zones().name(2) == "Zone_C" && !g.zones().name(1));
-  assert(!in("have 2 54 1") && !in("at 2 Zone_A"));     // Guest lines from the host.
+  assert(!in("have 2 54 1") && !in("ahead 2 54"));      // Guest lines from the host.
+  assert(in("at 2 Zone_A") && !in("at 3 Zone_A"));      // The host's zone, in its generation.
   for (int i = 0; i < 20; ++i)
     in("snap 1 0");
   assert(!in("snap 9 0")); // Ignored after too many bad lines.
@@ -1062,8 +1135,8 @@ void host_lines() {
   now = 1000 + kSnapshotMs;
   w.acquire(at("Quest_Sub_017"));
   const std::vector<std::string> out = pass();
-  assert(out.size() == 3 && starts(out[0], "snap 2 0") && starts(out[1], "end 2 0"));
-  assert(out[2] == q("q 2 1 54 1 - - - ."));
+  assert(out.size() == 4 && starts(out[0], "snap 2 0") && starts(out[1], "end 2 0"));
+  assert(out[2] == q("at 2 Zone_Xion_10") && out[3] == q("q 2 1 54 1 - - - ."));
   assert(count(pass(), "snap") == 0);
 }
 
@@ -1082,6 +1155,7 @@ int main() {
   requests();
   marks_from_the_host();
   before_the_session();
+  together();
   chains();
   bounds();
   host_marks();
