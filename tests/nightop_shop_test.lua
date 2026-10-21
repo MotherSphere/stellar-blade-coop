@@ -3,7 +3,8 @@
 -- the four catalogue aliases, a GUID and a count of 1-10 reach the grant call, with its nine arguments; the list; each
 -- refusal of a buy, in order, with no call and no point taken; points taken and written only after a call that
 -- returned, and kept when the call raises; a signed GUID read; one wallet per SteamID and co-op slot, read from its .tmp
--- when a failed rename left only that; the credit and its cap.
+-- when a failed rename left only that, and refused with nothing written when it cannot be opened; the credit and its
+-- cap.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -44,14 +45,18 @@ local function status_with(slot,id)
     status_text='mod=v proto=12 steam=ready'..(id and ' steamid='..id or '')..' appid=1\nlink=none lobby=0\n'
         ..'friend=1 0 x steamid=99\n'..slot..'\n'
 end
-local files,write_fails={},nil
+-- unreadable: file names whose load fails as link.lua's does when io.open refuses (its message, errno 13).
+local files,write_fails,unreadable={},nil,{}
 local function store(name)
     return {save=function(text)
             if write_fails then return false,write_fails end
             files[name]=text..'\n'
             return true
         end,
-        load=function() local t=files[name]; return t and t:match('^[^\r\n]+') end}
+        load=function()
+            if unreadable[name] then return nil,name..': Permission denied',13 end
+            local t=files[name]; return t and t:match('^[^\r\n]+')
+        end}
 end
 local lines={}
 local paused,busy=false,false
@@ -107,6 +112,20 @@ files[FILE],files[FILE..'.tmp']=nil,'37\n'
 ok,text=shop.list(); assert(ok and text:find('^Night Operation shop, 37 points:'),text)
 got,total=shop.credit(50); assert(got==2 and total==39 and files[FILE]=='39\n','The .tmp total carries on')
 files[FILE..'.tmp']=nil
+files[FILE]='113\n'
+-- A wallet that cannot be opened (a lock, a denied access) is not a wallet of 0: no credit, no buy, nothing written
+-- over it, and its .tmp is not read instead.
+before=#lines
+for _,locked in ipairs({FILE,FILE..'.tmp'}) do
+    if locked==FILE..'.tmp' then files[FILE]=nil end
+    unreadable[locked]=true
+    local why='wallet not read: '..locked..': Permission denied'
+    got,total=shop.credit(500); assert(got==nil and total==why,tostring(total))
+    ok,text=shop.list(); assert(not ok and text==why,text)
+    ok,text=shop.buy('1'); assert(not ok and text==why,text)
+    unreadable[locked]=nil
+end
+assert(#lines==before and files[FILE]==nil and files[FILE..'.tmp']==nil,'Nothing written')
 files[FILE]='113\n'
 
 -- 3. A buy's refusals, in order: each with no call and no point taken. Every check fails at first; each fix moves the

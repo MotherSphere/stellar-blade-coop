@@ -320,7 +320,9 @@ guide for it, as a buy at a camp does. In the game's tables, none of the four it
 Your points are kept per Steam ID and co-op slot, in `coop-night-<steamid>-<index>.txt` in the mod folder, one line
 with the number. The game never reads that file, so restoring a save backup does not give points back or take them
 away. `coop off` leaves the file as it is, an install never removes it, and `tools/install.py --uninstall` backs it up
-with the mod's other files.
+with the mod's other files. While the file cannot be opened (another program holds it, or access is denied), a run's
+points are not credited and `coop nightop shop` and `buy` refuse with `wallet not read:`, so the total in the file stays
+as it is.
 
 ## Challenges (`coop challenge`)
 

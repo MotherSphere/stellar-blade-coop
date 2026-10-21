@@ -469,7 +469,12 @@ function Link.new(folder,fs)
         name=name or 'coop-puppet.txt'
         return {
             save=function(object_path) return put(name,object_path..'\n') end,
-            load=function() local text=fs.read(path(name)); return text and text:match('^[^\r\n]+') end,
+            -- Its first line; nil and io.open's message and errno when the file cannot be opened (errno 2: none).
+            load=function()
+                local text,e,code=fs.read(path(name))
+                if not text then return nil,e,code end
+                return text:match('^[^\r\n]+')
+            end,
             clear=function() fs.remove(path(name)) end,
         }
     end
