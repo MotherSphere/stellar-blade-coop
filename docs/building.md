@@ -147,9 +147,10 @@ build/host/pose_codec_test
     boss both saves hold paired and scaled in both, one only the host's save holds left unpaired, one only hers left
     hers, none created or removed), the `bosses` word through a recording and its replay, and the boss tests of
     `coop fight pilot test` on the nearest frozen boss copy (SetBattleMode once a copy and no BattleMode_5s on boss
-    copies after it, a phase line and the threshold's dispel 5 s later, the copy held at 1 HP with no claim and the
-    host's HP back after 10 s, a summon made, frozen and frozen again, then removed as unpaired; one test at a time,
-    none left after the session ends);
+    copies from the next session, a phase line and the threshold's dispel 5 s later, the copy held at 1 HP with no
+    claim and the host's HP back after 10 s, or its HP from the start when the test stops early, a summon made, frozen
+    and frozen again, then removed as unpaired, or at once when the freeze is refused; one test at a time, none left
+    after the session ends);
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss

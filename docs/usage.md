@@ -795,8 +795,9 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
   whether its AI runs a task (`before: b58=<0|1> 45a=<n> 45b=<n> state30=<0|1> state39=<0|1> ai=<0|1>`), starts the
   boss fight on the copy as the host's game would (`SetBattleMode called`, or `SetBattleMode not called: <why>`, where
   `again` means it already ran on this copy), then logs each change of those values for 1 s (`after <ms> ms: ...`, then
-  `done: ...`). From then until the next `coop fight on`, boss copies get no `BattleMode_5s` from the recording, so a
-  second run after a reload shows the boss start alone.
+  `done: ...`). From the next `coop fight replay` until the next `coop fight on`, boss copies get no `BattleMode_5s`
+  from the recording, so a second run after a reload shows the boss start alone. The replay that ran the test still
+  gets it on its boss copies, so its other tests find the copy as the guest's side would.
 - `coop fight pilot test phase` sends the copy the first phase row of its boss that it lacks (5005115 for GorillaB),
   and 5 s later the dispel of its HP threshold, as the host's phase lines would. Each line logs `line: <rows>; floor
   <stat 107>` and `cast: <n> taken, <n> refused`, and at the next turn `next turn: floor <stat 107>; rows <the rows
@@ -805,15 +806,20 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
   counts as your hit, then gives it the host's HP back. It logs `start: HP <n>, floor <n>, 2001101=<0|1>
   2001102=<0|1> state27=<0|1> state3=<0|1>` (Passive_DeathReady and Passive_FinishReady on the copy, then its
   Immortal and NoDamageNoHit states), each change as `after <ms> ms: HP <n> ...`, and `done: <n> guard turns, HP <n>;
-  the host's HP from the next turn`. Run it after `phase`, so no threshold holds the copy above 1 HP, and hit the copy
-  once while it is held: with the finish guard working, it stays at 1 HP.
+  the host's HP from the next turn`. Run it after `phase`, so no threshold holds the copy above 1 HP. Back up your
+  saves first ([saves.md](saves.md)): a boss that dies here stays dead in that save once the game saves. Hit the copy
+  once, and only after a line shows `state27=1` (its Immortal): with the finish guard working, it stays at 1 HP. If
+  the test stops before its `done` line (`coop fight off`, or the copy no longer drawn), the copy gets back the HP it
+  had when the test started.
 - `coop fight pilot test summon` makes a DollHead (SE_M_DollHead_02) 3 m in front of your EVE under the first summon
   key, `4026531841:0`, with its summon row's effects (5025010 and 5025013) and the guest's freeze, as her game does
-  for a host's summon: `fight summon made 4026531841:0`, then `made 3 m ahead: life <n>, freeze taken`. For 10 s it
-  logs each change of the DollHead's life state and state 39, and freezes it again when the game ends the freeze
-  (`frozen again`). No host enemy pairs with it, so 3 s after its `done` line the mod removes it (`fight summon
-  despawned 4026531841:0 unpaired`), or at `coop fight off`. `refused: same place off` means same place does not run
-  on this side.
+  for a host's summon: `fight summon made 4026531841:0`, then `made 3 m ahead: life <n>, freeze taken`, or `the game
+  froze it first` when its row's effects froze it already. For 10 s it logs each change of the DollHead's life state
+  and state 39, and freezes it again when the game ends the freeze (`frozen again`). If the game refuses the guest's
+  freeze, the mod removes the DollHead at once (`not made: freeze refused` or `stopped: freeze refused`, and `fight
+  summon despawned 4026531841:0 freeze refused`). No host enemy pairs with it, so 3 s after its `done` line the mod
+  removes it (`fight summon despawned 4026531841:0 unpaired`), or at `coop fight off`. `refused: same place off`
+  means same place does not run on this side.
 
 ### `coop off`
 
