@@ -759,6 +759,10 @@ do
     assert(logged('photo pause: off until the mod reloads: GetConsoleVariableIntValue: no such function'))
     cr=cv.reads
     loops[2].f(); assert(cv.reads==cr)
+    -- A reload (Ctrl+R) after scenery was set: already 1, nothing set, and coop off still puts 0 back.
+    cv.error,cv.value,cv.runs,settings_text=nil,1,{},'photo_pause=scenery\n'
+    load_main(true); loops[2].f(); assert(#cv.runs==0)
+    coop('off'); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 0' and cv.value==0)
     cv.error,cv.value,cv.runs,at_title,settings_text=nil,0,{},false,''
 end
 

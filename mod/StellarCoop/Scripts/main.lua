@@ -192,10 +192,10 @@ end
 -- a save loaded or the title shown, the console variable is read and set only when it differs from the setting (with
 -- the player controller), then read back: full on an untouched game changes nothing. SB reads it as each photo mode
 -- opens, so a change applies from the next. The first engine error, or a set that does not take (another game build),
--- stops it for this Lua load.
+-- stops it for this Lua load. coop off sets 0 again while scenery holds.
 local UE=require('UEHelpers')
 local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
-local pause={synced=nil,set=false,failed=false} -- The method last matched; whether we set scenery's; off.
+local pause={synced=nil,failed=false} -- The method last matched (read or set); off for this load.
 local function photo_pause(want,why)
     if pause.failed or pause.synced==want then return end
     local ok,result=pcall(function()
@@ -206,7 +206,6 @@ local function photo_pause(want,why)
         library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
         local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
         if now~=want then error(PAUSE_METHOD..' reads '..tostring(now)..' after the set',0) end
-        pause.set=want==1
         log('photo pause: '..PAUSE_METHOD..' '..want..' ('..why..')')
         return true
     end)
@@ -389,7 +388,7 @@ local commands={
         if code_box then code_box.stop(); approval.stop() end
         if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
-        if pause.set then photo_pause(0,'coop off') end -- The game's own photo pause back.
+        if pause.synced==1 then photo_pause(0,'coop off') end -- The game's own photo pause back.
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end

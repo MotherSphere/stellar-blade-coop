@@ -295,7 +295,7 @@ your game:
 
 The mod sets the game's console variable `SB.PhotoMode.PauseMethod` (0 for Full, 1 for Scenery live), and only when it
 differs from the setting. The game reads it each time photo mode opens, so a change applies from your next photo mode.
-`coop off` sets it back to 0 if the mod set it to 1. Whether the game keeps the value after it exits has not been
+`coop off` sets it back to 0 while the setting is Scenery live. Whether the game keeps the value after it exits has not been
 checked, so choose Full before you remove the mod. The setting does not change your friend's game, and the synced photo
 pause above works the same with both values.
 
