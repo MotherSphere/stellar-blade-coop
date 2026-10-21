@@ -182,7 +182,8 @@ More about the copies:
 - `auto_coop_save` (in Options, Saves > Co-op saves, or in `coop-settings.txt`) is `ask` (the question, the default),
   `always` or `off` (no copies; see "Manual co-op slot" below).
 - A copy you have not played in co-op follows your own save: the next conversion copies your save again if it changed.
-  A copy you played in co-op is never replaced.
+  A copy you played in co-op is never replaced by itself. To start it over from your own save, type
+  `coop saves refresh N` twice at the title (N is the slot, 0 to 4); the old copy goes to `StellarCoopBackups` first.
 - While the game uses the copies, `CO-OP SAVES` shows at the top right of the title screen, and the question does
   not show.
 - Steam Cloud syncs the copies like your own saves, so they take up to the same space again.

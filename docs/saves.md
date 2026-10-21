@@ -116,6 +116,19 @@ A copy pass:
 `coop saves probe` logs the plan of the next pass without writing anything. `coop saves main` switches back to your
 own saves at the title, as long as no co-op save has been loaded since the game started.
 
+To start a co-op character over from your own save, use `coop saves refresh N` (N from 0 to 4) at the title, while
+the game uses your own saves. The first time, it only says what it replaces; typed again within 10 s, it asks the
+native part. That pass:
+
+- copies the copy it replaces, `StellarBladeCoop0N.sav`, into a new folder of `StellarCoopBackups` and reads it back
+  (with no `StellarCoopSaves.txt`, the backup of every `StellarBlade*.sav` comes first instead);
+- then replaces it with a checked copy of `StellarBladeSave0N.sav`, as any copy, and writes its line in
+  `StellarCoopSaves.txt`;
+- leaves the other slots and their lines alone, and switches nothing;
+- replaces nothing if the backup fails, and refuses a slot with no save of yours.
+
+The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N's co-op copy replaced` or why not.
+
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 
 | Line | Meaning |

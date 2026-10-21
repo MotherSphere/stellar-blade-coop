@@ -631,6 +631,80 @@ int main() {
   said = passes(sw2, f, game2);
   assert(game2.swaps == 1 && game2.name == Saves::main &&
          logged(said, "co-op saves switch failed: the save name could not be written"));
+  // saves refresh N (AUTO-COOP-SAVE §4.2 item 5): one slot's copy, played in co-op or not, replaced by a new copy of the
+  // player's save, at the title only and while the game uses the player's saves. The old copy goes into a new backup
+  // folder first and is never deleted; every other slot keeps its copy and its line; nothing switches. With no
+  // manifest, the first conversion's whole backup comes first. A slot with no save of the player's, a slot out of
+  // 0-4 and a pass under way are refused; a backup that cannot be made replaces nothing.
+  HostFs r;
+  r.dir = root / "SaveGames" / "76561198000000005";
+  r.backups = root / "StellarCoopBackups7";
+  fs::create_directories(r.dir);
+  for (int n : {0, 1})
+    spill(r.dir / main_name(n), save("own " + std::to_string(n)));
+  Convert first;
+  run(first, r);
+  assert(first.ready() && backups(r) == 1);
+  spill(r.dir / twin_name(0), save("zero, played in co-op"));
+  spill(r.dir / twin_name(1), save("one, played in co-op"));
+  spill(r.dir / main_name(0), save("own 0, later"));
+  mine = own(r.dir);
+  assert(plan(r).act[0] == Act::keep && plan(r).act[1] == Act::keep);
+  Switch rs;
+  Game rg;
+  rg.loaded = true;
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 0) == "co-op saves refused: a save is loaded: quit to the title first");
+  rg.loaded = false;
+  rg.name = Saves::coop;
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 0) ==
+         "co-op saves refused: copies are made only while the game uses your own saves");
+  rg.name = Saves::main;
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 5) == "co-op saves refused: there is no slot 5");
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 3) ==
+         "co-op saves: conversion stopped: slot 3 has no save of yours to copy");
+  assert(rs.status() == "convert=error:slot 3 has no save of yours to copy");
+  r.ops.clear();
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 0) ==
+         "co-op saves: replacing slot 0's co-op copy (the old one is backed up first)");
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 1) == "co-op saves refused: a conversion is under way");
+  said = passes(rs, r, rg);
+  assert(rs.status() == "convert=done" && rg.swaps == 0 && backups(r) == 2);
+  assert(r.ops.size() > 2 && r.ops[0] == "backup " + twin_name(0) && r.ops[1].rfind("write StellarCoopSaves", 0) == 0);
+  for (const std::string &op : r.ops)
+    assert(op.find(twin_name(1)) == std::string::npos);
+  assert(slurp(r.current / twin_name(0)) == save("zero, played in co-op"));
+  assert(slurp(r.dir / twin_name(0)) == save("own 0, later"));
+  assert(slurp(r.dir / twin_name(1)) == save("one, played in co-op") && own(r.dir) == mine);
+  assert(logged(said, "slot 0's co-op copy replaced (") && logged(said, "co-op saves ready: 1 copied"));
+  Lines rl{};
+  assert(parse(slurp(r.dir / "StellarCoopSaves.txt"), rl) && rl[0].present && !rl[1].present);
+  assert(same(rl[0].twin, r.stat(twin_name(0))) && same(rl[0].source, r.stat(main_name(0))));
+  assert(plan(r).act[0] == Act::none && plan(r).act[1] == Act::keep);
+  // A slot with no copy yet: a plain copy, no backup needed.
+  spill(r.dir / main_name(2), save("own 2"));
+  mine = own(r.dir);
+  r.ops.clear();
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 2) == "co-op saves: replacing slot 2's co-op copy");
+  said = passes(rs, r, rg);
+  assert(rs.status() == "convert=done" && backups(r) == 2 && slurp(r.dir / twin_name(2)) == save("own 2"));
+  assert(r.ops[0].rfind("write " + twin_name(2), 0) == 0 && logged(said, "slot 2 copied ("));
+  assert(slurp(r.dir / twin_name(1)) == save("one, played in co-op"));
+  // No manifest: the first conversion's backup of every StellarBlade*.sav first (copies included).
+  fs::remove(r.dir / "StellarCoopSaves.txt");
+  assert(rs.ask(SavesAsk::refresh, &r, rg, 1) ==
+         "co-op saves: replacing slot 1's co-op copy (a backup of 6 files first)");
+  said = passes(rs, r, rg);
+  assert(rs.status() == "convert=done" && backups(r) == 3 && slurp(r.dir / twin_name(1)) == save("own 1"));
+  assert(slurp(r.current / twin_name(1)) == save("one, played in co-op") && own(r.dir) == mine);
+  // A backup that cannot be made: the copy stays as it was.
+  spill(r.dir / twin_name(1), save("one, played again"));
+  r.fail_backup = true;
+  rs.ask(SavesAsk::refresh, &r, rg, 1);
+  said = passes(rs, r, rg);
+  assert(rs.status() == "convert=error:the backup folder could not be made");
+  assert(slurp(r.dir / twin_name(1)) == save("one, played again") && own(r.dir) == mine);
+  r.fail_backup = false;
+
   // The probe's dry run: the plan for each slot, nothing written.
   fs::remove(f.dir / twin_name(3));
   f.ops.clear();

@@ -315,7 +315,7 @@ local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | al
     ..'status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot | '
-    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -405,9 +405,26 @@ for _,sub in ipairs({'probe','convert','coop','main'}) do
     coop('saves',sub)
     assert(asked[#asked]=='saves '..sub and last()=='[StellarCoop] OK: asked the native part: saves '..sub..'\n',last())
 end
-for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh','2'},{'off'}}) do
+for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh'},{'refresh','5'},{'refresh','02'},{'refresh','2','now'},
+        {'off'}}) do
     coop('saves',table.unpack(bad))
-    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main\n',last())
+    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main | refresh <0-4>\n',
+        last())
+end
+-- coop saves refresh <0-4>: asked of the native part only when typed twice for the same slot within 10 s; the first
+-- says what it replaces.
+do
+local REFRESH='[StellarCoop] STOP: coop saves refresh 2 replaces the co-op copy StellarBladeCoop02.sav, played in co-op '
+    ..'or not, with a new copy of your save StellarBladeSave02.sav (the old copy goes to StellarCoopBackups first): type '
+    ..'it again within 10 s to go on\n'
+coop('saves','refresh','2'); assert(#asked==10 and last()==REFRESH,last())
+clock=clock+11
+coop('saves','refresh','2'); assert(#asked==10 and last()==REFRESH,'Over 10 s: asked again')
+coop('saves','refresh','3'); assert(#asked==10,'Another slot: asked again')
+clock=clock+5
+coop('saves','refresh','3')
+assert(asked[11]=='saves refresh 3' and last()=='[StellarCoop] OK: asked the native part: saves refresh 3\n',last())
+coop('saves','refresh','3'); assert(#asked==11,'Each refresh asks again')
 end
 -- Join codes and the host's answers: coop join <code> in either case, with or without the dash, as the native part
 -- takes it; coop copy; coop allow, deny and remove with a SteamID only.

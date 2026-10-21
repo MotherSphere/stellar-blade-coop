@@ -9,7 +9,7 @@
 -- notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's card, marker and off-screen
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
--- copies and save name by hand; and
+-- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
@@ -95,7 +95,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -244,6 +244,7 @@ if settings and not settings.same_place and not off then
         log((ok and 'OK: ' or 'STOP: ')..'same_place=off: '..tostring(why))
     end
 end
+local refresh_asked=nil -- coop saves refresh: the slot typed and when ({slot=, at=}), until typed again.
 local commands={
     puppet=puppet.toggle, invite=ask('invite'),
     host=function() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end,
@@ -338,11 +339,24 @@ local commands={
         return ask(seconds and 'freeze '..seconds or 'freeze off')()
     end,
     -- The co-op saves by hand (the question at the title asks for them): probe logs what the native part reads and the
-    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back.
-    -- The native part refuses all but probe off the title screen, and says why in coop-link.log.
-    saves=function(sub,extra)
+    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back;
+    -- refresh <0-4> replaces that slot's co-op copy, played or not, with a new copy of the player's save (the native
+    -- part backs the old one up first), once typed twice for the same slot within 10 s. The native part refuses all but
+    -- probe off the title screen, and says why in coop-link.log.
+    saves=function(sub,extra,more)
+        if sub=='refresh' and more==nil and type(extra)=='string' and extra:match('^[0-4]$') then
+            local now=os.clock()
+            if not (refresh_asked and refresh_asked.slot==extra and now-refresh_asked.at<=10) then
+                refresh_asked={slot=extra,at=now}
+                return false,'coop saves refresh '..extra..' replaces the co-op copy StellarBladeCoop0'..extra..'.sav, '
+                    ..'played in co-op or not, with a new copy of your save StellarBladeSave0'..extra..'.sav (the old '
+                    ..'copy goes to StellarCoopBackups first): type it again within 10 s to go on'
+            end
+            refresh_asked=nil
+            return ask('saves refresh '..extra)()
+        end
         if extra~=nil or not ({probe=true,convert=true,coop=true,main=true})[sub or ''] then
-            return false,'Use: coop saves probe | convert | coop | main'
+            return false,'Use: coop saves probe | convert | coop | main | refresh <0-4>'
         end
         return ask('saves '..sub)()
     end,
