@@ -170,7 +170,8 @@ int main() {
           "SBF11 place 3 1", "SBF11 place 4294967295 0", "SBF11 aggro 3 game", "SBF11 aggro 4294967295 host",
           "SBF11 own 3 77 G 1", "SBF11 own 4294967295 4294967295 H 255", "SBF11 own 3 77 H 0",
           "SBF11 own-no 3 77 0 unpaired", "SBF11 own-no 3 77 255 state", "SBF11 own-no 3 77 9 off",
-          "SBF11 own-no 3 77 9 epoch", "SBF11 own-no 3 77 9 aggro", "SBF11 own-no 3 77 9 full"}) {
+          "SBF11 own-no 3 77 9 epoch", "SBF11 own-no 3 77 9 aggro", "SBF11 own-no 3 77 9 full",
+          "SBF11 own-no 3 77 9 target"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);

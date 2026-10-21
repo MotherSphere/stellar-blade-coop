@@ -196,8 +196,10 @@ struct PilotTable {
 };
 // What the game thread says back, by the host's GUID: the drawn pairs whose owner's stream says BattleMode, those whose
 // copy it refused to drive (its movement component is not the game's), which the job lets go as if their freeze were
-// lost, and those whose owner's stream says a skill runs (kSkill); and on the host's side where her EVE stands (her
-// ghost, in our world), for stage 3b's nearer rule.
+// lost, those whose owner's stream says a skill runs (kSkill), and the pairs this side owns whose take-over it refused
+// at that epoch (pilot.h's Taker: SB's force target needs net mode 0 and no logic task in flight), which the guest
+// gives back with own-no target; and on the host's side where her EVE stands (her ghost, in our world), for stage 3b's
+// nearer rule.
 struct StreamFlags {
   uint32_t battle[kMaxPairs] = {};
   uint8_t count = 0;
@@ -205,6 +207,9 @@ struct StreamFlags {
   uint8_t refused_count = 0;
   uint32_t skill[kMaxPairs] = {};
   uint8_t skill_count = 0;
+  uint32_t untaken[kMaxPairs] = {};
+  uint8_t untaken_oe[kMaxPairs] = {};
+  uint8_t untaken_count = 0;
   float her[3] = {};
   bool her_ok = false; // her holds where her ghost was drawn this frame.
 };
@@ -1577,8 +1582,8 @@ private:
   // The guest: the host's own lines in order, each about a pair of the host's current list (its generation), the pair
   // hers only when she can run it (same-place enemies running here, a paired copy seen this pass in life state 1 and
   // alive, aggro=game) and its epoch is hers plus one (an epoch skipped counts as a bad line); else the host's at that
-  // epoch, with own-no. Then each pair she owns and can no longer run (same-place enemies off here, unpaired) goes back
-  // with own-no.
+  // epoch, with own-no. Then each pair she owns and can no longer run (same-place enemies off here, unpaired, or a
+  // take-over the game thread refused at that epoch) goes back with own-no.
   template <class Game>
   void answer(Game &g, const uint32_t *local, const uint32_t *hguids, size_t count, size_t n, uint64_t now) {
     const auto paired = [&](uint32_t h) { return size_t(std::find(hguids, hguids + count, h) - hguids); };
@@ -1606,9 +1611,14 @@ private:
            : i == count        ? kUnpaired
                                : kState);
     }
+    const size_t untaken = std::min<size_t>(flags_.untaken_count, kMaxPairs);
     owners_.each([&](pilot::Own &o) {
-      if (o.owner == pilot::kGuest && (!table_.on || paired(o.hguid) == count) && owners_.give(o.hguid))
-        no(g, o.hguid, o.oe, table_.on ? kUnpaired : kOff);
+      bool refused = false;
+      for (size_t k = 0; k < untaken; ++k)
+        refused = refused || (flags_.untaken[k] == o.hguid && flags_.untaken_oe[k] == o.oe);
+      const bool unpaired = paired(o.hguid) == count;
+      if (o.owner == pilot::kGuest && (!table_.on || unpaired || refused) && owners_.give(o.hguid))
+        no(g, o.hguid, o.oe, !table_.on ? kOff : unpaired ? kUnpaired : kTarget);
     });
   }
   template <class Game> void no(Game &g, uint32_t hguid, uint8_t oe, uint8_t why) {

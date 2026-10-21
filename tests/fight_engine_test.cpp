@@ -6,7 +6,8 @@
 // (stage 3a): the guest's freeze on each copy it draws, put on again after SB's own dispel and lost after 5 tries, the
 // release flags and takedown markers, the dispel before a kill and on every way out, the pair table to the game thread
 // and BattleMode_5s from its word; stage 3b's hand-overs on both sides (the host's rule, its freeze before own G and
-// its thaw with own H or her own-no, her answers and her give-backs, aggro=host, place 0, an undrawable copy) and in
+// its thaw with own H or her own-no, her answers and her give-backs, a take-over her game thread refused, aggro=host,
+// place 0, an undrawable copy) and in
 // two worlds through channel 2 (one AI copy an enemy but one hop of a hand-over, one owner at an epoch, no frozen copy
 // once the link goes); the job's guards, its arming and re-arming, the ring and the latch, a job that never runs, a
 // long pause, photo mode; a guest restarting mid-fight;
@@ -1894,6 +1895,40 @@ int main() {
     frame(g, *e, t += 16);
     assert(lines(g) == "SBF11 own-no 1 101 9 unpaired\n" && g.table.count == 0 && e->counts.own_nos == 6);
     assert(!e->latched());
+  }
+  // Her game thread refused the take-over (pilot.h's Taker: SB's force target needs net mode 0 and no logic task in
+  // flight): the pair goes back with own-no target at her epoch, drawn and frozen again in that turn. A refusal that
+  // names another epoch changes nothing.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    const uint64_t la = g.by_guid[501];
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    frame(g, *e, t += 16);
+    lines(g);
+    g.inbox.push_back(msg("SBF11 own 1 101 G 1"));
+    frame(g, *e, t += 16);
+    const PilotPair &row = g.table.pairs[0];
+    assert(lines(g).empty() && row.owner == coop::pilot::kGuest && row.oe == 1);
+    g.flags.untaken[0] = 101, g.flags.untaken_oe[0] = 0, g.flags.untaken_count = 1;
+    frame(g, *e, t += 16);
+    frame(g, *e, t += 16);
+    assert(lines(g).empty() && row.owner == coop::pilot::kGuest);
+    const size_t casts = g.casts.size();
+    g.flags.untaken_oe[0] = 1;
+    frame(g, *e, t += 16); // The flags reach the job at this turn's end,
+    frame(g, *e, t += 16); // and its answers at the next.
+    assert(lines(g) == "SBF11 own-no 1 101 1 target\n" && count(g, "own-no", "target") == 1);
+    assert(row.owner == coop::pilot::kHost && row.oe == 1 && (row.bits & kRowDrawn) && e->counts.own_nos == 1);
+    assert(g.casts.size() == casts + 2 && g.casts[casts].la == la && g.casts[casts].id == kBlockAi);
+    frame(g, *e, t += 16); // Still named by the game thread: the pair is the host's now, nothing more to say.
+    assert(lines(g).empty() && e->counts.own_nos == 1);
   }
   // The host's own line and its dead for the same enemy in one turn of hers: the own line is stale (counted), never an
   // own-no or a bad line, and leaves no entry behind.

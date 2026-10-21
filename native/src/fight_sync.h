@@ -99,9 +99,10 @@ inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + k
 enum Scale : int { kScaleHp, kScaleBalance, kScales };
 inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || pct[kScaleBalance] > kMinScale; }
 // Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
-// side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair.
-constexpr const char *kOwnNo[] = {"unpaired", "state", "off", "epoch", "aggro", "full"};
-enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kOwnNoCount };
+// side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair, or her game thread refused
+// the take-over (SB's force target needs net mode 0 and no logic task in flight: pilot.h's Taker).
+constexpr const char *kOwnNo[] = {"unpaired", "state", "off", "epoch", "aggro", "full", "target"};
+enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kTarget, kOwnNoCount };
 
 // ---- Channel 2 ----
 
