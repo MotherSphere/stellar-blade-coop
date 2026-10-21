@@ -3,7 +3,9 @@
 -- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
 -- on any slot even when that raises), coop nightop reaches Night Operation's run on the co-op save slot only, its stop
--- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
+-- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), coop challenge reaches the
+-- same run on the co-op save slot only, its stop on any slot, with coop-records.txt in the mod folder (none when the
+-- folder is unknown), coop look changes what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
 -- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
@@ -195,7 +197,10 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
         me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
 end}
-package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings} -- The real parser.
+-- The real parser; files: the records file's read and write, which say the path they got (in nr).
+package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings,files={
+    read=function(path) nr.read=path; return 'best_targets=1250 37\n' end,
+    write=function(path,text) nr.wrote={path,text}; return true end}}
 local said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
 package.loaded.notice={new=function()
     the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
@@ -209,12 +214,13 @@ package.loaded.nightop={new=function(log,ask,status)
     return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
         tick=function() probe_ticks=probe_ticks+1 end}
 end}
--- Night Operation's run: what nightop_run.new got (o), coop nightop's words, its ticks and stops, a stop that raises. A
--- global: this chunk is at Lua's 200 locals.
-nr={o=nil,runs={},ticks=0,stops={},raise=nil}
+-- Night Operation's run: what nightop_run.new got (o), coop nightop's and coop challenge's words, its ticks and stops,
+-- a stop that raises. A global: this chunk is at Lua's 200 locals.
+nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
+        challenge=function(sub,extra) nr.chs[#nr.chs+1]={sub,extra}; return true,'challenge '..tostring(sub) end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
@@ -349,12 +355,13 @@ package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
+    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | challenge [<name>|stop] | '
+    ..'recruiter [off] | '
     ..'fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
-local function load_main(with_native)
+local function load_main(with_native,no_folder)
     native_ok=with_native
     package.loadlib=function(_,name)
         if not native_ok then return nil,'no dll' end
@@ -365,14 +372,19 @@ local function load_main(with_native)
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
-    nr.o,nr.runs,nr.ticks,nr.stops=nil,{},0,{}
+    nr.o,nr.runs,nr.chs,nr.ticks,nr.stops=nil,{},{},0,{}
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
     kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out,code_text={},nil,'',0,{},nil,{},''
     kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
     fake_link.Q={notes={}}
-    local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
+    local chunk
+    if no_folder then -- A chunk name with no Scripts folder in it: the mod folder unknown.
+        local f=assert(io.open('mod/StellarCoop/Scripts/main.lua','rb'))
+        chunk=assert(load(f:read('a'),'=main.lua'))
+        f:close()
+    else chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua')) end
     chunk()
 end
 local function last() return printed[#printed] end
@@ -511,6 +523,15 @@ assert(nr.hud and nr.hud.kit and nr.hud.kit.paused and nr.hud.theme and nr.hud.t
     and nr.hud.settings.ui_language,'night.hud')
 nr.o.tell(function(w) return w.night.wave_notice:format(2,5) end)
 assert(said[#said]=='Night Operation: wave 2/5.' and said_en[#said]=='Night Operation: wave 2/5.',said[#said])
+-- coop challenge: its words reach the same run, with the co-op slot loaded. The best runs are in coop-records.txt in
+-- the mod folder, read and written through link.lua's files.
+coop('challenge','targets','x')
+assert(#nr.chs==1 and nr.chs[1][1]=='targets' and nr.chs[1][2]=='x' and #nr.runs==3,'Its own words')
+assert(last()=='[StellarCoop] OK: challenge targets\n',last())
+coop('challenge'); coop('challenge','stop')
+assert(#nr.chs==3 and nr.chs[2][1]==nil and nr.chs[2][2]==nil and nr.chs[3][1]=='stop')
+assert(nr.o.records.read()=='best_targets=1250 37\n' and nr.read=='mod/StellarCoop\\coop-records.txt',nr.read)
+assert(nr.o.records.write('x')==true and nr.wrote[1]=='mod/StellarCoop\\coop-records.txt' and nr.wrote[2]=='x')
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())
@@ -537,6 +558,12 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
         assert(#nr.runs==nights and last()==STOP:gsub('coop no','coop nightop')..case[2]..'\n',last())
     end
     coop('nightop','stop'); assert(#nr.runs==nights+1 and nr.runs[nights+1][1]=='stop','stop on any slot')
+    nr.n=#nr.chs
+    for _,args in ipairs({{'challenge','targets'},{'challenge'},{'challenge','1'}}) do
+        coop(table.unpack(args))
+        assert(#nr.chs==nr.n and last()==STOP:gsub('coop no','coop challenge')..case[2]..'\n',last())
+    end
+    coop('challenge','stop'); assert(#nr.chs==nr.n+1 and nr.chs[nr.n+1][1]=='stop','stop on any slot')
     coop('recruiter'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
     coop('recruiter','off'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
 end
@@ -545,6 +572,7 @@ status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
 local runs,recruits=#probe_runs,#rc_runs
 coop('no','rule'); assert(#probe_runs==runs+1 and last()=='[StellarCoop] OK: probe rule\n',last())
 coop('recruiter'); assert(#rc_runs==recruits+1,last())
+coop('challenge'); assert(#nr.chs==nr.n+2,last())
 status_text=plain
 notice_result={false,'Screen notices off: x; notices stay in UE4SS.log.'}
 loops[1].f(); assert(last()=='[StellarCoop] STOP: Screen notices off: x; notices stay in UE4SS.log.\n',last())
@@ -736,6 +764,9 @@ loops[2].f(); assert(#states==0,'Nor a world state')
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
 load_main(true)
 loops[1].f(); assert(ticks==1,'A peer name never switches the mod off')
+-- The mod folder unknown (no Scripts folder in the chunk's name): no records file is handed over, so no bests.
+load_main(false,true)
+assert(nr.o and nr.o.records==nil,'No mod folder: no records')
 -- On a main slot only coop no refuses: the ghost and the Steam link are never locked to the co-op slot.
 status_text=with_slot('slot=main index=0 marker=4\n')
 load_main(true)

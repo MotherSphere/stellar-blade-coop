@@ -1,19 +1,21 @@
 -- coop nightop: Night Operation's solo run on a co-op save (main.lua checks the slot), on the game thread. Five timed
--- waves of the game's base monsters come at EVE where she stands. nightop_waves.lua holds the schedule, the keys and
--- the run's states; this file is the game side: the start checks and the census, the one spawn call, the bodies it
--- tracks, their aggro and stuck moves, the abort watch and the end, and what the player sees: a card at the top centre
--- and a result panel on the Uplink kit (ui.lua), or notices while the kit is off. The run has no rule row: its clock is
--- game time and it ends itself. Never called here: a table row added, a rule or remain-time request, EndRule,
--- ResetZone, a zone event other than nightop.lua's heal, EnterZone, a hide, a collision or pool flag write, a destroy,
--- a save, inventory, equip or quest call, RegisterHook, NotifyOnNewObject. No console word reaches a game call: start's
--- words only set flags. Beyond the kit (ui.lua), the HUD calls the game for one thing only: its own result words
--- (StringTable_UI).
+-- waves of the game's base monsters come at EVE where she stands. coop challenge runs the challenges of challenges.lua
+-- the same way, each with its best run in coop-records.txt. nightop_waves.lua holds the waves, the keys and the run's
+-- states, read from the run's definition; this file is the game side: the start checks and the census, the one spawn
+-- call, the bodies it tracks, their aggro and stuck moves, the abort watch and the end, and what the player sees: a
+-- card at the top centre and a result panel on the Uplink kit (ui.lua), or notices while the kit is off. The run has
+-- no rule row: its clock is game time and it ends itself. Never called here: a table row added, a rule or remain-time
+-- request, EndRule, ResetZone, a zone event other than nightop.lua's heal, EnterZone, a hide, a collision or pool flag
+-- write, a destroy, a save, inventory, equip or quest call, RegisterHook, NotifyOnNewObject. No console word reaches a
+-- game call: start's words only set flags, and a challenge's name only picks a definition. Beyond the kit (ui.lua), the
+-- HUD calls the game for one thing only: its own result words (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local U=require('unreal')
 local W=require('nightop_waves')
 local N=require('nightop')
 local T=require('ui_text')
+local C=require('challenges')
 local Run={}
 local MASK=0xFFFFFFFF
 local XION='/game/art/bg/worldmap/level_p/e04' -- Its people and quest scripts stay out of a fight.
@@ -25,7 +27,7 @@ local FINDS={1,2.5}
 -- Seconds after a body is found: a controller if it has none, before the aggro so that a new one gets the focus and the
 -- move (the second aggro skips a body in battle); aggro, and again later.
 local ADOPT,AGGRO,AGAIN=0.5,0.6,4
-local STUCK,EVERY,BELOW,AWAY,NEAR,MOVES=2.5,3,10,40,7,2 -- The stuck rule: seconds, then metres, then moves per body.
+local STUCK,EVERY,BELOW,AWAY,NEAR=2.5,3,10,40,7 -- The stuck rule: seconds, then metres (its moves: the definition's).
 local SLOW=5 -- ms: a live-list refresh this slow gets its own line.
 -- The HUD in the kit's layout units (3840 by 2160), both groups at the top centre and scaled from there: the card
 -- (its title over one line) and, in its place once the run ends, the result panel (a heading, a line under it, then
@@ -143,8 +145,8 @@ function Run.card(s,now,w)
     if s.phase=='countdown' then return n.title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
     local rt=now-s.t0
     local wait=s.phase=='breather' and s.next_at and math.ceil(s.next_at-rt)
-    local head=wait and wait>0 and n.next:format(wait) or n.wave:format(s.wave,#W.SCHEDULE)
-    return n.title,head..'  '..clock_text(math.max(0,math.ceil(W.LIMIT-rt)))..'  '..n.score:format(s.score)
+    local head=wait and wait>0 and n.next:format(wait) or n.wave:format(s.wave,#s.def.waves)
+    return n.title,head..'  '..clock_text(math.max(0,math.ceil(s.def.limit-rt)))..'  '..n.score:format(s.score)
 end
 -- An ended run's heading, the line under it ('' after a success) and its rows {label, value}, in words w. game(key):
 -- the game's own text for a StringTable_UI key, or nil; read for the heading and a death's line only.
@@ -156,7 +158,7 @@ function Run.result(s,w,game)
     if s.outcome=='failed' then sub=game('UI_Night_OperationFail_Des') or n.died
     elseif s.outcome=='time' then sub=n.time_up
     elseif s.outcome=='aborted' then sub=n.why[WHY[s.reason] or 'stop'] end
-    return head,sub,{{n.waves,s.clears..'/'..#W.SCHEDULE},{n.kills,tostring(s.kills)},{n.points,tostring(s.score)},
+    return head,sub,{{n.waves,s.clears..'/'..#s.def.waves},{n.kills,tostring(s.kills)},{n.points,tostring(s.score)},
         {n.time,clock_text(math.floor(s.time))}}
 end
 local function no_text() return nil end
@@ -176,9 +178,10 @@ local function game_text(key)
 end
 -- log(text) writes an [NR] line; status() is the native part's status text; paused() whether the game is paused or
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
--- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off.
+-- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off. records:
+-- {read() the text of coop-records.txt or nil, write(text) true once written}, or nil for no bests.
 function Run.new(o)
-    local log,status,paused,tell=o.log,o.status,o.paused or function() return false end,o.tell
+    local log,status,paused,tell,records=o.log,o.status,o.paused or function() return false end,o.tell,o.records
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
     local panel=nil
@@ -191,7 +194,7 @@ function Run.new(o)
         notify(function(w)
             local head,line,rows=Run.result(s,w,no_text)
             more=line~=''
-            return w.night.end_notice:format(head,s.clears,#W.SCHEDULE,s.kills,s.score,rows[4][2])
+            return w.night.end_notice:format(head,s.clears,#s.def.waves,s.kills,s.score,rows[4][2])
         end)
         if more then notify(function(w) return select(2,Run.result(s,w,no_text)) end) end
     end
@@ -258,15 +261,16 @@ function Run.new(o)
         end)
     end
     -- Below the start point and EVE, or far from both (a body chasing her where she fights is left alone): moved next
-    -- to EVE, at most MOVES times and never twice within EVERY s (one check each EVERY s); still out after that,
-    -- written off for the wave check (a later kill still scores).
+    -- to EVE, at most the definition's moves times and never twice within EVERY s (one check each EVERY s); still out
+    -- after that, written off for the wave check (a later kill still scores). With 0 moves, written off where it is.
     local function stuck(b)
+        local moves=r.s.def.moves
         local function check(now)
             with(b,function(c)
                 local _,down=signals(c)
                 local l,e=location(c),location(r.eve)
                 if not down and (l.Z<math.min(r.p0.Z,e.Z)-BELOW*100 or metres(l,r.p0)>AWAY and metres(l,e)>AWAY) then
-                    if b.moves>=MOVES then
+                    if b.moves>=moves then
                         r.input.done[#r.input.done+1]=b.key
                         log(string.format('written off %s %s at %s after %d moves',hex(b.key),alias(b),xyz(l),b.moves))
                         return
@@ -275,29 +279,32 @@ function Run.new(o)
                     local to,refused=move(c,e,l)
                     log(string.format('%s %s %s from %s (%.1f m from the start) to %s (%d/%d)',
                         refused and 'move refused' or 'moved',hex(b.key),alias(b),xyz(l),metres(l,r.p0),xyz(to),b.moves,
-                        MOVES))
+                        moves))
                 end
                 r.timers.add(now+EVERY,check)
             end)
         end
         return check
     end
+    -- A definition with aggro off (the target dummies) gets neither the default controller nor the aggro.
     local function track(c,key,k,slot)
-        local b={key=key,id=W.SCHEDULE[k].ids[slot+1],obj=c,addr=U.address(c),moves=0,
+        local b={key=key,id=r.s.def.waves[k].ids[slot+1],obj=c,addr=U.address(c),moves=0,
             name=c:GetFName():GetComparisonIndex()}
         r.bodies[key],r.seen[key]=b,true
         local t=r.now
-        r.timers.add(t+ADOPT,function() adopt(b) end)
-        if not r.noaggro then
-            r.timers.add(t+AGGRO,function() push(b,false) end)
-            r.timers.add(t+AGGRO+AGAIN,function() push(b,true) end)
+        if r.s.def.aggro then
+            r.timers.add(t+ADOPT,function() adopt(b) end)
+            if not r.noaggro then
+                r.timers.add(t+AGGRO,function() push(b,false) end)
+                r.timers.add(t+AGGRO+AGAIN,function() push(b,true) end)
+            end
         end
         if not r.nomove then r.timers.add(t+STUCK,stuck(b)) end
     end
     -- Wave k's bodies by key, in one FindAllOf that is also a refresh; at the last find, a slot never seen is missing.
     local function find(k,last,after)
         return function()
-            local ids=W.SCHEDULE[k].ids
+            local ids=r.s.def.waves[k].ids
             for _,c in ipairs(refresh()) do
                 pcall(function()
                     c=U.valid(c)
@@ -321,9 +328,9 @@ function Run.new(o)
     local function spawn_next()
         local q=table.remove(r.queue,1)
         if not q then return end
-        local ids=W.SCHEDULE[q.k].ids
+        local ids=r.s.def.waves[q.k].ids
         local key,id=W.key(r.s.run,q.k,q.slot),ids[q.slot+1]
-        local at,yaw=W.spot(r.p0,r.yaw,r.s.order[q.k],q.slot)
+        local at,yaw=W.spot(r.p0,r.yaw,r.s.order[q.k],q.slot,r.s.def)
         local ok,e=pcall(function() Run.spawn(assert(N.controller(),'no SB player controller'),id,at,yaw,key) end)
         log(string.format('spawn %s %s at %s yaw %.0f%s',hex(key),W.POOL[id].alias,xyz(at),yaw,
             ok and '' or ' failed: '..why(e)))
@@ -349,14 +356,42 @@ function Run.new(o)
             end)
         end
     end
-    -- The end: every handle dropped without a read, nothing more spawned, the result line.
+    -- The records file's text: nil when there is none (or no records), false when reading it failed (logged).
+    local function stored()
+        if not records then return nil end
+        local ok,text=pcall(records.read)
+        if ok then return text end
+        log('record: cannot read coop-records.txt ('..why(text)..')')
+        return false
+    end
+    -- After a success: the records file read again (every other line stays as it is) and, when this run beats its best,
+    -- rewritten. r.best is then the best the file holds and r.new says this run wrote it. A read or a write that fails
+    -- is logged and writes nothing.
+    local function keep(s)
+        local text=stored()
+        if text==false then return end
+        local score,secs=C.best(text,s.def.id)
+        r.best=score and {score=score,s=secs} or nil
+        if not C.better(score,secs,s.score,s.time) then return end
+        local new,e=C.write(text,s.def.id,s.score,s.time)
+        if new then
+            local ok,wrote=pcall(records.write,new)
+            e=not ok and wrote or wrote~=true and 'the write failed' or nil
+        end
+        if e then return log('record: cannot write coop-records.txt ('..why(e)..')') end
+        r.best,r.new={score=math.floor(s.score),s=math.floor(s.time)},true
+    end
+    -- The end: every handle dropped without a read, nothing more spawned, a better success's best kept, the result
+    -- line.
     local function finish()
         local s=r.s
         r.bodies,r.queue,r.timers,r.live,r.screen={},{},W.timers(),{},nil
+        if s.outcome=='success' and records then keep(s) end
         local t=math.floor(s.time)
-        log(string.format('result: %s%s waves=%d/%d kills=%d score=%d time=%d:%02d find_ms=%.1f/%.1f',s.outcome,
-            s.reason and ' ('..s.reason..')' or '',s.clears,#W.SCHEDULE,s.kills,s.score,t//60,t%60,
-            r.ms_n>0 and r.ms_sum/r.ms_n or 0,r.ms_max))
+        log(string.format('result: %s%s waves=%d/%d kills=%d score=%d time=%d:%02d find_ms=%.1f/%.1f challenge=%s '
+            ..'best=%s',s.outcome,s.reason and ' ('..s.reason..')' or '',s.clears,#s.def.waves,s.kills,s.score,t//60,
+            t%60,r.ms_n>0 and r.ms_sum/r.ms_n or 0,r.ms_max,s.def.id,
+            r.best and string.format('%d/%d %s',r.best.score,r.best.s,r.new and 'new' or 'kept') or 'none'))
     end
     local function step(input)
         local before=r.s.score
@@ -374,10 +409,10 @@ function Run.new(o)
         end
         for _,e in ipairs(events) do
             if e.what=='wave' then
-                local ids=W.SCHEDULE[e.wave].ids
+                local ids,n=r.s.def.waves[e.wave].ids,#r.s.def.waves
                 for slot=0,#ids-1 do r.queue[#r.queue+1]={k=e.wave,slot=slot} end
-                log(string.format('wave %d/%d at run time %.1f s: %d monsters',e.wave,#W.SCHEDULE,r.now-r.s.t0,#ids))
-                notify(function(w) return w.night.wave_notice:format(e.wave,#W.SCHEDULE) end)
+                log(string.format('wave %d/%d at run time %.1f s: %d monsters',e.wave,n,r.now-r.s.t0,#ids))
+                notify(function(w) return w.night.wave_notice:format(e.wave,n) end)
             elseif e.what=='heal' then
                 local ok,healed=pcall(N.heal)
                 log(string.format('heal after wave %d: %s',e.wave,ok and healed and 'asked'
@@ -451,12 +486,18 @@ function Run.new(o)
         step(input)
     end
     local USE='Use: coop nightop [start [noaggro|nomove] | stop]'
-    local function start(flag)
-        if r and r.s.phase~='result' then return false,'a run is on: coop nightop stop ends it' end
+    local function name_of(def) return def.name or 'Night Operation' end
+    -- A run of def (Night Operation's when nil); flag: Night Operation's noaggro or nomove. The best so far is read
+    -- from the records file once the run is on.
+    local function start(flag,def)
+        def=def or W.NIGHT
+        if r and r.s.phase~='result' then
+            return false,'a run is on: coop '..(def==W.NIGHT and 'nightop' or 'challenge')..' stop ends it'
+        end
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if linked~='none' then
-            return false,linked and 'Night Operation is solo for now: leave the Steam session first (coop leave)'
+            return false,linked and name_of(def)..' is solo for now: leave the Steam session first (coop leave)'
                 or 'the Steam link is not ready yet: try again in a moment'
         end
         -- The token goes with the probe's poller (capped at 4 MB); the rule's row stays in the table.
@@ -477,21 +518,32 @@ function Run.new(o)
         if not run then return false,c.text..': every run byte is taken, load another map first' end
         local now,at=clock(eve),location(eve)
         local yaw=U.value_of(eve:K2_GetActorRotation()).Yaw
-        r={s=W.new{run=run,seed=W.seed(t,run),now=now},p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
+        r={s=W.new{run=run,seed=W.seed(t,run),now=now,def=def},p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
             nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},live_at=-math.huge,
             now=now,ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={}}
         panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
-        log(string.format('start: run 0x%02X seed 0x%08X at %s yaw %.0f map %s%s; %s',run,W.seed(t,run),xyz(at),yaw,
-            map,flag and ' '..flag or '',c.text))
+        log(string.format('start: run 0x%02X seed 0x%08X at %s yaw %.0f map %s%s%s; %s',run,W.seed(t,run),xyz(at),
+            yaw,map,flag and ' '..flag or '',def~=W.NIGHT and ' challenge '..def.id or '',c.text))
+        local score,secs=C.best(stored(),def.id)
+        r.best=score and {score=score,s=secs} or nil
         notify(function(w) return w.night.start_notice:format(W.COUNTDOWN) end)
-        return true,string.format('Night Operation starts in %d s (run 0x%02X)',W.COUNTDOWN,run)
+        return true,string.format('%s starts in %d s (run 0x%02X)',name_of(def),W.COUNTDOWN,run)
     end
+    -- Ends the run that is on as aborted; the name of what it ran, or nil when none was on.
     local function stop(reason)
-        if not r or r.s.phase=='result' then return false end
+        if not r or r.s.phase=='result' then return nil end
+        local name=name_of(r.s.def)
         r.input,r.killed={killed={},done={}},{}
         step({killed={},done={},abort=reason})
-        return true
+        return name
+    end
+    -- The state of the run that is on, or nil.
+    local function state()
+        if not r or r.s.phase=='result' then return nil end
+        local s=r.s
+        return string.format('run 0x%02X%s: %s, wave %d/%d, run time %.0f s, score %d, kills %d',s.run,
+            s.def~=W.NIGHT and ' challenge '..s.def.id or '',s.phase,s.wave,#s.def.waves,r.now-s.t0,s.score,s.kills)
     end
     local self={}
     -- start [noaggro|nomove], stop, or nothing: the run's state, if any, and the census.
@@ -500,19 +552,35 @@ function Run.new(o)
         if sub=='start' and (flag==nil or flag=='noaggro' or flag=='nomove') then return start(flag) end
         if flag~=nil then return false,USE end
         if sub=='stop' then
-            if not stop('stop') then return false,'no Night Operation run to stop' end
-            return true,'Night Operation stopped'
+            local name=stop('stop')
+            if not name then return false,'no Night Operation run to stop' end
+            return true,name..' stopped'
         end
         if sub~=nil then return false,USE end
         local eve=N.her()
         if not eve then return false,'no EVE in the world' end
-        local text=census(eve).text
-        if r and r.s.phase~='result' then
-            local s=r.s
-            text=string.format('run 0x%02X: %s, wave %d/%d, run time %.0f s, score %d, kills %d; %s',s.run,s.phase,
-                s.wave,#W.SCHEDULE,r.now-s.t0,s.score,s.kills,text)
+        local text,on=census(eve).text,state()
+        return true,on and on..'; '..text or text
+    end
+    -- Nothing: the challenges and Night Operation with each one's best, then the run that is on, if any. A challenge's
+    -- name or number: its start, with Night Operation's checks. stop: ends any run, a challenge or Night Operation.
+    function self.challenge(sub,extra)
+        if extra~=nil then return false,'Use: coop challenge [<name>|stop]' end
+        if sub=='stop' then
+            local name=stop('stop')
+            if not name then return false,'no run to stop' end
+            return true,name..' stopped'
         end
-        return true,text
+        if sub~=nil then
+            local def=C.find(sub)
+            if not def then return false,'unknown challenge: coop challenge lists them' end
+            return start(nil,def)
+        end
+        local text,out=stored(),{}
+        for _,def in ipairs(C.LIST) do out[#out+1]=C.line(def,C.best(text,def.id)) end
+        out[#out+1]=C.line(W.NIGHT,C.best(text,W.NIGHT.id))
+        out[#out+1]=state()
+        return true,table.concat(out,'\n')
     end
     -- The HUD each tick, after the run's: the card while a run is on, else the result panel until it was seen for its
     -- 10 s (a death screen, a pause or a load hide it meanwhile), both hidden while the game is paused or shows one of
@@ -609,8 +677,8 @@ function Run.new(o)
             return v
         end)
     end
-    -- coop off (or any reason): the run ends as aborted.
-    function self.stop(reason) return stop(reason or 'stop') end
+    -- coop off (or any reason): the run ends as aborted; true when one was on.
+    function self.stop(reason) return stop(reason or 'stop')~=nil end
     return self
 end
 return Run
