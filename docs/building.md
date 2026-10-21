@@ -77,11 +77,12 @@ build/host/pose_codec_test
 - Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`,
   `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
   objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
-  also covers `coop fight pilot`, the `same_place` setting and row, and the same place notices in both languages.
+  also covers `coop fight pilot` (its `test target` included), the `same_place` and `aggro` settings and rows, and the
+  same place notices in both languages.
 - C++ tests cover the platform-free headers in `native/src`:
-  - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`
-    word and its `pilot` requests included), and the join codes (both real lobby ids, loose typing, malformed codes,
-    and the share of one-character typos the check turns away);
+  - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place` and
+    `aggro-host` words and its `pilot` requests, `test target` included), and the join codes (both real lobby ids, loose
+    typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, joining with a code, and the host's
     approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting);
@@ -109,11 +110,14 @@ build/host/pose_codec_test
     memory. Same place is the host's setting: the guest draws only while the host's last place line says on, and
     never reads her own; `coop fight pilot off` and the pilot's latch stop it on either side (the host then sends
     place 0), and the worker's `pilot=` words say why it does not run (on the guest's side, `host` only once the
-    host's list came, `fight` after its off or on line);
+    host's list came, `fight` after its off or on line); stage 3b's hand-overs on both sides (the host's rule and its
+    own lines, its freeze and thaw, her answers and give-backs with each own-no reason, `target` for a take-over her
+    game thread refused) and in two worlds, where an enemy has no AI copy or two for one hop at most;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
-    line sent after the world and at each change, and held by the guest until the host's next world), and two fake
+    line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
+    and own-no lines taken from the right side only), and two fake
     worlds linked through a delayed, lossy line;
-  - `pilot_test`: the core of same-place enemies (stage 3a): the SBE message with a fuzz, the gen and owner epoch
+  - `pilot_test`: the core of same-place enemies (stages 3a and 3b): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
     their timeline and line ids, the FNamePool decode and compact id over fake blocks, the
@@ -132,7 +136,10 @@ build/host/pose_codec_test
     one of its own replays; a release; a log line per release, convergence and snap;
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
-    change and driven only from the next frame), and two worlds through a delayed, lossy line (120 ms, plus or minus
+    change and driven only from the next frame); stage 3b's owners (the host's rule, its guards and hold, random
+    hand-overs over a delayed link) and the take-over (the copy put back first, then the game's force target; its net
+    mode and logic task gates, a stale copy, the refusals named for the job's own-no, the latch, `coop fight pilot test
+    target`), and two worlds through a delayed, lossy line (120 ms, plus or minus
     30, 2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;

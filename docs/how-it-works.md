@@ -254,7 +254,7 @@ instead of misread:
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
-| 11 | Same-place enemies: `SBE` on Steam channel 1, the show lines and the host's place line on channel 2 (this version) |
+| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2 (this version) |
 
 ### Link health in the log
 
@@ -392,30 +392,49 @@ the ghost stays. See [usage.md](usage.md#looks).
 ## Same-place enemies
 
 Same place (`same_place`, experimental, off by default, not tested in game yet) builds on shared enemies: the same
-pairs, the same host and the same Steam channel 2. In this version the host's game moves every shared enemy, and the
-guest's game draws its copies (stage 3a of Phase 11).
+pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs the enemy's AI and
+moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner. HP, Shield,
+balance and death stay with the host's game whoever owns the pair.
 
 - The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
   again, while shared enemies wait or run (`coop fight pilot off` and `on`).
-- Every 33 ms the host's game thread reads each shared enemy: position, rotation, animation speed, BattleMode and
-  whether it is dying, into one `SBE` message on channel 1 (26 bytes an enemy, 16 enemies at most), stamped with the
-  pose clock. It also walks the game's Show manager (the game's animation sequences) for the Shows each enemy starts,
-  and sends `show`, `show-set` and `show-stop` lines on channel 2 with the asset's path and the hit context. Only two
-  lookups by GUID are called for this; the rest is plain reads.
-- On the guest's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel 2004400), only
-  in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5 times in any
-  10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the BlockAI dispel
-  effect (2000101) takes it off.
-- On the guest's game thread, each frame, each copy is found again by its GUID. Its movement component goes out of the
-  game's parallel movement manager through the game's own function for that (only on the game's class with the game's
-  function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the host's
-  speed, the root moves to the sample at the ghost's draw time, and Velocity follows the samples. Each Show is replayed
-  through the game's Show handle API when the draw time reaches its stamp, with its hit context written into the new
-  player. A Show that the guest's own game started on the copy less than 1 s before (her hit's reaction, a mirrored
-  crowd control, its death) and still plays is not replayed a second time.
+- Every pair starts as the host's. With `aggro=game` (the host's setting, the default) the host's job runs a rule on
+  each pair every turn: the pair goes to whoever hit it last (a hit on the host's copy, or a claim of hers that
+  lowered a stat), and after 10 s without a hit to the other player once that player's EVE has stood at least 3 m
+  nearer for 2 s. Nothing changes hands within 4 s of the last change, while an AI task runs on the owner's copy,
+  during Down, Groggy, Airborne or a takedown, or while the enemy dies. Each change moves the owner epoch one up and
+  goes to her as `SBF11 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it
+  sends own H. With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
+- The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
+  side, and thaws her copy in that turn. Otherwise, and when she can no longer run a pair she owns, she answers
+  `SBF11 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s. A world line,
+  an on or an off line starts the epochs over on both sides.
+- In the frame a pair becomes a game's own at a new epoch, its game thread first puts the copy back (below), then
+  calls the game's force target function (`FUN_141a36010`) toward its own EVE: detect result 3, aggro level 1, and the
+  game's own TargetedByEnemy jobs. It runs only with the cached net mode 0 (in net mode 3 that function would send
+  server requests) and no logic task in flight; a task in flight puts it off for up to 250 ms. A refused take-over goes
+  back to the job, and the guest gives the pair back with `own-no target`.
+- Every 33 ms the owner's game thread reads each enemy it owns: position, rotation, animation speed, BattleMode,
+  whether it is dying and whether an AI task runs, into one `SBE` message on channel 1 (26 bytes an enemy, 16 enemies
+  at most), stamped with the pose clock. It also walks the game's Show manager (the game's animation sequences) for the
+  Shows each enemy starts, and sends `show`, `show-set` and `show-stop` lines on channel 2 with the asset's path and
+  the hit context. It never sends a Show that one of its own replays started, so a pair just taken over sends nothing
+  back. Only two lookups by GUID are called for this; the rest is plain reads.
+- On the drawing side's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel
+  2004400), only in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5
+  times in any 10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the
+  BlockAI dispel effect (2000101) takes it off.
+- On the drawing side's game thread, each frame, each copy is found again by its GUID. Its movement component goes out
+  of the game's parallel movement manager through the game's own function for that (only on the game's class with the
+  game's function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the
+  owner's speed, the root moves to the sample at the ghost's draw time, and Velocity follows the samples. Each Show is
+  replayed through the game's Show handle API when the draw time reaches its stamp, with its hit context written into
+  the new player. A Show that the drawing game started on the copy less than 1 s before (a hit's reaction, a
+  mirrored crowd control, its death) and still plays is not replayed a second time.
 - A copy that is knocked down, groggy, in the air or in a takedown is released: the game moves it until 200 ms after
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
@@ -424,7 +443,8 @@ guest's game draws its copies (stage 3a of Phase 11).
   back once.
 - `coop fight pilot test` limits the guest's side for solo tests from a recording: `freeze` (the BlockAI effect only),
   `cmc` (the movement component out too, nothing written), `drive` (root, speed and Velocity too) or `replay` (all of
-  it, the default). Each change puts every copy back once.
+  it, the default). Each change puts every copy back once. `coop fight pilot test target` calls the force target once,
+  on the first enemy this game owns, and logs its target, aggro level and detect result as they change for a second.
 
 The commands, the notices and the solo test are in [usage.md](usage.md#same-place-experimental).
 

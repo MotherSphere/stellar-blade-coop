@@ -211,6 +211,11 @@ the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-pla
   copy stays an ordinary enemy in her game.
 - `fight freeze-lost <key> hguid=<n> state 39 gone too often` in the guest's `coop-link.log`: the game took the mod's
   freeze off a copy 5 times within 10 s. The copy stays an ordinary enemy until the pair ends.
+- `pilot take-over refused hguid=<n> oe=<n>: <why>` in `coop-link.log`: that game took an enemy over but could not
+  point it at its EVE (`not net mode 0`, or `a logic task in flight` for 250 ms). As guest, the enemy goes back to the
+  host (`fight own-no hguid=<n> target`), which keeps it for at least 4 s.
+- Enemies never fight the guest: the host's `aggro` is `host` (Options > Combat > Enemies attack (host's)), or her
+  side answers each hand-over with `fight own-no` (its reason follows the GUID in her `coop-link.log`).
 
 If copies slide, stand still or play no animation, keep `coop-fight.log` from both PCs: its `pilot drawn:` lines count
 the copies moved, the Shows replayed, late and missing, and the drift (how far the game moved a copy between two of the
