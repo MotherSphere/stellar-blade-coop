@@ -31,8 +31,8 @@ local STUCK,EVERY,BELOW,AWAY,NEAR=2.5,3,10,40,7 -- The stuck rule: seconds, then
 local SLOW=5 -- ms: a live-list refresh this slow gets its own line.
 -- The HUD in the kit's layout units (3840 by 2160), both groups at the top centre and scaled from there: the card
 -- (its title over one line) and, in its place once the run ends, the result panel (a heading, a line under it, then
--- four rows: a label at the left, its value at the right).
-local HUD_W,CARD_H,RESULT_H,HUD_Y=1040,160,450,96 -- 1040: clear of the chat's feed (x 96 to 1396).
+-- five rows: a label at the left, its value at the right).
+local HUD_W,CARD_H,RESULT_H,HUD_Y=1040,160,506,96 -- 1040: clear of the chat's feed (x 96 to 1396).
 local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
 -- The game's own words for the result (StringTable_UI, in its 23 cultures), and ui_text.lua's words for each abort
 -- reason (stop and coop off: stop).
@@ -137,29 +137,43 @@ local function census(eve)
     return c
 end
 local function clock_text(seconds) return string.format('%d:%02d',seconds//60,seconds%60) end
--- The card's title and line for the run's state s at game time now, in words w (ui_text.lua's): the countdown, then
--- the wave or, once it is down, the next one's countdown (the wave again once it is due and the cap holds it), each
--- with the run time left and the score.
+-- A notice about a run of def in words w: Night Operation's own (night.<key>), or the challenge's (challenge.<key>)
+-- with its name first.
+local function notice(def,w,key,...)
+    if def==W.NIGHT then return w.night[key]:format(...) end
+    return w.challenge[key]:format(w.challenge.names[def.id],...)
+end
+-- The card's title and line for the run's state s at game time now, in words w (ui_text.lua's): Night Operation's
+-- title or the challenge's name, then the countdown, the wave or, once it is down, the next one's countdown (the wave
+-- again once it is due and the cap holds it), each with the run time left and the score.
 function Run.card(s,now,w)
     local n=w.night
-    if s.phase=='countdown' then return n.title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
+    local title=s.def==W.NIGHT and n.title or w.challenge.names[s.def.id]
+    if s.phase=='countdown' then return title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
     local rt=now-s.t0
     local wait=s.phase=='breather' and s.next_at and math.ceil(s.next_at-rt)
     local head=wait and wait>0 and n.next:format(wait) or n.wave:format(s.wave,#s.def.waves)
-    return n.title,head..'  '..clock_text(math.max(0,math.ceil(s.def.limit-rt)))..'  '..n.score:format(s.score)
+    return title,head..'  '..clock_text(math.max(0,math.ceil(s.def.limit-rt)))..'  '..n.score:format(s.score)
 end
--- An ended run's heading, the line under it ('' after a success) and its rows {label, value}, in words w. game(key):
--- the game's own text for a StringTable_UI key, or nil; read for the heading and a death's line only.
-function Run.result(s,w,game)
-    local n=w.night
+-- An ended run's heading, the line under it and its five rows {label, value}, in words w. best: the best run of its
+-- definition ({score, s=whole seconds, new=true when this run wrote it}), or nil for none. The line: why the run
+-- ended, or after a success the record line when this run wrote its best, else ''. game(key): the game's own text for
+-- a StringTable_UI key, or nil; read for the heading and a death's line only.
+function Run.result(s,w,game,best)
+    local n,c=w.night,w.challenge
     local won=s.outcome=='success'
     local head=game(won and 'UI_Night_OperationSuccess' or 'UI_Night_OperationFail') or (won and n.success or n.fail)
     local sub=''
-    if s.outcome=='failed' then sub=game('UI_Night_OperationFail_Des') or n.died
+    if won then sub=best and best.new and c.record or ''
+    elseif s.outcome=='failed' then sub=game('UI_Night_OperationFail_Des') or n.died
     elseif s.outcome=='time' then sub=n.time_up
-    elseif s.outcome=='aborted' then sub=n.why[WHY[s.reason] or 'stop'] end
+    elseif s.outcome=='aborted' then
+        local key=WHY[s.reason] or 'stop'
+        sub=key=='stop' and s.def~=W.NIGHT and c.stopped or n.why[key]
+    end
     return head,sub,{{n.waves,s.clears..'/'..#s.def.waves},{n.kills,tostring(s.kills)},{n.points,tostring(s.score)},
-        {n.time,clock_text(math.floor(s.time))}}
+        {n.time,clock_text(math.floor(s.time))},
+        {c.best,best and string.format('%d  %s',best.score,clock_text(best.s)) or '-'}}
 end
 local function no_text() return nil end
 -- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table is not
@@ -189,15 +203,16 @@ function Run.new(o)
     -- What the HUD shows goes to the notices instead while there is no kit or it is off.
     local function shown() return hud~=nil and not hud.kit.off() end
     local function notify(build) if tell and not shown() then tell(build) end end
-    -- An ended run's state s as notices: the result, then what ended it unless it was a success.
-    local function notify_end(s)
+    -- An ended run's state s and its best as notices: the result, then the line under it (what ended it, or the
+    -- record line), if any.
+    local function notify_end(s,best)
         local more=false
         notify(function(w)
-            local head,line,rows=Run.result(s,w,no_text)
+            local head,line,rows=Run.result(s,w,no_text,best)
             more=line~=''
             return w.night.end_notice:format(head,s.clears,#s.def.waves,s.kills,s.score,rows[4][2])
         end)
-        if more then notify(function(w) return select(2,Run.result(s,w,no_text)) end) end
+        if more then notify(function(w) return select(2,Run.result(s,w,no_text,best)) end) end
     end
     local r=nil -- The run, nil when idle: s is nightop_waves.lua's state.
     local function clock(eve) return U.find('/Script/Engine.Default__GameplayStatics'):GetTimeSeconds(eve) end
@@ -367,8 +382,8 @@ function Run.new(o)
         return false
     end
     -- After a success: the records file read again (every other line stays as it is) and, when this run beats its best,
-    -- rewritten. r.best is then the best the file holds (none when it cannot be read) and r.new says this run wrote
-    -- it. A read or a write that fails is logged and writes nothing.
+    -- rewritten. r.best is then the best the file holds (none when it cannot be read), with new=true when this run
+    -- wrote it. A read or a write that fails is logged and writes nothing.
     local function keep(s)
         local text=stored()
         r.best=nil
@@ -383,7 +398,7 @@ function Run.new(o)
             e=not ok and wrote or wrote~=true and 'the write failed' or nil
         end
         if e then return log('record: cannot write coop-records.txt ('..why(e)..')') end
-        r.best,r.new={score=math.floor(s.score),s=math.floor(s.time)},true
+        r.best={score=math.floor(s.score),s=math.floor(s.time),new=true}
     end
     -- The end: every handle dropped without a read, nothing more spawned, a better success's best kept, the result
     -- line. A success keeps no best with a test switch on, with a monster that never came (its spawn failed, so its
@@ -400,10 +415,10 @@ function Run.new(o)
         log(string.format('result: %s%s waves=%d/%d kills=%d score=%d time=%d:%02d find_ms=%.1f/%.1f challenge=%s '
             ..'best=%s',s.outcome,s.reason and ' ('..s.reason..')' or '',s.clears,#s.def.waves,s.kills,s.score,t//60,
             t%60,r.ms_n>0 and r.ms_sum/r.ms_n or 0,r.ms_max,s.def.id,
-            r.best and string.format('%d/%d %s',r.best.score,r.best.s,r.new and 'new' or 'kept') or 'none'))
+            r.best and string.format('%d/%d %s',r.best.score,r.best.s,r.best.new and 'new' or 'kept') or 'none'))
     end
     local function step(input)
-        local before=r.s.score
+        local before,def=r.s.score,r.s.def
         local events=W.step(r.s,input,r.now)
         for _,b in ipairs(r.killed) do
             before=before+W.points(b.id)
@@ -413,7 +428,7 @@ function Run.new(o)
         for k=1,r.s.wave do
             if r.s.clear_at[k] and not r.told[k] then
                 r.told[k]=true
-                notify(function(w) return w.night.clear_notice:format(k) end)
+                notify(function(w) return notice(def,w,'clear_notice',k) end)
             end
         end
         for _,e in ipairs(events) do
@@ -421,14 +436,14 @@ function Run.new(o)
                 local ids,n=r.s.def.waves[e.wave].ids,#r.s.def.waves
                 for slot=0,#ids-1 do r.queue[#r.queue+1]={k=e.wave,slot=slot} end
                 log(string.format('wave %d/%d at run time %.1f s: %d monsters',e.wave,n,r.now-r.s.t0,#ids))
-                notify(function(w) return w.night.wave_notice:format(e.wave,n) end)
+                notify(function(w) return notice(def,w,'wave_notice',e.wave,n) end)
             elseif e.what=='heal' then
                 local ok,healed=pcall(N.heal)
                 log(string.format('heal after wave %d: %s',e.wave,ok and healed and 'asked'
                     or 'not asked ('..(ok and 'the heal row is not a name in this game run' or why(healed))..')'))
             elseif e.what=='end' then
                 finish()
-                if shown() then panel={s=r.s,left=W.RESULT/TICK} else notify_end(r.s) end
+                if shown() then panel={s=r.s,best=r.best,left=W.RESULT/TICK} else notify_end(r.s,r.best) end
             end
         end
     end
@@ -536,7 +551,7 @@ function Run.new(o)
             yaw,map,flag and ' '..flag or '',def~=W.NIGHT and ' challenge '..def.id or '',c.text))
         local score,secs=C.best(stored(),def.id)
         r.best=score and {score=score,s=secs} or nil
-        notify(function(w) return w.night.start_notice:format(W.COUNTDOWN) end)
+        notify(function(w) return notice(def,w,'start_notice',W.COUNTDOWN) end)
         return true,string.format('%s starts in %d s (run 0x%02X)',name_of(def),W.COUNTDOWN,run)
     end
     -- Ends the run that is on as aborted; the name of what it ran, or nil when none was on.
@@ -599,7 +614,7 @@ function Run.new(o)
     local function draw()
         local kit=hud.kit
         if kit.off() then -- The notices say it, and the result the panel still held.
-            if panel then notify_end(panel.s) end
+            if panel then notify_end(panel.s,panel.best) end
             panel=nil
             return
         end
@@ -622,7 +637,7 @@ function Run.new(o)
         end
         if panel.words~=words then
             panel.words,panel.head,panel.sub,panel.rows=words,
-                Run.result(panel.s,words,lang~='english' and game_text or no_text)
+                Run.result(panel.s,words,lang~='english' and game_text or no_text,panel.best)
         end
         res.head.set(panel.head)
         res.head.color(panel.s.outcome=='success' and hud.theme.teal or hud.theme.warn)
@@ -660,7 +675,7 @@ function Run.new(o)
             hud=nil
             local p=panel
             panel=nil
-            if p then pcall(notify_end,p.s) end -- The result the panel still held.
+            if p then pcall(notify_end,p.s,p.best) end -- The result the panel still held.
         end
     end
     -- The HUD's two groups on the Uplink kit, before its first build (main.lua, after the partner HUD): o is {kit,
@@ -678,7 +693,7 @@ function Run.new(o)
             b.panel(0,0,HUD_W,RESULT_H)
             local v={head=b.text(HUD_W/2,70,'','title',theme.teal,MIDDLE),
                 sub=b.text(HUD_W/2,136,'','body',theme.grey,MIDDLE),rows={}}
-            for i=1,4 do
+            for i=1,5 do
                 local y=200+(i-1)*56
                 v.rows[i]={label=b.text(96,y,'','body',theme.text,LEFT),
                     value=b.text(HUD_W-96,y,'','item',theme.text,RIGHT)}

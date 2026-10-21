@@ -17,7 +17,9 @@
 -- load too; notices at the start, each wave, each clear and the end with the kit off; a HUD error turns it to notices.
 -- The card while the cap holds a wave past its time; the game's text only once its table is loaded and its id a name;
 -- a success's panel and its single notice; a result the panel still holds goes to the notices when the kit turns off
--- or the HUD fails, and a new run drops it.
+-- or the HUD fails, and a new run drops it. The panel's fifth row, Best. A challenge's HUD: its name as the card's
+-- title, the record line after a success that wrote its best, its stop line, Night Operation's own best, and with the
+-- kit off its notices with its name, then the record line after the end notice.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -977,6 +979,29 @@ for reason,word in pairs({stop='stop',['coop off']='stop',['map change']='map',l
         error='error'}) do
     assert(select(2,Run.result(ended('aborted',reason),Tx.en,game))==Tx.en.night.why[word],reason)
 end
+-- The fifth row, Best: '-' with none kept, else its score and time. The record line only after a success that wrote
+-- it; a challenge's stop (coop off too) in the challenge's words, its other ends in Night Operation's.
+assert(rows[5][1]=='Best' and rows[5][2]=='-' and #rows==5,tostring(rows[5][2]))
+local kept,new={score=1250,s=37},{score=1059,s=400,new=true}
+head,line,rows=Run.result(ended('success'),Tx.en,game,new)
+assert(line=='New personal best.' and rows[5][2]=='1059  6:40',line)
+head,line,rows=Run.result(ended('success'),Tx.en,game,kept)
+assert(line=='' and rows[5][2]=='1250  0:37',rows[5][2])
+for _,outcome in ipairs({'failed','time'}) do
+    assert(select(2,Run.result(ended(outcome),Tx.en,game,new))~=Tx.en.challenge.record,outcome)
+end
+local function ended_challenge(reason)
+    local s=ended('aborted',reason)
+    s.def=require('challenges').find('swarm')
+    return s
+end
+for reason,line in pairs({stop=Tx.en.challenge.stopped,['coop off']=Tx.en.challenge.stopped,
+        ['map change']=Tx.en.night.why.map,link=Tx.en.night.why.link}) do
+    assert(select(2,Run.result(ended_challenge(reason),Tx.en,game,kept))==line,reason)
+end
+-- The card's title: the challenge's name as ui_text writes it, Night Operation's own.
+assert(Run.card({phase='countdown',t0=10,def=require('challenges').find('targets')},6,Tx.fr)=='Entraînement au tir')
+assert(Run.card({phase='countdown',t0=10,def=W.NIGHT},6,Tx.en)=='NIGHT OPERATION')
 -- A result the panel has not shown yet (the root down for a load) goes to the notices once the kit turns off.
 bodies,told={},{}
 begin2()
@@ -1057,4 +1082,95 @@ assert(lines[#lines]=='STOP: HUD: boom' and not kit.shown.night_result,lines[#li
 assert(told[1]=='Operation Failed: 0/5 waves cleared, 0 kills, score 0, time 0:00.' and #told==2,tostring(told[1]))
 assert(told[2]=='Ended by a map change or a load.',tostring(told[2]))
 assert(#violations==0,violations[1])
+
+-- 11. A challenge's HUD on the fake kit (fr-FR), with coop-records.txt in memory: the panel 506 units high with five
+-- rows; the challenge's name as the card's title; after a success that wrote its best, the record line and the Best
+-- row; a stopped challenge's line and the best it kept; Night Operation's own best. With the kit off: the notices with
+-- the challenge's name, the end notice, then the stop line or the record line.
+do
+    local C=require('challenges')
+    local file='best_night=500 300\n'
+    local ch=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+        tell=function(build) told[#told+1]=build(Tx.en) end,
+        records={read=function() return file end,write=function(text) file=text; return true end}})
+    kit.groups,kit.shown,kit.is_off,kit.up,kit.away,kit.raise={},{},false,true,false,nil
+    ch.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+    local g=kit.groups.night_result
+    card,res=kit.groups.night.view,g.view
+    assert(g.place.h==506 and g.panel[4]==506 and #res.rows==5,'The panel: 506 units, five rows')
+    for i=1,5 do assert(res.rows[i].label.y==200+(i-1)*56 and res.rows[i].value.y==200+(i-1)*56,i) end
+    local function tk(k) for _=1,k or 1 do gt=gt+0.25; ch.tick() end end
+    local function start(word)
+        bodies,lines,told={},{},{}
+        ok,message=ch.challenge(word)
+        assert(ok,message)
+        return tonumber(message:match('%(run 0x(%x+)%)$'),16)
+    end
+    -- Wave k of the run found, then every body of it killed in one tick.
+    local function round(run,k,n)
+        local found=string.format('wave %d find +1 s: tracked %d/%d',k,n,n)
+        for _=1,400 do
+            if logged(found) then break end
+            tk()
+        end
+        assert(logged(found),since(0))
+        for _,m in ipairs(bodies) do
+            local r,w=W.decode(m.key)
+            if r==run and w==k then m.st,m.ctl=1,nil end
+        end
+        tk()
+    end
+    local targets=C.find('targets')
+    local function win(run) for k=1,3 do round(run,k,#targets.waves[k].ids) end end
+    -- Target Practice to a success: its name on the card, then the record line and the Best row.
+    local run=start('targets')
+    tk()
+    assert(kit.shown.night and card.title.text=='Entraînement au tir' and card.line.text=='DÉBUT DANS 5',
+        card.title.text)
+    tk(20)
+    assert(card.title.text=='Entraînement au tir' and card.line.text=='VAGUE 1/3  1:30  SCORE 0',card.line.text)
+    win(run)
+    local score,secs=C.best(file,'targets')
+    assert(score and kit.shown.night_result and res.head.c=='teal' and res.sub.text=='Nouveau record personnel.',
+        res.sub.text)
+    local best=string.format('Record=%d  0:%02d',score,secs)
+    local function row(i) return res.rows[i].label.text..'='..res.rows[i].value.text end
+    assert(row(5)==best and row(1)=='Vagues terminées=3/3',row(5))
+    assert(#told==0,'The kit is up: no notice')
+    -- Stopped: the challenge's stop line, the best it kept.
+    start('targets')
+    tk(8)
+    ok,message=ch.challenge('stop')
+    tk()
+    assert(res.sub.text=='Arrêté avec coop challenge stop.' and row(5)==best and res.head.c=='warn',res.sub.text)
+    -- Night Operation's panel: its own stop line and its own best.
+    bodies,lines={},{}
+    ok,message=ch.command('start')
+    assert(ok,message)
+    tk(2)
+    assert(card.title.text=='OPÉRATION NOCTURNE',card.title.text)
+    ch.command('stop')
+    tk()
+    assert(res.sub.text=='Arrêtée avec coop nightop stop.' and row(5)=='Record=500  5:00',row(5))
+    -- The kit off: Antlion Swarm's notices with its name; the end and the stop line.
+    kit.is_off=true
+    run=start('swarm')
+    assert(told[1]=='Antlion Swarm starts in 5 s.',tostring(told[1]))
+    tk(20)
+    assert(told[2]=='Antlion Swarm: wave 1/3.',tostring(told[2]))
+    round(run,1,4)
+    assert(told[3]=='Antlion Swarm: wave 1 cleared.',tostring(told[3]))
+    ch.challenge('stop')
+    assert(told[4]:find('^Operation Failed: 1/3 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
+    assert(told[5]=='Stopped with coop challenge stop.' and #told==5,tostring(told[5]))
+    -- A success that writes a best: the end notice, then the record line.
+    file=''
+    run=start('targets')
+    win(run)
+    assert(told[#told-1]:find('^Operation Successful: 3/3 waves cleared, 18 kills, score %d+, time 0:%d%d%.$'),
+        told[#told-1])
+    assert(told[#told]=='New personal best.' and C.best(file,'targets'),told[#told])
+    kit.is_off=false
+    assert(#violations==0,violations[1])
+end
 print('nightop_run_test ok')

@@ -4,12 +4,14 @@
 -- Turkish puts it first); T.pick's choice (the game's culture through culture(), English with ui_language=english,
 -- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
 -- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
--- saves' question, with its invite line, within its 5 rows (Chat.wrap), and Night Operation's card and result panel
--- within their columns.
+-- saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card and result panel within
+-- their columns, and the challenges' words: a name for each of challenges.lua's ids, as the card's title, the Best
+-- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
 local Chat=require('chat')
+local C=require('challenges')
 local function specs(s)
     local list={}
     for p in s:gmatch('%%.') do if p~='%%' then list[#list+1]=p end end -- %% takes no argument: anywhere.
@@ -32,6 +34,13 @@ for name,t in pairs(T) do
     end
 end
 assert(T.fr and next(T.fr),'French stays complete')
+-- A challenge name for each challenge, and no other.
+local ids={}
+for _,def in ipairs(C.LIST) do
+    ids[def.id]=true
+    assert(type(T.en.challenge.names[def.id])=='string','T.en.challenge.names.'..def.id..': missing')
+end
+for id in pairs(T.en.challenge.names) do assert(ids[id],'T.en.challenge.names.'..id..': no such challenge') end
 
 -- The pick: the game's culture as culture() names it, else English.
 assert(T.pick('fr-FR')==T.fr and T.pick('FR')==T.fr and T.pick('fr-FR','game')==T.fr)
@@ -74,6 +83,13 @@ local function notices(w)
         lines[#lines+1]=text
     end
     for _,text in pairs(n.why) do lines[#lines+1]=text end
+    -- A challenge's notices, with its longest name in this language, and the lines under its result.
+    local c,long=w.challenge,''
+    for _,def in ipairs(C.LIST) do if #c.names[def.id]>#long then long=c.names[def.id] end end
+    for _,text in ipairs({c.start_notice:format(long,5),c.wave_notice:format(long,8,8),c.clear_notice:format(long,8),
+        c.record,c.stopped}) do
+        lines[#lines+1]=text
+    end
     local s=w.summary
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
         lines[#lines+1]=fill(s[k])..fill(s.paused)..s.lost -- Paused and lost added to each, beyond what can happen.
@@ -118,15 +134,22 @@ for name in pairs(R.TEXT) do
         assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..texts[1])
     end
     -- Night Operation's card (nightop_run.lua: 1040 units wide, 24 in from each side; title Bold 36, its line Bold 40,
-    -- about 23 units a column), with the longest numbers; its result panel: the heading Bold 56 (about 32 units a
-    -- column), the line under it and the row labels Mideum 34 (18 units a column, as the feed's) from 96 units in, a
-    -- label before its value's 5 Bold 40 columns at the right end.
+    -- about 23 units a column), with the longest numbers (Gauntlet's 12:00); its result panel: the heading Bold 56
+    -- (about 32 units a column), the line under it and the row labels Mideum 34 (18 units a column, as the feed's) from
+    -- 96 units in, a label before its value's 5 Bold 40 columns at the right end.
     local n=w.night
     fits(name..'.night.title',n.title,43)
     fits(name..'.night.starts',n.starts:format(5),43)
     for _,head in ipairs({n.wave:format(5,5),n.next:format(10)}) do
-        fits(name..'.night line',head..'  8:00  '..n.score:format(9999),43)
+        fits(name..'.night line',head..'  12:00  '..n.score:format(9999),43)
     end
+    -- A challenge's name as the card's title; the Best row's label before a value of up to 11 Bold 40 columns
+    -- ('9999  12:00', 24 units apart: 31 columns); the record and stop lines under the heading.
+    local c=w.challenge
+    for _,def in ipairs(C.LIST) do fits(name..'.challenge.names.'..def.id,c.names[def.id],43) end
+    fits(name..'.challenge.best',c.best,31)
+    fits(name..'.challenge.record',c.record,54)
+    fits(name..'.challenge.stopped',c.stopped,54)
     fits(name..'.night.success',n.success,31)
     fits(name..'.night.fail',n.fail,31)
     for _,text in ipairs({n.died,n.time_up}) do fits(name..'.night: '..text,text,54) end
