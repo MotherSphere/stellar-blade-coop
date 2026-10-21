@@ -3,7 +3,8 @@
 // enemies and turns their writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call; with
 // same_place on, it freezes the copies this side draws through the same effect call and hands the game thread the
 // pair table (pilot.h's sides), and in stage 3b the host hands enemies to her and back by its rule (own and own-no
-// lines, pilot.h's Owners); then it pushes itself for the next turn. The game thread arms the job after a world
+// lines, pilot.h's Owners), and in stage 4 the guest's game holds the host's common enemies where both stand
+// (spawn_sync.h); then it pushes itself for the next turn. The game thread arms the job after a world
 // load and again when it stopped running. Every access goes through a Game (the glue on Windows, under its SEH
 // guard; fake memory and a fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed
 // arrays only: Simulate never allocates (ApplyStat and the effect call do internally, as for SB's own logic-thread
@@ -25,7 +26,14 @@
 //   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
 //     calls SB;
 //   bool publish(const PilotTable &t, StreamFlags &f): Mail::publish, the pair table to the game thread and its word
-//     back.
+//     back;
+//   same spawns (stage 4), from inside our job only:
+//   uint64_t spawn_row(uint64_t tables, uint32_t id): FUN_141a9db80(tables, 0, id), the EventSpawnTable row or 0;
+//   uint64_t zone_row(uint64_t tables, uint64_t alias): FUN_141a9b8a0(tables, false, alias), the ZoneTable row or 0;
+//   void create(uint64_t manager, uint32_t id, uint8_t index, const float *at, const float *rot):
+//     FUN_141c1c9a0(manager, id, index, at, rot, 0, nullptr, 0), as FSBCreateActor::Simulate spawns a key;
+//   void despawn(uint64_t sender, uint32_t turn, uint32_t guid): FUN_141b077f0(sender, turn, guid), as SB's ZoneEvent
+//     Despawn does.
 #pragma once
 
 #include <algorithm>
@@ -45,6 +53,7 @@
 #include "fight_sync.h"    // Host, Guest, Seen, Write, Message, Event, kStatType
 #include "nightop_probe.h" // kImageBase, kGlobals, plausible, get
 #include "pilot.h"         // Side, kBattle, kDying: same-place enemies' pair table
+#include "spawn_sync.h"    // Epochs, SpawnHost, SpawnGuest, Mine, SpawnRow: same spawns
 
 namespace coop::fight {
 
@@ -265,6 +274,19 @@ struct Told {
   }
 };
 
+// ---- Same spawns (stage 4, PHASE11-STAGE3 9.2, RE12): the logic side ----
+// SB's table holder (FUN_141a97f20's global; its +0x20 holds the tables), spawn manager (FUN_141adc3d0's) and job
+// sender (FUN_141a97b90's): read, never made here (each getter allocates when null). Logic +0x598: the current zone's
+// alias, an FName (0 at a level's start). The spawn manager's +0x1c: 1 entering a zone, then 3; 2 resetting it, then 4.
+// An EventSpawnTable row (FSBZoneEventSpawnTableProperty): SpawnType +0x30, Zone +0x34 (an FName), SaveType +0x44,
+// bResetZoneKeepObject +0x46, read without SB's lazy init of the row [L]; a ZoneTable row: its ID +0x10. FSBActor
+// +0x4e4: its rotation (pitch, yaw, roll), which its actor tick copies with +0x4cc [L].
+constexpr uint64_t kTables = 0x147032510, kSpawnManager = 0x147032590, kJobSender = 0x147032560;
+constexpr size_t kTablesAt = 0x20, kZoneAlias = 0x598, kSpawnState = 0x1c;
+constexpr size_t kRowSpawnType = 0x30, kRowZone = 0x34, kRowSaveType = 0x44, kRowKeep = 0x46, kZoneId = 0x10;
+constexpr size_t kFsbRotation = 0x4e4;
+constexpr size_t kMaxRows = 512, kMaxZones = 16; // Rows and zones kept for a session (the tables never change in one).
+
 // FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1d150) sets for slow
 // motion; 1 otherwise [L]. Read for the stats line only, to size slow motion before stage 3 (FEATURE-PARITY C33).
 constexpr size_t kTimeScale = 0x27c4;
@@ -361,6 +383,10 @@ struct Snapshot {
   // while they do, and how many pairs they move (the host's captured, the guest's drawn).
   const char *pilot_why = "fight";
   size_t piloted = 0;
+  // Same spawns: running on this side, the side's counts, and the host's epoch (the guest's: as its last epoch line).
+  bool spawning = false;
+  SpawnCounts spawns;
+  uint32_t epoch = 0;
 };
 
 // One logic actor as the liveness test and the reads see it.
@@ -508,6 +534,9 @@ public:
   // Any thread: our aggro (stage 3b, the host's for both games), true for aggro=host: every enemy stays the host's, as
   // in 3a. The guest hears it like same_place.
   void aggro(bool host_only) { aggro_host_ = host_only; }
+  // Any thread: our same_spawns (stage 4), the host's for both games; set while off. On, the host tells her its zone
+  // and epoch and answers her rounds; she runs only on its epoch line, whatever hers says.
+  void same_spawns(bool on) { same_spawns_ = on; }
   // Any thread: coop fight pilot off (true), until the next on, probe, record or replay (false): same-place enemies
   // off on this side whatever the host's same_place says, and the host tells her so.
   void pilot_off(bool off) { pilot_off_ = off; }
@@ -665,6 +694,10 @@ public:
       own_in_.clear();
       execs_.clear();
       her_off_until_ = 0;
+      new (&epochs_) Epochs();
+      new (&spawn_host_) SpawnHost();
+      new (&spawn_guest_) SpawnGuest();
+      rows_ = zones_ = mines_ = 0;
       probe_fence_.clear();
       next_probe_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
@@ -698,9 +731,14 @@ public:
         refused(m, now_ms, io);
       else if (!hosting && m.type == Type::own)
         own_in_.push(m); // Answered after the pass (answer()), which reads the copy. kMail: never full.
+      else if (hosting && m.type == Type::have)
+        her_have(m, now_ms);
+      else if (!hosting && (m.type == Type::epoch || m.type == Type::spawn || m.type == Type::drop))
+        spawn_guest_.heard(m, guest.gen());
       else
         hosting ? host.receive(m, now_ms, io) : guest.receive(m, io);
     }
+    spawning_ = hosting ? same_spawns_ && host.peer_on() && !host.ignored() : spawn_guest_.on();
     bool census = census_turn_ == kNever || turn < census_turn_ || turn - census_turn_ >= kCensusTurns;
     if (census)
       census_turn_ = turn;
@@ -719,6 +757,8 @@ public:
       hold_floors(g, logic, followed, guest.floored(followed));
       hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance));
     }
+    if (!latched_ && census)
+      spawn_turn(g, logic, now_ms);
     if (!latched_)
       pilot_turn(g, logic, n, census, now_ms);
     if (latched_) // Stopped in this turn: no other run comes, so our overrides come off now.
@@ -766,6 +806,7 @@ public:
     if (latched_ || !census)
       return latched_ ? 0 : n;
     ++counts.censuses;
+    mines_ = 0;
     if (!walk(g, logic))
       return 0;
     const uint64_t local = local_fsb(g);
@@ -776,6 +817,7 @@ public:
         counts.rejected += !latched_;
         continue;
       }
+      keyed(g, a);
       if (a.controlled == 1 && local && a.fsb == local && pc(g, a))
         eve_ = f.guid;
       if (std::find(followed, followed + count, f.guid) != followed + count || !eligible(g, a))
@@ -809,6 +851,9 @@ public:
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
     s.pilot_why = pilot_why_, s.piloted = piloted_;
+    s.spawning = spawning_;
+    s.spawns = hosting_seen_ ? spawn_host_.counts : spawn_guest_.counts;
+    s.epoch = hosting_seen_ ? epochs_.n() : spawn_guest_.epoch();
     for (size_t i = 0; i < captures_; ++i) {
       s.floors += caps_[i].type == kFloorStat;
       s.scaled += caps_[i].type == kMaxHpValue && caps_[i].delta;
@@ -833,6 +878,16 @@ private:
       e.saw(m);
       g.send(m);
     }
+    void event(const Event &ev) { g.event(ev); }
+  };
+  template <class Game> struct SpawnIo { // spawn_sync.h's Io.
+    Engine &e;
+    Game &g;
+    uint64_t logic;
+    bool row(uint32_t id, SpawnRow &out) { return e.spawn_row(g, id, out); }
+    bool create(const SpawnKey &k, const float *at, float yaw) { return e.create(g, k, at, yaw); }
+    bool despawn(uint32_t guid, const SpawnKey &k) { return e.despawn(g, logic, guid, k); }
+    void send(const Message &m) { g.send(m); }
     void event(const Event &ev) { g.event(ev); }
   };
   struct Found {
@@ -1537,6 +1592,151 @@ private:
     const uint64_t la = g.find(logic, guid);
     return la && live(g, la, guid, a) && a.life == 1 && !a.pending && !latched_ ? g.effect(logic, la, la, id) : 0;
   }
+  // ---- Same spawns (stage 4, PHASE11-STAGE3 9.2) ----
+  // A keyed actor of this census into mine_ while same spawns run here (not our EVE, not a player; fighting or dying,
+  // never one leaving the map): its type, and for a Monster where it stands. One whose reads fail is left out.
+  template <class Game> void keyed(Game &g, const Actor &a) {
+    if (!spawning_ || !a.seen.spawn || a.controlled || a.player || !(fighting(a) || a.seen.dying))
+      return;
+    if (mines_ == kMaxSeen) {
+      ++counts.cut;
+      return;
+    }
+    Mine &m = mine_[mines_] = Mine();
+    uint8_t type = 0;
+    float rot[3] = {};
+    m.key = SpawnKey{a.seen.spawn, a.seen.index}, m.guid = a.seen.guid, m.chr = a.seen.chr, m.dying = a.seen.dying;
+    if (!g.read(a.fsb + kActorType, &type, 1))
+      return;
+    m.monster = type == kTypeMonster;
+    if (m.monster && (!g.read(a.fsb + kLocation, m.at, sizeof m.at) || !g.read(a.fsb + kFsbRotation, rot, sizeof rot)))
+      return;
+    m.yaw = rot[1];
+    ++mines_;
+  }
+  // Each census, after the side's step (the host's world and up lines go first): our epoch, then the host's epoch line
+  // and answers, or her rounds and calls (spawn_sync.h). Nothing while same spawns do not run here: our same_spawns off
+  // or her side off or ignored, on the host's side; before the host's epoch line, on hers. Close: the other EVE (as its
+  // ghost stands in our world) within 100 m of ours.
+  template <class Game> void spawn_turn(Game &g, uint64_t logic, uint64_t now) {
+    const bool hosting = hosting_seen_;
+    if (!spawning_) {
+      if (hosting)
+        spawn_host_.clear();
+      return;
+    }
+    uint64_t alias = 0, manager = 0;
+    uint32_t state = 0;
+    if (!get(g, logic + kZoneAlias, alias) || !get(g, base_ + (kSpawnManager - kImageBase), manager) ||
+        (plausible(manager) && !get(g, manager + kSpawnState, state)))
+      return;
+    uint32_t paired[kMaxTracked];
+    const size_t count = hosting ? 0 : guest.tracked(paired);
+    for (size_t i = 0; i < mines_; ++i)
+      mine_[i].paired = std::find(paired, paired + count, mine_[i].guid) != paired + count;
+    const char *why = epochs_.step(alias, state, mine_, mines_, now);
+    if (why) {
+      ++(hosting ? spawn_host_.counts : spawn_guest_.counts).epochs;
+      g.event(Event{"spawns epoch", why});
+    }
+    const uint64_t tables = tables_at(g);
+    const uint32_t zone = tables ? zone_id(g, tables, alias) : 0;
+    float eve[3] = {};
+    const uint64_t fsb = local_fsb(g);
+    const bool eve_ok = plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve) && std::isfinite(eve[0]) &&
+                        std::isfinite(eve[1]) && std::isfinite(eve[2]);
+    const bool close = eve_ok && flags_.her_ok && within(eve, flags_.her, kNearCm);
+    if (latched_)
+      return;
+    SpawnIo<Game> io{*this, g, logic};
+    if (hosting)
+      spawn_host_.step(host.gen(), zone, epochs_, close, mine_, mines_, now, io);
+    else
+      spawn_guest_.step(guest.gen(), zone, epochs_, why != nullptr, close, eve, eve_ok, mine_, mines_, now, io);
+  }
+  // The host: her have line, at once (R33): none from an ignored peer, nor while same spawns do not run here (stale).
+  void her_have(const Message &m, uint64_t now) {
+    if (host.ignored())
+      ++host.counts.ignored;
+    else if (!same_spawns_ || !host.peer_on())
+      ++spawn_host_.counts.stale;
+    else
+      spawn_host_.have(m, host.gen(), now);
+  }
+  // SB's tables (the table holder's +0x20), or 0 while either is not made.
+  template <class Game> uint64_t tables_at(Game &g) {
+    uint64_t holder = 0, tables = 0;
+    return get(g, base_ + (kTables - kImageBase), holder) && plausible(holder) && get(g, holder + kTablesAt, tables) &&
+                   plausible(tables)
+               ? tables
+               : 0;
+  }
+  // An EventSpawnTable row of our tables by EventSpawnId, with its zone's ZoneTable ID; kept for the session once read
+  // (kMaxRows of them). None while the tables are not made (not kept), or when the lookup finds none.
+  template <class Game> bool spawn_row(Game &g, uint32_t id, SpawnRow &out) {
+    for (size_t i = 0; i < rows_; ++i)
+      if (row_ids_[i] == id) {
+        out = row_at_[i];
+        return row_ok_[i];
+      }
+    const uint64_t tables = tables_at(g);
+    if (!tables || latched_)
+      return false;
+    const uint64_t r = g.spawn_row(tables, id);
+    SpawnRow row;
+    uint8_t keep = 0;
+    uint64_t alias = 0;
+    const bool ok = r && plausible(r) && get(g, r + kRowSpawnType, row.spawn_type) &&
+                    get(g, r + kRowSaveType, row.save_type) && get(g, r + kRowKeep, keep) &&
+                    get(g, r + kRowZone, alias);
+    if (latched_)
+      return false;
+    row.keep = keep != 0;
+    row.zone = ok ? zone_id(g, tables, alias) : 0;
+    if (rows_ < kMaxRows)
+      row_ids_[rows_] = id, row_at_[rows_] = row, row_ok_[rows_++] = ok;
+    out = row;
+    return ok;
+  }
+  // A zone's ZoneTable ID from its alias (FNames are per process, the ID is the table's), kept for the session; 0 for
+  // none or when not found.
+  template <class Game> uint32_t zone_id(Game &g, uint64_t tables, uint64_t alias) {
+    if (!alias)
+      return 0;
+    for (size_t i = 0; i < zones_; ++i)
+      if (zone_alias_[i] == alias)
+        return zone_ids_[i];
+    const uint64_t z = g.zone_row(tables, alias);
+    uint32_t id = 0;
+    if (z && plausible(z) && !get(g, z + kZoneId, id))
+      return 0;
+    if (zones_ < kMaxZones)
+      zone_alias_[zones_] = alias, zone_ids_[zones_++] = id;
+    return id;
+  }
+  // The guest: SB's spawn of a key where the host's stands, on SB's spawn manager, never made here: not while it or the
+  // tables (which the call reads through their getter) are not made.
+  template <class Game> bool create(Game &g, const SpawnKey &k, const float *at, float yaw) {
+    uint64_t manager = 0;
+    if (!get(g, base_ + (kSpawnManager - kImageBase), manager) || !plausible(manager) || !tables_at(g) || latched_)
+      return false;
+    const float rot[3] = {0, yaw, 0};
+    g.create(manager, k.spawn, k.index, at, rot);
+    return true;
+  }
+  // The guest: SB's despawn job for one actor of hers, found again by GUID with that key and fighting (never dying),
+  // through SB's job sender with this turn. Never a kill.
+  template <class Game> bool despawn(Game &g, uint64_t logic, uint32_t guid, const SpawnKey &k) {
+    Actor a;
+    uint64_t sender = 0;
+    const uint64_t la = g.find(logic, guid);
+    if (!la || !live(g, la, guid, a) || !fighting(a) || a.seen.spawn != k.spawn || a.seen.index != k.index ||
+        !get(g, base_ + (kJobSender - kImageBase), sender) || !plausible(sender) || latched_)
+      return false;
+    g.despawn(sender, turn_, guid);
+    return true;
+  }
+
   // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
   // Where both sides count epochs again (pilot.h's Owners), seen in the lines as they go out (Io::send) and come in,
   // so each side sees them at the same point of the host's stream: a world line, an on or off (her list dropped,
@@ -1546,7 +1746,9 @@ private:
     switch (m.type) {
     case Type::on:
     case Type::off:
-    case Type::world: return owners_.clear(), own_in_.clear(), execs_.clear();
+    case Type::world:
+      spawn_host_.clear(), spawn_guest_.clear(); // Same spawns: the epoch line again, the host's epoch forgotten.
+      return owners_.clear(), own_in_.clear(), execs_.clear();
     case Type::place:
       if (!m.place)
         owners_.home(), own_in_.clear();
@@ -1720,6 +1922,7 @@ private:
   size_t chars_ = 0;
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
   std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false}, aggro_host_{false}, exec_test_{false};
+  std::atomic<bool> same_spawns_{false};
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
@@ -1756,6 +1959,21 @@ private:
   size_t piloted_ = 0;              // The pairs they move: the host's captured, or the guest's drawn.
   uint32_t cast_[kMaxPairs] = {}; // This turn's crowd controls of ours (cast()), by copy, and how many in all.
   size_t casts_ = 0;
+  // Same spawns (stage 4): running on this side this turn, our epoch, the two sides, this census's keyed actors, and
+  // the rows and zones read this session.
+  bool spawning_ = false;
+  Epochs epochs_;
+  SpawnHost spawn_host_;
+  SpawnGuest spawn_guest_;
+  Mine mine_[kMaxSeen];
+  size_t mines_ = 0;
+  uint32_t row_ids_[kMaxRows] = {};
+  SpawnRow row_at_[kMaxRows];
+  bool row_ok_[kMaxRows] = {};
+  size_t rows_ = 0;
+  uint64_t zone_alias_[kMaxZones] = {};
+  uint32_t zone_ids_[kMaxZones] = {};
+  size_t zones_ = 0;
 };
 
 // ---- Between the job and the worker ----
@@ -2063,6 +2281,7 @@ private:
     e_.credit(!r.fought);
     e_.same_place(r.place);
     e_.aggro(r.aggro_host);
+    e_.same_spawns(r.spawns);
     e_.pilot_off(false);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
@@ -2322,11 +2541,12 @@ private:
     const Counts &c = side_ ? s.host : s.guest;
     const bool probe = ran_ == Fight::probe;
     const bool moved = probe ? s.actors != said_actors_ || s.eve != said_eve_ || s.turn < said_turn_
-                             : std::memcmp(&c, &said_counts_, sizeof c) != 0;
+                             : std::memcmp(&c, &said_counts_, sizeof c) != 0 ||
+                                   std::memcmp(&s.spawns, &said_spawns_, sizeof s.spawns) != 0;
     said_turn_ = s.turn;
     if (!force && !moved && now_ms < said_ms_ + kQuietMs)
       return;
-    said_counts_ = c, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
+    said_counts_ = c, said_spawns_ = s.spawns, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
     using u = unsigned long long;
     const char *as = ran_ == Fight::record ? " (record)" : ran_ == Fight::replay ? " (replay)" : "";
     char head[768], tail[1024];
@@ -2355,6 +2575,15 @@ private:
                     as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
                     u(c.expired), u(c.desync), s.floors, u(c.execs), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped),
                     u(c.stale), u(c.bad), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
+    char spawns[320] = ""; // Same spawns (stage 4): the host's rounds answered, or hers sent.
+    const SpawnCounts &p = s.spawns;
+    if (!probe)
+      std::snprintf(spawns, sizeof spawns,
+                    "; same spawns %s, epoch %u (ours moved %llu times), %llu rounds %s, %llu spawn and %llu drop "
+                    "lines, %llu spawned, %llu despawned (%llu undone), %llu refused, %llu stale, %llu over the rates",
+                    s.spawning ? "on" : "off", s.epoch, u(p.epochs), u(side_ ? p.answered : p.haves),
+                    side_ ? "answered" : "sent", u(p.spawn_lines), u(p.drop_lines), u(p.spawned), u(p.despawned),
+                    u(p.undone), u(p.refused), u(p.stale), u(p.rate));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
@@ -2369,7 +2598,7 @@ private:
                   u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
                   u(j.thaw_refused), u(j.battles), u(j.owns), u(j.own_nos), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
-    io.trace(std::string(head) + tail);
+    io.trace(std::string(head) + spawns + tail);
   }
 
   Engine &e_;
@@ -2392,6 +2621,7 @@ private:
   uint64_t unsent_ = 0, dropped_ = 0, malformed_ = 0;
   Snapshot last_;
   Counts said_counts_;
+  SpawnCounts said_spawns_;
   size_t said_actors_ = 0;
   bool said_eve_ = false;
   uint32_t said_turn_ = 0;

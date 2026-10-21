@@ -507,9 +507,13 @@ void guarded_tick() {
 // ---- The shared fight's job ----
 // SB's own functions on the pinned build (PHASE11-DESIGN.md 4.7): SendJob from the game thread to arm and from inside
 // our job to push it again (never with param_3 = 1); the actor lookup, ApplyStat and the effect call (stage 2,
-// PHASE11-STAGE2-RE 2) only from inside our job.
+// PHASE11-STAGE2-RE 2) only from inside our job. Same spawns (stage 4, PHASE11-STAGE3 9.2; M3-8: the game's own spawn
+// and despawn, no patch), only from inside our job too: the EventSpawnTable row by EventSpawnId, the ZoneTable row by
+// alias, the spawn of a key on SB's spawn manager (as FSBCreateActor::Simulate makes it) and the despawn job (as SB's
+// ZoneEvent Despawn sends it).
 constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720,
-                   kApplyEffect = 0x141ad08b0;
+                   kApplyEffect = 0x141ad08b0, kSpawnRow = 0x141a9db80, kZoneRow = 0x141a9b8a0,
+                   kSpawnByKey = 0x141c1c9a0, kDespawn = 0x141b077f0;
 constexpr uint64_t kLogicThreadId = 0x1470634f0; // DAT_1470634f0: the logic worker's thread ID during its tick, else 0.
 using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
 using FindActor = void *(*)(void *logic, int32_t guid);
@@ -519,6 +523,16 @@ using ApplyStat = void (*)(void *la, int32_t stat, uint64_t key, float delta, ui
 // start it now, and the skill's GUIDs (none). The effect started, or null when its row or the target refused it.
 using ApplyEffect = void *(*)(void *logic, void *target, void *caster, int32_t id, const float *at, uint8_t deferred,
                               const int32_t *skill);
+// The tables, an unused argument and the EventSpawnId: the row, or null. The tables, whether the alias is None (never
+// asked: the engine refuses a 0 alias first) and the alias, an FName by value: the row, or null.
+using SpawnRow = void *(*)(void *tables, uint64_t unused, uint32_t id);
+using ZoneRow = void *(*)(void *tables, uint8_t none, uint64_t alias);
+// The spawn manager, the EventSpawnId, the SpawnIndex, where, the rotation (pitch, yaw, roll), an unused argument, no
+// extra request data and its flag 0: the key spawns now (RequestSpawn with no delay).
+using SpawnByKey = void (*)(void *manager, uint32_t id, uint32_t index, const float *at, const float *rot,
+                            uint64_t unused, void *extra, uint8_t flag);
+// The job sender, the logic turn and the actor's GUID: a despawn job for it.
+using Despawn = void (*)(void *sender, uint32_t turn, uint32_t guid);
 template <class F> F game_function(uint64_t address) {
   return reinterpret_cast<F>(base + (address - nightop::kImageBase));
 }
@@ -550,6 +564,18 @@ struct WinGame {
     return reinterpret_cast<uintptr_t>(game_function<ApplyEffect>(kApplyEffect)(
         reinterpret_cast<void *>(logic), reinterpret_cast<void *>(la), reinterpret_cast<void *>(caster), id, kZero, 0,
         nullptr));
+  }
+  uint64_t spawn_row(uint64_t tables, uint32_t id) {
+    return reinterpret_cast<uintptr_t>(game_function<SpawnRow>(kSpawnRow)(reinterpret_cast<void *>(tables), 0, id));
+  }
+  uint64_t zone_row(uint64_t tables, uint64_t alias) {
+    return reinterpret_cast<uintptr_t>(game_function<ZoneRow>(kZoneRow)(reinterpret_cast<void *>(tables), 0, alias));
+  }
+  void create(uint64_t manager, uint32_t id, uint8_t index, const float *at, const float *rot) {
+    game_function<SpawnByKey>(kSpawnByKey)(reinterpret_cast<void *>(manager), id, index, at, rot, 0, nullptr, 0);
+  }
+  void despawn(uint64_t sender, uint32_t turn, uint32_t guid) {
+    game_function<Despawn>(kDespawn)(reinterpret_cast<void *>(sender), turn, guid);
   }
   void push(fight::Job *job) { game_function<SendJob>(kSendJob)(nullptr, job, 0); }
   bool receive(fight::Message &m) { return fight_mail.receive(m); }

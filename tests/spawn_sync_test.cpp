@@ -75,7 +75,9 @@ struct World {
       if (m.monster)
         out.push_back(m.key);
     std::sort(out.begin(), out.end(),
-              [](const SpawnKey &a, const SpawnKey &b) { return a.spawn != b.spawn ? a.spawn < b.spawn : a.index < b.index; });
+              [](const SpawnKey &a, const SpawnKey &b) {
+                return a.spawn != b.spawn ? a.spawn < b.spawn : a.index < b.index;
+              });
     return out;
   }
   // The Io.
@@ -128,13 +130,13 @@ const char *epoch(Epochs &ep, World &w, uint64_t alias, uint32_t state, uint64_t
   w.census();
   return ep.step(alias, state, w.mine.data(), w.mine.size(), now);
 }
-void host_step(SpawnHost &h, Epochs &ep, World &w, uint64_t now, bool near = true, uint32_t zone = kZone) {
-  h.step(1, zone, ep, near, w.mine.data(), w.mine.size(), now, w);
+void host_step(SpawnHost &h, Epochs &ep, World &w, uint64_t now, bool close = true, uint32_t zone = kZone) {
+  h.step(1, zone, ep, close, w.mine.data(), w.mine.size(), now, w);
 }
 const float kEve[3] = {500, 0, 0};
-void guest_step(SpawnGuest &g, Epochs &ep, World &w, uint64_t now, bool moved = false, bool near = true,
+void guest_step(SpawnGuest &g, Epochs &ep, World &w, uint64_t now, bool moved = false, bool close = true,
                 uint32_t zone = kZone) {
-  g.step(1, zone, ep, moved, near, kEve, true, w.mine.data(), w.mine.size(), now, w);
+  g.step(1, zone, ep, moved, close, kEve, true, w.mine.data(), w.mine.size(), now, w);
 }
 } // namespace
 
@@ -320,11 +322,12 @@ int main() {
     g.heard(msg("SBF11 epoch 1 40 1"), 1);
     guest_step(g, ep, w, kGraceMs);
     w.lines();
-    const auto take = [&](std::initializer_list<const char *> lines, uint64_t now, bool moved = false, bool near = true) {
+    const auto take = [&](std::initializer_list<const char *> lines, uint64_t now, bool moved = false,
+                          bool close = true) {
       for (const char *l : lines)
         g.heard(msg(l), 1);
       epoch(ep, w, 0xA1, 3, now);
-      guest_step(g, ep, w, now, moved, near);
+      guest_step(g, ep, w, now, moved, close);
     };
     take({"SBF11 spawn 1 1 7010 0 900 600 -250 12 270", // Created where the host's stands.
           "SBF11 spawn 1 1 7011 0 900 600 0 0 0", "SBF11 spawn 1 1 7010 0 900 600 0 0 0", // Again: stale.
@@ -367,7 +370,8 @@ int main() {
           "SBF11 spawn 1 1 7074 0 900 600 0 0 0"},
          kGraceMs + 2 * kHaveAgainMs + 100);
     take({}, kGraceMs + 2 * kHaveAgainMs + 350);
-    assert(g.counts.undone == 2 && w.count("spawn undone", "charId") == 1 && w.count("spawn undone", "not a Monster") == 1);
+    assert(g.counts.undone == 2 && w.count("spawn undone", "charId") == 1 &&
+           w.count("spawn undone", "not a Monster") == 1);
     assert(w.actor(SpawnKey{7074, 0}) && w.actor(SpawnKey{7074, 0})->monster); // The right one stays.
     take({}, kGraceMs + 2 * kHaveAgainMs + 600);
     assert(g.counts.undone == 2); // Once each.

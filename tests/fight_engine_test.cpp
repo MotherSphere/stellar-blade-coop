@@ -531,6 +531,93 @@ struct Game {
     f = flags;
     return true;
   }
+
+  // ---- Same spawns (stage 4): SB's tables, zones, spawn manager and job sender ----
+  // Each made by spawns(): the table holder (its +0x20 the tables), the spawn manager (+0x1c its state, 3 after an
+  // entry) and the job sender in the globals block. A spawn row holds SpawnType, Zone, SaveType and the keep flag where
+  // the build has them, a zone row its ID; FUN_141a9db80 and FUN_141a9b8a0 find them, SB's spawn call makes an actor of
+  // the row's character at once in Spawn state, and SB's despawn job puts one in Despawn (life state 4, its HP kept)
+  // and takes it out of the map three turns later: no death.
+  uint64_t tables = 0, spawn_manager = 0, sender = 0;
+  std::map<uint32_t, uint64_t> spawn_rows; // EventSpawnId -> row.
+  std::map<uint64_t, uint64_t> zone_rows;  // Zone alias -> row.
+  std::map<uint32_t, std::pair<uint32_t, uint8_t>> row_char; // A row's character: charId and ActorType.
+  struct Made {
+    uint32_t id;
+    uint8_t index;
+    float at[3], rot[3];
+    uint32_t guid;
+  };
+  std::vector<Made> made;
+  std::vector<uint32_t> despawned;
+  uint64_t lookups = 0;  // FUN_141a9db80 and FUN_141a9b8a0 calls.
+  uint32_t next_guid = 50000;
+  void spawns() {
+    const uint64_t holder = mem.alloc(0x30);
+    tables = mem.alloc(0x100), spawn_manager = mem.alloc(0x40), sender = mem.alloc(0x40);
+    mem.regions[rebased(kTables)].assign(8, 0);
+    mem.regions[rebased(kSpawnManager)].assign(8, 0);
+    mem.put(rebased(kTables), holder);
+    mem.put(holder + kTablesAt, tables);
+    mem.put(rebased(kSpawnManager), spawn_manager);
+    mem.put(rebased(kJobSender), sender);
+    mem.put<uint32_t>(spawn_manager + kSpawnState, 3);
+  }
+  void zone(uint64_t alias, uint32_t id) {
+    zone_rows[alias] = mem.alloc(0x30);
+    mem.put(zone_rows[alias] + kZoneId, id);
+  }
+  void spawn_row(uint32_t id, uint8_t save, uint64_t zone_alias, uint8_t spawn_type = 0, bool keep = false) {
+    const uint64_t r = spawn_rows[id] = mem.alloc(0x100);
+    mem.put(r + kRowSpawnType, spawn_type);
+    mem.put(r + kRowSaveType, save);
+    mem.put<uint8_t>(r + kRowKeep, keep);
+    mem.put(r + kRowZone, zone_alias);
+  }
+  void enter(uint64_t alias) { mem.put(logic + kZoneAlias, alias); }
+  void place(uint32_t guid, float x, float y, float yaw = 0) {
+    const float at[3] = {x, y, 0}, rot[3] = {0, yaw, 0};
+    for (int k = 0; k < 3; ++k)
+      mem.put(fsb(guid) + kLocation + 4 * size_t(k), at[k]), mem.put(fsb(guid) + kFsbRotation + 4 * size_t(k), rot[k]);
+  }
+  uint64_t spawn_row(uint64_t t, uint32_t id) {
+    assert(t == tables);
+    ++lookups;
+    return spawn_rows.count(id) ? spawn_rows[id] : 0;
+  }
+  uint64_t zone_row(uint64_t t, uint64_t alias) {
+    assert(t == tables);
+    ++lookups;
+    return zone_rows.count(alias) ? zone_rows[alias] : 0;
+  }
+  void create(uint64_t manager, uint32_t id, uint8_t index, const float *at, const float *rot) {
+    assert(manager == spawn_manager && processing && spawn_rows.count(id));
+    const auto c = row_char.count(id) ? row_char[id] : std::make_pair(kChar, kTypeMonster);
+    spawn(next_guid, id, index, c.first, 1600, c.second);
+    place(next_guid, at[0], at[1], rot[1]);
+    made.push_back(Made{id, index, {at[0], at[1], at[2]}, {rot[0], rot[1], rot[2]}, next_guid++});
+  }
+  void despawn(uint64_t s, uint32_t turn_now, uint32_t guid) {
+    assert(s == sender && turn_now == turn() && processing);
+    despawned.push_back(guid);
+    mem.put<int32_t>(fsb(guid) + kLife, 4);
+    body(guid).gone_at = turn() + 3;
+  }
+  // The keys of this world's Monsters in the map, alive or dying, sorted.
+  std::vector<std::pair<uint32_t, uint8_t>> keys() {
+    std::vector<std::pair<uint32_t, uint8_t>> out;
+    for (int32_t i = 0; i < used(); ++i) {
+      if (!allocated(i))
+        continue;
+      const uint64_t la = value(i);
+      const int32_t life = mem.get<int32_t>(mem.get<uint64_t>(la + kFsb) + kLife);
+      const uint8_t type = mem.get<uint8_t>(mem.get<uint64_t>(la + kFsb) + kActorType);
+      if (mem.get<uint32_t>(la + kSpawnId) && type == kTypeMonster && life != 4 && life != 5)
+        out.emplace_back(mem.get<uint32_t>(la + kSpawnId), mem.get<uint8_t>(la + kSpawnIndex));
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+  }
 };
 
 bool has(const std::string &text, const std::string &part) { return text.find(part) != std::string::npos; }
@@ -2389,6 +2476,103 @@ int main() {
     assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && !eh->latched() && !eg->latched());
   }
 
+  // ---- Same spawns (stage 4), two worlds through channel 2: 90-150 ms each way, in order ----
+  // The host's zone (alias 0xA1 in its process, 0xB7 in hers: one ZoneTable ID, 40) holds keys 1-8; hers holds 5-12 and
+  // four keys that stay out (a save row, a keep row, an event row and another zone's). The EVEs stand 200 m apart, then
+  // 20 m from 5 s. With same_spawns off nothing of stage 4 happens: no line, no row read, no call. With it on nothing
+  // happens either while they stand 200 m apart; then her set becomes the host's: 1-4 created where the host's stand
+  // (they pair through stage 1), 9-12 despawned, her four left; nothing ever dies in either world. The host's zone then
+  // resets (its spawn manager 3, 1, 3: epoch 2), and a spawn line of epoch 1 that comes after is dropped; her rounds of
+  // epoch 2 are answered with nothing to change.
+  for (const bool on : {false, true}) {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->same_spawns(on);
+    eg->same_spawns(true); // Hers decides nothing: only the host's epoch line starts her side.
+    for (Game *w : {&H, &G}) {
+      w->spawns();
+      w->zone(w == &H ? 0xA1 : 0xB7, 40);
+      w->zone(w == &H ? 0xA2 : 0xB8, 41);
+      w->enter(w == &H ? 0xA1 : 0xB7);
+      const uint64_t here = w == &H ? 0xA1 : 0xB7, there = w == &H ? 0xA2 : 0xB8;
+      for (uint32_t id = 1; id <= 12; ++id)
+        w->spawn_row(id, 2, here);
+      w->spawn_row(20, 1, here), w->spawn_row(21, 2, here, 0, true), w->spawn_row(22, 2, here, 1);
+      w->spawn_row(23, 2, there);
+      w->place(1, 0, w == &H ? 0.f : 2000.f);
+      w->flags.her_ok = true;
+      w->flags.her[1] = w == &H ? 20000.f : -18000.f; // The other EVE's ghost, 200 m away.
+    }
+    for (uint32_t id = 1; id <= 8; ++id) {
+      H.spawn(100 + id, id, 0);
+      H.place(100 + id, 300.f * float(id), 500, -45.f);
+    }
+    for (uint32_t id = 5; id <= 12; ++id)
+      G.spawn(900 + id, id, 0);
+    for (uint32_t id = 20; id <= 23; ++id)
+      G.spawn(900 + id, id, 0);
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(11);
+    bool spawn_lines = false;
+    uint64_t same_at = 0;
+    std::vector<std::pair<uint32_t, uint8_t>> want;
+    for (uint32_t id = 1; id <= 8; ++id)
+      want.emplace_back(id, 0);
+    for (uint32_t id = 20; id <= 23; ++id)
+      want.emplace_back(id, 0);
+    for (uint64_t t = 0; t <= 20000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 5008) // 20 m apart.
+        H.flags.her[1] = 2000, G.flags.her[1] = 0;
+      if (t == 10000)
+        H.mem.put<uint32_t>(H.spawn_manager + kSpawnState, 1); // The host's zone resets.
+      if (t == 10240)
+        H.mem.put<uint32_t>(H.spawn_manager + kSpawnState, 3);
+      if (t == 12000 && on) // A spawn line of epoch 1 that comes after epoch 2: dropped.
+        G.inbox.push_back(msg("SBF11 spawn " + std::to_string(eg->guest.gen()) + " 1 9 0 900 0 0 0 0"));
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      for (Game *w : {&H, &G})
+        for (const Message &m : w->sent)
+          spawn_lines = spawn_lines || m.type == Type::epoch || m.type == Type::have || m.type == Type::spawn ||
+                        m.type == Type::drop;
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+      if (!same_at && G.keys() == want)
+        same_at = t;
+      assert(t >= 5008 || (G.made.empty() && G.despawned.empty()));
+    }
+    for (Game *w : {&H, &G}) // Nothing died in either world: despawned, never killed.
+      for (const auto &[la, b] : w->bodies)
+        assert(b.deaths == 0);
+    const Snapshot sh = eh->snapshot(), sg = eg->snapshot();
+    assert(!eh->latched() && !eg->latched() && eh->host.counts.bad == 0 && eg->guest.counts.bad == 0);
+    if (!on) {
+      assert(!spawn_lines && G.made.empty() && G.despawned.empty() && H.lookups == 0 && G.lookups == 0);
+      assert(!sh.spawning && !sg.spawning && sh.epoch == 0 && sg.epoch == 0 && !same_at);
+      continue;
+    }
+    std::printf("fight_engine_test: same spawns, two worlds: her set the host's at %llu ms; %llu rounds answered, %llu "
+                "spawned, %llu despawned; epoch %u; %llu stale on her side\n",
+                static_cast<unsigned long long>(same_at), static_cast<unsigned long long>(sh.spawns.answered),
+                static_cast<unsigned long long>(sg.spawns.spawned),
+                static_cast<unsigned long long>(sg.spawns.despawned),
+                sh.epoch, static_cast<unsigned long long>(sg.spawns.stale));
+    assert(same_at > 5008 && same_at < 10000 && G.keys() == want);
+    assert(G.made.size() == 4 && G.despawned.size() == 4 && sg.spawns.spawned == 4 && sg.spawns.despawned == 4);
+    for (const Game::Made &m : G.made) // Where the host's stand, at its yaw.
+      assert(m.id >= 1 && m.id <= 4 && m.at[0] == 300.f * float(m.id) && m.at[1] == 500 && m.rot[1] == 315);
+    for (uint32_t guid : G.despawned)
+      assert(guid >= 909 && guid <= 912);
+    assert(sh.spawning && sg.spawning && sh.epoch == 2 && sg.epoch == 2 && sg.spawns.stale >= 1 && G.made.size() == 4);
+    assert(sh.spawns.answered >= 2 && sh.spawns.stale >= 1); // Answered at epoch 2 too; her round of epoch 1 dropped.
+    assert(eg->guest.linked() == 8); // The created four paired through stage 1.
+    assert(count(G, "spawned") == 4 && count(G, "despawned") == 4 && count(H, "spawns epoch", "reset") == 1);
+  }
+
   // ---- Two-player scaling (PHASE11-STAGE2-RE 4): on each enemy the side names, MaxHPValue (stat 3, which MaxHP
   // follows) and MaxStamina (13) up by the host's percents, then HP and Stamina up in proportion, once; back off when
   // the side lets the enemy go (a dying one keeps its HP) and at off, HP and Stamina then down in proportion ----
@@ -3689,6 +3873,22 @@ int main() {
       run(200);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(has(io.file, " SBF11 place 1 1\n") && !has(io.file, "aggro"));
+      // spawns: the host's same_spawns=on, from the next start; its epoch line is never recorded. The stats line says
+      // whether same spawns run, and the epoch.
+      H.spawns(), H.zone(0xA1, 40), H.enter(0xA1);
+      assert(w.ask(coop::parse_request("fight record spawns"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(300);
+      io.traced.clear();
+      w.ask(coop::parse_request("fight status"), gate, io);
+      assert(io.tracing("; same spawns on, epoch 1 (ours moved 1 times), 0 rounds answered") == 1);
+      w.ask(coop::parse_request("fight off"), gate, io);
+      assert(!has(io.file, "epoch") && !io.lines().size());
+      assert(w.ask(coop::parse_request("fight record"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(300);
+      io.traced.clear();
+      w.ask(coop::parse_request("fight status"), gate, io);
+      assert(io.tracing("; same spawns off, epoch 0 (ours moved 0 times)") == 1);
+      w.ask(coop::parse_request("fight off"), gate, io);
     }
     Game G;
     auto mail = std::make_unique<Mail>();

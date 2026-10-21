@@ -1,11 +1,11 @@
-// Same spawns, stage 4 of shared enemies (PHASE11-STAGE3 9.2), as pure logic: while both players stand within 100 m
-// of each other in one zone, the guest's game holds the common enemies the host's game holds there. The guest tells the
+// Same spawns, stage 4 of shared enemies (PHASE11-STAGE3 9.2), as pure logic: while both players stand within 100 m of
+// each other in one zone, the guest's game holds the common enemies the host's game holds there. The guest tells the
 // host her keys there (have); the host answers each key she lacks with spawn, from where its own enemy stands, and each
 // key it lacks with drop. She creates the first through SB's spawn manager and despawns the second, never a kill: a
-// kill would pay rewards for an enemy nobody fought and write it dead in her zone storage. Only EnterZone rows (SpawnType
-// 0) of Monsters (ActorType 3) whose SaveType is None, ResetZone or ResetZoneWithTransform take part. Save and
-// SaveWithTransform rows are per-player content (R34) and stay as they are, and so do the rows that keep their object
-// through a zone reset; ZoneEvent and Quest spawns are never touched (R7, R29). Each side counts its own epoch
+// kill would pay rewards for an enemy nobody fought and write it dead in her zone storage. Only EnterZone rows
+// (SpawnType 0) of Monsters (ActorType 3) whose SaveType is None, ResetZone or ResetZoneWithTransform take part. Save
+// and SaveWithTransform rows are per-player content (R34) and stay as they are, and so do the rows that keep their
+// object through a zone reset; ZoneEvent and Quest spawns are never touched (R7, R29). Each side counts its own epoch
 // (Epochs): one more at each zone change, at each reset the spawn manager shows, and when many keys change GUID in one
 // census. Every line carries the host's epoch, and each side drops the others. No SB call here: the engine
 // (fight_engine.h) reads the rows and the actors and makes the calls through an Io, so tests/spawn_sync_test.cpp drives
@@ -74,9 +74,9 @@ constexpr uint64_t kGraceMs = 3000;     // A zone shared from this long after ou
 constexpr float kNearCm = 10000;        // Both EVEs within 100 m.
 constexpr float kSpawnRangeCm = 100000; // R33: a spawn within 1 km of her EVE.
 // The guest's rounds: at once at a new epoch (hers or the host's), at most one each kHaveMs, and again every
-// kHaveAgainMs while the zone is shared (no line says the two sets agree). The host answers one round each kRoundMs at most (R33), with
-// at most kMaxAnswer spawn lines and as many drop lines; the rest goes with the next round. The guest makes at most
-// kCallsPerSecond spawns and despawns a second (R33).
+// kHaveAgainMs while the zone is shared (no line says the two sets agree). The host answers one round each kRoundMs at
+// most (R33), with at most kMaxAnswer spawn lines and as many drop lines; the rest goes with the next round. The guest
+// makes at most kCallsPerSecond spawns and despawns a second (R33).
 constexpr uint64_t kHaveMs = 1000, kHaveAgainMs = 5000, kRoundMs = 500;
 constexpr size_t kMaxAnswer = 16;
 constexpr uint32_t kCallsPerSecond = 2 * kMaxAnswer;
@@ -96,7 +96,9 @@ inline const Mine *find(const Mine *mine, size_t n, const SpawnKey &k) {
       return &mine[i];
   return nullptr;
 }
-inline bool listed(const SpawnKey *keys, size_t n, const SpawnKey &k) { return std::find(keys, keys + n, k) != keys + n; }
+inline bool listed(const SpawnKey *keys, size_t n, const SpawnKey &k) {
+  return std::find(keys, keys + n, k) != keys + n;
+}
 
 // A side's own epoch.
 class Epochs {
@@ -179,7 +181,8 @@ public:
   // zone is unknown), then her round if it came at our epoch while she stands within 100 m and our zone is settled:
   // spawn for each Monster of ours there she lacks (a dying one never), drop for each key of hers there we lack.
   template <class Io>
-  void step(uint32_t gen, uint32_t zone, const Epochs &ep, bool near, const Mine *mine, size_t n, uint64_t now, Io &io) {
+  void step(uint32_t gen, uint32_t zone, const Epochs &ep, bool close, const Mine *mine, size_t n, uint64_t now,
+            Io &io) {
     if (!zone || !ep.n())
       return;
     if (zone != told_zone_ || ep.n() != told_n_) {
@@ -191,7 +194,7 @@ public:
     if (!round_.done)
       return;
     round_.parts = 0, round_.done = false;
-    if (round_.epoch != ep.n() || !near || !ep.settled(now)) { // Another epoch's, or not shared (yet).
+    if (round_.epoch != ep.n() || !close || !ep.settled(now)) { // Another epoch's, or not shared (yet).
       ++counts.stale;
       return;
     }
@@ -286,17 +289,17 @@ public:
     queue_[queued_++] = m;
   }
   // Each census once the host's epoch came: moved, our own epoch moved this census (our answers so far are void);
-  // near, the host's EVE within 100 m of ours; eve, where ours stands (eve_ok: read). The zone is shared while ours is
+  // close, the host's EVE within 100 m of ours; eve, where ours stands (eve_ok: read). The zone is shared while ours is
   // the host's and settled. Then: each key we created is checked once it shows (a Monster of the host's charId, else
   // despawned again), the host's lines are taken, and our round goes when due.
   template <class Io>
-  void step(uint32_t gen, uint32_t zone, const Epochs &ep, bool moved, bool near, const float *eve, bool eve_ok,
+  void step(uint32_t gen, uint32_t zone, const Epochs &ep, bool moved, bool close, const float *eve, bool eve_ok,
             const Mine *mine, size_t n, uint64_t now, Io &io) {
     if (!n_)
       return;
     if (moved)
       forget();
-    const bool shared = zone && zone == zone_ && ep.settled(now) && near;
+    const bool shared = zone && zone == zone_ && ep.settled(now) && close;
     for (size_t i = 0; i < made_; ++i)
       check(made_at_[i], mine, n, io);
     for (size_t i = 0; i < queued_; ++i)

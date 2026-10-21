@@ -351,6 +351,16 @@ int main() {
                           "fight on aggro-host scale 135 115", "fight on aggro", "fight on aggro-game",
                           "fight on Aggro-host", "fight off aggro-host", "fight pilot aggro-host"})
     assert(parse_request(bad).command == Command::none);
+  // Stage 4: same_spawns=on as "spawns", one word after aggro-host (or where it would be), before the ids; none: off.
+  f = parse_request("fight on scale 135 115 place aggro-host spawns 15011001");
+  assert(f.place && f.aggro_host && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight on spawns");
+  assert(f.command == Command::fight && f.spawns && !f.place && !f.aggro_host && f.chars.empty());
+  assert(!parse_request("fight on place aggro-host").spawns && !parse_request("fight on 1").spawns);
+  for (const char *bad : {"fight on spawns aggro-host", "fight on spawns place", "fight on spawns spawns",
+                          "fight on 1 spawns", "fight on spawns scale 135 115", "fight on spawn", "fight on Spawns",
+                          "fight off spawns", "fight status spawns", "fight pilot spawns"})
+    assert(parse_request(bad).command == Command::none);
   // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
   // too), its status, how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before), the
   // force target test and the takedown test.
