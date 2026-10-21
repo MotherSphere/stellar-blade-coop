@@ -86,7 +86,7 @@ A key that another action already holds is refused, and the menu names that acti
 works at once.
 
 The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, and the
-shared enemies', same place and same spawns notices use the game's language when it is French, and English otherwise. So
+shared enemies', same place and same spawns notices use the game's text language, any of the 23 that the game ships. So
 do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English.
 The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the
 error messages from the coop commands, shown in the menu or the code box.
@@ -868,8 +868,7 @@ photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
-# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
-# english.
+# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
 ui_language=game
@@ -913,7 +912,7 @@ card_details=on
 | `photo_name_tag` | `on` or `off`: its name tag in your own photos | `off` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
-| `ui_language` | `game` (French or English, as the game) or `english` | `game` |
+| `ui_language` | `game` (the game's text language) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
 | `partner_bar` | `on` or `off`: the [marker](#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
