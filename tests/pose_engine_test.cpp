@@ -355,6 +355,22 @@ int main() {
       assert(std::fabs(rel[4] - 10) < 1e-4 && std::fabs(rel[5]) < 1e-4 && std::fabs(rel[6]) < 1e-4);
     }
 
+    // Only a child of the Niagara class with the active bit pays alive()'s safe_read (a ReadProcessMemory in the
+    // game): 1 for the leader, then the dead one and the good one; the other class and the inactive one take none.
+    {
+      static int reads = 0;
+      auto plain = safe_read;
+      safe_read = [](uint64_t address, void *out, size_t n) {
+        ++reads;
+        std::memcpy(out, reinterpret_cast<const void *>(address), n);
+        return true;
+      };
+      attach({-1, 0, 1, 2, 4});
+      read(c);
+      assert(reads == 3 && slot_is(0, 2, 1) && c.started == 0);
+      safe_read = plain;
+    }
+
     // A count over 256 skips the leader (nothing past the 7 entries is read: ASan would see it); its slot is freed.
     put<int32_t>(leader, kAttachCount, 257);
     read(c);

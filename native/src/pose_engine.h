@@ -321,8 +321,10 @@ inline void read_effects(uintptr_t objects, const Table &t, EffectState &state, 
     read_world(leader, parent);
     for (int32_t c = 0; c < count; ++c) {
       auto child = at<uintptr_t>(children + 8 * uintptr_t(c));
-      if (!alive(objects, child) || at<uint64_t>(child + kClass) != t.fx.cls ||
-          !(at<uint8_t>(child + kActiveFlags) & kActive))
+      // A live leader's children are plain-readable (UE takes a destroyed component out of AttachChildren), so the
+      // class and active bit come first: only a candidate pays alive()'s safe_read.
+      if (!child || at<uint64_t>(child + kClass) != t.fx.cls || !(at<uint8_t>(child + kActiveFlags) & kActive) ||
+          !alive(objects, child))
         continue;
       auto system = at<uint64_t>(child + t.fx.asset);
       uint8_t k = 1;
