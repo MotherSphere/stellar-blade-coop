@@ -1909,17 +1909,17 @@ std::string ask_pilot(const coop::Request &request) {
     static const char *const kSay[] = {
         ("the frozen boss copy nearest our EVE gets the host's boss start (SetBattleMode, once a copy); coop-link.log "
          "says its battle mode, first-time latch, on-battle flag, states 30 and 39 and AI task before, then each "
-         "change for 1 s (fight pilot test bstart ...). From now until coop fight on, boss copies get no "
-         "BattleMode_5s"),
+         "change for 1 s (fight pilot test bstart ...). From the next coop fight replay until coop fight on, boss "
+         "copies get no BattleMode_5s"),
         ("the frozen boss copy nearest our EVE gets its first phase row it lacks, then 5 s later the dispel of its "
          "floor, as the host's phase lines would bring them; coop-link.log says each line, stat 107 and the rows the "
          "game took (fight pilot test phase ...)"),
         ("the frozen boss copy nearest our EVE is held at 1 HP for 10 s, then gets the host's HP back; hit it once "
-         "meanwhile. coop-link.log says each change of its HP, DeathReady, FinishReady and states 27 and 3 (fight "
-         "pilot test finish ...)"),
-        ("a DollHead summon 3 m ahead of our EVE under key 4026531841:0, with its row's effects and our freeze; "
-         "coop-link.log says each change for 10 s (fight pilot test summon ...); it goes 3 s later, or at coop fight "
-         "off")};
+         "only after a line shows state27=1. coop-link.log says each change of its HP, DeathReady, FinishReady and "
+         "states 27 and 3 (fight pilot test finish ...)"),
+        ("a DollHead summon 3 m ahead of our EVE under key 4026531841:0, with its row's effects and our freeze "
+         "(removed at once if the game refuses it); coop-link.log says each change for 10 s (fight pilot test summon "
+         "...); it goes 3 s later, or at coop fight off")};
     if (!fight_worker.replaying())
       return std::string(what) + " refused: only while coop fight replay runs";
     fight_engine.boss_test(request.pilot);

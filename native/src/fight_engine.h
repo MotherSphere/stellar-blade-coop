@@ -596,8 +596,9 @@ public:
   // Any thread: coop fight pilot test bstart|phase|finish|summon (stage 5's solo probes, run during a replay), for the
   // next turn on the guest's side (trial()). Another ask before that turn replaces it.
   void boss_test(PilotAsk what) { boss_test_ = uint8_t(what); }
-  // Any thread: on, the boss copies this side draws get no BattleMode_5s from the owner's stream, so a boss start test
-  // shows SetBattleMode's own path; on from a bstart test until coop fight on (the glue's calm(false)).
+  // Any thread: on, the boss copies this side draws get no BattleMode_5s from the owner's stream from the next session
+  // on, so a boss start test there shows SetBattleMode's own path; the session that turned it on keeps the mirror, so
+  // its other tests run as the guest's side would. On from a bstart test until coop fight on (the glue's calm(false)).
   void calm(bool on) { calm_ = on; }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
@@ -756,6 +757,7 @@ public:
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
       summoned_count_ = guards_ = 0; // summon_n_ goes on for the run, as the extras' n.
       trial_ = Trial();
+      calm_seen_ = calm_;
       per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
       zone_told_ = false;
@@ -1658,6 +1660,7 @@ private:
     return false;
   }
   template <class Game> void lift_all(Game &g, uint64_t logic) {
+    drop_trial(g, logic);
     while (captures_)
       lift(g, logic, 0);
   }
@@ -1803,7 +1806,7 @@ private:
       return (void)freeze(g, logic, p.local);
     }
     const uint32_t *battle = flags_.battle, *end = battle + std::min<size_t>(flags_.count, kMaxPairs);
-    if (ready && now >= c.battle && std::find(battle, end, p.hguid) != end && !(calm_ && s.boss)) {
+    if (ready && now >= c.battle && std::find(battle, end, p.hguid) != end && !(calm_seen_ && s.boss)) {
       c.battle = now + kBattleMs;
       ++counts.battles;
       self_cast(g, logic, p.local, kBattleMode);
@@ -2184,6 +2187,7 @@ private:
         phase_in(g, logic, m, n);
       else
         summon_in(g, logic, m, n);
+    trial(g, logic, n, census, now); // Before the guard, so a finish test reads the stance as the game left it.
     uint32_t local[kMaxTracked], hguid[kMaxTracked], guarded[kMaxPairs];
     const size_t count = guest.tracked(local, hguid);
     size_t guards = 0;
@@ -2231,7 +2235,6 @@ private:
         ++i;
       }
     }
-    trial(g, logic, n, census, now);
   }
   // The host, while same place runs with her: for each boss pair, bstart at the edge of its battle mode (FSBActor
   // +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy runs in its list's
@@ -2426,23 +2429,25 @@ private:
     r->final = r->final || final;
   }
   // ---- Stage 5's solo probes: coop fight pilot test bstart|phase|finish|summon ----
-  // On the guest's side, after the finish guard (the glue asks them only during a replay): the test asked starts at
+  // On the guest's side, before the finish guard (the glue asks them only during a replay): the test asked starts at
   // this turn on the boss copy this side draws and holds frozen nearest our EVE (summon needs none), through the
   // stage's own guest path as the host's lines would take it, then follows its copy, logs what it reads (fight pilot
   // test <name> ...), and ends by itself with a done line, or a stopped line when its copy goes. One at a time.
   //   bstart: the copy's battle mode (FSBActor +0xb58), first-time latch (+0x45a), on-battle flag (+0x45b), states 30
   //     and 39 and its AI task; then the host's bstart through bstart_in() (SetBattleMode, once a copy), and each
-  //     change of those for kTrialStartMs. calm() from then on.
+  //     change of those for kTrialStartMs. calm() from then on (from the next session).
   //   phase: a phase line through phase_in(), with the copy's allowlisted rows and the first phase row of its table row
   //     that it lacks; kTrialPhaseMs later the same line without its floors, so phase_in() casts MinimumHP_Dispel.
   //     Stat 107 before each line, and the turn after it stat 107 and the copy's allowlisted rows.
   //   finish: the guest's correction aims the copy at 1 HP (Guest::test_hp) for kTrialHoldMs, with each change of its
   //     HP, Passive_DeathReady and Passive_FinishReady on its list and states 27 and 3; the finish guard runs as on any
-  //     boss copy. Then the host's HP again.
+  //     boss copy. Then the host's HP again; cut short, the HP it had at the start (drop_trial()).
   //   summon: a summon of kTrialSummonRow under the first summon key, kTrialSummonCm ahead of our EVE, made as the
-  //     host's summon line makes one (make_extra(): NewActor, then its row's effects), then our freeze; for
-  //     kTrialHoldMs, at each census, each change of its life state and state 39, and our freeze again when 39 goes.
-  //     Its capture's turn is kept fresh meanwhile; then the unpaired summons' rule despawns it, or the session's end.
+  //     host's summon line makes one (make_extra(): NewActor, then its row's effects), then our freeze unless it holds
+  //     state 39 already (as hold_freeze(): the game froze it first); for kTrialHoldMs, at each census, each change of
+  //     its life state and state 39, and our freeze again when 39 goes. A freeze of ours refused despawns it at once
+  //     (unfrozen, it runs its own AI). Its capture's turn is kept fresh meanwhile; then the unpaired summons' rule
+  //     despawns it, or the session's end.
   static const char *trial_name(uint8_t what) {
     return PilotAsk(what) == PilotAsk::bstart  ? "pilot test bstart"
            : PilotAsk(what) == PilotAsk::phase ? "pilot test phase"
@@ -2458,6 +2463,22 @@ private:
       g.event(told(why));
     trial_ = Trial();
   }
+  // A test cut short (its copy not drawn, coop fight off, a latch, a new session: lift_all()): finish's copy gets back
+  // the HP it had at the start through ApplyStat, as lift()'s scaling, so our 1 HP never outlives the test; the finish
+  // guard's capture, lifted after this, then leaves its Immortal on. Then no test runs.
+  template <class Game> void drop_trial(Game &g, uint64_t logic) {
+    Actor a;
+    const uint64_t la = trial_.hp > 1 ? g.find(logic, trial_.local) : 0;
+    if (la && live(g, la, trial_.local, a) && fighting(a) && stats(g, a) && a.seen.value[kHp] < trial_.hp)
+      g.apply(la, kStatType[kHp], float(trial_.hp - a.seen.value[kHp]), 0, false);
+    trial_ = Trial();
+  }
+  // summon: the test's summon despawned at once, its capture (caps_[i]) dropped, as our freeze was refused.
+  template <class Game> void unfrozen(Game &g, uint64_t logic, const Actor &a, size_t i, const char *why) {
+    caps_[i] = caps_[--captures_];
+    unmake(g, logic, a, "freeze refused", true);
+    end_trial(g, why);
+  }
   template <class Game> void trial(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
     if (const uint8_t asked = boss_test_.exchange(0)) {
       if (!trial_.what)
@@ -2471,7 +2492,8 @@ private:
     const Seen *s = drawn_boss(trial_.local, n);
     if (!s) {
       guest.test_hp(trial_.hguid, 0);
-      return end_trial(g, "stopped: its copy is gone, dying or not drawn");
+      g.event(told("stopped: its copy is gone, dying or not drawn"));
+      return drop_trial(g, logic);
     }
     const uint64_t fsb = fsbs_[s - seen_], ms = now - trial_.start;
     char note[128]; // Room left for the rest of the line in Event::note.
@@ -2586,6 +2608,7 @@ private:
       float floor = 0;
       g.read(fsb + kMinimumHp, &floor, sizeof floor);
       trial_.last = finish_now(g, logic, fsb, p->local), trial_.count = counts.finish_guards;
+      trial_.hp = int32_t(uint32_t(trial_.last));
       guest.test_hp(p->hguid, 1);
       Event e = told("start:");
       std::snprintf(e.note, sizeof e.note, "HP %d, floor %.0f, %s", int32_t(uint32_t(trial_.last)), double(floor),
@@ -2660,10 +2683,14 @@ private:
     const uint64_t la = c != caps_ + captures_ ? g.find(logic, c->guid) : 0;
     if (latched_ || !la || !live(g, la, c->guid, a))
       return (void)(trial_ = Trial()); // A latch's lift_all despawns it.
+    uint64_t held = 0;
+    const bool game = held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, held) &&
+                      (held >> kBlockAiState & 1);
+    if (!game && !freeze(g, logic, c->guid))
+      return unfrozen(g, logic, a, size_t(c - caps_), "not made: freeze refused");
     trial_.local = c->guid, trial_.last = ~uint64_t(0);
-    const bool frozen = freeze(g, logic, c->guid);
     Event e = told("made 3 m ahead:");
-    std::snprintf(e.note, sizeof e.note, "life %d, freeze %s", a.life, frozen ? "taken" : "refused");
+    std::snprintf(e.note, sizeof e.note, "life %d, %s", a.life, game ? "the game froze it first" : "freeze taken");
     g.event(e);
   }
   // summon: its capture kept from the unpaired summons' rule, and at each census its life state and state 39.
@@ -2696,7 +2723,9 @@ private:
                     int(frozen));
       g.event(e);
     }
-    if (fighting(a) && !frozen && freeze(g, logic, trial_.local)) {
+    if (fighting(a) && !frozen) {
+      if (!freeze(g, logic, trial_.local))
+        return unfrozen(g, logic, a, size_t(c - caps_), "stopped: freeze refused");
       ++trial_.count;
       g.event(told("frozen again"));
     }
@@ -3040,10 +3069,11 @@ private:
   size_t refused_at_ = 0;
   // The solo probe running (trial()): which (a PilotAsk, 0 for none), its copy (our GUID, the host's, its key), when it
   // started, its step (phase), the values it last logged, a count for its done line (finish: the guard's turns before
-  // it; summon: its freezes again), and phase's line.
+  // it; summon: its freezes again), phase's line, and finish's HP at its start (drop_trial()).
   struct Trial {
     uint8_t what = 0;
     uint32_t local = 0, hguid = 0, spawn = 0;
+    int32_t hp = 0;
     uint8_t index = 0;
     uint64_t start = 0, last = 0, count = 0;
     int step = 0;
@@ -3052,6 +3082,7 @@ private:
   Trial trial_;
   std::atomic<uint8_t> boss_test_{0}; // A solo probe asked (boss_test()), 0 for none.
   std::atomic<bool> calm_{false};
+  bool calm_seen_ = false; // calm_ as this session started.
 };
 
 // ---- Between the job and the worker ----

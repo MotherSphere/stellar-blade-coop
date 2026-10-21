@@ -1493,6 +1493,15 @@ int main() {
     gu.receive(msg("SBF11 hp 4 10 5 101:1:0:0"), g);
     step(gu, g, 21, 1400);
     assert(g.actor(501)->s.value[kShield] == 0 && g.actor(501)->s.value[kStamina] == 0 && g.hp(501) == 1);
+    // coop fight pilot test finish on 502, whose floor held it above the host's 1190, then left (the host's value
+    // still 1190: no write): held at 1 HP, then the host's 1190 again, though a write stopped short of it before.
+    g.actor(502)->floor = 0;
+    step(gu, g, 22, 1500);
+    assert(g.hp(502) == 1500 && gu.test_hp(102, 1) && !gu.test_hp(103, 1));
+    step(gu, g, 23, 1600);
+    assert(g.hp(502) == 1 && gu.test_hp(102, 0));
+    step(gu, g, 24, 1700);
+    assert(g.hp(502) == 1190 && g.sent.empty());
   }
 
   // ---- Guest: death rules ----

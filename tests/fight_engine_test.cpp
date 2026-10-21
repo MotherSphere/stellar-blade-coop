@@ -527,14 +527,15 @@ struct Game {
   // FUN_141ad08b0(logic, target, caster, id, &zero, 0, nullptr): the effect, which starts at this turn's actor tick, or
   // 0 when the target refuses it. A copy in a crowd control never gets a mirrored one from us. FinishReady_Dispel and
   // MinimumHP_Dispel start inside the call, as the call starts any effect when its sixth argument is 0: a kill right
-  // after them meets neither Immortal nor a floor.
+  // after them meets neither Immortal nor a floor. starts_now: every effect does.
+  bool starts_now = false;
   uint64_t effect(uint64_t lg, uint64_t la, uint64_t caster, int32_t id) {
     casts.push_back({lg, la, caster, id, ++ops});
     assert(!cc_effect(uint64_t(id)) || !in_cc(la));
     if (bodies[la].immune || id == bodies[la].refuses)
       return 0;
     const Body::Running e{mem.alloc(0x110), id, 0};
-    if (id == kFinishDispel || id == kFloorDispel)
+    if (starts_now || id == kFinishDispel || id == kFloorDispel)
       start(la, e);
     else
       starting.push_back({la, e});
@@ -3191,13 +3192,14 @@ int main() {
   // the host's lines fed in, her GorillaB copies 931 (5 m from her EVE) and 932 (30 m) and a common enemy 933 paired,
   // drawn and frozen, BattleMode in the owner's stream for the three. Each test takes the nearer boss copy through the
   // stage's own guest path, logs what it reads, and ends by itself. bstart: its reads before, SetBattleMode once a
-  // copy, each change for 1 s, and no BattleMode_5s on a boss copy from the ask until calm(false). phase: the copy's
-  // floor row and phase row 5005115 in one line, 5 s later the line without the floor (MinimumHP_Dispel), stat 107
-  // before each and the rows the turn after; refused once every phase row is held. finish: the copy corrected to 1 HP
-  // for 10 s with no claim of hers, the finish guard as the stance comes, her hit leaving 1 HP, then the host's HP
-  // back. summon: refused with same place off; a DollHead 3 m ahead of her EVE under the first summon key, its row's
-  // effects, then our freeze, frozen again after the game's dispel, gone 3 s after the test by the unpaired summons'
-  // rule. One test at a time ----
+  // copy, each change for 1 s, and no BattleMode_5s on a boss copy from the next session until calm(false) and a
+  // session after it. phase: the copy's floor row and phase row 5005115 in one line, 5 s later the line without the
+  // floor (MinimumHP_Dispel), stat 107 before each and the rows the turn after; refused once every phase row is held.
+  // finish: the copy corrected to 1 HP for 10 s with no claim of hers, the stance read before the finish guard's turn,
+  // her hit leaving 1 HP, then the host's HP back; cut short by coop fight off, the HP it had at the start. summon:
+  // refused with same place off; a DollHead 3 m ahead of her EVE under the first summon key, its row's effects, then
+  // our freeze, frozen again after the game's dispel, gone 3 s after the test by the unpaired summons' rule; none of
+  // ours on one the game froze first; despawned at once when our freeze is refused. One test at a time ----
   {
     Game G;
     G.spawns();
@@ -3267,10 +3269,8 @@ int main() {
     b = said("pilot test bstart");
     assert(G.battles.size() == 1 && b.size() == 7);
     assert(b[5] == "pilot test bstart 31:0 hguid=131 SetBattleMode not called: again");
-    assert(mirrors(931) == m931 && mirrors(932) == m932 && mirrors(933) > m933);
-    eg->calm(false);
-    run(t + 2100);
-    assert(mirrors(931) > m931 && mirrors(932) > m932);
+    // The mirror runs on in this session, so its other tests meet the copy as the guest's side would.
+    assert(mirrors(931) > m931 && mirrors(932) > m932 && mirrors(933) > m933);
     // phase.
     G.flags.count = 0;
     run(t + 100);
@@ -3298,7 +3298,11 @@ int main() {
     eg->boss_test(coop::PilotAsk::phase);
     run(t + 100);
     assert(said("pilot test phase").back() == "pilot test phase 31:0 hguid=131 refused: every phase row held");
-    // finish.
+    // finish. 932's own Finish stance first, so the guard's turns before the test are not 0.
+    G.knock(932, kDeathReady);
+    run(t + 1000);
+    const uint64_t guards = eg->counts.finish_guards;
+    assert(guards > 0 && count(G, "finish guard") == 1 && G.hp(932) == 1600);
     lines(G);
     eg->boss_test(coop::PilotAsk::finish);
     const uint64_t held = t;
@@ -3313,16 +3317,24 @@ int main() {
     G.knock(931, kDeathReady); // The Finish stance at HP under 2.
     run(t + 800);
     f = said("pilot test finish");
-    assert(count(G, "finish guard") == 1 && !running(931, kFinishReady) && running(931, kImmortalRow));
-    assert(std::any_of(f.begin(), f.end(), [](const std::string &s) { return has(s, " 2001101=1 "); }));
+    assert(count(G, "finish guard") == 2 && !running(931, kFinishReady) && running(931, kImmortalRow));
+    const auto logged = [&](const char *values) {
+      return std::any_of(f.begin(), f.end(), [&](const std::string &s) { return has(s, values); });
+    };
+    // Read before each guard turn, as the game left the copy: DeathReady without its Immortal, the guard's Immortal
+    // the turn after, then FinishReady (the guard ends it in that turn).
+    assert(logged(" ms: HP 1 2001101=1 2001102=0 state27=0 state3=1"));
+    assert(logged(" ms: HP 1 2001101=1 2001102=0 state27=1 state3=1"));
+    assert(logged(" ms: HP 1 2001101=0 2001102=1 state27=1 state3=1"));
     G.hit(931, kHp, 500); // Hers, after the guard: it stays at 1 HP.
     run(t + 100);
     assert(G.hp(931) == 1 && !G.dying(931));
     while (!has(said("pilot test finish").back(), " done: "))
       frame(G, *eg, t), t += 16;
     assert(t - 16 >= held + 10000 && t - 16 < held + 10100 && G.hp(931) == 1);
-    assert(has(said("pilot test finish").back(), "pilot test finish 31:0 hguid=131 done: ") &&
-           has(said("pilot test finish").back(), " guard turns, HP 1; the host's HP from the next turn"));
+    assert(said("pilot test finish").back() ==
+           "pilot test finish 31:0 hguid=131 done: " + std::to_string(eg->counts.finish_guards - guards) +
+               " guard turns, HP 1; the host's HP from the next turn");
     run(t + 100);
     assert(G.hp(931) == 1600 && !has(lines(G), "SBF11 hit "));
     // summon.
@@ -3362,21 +3374,73 @@ int main() {
     run(made + 13300);
     assert((G.despawned == std::vector<uint32_t>{doll}) && count(G, "summon despawned", "unpaired") == 1);
     assert(G.extras.size() == 1 && !eg->latched() && eg->guest.counts.bad == 0);
-    // A test the session's end cuts short leaves nothing behind: the next session's copy has the host's HP, and its
-    // first test starts.
+    // Our freeze refused on what NewActor made: despawned at once (unfrozen, it would run its own AI).
+    run(t + 1100); // The census after it left the map drops its capture.
+    G.make_refuses = kBlockAi;
+    eg->boss_test(coop::PilotAsk::summon);
+    run(t);
+    G.make_refuses = 0;
+    assert(G.extras.size() == 2 && G.despawned.back() == G.extras[1].guid);
+    assert(said("pilot test summon").back() == "pilot test summon 4026531841:0 not made: freeze refused");
+    assert(count(G, "summon despawned", "freeze refused") == 1);
+    // One that holds state 39 as it is made (its row's BlockAI started inside the call): none of ours, as
+    // hold_freeze() leaves one the game froze first. When the row's freeze ends, ours goes on; refused, it goes.
+    run(t + 100);
+    G.starts_now = true;
+    eg->boss_test(coop::PilotAsk::summon);
+    run(t);
+    G.starts_now = false;
+    const uint32_t doll2 = G.extras.at(2).guid;
+    assert((G.cast_ids(doll2) == std::vector<int32_t>{5025010, 5025013}));
+    assert(said("pilot test summon").back() ==
+           "pilot test summon 4026531841:0 made 3 m ahead: life 1, the game froze it first");
+    G.body(doll2).refuses = kBlockAi;
+    run(t + 1100);
+    assert(said("pilot test summon").back() == "pilot test summon 4026531841:0 stopped: freeze refused");
+    assert(G.despawned.back() == doll2 && count(G, "summon despawned", "freeze refused") == 2);
+    // A test cut short gives its copy back: coop fight off during finish, with the finish guard's capture of 931 from
+    // the test above, leaves 931 at the HP it had at the start, its Immortal on.
     eg->boss_test(coop::PilotAsk::finish);
     run(t + 100);
     assert(G.hp(931) == 1);
     eg->set(false, false);
     run(t + 100);
+    assert(G.hp(931) == 1600 && running(931, kImmortalRow) && count(G, "finish guard ended") == 0);
+    // The next session's first test starts, and from that session on boss copies get no BattleMode_5s.
     eg->set(true, false);
     for (const char *line : host)
       G.inbox.push_back(msg(line));
+    G.flags.count = 3;
     run(t + 600);
     eg->boss_test(coop::PilotAsk::phase);
     run(t + 100);
     assert(said("pilot test phase").back() == "pilot test phase 31:0 hguid=131 refused: every phase row held");
     assert(G.hp(931) == 1600 && !eg->latched());
+    const auto c931 = mirrors(931), c932 = mirrors(932), c933 = mirrors(933);
+    run(t + 4000);
+    assert(mirrors(931) == c931 && mirrors(932) == c932 && mirrors(933) > c933);
+    // calm(false), as coop fight on does, then its session: the mirror is back on boss copies.
+    eg->calm(false);
+    eg->set(false, false);
+    run(t + 100);
+    eg->set(true, false);
+    for (const char *line : host)
+      G.inbox.push_back(msg(line));
+    run(t + 4000);
+    assert(mirrors(931) > c931 && mirrors(932) > c932 && !eg->latched());
+    // The host's down for 131 during finish, after a guard turn: the pair goes (no correction then), the test stops,
+    // and 931 gets the HP it had at the start back before the guard's capture lets go, so its Immortal stays.
+    eg->boss_test(coop::PilotAsk::finish);
+    run(t + 100);
+    G.knock(931, kDeathReady);
+    run(t + 800);
+    assert(G.hp(931) == 1 && count(G, "finish guard") == 3);
+    G.inbox.push_back(msg("SBF11 down 1 131"));
+    run(t + 100);
+    assert(said("pilot test finish").back() ==
+           "pilot test finish 31:0 hguid=131 stopped: its copy is gone, dying or not drawn");
+    assert(G.hp(931) == 1600 && running(931, kImmortalRow) && count(G, "finish guard ended") == 0);
+    assert(!eg->latched());
   }
 
   // ---- Bosses (stage 5), two worlds through channel 2, a scripted fight: Marionette in both games, same place on.

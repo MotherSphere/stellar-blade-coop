@@ -1465,12 +1465,14 @@ public:
   }
   // coop fight pilot test finish: our copy of the host's enemy hguid is corrected toward hp in place of the host's HP
   // (at least 1, as always) while hp is not 0; 0 gives the host's back. Our writes are never claims, so a copy held
-  // low this way costs the host nothing. False when no copy is paired with it.
+  // low this way costs the host nothing. A target a write stopped short of before is tried again: the test's write
+  // may have passed the floor that held it. False when no copy is paired with it.
   bool test_hp(uint32_t hguid, int32_t hp) {
     Pair *p = find(hguid);
     if (!p || !p->local)
       return false;
     p->test_hp = hp;
+    p->stuck[kHp] = -1;
     return true;
   }
   // The engine's boss start went for the host's enemy hguid: its next bstarts are "again".
