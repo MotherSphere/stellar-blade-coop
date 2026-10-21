@@ -770,6 +770,11 @@ remote_file=remote_text(604,her_parts()):gsub('generation 604\n','')
 count=count+1
 local read,refused,why=pcall(ghost.remote,604,count,'loopback')
 assert(read and refused==false and why=='The remote table could not be read.',tostring(refused))
+-- Read again at each call with that count (her same table sent again makes no new one), said once.
+assert(ghost.remote(604,count,'loopback')==nil,'Said once')
+remote_file=remote_text(604,her_parts())
+ok,message=ghost.remote(604,count,'loopback')
+assert(ok and message=='Ghost 603 removed (a new table).',tostring(message))
 
 -- A table given up is tried again with a new EVE, even with no ghost left to remove.
 send(605,her_parts())

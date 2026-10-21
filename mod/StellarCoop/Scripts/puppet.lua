@@ -188,6 +188,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
     local remote,seen_count,source=nil,nil,nil -- The remote table, the status count it was read at, where it came from.
+    local unread -- The count whose file could not be read: read again at each call, said once.
     local ghost -- The ghost, built or being built (then ghost.steps holds the steps left).
     local back_since,hidden_pair,her_at=nil,nil,nil
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
@@ -569,16 +570,20 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     function self.remote(generation,count,from)
         source=from
         if not generation then
-            seen_count=nil
+            seen_count,unread=nil,nil
             if not remote then return end
             remote,hidden_pair,said_pair=nil,nil,nil
             local message=clear('her table is gone')
             return message and true,message
         end
         if count==seen_count then return end
-        seen_count=count
         local t=parse_remote(files.remote_table())
-        if not t then return false,'The remote table could not be read.' end
+        if not t then
+            if count==unread then return end
+            unread=count
+            return false,'The remote table could not be read.'
+        end
+        seen_count=count
         if remote and t.generation==remote.generation and layout(t)==layout(remote) then
             local old=remote
             remote=t
