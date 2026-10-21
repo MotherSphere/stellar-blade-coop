@@ -793,9 +793,10 @@ using QuestCall = void (*)(void *object);
 quest::Engine quest_engine;
 std::atomic<bool> quest_pinned{false}, quest_faulted{false};
 std::atomic<uint64_t> quest_fault_code{0}, quest_fault_rva{0}, quest_fault_address{0};
-std::mutex quest_m;                       // The save-slot line, from the worker.
+std::mutex quest_m;                       // The save-slot line, from the worker, and when it was read.
 std::string quest_slot = "slot=unknown "; // Its gate pauses on it until the worker's first line.
-uint64_t quest_next = 0;                  // The game thread's: its next pass.
+uint64_t quest_slot_ms = 0;
+uint64_t quest_next = 0; // The game thread's: its next pass.
 // quest_engine.h's Game: plain reads (a fault is the SEH guard's, and latches), this thread's ID and SB's functions.
 struct QuestGame {
   bool read(uint64_t address, void *out, size_t n) {
@@ -814,34 +815,40 @@ struct QuestGame {
       game_function<QuestCall>(function)(reinterpret_cast<void *>(object));
   }
 };
-__declspec(noinline) void quest_body(const std::string &slot, uint64_t now_ms) {
+__declspec(noinline) void quest_body(std::string_view slot, uint64_t now_ms) {
   try { // coop_tick never throws: out of memory turns the shared quests off for the run, as a fault does.
     QuestGame g;
+    const uint64_t from = clock_us();
     quest_engine.tick(g, base, slot, now_ms);
+    quest_engine.cost(clock_us() - from); // The stats line's poll time.
   } catch (...) {
     quest_faulted = true;
   }
 }
 // The first fault turns the shared quests off for the run: the worker latches the engine and tells her.
-void quest_guarded(const std::string &slot, uint64_t now_ms) {
+void quest_guarded(std::string_view slot, uint64_t now_ms) {
   __try {
     quest_body(slot, now_ms);
   } __except (fault_filter(GetExceptionInformation(), quest_fault_code, quest_fault_rva, quest_fault_address)) {
     quest_faulted = true;
   }
 }
-// Each frame: a pass every 250 ms, with the worker's last save-slot line.
+// Each frame: a pass every 250 ms, with the worker's last save-slot line, copied with no allocation (coop_tick never
+// throws). A line over a second old (the worker stuck in a Steam or file call) may name a save no longer loaded, and a
+// step made then would go into that other save: the gate gets unknown, so it only pauses.
 void quest_tick() {
   const uint64_t now = GetTickCount64();
   if (now < quest_next)
     return;
   quest_next = now + 250;
-  std::string slot;
+  char slot[128] = "slot=unknown ";
+  size_t size = std::strlen(slot);
   {
     std::lock_guard<std::mutex> lock(quest_m);
-    slot = quest_slot;
+    if (now < quest_slot_ms + 1000 && quest_slot.size() <= sizeof slot)
+      size = quest_slot.copy(slot, sizeof slot);
   }
-  quest_guarded(slot, now);
+  quest_guarded(std::string_view(slot, size), now);
 }
 
 // ---- Same-place enemies: the owner's capture (pilot.h's Capturer), the game thread's read half ----
@@ -1234,7 +1241,7 @@ void append_probe(const std::string &line) {
 // A line onto one of the mod folder's own logs, stamped in UTC like coop-link.log, whose 1 MB it would fill:
 // coop-fight.log (the shared fight Worker's trace: its probe actors and stats lines) and coop-quests.log (the shared
 // quests'). Past 4 MB a last line says what goes on (tail) and the run's later ones go nowhere.
-constexpr size_t kTraceCap = 4 << 20; // About 2 h of the fight's stats lines each second, or a T11a probe's half hour.
+constexpr size_t kTraceCap = 4 << 20; // About 2 h of the fight's stats lines each second, or a probe's half hour.
 struct Trace {
   const wchar_t *file;
   const char *who, *name, *tail;
@@ -2291,7 +2298,7 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
     quest_slot_at = now_ms + 100;
     quest_slot_line = pinned && !blocked ? slot::line(loaded_slot(), marker, world, saves_now()) : "slot=unknown ";
     std::lock_guard<std::mutex> lock(quest_m);
-    quest_slot = quest_slot_line;
+    quest_slot = quest_slot_line, quest_slot_ms = now_ms;
   }
   quest_worker.pass(now_ms, hosting, partner, quest_slot_line, lines, io);
 }
