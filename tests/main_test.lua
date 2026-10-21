@@ -190,7 +190,7 @@ local kit_order,kit_projects={},0 -- The groups in the order added; the projecti
 local kit_shown={} -- Each group shown or not, as the kit keeps it.
 local function builder(group)
     local b={}
-    function b.panel(_,y,_,h) b.bottom=y+h end
+    function b.panel(x,y,w,h) b.bottom,b.right=y+h,x+w end
     local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
     for _,kind in ipairs({'image','dots','hp','shield','cubes','bar','shade'}) do b[kind]=gauge end
     function b.text(_,_,s)
@@ -206,8 +206,8 @@ local function builder(group)
         return {text=function() return box_text end,set=function(v) box_text=v end,
             focus=function() box_focuses=box_focuses+1 end,hint=function() end}
     end
-    function b.row()
-        local r={}
+    function b.row(x,_,w,cell)
+        local r={right=x+w,cell=cell or 300,panel=b}
         r.set=function(l,v,st) r.l,r.v,r.st=l,v,st end
         r.hovered=function() return r.hover==true end
         return r
@@ -1391,6 +1391,10 @@ local top=menu_place.y+menu_place.h*menu_place.pivot.Y*(1-1.5)
 local hints_end=menu_view.hints.y+66 -- The key icons are 66 units high (ui.lua's KEY_ICON).
 assert(hints_end<=menu_view.hints.bottom,'The key hints stay inside the panel')
 assert(top+36*1.5>=0 and top+hints_end*1.5<=2160,'At ui_scale=150 the title and the key hints stay on the screen')
+-- Its rows end 24 units inside the panel, their value in the last 600 units (ui_text_test.lua's columns); at
+-- ui_scale=150 the panel ends within a 4:3 screen's 2880 units.
+for _,r in ipairs(menu_view.rows) do assert(r.right==r.panel.right-24 and r.cell==600) end
+assert(menu_place.x+menu_place.w*1.5<=2880-48 and menu_place.w==menu_view.rows[1].panel.right)
 quarter(); assert(kit_calls[#kit_calls]=='slow false','No world: the HUD hidden')
 in_world=true; quarter(); assert(kit_calls[#kit_calls]=='slow true')
 key('F5'); assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n','Its root not up yet')

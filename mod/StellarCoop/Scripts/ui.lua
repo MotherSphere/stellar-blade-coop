@@ -596,13 +596,14 @@ function Ui.kit(opts)
                 if p~=now then now=p; upd(w,function(x2) x2:SetPercent(p) end) end
             end}
         end
-        -- A list row 76 units high: a label, a value 300 units from its end; on focus the Beta-blue bar and a faint
-        -- Beta tint. set(label, value, 'normal'|'focus'|'disabled'); hovered() in a hit group: the mouse is over it.
-        function b.row(x,y,width)
+        -- A list row 76 units high: a label, a value in the last cell units of it (300 unless said); on focus the
+        -- Beta-blue bar and a faint Beta tint. set(label, value, 'normal'|'focus'|'disabled'); hovered() in a hit
+        -- group: the mouse is over it.
+        function b.row(x,y,width,cell)
             local back,bar=image(x,y,width,ROW,nil,THEME.clear),image(x,y,6,ROW,nil,THEME.beta)
             if g.hit then back.v=VISIBLE; back.o:SetVisibility(VISIBLE) end -- The row's area takes the mouse.
             hide(bar)
-            local label,value=text(x+36,y+12,'','item'),text(x+width-300,y+12,'','item')
+            local label,value=text(x+36,y+12,'','item'),text(x+width-(cell or 300),y+12,'','item')
             local state='normal'
             return {set=function(l,v,st)
                 label.set(l)

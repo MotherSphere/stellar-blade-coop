@@ -30,12 +30,14 @@ function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
     local values,words={},T.en
-    -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150.
-    kit.add('menu',{x=180,y=330,w=1240,h=1500,hit=true,pivot={X=0,Y=0.5}},function(b)
-        b.panel(0,0,1240,1500)
+    -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150. As
+    -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so the longest
+    -- value (26 columns of Bold 40) and the longest label (34) fit side by side (ui_text_test.lua checks every word).
+    kit.add('menu',{x=180,y=330,w=1500,h=1500,hit=true,pivot={X=0,Y=0.5}},function(b)
+        b.panel(0,0,1500,1500)
         local v={title=b.text(48,36,'','title'),rows={}}
         b.text(300,58,o.version or '','num')
-        for i=1,ROWS do v.rows[i]=b.row(24,130+(i-1)*76,1192) end
+        for i=1,ROWS do v.rows[i]=b.row(24,130+(i-1)*76,1452,600) end
         v.status,v.note=b.text(48,1290,'','status'),b.text(48,1340,'','status')
         v.hints=b.hints(48,1400,320,{{'move',''},{'enter',''},{'escape',''}})
         return v

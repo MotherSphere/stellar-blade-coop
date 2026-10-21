@@ -83,11 +83,12 @@ local function columns(s)
     return n
 end
 assert(columns('Ab')==2 and columns('日本')==4 and columns('한')==2 and columns('กิ')==1 and columns('é')==1)
--- The menu's columns (ui.lua's row: the label 36 units in, the value 300 units from the row's end; Bold 40, about 23
--- units a column in the game's Latin face, a CJK character about two): a label within the 856 units before the value,
--- a key hint within its 320-unit cell after the 78 units of its icon (Bold 30, about 17 units a column). A value
--- gets as many as the longest today, 'Tous les ennemis partagés', which already runs past the row's end.
-local LABEL,VALUE,HINT=34,25,14
+-- The menu's columns (menu.lua's rows, 1452 units wide, their value in the last 600; ui.lua's row puts the label 36
+-- units in; Bold 40, about 23 units a column in the game's Latin face, a CJK character about two): a value within its
+-- 600 units, a label within the 792 units from its start to 24 units before the value, a key hint within its 320-unit
+-- cell after the 78 units of its icon (Bold 30, about 17 units a column).
+local UNIT,ROW,CELL,GAP=23,1452,600,24
+local LABEL,VALUE,HINT=(ROW-CELL-36-GAP)//UNIT,CELL//UNIT,14 -- 34 and 26.
 local function fits(at,text,most) assert(columns(text)<=most,at..': '..columns(text)..' columns, at most '..most) end
 for name in pairs(R.TEXT) do
     local w=T.pick(name)
