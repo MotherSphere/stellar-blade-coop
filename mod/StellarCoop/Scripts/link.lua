@@ -73,6 +73,11 @@ aggro=game
 # has there and removes those it lacks. Bosses, quest and event enemies, and the enemies a save records, stay as they
 # are.
 same_spawns=off
+# Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
+# of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
+# 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
+# Elites, quest and event enemies get none.
+enemy_extra=0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -100,10 +105,10 @@ card_details=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',same_spawns='off',photo_sync='both',
-    photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',
-    chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',
-    auto_coop_save='ask'}
+    enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',same_spawns='off',enemy_extra='0',
+    photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',
+    ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
+    who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,photo_ghost=true,photo_name_tag=true,
     ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
@@ -154,6 +159,10 @@ local function setting(name,text)
         local x=text:match('^%d+%.?%d*$') and tonumber(text)
         if x and x>=1 and x<=4 then return x end
         return nil,'use 1.0 to 4.0'
+    elseif name=='enemy_extra' then
+        local n=text:match('^%d$') and tonumber(text)
+        if n and n<=3 then return n end
+        return nil,'use 0 to 3'
     elseif name=='ui_scale' then
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end

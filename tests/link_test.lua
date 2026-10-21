@@ -393,6 +393,24 @@ end
 s,notes=Link.parse_settings('same_spawns=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for same_spawns (use on or off); "
     .."same_spawns stays off" and s.same_spawns==false,notes[1])
+-- enemy_extra (stage 4b, the host's, used with same_spawns only): a whole number from 0 to 3, 0 by default and in a
+-- file written before it; a new file names it right after same_spawns, with its comment; a bad value keeps 0, with a
+-- line.
+assert(Link.DEFAULT:find('\nsame_spawns=off\n# Extra enemies, experimental, ',1,true)
+    and Link.DEFAULT:find('\nenemy_extra=0\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.enemy_extra==0)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.enemy_extra==0)
+for n=0,3 do
+    s,notes=Link.parse_settings('enemy_extra='..n)
+    assert(#notes==0 and s.enemy_extra==n and math.type(s.enemy_extra)=='integer',n)
+end
+for _,bad in ipairs({'4','-1','1.5','two','03'}) do
+    s,notes=Link.parse_settings('enemy_extra='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_extra (use 0 to 3); "
+        .."enemy_extra stays 0" and s.enemy_extra==0,notes[1])
+end
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one

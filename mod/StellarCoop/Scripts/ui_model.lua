@@ -62,8 +62,8 @@ M.OPTIONS={
     -- who a same-place enemy fights (game: whoever hit it last, or else the nearer player; host: the host only).
     {key='aggro',values={'game','host'},default='game'},
     -- Same spawns (stage 4): where both players stand within 100 m in one zone, the guest's game holds the host's
-    -- common enemies there.
-    toggle('same_spawns','off'),
+    -- common enemies there. enemy_extra (stage 4b): that many more of each, used with same spawns only.
+    toggle('same_spawns','off'),range('enemy_extra',0,3,1,0),
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),
     {key='kill_credit',values={'all','fought'},default='all'},
     {head='display'},

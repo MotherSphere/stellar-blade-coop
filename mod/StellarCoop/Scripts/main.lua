@@ -65,7 +65,7 @@ if settings then
     log('shared enemies: '..(settings.shared_enemies and 'on' or 'off')..' (experimental), fight_chars '
         ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'auto')..', same place '
         ..(settings.same_place and 'on' or 'off')..' (experimental), same spawns '
-        ..(settings.same_spawns and 'on' or 'off')..' (experimental)')
+        ..(settings.same_spawns and 'on' or 'off')..' (experimental), extra enemies '..settings.enemy_extra)
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
@@ -271,9 +271,10 @@ local commands={
     -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
     -- (the modes that can host), and same_place=on as "place" and aggro=host as "aggro-host" after them, then with on
-    -- only same_spawns=on as "spawns". status answers with the fight= line; pilot is same-place enemies' own (pilot
-    -- above). spawn probe is the probe with "spawns" before the ids: same spawns' reads alone (stage 4), whatever
-    -- same_spawns says; its state is the fight= line's spawns=.
+    -- only same_spawns=on as "spawns", and with it an enemy_extra above 0 as "extra" and its number. status answers
+    -- with the fight= line; pilot is same-place enemies' own (pilot above). spawn probe is the probe with "spawns"
+    -- before the ids: same spawns' reads alone (stage 4), whatever same_spawns says; its state is the fight= line's
+    -- spawns=.
     fight=function(sub,a,b,extra)
         if sub=='pilot' then return pilot(a,b,extra) end
         local spawn_probe=sub=='spawn'
@@ -300,6 +301,8 @@ local commands={
                     math.floor(settings.enemy_balance_scale*100+0.5))..(settings.same_place and ' place' or '')
                     ..(settings.aggro=='host' and ' aggro-host' or '')
                     ..(sub=='on' and settings.same_spawns and ' spawns' or '')
+                    ..(sub=='on' and settings.same_spawns and settings.enemy_extra>0
+                        and ' extra '..settings.enemy_extra or '')
             end
             if spawn_probe then line=line..' spawns' end
             local chars=settings.fight_chars
