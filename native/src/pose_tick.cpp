@@ -2635,10 +2635,9 @@ std::string status() {
     s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
   // The follow's travel (travel.lua): the watch's state and the asks the game thread handled so far, so Lua knows a new
   // answer from an old one; refused:fault once its latch ended it.
-  if (travel_pinned && !blocked)
+  if (const uint32_t w = travel_watched; travel_pinned && !blocked)
     s += " travel=" +
-         (travel_faulted ? std::string("refused:fault")
-                         : travel::state_text(travel::State(travel_watched >> 8), travel::Why(travel_watched & 0xff))) +
+         (travel_faulted ? std::string("refused:fault") : travel::state_text(travel::State(w >> 8), travel::Why(w & 0xff))) +
          " travel_calls=" + std::to_string(travel_handled.load());
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
