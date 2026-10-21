@@ -177,9 +177,9 @@ function Link.parse_settings(text)
     local settings,notes,n={},{},0
     for name,value in pairs(DEFAULTS) do settings[name]=setting(name,value) end
     text=text:gsub('^\239\187\191','') -- Notepad's "UTF-8 with BOM".
-    if #text>4096 then -- Whole lines only: a cut F11 would read as F1.
-        text=text:sub(1,4096):match('^.*\n') or ''
-        notes[1]='settings: only the first 4096 bytes are read'
+    if #text>8192 then -- Whole lines only: a cut F11 would read as F1.
+        text=text:sub(1,8192):match('^.*\n') or ''
+        notes[1]='settings: only the first 8192 bytes are read'
     end
     local named={} -- The settings a line names, taken or not.
     for line in ((text:gsub('\r',''))..'\n'):gmatch('([^\n]*)\n') do

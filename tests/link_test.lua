@@ -214,10 +214,15 @@ assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.menu_key.name==
 s,notes=Link.parse_settings('colour=red\n\nnot a setting\n')
 assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', ignored"
     and notes[2]=="settings: line 3: unknown setting 'not a setting', ignored",notes[1])
-local long='#'..string.rep('x',4088)..'\nsend_rate=25\n' -- The 4096th byte is the r of "send_r": the line is dropped.
-long=long..'#'..string.rep('x',5000-#long-2)..'\n'
+local long='#'..string.rep('x',8184)..'\nsend_rate=25\n' -- The 8192nd byte is the r of "send_r": the line is dropped.
+long=long..'#'..string.rep('x',9000-#long-2)..'\n'
 s,notes=Link.parse_settings(long)
-assert(#long==5000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 4096 bytes are read',notes[1])
+assert(#long==9000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 8192 bytes are read',notes[1])
+-- The default file saved with CRLF and five ids in fight_chars is read to its last line (card_details).
+local crlf=Link.DEFAULT:gsub('fight_chars=auto','fight_chars=15011001 15011002 15011003 15011004 15011005')
+crlf=crlf:gsub('card_details=on','card_details=off'):gsub('\n','\r\n')
+s,notes=Link.parse_settings(crlf)
+assert(#notes==0 and s.card_details==false and #crlf>4096,notes[1])
 s,notes=Link.parse_settings('\239\187\191menu_key=F7\n')
 assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0

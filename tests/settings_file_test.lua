@@ -48,37 +48,37 @@ twice='send_rate=12\nsend_rate=99\n'
 assert(Link.parse_settings(twice).send_rate==12)
 assert(Link.parse_settings(F.set(twice,'send_rate','25')).send_rate==25)
 
--- The mod reads whole lines within the first 4096 bytes only (link.parse_settings).
-local pad='#'..string.rep('x',4094)..'\n' -- 4096 bytes: a line after it is never read.
+-- The mod reads whole lines within the first 8192 bytes only (link.parse_settings).
+local pad='#'..string.rep('x',8190)..'\n' -- 8192 bytes: a line after it is never read.
 local text2,why=F.set(pad..'send_rate=12\n','send_rate','25')
-assert(text2==nil and why=='coop-settings.txt is over 4096 bytes: send_rate would not be read',why)
+assert(text2==nil and why=='coop-settings.txt is over 8192 bytes: send_rate would not be read',why)
 assert(F.set(pad,'send_rate','25')==nil,'Nor added after them')
-local near='#'..string.rep('x',4080)..'\nsend_rate=12\n' -- 4095 bytes.
+local near='#'..string.rep('x',8176)..'\nsend_rate=12\n' -- 8191 bytes.
 assert(Link.parse_settings(near).send_rate==12)
 text2,why=F.set(near,'send_rate','1234')
-assert(text2==nil and why:find('over 4096 bytes',1,true),'Longer, the line would fall out of what is read')
+assert(text2==nil and why:find('over 8192 bytes',1,true),'Longer, the line would fall out of what is read')
 assert(F.set(near,'send_rate','13')==near:gsub('=12','=13'),'Same length: fine')
-local bom='\239\187\191#'..string.rep('x',4080)..'\nsend_rate=12\n' -- The BOM is not counted, as in the mod.
+local bom='\239\187\191#'..string.rep('x',8176)..'\nsend_rate=12\n' -- The BOM is not counted, as in the mod.
 assert(Link.parse_settings(bom).send_rate==12 and F.set(bom,'send_rate','13')==bom:gsub('=12','=13'))
 -- A longer or shorter value moves the limit for the lines after it: no other setting may leave or join what is read.
-local fill='#'..string.rep('x',4069)..'\n'
-local edge='host_key=F5\n'..fill..'leave_key=F9\n' -- 4096 bytes: leave_key ends on the last byte read.
+local fill='#'..string.rep('x',8165)..'\n'
+local edge='host_key=F5\n'..fill..'leave_key=F9\n' -- 8192 bytes: leave_key ends on the last byte read.
 assert(Link.parse_settings(edge).leave_key.name=='F9')
 text2,why=F.set(edge,'host_key','Shift+F5')
-assert(text2==nil and why=='coop-settings.txt is over 4096 bytes: host_key would change what else is read',why)
-local past='host_key=Shift+F5\n'..fill..'leave_key=F9\n' -- leave_key ends past byte 4096: not read.
+assert(text2==nil and why=='coop-settings.txt is over 8192 bytes: host_key would change what else is read',why)
+local past='host_key=Shift+F5\n'..fill..'leave_key=F9\n' -- leave_key ends past byte 8192: not read.
 assert(Link.parse_settings(past).leave_key.name=='F8')
 text2,why=F.set(past,'host_key','F5')
 assert(text2==nil and why:find('what else is read',1,true),'Shorter, leave_key would be read')
 assert(F.set(past,'host_key','Shift+F6')==past:gsub('F5','F6',1),'Same length: fine')
-local tail='host_key=F5\n#'..string.rep('x',4073)..'\n#tail\n' -- A comment leaving what is read changes nothing.
+local tail='host_key=F5\n#'..string.rep('x',8169)..'\n#tail\n' -- A comment leaving what is read changes nothing.
 assert(Link.parse_settings(assert(F.set(tail,'host_key','Shift+F5'))).menu_key.name=='Shift+F5','No menu_key: the menu')
 
 -- Refused: a name the mod would not read, or a value that would not read back as written.
 for _,bad in ipairs({{'host key','F7'},{'','F7'},{'host_key','F7\n'},{'host_key','F7\r'},{'host_key',' F7'},
     {'host_key','F7 '},{'host_key','F\0007'},{'host_key','F7\t'},{'host_key','\195\169'}}) do
     local result,reason=F.set('host_key=F5\n',bad[1],bad[2])
-    assert(result==nil and reason:find('^not a ') and not reason:find('4096'),bad[1]..'='..bad[2])
+    assert(result==nil and reason:find('^not a ') and not reason:find('8192'),bad[1]..'='..bad[2])
 end
 
 -- get(): the last line naming the key within what the mod reads, whose value accept() takes (any when absent).
@@ -87,7 +87,7 @@ assert(F.get(Link.DEFAULT,'send_rate')=='60' and F.get(Link.DEFAULT,'cloth')==ni
 assert(F.get('SEND_RATE = 12 \r\n','send_rate')=='12','Name case, spaces and CR as the mod reads them')
 assert(F.get('send_rate=12\nsend_rate=99\n','send_rate')=='99')
 assert(F.get('send_rate=12\nsend_rate=99\n','send_rate',rate)=='12','The last value accept() takes')
-assert(F.get(pad..'send_rate=12\n','send_rate')==nil,'Not past 4096 bytes')
+assert(F.get(pad..'send_rate=12\n','send_rate')==nil,'Not past 8192 bytes')
 assert(F.get('\239\187\191send_rate=12','send_rate')=='12')
 -- The same answer as the mod's parser, on texts with the same traps.
 for _,case in ipairs({Link.DEFAULT,'send_rate=12\nsend_rate=99\n','send_rate=x\n','  SEND_RATE=25\r\n',near,bom,

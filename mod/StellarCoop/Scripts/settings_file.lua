@@ -1,9 +1,9 @@
 -- coop-settings.txt edited from the menu (D-UI4): text in, text out, no file access. set() rewrites the value of the
 -- one line the mod reads for a key and keeps every other byte (comments, unknown lines, blank lines, a BOM, CRLF); a
 -- key not in the file goes at the end. get() reads a value as link.parse_settings does: a BOM skipped, whole lines
--- within the first 4096 bytes, CRs dropped, names in any case, the last line that names the key winning.
+-- within the first 8192 bytes, CRs dropped, names in any case, the last line that names the key winning.
 local F={}
-local LIMIT=4096 -- link.parse_settings reads no further.
+local LIMIT=8192 -- link.parse_settings reads no further.
 -- The BOM, the lines (split on \n, so a CRLF line keeps its \r) and how many of them the mod reads.
 local function split(text)
     local bom=text:match('^\239\187\191') or ''
