@@ -78,6 +78,7 @@ together. Two games with different protocols cannot link, and the player who tri
   page with the same session rows. See [usage.md](docs/usage.md#co-op-menu).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
+- `F9` sets a checkpoint while you record a Doro race track. See [usage.md](docs/usage.md#doro-races).
 - `Enter`, during a session, opens the chat box. See [usage.md](docs/usage.md#session-chat).
 
 Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
@@ -100,9 +101,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
 
 - `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
   `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` takes the same keys, or `none` (the
-  default); a key set there hosts at once, without the menu. If two actions share one key, all four keys go back to
-  their defaults. A file written before the menu existed has no `menu_key` line: the menu then opens on that file's
-  `host_key`, and no key hosts at once.
+  default); a key set there hosts at once, without the menu. `race_key` (`F9`) takes the same keys, or `none`. If two
+  actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
+  `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
 - `who_can_join`: `friends` (the default: your Steam friends can join from their friends list), `code` (anyone with
   your join code can join; a player who is not your Steam friend waits for your answer) or `private` (only the
   friends you invite can join). It counts for the next session you host.

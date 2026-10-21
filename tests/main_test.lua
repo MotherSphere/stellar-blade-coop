@@ -14,8 +14,12 @@
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
 -- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
--- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop-chat.txt is
--- taken every 250 ms (session or not, coop off included) and its text never logged, the co-op menu (menu.lua on a fake
+-- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop race look and
+-- coop race probe doro reach the Doro look (restored and ticked every frame, ended by coop off), coop race reaches the
+-- Doro race (race.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on the kit,
+-- race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop-chat.txt is
+-- taken every 250 ms (session or not, coop off included; each frame instead while a race is armed, her race lines to
+-- the race) and its text never logged, the co-op menu (menu.lua on a fake
 -- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, the session
 -- chat (chat.lua's view on the fake kit) opens on Enter, sends, cancels on Esc, hands its lines to the native part and
 -- takes the notices into its feed while the UI is up, join codes (join.lua on the fake kit: who_can_join=code, the
@@ -223,7 +227,8 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
         me=function() return bt.me end,marker=function(on) markers[#markers+1]=on end,
-        collide=function(on) package.loaded.puppet.collide=on end} -- Each 250 ms: no room for one more local.
+        collide=function(on) package.loaded.puppet.collide=on end, -- Each 250 ms: no room for one more local.
+        doro=function(on,log) dr.ghost,dr.ghost_log=on,log; if dr.ghost_why then return false,dr.ghost_why end end}
 end}
 -- The real parser; files: the records file on an in-memory disk (disk.files), which say the paths they got (in nr).
 -- disk.fail[path]: 'open' (it cannot be opened), 'write' (emptied, then the write fails: a full disk) or 'rename'.
@@ -286,12 +291,40 @@ package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         challenge=function(sub,extra) nr.chs[#nr.chs+1]={sub,extra}; return true,'challenge '..tostring(sub) end,
-        running=function() return nr.running==true end,
+        running=function() return nr.running==true end,active=function() return nr.active==true end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
             if nr.raise then error(nr.raise,0) end
         end}
+end}
+-- The Doro look and probe (doro.lua; doro_test tests them): what doro.new got (log, store), its calls as words, its
+-- restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as puppet.doro was last given it,
+-- with what it answers. A global, as nr.
+dr={calls={},restores=0,ticks=0}
+package.loaded.doro={new=function(o)
+    dr.log,dr.store=o.log,o.store
+    return {log=o.log,
+        on=function() dr.calls[#dr.calls+1]='on'; if dr.no_eve then return false,'no EVE in the world' end
+            return true,'look on' end,
+        off=function(why) dr.calls[#dr.calls+1]='off '..why; return true,'look off' end,
+        probe=function() dr.calls[#dr.calls+1]='probe'; return true,'probe on' end,
+        stop=function() dr.calls[#dr.calls+1]='stop'; if dr.raise then error(dr.raise,0) end end,
+        restore=function() dr.restores=dr.restores+1 end,
+        tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
+end}
+-- The Doro race (race.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks, slows,
+-- stops and keys, whether it is armed, what a tick or the key answers, a stop that raises, its HUD. A global, as nr.
+ra={}
+package.loaded.race={new=function(o)
+    ra.o=o
+    return {command=function(sub,a,extra) ra.cmds[#ra.cmds+1]={sub,a,extra}; return true,'race '..tostring(sub) end,
+        receive=function(text) ra.received[#ra.received+1]=text end,
+        tick=function() ra.ticks=ra.ticks+1; if ra.says then return table.unpack(ra.says) end end,
+        slow=function() ra.slows=ra.slows+1 end,
+        stop=function() ra.stops=ra.stops+1; if ra.raise then error(ra.raise,0) end end,
+        key=function() ra.keys=ra.keys+1; return ra.key_ok,ra.key_why end,
+        armed=function() return ra.armed==true end,hud=function(h) ra.hud=h end}
 end}
 local rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded.recruiter={new=function(log)
@@ -424,7 +457,7 @@ local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | al
     ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
-    ..'fight on|off|status|probe|test|record|replay|pilot|'
+    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
@@ -441,6 +474,8 @@ local function load_main(with_native,no_folder)
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     nr.o,nr.runs,nr.chs,nr.ticks,nr.stops=nil,{},{},0,{}
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
+    dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
+    ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
@@ -463,7 +498,8 @@ load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
-assert(logged('keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second'),table.concat(printed,'|'))
+assert(logged('keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second'),
+    table.concat(printed,'|'))
 assert(name_tag==true,'The name tag setting reaches the ghost')
 puppet_say('Kaanta is in b07, you are in e04.')
 assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the line above EVE')
@@ -499,7 +535,7 @@ press('F5'); flush()
 assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the co-op menu opens in the game world '
     ..'only\n' and said[#said]=='The co-op menu opens in the game world only.'
     and said_en[#said]=='The co-op menu opens in the game world only.','F5 opens the menu, never hosts')
-press('F9'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F9') and not logged('key Shift+F5'),
+press('F11'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F11') and not logged('key Shift+F5'),
     'Keys no action holds: nothing')
 clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
 press('DOWN_ARROW'); press('ESCAPE'); assert(executes==executed+4,'Menu keys while closed: not queued')
@@ -571,8 +607,69 @@ asked={'host','invite','leave','report','join','join 109775241234567890'}
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
-assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ui_ticks==2,
-    'The native tick, the notices, the probe, the recruiter and the UI spike run every frame')
+assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ui_ticks==2 and ra.ticks==2,
+    'The native tick, the notices, the probe, the recruiter, the UI spike and the race run every frame')
+-- coop race: its words to race.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot only;
+-- race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot check
+-- and the kit's pause.
+do
+for _,args in ipairs({{'record','quest'},{'cp'},{'save','2'},{'cancel'},{'quit'},{},{'start'},{'go','a','b'}}) do
+    coop('race',table.unpack(args,1,3))
+    local got=ra.cmds[#ra.cmds]
+    assert(got[1]==args[1] and got[2]==args[2] and got[3]==args[3] and last()=='[StellarCoop] OK: race '
+        ..tostring(args[1])..'\n',last())
+end
+local raced=#ra.cmds
+coop('race','start','quest')
+assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs only on a co-op save (INSTALL.md: Co-op '
+    ..'saves); now no slot status\n',last())
+assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
+assert(ra.o.store=='store','coop-race-doros.txt through the link')
+assert(select(2,ra.o.slot())=='coop race runs only on a co-op save (INSTALL.md: Co-op saves); now no slot status')
+assert(ra.o.night()==false and ra.o.paused()==false)
+nr.active=true; assert(ra.o.night()==true); nr.active=nil
+kit_paused=true; assert(ra.o.paused()==true); kit_paused=false
+ra.o.tell(function(w) return w.race.armed end)
+assert(said[#said]=='Race ready: walk to your start.' and said_en[#said]=='Race ready: walk to your start.')
+assert(ra.hud and ra.hud.kit and ra.hud.theme and ra.hud.settings and ra.hud.settings.ui_language,'race.hud')
+end
+-- A tick's error is reported.
+ra.says={false,'the race stopped on an error until the mod reloads: x'}
+loops[1].f()
+assert(last()=='[StellarCoop] STOP: the race stopped on an error until the mod reloads: x\n',last())
+ra.says=nil
+-- F9: the race's key (a checkpoint while a track is recorded, said; nothing otherwise).
+press('F9'); flush()
+assert(ra.keys==1 and logged('key F9: race') and last()=='[StellarCoop] key F9: race\n',last())
+ra.key_ok,ra.key_why=true,'checkpoint 1 at 1 2 3'
+press('F9'); flush()
+assert(ra.keys==2 and last()=='[StellarCoop] OK: checkpoint 1 at 1 2 3\n',last())
+ra.key_ok,ra.key_why=nil,nil
+-- While a race is armed coop-chat.txt is read each frame (her race lines to the race), not every 250 ms; the race's
+-- 250 ms checks run either way.
+do
+    local takes,slows=chat_takes,ra.slows
+    loops[2].f()
+    assert(chat_takes==takes+1 and ra.slows==slows+1,'Not armed: the 250 ms loop reads it')
+    loops[1].f()
+    assert(chat_takes==takes+1,'Not armed: not each frame')
+    ra.armed=true
+    chat_lines={{race='cp 7 1 1 4000'},{text='secret race'}}
+    loops[1].f()
+    assert(chat_takes==takes+2 and ra.received[#ra.received]=='cp 7 1 1 4000' and #chat_lines==0)
+    assert(chat_calls[#chat_calls]:find('^receive Kaanta secret race'),chat_calls[#chat_calls])
+    loops[2].f()
+    assert(chat_takes==takes+2 and ra.slows==slows+2,'Armed: each frame only')
+    -- coop nightop start waits for the race's end.
+    local nights=#nr.runs
+    coop('nightop','start')
+    assert(#nr.runs==nights and last()=='[StellarCoop] STOP: a Doro race is armed: coop race quit leaves it\n',last())
+    -- A challenge start too: it runs on the same code.
+    local chs=#nr.chs
+    coop('challenge','targets')
+    assert(#nr.chs==chs and last()=='[StellarCoop] STOP: a Doro race is armed: coop race quit leaves it\n',last())
+    ra.armed=false
+end
 -- coop no: the probe gets its subcommand, a [NO] logger, the native request and the status, with the co-op slot loaded.
 local plain=status_text
 local function with_slot(line) return 'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=on\n'..line..'last=#1 ready\n' end
@@ -753,7 +850,8 @@ loops[2].f()
 -- lines reach the chat after the pass's session check, with her name; an unread status (nil) ends no session.
 local takes,calls=chat_takes,#chat_calls
 chat_lines={{text='secret one'},{fail=true}}; loops[2].f()
-chatting=true; chat_lines={{text='secret two'}}; loops[2].f()
+chatting=true; chat_lines={{race='go 7 4000'},{text='secret two'}}; loops[2].f() -- A race line goes to the race.
+assert(ra.received[#ra.received]=='go 7 4000','Her race line')
 chatting=nil; loops[2].f()
 assert(chat_takes==takes+3 and #chat_lines==0 and not table.concat(printed,'|'):find('secret'))
 local on_line=table.concat(said,'|')
@@ -832,6 +930,47 @@ for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'rese
     assert(last()=='[StellarCoop] STOP: Use: coop ui test [game] | reset | off\n' and #ui_tests==2,last())
 end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
+-- coop race look on|off and coop race probe doro: test tools, out of the usage line (USAGE above). The look and the
+-- ghost's Doro mode go on together, the ghost's refusal said after; off ends both, the look on or not, on any save.
+-- The look and the probe start on a co-op save only.
+assert(dr.store=='store' and dr.log,'coop-look.txt through the link')
+coop('race','look','on')
+assert(#dr.calls==0 and not dr.ghost and last()=='[StellarCoop] STOP: coop race look runs only on a co-op save '
+    ..'(INSTALL.md: Co-op saves); now no slot status\n',last())
+coop('race','probe','doro')
+assert(#dr.calls==0 and last():find('^%[StellarCoop%] STOP: coop race probe runs only on a co%-op save'),last())
+coop('race','look','off')
+assert(dr.calls[1]=='off coop race look off' and dr.ghost==false and last()=='[StellarCoop] OK: look off\n',last())
+table.remove(dr.calls)
+status_text=with_slot('slot=coop index=4 marker=4\n')
+coop('race','look','on')
+assert(dr.calls[1]=='on' and dr.ghost==true and dr.ghost_log==dr.log and last()=='[StellarCoop] OK: look on\n',last())
+dr.ghost_why='Doro mode off on the ghost: no mesh'
+coop('race','look','on')
+assert(last()=='[StellarCoop] OK: look on Doro mode off on the ghost: no mesh\n',last())
+dr.ghost_why=nil
+coop('race','look','off')
+assert(dr.calls[3]=='off coop race look off' and dr.ghost==false and last()=='[StellarCoop] OK: look off\n',last())
+dr.no_eve=true
+coop('race','look','on')
+assert(dr.ghost==false and last()=='[StellarCoop] STOP: no EVE in the world\n','No EVE: the ghost stays her')
+dr.no_eve=nil
+coop('race','probe','doro'); assert(dr.calls[#dr.calls]=='probe' and last()=='[StellarCoop] OK: probe on\n',last())
+dr.n=#dr.calls
+for _,bad in ipairs({{'look'},{'look','ON'},{'look','on','x'},{'probe'},{'probe','fx'},{'probe','doro','x'}}) do
+    coop('race',table.unpack(bad))
+    assert(last()=='[StellarCoop] STOP: Use: coop race look on|off | probe doro\n' and #dr.calls==dr.n,last())
+end
+status_text=plain
+dr.log('look hid=4 tick=3->0 rehid=0/min')
+assert(last()=='[StellarCoop][DR] look hid=4 tick=3->0 rehid=0/min\n',last())
+-- Each frame: the restore (done once, inside doro.lua) and the look's tick, whose message is reported.
+dr.r,dr.t=dr.restores,dr.ticks
+dr.says={false,'Doro look stopped until the mod reloads: x'}
+loops[1].f()
+assert(dr.restores==dr.r+1 and dr.ticks==dr.t+1,'Both each frame')
+assert(last()=='[StellarCoop] STOP: Doro look stopped until the mod reloads: x\n',last())
+dr.says=nil
 assert(notice_stops==0 and ui_stops==0)
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
 -- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
@@ -877,9 +1016,13 @@ assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 assert(gr.stops==1,'off gives back a death screen the revive hid')
+assert(dr.calls[#dr.calls]=='stop','off ends the Doro look and probe')
+assert(ra.stops==1,'off ends the race')
 local written=#states
 takes=chat_takes
+ra.s=ra.slows
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
+assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
 assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
@@ -899,11 +1042,14 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
     and printed[lines+4]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited,ui_ticked=notice_ticks,probe_ticks,rc_ticks,ui_ticks
-loops[1].f(); assert(ticks==3 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+dr.t,ra.t=dr.ticks,ra.ticks
+loops[1].f(); assert(ticks==7 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+assert(dr.ticks==dr.t,'No Doro look tick after coop off')
+assert(ra.ticks==ra.t,'No race tick after coop off')
 assert(ui_ticks==ui_ticked,'No UI spike tick after coop off')
 coop('ui','test'); assert(#ui_tests==2 and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==4 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==8 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
@@ -919,6 +1065,7 @@ status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=off reason=coo
 load_main(true)
 coop('host'); assert(last():find('coop off is active until the game restarts',1,true),last())
 loops[1].f(); assert(ticks==1,'Still the native tick alone: a pause tag held before the reload goes')
+assert(dr.restores==1 and dr.ticks==0,'An EVE an earlier load left hidden is restored, coop off or not')
 loops[2].f(); assert(#states==0,'Nor a world state')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
@@ -952,6 +1099,16 @@ load_main(true)
 coop('off')
 assert(logged('nightop: no EVE') and last()=='[StellarCoop] OK: asked the native part: off\n','A run end that raises')
 nr.raise=nil
+dr.raise='no actor'
+load_main(true)
+coop('off')
+assert(logged('doro: no actor') and last()=='[StellarCoop] OK: asked the native part: off\n','A look end that raises')
+dr.raise=nil
+ra.raise='no EVE'
+load_main(true)
+coop('off')
+assert(logged('race: no EVE') and last()=='[StellarCoop] OK: asked the native part: off\n','A race end that raises')
+ra.raise=nil
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
@@ -961,7 +1118,7 @@ assert(name_tag==false,'name_tag=off reaches the ghost')
 assert(look.cloth==false and look.dyes==true and look.effects==true and logged('look: cloth=off dyes=on effects=on'),
     'cloth=off (an old file\'s, or the menu\'s), dyes=on and effects=on reach the ghost')
 assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays none"))
-assert(logged('keys: menu=F5 host=none status=F6 leave=Ctrl+F8, name tag off, 25 poses a second'),
+assert(logged('keys: menu=F5 host=none status=F6 leave=Ctrl+F8 race=F9, name tag off, 25 poses a second'),
     table.concat(printed,'|'))
 in_world=false
 loops[2].f(); assert(states[1]=='world=0 rate=25' and logged('state: world=0 rate=25'),'The settings\' rate in the state')
@@ -1936,7 +2093,7 @@ local function screen() -- The rows drawn, 'label|value|state', blank slots left
 end
 local function focus() for _,r in ipairs(menu_view.rows) do if r.st=='focus' then return r.l,r.v end end end
 local function to(label) -- Down until that row has the focus.
-    for _=1,40 do if focus()==label then return end key('DOWN_ARROW') end
+    for _=1,80 do if focus()==label then return end key('DOWN_ARROW') end
     error('no row '..label)
 end
 local function kit_said(word) for i=#kit_calls,1,-1 do if kit_calls[i]==word then return i end end end
@@ -2042,7 +2199,8 @@ link_mode='none'
 settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
-    ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
+    ..'PHOTO MODE||disabled\nPhoto sync|Both|normal\n'
     ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
@@ -2238,12 +2396,13 @@ assert(#kit_calls==n and last()=='[StellarCoop] STOP: coop off is active until t
 -- the menu, nothing hosts by itself; a file that sets both keys keeps host_key hosting at once.
 settings_text='host_key=Shift+F5\nstatus_key=Shift+F6\nleave_key=Shift+F8\n'
 load_main(true)
-assert(logged('keys: menu=Shift+F5 host=none status=Shift+F6 leave=Shift+F8, name tag on, 60 poses a second'))
+assert(logged('keys: menu=Shift+F5 host=none status=Shift+F6 leave=Shift+F8 race=F9, name tag on, 60 poses a second'))
 in_world,kit_ready=true,true; quarter()
 key('F5','SHIFT'); assert(kit_said('show true') and #asked==0)
 settings_text='menu_key=F5\nhost_key=F9\n'
 load_main(true)
 key('F9'); assert(asked[#asked]=='host' and logged('key F9: host'))
+assert(logged('settings: F9 is host_key: race_key has no key') and ra.keys==0,'A file before race_key keeps its F9')
 -- who_can_join=private: Host asks for a private lobby (invited only), from the key, the console or the menu.
 settings_text='menu_key=F5\nhost_key=F9\nwho_can_join=private\n'
 load_main(true)
@@ -2623,12 +2782,14 @@ coop('fight','off'); assert(asked[1]=='fight off','Off needs no tick')
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
 load_main(true)
 kit_ready=true; quarter()
--- Once a minute with the UI up: the Lua frame time of the ghost's place and of the UI's ticks, over the minute's frames.
+-- Once a minute with the UI up: the Lua frame time of the ghost's place, the Doro look and the UI's ticks, over the
+-- minute's frames.
 local start=clock
 loops[1].f(); clock=clock+30; loops[1].f()
 assert(not logged('Lua frame time'),'Not before a minute')
 clock=start+60; loops[1].f()
-assert(last():find('^%[StellarCoop%] Lua frame time, last 60 s: ghost 0%.000 ms, UI 0%.000 ms a frame %(3 frames%)'),
+assert(last():find('^%[StellarCoop%] Lua frame time, last 60 s: ghost 0%.000 ms, doro 0%.000 ms, race 0%.000 ms, UI '
+    ..'0%.000 ms a frame %(3 frames%)'),
     last())
 local lines=#printed
 kit_ready=false; clock=start+120; loops[1].f(); kit_ready=true

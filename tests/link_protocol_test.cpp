@@ -111,6 +111,28 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
+  // The race line, reliable: Lua's text after "SBC12 race ", printable ASCII only, the whole line within kMaxMessage.
+  // Anything else is invalid, never cleaned into another line.
+  assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
+  m = parse_text(race_line("cp 7 1 2 34567"));
+  assert(m.kind == Kind::race && m.text == "cp 7 1 2 34567");
+  m = parse_text(race_line("track 4294967295 64 9 -2000000 -2000000 -500000 -180 /game/a_b.c"));
+  assert(m.kind == Kind::race && m.text == "track 4294967295 64 9 -2000000 -2000000 -500000 -180 /game/a_b.c");
+  const std::string race = p + " race ";
+  const std::string full = race + std::string(kMaxMessage - race.size(), '~');
+  assert(full.size() == kMaxMessage && parse_text(full).kind == Kind::race);
+  assert(parse_text(full + "~").kind == Kind::invalid);
+  for (const std::string &bad : {race + "a\tb", race + "a\x7f", race + "\x1b[31m", race + "caf\xc3\xa9", race + "a\nb",
+                                 race + "end\r", race + "\xff", p + " race", race})
+    assert(parse_text(bad).kind == Kind::invalid);
+  assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
+  for (const char *other : {"SBC11 race cp 7 1 2 3", "SBC13 race cp 7 1 2 3", "SBC race end 7"})
+    assert(parse_text(other).kind == Kind::invalid);
+  for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
+    m = parse_text(race + "x" + static_cast<char>(c) + "x");
+    assert(m.kind == Kind::race && m.text == std::string("x") + static_cast<char>(c) + "x");
+  }
+
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
   const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
   assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1");
@@ -194,8 +216,8 @@ int main() {
   // copies would stay where its own game puts them. Protocol 11 refuses the link.
   // A v0.4.0-beta.1 peer runs protocol 11: its channel 2 knows no shared quests' line, so a host's steps would never
   // reach that guest. Protocol 12 refuses the link.
-  static_assert(kProtocol == 12, "12 adds the shared quests' lines; 11 SBE and the show lines; 10 the fight's scale "
-                                 "line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
+  static_assert(kProtocol == 12, "12 adds the shared quests' lines and the race lines; 11 SBE and the show lines; 10 "
+                                 "the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
          lobby_tag(24463856) != "11:24463856");

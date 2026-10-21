@@ -131,7 +131,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='together' and values.same_place=='on'
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
     and values.boss_hp_scale=='2.0' and values.shared_quests=='off' and values.revive=='off'
-    and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='off')
+    and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='off' and values.race_key=='F9')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -171,8 +171,8 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key head:photo photo_sync photo_freeze_max '
-    ..'photo_ghost '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key head:photo photo_sync '
+    ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects collide send_rate head:session who_can_join revive cutscene_wait follow_host head:saves auto_coop_save '
     ..'shared_quests '
@@ -342,5 +342,11 @@ assert(action==nil and why=='clash' and other=='host_key')
 action,why,other=M.rebind(values,'status_key','F7') -- The follow key's F7.
 assert(action==nil and why=='clash' and other=='follow_key')
 assert(M.read('host_key=F7\n').follow_key=='none','An older file keeps its F7 for its own action')
+-- The race key (Controls): F9 by default, rebound and checked like the others; none in a file whose keys held F9.
+action,why,other=M.rebind(values,'leave_key','F9')
+assert(action==nil and why=='clash' and other=='race_key')
+action,key,text=M.rebind(values,'race_key',K.text('F11','ALT'))
+assert(action=='set' and key=='race_key' and text=='Alt+F11')
+assert(M.read('status_key=F9\n').race_key=='none' and M.read('race_key=Shift+F9\n').race_key=='Shift+F9')
 
 print('ui_model_test ok')

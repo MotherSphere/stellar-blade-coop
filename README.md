@@ -41,6 +41,10 @@ client that the game already runs, so the mod needs no other program and no serv
   - the guest's game pauses while a cutscene plays in the host's game;
   - in a shared area only the host's camp rest brings the enemies back, and a notice tells the guest so;
   - the experimental solid partner option (off by default) stops your EVE at your friend's ghost.
+- Doro races: record a track by setting checkpoints with F9, then race it alone against the clock or against your
+  friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
+  It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
+  [docs/usage.md](docs/usage.md#doro-races)).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night

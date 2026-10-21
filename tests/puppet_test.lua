@@ -14,6 +14,8 @@
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
 -- them in place(), within their budget; with collide on, the solid partner's capsule and the rules that open it.
+-- them in place(), within their budget; Doro mode, its Doro on part 0 and every part hidden until it goes off, and the
+-- race's emote on it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -171,6 +173,13 @@ local function cloth_part(actor)
         self.resets=(self.resets or 0)+1
     end
     function s:BindClothToMasterPoseComponent() error('a Poseable leader has no cloth to bind to') end
+    -- A Doro (doro.lua) is one too: its scale, the single-node mode and its animation calls.
+    function s:SetRelativeScale3D(v) self.scale=v end
+    function s:SetAnimationMode(n) self.mode=n end
+    function s:PlayAnimation(a,loop) self.playing={asset=a,loop=loop} end
+    function s:GetAnimInstance() return {SetBlendSpaceInput=function(_,v) s.input=v.X end} end
+    function s:SetPlayRate(r) self.rate=r end
+    function s:SetPosition(at,notifies) assert(notifies==false); self.position=at end
     return s
 end
 local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua to either is unproven in the game.
@@ -1291,6 +1300,88 @@ box.RelativeScale3D.X=14
 box.RelativeScale3D.Z=40
 assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
 spawn_fails=false
+
+-- Doro mode (coop race look): every part hidden and one Doro hung on part 0, her feet, never named in the display
+-- file; animated from her feet between poses; a new table keeps the parts hidden and a rebuild the mode; off removes the
+-- Doro and shows the parts as the table says; a Doro that cannot be made leaves the ghost drawn as her.
+local DORO=require('doro').ASSETS
+mesh(DORO.mesh,{'root','pelvis'})
+for key,path in pairs(DORO) do
+    if key~='mesh' then
+        meshes[path]=object(path,{path=path})
+        meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.AnimationAsset' end
+        meshes[path].GetFullName=function() return 'AnimSequence '..path end
+    end
+end
+ghost=new(nil)
+local dr={}
+assert(ghost.doro(true,function(m) dr[#dr+1]=m end)==nil,'No ghost yet: the mode alone')
+ghost.toggle()
+send(950,her_parts())
+ghost.tick()
+clock=clock+2
+ok,message=build() -- One mesh a frame at most: the Doro's in a step of its own.
+assert(ok and message:find('^Ghost 950 built: 6 parts %(3 leaders%)'),message)
+actor=spawned[#spawned]
+local doro=actor.parts[7]
+assert(#actor.parts==7 and doro.mesh==meshes[DORO.mesh] and doro.attached.parent==actor.parts[1]
+    and doro.attached.socket=='None' and doro.scale.X==1.5 and doro.mode==1 and doro.calls.SetCollisionEnabled==0,
+    'One Doro, on part 0')
+for k=1,6 do assert(actor.parts[k].visible==false,'Every part hidden: '..k) end
+assert(not displays[#displays]:find(string.format('0x%x',doro.GetAddress()),1,true),'The native part never drives it')
+-- At each pose: standing at the first (a teleport), then her speed from her feet over 50 ms at least, smoothed.
+box=actor.mailbox
+pose_at(50,{X=0,Y=0,Z=30})
+assert(doro.playing.asset==meshes[DORO.two] and doro.playing.loop==true and doro.input==0 and doro.rate==1)
+clock=clock+0.1
+pose_at(51,{X=50,Y=0,Z=30})
+assert(math.abs(doro.input-500*(1-math.exp(-1)))<1e-6 and dr[1]=='ghost doro speed=500',tostring(dr[1]))
+clock=clock+0.02
+pose_at(52,{X=60,Y=0,Z=30})
+assert(math.abs(doro.input-500*(1-math.exp(-1)))<1e-6 and #dr==1,'Under 50 ms: waits')
+clock=clock+0.08
+pose_at(53,{X=110,Y=0,Z=90}) -- 60 cm up in 0.1 s: a take-off.
+assert(doro.playing.asset==meshes[DORO.evade] and doro.playing.loop==false and doro.position==0 and #dr==1)
+-- The same table with the blade shown elsewhere: still hidden.
+send(950,her_parts({socket='SC_Back'}))
+assert(actor.parts[5].attached.socket=='SC_Back' and actor.parts[5].visible==false,'Hung there, hidden')
+-- A rebuild keeps the mode.
+ghost.rebuild('look')
+build()
+actor=spawned[#spawned]
+doro=actor.parts[7]
+assert(doro and doro.attached.parent==actor.parts[1] and actor.parts[1].visible==false,'Doro again')
+-- The race's results: standing, her Doro plays the emote it is given (lose: Exhaust), and her blend space once cleared.
+box=actor.mailbox
+ghost.emote('lose')
+pose_at(60,{X=110,Y=0,Z=90})
+assert(doro.playing.asset==meshes[DORO.exhaust] and doro.playing.loop==true,'lose: Exhaust')
+ghost.emote(nil)
+clock=clock+0.1
+pose_at(61,{X=110,Y=0,Z=90})
+assert(doro.playing.asset==meshes[DORO.two],'Cleared: her blend space again')
+-- Off: the Doro gone, each part shown as the table says (her ponytail hidden there).
+assert(ghost.doro(false)==nil and doro.destroyed)
+for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
+-- A Doro call that fails at a pose: Doro mode off, its Doro gone, the parts as the table says, the ghost kept.
+assert(ghost.doro(true)==nil and actor.parts[1].visible==false)
+doro=actor.parts[#actor.parts]
+doro.SetPlayRate=function() error('no rate') end
+box=actor.mailbox
+clock=clock+0.1
+box.RelativeScale3D.Z,box.RelativeLocation=54,{X=160,Y=0,Z=30}
+ok,message=ghost.place()
+assert(ok==false and message:find('^Doro mode off on the ghost: .*no rate'),tostring(message))
+assert(doro.destroyed and not actor.destroyed and actor.hidden==false and ghost.active(),'The ghost kept')
+for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
+-- No Doro mesh on this PC: the ghost stays her.
+meshes[DORO.mesh].destroyed=true
+local doro_mesh=meshes[DORO.mesh]
+meshes[DORO.mesh]=nil
+ok,message=ghost.doro(true)
+assert(ok==false and message:find('^Doro mode off on the ghost: .*the Doro mesh is missing on this PC'),tostring(message))
+assert(actor.parts[1].visible==true and #actor.parts==8,'Drawn as her, no Doro added')
+meshes[DORO.mesh],doro_mesh.destroyed=doro_mesh,nil
 
 -- The solid partner (collide=on, off by default). Puppet.solid's rules a to g as a table, one case each, then the
 -- latches of b and e and their reset by a. Then on fakes: no capsule while off; built the first time the ghost shows

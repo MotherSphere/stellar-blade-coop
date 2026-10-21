@@ -42,7 +42,7 @@ local function reload(row) row.reload=true; return row end -- The mod takes it a
 -- each is in UI-DESIGN's Options table); each waits as later() until its feature is built, then the mod reads it.
 M.OPTIONS={
     {head='controls'},
-    bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),
+    bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
     later(bind('chat_key','Enter')),
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},

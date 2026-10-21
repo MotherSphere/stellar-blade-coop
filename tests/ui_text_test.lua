@@ -9,7 +9,8 @@
 -- the lines under the heading within their columns, the notices with the longest name within 200 bytes, the co-op
 -- line's hint and sentences within theirs, the status strip's rows (partner.lua): the second with every fact within
 -- its columns, the top one with its connection lost and paused words whole before the status line, which comes without
--- its prefix, and no Thai word that ends on a leading vowel.
+-- its prefix, the race's panel, marker, banner and results within theirs, and no Thai word that ends on a leading
+-- vowel.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
@@ -97,6 +98,15 @@ local function notices(w)
     for _,text in ipairs({c.start_notice:format(long,5),c.wave_notice:format(long,8,8),c.clear_notice:format(long,8),
         c.record,c.stopped}) do
         lines[#lines+1]=text
+    end
+    -- The race's notices (race.lua): its banners too, which come as notices with the UI off.
+    local r=w.race
+    for _,group in ipairs({'why','refused','declined'}) do
+        for _,text in pairs(r[group]) do lines[#lines+1]=fill(text) end
+    end
+    for _,k in ipairs({'armed','armed_guest','false_start','cancelled','out','recording','dropped','too_close','full',
+        'other_map','saved','go','wrong_way','missed','finished','dnf'}) do
+        lines[#lines+1]=fill(r[k])
     end
     local s=w.summary
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
@@ -194,6 +204,22 @@ for name in pairs(R.TEXT) do
     local lead=w.partner.lost..' · '..o.paused
     local top=P.status_rows(w,{mode='compact',summary=S.hosting:format(NAME),lost=true,paused=true,rate=60})
     assert(top:sub(1,#lead)==lead,name..'.overlay.paused: cut to '..top)
+    -- The race (race.lua): its panel as the night card (title, then the time, CP, LAP and POS two spaces apart, or the
+    -- wait for her name of 20 characters and an ellipsis); the marker's label over your start (Bold 30, 17 units a
+    -- column in 320); a banner (Bold 56, 32 units a column, in 1600 less 24 a side); the results as the night panel,
+    -- the heading, the flags line under it, and two rows: the place and a name of 21 columns at the left (Mideum 34),
+    -- the time or DNF at the right (Bold 40) in 14 columns.
+    local r=w.race
+    fits(name..'.race.title',r.title,43)
+    fits(name..'.race line','9:59.99  '..r.cp:format(64,64)..'  '..r.lap:format(9,9)..'  '..r.pos:format(2,2),43)
+    fits(name..'.race.waiting',r.waiting:format(('W'):rep(20)..'…'),43)
+    fits(name..'.race.slot',r.slot,18)
+    for _,k in ipairs({'go','wrong_way','finished','dnf'}) do fits(name..'.race.'..k,r[k],48) end
+    fits(name..'.race.missed',r.missed:format(64),48)
+    fits(name..'.race.results',r.results,31)
+    fits(name..'.race flags',r.fast..' · '..r.pause,54)
+    for _,who in ipairs({w.chat.you,w.chat.partner,('W'):rep(20)..'…'}) do fits(name..'.race row: '..who,'2  '..who,27) end
+    fits(name..'.race.dnf value',r.dnf,14)
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)

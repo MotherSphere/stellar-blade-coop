@@ -82,7 +82,10 @@ constexpr uint64_t kPhotoPerSecond = 8;
 // reading, so the link's can see two reads up to a clock tick (15.6 ms on Windows) closer, and a change would wait a
 // whole read more.
 constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90, kVitalsAgainMs = 1000;
-constexpr size_t kChatInbox = 16;
+// Race lines (race_model.lua's): ours a second, and hers kept a second. A race sends a few a second, the host's
+// busiest a track line and its six cps lines at once. The lines waiting for Lua hold hers beside the chat's.
+constexpr uint64_t kRacePerSecond = 40;
+constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
@@ -281,6 +284,7 @@ struct Peer {
   Window photo_window;
   Window say_window;       // Her chat lines.
   Window night_window;     // Her night lines.
+  Window race_window;      // Her race lines.
   // Her .pak mods beyond the base game's (pak_list.h) from her paks line, once one came; our paks line as she last got
   // it (sent again after each hello of hers, like the photo line).
   bool has_paks = false;
@@ -289,6 +293,7 @@ struct Peer {
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   bool night_logged = false; // The same for her night lines.
   bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
+  bool race_logged = false; // The same for her race lines.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
@@ -497,6 +502,26 @@ public:
     ++chat_out_;
     return true;
   }
+  // A race line from Lua (coop-race.txt), as it is, reliable to the friend past the handshake, or back as hers
+  // ("race <text>" for Lua) in the loopback with no friend. False when it cannot go: no session, or, counted as
+  // dropped, a text race_line() would not carry, past kRacePerSecond, or Steam refused it. Worker thread, after
+  // tick().
+  bool race(const std::string &text) {
+    if (!chatting())
+      return false;
+    const std::string line = race_line(text);
+    bool ok = parse(line.data(), line.size()).kind == Kind::race &&
+              !over_rate(race_window_, 1, kRacePerSecond, kRacePerSecond * kMaxMessage);
+    if (ok && linked()) {
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    } else if (ok) {
+      ++(for_lua("race " + text) ? race_in_ : race_dropped_);
+    }
+    ++(ok ? race_out_ : race_dropped_);
+    return ok;
+  }
   // Our vitals (pose_tick.cpp's local_vitals(), every 100 ms in a session, 500 after a slow read), unreliable to the
   // friend past the handshake on change (at most once each kVitalsEveryMs) and each kVitalsAgainMs, which also heals
   // reordering; in the loopback with no friend, hers. Kept in a session for our life= line, sent or not. Worker thread,
@@ -544,7 +569,8 @@ public:
         sent = true;
     return sent;
   }
-  // For coop-chat.txt (steam_link.cpp), oldest first: "in <text>" (hers, chat_clean()) and "fail" (ours could not go).
+  // For coop-chat.txt (steam_link.cpp), oldest first: "in <text>" (hers, chat_clean()), "fail" (ours could not go) and
+  // "race <text>" (her race line).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 
@@ -1259,9 +1285,10 @@ private:
     if (chat_session_)
       return;
     event("chat this session: " + std::to_string(chat_in_) + " in, " + std::to_string(chat_out_) + " out, " +
-          std::to_string(chat_dropped_) + " dropped");
+          std::to_string(chat_dropped_) + " dropped; race lines: " + std::to_string(race_in_) + " in, " +
+          std::to_string(race_out_) + " out, " + std::to_string(race_dropped_) + " dropped");
     chat_.clear();
-    chat_in_ = chat_out_ = chat_dropped_ = 0;
+    chat_in_ = chat_out_ = chat_dropped_ = race_in_ = race_out_ = race_dropped_ = 0;
     has_mate_ = has_own_ = vitals_sent_ = false;
   }
   // A line for Lua while fewer than kChatInbox wait; false when it is dropped.
@@ -1493,6 +1520,20 @@ private:
       mark_ = "mark=" + n + " from " + peer.name + said;
       break;
     }
+    case Kind::race: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.race_window, 1, kRacePerSecond, kRacePerSecond * kMaxMessage)
+                            ? "over the rate limit"
+                        : !for_lua("race " + message.text) ? "too many waiting"
+                                                           : nullptr;
+      ++(why ? race_dropped_ : race_in_);
+      if (why && !peer.race_logged) {
+        peer.race_logged = true;
+        event("dropped race lines from " + peer.name + ": " + why);
+      }
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1642,7 +1683,7 @@ private:
       p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
-      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = false;
+      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = p.race_logged = false;
     }
     night_logged_ = false;
   }
@@ -1720,6 +1761,9 @@ private:
   std::vector<std::string> chat_;
   uint64_t chat_in_ = 0, chat_out_ = 0, chat_dropped_ = 0;
   Window say_window_;
+  // Race lines: this session's counts (ours out, hers in, dropped either way) and our rate window.
+  uint64_t race_in_ = 0, race_out_ = 0, race_dropped_ = 0;
+  Window race_window_;
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.
   uint32_t marks_ = 0;

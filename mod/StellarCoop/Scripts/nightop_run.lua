@@ -946,8 +946,10 @@ function Run.new(o)
     end
     -- coop off (or any reason): the run ends as aborted; true when one was on.
     function self.stop(reason) return stop(reason or 'stop')~=nil end
-    -- A run is under way (its result panel aside): the follow's travel waits for its end.
+    -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
+    -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end
+    self.active=self.running
     return self
 end
 return Run
