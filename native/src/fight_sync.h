@@ -254,6 +254,9 @@ inline const Summon *summon_row(int32_t effect) {
 // (spawn_sync.h) stay below kSummonBase.
 constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = ~kSummonBase;
 inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
+// Night Operation's wave monsters: 0xD8000000 | run << 16 | wave << 8 | slot (nightop_waves.lua's W.key), a range above
+// every EventSpawnTable row and below the extras (spawn_sync.h) and summons.
+inline bool is_wave(uint32_t id) { return (id & 0xFF000000) == 0xD8000000; }
 inline SpawnKey summon_key(uint32_t n) { return SpawnKey{kSummonBase | n, 0}; }
 inline bool summon_key_ok(const SpawnKey &k) { return is_summon(k.spawn) && (k.spawn & kMaxSummons) && !k.index; }
 // The finish guard's rows: a Finish stance (HP under 2) applies Passive_DeathReady, which chains Passive_FinishReady,

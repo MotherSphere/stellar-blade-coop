@@ -7,7 +7,9 @@
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
 //   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
-//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
+//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ),
+//   SBC<protocol> night <payload> (Night Operation's run, nightop_run.lua: "h ..." from the host, "g ..." from the
+//   guest, night_ok()).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
@@ -38,8 +40,9 @@ constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (
                               // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
                               // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
-                              // 2. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1) is told why: the lobby tag, then the hello's reject, name both.
+                              // 2, and the night line on channel 0 (Night Operation for two). An older peer (6:
+                              // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1) is told why:
+                              // the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -138,12 +141,13 @@ inline bool plausible_vitals(const Vitals &v) {
   return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, night };
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
                          // 's', then 1 for both. paks: the count of .pak mods, their hash.
-  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
+  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. night:
+                         // the payload, night_ok().
   Vitals vitals{};       // vitals: hers, plausible_vitals().
 };
 
@@ -181,6 +185,26 @@ inline std::string vit_line(const Vitals &v) {
 // The .pak mods our game loads beyond the base game's (pak_list.h), reliable, once to each friend past the handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
+// Night Operation's line (nightop_run.lua), reliable: the whole state of a run, "h ..." from the lobby owner, "g ..."
+// from the guest. Lua checks every field; here only 1 to kMaxNight bytes of 0-9, a-z, '/', '_', ':' and '-' with single
+// spaces between words, the first word "h" or "g". A night line carries no other byte, so it cannot break the status.
+constexpr size_t kMaxNight = 300;
+inline bool night_ok(std::string_view payload) {
+  if (payload.size() < 3 || payload.size() > kMaxNight || (payload[0] != 'h' && payload[0] != 'g') ||
+      payload[1] != ' ' || payload.back() == ' ')
+    return false;
+  for (size_t i = 2; i < payload.size(); ++i) {
+    const char c = payload[i];
+    const bool word = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || c == '/' || c == '_' || c == ':' || c == '-';
+    if (!word && (c != ' ' || payload[i - 1] == ' '))
+      return false;
+  }
+  return true;
+}
+// Empty when the payload is no night line (nothing to send).
+inline std::string night_line(const std::string &payload) {
+  return night_ok(payload) ? "SBC" + std::to_string(kProtocol) + " night " + payload : std::string();
+}
 // Channel 2's tags, versioned like channel 0's: "SBF12" for the shared fight, "SBQ12" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
@@ -262,6 +286,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "say") {
     m.text = chat_clean(rest);
     m.kind = m.text.empty() ? Kind::invalid : Kind::say;
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "night") {
+    if (night_ok(rest)) {
+      m.kind = Kind::night;
+      m.text = rest;
+    }
   } else if (split(text, f, 2 + m.vitals.size(), nullptr) && f[0] == versioned_tag && f[1] == "vit") {
     uint64_t x = 0;
     for (size_t i = 0; i < m.vitals.size(); ++i) {

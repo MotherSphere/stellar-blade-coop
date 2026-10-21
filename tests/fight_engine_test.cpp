@@ -863,6 +863,22 @@ int main() {
     n = e->pass(g, g.logic, true, one, 1);
     assert((guids(*e, n) == std::vector<uint32_t>{112, 101}) && !e->latched());
   }
+  // Night Operation's wave monsters (keys 0xD8..., nightop_waves.lua's W.key) stay out of stage 1 for now, with the
+  // allowlist or without: each world fights its own copies. The highest EventSpawnTable key, an extra's and a summon's
+  // are no wave key.
+  assert(is_wave(0xD8010100) && is_wave(0xD8FF0507) && !is_wave(0xD42B5F51) && !is_wave(0xD9000000) &&
+         !is_wave(0xE0000104) && !is_wave(kSummonBase));
+  for (bool list : {true, false}) {
+    Game g;
+    auto e = engine(false, true);
+    if (!list)
+      e->allow(nullptr, 0);
+    g.spawn(101, 0xD8010100, 0);
+    g.spawn(102, 0xD42B5F51, 0);
+    g.spawn(103, 0xD82A0503, 3);
+    size_t n = e->pass(g, g.logic, true, nullptr, 0);
+    assert((guids(*e, n) == std::vector<uint32_t>{102}) && !e->latched());
+  }
   // Heap allocation bits (past 128 slots), read word by word.
   {
     Game g(256);

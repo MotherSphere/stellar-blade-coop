@@ -135,6 +135,25 @@ int main() {
                                  p + " paks 1 -5", p + " paks 1 18446744073709551616", std::string("SBC9 paks 1 5")})
     assert(parse_text(bad).kind == Kind::invalid);
 
+  // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
+  // checks field by field. Here only its size, its characters, single spaces and its first word.
+  const std::string host_line = "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 -";
+  assert(night_ok(host_line) && night_line(host_line) == p + " night " + host_line);
+  m = parse_text(night_line(host_line));
+  assert(m.kind == Kind::night && m.text == host_line);
+  m = parse_text(night_line("g 3 42 abort 0 0 0 stop"));
+  assert(m.kind == Kind::night && m.text == "g 3 42 abort 0 0 0 stop");
+  const std::string widest = "g " + std::string(kMaxNight - 2, 'z');
+  assert(kMaxNight == 300 && night_ok(widest) && parse_text(night_line(widest)).text == widest);
+  for (const std::string &bad : {widest + "z", std::string("h 1 Wave"), std::string("g 1\x01"), std::string("h 1  2"),
+                                 std::string("x 1 2"), std::string(), std::string("h"), std::string("h "),
+                                 std::string("h 1 "), std::string(" h 1"), std::string("hh 1"), std::string("h 1\t2"),
+                                 std::string("h 1.5"), std::string("g é")}) {
+    assert(!night_ok(bad) && night_line(bad).empty());
+    assert(parse_text(p + " night " + bad).kind == Kind::invalid);
+  }
+  assert(parse_text(p + " night").kind == Kind::invalid && parse_text("SBC11 night " + host_line).kind == Kind::invalid);
+
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
   // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
   static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
@@ -202,7 +221,8 @@ int main() {
   // Fuzz: random bytes and mutated valid messages never crash, and anything parsed respects the limits.
   std::mt19937 rng(1234);
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
-                               photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77)};
+                               photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
+                               night_line(host_line)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -210,7 +230,7 @@ int main() {
       for (char &c : text)
         c = static_cast<char>(rng());
     } else {
-      text = seeds[rng() % 9];
+      text = seeds[rng() % std::size(seeds)];
       for (int k = rng() % 4; k >= 0 && !text.empty(); --k)
         text[rng() % text.size()] = static_cast<char>(rng());
     }
@@ -223,8 +243,10 @@ int main() {
       assert(plausible_vitals(f.vitals));
     if (f.kind == Kind::paks)
       assert(f.a <= kMaxPaks);
+    if (f.kind == Kind::night) // Only what night_ok() lets through.
+      assert(night_ok(f.text) && text == night_line(f.text));
     if (f.kind != Kind::invalid) {
-      assert(text.size() <= kMaxMessage && f.text.size() <= kMaxReason);
+      assert(text.size() <= kMaxMessage && f.text.size() <= (f.kind == Kind::night ? kMaxNight : kMaxReason));
       for (char c : f.text)
         assert(static_cast<unsigned char>(c) >= 0x20 && c != 0x7f);
     }
