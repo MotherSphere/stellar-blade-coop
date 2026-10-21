@@ -129,7 +129,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='together' and values.same_place=='on'
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
-    and values.boss_hp_scale=='2.0' and values.shared_quests=='off')
+    and values.boss_hp_scale=='2.0' and values.shared_quests=='off' and values.race_key=='F9')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -169,7 +169,7 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key race_key head:photo photo_sync photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects send_rate head:session who_can_join head:saves auto_coop_save shared_quests head:combat shared_enemies '
     ..'same_place '
@@ -275,5 +275,11 @@ action,key,text=M.rebind(values,'chat_key','Enter')
 assert(action=='set' and key=='chat_key' and text=='Enter')
 action,why,other=M.rebind(M.read('menu_key=F5\nhost_key=F7\n'),'menu_key','F7')
 assert(action==nil and why=='clash' and other=='host_key')
+-- The race key (Controls): F9 by default, rebound and checked like the others; none in a file whose keys held F9.
+action,why,other=M.rebind(values,'leave_key','F9')
+assert(action==nil and why=='clash' and other=='race_key')
+action,key,text=M.rebind(values,'race_key',K.text('F11','ALT'))
+assert(action=='set' and key=='race_key' and text=='Alt+F11')
+assert(M.read('status_key=F9\n').race_key=='none' and M.read('race_key=Shift+F9\n').race_key=='Shift+F9')
 
 print('ui_model_test ok')

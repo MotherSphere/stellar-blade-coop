@@ -30,11 +30,13 @@ Link.DEFAULT=[[
 # StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
-# the co-op menu, whose first row hosts; host_key hosts at once, or none.
+# the co-op menu, whose first row hosts; host_key hosts at once, or none. race_key drops a checkpoint while you record
+# a race track (coop race record).
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
+race_key=F9
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -123,10 +125,10 @@ card_details=on
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
-local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='on',
-    dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
-    bosses='on',boss_hp_scale='2.0',
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',name_tag='on',
+    send_rate='60',cloth='on',dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
+    enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
+    same_spawns='on',enemy_extra='0',bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny=''}
@@ -134,7 +136,7 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
-local KEYS={'menu_key','host_key','status_key','leave_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'friends','code','private'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'}}
@@ -285,7 +287,18 @@ function Link.parse_settings(text)
         if settings.host_key.key then settings.menu_key=settings.host_key end
         settings.host_key=setting('host_key','none')
     end
-    -- Two actions on one key would both run on each press: all four go back to the defaults.
+    -- A file from before race_key whose own keys hold F9: race_key has none there (coop race cp still drops a
+    -- checkpoint), so the rule below never puts back the keys the player chose.
+    if not named.race_key then
+        for _,name in ipairs(KEYS) do
+            if name~='race_key' and settings[name].name==settings.race_key.name then
+                notes[#notes+1]='settings: '..settings[name].name..' is '..name..': race_key has no key'
+                settings.race_key=setting('race_key','none')
+                break
+            end
+        end
+    end
+    -- Two actions on one key would both run on each press: all five go back to the defaults.
     local keys={}
     for _,name in ipairs(KEYS) do keys[name]=settings[name] end
     for _,name in ipairs(KEYS) do
@@ -394,6 +407,10 @@ function Link.new(folder,fs)
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
     function self.status() return fs.read(status_path) end
+    -- A whole file of ours beside coop-settings.txt (a race track, coop-track-<name>.txt): its text or nil, and
+    -- written through a temporary file (true, or false and why).
+    function self.read_file(name) return fs.read(path(name)) end
+    function self.write_file(name,text) return put(name,text) end
     -- An object path kept across Lua loads, so a reload can sweep what an earlier one left: the ghost's in
     -- coop-puppet.txt unless named (the UI root's: coop-ui.txt).
     function self.store(name)
@@ -527,6 +544,8 @@ function Link.new(folder,fs)
     -- Her vitals for the partner card ({hp=, max_hp=, shield=, max_shield=, blocks=, beta=, max_beta=, burst=,
     -- max_burst=, tachy=, max_tachy=, life=}, whole units; your own during coop loopback), or nil: none for 3 s.
     function self.mate() return mate end
+    -- Whether coop loopback runs, as of the last changes(): with no friend linked, our race lines come back as hers.
+    function self.loopback() return loopback end
     -- The friend's round trip in ms, or nil before the first pong.
     function self.ping() return ping or nil end
     -- A chat session holds once Steam is ready: a friend linked (lost or not), a rejoin under way (until she is linked

@@ -211,6 +211,24 @@ local Link=require('link')
 local s,notes=Link.parse_settings('')
 assert(s.menu_key.key=='F5' and s.menu_key.mod==nil and s.status_key.key=='F6' and s.leave_key.key=='F8' and #notes==0)
 assert(s.host_key.key==nil and s.host_key.name=='none','Host is in the menu: no host key unless set')
+assert(s.race_key.key=='F9' and s.race_key.mod==nil and s.race_key.name=='F9','A race checkpoint on F9')
+s,notes=Link.parse_settings('race_key=Shift+F11\n')
+assert(#notes==0 and s.race_key.key=='F11' and s.race_key.mod=='SHIFT' and s.race_key.name=='Shift+F11')
+s,notes=Link.parse_settings('race_key=none\n')
+assert(#notes==0 and s.race_key.key==nil and s.race_key.name=='none','none: coop race cp only')
+s,notes=Link.parse_settings('race_key=F10\n')
+assert(#notes==1 and s.race_key.name=='F9' and notes[1]:find("'F10' is not allowed for race_key (F10 opens the "
+    ..'console); race_key stays F9',1,true),notes[1])
+-- A file from before race_key whose own keys hold F9: race_key has none, and the player's keys stay. A file that names
+-- race_key on a taken key: two actions on one key, all five go back.
+s,notes=Link.parse_settings('menu_key=F7\nleave_key=F9\n')
+assert(#notes==1 and notes[1]=='settings: F9 is leave_key: race_key has no key' and s.race_key.name=='none'
+    and s.menu_key.name=='F7' and s.leave_key.name=='F9',notes[1])
+s,notes=Link.parse_settings('menu_key=F7\nleave_key=F9\nrace_key=F9\n')
+assert(#notes==1 and notes[1]=='settings: F9 is set for two actions: default keys used' and s.menu_key.name=='F5'
+    and s.leave_key.name=='F8' and s.race_key.name=='F9',notes[1])
+s,notes=Link.parse_settings('race_key=F6\n')
+assert(#notes==1 and s.status_key.name=='F6' and s.race_key.name=='F9',notes[1])
 assert(s.name_tag==true and s.send_rate==60,'Empty text: the defaults')
 s,notes=Link.parse_settings('status_key=Shift+F7\n menu_key = f6 \n')
 assert(s.status_key.key=='F7' and s.status_key.mod=='SHIFT' and s.status_key.name=='Shift+F7' and #notes==0)
@@ -273,8 +291,9 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==4 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
-    and s.leave_key.name=='F8')
+assert(keys==5 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+    and s.leave_key.name=='F8' and s.race_key.name=='F9')
+assert(Link.DEFAULT:find('\nleave_key=F8\nrace_key=F9\n',1,true),'A new file names the race key')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
 -- The menu's own: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game or english; a new file names them.
 assert(s.ui_scale==100 and math.type(s.ui_scale)=='integer' and s.ui_sounds==true and s.ui_language=='game')
@@ -784,6 +803,16 @@ fs.remove=remove
 chat=link.take_chat()
 assert(#chat==1 and chat[1].text=='once' and files[CHAT]==nil and #link.take_chat()==0)
 
+-- A race track: read whole, written whole through a temporary file.
+local TRACK='C:\\Mod\\coop-track-quest.txt'
+assert(link.read_file('coop-track-quest.txt')==nil)
+assert(link.write_file('coop-track-quest.txt','SBR 1\n') and files[TRACK]=='SBR 1\n' and not files[TRACK..'.tmp'])
+assert(link.write_file('coop-track-quest.txt','SBR 1\nmap /x\n') and files[TRACK]=='SBR 1\nmap /x\n','Replaced')
+assert(link.read_file('coop-track-quest.txt')=='SBR 1\nmap /x\n')
+fs.write=function() return false end
+ok,message=link.write_file('coop-track-quest.txt','x')
+assert(not ok and message:find('cannot write',1,true) and files[TRACK]=='SBR 1\nmap /x\n',message)
+fs.write=write
 -- Race lines: race() queues each one, race_flush() (from changes() too) writes every pending line into one new
 -- coop-race.txt, whole and in order, once the native part took the last; nothing is dropped below 512 waiting. Her
 -- race lines come in coop-chat.txt as "race <text>", kept apart from the chat's, in order.
@@ -885,10 +914,11 @@ for _,engine in ipairs({'engine=on loopback=on 0 0 0','engine=on loopback=waitin
     files[STATUS]='mod=v steam=ready\n'..engine..'\nlink=none lobby=0\n'..MATE
     fresh.changes()
     assert(fresh.chatting()==true and fresh.mate().hp==900,'The loopback: a session, with our own vitals')
+    assert(fresh.loopback()==true,'The race hands its own lines to its loopback guest')
 end
 files[STATUS]='mod=v steam=ready\nengine=on\nlink=none lobby=0\nfriend=0 0 x loopback=on 0 0 0\n'
 fresh.changes()
-assert(fresh.chatting()==false,'Only the pose path\'s line says loopback')
+assert(fresh.chatting()==false and fresh.loopback()==false,'Only the pose path\'s line says loopback')
 files[STATUS]='mod=v steam=waiting\nengine=on loopback=on 0 0 0\n'
 fresh.changes()
 assert(fresh.chatting()==false,'Before Steam is ready, the native part would drop a line without a word')
