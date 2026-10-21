@@ -30,8 +30,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 
-#include "fight_sync.h" // Message, Event, SpawnKey, kHaveKeys, kHaveParts, kMaxSeen
+#include "fight_sync.h" // Message, Event, SpawnKey, kHaveKeys, kHaveParts, kMaxSeen, kMaxPairs
 
 namespace coop::fight {
 
@@ -53,12 +54,21 @@ inline const char *row_out(const SpawnRow &r) {
 }
 
 // A refusal of the guest's that says the two games differ (her tables, or what her shared fight shares), not a state
-// of the moment (too far, no room, no spawn manager yet, an actor gone or busy).
+// of the moment (too far, no room, no spawn manager yet, NewActor making nothing, an actor gone or busy, no enemy of an
+// extra's charId here yet).
 inline bool differs(const char *why) {
-  for (const char *passing : {"too far", "full", "no spawn manager", "gone", "busy"})
+  for (const char *passing : {"too far", "full", "no spawn manager", "not made", "gone", "busy", "no such enemy"})
     if (std::strcmp(why, passing) == 0)
       return false;
   return true;
+}
+// A refused spawn the host should send again (not answered): too far (she comes nearer), no room (hers frees), no enemy
+// of an extra's charId here yet (its own enemy comes in the same answer as the extra).
+inline bool again(const char *why) {
+  for (const char *later : {"too far", "full", "no such enemy"})
+    if (std::strcmp(why, later) == 0)
+      return true;
+  return false;
 }
 
 // One keyed actor of ours at a census: not a player, fighting or dying (one leaving the map counts as gone). A dying
@@ -122,13 +132,19 @@ inline bool listed(const SpawnKey *keys, size_t n, const SpawnKey &k) {
 // ---- Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7) ----
 // The host makes enemy_extra (0 to kMaxPer) more of each common enemy where both players stand, with SB's NewActor and
 // keys of a range no EventSpawnTable row of this build uses (RE12: its highest EventSpawnId is 0xD42B5F51): EventSpawnId
-// 0xE0000000 | n << 8 | slot and SpawnIndex slot, for the n-th enemy given extras this session and slots 1 to 3. Same
+// 0xE0000000 | n << 8 | slot and SpawnIndex slot, for the n-th enemy given extras this run and slots 1 to 3. Same
 // spawns then send each to her as a key of ours she lacks, she makes the same key, and stage 1 pairs them. A key no
 // row holds is never respawned or saved and never reaches zone scripts (SB's row == null gates, RE12).
 constexpr uint32_t kExtraBase = 0xE0000000, kMaxOrigins = ~kExtraBase >> 8;
 constexpr uint8_t kMaxPer = 3;
-constexpr float kExtraRangeCm = 12000;              // An extra more than 120 m from both EVEs goes.
-constexpr size_t kMaxExtras = kMaxAnswer * kMaxPer; // A side's extras at once.
+constexpr float kExtraRangeCm = 12000;                // An extra more than 120 m from both EVEs goes.
+constexpr float kOriginRangeCm = kExtraRangeCm - 400; // An enemy this near gets extras: the farthest stands 4 m from
+                                                      // it, so none is made past the 120 m that despawns it.
+constexpr size_t kMaxExtras = kMaxAnswer * kMaxPer;   // A side's extras at once.
+// The Monsters (ActorType 3) the CharacterTable ranks Boss or Elite (its export, re2): M_Gorgon 50330,
+// M_RoyalGuardFemale 50500, WLA_ and WLB_M_RoyalGuardFemale_01 45050001 and 55050001. They get no extras, as the
+// BossMonsters (the other bosses and the Alpha Naytibas) never do.
+constexpr uint32_t kNoExtras[] = {50330, 50500, 45050001, 55050001};
 inline bool is_extra(uint32_t id) { return id >= kExtraBase; }
 inline SpawnKey extra_key(uint32_t n, uint8_t slot) { return SpawnKey{kExtraBase | n << 8 | slot, slot}; }
 // Where slot's extra of an enemy at at, of yaw yaw (degrees), stands: 2, 3 or 4 m from it, 120 degrees apart, at its
@@ -426,8 +442,9 @@ private:
   // 1 km of our EVE, of a charId we share; an extra's key (no row to check) only of the charId of a shared Monster of
   // ours, as the host makes extras of common enemies only. A drop: our live shared Monster of a key that takes part in
   // that zone, not followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our
-  // rounds name it and the host stops asking; one too far does not, so the host asks again once we are nearer. A drop
-  // refused as busy (our fight with it, or a takedown) stays ours, so our next round names it and the host asks again.
+  // rounds name it and the host stops asking; one again() names does not, so the host asks again (once we are nearer,
+  // have room, or hold the extra's own enemy, which the same answer may bring). A drop refused as busy (our fight with
+  // it, or a takedown) stays ours, so our next round names it and the host asks again.
   template <class Io>
   void take(const Message &m, bool shared, const float *eve, bool eve_ok, const Mine *mine, size_t n, uint64_t now,
             Io &io) {
@@ -446,13 +463,14 @@ private:
       const float at[3] = {float(m.at[0]), float(m.at[1]), float(m.at[2])};
       const bool distant = !eve_ok || !within(at, eve, kSpawnRangeCm);
       const bool known = std::any_of(mine, mine + n, [&](const Mine &x) { return x.monster && x.chr == m.chr; });
-      const char *why = distant                                              ? "too far"
-                        : made_ == kMaxKeys                                  ? "full"
-                        : !io.shares(m.chr) || (is_extra(k.spawn) && !known) ? "not shared"
-                                                                             : out(k, io);
+      const char *why = distant                       ? "too far"
+                        : made_ == kMaxKeys           ? "full"
+                        : !io.shares(m.chr)           ? "not shared"
+                        : is_extra(k.spawn) && !known ? "no such enemy"
+                                                      : out(k, io);
       if (!why)
         why = io.create(k, m.chr, at, float(m.yaw));
-      if (!distant)
+      if (!why || !again(why))
         made(k, m.chr, !why);
       ++(why ? counts.refused : counts.spawned);
       counts.differ += why && differs(why);
@@ -514,27 +532,38 @@ private:
 };
 
 // The host's extras: which of our enemies get them. Each census while the zone is shared: a Monster the fight shares
-// (never a boss or an Elite: BossMonster), not dying, of a SpawnType 0 row (EnterZone: never a ZoneEvent or Quest
-// spawn), within 120 m of our EVE or of hers (her: as her ghost stands here, her_ok: told), and no extra itself, gets
-// per extras once a life (by GUID), while room (the engine's) is left for all of them. Its n is one more than the last
-// one's; past kMaxOrigins none gets any.
+// (never a BossMonster: the bosses and the Alpha Naytibas), of no charId in kNoExtras, not dying, of a row same spawns
+// reconcile (row_out: an EnterZone row, never a ZoneEvent or Quest spawn, nor a Save or keep row, which may be dead in
+// her save), within kOriginRangeCm of our EVE or of hers (her: as her ghost stands here, her_ok: told), and no extra
+// itself, gets per extras once a life (by GUID), while room (the engine's) is left for all of them and stage 1's
+// kMaxPairs can still pair them with the shared Monsters within 120 m and the extras we hold (ours). Its n is one more
+// than the last one's, for the run (clear() keeps it, so a dying extra of an old session never shares a key with a new
+// one); past kMaxOrigins none gets any.
 class Extras {
 public:
+  void clear() { done_ = 0; } // A new session.
   template <class Io>
-  void step(uint8_t per, size_t room, const float *eve, const float *her, bool her_ok, const Mine *mine, size_t n,
-            Io &io) {
+  void step(uint8_t per, size_t room, size_t ours, const float *eve, const float *her, bool her_ok, const Mine *mine,
+            size_t n, Io &io) {
     size_t kept = 0; // Lives of the last census still here.
     for (size_t i = 0; i < done_; ++i)
       if (std::any_of(mine, mine + n, [&](const Mine &m) { return m.guid == done_at_[i]; }))
         done_at_[kept++] = done_at_[i];
     done_ = kept;
+    const auto in_range = [&](const Mine &m, float cm) {
+      return within(m.at, eve, cm) || (her_ok && within(m.at, her, cm));
+    };
+    size_t paired = ours; // Stage 1 pairs kMaxPairs at most: past them, a copy fights on its own in each game.
+    for (size_t i = 0; i < n; ++i)
+      paired += mine[i].monster && !mine[i].dying && !is_extra(mine[i].key.spawn) && in_range(mine[i], kExtraRangeCm);
+    room = std::min(room, kMaxPairs - std::min(paired, kMaxPairs));
     SpawnRow row;
     for (size_t i = 0; i < n && per && room >= per && n_ < kMaxOrigins && done_ < kMaxSeen; ++i) {
       const Mine &m = mine[i];
       if (!m.monster || m.dying || is_extra(m.key.spawn) || !std::isfinite(m.yaw) ||
-          !(within(m.at, eve, kExtraRangeCm) || (her_ok && within(m.at, her, kExtraRangeCm))) ||
-          std::find(done_at_, done_at_ + done_, m.guid) != done_at_ + done_ || !io.row(m.key.spawn, row) ||
-          row.spawn_type != 0)
+          std::find(std::begin(kNoExtras), std::end(kNoExtras), m.chr) != std::end(kNoExtras) ||
+          !in_range(m, kOriginRangeCm) || std::find(done_at_, done_at_ + done_, m.guid) != done_at_ + done_ ||
+          !io.row(m.key.spawn, row) || row_out(row))
         continue;
       done_at_[done_++] = m.guid, ++n_, room -= per;
       for (uint8_t slot = 1; slot <= per; ++slot) {

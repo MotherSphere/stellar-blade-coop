@@ -507,16 +507,17 @@ spawn key like any other.
   created enemy that shows up as no Monster, or as another character than the host's, is removed again, within the same
   32 calls a second. One the despawn cannot find again (a dying one, for example) stays and is logged as kept. A key she
   refused counts as hers in her next list, so the host stops asking for it until the epoch moves. A key refused as too
-  far is left out of the list, so the host asks again once she is nearer, and an enemy she created leaves the list once
-  it has died or left her game.
+  far or for room (`full`) is left out of the list, so the host asks again once she is nearer or has room, and an enemy
+  she created leaves the list once it has died or left her game.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the table
   holder and the job sender are read from their globals and never made by the mod: their getters (`FUN_141adc3d0`,
   `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing. The spawn call gets the spawn manager, the
   EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no extra request data and flag 0 (what the flag
   does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to `FUN_141c1ca40`, so the key spawns at once. It
   reads the table holder through its getter, and for a row with EventOnSpawning events it sends them through the job
-  sender's getter, so the guest calls it only while the holder, its tables and the job sender exist; with no spawn
-  manager or job sender made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job
+  sender's getter. The spawn it starts reaches `NewActor`, whose actor setup reads the reg through `FUN_141a97cb0`. So
+  the guest calls it only while the holder, its tables, the job sender and the reg exist; with the spawn manager or
+  one of those not made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job
   sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID with that key and still fighting.
   While that enemy holds BattleMode (state 30) or runs a takedown marker, or either read fails, she refuses the drop
   (`busy`): the enemy stays in her list, so the host asks again and the despawn goes once she is done with it. A census
@@ -525,8 +526,9 @@ spawn key like any other.
 - The `fight=` line of `coop-status.txt` carries `spawns=off`, `on` or `stopped` (the pilot's latch stops same spawns,
   since the ghost's position no longer reaches the job), and on the guest's side `spawned=`, `despawned=` and
   `spawns_differ=`: the refusals, and the created enemies undone or kept, whose reason shows that the two games' tables
-  or `fight_chars` differ (`no row`, `save-row`, `keep-row`, `event-row`, `another zone`, `not shared`, `charId`), not
-  those of the moment (`too far`, `full`, `no spawn manager`, `gone`, `busy`). Lua's notices read it.
+  or `fight_chars` differ (`no row`, `save-row`, `keep-row`, `event-row`, `another zone`, `row taken`, `not shared`,
+  `charId`), not those of the moment (`too far`, `full`, `no spawn manager`, `not made`, `gone`, `busy`, `no such
+  enemy`). Lua's notices read it.
 - `coop fight spawn probe` (`fight probe spawns`) runs the same census, epoch and row reads in the probe's job on one
   game, and logs the outcome for each shared Monster once an epoch, 32 a census at most so that one hand-over's 128 log
   lines are enough. It sends no line and calls neither the spawn nor the despawn function.
@@ -539,12 +541,17 @@ Extra enemies (`enemy_extra`, 0 to 3, the host's value, 0 by default, not tested
 the host's game makes that many more of each common enemy where both players stand, and same spawns hand them to the
 guest's game like any other key of the host's that she lacks.
 
-- The host gives extras to a Monster that shared enemies share, of an EnterZone row (Save and keep rows included,
-  ZoneEvent and quest rows never), not dying, within 120 m of either EVE, while the zone is shared. Bosses and Alpha
-  Naytibas are BossMonsters (ActorType 4), so they get none. An enemy gets its extras once a life: after a respawn
-  under a new GUID it gets new ones.
+- The host gives extras to a Monster that shared enemies share, of a row that same spawns reconcile (an EnterZone row
+  that is no Save or keep row: the guest's save may hold that enemy dead), not dying, within 116 m of either EVE (so
+  its farthest extra stands within 120 m), while the zone is shared. Bosses and Alpha Naytibas are BossMonsters
+  (ActorType 4), so they get none, and neither do the four Monsters the CharacterTable ranks Boss or Elite: M_Gorgon
+  (50330), M_RoyalGuardFemale (50500) and its WLA_ and WLB_ variants (45050001, 55050001). An enemy gets its extras
+  once a life: after a respawn under a new GUID it gets new ones. Extras are made only while the shared Monsters within
+  120 m of either EVE, counted with the host's extras and the new ones, stay at 16 or fewer, the most stage 1 can
+  pair.
 - An extra's key is EventSpawnId `0xE0000000 | n << 8 | slot` and SpawnIndex `slot`, where n counts the enemies given
-  extras this session and slot runs from 1 to 3. No EventSpawnTable row of this build is in that range (its highest
+  extras since the game started (a new session goes on counting, so a dying extra of the last one never shares a key
+  with a new one) and slot runs from 1 to 3. No EventSpawnTable row of this build is in that range (its highest
   EventSpawnId is `0xD42B5F51`). The host checks once a session that its tables hold no row at the first key,
   `0xE0000101`; if they do, extras stay off for the session. The game's death path skips the respawn and the zone
   bookkeeping for an actor whose key has no row; that a save never holds one is still to be checked in game.
@@ -556,9 +563,11 @@ guest's game like any other key of the host's that she lacks.
   the same default a fresh request would copy in.
 - Same spawns count an extra's key as part of the shared zone without a row: the host sends `spawn` for one she lacks
   and `drop` for one of hers it lacks. She makes the key through `NewActor` too, with the charId of the host's line,
-  and refuses it (`row taken`) when her own tables hold a row at that key, or (`not shared`) when no Monster of hers
-  that shared enemies share has that charId: the host makes extras of common enemies only, so any other charId would
-  be a character the host picked freely. Stage 1 then pairs the two copies by key.
+  and refuses it (`row taken`) when her own tables hold a row at that key, or (`no such enemy`) when no Monster of
+  hers that shared enemies share has that charId: the host makes extras of common enemies only, so any other charId
+  would be a character the host picked freely. A key refused as `no such enemy` or `full` is left out of her list, so
+  the host sends it again: an extra's own enemy can come in the same answer and only show in her next census. Stage 1
+  then pairs the two copies by key.
 - Each game keeps the extras it made in its capture list, 48 at most. One that left the map (killed, despawned) is
   forgotten at the next census. The host despawns one still fighting more than 120 m from both EVEs. At the session's
   end every extra still fighting is despawned in each game, and a dying one is left to its death. The host's extras
@@ -566,9 +575,10 @@ guest's game like any other key of the host's that she lacks.
   stop on her side (its off or world line). Every despawn goes through the game's despawn
   job (`FUN_141b077f0`), never a kill.
 - `NewActor` runs inside the shared fight's job on the logic thread, under its fault latch, only while the table
-  holder and the world's actor manager exist: `NewActor` reads both through getters that would make them. An extra
-  whose GUID cannot be read right after `NewActor` stops the shared fight for the run and is logged as kept, since no
-  capture can take it off.
+  holder, the world's actor manager, the job sender and the reg exist: `NewActor` and its actor setup
+  (`FUN_141ba6d20`) read them through getters that would make them (the job sender's `FUN_141a97b90` and the reg's
+  `FUN_141a97cb0` for the last two). An extra whose GUID cannot be read right after `NewActor` stops the shared fight
+  for the run and is logged as kept, since no capture can take it off.
 
 The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 

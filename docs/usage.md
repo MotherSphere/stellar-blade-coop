@@ -683,8 +683,9 @@ a few seconds later.
   spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from your
   EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
   manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name),
-  `full` (240 enemies already handled since either game's last `fight spawns epoch`), `gone` or `busy` (you are fighting
-  that enemy or taking it down: it is removed once you are done, if the host's game still lacks it); and `fight spawn
+  `full` (240 enemies already handled since either game's last `fight spawns epoch`, or 48 extras), `row taken`, `no
+  such enemy` and `not made` (for an extra, below), `gone` or `busy` (you are fighting that enemy or taking it down: it
+  is removed once you are done, if the host's game still lacks it); and `fight spawn
   undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out (`not shared`) or another
   character than the host's (`charId`), or `fight spawn kept <key> <why>` when that enemy could not be removed (it was
   dying, for one). On the host: `fight spawn sent <key>` and `fight drop sent <key>`. Both log `fight spawns epoch
@@ -694,7 +695,7 @@ a few seconds later.
 - The `fight=` line of `coop status` (and `coop fight status`) says `spawns=off`, `spawns=on` or `spawns=stopped` (the
   error of same place stopped them too), and on the guest's side `spawned=<n> despawned=<n> spawns_differ=<n>`: the
   enemies her game created and removed, and the refusals that show the two games differ (`no row`, `save-row`,
-  `keep-row`, `event-row`, `another zone` and `not shared`, and enemies undone or kept).
+  `keep-row`, `event-row`, `another zone`, `row taken` and `not shared`, and enemies undone or kept).
 - Notices, in the menu's language, once a session each: `Same spawns on: where you and <name> stand within 100 m of
   each other in one zone, their game holds the same common enemies as yours.` (on the guest's screen: `your game
   holds the same common enemies as theirs.`), `Same spawns stopped by an error until the game restarts.
@@ -717,8 +718,11 @@ probe reads two game tables and calls neither the spawn function nor the despawn
 
 With `enemy_extra` at 1, 2 or 3 in the host's coop-settings.txt and same spawns on, each common enemy where both players
 stand within 100 m of each other in one zone gets that many more next to it, 2 to 4 m away, in both games. Bosses, Alpha
-Naytibas, quest and event enemies get none. An extra goes once both players are more than 120 m from it, and every extra
-goes when shared enemies stop on either PC. Extras have not been tested in game yet, and the default is 0.
+Naytibas, Elites (the game ranks M_RoyalGuardFemale and its two variants Elite), quest and event enemies, and the
+enemies a save records get none, and so does an enemy more than 116 m from both players. No more extras come while 16
+common enemies stand within 120 m of either player, counting the extras: shared enemies pair 16 at most. An extra goes
+once both players are more than 120 m from it, and every extra goes when shared enemies stop on either PC. Extras have
+not been tested in game yet, and the default is 0.
 
 - Only the host's value counts, from the next `coop fight on`, and only with `same_spawns=on`: Options > Combat >
   Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](#coop-settingstxt).
@@ -729,8 +733,10 @@ goes when shared enemies stop on either PC. Extras have not been tested in game 
   extras this session. `fight extra kept <key> <why>` means the despawn job could not be sent, or with `guid unread`
   that the game made the extra but its GUID could not be read: shared enemies stop until the game restarts, and that
   extra stays until it leaves the map. On the guest an extra arrives as any same spawns key (`fight spawned <key>`).
-  `fight spawn refused <key> row taken` means her game's tables hold a row at that key, and `fight spawn refused <key>
-  not shared` that none of her common enemies has the extra's charId.
+  `fight spawn refused <key> row taken` means her game's tables hold a row at that key. `fight spawn refused <key> no
+  such enemy` means none of her common enemies has the extra's charId yet: the host's game sends that extra again, and
+  it comes once the enemy it stands next to is in her game. `full` there means her game holds 48 extras, and `not made`
+  that her game made none. None of these three counts in `spawns_differ=`.
 - The `fight stats:` lines in `coop-fight.log` add `extras <n> an enemy, <n> made, <n> despawned`.
 
 ### `coop off`
@@ -805,7 +811,7 @@ same_spawns=off
 # Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
 # of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
-# Elites, quest and event enemies get none.
+# Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no

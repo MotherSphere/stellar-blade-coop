@@ -126,7 +126,7 @@ build/host/pose_codec_test
     her side, nothing done while a census's list of keys is partial, and a Save row logged once, with keys that have no
     row kept out of the 512-row cache and rows past it never logged; the two game calls on fake memory (the spawn with
     the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn and
-    the GUID), none with no spawn manager or no job sender made, no despawn while her enemy holds BattleMode or runs a
+    the GUID), none with no spawn manager, job sender or reg made, no despawn while her enemy holds BattleMode or runs a
     takedown marker (then one once she is done), and no call, line or log line after a latch on an unreadable row, and a
     host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told
     once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field; extra enemies in
@@ -136,8 +136,8 @@ build/host/pose_codec_test
     killed), and on the host alone (no extras for a BossMonster, an NPC, a ZoneEvent or Quest spawn or a charId not
     shared, none before the zone is settled or while she stands 200 m away, an extra 105 m from her ghost kept, a dying
     one left and the other despawned when her shared enemies stop, extras off when the tables hold a row at the first
-    key, `NewActor` refusing logged once a life, an extra whose GUID cannot be read logged as kept); the `extra` word
-    reaching the stats line;
+    key, `NewActor` refusing or the reg not made logged once a life, an extra whose GUID cannot be read logged as kept,
+    a new session's extras under the next n); the `extra` word reaching the stats line;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
@@ -152,8 +152,10 @@ build/host/pose_codec_test
     tables, 1 km, the rates, a created key that is no Monster or another charId, removed again within the rates or kept
     and logged when it cannot be found again, a drop of an enemy she fights refused as busy and asked again, the
     refusals that show the two games differ counted apart), a key refused as too far asked again, a created key that
-    died leaving her rounds, extra enemies (their keys and places, which enemies get them, once a life, the room left,
-    the host's answers and her checks for extra keys, `row taken`, a charId none of her Monsters has), and two fake
+    died leaving her rounds, extra enemies (their keys and places, which enemies get them, none for a Save or keep
+    row, an Elite or an enemy past 116 m, once a life, the room left and stage 1's 16 pairs, n going on after a new
+    session, the host's answers and her checks for extra keys, `row taken`, a charId none of her Monsters has yet or a
+    `full` refusal asked again, `not made` counted as no difference), and two fake
     worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the

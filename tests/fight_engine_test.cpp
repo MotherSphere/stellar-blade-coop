@@ -567,6 +567,7 @@ struct Game {
     mem.put(holder + kTablesAt, tables);
     mem.put(rebased(kSpawnManager), spawn_manager);
     mem.put(rebased(kJobSender), sender);
+    mem.put(rebased(coop::nightop::kGlobals) + kPauseAt, mem.alloc(0x220)); // The reg: no pause tag.
     mem.put<uint32_t>(spawn_manager + kSpawnState, 3);
   }
   void zone(uint64_t alias, uint32_t id) {
@@ -2690,14 +2691,18 @@ int main() {
   // NPC, a ZoneEvent or Quest spawn, or a charId the shared fight does not share. 125 m from our EVE but 105 m from
   // her ghost, an extra stays; 145 m and 125 m, it goes. When her shared enemies stop (her off line, the host's still
   // on), a dying extra is left to its death; the other one goes. When this build's tables hold a row at the extras'
-  // first key, extras stay off for the session (logged once); when NewActor makes nothing, the refusal is logged and
-  // nothing is kept. An extra whose GUID cannot be read latches the side and is logged as kept, since no capture takes
-  // it off.
-  for (const int run : {0, 1, 2, 3}) { // 0: extras; 1: the key range taken; 2: NewActor refuses; 3: a GUID unread.
+  // first key, extras stay off for the session (logged once); when NewActor makes nothing, or the reg's global is null
+  // (NewActor's actor setup would make one through its getter), the refusal is logged and nothing is kept. An extra
+  // whose GUID cannot be read latches the side and is logged as kept, since no capture takes it off. A new session of
+  // the host's gives the same enemy three more under the next n, so no key comes back while an old extra dies.
+  for (const int run : {0, 1, 2, 3, 4}) { // 0: extras; 1: the key range taken; 2: NewActor refuses; 3: a GUID unread;
+                                          // 4: no reg.
     Game H;
     auto eh = engine(true, true);
     eh->same_spawns(true), eh->enemy_extra(3);
     H.spawns(), H.zone(0xA1, 40), H.enter(0xA1);
+    if (run == 4)
+      H.mem.put<uint64_t>(rebased(coop::nightop::kGlobals) + kPauseAt, 0);
     for (uint32_t id = 1; id <= 6; ++id)
       H.spawn_row(id, 2, 0xA1, id == 4 ? 1 : id == 5 ? 2 : 0);
     if (run == 1)
@@ -2732,7 +2737,7 @@ int main() {
       assert(H.extras.empty() && count(H, "extras off", "key range taken") == 1 && count(H, "extra refused") == 0);
       continue;
     }
-    if (run == 2) {
+    if (run == 2 || run == 4) {
       assert(H.extras.empty() && count(H, "extra refused", "not made") == 3 && count(H, "extra made") == 0);
       run_to(8000);
       assert(count(H, "extra refused") == 3); // Once a life.
@@ -2754,6 +2759,12 @@ int main() {
     assert(eh->on() && !eh->snapshot().spawning);
     assert(count(H, "extra despawned", "end") == 1 && (H.despawned == std::vector<uint32_t>{a, c}));
     assert(H.extras.size() == 3 && eh->snapshot().spawns.extras == 3 && eh->snapshot().spawns.extras_gone == 2);
+    eh->set(false, true), eh->set(true, true); // b still dying under key 1's first extra key.
+    H.inbox.push_back(msg("SBF11 on"));
+    run_to(14000);
+    assert(H.extras.size() == 6 && !eh->latched());
+    for (size_t i = 3; i < 6; ++i)
+      assert(H.extras[i].id == (kExtraBase | 2 << 8 | H.extras[i].index));
   }
 
   // ---- Same spawns: a Save row the host meets is logged once a session, also once the row room is full ----
@@ -2930,12 +2941,13 @@ int main() {
   // sender as its global holds it, this logic turn and the actor's GUID (the fakes check both on the logic thread,
   // inside the job). With the spawn manager's global still null her game refuses each spawn and calls nothing (the
   // drops go on: they need the job sender only). With the job sender's global null she calls neither: the spawn of a
-  // row with EventOnSpawning events would make SB's getter allocate one. An unreadable spawn row latches her side: no
+  // row with EventOnSpawning events would make SB's getter allocate one. With the reg's global null she spawns nothing
+  // (the spawn's NewActor would make one) and the drops go on. An unreadable spawn row latches her side: no
   // call after it (the spawn before it went), and her side stops sending. While she fights 903 (BattleMode) and takes
   // 904 down (a takedown marker), neither is despawned (busy, no difference between the games); once she is done,
   // the host's next answer despawns both.
-  for (const int run : {0, 1, 2, 3, 4}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row; 3: no job
-                                          // sender; 4: her enemies busy until 5 s.
+  for (const int run : {0, 1, 2, 3, 4, 5}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row; 3: no job
+                                             // sender; 4: her enemies busy until 5 s; 5: no reg.
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
     eh->same_spawns(true);
@@ -2956,6 +2968,8 @@ int main() {
       G.spawn_rows[5] = 0x7fff00000000; // Plausible, never mapped.
     if (run == 3)
       G.mem.put<uint64_t>(rebased(kJobSender), 0);
+    if (run == 5)
+      G.mem.put<uint64_t>(rebased(coop::nightop::kGlobals) + kPauseAt, 0);
     if (run == 4) {
       G.state(903, kBattleState, 1);
       G.knock(904, 5000039), G.body(904).effects.back().left = 1 << 30;
@@ -2988,7 +3002,7 @@ int main() {
       }
       assert(std::count(G.despawned.begin(), G.despawned.end(), 903u) == 1 &&
              std::count(G.despawned.begin(), G.despawned.end(), 904u) == 1);
-    } else if (run == 1) {
+    } else if (run == 1 || run == 5) {
       assert(G.made.empty() && G.despawned.size() == 2 && !eg->latched());
       assert(count(G, "spawn refused", "no spawn manager") == 2 && eg->snapshot().spawns.differ == 0);
     } else if (run == 3) {

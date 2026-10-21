@@ -76,7 +76,7 @@ same_spawns=off
 # Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
 # of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
-# Elites, quest and event enemies get none.
+# Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no

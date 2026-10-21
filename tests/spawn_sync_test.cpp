@@ -43,6 +43,7 @@ struct World {
   std::vector<SpawnKey> coming; // Created, shows at the next census.
   bool manager = true;          // SB's spawn manager is made.
   std::vector<uint32_t> unshared; // charIds the shared fight does not share here.
+  std::map<uint32_t, const char *> refuse; // Keys (by EventSpawnId) the spawn refuses, and why.
   uint32_t next_guid = 5000;
 
   void row(uint32_t id, uint8_t save, uint32_t zone = kZone, uint8_t spawn_type = 0, bool keep = false) {
@@ -96,6 +97,8 @@ struct World {
   const char *create(const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     if (!manager)
       return "no spawn manager";
+    if (refuse.count(k.spawn))
+      return refuse[k.spawn];
     created.push_back(Call{k, {at[0], at[1], at[2]}, yaw, chr});
     coming.push_back(k);
     if (is_extra(k.spawn)) // NewActor makes the character named, as no row names one.
@@ -564,62 +567,77 @@ int main() {
         assert(std::hypot(at[a][0] - at[b][0], at[a][1] - at[b][1]) > 400);
   }
 
-  // ---- Extra enemies: which of the host's enemies get them (Monsters the fight shares, of SpawnType 0 rows, within
-  // 120 m of either EVE), per of them once a life, while room for all of them is left ----
+  // ---- Extra enemies: which of the host's enemies get them (Monsters the fight shares, of rows same spawns
+  // reconcile, within 116 m of either EVE, never a charId ranked Boss or Elite), per of them once a life, while room
+  // for all of them is left, in the engine's count and in stage 1's 16 pairs ----
   {
     World w;
     w.row(1, kReset), w.row(2, kSave), w.row(3, kReset, kZone, 0, true), w.row(9, kReset, kOther);
     w.row(4, kReset, kZone, 1), w.row(5, kReset, kZone, 2), w.row(6, kReset), w.row(7, kReset), w.row(8, kReset);
-    w.row(12, kReset), w.row(13, kReset), w.row(0xE0000501, kReset);
-    w.add(101, 1), w.add(102, 2), w.add(103, 3), w.add(109, 9); // ResetZone, Save, keep, another zone's: SpawnType 0.
+    w.row(12, kReset), w.row(13, kReset), w.row(14, kReset), w.row(16, kReset), w.row(0xE0000501, kReset);
+    w.chars[16] = 45050001;        // WLA_M_RoyalGuardFemale_01, a Monster ranked Elite.
+    w.add(101, 1), w.add(109, 9);  // ResetZone, and another zone's: rows same spawns reconcile.
+    w.add(102, 2), w.add(103, 3);  // A Save row and a keep row: never (her save may hold them dead).
     w.add(104, 4), w.add(105, 5);  // A ZoneEvent spawn and a Quest one: never.
-    w.add(106, 6, 0, false);       // No Monster the fight shares (an NPC, a boss or an Elite, an auto-denied one).
+    w.add(106, 6, 0, false);       // No Monster the fight shares (an NPC, a boss or an Alpha, an auto-denied one).
     w.add(107, 7).dying = true;    // Dying.
     w.add(108, 8).at[0] = 13000;   // 130 m from our EVE, 125 m from her ghost.
     w.add(110, 10);                // No row.
     w.add(113, 13).yaw = NAN;      // A yaw that cannot be read right.
     w.add(115, 0xE0000501, 1);     // An extra already: never extras of extras.
-    w.add(112, 12).at[0] = 12400;  // 124 m from our EVE but 119 m from her ghost.
+    w.add(112, 12).at[0] = 12000;  // 120 m from our EVE but 115 m from her ghost.
+    w.add(114, 14).at[0] = -11700; // 117 m from our EVE: its third extra would stand past 120 m.
+    w.add(116, 16);                // The Elite.
     const float eve[3] = {0, 0, 0};
     Extras x;
-    const auto step = [&](uint8_t per, size_t room, bool her_ok = true) {
+    // ours: the extras the engine holds. Stage 1 pairs the 11 shared Monsters within 120 m (10 while her ghost is not
+    // known) and those, 16 at most.
+    const auto step = [&](uint8_t per, size_t room, size_t ours, bool her_ok = true) {
       w.census();
-      x.step(per, room, eve, kEve, her_ok, w.mine.data(), w.mine.size(), w);
+      x.step(per, room, ours, eve, kEve, her_ok, w.mine.data(), w.mine.size(), w);
     };
-    step(2, kMaxExtras, false); // Her ghost unknown: 112 waits.
-    step(0, kMaxExtras);        // enemy_extra=0: none.
+    step(2, kMaxExtras, 0, false); // Her ghost unknown: 112 waits.
+    step(0, kMaxExtras, 0);        // enemy_extra=0: none.
     std::vector<std::pair<uint32_t, uint8_t>> keys;
     for (const World::Call &c : w.made)
       keys.emplace_back(c.key.spawn, c.key.index);
     assert(keys == (std::vector<std::pair<uint32_t, uint8_t>>{{0xE0000101, 1}, {0xE0000102, 2}, {0xE0000201, 1},
-                                                             {0xE0000202, 2}, {0xE0000301, 1}, {0xE0000302, 2},
-                                                             {0xE0000401, 1}, {0xE0000402, 2}}));
+                                                             {0xE0000202, 2}}));
     for (const World::Call &c : w.made) { // Next to its enemy, of its charId, at its yaw.
-      const Mine &m = *w.actor(SpawnKey{std::vector<uint32_t>{1, 2, 3, 9}[(c.key.spawn >> 8 & 0xff) - 1], 0});
+      const Mine &m = *w.actor(SpawnKey{(c.key.spawn >> 8 & 0xff) == 1 ? 1u : 9u, 0});
       float want[3];
       extra_at(m.at, m.yaw, c.key.index, want);
       assert(c.chr == m.chr && c.yaw == m.yaw && c.at[0] == want[0] && c.at[1] == want[1] && c.at[2] == want[2]);
     }
-    step(2, kMaxExtras);
-    assert(w.made.size() == 10 && w.made[8].key == extra_key(5, 1) && w.made[9].key == extra_key(5, 2));
-    step(2, kMaxExtras);
-    assert(w.made.size() == 10); // Once a life.
-    w.actor(SpawnKey{1, 0})->guid = 201, w.actor(SpawnKey{2, 0})->guid = 202; // Respawned: new lives.
-    step(3, 5);
-    assert(w.made.size() == 13 && w.made[12].key == extra_key(6, 3)); // Room for one enemy's three only.
-    step(3, kMaxExtras);
-    assert(w.made.size() == 16 && w.made[13].key == extra_key(7, 1) && w.made[15].key == extra_key(7, 3));
+    step(2, kMaxExtras, 4); // 11 + 4 pairs: room for one more, so 112's two wait.
+    assert(w.made.size() == 4);
+    step(2, kMaxExtras, 3); // One extra gone: room for two.
+    assert(w.made.size() == 6 && w.made[4].key == extra_key(3, 1) && w.made[5].key == extra_key(3, 2));
+    step(2, kMaxExtras, 0);
+    assert(w.made.size() == 6); // Once a life.
+    w.actor(SpawnKey{1, 0})->guid = 201, w.actor(SpawnKey{9, 0})->guid = 209; // Respawned: new lives.
+    step(3, 5, 0);
+    assert(w.made.size() == 9 && w.made[8].key == extra_key(4, 3)); // Room for one enemy's three only.
+    step(3, kMaxExtras, 0);
+    assert(w.made.size() == 12 && w.made[9].key == extra_key(5, 1) && w.made[11].key == extra_key(5, 3));
     // Lives gone are forgotten: a session of many respawns never runs out of room for them.
     for (uint32_t life = 0; life < 2 * kMaxSeen; ++life) {
       w.actor(SpawnKey{1, 0})->guid = 1000 + life;
-      step(1, kMaxExtras);
+      step(1, kMaxExtras, 0);
     }
-    assert(w.made.size() == 16 + 2 * kMaxSeen && w.made.back().key == extra_key(7 + 2 * kMaxSeen, 1));
+    assert(w.made.size() == 12 + 2 * kMaxSeen && w.made.back().key == extra_key(5 + 2 * kMaxSeen, 1));
+    // A new session: the same lives get extras again, and n goes on, so no key of the last session comes back.
+    x.clear();
+    step(1, kMaxExtras, 0);
+    assert(w.made.size() == 15 + 2 * kMaxSeen && w.made[12 + 2 * kMaxSeen].key == extra_key(6 + 2 * kMaxSeen, 1));
+    for (const World::Call &c : w.made) // Never the Elite's, nor 114's.
+      assert(c.chr != 45050001 && c.at[0] > -11000);
   }
 
   // ---- Extra enemies through same spawns: the host answers its extras and hers with no row; she makes the key
   // with NewActor's charId, only one of a shared Monster of hers and never one a row of hers holds, and takes a drop
-  // of hers ----
+  // of hers. An extra of a charId none of hers has yet, or refused for room, is asked for again: its own enemy may come
+  // in the same answer. One NewActor did not make stays answered, as no difference between the games ----
   {
     World h;
     h.row(1, kReset);
@@ -645,8 +663,8 @@ int main() {
     sg.heard(msg("SBF11 drop 1 1 3758096897 1"), 1);
     guest_step(sg, gep, g, kGraceMs);
     assert(g.created.size() == 1 && g.created[0].key == extra_key(1, 2) && g.created[0].chr == 901);
-    assert(g.count("spawn refused", "row taken") == 1 && g.count("spawn refused", "not shared") == 1 &&
-           sg.counts.differ == 2);
+    assert(g.count("spawn refused", "row taken") == 1 && g.count("spawn refused", "no such enemy") == 1 &&
+           sg.counts.differ == 1);
     assert(g.despawned == std::vector<uint32_t>{202} && sg.counts.despawned == 1);
     epoch(gep, g, 0xA1, 3, kGraceMs + 250);
     guest_step(sg, gep, g, kGraceMs + 250); // It shows, a Monster of charId 901: checked, kept.
@@ -656,6 +674,20 @@ int main() {
     const std::string round = g.lines();
     assert(has(round, " 3758096642:2") && has(round, " 1:0") && has(round, " 3758097153:1") &&
            !has(round, " 3758096897:1")); // Her extra; the refused key, so the host stops asking; not the despawned.
+    assert(!has(round, " 3758096643:3")); // No charId 777 here: not answered, so the host sends it again.
+    g.chars[2] = 777, g.add(203, 2);      // Her enemy of charId 777, made from the same answer, shows.
+    g.refuse[0xE0000401] = "full", g.refuse[0xE0000402] = "not made";
+    sg.heard(msg("SBF11 spawn 1 1 3758096643 3 777 258 -250 13 270"), 1);
+    sg.heard(msg("SBF11 spawn 1 1 3758097409 1 901 258 -250 13 270"), 1); // 0xE0000401: no room.
+    sg.heard(msg("SBF11 spawn 1 1 3758097410 2 901 258 -250 13 270"), 1); // 0xE0000402: NewActor made nothing.
+    epoch(gep, g, 0xA1, 3, kGraceMs + kHaveAgainMs + 250);
+    guest_step(sg, gep, g, kGraceMs + kHaveAgainMs + 250);
+    assert(g.created.size() == 2 && g.created[1].key == extra_key(1, 3) && g.created[1].chr == 777);
+    assert(g.count("spawn refused", "full") == 1 && g.count("spawn refused", "not made") == 1 && sg.counts.differ == 1);
+    epoch(gep, g, 0xA1, 3, kGraceMs + 2 * kHaveAgainMs);
+    guest_step(sg, gep, g, kGraceMs + 2 * kHaveAgainMs);
+    const std::string next = g.lines();
+    assert(has(next, " 3758096643:3") && !has(next, " 3758097409:1") && has(next, " 3758097410:2"));
   }
 
   // ---- Two worlds through a line, 90-150 ms each way: her set becomes the host's ----

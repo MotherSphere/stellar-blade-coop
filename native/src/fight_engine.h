@@ -709,7 +709,7 @@ public:
       new (&epochs_) Epochs();
       new (&spawn_host_) SpawnHost();
       new (&spawn_guest_) SpawnGuest();
-      new (&extras_) Extras();
+      extras_.clear(); // Its n goes on for the run: no key of an old session's dying extra comes back.
       per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
       zone_told_ = false;
@@ -1767,8 +1767,8 @@ private:
         per_ = extra_;
     }
     if (hosting && per_ && close && zone && epochs_.settled(now) && !latched_)
-      extras_.step(per_, std::min(kMaxExtras - extras(), kMaxCaptures - captures_), eve, flags_.her, her_ok, mine_,
-                   mines_, io);
+      extras_.step(per_, std::min(kMaxExtras - extras(), kMaxCaptures - captures_), extras(), eve, flags_.her, her_ok,
+                   mine_, mines_, io);
     if (hosting)
       spawn_host_.step(host.gen(), zone, epochs_, close, flags_.her, mine_, mines_, now, io);
     else
@@ -1839,17 +1839,24 @@ private:
       zone_alias_[zones_] = alias, zone_ids_[zones_++] = id;
     return id;
   }
+  // The job sender and the reg made, read from their globals: SB's spawn call reaches the job sender's getter
+  // FUN_141a97b90 (for a row with EventOnSpawning events), and NewActor's actor setup (FUN_141ba6d20) both it and the
+  // reg's FUN_141a97cb0. Each getter would make a missing one.
+  template <class Game> bool senders_made(Game &g) {
+    uint64_t sender = 0, reg = 0;
+    return get(g, base_ + (kJobSender - kImageBase), sender) && plausible(sender) &&
+           get(g, base_ + (pilot::kRegistryAt - kImageBase), reg) && plausible(reg);
+  }
   // The guest: SB's spawn of a key where the host's stands, on SB's spawn manager, never made here: not while it, the
-  // tables (which the call reads through their getter) or the job sender are not made (for a row with EventOnSpawning
-  // events, the spawn sends them through FUN_141a97b90, the job sender's getter). An extra's key, of charId chr, goes
-  // through NewActor (make_extra). Null when made, else why not.
+  // tables (which the call reads through their getter), the job sender or the reg are not made (senders_made). An
+  // extra's key, of charId chr, goes through NewActor (make_extra). Null when made, else why not.
   template <class Game>
   const char *create(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     if (is_extra(k.spawn))
       return make_extra(g, logic, k, chr, at, yaw);
-    uint64_t manager = 0, sender = 0;
+    uint64_t manager = 0;
     if (!get(g, base_ + (kSpawnManager - kImageBase), manager) || !plausible(manager) || !tables_at(g) ||
-        !get(g, base_ + (kJobSender - kImageBase), sender) || !plausible(sender) || latched_)
+        !senders_made(g) || latched_)
       return "no spawn manager";
     const float rot[3] = {0, yaw, 0};
     g.create(manager, k.spawn, k.index, at, rot);
@@ -1857,10 +1864,10 @@ private:
   }
   // ---- Extra enemies (stage 4b, PHASE11-STAGE3 9.3) ----
   // SB's NewActor of charId chr with an extra's key there at yaw, the host's or hers: captured (kExtra), so the
-  // session's end despawns it, and logged. Null when made, else why not: no room (kMaxExtras, or the capture list), the
-  // tables or the world's actor manager not made (NewActor reads both through getters that would make them), or
-  // NewActor made nothing. One whose GUID cannot be read is never captured, so it stays until it leaves the map: logged
-  // as kept.
+  // session's end despawns it, and logged. Null when made, else why not: no room (kMaxExtras, or the capture list), a
+  // singleton NewActor reads through a getter that would make it not made (the table holder and its tables, the
+  // world's actor manager, the job sender, the reg: senders_made), or NewActor made nothing. One whose GUID cannot be
+  // read is never captured, so it stays until it leaves the map: logged as kept.
   template <class Game>
   const char *make_extra(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     uint64_t net = 0, lg = 0, world = 0, manager = 0;
@@ -1868,7 +1875,7 @@ private:
     if (extras() == kMaxExtras || captures_ == kMaxCaptures)
       return "full";
     if (!tables_at(g) || !globals(g, net, lg, world) || !plausible(world) || !get(g, world + kManager, manager) ||
-        !plausible(manager) || latched_)
+        !plausible(manager) || !senders_made(g) || latched_)
       return "not made";
     const float rot[3] = {0, yaw, 0};
     const uint64_t la = g.make(logic, chr, at, rot, k.spawn, k.index);
