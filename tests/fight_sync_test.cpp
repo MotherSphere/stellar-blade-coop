@@ -721,9 +721,9 @@ int main() {
   // in life state 1 holding Groggy or a takedown marker (Seen::takedown), and once an enemy in 2 s, refused ones
   // included; otherwise it is refused (counted) or stale, never a bad line. While her takedown runs, her lethal claim
   // waits with our copy at 1 HP (our hp lines say 0), and so does our own dead when our copy dies meanwhile, her claims
-  // on it then stale. Her exec 0 lets a held kill go in that step, a held dead at the next. Without it both go 6 s after
-  // her exec 1 (held-expired), and a takedown with no kill times out. Her off forgets them all. An exec line is never
-  // the host's (a bad line on the guest's side) and never recorded.
+  // on it then stale. Her exec 0 lets a held kill go in that step, a held dead at the next. Without it both go 6 s
+  // after her exec 1 (held-expired), and a takedown with no kill times out. Her off forgets them all. An exec line is
+  // never the host's (a bad line on the guest's side) and never recorded.
   {
     World w;
     for (uint32_t g = 101; g <= 106; ++g)

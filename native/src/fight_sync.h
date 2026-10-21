@@ -112,7 +112,9 @@ enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kTarget, 
 // ---- Channel 2 ----
 
 // world..cc: the host's lines a recording keeps; hit, own-no and exec: the guest's; own: the host's, never recorded.
-enum class Type : uint8_t { invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec };
+enum class Type : uint8_t {
+  invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec
+};
 // One enemy in an hp message.
 struct Values {
   uint32_t guid = 0;

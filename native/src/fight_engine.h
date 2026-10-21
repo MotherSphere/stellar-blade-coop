@@ -218,9 +218,9 @@ struct StreamFlags {
   float her[3] = {};
   bool her_ok = false; // her holds where her ghost was drawn this frame.
 };
-// The rows the game thread captures (pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns and
-// does not draw, with their SBE flags (kRowExec as pilot.h's kExec) and kRowTaken (the Taker's). Never a drawn copy, so a replayed Show is never sent
-// back (R35).
+// The rows the game thread captures (pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns and does
+// not draw, with their SBE flags (kRowExec as pilot.h's kExec) and kRowTaken (the Taker's). Never a drawn copy, so a
+// replayed Show is never sent back (R35).
 inline size_t owned(const PilotTable &t, pilot::Owned *out) {
   size_t n = 0;
   for (uint8_t r = 0; r < t.count && r < kMaxPairs; ++r) {
@@ -898,9 +898,10 @@ private:
   }
   // What a fighting actor (logic actor la) holds, into a.states, a.pilot and its Seen: the states of kStatesRead
   // (NoDamageNoHit before NoDamage, as ApplyStat blocks on either; stunned: Down, Groggy or Airborne), the kCcEffects
-  // and kMarkers it runs (Seen::marked, Seen::takedown), and whether an AI task is in flight (kAiTask, unread: none). A map or a list that fails its
-  // checks holds nothing, counted, never latched: it only feeds the bypass counts, the crowd-control mirror, which then
-  // does nothing, and the pair table, where it is not kReady. SB changes no state while an actor is dying.
+  // and kMarkers it runs (Seen::marked, Seen::takedown), and whether an AI task is in flight (kAiTask, unread: none). A
+  // map or a list that fails its checks holds nothing, counted, never latched: it only feeds the bypass counts, the
+  // crowd-control mirror, which then does nothing, and the pair table, where it is not kReady. SB changes no state
+  // while an actor is dying.
   template <class Game> void marks(Game &g, uint64_t la, Actor &a) {
     a.states = 0, a.seen.cc = 0;
     bool read = false, marker = false;
@@ -1476,9 +1477,10 @@ private:
   // Our freeze on one drawn copy (seen this pass), started while it is kReady with no release flag, no death and no
   // crowd control of ours started this turn: effect init refuses some rows under NoDamageNoHit, and a crowd control or
   // a takedown is SB's to finish. While a takedown runs on the owner's copy (her exec 1, on the host's side, or the
-  // owner's stream's kExec), the release flag does not count: ours then plays the takedown from the stream (3c). Captured before the calls, so every way out takes it off. A census that finds state
-  // 39 gone, a turn after our last freeze at least, freezes it again, kRefreezes times in any kRefreezeMs at most, then
-  // loses it: dispelled, not drawn. While the owner's stream says BattleMode, BattleMode_5s on it each kBattleMs.
+  // owner's stream's kExec), the release flag does not count: ours then plays the takedown from the stream (3c).
+  // Captured before the calls, so every way out takes it off. A census that finds state 39 gone, a turn after our last
+  // freeze at least, freezes it again, kRefreezes times in any kRefreezeMs at most, then loses it: dispelled, not
+  // drawn. While the owner's stream says BattleMode, BattleMode_5s on it each kBattleMs.
   template <class Game>
   void hold_freeze(Game &g, uint64_t logic, PilotPair &p, const Seen &s, bool census, uint64_t now) {
     const uint32_t *execs = flags_.exec, *execs_end = execs + std::min<size_t>(flags_.exec_count, kMaxPairs);
@@ -1667,8 +1669,8 @@ private:
         no(g, o.hguid, o.oe, !table_.on ? kOff : unpaired ? kUnpaired : kTarget);
     });
   }
-  // The guest: her takedowns told the host (stage 3c, pilot.h's Execs): exec 1 when a marker shows on her copy of a pair
-  // while same-place enemies run here with aggro=game, exec 0 once the copy holds none or its pair ends. Each logged.
+  // The guest: her takedowns told the host (stage 3c, pilot.h's Execs): exec 1 when a marker shows on her copy of a
+  // pair while same-place enemies run here with aggro=game, exec 0 once the copy holds none or its pair ends. Logged.
   template <class Game>
   void takedowns(Game &g, const uint32_t *local, const uint32_t *hguids, size_t count, size_t n, uint64_t now) {
     const bool on = table_.on && !guest.host_only();

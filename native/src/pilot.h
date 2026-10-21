@@ -1,8 +1,8 @@
 // Phase 11 stages 3a to 3c, the same enemy in the same place, as pure logic: the owner of a pair (the side whose AI
-// runs it: the host's in 3a; in 3b the host hands it over by its rule, Owners and rule(), each change at the next
-// owner epoch oe, and in 3c a takedown hands it to its executor, Execs) streams each enemy's root at 30 Hz and its Shows; the drawn side writes its copy's root every frame
-// from samples drawn on the ghost's own playback clock (pose_stream.h), so an enemy and the owner's ghost are drawn at
-// the same instant, and replays the Shows on the copy. No Windows types
+// runs it: the host's in 3a; in 3b the host hands it over by its rule, Owners and rule(), each change at the next owner
+// epoch oe, and in 3c a takedown hands it to its executor, Execs) streams each enemy's root at 30 Hz and its Shows; the
+// drawn side writes its copy's root every frame from samples drawn on the ghost's own playback clock (pose_stream.h),
+// so an enemy and the owner's ghost are drawn at the same instant, and replays the Shows on the copy. No Windows types
 // and no engine call of its own: the game is read, written and called through a Game (Capturer and the FNamePool read
 // it, Driver writes the drawn copies and replays their Shows, Taker points a copy this side takes over at its EVE), and
 // tests/pilot_test.cpp drives every piece here on the build machine with fake memory. Nothing here allocates but
@@ -227,7 +227,8 @@ inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool forc
                     : o.hit && now - o.hit_ms < kLastHitMs     ? o.hitter
                     : o.nearer && now - o.nearer_ms >= kNearMs ? other(o.owner)
                                                                : o.owner;
-  if (want == o.owner || (want == kGuest && now < o.no_until) || (!force && !exec && (f.busy || now - o.since < kOwnMs)))
+  const bool guarded = !force && !exec && (f.busy || now - o.since < kOwnMs);
+  if (want == o.owner || (want == kGuest && now < o.no_until) || guarded)
     return false;
   o.owner = want, ++o.oe, o.since = now, o.nearer = false, o.taken = true;
   return true;
