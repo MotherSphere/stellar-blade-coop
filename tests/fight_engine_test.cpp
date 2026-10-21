@@ -157,6 +157,8 @@ struct Game {
   std::vector<Message> sent;
   std::vector<Event> events;
   std::vector<Actor> probes;
+  const Engine *watch = nullptr; // Once set: lines and events this game takes after that engine latched.
+  size_t after_latch = 0;
   Mail *mail = nullptr;
   PilotTable table;  // The pair table the job published last, without a Mail.
   StreamFlags flags; // What the game thread says of the owner's stream, without a Mail.
@@ -513,8 +515,12 @@ struct Game {
     inbox.pop_front();
     return true;
   }
-  void send(const Message &m) { mail ? mail->send(m) : sent.push_back(m); }
+  void send(const Message &m) {
+    after_latch += watch && watch->latched();
+    mail ? mail->send(m) : sent.push_back(m);
+  }
   void event(const Event &e) {
+    after_latch += watch && watch->latched();
     events.push_back(e);
     if (mail)
       mail->event(e);
@@ -2766,14 +2772,12 @@ int main() {
     to_host.queue.emplace_back(120, "SBF11 on");
     to_guest.queue.emplace_back(120, "SBF11 on");
     std::mt19937 rng(14);
-    size_t sent_at_latch = 0;
+    G.watch = eg.get();
     for (uint64_t t = 0; t <= 8000; t += 16) {
       to_host.deliver(t, H);
       to_guest.deliver(t, G);
       frame(H, *eh, t);
       frame(G, *eg, t);
-      if (eg->latched() && !sent_at_latch)
-        sent_at_latch = G.sent.size() + 1;
       to_guest.send(H, t, rng);
       to_host.send(G, t, rng);
     }
@@ -2794,7 +2798,8 @@ int main() {
     } else { // Key 1's spawn comes before key 5's row is read; nothing after it, the two drops neither.
       assert(eg->latched() && std::string(eg->why()) == "unreadable" && G.made.size() == 1 && G.made[0].id == 1);
       assert(G.despawned.empty());
-      assert(sent_at_latch && G.sent.size() + 1 == sent_at_latch); // Nothing sent after it.
+      // The rest of that census's step logs and sends nothing: key 5 is no "no row", the drops no "gone".
+      assert(G.after_latch == 0 && count(G, "spawn refused") == 0 && count(G, "drop refused") == 0);
     }
   }
 

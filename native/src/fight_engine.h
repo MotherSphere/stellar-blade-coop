@@ -882,7 +882,10 @@ private:
     }
     void event(const Event &ev) { g.event(ev); }
   };
-  template <class Game> struct SpawnIo { // spawn_sync.h's Io.
+  // spawn_sync.h's Io. A latch inside a step (an unreadable row) lets the step run on through its keys, so from then on
+  // its lines and log lines go nowhere: a row it could not read would be logged as no row, a drop it can no longer
+  // call as gone. The step's counts of that turn may still take those refusals.
+  template <class Game> struct SpawnIo {
     Engine &e;
     Game &g;
     uint64_t logic;
@@ -890,8 +893,14 @@ private:
     bool shares(uint32_t chr) { return e.shares(chr); }
     bool create(const SpawnKey &k, const float *at, float yaw) { return e.create(g, k, at, yaw); }
     bool despawn(uint32_t guid, const SpawnKey &k) { return e.despawn(g, logic, guid, k); }
-    void send(const Message &m) { g.send(m); }
-    void event(const Event &ev) { g.event(ev); }
+    void send(const Message &m) {
+      if (!e.latched_)
+        g.send(m);
+    }
+    void event(const Event &ev) {
+      if (!e.latched_)
+        g.event(ev);
+    }
   };
   struct Found {
     uint32_t guid = 0;
