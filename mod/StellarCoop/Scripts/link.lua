@@ -118,6 +118,8 @@ partner_bar=on
 partner_arrow=on
 partner_card=on
 card_details=on
+# status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
+status_overlay=off
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
@@ -128,7 +130,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny=''}
+    status_overlay='off',who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny=''}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true} -- On or off.
@@ -136,7 +138,8 @@ local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'friends','code','private'},
-    auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'}}
+    auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
+    status_overlay={'off','compact','detailed'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -145,10 +148,10 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
 -- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro, photo_pause) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of
--- percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole
--- percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes (the native part's
--- request limit; it names the entries that are no shared quest).
+-- auto_coop_save, aggro, photo_pause, status_overlay) one of its words; photo_freeze_max a whole number of seconds;
+-- ui_scale one of percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in
+-- whole percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes (the native
+-- part's request limit; it names the entries that are no shared quest).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}

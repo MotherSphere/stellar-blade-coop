@@ -1937,7 +1937,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^COMBAT||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^Shared enemies %(experimental%)|') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)
@@ -2156,12 +2156,13 @@ link_mode,link_code,link_refused,link_pending,link_stranger,link_lobby='none',ni
 settings_text,in_world,kit_ready='',false,false
 
 -- The partner HUD (partner.lua's view for real on the fake kit; partner_test tests it): added after the feed and
--- before the menu, which draws over it; each 250 ms in a world its card follows the session and her vitals, and the
--- ghost hides its name tag while the marker carries her name (partner_bar on, the root up); each frame only its marker
--- and arrow, projected through the kit each frame and never without her anchor; nothing after coop off.
+-- before the menu, which draws over it, the status strip after the card and before her marker and arrow, which draw
+-- over it; each 250 ms in a world its card follows the session and her vitals, and the ghost hides its name tag while
+-- the marker carries her name (partner_bar on, the root up); each frame only its marker and arrow, projected through
+-- the kit each frame and never without her anchor; nothing after coop off.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
-assert(table.concat(kit_order,' ')=='chat feed card marker arrow code menu ask badge saves',
+assert(table.concat(kit_order,' ')=='chat feed card status marker arrow code menu ask badge saves',
     table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,

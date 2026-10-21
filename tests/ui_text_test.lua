@@ -5,11 +5,12 @@
 -- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
 -- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
 -- saves' question, with its invite line, within its 5 rows (Chat.wrap), and Night Operation's card and result panel
--- within their columns.
+-- within their columns, and the status strip's second row (partner.lua) with every fact within its columns.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
 local Chat=require('chat')
+local P=require('partner')
 local function specs(s)
     local list={}
     for p in s:gmatch('%%.') do if p~='%%' then list[#list+1]=p end end -- %% takes no argument: anywhere.
@@ -132,5 +133,13 @@ for name in pairs(R.TEXT) do
     for _,text in ipairs({n.died,n.time_up}) do fits(name..'.night: '..text,text,54) end
     for k,text in pairs(n.why) do fits(name..'.night.why.'..k,text,54) end
     for _,k in ipairs({'waves','kills','points','time'}) do fits(name..'.night.'..k,n[k],40) end
+    -- The status strip above the partner card: its second row with every fact at two-digit counts and 60 poses a
+    -- second, uncut, within its columns.
+    local o=w.overlay
+    local all=table.concat({o.enemies:format(16),o.place:format(16),o.quests,o.rate:format(60)},' · ')
+    local second=select(3,P.status_rows(w,{mode='detailed',summary='',fight='fight=on mode=on role=host enemies=16',
+        pilot='pilot=on piloted=16 owned=8 drawn=8',quests='quests=on mode=on role=host',rate=60}))
+    assert(second==all,name..'.overlay: cut to '..tostring(second))
+    fits(name..'.overlay',all,P.COLS)
 end
 print('ui_text_test ok')

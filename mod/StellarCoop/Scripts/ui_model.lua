@@ -71,7 +71,7 @@ M.OPTIONS={
     {key='kill_credit',values={'together','fought'},default='together'},
     {head='display'},
     later(toggle('notices','on')),later(toggle('chat_feed','on')),
-    later({key='status_overlay',values={'off','compact','detailed'},default='off'}),
+    {key='status_overlay',values={'off','compact','detailed'},default='off'}, -- At once: the HUD reads it each 250 ms.
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
     {head='chat'},

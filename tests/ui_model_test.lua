@@ -174,7 +174,7 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo p
     ..'effects send_rate head:session who_can_join head:saves auto_coop_save shared_quests head:combat shared_enemies '
     ..'same_place '
     ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
-    ..'ui_scale ui_sounds ui_language head:chat chat',
+    ..'status_overlay ui_scale ui_sounds ui_language head:chat chat',
     ids(menu,NONE))
 -- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at
 -- once (main.lua asks coop fight on or off).
@@ -211,6 +211,14 @@ assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coo
 on('shared_quests')
 assert(values.shared_quests=='off' and select(3,menu.change(NONE,values,1))=='on' and not menu.current(NONE).reload)
 assert(M.read('shared_quests=ON\n').shared_quests=='on' and M.read('shared_quests=x\n').shared_quests=='off')
+-- The status strip above the partner card: off (the default), compact or detailed, wrapping; in effect at once (the
+-- HUD reads it at each slow).
+on('status_overlay')
+assert(values.status_overlay=='off' and select(3,menu.change(NONE,values,1))=='compact'
+    and select(3,menu.change(NONE,values,-1))=='detailed' and not menu.current(NONE).reload)
+assert(select(3,menu.change(NONE,{status_overlay='compact'},1))=='detailed')
+assert(M.read('status_overlay=Detailed\n').status_overlay=='detailed'
+    and M.read('status_overlay=x\n').status_overlay=='off')
 on('send_rate')
 assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='55','60 by default, the top')
 -- 5 a step: an older file's 20 is 8 presses from 60. A value set in the file between steps moves by 5 too.
