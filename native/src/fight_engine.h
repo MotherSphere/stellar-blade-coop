@@ -2,7 +2,8 @@
 // logic thread runs a job of ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's
 // enemies and turns their writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call; with
 // same_place on, it freezes the copies this side draws through the same effect call and hands the game thread the
-// pair table (pilot.h's sides); then it pushes itself for the next turn. The game thread arms the job after a world
+// pair table (pilot.h's sides), and in stage 3b the host hands enemies to her and back by its rule (own and own-no
+// lines, pilot.h's Owners); then it pushes itself for the next turn. The game thread arms the job after a world
 // load and again when it stopped running. Every access goes through a Game (the glue on Windows, under its SEH
 // guard; fake memory and a fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed
 // arrays only: Simulate never allocates (ApplyStat and the effect call do internally, as for SB's own logic-thread
@@ -165,17 +166,20 @@ constexpr uint32_t kRefreezes = 5;
 constexpr uint64_t kBattleMs = 2000;
 // A pair table row's bits: pilot.h's SBE flags (BattleMode held; dying: HP 0, a pending death, Dead or DelayDeath),
 // then frozen (our freeze on it and state 39 held), release (Down, Groggy, Airborne or a takedown marker: SB moves the
-// copy, and pilot.h's Copy lets it) and drawn (this side draws it: same_place on, the other side owns the pair, its
-// freeze not lost).
+// copy, and pilot.h's Copy lets it), drawn (this side draws it: same_place on, the other side owns the pair, its
+// freeze not lost) and skill (an AI task in flight on it, kAiTask: pilot.h's kSkill when this side owns it).
 constexpr uint8_t kRowBattle = pilot::kBattle, kRowDying = pilot::kDying, kRowFrozen = 4, kRowRelease = 8,
-                  kRowDrawn = 16;
+                  kRowDrawn = 16, kRowSkill = 32;
+// FSBActor +0x744: the AI task in flight (RunAITask's; 0 none), a skill running [L]: stage 3b hands no enemy over
+// meanwhile. FSBActor +0x4cc: its location, which its actor tick copies from the capsule (GetLocation's).
+constexpr size_t kAiTask = 0x744, kLocation = 0x4cc;
 constexpr uint8_t kReady = 0x80; // A pass's only, never in a row: life state 1, no pending death, no NoDamageNoHit.
 
 // One pair as the logic thread saw it at its last turn, for the game thread (pilot.h).
 struct PilotPair {
   uint32_t hguid = 0, local = 0;    // The host's ActorGUID and our copy's (the same on the host).
-  pilot::Side owner = pilot::kHost; // Whose AI runs it: the host's in 3a.
-  uint8_t oe = 0;                   // The owner epoch (3b's hand-overs): 0 in 3a.
+  pilot::Side owner = pilot::kHost; // Whose AI runs it (stage 3b's Owners: the host's until it hands it over).
+  uint8_t oe = 0;                   // The owner epoch, one up at each hand-over.
   uint8_t bits = 0;                 // kRow*.
 };
 // The pair table the job hands the game thread after each turn (Mail::publish): the side's pairs, at most kMaxPairs.
@@ -190,14 +194,19 @@ struct PilotTable {
   uint8_t count = 0;
   PilotPair pairs[kMaxPairs];
 };
-// What the game thread says back, by the host's GUID: the drawn pairs whose owner's stream says BattleMode, and those
-// whose copy it refused to drive (its movement component is not the game's), which the job lets go as if their freeze
-// were lost.
+// What the game thread says back, by the host's GUID: the drawn pairs whose owner's stream says BattleMode, those whose
+// copy it refused to drive (its movement component is not the game's), which the job lets go as if their freeze were
+// lost, and those whose owner's stream says a skill runs (kSkill); and on the host's side where her EVE stands (her
+// ghost, in our world), for stage 3b's nearer rule.
 struct StreamFlags {
   uint32_t battle[kMaxPairs] = {};
   uint8_t count = 0;
   uint32_t refused[kMaxPairs] = {};
   uint8_t refused_count = 0;
+  uint32_t skill[kMaxPairs] = {};
+  uint8_t skill_count = 0;
+  float her[3] = {};
+  bool her_ok = false; // her holds where her ghost was drawn this frame.
 };
 // The rows the game thread captures (pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns and
 // does not draw, with their SBE flags. Never a drawn copy, so a replayed Show is never sent back (R35).
@@ -206,7 +215,8 @@ inline size_t owned(const PilotTable &t, pilot::Owned *out) {
   for (uint8_t r = 0; r < t.count && r < kMaxPairs; ++r) {
     const PilotPair &p = t.pairs[r];
     if (p.owner == t.side && !(p.bits & kRowDrawn) && p.local)
-      out[n++] = pilot::Owned{p.hguid, p.local, p.oe, uint8_t(p.bits & (kRowBattle | kRowDying))};
+      out[n++] = pilot::Owned{p.hguid, p.local, p.oe,
+                              uint8_t((p.bits & (kRowBattle | kRowDying)) | (p.bits & kRowSkill ? pilot::kSkill : 0))};
   }
   return n;
 }
@@ -308,6 +318,9 @@ struct JobCounts {
   // The logic thread's, same-place enemies: freezes, freezes again (state 39 gone), freezes lost (kRefreezes used
   // up), our freezes taken off (BlockAI_Dispel), copies whose BlockAI_Dispel the game refused, BattleMode_5s started.
   uint64_t frozen = 0, refrozen = 0, freeze_lost = 0, thawed = 0, thaw_refused = 0, battles = 0;
+  // Stage 3b: enemies that changed hands (the host's own lines; her own G taken), and own-no (the host's taken; hers
+  // sent).
+  uint64_t owns = 0, own_nos = 0;
 };
 
 // What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's
@@ -407,6 +420,39 @@ template <class Read> bool vitals(uint64_t base, Read &&read, Vitals &out) {
   return true;
 }
 
+// A FIFO of fixed size: no allocation.
+template <class T, size_t N> class Ring {
+public:
+  bool push(const T &t) {
+    if (count_ == N)
+      return false;
+    items_[(head_ + count_++) % N] = t;
+    return true;
+  }
+  bool pop(T &t) {
+    if (!count_)
+      return false;
+    t = items_[head_];
+    head_ = (head_ + 1) % N;
+    --count_;
+    return true;
+  }
+  // Into to while it has room, oldest first.
+  void move_to(Ring &to) {
+    for (T t; count_ && to.count_ < N;) {
+      pop(t);
+      to.push(t);
+    }
+  }
+  void clear() { head_ = count_ = 0; }
+
+private:
+  T items_[N] = {};
+  size_t head_ = 0, count_ = 0;
+};
+
+constexpr size_t kMail = 128; // Lines or events each way between two hand-overs; more are lost (counted).
+
 class Engine {
 public:
   JobCounts counts;
@@ -437,6 +483,9 @@ public:
   // copies she draws (those the host owns) and her table tells the game thread to draw them. Off takes every freeze
   // off at the next turn.
   void same_place(bool on) { same_place_ = on; }
+  // Any thread: our aggro (stage 3b, the host's for both games), true for aggro=host: every enemy stays the host's, as
+  // in 3a. The guest hears it like same_place.
+  void aggro(bool host_only) { aggro_host_ = host_only; }
   // Any thread: coop fight pilot off (true), until the next on, probe, record or replay (false): same-place enemies
   // off on this side whatever the host's same_place says, and the host tells her so.
   void pilot_off(bool off) { pilot_off_ = off; }
@@ -587,6 +636,8 @@ public:
       eve_ = 0;
       lost_count_ = 0;
       flags_ = StreamFlags();
+      owners_.clear();
+      own_in_.clear();
       probe_fence_.clear();
       next_probe_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
@@ -609,8 +660,15 @@ public:
     const bool hosting = hosting_seen_;
     Io<Game> io{*this, g, logic};
     Message m;
-    while (g.receive(m))
-      hosting ? host.receive(m, now_ms, io) : guest.receive(m, io);
+    while (g.receive(m)) {
+      saw(m);
+      if (hosting && m.type == Type::own_no)
+        refused(m, now_ms, io);
+      else if (!hosting && m.type == Type::own)
+        own_in_.push(m); // Answered after the pass (answer()), which reads the copy. kMail: never full.
+      else
+        hosting ? host.receive(m, now_ms, io) : guest.receive(m, io);
+    }
     bool census = census_turn_ == kNever || turn < census_turn_ || turn - census_turn_ >= kCensusTurns;
     if (census)
       census_turn_ = turn;
@@ -621,6 +679,7 @@ public:
       slow_motion(g, n);
     if (!latched_ && hosting) {
       host.set_place(same_place_ && !pilot_off_ && !pilot_stopped_);
+      host.set_aggro(aggro_host_);
       host.step(seen_, n, census, turn, now_ms, io);
       hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance));
     } else if (!latched_) {
@@ -713,7 +772,7 @@ public:
     s.job.unread = c.unread, s.job.unscaled = c.unscaled;
     s.job.slow_turns = c.slow_turns, s.job.slow_starts = c.slow_starts, s.job.slow_min = c.slow_min;
     s.job.frozen = c.frozen, s.job.refrozen = c.refrozen, s.job.freeze_lost = c.freeze_lost, s.job.thawed = c.thawed;
-    s.job.thaw_refused = c.thaw_refused, s.job.battles = c.battles;
+    s.job.thaw_refused = c.thaw_refused, s.job.battles = c.battles, s.job.owns = c.owns, s.job.own_nos = c.own_nos;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
@@ -738,7 +797,10 @@ private:
     uint64_t logic;
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
     bool effect(uint32_t guid, int32_t id) { return e.cast(g, logic, guid, id); }
-    void send(const Message &m) { g.send(m); }
+    void send(const Message &m) {
+      e.saw(m);
+      g.send(m);
+    }
     void event(const Event &ev) { g.event(ev); }
   };
   struct Found {
@@ -804,9 +866,9 @@ private:
   }
   // What a fighting actor (logic actor la) holds, into a.states, a.pilot and its Seen: the states of kStatesRead
   // (NoDamageNoHit before NoDamage, as ApplyStat blocks on either; stunned: Down, Groggy or Airborne), the kCcEffects
-  // and kMarkers it runs. A map or a list that fails its checks holds nothing, counted, never latched: it only feeds
-  // the bypass counts, the crowd-control mirror, which then does nothing, and the pair table, where it is not kReady.
-  // SB changes no state while an actor is dying.
+  // and kMarkers it runs, and whether an AI task is in flight (kAiTask, unread: none). A map or a list that fails its
+  // checks holds nothing, counted, never latched: it only feeds the bypass counts, the crowd-control mirror, which then
+  // does nothing, and the pair table, where it is not kReady. SB changes no state while an actor is dying.
   template <class Game> void marks(Game &g, uint64_t la, Actor &a) {
     a.states = 0, a.seen.cc = 0;
     bool read = false, marker = false;
@@ -822,8 +884,11 @@ private:
     a.seen.nodamage = held(kNoDamageNoHit) ? kNoDamageNoHit : held(kNoDamage) ? kNoDamage : 0;
     a.seen.stunned = a.states & kStunned;
     a.seen.immortal = held(27);
+    int32_t task = 0;
+    const bool skill = fighting(a) && g.read(a.fsb + kAiTask, &task, sizeof task) && task;
     a.pilot = uint8_t((held(kBattleState) ? kRowBattle : 0) | (held(kDelayDeath) ? kRowDying : 0) |
                       (held(kBlockAiState) ? kRowFrozen : 0) | (a.seen.stunned || marker ? kRowRelease : 0) |
+                      (skill ? kRowSkill : 0) |
                       (read && a.life == 1 && !a.pending && !held(kNoDamageNoHit) ? kReady : 0));
   }
   // The kCcEffects running on la, as Seen::cc's bits, and whether a kMarkers one does; false, with none, when its list
@@ -1283,13 +1348,19 @@ private:
       lift(g, logic, 0);
   }
 
-  // ---- Same-place enemies (PHASE11-STAGE3 3.5, 3.7) ----
-  // After the side's step (n: this pass's enemies): the pair table from the side's pairs and this pass's marks, then
-  // our freeze held on each copy this side draws, and taken off every other. In 3a the host owns every pair.
+  // ---- Same-place enemies (PHASE11-STAGE3 3.5, 3.7, 3.8) ----
+  // After the side's step (n: this pass's enemies): stage 3b's owners (the host's rule, or her answers to its own
+  // lines), then the pair table from the side's pairs, their owners and this pass's marks, then our freeze held on each
+  // copy this side draws (the other side owns it), and taken off every other. A pair that changes hands is frozen or
+  // thawed here in the same turn: the host freezes its copy as it tells her own G and thaws it as it tells her own H;
+  // she thaws hers as she takes one and freezes it as the host takes it back.
   template <class Game> void pilot_turn(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
     const bool hosting = hosting_seen_;
+    const pilot::Side side = hosting ? pilot::kHost : pilot::kGuest;
     uint32_t local[kMaxTracked], hguid[kMaxTracked], want[kMaxPairs], lost[kMaxPairs];
     const size_t count = hosting ? host.tracked(local) : guest.tracked(local, hguid);
+    if (hosting)
+      std::copy(local, local + count, hguid);
     const Seen *seen[kMaxPairs];
     size_t drawn = 0, kept = 0;
     const uint32_t *refused = flags_.refused,
@@ -1306,14 +1377,19 @@ private:
                  : !hosting && !guest.place() ? "host"
                                               : nullptr;
     table_.on = !pilot_why_;
-    table_.side = hosting ? pilot::kHost : pilot::kGuest;
+    if (hosting)
+      hand_over(g, hguid, count, n, now);
+    else
+      answer(g, local, hguid, count, n, now);
+    table_.side = side;
     table_.gen = hosting ? host.gen() : guest.gen();
     table_.count = 0;
     for (size_t i = 0; i < count && table_.count < kMaxPairs; ++i) {
       const uint8_t r = table_.count++;
       PilotPair &p = table_.pairs[r] = PilotPair();
       p.local = local[i];
-      p.hguid = hosting ? local[i] : hguid[i];
+      p.hguid = hguid[i];
+      p.owner = owners_.owner(p.hguid), p.oe = owners_.oe(p.hguid);
       const Seen *s = seen[r] = fight::find(seen_, n, p.local);
       p.bits = s ? uint8_t(marks_[s - seen_] | (dying(*s) ? kRowDying : 0)) : 0;
       bool gone = std::find(lost_, lost_ + lost_count_, p.local) != lost_ + lost_count_;
@@ -1323,7 +1399,7 @@ private:
       }
       if (gone)
         lost[kept++] = p.local; // Lost for as long as its pair lasts.
-      else if (s && table_.on && p.owner != (hosting ? pilot::kHost : pilot::kGuest))
+      else if (s && table_.on && p.owner != side)
         p.bits |= kRowDrawn, want[drawn++] = p.local;
     }
     std::copy(lost, lost + kept, lost_);
@@ -1397,6 +1473,128 @@ private:
     const uint64_t la = g.find(logic, guid);
     return la && live(g, la, guid, a) && a.life == 1 && !a.pending && !latched_ ? g.effect(logic, la, la, id) : 0;
   }
+  // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
+  // Where both sides count epochs again (pilot.h's Owners), seen in the lines as they go out (Io::send) and come in,
+  // so each side sees them at the same point of the host's stream: a world line, an on or off (her list dropped,
+  // a new session of hers or ours) start over; place 0 (same place off) gives every pair back to the host, epochs
+  // kept; an enemy gone (down, dead) takes its entry. On her side her queued own lines go too: the host started over.
+  void saw(const Message &m) {
+    switch (m.type) {
+    case Type::on:
+    case Type::off:
+    case Type::world: return owners_.clear(), own_in_.clear();
+    case Type::place:
+      if (!m.place)
+        owners_.home(), own_in_.clear();
+      return;
+    case Type::down:
+    case Type::dead: return owners_.drop(m.guid);
+    default: return;
+    }
+  }
+  // The host: her own-no, at once. Taken when she held the pair at that epoch (pilot.h's refused): ours again, so this
+  // turn's table captures it and our freeze comes off; else stale (lines that crossed). Not from an ignored peer, an
+  // old world or a side that is off.
+  template <class Game> void refused(const Message &m, uint64_t now, Io<Game> &io) {
+    if (host.ignored()) {
+      ++host.counts.ignored;
+      return;
+    }
+    if (!host.peer_on() || m.gen != host.gen() || !owners_.refused(m.guid, m.oe, now)) {
+      ++host.counts.stale;
+      return;
+    }
+    ++counts.own_nos;
+    io.event(Event{"own-no", kOwnNo[m.why < kOwnNoCount ? m.why : uint8_t(kUnpaired)], m.guid});
+  }
+  // The host, while same-place enemies run: the rule on each pair it follows and found this pass (last hit, the nearer
+  // EVE, the guards: an AI task on the owner's copy, ours as read or hers as her stream says; Down, Groggy, Airborne or
+  // a takedown on ours, which the crowd-control mirror puts on both; dying; ours not in life state 1; a crowd control
+  // of ours started on it this turn). A change goes to her as an own line at once. No table, no change. A pair whose
+  // copy we cannot draw (freeze lost, or refused by the game thread) is ours as with aggro=host: never hers, and taken
+  // back from her, so its AI never runs on both copies for good.
+  template <class Game> void hand_over(Game &g, const uint32_t *guids, size_t count, size_t n, uint64_t now) {
+    owners_.keep(guids, count);
+    for (size_t i = 0; i < count; ++i)
+      owners_.add(guids[i], now); // Room for every pair: kMaxTracked slots.
+    if (!table_.on)
+      return;
+    float eve_at[3];
+    const uint64_t eve_fsb = local_fsb(g);
+    const bool eve_ok = plausible(eve_fsb) && g.read(eve_fsb + kLocation, eve_at, sizeof eve_at);
+    const uint32_t *skills = flags_.skill, *skills_end = skills + std::min<size_t>(flags_.skill_count, kMaxPairs);
+    for (size_t i = 0; i < count && !latched_; ++i) {
+      pilot::Own *o = owners_.find(guids[i]);
+      const Seen *s = fight::find(seen_, n, guids[i]);
+      if (!o || !s)
+        continue;
+      const size_t at = size_t(s - seen_);
+      const uint8_t m = marks_[at];
+      pilot::Facts f;
+      host.struck(guids[i], f.host_hit, f.guest_hit);
+      const bool skill =
+          o->owner == pilot::kHost ? (m & kRowSkill) != 0 : std::find(skills, skills_end, guids[i]) != skills_end;
+      f.busy = skill || !(m & kReady) || (m & (kRowRelease | kRowDying)) || dying(*s) || cast_on(guids[i]);
+      float enemy[3];
+      f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
+                 pilot::closer(o->owner, enemy, eve_at, flags_.her);
+      const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_;
+      if (!pilot::rule(*o, f, now, aggro_host_ || lost))
+        continue;
+      Message own;
+      own.type = Type::own;
+      own.gen = host.gen(), own.guid = guids[i], own.to_guest = o->owner == pilot::kGuest, own.oe = o->oe;
+      g.send(own);
+      ++counts.owns;
+      g.event(Event{"own", own.to_guest ? "to her" : "back", guids[i], s->spawn, s->index});
+    }
+  }
+  // The guest: the host's own lines in order, each about a pair of the host's current list (its generation), the pair
+  // hers only when she can run it (same-place enemies running here, a paired copy seen this pass in life state 1 and
+  // alive, aggro=game) and its epoch is hers plus one (an epoch skipped counts as a bad line); else the host's at that
+  // epoch, with own-no. Then each pair she owns and can no longer run (same-place enemies off here, unpaired) goes back
+  // with own-no.
+  template <class Game>
+  void answer(Game &g, const uint32_t *local, const uint32_t *hguids, size_t count, size_t n, uint64_t now) {
+    const auto paired = [&](uint32_t h) { return size_t(std::find(hguids, hguids + count, h) - hguids); };
+    for (Message m; own_in_.pop(m);) {
+      if (!guest.gen() || m.gen != guest.gen()) {
+        ++guest.counts.stale;
+        continue;
+      }
+      const size_t i = paired(m.guid);
+      const Seen *s = i < count ? fight::find(seen_, n, local[i]) : nullptr;
+      const bool ready = s && (marks_[s - seen_] & kReady) && !dying(*s);
+      const pilot::Owners::Heard h = owners_.hear(m.guid, m.to_guest ? pilot::kGuest : pilot::kHost, m.oe,
+                                                  table_.on && ready && !guest.host_only(), now);
+      guest.counts.bad += h.skew;
+      if (h.ours) {
+        ++counts.owns;
+        g.event(Event{"own", "taken", m.guid, s->spawn, s->index});
+      }
+      if (h.no)
+        no(g, m.guid, m.oe,
+           h.full              ? kFull
+           : h.skew            ? kEpoch
+           : !table_.on        ? kOff
+           : guest.host_only() ? kAggro
+           : i == count        ? kUnpaired
+                               : kState);
+    }
+    owners_.each([&](pilot::Own &o) {
+      if (o.owner == pilot::kGuest && (!table_.on || paired(o.hguid) == count) && owners_.give(o.hguid))
+        no(g, o.hguid, o.oe, table_.on ? kUnpaired : kOff);
+    });
+  }
+  template <class Game> void no(Game &g, uint32_t hguid, uint8_t oe, uint8_t why) {
+    Message m;
+    m.type = Type::own_no;
+    m.gen = guest.gen(), m.guid = hguid, m.oe = oe, m.why = why;
+    g.send(m);
+    ++counts.own_nos;
+    g.event(Event{"own-no", kOwnNo[why], hguid});
+  }
+
   // The pair table to the game thread (none once off or latched), and what it says back, for the next turn.
   template <class Game> void publish(Game &g, uint32_t turn, uint64_t now) {
     if (!on_ || latched_)
@@ -1412,7 +1610,7 @@ private:
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
-  std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false};
+  std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false}, aggro_host_{false};
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
@@ -1442,6 +1640,8 @@ private:
   uint32_t lost_[kMaxPairs] = {}; // Copies whose freeze was lost, while their pairs last.
   size_t lost_count_ = 0;
   const char *pilot_why_ = "fight"; // Why same-place enemies do not run (pilot_turn), null while they do.
+  pilot::Owners owners_;            // Stage 3b: each pair's owner and epoch on this side.
+  Ring<Message, kMail> own_in_;     // The guest: the host's own lines, for answer() after the pass.
   size_t piloted_ = 0;              // The pairs they move: the host's captured, or the guest's drawn.
   uint32_t cast_[kMaxPairs] = {}; // This turn's crowd controls of ours (cast()), by copy, and how many in all.
   size_t casts_ = 0;
@@ -1449,7 +1649,6 @@ private:
 
 // ---- Between the job and the worker ----
 
-constexpr size_t kMail = 128;     // Lines or events each way between two hand-overs; more are lost (counted).
 constexpr uint64_t kGateMs = 250; // The gate asked again while on: it reads the game.
 constexpr uint64_t kStatsMs = 1000, kQuietMs = 60000; // The stats line: each second a side's count moved, else each minute.
 // What the worker waits for or why it is off, as its log, its fight= line and its off lines to her say it; her state
@@ -1457,37 +1656,6 @@ constexpr uint64_t kStatsMs = 1000, kQuietMs = 60000; // The stats line: each se
 constexpr const char *kNoCoopSave = "not on a co-op save", *kFeatureOff = "shared enemies off";
 constexpr uint64_t kTellMs = 5000; // Our state to her again, while we do not share.
 constexpr size_t kHerSaid = 32;    // Her offs said in the log, a link at most.
-
-// A FIFO of fixed size: no allocation.
-template <class T, size_t N> class Ring {
-public:
-  bool push(const T &t) {
-    if (count_ == N)
-      return false;
-    items_[(head_ + count_++) % N] = t;
-    return true;
-  }
-  bool pop(T &t) {
-    if (!count_)
-      return false;
-    t = items_[head_];
-    head_ = (head_ + 1) % N;
-    --count_;
-    return true;
-  }
-  // Into to while it has room, oldest first.
-  void move_to(Ring &to) {
-    for (T t; count_ && to.count_ < N;) {
-      pop(t);
-      to.push(t);
-    }
-  }
-  void clear() { head_ = count_ = 0; }
-
-private:
-  T items_[N] = {};
-  size_t head_ = 0, count_ = 0;
-};
 
 // The job's lines, events and probe census to the worker, hers to the job. Each thread queues into rings of its
 // own; the logic thread swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next
@@ -2080,13 +2248,13 @@ private:
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
                   "%llu state maps or effect lists unread, %llu enemies left unscaled, slow motion %llu times (%llu "
                   "turns, lowest %llu %%), same place %llu frozen (%llu again, %llu lost, %llu taken off, %llu "
-                  "refused a dispel, %llu BattleMode_5s); %llu lost, %llu dropped, %llu unsent, %llu malformed; "
+                  "refused a dispel, %llu BattleMode_5s, %llu changed hands, %llu own-no); %llu lost, %llu dropped, "
+                  "%llu unsent, %llu malformed; "
                   "Simulate mean %llu us, max %llu us; logic thread %u (SB's %u), game thread %u",
                   u(j.turns), u(j.arms), u(j.deferred), u(j.forced), u(j.paused), u(j.stale), u(j.doubled), u(j.mode),
                   u(j.censuses), u(j.cut), u(j.rejected), u(j.no_eve), u(j.unread), u(j.unscaled), u(j.slow_starts),
                   u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
-                  u(j.thaw_refused), u(j.battles), u(s.lost),
-                  u(dropped_), u(unsent_),
+                  u(j.thaw_refused), u(j.battles), u(j.owns), u(j.own_nos), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
     io.trace(std::string(head) + tail);
   }

@@ -1,7 +1,8 @@
-// Phase 11 stage 3a, the same enemy in the same place, as pure logic: the owner of a pair (the host in 3a; the owner
-// field and its epoch oe stay so that 3b can hand enemies over) streams each enemy's root at 30 Hz and its Shows; the
-// drawn side writes its copy's root every frame from samples drawn on the ghost's own playback clock (pose_stream.h),
-// so an enemy and the owner's ghost are drawn at the same instant, and replays the Shows on the copy. No Windows types
+// Phase 11 stages 3a and 3b, the same enemy in the same place, as pure logic: the owner of a pair (the side whose AI
+// runs it: the host's in 3a; in 3b the host hands it over by its rule, Owners and rule(), each change at the next
+// owner epoch oe) streams each enemy's root at 30 Hz and its Shows; the drawn side writes its copy's root every frame
+// from samples drawn on the ghost's own playback clock (pose_stream.h), so an enemy and the owner's ghost are drawn at
+// the same instant, and replays the Shows on the copy. No Windows types
 // and no engine call of its own: the game is read, written and called through a Game (Capturer and the FNamePool read
 // it, Driver writes the drawn copies and replays their Shows), and tests/pilot_test.cpp drives every piece here on the
 // build machine with fake memory. Nothing here allocates but
@@ -10,7 +11,7 @@
 // SBE, little-endian, on channel 1 (unreliable), one message per capture for the pairs its sender owns:
 //   "SBE" (3 bytes), protocol (u8, kProtocol), gen (u16: the low 16 bits of the host's world generation, fight_sync.h),
 //   seq (u32, 1 up), publication (u64: the pose clock in µs, the ghost's poses' own), count (u8, 0 to kMaxEnemies),
-//   then count entries of kEntryBytes: hguid (u32, the host's ActorGUID), oe (u8), flags (u8: kBattle, kDying),
+//   then count entries of kEntryBytes: hguid (u32, the host's ActorGUID), oe (u8), flags (u8: kBattle, kDying, kSkill),
 //   location (3 f32, cm), rotation (3 u16: pitch, yaw and roll as UE's short rotator), anim speed (u16, cm/s).
 // Velocity is not sent: the drawn side derives it from the samples.
 //
@@ -46,7 +47,9 @@ namespace coop::pilot {
 
 constexpr size_t kMaxEnemies = fight::kMaxPairs;
 constexpr size_t kHeaderBytes = 19, kEntryBytes = 26, kMaxSbe = kHeaderBytes + kMaxEnemies * kEntryBytes;
-constexpr uint8_t kBattle = 1, kDying = 2; // BattleMode (state 30); HP <= 0 or state 32.
+// BattleMode (state 30); HP <= 0 or state 32; an AI task in flight on the owner's copy (FSBActor +0x744, a skill [L]),
+// which stage 3b's hand-over waits for.
+constexpr uint8_t kBattle = 1, kDying = 2, kSkill = 4;
 constexpr unsigned kSbeHz = 30;            // One message per 33 ms of clock, not per other frame: 72 at 144 fps.
 static_assert(kMaxSbe * kSbeHz <= size_t(pose::kSbeBytesPerSecond), "the pose budget gives up enough for SBE");
 
@@ -65,7 +68,7 @@ struct Entry {
 
 // An entry decode_sbe takes: a GUID, known flags, a finite location within pose::kMaxWorld (NaN fails).
 inline bool entry_ok(const Entry &e) {
-  return e.guid && !(e.flags & ~(kBattle | kDying)) && std::fabs(e.loc[0]) <= pose::kMaxWorld &&
+  return e.guid && !(e.flags & ~(kBattle | kDying | kSkill)) && std::fabs(e.loc[0]) <= pose::kMaxWorld &&
          std::fabs(e.loc[1]) <= pose::kMaxWorld && std::fabs(e.loc[2]) <= pose::kMaxWorld;
 }
 
@@ -157,6 +160,172 @@ inline bool takes(const Owner &o, Side from, uint32_t gen, uint8_t oe) {
 inline bool takes_sbe(const Owner &o, Side from, uint16_t gen, uint8_t oe) {
   return o.gen && gen == uint16_t(o.gen) && from == o.side && oe == o.oe;
 }
+inline Side other(Side s) { return s == kHost ? kGuest : kHost; }
+
+// ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
+
+// The host decides each pair's owner (aggro=game): whoever hit it last, and for an enemy nobody hit for kLastHitMs,
+// the other player once her EVE has stood at least kNearCm closer than the owner's for kNearMs. Never while a guard
+// holds (the owner has held it less than kOwnMs, or Facts::busy), and with aggro=host every pair is the host's, as in
+// 3a. Each change moves the epoch oe one up.
+constexpr uint64_t kLastHitMs = 10'000, kNearMs = 2'000, kOwnMs = 4'000;
+constexpr float kNearCm = 300;
+
+// What one turn of the host's says about a pair.
+struct Facts {
+  bool host_hit = false;  // A drop on the host's copy that no claim made: the host's EVE hit it.
+  bool guest_hit = false; // A claim of hers with a drop in it, taken.
+  bool closer = false;    // The EVE of the side that does not own it stands at least kNearCm closer (closer()).
+  bool busy = false;      // A guard: a skill on the owner's copy, Down, Groggy, Airborne, a takedown, dying, or the
+                          // host's copy not in life state 1.
+};
+
+// One pair's owner and epoch on one side, and on the host's what its rule keeps.
+struct Own {
+  uint32_t hguid = 0; // 0: free.
+  Side owner = kHost;
+  uint8_t oe = 0;
+  uint64_t since = 0;  // The host's: when the owner took it (ms).
+  Side hitter = kHost; // The host's: who hit it last, at hit_ms, once hit.
+  bool hit = false;
+  uint64_t hit_ms = 0;
+  bool nearer = false; // The host's: Facts::closer since nearer_ms.
+  uint64_t nearer_ms = 0;
+};
+
+// One turn of the host's rule for o at now (host_only: aggro=host). True when the pair changes hands: the other side
+// owns it from now, at the next epoch.
+inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only) {
+  if (f.host_hit || f.guest_hit) {
+    if (f.host_hit != f.guest_hit)
+      o.hitter = f.host_hit ? kHost : kGuest;
+    else if (!o.hit) // Both in one turn, a first hit: the owner keeps it.
+      o.hitter = o.owner;
+    o.hit = true, o.hit_ms = now;
+  }
+  if (f.closer != o.nearer)
+    o.nearer = f.closer, o.nearer_ms = now;
+  const Side want = host_only                                  ? kHost
+                    : o.hit && now - o.hit_ms < kLastHitMs     ? o.hitter
+                    : o.nearer && now - o.nearer_ms >= kNearMs ? other(o.owner)
+                                                               : o.owner;
+  if (want == o.owner || f.busy || now - o.since < kOwnMs)
+    return false;
+  o.owner = want, ++o.oe, o.since = now, o.nearer = false;
+  return true;
+}
+
+// Facts::closer: the EVE of the side that does not own the enemy stands at least kNearCm closer to it than the
+// owner's. False without all three locations (null) or with one that is not finite.
+inline bool closer(Side owner, const float *enemy, const float *host_eve, const float *her_eve) {
+  if (!enemy || !host_eve || !her_eve)
+    return false;
+  const auto distance = [enemy](const float *p) {
+    double d2 = 0;
+    for (int k = 0; k < 3; ++k)
+      d2 += (double(p[k]) - enemy[k]) * (double(p[k]) - enemy[k]);
+    return std::sqrt(d2);
+  };
+  const double host = distance(host_eve), her = distance(her_eve);
+  if (!std::isfinite(host) || !std::isfinite(her))
+    return false;
+  return owner == kHost ? her + kNearCm <= host : host + kNearCm <= her;
+}
+
+// Each pair's Own on one side; a pair with none is the host's at epoch 0. The host keeps one for each pair it follows
+// (keep(), add()); the guest makes one at the host's first own line about a pair. Both sides start over (clear()) where
+// she drops the host's list (a world line, an on or off), so their epochs count from the same 0, and give every pair
+// back to the host (home()) where she drops its same place (place 0). Fixed memory: the logic thread.
+class Owners {
+public:
+  static constexpr size_t kSlots = fight::kMaxTracked;
+  void clear() { std::fill(own_, own_ + kSlots, Own()); }
+  // Every pair the host's, its epoch kept: a line sent before this never matches one sent after.
+  void home() {
+    for (Own &o : own_)
+      o.owner = kHost;
+  }
+  const Own *find(uint32_t hguid) const {
+    for (const Own &o : own_)
+      if (hguid && o.hguid == hguid)
+        return &o;
+    return nullptr;
+  }
+  Own *find(uint32_t hguid) { return const_cast<Own *>(std::as_const(*this).find(hguid)); }
+  Side owner(uint32_t hguid) const {
+    const Own *o = find(hguid);
+    return o ? o->owner : kHost;
+  }
+  uint8_t oe(uint32_t hguid) const {
+    const Own *o = find(hguid);
+    return o ? o->oe : 0;
+  }
+  // hguid's, or a new one (the host's at epoch 0, held since now); null when full or for GUID 0.
+  Own *add(uint32_t hguid, uint64_t now) {
+    Own *o = find(hguid);
+    for (Own &each : own_)
+      if (!o && hguid && !each.hguid)
+        (o = &each)->hguid = hguid, o->since = now;
+    return o;
+  }
+  void drop(uint32_t hguid) {
+    if (Own *o = find(hguid))
+      *o = Own();
+  }
+  // The host's: those not among the n it follows go.
+  void keep(const uint32_t *hguids, size_t n) {
+    for (Own &o : own_)
+      if (o.hguid && std::find(hguids, hguids + n, o.hguid) == hguids + n)
+        o = Own();
+  }
+  template <class F> void each(F &&f) {
+    for (Own &o : own_)
+      if (o.hguid)
+        f(o);
+  }
+
+  // The host's: her own-no about hguid at epoch oe. True when she held it at that epoch (an own G she refused, or one
+  // she gives back): ours again, held from now. Any other is stale (R33): we moved on since, or started over, and the
+  // lines crossed; it changes nothing, so a lie in one changes nothing either.
+  bool refused(uint32_t hguid, uint8_t oe, uint64_t now) {
+    Own *o = find(hguid);
+    if (!o || o->owner != kGuest || o->oe != oe)
+      return false;
+    o->owner = kHost, o->since = now;
+    return true;
+  }
+  // The guest's: the host's own line about hguid (owner side, epoch oe). The pair ends at the host's word, but hers
+  // only when she can run it (can) and the epoch is hers plus one exactly (R33); else it is the host's, and no says
+  // to answer own-no. skew: the epoch was not hers plus one; full: no room for it (the host's then).
+  struct Heard {
+    bool ours = false, no = false, skew = false, full = false;
+  };
+  Heard hear(uint32_t hguid, Side side, uint8_t oe, bool can, uint64_t now) {
+    Heard h;
+    Own *o = add(hguid, now);
+    if (!o) {
+      h.full = true, h.no = side == kGuest;
+      return h;
+    }
+    h.skew = oe != uint8_t(o->oe + 1);
+    h.ours = side == kGuest && can && !h.skew;
+    h.no = side == kGuest && !h.ours;
+    o->owner = h.ours ? kGuest : kHost, o->oe = oe;
+    return h;
+  }
+  // The guest's: a pair she owns and can no longer run goes back to the host at its epoch. True when she owned it:
+  // the caller answers own-no.
+  bool give(uint32_t hguid) {
+    Own *o = find(hguid);
+    if (!o || o->owner != kGuest)
+      return false;
+    o->owner = kHost;
+    return true;
+  }
+
+private:
+  Own own_[kSlots];
+};
 
 // ---- Rotation and speed on the wire ----
 
@@ -486,6 +655,11 @@ public:
       if (l.used)
         f(l);
   }
+  template <class F> void each(F &&f) const {
+    for (const Live &l : live_)
+      if (l.used)
+        f(l);
+  }
 
 private:
   Live live_[kLive];
@@ -542,6 +716,7 @@ struct Playing {
   uint64_t stage = 0, player = 0, data = 0; // The stage, the player and its USBShowData.
   uint32_t rate = 0, step = 0;              // As on the wire.
   bool finished = false;                    // +0xe8.
+  bool ours = false;                        // A stage one of our replays made (Capturer's mine): never told (R35).
 };
 class Outbox {
 public:
@@ -914,9 +1089,10 @@ constexpr size_t kRootComponent = 0x178, kShowInterface = 0x560, kSpeedFields = 
 // UE 4.26 UObject: its name (an FName) at +0x18, its outer at +0x20; UStruct: the struct base chain IsA walks.
 constexpr size_t kObjectName = 0x18, kOuter = 0x20, kBaseChain = 0x30, kBaseDepth = 0x38;
 // A show stage (the first kStageBytes): its main actor's weak pointer (index, serial; serial 0: none) and interface,
-// its players and their count, and the float at +0x9c (SkillPres_OnHit's).
+// its players and their count, and the float at +0x9c (SkillPres_OnHit's); past them, the handle FUN_142284a30 stamps
+// on a stage it makes.
 constexpr size_t kStageMainWeak = 0x18, kStageMain = 0x20, kStagePlayers = 0x88, kStagePlayerCount = 0x90,
-                 kStageField9c = 0x9c, kStageBytes = 0xa0;
+                 kStageField9c = 0x9c, kStageBytes = 0xa0, kStageHandle = 0x128;
 // A show player (ShowPlayer_Init, RE11's hit fields; the first kPlayerBytes): its USBShowData, its time (s), step,
 // +0x4d, step-driven byte, rate, hit levels, 2D direction, hit direction, hit position, bone-local position, normal,
 // +0xa8 (an int), the other actor's location, hit rotation, and its finished byte.
@@ -1109,6 +1285,9 @@ struct Owned {
 // kept past the call: the Outbox compares addresses as numbers only.
 // The Game: read(address, out, n) as a Game's; uint64_t fsb(manager, guid): FUN_141aace90(manager, guid), 0 when none;
 // uint64_t character(map, const int32_t guid[4]): FUN_14201b1e0(map, guid), 0 when none or pending kill.
+// A stage whose handle one of our own replays holds or held (mine(), the drawn side's Driver::made) is never told: a
+// pair this side takes over (stage 3b) still plays the other side's replayed Shows for a while, and telling them back
+// would be an echo (R35).
 class Capturer {
 public:
   static constexpr size_t kMaxStages = 1024; // Stages walked a capture; more are cut.
@@ -1121,6 +1300,7 @@ public:
     uint64_t cut = 0;                   // Stages or player[0]s past kMaxStages or kPerPair.
     uint64_t waited = 0;                // New player[0]s an Outbox had no line id for yet (Outbox::diff).
     uint64_t no_context = 0;            // Shows sent without their context (ctx_near refused it).
+    uint64_t echoes = 0;                // New player[0]s of our own replays, never told (mine()).
     uint64_t shows = 0, sets = 0, stops = 0;
   };
   Counts counts;
@@ -1139,6 +1319,12 @@ public:
   template <class Game, class Emit>
   size_t capture(Game &g, uint64_t base, uint32_t gen, const Owned *pairs, size_t n, uint64_t now, uint8_t *sbe,
                  Emit &&emit) {
+    return capture(g, base, gen, pairs, n, now, sbe, emit, [](const uint8_t *) { return false; });
+  }
+  // The same, with bool mine(const uint8_t handle[16]): a stage handle of our own replays.
+  template <class Game, class Emit, class Mine>
+  size_t capture(Game &g, uint64_t base, uint32_t gen, const Owned *pairs, size_t n, uint64_t now, uint8_t *sbe,
+                 Emit &&emit, Mine &&mine) {
     using detail::field;
     auto read = [&g](uint64_t at, void *out, size_t size) { return g.read(at, out, size); };
     n = std::min(n, kMaxEnemies);
@@ -1242,9 +1428,11 @@ public:
           ++counts.cut;
           continue;
         }
+        uint8_t handle[16];
+        const bool ours = read(chunk[s] + kStageHandle, handle, sizeof handle) && mine(+handle);
         f->playing[f->count++] = Playing{chunk[s], player, data,
                                      uint32_t(std::min<double>(kMaxRate, std::nearbyint(double(rate) * 1000))),
-                                     uint32_t(step), pl[kPlayerFinished] != 0};
+                                     uint32_t(step), pl[kPlayerFinished] != 0, ours};
       }
     }
     for (size_t j = 0; walked && j < k; ++j) {
@@ -1259,6 +1447,10 @@ public:
         uint64_t &word = p->told[id >> 6];
         const uint64_t bit = uint64_t(1) << (id & 63);
         if (ev == Outbox::kShow) {
+          if (pl->ours) { // Known from now on, never told: no show-set or show-stop follows either.
+            ++counts.echoes;
+            return;
+          }
           if (show_line(read, objects, pool, data_class, *pl, loc, l) && emit(l))
             word |= bit, ++counts.shows;
           return;
@@ -1355,8 +1547,6 @@ constexpr size_t kCmcTickSlot = 0x350, kCmcParallel = 0x10cd, kCmcVelocity = 0xd
 constexpr size_t kCharacterMovement = 0x330, kSpeedOverride = 0xc68, kSpeedOverrideSpeed = 0xc6c;
 // The root component's MoveComponent, vtable +0x4a0, called as SB's SetActorLocation calls it, as a teleport.
 constexpr size_t kMoveSlot = 0x4a0;
-// Where FUN_142284a30 stamps the stage it makes with its handle.
-constexpr size_t kStageHandle = 0x128;
 
 // A movement component of SB's class with SB's override in slot 0x350: the only kind driven, and the only one 142158f40
 // is called on or a Velocity written to.
@@ -1535,15 +1725,29 @@ public:
       apply(g, read, s, p, p && ok[i] ? &found[i] : nullptr, d);
     }
   }
-  // The word back to the job: the drawn pairs whose stream says BattleMode, and those refused.
-  void flags(uint32_t *battle, uint8_t &nb, uint32_t *refused, uint8_t &nr) const {
-    nb = nr = 0;
+  // The word back to the job: the drawn pairs whose stream says BattleMode, those refused, and those whose stream says
+  // a skill runs on the owner's copy (kSkill, stage 3b's guard).
+  void flags(uint32_t *battle, uint8_t &nb, uint32_t *refused, uint8_t &nr, uint32_t *skill, uint8_t &ns) const {
+    nb = nr = ns = 0;
     for (const Pair &p : pairs_) {
       if (p.row.hguid && p.battle)
         battle[nb++] = p.row.hguid;
       if (p.row.hguid && p.refused)
         refused[nr++] = p.row.hguid;
+      if (p.row.hguid && p.skill)
+        skill[ns++] = p.row.hguid;
     }
+  }
+  // A stage handle one of our replays holds, or held among the last kStopped stopped: the owner's capture never tells
+  // such a stage (Capturer's mine), which a pair this side takes over plays until the game removes it.
+  static constexpr size_t kStopped = 64;
+  bool made(const uint8_t *h) const {
+    bool found = false;
+    for (const Pair &p : pairs_)
+      p.lines.each([&](const Live &l) { found = found || (!l.skipped && !std::memcmp(l.handle, h, sizeof l.handle)); });
+    for (const auto &k : stopped_) // An empty slot holds the null handle, which no stage has.
+      found = found || (!std::memcmp(k, h, sizeof k) && std::any_of(k, k + sizeof k, [](uint8_t b) { return b; }));
+    return found;
   }
   // After a fault: every pair put back once (each found again by its GUID), then nothing more for the run.
   template <class Game> void fault(Game &g, uint64_t base) {
@@ -1563,7 +1767,7 @@ private:
     Copy copy;
     Capture cap; // What we changed on the copy, to put back.
     Lines lines; // Its live replays.
-    bool refused = false, battle = false;
+    bool refused = false, battle = false, skill = false;
     bool reset = false;                              // limit() changed: put back at its next frame.
     bool wrote = false;                              // The last frame wrote its root (or, under PilotTest::cmc, read
                                                      // it): the drift probe compares.
@@ -1583,9 +1787,11 @@ private:
     Game &g;
     uint64_t reg;
     const Found *f;
+    Driver &d;
     void stop(const Live &l) {
       if (reg)
         g.stop(reg, l.handle);
+      d.stopped(l.handle);
     }
     void still() {
       const float zero[3] = {};
@@ -1605,7 +1811,7 @@ private:
     else
       ++counts.events_lost;
   }
-  static Side other(Side s) { return s == kHost ? kGuest : kHost; }
+  void stopped(const uint8_t *h) { std::memcpy(stopped_[next_stopped_++ % kStopped], h, sizeof stopped_[0]); }
   Side from() const { return other(side_); } // Her lines are the other side's.
   Owner owner(const Pair &p) const { return Owner{gen_, p.row.owner, p.row.oe}; }
   Pair *pair(uint32_t hguid) {
@@ -1627,7 +1833,7 @@ private:
   // Puts the pair back in restore's order on its copy as found now (f). Without one (forget() on a copy no lookup
   // finds: gone, or pending kill) only its replays stop; what we changed on the copy goes with it.
   template <class Game> void put_back(Game &g, uint64_t reg, Pair &p, const Found *f) {
-    Put<Game> u{g, reg, f};
+    Put<Game> u{g, reg, f, *this};
     if (f)
       return restore(p.cap, p.lines, u);
     p.lines.each([&](const Live &l) {
@@ -1678,6 +1884,7 @@ private:
     if (was == State::converging && st == State::piloted)
       ++counts.converged, event("converged", p.row.hguid);
     p.battle = has && (d.flags & kBattle) && st != State::local;
+    p.skill = has && (d.flags & kSkill);
     if (!mode(st).root_stream || limit_ == PilotTest::freeze)
       return put_back(g, reg, p, &f), false;
     if (d.snap || snapped)
@@ -1732,7 +1939,7 @@ private:
       ++counts.not_drawn;
       return;
     }
-    Put<Game> u{g, s.reg, f};
+    Put<Game> u{g, s.reg, f, *this};
     if (l.kind == Kind::show) {
       Live &live = p->lines.start(l.id, u); // A replay that held the id is stopped first.
       if (dedupe(read, s, *p, *f, l)) {
@@ -1749,6 +1956,7 @@ private:
       live.slot = g.add(s.reg, live.handle, l.path, l.path_len, l.form, float(l.rate) / 1000, l.gate, l.b4d);
       if (live.slot < 0) {
         g.stop(s.reg, live.handle);
+        stopped(live.handle);
         live.skipped = true;
         ++counts.missing;
         return;
@@ -1879,6 +2087,8 @@ private:
   Side side_ = kHost;
   PilotTest limit_ = PilotTest::replay;
   fight::Event events_[kEvents];
+  uint8_t stopped_[kStopped][16] = {}; // made()'s: the last stopped handles, a ring.
+  size_t next_stopped_ = 0;
   size_t events_n_ = 0;
   bool latched_ = false;
 };

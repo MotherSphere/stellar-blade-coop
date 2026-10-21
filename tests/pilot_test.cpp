@@ -8,8 +8,11 @@
 // of SB's manager on SB's class only, the speed override, the root move and Velocity, the drift probe, a stale pair,
 // the Show replay through the handle API with its context and setters, the dedupe of a Show the copy started
 // itself, restore's order on every way back, the latch)
-// against fake memory; and two worlds through a fake Steam (120 +/- 30 ms, 2 % loss): the guest's copies against the
-// host's enemies at the same host time, the show lines in order, and restore at host loss.
+// against fake memory; stage 3b's owners (the host's rule: last hit, nearer EVE, guards, hold; own-no on the host's
+// side, own lines on hers, give-backs, place 0 and clears) with random hand-overs across a delayed link, and the
+// capture that never tells a replay of ours on a pair just taken over (R35); and two worlds through a fake Steam
+// (120 +/- 30 ms, 2 % loss): the guest's copies against the host's enemies at the same host time, the show lines in
+// order, and restore at host loss.
 #include "pilot.h"
 
 #include <cassert>
@@ -464,7 +467,7 @@ int main() {
     Entry in[kMaxEnemies];
     for (size_t i = 0; i < kMaxEnemies; ++i) {
       in[i] = entry(uint32_t(1000 + i), -1e6f + float(i), 2.5f * float(i), -0.0f);
-      in[i].oe = uint8_t(i * 17), in[i].flags = uint8_t(i % 4);
+      in[i].oe = uint8_t(i * 17), in[i].flags = uint8_t(i % 8); // kBattle, kDying, kSkill.
       in[i].rot[0] = uint16_t(i), in[i].rot[1] = uint16_t(65535 - i), in[i].rot[2] = 0x8000;
       in[i].speed = uint16_t(i * 4000);
     }
@@ -503,7 +506,7 @@ int main() {
     const size_t e1 = kHeaderBytes + kEntryBytes;                                    // The second entry.
     assert(refused([&](uint8_t *c) { std::memset(c + e1, 0, 4); }, size));           // GUID 0.
     assert(refused([&](uint8_t *c) { std::memcpy(c + e1, c + kHeaderBytes, 4); }, size)); // The same GUID twice.
-    assert(refused([&](uint8_t *c) { c[e1 + 5] = 4; }, size));                       // Unknown flag.
+    assert(refused([&](uint8_t *c) { c[e1 + 5] = 8; }, size));                       // Unknown flag.
     float bad[] = {NAN, INFINITY, -INFINITY, 1.1e7f};
     for (float f : bad)
       assert(refused([&](uint8_t *c) { std::memcpy(c + e1 + 6 + 4, &f, 4); }, size));
@@ -513,7 +516,7 @@ int main() {
     {
       Entry mixed[] = {entry(7, 1), entry(8, NAN), entry(0, 2), entry(7, 3), entry(9, 4), entry(10, 0, 1.1e7f),
                        entry(11, 5)};
-      mixed[4].flags = 4;
+      mixed[4].flags = 8;
       uint8_t mix[kMaxSbe];
       const size_t m = encode_sbe(h, mixed, 7, mix);
       assert(m == kHeaderBytes + 2 * kEntryBytes && decode_sbe(mix, m, got, out, n) && n == 2);
@@ -557,6 +560,204 @@ int main() {
     assert(!takes(o, kHost, 0x5, 9) && !takes_sbe(o, kHost, 0x0006, 9)); // Another generation.
     assert(!takes(o, kHost, 0x10005, 8) && !takes_sbe(o, kHost, 0x0005, 10)); // An old or a future epoch.
     assert(!takes(o, kGuest, 0x10005, 9) && !takes_sbe(o, kGuest, 0x0005, 9)); // Not the owner.
+  }
+
+  // ---- Stage 3b: whose AI runs a pair (the host's rule) ----
+  // Last hit: her claim gives her the enemy once the host held it 4 s; the host's own hit takes it back once she held
+  // it 4 s. Each change moves the epoch one up (and wraps). Both hitting in one turn leaves it with its owner.
+  {
+    Owners own;
+    Own &o = *own.add(4100, 1000);
+    assert(o.owner == kHost && o.oe == 0 && o.since == 1000 && own.owner(4100) == kHost && own.oe(4100) == 0);
+    Facts hers, ours, calm;
+    hers.guest_hit = true, ours.host_hit = true;
+    assert(!rule(o, hers, 2000, false) && o.owner == kHost && o.hitter == kGuest); // Held 1 s only.
+    assert(!rule(o, calm, 4999, false));
+    assert(rule(o, calm, 5000, false) && o.owner == kGuest && o.oe == 1 && o.since == 5000);
+    assert(!rule(o, calm, 9000, false)); // Hers by the last hit: nothing to do.
+    assert(!rule(o, ours, 6000, false) && o.owner == kGuest && o.hitter == kHost); // She held it 1 s.
+    assert(rule(o, calm, 9000, false) && o.owner == kHost && o.oe == 2 && own.owner(4100) == kHost);
+    Facts both;
+    both.host_hit = both.guest_hit = true;
+    assert(!rule(o, both, 14000, false) && o.hitter == kHost); // The last hitter stands.
+    Own first;
+    first.owner = kGuest, first.hguid = 7;
+    assert(!rule(first, both, 99000, false) && first.hitter == kGuest && first.owner == kGuest);
+    o.oe = 255, o.hitter = kGuest, o.hit_ms = 14000;
+    assert(rule(o, calm, 14000, false) && o.oe == 0 && o.owner == kGuest);
+  }
+  // Guards: no change while busy (a skill on the owner's copy, a crowd control, a takedown, dying), the change once it
+  // ends; a last hit counts for 10 s, then only the nearer rule does; aggro=host gives everything back to the host and
+  // never away.
+  {
+    Own o;
+    o.hguid = 4100;
+    Facts hers, busy, calm;
+    hers.guest_hit = true;
+    busy.busy = true;
+    hers.busy = true;
+    assert(!rule(o, hers, 10000, false) && !rule(o, busy, 15000, false) && o.owner == kHost);
+    assert(rule(o, calm, 15001, false) && o.owner == kGuest); // Her hit 5 s ago still counts.
+    o = Own(), o.hguid = 4100;
+    assert(!rule(o, hers, 10000, false) && !rule(o, busy, 19999, false));
+    assert(!rule(o, calm, 20000, false) && o.owner == kHost); // 10 s since her hit: no last hit any more.
+    Own g;
+    g.hguid = 9, g.owner = kGuest, g.oe = 5;
+    assert(!rule(g, busy, 50000, true) && rule(g, calm, 50000, true) && g.owner == kHost && g.oe == 6);
+    Facts near;
+    near.closer = near.guest_hit = true;
+    assert(!rule(g, near, 60000, true) && !rule(g, near, 90000, true) && g.owner == kHost);
+  }
+  // Nearer: an enemy nobody hit for 10 s goes to the other player once her EVE has stood 3 m closer than the owner's
+  // for 2 s without a break; back the same way, 4 s after it changed hands at the earliest. Within 10 s of a hit the
+  // last hitter keeps it however near the other one stands.
+  {
+    Own o;
+    o.hguid = 4100;
+    Facts near, far;
+    near.closer = true;
+    assert(!rule(o, near, 10000, false) && !rule(o, near, 11999, false));
+    assert(!rule(o, far, 12000, false) && !rule(o, near, 12016, false) && !rule(o, near, 14015, false));
+    assert(rule(o, near, 14016, false) && o.owner == kGuest && o.oe == 1 && !o.nearer);
+    // Now the host is "the other one": its EVE 3 m closer for 2 s, but the 4 s hold first.
+    assert(!rule(o, near, 14032, false) && !rule(o, near, 18015, false) && rule(o, near, 18016, false));
+    assert(o.owner == kHost && o.oe == 2);
+    Own h;
+    h.hguid = 5;
+    Facts ours;
+    ours.host_hit = true;
+    assert(!rule(h, ours, 30000, false));
+    assert(!rule(h, near, 30016, false) && !rule(h, near, 39999, false) && h.owner == kHost);
+    assert(rule(h, near, 40000, false) && h.owner == kGuest); // 10 s after the hit, near for 10 s: hers at once.
+  }
+  // closer(): the other side's EVE at least 300 cm closer than the owner's, whichever side owns it; never without a
+  // location or with one that is not finite.
+  {
+    const float enemy[3] = {0, 0, 0}, h500[3] = {500, 0, 0}, g200[3] = {0, 200, 0}, g201[3] = {0, 0, 201},
+                bad[3] = {NAN, 0, 0};
+    assert(closer(kHost, enemy, h500, g200) && !closer(kHost, enemy, h500, g201));
+    assert(!closer(kGuest, enemy, h500, g200) && closer(kGuest, enemy, g200, h500));
+    assert(!closer(kHost, enemy, h500, nullptr) && !closer(kHost, nullptr, h500, g200));
+    assert(!closer(kHost, enemy, h500, bad) && !closer(kHost, bad, h500, g200));
+  }
+  // The table: a pair with no entry is the host's at epoch 0. The host keeps one per pair it follows; a full table
+  // takes no more; home() (place 0) gives every pair back to the host at its epoch; clear() (a world line, an on or
+  // off, a lost link: a new session) puts every pair back to the host at epoch 0 on both sides.
+  {
+    Owners own;
+    assert(own.owner(4100) == kHost && own.oe(4100) == 0 && !own.find(4100) && !own.add(0, 5));
+    for (uint32_t k = 1; k <= Owners::kSlots; ++k)
+      assert(own.add(k, k) && own.add(k, 99)->since == k);
+    assert(!own.add(999, 5));
+    const uint32_t kept[] = {3, 7};
+    own.keep(kept, 2);
+    size_t n = 0;
+    own.each([&](Own &o) { ++n, o.owner = kGuest, o.oe = 4; });
+    assert(n == 2 && own.owner(7) == kGuest && own.oe(3) == 4 && !own.find(1));
+    own.home();
+    assert(own.owner(7) == kHost && own.oe(7) == 4 && own.owner(3) == kHost && own.oe(3) == 4);
+    own.drop(3);
+    assert(!own.find(3) && own.find(7));
+    own.clear();
+    assert(own.owner(7) == kHost && own.oe(7) == 0 && !own.find(7));
+  }
+  // own-no on the host's side: she held it at that epoch (a refusal, or one she gives back): the host's again, its
+  // hold from now. Any other epoch, a pair the host holds, or one it does not know is stale: lines that crossed.
+  {
+    Owners own;
+    Own &o = *own.add(4100, 0);
+    o.owner = kGuest, o.oe = 6;
+    assert(!own.refused(4100, 5, 900) && !own.refused(4100, 7, 900) && o.owner == kGuest);
+    assert(own.refused(4100, 6, 900) && o.owner == kHost && o.oe == 6 && o.since == 900);
+    assert(!own.refused(4100, 6, 950) && o.since == 900 && !own.refused(4200, 0, 950) && !own.refused(4200, 1, 950));
+    o.owner = kGuest, o.oe = 0; // Wrapped.
+    assert(!own.refused(4100, 255, 990) && own.refused(4100, 0, 990));
+  }
+  // own on the guest's side: the host's word stands, but the pair is hers only when she can run it and the epoch is
+  // hers plus one; else it is the host's at the line's epoch and she answers own-no (G lines only). A pair she owns and
+  // can no longer run goes back at its epoch.
+  {
+    Owners own;
+    Owners::Heard h = own.hear(4100, kGuest, 1, true, 0);
+    assert(h.ours && !h.no && !h.skew && own.owner(4100) == kGuest && own.oe(4100) == 1);
+    h = own.hear(4100, kHost, 2, true, 0);
+    assert(!h.ours && !h.no && own.owner(4100) == kHost && own.oe(4100) == 2);
+    h = own.hear(4100, kGuest, 3, false, 0);
+    assert(!h.ours && h.no && !h.skew && own.owner(4100) == kHost && own.oe(4100) == 3);
+    h = own.hear(4100, kGuest, 5, true, 0); // Skipped one: refused, at the host's epoch.
+    assert(!h.ours && h.no && h.skew && own.owner(4100) == kHost && own.oe(4100) == 5);
+    h = own.hear(4100, kHost, 9, true, 0); // The host takes it whatever: counted, no answer.
+    assert(!h.no && h.skew && own.oe(4100) == 9);
+    h = own.hear(4100, kGuest, 10, true, 0);
+    assert(h.ours && own.give(4100) && own.owner(4100) == kHost && own.oe(4100) == 10 && !own.give(4100));
+    assert(!own.give(4200));
+    for (uint32_t k = 1; k < Owners::kSlots; ++k)
+      own.add(5000 + k, 0);
+    h = own.hear(77, kGuest, 1, true, 0);
+    assert(h.full && h.no && !h.ours && own.owner(77) == kHost);
+    h = own.hear(78, kHost, 1, true, 0);
+    assert(h.full && !h.no);
+  }
+  // Epochs across the link: the host hands pairs over and takes them back at random, she takes or refuses each and
+  // gives some back, and now and then the host's same place goes off and on (home() on both sides, as each sees its
+  // place 0), lines in order 90-150 ms late each way (crossing as they may). She never sees a skipped epoch, and once
+  // the lines are in both sides agree on every pair's owner and epoch.
+  {
+    std::mt19937 rng(23);
+    Owners host, guest;
+    struct Wire {
+      uint64_t at;
+      uint32_t h; // 0: place 0.
+      Side side;
+      uint8_t oe;
+    };
+    std::vector<Wire> to_guest, to_host; // In order: each arrives no sooner than the one before.
+    uint64_t last_g = 0, last_h = 0;
+    size_t moves = 0, refusals = 0, gives = 0, stale = 0, agreed = 0, homes = 0;
+    for (uint64_t t = 0; t < 600000; t += 16) {
+      while (!to_guest.empty() && to_guest.front().at <= t) {
+        const Wire w = to_guest.front();
+        to_guest.erase(to_guest.begin());
+        if (!w.h) {
+          guest.home();
+          continue;
+        }
+        const Owners::Heard h = guest.hear(w.h, w.side, w.oe, rng() % 4 != 0, t);
+        assert(!h.skew && !h.full);
+        if (h.no) {
+          ++refusals;
+          to_host.push_back({last_h = std::max(last_h, t + 90 + rng() % 61), w.h, kGuest, w.oe});
+        }
+      }
+      while (!to_host.empty() && to_host.front().at <= t) {
+        const Wire w = to_host.front();
+        to_host.erase(to_host.begin());
+        stale += !host.refused(w.h, w.oe, t);
+      }
+      if (rng() % 500 == 0) {
+        host.home();
+        ++homes;
+        to_guest.push_back({last_g = std::max(last_g, t + 90 + rng() % 61), 0, kHost, 0});
+      }
+      for (uint32_t h = 1; h <= 4; ++h) {
+        Own &o = *host.add(h, t);
+        if (rng() % 40 == 0) { // The rule's choice, any time: the epochs must hold without its guards.
+          o.owner = other(o.owner), ++o.oe;
+          ++moves;
+          to_guest.push_back({last_g = std::max(last_g, t + 90 + rng() % 61), h, o.owner, o.oe});
+        }
+        if (rng() % 60 == 0 && guest.give(h)) {
+          ++gives;
+          to_host.push_back({last_h = std::max(last_h, t + 90 + rng() % 61), h, kGuest, guest.oe(h)});
+        }
+      }
+      if (to_guest.empty() && to_host.empty()) {
+        for (uint32_t h = 1; h <= 4; ++h)
+          assert(host.owner(h) == guest.owner(h) && host.oe(h) == guest.oe(h));
+        ++agreed;
+      }
+    }
+    assert(moves > 1000 && refusals > 100 && gives > 100 && stale > 10 && agreed > 1000 && homes > 20);
   }
 
   // ---- The short rotator, as UE's FRotator <-> FQuat and CompressAxisToShort ----
@@ -1475,13 +1676,13 @@ int main() {
     d.draw(g, kBase, 5400, 1300);
     assert(near(s.x(ch), 110 + 10 * 150 / 33.0, 0.1) && s.get<float>(ch + kSpeedOverrideSpeed) == 0 &&
            s.get<float>(cmc + kCmcVelocity) == 0);
-    // BattleMode in the stream goes into the word back.
-    sbe(1100, 120, 0, kBattle);
+    // BattleMode and a skill on the owner's copy in the stream go into the word back.
+    sbe(1100, 120, 0, kBattle | kSkill);
     d.draw(g, kBase, 5416, 1100);
-    uint32_t battle[kMaxEnemies], refused[kMaxEnemies];
-    uint8_t nb = 0, nr = 0;
-    d.flags(battle, nb, refused, nr);
-    assert(nb == 1 && battle[0] == 4100 && nr == 0);
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies];
+    uint8_t nb = 0, nr = 0, ns = 0;
+    d.flags(battle, nb, refused, nr, skill, ns);
+    assert(nb == 1 && battle[0] == 4100 && nr == 0 && ns == 1 && skill[0] == 4100);
     assert(s.since(seen) == "write1 write4 move write12 write1 write4 move write12");
 
     // Restore when the pair goes (its row gone): our Velocity zeroed, the component back in SB's manager because it
@@ -1527,9 +1728,9 @@ int main() {
     row.frozen = true;
     d.rows(g, kBase, 7, kGuest, &row, 1);
     d.draw(g, kBase, 5016, 1000);
-    uint32_t battle[kMaxEnemies], refused[kMaxEnemies];
-    uint8_t nb = 0, nr = 0;
-    d.flags(battle, nb, refused, nr);
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies];
+    uint8_t nb = 0, nr = 0, ns = 0;
+    d.flags(battle, nb, refused, nr, skill, ns);
     assert(s.since(seen).empty() && s.writes == 0 && d.counts.cmc_refused == 1 && nr == 1 && refused[0] == 4100);
     assert(d.counts.not_drawn == 1 && d.counts.shows == 0);
     d.draw(g, kBase, 5032, 1000);
@@ -1540,7 +1741,7 @@ int main() {
     d2.rows(g, kBase, 7, kGuest, &row, 1);
     d2.sbe(bytes, encode_sbe(h, &e, 1, bytes));
     d2.draw(g, kBase, 5000, 1000);
-    d2.flags(battle, nb, refused, nr);
+    d2.flags(battle, nb, refused, nr, skill, ns);
     assert(s.since(seen).empty() && s.writes == 0 && d2.counts.cmc_refused == 1 && nr == 1);
     // A root whose vtable is not in the game's image: nothing written or called that frame (its Show not played),
     // the pair kept.
@@ -1925,6 +2126,71 @@ int main() {
     setup(f);
     f.rows(g, kBase, 7, kGuest, nullptr, 0);
     assert(s.since(seen).empty() && s.writes == writes && f.counts.frames == 1);
+  }
+
+  // ---- R35 at a take-over (stage 3b): the side that takes a pair over finds the other side's replays still on its
+  // copy. The Driver knows the stage handle of each replay it holds and of the last 64 it stopped (a pair it lets go
+  // stops them all); the owner's capture never tells such a stage, nor a show-set or show-stop for it, while a Show
+  // the game itself starts on the copy goes out as before ----
+  {
+    Stage s;
+    const uint64_t ch = s.copy(501, 100, 200, 20);
+    Stage::Game g = s.game();
+    Driver d;
+    Row row{4100, 501, kGuest, 1, true, false, false}; // The host draws her pair at her epoch 1.
+    d.rows(g, kBase, 7, kHost, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    e.oe = 1;
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    d.draw(g, kBase, 5000, 1000);
+    ShowLine l;
+    l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.oe = 1, l.id = 3, l.t_ms = 1010, l.rate = 1000;
+    assert(set_path(l, 0, "CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03"));
+    d.line(l, 1005);
+    d.draw(g, kBase, 5016, 1011);
+    assert(d.counts.shows == 1 && d.counts.lines_refused == 0);
+    // Her replay's stage, as the game keeps it: the copy its main actor, a player of a real asset.
+    const uint64_t replay = s.by_handle[1], replayed = s.get<uint64_t>(s.get<uint64_t>(replay + 0x88));
+    s.put<int32_t>(replay + 0x18, s.index(ch));
+    s.put<int32_t>(replay + 0x1c, s.serial(ch));
+    s.put<uint64_t>(replay + 0x20, ch + 0x560);
+    s.put<uint64_t>(replayed + 0x18, s.show("/Game/Art/Show/Her/Swing", "Swing"));
+    const uint64_t own = s.stage(ch); // One the game starts on the copy.
+    const uint64_t played = s.player(own, s.show("/Game/Art/Show/Our/Flinch", "Flinch"));
+    const int32_t one[4] = {1, 0x11, 0x22, 0x33}, other[4] = {9, 0x11, 0x22, 0x33}, none[4] = {};
+    const auto made = [&](const int32_t *w) {
+      uint8_t b[16];
+      std::memcpy(b, w, 16);
+      return d.made(b);
+    };
+    assert(made(one) && !made(other) && !made(none));
+    size_t seen = s.calls.size();
+    d.rows(g, kBase, 7, kHost, nullptr, 0); // The host takes it back: its replays stopped, the pair let go.
+    assert(s.since(seen).find("stop 1") != std::string::npos && made(one) && !d.holding());
+    Capturer c;
+    Scene::Find f{&s};
+    const Owned mine{4100, 501, 2, 0};
+    std::vector<ShowLine> lines;
+    uint8_t sbe[kMaxSbe];
+    const auto emit = [&](const ShowLine &x) { return lines.push_back(x), true; };
+    const auto ours = [&](const uint8_t *hh) { return d.made(hh); };
+    assert(c.capture(f, kBase, 7, &mine, 1, 2'000'000, sbe, emit, ours));
+    assert(lines.size() == 1 && lines[0].kind == Kind::show && lines[0].oe == 2 &&
+           std::string(lines[0].path, lines[0].path_len) == "Our/Flinch" && c.counts.echoes == 1);
+    s.put<uint8_t>(replayed + kPlayerFinished, 1); // Hers ends, ours speeds up: a show-set, never a show-stop.
+    s.put<float>(played + kPlayerRate, 2);
+    lines.clear();
+    c.capture(f, kBase, 7, &mine, 1, 2'033'000, sbe, emit, ours);
+    assert(lines.size() == 1 && lines[0].kind == Kind::set && lines[0].rate == 2000 && c.counts.echoes == 1);
+    // Without the Driver's word both would have gone out: the echo R35 forbids.
+    s.put<uint8_t>(replayed + kPlayerFinished, 0);
+    Capturer blind;
+    lines.clear();
+    blind.capture(f, kBase, 7, &mine, 1, 2'066'000, sbe, emit);
+    assert(lines.size() == 2 && blind.counts.echoes == 0);
   }
 
   // ---- Two worlds: the host pilots the guest's copies through a fake Steam (exit criterion 1 of stage 3a) ----

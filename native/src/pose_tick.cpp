@@ -883,12 +883,15 @@ __declspec(noinline) void pilot_body() {
   if (n && start >= next_sbe) {
     next_sbe = (next_sbe && start - next_sbe < kSbeUs ? next_sbe : start) + kSbeUs;
     PilotGame g;
-    const size_t size = capturer.capture(g, base, t.gen, owned, n, start, sbe_back, [peer](const pilot::ShowLine &l) {
-      if (pilot_waiting.push(PilotLine{l, peer}))
-        return true;
-      ++pilot_lost_here;
-      return false;
-    });
+    const size_t size = capturer.capture(
+        g, base, t.gen, owned, n, start, sbe_back,
+        [peer](const pilot::ShowLine &l) {
+          if (pilot_waiting.push(PilotLine{l, peer}))
+            return true;
+          ++pilot_lost_here;
+          return false;
+        },
+        [](const uint8_t *h) { return driver.made(h); }); // Our replays on a pair just taken over: never told (R35).
     if (size)
       sbe_back_size = size, sbe_back_peer = peer;
     pilot_sending = peer && size;
@@ -913,7 +916,8 @@ __declspec(noinline) void pilot_body() {
     for (pilot::ShowLine l; pilot_lines_here.pop(l);)
       driver.line(l, draw);
     driver.draw(g, base, now_ms, draw);
-    driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count);
+    driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count,
+                 pilot_stream.skill, pilot_stream.skill_count);
     if (driver.holding()) { // From the frame's start, the capture included (PHASE11-STAGE3 5: under 0.5 ms a frame).
       const uint64_t took = clock_us() - start;
       ++drive_runs_here, drive_us_here += took, drive_max_us_here = std::max(drive_max_us_here, took);
