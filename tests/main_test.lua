@@ -2207,6 +2207,7 @@ assert(kit_said('slow true title') and not kit_shown.saves,'The title: the root 
 kit_ready=true; quarter()
 assert(kit_shown.saves and kit_input and kit_holder=='saves' and saves_view.rows[1].st=='focus')
 key('DOWN_ARROW'); assert(saves_view.rows[2].st=='focus' and not kit_shown.menu)
+clock=clock+1 -- It takes a choice 1 s after it shows.
 key('UP_ARROW'); key('RETURN')
 clock=clock+0.25; loops[1].f()
 assert(asked[#asked]=='saves coop' and not kit_shown.chat and kit_holder=='saves','Enter chose; no chat box')
@@ -2222,6 +2223,7 @@ in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
 assert(kit_shown.saves)
 key('LEFT_MOUSE_BUTTON'); assert(kit_shown.saves,'A click on no choice: nothing')
 saves_view.rows[2].hover=true
+clock=clock+1
 key('LEFT_MOUSE_BUTTON'); assert(not kit_shown.saves and #asked==n_asked,'A click on Play solo normally')
 saves_view.rows[2].hover=nil
 in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
@@ -2238,8 +2240,8 @@ saves_info,at_title,chatting,chat_active={},false,false,false
 -- An XInput pad (the native part reads it; pad_test tests its events): each frame up to 8 events, routed as the keys
 -- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
 -- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
--- select and back. Nothing while the chat box, the code box or the host's question is open, while the menu waits for a
--- key (B still stops the wait), at the title with nothing open, or after coop off. An older DLL: one log line, no pad.
+-- select and back. Nothing while the host's question is open, while the menu waits for a key (B still stops the wait),
+-- at the title with nothing open, or after coop off; the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad.
 -- A function of its own: this chunk is at Lua's 200 locals.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
@@ -2275,15 +2277,15 @@ saves_info,at_title,chatting,chat_active={},false,false,false
     pad(3); assert(select(2,focus())=='Both')
     pad(6); assert(focus()=='Options' and kit_shown.menu,'B: back to the main page')
     pad(6); assert(not kit_shown.menu)
-    -- The code box (Join with a code): typing, the pad does nothing; Esc cancels.
+    -- The code box (Join with a code): typing, the pad takes only B, which closes it as Esc does.
     key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code and not kit_shown.menu)
-    pad(6,5,7); assert(kit_shown.code and not kit_shown.menu,'The code box: nothing')
-    key('ESCAPE'); assert(not kit_shown.code)
+    pad(5,2,7); assert(kit_shown.code and not kit_shown.menu,'The code box: A, down and View held do nothing')
+    pad(6); assert(not kit_shown.code and not kit_shown.menu,'B closes it')
     -- The chat's box, in a session: the same.
     link_mode,chat_active='host',true
     key('RETURN'); clock=clock+0.25; loops[1].f(); assert(kit_shown.chat) -- Quarters: the frame time test below.
-    pad(6,7); assert(kit_shown.chat and not kit_shown.menu,'The chat box: nothing')
-    key('ESCAPE'); assert(not kit_shown.chat)
+    pad(5,7); assert(kit_shown.chat and not kit_shown.menu,'The chat box: A and View held do nothing')
+    pad(6); assert(not kit_shown.chat and not kit_shown.menu,'B closes it')
     -- The host's question: never answered with the pad (its buttons are the game's in a fight).
     link_pending={id='76561198000000008',name='Two'}
     quarter(); assert(kit_shown.ask)
@@ -2306,6 +2308,9 @@ saves_info,at_title,chatting,chat_active={},false,false,false
     pad(7,3,4); assert(kit_shown.saves and saves_view.rows[1].st=='focus' and not kit_shown.menu
         and not logged('pad: menu'))
     pad(2); assert(saves_view.rows[2].st=='focus')
+    local before=#asked
+    pad(5); assert(kit_shown.saves and #asked==before,'A within 1 s of the question showing: nothing')
+    clock=clock+1
     pad(1); pad(5); clock=clock+0.25; loops[1].f()
     assert(asked[#asked]=='saves coop' and kit_holder=='saves','A chose')
     pad(6); assert(asked[#asked]=='saves main' and not kit_shown.saves,'B: withdrawn, closed')

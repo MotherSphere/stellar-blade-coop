@@ -581,11 +581,16 @@ local timed={ghost=0,ui=0,frames=0,since=nil}
 -- A pad event, routed as the keys route theirs (the key block below): the menu open takes the six navigation words, and
 -- menu (View held 1 s) closes it; the co-op saves' question takes up, down, select and back; with nothing open, in a
 -- world with our HUD shown, menu opens the co-op menu as menu_key does, its refusals said the same way. Nothing while
--- the chat's box, the code box or the host's question is open (A is Jump and the D-pad uses items: a press meant for
--- the game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav).
+-- the host's question is open (A is Jump and the D-pad uses items: a press meant for the game never answers a
+-- stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The chat's box and the code
+-- box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad alone is never stuck there.
 local PAD={'up','down','left','right','select','back','menu'}
 local function pad_event(what)
-    if box.is_open() or code_box.is_open() or approval.is_open() then return end
+    if approval.is_open() then return end
+    if code_box.is_open() or box.is_open() then
+        if what=='back' then (code_box.is_open() and code_box or box).cancel() end
+        return
+    end
     if menu.is_open() then
         if what~='menu' then return menu.nav(what) end
         if menu.capturing() then return end
@@ -951,8 +956,8 @@ end
 -- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
 -- in the log in English and on screen in the menu's words; coop status keeps the full status. An XInput pad, which
 -- no bind can take, comes through the native part (pad_event above, each frame): View held 1 s does what menu_key
--- does, the D-pad or the left stick, A and B navigate the menu and the co-op saves' question; never the host's
--- question, the chat's box or the code box.
+-- does, the D-pad or the left stick, A and B navigate the menu and the co-op saves' question, B closes the chat's box
+-- and the code box; never the host's question.
 if settings then
     local K=require('keybind')
     local ACTIONS={'menu','host','status','leave'}
