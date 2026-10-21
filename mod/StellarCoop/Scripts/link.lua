@@ -17,7 +17,8 @@
 -- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
 -- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
 -- quest_notes() here; its revive and cutscene_wait group.lua's (the friend's revive, the wait during the host's
--- cutscene). The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- cutscene); its follow_host and follow_key travel.lua's and main.lua's (the guest's travel to the camp nearest the
+-- host), which reads camps() here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -30,11 +31,13 @@ Link.DEFAULT=[[
 # StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
-# the co-op menu, whose first row hosts; host_key hosts at once, or none.
+# the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
+# below), or none.
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
+follow_key=F7
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -114,6 +117,11 @@ photo_pause=full
 # Cutscene wait: on or off. Yours, as the guest: on, your game pauses while a cutscene plays in the host's game and you
 # are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
 cutscene_wait=on
+# Follow the host, as the guest, on a co-op save: ask, always or off. When the host is on another map, or more than
+# 150 m from you on yours, ask shows a notice once and follow_key then takes you to the camp nearest them through the
+# game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
+# follow_key cancels it; off does neither.
+follow_host=ask
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
@@ -137,15 +145,17 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',cutscene_wait='on'}
+    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',cutscene_wait='on',
+    follow_host='ask',follow_key='F7'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
-local KEYS={'menu_key','host_key','status_key','leave_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'friends','code','private'},
-    auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'}}
+    auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
+    follow_host={'ask','always','off'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -154,10 +164,10 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
 -- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro, photo_pause) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of
--- percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole
--- percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes (the native part's
--- request limit; it names the entries that are no shared quest).
+-- auto_coop_save, aggro, photo_pause, follow_host) one of its words; photo_freeze_max a whole number of seconds;
+-- ui_scale one of percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them
+-- in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes (the native
+-- part's request limit; it names the entries that are no shared quest).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -293,7 +303,16 @@ function Link.parse_settings(text)
         if settings.host_key.key then settings.menu_key=settings.host_key end
         settings.host_key=setting('host_key','none')
     end
-    -- Two actions on one key would both run on each press: all four go back to the defaults.
+    -- A file written before follow_key that gives its F7 to another action keeps it there: follow_key reads none.
+    if not named.follow_key then
+        for _,name in ipairs(KEYS) do
+            if name~='follow_key' and settings[name].name==settings.follow_key.name then
+                settings.follow_key=setting('follow_key','none')
+                break
+            end
+        end
+    end
+    -- Two actions on one key would both run on each press: all five go back to the defaults.
     local keys={}
     for _,name in ipairs(KEYS) do keys[name]=settings[name] end
     for _,name in ipairs(KEYS) do
@@ -342,6 +361,7 @@ function Link.new(folder,fs)
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks=nil,nil,nil,false,false,{},nil
     local quests,noted,noted_shown=nil,nil,nil
+    local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
     -- lobby members' SteamIDs (peer lines). strangers: each joiner seen waiting in the lobby strangers_in names
@@ -451,6 +471,7 @@ function Link.new(folder,fs)
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,life,ping,loopback,saves,paks=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil
         quests,noted=nil,nil
+        camps_asked,camps_answer=nil,nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title (saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
@@ -491,6 +512,8 @@ function Link.new(folder,fs)
             if line:find('^fight=') then fight=line end
             if line:find('^pilot=') then pilot=line end
             if line:find('^quests=') then quests=line end
+            camps_asked=tonumber(line:match('^camps%?=(%d+)$')) or camps_asked
+            camps_answer=line:match('^camps=(%d+ %S.*)$') or camps_answer
             local qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$')
             if qn then noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil} end
             local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
@@ -558,6 +581,10 @@ function Link.new(folder,fs)
         noted_shown=math.max(noted_shown or 0,top and top.n or 0)
         return out
     end
+    -- The follow's camps lines as of the last changes(), each from the start of its own line: as the host, the id of
+    -- her last camps? (a number); as the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or
+    -- '<id> none <why>'); nil without them.
+    function self.camps() return camps_asked,camps_answer end
     -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a

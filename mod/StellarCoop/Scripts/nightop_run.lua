@@ -601,6 +601,8 @@ function Run.new(o)
     end
     -- coop off (or any reason): the run ends as aborted.
     function self.stop(reason) return stop(reason or 'stop') end
+    -- A run is under way (its result panel aside): the follow's travel waits for its end.
+    function self.running() return r~=nil and r.s.phase~='result' end
     return self
 end
 return Run

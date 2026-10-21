@@ -36,7 +36,8 @@ local function reload(row) row.reload=true; return row end -- The mod takes it a
 -- each is in UI-DESIGN's Options table); each waits as later() until its feature is built, then the mod reads it.
 M.OPTIONS={
     {head='controls'},
-    bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),later(bind('chat_key','Enter')),
+    bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),
+    later(bind('chat_key','Enter')),
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
@@ -53,6 +54,9 @@ M.OPTIONS={
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
     toggle('revive','off'), -- Yours, at once: the friend's revive of your EVE (group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
+    -- Yours as the guest, at once: the travel to the camp nearest the host (travel.lua), offered (ask), started by
+    -- itself (always) or neither (off).
+    {key='follow_host',values={'ask','always','off'},default='ask'},
     later(toggle('rejoin','on')),
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.

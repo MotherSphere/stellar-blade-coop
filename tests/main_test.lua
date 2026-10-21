@@ -225,11 +225,22 @@ package.loaded.group={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
-        photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end}
+        photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
+        cutscene_playing=function() return gr.playing==true end}
+end}
+-- The follow (travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop travel probe's
+-- camps. A global too.
+tv={o=nil,ticks={},presses=0,probes={}}
+package.loaded.travel={new=function(o)
+    tv.o=o
+    return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
+        press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
+        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end}
 end}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
+        running=function() return nr.running==true end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
@@ -362,7 +373,7 @@ package.loaded.chat={new=function(lines,on)
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
-    ..'status | report | where | loopback '
+    ..'status | report | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
     ..'fight on|off|status|probe|test|record|replay|pilot|'
@@ -435,11 +446,13 @@ press('F5'); flush()
 assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the co-op menu opens in the game world '
     ..'only\n' and said[#said]=='The co-op menu opens in the game world only.'
     and said_en[#said]=='The co-op menu opens in the game world only.','F5 opens the menu, never hosts')
-press('F7'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F7') and not logged('key Shift+F5'),
+press('F9'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F9') and not logged('key Shift+F5'),
     'Keys no action holds: nothing')
 clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
 press('DOWN_ARROW'); press('ESCAPE'); assert(executes==executed+4,'Menu keys while closed: not queued')
 press('RETURN'); assert(executes==executed+5,'Enter is queued: the chat decides on the game thread')
+press('F7'); flush() -- follow_key: the travel to the host, as coop travel host.
+assert(tv.presses==1 and logged('key F7: follow') and last()=='[StellarCoop] OK: asked the host for camps\n',last())
 press('F6'); flush()
 assert(#asked==1 and last()=='[StellarCoop] OK: Co-op: not in a session.\n' and logged('key F6: status'),last())
 assert(said[#said]=='Co-op: not in a session.','The summary on screen too')
@@ -729,6 +742,25 @@ for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
     coop('revive',table.unpack(bad))
     assert(gr.tests==1 and last()=='[StellarCoop] STOP: Use: coop revive test\n',last())
 end
+-- The follow: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's clock; it
+-- waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and during a
+-- cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; anything else its usage line.
+assert(tv.o.link==fake_link and tv.o.settings.follow_host=='ask' and tv.o.settings.follow_key.name=='F7'
+    and tv.o.name(require('ui_text').en)=='Kaanta' and type(tv.o.tell)=='function' and tv.o.puppet.her_map()=='/game/e04')
+tv.o.log('travel: answered camps 1 none title'); assert(last()=='[StellarCoop][TR] travel: answered camps 1 none title\n')
+assert(tv.o.paused()==false and tv.o.night()==false and tv.o.cutscene()==false)
+kit_paused=true; assert(tv.o.paused()==true); kit_paused=false
+nr.running=true; assert(tv.o.night()==true); nr.running=nil
+gr.playing=true; assert(tv.o.cutscene()==true); gr.playing=nil
+tv.count=#tv.ticks
+loops[2].f(); assert(#tv.ticks==tv.count+1 and tv.ticks[#tv.ticks]==gr.ticks[#gr.ticks])
+coop('travel','host'); assert(tv.presses==2 and last()=='[StellarCoop] OK: asked the host for camps\n',last())
+coop('travel','probe','DED10_Camp_07')
+assert(tv.probes[1]=='DED10_Camp_07' and last()=='[StellarCoop] OK: travel DED10_Camp_07 asked\n',last())
+for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'}}) do
+    coop('travel',table.unpack(bad))
+    assert(tv.presses==2 and #tv.probes==1 and last()=='[StellarCoop] STOP: Use: coop travel host\n',last())
+end
 nr.ticked=nr.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
@@ -741,7 +773,8 @@ local written=#states
 takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
-assert(#gr.ticks==gr.count+2,'No revive tick after coop off')
+assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
+assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
 chatting=true; loops[2].f(); chatting=false
@@ -1891,7 +1924,8 @@ link_mode='none'
 settings_text='# mine\nname_tag=on\n'
 key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
-    ..'Leave the session|F8|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\nLongest pause|10 min|normal\n'),screen())
+    ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\n'
+    ..'Longest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
 assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
@@ -2041,8 +2075,8 @@ key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
 -- Rebind with capture (D-UI2): a key row waits for an F-key, checked against the other keys; Esc stops waiting; the new
 -- key works at once (every F-key is bound). The file had no menu_key line: host_key=none is written with it, so the old
--- key never hosts again by itself.
-settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\n'
+-- key never hosts again by itself. The follow key is off F7 here, for the status key below.
+settings_text='host_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\n'
 key('F5'); to('Options'); key('RETURN')
 assert(focus()=='Open this menu')
 key('RETURN'); assert(select(2,focus())=='Press a key' and menu_view.note.s:find('^Press F1 to F12'))
@@ -2052,7 +2086,7 @@ key('RETURN')
 assert(menu_view.note.s=='Use F1 to F12, with at most one of Shift, Ctrl, Alt.','Enter is the chat key only')
 key('ESCAPE'); assert(select(2,focus())=='F5' and menu_view.note.s=='' and focus()=='Open this menu','Esc: not waiting')
 key('RETURN'); key('F7','SHIFT')
-assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nmenu_key=Shift+F7\n'
+assert(settings_text=='host_key=none\nstatus_key=F6\nleave_key=F8\nfollow_key=F9\nmenu_key=Shift+F7\n'
     and select(2,focus())=='Shift+F7')
 clock=clock+1
 key('F5'); assert(kit_calls[#kit_calls]~='show false' and not logged('key F5: host'),'F5 is nobody\'s now')
