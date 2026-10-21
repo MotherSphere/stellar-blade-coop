@@ -187,12 +187,13 @@ local function photo_state()
     return '0'
 end
 -- photo_pause (experimental): scenery is SB's own SB.PhotoMode.PauseMethod 1, the method its help calls experimental.
--- The world stops only while photo mode opens; then animations, physics, cloth, effects and the ghost go on moving
--- while SB's logic stays stopped (enemies, combat, our shared fight). full is 0, the game's default. Each 250 ms with
--- a save loaded or the title shown, the console variable is read and set only when it differs from the setting (with
--- the player controller), then read back: full on an untouched game changes nothing. SB reads it as each photo mode
--- opens, so a change applies from the next. The first engine error, or a set that does not take (another game build),
--- stops it for this Lua load. coop off sets 0 again while scenery holds.
+-- The world stops only while photo mode opens; then animations, physics, cloth and effects go on moving (the ghost
+-- too, unless photo sync paused the friend's game) while SB's logic stays stopped (enemies, combat, our shared
+-- fight). full is 0, the game's default. Each 250 ms with a save loaded or the title shown, the console variable is
+-- read and set only when it differs from the setting (with the player controller), then read back: full on an
+-- untouched game changes nothing. SB reads it as each photo mode opens, so a change applies from the next. The first
+-- engine error, or a set that does not take (another game build), stops it for this Lua load. coop off sets 0 again
+-- unless 0 was the last value matched, and logs a line when no player controller lets it.
 local UE=require('UEHelpers')
 local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
 local pause={synced=nil,failed=false} -- The method last matched (read or set); off for this load.
@@ -202,6 +203,8 @@ local function photo_pause(want,why)
         local library=U.find('/Script/Engine.Default__KismetSystemLibrary')
         if library:GetConsoleVariableIntValue(PAUSE_METHOD)==want then return true end
         local pc=U.valid(UE.GetPlayerController())
+        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
+        if pc and not pc:IsA(U.find('/Script/Engine.PlayerController')) then pc=nil end
         if not pc then return false end -- Not yet: tried again in 250 ms.
         library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
         local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
@@ -388,7 +391,13 @@ local commands={
         if code_box then code_box.stop(); approval.stop() end
         if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
-        if pause.synced==1 then photo_pause(0,'coop off') end -- The game's own photo pause back.
+        if pause.synced~=0 then -- The game's own photo pause back (a reload may not have read it yet).
+            photo_pause(0,'coop off')
+            if pause.synced~=0 and not pause.failed then
+                log('photo pause: no player controller at coop off: '..PAUSE_METHOD..' stays as it is until the game '
+                    ..'exits')
+            end
+        end
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end

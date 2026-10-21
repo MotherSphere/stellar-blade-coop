@@ -54,8 +54,11 @@ local settings_text=''
 local photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
 -- The engine's library default object (main.lua's photo pause): SB.PhotoMode.PauseMethod (cv.value) read and set
 -- through it, as UE4SS calls them; cv.set: what the console command leaves (nil: the value asked); cv.pc: UEHelpers'
--- player controller (nil: none yet).
-local cv={value=0,reads=0,runs={},PC={type=function() return 'UObject' end,IsValid=function() return true end}}
+-- player controller (nil: none yet; cv.stale: one whose address now holds another object).
+local cv={value=0,reads=0,runs={},class={type=function() return 'UObject' end,IsValid=function() return true end}}
+cv.PC={type=function() return 'UObject' end,IsValid=function() return true end,
+    IsA=function(_,class) return class==cv.class end}
+cv.stale={type=function() return 'UObject' end,IsValid=function() return true end,IsA=function() return false end}
 cv.pc=cv.PC
 cv.kismet={type=function() return 'UObject' end,IsValid=function() return true end,
     GetConsoleVariableIntValue=function(_,name)
@@ -72,6 +75,7 @@ cv.kismet={type=function() return 'UObject' end,IsValid=function() return true e
 package.loaded.UEHelpers={GetPlayerController=function() return cv.pc end}
 StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
+    if path=='/Script/Engine.PlayerController' then return cv.class end
     assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
     local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
     return {type=function() return 'UObject' end,IsValid=function() return true end,
@@ -721,8 +725,9 @@ in_world,photo_mode,settings_text=false,false,''
 
 -- photo_pause (experimental): SB.PhotoMode.PauseMethod made to match it each 250 ms, a save loaded or the title shown:
 -- read, set only when it differs (full on an untouched game sets nothing), read back, then no further call. No player
--- controller yet: it waits. A set that does not take (another game build) or an engine error: one log line, off for
--- this load. coop off puts the game's own method back once scenery set it.
+-- controller yet, or a stale one: it waits. A set that does not take (another game build) or an engine error: one log
+-- line, off for this load. coop off puts the game's own method back unless 0 was the last value matched; with no
+-- player controller then, one log line.
 do
     cv.value,cv.runs=0,{}
     load_main(true)
@@ -763,7 +768,19 @@ do
     cv.error,cv.value,cv.runs,settings_text=nil,1,{},'photo_pause=scenery\n'
     load_main(true); loops[2].f(); assert(#cv.runs==0)
     coop('off'); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 0' and cv.value==0)
-    cv.error,cv.value,cv.runs,at_title,settings_text=nil,0,{},false,''
+    -- coop off before the reload's first 250 ms: read there, 0 put back all the same.
+    cv.value,cv.runs=1,{}
+    load_main(true); coop('off'); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 0' and cv.value==0)
+    -- A stale player controller (UEHelpers' last one, after a map change): never used, it waits as with none.
+    cv.value,cv.runs,cv.pc=0,{},cv.stale
+    load_main(true); loops[2].f(); assert(#cv.runs==0 and not table.concat(printed):find('photo pause: off',1,true),
+        'Not a player controller')
+    cv.pc=cv.PC; loops[2].f(); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 1' and cv.value==1)
+    -- None at coop off (a load under way): said in the log, the value left.
+    cv.pc=cv.stale; coop('off')
+    assert(#cv.runs==1 and cv.value==1 and logged('photo pause: no player controller at coop off: '
+        ..'SB.PhotoMode.PauseMethod stays as it is until the game exits'),table.concat(printed,'|'))
+    cv.error,cv.value,cv.runs,cv.pc,at_title,settings_text=nil,0,{},cv.PC,false,''
 end
 
 -- The ghost turns on when the link goes from none to a session (D5.1): once per session, so a manual off holds until
