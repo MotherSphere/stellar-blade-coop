@@ -510,10 +510,11 @@ void guarded_tick() {
 // PHASE11-STAGE2-RE 2) only from inside our job. Same spawns (stage 4, PHASE11-STAGE3 9.2; M3-8: the game's own spawn
 // and despawn, no patch), only from inside our job too: the EventSpawnTable row by EventSpawnId, the ZoneTable row by
 // alias, the spawn of a key on SB's spawn manager (as FSBCreateActor::Simulate makes it) and the despawn job (as SB's
-// ZoneEvent Despawn sends it).
+// ZoneEvent Despawn sends it). Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7), only from inside our job: NewActor,
+// as SpawnRequest::Execute calls it.
 constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720,
                    kApplyEffect = 0x141ad08b0, kSpawnRow = 0x141a9db80, kZoneRow = 0x141a9b8a0,
-                   kSpawnByKey = 0x141c1c9a0, kDespawn = 0x141b077f0;
+                   kSpawnByKey = 0x141c1c9a0, kDespawn = 0x141b077f0, kNewActor = 0x141ad1290;
 constexpr uint64_t kLogicThreadId = 0x1470634f0; // DAT_1470634f0: the logic worker's thread ID during its tick, else 0.
 using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
 using FindActor = void *(*)(void *logic, int32_t guid);
@@ -534,6 +535,13 @@ using SpawnByKey = void (*)(void *manager, uint32_t id, uint32_t index, const fl
                             uint64_t unused, void *extra, uint8_t flag);
 // The job sender, the logic turn and the actor's GUID: a despawn job for it.
 using Despawn = void (*)(void *sender, uint32_t turn, uint32_t guid);
+// NewActor: the logic singleton, the charId, where, the rotation (pitch, yaw, roll), not a player (0) and its player ID
+// (0), the EventSpawnId and SpawnIndex, the row's +0x14 field (0: no row), 0, 1, the request's extra data (null: SB's
+// FSBActor creation FUN_141ca9100 null-checks it and then keeps its own default, the same state a fresh request's
+// copy gives, read 2026-10-21), 0, its flag 0 (no actor replaced) and 0. The new logic actor, or null.
+using NewActor = void *(*)(void *logic, int32_t chr, const float *at, const float *rot, uint8_t player,
+                           uint32_t player_id, uint32_t id, uint8_t index, uint64_t row_field, uint8_t, uint8_t,
+                           const void *extra, uint8_t, uint8_t flag, uint64_t);
 template <class F> F game_function(uint64_t address) {
   return reinterpret_cast<F>(base + (address - nightop::kImageBase));
 }
@@ -577,6 +585,11 @@ struct WinGame {
   }
   void despawn(uint64_t sender, uint32_t turn, uint32_t guid) {
     game_function<Despawn>(kDespawn)(reinterpret_cast<void *>(sender), turn, guid);
+  }
+  uint64_t make(uint64_t logic, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index) {
+    return reinterpret_cast<uintptr_t>(game_function<NewActor>(kNewActor)(
+        reinterpret_cast<void *>(logic), static_cast<int32_t>(chr), at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0,
+        0));
   }
   void push(fight::Job *job) { game_function<SendJob>(kSendJob)(nullptr, job, 0); }
   bool receive(fight::Message &m) { return fight_mail.receive(m); }

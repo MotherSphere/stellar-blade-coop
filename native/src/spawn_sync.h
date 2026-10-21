@@ -14,12 +14,14 @@
 // The Io both sides take:
 //   bool row(uint32_t id, SpawnRow &out): the EventSpawnTable row of this EventSpawnId in our tables; false when none;
 //   bool shares(uint32_t chr): the shared fight shares this charId here (fight_chars, or the auto rule's charIds);
-//   bool create(const SpawnKey &k, const float *at, float yaw): SB's spawn of that key there (the guest's); false when
-//     the game cannot take one now;
+//   const char *create(const SpawnKey &k, uint32_t chr, const float *at, float yaw): SB's spawn of that key there (the
+//     guest's; an extra's key through NewActor, of charId chr); null when made, else why not;
 //   bool despawn(uint32_t guid, const SpawnKey &k): SB's despawn of that actor, found again by GUID, of that key and
 //     alive (the guest's); false when not;
 //   void send(const Message &m), void event(const Event &e): channel 2 and the log (by key only: the guest's own GUIDs
 //     are no host GUIDs).
+// Extras (stage 4b) take the same row(), and make(const SpawnKey &k, uint32_t chr, const float *at, float yaw): SB's
+// NewActor of charId chr with that key there (the host's).
 #pragma once
 
 #include <algorithm>
@@ -83,6 +85,7 @@ struct SpawnCounts {
   uint64_t stale = 0;                                // Lines true once: another epoch or generation, a key already
                                                      // settled, out of the shared zone, a round cut.
   uint64_t rate = 0;                                 // Over the rates.
+  uint64_t extras = 0, extras_gone = 0;              // Extras made here (NewActor), and despawned by us (far, end).
 };
 
 constexpr uint64_t kGraceMs = 3000;     // A zone shared from this long after our last epoch began.
@@ -113,6 +116,25 @@ inline const Mine *find(const Mine *mine, size_t n, const SpawnKey &k) {
 }
 inline bool listed(const SpawnKey *keys, size_t n, const SpawnKey &k) {
   return std::find(keys, keys + n, k) != keys + n;
+}
+
+// ---- Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7) ----
+// The host makes enemy_extra (0 to kMaxPer) more of each common enemy where both players stand, with SB's NewActor and
+// keys of a range no EventSpawnTable row of this build uses (RE12: its highest EventSpawnId is 0xD42B5F51): EventSpawnId
+// 0xE0000000 | n << 8 | slot and SpawnIndex slot, for the n-th enemy given extras this session and slots 1 to 3. Same
+// spawns then send each to her as a key of ours she lacks, she makes the same key, and stage 1 pairs them. A key no
+// row holds is never respawned or saved and never reaches zone scripts (SB's row == null gates, RE12).
+constexpr uint32_t kExtraBase = 0xE0000000, kMaxOrigins = ~kExtraBase >> 8;
+constexpr uint8_t kMaxPer = 3;
+constexpr float kExtraRangeCm = 12000;              // An extra more than 120 m from both EVEs goes.
+constexpr size_t kMaxExtras = kMaxAnswer * kMaxPer; // A side's extras at once.
+inline bool is_extra(uint32_t id) { return id >= kExtraBase; }
+inline SpawnKey extra_key(uint32_t n, uint8_t slot) { return SpawnKey{kExtraBase | n << 8 | slot, slot}; }
+// Where slot's extra of an enemy at at, of yaw yaw (degrees), stands: 2, 3 or 4 m from it, 120 degrees apart, at its
+// height (out of 3).
+inline void extra_at(const float *at, float yaw, uint8_t slot, float *out) {
+  const double a = (double(yaw) + 120.0 * slot) * 3.14159265358979323846 / 180, r = 100.0 + 100.0 * slot;
+  out[0] = float(at[0] + r * std::cos(a)), out[1] = float(at[1] + r * std::sin(a)), out[2] = at[2];
 }
 
 // A side's own epoch.
@@ -216,12 +238,11 @@ public:
       return;
     }
     ++counts.answered;
-    SpawnRow row;
     size_t lines = 0;
     for (size_t i = 0; i < n && lines < kMaxAnswer; ++i) {
       const Mine &m = mine[i];
       if (!m.monster || m.dying || listed(round_.keys, round_.n, m.key) || !within(m.at, her, kSpawnRangeCm) ||
-          !io.row(m.key.spawn, row) || row_out(row) || row.zone != zone || !std::isfinite(m.yaw) || !fits(m.at))
+          !takes_part(m.key, zone, io) || !std::isfinite(m.yaw) || !fits(m.at))
         continue;
       Message s = note(Type::spawn, gen, ep.n());
       s.spawn = m.key.spawn, s.index = m.key.index, s.chr = m.chr;
@@ -236,7 +257,7 @@ public:
     lines = 0;
     for (size_t i = 0; i < round_.n && lines < kMaxAnswer; ++i) {
       const SpawnKey &k = round_.keys[i];
-      if (fight::find(mine, n, k) || !io.row(k.spawn, row) || row_out(row) || row.zone != zone)
+      if (fight::find(mine, n, k) || !takes_part(k, zone, io))
         continue;
       Message d = note(Type::drop, gen, ep.n());
       d.spawn = k.spawn, d.index = k.index;
@@ -258,6 +279,11 @@ private:
     Message m;
     m.type = type, m.gen = gen, m.epoch = epoch;
     return m;
+  }
+  // A key of the shared zone's set: its row takes part there, or an extra's (no row).
+  template <class Io> static bool takes_part(const SpawnKey &k, uint32_t zone, Io &io) {
+    SpawnRow row;
+    return is_extra(k.spawn) || (io.row(k.spawn, row) && !row_out(row) && row.zone == zone);
   }
   static bool fits(const float *at) { // Whole cm within an int32, as the spawn line carries them.
     for (int k = 0; k < 3; ++k)
@@ -348,9 +374,12 @@ private:
     ++in_window_;
     return false;
   }
-  // Why the host's key stays out of our zone's set in our tables, or null.
+  // Why the host's key stays out of our zone's set in our tables, or null. An extra's key takes part while no row of
+  // ours holds it.
   template <class Io> const char *out(const SpawnKey &k, Io &io) {
     SpawnRow row;
+    if (is_extra(k.spawn))
+      return io.row(k.spawn, row) ? "row taken" : nullptr;
     if (!io.row(k.spawn, row))
       return "no row";
     if (const char *why = row_out(row))
@@ -413,8 +442,8 @@ private:
                         : made_ == kMaxKeys ? "full"
                         : !io.shares(m.chr) ? "not shared"
                                             : out(k, io);
-      if (!why && !io.create(k, at, float(m.yaw)))
-        why = "no spawn manager";
+      if (!why)
+        why = io.create(k, m.chr, at, float(m.yaw));
       if (!distant)
         made(k, m.chr, !why);
       ++(why ? counts.refused : counts.spawned);
@@ -474,6 +503,44 @@ private:
   bool again_ = true; // A round is due at once (a new epoch, ours or the host's).
   uint64_t next_any_ = 0, next_have_ = 0, window_ = 0;
   uint32_t in_window_ = 0;
+};
+
+// The host's extras: which of our enemies get them. Each census while the zone is shared: a Monster the fight shares
+// (never a boss or an Elite: BossMonster), not dying, of a SpawnType 0 row (EnterZone: never a ZoneEvent or Quest
+// spawn), within 120 m of our EVE or of hers (her: as her ghost stands here, her_ok: told), and no extra itself, gets
+// per extras once a life (by GUID), while room (the engine's) is left for all of them. Its n is one more than the last
+// one's; past kMaxOrigins none gets any.
+class Extras {
+public:
+  template <class Io>
+  void step(uint8_t per, size_t room, const float *eve, const float *her, bool her_ok, const Mine *mine, size_t n,
+            Io &io) {
+    size_t kept = 0; // Lives of the last census still here.
+    for (size_t i = 0; i < done_; ++i)
+      if (std::any_of(mine, mine + n, [&](const Mine &m) { return m.guid == done_at_[i]; }))
+        done_at_[kept++] = done_at_[i];
+    done_ = kept;
+    SpawnRow row;
+    for (size_t i = 0; i < n && per && room >= per && n_ < kMaxOrigins && done_ < kMaxSeen; ++i) {
+      const Mine &m = mine[i];
+      if (!m.monster || m.dying || is_extra(m.key.spawn) || !std::isfinite(m.yaw) ||
+          !(within(m.at, eve, kExtraRangeCm) || (her_ok && within(m.at, her, kExtraRangeCm))) ||
+          std::find(done_at_, done_at_ + done_, m.guid) != done_at_ + done_ || !io.row(m.key.spawn, row) ||
+          row.spawn_type != 0)
+        continue;
+      done_at_[done_++] = m.guid, ++n_, room -= per;
+      for (uint8_t slot = 1; slot <= per; ++slot) {
+        float at[3];
+        extra_at(m.at, m.yaw, slot, at);
+        io.make(extra_key(n_, slot), m.chr, at, m.yaw);
+      }
+    }
+  }
+
+private:
+  uint32_t done_at_[kMaxSeen] = {}; // Lives given extras.
+  size_t done_ = 0;
+  uint32_t n_ = 0;
 };
 
 } // namespace coop::fight

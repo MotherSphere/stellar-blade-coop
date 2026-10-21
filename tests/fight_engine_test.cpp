@@ -609,6 +609,19 @@ struct Game {
     mem.put<int32_t>(fsb(guid) + kLife, 4);
     body(guid).gone_at = turn() + 3;
   }
+  // Extras (stage 4b): NewActor (FUN_141ad1290) of charId chr with an extra's key, from inside the job, makes an actor
+  // in the map at once in Spawn state, a Monster; 0 with refuse_make set.
+  std::vector<Made> extras;
+  bool refuse_make = false;
+  uint64_t make(uint64_t lg, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index) {
+    assert(lg == logic && processing && is_extra(id) && index >= 1 && index <= kMaxPer && (id & 0xff) == index);
+    if (refuse_make)
+      return 0;
+    const uint64_t la = spawn(next_guid, id, index, chr);
+    place(next_guid, at[0], at[1], rot[1]);
+    extras.push_back(Made{id, index, {at[0], at[1], at[2]}, {rot[0], rot[1], rot[2]}, next_guid++});
+    return la;
+  }
   // The keys of this world's Monsters in the map, alive or dying, sorted.
   std::vector<std::pair<uint32_t, uint8_t>> keys() {
     std::vector<std::pair<uint32_t, uint8_t>> out;
@@ -2594,6 +2607,146 @@ int main() {
     assert(std::none_of(G.made.begin(), G.made.end(), [](const Game::Made &m) { return m.id == 24; }));
   }
 
+  // ---- Extra enemies (stage 4b), two worlds through channel 2 with enemy_extra=2 ----
+  // Both games hold keys 1-4 in zone 40, the EVEs 20 m apart. Each of the host's four gets two extras through
+  // NewActor, 2 and 3 m from it; same spawns send them, she makes the same keys (NewActor too, the host's charId,
+  // where the host's stand), and stage 1 pairs all twelve. At 12 s one of the host's extras stands 130 m from both
+  // EVEs: the host despawns it, then her copy goes by a drop. The host's shared enemies off then despawn every extra
+  // still fighting in its game, and its off line every one in hers. Nothing ever dies.
+  {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->same_spawns(true), eh->enemy_extra(2);
+    eg->enemy_extra(3); // Hers decides nothing.
+    for (Game *w : {&H, &G}) {
+      w->spawns();
+      w->zone(w == &H ? 0xA1 : 0xB7, 40);
+      w->enter(w == &H ? 0xA1 : 0xB7);
+      for (uint32_t id = 1; id <= 4; ++id) {
+        w->spawn_row(id, 2, w == &H ? 0xA1 : 0xB7);
+        w->spawn(100 + id, id, 0);
+        w->place(100 + id, 300.f * float(id), 500, 30);
+      }
+      w->place(1, 0, w == &H ? 0.f : 2000.f);
+      w->flags.her_ok = true;
+      w->flags.her[1] = w == &H ? 2000.f : 0.f; // The other EVE's ghost, 20 m away.
+    }
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(15);
+    size_t most = 0;
+    uint32_t far_copy = 0;
+    for (uint64_t t = 0; t <= 22000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 12000) { // One of the host's extras walks off, 130 m from both EVEs.
+        H.place(H.extras[0].guid, 13000, -2000);
+        for (const Game::Made &x : G.extras)
+          far_copy = x.id == H.extras[0].id && x.index == H.extras[0].index ? x.guid : far_copy;
+      }
+      if (t == 20000) // The host's worker sends its off line.
+        eh->set(false, true), to_guest.queue.emplace_back(t + 120, "SBF11 off coop fight off");
+      if (t == 21504) { // Her extras went with the host's same spawns; her own end finds none left.
+        assert(count(G, "extra despawned", "end") == 7 && G.despawned.size() == 8);
+        eg->set(false, false);
+      }
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+      most = std::max(most, eg->guest.linked());
+    }
+    std::printf("fight_engine_test: extra enemies, two worlds: %zu made by the host, %zu by her, %zu paired at most\n",
+                H.extras.size(), G.extras.size(), most);
+    assert(!eh->latched() && !eg->latched() && H.extras.size() == 8 && G.extras.size() == 8 && most == 12);
+    for (const Game::Made &x : H.extras) { // n is the enemy's turn in the census: keys 1-4 in order.
+      const uint32_t n = x.id >> 8 & 0xff;
+      assert((x.id & 0xffff00ff) == (kExtraBase | x.index) && n >= 1 && n <= 4 && x.index <= 2);
+      assert(std::fabs(std::hypot(x.at[0] - 300.f * float(n), x.at[1] - 500) - 100.f * float(x.index + 1)) < 0.1f);
+      assert(x.rot[1] == 30 && H.mem.get<uint32_t>(H.by_guid[x.guid] + kCharId) == kChar);
+    }
+    for (const Game::Made &x : G.extras) { // Her copies: the host's keys, where the host's stood (whole cm).
+      const auto at = std::find_if(H.extras.begin(), H.extras.end(),
+                                   [&](const Game::Made &h) { return h.id == x.id && h.index == x.index; });
+      assert(at != H.extras.end() && std::fabs(x.at[0] - at->at[0]) <= 0.5f && std::fabs(x.at[1] - at->at[1]) <= 0.5f);
+      assert(G.mem.get<uint32_t>(G.by_guid[x.guid] + kCharId) == kChar);
+    }
+    assert(count(H, "extra made") == 8 && count(G, "extra made") == 8 && count(G, "spawned") == 8);
+    assert(count(H, "extra despawned", "far") == 1 && far_copy &&
+           std::count(G.despawned.begin(), G.despawned.end(), far_copy) == 1);
+    assert(count(H, "extra despawned", "end") == 7 && count(G, "extra despawned", "end") == 7);
+    assert(H.despawned.size() == 8 && G.despawned.size() == 8 && G.made.empty()); // Never SB's spawn of a key.
+    for (Game *w : {&H, &G})
+      for (const auto &[la, b] : w->bodies)
+        assert(b.deaths == 0);
+  }
+
+  // ---- Extra enemies on the host's side: which enemies get them, the key range check, 120 m, NewActor refusing,
+  // the session's end ----
+  // Only the Monster of the shared charId and a SpawnType 0 row gets three; never a boss or an Elite (BossMonster), an
+  // NPC, a ZoneEvent or Quest spawn, or a charId the shared fight does not share. 125 m from our EVE but 105 m from
+  // her ghost, an extra stays; 145 m and 125 m, it goes. At the end a dying extra is left to its death; the other one
+  // goes. When this build's tables hold a row at the extras' first key, extras stay off for the session (logged once);
+  // when NewActor makes nothing, the refusal is logged and nothing is kept.
+  for (const int run : {0, 1, 2}) { // 0: extras; 1: the key range taken; 2: NewActor refuses.
+    Game H;
+    auto eh = engine(true, true);
+    eh->same_spawns(true), eh->enemy_extra(3);
+    H.spawns(), H.zone(0xA1, 40), H.enter(0xA1);
+    for (uint32_t id = 1; id <= 6; ++id)
+      H.spawn_row(id, 2, 0xA1, id == 4 ? 1 : id == 5 ? 2 : 0);
+    if (run == 1)
+      H.spawn_row(0xE0000101, 2, 0xA1);
+    H.refuse_make = run == 2;
+    H.spawn(101, 1, 0);
+    H.spawn(102, 2, 0, kChar, 1600, 4);     // A boss or an Elite.
+    H.spawn(103, 3, 0, kChar, 1600, 2);     // An NPC.
+    H.spawn(104, 4, 0), H.spawn(105, 5, 0); // A ZoneEvent spawn, a Quest one.
+    H.spawn(106, 6, 0, 50330, 100000);      // A charId the shared fight does not share.
+    H.flags.her_ok = true;
+    H.flags.her[0] = 2000; // Her ghost, 20 m away.
+    H.inbox.push_back(msg("SBF11 on"));
+    uint64_t t = 0;
+    const auto run_to = [&](uint64_t end) {
+      for (; t <= end; t += 16)
+        frame(H, *eh, t);
+    };
+    run_to(2900); // Our zone not settled yet (3 s): none.
+    assert(H.extras.empty() && count(H, "extra refused") == 0);
+    H.flags.her[0] = 20000; // Her ghost 200 m away: the zone is not shared, none.
+    run_to(4500);
+    assert(H.extras.empty() && count(H, "extra refused") == 0);
+    H.flags.her[0] = 2000;
+    run_to(6000);
+    assert(!eh->latched() && H.despawned.empty());
+    if (run == 1) {
+      assert(H.extras.empty() && count(H, "extras off", "key range taken") == 1 && count(H, "extra refused") == 0);
+      continue;
+    }
+    if (run == 2) {
+      assert(H.extras.empty() && count(H, "extra refused", "not made") == 3 && count(H, "extra made") == 0);
+      run_to(8000);
+      assert(count(H, "extra refused") == 3); // Once a life.
+      continue;
+    }
+    assert(H.extras.size() == 3 && count(H, "extra made") == 3 && count(H, "extras off") == 0);
+    for (const Game::Made &x : H.extras)
+      assert(x.id == (kExtraBase | 1 << 8 | x.index)); // Key 1's.
+    const uint32_t a = H.extras[0].guid, b = H.extras[1].guid, c = H.extras[2].guid;
+    H.place(a, 12500, 0);
+    run_to(7000);
+    assert(H.despawned.empty());
+    H.place(a, 14500, 0);
+    run_to(8000);
+    assert(count(H, "extra despawned", "far") == 1 && H.despawned == std::vector<uint32_t>{a});
+    H.mem.put<uint8_t>(H.by_guid[b] + kPendingDeath, 1);
+    eh->set(false, true);
+    run_to(9000);
+    assert(count(H, "extra despawned", "end") == 1 && (H.despawned == std::vector<uint32_t>{a, c}));
+    assert(H.extras.size() == 3 && eh->snapshot().spawns.extras == 3 && eh->snapshot().spawns.extras_gone == 2);
+  }
+
   // ---- Same spawns: a Save row the host meets is logged once a session, also once the row room is full ----
   // Her rounds name 720 keys with no row in the host's tables, then twice 720 keys of Save rows there (both kinds are
   // kept as they are): the keys with no row take no room, the first kMaxRows Save rows are kept and logged once, and
@@ -4154,8 +4307,17 @@ int main() {
       assert(io.tracing("; same spawns on, epoch 1 (ours moved 1 times), 0 rounds answered") == 1);
       assert(has(w.detail(), " floored=0 spawns=on scale=")); // The host's: no counts of the guest's.
       assert(io.tracing(", 0 refused, 0 differ, 0 stale, ") == 1);
+      assert(io.tracing("; extras 0 an enemy, 0 made, 0 despawned; job: ") == 1);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(!has(io.file, "epoch") && !io.lines().size());
+      // extra: the host's enemy_extra, from the next start; the stats line says how many an enemy once its key range
+      // passed the check.
+      assert(w.ask(coop::parse_request("fight record spawns extra 2"), gate, io).rfind("shared fight record: ", 0) == 0);
+      run(300);
+      io.traced.clear();
+      w.ask(coop::parse_request("fight status"), gate, io);
+      assert(io.tracing("; extras 2 an enemy, ") == 1);
+      w.ask(coop::parse_request("fight off"), gate, io);
       assert(w.ask(coop::parse_request("fight record"), gate, io).rfind("shared fight record: ", 0) == 0);
       run(300);
       io.traced.clear();

@@ -361,6 +361,14 @@ int main() {
                           "fight on 1 spawns", "fight on spawns scale 135 115", "fight on spawn", "fight on Spawns",
                           "fight off spawns", "fight status spawns", "fight pilot spawns"})
     assert(parse_request(bad).command == Command::none);
+  // Stage 4b: enemy_extra as "extra" and 1 to 3 after spawns, before the ids; none: 0.
+  f = parse_request("fight on scale 135 115 spawns extra 3 15011001");
+  assert(f.spawns && f.extra == 3 && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight on spawns extra 1").extra == 1 && parse_request("fight on spawns").extra == 0);
+  for (const char *bad : {"fight on spawns extra", "fight on spawns extra 0", "fight on spawns extra 4",
+                          "fight on spawns extra -1", "fight on spawns extra x", "fight on extra 2 spawns",
+                          "fight on spawns extra 2 extra 2", "fight on 1 extra 2", "fight off extra 2"})
+    assert(parse_request(bad).command == Command::none);
   // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
   // too), its status, how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before), the
   // force target test and the takedown test.

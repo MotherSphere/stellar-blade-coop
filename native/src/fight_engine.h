@@ -33,7 +33,11 @@
 //   void create(uint64_t manager, uint32_t id, uint8_t index, const float *at, const float *rot):
 //     FUN_141c1c9a0(manager, id, index, at, rot, 0, nullptr, 0), as FSBCreateActor::Simulate spawns a key;
 //   void despawn(uint64_t sender, uint32_t turn, uint32_t guid): FUN_141b077f0(sender, turn, guid), as SB's ZoneEvent
-//     Despawn does.
+//     Despawn does;
+//   extra enemies (stage 4b), from inside our job only:
+//   uint64_t make(uint64_t logic, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index):
+//     FUN_141ad1290(logic, chr, at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0, 0), SB's NewActor as
+//     SpawnRequest::Execute calls it: the new logic actor, or 0.
 #pragma once
 
 #include <algorithm>
@@ -331,8 +335,8 @@ constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowli
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
 // Overrides held at once: on each enemy the side follows, a floor (the guest's), its MaxHP and MaxStamina scaled, and
-// same-place enemies' freeze.
-constexpr size_t kMaxCaptures = 4 * kMaxTracked;
+// same-place enemies' freeze; and the extra enemies made on this side.
+constexpr size_t kMaxCaptures = 4 * kMaxTracked + kMaxExtras;
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -385,9 +389,11 @@ struct Snapshot {
   const char *pilot_why = "fight";
   size_t piloted = 0;
   // Same spawns: running on this side, the side's counts, and the host's epoch (the guest's: as its last epoch line).
+  // The host's extras an enemy, 0 while none are made (enemy_extra=0, or its key range taken).
   bool spawning = false;
   SpawnCounts spawns;
   uint32_t epoch = 0;
+  uint8_t extra = 0;
 };
 
 // One logic actor as the liveness test and the reads see it.
@@ -539,6 +545,10 @@ public:
   // Any thread: our same_spawns (stage 4), the host's for both games; set while off. On, the host tells her its zone
   // and epoch and answers her rounds; she runs only on its epoch line, whatever hers says.
   void same_spawns(bool on) { same_spawns_ = on; }
+  // Any thread: our enemy_extra (stage 4b), the host's, used with same spawns only; set while off. Each common enemy
+  // where both players stand gets that many more (0 to kMaxPer), which she makes as well.
+  void enemy_extra(uint8_t per) { extra_ = std::min(per, kMaxPer); }
+  static_assert(kMaxPer == kMaxExtra, "the request's bound is the engine's");
   // Any thread: coop fight pilot off (true), until the next on, probe, record or replay (false): same-place enemies
   // off on this side whatever the host's same_place says, and the host tells her so.
   void pilot_off(bool off) { pilot_off_ = off; }
@@ -699,6 +709,8 @@ public:
       new (&epochs_) Epochs();
       new (&spawn_host_) SpawnHost();
       new (&spawn_guest_) SpawnGuest();
+      new (&extras_) Extras();
+      per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
       zone_told_ = false;
       probe_fence_.clear();
@@ -857,6 +869,7 @@ public:
     s.spawning = spawning_;
     s.spawns = hosting_seen_ ? spawn_host_.counts : spawn_guest_.counts;
     s.epoch = hosting_seen_ ? epochs_.n() : spawn_guest_.epoch();
+    s.extra = per_;
     for (size_t i = 0; i < captures_; ++i) {
       s.floors += caps_[i].type == kFloorStat;
       s.scaled += caps_[i].type == kMaxHpValue && caps_[i].delta;
@@ -892,7 +905,13 @@ private:
     uint64_t logic;
     bool row(uint32_t id, SpawnRow &out) { return e.spawn_row(g, id, out); }
     bool shares(uint32_t chr) { return e.shares(chr); }
-    bool create(const SpawnKey &k, const float *at, float yaw) { return e.create(g, k, at, yaw); }
+    const char *create(const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
+      return e.create(g, logic, k, chr, at, yaw);
+    }
+    void make(const SpawnKey &k, uint32_t chr, const float *at, float yaw) { // The host's extras.
+      if (const char *why = e.make_extra(g, logic, k, chr, at, yaw))
+        event(Event{"extra refused", why, 0, k.spawn, k.index});
+    }
     bool despawn(uint32_t guid, const SpawnKey &k) { return e.despawn(g, logic, guid, k); }
     void send(const Message &m) {
       if (!e.latched_)
@@ -1348,9 +1367,11 @@ private:
   // left the map needs no call: spawn init resets the stat and clears the effects when SB reuses the actor. Three
   // kinds: MinimumHP +kFloorHp on the guest's paired copies (guest_kills=confirmed) and two-player scaling, MaxHPValue
   // and MaxStamina raised by the host's percents on the enemies the side names, both ApplyStat deltas undone by the
-  // opposite delta; and same-place enemies' freeze (kFreeze), undone by BlockAI_Dispel. A capture of 0 marks an enemy
-  // whose scaling had nothing to do, so it is not tried again each turn.
+  // opposite delta; same-place enemies' freeze (kFreeze), undone by BlockAI_Dispel; and an extra enemy made here
+  // (kExtra), undone by SB's despawn. A capture of 0 marks an enemy whose scaling had nothing to do, so it is not tried
+  // again each turn.
   static constexpr int kFreeze = -1; // Not a stat: BlockAI_Infinite and SkillCancel on a copy this side draws.
+  static constexpr int kExtra = -2;  // Not a stat: an extra enemy this side made (stage 4b), despawned at the end.
   struct Capture {
     uint32_t guid = 0;
     int type = 0; // ESBActorStatType, or kFreeze.
@@ -1465,7 +1486,10 @@ private:
     Actor a;
     const uint64_t la = g.find(logic, c.guid);
     const bool found = la && live(g, la, c.guid, a);
-    if (found && c.type == kFreeze && fighting(a)) {
+    if (c.type == kExtra) { // A dying one is left to its death.
+      if (found && fighting(a))
+        unmake(g, logic, a, "end");
+    } else if (found && c.type == kFreeze && fighting(a)) {
       const bool off = g.effect(logic, la, la, kDispel), keep = !off && retry && !latched_;
       counts.thawed += off;
       counts.thaw_refused += !off && !c.refused;
@@ -1696,9 +1720,12 @@ private:
   // where the ghost stands no longer does.
   template <class Game> void spawn_turn(Game &g, uint64_t logic, uint64_t now) {
     const bool hosting = hosting_seen_;
-    if (!spawning_) {
+    if (!spawning_) { // On her side, our extras go with the host's same spawns (its off or world, our on).
       if (hosting)
         spawn_host_.clear();
+      else
+        for (size_t i = 0; i < captures_;)
+          caps_[i].type == kExtra ? void(lift(g, logic, i)) : void(++i);
       return;
     }
     if (!keys_whole_)
@@ -1727,6 +1754,21 @@ private:
     if (latched_)
       return;
     SpawnIo<Game> io{*this, g, logic};
+    // Extras (stage 4b): ours kept or despawned; then, on the host's side, once a session the key range checked (no
+    // row of our tables at its first key, else extras stay off, logged) and, while the zone is shared, new ones made.
+    const bool her_ok = flags_.her_ok && !pilot_stopped_;
+    hold_extras(g, logic, eve, eve_ok, her_ok, hosting);
+    if (hosting && extra_ && !extras_checked_ && tables && !latched_) {
+      extras_checked_ = true;
+      const SpawnKey first = extra_key(1, 1);
+      if (g.spawn_row(tables, first.spawn))
+        g.event(Event{"extras off", "key range taken", 0, first.spawn, first.index});
+      else
+        per_ = extra_;
+    }
+    if (hosting && per_ && close && zone && epochs_.settled(now) && !latched_)
+      extras_.step(per_, std::min(kMaxExtras - extras(), kMaxCaptures - captures_), eve, flags_.her, her_ok, mine_,
+                   mines_, io);
     if (hosting)
       spawn_host_.step(host.gen(), zone, epochs_, close, flags_.her, mine_, mines_, now, io);
     else
@@ -1798,14 +1840,81 @@ private:
     return id;
   }
   // The guest: SB's spawn of a key where the host's stands, on SB's spawn manager, never made here: not while it or the
-  // tables (which the call reads through their getter) are not made.
-  template <class Game> bool create(Game &g, const SpawnKey &k, const float *at, float yaw) {
+  // tables (which the call reads through their getter) are not made. An extra's key, of charId chr, goes through
+  // NewActor (make_extra). Null when made, else why not.
+  template <class Game>
+  const char *create(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
+    if (is_extra(k.spawn))
+      return make_extra(g, logic, k, chr, at, yaw);
     uint64_t manager = 0;
     if (!get(g, base_ + (kSpawnManager - kImageBase), manager) || !plausible(manager) || !tables_at(g) || latched_)
-      return false;
+      return "no spawn manager";
     const float rot[3] = {0, yaw, 0};
     g.create(manager, k.spawn, k.index, at, rot);
-    return true;
+    return nullptr;
+  }
+  // ---- Extra enemies (stage 4b, PHASE11-STAGE3 9.3) ----
+  // SB's NewActor of charId chr with an extra's key there at yaw, the host's or hers: captured (kExtra), so the
+  // session's end despawns it, and logged. Null when made, else why not: no room (kMaxExtras, or the capture list), the
+  // tables or the world's actor manager not made (NewActor reads both through getters that would make them), or
+  // NewActor made nothing.
+  template <class Game>
+  const char *make_extra(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
+    uint64_t net = 0, lg = 0, world = 0, manager = 0;
+    uint32_t guid = 0;
+    if (extras() == kMaxExtras || captures_ == kMaxCaptures)
+      return "full";
+    if (!tables_at(g) || !globals(g, net, lg, world) || !plausible(world) || !get(g, world + kManager, manager) ||
+        !plausible(manager) || latched_)
+      return "not made";
+    const float rot[3] = {0, yaw, 0};
+    const uint64_t la = g.make(logic, chr, at, rot, k.spawn, k.index);
+    if (!la || !plausible(la) || !get(g, la + kGuid, guid) || !guid)
+      return "not made";
+    caps_[captures_++] = Capture{guid, kExtra, 1};
+    ++spawn_counts().extras;
+    g.event(Event{"extra made", "", 0, k.spawn, k.index});
+    return nullptr;
+  }
+  size_t extras() const {
+    return size_t(std::count_if(caps_, caps_ + captures_, [](const Capture &c) { return c.type == kExtra; }));
+  }
+  SpawnCounts &spawn_counts() { return hosting_seen_ ? spawn_host_.counts : spawn_guest_.counts; }
+  // Each census while same spawns run: our extras that left the map (killed, despawned, their slot reused) are
+  // forgotten, and on the host's side one still fighting more than 120 m from both EVEs (ours at eve, and hers as her
+  // ghost stands here while her_ok) is despawned.
+  template <class Game>
+  void hold_extras(Game &g, uint64_t logic, const float *eve, bool eve_ok, bool her_ok, bool hosting) {
+    for (size_t i = 0; i < captures_ && !latched_;) {
+      Actor a;
+      float at[3] = {};
+      const Capture c = caps_[i];
+      const uint64_t la = c.type == kExtra ? g.find(logic, c.guid) : 0;
+      if (c.type != kExtra) {
+        ++i;
+      } else if (!la || !live(g, la, c.guid, a)) {
+        caps_[i] = caps_[--captures_];
+      } else if (hosting && eve_ok && fighting(a) && get(g, a.fsb + kLocation, at) &&
+                 !within(at, eve, kExtraRangeCm) && !(her_ok && within(at, flags_.her, kExtraRangeCm))) {
+        caps_[i] = caps_[--captures_];
+        unmake(g, logic, a, "far");
+      } else {
+        ++i;
+      }
+    }
+  }
+  // One of our extras despawned through SB's job sender at the logic's turn now, never killed (why: far, end); logged,
+  // as kept when the job sender is not made.
+  template <class Game> void unmake(Game &g, uint64_t logic, const Actor &a, const char *why) {
+    uint64_t sender = 0;
+    uint32_t turn = 0;
+    const bool sent =
+        get(g, base_ + (kJobSender - kImageBase), sender) && plausible(sender) && get(g, logic + kTurn, turn);
+    if (sent) {
+      g.despawn(sender, turn, a.seen.guid);
+      ++spawn_counts().extras_gone;
+    }
+    g.event(Event{sent ? "extra despawned" : "extra kept", why, 0, a.seen.spawn, a.seen.index});
   }
   // The guest: SB's despawn job for one actor of hers, found again by GUID with that key and fighting (never dying),
   // through SB's job sender with this turn. Never a kill.
@@ -2006,6 +2115,7 @@ private:
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
   std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false}, aggro_host_{false}, exec_test_{false};
   std::atomic<bool> same_spawns_{false};
+  std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
@@ -2057,6 +2167,11 @@ private:
   uint64_t zone_alias_[kMaxZones] = {};
   uint32_t zone_ids_[kMaxZones] = {};
   size_t zones_ = 0;
+  // Extras (stage 4b): the host's choice of enemies, its extras an enemy this session (0 until the key range check
+  // passed), and whether that check ran.
+  Extras extras_;
+  uint8_t per_ = 0;
+  bool extras_checked_ = false;
   // coop fight spawn probe: the keys told in this epoch, and whether "no zone" was.
   SpawnKey probed_at_[kMaxSeen];
   size_t probed_ = 0;
@@ -2369,6 +2484,7 @@ private:
     e_.same_place(r.place);
     e_.aggro(r.aggro_host);
     e_.same_spawns(r.spawns);
+    e_.enemy_extra(r.extra);
     e_.pilot_off(false);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
@@ -2678,16 +2794,17 @@ private:
                     as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
                     u(c.expired), u(c.desync), s.floors, u(c.execs), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped),
                     u(c.stale), u(c.bad), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
-    char spawns[320] = ""; // Same spawns (stage 4): the host's rounds answered, or hers sent.
+    char spawns[448] = ""; // Same spawns (stage 4): the host's rounds answered, or hers sent; and the extras.
     const SpawnCounts &p = s.spawns;
     if (!probe)
       std::snprintf(spawns, sizeof spawns,
                     "; same spawns %s, epoch %u (ours moved %llu times), %llu rounds %s, %llu spawn and %llu drop "
                     "lines, %llu spawned, %llu despawned (%llu undone), %llu refused, %llu differ, %llu stale, %llu "
-                    "over the rates",
+                    "over the rates; extras %u an enemy, %llu made, %llu despawned",
                     s.spawning ? "on" : "off", s.epoch, u(p.epochs), u(side_ ? p.answered : p.haves),
                     side_ ? "answered" : "sent", u(p.spawn_lines), u(p.drop_lines), u(p.spawned), u(p.despawned),
-                    u(p.undone), u(p.refused), u(p.differ), u(p.stale), u(p.rate));
+                    u(p.undone), u(p.refused), u(p.differ), u(p.stale), u(p.rate), unsigned(s.extra), u(p.extras),
+                    u(p.extras_gone));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "

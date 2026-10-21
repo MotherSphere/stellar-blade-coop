@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <deque>
 #include <map>
@@ -34,8 +35,9 @@ struct World {
   struct Call {
     SpawnKey key;
     float at[3], yaw;
+    uint32_t chr;
   };
-  std::vector<Call> created;
+  std::vector<Call> created, made; // Spawns (the guest's), and the host's extras (NewActor).
   std::vector<uint32_t> despawned;
   std::vector<SpawnKey> coming; // Created, shows at the next census.
   bool manager = true;          // SB's spawn manager is made.
@@ -90,12 +92,18 @@ struct World {
     return true;
   }
   bool shares(uint32_t chr) { return std::find(unshared.begin(), unshared.end(), chr) == unshared.end(); }
-  bool create(const SpawnKey &k, const float *at, float yaw) {
+  const char *create(const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     if (!manager)
-      return false;
-    created.push_back(Call{k, {at[0], at[1], at[2]}, yaw});
+      return "no spawn manager";
+    created.push_back(Call{k, {at[0], at[1], at[2]}, yaw, chr});
     coming.push_back(k);
-    return true;
+    if (is_extra(k.spawn)) // NewActor makes the character named, as no row names one.
+      chars[k.spawn] = chr;
+    return nullptr;
+  }
+  // The host's extras: NewActor's actor shows at the next census.
+  void make(const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
+    made.push_back(Call{k, {at[0], at[1], at[2]}, yaw, chr});
   }
   bool despawn(uint32_t guid, const SpawnKey &k) {
     const Mine *m = actor(k);
@@ -496,6 +504,114 @@ int main() {
     nm.lines();
     guest_step(ng, nep, nm, 2 * kGraceMs);
     assert(nm.sent.empty() && nm.created.empty());
+  }
+
+  // ---- Extra enemies (stage 4b): their keys, in a range no row of this build uses, and their places ----
+  {
+    assert(extra_key(1, 1) == (SpawnKey{0xE0000101, 1}) && extra_key(2, 3) == (SpawnKey{0xE0000203, 3}));
+    assert(kMaxOrigins == 0x1FFFFF && extra_key(kMaxOrigins, 3) == (SpawnKey{0xFFFFFF03, 3}));
+    assert(is_extra(0xE0000000) && is_extra(0xFFFFFFFF) && !is_extra(0xDFFFFFFF));
+    assert(!is_extra(0xD42B5F51)); // The build's highest EventSpawnId (RE12).
+    const float o[3] = {1000, -500, 30};
+    float at[4][3];
+    for (uint8_t s = 1; s <= kMaxPer; ++s) { // 2, 3 and 4 m from it, at its height.
+      extra_at(o, 90, s, at[s]);
+      assert(std::fabs(std::hypot(at[s][0] - o[0], at[s][1] - o[1]) - 100.f * float(s + 1)) < 0.01f &&
+             at[s][2] == o[2]);
+    }
+    for (int a = 1; a <= 3; ++a) // 120 degrees apart: never on top of each other.
+      for (int b = a + 1; b <= 3; ++b)
+        assert(std::hypot(at[a][0] - at[b][0], at[a][1] - at[b][1]) > 400);
+  }
+
+  // ---- Extra enemies: which of the host's enemies get them (Monsters the fight shares, of SpawnType 0 rows, within
+  // 120 m of either EVE), per of them once a life, while room for all of them is left ----
+  {
+    World w;
+    w.row(1, kReset), w.row(2, kSave), w.row(3, kReset, kZone, 0, true), w.row(9, kReset, kOther);
+    w.row(4, kReset, kZone, 1), w.row(5, kReset, kZone, 2), w.row(6, kReset), w.row(7, kReset), w.row(8, kReset);
+    w.row(12, kReset), w.row(13, kReset), w.row(0xE0000501, kReset);
+    w.add(101, 1), w.add(102, 2), w.add(103, 3), w.add(109, 9); // ResetZone, Save, keep, another zone's: SpawnType 0.
+    w.add(104, 4), w.add(105, 5);  // A ZoneEvent spawn and a Quest one: never.
+    w.add(106, 6, 0, false);       // No Monster the fight shares (an NPC, a boss or an Elite, an auto-denied one).
+    w.add(107, 7).dying = true;    // Dying.
+    w.add(108, 8).at[0] = 13000;   // 130 m from our EVE, 125 m from her ghost.
+    w.add(110, 10);                // No row.
+    w.add(113, 13).yaw = NAN;      // A yaw that cannot be read right.
+    w.add(115, 0xE0000501, 1);     // An extra already: never extras of extras.
+    w.add(112, 12).at[0] = 12400;  // 124 m from our EVE but 119 m from her ghost.
+    const float eve[3] = {0, 0, 0};
+    Extras x;
+    const auto step = [&](uint8_t per, size_t room, bool her_ok = true) {
+      w.census();
+      x.step(per, room, eve, kEve, her_ok, w.mine.data(), w.mine.size(), w);
+    };
+    step(2, kMaxExtras, false); // Her ghost unknown: 112 waits.
+    step(0, kMaxExtras);        // enemy_extra=0: none.
+    std::vector<std::pair<uint32_t, uint8_t>> keys;
+    for (const World::Call &c : w.made)
+      keys.emplace_back(c.key.spawn, c.key.index);
+    assert(keys == (std::vector<std::pair<uint32_t, uint8_t>>{{0xE0000101, 1}, {0xE0000102, 2}, {0xE0000201, 1},
+                                                             {0xE0000202, 2}, {0xE0000301, 1}, {0xE0000302, 2},
+                                                             {0xE0000401, 1}, {0xE0000402, 2}}));
+    for (const World::Call &c : w.made) { // Next to its enemy, of its charId, at its yaw.
+      const Mine &m = *w.actor(SpawnKey{std::vector<uint32_t>{1, 2, 3, 9}[(c.key.spawn >> 8 & 0xff) - 1], 0});
+      float want[3];
+      extra_at(m.at, m.yaw, c.key.index, want);
+      assert(c.chr == m.chr && c.yaw == m.yaw && c.at[0] == want[0] && c.at[1] == want[1] && c.at[2] == want[2]);
+    }
+    step(2, kMaxExtras);
+    assert(w.made.size() == 10 && w.made[8].key == extra_key(5, 1) && w.made[9].key == extra_key(5, 2));
+    step(2, kMaxExtras);
+    assert(w.made.size() == 10); // Once a life.
+    w.actor(SpawnKey{1, 0})->guid = 201, w.actor(SpawnKey{2, 0})->guid = 202; // Respawned: new lives.
+    step(3, 5);
+    assert(w.made.size() == 13 && w.made[12].key == extra_key(6, 3)); // Room for one enemy's three only.
+    step(3, kMaxExtras);
+    assert(w.made.size() == 16 && w.made[13].key == extra_key(7, 1) && w.made[15].key == extra_key(7, 3));
+    // Lives gone are forgotten: a session of many respawns never runs out of room for them.
+    for (uint32_t life = 0; life < 2 * kMaxSeen; ++life) {
+      w.actor(SpawnKey{1, 0})->guid = 1000 + life;
+      step(1, kMaxExtras);
+    }
+    assert(w.made.size() == 16 + 2 * kMaxSeen && w.made.back().key == extra_key(7 + 2 * kMaxSeen, 1));
+  }
+
+  // ---- Extra enemies through same spawns: the host answers its extras and hers with no row; she makes the key
+  // with NewActor's charId, never one a row of hers holds, and takes a drop of hers ----
+  {
+    World h;
+    h.row(1, kReset);
+    h.add(101, 1), h.add(102, 0xE0000101, 1), h.add(103, 0xE0000102, 2);
+    Epochs hep;
+    SpawnHost sh;
+    epoch(hep, h, 0xA1, 3, 0);
+    sh.have(msg("SBF11 have 1 1 1 1 1:0 3758096641:1 3758096897:1"), 1, kGraceMs); // 0xE0000101, 0xE0000201.
+    host_step(sh, hep, h, kGraceMs);
+    assert(h.lines() == "SBF11 epoch 1 40 1\nSBF11 spawn 1 1 3758096642 2 900 642 -250 13 270\n"
+                        "SBF11 drop 1 1 3758096897 1\n");
+    World g;
+    g.row(1, kReset), g.row(0xE0000301, kReset); // A row of hers in the extras' range.
+    g.add(201, 1), g.add(202, 0xE0000201, 1);
+    Epochs gep;
+    SpawnGuest sg;
+    epoch(gep, g, 0xA1, 3, 0);
+    sg.heard(msg("SBF11 epoch 1 40 1"), 1);
+    sg.heard(msg("SBF11 spawn 1 1 3758096642 2 901 258 -250 13 270"), 1);
+    sg.heard(msg("SBF11 spawn 1 1 3758097153 1 900 258 -250 13 270"), 1); // 0xE0000301: her row's.
+    sg.heard(msg("SBF11 drop 1 1 3758096897 1"), 1);
+    guest_step(sg, gep, g, kGraceMs);
+    assert(g.created.size() == 1 && g.created[0].key == extra_key(1, 2) && g.created[0].chr == 901);
+    assert(g.count("spawn refused", "row taken") == 1 && sg.counts.differ == 1);
+    assert(g.despawned == std::vector<uint32_t>{202} && sg.counts.despawned == 1);
+    epoch(gep, g, 0xA1, 3, kGraceMs + 250);
+    guest_step(sg, gep, g, kGraceMs + 250); // It shows, a Monster of charId 901: checked, kept.
+    assert(sg.counts.undone == 0 && g.actor(extra_key(1, 2)));
+    epoch(gep, g, 0xA1, 3, kGraceMs + kHaveAgainMs);
+    guest_step(sg, gep, g, kGraceMs + kHaveAgainMs);
+    const std::string round = g.lines();
+    assert(has(round, " 3758096642:2") && has(round, " 1:0") && has(round, " 3758097153:1") &&
+           !has(round, " 3758096897:1")); // Her extra; the refused key, so the host stops asking; not the despawned.
   }
 
   // ---- Two worlds through a line, 90-150 ms each way: her set becomes the host's ----
