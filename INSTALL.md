@@ -47,6 +47,14 @@ first backs up the files it replaces into `~/StellarCoop-install-backups`.
 
 ### Update
 
+StellarCoop runs on game build 24463856 only. After a game update, `coop status` shows
+`engine=off reason=build stamp ...` (or `reason=code bytes differ`), and the ghost, the co-op saves and every other
+feature that reads the game's memory stay off until a StellarCoop version supports the new build. To stop Steam from
+updating the game in the background, right-click Stellar Blade in your Steam library, then Properties, Updates, and set
+Automatic updates to Wait until I launch the game (older Steam clients: Only update this game when I launch it). Steam
+still installs a waiting update when you start the game, so check for a new StellarCoop version first. Both players
+need the same game build.
+
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
 `Version mismatch: that game runs protocol ..., build ...; yours runs ...`.

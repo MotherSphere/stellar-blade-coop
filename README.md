@@ -80,7 +80,8 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 
 ## Requirements
 
-- Stellar Blade on Steam (PC), game build 24463856.
+- Stellar Blade on Steam (PC), game build 24463856. [INSTALL.md: Update](INSTALL.md#update) says how to keep Steam
+  from updating the game before StellarCoop supports the new build.
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
