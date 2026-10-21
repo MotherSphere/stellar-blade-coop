@@ -845,17 +845,19 @@ constexpr char kShowRoot[] = "/Game/Art/Show/"; // SB's show root prefix (DAT_14
 // Form 1's roots: the Show roots in the binary's strings.
 constexpr std::string_view kShowRoots[] = {"/Game/Art/Show/", "/Game/Art/FX/Show/", "/Game/DLC_1/Art/Show/"};
 
-// R33's path rule: at most kMaxPath characters of [A-Za-z0-9_/.], no "..". Form 0 (under SB's show root) has no
-// leading '/'; form 1 (as given) starts with one of kShowRoots and holds more than it.
+// R33's path rule: at most kMaxPath characters of [A-Za-z0-9_/.], no "..", no empty segment ("//", "/." or a trailing
+// '/': UE's CreatePackage stops the game on a package name with "//"). Form 0 (under SB's show root) has no leading '/'
+// or '.'; form 1 (as given) starts with one of kShowRoots and holds more than it.
 inline bool path_ok(uint8_t form, std::string_view p) {
-  if (p.empty() || p.size() > kMaxPath || p.find("..") != std::string_view::npos || form > 1)
+  if (p.empty() || p.size() > kMaxPath || p.find("..") != std::string_view::npos || form > 1 ||
+      p.find("//") != std::string_view::npos || p.find("/.") != std::string_view::npos || p.back() == '/')
     return false;
   for (char c : p)
     if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '/' ||
           c == '.'))
       return false;
   if (form == 0)
-    return p[0] != '/';
+    return p[0] != '/' && p[0] != '.';
   for (std::string_view root : kShowRoots)
     if (p.size() > root.size() && p.substr(0, root.size()) == root)
       return true;

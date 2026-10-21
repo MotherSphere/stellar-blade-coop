@@ -1262,9 +1262,9 @@ int main() {
         // The hit levels (the first two) are bytes.
         {13, "256" + ctx.substr(1)}, {13, "-1" + ctx.substr(1)}, {13, "1,256" + ctx.substr(3)},
         {13, "1,-1" + ctx.substr(3)}, {13, "2147483647" + ctx.substr(1)},
-        // Form 0: no leading '/', no '..', only [A-Za-z0-9_/.], at most 200 characters.
+        // Form 0: no leading '/' or '.', no '..', no empty segment, only [A-Za-z0-9_/.], at most 200 characters.
         {14, "/Game/Art/Show/A"}, {14, "A/../B"}, {14, "A\\B"}, {14, "A:B"}, {14, "\xc3\x84"},
-        {14, std::string(201, 'a')}};
+        {14, std::string(201, 'a')}, {14, "A//B"}, {14, "A/"}, {14, "A/.B"}, {14, ".A"}};
     for (auto &[field, value] : bad)
       assert(parsed(with(field, value)).kind == Kind::invalid);
     assert(parsed(with(14, std::string(200, 'a'))).kind == Kind::show);
@@ -1273,7 +1273,8 @@ int main() {
     assert(parsed(with(13, "255,255" + ctx.substr(3))).ctx[kHitLevel60] == 255);
     // Form 1 must start with a Show root and hold more than it.
     for (const char *path : {"/Game/Art/Show/", "/Game/Art/X/A", "/Game/Art/Show/../../Maps/A", "Game/Art/Show/A",
-                             "/Game/Art/Show/A:B"}) {
+                             "/Game/Art/Show/A:B", "/Game/Art/Show//A", "/Game/Art/Show/A/", "/Game/Art/Show/.A",
+                             "/Game/Art/Show/A/.B"}) {
       ShowLine f = show_line();
       assert(!set_path(f, 1, path) && !path_ok(1, path) && f.form == 0); // Refused, the line left as it was.
       f.form = 1, f.path_len = uint8_t(std::strlen(path));
