@@ -352,6 +352,8 @@ the ghost from it:
   materials (unless the dyes look is on), so the ghost wears the captured outfit.
 - Only meshes under `/Game/Art/Character/...` and `/Game/DLC_<n>/Art/Character/...` are loaded. This path rule means a
   friend's table cannot make your game load anything else.
+- Each part gets the render flags of every EVE part in the game's Blueprint: lighting channels 0 and 1, and custom
+  depth with stencil 10, the game's value for the player.
 - Parts hang as the table says (parent part, socket, placement), and followers follow their leader. There are no
   morphs (a neutral face) and, without the cloth look, the ponytail is rigid. The ghost always draws its highest
   detail level, so it never pops as it walks away.

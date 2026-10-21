@@ -1,8 +1,9 @@
 -- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
--- fallback; the display file; hidden until the first pose and after a second without one; the root teleported only as
--- it shows or steps over 2 m, so a cloth part keeps its inertia; the loopback's offset; the
--- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
+-- fallback; your EVE's render flags on each part; the display file; hidden until the first pose and after a second
+-- without one; the root teleported only as it shows or steps over 2 m, so a cloth part keeps its inertia; the
+-- loopback's offset; the map gate; the same table re-dressed in place; level change, comeback, the remote table gone,
+-- basesuit, the sweep; a
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again (2 s apart, 3 times,
 -- then said on screen), the strict table read; every UE4SS call on UE4SS's own Lua state, never in a coroutine;
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
@@ -103,8 +104,12 @@ end
 
 local spawned={}
 local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
+local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
 local function poseable(actor)
     local p=object('Poseable',{calls={}},0xc2)
+    function p:SetLightingChannels(a,b,c) self.channels={a,b,c} end
+    function p:SetRenderCustomDepth(on) if fail_depth then error('no custom depth') end self.custom_depth=on end
+    function p:SetCustomDepthStencilValue(v) self.stencil=v end
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
         p[f]=function(self,a) self.calls[f]=a end
     end
@@ -390,6 +395,11 @@ assert(r.Rotation.Z==0.707106769 and r.Translation.X==1.5 and r.Translation.Y==-
 assert(pony.calls.SetMasterPoseComponent==hair and pony.attached.parent==hair and pony.visible==false)
 assert(blade.attached.socket=='SC_SwordingPoint' and blade.relative.Translation.X==10.25 and scabbard.attached.parent==blade)
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_1','The path is kept for the next Lua load')
+-- Each part drawn with your EVE's render flags: lighting channels 0 and 1, custom depth with stencil 10 (the player's).
+for k,p in ipairs(actor.parts) do
+    assert(p.channels[1]==true and p.channels[2]==true and p.channels[3]==false and p.custom_depth==true
+        and p.stencil==10,'Render flags: part '..k)
+end
 -- The display file: each leader driven as it came.
 local d=displays[#displays]:gsub('0x%x+','0xX')
 assert(d=='display 500\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
@@ -1002,6 +1012,14 @@ pony=spawned[#spawned].parts[4]
 assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and table.concat(pony.order,' ')=='master mesh master')
 assert(message:find('; look: cloth parts 2; SBPonytail: outfit collision not used %(.*no array write%) %('),message)
 fail_array=false
+-- A render flag refused: said once, the others still set, the ghost built.
+fail_depth=true
+ghost.rebuild('look')
+ok,message=build()
+assert(ok and message:find('; look: cloth parts 2; solo render flags not set %(.*no custom depth%) %(')
+    and not message:find('render flags.*render flags'),message)
+for _,p in ipairs(spawned[#spawned].parts) do assert(p.channels[2]==true and p.stencil==10 and p.custom_depth==nil) end
+fail_depth=false
 send(700,clothed)
 -- A rebuild tries a table given up again at once.
 ghost.rebuild('look')

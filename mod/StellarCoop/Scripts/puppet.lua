@@ -228,6 +228,21 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 notes[#notes+1]=string.format('%s: outfit collision not used (%s)',part.name,tostring(why))
             end
         end
+        -- Your EVE's render flags, as on every EVE part in her Blueprint: lighting channels 0 and 1 (SB's character
+        -- lights use 1) and custom depth with stencil 10 (ESBCustomDepthStencilValue::PC). Each its own pcall: one
+        -- refused leaves the others set, and is said once a build.
+        local function light(target)
+            for _,set in ipairs({function() target:SetLightingChannels(true,true,false) end,
+                function() target:SetRenderCustomDepth(true) end,
+                function() target:SetCustomDepthStencilValue(10) end}) do
+                local ok,why=pcall(set)
+                if not (ok or g.unlit) then
+                    g.unlit=true
+                    notes[#notes+1]='solo render flags not set ('..tostring(why)..')'
+                end
+            end
+            return target
+        end
         local function add(mesh,part)
             -- A follower with cloth is a SkeletalMeshComponent: NvCloth reads its master's component-space bones
             -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, set before
@@ -249,7 +264,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     target:SetMasterPoseComponent(g.parts[part.lead].target,false)
                     target:SetSkeletalMesh(mesh,true)
                 end)
-                if made then g.cloth[#g.cloth+1]=target; return target end
+                if made then g.cloth[#g.cloth+1]=target; return light(target) end
                 if target then pcall(function() target:K2_DestroyComponent(actor) end) end
                 notes[#notes+1]=string.format('%s: cloth not used (%s), drawn as a plain part',part.name,tostring(why))
             end
@@ -257,7 +272,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             assert(target,'a ghost part could not be added')
             target:SetCollisionEnabled(0)
             target:SetSkeletalMesh(mesh,true) -- Its own materials, unless dyed below.
-            return target
+            return light(target)
         end
         -- One of the table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): a step
         -- each, resolved and set in the same frame, as a mesh is.
