@@ -101,9 +101,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
 - `send_rate`: poses sent to your friend per second, from 10 to 60 (60 by default), at most one per game frame. The
   ghost you see moves at your friend's rate, so both of you need the new value. A file made by an older version that
   still says 20, the old default, is changed to 60 when the mod loads, once; any other value stays.
-- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default. The file
-  names them only in a comment, so add a line such as `cloth=on` to turn one on.
-  - `cloth`: her ponytail swings as cloth. Off, it stays rigid.
+- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. `cloth` is on by default, `dyes` and
+  `effects` are off. The file names them only in a comment, so add a line such as `dyes=on` or `cloth=off`.
+  - `cloth`: her ponytail moves as cloth, as in solo. Off, it stays rigid.
   - `dyes`: her hair colour and other material variants. Off, each part has its mesh's own colours.
   - `effects`: her attack and skill effects (19 of EVE's effects, at most 4 at a time).
   - `dyes=off` and `effects=off` each also stop your game from sending your own, so the ghost of you in your friend's
@@ -115,7 +115,7 @@ If the mod rejects a value, that setting keeps its default, and `UE4SS.log` give
 `[StellarCoop] settings:`. The `[StellarCoop] keys:` line lists the keys in use, and the `[StellarCoop] look:` line
 what the ghost shows. Delete the file to get the defaults back.
 
-The three looks have not been tried in game yet. Back up your saves before you turn one on (see "Saves and Steam
+The three looks have not been tried in game yet. Back up your saves before you play with one on (see "Saves and Steam
 Cloud"). If the game crashes or the ghost looks wrong, turn that look off again.
 
 With the console, `coop look <cloth|dyes|effects> <on|off>` turns one look on or off until the mod reloads (game start
