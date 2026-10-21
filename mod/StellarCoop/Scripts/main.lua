@@ -16,9 +16,10 @@
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
--- pilot status|probe|on|off|test freeze|cmc|drive|replay, same-place enemies (stage 3a, same_place in coop-settings.txt
--- or the co-op menu, the host's for both games: the host's game moves each shared enemy on both screens), with
--- notices for how many it moves and why it went off; the synced
+-- pilot status|probe|on|off|test freeze|cmc|drive|replay|target, same-place enemies (stages 3a and 3b, same_place and
+-- aggro in coop-settings.txt or the co-op menu, the host's for both games: each shared enemy stands in the same place
+-- on both screens, moved by the game that runs its AI), with notices for how many it moves and why it went off; the
+-- synced
 -- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
 -- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
 -- to test the pause alone; coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
@@ -140,7 +141,7 @@ local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay | '
-    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay'
+    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target'
 local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
 local function fight_line(sub,a,b,extra)
     if extra~=nil then return nil end
@@ -150,13 +151,13 @@ local function fight_line(sub,a,b,extra)
     local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
     if n and n~=0 and n>=-10000000 and n<=10000000 then return string.format('fight test %s %d',a,n) end
 end
--- coop fight pilot (same-place enemies, stage 3a): status (the pilot= line, after asking the native part, which then
--- logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test and how far the
--- drawn side goes. target and exec are T11d-solo's probes of stages 3b and 3c, not in this build.
+-- coop fight pilot (same-place enemies, stages 3a and 3b): status (the pilot= line, after asking the native part,
+-- which then logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test and
+-- how far the drawn side goes, or test target (the game's force target once, on an enemy this side owns). exec is
+-- T11d-solo's probe of stage 3c, not in this build.
 local PILOT_ALONE={status=true,probe=true,on=true,off=true}
-local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true}
-local PILOT_LATER={target='force target comes with stage 3b (enemies that fight the guest)',
-    exec='executions on the same enemy come with stage 3c'}
+local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true}
+local PILOT_LATER={exec='executions on the same enemy come with stage 3c'}
 local function pilot(a,b,extra)
     if extra~=nil or not (PILOT_ALONE[a] and b==nil or a=='test' and (PILOT_TESTS[b] or PILOT_LATER[b])) then
         return false,FIGHT_USE
@@ -269,8 +270,8 @@ local commands={
     -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). Before
     -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
-    -- (the modes that can host), and same_place=on as "place" after them. status answers with the fight= line;
-    -- pilot is same-place enemies' own (pilot above).
+    -- (the modes that can host), and same_place=on as "place" and aggro=host as "aggro-host" after them. status
+    -- answers with the fight= line; pilot is same-place enemies' own (pilot above).
     fight=function(sub,a,b,extra)
         if sub=='pilot' then return pilot(a,b,extra) end
         local line=fight_line(sub,a,b,extra)
@@ -290,6 +291,7 @@ local commands={
             if sub=='on' or sub=='record' then
                 line=line..string.format(' scale %d %d',math.floor(settings.enemy_hp_scale*100+0.5),
                     math.floor(settings.enemy_balance_scale*100+0.5))..(settings.same_place and ' place' or '')
+                    ..(settings.aggro=='host' and ' aggro-host' or '')
             end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end

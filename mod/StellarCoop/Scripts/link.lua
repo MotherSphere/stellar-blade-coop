@@ -62,11 +62,12 @@ guest_kills=at_once
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
 kill_credit=all
-# Same place, experimental: on or off, the host's setting for both games. As guest, yours decides nothing at a start;
-# the co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
-# shared enemy stands where it is in the host's game on both screens and plays the host's attacks and reactions. It
-# never attacks the guest yet.
+# Same place, experimental, the host's for both games: on or off. As guest, yours decides nothing at a start; the
+# co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
+# shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
+# last, or else the nearer player) or host (enemies fight the host only).
 same_place=off
+aggro=game
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -94,7 +95,7 @@ card_details=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='all',same_place='off',photo_sync='both',photo_freeze_max='600',
+    enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',photo_sync='both',photo_freeze_max='600',
     photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
     partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true,
@@ -103,7 +104,7 @@ local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'all','fought'},who_can_join={'friends','code','private'},
-    auto_coop_save={'ask','always','off'}}
+    auto_coop_save={'ask','always','off'},aggro={'game','host'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -112,7 +113,7 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
 -- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of percent; the scales a
+-- auto_coop_save, aggro) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of percent; the scales a
 -- number from 1 to 2, digits with a decimal point or none (main.lua sends them in whole percents).
 local function setting(name,text)
     if name=='fight_chars' then

@@ -1,7 +1,8 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
 -- place's, the status line's and the notices' words that the Lua side writes (D-UI8): English and French. The game's
 -- language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language
--- reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...).
+-- reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...),
+-- or <setting>_<id> where one setting's value needs other words (aggro_game).
 local T={}
 T.en={
     title='CO-OP',
@@ -18,10 +19,10 @@ T.en={
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
         who_can_join='Who can join',auto_coop_save='Co-op saves',enemy_hp_scale="Enemy HP (host's)",
         enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards',
-        same_place='Same place (experimental)'},
+        same_place='Same place (experimental)',aggro="Enemies attack (host's)"},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',friends='Friends',
         code='With a code',private='Invited only',ask='Ask',always='Always',all='Every shared enemy',
-        fought='Enemies I hit'},
+        fought='Enemies I hit',aggro_game='Both players',aggro_host='The host only'},
     no_limit='No limit',minutes='%d min',seconds='%d s',percent='%d %%',press='Press a key',
     hint={move='Move',select='Select',back='Back'},
     confirm_leave='Select again within 3 s to leave.',confirm_remove='Select again within 3 s to remove %s.',
@@ -106,10 +107,10 @@ T.fr={
         partner_arrow='Flèche hors écran',partner_card='Fiche du partenaire',card_details='Ping et zone sur la fiche',
         who_can_join='Qui peut rejoindre',auto_coop_save='Sauvegardes co-op',enemy_hp_scale='PV des ennemis (hôte)',
         enemy_balance_scale='Équilibre des ennemis (hôte)',kill_credit='Mes récompenses',
-        same_place='Même position (expérimental)'},
+        same_place='Même position (expérimental)',aggro='Les ennemis attaquent (hôte)'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',friends='Amis',
         code='Avec un code',private='Sur invitation',ask='Demander',always='Toujours',all='Tous les ennemis partagés',
-        fought='Ceux que je frappe'},
+        fought='Ceux que je frappe',aggro_game='Les deux joueurs',aggro_host="L'hôte seulement"},
     no_limit='Sans limite',minutes='%d min',seconds='%d s',percent='%d %%',press='Appuyez sur une touche',
     hint={move='Déplacer',select='Choisir',back='Retour'},
     confirm_leave='Choisissez encore dans les 3 s pour quitter.',

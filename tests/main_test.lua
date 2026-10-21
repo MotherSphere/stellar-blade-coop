@@ -710,7 +710,7 @@ link_mode='none'
 
 -- coop fight (Phase 11, experimental). Strict arguments: anything else is the fight's usage line and asks nothing.
 local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | '
-    ..'record | replay | pilot status|probe|on|off | pilot test freeze|cmc|drive|replay\n'
+    ..'record | replay | pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target\n'
 local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now '
 local COOP=with_slot('slot=coop index=4 marker=4\n')
 settings_text='shared_enemies=off\n'
@@ -765,9 +765,9 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
 end
 status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
 coop('fight','probe'); assert(asked[#asked]=='fight probe','The co-op saves pass too')
--- coop fight pilot (same-place enemies, stage 3a), on any slot: status asks the native part (which logs its stats
--- lines at once) and answers with the pilot= line; probe, on, off and test go as typed. on needs same_place=on, as on
--- needs shared_enemies=on. target and exec are refused here: force target comes with stage 3b, executions with 3c.
+-- coop fight pilot (same-place enemies, stages 3a and 3b), on any slot: status asks the native part (which logs its
+-- stats lines at once) and answers with the pilot= line; probe, on, off and test (target too) go as typed. on needs
+-- same_place=on, as on needs shared_enemies=on. exec is refused here: executions come with stage 3c.
 status_text=with_slot('slot=main index=0 marker=4\n')
 for _,bad in ipairs({{'pilot'},{'pilot','start'},{'pilot','status','x'},{'pilot','probe','1'},{'pilot','off','now'},
         {'pilot','on','x'},{'pilot','test'},{'pilot','test','Freeze'},{'pilot','test','freeze','x'},
@@ -778,7 +778,8 @@ for _,bad in ipairs({{'pilot'},{'pilot','start'},{'pilot','status','x'},{'pilot'
 end
 for _,case in ipairs({{{'probe'},'fight pilot probe'},{{'off'},'fight pilot off'},
         {{'test','freeze'},'fight pilot test freeze'},{{'test','cmc'},'fight pilot test cmc'},
-        {{'test','drive'},'fight pilot test drive'},{{'test','replay'},'fight pilot test replay'}}) do
+        {{'test','drive'},'fight pilot test drive'},{{'test','replay'},'fight pilot test replay'},
+        {{'test','target'},'fight pilot test target'}}) do
     coop('fight','pilot',table.unpack(case[1]))
     assert(asked[#asked]==case[2] and last()=='[StellarCoop] OK: asked the native part: '..case[2]..'\n',last())
 end
@@ -786,15 +787,13 @@ local before_pilot=#asked
 coop('fight','pilot','on')
 assert(#asked==before_pilot and last()=='[StellarCoop] STOP: same place is off in coop-settings.txt (same_place=off)\n',
     last())
-coop('fight','pilot','test','target')
-assert(#asked==before_pilot and last()=='[StellarCoop] STOP: coop fight pilot test target: force target comes with '
-    ..'stage 3b (enemies that fight the guest), not in this build\n',last())
 coop('fight','pilot','test','exec')
 assert(#asked==before_pilot and last()=='[StellarCoop] STOP: coop fight pilot test exec: executions on the same enemy '
     ..'come with stage 3c, not in this build\n',last())
-pilot_text='pilot=on piloted=3 probe=on'
+pilot_text='pilot=on piloted=3 owned=1 drawn=2 probe=on'
 coop('fight','pilot','status')
-assert(asked[#asked]=='fight pilot status' and last()=='[StellarCoop] OK: pilot=on piloted=3 probe=on\n',last())
+assert(asked[#asked]=='fight pilot status'
+    and last()=='[StellarCoop] OK: pilot=on piloted=3 owned=1 drawn=2 probe=on\n',last())
 pilot_text=nil
 coop('fight','pilot','status')
 assert(asked[#asked]=='fight pilot status' and last()=='[StellarCoop] OK: no same-place status yet\n',last())
@@ -858,6 +857,18 @@ for _,case in ipairs({{'record','fight record scale 135 115 place 15011001 2'},{
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
 end
 coop('fight','pilot','on'); assert(asked[#asked]=='fight pilot on')
+-- aggro=host (the host's: enemies fight the host only) goes the same way as "aggro-host" after place, or alone.
+settings_text='shared_enemies=on\nsame_place=on\naggro=host\n'
+load_main(true)
+status_text=COOP
+for _,case in ipairs({{'on','fight on scale 135 115 place aggro-host'},{'record','fight record scale 135 115 place '
+        ..'aggro-host'},{'replay','fight replay'},{'probe','fight probe'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+settings_text='shared_enemies=on\naggro=HOST\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 aggro-host',asked[#asked])
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)
@@ -1394,6 +1405,12 @@ assert(#asked==fight_asks+5 and asked[#asked]=='fight pilot on'
 fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=armed sim_us=8/30 threads=1/1/2'
 key('RETURN'); quarter(); assert(#asked==fight_asks+5 and select(2,focus())=='Off','The probe: nothing')
 fight_text=nil
+-- Who same-place enemies fight, the host's: Both players (aggro=game) by default, The host only (aggro=host); the
+-- next start of shared enemies carries it, so the row asks nothing.
+to("Enemies attack (host's)"); assert(select(2,focus())=='Both players')
+key('RETURN')
+assert(settings_text:find('\naggro=host\n',1,true) and select(2,focus())=='The host only')
+quarter(); assert(#asked==fight_asks+5,'The next start carries it')
 status_text=plain
 to('Menu size'); key('RIGHT_ARROW'); assert(kit_calls[#kit_calls]=='scale 105' and select(2,focus())=='105 %')
 to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
@@ -1401,7 +1418,7 @@ to('Menu sounds'); key('Q'); assert(kit_calls[#kit_calls]=='sounds false')
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Poses sent a second|55|normal\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
+assert(screen():find('^SESSION||disabled\n') and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)

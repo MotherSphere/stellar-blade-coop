@@ -48,7 +48,7 @@ function Menu.new(o)
     local function value(row)
         local v=values[row.key]
         if row.bind then return capturing==row.key and words.press or v end
-        if row.values then return words.value[v] or v end
+        if row.values then return words.value[row.key..'_'..v] or words.value[v] or v end -- aggro_game before game.
         local n=tonumber(v)
         if row.key=='photo_freeze_max' then
             return n==0 and words.no_limit or (n%60==0 and words.minutes:format(n//60) or words.seconds:format(n))
