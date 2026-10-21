@@ -2426,38 +2426,33 @@ std::string status() {
 }
 
 namespace {
-// The pads, the game thread's (coop_pad). Slots 0 to 3, buttons ORed, the first connected left stick. A slot that did
-// not answer is asked again only every 2 s: asking an empty slot is known to cost milliseconds.
-constexpr uint64_t kPadPollMs = 8, kPadRetryMs = 2000;
+// The pads, the game thread's (coop_pad): pad.h's PadSlots picks the slots to ask.
+constexpr uint64_t kPadPollMs = 8;
 coop::Pad pad;
+coop::PadSlots pad_slots;
 uint64_t pad_next_poll = 0;
-std::array<uint64_t, 4> pad_retry{}; // When each slot that did not answer is asked again.
-int pad_slots = 0;                   // The slots that answered at their last ask, as bits.
 
 void poll_pad(uint64_t now) {
   const XInputGetStateFn get = xinput_get;
   if (!get)
     return; // Not loaded yet (the worker's first pass), or no XInput.
-  coop::PadState s;
-  for (DWORD slot = 0; slot < 4; ++slot) {
-    const int bit = 1 << slot;
-    if (!(pad_slots & bit) && now < pad_retry[slot])
-      continue;
-    XINPUT_STATE x{};
-    if (get(slot, &x) != ERROR_SUCCESS) { // ERROR_DEVICE_NOT_CONNECTED, or any other failure the same way.
-      pad_slots &= ~bit;
-      pad_retry[slot] = now + kPadRetryMs;
-      continue;
-    }
-    pad_slots |= bit;
-    s.buttons |= x.Gamepad.wButtons;
-    if (!s.connected) {
-      s.lx = x.Gamepad.sThumbLX;
-      s.ly = x.Gamepad.sThumbLY;
-      s.connected = true;
-    }
+  // XInput answers whatever window is in front: with another program's there, the pad is that program's. Nothing is
+  // read, and the held state goes (a disconnect for pad.h), so nothing acts on a menu the player cannot see.
+  DWORD owner = 0;
+  if (!GetWindowThreadProcessId(GetForegroundWindow(), &owner) || owner != GetCurrentProcessId()) {
+    pad.step(coop::PadState{}, now);
+    return;
   }
-  pad_seen = pad_slots;
+  const coop::PadState s = pad_slots.poll(now, [get](unsigned slot, coop::PadState &one) {
+    XINPUT_STATE x{};
+    if (get(slot, &x) != ERROR_SUCCESS) // ERROR_DEVICE_NOT_CONNECTED, or any other failure the same way.
+      return false;
+    one.buttons = x.Gamepad.wButtons;
+    one.lx = x.Gamepad.sThumbLX;
+    one.ly = x.Gamepad.sThumbLY;
+    return true;
+  });
+  pad_seen = pad_slots.answered();
   pad.step(s, now);
 }
 } // namespace

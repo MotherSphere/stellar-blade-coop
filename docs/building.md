@@ -212,6 +212,9 @@ build/host/pose_codec_test
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
+  - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a diagonal
+    read as up or down, the stick's thresholds, View held 1 s, a disconnect, the event queue) and which XInput slots
+    each poll asks;
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
     reloads;
@@ -229,13 +232,14 @@ build/host/pose_codec_test
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
 the DLL under Proton's `wine` in a scratch prefix with no `steam_api64.dll` present. It checks that the DLL attaches,
-waits for Steam, answers `coop_tick`, refuses the engine, the Night Operation poller, the save name's probe,
-`saves coop` and same-place enemies (`pilot=refused` in `coop-status.txt`, and a refused `coop fight pilot test`) on an
-exe that is not the game, takes `coop fight pilot off` there, logs `save name: saves=off` once, and logs a clean process
-exit. It also checks that `ReadProcessMemory` behaves as the poller needs, that the chat files an earlier run left are
-deleted at start, that a typed line is taken and never logged, that a request file the worker cannot delete is never run
-twice, and that the `copy` request's clipboard call puts a code on the clipboard that another program reads back. It
-runs wine with no display, so that clipboard stays inside wine and the desktop's clipboard is never touched.
+waits for Steam, answers `coop_tick` and `coop_pad` (no pad event, with no window of its own in front), refuses the
+engine, the Night Operation poller, the save name's probe, `saves coop` and same-place enemies (`pilot=refused` in
+`coop-status.txt`, and a refused `coop fight pilot test`) on an exe that is not the game, takes `coop fight pilot off`
+there, logs `save name: saves=off` once, and logs a clean process exit. It also checks that `ReadProcessMemory` behaves
+as the poller needs, that the chat files an earlier run left are deleted at start, that a typed line is taken and never
+logged, that a request file the worker cannot delete is never run twice, and that the `copy` request's clipboard call
+puts a code on the clipboard that another program reads back. It runs wine with no display, so that clipboard stays
+inside wine and the desktop's clipboard is never touched.
 
 ```
 python3 tools/wine_smoke.py [--wine <wine binary>] [--prefix <scratch WINEPREFIX>]

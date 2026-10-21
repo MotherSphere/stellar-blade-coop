@@ -1,5 +1,6 @@
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
-// direction's repeats, the stick's thresholds, the View hold, a disconnect and the ring.
+// direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, a disconnect, the ring,
+// and the slots asked at each poll.
 #include "pad.h"
 
 #include <cassert>
@@ -7,6 +8,7 @@
 #include <vector>
 
 using coop::Pad;
+using coop::PadSlots;
 using coop::PadState;
 
 namespace {
@@ -126,9 +128,15 @@ int main() {
     pad.step(stick(-9830, 0), 150);
     pad.step(stick(-16384, 0), 160);
     assert(drain(pad).empty());
-    // A held stick repeats like the D-pad.
+    // Left and right never repeat: they change a value, once a press.
     pad.step(stick(-16384, 0), 540);
-    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(stick(-16384, 0), 3000);
+    assert(drain(pad).empty());
+    // A held stick repeats up and down like the D-pad.
+    pad.step(stick(0, 0), 3016);
+    pad.step(stick(0, -16384), 3032);
+    pad.step(stick(0, -16384), 3432);
+    assert(drain(pad) == (V{Pad::kDown, Pad::kDown}));
     // Under 30 % on both axes: nothing at all.
     Pad quiet;
     for (uint64_t t = 0; t < 2000; t += 16)
@@ -192,8 +200,83 @@ int main() {
     Pad pad;
     pad.step(buttons(PadState::B | PadState::A), 0);
     assert(drain(pad) == (V{Pad::kSelect, Pad::kBack}));
-    pad.step(buttons(PadState::DPAD_RIGHT | PadState::DPAD_UP | PadState::B), 16);
-    assert(drain(pad) == (V{Pad::kUp, Pad::kRight}));
+    pad.step(buttons(PadState::DPAD_DOWN | PadState::B), 16);
+    assert(drain(pad) == V{Pad::kDown});
+  }
+
+  { // A diagonal is up or down only: a move never changes a value in the same step.
+    Pad pad;
+    pad.step(buttons(PadState::DPAD_UP | PadState::DPAD_LEFT), 0);
+    assert(drain(pad) == V{Pad::kUp});
+    pad.step(buttons(PadState::DPAD_LEFT), 16); // Up let go first: left is a press of its own.
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(buttons(PadState::DPAD_LEFT | PadState::DPAD_DOWN), 32); // Down comes in: left stops.
+    pad.step(buttons(PadState::DPAD_LEFT | PadState::DPAD_DOWN), 48);
+    assert(drain(pad) == V{Pad::kDown});
+    pad.step(buttons(0), 64);
+    // The stick: its main axis only. Up 37 degrees off vertical is up; 53 degrees off is left.
+    pad.step(stick(-19660, 26214), 80);
+    assert(drain(pad) == V{Pad::kUp});
+    pad.step(stick(-26214, 19660), 96); // Turned past 45 degrees: up goes, left comes.
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(stick(-12000, 15000), 112); // Mostly up, under 50 %: neither; left's hold went.
+    pad.step(stick(-26214, 0), 128);
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(stick(0, 0), 144);
+    // The stick up with the D-pad's right: up.
+    pad.step(PadState{PadState::DPAD_RIGHT, 0, 20000, true}, 160);
+    assert(drain(pad) == V{Pad::kUp});
+  }
+
+  { // The slots: each that answered, every poll; at most one that did not, 2 s after its last ask.
+    PadSlots slots;
+    std::vector<unsigned> asked;
+    unsigned there = 0; // The slots with a pad, as bits.
+    std::array<PadState, 4> pads{};
+    auto read = [&](unsigned slot, PadState &one) {
+      asked.push_back(slot);
+      if (!(there & (1u << slot)))
+        return false;
+      one = pads[slot];
+      return true;
+    };
+    using U = std::vector<unsigned>;
+    // No pad: one empty slot a poll, never four in one frame.
+    for (uint64_t t = 0; t < 64; t += 16) {
+      asked.clear();
+      assert(!slots.poll(t, read).connected);
+    }
+    assert(asked == U{3} && slots.answered() == 0);
+    asked.clear();
+    for (uint64_t t = 64; t < 2000; t += 16)
+      slots.poll(t, read);
+    assert(asked.empty());
+    slots.poll(2000, read);
+    slots.poll(2016, read);
+    assert(asked == (U{0, 1}));
+    // Pads in slots 1 and 2: found on their retry, then asked every poll; buttons ORed, the first one's stick.
+    there = 0b0110;
+    pads[1] = PadState{PadState::A, 100, -200, true};
+    pads[2] = PadState{PadState::B, 300, 400, true};
+    asked.clear();
+    PadState s = slots.poll(2032, read); // Slot 2's retry: due (asked at 32).
+    assert(asked == U{2} && s.connected && s.buttons == PadState::B && s.lx == 300 && s.ly == 400);
+    asked.clear();
+    s = slots.poll(2048, read); // Slot 2, then slot 3's retry (asked at 48).
+    assert(asked == (U{2, 3}) && slots.answered() == 0b0100);
+    asked.clear();
+    slots.poll(4000, read); // Slot 0's retry (asked at 2000), and slot 2.
+    assert(asked == (U{0, 2}));
+    asked.clear();
+    s = slots.poll(4016, read); // Slot 1's retry (asked at 2016): two pads.
+    assert(asked == (U{1, 2}) && slots.answered() == 0b0110);
+    assert(s.buttons == (PadState::A | PadState::B) && s.lx == 100 && s.ly == -200);
+    // Slot 1 unplugged: no answer, asked again only 2 s later.
+    there = 0b0100;
+    asked.clear();
+    slots.poll(4032, read);
+    slots.poll(4040, read);
+    assert(asked == (U{1, 2, 2}) && slots.answered() == 0b0100);
   }
 
   { // A ring of 8: once full the newest is dropped, then it fills again as Lua takes them.
