@@ -1077,6 +1077,13 @@ running()
 Hs.link='link=none lobby=0'
 round(1)
 assert(find(Hs.lines,'^result: aborted %(lost%) '),Hs.lines[#Hs.lines])
+-- His game stops ticking (a hitch, no load): hers ends as lost 5 s later, and her abort line ends his as lost too.
+running()
+round(21,Gs)
+assert(Gs.told[#Gs.told]=='The link to your partner was lost.' and find(Gs.lines,'^result: aborted %(lost%) '))
+round(1)
+assert(find(Hs.lines,'^result: aborted %(lost%) ') and Hs.told[#Hs.told]=='The link to your partner was lost.',
+    Hs.lines[#Hs.lines])
 
 -- Her checks, in order, each refusal word said to him as a notice; his run is dropped with no result.
 local function refused_with(text_want,setup)

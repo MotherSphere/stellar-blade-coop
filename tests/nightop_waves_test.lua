@@ -368,11 +368,13 @@ s=start()
 at(s,0,{mate=her('ready')})
 assert(kill(s,5,1)=='' and s.up==4 and at(s,75)=='wave 2' and s.up==7)
 assert(at(s,150)=='' and at(s,151,{mate=her('run',{},keys(1,0,3))})=='wave 3' and s.up==3+5)
--- Her death: failed (guest); her abort: aborted (mate); his own death in a co-op run: failed (host).
-for want,state in pairs({['end failed guest']='dead',['end aborted mate']='abort'}) do
+-- Her death: failed (guest); her abort: aborted (mate), but a lost link stays lost (his line stopped in her world, as
+-- W.follow keeps his lost); his own death in a co-op run: failed (host).
+for want,case in pairs({['end failed guest']={'dead'},['end aborted mate']={'abort','stop'},
+        ['end aborted lost']={'abort','lost'}}) do
     s=start()
     at(s,0,{mate=her('ready')})
-    assert(at(s,3,{mate=her(state,{},{},state=='abort' and 'stop' or nil)})==want,state)
+    assert(at(s,3,{mate=her(case[1],{},{},case[2])})==want,want)
 end
 s=start()
 at(s,0,{mate=her('ready')})

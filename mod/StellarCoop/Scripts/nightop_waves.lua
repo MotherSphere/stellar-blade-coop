@@ -176,12 +176,12 @@ local function due(s)
     return clear and math.min(coming.at,clear+W.BREATHER) or coming.at
 end
 -- One tick. input: {killed={key,...}, done={key,...}, dead=EVE died, abort=a reason}, each body reported at least once;
--- in a co-op run on the host, also mate, her last line of this run (W.decode_mate): her kills score, a key is done
--- once it is done in both worlds, and her death or abort ends the run (failed 'guest', aborted 'mate'; his own death
--- is then failed 'host'). Returns the events, in order: {what='heal',wave=k}, {what='wave',wave=k} (spawn it),
--- {what='end',outcome='success'|'time'|'failed'|'aborted',reason=}, {what='idle'} once the 10 s result is over. s
--- holds phase, wave, score, kills, clears, up, next_at (the next wave's run time, nil after wave 5) and, once ended,
--- outcome, reason and time (run time at the end).
+-- in a co-op run on the host, also mate, her last line of this run (W.decode_mate): her kills score, a key is done once
+-- it is done in both worlds, and her death or abort ends the run (failed 'guest', aborted 'mate', or 'lost' when his
+-- line stopped in her world; his own death is then failed 'host'). Returns the events, in order: {what='heal',wave=k},
+-- {what='wave',wave=k} (spawn it), {what='end',outcome='success'|'time'|'failed'|'aborted',reason=}, {what='idle'} once
+-- the 10 s result is over. s holds phase, wave, score, kills, clears, up, next_at (the next wave's run time, nil after
+-- wave 5) and, once ended, outcome, reason and time (run time at the end).
 function W.step(s,input,now)
     local out={}
     if s.phase=='idle' then return out end
@@ -205,7 +205,7 @@ function W.step(s,input,now)
     if input.dead then return finish(s,{},now,'failed',s.mate_done and 'host' or nil) end
     if mate and mate.state=='dead' then return finish(s,{},now,'failed','guest') end
     if input.abort then return finish(s,{},now,'aborted',input.abort) end
-    if mate and mate.state=='abort' then return finish(s,{},now,'aborted','mate') end
+    if mate and mate.state=='abort' then return finish(s,{},now,'aborted',mate.why=='lost' and 'lost' or 'mate') end
     if s.wave==#W.SCHEDULE and s.up==0 then return finish(s,out,now,'success') end
     if rt>=W.LIMIT then return finish(s,out,now,'time') end
     local at=due(s)
