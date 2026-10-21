@@ -194,6 +194,14 @@ constexpr uint16_t kRowBattle = pilot::kBattle, kRowDying = pilot::kDying, kRowF
 // FSBActor +0x744: the AI task in flight (RunAITask's; 0 none), a skill running [L]: stage 3b hands no enemy over
 // meanwhile. FSBActor +0x4cc: its location, which its actor tick copies from the capsule (GetLocation's).
 constexpr size_t kAiTask = 0x744, kLocation = 0x4cc;
+// Together only (fight_sync.h): our EVE took part in an enemy's fight when she hit it (the sides' fought), when the
+// game's last player on its logic actor is our EVE, or when she stands within kPartCm of it. Logic actor +0x638: the
+// GUID FUN_141ba8190 stores, only a player's, from FSBActorAddTargetedByEnemy::Execute (FUN_141b0f440: it targeted
+// her) and from the hit paths FUN_141bf10c0 and FUN_141bfbf10 (her hit landed); 0 from actor init (FUN_141b9f040).
+// Each world has one player, so it is 0 or our EVE. SB's death handler (FUN_141bae5d0) takes it as the killer when a
+// death has no player cause: its Kill achievement and its Tachy gain.
+constexpr size_t kLastPlayer = 0x638;
+constexpr float kPartCm = 3000; // 30 m.
 constexpr uint8_t kReady = 0x80; // A pass's only, never in a row: life state 1, no pending death, no NoDamageNoHit.
 
 // One pair as the logic thread saw it at its last turn, for the game thread (pilot.h).
@@ -562,9 +570,10 @@ public:
   // guest_kills=confirmed (F4's fallback): the guest's copies hold a 1 HP floor until the host's dead. Set while off.
   void confirm(bool on) { confirm_ = on; }
   // The host's two-player scaling in percent (kMinScale: none; a guest's side takes the host's from its scale line),
-  // and kill_credit (all, or only the enemies our EVE hit). Set while off.
+  // and kill_credit: together (nearby: our EVE within kPartCm of an enemy counts as taking part in its fight) or
+  // fought (she hit it, or the game's last player on it is her). Set while off. (near is a macro in Windows headers.)
   void scale(uint16_t hp, uint16_t balance) { scale_hp_ = hp, scale_balance_ = balance; }
-  void credit(bool all) { credit_all_ = all; }
+  void credit(bool nearby) { nearby_ = nearby; }
   // Any thread: our same_place, the host's for both games (a guest's side takes the host's from its place line, never
   // its own). On, the host's pair table tells the game thread to capture, and the host tells her; the guest freezes the
   // copies she draws (those the host owns) and her table tells the game thread to draw them. Off takes every freeze
@@ -734,8 +743,6 @@ public:
       new (&host) Host();
       new (&guest) Guest();
       guest.confirm(confirm_);
-      guest.credit(credit_all_);
-      host.credit(credit_all_);
       host.set_scale(scale_hp_, scale_balance_);
       host.set_bosses(bosses_);
       session_seen_ = session;
@@ -757,6 +764,7 @@ public:
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
       summoned_count_ = guards_ = 0; // summon_n_ goes on for the run, as the extras' n.
       trial_ = Trial();
+      unshared_n_ = 0;
       calm_seen_ = calm_;
       per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
@@ -896,7 +904,7 @@ public:
       keyed(g, a);
       if (a.controlled == 1 && local && a.fsb == local && pc(g, a))
         eve_ = f.guid;
-      if (std::find(followed, followed + count, f.guid) != followed + count || !eligible(g, a))
+      if (std::find(followed, followed + count, f.guid) != followed + count || given_up(f.guid) || !eligible(g, a))
         continue;
       if (n == kMaxSeen)
         ++counts.cut;
@@ -958,6 +966,8 @@ private:
     uint64_t logic;
     bool apply(const Write &w, int32_t &after) { return e.write(g, logic, w, after); }
     bool effect(uint32_t guid, int32_t id) { return e.cast(g, logic, guid, id); }
+    bool took_part(uint32_t guid) { return e.took_part(g, logic, guid, e.nearby_); }
+    void unshare(uint32_t guid) { e.unshared_[e.unshared_n_++ % kMaxPairs] = guid; }
     void send(const Message &m) {
       e.saw(m);
       g.send(m);
@@ -1392,6 +1402,27 @@ private:
     Actor a;
     uint64_t la = eve_ ? g.find(logic, eve_) : 0;
     return la && live(g, la, eve_, a) && a.controlled == 1 && a.fsb && a.fsb == local_fsb(g) ? la : 0;
+  }
+  // Our EVE took part in the fight of our copy guid (together only, kLastPlayer): the game's last player on it is her,
+  // or, with nearby, she stands within kPartCm of it now. No EVE of ours found, or a read that fails: no.
+  // ponytail: the distance is read at the kill only; one who fought it and stepped back counts through fought or
+  // +0x638. A time window (near in the last 10 s) is the upgrade if a test shows a miss.
+  template <class Game> bool took_part(Game &g, uint64_t logic, uint32_t guid, bool nearby) {
+    Actor a;
+    uint32_t last = 0;
+    float at[3], here[3];
+    const uint64_t la = g.find(logic, guid), fsb = local_fsb(g);
+    if (!la || !live(g, la, guid, a) || !eve(g, logic) || latched_)
+      return false;
+    if (g.read(la + kLastPlayer, &last, sizeof last) && last == eve_)
+      return true;
+    return nearby && g.read(a.fsb + kLocation, at, sizeof at) && g.read(fsb + kLocation, here, sizeof here) &&
+           within(at, here, kPartCm);
+  }
+  // A copy the host gave up (Io::unshare): its kill was hers alone. Never taken in again, nor same spawns' Monster.
+  bool given_up(uint32_t guid) const {
+    const uint32_t *end = unshared_ + std::min(unshared_n_, kMaxPairs);
+    return std::find(unshared_, end, guid) != end;
   }
 
   // One of the side's mirrored crowd controls (fight_sync.h's Io::effect): its actor found again and tested as for a
@@ -1851,7 +1882,7 @@ private:
       keys_whole_ = false;
       return;
     }
-    m.monster = type == kTypeMonster && (chars_ ? shares(m.chr) : !auto_out(m.chr, max_hp));
+    m.monster = type == kTypeMonster && (chars_ ? shares(m.chr) : !auto_out(m.chr, max_hp)) && !given_up(m.guid);
     if (m.monster && (!g.read(a.fsb + kLocation, m.at, sizeof m.at) || !g.read(a.fsb + kFsbRotation, rot, sizeof rot))) {
       keys_whole_ = false;
       return;
@@ -2336,9 +2367,10 @@ private:
     return nullptr;
   }
   // The guest: the host's bstart (checked: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and
-  // the reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy. The
-  // host's repeats while its boss is in battle mode bring back one refused before (no pair yet, not drawn yet). Null
-  // when called, else why not.
+  // the reg made, which SetBattleMode's body reads through their getters, and our EVE in its fight: within kPartCm or
+  // its last player, so its battle-start events never run in her world for a fight she is not in): SetBattleMode on
+  // our copy, once a copy. The host's repeats while its boss is in battle mode bring back one refused before (no pair
+  // yet, not drawn yet, far). Null when called, else why not.
   template <class Game> const char *bstart_in(Game &g, uint64_t logic, const Message &m, size_t n) {
     uint32_t local = 0;
     Actor a;
@@ -2348,6 +2380,7 @@ private:
       why = !drawn_boss(local, n)                                       ? "not drawn"
             : !la || !live(g, la, local, a) || a.life != 1 || a.pending ? "gone"
             : !senders_made(g)                                          ? "not made"
+            : !took_part(g, logic, local, true)                         ? "far"
                                                                         : nullptr;
     if (latched_)
       return "latched";
@@ -2969,7 +3002,7 @@ private:
   Job ring_[kRing];
   uint32_t allowed_[kMaxChars] = {};
   size_t chars_ = 0;
-  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, credit_all_{true};
+  std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, nearby_{true};
   std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false}, aggro_host_{false}, exec_test_{false};
   std::atomic<bool> same_spawns_{false};
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
@@ -2998,6 +3031,10 @@ private:
   bool slow_ = false;            // The last turn ran in slow motion.
   Capture caps_[kMaxCaptures];
   size_t captures_ = 0, lifting_ = 0; // lifting_: captures dropped whose lift a fault cut short.
+  // The host's copies given up this session (Io::unshare), the last kMaxPairs. ponytail: a ring; one pushed out may be
+  // shared again, and then given up again at her next kill: nothing of hers reaches us either way.
+  uint32_t unshared_[kMaxPairs] = {};
+  size_t unshared_n_ = 0;
   PilotTable table_;
   StreamFlags flags_;         // The game thread's word, as of the last publish.
   uint32_t lost_[kMaxPairs] = {}; // Copies whose freeze was lost, while their pairs last.
@@ -3691,12 +3728,12 @@ private:
     else if (side_)
       std::snprintf(head, sizeof head,
                     "fight stats: host%s, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
-                    "floored, %llu without credit, %llu held in state 3 or her takedown, %llu held-expired, %llu "
+                    "floored, %llu not taken part, %llu held in state 3 or her takedown, %llu held-expired, %llu "
                     "finish-held), nodamage "
                     "bypass %llu in state 3 and %llu in 4, %llu takedowns of hers (%llu refused), %llu crowd controls "
                     "told, %llu mirrored (%llu skipped), %llu stale, %llu over the rates, %llu bad, %llu ignored, %zu "
                     "scaled (%u %% HP, %u %% balance)",
-                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
+                    as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.unshared), u(c.held),
                     u(c.expired), u(c.finish_held), u(c.bypass3), u(c.bypass4), u(c.execs), u(c.exec_refused),
                     u(c.cc_told),
                     u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.rate), u(c.bad), u(c.ignored), s.scaled,
@@ -3704,10 +3741,10 @@ private:
     else
       std::snprintf(head, sizeof head,
                     "fight stats: guest%s, %zu pairs, %llu claims sent, %llu corrections, %llu kills (%llu floored, "
-                    "%llu without credit, %llu held in state 3, %llu held-expired), %llu desync guest-dead, %zu held "
+                    "%llu not taken part, %llu held in state 3, %llu held-expired), %llu desync guest-dead, %zu held "
                     "at 1 HP, %llu takedowns told, %llu crowd controls told, %llu mirrored (%llu skipped), %llu stale, "
                     "%llu bad, %zu scaled (%u %% HP, %u %% balance)",
-                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
+                    as, s.paired, u(c.claims), u(c.corrections), u(c.kills), u(c.floored), u(c.unshared), u(c.held),
                     u(c.expired), u(c.desync), s.floors, u(c.execs), u(c.cc_told), u(c.cc_mirrored), u(c.cc_skipped),
                     u(c.stale), u(c.bad), s.scaled, s.scale[kScaleHp], s.scale[kScaleBalance]);
     char spawns[448] = ""; // Same spawns (stage 4): the host's rounds answered, or hers sent; and the extras.

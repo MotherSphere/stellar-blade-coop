@@ -34,7 +34,12 @@ struct World {
   bool immune = false;                              // The game refuses every effect (an immunity).
   std::vector<Message> sent;
   std::vector<Event> events;
+  std::vector<uint32_t> apart;    // Copies our EVE took no part in (Io::took_part says no); she took part in the rest.
+  std::vector<uint32_t> unshared; // The host's copies given up (Io::unshare): the engine's censuses leave them out.
 
+  bool took_part(uint32_t guid) const { return std::find(apart.begin(), apart.end(), guid) == apart.end(); }
+  void unshare(uint32_t guid) { unshared.push_back(guid); }
+  bool given_up(uint32_t guid) const { return std::find(unshared.begin(), unshared.end(), guid) != unshared.end(); }
   Actor *actor(uint32_t guid) {
     for (Actor &a : actors)
       if (a.s.guid == guid)
@@ -72,7 +77,7 @@ struct World {
     v = w.delta < 0 ? std::max(next, low) : std::min(next, whole(a->s.max[w.stat]));
     a->s.dying = v <= 0 && w.stat == kHp;
     assert(!a->s.dying || w.kill); // A write that kills says so, so the engine lifts our floor first.
-    assert(w.kill ? w.stat == kHp : !w.eve); // Only a kill names a cause: this world's EVE's rewards (F3).
+    assert(w.kill ? w.stat == kHp && w.eve : !w.eve); // A kill, and only a kill, names our EVE as the cause (F3).
     after = v;
     return true;
   }
@@ -112,7 +117,7 @@ struct World {
 };
 
 // One turn, its pass built as the engine's contract says: the GUIDs the side follows first, dying or not, then on a
-// census pass every other living actor.
+// census pass every other living actor but those given up.
 template <class Side> void step(Side &side, World &w, uint32_t turn, uint64_t now, bool census = true) {
   uint32_t guids[kMaxTracked];
   size_t n = side.tracked(guids);
@@ -121,7 +126,7 @@ template <class Side> void step(Side &side, World &w, uint32_t turn, uint64_t no
     if (World::Actor *a = w.actor(guids[i]))
       seen.push_back(a->s);
   for (const World::Actor &a : w.actors)
-    if (census && !dying(a.s) && std::find(guids, guids + n, a.s.guid) == guids + n)
+    if (census && !dying(a.s) && !w.given_up(a.s.guid) && std::find(guids, guids + n, a.s.guid) == guids + n)
       seen.push_back(a.s);
   side.step(seen.data(), seen.size(), census, turn, now, w);
 }
@@ -669,16 +674,16 @@ int main() {
   // before scaling them. It names for the engine every enemy it follows once her on came, and keeps naming it after
   // her off until it leaves the list. An enemy named for the first time sends its values one step later, once the
   // engine scaled it: sent at once, they would reach her unscaled, and her scaled copy would show a drop, then a heal.
-  // An enemy the engine still holds scaled waits for a census before it is taken in. kill_credit=fought: a kill on her
-  // claim gives our EVE the rewards only for an enemy our EVE hit (a drop between two passes, the balance gauge too),
-  // or one already hurt when it was taken in.
+  // An enemy the engine still holds scaled waits for a census before it is taken in. Together only: her lethal claim
+  // kills our copy, with our EVE as the cause, only when our EVE took part in its fight: she hit it (a drop between
+  // two passes, the balance gauge too) or the engine says so (Io::took_part: the game's last player, or near). Else
+  // our copy lives on, never shared again (Io::unshare), and her side hears its dead.
   {
     World w;
     w.add(101, 5001, 0);
     w.add(102, 5002, 0);
     Host h;
     h.set_scale(135, 115);
-    h.credit(false);
     uint32_t guids[kMaxTracked];
     step(h, w, 1, 0);
     assert(h.scaled(guids) == 0 && w.sent.empty()); // Her on has not come.
@@ -706,34 +711,44 @@ int main() {
     w.actor(103)->s.scaled = false;
     step(h, w, 7, 140);
     assert(h.linked() == 3 && h.scaled(guids) == 2); // Taken in while she is off: not scaled.
-    // Her on again: 103 is scaled too. Our EVE parries 102 (its balance drops); her lethal claims kill both, with our
-    // EVE as the cause for 102 only.
+    // Her on again: 103 is scaled too. Our EVE parries 102 (its balance drops), and took no part in 101 or 102 by the
+    // engine's tests. Her lethal claims: 102 dies, our EVE its cause; 101 lives on at full HP, given up, its dead sent.
     h.receive(msg("SBF11 on"), 150, w);
     step(h, w, 8, 150);
     assert(h.scaled(guids) == 3 && guids[2] == 103);
     const std::string again = w.lines(); // 103's values wait a step; 101 and 102 were scaled already.
     assert(has(again, "SBF11 hp 1 3 0 101:") && !has(again, "103:"));
     w.hit(102, kStamina, 10);
+    w.apart = {101, 102};
     step(h, w, 9, 160);
     w.writes.clear();
     h.receive(msg("SBF11 hit 1 1 101 2160 0 0 2160 1"), 170, w);
     h.receive(msg("SBF11 hit 1 2 102 2160 0 0 2160 1"), 170, w);
     step(h, w, 10, 170);
-    assert(w.writes.size() == 2 && w.writes[0].kill && w.writes[1].kill);
-    wrote(w, 0, 101, kHp, -2160, false, true);
-    wrote(w, 1, 102, kHp, -2160, true, true);
-    assert(h.counts.kills == 2 && h.counts.uncredited == 1 && w.lines() == "SBF11 dead 1 101\nSBF11 dead 1 102\n");
-    assert(h.scaled(guids) == 1 && guids[0] == 103); // The dead left the list: the engine lets them go.
-    // One our EVE hurt before it was taken in (a full list, a pause, shared enemies started mid-fight): fought.
+    assert(w.writes.size() == 1);
+    wrote(w, 0, 102, kHp, -2160, true, true);
+    assert(h.counts.kills == 1 && h.counts.unshared == 1 && w.lines() == "SBF11 dead 1 101\nSBF11 dead 1 102\n");
+    assert(w.hp(101) == 2160 && !w.actor(101)->s.dying && w.unshared == std::vector<uint32_t>{101});
+    assert(w.count("kill-unshared", "not taken part") == 1 && w.count("dead") == 1);
+    assert(h.scaled(guids) == 1 && guids[0] == 103); // Both left the list: the engine lets them go.
+    step(h, w, 11, 200); // A census: 101 is never taken in again.
+    assert(h.linked() == 1 && !has(w.lines(), "up 1 101"));
+    // Hurt before it was taken in (a full list, a pause, shared enemies started mid-fight) is not taking part: 104,
+    // which the engine's tests say we took no part in, lives on; 105, which they say we did, dies ours.
     w.add(104, 5004, 0);
+    w.add(105, 5005, 0);
     w.hit(104, kHp, 100);
-    step(h, w, 11, 300);
+    w.hit(105, kHp, 100);
+    w.apart = {104};
+    step(h, w, 12, 300);
     w.writes.clear();
     h.receive(msg("SBF11 hit 1 3 104 1500 0 0 1500 1"), 310, w);
-    step(h, w, 12, 310);
-    wrote(w, 0, 104, kHp, -1500, true, true);
-    assert(h.counts.kills == 3 && h.counts.uncredited == 1);
-    // Without scaling: no scale line, nothing named; the default kill credit pays every kill.
+    h.receive(msg("SBF11 hit 1 4 105 1500 0 0 1500 1"), 310, w);
+    step(h, w, 13, 310);
+    assert(w.writes.size() == 1 && w.hp(104) == 1500);
+    wrote(w, 0, 105, kHp, -1500, true, true);
+    assert(h.counts.kills == 2 && h.counts.unshared == 2 && w.unshared.back() == 104);
+    // Without scaling: no scale line, nothing named; a kill of an enemy we took part in is ours.
     World v;
     v.add(201, 6001, 0);
     Host plain;
@@ -743,7 +758,72 @@ int main() {
     plain.receive(msg("SBF11 hit 1 1 201 1600 0 0 1600 1"), 10, v);
     step(plain, v, 2, 10);
     wrote(v, 0, 201, kHp, -1600, true, true);
-    assert(plain.counts.uncredited == 0);
+    assert(plain.counts.unshared == 0);
+  }
+
+  // ---- Together only: a held kill, a boss, an extra and a summon, as any enemy ----
+  // Her lethal claim on a copy in NoDamageNoHit waits; when it goes, our EVE's part is asked then. A boss (stage 5),
+  // an extra's key (stage 4b) and a boss summon's key go through the same rule: no part, no kill on either side.
+  {
+    for (const bool part : {false, true}) {
+      World w;
+      w.add(101, 5001, 0).s.nodamage = kNoDamageNoHit;
+      w.add(102, 5002, 0).s.boss = true;
+      w.add(103, 0xE0000101, 1);
+      w.add(104, summon_key(1).spawn, 0);
+      if (!part)
+        w.apart = {101, 102, 103, 104};
+      Host h;
+      h.receive(msg("SBF11 on"), 0, w);
+      step(h, w, 1, 0);
+      w.lines();
+      for (uint32_t i = 0; i < 4; ++i) {
+        const std::string n = std::to_string(i + 1), g = std::to_string(101 + i);
+        h.receive(msg("SBF11 hit 1 " + n + " " + g + " 1600 0 0 1600 1"), 10, w);
+      }
+      step(h, w, 2, 10);
+      assert(h.counts.held == 1 && w.hp(101) == 1); // Held at 1 HP meanwhile, as before.
+      w.actor(101)->s.nodamage = 0;
+      step(h, w, 3, 30);
+      for (uint32_t guid : {101u, 102u, 103u, 104u})
+        assert(w.actor(guid)->s.dying == part);
+      assert(h.counts.kills == (part ? 4u : 0u) && h.counts.unshared == (part ? 0u : 4u) && h.linked() == 0);
+      assert(w.unshared.size() == (part ? 0u : 4u) && w.count("kill-unshared") == (part ? 0u : 4u));
+      const std::string sent = w.lines();
+      for (uint32_t guid : {101u, 102u, 103u, 104u})
+        assert(has(sent, "SBF11 dead 1 " + std::to_string(guid) + "\n"));
+    }
+    // The guest's side: the host's dead kills her copy only when her EVE took part, a boss's, an extra's and a
+    // summon's alike; else her copy lives on unpaired (dead-unshared), at the HP the host's values left it.
+    for (const bool part : {false, true}) {
+      World w;
+      w.add(901, 5001, 0);
+      w.add(902, 5002, 0).s.boss = true;
+      w.add(903, 0xE0000101, 1);
+      w.add(904, summon_key(1).spawn, 0);
+      if (!part)
+        w.apart = {901, 902, 903, 904};
+      Guest g;
+      g.receive(msg("SBF11 world 1"), w);
+      g.receive(msg("SBF11 up 1 101 5001 0 900 1600"), w);
+      g.receive(msg("SBF11 up 1 102 5002 0 900 1600"), w);
+      g.receive(msg("SBF11 up 1 103 3758096641 1 900 1600"), w);
+      g.receive(msg("SBF11 up 1 104 " + std::to_string(summon_key(1).spawn) + " 0 900 1600"), w);
+      step(g, w, 1, 0);
+      assert(g.linked() == 4);
+      g.receive(msg("SBF11 hp 1 1 0 101:400:100:200 102:400:100:200 103:400:100:200 104:400:100:200"), w);
+      step(g, w, 2, 16);
+      w.writes.clear();
+      for (uint32_t guid : {101u, 102u, 103u, 104u})
+        g.receive(msg("SBF11 dead 1 " + std::to_string(guid)), w);
+      step(g, w, 3, 32);
+      for (uint32_t guid : {901u, 902u, 903u, 904u})
+        assert(w.actor(guid)->s.dying == part && w.hp(guid) == (part ? 0 : 400));
+      assert(w.writes.size() == (part ? 4u : 0u) && g.counts.kills == (part ? 4u : 0u));
+      assert(g.counts.unshared == (part ? 0u : 4u) && w.count("dead-unshared", "not taken part") == (part ? 0u : 4u));
+      uint32_t guids[kMaxTracked];
+      assert(g.linked() == 0 && g.tracked(guids) == 0); // The engine lets them go: floors, scaling, freeze.
+    }
   }
 
   // ---- Host: same place (stage 3a) ----
@@ -1563,15 +1643,15 @@ int main() {
   // ---- Guest: the host's scaling and kill credit ----
   // The host's scale line, of its generation, holds until its next world, on or off; with it every pair is named for
   // the engine (scaled(), as tracked()). A copy the engine still holds scaled never pairs: its MaxHP is not the game's.
-  // Raising it is our write, never a claim. kill_credit=fought: the host's dead kills with our EVE as the cause only a
-  // copy our EVE hit, or one already hurt when it paired.
+  // Raising it is our write, never a claim. Together only: the host's dead kills our copy, with our EVE as the cause,
+  // only when our EVE took part in its fight: she hit it since it paired, or the engine says so (Io::took_part).
+  // Else the pair ends with no write (dead-unshared) and the copy lives on.
   {
     World w;
     w.add(901, 5001, 0);
     w.add(902, 5002, 0);
     w.add(903, 5003, 0).s.scaled = true;
     Guest g;
-    g.credit(false);
     uint32_t guids[kMaxTracked];
     g.receive(msg("SBF11 world 1"), w);
     g.receive(msg("SBF11 scale 2 135 115"), w); // Another generation's.
@@ -1592,6 +1672,7 @@ int main() {
     step(g, w, 3, 32);
     assert(w.sent.empty() && g.counts.claims == 0);
     w.hit(902, kHp, 10);
+    w.apart = {901, 902}; // The engine's tests say no for both: far, never the game's last player.
     step(g, w, 4, 100);
     assert(w.lines() == "SBF11 hit 1 1 102 10 0 0 2160 0\n");
     w.writes.clear();
@@ -1599,25 +1680,34 @@ int main() {
     g.receive(msg("SBF11 dead 1 102"), w);
     assert(g.scaled(guids) == 3); // Still named in their last step.
     step(g, w, 5, 200);
-    assert(w.writes.size() == 2 && w.writes[0].kill && w.writes[1].kill);
-    wrote(w, 0, 901, kHp, -2160, false, true);
-    wrote(w, 1, 902, kHp, -2150, true, true);
-    assert(g.counts.kills == 2 && g.counts.uncredited == 1 && g.scaled(guids) == 1 && guids[0] == 903);
+    assert(w.writes.size() == 1 && w.writes[0].kill);
+    wrote(w, 0, 902, kHp, -2150, true, true);
+    assert(w.hp(901) == 2160 && !w.actor(901)->s.dying && w.count("dead-unshared", "not taken part") == 1);
+    assert(g.counts.kills == 1 && g.counts.unshared == 1 && g.scaled(guids) == 1 && guids[0] == 903);
     // The host's next world drops its scaling with the pairs, until its next scale line.
     g.receive(msg("SBF11 world 2"), w);
     assert(g.scale(kScaleHp) == 100 && g.scale(kScaleBalance) == 100 && g.scaled(guids) == 0);
-    // Our hits before the pair (the host paused, or its up came late) make a hurt copy: fought.
+    // Our hits before the pair (the host paused, or its up came late) are not taking part by themselves: hurt when it
+    // paired, 903 dies on the host's dead only once the engine's tests say we took part.
     Seen &own = w.actor(903)->s; // The engine let it go, at its own maxes.
     own.max[kHp] = 1600, own.value[kHp] = 1600, own.max[kStamina] = 200, own.value[kStamina] = 200, own.scaled = false;
     w.hit(903, kHp, 100);
+    w.apart = {903};
     g.receive(msg("SBF11 up 2 103 5003 0 900 1600"), w);
     step(g, w, 6, 300);
     assert(g.linked() == 1);
     w.writes.clear();
     g.receive(msg("SBF11 dead 2 103"), w);
     step(g, w, 7, 316);
+    assert(w.writes.empty() && w.hp(903) == 1500 && g.counts.unshared == 2 && g.linked() == 0);
+    w.apart.clear();
+    g.receive(msg("SBF11 up 2 104 5003 0 900 1600"), w); // Its key again (a re-pair): the engine says we took part.
+    step(g, w, 8, 332);
+    w.writes.clear();
+    g.receive(msg("SBF11 dead 2 104"), w);
+    step(g, w, 9, 348);
     wrote(w, 0, 903, kHp, -1500, true, true);
-    assert(g.counts.kills == 3 && g.counts.uncredited == 1);
+    assert(g.counts.kills == 2 && g.counts.unshared == 2);
   }
 
   // ---- Guest: the host's same place ----
