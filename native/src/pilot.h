@@ -168,7 +168,9 @@ inline Side other(Side s) { return s == kHost ? kGuest : kHost; }
 // the other player once her EVE has stood at least kNearCm closer than the owner's for kNearMs. Never while a guard
 // holds (the owner has held it less than kOwnMs, or Facts::busy), and with aggro=host every pair is the host's, as in
 // 3a. Each change moves the epoch oe one up. After her own-no off or aggro (her side does not run same-place enemies)
-// the host hands her nothing for kHerOffMs, or until her next on, off or world line.
+// the host hands her nothing for kHerOffMs, or until her next on, off or world line; after any other own-no, not that
+// pair (Own::no_until): a refusal that comes back each time (no copy of hers, a take-over her game thread refuses)
+// would freeze and thaw the host's copy once each kOwnMs.
 constexpr uint64_t kLastHitMs = 10'000, kNearMs = 2'000, kOwnMs = 4'000, kHerOffMs = 30'000;
 constexpr float kNearCm = 300;
 
@@ -196,6 +198,7 @@ struct Own {
   // the target (Taker). Never after an own-no, place 0 or a start over: the pair comes back to the host's copy as it
   // was, with no hand-over (PHASE11-STAGE3 3.8: the host thaws its copy and stays owner).
   bool taken = false;
+  uint64_t no_until = 0; // The host's: her last own-no about it plus kHerOffMs (ms); no hand-over to her before then.
 };
 
 // One turn of the host's rule for o at now (host_only: aggro=host). True when the pair changes hands: the other side
@@ -215,7 +218,7 @@ inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool forc
                     : o.hit && now - o.hit_ms < kLastHitMs     ? o.hitter
                     : o.nearer && now - o.nearer_ms >= kNearMs ? other(o.owner)
                                                                : o.owner;
-  if (want == o.owner || (!force && (f.busy || now - o.since < kOwnMs)))
+  if (want == o.owner || (want == kGuest && now < o.no_until) || (!force && (f.busy || now - o.since < kOwnMs)))
     return false;
   o.owner = want, ++o.oe, o.since = now, o.nearer = false, o.taken = true;
   return true;
@@ -291,13 +294,13 @@ public:
   }
 
   // The host's: her own-no about hguid at epoch oe. True when she held it at that epoch (an own G she refused, or one
-  // she gives back): ours again, held from now. Any other is stale (R33): we moved on since, or started over, and the
-  // lines crossed; it changes nothing, so a lie in one changes nothing either.
+  // she gives back): ours again, held from now, and not hers again for kHerOffMs. Any other is stale (R33): we moved on
+  // since, or started over, and the lines crossed; it changes nothing, so a lie in one changes nothing either.
   bool refused(uint32_t hguid, uint8_t oe, uint64_t now) {
     Own *o = find(hguid);
     if (!o || o->owner != kGuest || o->oe != oe)
       return false;
-    o->owner = kHost, o->since = now, o->taken = false;
+    o->owner = kHost, o->since = now, o->taken = false, o->no_until = now + kHerOffMs;
     return true;
   }
   // The guest's: the host's own line about hguid (owner side, epoch oe). The pair ends at the host's word, but hers

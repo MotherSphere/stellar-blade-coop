@@ -558,8 +558,8 @@ game.
 The host's `aggro` setting decides which game runs an enemy's AI. With `aggro=game`, the default, an enemy goes to the
 player who hit it last. After 10 s without a hit, it goes to the other player once that player's EVE has stood at least
 3 m nearer to it for 2 s. An enemy changes hands at most once in 4 s, and never during one of its attacks, while it is
-down, groggy, in the air or in a takedown, or while it dies. With `aggro=host`, every enemy stays with the host's game
-and never attacks the guest. Same place has not been tested in game yet, and it is off by default.
+down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
+the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place has not been tested in game yet, and it is off by default.
 
 In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
 out of the game's movement manager, writes its position every frame from the other game's stream and replays that

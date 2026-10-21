@@ -1524,9 +1524,10 @@ private:
     }
   }
   // The host: her own-no, at once. Taken when she held the pair at that epoch (pilot.h's refused): ours again, so this
-  // turn's table captures it and our freeze comes off; else stale (lines that crossed). Not from an ignored peer, an
-  // old world or a side that is off. Taken with off or aggro, her side does not run same-place enemies: none goes to
-  // her for kHerOffMs (or until her next on, off or world), so her claims do not freeze our copy once each kOwnMs.
+  // turn's table captures it and our freeze comes off, and that pair not hers for kHerOffMs; else stale (lines that
+  // crossed). Not from an ignored peer, an old world or a side that is off. Taken with off or aggro, her side does not
+  // run same-place enemies: none goes to her for kHerOffMs (or until her next on, off or world), so her claims do not
+  // freeze our copy once each kOwnMs.
   template <class Game> void refused(const Message &m, uint64_t now, Io<Game> &io) {
     if (host.ignored()) {
       ++host.counts.ignored;
@@ -1547,7 +1548,7 @@ private:
   // of ours started on it this turn). A change goes to her as an own line at once. No table, no change. A pair whose
   // copy we cannot draw (freeze lost, or refused by the game thread) is ours at once, guards or not, and never hers:
   // its AI already runs on our copy. So is every pair once her lines are ignored. After her own-no off or aggro, none
-  // goes to her for a while (refused()).
+  // goes to her for a while (refused()); after any other, not that pair (pilot.h's Own::no_until).
   template <class Game> void hand_over(Game &g, const uint32_t *guids, size_t count, size_t n, uint64_t now) {
     owners_.keep(guids, count);
     for (size_t i = 0; i < count; ++i)

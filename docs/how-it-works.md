@@ -411,8 +411,9 @@ balance and death stay with the host's game whoever owns the pair.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. Otherwise, and when she can no longer run a pair she owns, she answers
   `SBF11 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
-  `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s. A world line,
-  an on or an off line starts the epochs over on both sides.
+  `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
+  other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
+  pauses.
 - In the frame a hand-over makes a pair a game's own at a new epoch, its game thread first puts the copy back
   (below), then calls the game's force target function (`FUN_141a36010`) toward its own EVE: detect result 3, aggro
   level 1, and the game's own TargetedByEnemy jobs. The call runs only with the cached net mode 0 (in net mode 3 that

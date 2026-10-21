@@ -1583,8 +1583,9 @@ int main() {
   // ---- Same-place enemies, stage 3b (PHASE11-STAGE3 3.8), the host's side ----
   // Her claim as the last hit gives her the enemy once the host held it 4 s: in that turn the host freezes its copy
   // (BlockAI_Infinite, then SkillCancel) and sends own G at the next epoch, and the pair is drawn (her stream drives
-  // it). Her own-no at that epoch gives it back in the turn it comes: BlockAI_Dispel, captured again; one at another
-  // epoch, of another world, or twice changes nothing. Our own hit takes it back once she held it 4 s: own H and the
+  // it). Her own-no at that epoch gives it back in the turn it comes: BlockAI_Dispel, captured again, and not hers
+  // again for 30 s, her claims or not; one at another epoch, of another world, or twice changes nothing. Our own hit
+  // takes it back once she held it 4 s: own H and the
   // dispel in one turn. Never while an AI task runs on the owner's copy (ours as read at +0x744, which our SBE carries
   // as kSkill; hers as her stream says), and the nearer rule once nobody hit it for 10 s. aggro=host keeps it ours;
   // place 0 gives it back with its epoch kept; her off starts the epochs over. Only a pair ours by a hand-over is
@@ -1639,18 +1640,22 @@ int main() {
       g.inbox.push_back(msg(late));
     frame(g, *e, t += 16);
     assert(e->host.counts.stale == stale + 5 && e->host.counts.bad == 0 && row.owner == coop::pilot::kHost);
-    // Held since the own-no: 4 s more.
-    hers(5008);
-    assert(!until(8484, "own") && until(8600, "SBF11 own 1 101 G 2\n") && t == 8496);
+    // Not hers again for 30 s after her own-no, however often she hits it; then at once.
+    for (uint64_t at = 4496 + 2000; at < 4496 + 30000; at += 2000) {
+      assert(!until(at, "own"));
+      hers(at);
+    }
+    assert(until(4496 + 30100, "SBF11 own 1 101 G 2\n") && t == 4496 + 30000);
+    const uint64_t g2 = t;
     // Ours by our hit once she held it 4 s; her stream's kSkill holds it back meanwhile.
     frame(g, *e, t += 16);
     casts();
     g.hit(101, kShield, 5);
-    frame(g, *e, t = 9008);
+    frame(g, *e, t = g2 + 512);
     g.flags.skill[0] = 101, g.flags.skill_count = 1;
-    assert(!until(13000, "own"));
+    assert(!until(g2 + 4504, "own"));
     g.flags.skill_count = 0;
-    assert(until(13100, "SBF11 own 1 101 H 3\n") && casts() == std::to_string(kDispel) + " ");
+    assert(until(g2 + 4604, "SBF11 own 1 101 H 3\n") && casts() == std::to_string(kDispel) + " ");
     assert(row.owner == coop::pilot::kHost && row.oe == 3 && !(row.bits & kRowDrawn) && count(g, "own", "back") == 1);
     assert(owned(g.table, o) == 1 && o[0].oe == 3 && o[0].taken);
     // An AI task on our copy: no hand-over while it runs (and our SBE says kSkill).
@@ -1729,6 +1734,30 @@ int main() {
     assert(!has(sent, "own") && g.table.pairs[0].owner == coop::pilot::kHost && !(g.table.pairs[0].bits & kRowDrawn));
     assert(!Game::held(g.body(101), kBlockAiState));
   }
+  // Her own-no about a pair (here unpaired: her game has no copy of it) keeps it the host's for 30 s, though her ghost
+  // stands 10 m nearer to it all along; then the nearer rule hands it to her again.
+  {
+    Game g;
+    auto e = engine(true, true);
+    e->same_place(true);
+    g.spawn(101, 5001, 0);
+    g.mem.put<float>(g.fsb(1) + kLocation, 1000.f); // Our EVE 10 m away; the enemy and her ghost at 0.
+    g.flags.her_ok = true;
+    g.inbox.push_back(msg("SBF11 on"));
+    uint64_t t = 0;
+    const auto until = [&](uint64_t end, const std::string &line) {
+      for (std::string sent; t < end; frame(g, *e, t += 16))
+        if (has(sent = lines(g), line))
+          return true;
+      return false;
+    };
+    assert(until(4100, "SBF11 own 1 101 G 1\n"));
+    g.inbox.push_back(msg("SBF11 own-no 1 101 1 unpaired"));
+    frame(g, *e, t += 16);
+    const uint64_t no = t;
+    assert(g.table.pairs[0].owner == coop::pilot::kHost && !until(no + 29984, "own"));
+    assert(until(no + 30100, "SBF11 own 1 101 G 2\n") && t == no + 30000 && e->counts.owns == 2);
+  }
   // The guards of the host's, read on its copy, hold a hand-over back while they last: a takedown marker
   // (Check_LinkSkillHit_Skill 5000039), Groggy, DelayDeath, NoDamageNoHit; own G in the turn after each ends. Her
   // own-no off (her side does not run same-place enemies) pauses hand-overs for 30 s, her claims or not, then one goes
@@ -1760,28 +1789,28 @@ int main() {
       else
         g.state(101, which == 1 ? 7 : which == 2 ? kDelayDeath : kNoDamageNoHit, on);
     };
-    for (int which = 0, oe = 1; which < 4; ++which, ++oe) {
-      const uint64_t held = t; // Ours since: the start, then her own-no.
+    for (int which = 0; which < 4; ++which) {
+      const uint64_t held = t; // Ours since: the start, then her world line (an own-no would pause it 30 s).
       hers(held + 100);
       assert(!until(held + 3800, "own"));
       guard(which, true); // The marker's 60 turns outlast what follows.
       assert(!until(held + 4600, "own"));
       guard(which, false);
-      assert(until(t + 100, "SBF11 own 1 101 G " + std::to_string(oe) + "\n"));
-      g.inbox.push_back(msg("SBF11 own-no 1 101 " + std::to_string(oe) + " state"));
+      assert(until(t + 100, "SBF11 own 1 101 G 1\n"));
+      g.inbox.push_back(msg("SBF11 world 1")); // The epochs start over.
       frame(g, *e, t += 16);
     }
     hers(t + 100);
-    assert(until(t + 4100, "SBF11 own 1 101 G 5\n"));
-    g.inbox.push_back(msg("SBF11 own-no 1 101 5 off"));
+    assert(until(t + 4100, "SBF11 own 1 101 G 1\n"));
+    g.inbox.push_back(msg("SBF11 own-no 1 101 1 off"));
     frame(g, *e, t += 16);
     const uint64_t off = t;
     for (uint64_t at = off + 2000; at < off + 30000; at += 2000) {
       assert(!until(at, "own"));
       hers(at);
     }
-    assert(until(off + 30100, "SBF11 own 1 101 G 6\n") && t == off + 30000);
-    g.inbox.push_back(msg("SBF11 own-no 1 101 6 aggro"));
+    assert(until(off + 30100, "SBF11 own 1 101 G 2\n") && t == off + 30000);
+    g.inbox.push_back(msg("SBF11 own-no 1 101 2 aggro"));
     frame(g, *e, t += 16);
     g.inbox.push_back(msg("SBF11 world 1")); // Her world: the pause ends, and the epochs start over.
     frame(g, *e, t += 16);
@@ -1961,7 +1990,8 @@ int main() {
   // Three paired enemies. Enemy 0 goes to her by her hit at 5 s, back by the host's at 12 s, to her again at 20 s and
   // back by the nearer rule 10 s later. Enemy 1 nobody hits: hers by the nearer rule while her EVE stands by it (6 s to
   // 18 s), then the host's. Enemy 2: her hit at 5.5 s while her copy holds NoDamageNoHit (a grab), so she refuses it
-  // and it comes back; hers at her next hit. On each frame each enemy runs SB's AI on one copy (state 39 off on it)
+  // and it comes back; hers at her next hit, at 37 s (none goes to her for 30 s after her own-no about it). On each
+  // frame each enemy runs SB's AI on one copy (state 39 off on it)
   // but in a hand-over: a hand-over leaves 0 or 2 for one hop at most (the one-way delay and the receiver's turn), a
   // refused one 0 for a round trip (two hops). No pair at an epoch is ever captured by both sides, and between
   // hand-overs the side that does not own a pair draws it at the owner's epoch (R35). Then the link goes: every copy
@@ -1999,7 +2029,7 @@ int main() {
         G.hit(900, kStamina, 10);
       if (t == 12000)
         H.hit(100, kShield, 5);
-      if (t == 5504 || t == 10000)
+      if (t == 5504 || t == 37008)
         G.hit(902, kStamina, 10);
       frame(H, *eh, t);
       frame(G, *eg, t);
@@ -2045,8 +2075,8 @@ int main() {
                 "%llu ms a hand-over, %llu ms a refused one; %zu frames with nothing in flight\n",
                 windows, static_cast<unsigned long long>(eg->counts.own_nos),
                 static_cast<unsigned long long>(worst_hop), static_cast<unsigned long long>(worst_trip), agreed);
-    assert(windows == 9 && trips == 1 && worst_hop <= hop && worst_trip <= 2 * hop && worst_trip > 2 * 90);
-    assert(eh->counts.owns == 9 && eg->counts.owns == 4 && eh->counts.own_nos == 1 && eg->counts.own_nos == 1);
+    assert(windows == 8 && trips == 1 && worst_hop <= hop && worst_trip <= 2 * hop && worst_trip > 2 * 90);
+    assert(eh->counts.owns == 8 && eg->counts.owns == 4 && eh->counts.own_nos == 1 && eg->counts.own_nos == 1);
     assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && !eh->latched() && !eg->latched());
     // The link goes: each side's session ends (the worker's pause), and every freeze comes off at its next turn.
     eh->set(false, true);

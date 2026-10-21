@@ -653,6 +653,19 @@ int main() {
     f.hguid = 10, f.owner = kGuest, f.oe = 2, f.since = 70000;
     assert(rule(f, hers, 70016, false, true) && f.owner == kHost && f.oe == 3 && f.since == 70016);
     assert(!rule(f, hers, 70032, false, true) && !rule(f, calm, 99000, false, true) && f.owner == kHost && f.oe == 3);
+    // After her own-no about it (no_until: then plus 30 s), not hers before that time, hit or not; the host's own hit
+    // still takes one of hers back.
+    Facts hit;
+    hit.guest_hit = true;
+    Own p;
+    p.hguid = 11, p.no_until = 40000;
+    assert(!rule(p, hit, 31000, false) && !rule(p, calm, 39999, false) && rule(p, calm, 40000, false));
+    assert(p.owner == kGuest && p.oe == 1);
+    Own q;
+    q.hguid = 12, q.owner = kGuest, q.no_until = 99000;
+    Facts ours;
+    ours.host_hit = true;
+    assert(rule(q, ours, 50000, false) && q.owner == kHost);
   }
   // Nearer: an enemy nobody hit for 10 s goes to the other player once her EVE has stood 3 m closer than the owner's
   // for 2 s without a break; back the same way, 4 s after it changed hands at the earliest. Within 10 s of a hit the
@@ -716,6 +729,7 @@ int main() {
     o.owner = kGuest, o.oe = 6, o.taken = true;
     assert(!own.refused(4100, 5, 900) && !own.refused(4100, 7, 900) && o.owner == kGuest && o.taken);
     assert(own.refused(4100, 6, 900) && o.owner == kHost && o.oe == 6 && o.since == 900 && !o.taken);
+    assert(o.no_until == 900 + kHerOffMs);
     assert(!own.refused(4100, 6, 950) && o.since == 900 && !own.refused(4200, 0, 950) && !own.refused(4200, 1, 950));
     o.owner = kGuest, o.oe = 0; // Wrapped.
     assert(!own.refused(4100, 255, 990) && own.refused(4100, 0, 990));
