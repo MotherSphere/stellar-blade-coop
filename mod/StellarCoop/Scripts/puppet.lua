@@ -212,6 +212,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                         false))
                     assert(target,'a cloth part could not be added')
                     target:SetCollisionEnabled(0)
+                    -- OnlyTickPoseWhenRendered: the engine's cloth tick skips the solve while the ghost is hidden, off
+                    -- screen or behind a wall (up to 1 s after its last render), and resets the cloth to its bones
+                    -- when it is drawn again. SB sets the same on her own ponytail during its Show sequences.
+                    target.VisibilityBasedAnimTickOption=3
                     target:SetSkeletalMesh(mesh,true)
                     target.bLocalSpaceSimulation=true -- Its own space: place() moves the root by teleports.
                 end)

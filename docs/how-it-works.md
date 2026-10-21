@@ -393,7 +393,9 @@ Cloth, on by default, adds nothing to the table or the poses: each PC runs NvClo
 body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While the ghost is shown, its
 root moves without the engine's teleport flag: a teleport clears the cloth's inertia, and the strands would hang
 without trailing. It teleports when the ghost shows again and when it moves more than 2 m in one pose (a fast travel,
-a respawn).
+a respawn). The cloth simulates only while the ghost is drawn (`VisibilityBasedAnimTickOption` 3): hidden, off screen
+or behind a wall for more than 1 s, it costs nothing, and it starts again from the bones when the ghost is drawn
+again.
 
 ## Same-place enemies
 

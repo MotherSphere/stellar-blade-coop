@@ -875,6 +875,9 @@ assert(pony.cloth and pony.mesh==meshes[PONY] and pony.calls.SetCollisionEnabled
 assert(pony.calls.SetMasterPoseComponent==hair and pony.bUseBoundsFromMasterPoseComponent==true,'It follows its leader')
 assert(pony.attached.parent==hair and pony.visible==false,'Hung and shown as the table says')
 assert(not (root.cloth or face.cloth or hair.cloth or blade.cloth or scabbard.cloth),'The rest are Poseables')
+-- Its cloth simulates only while it is drawn (OnlyTickPoseWhenRendered); the Poseables keep their default.
+assert(pony.VisibilityBasedAnimTickOption==3)
+for _,p in ipairs({root,face,hair,blade,scabbard}) do assert(p.VisibilityBasedAnimTickOption==nil) end
 assert(hair.calls.SetForcedLOD==1 and face.calls.SetMasterPoseComponent==root)
 d=displays[#displays]:gsub('0x%x+','0xX')
 assert(d=='display 700\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
