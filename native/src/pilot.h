@@ -2130,9 +2130,9 @@ constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads i
 // TargetedByEnemy jobs (the HUD and music). Only with the cached net mode 0 and no logic task in flight (M3-4: in net
 // mode 3 its senders become ServerRequest_*, and SB's own callers run inside logic tasks). A task in flight, or a copy
 // the lookups miss, puts it off a frame at a time for kTakeMs. Another net mode, a task still in flight after that, a
-// singleton the call would make (kTargetSingletonsAt), no EVE of ours or a copy without AI refuse it: the pair stays in refused() while the table says it is ours at that
-// epoch, and the job gives it back with own-no target. A copy still missing after kTakeMs is dropped (the job gives an
-// unpaired copy back by itself). A take-over is a pair this side owns at an epoch it did not own it at in the last
+// copy still missing after that, a singleton the call would make (kTargetSingletonsAt), no EVE of ours or a copy
+// without AI refuse it: the pair stays in refused() while the table says it is ours at that epoch, and the job gives
+// it back with own-no target. A take-over is a pair this side owns at an epoch it did not own it at in the last
 // fresh table with same-place enemies on, and that came to it by a hand-over (Owned::taken): never a pair back after
 // an own-no, place 0 or a start over, nor one the host has held since its start (epoch 0). coop fight pilot test
 // target (test()) forces the target on the first pair this side owns, however it came to own it, and notes its target,
@@ -2147,7 +2147,7 @@ public:
     uint64_t targeted = 0;   // Force target calls (the test's too).
     uint64_t waited = 0;     // Frames a take-over was put off.
     uint64_t refused = 0;    // Take-overs refused.
-    uint64_t gone = 0;       // Take-overs dropped: the copy not found within kTakeMs.
+    uint64_t gone = 0;       // Of those, the copy not found within kTakeMs.
     uint64_t notes_lost = 0; // Log lines dropped: kNotes were waiting.
   };
   Counts counts;
@@ -2292,14 +2292,14 @@ private:
       ++counts.waited;
       return;
     }
-    p.state = a == kForced || a == kMissing ? kDone : kRefused;
+    p.state = a == kForced ? kDone : kRefused;
     counts.gone += a == kMissing;
     counts.refused += p.state == kRefused;
     if (a == kForced)
       std::snprintf(note(), kNoteBytes, "taken hguid=%u oe=%u: target our EVE", unsigned(p.hguid), unsigned(p.oe));
     else
-      std::snprintf(note(), kNoteBytes, "take-over %s hguid=%u oe=%u: %s", a == kMissing ? "dropped" : "refused",
-                    unsigned(p.hguid), unsigned(p.oe), kWhy[a]);
+      std::snprintf(note(), kNoteBytes, "take-over refused hguid=%u oe=%u: %s", unsigned(p.hguid), unsigned(p.oe),
+                    kWhy[a]);
   }
   // The test: its force target, put off as a take-over is, then its enemy's target, aggro level and detect result
   // each frame after, noted when they change, for kTargetTestMs.

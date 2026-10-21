@@ -1927,7 +1927,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
   }
   for (size_t i = 0; i < events_n; ++i) // One line each: a copy released, converged or snapped.
     say("pilot " + fight::line(events[i]));
-  for (size_t i = 0; i < notes_n; ++i) // A take-over done, refused or dropped; the target test's lines.
+  for (size_t i = 0; i < notes_n; ++i) // A take-over done or refused; the target test's lines.
     say(std::string("pilot ") + notes[i]);
   const auto record = [](const uint8_t *data, size_t size) {
     if (recorder && !recorder->add(data, size))
@@ -1969,7 +1969,7 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
                 "; %llu captures (mean %llu us, max %llu us), %llu enemies sent, %llu not found, %llu Show assets "
                 "unnamed, %llu players odd, %llu cut, %llu waiting for an id, %llu without context; %llu shows, %llu "
                 "show-set, %llu show-stop, %llu lost, %llu unsent; %llu taken over (%llu force targets, %llu frames "
-                "put off, %llu refused, %llu dropped, %llu notes lost); %llu B in and out, %s B/s",
+                "put off, %llu refused, %llu of them copy not found, %llu notes lost); %llu B in and out, %s B/s",
                 u(counts.captures), u(runs ? us / runs : 0), u(max_us), u(counts.entries), u(counts.unresolved),
                 u(counts.unnamed), u(counts.odd), u(counts.cut), u(counts.waited), u(counts.no_context),
                 u(counts.shows), u(counts.sets), u(counts.stops), u(lost), u(pilot_unsent), u(take.taken),

@@ -2354,7 +2354,7 @@ int main() {
                        "take-over refused hguid=4100 oe=5: a logic task in flight\n");
     s.put<uint64_t>(s.logic + kLogicTask, 0);
     // A stale copy (its character pending kill: the lookup misses it): skipped, called once found again in time;
-    // missing for 250 ms, dropped without an own-no (the job gives an unpaired copy back by itself).
+    // missing for 250 ms, refused, so the guest's job gives it back with own-no target.
     const auto key = s.characters.begin()->first;
     s.characters.erase(key);
     const Owned seven{4100, 501, 7, 0, true};
@@ -2368,7 +2368,8 @@ int main() {
     t.step(g, kBase, 7, &nine, 1, true, 5000);
     t.step(g, kBase, 7, &nine, 1, true, 5250);
     t.refused(hg, oe, nr);
-    assert(s.since(seen).empty() && t.counts.gone == 1 && nr == 0);
+    assert(s.since(seen).empty() && t.counts.gone == 1 && t.counts.refused == 3 && nr == 1 && hg[0] == 4100 &&
+           oe[0] == 9);
     s.characters[key] = s.ch;
     // No EVE of ours, or a copy whose AI has no owner: refused.
     s.put<int32_t>(s.manager + kLocalIndex, 2);
@@ -2378,9 +2379,9 @@ int main() {
     s.put<uint64_t>(s.fsb + kAiOwner, 0);
     const Owned thirteen{4100, 501, 13, 0, true};
     t.step(g, kBase, 7, &thirteen, 1, true, 6016);
-    assert(s.since(seen).empty() && t.counts.refused == 4);
+    assert(s.since(seen).empty() && t.counts.refused == 5);
     assert(notes(t) == "taken hguid=4100 oe=7: target our EVE\n"
-                       "take-over dropped hguid=4100 oe=9: copy not found\n"
+                       "take-over refused hguid=4100 oe=9: copy not found\n"
                        "take-over refused hguid=4100 oe=11: no EVE of ours\n"
                        "take-over refused hguid=4100 oe=13: no AI on the copy\n");
     // A singleton the call would make (its getter makes it when null): refused, never made by us.
@@ -2391,7 +2392,7 @@ int main() {
       t.step(g, kBase, 7, &more, 1, true, 6100);
       s.put<uint64_t>(at, s.alloc(0x20));
     }
-    assert(s.since(seen).empty() && t.counts.refused == 6);
+    assert(s.since(seen).empty() && t.counts.refused == 7);
     assert(notes(t) == "take-over refused hguid=4100 oe=17: a game singleton not made yet\n"
                        "take-over refused hguid=4100 oe=19: a game singleton not made yet\n");
     // After the pilot's latch: nothing, whatever comes.

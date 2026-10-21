@@ -602,9 +602,10 @@ component back and points the enemy at its own EVE with the game's force target 
 - Each change of hands is logged: on the host, `fight own <key> hguid=<n> to her` or `back`, and
   `fight own-no hguid=<n> <why>` when the guest refuses one or gives one back; on the guest, `fight own <key> hguid=<n>
   taken` and `fight own-no hguid=<n> <why>`. The game that takes an enemy logs `pilot taken hguid=<n> oe=<epoch>:
-  target our EVE`, or `pilot take-over refused hguid=<n> oe=<epoch>: <why>` when its force target cannot run (another
-  net mode, or a logic task of the game's still running after 250 ms). The guest then gives the enemy back
-  (`own-no target`). The `pilot stats:` line counts these take-overs.
+  target our EVE`, or `pilot take-over refused hguid=<n> oe=<epoch>: <why>` when its force target cannot run: `not
+  net mode 0`, `a logic task in flight` or `copy not found` after 250 ms, `a game singleton not made yet`, `no EVE of
+  ours` or `no AI on the copy`. The guest then gives the enemy back (`own-no target`). The `pilot stats:` line counts
+  these take-overs.
 - After an error in the game's own code, copies the mod already moved can keep their movement component out of the
   manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
   so.
