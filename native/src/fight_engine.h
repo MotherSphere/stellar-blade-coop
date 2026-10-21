@@ -520,9 +520,9 @@ public:
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
   // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
-  // (simulate). A test not run yet goes either way.
+  // (simulate). A test not run yet (coop fight test, coop fight pilot test exec) goes either way.
   void set(bool on, bool hosting, bool probing = false) {
-    test_ = 0;
+    test_ = 0, exec_test_ = false;
     if (on) {
       hosting_ = hosting;
       probing_ = probing;
