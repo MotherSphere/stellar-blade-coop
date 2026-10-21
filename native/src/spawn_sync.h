@@ -17,7 +17,8 @@
 //     the game cannot take one now;
 //   bool despawn(uint32_t guid, const SpawnKey &k): SB's despawn of that actor, found again by GUID, of that key and
 //     alive (the guest's); false when not;
-//   void send(const Message &m), void event(const Event &e): channel 2 and the log.
+//   void send(const Message &m), void event(const Event &e): channel 2 and the log (by key only: the guest's own GUIDs
+//     are no host GUIDs).
 #pragma once
 
 #include <algorithm>
@@ -359,7 +360,7 @@ private:
       return;
     const char *why = x->monster ? "charId" : "not a Monster";
     if (io.despawn(x->guid, d.key))
-      ++counts.undone, io.event(Event{"spawn undone", why, x->guid, d.key.spawn, d.key.index});
+      ++counts.undone, io.event(Event{"spawn undone", why, 0, d.key.spawn, d.key.index});
   }
   // One of the host's lines (R33): at its current epoch and while the zone is shared, else stale. A spawn: a key of
   // our tables in the host's zone that takes part, which we hold no actor of and did not answer in this epoch, within
@@ -404,7 +405,7 @@ private:
     if (!why)
       gone_at_[gone_++] = k;
     ++(why ? counts.refused : counts.despawned);
-    io.event(Event{why ? "drop refused" : "despawned", why ? why : "", x->guid, k.spawn, k.index});
+    io.event(Event{why ? "drop refused" : "despawned", why ? why : "", 0, k.spawn, k.index});
   }
   // Our keys in the host's zone, as kHaveKeys a line: our Monsters of keys that take part there (dying ones too), less
   // those we despawned, plus those we answered for in this epoch.
