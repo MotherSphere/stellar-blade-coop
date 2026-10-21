@@ -3572,8 +3572,9 @@ int main() {
 
   // ---- Bosses (stage 5), the guest's side: bstart far from her copy ----
   // No SetBattleMode on her boss copy while our EVE stands over 30 m from it and is not its game's last player: its
-  // battle-start events would run in her world for a fight she is not in. The host's repeat once she stands within 30 m
-  // starts it.
+  // battle-start events would run in her world for a fight she is not in. Nor while our EVE is down within 30 m of it:
+  // a down EVE never takes part. Either way the fight= line's boss= reads the bstart, so no revive runs in the host's
+  // boss fight. The host's repeat once she stands within 30 m, alive, starts it.
   {
     Game G;
     G.spawns();
@@ -3591,13 +3592,22 @@ int main() {
         frame(G, *eg, t);
     };
     run(500);
-    assert(eg->guest.linked() == 1 && G.table.on);
+    assert(eg->guest.linked() == 1 && G.table.on && !eg->snapshot().boss);
+    G.place(930, 2000, 0);
+    G.mem.put<int32_t>(G.fsb(1) + kLife, 3);
     G.inbox.push_back(msg("SBF12 bstart 1 130"));
-    run(600);
-    assert(G.battles.empty() && eg->counts.bstarts == 0);
+    run(800);
+    assert(G.battles.empty() && eg->counts.bstarts == 0 && eg->snapshot().boss);
+    run(11000);
+    assert(!eg->snapshot().boss);
+    G.mem.put<int32_t>(G.fsb(1) + kLife, 1);
+    G.place(930, 6000, 0);
+    G.inbox.push_back(msg("SBF12 bstart 1 130"));
+    run(11300);
+    assert(G.battles.empty() && eg->counts.bstarts == 0 && eg->snapshot().boss);
     G.place(930, 2000, 0);
     G.inbox.push_back(msg("SBF12 bstart 1 130"));
-    run(700);
+    run(11400);
     assert((G.battles == std::vector<uint64_t>{G.fsb(930)}) && eg->counts.bstarts == 1);
   }
 

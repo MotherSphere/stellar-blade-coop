@@ -1456,8 +1456,8 @@ private:
     return plausible(fsb) && g.read(fsb + kLife, &life, sizeof life) ? life : 0;
   }
   // At each census, for the fight= line's boss= and battle=: a BossMonster of this pass in battle mode (+0xb58), or on
-  // the guest's side the host's bstart taken in the last kBattleEndMs; and the enemies of this pass in BattleMode
-  // (state 30, as marks() read it) within kPartCm of our EVE.
+  // the guest's side the host's bstart for a pair of ours in the last kBattleEndMs, taken or not; and the enemies of
+  // this pass in BattleMode (state 30, as marks() read it) within kPartCm of our EVE.
   template <class Game> void battles(Game &g, size_t n, uint64_t now) {
     float eve[3], at[3];
     const uint64_t fsb = local_fsb(g);
@@ -2473,6 +2473,10 @@ private:
     uint32_t local = 0;
     Actor a;
     const char *why = guest.boss_line(m, local);
+    // A bstart for a pair of ours, taken or not (refused as far for a down EVE, which never takes part): the fight=
+    // line's boss= holds for kBattleEndMs.
+    if (!why || !std::strcmp(why, "again"))
+      bstart_ms_ = now;
     const uint64_t la = why ? 0 : g.find(logic, local);
     if (!why)
       why = !drawn_boss(local, n)                                       ? "not drawn"
@@ -2483,8 +2487,6 @@ private:
                                                                         : nullptr;
     if (latched_)
       return "latched";
-    if (!why || !std::strcmp(why, "again")) // Taken: the fight= line's boss= holds for kBattleEndMs.
-      bstart_ms_ = now;
     for (size_t i = 0; why && !std::strcmp(why, "again") && i < captures_; ++i)
       if (caps_[i].type == kBattleOn && caps_[i].key == m.guid)
         caps_[i].battle = now;
