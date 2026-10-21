@@ -1645,7 +1645,7 @@ Rules:
 
 - `F10` is refused because it opens the console (as does `~`). Function keys do not depend on the keyboard layout.
 - Names and values ignore case, a UTF-8 BOM (Notepad) is accepted, and lines starting with `#` are comments. Only the
-  first 8192 bytes are read.
+  first 16384 bytes are read.
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all the keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F7`,

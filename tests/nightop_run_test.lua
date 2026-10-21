@@ -839,10 +839,10 @@ do
     read_fails=nil
     assert(writes==2 and file==kept and last():find(' best=none$'),last())
     -- A file too long for a best line to be read back: logged with that reason, nothing written.
-    file='#'..('x'):rep(8200)..'\n'
+    file='#'..('x'):rep(16400)..'\n'
     run=start('targets','Target Practice')
     win(run)
-    assert(logged('record: cannot write coop-records.txt (the file is over 8192 bytes)'),since(0))
+    assert(logged('record: cannot write coop-records.txt (the file is over 16384 bytes)'),since(0))
     assert(writes==2 and last():find(' best=none$'),last())
     -- Successes that keep no best: every dummy missing (no body with its key: the spawn failed), then every dummy
     -- fallen and written off, so nothing is killed.

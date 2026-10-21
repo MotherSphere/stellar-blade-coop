@@ -277,10 +277,10 @@ assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.menu_key.name==
 s,notes=Link.parse_settings('colour=red\n\nnot a setting\n')
 assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', ignored"
     and notes[2]=="settings: line 3: unknown setting 'not a setting', ignored",notes[1])
-local long='#'..string.rep('x',8184)..'\nsend_rate=25\n' -- The 8192nd byte is the r of "send_r": the line is dropped.
-long=long..'#'..string.rep('x',9000-#long-2)..'\n'
+local long='#'..string.rep('x',16376)..'\nsend_rate=25\n' -- The 16384th byte is the r of "send_r": the line is dropped.
+long=long..'#'..string.rep('x',17000-#long-2)..'\n'
 s,notes=Link.parse_settings(long)
-assert(#long==9000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 8192 bytes are read',notes[1])
+assert(#long==17000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 16384 bytes are read',notes[1])
 -- The default file saved with CRLF and five ids in fight_chars is read to its last line (status_overlay).
 local crlf=Link.DEFAULT:gsub('fight_chars=auto','fight_chars=15011001 15011002 15011003 15011004 15011005')
 crlf=crlf:gsub('card_details=on','card_details=off'):gsub('status_overlay=off','status_overlay=detailed')
@@ -292,7 +292,7 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==5 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+assert(keys==6 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
     and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9')
 assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n',1,true),'A new file names the race key')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
