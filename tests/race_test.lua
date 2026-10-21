@@ -300,6 +300,8 @@ refused(A,'quest','a track is being recorded: coop race save or coop race cancel
 A.race.command('cancel')
 A.friend,A.linked,A.her_map='Kaanta',true,'/game/e04'
 refused(A,'quest','your friend is on /game/e04; the track is on '..MAP)
+A.her_map=nil
+refused(A,'quest',"your friend's map is not known yet: try again in a moment")
 A.friend,A.linked,A.her_map=nil,false,MAP
 A.look_refuses='no EVE in the world'
 ok,message=A.race.command('start','quest')

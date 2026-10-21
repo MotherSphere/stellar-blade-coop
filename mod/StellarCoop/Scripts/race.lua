@@ -399,9 +399,9 @@ function Race.new(o)
         if t.map~=map then return false,file..' is on '..t.map..'; you are on '..map end
         local _,linked=link.friend()
         local with=linked==true
-        if with and puppet.her_map()~=t.map then
-            return false,'your friend is on '..tostring(puppet.her_map())..'; the track is on '..t.map
-        end
+        local hers=puppet.her_map()
+        if with and not hers then return false,"your friend's map is not known yet: try again in a moment" end
+        if with and hers~=t.map then return false,'your friend is on '..hers..'; the track is on '..t.map end
         local loop=not with and link.loopback()==true
         local ok,look_why=look.on()
         if not ok then return false,look_why end
