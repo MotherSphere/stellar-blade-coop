@@ -906,13 +906,13 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                             ..'simulates but is never reset again (coop look cloth off removes it)'
                     end
                 end
-                if g.tag then -- Its own pcall: a failure stops the turning only, for this ghost, and never the ghost.
+                if g.tag and not g.tag_fixed then -- Its own pcall: a failure stops the turning only, for this ghost.
                     local turned,tag_why=pcall(function()
                         local camera=value_of(UE.GetPlayerController().PlayerCameraManager:GetCameraLocation())
                         g.tag:K2_SetWorldRotation({Pitch=0,Yaw=U.yaw_to({X=x,Y=y},camera),Roll=0},false,{},true)
                     end)
                     if not turned then
-                        g.tag=nil
+                        g.tag_fixed=true -- g.tag kept: the veils and the capsule still reach it.
                         said[#said+1]='Name tag no longer turned to the camera: '..tostring(tag_why)
                     end
                 end

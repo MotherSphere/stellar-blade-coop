@@ -888,6 +888,13 @@ camera_fails=false
 box.RelativeScale3D.Z=8.75
 ghost.place()
 assert(not tag.turns,'Turned no more on that ghost')
+-- The tag still hides for a photo and shows again after it.
+ghost.photo(false,true)
+ghost.place()
+assert(tag.visible==false,'Veiled after a failed turn')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and not tag.turns,'Shown again, still not turned')
 -- No offset, the root exactly where her mesh is.
 root=actor.parts[1]
 box.RelativeScale3D.Z=9
