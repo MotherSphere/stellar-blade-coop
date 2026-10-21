@@ -22,7 +22,7 @@ local SF=require('settings_file')
 local Saves={}
 -- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most, no key (then Decide later).
 local BACK,WAIT,SLOW,IDLE=0.15,8,480,240
-local WIDE,BODY=78,5 -- Characters a body row (18 layout units each, as the feed's); body rows.
+local WIDE,BODY=78,5 -- Columns a body row (18 layout units each, as the feed's); body rows.
 local CHOICES={ask={'coop','solo','later','always'},error={'solo','later'}}
 local function exists(path)
     local f=io.open(path,'rb')
@@ -70,7 +70,8 @@ function Saves.new(o)
         elseif phase=='wait' then add(progress and w.copying:format(progress[1],progress[2]) or w.switching)
         else
             add(w.failed)
-            add(why or w.see_log..'.')
+            -- see_log's line ends as the failed one does: 。 in Chinese and Japanese, nothing in Thai.
+            add(why or w.see_log..(w.failed:match('。$') or w.failed:match('%.$') or ''))
         end
         v.title.set(w.title)
         for i,t in ipairs(v.body) do t.set(lines[i] or '') end

@@ -316,6 +316,10 @@ model.receive('Kaanta',string.rep('x',150),28)
 view.slow(28)
 assert(rows[9].s=='[21:04] Kaanta:' and rows[10].s==string.rep('x',70) and rows[11].s==string.rep('x',70)
     and rows[12].s==string.rep('x',10),'A word longer than a row: on rows of its own, cut between characters')
+model.receive('Kaanta',string.rep('敵',40),28)
+view.slow(28)
+assert(rows[10].s=='[21:04] Kaanta:' and rows[11].s==string.rep('敵',35) and rows[12].s==string.rep('敵',5),
+    'A Chinese or Japanese character takes two of the 70 columns')
 
 -- The session ends: the box closes and empties, the history goes (the notice that says so comes after).
 box.text='half typed'

@@ -92,8 +92,7 @@ photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
-# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
-# english.
+# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
 ui_language=game

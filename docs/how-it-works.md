@@ -40,7 +40,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `partner.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
 | `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui_model.lua` | The menu's rows and settings, with no engine call |
-| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line and the notices written in Lua, in English and French |
+| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line and the notices written in Lua, in the game's 23 text languages |
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
