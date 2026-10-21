@@ -197,7 +197,8 @@ struct PilotTable {
 };
 // What the game thread says back, by the host's GUID: the drawn pairs whose owner's stream says BattleMode, those whose
 // copy it refused to drive (its movement component is not the game's), which the job lets go as if their freeze were
-// lost, those whose owner's stream says a skill runs (kSkill), and the pairs this side owns whose take-over it refused
+// lost, those whose owner's stream says a skill runs (kSkill), those whose owner's stream says a takedown runs (kExec,
+// stage 3c: frozen despite their release flag), and the pairs this side owns whose take-over it refused
 // at that epoch (pilot.h's Taker: SB's force target needs net mode 0 and no logic task in flight), which the guest
 // gives back with own-no target; and on the host's side where her EVE stands (her ghost, in our world), for stage 3b's
 // nearer rule.
@@ -208,6 +209,8 @@ struct StreamFlags {
   uint8_t refused_count = 0;
   uint32_t skill[kMaxPairs] = {};
   uint8_t skill_count = 0;
+  uint32_t exec[kMaxPairs] = {};
+  uint8_t exec_count = 0;
   uint32_t untaken[kMaxPairs] = {};
   uint8_t untaken_oe[kMaxPairs] = {};
   uint8_t untaken_count = 0;

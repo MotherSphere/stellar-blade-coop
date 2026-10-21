@@ -1,6 +1,6 @@
-// Phase 11 stages 3a and 3b, the same enemy in the same place, as pure logic: the owner of a pair (the side whose AI
+// Phase 11 stages 3a to 3c, the same enemy in the same place, as pure logic: the owner of a pair (the side whose AI
 // runs it: the host's in 3a; in 3b the host hands it over by its rule, Owners and rule(), each change at the next
-// owner epoch oe) streams each enemy's root at 30 Hz and its Shows; the drawn side writes its copy's root every frame
+// owner epoch oe, and in 3c a takedown hands it to its executor, Execs) streams each enemy's root at 30 Hz and its Shows; the drawn side writes its copy's root every frame
 // from samples drawn on the ghost's own playback clock (pose_stream.h), so an enemy and the owner's ghost are drawn at
 // the same instant, and replays the Shows on the copy. No Windows types
 // and no engine call of its own: the game is read, written and called through a Game (Capturer and the FNamePool read
@@ -11,7 +11,8 @@
 // SBE, little-endian, on channel 1 (unreliable), one message per capture for the pairs its sender owns:
 //   "SBE" (3 bytes), protocol (u8, kProtocol), gen (u16: the low 16 bits of the host's world generation, fight_sync.h),
 //   seq (u32, 1 up), publication (u64: the pose clock in µs, the ghost's poses' own), count (u8, 0 to kMaxEnemies),
-//   then count entries of kEntryBytes: hguid (u32, the host's ActorGUID), oe (u8), flags (u8: kBattle, kDying, kSkill),
+//   then count entries of kEntryBytes: hguid (u32, the host's ActorGUID), oe (u8), flags (u8: kBattle, kDying, kSkill,
+//   kExec),
 //   location (3 f32, cm), rotation (3 u16: pitch, yaw and roll as UE's short rotator), anim speed (u16, cm/s).
 // Velocity is not sent: the drawn side derives it from the samples.
 //
@@ -48,8 +49,9 @@ namespace coop::pilot {
 constexpr size_t kMaxEnemies = fight::kMaxPairs;
 constexpr size_t kHeaderBytes = 19, kEntryBytes = 26, kMaxSbe = kHeaderBytes + kMaxEnemies * kEntryBytes;
 // BattleMode (state 30); HP <= 0 or state 32; an AI task in flight on the owner's copy (FSBActor +0x744, a skill [L]),
-// which stage 3b's hand-over waits for.
-constexpr uint8_t kBattle = 1, kDying = 2, kSkill = 4;
+// which stage 3b's hand-over waits for; a takedown on the owner's copy (a marker, 5000039 or 2006004: stage 3c), which
+// the drawn copy follows through its Groggy and its death.
+constexpr uint8_t kBattle = 1, kDying = 2, kSkill = 4, kExec = 8;
 constexpr unsigned kSbeHz = 30;            // One message per 33 ms of clock, not per other frame: 72 at 144 fps.
 static_assert(kMaxSbe * kSbeHz <= size_t(pose::kSbeBytesPerSecond), "the pose budget gives up enough for SBE");
 
@@ -68,7 +70,7 @@ struct Entry {
 
 // An entry decode_sbe takes: a GUID, known flags, a finite location within pose::kMaxWorld (NaN fails).
 inline bool entry_ok(const Entry &e) {
-  return e.guid && !(e.flags & ~(kBattle | kDying | kSkill)) && std::fabs(e.loc[0]) <= pose::kMaxWorld &&
+  return e.guid && !(e.flags & ~(kBattle | kDying | kSkill | kExec)) && std::fabs(e.loc[0]) <= pose::kMaxWorld &&
          std::fabs(e.loc[1]) <= pose::kMaxWorld && std::fabs(e.loc[2]) <= pose::kMaxWorld;
 }
 
@@ -181,6 +183,8 @@ struct Facts {
   bool closer = false;    // The EVE of the side that does not own it stands at least kNearCm closer (closer()).
   bool busy = false;      // A guard: a skill on the owner's copy, Down, Groggy, Airborne, a takedown, dying, or the
                           // host's copy not in life state 1.
+  bool host_exec = false; // Stage 3c: a takedown runs on the host's copy (a marker on it): the host's EVE executes it.
+  bool guest_exec = false; // Hers runs: her exec 1 taken, no exec 0 since (fight::Host::executing).
 };
 
 // One pair's owner and epoch on one side, and on the host's what its rule keeps.
@@ -203,9 +207,14 @@ struct Own {
 
 // One turn of the host's rule for o at now (host_only: aggro=host). True when the pair changes hands: the other side
 // owns it from now, at the next epoch. force: the host's at once, guards or not (a copy the host cannot draw, whose AI
-// runs already, or a peer whose lines no longer count).
+// runs already, or a peer whose lines no longer count). A takedown (stage 3c) gives the pair to its executor at once,
+// guards and hold or not, the host's before hers, and counts as the executor's hit all through it, so the pair stays
+// theirs after it; never with host_only or force, nor to her before no_until.
 inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool force = false) {
-  if (f.host_hit || f.guest_hit) {
+  const bool exec = !host_only && !force && (f.host_exec || f.guest_exec);
+  if (exec)
+    o.hitter = f.host_exec ? kHost : kGuest, o.hit = true, o.hit_ms = now;
+  else if (f.host_hit || f.guest_hit) {
     if (f.host_hit != f.guest_hit)
       o.hitter = f.host_hit ? kHost : kGuest;
     else if (!o.hit) // Both in one turn, a first hit: the owner keeps it.
@@ -218,7 +227,7 @@ inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool forc
                     : o.hit && now - o.hit_ms < kLastHitMs     ? o.hitter
                     : o.nearer && now - o.nearer_ms >= kNearMs ? other(o.owner)
                                                                : o.owner;
-  if (want == o.owner || (want == kGuest && now < o.no_until) || (!force && (f.busy || now - o.since < kOwnMs)))
+  if (want == o.owner || (want == kGuest && now < o.no_until) || (!force && !exec && (f.busy || now - o.since < kOwnMs)))
     return false;
   o.owner = want, ++o.oe, o.since = now, o.nearer = false, o.taken = true;
   return true;
@@ -334,6 +343,50 @@ public:
 
 private:
   Own own_[kSlots];
+};
+
+// ---- Stage 3c: her takedowns (PHASE11-STAGE3 3.9) ----
+
+// The guest tells the host each takedown she makes on her copy of a same-place enemy (a takedown marker on it, while
+// same-place enemies run on her side with aggro=game): exec 1 when the marker shows, exec 0 once her copy holds none
+// (the marker gone, the copy dying, gone or unpaired). The host then hands her the enemy for the takedown and holds her
+// lethal claim until exec 0. One exec 1 a pair in kExecSpaceMs at most: the host takes one in fight::kExecMs, and the
+// margin covers the link's jitter. Fixed memory: the logic thread.
+constexpr uint64_t kExecSpaceMs = fight::kExecMs + 250;
+class Execs {
+public:
+  static constexpr size_t kSlots = fight::kMaxTracked;
+  void clear() { std::fill(x_, x_ + kSlots, Exec()); }
+  // Her copy of hguid this turn (marked: a takedown marker on it, while same-place enemies run here with aggro=game):
+  // the line to send, 1 (exec 1) or 0 (exec 0), or -1 for none. A full table sends nothing for one more pair.
+  int step(uint32_t hguid, bool marked, uint64_t now) {
+    Exec *x = nullptr, *free = nullptr;
+    for (Exec &each : x_)
+      x = each.hguid == hguid ? &each : x, free = !free && !each.hguid ? &each : free;
+    if (x && x->on && !marked)
+      return x->on = false, 0;
+    if (!marked || (x && (x->on || now < x->sent + kExecSpaceMs)) || !(x = x ? x : free))
+      return -1;
+    *x = Exec{hguid, true, now};
+    return 1;
+  }
+  // The pairs not among the n of her list go, each one still on with exec 0 (ended(hguid)).
+  template <class F> void keep(const uint32_t *hguids, size_t n, F &&ended) {
+    for (Exec &x : x_)
+      if (x.hguid && std::find(hguids, hguids + n, x.hguid) == hguids + n) {
+        if (x.on)
+          ended(x.hguid);
+        x = Exec();
+      }
+  }
+
+private:
+  struct Exec {
+    uint32_t hguid = 0; // 0: free.
+    bool on = false;    // exec 1 sent, exec 0 not yet.
+    uint64_t sent = 0;  // The last exec 1 (ms).
+  };
+  Exec x_[kSlots];
 };
 
 // ---- Rotation and speed on the wire ----
@@ -532,6 +585,7 @@ struct Cues {
   bool frozen = false;   // State 39 held (our BlockAI took).
   bool release = false;  // Down 6, Groggy 7 or Airborne 8, or a takedown marker (5000039, 2006004) on it.
   bool dying = false;    // The stream's kDying.
+  bool exec = false;     // The stream's kExec: a takedown on the owner's copy (the Driver then holds release back).
 };
 struct Pose {
   float loc[3] = {}, quat[4] = {0, 0, 0, 1};
@@ -539,7 +593,8 @@ struct Pose {
 
 // The state of one drawn copy. step() runs each frame and, while its root follows the stream, gives the pose to write.
 // A crowd control or death releases it; kCalmMs without one converges it (a dying copy stays released until it is
-// gone); converging blends from where SB left it to the stream, snapping at once beyond kConvergeSnapCm.
+// gone), at once while the stream says a takedown runs (Cues::exec); converging blends from where SB left it to the
+// stream, snapping at once beyond kConvergeSnapCm.
 class Copy {
 public:
   static constexpr double kCalmMs = 200, kConvergeMs = 300;
@@ -570,7 +625,7 @@ public:
     case State::released:
       if (cue)
         calm_ = now;
-      else if (!dying_ && now - calm_ >= kCalmMs)
+      else if (!dying_ && (c.exec || now - calm_ >= kCalmMs))
         snapped = begin(own, *target, now);
       break;
     case State::converging:
@@ -1735,10 +1790,12 @@ public:
       apply(g, read, s, p, p && ok[i] ? &found[i] : nullptr, d);
     }
   }
-  // The word back to the job: the drawn pairs whose stream says BattleMode, those refused, and those whose stream says
-  // a skill runs on the owner's copy (kSkill, stage 3b's guard).
-  void flags(uint32_t *battle, uint8_t &nb, uint32_t *refused, uint8_t &nr, uint32_t *skill, uint8_t &ns) const {
-    nb = nr = ns = 0;
+  // The word back to the job: the drawn pairs whose stream says BattleMode, those refused, those whose stream says a
+  // skill runs on the owner's copy (kSkill, stage 3b's guard), and those whose stream says a takedown runs on it
+  // (kExec, stage 3c: the job freezes the copy despite its release flag).
+  void flags(uint32_t *battle, uint8_t &nb, uint32_t *refused, uint8_t &nr, uint32_t *skill, uint8_t &ns,
+             uint32_t *exec, uint8_t &ne) const {
+    nb = nr = ns = ne = 0;
     for (const Pair &p : pairs_) {
       if (p.row.hguid && p.battle)
         battle[nb++] = p.row.hguid;
@@ -1746,6 +1803,8 @@ public:
         refused[nr++] = p.row.hguid;
       if (p.row.hguid && p.skill)
         skill[ns++] = p.row.hguid;
+      if (p.row.hguid && p.exec)
+        exec[ne++] = p.row.hguid;
     }
   }
   // A stage handle one of our replays holds, or held among the last kStopped stopped: the owner's capture never tells
@@ -1777,7 +1836,7 @@ private:
     Copy copy;
     Capture cap; // What we changed on the copy, to put back.
     Lines lines; // Its live replays.
-    bool refused = false, battle = false, skill = false;
+    bool refused = false, battle = false, skill = false, exec = false;
     bool reset = false;                              // limit() changed: put back at its next frame.
     bool wrote = false;                              // The last frame wrote its root (or, under PilotTest::cmc, read
                                                      // it): the drift probe compares.
@@ -1883,9 +1942,12 @@ private:
     p.wrote = false;
     Drawn d, out;
     const bool has = p.track.sample(at, d);
+    // A takedown on the owner's copy (stage 3c): this copy follows it through its own Groggy or marker and the stream's
+    // death, so the takedown plays here on the owner's timeline; its own death here still releases it.
     Cues c;
-    c.eligible = !p.refused, c.frozen = p.row.frozen, c.release = p.row.release;
-    c.dying = p.row.dying || (has && (d.flags & kDying));
+    c.exec = has && (d.flags & kExec);
+    c.eligible = !p.refused, c.frozen = p.row.frozen, c.release = p.row.release && !c.exec;
+    c.dying = p.row.dying || (has && (d.flags & kDying) && !c.exec);
     const State was = p.copy.state();
     bool snapped = false;
     const State st = p.copy.step(c, own, has ? &d : nullptr, now, out, snapped);
@@ -1895,6 +1957,7 @@ private:
       ++counts.converged, event("converged", p.row.hguid);
     p.battle = has && (d.flags & kBattle) && st != State::local;
     p.skill = has && (d.flags & kSkill);
+    p.exec = c.exec;
     if (!mode(st).root_stream || limit_ == PilotTest::freeze)
       return put_back(g, reg, p, &f), false;
     if (d.snap || snapped)

@@ -950,7 +950,7 @@ __declspec(noinline) void pilot_body() {
       driver.line(l, draw);
     driver.draw(g, base, now_ms, draw);
     driver.flags(pilot_stream.battle, pilot_stream.count, pilot_stream.refused, pilot_stream.refused_count,
-                 pilot_stream.skill, pilot_stream.skill_count);
+                 pilot_stream.skill, pilot_stream.skill_count, pilot_stream.exec, pilot_stream.exec_count);
     if (driver.holding()) { // From the frame's start, the capture included (PHASE11-STAGE3 5: under 0.5 ms a frame).
       const uint64_t took = clock_us() - start;
       ++drive_runs_here, drive_us_here += took, drive_max_us_here = std::max(drive_max_us_here, took);

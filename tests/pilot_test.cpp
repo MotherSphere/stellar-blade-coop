@@ -507,7 +507,7 @@ int main() {
     Entry in[kMaxEnemies];
     for (size_t i = 0; i < kMaxEnemies; ++i) {
       in[i] = entry(uint32_t(1000 + i), -1e6f + float(i), 2.5f * float(i), -0.0f);
-      in[i].oe = uint8_t(i * 17), in[i].flags = uint8_t(i % 8); // kBattle, kDying, kSkill.
+      in[i].oe = uint8_t(i * 17), in[i].flags = uint8_t(i % 16); // kBattle, kDying, kSkill, kExec.
       in[i].rot[0] = uint16_t(i), in[i].rot[1] = uint16_t(65535 - i), in[i].rot[2] = 0x8000;
       in[i].speed = uint16_t(i * 4000);
     }
@@ -546,7 +546,7 @@ int main() {
     const size_t e1 = kHeaderBytes + kEntryBytes;                                    // The second entry.
     assert(refused([&](uint8_t *c) { std::memset(c + e1, 0, 4); }, size));           // GUID 0.
     assert(refused([&](uint8_t *c) { std::memcpy(c + e1, c + kHeaderBytes, 4); }, size)); // The same GUID twice.
-    assert(refused([&](uint8_t *c) { c[e1 + 5] = 8; }, size));                       // Unknown flag.
+    assert(refused([&](uint8_t *c) { c[e1 + 5] = 16; }, size));                      // Unknown flag.
     float bad[] = {NAN, INFINITY, -INFINITY, 1.1e7f};
     for (float f : bad)
       assert(refused([&](uint8_t *c) { std::memcpy(c + e1 + 6 + 4, &f, 4); }, size));
@@ -556,7 +556,7 @@ int main() {
     {
       Entry mixed[] = {entry(7, 1), entry(8, NAN), entry(0, 2), entry(7, 3), entry(9, 4), entry(10, 0, 1.1e7f),
                        entry(11, 5)};
-      mixed[4].flags = 8;
+      mixed[4].flags = 16;
       uint8_t mix[kMaxSbe];
       const size_t m = encode_sbe(h, mixed, 7, mix);
       assert(m == kHeaderBytes + 2 * kEntryBytes && decode_sbe(mix, m, got, out, n) && n == 2);
@@ -666,6 +666,41 @@ int main() {
     Facts ours;
     ours.host_hit = true;
     assert(rule(q, ours, 50000, false) && q.owner == kHost);
+  }
+  // Stage 3c: a takedown hands the pair to its executor at once, through every guard and the 4 s hold: hers on a pair
+  // the host owns, the host's on one she owns. It counts as the executor's hit all through, so a hit of the other one
+  // during it changes nothing and the pair stays with the executor afterwards. The host wins a tie. Never with
+  // aggro=host or force, nor to her within her own-no pause.
+  {
+    Own o;
+    o.hguid = 4100, o.since = 1000;
+    Facts hers;
+    hers.guest_exec = hers.busy = true; // Groggy, or the marker, on the host's copy.
+    assert(rule(o, hers, 1016, false) && o.owner == kGuest && o.oe == 1 && o.taken && o.since == 1016);
+    hers.host_hit = true; // The host's EVE hits it meanwhile.
+    assert(!rule(o, hers, 3000, false) && o.owner == kGuest && o.hitter == kGuest && o.hit_ms == 3000);
+    Facts calm, ours;
+    ours.host_hit = true;
+    assert(!rule(o, calm, 12999, false) && o.owner == kGuest); // Hers by the last hit, as after any hit of hers.
+    assert(rule(o, ours, 13000, false) && o.owner == kHost && o.hitter == kHost); // The host's own hit after it.
+    Own g;
+    g.hguid = 9, g.owner = kGuest, g.oe = 3, g.since = 50000;
+    Facts host;
+    host.host_exec = host.busy = true;
+    assert(rule(g, host, 50016, false) && g.owner == kHost && g.oe == 4 && g.taken && g.hitter == kHost);
+    Facts both;
+    both.host_exec = both.guest_exec = true;
+    Own t;
+    t.hguid = 10;
+    assert(!rule(t, both, 60000, false) && t.owner == kHost && t.hitter == kHost);
+    Facts mine;
+    mine.guest_exec = mine.busy = true;
+    Own a;
+    a.hguid = 11;
+    assert(!rule(a, mine, 70000, true) && !rule(a, mine, 70016, false, true) && a.owner == kHost && !a.hit);
+    Own p;
+    p.hguid = 12, p.no_until = 80000;
+    assert(!rule(p, mine, 79000, false) && p.owner == kHost && rule(p, mine, 80000, false) && p.owner == kGuest);
   }
   // Nearer: an enemy nobody hit for 10 s goes to the other player once her EVE has stood 3 m closer than the owner's
   // for 2 s without a break; back the same way, 4 s after it changed hands at the earliest. Within 10 s of a hit the
@@ -819,6 +854,30 @@ int main() {
       }
     }
     assert(moves > 1000 && refusals > 100 && gives > 100 && stale > 10 && agreed > 1000 && homes > 20);
+  }
+
+  // Her takedowns (stage 3c, Execs): exec 1 when the marker shows on her copy, exec 0 once it holds none; at most one
+  // exec 1 a pair in kExecSpaceMs (the host takes one in 2 s; the margin covers the link's jitter). A pair that leaves
+  // her list ends with exec 0. clear() forgets them all without a word. A full table sends nothing for one more.
+  {
+    assert(kExecSpaceMs == coop::fight::kExecMs + 250);
+    Execs x;
+    assert(x.step(4100, false, 0) == -1);
+    assert(x.step(4100, true, 100) == 1 && x.step(4100, true, 116) == -1);
+    assert(x.step(4100, false, 900) == 0 && x.step(4100, false, 916) == -1);
+    assert(x.step(4100, true, 1000) == -1 && x.step(4100, true, 100 + kExecSpaceMs - 1) == -1);
+    assert(x.step(4100, true, 100 + kExecSpaceMs) == 1);
+    assert(x.step(4200, true, 3000) == 1 && x.step(4300, false, 3000) == -1);
+    std::vector<uint32_t> ended;
+    const uint32_t kept[] = {4100, 4300};
+    for (int k = 0; k < 2; ++k)
+      x.keep(kept, 2, [&](uint32_t h) { ended.push_back(h); });
+    assert(ended == std::vector<uint32_t>{4200});
+    x.clear();
+    assert(x.step(4100, false, 9000) == -1 && x.step(4100, true, 9000) == 1);
+    for (uint32_t k = 1; k < Execs::kSlots; ++k)
+      assert(x.step(5000 + k, true, 20000) == 1);
+    assert(x.step(77, true, 20000) == -1);
   }
 
   // ---- The short rotator, as UE's FRotator <-> FQuat and CompressAxisToShort ----
@@ -1056,6 +1115,26 @@ int main() {
     assert(c.step(cue, own, &target, 3150, out, snapped) == State::converging);
     assert(near(angle(out.quat, own.quat), 45, 1));
     assert(c.step(cue, own, &target, 3300, out, snapped) == State::piloted && angle(out.quat, target.quat) < 1e-3);
+  }
+
+  // A takedown on the owner's copy (its stream's kExec, stage 3c): the Driver holds back the release cues, so a
+  // released copy goes back onto the stream at once, without the 200 ms calm.
+  {
+    Copy c;
+    Cues cue;
+    Pose own;
+    Drawn target, out;
+    target.loc[0] = 1000, target.quat[3] = 1, own.loc[0] = 1100, own.quat[3] = 1;
+    bool snapped = false;
+    cue.eligible = cue.frozen = cue.release = true;
+    assert(c.step(cue, own, &target, 0, out, snapped) == State::released);
+    cue.release = false, cue.exec = true;
+    assert(c.step(cue, own, &target, 16, out, snapped) == State::converging && out.loc[0] == 1100);
+    assert(c.step(cue, own, &target, 316, out, snapped) == State::piloted);
+    cue.exec = false, cue.release = true;
+    assert(c.step(cue, own, &target, 332, out, snapped) == State::released);
+    cue.release = false;
+    assert(c.step(cue, own, &target, 348, out, snapped) == State::released); // The calm again without one.
   }
 
   // ---- The capture list ----
@@ -1740,10 +1819,10 @@ int main() {
     // BattleMode and a skill on the owner's copy in the stream go into the word back.
     sbe(1100, 120, 0, kBattle | kSkill);
     d.draw(g, kBase, 5416, 1100);
-    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies];
-    uint8_t nb = 0, nr = 0, ns = 0;
-    d.flags(battle, nb, refused, nr, skill, ns);
-    assert(nb == 1 && battle[0] == 4100 && nr == 0 && ns == 1 && skill[0] == 4100);
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies], exec[kMaxEnemies];
+    uint8_t nb = 0, nr = 0, ns = 0, ne = 0;
+    d.flags(battle, nb, refused, nr, skill, ns, exec, ne);
+    assert(nb == 1 && battle[0] == 4100 && nr == 0 && ns == 1 && skill[0] == 4100 && ne == 0);
     assert(s.since(seen) == "write1 write4 move write12 write1 write4 move write12");
 
     // Restore when the pair goes (its row gone): our Velocity zeroed, the component back in SB's manager because it
@@ -1789,9 +1868,9 @@ int main() {
     row.frozen = true;
     d.rows(g, kBase, 7, kGuest, &row, 1);
     d.draw(g, kBase, 5016, 1000);
-    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies];
-    uint8_t nb = 0, nr = 0, ns = 0;
-    d.flags(battle, nb, refused, nr, skill, ns);
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies], exec[kMaxEnemies];
+    uint8_t nb = 0, nr = 0, ns = 0, ne = 0;
+    d.flags(battle, nb, refused, nr, skill, ns, exec, ne);
     assert(s.since(seen).empty() && s.writes == 0 && d.counts.cmc_refused == 1 && nr == 1 && refused[0] == 4100);
     assert(d.counts.not_drawn == 1 && d.counts.shows == 0);
     d.draw(g, kBase, 5032, 1000);
@@ -1802,7 +1881,7 @@ int main() {
     d2.rows(g, kBase, 7, kGuest, &row, 1);
     d2.sbe(bytes, encode_sbe(h, &e, 1, bytes));
     d2.draw(g, kBase, 5000, 1000);
-    d2.flags(battle, nb, refused, nr, skill, ns);
+    d2.flags(battle, nb, refused, nr, skill, ns, exec, ne);
     assert(s.since(seen).empty() && s.writes == 0 && d2.counts.cmc_refused == 1 && nr == 1);
     // A root whose vtable is not in the game's image: nothing written or called that frame (its Show not played),
     // the pair kept.
@@ -2112,6 +2191,48 @@ int main() {
     said.clear();
     d.events(take);
     assert(said.empty());
+  }
+  // Stage 3c: a takedown on the owner's copy (kExec in its stream). The copy follows the stream through it although it
+  // holds Groggy or a marker here (the release flag) and the stream says dying, and a released copy goes back onto the
+  // stream at once; the word back names the pair, so the job freezes it whatever the release flag says. Without kExec
+  // the release flag releases it again, and its own death here releases it whatever the stream says.
+  {
+    Stage s;
+    s.copy(501, 100, 200, 20);
+    Stage::Game g = s.game();
+    Driver d;
+    Row row{4100, 501, kHost, 0, true, true, false}; // Frozen, and groggy here.
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    uint32_t seq = 0;
+    const auto sbe = [&](uint64_t ms, float x, uint8_t flags) {
+      SbeHeader h;
+      h.gen = 7, h.seq = ++seq, h.publication = ms * 1000;
+      Entry e = entry(4100, x, 200, 20);
+      e.flags = flags;
+      uint8_t bytes[kMaxSbe];
+      d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    };
+    uint32_t battle[kMaxEnemies], refused[kMaxEnemies], skill[kMaxEnemies], exec[kMaxEnemies];
+    uint8_t nb = 0, nr = 0, ns = 0, ne = 0;
+    size_t seen = 0;
+    sbe(1000, 100, 0);
+    d.draw(g, kBase, 5000, 1000);
+    d.flags(battle, nb, refused, nr, skill, ns, exec, ne);
+    assert(s.since(seen).empty() && d.counts.released == 1 && ne == 0);
+    sbe(1033, 110, kExec | kDying);
+    d.draw(g, kBase, 5016, 1033);
+    d.flags(battle, nb, refused, nr, skill, ns, exec, ne);
+    assert(s.since(seen) == "cmc off write1 write4 move write12" && d.counts.frames == 1 && ne == 1 && exec[0] == 4100);
+    sbe(1066, 120, 0);
+    d.draw(g, kBase, 5032, 1066);
+    d.flags(battle, nb, refused, nr, skill, ns, exec, ne);
+    assert(s.since(seen) == "write12 cmc on write1" && d.counts.released == 2 && ne == 0);
+    row.dying = true;
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    sbe(1100, 130, kExec);
+    d.draw(g, kBase, 5048, 1100);
+    d.flags(battle, nb, refused, nr, skill, ns, exec, ne);
+    assert(s.since(seen).empty() && d.counts.frames == 1 && ne == 1);
   }
   // A pair forgotten takes its queued lines with it: drawn again later, nothing of its old life plays. With nothing
   // held, a frame reads nothing of the game.
