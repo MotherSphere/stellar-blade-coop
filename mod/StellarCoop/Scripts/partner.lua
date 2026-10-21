@@ -75,6 +75,60 @@ function P.cube(i,value,max,limit)
     if i<=full then return 4 end
     return i==full+1 and math.floor(value%200/50) or 0
 end
+local Chat=require('chat')
+local T=require('ui_text')
+-- The status strip's column budgets (Chat.wrap's columns) over the 712 units between its 16-unit margins: Mideum 28
+-- (its second row) about 18*28/34 units a column, as the feed's Mideum 34 is 18; Mideum 30 (its top row) about
+-- 18*30/34, less 9 columns kept for the ping at the right end ('9999 ms' and a gap) when it shows.
+P.ROW,P.COLS=44,48
+P.TOP=P.ROW-9
+-- Text within cols columns: whole when it fits, else cut at Chat.wrap's first break one column earlier, with an
+-- ellipsis; never after a Thai leading vowel (U+0E40 to U+0E44), which belongs to the syllable after it.
+local function cut(text,cols)
+    if Chat.wrap(text,cols)[1]==text then return text end
+    return Chat.wrap(text,cols-1)[1]:gsub('\xE0\xB9[\x80-\x84]$','')..'…'
+end
+-- The status line's words for the strip, for link.summary: each without summary.none's prefix (up to its colon and
+-- the spaces after it: 'Co-op: ', '協力プレイ：'), and no paused or lost end, which the strip puts first in words of
+-- its own.
+function P.short(words)
+    local w,s=words.summary,{}
+    local prefix=w.none:match('^(.-：)') or w.none:match('^(.-:%s*)') or ''
+    for k in pairs(T.en.summary) do s[k]=w[k]:sub(1,#prefix)==prefix and w[k]:sub(#prefix+1) or w[k] end
+    s.paused,s.lost='',''
+    return {summary=s}
+end
+-- The status strip's rows (status_overlay, s.mode: 'off', 'compact' or 'detailed') from s={summary=the status line
+-- in P.short(words) (link.summary), lost=true while her link is lost, paused=true while her photo mode pauses our
+-- game, ping=ms or nil, fight=, pilot=, quests= (link's lines, or nil), rate=send_rate}: the top row (connection lost,
+-- paused, then the summary, joined by ' · '; only the summary cut), the ping ('118 ms'; '' before the first pong and
+-- while lost, as the native part keeps the last one then), and in detailed the facts that hold, joined by ' · ': the
+-- shared enemies while the fight runs (the host's enemies=, the guest's pairs=), the same-place enemies while they
+-- run, shared quests on, and the poses sent a second always. The top row takes the ping's 9 columns when there is
+-- none. nil when off, out of a session (summary.none) or before Steam (waiting).
+function P.status_rows(words,s)
+    local w=P.short(words).summary
+    if s.mode~='compact' and s.mode~='detailed' or s.summary==w.none or s.summary==w.waiting then return nil end
+    local second
+    if s.mode=='detailed' then
+        local o,facts,fight,quests=words.overlay,{},s.fight or '',s.quests or ''
+        local n=fight:find('^fight=on ') and (fight:match(' enemies=(%d+)') or fight:match(' pairs=(%d+)'))
+        if n then facts[#facts+1]=o.enemies:format(tonumber(n)) end
+        n=(s.pilot or ''):match('^pilot=on piloted=(%d+)')
+        if n then facts[#facts+1]=o.place:format(tonumber(n)) end
+        if quests:find('^quests=on ') then facts[#facts+1]=o.quests end
+        facts[#facts+1]=o.rate:format(s.rate)
+        second=cut(table.concat(facts,' · '),P.COLS)
+    end
+    local lead={}
+    if s.lost then lead[1]=words.partner.lost end
+    if s.paused then lead[#lead+1]=words.overlay.paused end
+    local right=not s.lost and s.ping and string.format('%d ms',s.ping) or ''
+    local room=right=='' and P.ROW or P.TOP
+    if not lead[1] then return cut(s.summary,room),right,second end
+    local first=table.concat(lead,' · ')..' · ' -- Whole: only the status line after it is cut (3 columns at least).
+    return first..cut(s.summary,math.max(3,room-Chat.columns(first))),right,second
+end
 -- The partner HUD (UI-DESIGN 3.2, 4.3, D-UI5) on the Uplink kit (ui.lua), during a session (a friend linked or
 -- rejoining, or coop loopback). Her card at the top left: her name in teal, then her HP, shield and Beta rows stacked
 -- under it by the player cluster's rules above, and at the right end of her name's line her state: DOWN in red (life 3
@@ -94,8 +148,7 @@ end
 -- corner). Each frame (tick): the gauges while they move and the marker or arrow while she has an anchor, so it follows
 -- the camera at the game's frame rate: one projection through the kit, its views' setters touching the engine on change
 -- only. No engine call here: the kit makes them.
-local T=require('ui_text')
-local clean=require('chat').clean
+local clean=Chat.clean
 local TWEEN,GREY,NAME=0.3,0.45,20 -- s a gauge moves; a greyed card's opacity; characters shown.
 local MW,MH,AW,AH,AC=320,120,160,180,80 -- Marker and arrow sizes in layout units; the arrow's diamond centre in it.
 -- The card in layout units: its place (under it from y 330, the feed), its size, where its rows start (after their
@@ -103,14 +156,18 @@ local MW,MH,AW,AH,AC=320,120,160,180,80 -- Marker and arrow sizes in layout unit
 -- BE: 30-unit cubes). Rows 9 units apart and 6 from the rails keep it short: the open chat's first line (330 + 32 per
 -- scale) stays clear of it up to ui_scale=124.
 local CX,CY,CW,CH,ROW_X,NAME_Y=96,96,744,220,120,46
+-- The status strip: from the screen's top to 4 units above the card, its top band (the status line, the ping) and the
+-- band under it (detailed only); never scaled past what keeps it there (100 %): past it, it would cover the card.
+local SY,SH,BAND,PAD=8,84,46,16
+local MOST=(CY-4-SY)/SH
 local HP_ROW,SH_ROW,BE_ROW={'HP',79,45},{'SH',133,20},{'BE',162,30}
 local MID,RIGHT={X=0,Y=0.5},{X=1,Y=0.5} -- A text centred on its line, from its left or its right end.
 local TWEENED={'hp','shield','beta'}
--- o: {kit=ui.kit's, link= (chatting, friend, mate, ping), puppet= (anchor, her_map, me), settings= (main.lua's: the
--- menu changes them in place), theme=ui.THEME}.
+-- o: {kit=ui.kit's, link= (chatting, friend, mate, ping, summary, paused, fight, pilot, quests), puppet= (anchor,
+-- her_map, me), settings= (main.lua's: the menu changes them in place), theme=ui.THEME}.
 function P.hud(o)
     local kit,link,puppet,settings,theme=o.kit,o.link,o.puppet,o.settings,o.theme
-    local self,words,picked,lang={},T.en.partner,nil,nil
+    local self,all,words,picked,lang={},T.en,T.en.partner,nil,nil
     local session,quiet,away,where,alert,vit,from,since=false,false,false,nil,nil,nil,nil,nil
     local now,was_on,last_at,last_feet=0,false,nil,nil
     kit.add('card',{x=CX,y=CY,w=CW,h=CH,inside=true},function(b)
@@ -120,6 +177,16 @@ function P.hud(o)
         v.hp,v.sh=b.hp(ROW_X,HP_ROW[2],40,3,'big'),b.shield(ROW_X,SH_ROW[2],'small')
         v.be=b.cubes(ROW_X,BE_ROW[2],8,theme.beta)
         return v
+    end)
+    -- With status_overlay on, the status strip above her card (status_rows), while the status line shows one (hosting
+    -- alone included), hidden as the card is; its setting read at each slow too. Flat glass (no rails: two rows fill
+    -- it). Not inside: the kit's 48-unit margin would push it onto the card. Added before the marker and the arrow,
+    -- which draw over it. Its top row red while her link is lost.
+    kit.add('status',{x=CX,y=SY,w=CW,h=SH,most=MOST},function(b)
+        b.image(0,0,CW,BAND,nil,theme.panel)
+        return {more=b.image(0,BAND,CW,SH-BAND,nil,theme.panel),top=b.text(PAD,BAND/2,'','status',theme.text,MID),
+            right=b.text(CW-PAD,BAND/2,'','status',theme.grey,RIGHT),
+            second=b.text(PAD,(BAND+SH)/2,'','head',theme.grey,MID)}
     end)
     -- Scaled from its bottom centre, on her head.
     kit.add('marker',{x=0,y=0,w=MW,h=MH,pivot={X=0.5,Y=1},inside=true},function(b)
@@ -198,13 +265,26 @@ function P.hud(o)
         local rebuilt=c and c~=picked
         if c and (rebuilt or settings.ui_language~=lang) then -- At each build of the root: the language may change.
             picked,lang=c,settings.ui_language
-            words=T.pick(kit.language(),lang).partner
+            all=T.pick(kit.language(),lang)
+            words=all.partner
         end
         local friend,_,is_lost=link.friend()
+        local top,right,second=P.status_rows(all,{mode=settings.status_overlay,summary=link.summary(P.short(all)),
+            lost=is_lost==true,paused=link.paused(),ping=link.ping(),fight=link.fight(),pilot=link.pilot(),
+            quests=link.quests(),rate=settings.send_rate})
         local new=session and link.mate() or nil
         local lost=session and is_lost==true
         quiet=session and (lost or not new) -- Her link lost, or no vitals from her for 3 s (none yet included).
-        away=session and kit.paused()
+        away=(session or top~=nil) and kit.paused()
+        local st=kit.view('status')
+        if st and top then
+            st.top.set(top)
+            st.top.color(is_lost==true and theme.error or theme.text)
+            st.right.set(right)
+            st.second.set(second or '')
+            st.more.show(second~=nil)
+        end
+        kit.show('status',top~=nil and not away)
         if not session then vit,since,last_at,last_feet=nil,nil,nil,nil end
         if new and vit then
             for _,k in ipairs(TWEENED) do

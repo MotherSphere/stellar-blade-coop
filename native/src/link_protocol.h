@@ -14,6 +14,7 @@
 //   none <why>.
 //   SBC<protocol> night <payload> (Night Operation's run, nightop_run.lua: "h ..." from the host, "g ..." from the
 //   guest, night_ok()).
+//   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
@@ -44,10 +45,10 @@ constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (
                               // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
                               // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
-                              // 2, the photo line's c (the host's cutscene) and the night line on channel 0 (Night
-                              // Operation for two). An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
-                              // builds, 11: v0.4.0-beta.1) is told why: the lobby tag, then the hello's reject, name
-                              // both.
+                              // 2, and on channel 0 the photo line's c (the host's cutscene), the night line (Night
+                              // Operation for two) and the mark line. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
+                              // 10: stage 2's builds, 11: v0.4.0-beta.1) is told why: the lobby tag, then the hello's
+                              // reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -89,9 +90,9 @@ constexpr bool chat_control(uint32_t c) {
 // The same cleaning as chat.lua's Chat.clean, byte for byte (tests/link_protocol_test.cpp and tests/chat_test.lua
 // check one digest): well-formed UTF-8 only, a byte that starts no valid character dropped alone (overlongs,
 // surrogates and anything past U+10FFFF included); chat_control() characters dropped (a ZWJ too, so a joined emoji
-// shows as its parts); ASCII spaces trimmed; at most kMaxChat bytes, never cut inside a character, then trimmed again.
+// shows as its parts); ASCII spaces trimmed; at most max bytes, never cut inside a character, then trimmed again.
 // Empty when nothing is left.
-inline std::string chat_clean(std::string_view text) {
+inline std::string chat_clean(std::string_view text, size_t max = kMaxChat) {
   std::string out;
   for (size_t at = 0; at < text.size();) {
     const auto byte = [&](size_t i) { return static_cast<unsigned char>(text[i]); };
@@ -120,8 +121,8 @@ inline std::string chat_clean(std::string_view text) {
     t = first == std::string::npos ? std::string() : t.substr(first, t.find_last_not_of(' ') - first + 1);
   };
   trim(out);
-  if (out.size() > kMaxChat) {
-    size_t n = kMaxChat;
+  if (out.size() > max) {
+    size_t n = max;
     while (n && (static_cast<unsigned char>(out[n]) & 0xC0) == 0x80)
       --n;
     out.resize(n);
@@ -158,7 +159,7 @@ inline Life life_of(const Vitals &v) {
                                                                                       : Life::unknown;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, camps_ask, camps, night };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, camps_ask, camps, night, mark };
 // The follow's camps lines (travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that id with
 // his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole metres
 // (0 to kMaxCampM), or with none and why (kCampsWhy). World and aliases: letters, digits and '_', kMaxAlias at most.
@@ -182,8 +183,10 @@ struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
                          // 's' or 'c', then 1 for both. paks: the count of .pak mods, their hash. camps?, camps: id.
+                         // mark: its number, from 1.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. camps:
-                         // the host's world, or "none". night: the payload, night_ok().
+                         // the host's world, or "none". night: the payload, night_ok(). mark: chat_clean() to
+                         // kMaxMark, maybe empty.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
   std::vector<Camp> camps; // camps: nearest first.
@@ -262,6 +265,12 @@ inline bool night_ok(std::string_view payload) {
 // Empty when the payload is no night line (nothing to send).
 inline std::string night_line(const std::string &payload) {
   return night_ok(payload) ? "SBC" + std::to_string(kProtocol) + " night " + payload : std::string();
+}
+// coop mark (grouped tests): a mark's number in the sender's game and its text, at most kMaxMark bytes once cleaned
+// (the caller's, already chat_clean()), reliable, past the handshake. Both logs then show the same number.
+constexpr size_t kMaxMark = 100;
+inline std::string mark_line(uint32_t n, const std::string &text) {
+  return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
 // Channel 2's tags, versioned like channel 0's: "SBF12" for the shared fight, "SBQ12" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
@@ -386,6 +395,12 @@ inline Message parse(const char *data, size_t size) {
       }
     }
     m.kind = Kind::camps;
+  } else if (const bool more = split(text, f, 3, &rest);
+             (more || split(text, f, 3, nullptr)) && f[0] == versioned_tag && f[1] == "mark") {
+    if (number(f[2], m.a) && m.a && m.a <= UINT32_MAX) {
+      m.kind = Kind::mark;
+      m.text = more ? chat_clean(rest, kMaxMark) : std::string(); // A longer text is cut, not refused.
+    }
   }
   return m;
 }
@@ -460,10 +475,11 @@ inline uint64_t code_lobby(std::string_view text) {
 // spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the follow
 // (travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps lines,
 // relayed to the friend by link_core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
-// thread, pose_tick.cpp: an index above 0, both within 32 bits).
+// thread, pose_tick.cpp: an index above 0, both within 32 bits); and "mark" or "mark <text>" (a numbered line in both
+// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel
+  remove, copy, quests, camps, travel, mark
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
@@ -513,6 +529,7 @@ struct Request {
   std::string line;             // camps: the wire line (link_protocol.h's camps_line), as the link sends it.
   std::string alias;            // travel: the camp's alias (for the log), and its FName.
   uint32_t index = 0, number = 0;
+  std::string text;             // mark: its text, or empty.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -650,7 +667,10 @@ inline Request parse_request(std::string text) {
     r.command = Command::report;
   else if (text == "off")
     r.command = Command::off;
-  else if (text == "join" || text == "copy")
+  else if (text == "mark" || text.rfind("mark ", 0) == 0) {
+    r.command = Command::mark;
+    r.text = chat_clean(std::string_view(text).substr(4), kMaxMark);
+  } else if (text == "join" || text == "copy")
     r.command = text == "join" ? Command::join : Command::copy;
   else if (text.rfind("join ", 0) == 0) {
     const std::string what = text.substr(5);

@@ -158,6 +158,26 @@ int main() {
     assert(parse_text(p + " night " + bad).kind == Kind::invalid);
   }
   assert(parse_text(p + " night").kind == Kind::invalid && parse_text("SBC11 night " + host_line).kind == Kind::invalid);
+  // The mark line (coop mark), reliable: its number, from 1, then a text or none. A peer's text is cleaned like a chat
+  // line and cut to kMaxMark bytes, never inside a character; a longer one is cut, not refused.
+  assert(mark_line(3, "boss start") == p + " mark 3 boss start");
+  assert(mark_line(4294967295u, "") == p + " mark 4294967295");
+  m = parse_text(mark_line(3, "boss start"));
+  assert(m.kind == Kind::mark && m.a == 3 && m.text == "boss start");
+  m = parse_text(p + " mark 5");
+  assert(m.kind == Kind::mark && m.a == 5 && m.text.empty());
+  m = parse_text(p + " mark 4294967295 \x1b[31m\342\200\256 x ");
+  assert(m.kind == Kind::mark && m.a == 4294967295u && m.text == "[31m x");
+  m = parse_text(p + " mark 7 " + std::string(99, 'z') + "\303\251");
+  assert(m.kind == Kind::mark && m.text == std::string(99, 'z'));
+  m = parse_text(p + " mark 8 " + std::string(99, 'z') + " abc");
+  assert(m.kind == Kind::mark && m.text == std::string(99, 'z'));
+  m = parse_text(p + " mark 9 " + std::string(300, 'y'));
+  assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
+  for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
+                                 p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
+                                 std::string("SBC11 mark 3 x"), std::string("SBC mark 3"), std::string("SBC13 mark 3")})
+    assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
   // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
@@ -227,7 +247,7 @@ int main() {
   std::mt19937 rng(1234);
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
-                               night_line(host_line)};
+                               night_line(host_line), mark_line(9, "é ok")};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -250,6 +270,8 @@ int main() {
       assert(f.a <= kMaxPaks);
     if (f.kind == Kind::night) // Only what night_ok() lets through.
       assert(night_ok(f.text) && text == night_line(f.text));
+    if (f.kind == Kind::mark) // Numbered from 1, cleaned and cut, maybe empty.
+      assert(f.a >= 1 && f.a <= UINT32_MAX && f.text.size() <= kMaxMark && f.text == chat_clean(f.text, kMaxMark));
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= (f.kind == Kind::night ? kMaxNight : kMaxReason));
       for (char c : f.text)
@@ -265,6 +287,20 @@ int main() {
   for (const char *bad : {"host public", "host  private", "host Code", "host code x", "hostcode", "host friends"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
+  // coop mark: "mark" alone or with a text, cleaned like a chat line and cut to kMaxMark bytes; the text may clean
+  // away.
+  Request mk = parse_request("mark\n");
+  assert(mk.command == Command::mark && mk.text.empty());
+  mk = parse_request("mark boss start\r\n");
+  assert(mk.command == Command::mark && mk.text == "boss start");
+  mk = parse_request("mark  \x1b\342\200\256\303\251 \303\240 tous");
+  assert(mk.command == Command::mark && mk.text == "\303\251 \303\240 tous");
+  mk = parse_request("mark \x01");
+  assert(mk.command == Command::mark && mk.text.empty());
+  assert(parse_request("mark " + std::string(99, 'z') + "\303\251").text == std::string(99, 'z'));
+  assert(parse_request("mark " + std::string(kMaxMark + 1, 'y')).text == std::string(kMaxMark, 'y'));
+  for (const char *bad : {"marks", "markx", "Mark", "mark2", " mark", "MARK boss"})
+    assert(parse_request(bad).command == Command::none);
   assert(parse_request("leave").command == Command::leave);
   assert(parse_request("report\r\n").command == Command::report);
   assert(parse_request("off\n").command == Command::off);

@@ -194,6 +194,7 @@ SBC12 camps <id> <world> <camp>:<m> ...
 SBC12 camps <id> none <title|loading|nocamp|busy>
 SBC12 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>
 SBC12 night g <n> <run> <state> <up> <killed> <done> <why>
+SBC12 mark <n> [<text>]
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -252,7 +253,14 @@ second go each way; the rest are dropped, with one log line a minute. The last l
 field and refuses the whole line on one bad field. A co-op run ends as lost once the friend's counter has not moved for
 5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run.
 
-Say, vit, paks, camps and night lines from a friend who has not passed the handshake are ignored, without a log line.
+The mark line is one `coop mark`, sent reliable to each friend past the handshake: its number in the sender's game
+(from 1, one count per game process) and its text, cleaned as a say line is and cut to 100 bytes, maybe empty. A longer
+text from a friend is cut, not refused. The receiver counts mark lines with say lines against the same 10 a second and
+drops the rest, with one log line a minute (`dropped marks from <name>: over the rate limit`). Unlike a say line, the
+text goes into `coop-link.log` on both sides (`mark <n>: <text>`, `mark <n> from <name>: <text>`) and into
+`coop-status.txt` as the `mark=` line, which the Lua side copies into `UE4SS.log`.
+
+Say, vit, paks, camps, night and mark lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -303,7 +311,7 @@ instead of misread:
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
-| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c` and Night Operation's night line on channel 0 (this version) |
+| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line and the mark line on channel 0 (this version) |
 
 ### Link health in the log
 

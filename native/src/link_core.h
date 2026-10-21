@@ -288,6 +288,7 @@ struct Peer {
   std::string paks_sent;
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   bool night_logged = false; // The same for her night lines.
+  bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
@@ -598,6 +599,10 @@ public:
       s += std::string("friend=") + (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
            p.name + "\n";
     }
+    // The last coop mark, ours or hers, kept for the run: "mark=<n> ours[: <text>]" or "mark=<n> from <name>[:
+    // <text>]".
+    if (!mark_.empty())
+      s += mark_ + "\n";
     // Her .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ <ours> <hers>".
     if (!peers_.empty() && peers_.front().has_paks && paks_on_) {
       const Peer &p = peers_.front();
@@ -887,6 +892,16 @@ private:
         camps_answer_.clear();
       }
       event("sent " + r.line.substr(r.line.find(' ') + 1));
+      break;
+    }
+    case Command::mark: { // A test tool: unlike chat, its text goes to both logs and statuses on purpose.
+      const std::string n = std::to_string(++marks_), said = r.text.empty() ? "" : ": " + r.text;
+      event("mark " + n + said);
+      mark_ = "mark=" + n + " ours" + said;
+      const std::string line = mark_line(marks_, r.text);
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          event("mark " + n + " not sent to " + p.name);
       break;
     }
     case Command::copy:
@@ -1465,6 +1480,19 @@ private:
       night_ = message.text;
       break;
     }
+    case Kind::mark: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      if (over_rate(peer.say_window, 1, kHeardPerSecond, kHeardPerSecond * kMaxMessage)) {
+        if (!std::exchange(peer.mark_logged, true))
+          event("dropped marks from " + peer.name + ": over the rate limit");
+        break;
+      }
+      const std::string n = std::to_string(message.a), said = message.text.empty() ? "" : ": " + message.text;
+      event("mark " + n + " from " + peer.name + said);
+      mark_ = "mark=" + n + " from " + peer.name + said;
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1614,7 +1642,7 @@ private:
       p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
-      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = false;
+      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = false;
     }
     night_logged_ = false;
   }
@@ -1693,6 +1721,9 @@ private:
   uint64_t chat_in_ = 0, chat_out_ = 0, chat_dropped_ = 0;
   Window say_window_;
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
+  // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.
+  uint32_t marks_ = 0;
+  std::string mark_;
   uint64_t vitals_at_ = 0, mate_at_ = 0, own_at_ = 0;
   bool vitals_sent_ = false, has_mate_ = false, has_own_ = false;
   // Night Operation: her last night line (empty: none in this session), our rate window and its drop line.

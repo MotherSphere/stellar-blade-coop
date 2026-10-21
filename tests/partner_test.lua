@@ -194,14 +194,24 @@ local function setup()
     link={session=true,name='Kaanta',linked=true,lost=false,vit=vitals(),ping=118}
     function link.chatting() return link.session end
     function link.friend() if link.name then return link.name,link.linked,link.lost end end
+    function link.paused() return link.paused_v==true end
     function link.mate() return link.vit end
     function link.ping() return link.ping_ms end
     link.ping_ms=118
+    -- The status line in the words given (link.summary), and the fight, same-place and quests lines (nil: none).
+    link.summary_k='hosting'
+    function link.summary(w)
+        local text=w.summary[link.summary_k]
+        return text:find('%%s') and text:format(link.name) or text
+    end
+    function link.fight() return link.fight_line end
+    function link.pilot() return link.pilot_line end
+    function link.quests() return link.quests_line end
     puppet={at=at(1000,0,220),feet=at(1000,0,0),map=E04B,me_v={at=at(0,0,0),map=E04B}}
     function puppet.anchor() if puppet.at then return puppet.at,puppet.feet end end
     function puppet.her_map() return puppet.map end
     function puppet.me() return puppet.me_v end
-    settings={partner_bar=true,partner_arrow=true,partner_card=true,card_details=true,ui_language='game'}
+    settings={partner_bar=true,partner_arrow=true,partner_card=true,card_details=true,ui_language='game',send_rate=60}
     package.loaded.partner=nil
     P=require('partner')
     hud=P.hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=THEME})
@@ -507,5 +517,160 @@ for _,k in ipairs({'partner_bar','partner_arrow','partner_card','card_details'})
     assert(T.en.row[k] and T.fr.row[k],k)
 end
 assert(T.fr.partner.down~=T.en.partner.down)
+
+-- The status strip's rows (status_overlay): nothing when off (or unset), out of a session (the status line says none)
+-- or before Steam (waiting); compact: the status line and the ping ('' before the first pong); detailed: a second row
+-- of the facts that hold, in this order: shared enemies while the fight runs (the host's enemies=, the guest's pairs=;
+-- not while it waits, nor its probe, which pairs none), same-place enemies while they run, shared quests on, and the
+-- poses sent a second always. The status line comes in the strip's words (P.short: no 'Co-op: ', no paused or lost
+-- end); a lost link and her photo pause come first in words of their own, and a lost link drops the ping (the native
+-- part keeps the last one). Each row cut to its columns with an ellipsis, the ellipsis included, never after a Thai
+-- leading vowel; the top row takes the ping's columns when there is none.
+local E,O=T.en,T.en.overlay
+local S=P.short(E).summary
+assert(S.hosting=='hosting %s.' and S.rejoin=="rejoining your friend's game (try %s/3)." and S.paused=='' and S.lost==''
+    and S.friend==E.summary.friend and P.short(T.ja).summary.none==T.ja.summary.none:gsub('^協力プレイ：',''))
+local HOST='fight=on mode=on role=host enemies=3 claims=5 refused=0 kills=1 floored=0 scale=135/115 sim_us=4/9 '
+    ..'threads=1/2/3'
+local GUEST='fight=on mode=on role=guest pairs=2 claims=1 corrections=0 kills=0 floored=0 desync=0 unpaired=1 maxhp=0'
+local function rows(o)
+    local s={mode='detailed',summary=S.hosting:format('Kaanta'),ping=118,rate=60}
+    for k,v in pairs(o) do s[k]=v end
+    return P.status_rows(E,s)
+end
+local function facts(...) return table.concat({...},' · ') end
+assert(rows({mode='off'})==nil and P.status_rows(E,{summary=S.alone,rate=60})==nil,'Off, or unset: nothing')
+assert(rows({summary=S.none})==nil and rows({summary=S.waiting})==nil,'No session, no Steam yet')
+for _,k in ipairs({'stopped','held','rejoin','alone','connecting','hosting','guest'}) do
+    assert(rows({mode='compact',summary=S[k]}),k)
+end
+assert(rows({mode='compact',summary=S.alone})=='hosting, no friend yet.')
+local top,right,second=rows({mode='compact'})
+assert(top=='hosting Kaanta.' and right=='118 ms' and second==nil,top)
+top,right,second=rows({mode='compact',ping=false})
+assert(top=='hosting Kaanta.' and right=='' and second==nil,'No pong yet: no ping')
+top,right=rows({mode='compact',lost=true})
+assert(top=='connection lost · hosting Kaanta.' and right=='','Lost: said first, and no stale ping')
+top,right=rows({mode='compact',paused=true})
+assert(top=='paused · hosting Kaanta.' and right=='118 ms',top)
+assert(rows({mode='compact',lost=true,paused=true})=='connection lost · paused · hosting Kaanta.')
+top,right,second=rows({})
+assert(top=='hosting Kaanta.' and right=='118 ms' and second==O.rate:format(60),'Nothing else holds: the rate')
+assert(select(3,rows({fight=HOST}))==facts(O.enemies:format(3),O.rate:format(60)),'The host: enemies=')
+assert(select(3,rows({fight=GUEST,rate=30}))==facts(O.enemies:format(2),O.rate:format(30)),'The guest: pairs=')
+for _,line in ipairs({'fight=waiting mode=on why=friend','fight=off why=asked','fight=stopped why=fault',
+        'fight=on mode=probe actors=40 eve=1 turn=2 turns_per_s=60 writes=off'}) do
+    assert(select(3,rows({fight=line}))==O.rate:format(60),line)
+end
+assert(select(3,rows({pilot='pilot=on piloted=4 owned=1 drawn=3'}))==facts(O.place:format(4),O.rate:format(60)))
+for _,line in ipairs({'pilot=off why=host','pilot=stopped','pilot=refused why=coop off'}) do
+    assert(select(3,rows({pilot=line}))==O.rate:format(60),line)
+end
+assert(select(3,rows({quests='quests=on mode=on role=guest partner=on'}))==facts(O.quests,O.rate:format(60)))
+for _,line in ipairs({'quests=off','quests=waiting mode=on why=save','quests=stopped'}) do
+    assert(select(3,rows({quests=line}))==O.rate:format(60),line)
+end
+top,right,second=rows({fight=HOST,pilot='pilot=on piloted=2 owned=2 drawn=0',quests='quests=on mode=on role=host'})
+assert(top=='hosting Kaanta.' and right=='118 ms'
+    and second==facts(O.enemies:format(3),O.place:format(2),O.quests,O.rate:format(60)),second)
+-- Cut: at the last space within its columns less one, else between two characters; the ellipsis within its columns;
+-- never after a Thai leading vowel (it belongs to the syllable after it). A row that fits stays whole.
+assert(rows({mode='compact',summary=S.hosting:format(('W'):rep(32))})=='hosting…')
+assert(rows({mode='compact',summary=('x'):rep(P.TOP)})==('x'):rep(P.TOP),'Fits: whole')
+assert(rows({mode='compact',summary=('x'):rep(80)})==('x'):rep(P.TOP-1)..'…')
+assert(rows({mode='compact',summary=('x'):rep(80),ping=false})==('x'):rep(P.ROW-1)..'…','No ping: its columns too')
+assert(rows({mode='compact',summary=S.hosting:format(('W'):rep(32)),lost=true})=='connection lost · hosting…')
+assert(rows({mode='compact',summary=('ก'):rep(P.TOP-2)..'เปิด'})==('ก'):rep(P.TOP-2)..'…')
+-- Only the status line is cut after the words put first, so a line with no space (Japanese) keeps what fits of it.
+assert(P.status_rows(T.ja,{mode='compact',summary=P.short(T.ja).summary.held,lost=true,rate=60})
+    ==T.ja.partner.lost..' · セーブのロード完了まで招待を保留…')
+local long={summary=E.summary,partner=E.partner,
+    overlay={enemies=('E'):rep(80)..' %d',place=O.place,quests=O.quests,rate=O.rate,paused=O.paused}}
+second=select(3,P.status_rows(long,{mode='detailed',summary='Co-op',fight=HOST,rate=60}))
+assert(second==('E'):rep(P.COLS-1)..'…',second)
+
+-- The strip on the kit (P.hud): its group above the card, at the card's x and width, from y 8 to before the card's 96;
+-- not kept inside the kit's 48-unit margin (that would push it onto the card); hit tests pass through. Its top band
+-- holds the status line (status style) and the ping at the right end (grey); the band under it, detailed only, the
+-- facts (head style, grey); both inside the group. The setting is read at each slow: off (unset) hidden, then compact,
+-- detailed and off at once. Hidden while paused, out of a session or before Steam; shown while hosting alone (no chat
+-- session yet: the pause read then).
+setup()
+local sp=groups.status.place
+assert(sp.x==96 and sp.y==8 and sp.w==groups.card.place.w and sp.y+sp.h<96 and not sp.inside and not sp.hit
+    and not sp.shown,sp.y+sp.h)
+local st=view_of.status
+local band,more=by('status','image',1),by('status','image',2)
+assert(band.x==0 and band.y==0 and band.args[1]==sp.w and more.x==0 and more.y==band.args[2] and more.args[1]==sp.w
+    and more.y+more.args[2]==sp.h)
+assert(st.top.style=='status' and st.top.c=='text' and st.right.style=='status' and st.right.c=='grey'
+    and st.right.align.X==1 and st.second.style=='head' and st.second.c=='grey' and st.second.x==st.top.x)
+assert(st.top.align.Y==0.5 and st.top.y-30*2/3>=0 and st.top.y+30*2/3<=band.args[2] and st.right.y==st.top.y)
+assert(st.second.align.Y==0.5 and st.second.y-28*2/3>=more.y and st.second.y+28*2/3<=sp.h)
+-- Its rows' columns (Chat.wrap's) fit between its margins: Mideum 34 is about 18 units a column (the feed's), so Mideum
+-- 30 and 28 about 18*30/34 and 18*28/34; the top row keeps 9 columns for the ping ('9999 ms' and a gap). Scaled at most
+-- as far as it stays above the card (ui_scale past it would put it on the card).
+local wide=st.right.x-st.top.x
+assert(st.top.x>0 and st.right.x<sp.w and P.COLS*18*28/34<=wide and P.ROW*18*30/34<=wide and P.TOP==P.ROW-9,wide)
+assert(sp.most==1 and sp.y+sp.h*sp.most<96,sp.most)
+hud.slow()
+assert(shown.status==false,'Off unless set')
+settings.status_overlay='compact'
+hud.slow()
+assert(shown.status==true and st.top.v[1]=='hosting Kaanta.' and st.top.c=='text' and st.right.v[1]=='118 ms'
+    and st.second.v[1]=='' and more.on==false)
+-- Her link lost: said first in red, the ping gone; her photo pause said first too; both back at once.
+link.lost=true
+hud.slow()
+assert(st.top.v[1]=='connection lost · hosting Kaanta.' and st.top.c=='error' and st.right.v[1]=='',st.top.v[1])
+link.lost,link.paused_v=false,true
+hud.slow()
+assert(st.top.v[1]=='paused · hosting Kaanta.' and st.top.c=='text' and st.right.v[1]=='118 ms',st.top.v[1])
+link.paused_v=false
+hud.slow()
+assert(st.top.v[1]=='hosting Kaanta.')
+settings.status_overlay='detailed'
+link.fight_line,link.pilot_line,link.quests_line=HOST,'pilot=on piloted=2 owned=2 drawn=0','quests=on mode=on role=host'
+hud.slow()
+assert(shown.status and more.on==true
+    and st.second.v[1]==facts(O.enemies:format(3),O.place:format(2),O.quests,O.rate:format(60)),st.second.v[1])
+settings.send_rate=30
+hud.slow()
+assert(st.second.v[1]:find(O.rate:format(30),1,true),'The rate as set now')
+link.ping_ms=nil
+hud.slow()
+assert(st.right.v[1]=='')
+kit.away=true
+hud.slow()
+assert(shown.status==false,'Paused, or a game screen')
+kit.away=false
+hud.slow()
+assert(shown.status==true)
+for _,k in ipairs({'none','waiting'}) do
+    link.summary_k=k
+    hud.slow()
+    assert(shown.status==false,k)
+end
+link.session,link.summary_k=false,'alone' -- Hosting, nobody yet: no chat session, the card hidden.
+local reads=kit.paused_reads
+hud.slow()
+assert(shown.status==true and shown.card==false and kit.paused_reads==reads+1 and st.top.v[1]==S.alone)
+settings.status_overlay='compact'
+hud.slow()
+assert(shown.status==true and more.on==false and st.second.v[1]=='')
+settings.status_overlay='off'
+reads=kit.paused_reads
+hud.slow()
+assert(shown.status==false and kit.paused_reads==reads,'Off at once; out of a session, the pause not read')
+-- In the game's language (French), from the next build of the root on: both rows in its words.
+link.session,link.summary_k,settings.status_overlay,language=true,'hosting','detailed','fr-FR'
+view_of.card=groups.card.build(builder({}))
+hud.slow()
+assert(st.top.v[1]==P.short(T.fr).summary.hosting:format('Kaanta') and st.top.v[1]=='vous hébergez Kaanta.'
+    and st.second.v[1]==facts(T.fr.overlay.enemies:format(3),T.fr.overlay.place:format(2),T.fr.overlay.quests,
+        T.fr.overlay.rate:format(30)),st.second.v[1])
+link.lost=true
+hud.slow()
+assert(st.top.v[1]==T.fr.partner.lost..' · vous hébergez Kaanta.',st.top.v[1])
 
 print('partner_test ok')

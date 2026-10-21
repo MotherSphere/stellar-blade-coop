@@ -705,7 +705,8 @@ function Ui.kit(opts)
             g.x,g.y,g.hit,g.on=p.x,p.y,p.hit,p.hit and SELF_HIT or HIT_TEST_INVISIBLE
             hit=hit or p.hit
             g.o:SetRenderTransformPivot(p.pivot or {X=0,Y=0})
-            if scale~=1 then g.o:SetRenderScale({X=scale,Y=scale}) end
+            local s=math.min(scale,p.most or scale)
+            if s~=1 then g.o:SetRenderScale({X=s,Y=s}) end
             g.v=def.shown and g.on or COLLAPSED
             g.o:SetVisibility(g.v)
             if def.alpha then g.o:SetRenderOpacity(def.alpha) end
@@ -826,7 +827,8 @@ function Ui.kit(opts)
         return said_once()
     end
     -- A group: place {x, y, w, h in layout units, pivot (of the scale, top left unless said), shown, hit (its rows take
-    -- the mouse: the menu), inside (move keeps it on screen: the partner HUD's)}; build(b) makes its widgets with the
+    -- the mouse: the menu), inside (move keeps it on screen: the partner HUD's), most (its largest scale: ui_scale
+    -- past it draws it at that; the status strip above the partner card)}; build(b) makes its widgets with the
     -- builders above at each root build and returns its view. Added before the first slow, or the root is built again.
     function self.add(name,place,build_view)
         local def={name=name,place=place,shown=place.shown==true,build=build_view}
@@ -882,9 +884,9 @@ function Ui.kit(opts)
     local function inside(p,x,y)
         local v=viewport(os.clock())
         if not v then return x,y end
-        local pivot=p.pivot or {X=0,Y=0}
-        local left,top=x+pivot.X*p.w*(1-scale),y+pivot.Y*p.h*(1-scale)
-        local function fit(at,size,room) return math.max(SAFE,math.min(at,room-SAFE-size*scale)) end
+        local pivot,s=p.pivot or {X=0,Y=0},math.min(scale,p.most or scale)
+        local left,top=x+pivot.X*p.w*(1-s),y+pivot.Y*p.h*(1-s)
+        local function fit(at,size,room) return math.max(SAFE,math.min(at,room-SAFE-size*s)) end
         return x+fit(left,p.w,v.w)-left,y+fit(top,p.h,v.h)-top
     end
     -- A group's place (the marker follows her), kept on screen for an inside one: on change only.
@@ -933,12 +935,16 @@ function Ui.kit(opts)
         end)
         return not off and v or nil -- Never half a view: a raise turned the kit off.
     end
-    -- ui_scale, applied at once to every group, from its pivot.
+    -- ui_scale, applied at once to every group, from its pivot, up to its most; on change only.
     function self.scale(pct)
-        local s=clamp(pct)
+        local s,was=clamp(pct),scale
         if s==scale then return end
         scale=s
-        for _,g in pairs(built and built.groups or {}) do upd(g,function(x) x:SetRenderScale({X=s,Y=s}) end) end
+        for name,g in pairs(built and built.groups or {}) do
+            local most=by[name].place.most or math.huge
+            local t=math.min(s,most)
+            if t~=math.min(was,most) then upd(g,function(x) x:SetRenderScale({X=t,Y=t}) end) end
+        end
     end
     function self.sounds(on) sounding=on end -- ui_sounds.
     -- One of the game's UI sounds (Ui.ASSETS' with a volume), as a UI sound of our root's world. This engine's

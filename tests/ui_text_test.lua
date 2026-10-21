@@ -7,12 +7,15 @@
 -- saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card and result panel within
 -- their columns, the challenges' words: a name for each of challenges.lua's ids, as the card's title, the Best row and
 -- the lines under the heading within their columns, the notices with the longest name within 200 bytes, the co-op
--- line's hint and sentences within theirs, and no Thai word that ends on a leading vowel.
+-- line's hint and sentences within theirs, the status strip's rows (partner.lua): the second with every fact within
+-- its columns, the top one with its connection lost and paused words whole before the status line, which comes without
+-- its prefix, and no Thai word that ends on a leading vowel.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
 local Chat=require('chat')
 local C=require('challenges')
+local P=require('partner')
 local function specs(s)
     local list={}
     for p in s:gmatch('%%.') do if p~='%%' then list[#list+1]=p end end -- %% takes no argument: anywhere.
@@ -170,6 +173,27 @@ for name in pairs(R.TEXT) do
         fits(name..'.line.'..k,text,78)
         assert(Chat.clean(text)==text,name..'.line.'..k..': '..#text..' bytes or a control')
     end
+    -- The status strip above the partner card: its second row with every fact at two-digit counts and 60 poses a
+    -- second, uncut, within its columns.
+    local o=w.overlay
+    local all=table.concat({o.enemies:format(16),o.place:format(16),o.quests,o.rate:format(60)},' · ')
+    local second=select(3,P.status_rows(w,{mode='detailed',summary='',fight='fight=on mode=on role=host enemies=16',
+        pilot='pilot=on piloted=16 owned=8 drawn=8',quests='quests=on mode=on role=host',rate=60}))
+    assert(second==all,name..'.overlay: cut to '..tostring(second))
+    fits(name..'.overlay',all,P.COLS)
+    -- Every state's status line in the strip: the line less one prefix, the same in each (summary.none's, up to its
+    -- colon), its placeholders kept.
+    local S,cut=P.short(w).summary,nil
+    for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
+        local full=w.summary[k]
+        assert(#S[k]<#full and full:sub(-#S[k])==S[k] and specs(S[k])==specs(full),name..'.summary.'..k..': '..S[k])
+        cut=cut or #full-#S[k]
+        local prefix=full:sub(1,cut)
+        assert(#full-#S[k]==cut and (prefix:find(':%s*$') or prefix:find('：$')),name..'.summary.'..k..': '..prefix)
+    end
+    local lead=w.partner.lost..' · '..o.paused
+    local top=P.status_rows(w,{mode='compact',summary=S.hosting:format(NAME),lost=true,paused=true,rate=60})
+    assert(top:sub(1,#lead)==lead,name..'.overlay.paused: cut to '..top)
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)

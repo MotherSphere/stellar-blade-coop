@@ -101,8 +101,9 @@ Each row of the Options page is a setting of [coop-settings.txt](#coop-settingst
 host, the [revive](#revive-by-your-friend-experimental), the [cutscene wait](#cutscene-wait) and
 [following the host](#following-the-host)), Saves (the [co-op saves](#co-op-saves) at the title and
 [shared quests](#shared-quests-experimental)), Combat (shared enemies, same place, who same-place enemies attack,
-same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards), Display (the size,
-sounds and language of the menu, the chat and the partner HUD) and Chat.
+same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards), Display (the
+[status strip](#status-strip-above-the-card) above the partner card, and the size, sounds and language of the menu, the
+chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
@@ -195,6 +196,25 @@ Partner turns each part on or off at once: `partner_bar` (the marker), `partner_
 `card_details`. The card, the marker and the arrow hide while the game is paused or shows one of its own screens (a
 shop, a dialogue choice). Your own photo mode hides them too, like the rest of the mod's screen.
 
+### Status strip above the card
+
+Options > Display > Status line (`status_overlay`) adds a status strip above the card: Off (the default), Compact or
+Detailed. Each player's setting is their own, and a change shows at once. The strip shows whenever the
+[status line](#the-status-key-f6) says something other than `not in a session` or `waiting for Steam`: while you host
+(alone too), while a friend connects or you play in their game, while an invite is held or you rejoin, and after the
+Steam link stopped.
+
+- Compact: the status line without its `Co-op:` start, and the ping at the right end, for example `hosting Alex.` and
+  `118 ms`. While the link is lost, the row starts with `connection lost`, turns red and shows no ping.
+- Detailed: the same, and a second row with what is shared now: `Enemies <n>` while shared enemies run (the `enemies=`
+  count of `coop fight status` as host, `pairs=` as guest), `Same place <n>` while same place runs (`piloted=`),
+  `Quests on` while shared quests run, and the poses you send a second. For example
+  `Enemies 3 · Same place 2 · Quests on · 60/s`.
+
+A row too long for the strip ends with `…`. The strip uses the menu's language. It grows with `ui_scale` up to 100 %
+only, so it never covers the card, and it hides when the card does: while the game is paused (your friend's photo mode
+included) or shows one of its own screens, and in your own photo mode.
+
 ## Playing with a friend
 
 1. The host presses F5 and selects Host a session. This creates a Steam lobby for 2 players and opens the Steam invite
@@ -222,8 +242,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see
-  [Notices](#notices)).
+- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -233,6 +252,15 @@ reaches your save. The mod never unlocks an achievement itself. Your game unlock
 world, and a shared enemy dies there only if you took part in its fight (`kill_credit` under
 [shared enemies](#shared-enemies-experimental)). An enemy or a boss your friend kills in a fight you were not in does
 not die in your game, so it gives you no kill, rewards, drops, quest progress or trophy.
+
+### Your world and your friend's
+
+Each of you plays in your own world, from your own save. Supply boxes, collectibles, passcode doors and camps are each
+player's own: a box you open stays closed and full in your friend's world until they open it there, and what is in it
+goes to you only. Levers, lifts, doors and puzzles move only in the world of the player who uses them, so your friend's
+EVE may ride a lift that stays down on your screen. Vendors, the request board and quest givers work for both players;
+[shared quests](#shared-quests-experimental) says which quest steps are shared. Nothing one player opens, buys or picks
+up is copied into the other player's game.
 
 ### Join codes
 
@@ -452,6 +480,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](#following-the-host)) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
+| `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
 | `coop where` | Print one line of positions to compare between two PCs |
 | `coop puppet` | Turn the ghost on or off by hand |
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
@@ -534,6 +563,28 @@ spawn=<id>:SBSpawnPoint@<x,y,z> spawn_m=<m> origin=<x,y,z> composition=<flag> re
 - If the camp or spawn point search, the world origin or the world settings fail, that field reads `?(<why>)` and the
   rest of the line still prints. The map, EVE's position and her mesh are read without a guard: if one of them fails,
   the command prints `STOP:` with the error instead of the line.
+
+### `coop mark`
+
+`coop mark` and `coop mark <text>` put one numbered line in your `coop-link.log` and `UE4SS.log`, and in your friend's.
+Type it before each step of a test you play together, so that the steps line up in the four logs you send.
+
+- Your game numbers your marks from 1. The count goes on after Ctrl+R and starts again at 1 when the game restarts.
+  Your friend's game numbers their own marks.
+- The text is cleaned like a chat line and cut to 100 bytes. Unlike a chat line, it goes into both players' logs,
+  `coop status` and `coop report`, so type only what you would put in a bug report. A mark with no text ends at its
+  number (`mark 3`, `mark=3 ours`).
+- With `coop mark boss start` as your third mark, your `coop-link.log` gets `mark 3: boss start` and your `UE4SS.log`
+  gets `[StellarCoop] OK: asked the native part: mark boss start`, then `[StellarCoop] link: mark=3 ours: boss start`.
+  Once you are linked, your friend's `coop-link.log` gets `mark 3 from <your Steam name>: boss start`, and their
+  `UE4SS.log` gets `[StellarCoop] link: mark=3 from <your Steam name>: boss start`.
+- The `mark=` line of `coop status` keeps the last mark, yours or your friend's, until the game exits. `UE4SS.log`
+  copies that line when it changes, so two marks less than a quarter of a second apart can show there as one line.
+  `coop-link.log` has every mark.
+- Without a linked friend, the mark goes to your own logs only. A mark Steam does not send logs
+  `mark <n> not sent to <name>`. Your friend's game takes at most 10 chat lines and marks a second from you and drops
+  the rest, with one line a minute in their `coop-link.log`: `dropped marks from <name>: over the rate limit`.
+- It needs the native part (`coop mark needs the Steam link` without it), and `coop off` refuses it.
 
 ### Solo testing: loopback, record, replay
 
@@ -654,9 +705,13 @@ mirrored crowd control` and that record no longer counts for this enemy: your hi
 `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone (see
 [coop-settings.txt](#coop-settingstxt)).
 
-Slow motion is not shared: each game slows down on its own. The stats lines in `coop-fight.log` count it (the turns in
-which your EVE or a shared enemy ran below normal speed, how often that began, and the lowest speed in percent), to
-measure how often the two games drift apart this way.
+Slow motion is not shared: each game slows down on its own, as in solo. With [same place](#same-place-experimental)
+on, a shared enemy runs in the game of the player it fights, and the other screen draws it from that game. So when
+that player's perfect dodge slows the enemy down, it slows down on both screens, and an enemy that your friend's game
+runs keeps its speed on your screen while your own perfect dodge slows your game down. The stats line in
+`coop-fight.log` counts slow motion as `slow motion <n> times (<t> turns, lowest <p> %)`: how often your EVE or an
+enemy of the shared fight began to run below normal speed, the turns that lasted, and the lowest speed in percent.
+How the two screens compare during slow motion has not been tested in game yet.
 
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
@@ -1241,6 +1296,8 @@ partner_bar=on
 partner_arrow=on
 partner_card=on
 card_details=on
+# status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
+status_overlay=off
 ```
 
 | Setting | Values | Default |
@@ -1287,6 +1344,7 @@ card_details=on
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
+| `status_overlay` | `off`, `compact` or `detailed`: the [status strip](#status-strip-above-the-card) above the card | `off` |
 
 Rules:
 
@@ -1445,19 +1503,20 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=8 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=12 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
   (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this lobby; then
   a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer. Then a
-  `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, a
-  `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card (while their last
-  reading is under 3 s old; your own during `coop loopback`), a `life=<state> <hp>` line with your own EVE's life state
-  (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with your friend's last Night
-  Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While you host, `camps?=<id>` is
-  the guest's last request for the camps nearest you; as the guest, `camps=<id> <answer>` is the host's last answer
-  ([Following the host](#following-the-host)).
+  `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
+  [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
+  with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card
+  (while their last reading is under 3 s old; your own during `coop loopback`), a `life=<state> <hp>` line with your
+  own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with your
+  friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While you
+  host, `camps?=<id>` is the guest's last request for the camps nearest you; as the guest, `camps=<id> <answer>` is the
+  host's last answer ([Following the host](#following-the-host)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>

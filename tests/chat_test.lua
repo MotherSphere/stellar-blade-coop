@@ -330,6 +330,7 @@ assert(wrapped(('ก'):rep(69)..KO..'ข',70)==('ก'):rep(69)..KO..'|ข','The 
 assert(wrapped(('ก'):rep(40)..' '..('ข'):rep(40),70)==('ก'):rep(40)..'|'..('ข'):rep(40),'At the space')
 assert(wrapped(('بَ'):rep(72),70)==('بَ'):rep(70)..'|'..('بَ'):rep(2),'Arabic: the fatha stays with its letter')
 assert(wrapped(('ب'):rep(69)..'ىٰ'..'ب',70)==('ب'):rep(69)..'ىٰ|ب','And the superscript alef (U+0670)')
+assert(Chat.columns('Ab 日本'..KO..'بَ')==9,'Columns as wrap counts them (the status strip measures with it)')
 
 -- The session ends: the box closes and empties, the history goes (the notice that says so comes after).
 box.text='half typed'

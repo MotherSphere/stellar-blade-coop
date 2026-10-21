@@ -263,11 +263,12 @@ local long='#'..string.rep('x',8184)..'\nsend_rate=25\n' -- The 8192nd byte is t
 long=long..'#'..string.rep('x',9000-#long-2)..'\n'
 s,notes=Link.parse_settings(long)
 assert(#long==9000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 8192 bytes are read',notes[1])
--- The default file saved with CRLF and five ids in fight_chars is read to its last line (card_details).
+-- The default file saved with CRLF and five ids in fight_chars is read to its last line (status_overlay).
 local crlf=Link.DEFAULT:gsub('fight_chars=auto','fight_chars=15011001 15011002 15011003 15011004 15011005')
-crlf=crlf:gsub('card_details=on','card_details=off'):gsub('\n','\r\n')
+crlf=crlf:gsub('card_details=on','card_details=off'):gsub('status_overlay=off','status_overlay=detailed')
+crlf=crlf:gsub('\n','\r\n')
 s,notes=Link.parse_settings(crlf)
-assert(#notes==0 and s.card_details==false and #crlf>4096,notes[1])
+assert(#notes==0 and s.card_details==false and s.status_overlay=='detailed' and #crlf>4096,notes[1])
 s,notes=Link.parse_settings('\239\187\191menu_key=F7\n')
 assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
@@ -316,6 +317,20 @@ assert(Link.DEFAULT:find('\npartner_bar=on\npartner_arrow=on\npartner_card=on\nc
 s,notes=Link.parse_settings('Partner_Bar=OFF\npartner_arrow=off\npartner_card=off\ncard_details=off\n')
 assert(#notes==0 and s.partner_bar==false and s.partner_arrow==false and s.partner_card==false
     and s.card_details==false)
+-- The status strip above her card: off (the default, and an old file's), compact or detailed, any case; a bad value
+-- keeps off, with a line; a new file names it after card_details, with its comment.
+assert(Link.parse_settings('').status_overlay=='off')
+assert(Link.DEFAULT:find('\ncard_details=on\n# status_overlay[^\n]*\nstatus_overlay=off\n'))
+assert(Link.parse_settings(Link.DEFAULT).status_overlay=='off')
+for _,case in ipairs({{'off','off'},{'Compact','compact'},{'DETAILED','detailed'}}) do
+    s,notes=Link.parse_settings('status_overlay='..case[1]..'\n')
+    assert(#notes==0 and s.status_overlay==case[2],case[1])
+end
+for _,bad in ipairs({'on','full','2',''}) do
+    s,notes=Link.parse_settings('status_overlay='..bad..'\n')
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for status_overlay (use off, "
+        .."compact or detailed); status_overlay stays off" and s.status_overlay=='off',notes[1])
+end
 -- The ghost's looks: on or off, any case; a bad value keeps the default (cloth on, dyes and effects off). A file that
 -- says cloth=off (the menu writes it only when the player picks off) keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)
@@ -773,15 +788,18 @@ assert(summary('stopped=fault 0xc0000005\n')=='Co-op: the Steam link stopped; co
 assert(summary('missing=SteamAPI_ISteamMatchmaking_JoinLobby\n')=='Co-op: the Steam link stopped; coop status says why.')
 assert(summary(GUEST)=='Co-op: your friend is connecting.','Only as long as the status says so')
 -- Paused by her photo mode (the photo line's frozen=1 with peer_photo=1): said after the session part; not for a
--- coop freeze alone, nor from a line that does not start the status line.
+-- coop freeze alone, nor from a line that does not start the status line. paused() says it alone (the status strip).
 local PHOTO='photo=0 peer_photo=1 frozen=1 sync=both\n'
-assert(summary(GUEST..'friend=1 0 Kaanta\n'..PHOTO)=="Co-op: in Kaanta's game. Paused by Kaanta.")
+assert(summary(GUEST..'friend=1 0 Kaanta\n'..PHOTO)=="Co-op: in Kaanta's game. Paused by Kaanta." and fresh.paused())
+assert(summary(GUEST..'friend=0 0 Kaanta\n'..PHOTO)=='Co-op: Kaanta is connecting.' and fresh.paused()==false,
+    'Not linked: not hers')
 assert(summary(HEAD..'friend=1 0 Kaanta\n'..PHOTO)=='Co-op: hosting Kaanta. Paused by Kaanta.')
-assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=0 frozen=1 sync=both\n')=='Co-op: hosting Kaanta.')
+assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=0 frozen=1 sync=both\n')=='Co-op: hosting Kaanta.'
+    and fresh.paused()==false)
 assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=1 frozen=0 sync=both\n')=='Co-op: hosting Kaanta.')
 assert(summary(HEAD..'friend=1 0 photo=0 peer_photo=1 frozen=1 sync=both\n')=='Co-op: hosting photo=0 peer_photo=1 '
     ..'frozen=1 sync=both.','A name is no photo line')
-assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.','Gone with the line')
+assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.' and fresh.paused()==false,'Gone with the line')
 -- The same line in the menu's words (ui_text.lua's, French when the game is), every state; her name as it came, a '%'
 -- in it never read as a format; English without words.
 local Words=require('ui_text')

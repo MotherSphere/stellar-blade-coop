@@ -492,4 +492,9 @@ that do.
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
 which may include your Windows user name. They contain no passwords. You can read them before you send them.
 
+When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
+for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
+`UE4SS.log` (see [usage.md](usage.md#coop-mark)), so the four logs line up step by step. The text of each mark stays
+in the logs you send.
+
 This list is the same as in [INSTALL.md](../INSTALL.md#which-logs-to-send).
