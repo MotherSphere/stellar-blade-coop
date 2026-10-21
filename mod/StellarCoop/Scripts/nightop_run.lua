@@ -45,6 +45,7 @@ local function location(actor)
 end
 local function hex(key) return string.format('0x%08X',key) end
 local function alias(b) return W.POOL[b.id].alias end
+-- Adapted from Survival Protocol's wave lookup, which reads the same field.
 local function key_of(c) -- BroadcastSpawnInfo.EventSpawnId, which the spawn sets from the call's key; unsigned.
     local k=math.tointeger(c.BroadcastSpawnInfo.EventSpawnId)
     return k and k&MASK

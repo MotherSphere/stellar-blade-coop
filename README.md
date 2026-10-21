@@ -85,6 +85,24 @@ StellarCoop is an unofficial fan mod. It is not affiliated with or endorsed by S
 Entertainment. Stellar Blade and its assets belong to their owners. This repository contains no game files; the mod
 runs on your own copy of the game.
 
+## Credits
+
+Night Operation's solo run (`coop nightop`) adapts code from
+[Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus Mods, Stellar Blade
+mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The adapted parts are:
+
+- sending a new monster at EVE;
+- giving a monster with no AI controller its default one;
+- moving a stuck or fallen monster;
+- spacing monsters around a spawn point;
+- finding wave monsters by their spawn key;
+- reading a tracked monster only while the game still lists it and it keeps its name;
+- telling a dying monster from one that can be executed;
+- watching for EVE's death screen, a map load, and EVE leaving the start point.
+
+`mod/StellarCoop/Scripts/nightop_run.lua` and `nightop_waves.lua` mark each adapted function. StellarCoop contains no
+file from Survival Protocol.
+
 ## License
 
 [GPL-3.0-or-later](LICENSE) © 2026 StellarCoop contributors
