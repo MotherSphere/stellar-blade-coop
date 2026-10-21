@@ -1008,10 +1008,10 @@ Rules:
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
   60. The mod writes `send_rate=60` and the new comment into it once, keeps the file as it was as
   `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. Any other rate stays.
-- A file written by version 0.4.0-beta.1 has `same_place`, `same_spawns` and `bosses` off and a same spawns comment
-  that says they stay off until tested in game. The mod sets each of the three that says `off` to `on` and writes the
-  new comment once, keeps the file as it was as `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. An
-  `off` set after that stays.
+- A file whose same spawns comment says the setting stays off until it has been tested in game was written by a
+  development build before 0.4.0-beta.1, with `same_place`, `same_spawns` and `bosses` off. The mod sets each of the
+  three that says `off` to `on` and writes the new comment once, keeps the file as it was as `coop-settings.old.txt`,
+  and logs a `[StellarCoop] settings:` line. An `off` set after that stays.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
   earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in

@@ -198,10 +198,10 @@ function Link.migrate_rate(text)
     local nl=new:find('\r\n',1,true) and '\r\n' or '\n'
     return new..((new=='' or new:sub(-1)=='\n') and '' or nl)..RATE_NOTE..nl
 end
--- 0.4.0-beta.1 wrote same_place, same_spawns and bosses as off, with "off until it has been tested in game" in the
--- same spawns comment. A file with that comment: its text with each of the three that says off set to on and the
--- comment's first sentence as Link.DEFAULT has it, so it is changed once and an off picked later stays. nil for any
--- other file, and nil, why when a line cannot be set.
+-- Development builds before 0.4.0-beta.1 wrote same_place, same_spawns and bosses as off, with "off until it has been
+-- tested in game" in the same spawns comment. A file with that comment: its text with each of the three that says off
+-- set to on and the comment's first sentence as Link.DEFAULT has it, so it is changed once and an off picked later
+-- stays. nil for any other file, and nil, why when a line cannot be set.
 local OLD_ON_NOTE="# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game."
 local ON_NOTE="# Same spawns, experimental, the host's for both games: on or off."
 function Link.migrate_on(text)

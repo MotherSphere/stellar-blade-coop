@@ -842,8 +842,9 @@ end
 
 print('link_test ok')
 
--- A 0.4.0-beta.1 file (its same spawns comment says "off until it has been tested in game") gets same_place, same_spawns
--- and bosses on once, and its comment's first sentence as now; any other file, and the file after that, is left alone.
+-- A file from a build before 0.4.0-beta.1 (its same spawns comment says "off until it has been tested in game") gets
+-- same_place, same_spawns and bosses on once, and its comment's first sentence as now; any other file, and the file
+-- after that, is left alone.
 do
     local old=Link.DEFAULT:gsub("# Same spawns, experimental, the host's for both games: on or off%.",
         "# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game.")
