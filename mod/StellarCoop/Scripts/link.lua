@@ -120,7 +120,7 @@ cutscene_wait=on
 # Follow the host, as the guest, on a co-op save: ask, always or off. When the host is on another map, or more than
 # 150 m from you on yours, ask shows a notice once and follow_key then takes you to the camp nearest them through the
 # game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
-# follow_key cancels it; off does neither.
+# follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100

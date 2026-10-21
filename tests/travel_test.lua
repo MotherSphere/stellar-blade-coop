@@ -6,9 +6,10 @@
 -- table under the host's world that this game knows as a name (FNAME_Find, never a new name; UE's trailing number
 -- split off), the next one after SB's refusal, 3 calls at most, then the notices. The offer: once per host map change
 -- or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself 5 s later with
--- follow_key to cancel (always), nothing with off; no new offer for the place the travel brought her to. The guards,
--- each refusing on its own (silent, busy or failed), the stuck warp, and coop travel probe: solo, on a co-op save or
--- slot 04, any of the 120 camps.
+-- follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place the travel
+-- brought her to, and his next move offered again after it. The guards, each refusing on its own (silent, busy or
+-- failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save or slot 04, any
+-- of the 120 camps.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local W -- The world of one case.
@@ -222,27 +223,29 @@ assert(last(W.requests)=='travel Xion_Camp_20 3 21')
 W.calls=3
 run(t,0.25)
 assert(#W.requests==4 and last(W.said)==NONE,last(W.said))
--- None of the answer passes: none at once. The host has none: none for nocamp, failed for any other reason.
+-- None of the answer passes: none at once. The host has none: none for nocamp, busy while its game is busy or loading,
+-- failed for the title.
 t=world()
 assert(t.press())
 W.answer=asked_id()..' Xion Xion_Camp_10:1'
 run(t,0.25)
 assert(#W.requests==1 and last(W.said)==NONE)
-for _,case in ipairs({{'nocamp',NONE},{'busy',FAILED},{'loading',FAILED}}) do
+for _,case in ipairs({{'nocamp',NONE},{'busy',BUSY},{'loading',BUSY},{'title',FAILED}}) do
     t=world()
     assert(t.press())
     W.answer=asked_id()..' none '..case[1]
     run(t,0.25)
     assert(last(W.said)==case[2] and #W.requests==1,case[1])
 end
--- One camps? each 2 s, as the host's game takes them: a press sooner is refused in the log only.
+-- One camps? each 2.5 s (the host's game takes one each 2 s; the margin is for the network): a press sooner is
+-- refused in the log only.
 t=world()
 assert(t.press())
 W.answer=asked_id()..' none nocamp'
-run(t,0.25)
+run(t,2.25)
 local ok2,why2=t.press()
-assert(not ok2 and why2:find('each 2 s',1,true) and #W.requests==1 and last(W.said)==NONE)
-run(t,1.75)
+assert(not ok2 and why2:find('each 2.5 s',1,true) and #W.requests==1 and last(W.said)==NONE)
+run(t,0.25)
 assert(t.press() and #W.requests==2)
 -- An answer from a test world, or a camp of another world, is never asked of the native part.
 t=world(function(w) w.names={SysTest_Camp_01=9,DED10_Camp_07=8} end)
@@ -295,6 +298,65 @@ local said=#W.said
 assert(not t.press() and #W.said==said+1 and last(W.said)==FAILED and #W.requests==2)
 W.me={at={X=0,Y=0,Z=0},map='/game/art/bg/worldmap/level_p/f01'}
 assert(t.press() and #W.requests==3)
+-- The stuck warp ends the travel's quiet too: on another map of hers, his next map change is offered.
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+run(t,0.25)
+assert(t.press())
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+W.travel,W.calls='pending',1
+run(t,0.25)
+W.travel='refused:stuck'
+run(t,0.25)
+assert(#W.said==3 and last(W.said)==FAILED,last(W.said))
+W.me={at={X=0,Y=0,Z=0},map='/game/art/bg/worldmap/level_p/f01'}
+run(t,0.5)
+W.her_map=Travel.WORLDS.SpaceElevator
+run(t,3)
+assert(#W.said==4 and last(W.said)==W_.offer:format('Kaanta','b07','F7'),last(W.said))
+-- The place a travel brought her to is taken as seen also when it reads as the place before: her camp 120 m from him
+-- on his map keeps the far offer's place (100 to 150 m), and his next map change is still offered.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=40000,Y=0,Z=0}; w.names={DED10_Camp_07=8} end)
+run(t,0.25)
+assert(#W.said==1 and W.said[1]==W_.offer:format('Kaanta','f02','F7'),W.said[1])
+assert(t.press())
+W.answer=asked_id()..' DrownedEidosDistrict DED10_Camp_07:3'
+run(t,0.25)
+assert(last(W.requests)=='travel DED10_Camp_07 8 0',last(W.requests))
+W.travel,W.calls='pending',1
+run(t,0.25)
+assert(last(W.said)==GOING)
+W.travel,W.ghost='arrived',{X=12000,Y=0,Z=0}
+run(t,1)
+assert(#W.said==2,last(W.said))
+W.her_map,W.ghost=XION,nil
+run(t,2)
+assert(#W.said==3 and last(W.said)==OFFER,last(W.said))
+-- A warp block gone before the first read (refused:cleared follows an accepted call only): going, then the 10 s wait.
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+W.travel,W.calls='refused:cleared',1
+run(t,0.25)
+assert(last(W.said)==GOING and logged('already gone'),last(W.said))
+run(t,3)
+assert(not t.press() and last(W.said)==BUSY)
+-- The guards again right before the call, as the answer can come seconds after the press: a menu opened meanwhile, no
+-- call and busy; the host back within 150 m, no call and the log only.
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.paused=true
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+assert(#W.requests==1 and last(W.said)==BUSY and logged('refused at the call'),last(W.said))
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.her_map,W.ghost=DEDA,{X=5000,Y=0,Z=0}
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+assert(#W.requests==1 and #W.said==0 and logged('refused at the call: the host is within 150 m')
+    and not logged('travel off for this run'))
 
 -- The guards, each refusing on its own. Silent (the log only): not a linked guest, follow_host=off, not a co-op save,
 -- no travel in the native part, the host's map unknown or the host within 150 m on hers. Busy: our EVE down, a warp or
@@ -369,6 +431,22 @@ assert(#W.said==2)
 t=world(function(w) w.settings.follow_host='off' end)
 run(t,10)
 assert(#W.said==0 and #W.requests==0)
+-- always switched to ask, or follow_key to none, during the 5 s: nothing starts.
+local switches={function() W.settings.follow_host='ask' end,function() W.settings.follow_key={name='none'} end}
+for _,switch in ipairs(switches) do
+    t=world(function(w) w.settings.follow_host='always' end)
+    run(t,2)
+    switch()
+    run(t,5)
+    assert(#W.said==1 and #W.requests==0)
+end
+-- follow_key=none: no notice names a key, always starts nothing; coop travel host still asks.
+for _,mode in ipairs({'ask','always'}) do
+    t=world(function(w) w.settings.follow_host=mode; w.settings.follow_key={name='none'} end)
+    run(t,6)
+    assert(#W.said==0 and #W.requests==0 and logged('(follow_key=none)'),mode)
+    assert(t.press() and asked_id())
+end
 -- The offer waits for the silent guards (a co-op save), and comes again when the host's map changes.
 t=world(function(w) w.slot='slot=unknown index=? marker=? saves=?' end)
 run(t,2)
@@ -389,7 +467,8 @@ W.travel,W.calls='pending',1
 run(t,0.25)
 assert(logged('travel accepted: DED10_Camp_07') and #W.said==0,'The probe logs, no notice')
 for _,case in ipairs({{function(w) w.mode='guest' end,'solo only'},{function(w) w.mode='host' end,'solo only'},
-    {function(w) w.mode=nil end,'not ready'},{function(w) w.slot='slot=main index=1 marker=4 saves=main' end,'slot 04'},
+    {function(w) w.mode=nil end,'not ready'},
+    {function(w) w.slot='slot=main index=1 marker=4 saves=main' end,'slot 04'},
     {function(w) w.names={} end,'not a name'}}) do
     t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; case[1](w) end)
     ok,why=t.probe('DED10_Camp_07')
