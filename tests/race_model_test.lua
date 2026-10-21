@@ -232,7 +232,7 @@ assert(list[1].pos==nil and list[2].pos==nil)
 local good={
     ['track 4294967295 64 9 -2000000 2000000 -500000 -180 '..MAP]=true,['cps 7 1 0 0 0 300']=true,
     ['cps 7 53'..(' -2000000 -2000000 -500000 3000'):rep(12)]=true,['have 7 4294967295']=true,['have 0 0']=true,
-    ['have 7 no map']=true,['have 7 no track']=true,['ready 7 0']=true,['ready 7 1']=true,['go 7 3600000']=true,
+    ['have 7 no map']=true,['have 7 no track']=true,['ready 7 0']=true,['ready 7 1']=true,['go 7 4000']=true,
     ['abort 7 false_start']=true,['abort 7 quit']=true,['abort 7 map']=true,['abort 7 track']=true,['cp 7 9 64 0']=true,
     ['fin 7 3600000 3']=true,['fin 7 0 0']=true,['dnf 7 teleport']=true,['dnf 7 map']=true,['dnf 7 quit']=true,
     ['dnf 7 left']=true,['dnf 7 late']=true,['dnf 7 time']=true,['rank 7 - -']=true,['rank 7 61000 -']=true,
@@ -244,7 +244,7 @@ for _,line in ipairs({'track 4294967296 64 9 0 0 0 0 /x','track 7 65 9 0 0 0 0 /
     'track 7 2 1 2000001 0 0 0 /x','track 7 2 1 0 0 500001 0 /x','track 7 2 1 0 0 0 0 '..('a'):rep(121),
     'cps 7 0 0 0 0 300','cps 7 65 0 0 0 300','cps 7 1 0 0 0 299','cps 7 1 0 0 0 3001','cps 7 1 0 0 0',
     'cps 7 1'..(' 0 0 0 300'):rep(13),'cps 7 1 0 0 0 300 0','have 7 -1','have 7 4294967296','have 7 no','have 7 no x',
-    'have 7 yes map','ready 7 2','ready 7','go 7 3600001','go 7 -1','abort 7 teleport','abort 7 left','abort 7',
+    'have 7 yes map','ready 7 2','ready 7','go 7 4001','go 7 -1','abort 7 teleport','abort 7 left','abort 7',
     'cp 7 0 1 0',
     'cp 7 10 1 0','cp 7 1 65 0','cp 7 1 0 0','cp 7 1 1 3600001','fin 7 0 4','fin 7 0','dnf 7 false_start',
     'dnf 7 ','rank 7 - x','rank 7 -1 -','rank 7 -','end 7 now','end','end x','end 7.0','end 07x',' end 7',
@@ -460,6 +460,34 @@ assert(said.host[#said.host]=='abort 7 quit' and find(log.guest,'cancelled').why
 host,guest,log,said=sim({dnf=function(side,m) return side=='guest' and m.phase=='ready' and 'quit' or nil end})
 assert(said.guest[#said.guest]=='dnf 7 quit' and find(log.host,'out').why=='quit')
 assert(result(host):find('^host=%d+#1$'),'Alone: the guest is no racer')
+-- The go line came faster than half the round trip, so the guest's GO comes 270 ms before the host's: her DNF reaches
+-- a host still in his countdown. She stays in the race as a DNF, and his rank and end still reach her.
+host,guest,log,said=sim({delay=function() return 30 end,rtt=600,
+    dnf=function(side,m) return side=='guest' and m.phase=='race' and 'quit' or nil end})
+assert(guest.t_go<host.t_go and guest.me.why=='quit' and host.her.why=='quit' and not host.her.out)
+assert(result(host):find('^host=%d+#1 guest=nil#nil$') and result(guest)==result(host),result(guest))
+-- The other way: the go line takes 500 ms and the host teleports right after his GO, so his DNF reaches a guest still
+-- in her countdown. She races on, wins, and keeps her own place in the ranking.
+local slow
+host,guest,log,said=sim({tamper=function(_,text) slow=text:find('^go ')~=nil; return text end,
+    delay=function() return slow and 500 or 30 end,
+    pos=function(side,m,now,pos)
+        if side=='host' and m.phase=='race' and now-m.t_go>30 then return {x=pos.x,y=pos.y+3000,z=pos.z} end
+    end})
+assert(guest.t_go>host.t_go+400 and guest.her.why=='teleport' and not guest.her.out)
+assert(result(host):find('^host=nil#nil guest=%d+#1$') and result(guest)==result(host),result(guest))
+-- Her DNF crossed the host's false start: she stays out (his new start is his alone), never back in the ready check
+-- with her DNF wiped.
+do
+    local g=R.guest()
+    R.tick(g,{lines=R.track_lines(LINE,7),map=MAP},0)
+    R.tick(g,{lines={'go 7 4000'},pos=R.slot(LINE,1)},100)
+    R.tick(g,{pos=R.slot(LINE,1)},4100)
+    local out,ev2=R.tick(g,{pos=R.slot(LINE,1),dnf='quit'},4200)
+    assert(g.phase=='race' and table.concat(out,'|')=='dnf 7 quit')
+    out,ev2=R.tick(g,{pos=R.slot(LINE,1),lines={'abort 7 false_start'}},4300)
+    assert(g.phase=='over' and g.me.why=='quit' and whats(ev2)=='cancelled false_start' and #out==0,whats(ev2))
+end
 
 -- The guest's checks on the host's real lines: another map, a line out of bounds, a changed number (the have sum).
 host,guest,log,said=sim({map='/game/other'})

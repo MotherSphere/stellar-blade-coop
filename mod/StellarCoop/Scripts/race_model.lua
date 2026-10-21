@@ -247,7 +247,7 @@ function R.decode(text)
     elseif what=='ready' and n==3 and (w[3]=='0' or w[3]=='1') then
         l.ready,ok=w[3]=='1',true
     elseif what=='go' and n==3 then
-        l.ms=int(w[3],0,R.MS)
+        l.ms=int(w[3],0,R.COUNT)
         ok=l.ms
     elseif (what=='abort' or what=='dnf') and n==3 then
         l.why=REASONS[what][w[3]] and w[3]
@@ -383,7 +383,7 @@ local function receive(m,text,input,now)
             m.first=m.first or now
         else
             her.why=l.why
-            if before_go(m) then
+            if m.phase=='ready' then -- No go line yet: she is out. After one she stays a DNF, owed the rank and end.
                 her.out=true
                 emit(m,{what='out',why=l.why})
             end
@@ -417,7 +417,10 @@ local function receive(m,text,input,now)
     elseif w=='go' and m.phase=='ready' then
         m.t_go,m.count,m.phase=now-(input.rtt or 0)/2+l.ms,nil,'countdown'
     elseif w=='abort' and l.why=='false_start' then
-        if m.phase=='countdown' or m.phase=='race' then false_start(m) end
+        if m.phase=='race' and m.me.why then -- Our DNF crossed it: the host's new start is without us.
+            m.phase='over'
+            emit(m,{what='cancelled',why='false_start'})
+        elseif m.phase=='countdown' or m.phase=='race' then false_start(m) end
     elseif w=='abort' and (before_go(m) or m.phase=='race') then
         m.phase='over'
         emit(m,{what='cancelled',why=l.why})
