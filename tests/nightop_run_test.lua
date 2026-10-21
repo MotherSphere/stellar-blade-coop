@@ -22,10 +22,11 @@
 -- her refusals in order, a run byte she found taken skipped, no answer in 5 s; the line on change and once a second;
 -- a status not read for a tick ends nothing; her stop during her ask ends his countdown; a success with the same time
 -- and score on both, her clock moved by her round trip, and each clear and heal on both. Shared waves: his line names
--- the keys he tracks; she leaves the aggro and stuck moves of those to the pilot only while her fight line is on as
--- the guest and the pilot is on, one line a key, and keeps them for a key he lacks; a death in both worlds at once
--- scores once, a key killed in her world alone scores once however many lines carry it, a copy alive in her world
--- keeps the wave open, and no other field of her line moves the score.
+-- the keys he tracks and has not done; she leaves the aggro and stuck moves of those to the pilot only while her fight
+-- line is on as the guest and the pilot draws a copy, one line a key, and keeps them for a key he lacks; a key he
+-- kills or writes off goes back to her stuck rule, so a copy stuck in both worlds still closes the wave; a death in
+-- both worlds at once scores once, a key killed in her world alone scores once however many lines carry it, a copy
+-- alive in her world keeps the wave open, and no other field of her line moves the score.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -1153,6 +1154,7 @@ assert(#violations==0,violations[1])
 local FIGHT='fight=on mode=on role=guest pairs=4 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0'
 local PILOT='pilot=on piloted=4 owned=0 drawn=4'
 local function body(w,key) for _,m in ipairs(w.bodies) do if m.key==key then return m end end end
+local function kill(w,key) local m=body(w,key); m.st,m.ctl=1,nil end
 local function lines_of(w,pattern)
     local n=0
     for _,l in ipairs(w.lines) do n=n+(l:find(pattern) and 1 or 0) end
@@ -1189,9 +1191,10 @@ for slot=0,3 do
     assert(skipped(Gs,key)==1 and aggroed(Gs,key)==0 and aggroed(Hs,key)==1,slot)
 end
 assert(moved(Gs,W.key(run,1,3))==0 and not find(Gs.lines,'^written off '),'No stuck move on a piloted key')
--- The pilot off (her world fights her copies itself), or her fight line not on as the guest: 8a's rules.
-for _,case in ipairs({{FIGHT,'pilot=off why=host'},{'fight=off',PILOT},{'fight=waiting mode=on why=starting',PILOT},
-    {FIGHT,nil},{nil,PILOT}}) do
+-- The pilot off or drawing no copy (her world fights her copies itself), or her fight line not on as the guest: the
+-- solo rules.
+for _,case in ipairs({{FIGHT,'pilot=off why=host'},{FIGHT,'pilot=on piloted=0 owned=0 drawn=0'},{'fight=off',PILOT},
+    {'fight=waiting mode=on why=starting',PILOT},{FIGHT,nil},{nil,PILOT}}) do
     run=shared(case[1],case[2])
     for slot=0,3 do
         local key=W.key(run,1,slot)
@@ -1199,7 +1202,7 @@ for _,case in ipairs({{FIGHT,'pilot=off why=host'},{'fight=off',PILOT},{'fight=w
     end
     assert(moved(Gs,W.key(run,1,3))==1,'The stuck rule on her far copy')
 end
--- A key his line lacks (his copy of slot 0 never found): hers keeps 8a's rules, the others go to the pilot.
+-- A key his line lacks (his copy of slot 0 never found): hers keeps the solo rules, the others go to the pilot.
 run=shared(FIGHT,PILOT,0)
 assert(Hs.sent[#Hs.sent]:find(string.format('^h %%d+ %d %d wave 1 %%d+ 0 0 0 e ',run,W.seed(T,run))),Hs.sent[#Hs.sent])
 assert(skipped(Gs,W.key(run,1,0))==0 and aggroed(Gs,W.key(run,1,0))==1)
@@ -1209,12 +1212,30 @@ run=shared(FIGHT,PILOT)
 Gs.fight=FIGHT..'\npilot=stopped'
 round(14)
 assert(moved(Gs,W.key(run,1,3))==1,'Back to the stuck rule')
+-- A copy stuck in both worlds where no move works (the pilot holds hers where his is): he writes his off, the key
+-- leaves his line, and she writes hers off, so the wave clears on both sides.
+run=shared(FIGHT,PILOT)
+local stuck=W.key(run,1,2)
+body(Hs,stuck).at,body(Gs,stuck).at={X=-6000,Y=0,Z=1000},{X=-6000,Y=0,Z=1000}
+teleport_ok=false
+for _,slot in ipairs({0,1,3}) do
+    kill(Hs,W.key(run,1,slot))
+    kill(Gs,W.key(run,1,slot))
+end
+local n=0
+repeat
+    round()
+    n=n+1
+    h,g=state(Hs),state(Gs)
+until n==160 or h.phase=='breather' and g.phase=='breather'
+teleport_ok=true
+local off='^written off '..string.format('0x%08X',stuck)..' '
+assert(find(Hs.lines,off) and find(Gs.lines,off) and h.phase=='breather' and g.phase=='breather',g.phase)
 
 -- One score for both. A death in both worlds in one tick (the engine's kill of a paired copy she took part in)
 -- scores once; a key killed in her world alone scores once, through every line that carries it, and not again when
 -- his copy dies later; his kills with her copies alive (she took no part: the engine leaves them) keep the wave open
 -- until she kills them.
-local function kill(w,key) local m=body(w,key); m.st,m.ctl=1,nil end
 run=shared(FIGHT,PILOT)
 local p=W.points(W.SCHEDULE[1].ids[1])
 kill(Hs,W.key(run,1,0))
@@ -1238,6 +1259,7 @@ kill(Hs,W.key(run,1,3))
 round(40)
 h,g=state(Hs),state(Gs)
 assert(h.score==4*p and h.kills==4 and h.phase=='wave' and g.phase=='wave','Her two copies keep the wave open')
+assert(moved(Gs,W.key(run,1,3))==1,'His kill gives her far copy back to her stuck rule')
 -- No field of her line but its keys counts: a line with a new number and her up count changed scores nothing.
 local mate=W.decode_mate(Gs.sent[#Gs.sent])
 assert(mate and mate.state=='run' and mate.up==2,Gs.sent[#Gs.sent])

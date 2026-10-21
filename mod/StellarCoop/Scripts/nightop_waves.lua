@@ -270,7 +270,8 @@ local REFUSALS={far=true,map=true,slot=true,busy=true,near=true,taken=true}
 local INT=0x7FFFFFFF
 -- h <n> <run> <seed> <phase> <wave> <rt> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>. h: {n, run,
 -- seed, phase (ask, count, wave, rest, end), wave, rt (run time, ms), score, kills, clears, found (the keys his run
--- tracks), x, y, z (his start point, whole cm), yaw (whole degrees), map (U.map_of), outcome and reason once ended}.
+-- tracks and has not done), x, y, z (his start point, whole cm), yaw (whole degrees), map (U.map_of), outcome and
+-- reason once ended}.
 function W.encode_host(h)
     local ending=h.outcome and h.outcome..(h.reason and ':'..h.reason or '') or '-'
     return string.format('h %d %d %d %s %d %d %d %d %d %s %d %d %d %d %s %s',h.n,h.run,h.seed,h.phase,h.wave,h.rt,

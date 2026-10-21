@@ -7,8 +7,8 @@
 -- night line (one full state from each side through the native part, link.lua's night) carries his ask, her answer,
 -- his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves around
 -- his start point and both cards show one timer and one score. Each world fights its own monsters, unless the shared
--- fight pairs their copies by key: then the guest leaves the aggro and stuck moves of a key the host tracks to the
--- pilot while same-place enemies run. Never called here:
+-- fight pairs their copies by key: then the guest leaves the aggro and stuck moves of a key the host tracks and has
+-- not done to the pilot while same-place enemies draw at least one copy. Never called here:
 -- a table row added, a rule or remain-time request, EndRule, ResetZone, a zone event other than nightop.lua's heal,
 -- EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call, RegisterHook,
 -- NotifyOnNewObject. No console word reaches a game call: start's words only set flags. Beyond the kit (ui.lua), the
@@ -270,8 +270,9 @@ function Run.new(o)
                 ok and U.valid(c.Controller) and 'gave one' or 'failed'))
         end)
     end
-    -- The guest's copy of a key the host tracks (his line's found), while her shared fight runs as the guest and the
-    -- pilot is on: frozen and drawn from his stream, so an aggro or a teleport would fight the pilot. Said once a key.
+    -- The guest's copy of a key the host tracks and has not done (his line's found), while her shared fight runs as the
+    -- guest and the pilot draws at least one copy: frozen and drawn from his stream, so an aggro or a teleport would
+    -- fight the pilot. Said once a key. Once he kills or writes off the key, her rules come back for her copy.
     local function piloted(b)
         if r.bodies[b.key]~=b or not (r.piloted and r.found[b.key]) then return false end
         if not b.piloted then
@@ -503,7 +504,7 @@ function Run.new(o)
         if r.role=='guest' then -- For piloted(), as of this tick.
             if line then r.found=line.found end
             r.piloted=(raw:match('\n(fight=on[^\r\n]*)') or ''):find(' role=guest ',1,true)~=nil
-                and raw:find('\npilot=on ',1,true)~=nil
+                and raw:find('\npilot=on piloted=[1-9]')~=nil
         end
         local input={killed={},done={},mate=r.role=='host' and r.mate or nil}
         r.input,r.eve=input,eve
@@ -652,8 +653,10 @@ function Run.new(o)
             local s=r.s
             local reason=s.outcome=='aborted' and (WHY[s.reason] or 'stop') or s.reason
             local rt=s.phase=='ask' and -W.COUNTDOWN or s.phase=='result' and s.time or r.now-s.t0
+            local found={} -- Found and not done here: a key he killed or wrote off goes back to her own rules.
+            for key in pairs(r.seen) do if not s.done[key] then found[key]=true end end
             return {run=s.run,seed=r.seed,phase=PHASE[s.phase],wave=s.wave,rt=math.max(-10000,
-                math.min(600000,math.floor(rt*1000+0.5))),score=s.score,kills=s.kills,clears=s.clears,found=r.seen,
+                math.min(600000,math.floor(rt*1000+0.5))),score=s.score,kills=s.kills,clears=s.clears,found=found,
                 x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason}
         end
         if r and r.role=='guest' then
