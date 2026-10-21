@@ -25,6 +25,8 @@
 -- The same table again with a part hung elsewhere (a blade drawn) or shown or hidden is applied in place; a new
 -- generation (her outfit) is a new ghost. The ghost's path is kept in a file, so the next Lua load (a hot reload)
 -- finds and destroys one left standing; after a level change it comes back once EVE has been in the world 2 s.
+-- In Doro mode (self.doro, coop race look) every part is hidden and a Doro (doro.lua) hangs on the main mesh, her feet,
+-- animated from the speed of her feet between poses; the ghost's own hiding covers it too.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local T=require('ui_text')
@@ -43,6 +45,7 @@ local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
 local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHair' and BASE_HAIR or nil end
+local Doro=require('doro')
 local EFFECTS=require('capture').EFFECTS -- What the wire's effect indexes name, for both players.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
@@ -148,6 +151,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
+    local doro_on,doro_log=false,nil -- Doro mode, and where its [DR] lines go.
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
     local function whose() return source=='peer' and files.friend() or tostring(source) end
     local function clear(why)
@@ -195,7 +199,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         return asset
     end
     -- Hangs a built part as the table says: its parent part (part 0 when that one was left out), socket and place;
-    -- then shown or hidden.
+    -- then shown or hidden (hidden in Doro mode).
     local function hang(g,part)
         local built=g.parts[part.i]
         if part.i>0 then
@@ -204,7 +208,22 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 KEEP_RELATIVE,false)
             built.target:K2_SetRelativeTransform(transform(part.place),false,{},true)
         end
-        built.target:SetVisibility(part.shown,false)
+        built.target:SetVisibility(part.shown and not doro_on,false)
+    end
+    -- Doro mode on a built ghost: its Doro on part 0 (added or removed), each part shown as the table says unless in
+    -- Doro mode. SetVisibility leaves the children alone: the Doro and the name tag stay drawn.
+    local function doro_dress(g)
+        if doro_on and not g.doro then
+            g.doro,g.doro_state,g.doro_from=Doro.attach(g.actor,g.parts[0].target),{},nil
+        elseif not doro_on and g.doro then
+            local d=g.doro
+            g.doro=nil
+            d.mesh:K2_DestroyComponent(g.actor)
+        end
+        for _,part in ipairs(remote.parts) do
+            local built=g.parts[part.i]
+            if built then built.target:SetVisibility(part.shown and not doro_on,false) end
+        end
     end
     -- The build's first frame: spawns the hidden actor and lists the steps, one per part (and per listed effect), each
     -- resolving at most one mesh or material. tick() runs one step a frame, and g.finish() in the frame of the last
@@ -375,6 +394,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if base then on_base(part,base,why) else left_out(part) end
         end
         for _,part in ipairs(t.parts) do g.steps[#g.steps+1]=function() dress(part) end end
+        -- Doro mode: its mesh found or loaded in a step of its own, never with another one.
+        if doro_on then
+            g.steps[#g.steps+1]=function() Doro.resolve(Doro.ASSETS.mesh,'/Script/Engine.SkeletalMesh') end
+        end
         -- Her effects: the listed systems, a step each. One failing ends the build there, without effects.
         local fx_loaded,fx_why=0,nil
         if look.effects then
@@ -426,6 +449,14 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     g.slots,effects=slots,string.format('effects loaded %d of %d',fx_loaded,#EFFECTS)
                 end)
                 if not made then effects='effects off ('..tostring(why)..')' end
+            end
+            -- Doro mode: a Doro that cannot be made leaves the ghost drawn as her, said in the build line.
+            if doro_on then
+                local made,why=pcall(function() g.doro,g.doro_state=Doro.attach(actor,g.parts[0].target),{} end)
+                if not made then
+                    doro_on=false
+                    notes[#notes+1]='Doro mode off ('..tostring(why)..')'
+                end
             end
             -- The table now, at the last step: a part hung elsewhere meanwhile comes in the same one.
             for _,part in ipairs(remote.parts) do
@@ -535,6 +566,21 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     end
     -- Her map's package path, from her table; nil without one.
     function self.her_map() return remote and remote.map end
+    -- Doro mode on or off (coop race look), kept across rebuilds and new tables; log takes its [DR] lines. Returns
+    -- false, why when the Doro could not be made: the ghost is then drawn as her.
+    function self.doro(on,log)
+        on=on==true
+        doro_log=log or doro_log
+        if on==doro_on then return end
+        doro_on=on
+        local g=ghost
+        if not (g and g.built) then return end
+        local ok,why=pcall(doro_dress,g)
+        if ok then return end
+        doro_on=false
+        pcall(doro_dress,g)
+        return false,'Doro mode off on the ghost: '..tostring(why)
+    end
     function self.active() return wanted end
     function self.toggle()
         sweep()
@@ -615,6 +661,25 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         end
         return refused
     end
+    -- Doro mode, at each pose: her speed and vertical speed from her feet over at least 50 ms (os.clock may step by
+    -- whole ms), the same mapping as your own Doro's but with no sprint or falling flag; a teleport starts it again
+    -- from standing. Her speed is logged once a second.
+    local function feed(g,jump)
+        local now,f,from=os.clock(),g.feet,g.doro_from
+        if jump or not from then
+            g.doro_state,g.doro_from={},{X=f.X,Y=f.Y,Z=f.Z,at=now}
+            return Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=0,vz=0,now=now}))
+        end
+        local dt=now-from.at
+        if dt<0.05 then return end
+        local speed=math.sqrt((f.X-from.X)^2+(f.Y-from.Y)^2)/dt
+        g.doro_from={X=f.X,Y=f.Y,Z=f.Z,at=now}
+        Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,now=now}))
+        if doro_log and now>=(g.doro_said or 0) then
+            g.doro_said=now+1
+            doro_log(string.format('ghost doro speed=%.0f',speed))
+        end
+    end
     -- After the native tick of the same frame: a new stamp in the mailbox is a pose just written, so the root takes its
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
     -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
@@ -655,6 +720,14 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
                     {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},jump)
                 g.feet={X=x,Y=y,Z=at.Z}
+                if g.doro then -- Its own pcall: a failure ends Doro mode (the ghost drawn as her), never the ghost.
+                    local fed,doro_why=pcall(feed,g,jump)
+                    if not fed then
+                        doro_on=false
+                        pcall(doro_dress,g)
+                        said[#said+1]='Doro mode off on the ghost: '..tostring(doro_why)
+                    end
+                end
                 if g.hidden and not veil_ghost then
                     g.actor:SetActorHiddenInGame(false)
                     g.hidden=false
