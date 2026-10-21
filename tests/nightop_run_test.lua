@@ -1,0 +1,827 @@
+-- coop nightop (nightop_run.lua) over strict fakes of the game: an object raises on a member it does not declare and
+-- every method call is recorded; a freed body raises and records a violation on any touch, and so does a body read
+-- while the game is paused (the IsValid crash and the pause rule). Covered: each start refusal with no spawn; the
+-- census line and its wave bodies; the run byte; the spawn choke point; a whole run from countdown to success (spawn
+-- arguments, one spawn a tick, the finds, aggro, the heals, the kill lines, the score and its time bonus, the result
+-- and idle); the live-list guard (a freed body, a pause, a reused body, a new key, a killed body never read again); the
+-- death signals (executable, hidden, killed after down); a missing body; the default controller; the stuck rule and its
+-- two moves; noaggro and nomove; time up; every abort (stop, coop off, map change, EVE gone, 80 m, slot, link, death
+-- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
+-- refuse; a signed key read; aggro after a new controller; a body near EVE far from the start is not moved; a refused
+-- teleport; a load (slot=none) and a new world on the same map; a death screen first found playing; an error in the
+-- result's 10 s. The HUD on a fake kit: the card and the result panel at the top centre; the countdown, the wave, the
+-- next wave's countdown, the time left and the score in the game's language; hidden while paused; the result panel
+-- with the game's own heading when it can be read (none with ui_language=english), shown for 10 s of ticks it can be
+-- seen, after a respawn or a load too; notices at the start, each wave, each clear and the end with the kit off; a HUD
+-- error turns it to notices. The card while the cap holds a wave past its time; the game's text only once its table is
+-- loaded and its id a name; a success's panel and its single notice; a result the panel still holds goes to the notices
+-- when the kit turns off or the HUD fails, and a new run drops it.
+package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
+local W=require('nightop_waves')
+local T=1760000000
+os.time=function() return T end
+os.clock=function() return 0 end
+local gt=500.0 -- Game time.
+local paused=false
+local calls,violations={},{}
+local function record(what,...) calls[#calls+1]={what=what,args=table.pack(...)} end
+local function count(what)
+    local n=0
+    for _,c in ipairs(calls) do if c.what==what then n=n+1 end end
+    return n
+end
+local function violate(text)
+    violations[#violations+1]=text
+    error(text,2)
+end
+local function strict(name,methods,fields)
+    return setmetatable({},{__index=function(_,key)
+        local m=methods[key]
+        if m then return function(self,...) record(name..':'..key,...); return m(self,...) end end
+        if fields and fields[key]~=nil then return fields[key] end
+        error(name..' has no '..tostring(key),2)
+    end,__newindex=function(_,key) violate('wrote '..tostring(key)..' on '..name) end})
+end
+local next_address,next_index=0x10000,100
+local function uobject(tag,full,methods,fields)
+    next_address=next_address+0x100
+    local address=next_address
+    methods.type=function() return 'UObject' end
+    methods.IsValid=methods.IsValid or function() return true end
+    methods.GetAddress=function() return address end
+    methods.GetFullName=function() return full end
+    return strict(tag,methods,fields)
+end
+local invalid=uobject('Invalid','',{IsValid=function() return false end})
+EFindName={FNAME_Find=0,FNAME_Add=1}
+local known,last_index={None=0},0
+FName=function(text,find)
+    if known[text]==nil then
+        if find==EFindName.FNAME_Find then text='None' else last_index=last_index+7; known[text]=last_index end
+    end
+    local index=known[text]
+    return strict('FName',{type=function() return 'FName' end,GetComparisonIndex=function() return index end,
+        ToString=function() return text end})
+end
+FName('SE_10_E_ActorEff_011')
+
+local function class(path) return uobject('Class',path,{}) end
+local SBCharacter,SBPC=class('/Script/SB.SBCharacter'),class('/Script/SB.SBNetworkPlayerController')
+local map='/Game/Art/BG/WorldMap/Level_P/F02.F02'
+local world=strict('World',{GetFullName=function() return 'World '..map end})
+local eve_at,eve_yaw={X=0,Y=0,Z=1000},30
+local eve=uobject('EVE','BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0',{
+    IsA=function(_,c) return c==SBCharacter end,K2_GetActorLocation=function() return eve_at end,
+    K2_GetActorRotation=function() return {Pitch=0,Yaw=eve_yaw,Roll=0} end,GetWorld=function() return world end},
+    {BroadcastSpawnInfo={EventSpawnId=0},InteractionState=0})
+local bodies={} -- What the game holds, in FindAllOf's order after EVE.
+local spawn_ai,fill_key,signed,teleport_ok=true,true,false,true
+local function ai()
+    return uobject('AI','AIController /Game/Map.Map:PersistentLevel.AI_C_1',{K2_SetFocus=function() end})
+end
+local function monster(id,at,key,with_ai)
+    next_address,next_index=next_address+0x100,next_index+1
+    local m={id=id,at={X=at.X,Y=at.Y,Z=at.Z},key=key,st=0,ctl=with_ai and ai() or nil,hidden=false,battle=false,
+        index=next_index,address=next_address,reads=0}
+    local methods={
+        type=function() return 'UObject' end,IsValid=function() return true end,
+        GetAddress=function() return m.address end,
+        GetFullName=function() return 'M_C /Game/Map.Map:PersistentLevel.M_C_'..m.index end,
+        GetFName=function() return {GetComparisonIndex=function() return m.index end} end,
+        K2_GetActorLocation=function() return m.at end,
+        K2_TeleportTo=function(_,to) if teleport_ok then m.at={X=to.X,Y=to.Y,Z=to.Z} end; return teleport_ok end,
+        SpawnDefaultController=function() m.ctl=ai() end,
+        IsBattle=function() return m.battle end,
+        Event_ChangeBattleState=function(_,on) m.battle=on end,
+    }
+    m.obj=setmetatable({},{__index=function(_,k)
+        if m.freed then violate('touched a freed body ('..k..')') end
+        if paused then violate('read a body while paused ('..k..')') end
+        if k~='type' and k~='GetAddress' then m.reads=m.reads+1 end -- Beyond the live list's walk.
+        local f=methods[k]
+        if f then return function(self,...) record('M:'..k,m,...); return f(self,...) end end
+        if k=='InteractionState' then return m.st end
+        if k=='Controller' then return m.ctl or invalid end
+        if k=='bCharacterHiddenInGame' then return m.hidden end
+        if k=='BroadcastSpawnInfo' then -- signed: the int32 read of a key with its top bit set.
+            return {EventSpawnId=signed and m.key>=0x80000000 and m.key-0x100000000 or m.key}
+        end
+        error('a monster has no '..tostring(k),2)
+    end,__newindex=function(_,k) violate('wrote '..tostring(k)..' on a monster') end})
+    bodies[#bodies+1]=m
+    return m
+end
+local function free(m) -- The game releases it: out of FindAllOf, and any touch is a crash.
+    for i,b in ipairs(bodies) do if b==m then table.remove(bodies,i); break end end
+    m.freed=true
+end
+local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetworkPlayerController_0',{
+    IsA=function(_,c) return c==SBPC end,
+    ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
+        monster(id,at,fill_key and key or 0,spawn_ai)
+    end})
+local player,controller=eve,pc
+package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return controller end}
+local clock_fails=nil
+local dying=false
+local dead_w=uobject('Dead','WB_MainHUD_Dead_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_1.WB_MainHUD_Dead',
+    {IsAnyAnimationPlaying=function() return dying end})
+local huds={uobject('HUD','WB_MainHUD_Master_C /Game/UI/WB_MainHUD_Master.Default__WB_MainHUD_Master_C',{},
+    {WB_MainHUD_Dead=invalid}),uobject('HUD','WB_MainHUD_Master_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_1',
+    {},{WB_MainHUD_Dead=dead_w})}
+local rule_row=false -- The probe rule's row in MultiPlayRuleTable.
+local by_path={['/Script/SB.SBCharacter']=SBCharacter,['/Script/SB.SBNetworkPlayerController']=SBPC,
+    ['/Game/Local/Data/MultiPlayRuleTable.MultiPlayRuleTable']=uobject('Table','DataTable',{FindRow=function(_,name)
+        assert(name=='CoopProbeRule')
+        return rule_row and {} or nil
+    end}),
+    ['/Script/SB.Default__SBBlueprintLibrary']=uobject('BPL','SBBlueprintLibrary',{CreateSBZoneEvent=function() end}),
+    ['/Script/Engine.Default__GameplayStatics']=uobject('GS','GameplayStatics',{GetTimeSeconds=function(_,context)
+        assert(context==eve,'the clock reads EVE\'s world')
+        if clock_fails then error(clock_fails) end
+        return gt
+    end}),
+    ['/Script/AIModule.Default__AISense_Damage']=uobject('Damage','AISense_Damage',{ReportDamageEvent=function() end}),
+    ['/Script/AIModule.Default__AISense_Hearing']=uobject('Hearing','AISense_Hearing',
+        {ReportNoiseEvent=function() end}),
+    ['/Script/AIModule.Default__AIBlueprintHelperLibrary']=uobject('AIHelper','AIBlueprintHelperLibrary',
+        {SimpleMoveToActor=function() end})}
+StaticFindObject=function(path) return assert(by_path[path],'unexpected StaticFindObject '..path) end
+FindAllOf=function(name)
+    record('FindAllOf',name)
+    if name=='WB_MainHUD_Master_C' then return huds end
+    assert(name=='SBCharacter','FindAllOf '..name)
+    local list={eve}
+    for _,m in ipairs(bodies) do list[#list+1]=m.obj end
+    return list
+end
+local link_line,engine,slot_line='link=none lobby=0','engine=on remote=0 0 none','slot=coop index=4 marker=4'
+local function status()
+    return 'mod=v proto=9 steam=ready\n'..link_line..'\n'..engine..'\n'..slot_line..'\nlast=#1 ready\n'
+end
+
+local lines={}
+local Run=require('nightop_run')
+local run=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end})
+local function tick(n) for _=1,n or 1 do gt=gt+0.25; run.tick() end end
+local function logged(text) for _,l in ipairs(lines) do if l==text then return true end end end
+local function last() return lines[#lines] end
+local function since(i) return table.concat(lines,'\n',i+1) end
+local ok,message
+
+-- 1. Refusals: one reason each, nothing spawned, no run; junk words reach nothing.
+local USE='Use: coop nightop [start [noaggro|nomove] | stop]'
+for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},{'START'},{nil,'x'}}) do
+    ok,message=run.command(table.unpack(args,1,3))
+    assert(not ok and message==USE,tostring(message))
+end
+assert(#calls==0,'Junk words call nothing')
+local function refused(text)
+    local before=#calls
+    ok,message=run.command('start')
+    assert(not ok and message==text,tostring(message))
+    for i=before+1,#calls do assert(calls[i].what~='PC:ServerRequest_CreateActor','No spawn') end
+    assert(#lines==0,'Nothing logged')
+end
+link_line='link=host lobby=7'
+refused('Night Operation is solo for now: leave the Steam session first (coop leave)')
+link_line='link=guest lobby=7'
+refused('Night Operation is solo for now: leave the Steam session first (coop leave)')
+link_line='steam=waiting'
+refused('the Steam link is not ready yet: try again in a moment')
+link_line='link=none lobby=0'
+engine='engine=on remote=0 0 none nightop=rule'
+refused('a coop no probe rule is set in this game run: restart the game first')
+engine='engine=on remote=0 0 none'
+rule_row=true -- The token gone (the poller capped), the row still there.
+refused('a coop no probe rule is set in this game run: restart the game first')
+rule_row=false
+player=nil; refused('no EVE in the world'); player=eve
+controller=nil; refused('no SB player controller'); controller=pc
+map='/Game/Art/BG/WorldMap/Level_P/E04.E04'
+refused('not in Xion: its people and quests stay out of a fight')
+map='/Game/Art/BG/WorldMap/Level_P/F02.F02'
+-- The census: living means a valid controller and InteractionState 0; within 40 m refuses, naming the count and the
+-- nearest; the dead, the executable and the far do not.
+local near=monster(50110,{X=3000,Y=0,Z=1000},0,true)
+refused('census: 1 living within 40 m (nearest 30.0 m); 0 wave bodies: go where no one is within 40 m')
+near.st=1
+local far=monster(50110,{X=0,Y=5000,Z=1000},0,true)
+ok,message=run.command()
+assert(ok and message=='census: 0 living within 40 m (nearest 50.0 m); 0 wave bodies',message)
+near.ctl=nil; near.st=0
+ok,message=run.command()
+assert(ok and message=='census: 0 living within 40 m (nearest 50.0 m); 0 wave bodies','No controller: not living')
+bodies={}
+-- Wave bodies of earlier runs, living or not, with their run bytes; every byte taken refuses.
+for byte=1,255 do monster(50110,{X=9000,Y=0,Z=0},W.key(byte,1,0),false).st=1 end
+ok,message=run.command('start')
+assert(not ok and message:find('^census: 0 living within 40 m %(nearest none%); 255 wave bodies: 0xD8010100 run 1, '
+    ..'0xD8020100 run 2,.*, 0xD8080100 run 8, %.%.%.: every run byte is taken, load another map first$'),message)
+local byte0=W.run_byte({},T)
+bodies={}
+monster(50110,{X=9000,Y=0,Z=0},W.key(byte0,2,3),false).st=1
+ok,message=run.command()
+assert(ok and message==string.format('census: 0 living within 40 m (nearest none); 1 wave bodies: 0xD8%02X0203 run %d',
+    byte0,byte0),message)
+assert(count('PC:ServerRequest_CreateActor')==0 and #lines==0)
+ok,message=run.command('stop'); assert(not ok and message=='no Night Operation run to stop')
+assert(not run.stop('coop off'))
+
+-- 2. The spawn choke point: pool rows and wave keys only, never a signed form; the ten arguments.
+for _,bad in ipairs({{50160,W.key(1,1,0)},{15011001,W.key(1,1,0)},{50110,0xE0000104},{50110,0},{50110,0xD42B5F51},
+        {50110,W.key(1,1,0)-0x100000000},{50110,W.key(1,1,0)+0.0},{'50110',W.key(1,1,0)}}) do
+    assert(not pcall(Run.spawn,pc,bad[1],{X=0,Y=0,Z=0},0,bad[2]),tostring(bad[1])..' '..tostring(bad[2]))
+end
+assert(count('PC:ServerRequest_CreateActor')==0)
+local before=#calls
+Run.spawn(pc,50173,{X=1,Y=2,Z=3},45,W.key(9,2,6))
+local spawn=calls[#calls]
+assert(#calls==before+1 and spawn.what=='PC:ServerRequest_CreateActor' and spawn.args.n==10)
+local a=spawn.args
+assert(a[1]==50173 and a[2].X==1 and a[3].Yaw==45 and a[3].Pitch==0 and a[4]==false and a[5]==true and a[6]==0)
+assert(a[7]==0xD8090206 and a[8]==6 and a[9]:ToString()=='None' and a[10]==false)
+bodies={}
+
+-- 3. A whole run. The run byte skips the one a body carries; the start line; nothing until the countdown is over.
+monster(50110,{X=9000,Y=0,Z=0},W.key(byte0,1,0),false).st=1
+calls={}
+local g0=gt
+ok,message=run.command('start')
+local byte=byte0+1
+assert(ok and message==string.format('Night Operation starts in 5 s (run 0x%02X)',byte),message)
+assert(lines[1]==string.format('start: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map '
+    ..'/game/art/bg/worldmap/level_p/f02; census: 0 living within 40 m (nearest none); 1 wave bodies: 0xD8%02X0100 run '
+    ..'%d',byte,W.seed(T,byte),byte0,byte0),lines[1])
+ok,message=run.command('start')
+assert(not ok and message=='a run is on: coop nightop stop ends it')
+local s=W.new{run=byte,seed=W.seed(T,byte),now=g0} -- The same draws, for the spots.
+tick(19)
+assert(count('PC:ServerRequest_CreateActor')==0 and #lines==1,'Countdown: nothing')
+ok,message=run.command()
+assert(ok and message:find(string.format('^run 0x%02X: countdown, wave 0/5, run time %%-0 s, score 0, kills 0; census',
+    byte)),message)
+tick() -- Run time 0: wave 1.
+assert(last()=='wave 1/5 at run time 0.0 s: 4 monsters',last())
+-- One spawn call a tick, each at its gate spot facing the start point, with its key and slot.
+for slot=0,3 do
+    tick()
+    local key=W.key(byte,1,slot)
+    local at,yaw=W.spot({X=0,Y=0,Z=1000},30,s.order[1],slot)
+    local c=calls[#calls]
+    assert(c.what=='PC:ServerRequest_CreateActor' and c.args[1]==50110 and c.args[7]==key and c.args[8]==slot)
+    assert(c.args[2].X==at.X and c.args[2].Y==at.Y and c.args[2].Z==1100 and c.args[3].Yaw==yaw)
+    assert(last()==string.format('spawn 0x%08X M_Antlion at %.0f,%.0f,1100 yaw %.0f',key,at.X,at.Y,yaw),last())
+end
+assert(count('PC:ServerRequest_CreateActor')==4)
+-- Found 1 s after the last call, by key; no FindAllOf on the way there.
+local finds=count('FindAllOf')
+tick(3); assert(count('FindAllOf')==finds,'No FindAllOf before the find')
+tick(); assert(last()=='wave 1 find +1 s: tracked 4/4' and count('FindAllOf')==finds+1,last())
+local wave1={}
+for i=2,5 do wave1[#wave1+1]=bodies[i] end
+-- Aggro 0.6 s after: the two stimuli, then battle state, focus and move for a body not in battle.
+tick(3)
+assert(count('Damage:ReportDamageEvent')==4 and count('Hearing:ReportNoiseEvent')==4,'Aggro on each')
+assert(count('M:Event_ChangeBattleState')==4 and count('AI:K2_SetFocus')==4 and count('AIHelper:SimpleMoveToActor')==4)
+assert(logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, move ok',W.key(byte,1,0))))
+local d=nil
+for _,c in ipairs(calls) do if c.what=='Damage:ReportDamageEvent' then d=c end end
+assert(d.args[1]==eve and d.args[3]==eve and d.args[4]==0.01 and d.args[2]~=eve)
+-- The live list once a second while bodies are tracked; the +2.5 s find.
+finds=count('FindAllOf')
+tick(6)
+assert(last()=='wave 1 find +2.5 s: tracked 4/4' or logged('wave 1 find +2.5 s: tracked 4/4'))
+assert(count('FindAllOf')-finds>=2 and count('FindAllOf')-finds<=3,count('FindAllOf')-finds)
+-- The second aggro only for a body still not in battle: none here.
+tick(16)
+assert(count('Damage:ReportDamageEvent')==4,'In battle: no second aggro')
+-- Executable (1 with a controller) and hidden are down, not killed; down then killed scores once.
+wave1[1].st=1
+tick()
+assert(last()==string.format('down 0x%08X M_Antlion',W.key(byte,1,0)),last())
+wave1[2].hidden=true
+tick()
+assert(last()==string.format('down 0x%08X M_Antlion',W.key(byte,1,1)),last())
+wave1[1].ctl=nil
+tick()
+assert(last()==string.format('kill 0x%08X M_Antlion +10 = 10',W.key(byte,1,0)),last())
+-- A killed body is never read again.
+local reads=wave1[1].reads
+wave1[3].st,wave1[3].ctl,wave1[4].st,wave1[4].ctl=2,nil,1,nil
+tick(8)
+assert(wave1[1].reads==reads,'Killed: never read again')
+assert(logged(string.format('kill 0x%08X M_Antlion +10 = 20',W.key(byte,1,2))))
+assert(logged(string.format('kill 0x%08X M_Antlion +10 = 30',W.key(byte,1,3))))
+-- The hidden one stays tracked; the wave is clear (down counts); killed later, it scores.
+wave1[2].st,wave1[2].ctl=1,nil
+tick()
+assert(last()==string.format('kill 0x%08X M_Antlion +10 = 40',W.key(byte,1,1)),last())
+-- Wave 2 comes 10 s after the clear; play waves 2 to 5 to the end, killing each wave once found.
+local function find_line(k,ids) return string.format('wave %d find +2.5 s: tracked %d/%d',k,#ids,#ids) end
+local function play(k)
+    local ids=W.SCHEDULE[k].ids
+    for _=1,400 do
+        if logged(find_line(k,ids)) then break end
+        tick()
+    end
+    assert(logged(find_line(k,ids)),'wave '..k..' found')
+    for _,m in ipairs(bodies) do
+        local r,w=W.decode(m.key)
+        if r==byte and w==k then m.st,m.ctl=1,nil end
+    end
+    tick()
+end
+for k=2,5 do play(k) end
+assert(count('BPL:CreateSBZoneEvent')==2 and logged('heal after wave 2: asked') and logged('heal after wave 4: asked'))
+local rt=gt-(g0+5)
+local bonus=math.floor(480-rt)
+local result=string.format('result: success waves=5/5 kills=20 score=%d time=%d:%02d find_ms=0.0/0.0',580+bonus,
+    math.floor(rt)//60,math.floor(rt)%60)
+assert(last()==result,last()..' / '..result)
+assert(#violations==0,violations[1])
+-- No body read after the end; 10 s later the run is idle and the bare command gives the census alone.
+local after=#calls
+tick(39)
+for i=after+1,#calls do -- No body, no spawn, no FindAllOf: EVE and the clock only.
+    local what=calls[i].what
+    assert(not what:find('^M:') and not what:find('^PC:') and what~='FindAllOf',what)
+end
+ok,message=run.command()
+assert(ok and message:find('^census:'),message)
+for _,c in ipairs(calls) do
+    assert(not c.what:find('Destroy') and not c.what:find('Hidden') and not c.what:find('Collision'),c.what)
+end
+
+-- A fresh run with wave 1 found: the start point is EVE's, the bodies around her are new.
+local t0
+local function begin(flag)
+    bodies,calls,lines,paused,dying=({}),{},{},false,false
+    ok,message=run.command('start',flag)
+    assert(ok,message)
+    byte,t0=tonumber(message:match('run 0x(%x+)'),16),gt+5
+    tick(34)
+    assert(last()=='wave 1 find +2.5 s: tracked 4/4' or logged('wave 1 find +2.5 s: tracked 4/4'),since(0))
+    local list={}
+    for _,m in ipairs(bodies) do list[#list+1]=m end
+    return list
+end
+local function result_line()
+    for i=#lines,1,-1 do if lines[i]:find('^result: ') then return lines[i] end end
+end
+
+-- 4. The guard. A body the game freed leaves at the next refresh with no touch (one freed between two refreshes can
+-- still be read once: the window the refresh interval sets); under a pause nothing is read, the first read after it
+-- follows a refresh; another object at an address, or another key, leaves tracking.
+local list=begin()
+tick(3) -- The find refreshed the list; the next refresh is due in one tick.
+free(list[1])
+tick()
+assert(logged(string.format('lost 0x%08X M_Antlion (not in the live list)',W.key(byte,1,0))),since(0))
+paused=true
+local n=#calls
+for _=1,12 do run.tick() end -- The game's pause stops its clock too.
+for i=n+1,#calls do assert(calls[i].what~='FindAllOf' or calls[i].args[1]=='WB_MainHUD_Master_C','No read paused') end
+free(list[2])
+paused=false
+tick()
+assert(logged(string.format('lost 0x%08X M_Antlion (not in the live list)',W.key(byte,1,1))),since(0))
+list[3].index=999
+list[4].key=W.key(byte,1,7)
+tick()
+local clear=gt-t0
+assert(logged(string.format('lost 0x%08X M_Antlion (another object at its address)',W.key(byte,1,2))))
+assert(logged(string.format('lost 0x%08X M_Antlion (another key)',W.key(byte,1,3))))
+reads=list[3].reads+list[4].reads
+tick(8)
+assert(list[3].reads+list[4].reads==reads,'Tombstoned: never read again')
+assert(#violations==0,violations[1])
+-- Four lost bodies clear the wave without a kill: wave 2 comes 10 s later.
+tick(32)
+assert(logged(string.format('wave 2/5 at run time %.1f s: 3 monsters',clear+10)),since(0))
+run.stop('stop')
+assert(result_line():find('^result: aborted %(stop%) waves=1/5 kills=0 score=0 '),result_line())
+
+-- 5. A body found with no controller gets its default one 0.5 s after, before the aggro: the new one gets the focus and
+-- the move. Missing bodies count for the wave.
+spawn_ai=false
+list=begin()
+assert(logged(string.format('controller 0x%08X: SpawnDefaultController gave one',W.key(byte,1,0))),since(0))
+assert(count('M:SpawnDefaultController')==4)
+assert(count('AI:K2_SetFocus')==4 and count('AIHelper:SimpleMoveToActor')==4,'The new controller is aggroed')
+assert(logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, move ok',W.key(byte,1,0))))
+spawn_ai=true
+run.stop('stop')
+-- An int32 read of the key (top bit set) is the same key: all four tracked, none missing or lost.
+signed=true
+list=begin()
+tick(8)
+assert(not since(0):find('missing',1,true) and not since(0):find('lost',1,true),since(0))
+signed=false
+run.stop('stop')
+fill_key=false
+bodies,lines={},{}
+ok,message=run.command('start')
+tick(34)
+assert(logged(string.format('missing 0x%08X M_Antlion',W.key(byte,1,3))) and logged('wave 1 find +2.5 s: tracked 0/4'))
+fill_key=true
+tick(40)
+assert(since(0):find('wave 2/5 at run time 13.5 s: 3 monsters',1,true),since(0))
+run.stop('stop')
+
+-- 6. The stuck rule: 40 m from the start or 10 m below it, moved 7 m from EVE at most twice, 3 s apart, then written
+-- off; a living body near the start is left alone. nomove makes no move, noaggro no aggro.
+list=begin()
+list[1].at={X=6000,Y=0,Z=1000}
+list[2].at={X=100,Y=0,Z=-100}
+local moved={}
+for _=1,40 do
+    tick()
+    for _,c in ipairs(calls) do
+        if c.what=='M:K2_TeleportTo' and not c.seen then c.seen=true; moved[#moved+1]={m=c.args[1],at=gt} end
+    end
+    list[1].at={X=6000,Y=0,Z=1000}
+end
+local ones={}
+for _,mv in ipairs(moved) do if mv.m==list[1] then ones[#ones+1]=mv.at end end
+assert(#ones==2 and ones[2]-ones[1]>=3,#ones)
+assert(logged(string.format('written off 0x%08X M_Antlion at 6000,0,1000 after 2 moves',W.key(byte,1,0))),since(0))
+local twos=0
+for _,mv in ipairs(moved) do if mv.m==list[2] then twos=twos+1 end end
+assert(twos==1 and math.abs(math.sqrt(list[2].at.X^2+list[2].at.Y^2)-700)<1 and list[2].at.Z==1050,'7 m from EVE')
+assert(#moved==3)
+run.stop('stop')
+-- EVE fights 30 m out and 15 m down: bodies near her are left alone, below the start or 50 m from it; one far from
+-- both is moved, and a teleport the game refuses still counts as a move.
+list=begin()
+eve_at={X=3000,Y=0,Z=-500}
+list[1].at,list[2].at,list[3].at={X=5000,Y=0,Z=-500},{X=0,Y=6000,Z=1000},{X=3300,Y=0,Z=-500}
+teleport_ok,n=false,#calls
+tick(40)
+teleport_ok,eve_at=true,{X=0,Y=0,Z=1000}
+local tries={}
+for i=n+1,#calls do
+    if calls[i].what=='M:K2_TeleportTo' then tries[calls[i].args[1]]=(tries[calls[i].args[1]] or 0)+1 end
+end
+assert(tries[list[2]]==2 and not tries[list[1]] and not tries[list[3]],since(0))
+assert(since(0):find(string.format('\nmove refused 0x%08X M_Antlion from 0,6000,1000 %%(60%%.0 m from the start%%) to '
+    ..'[-%%d,]+ %%(2/2%%)\n',W.key(byte,1,1))),since(0))
+assert(logged(string.format('written off 0x%08X M_Antlion at 0,6000,1000 after 2 moves',W.key(byte,1,1))),since(0))
+run.stop('stop')
+list=begin('nomove')
+list[1].at={X=6000,Y=0,Z=1000}
+tick(40)
+assert(count('M:K2_TeleportTo')==0,'nomove')
+run.stop('stop')
+list=begin('noaggro')
+tick(40)
+assert(count('Damage:ReportDamageEvent')==0 and count('M:Event_ChangeBattleState')==0,'noaggro')
+run.stop('stop')
+
+-- 7. Aborts. Each drops every handle without a read in its tick.
+local function no_read_in(f)
+    local r0=0
+    for _,m in ipairs(bodies) do r0=r0+m.reads end
+    f()
+    local r1=0
+    for _,m in ipairs(bodies) do r1=r1+m.reads end
+    assert(r1==r0,'No body read')
+end
+begin()
+no_read_in(function() map='/Game/Art/BG/WorldMap/Level_P/F03.F03'; tick() end)
+assert(result_line():find('^result: aborted %(map change%) waves=0/5 kills=0 score=0 time=0:0'),result_line())
+map='/Game/Art/BG/WorldMap/Level_P/F02.F02'
+begin()
+player=nil
+no_read_in(function() tick(7) end)
+assert(not result_line(),'EVE gone 1.75 s: not yet')
+no_read_in(function() tick() end)
+assert(result_line():find('^result: aborted %(map change%)'),result_line())
+player=eve
+-- A load: EVE gone and the slot line at none (no loaded save) a tick later; the gone rule still decides. slot=none
+-- with EVE there (the line a tick late) ends nothing.
+begin()
+slot_line='slot=none index=4 marker=4'
+tick(4)
+assert(not result_line(),'slot=none with EVE: nothing')
+player=nil
+no_read_in(function() tick(7) end)
+assert(not result_line(),'A load 1.75 s: not yet')
+no_read_in(function() tick() end)
+assert(result_line():find('^result: aborted %(map change%)'),result_line())
+player,slot_line=eve,'slot=coop index=4 marker=4'
+-- The save loaded again on the same map: a new world, its clock back near 0, with EVE there.
+begin()
+no_read_in(function() gt=20; tick() end)
+assert(result_line():find('^result: aborted %(map change%)'),result_line())
+begin()
+eve_at={X=8001,Y=0,Z=1000}
+tick(39)
+assert(not result_line(),'80 m for 9.75 s: not yet')
+eve_at={X=0,Y=0,Z=1000}
+tick()
+eve_at={X=8001,Y=0,Z=1000}
+tick(39)
+assert(not result_line(),'Back within 80 m: counted again')
+tick()
+assert(result_line():find('^result: aborted %(left%)'),result_line())
+eve_at={X=0,Y=0,Z=1000}
+begin()
+slot_line='slot=main index=0 marker=4'
+no_read_in(function() tick() end)
+assert(result_line():find('^result: aborted %(slot%)'),result_line())
+slot_line='slot=coop index=4 marker=4'
+begin()
+link_line='link=host lobby=7'
+no_read_in(function() tick() end)
+assert(result_line():find('^result: aborted %(link%)'),result_line())
+link_line='link=none lobby=0'
+begin()
+assert(run.stop('coop off') and result_line():find('^result: aborted %(coop off%)'))
+begin()
+ok,message=run.command('stop')
+assert(ok and message=='Night Operation stopped' and result_line():find('^result: aborted %(stop%)'))
+-- EVE's death: the death screen's animation starts; read once a second, the run fails with no body read.
+begin()
+dying=true
+local function reads_now() local t=0; for _,m in ipairs(bodies) do t=t+m.reads end; return t end
+for _=1,4 do -- The tick that sees it reads no body.
+    local r0=reads_now()
+    tick()
+    if result_line() then assert(reads_now()==r0,'No body read'); break end
+end
+assert(result_line():find('^result: failed waves=0/5 '),result_line())
+dying=false
+-- The death screen not found at the start, then found with its animation already playing: a death too.
+local all_huds=huds
+huds={}
+begin()
+huds,dying=all_huds,true
+tick(8)
+assert(result_line() and result_line():find('^result: failed waves=0/5 '),since(0))
+dying=false
+-- A Lua error in a tick: one STOP line, the run aborted (error), nothing after.
+begin()
+clock_fails='boom'
+tick()
+assert(lines[#lines-1]=='STOP: boom' and result_line():find('^result: aborted %(error%)'),since(0))
+clock_fails=nil
+n,before=#calls,#lines
+tick(4)
+for i=n+1,#calls do
+    assert(not calls[i].what:find('^M:') and not calls[i].what:find('^PC:') and calls[i].what~='FindAllOf','No retry')
+end
+assert(#lines==before)
+-- An error in the result's 10 s: one STOP line, then the run is gone.
+begin()
+run.stop('stop')
+clock_fails='boom'
+n=#lines
+tick(4)
+clock_fails=nil
+assert(#lines==n+1 and lines[#lines]=='STOP: boom',since(n))
+ok,message=run.command()
+assert(not run.stop('stop') and ok and message:find('^census:'),'Idle: '..message)
+
+-- 8. Time up: nothing killed, so wave 3 never fits under the cap; the monsters stay, nothing spawns after the end.
+bodies,calls,lines={},{},{}
+ok,message=run.command('start')
+for _=1,2000 do
+    tick()
+    if result_line() then break end
+    for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=m.at.Z} end
+end
+assert(result_line()=='result: time waves=0/5 kills=0 score=0 time=8:00 find_ms=0.0/0.0',result_line())
+local spawned=count('PC:ServerRequest_CreateActor')
+assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
+tick(8)
+assert(count('PC:ServerRequest_CreateActor')==spawned and #bodies==7)
+assert(#violations==0,violations[1])
+
+-- 9. The HUD (nightop_run.lua's hud) on a fake kit: groups, words in the game's language (fr-FR), hidden under a pause.
+local Tx=require('ui_text')
+local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
+local game_words={UI_Night_OperationSuccess='Réussite (jeu)',UI_Night_OperationFail='Échec (jeu)',
+    UI_Night_OperationFail_Des='Tous morts (jeu)'}
+by_path[STRINGS]=invalid -- Not loaded yet.
+by_path['/Script/Engine.Default__KismetStringTableLibrary']=uobject('STL','KismetStringTableLibrary',
+    {IsRegisteredTableEntry=function(_,id,key) return id:ToString()==STRINGS and game_words[key]~=nil end})
+by_path['/Script/Engine.Default__KismetTextLibrary']=uobject('KTL','KismetTextLibrary',{
+    TextFromStringTable=function(_,id,key)
+        assert(id:ToString()==STRINGS)
+        return {ToString=function() return game_words[key] end}
+    end})
+local kit={groups={},shown={},is_off=false,away=false,up=true,lang='fr-FR'}
+function kit.add(name,place,build)
+    local g={place=place,texts={}}
+    local b={}
+    function b.panel(...) g.panel={...} end
+    function b.text(x,y,str,style,color,align)
+        local e={text=str,c=color,x=x,y=y,style=style,align=align}
+        function e.set(t) if kit.raise then error(kit.raise,0) end; e.text=t end
+        function e.color(c) e.c=c end
+        g.texts[#g.texts+1]=e
+        return e
+    end
+    g.view=build(b)
+    kit.groups[name]=g
+end
+function kit.view(name) return not kit.is_off and kit.up and kit.groups[name] and kit.groups[name].view or nil end
+function kit.show(name,on) kit.shows=(kit.shows or 0)+1; kit.shown[name]=on==true end
+function kit.off() return kit.is_off end
+function kit.paused() return kit.away end
+function kit.language() return kit.lang end
+local told={} -- main.lua's tell: the notice in English (T.en), as the line above EVE also gets it.
+local settings={ui_language='game'}
+lines={}
+local night=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+    tell=function(build) told[#told+1]=build(Tx.en) end})
+night.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+for _,name in ipairs({'night','night_result'}) do
+    local p=kit.groups[name].place
+    assert(p.x+p.w/2==1920 and p.y==96 and p.pivot.X==0.5 and p.pivot.Y==0 and not p.shown and not p.hit,name)
+end
+local card,res=kit.groups.night.view,kit.groups.night_result.view
+night.tick()
+assert(not kit.shown.night and not kit.shown.night_result,'No run: hidden')
+bodies,calls={},{}
+local function begin2()
+    ok,message=night.command('start')
+    assert(ok,message)
+    t0=gt+5
+end
+begin2()
+tick=function(k) for _=1,k or 1 do gt=gt+0.25; night.tick() end end -- From here on, this run's ticks.
+tick()
+assert(kit.shown.night and not kit.shown.night_result and card.title.text=='OPÉRATION NOCTURNE','The card')
+assert(card.line.text=='DÉBUT DANS 5',card.line.text)
+tick(19)
+assert(card.line.text=='VAGUE 1/5  8:00  SCORE 0',card.line.text)
+tick(4)
+assert(card.line.text=='VAGUE 1/5  7:59  SCORE 0',card.line.text)
+kit.away=true; tick(); assert(not kit.shown.night,'Paused: hidden')
+kit.away=false; tick(); assert(kit.shown.night)
+for _=1,40 do tick() end
+for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+tick()
+local rt2=gt-t0
+assert(card.line.text==string.format('VAGUE SUIVANTE DANS 10  %d:%02d  SCORE 40',math.ceil(480-rt2)//60,
+    math.ceil(480-rt2)%60),card.line.text)
+tick(4)
+assert(card.line.text:find('^VAGUE SUIVANTE DANS 9  '),card.line.text)
+assert(#told==0,'The kit is up: no notice')
+-- The end: the result panel in the card's place, ui_text's heading while the game's table is not loaded.
+ok,message=night.command('stop')
+tick()
+assert(not kit.shown.night and kit.shown.night_result,'The result panel')
+assert(res.head.text=="Échec de l'opération" and res.sub.text=='Arrêtée avec coop nightop stop.',res.head.text)
+local function row(i) return res.rows[i].label.text..'='..res.rows[i].value.text end
+assert(row(1)=='Vagues terminées=1/5' and row(2)=='Ennemis vaincus=4' and row(3)=='Score=40',row(1)..row(2)..row(3))
+local t=math.floor(rt2+1) -- Stopped 4 ticks after the clear.
+assert(row(4)==string.format('Temps=%d:%02d',t//60,t%60),row(4))
+-- Shown for 40 ticks it can be seen (paused ones, or with the root down, do not count), past the run's own 10 s.
+kit.away=true; tick(20); assert(not kit.shown.night_result)
+kit.away=false; kit.up=false; tick(20); kit.up=true
+tick(38); assert(kit.shown.night_result,'38 + 1 seen')
+tick(); assert(kit.shown.night_result,'40 seen')
+tick(); assert(not kit.shown.night_result,'Then hidden')
+-- Loaded but its id not a name, then a name but not loaded: still ui_text's words, nothing asked.
+local loaded=uobject('StringTable','StringTable /Game/Local/Localize/StringTable_UI.StringTable_UI',{})
+local function a_name() FName(STRINGS); by_path[STRINGS]=invalid end
+for _,step in ipairs({function() by_path[STRINGS]=loaded end,a_name}) do
+    step()
+    bodies={}
+    begin2()
+    night.stop('stop')
+    tick()
+    assert(res.head.text=="Échec de l'opération" and count('STL:IsRegisteredTableEntry')==0,res.head.text)
+end
+-- The game's own words once its table is loaded and its id a name: a death's heading and line.
+by_path[STRINGS]=loaded
+bodies={}
+begin2()
+tick(8)
+dying=true
+tick(8)
+dying=false
+assert(kit.shown.night_result and res.head.text=='Échec (jeu)' and res.sub.text=='Tous morts (jeu)',res.head.text)
+assert(res.head.c=='warn','A failure in the warning colour')
+-- A success: the game's heading in teal, no line under it.
+bodies,lines={},{}
+begin2()
+byte=tonumber(message:match('run 0x(%x+)'),16)
+for k=1,5 do play(k) end
+assert(kit.shown.night_result and res.head.text=='Réussite (jeu)' and res.sub.text=='' and res.head.c=='teal',
+    res.head.text)
+assert(#told==0,'The kit is up: no notice')
+-- ui_language=english: English words, no game text read.
+settings.ui_language='english'
+local stl=count('STL:IsRegisteredTableEntry')
+bodies={}
+begin2()
+tick(4)
+assert(card.title.text=='NIGHT OPERATION' and card.line.text=='STARTS IN 4',card.line.text)
+night.stop('map change')
+tick()
+assert(res.head.text=='Operation Failed' and res.sub.text=='Ended by a map change or a load.',res.sub.text)
+assert(count('STL:IsRegisteredTableEntry')==stl,'No game text read')
+settings.ui_language='game'
+assert(res.head.c=='warn','A failure in the warning colour, after a success')
+-- Run.card alone: a breather's countdown, then the wave again while the cap holds the next one past its time.
+local held={phase='breather',t0=0,wave=2,next_at=90,score=40}
+assert(select(2,Run.card(held,85,Tx.en))=='NEXT WAVE IN 5  6:35  SCORE 40',select(2,Run.card(held,85,Tx.en)))
+assert(select(2,Run.card(held,95,Tx.en))=='WAVE 2/5  6:25  SCORE 40',select(2,Run.card(held,95,Tx.en)))
+-- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
+-- off as a stop), the rows.
+local function ended(outcome,reason) return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5} end
+local function game(key) return key=='UI_Night_OperationSuccess' and 'Won (game)' or nil end
+local head,line,rows=Run.result(ended('success'),Tx.en,game)
+assert(head=='Won (game)' and line=='' and rows[1][1]=='Waves cleared' and rows[1][2]=='5/5' and rows[2][2]=='20')
+assert(rows[3][1]=='Score' and rows[3][2]=='1059' and rows[4][1]=='Time' and rows[4][2]=='6:40')
+head,line=Run.result(ended('time'),Tx.en,game)
+assert(head=='Operation Failed' and line=='Time is up.')
+for reason,word in pairs({stop='stop',['coop off']='stop',['map change']='map',left='left',slot='slot',link='link',
+        error='error'}) do
+    assert(select(2,Run.result(ended('aborted',reason),Tx.en,game))==Tx.en.night.why[word],reason)
+end
+-- A result the panel has not shown yet (the root down for a load) goes to the notices once the kit turns off.
+bodies,told={},{}
+begin2()
+tick(4)
+kit.up=false
+night.stop('map change')
+tick()
+assert(#told==0 and not kit.shown.night_result,'The panel waits for the root')
+kit.is_off=true
+tick(2)
+assert(told[1]=='Operation Failed: 0/5 waves cleared, 0 kills, score 0, time 0:00.' and #told==2,tostring(told[1]))
+assert(told[2]=='Ended by a map change or a load.',tostring(told[2]))
+-- A new run drops a result the panel still holds.
+kit.is_off=false
+bodies,told={},{}
+begin2()
+tick(4)
+night.stop('map change')
+tick()
+begin2()
+kit.is_off=true
+tick()
+assert(#told==0,tostring(told[1]))
+night.stop('stop')
+kit.up=true
+-- With the kit off: notices at the start, each wave and each clear, and the end, in the menu's words.
+bodies,told,kit.shows={},{},0
+begin2()
+assert(told[1]=='Night Operation starts in 5 s.',told[1])
+tick(40)
+assert(told[2]=='Night Operation: wave 1/5.',tostring(told[2]))
+for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+tick()
+assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
+night.command('stop')
+assert(told[4]:find('^Operation Failed: 1/5 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
+assert(told[5]=='Stopped with coop nightop stop.' and #told==5,tostring(told[5]))
+-- A success: its result alone, with no line after it.
+bodies,lines,told={},{},{}
+begin2()
+byte=tonumber(message:match('run 0x(%x+)'),16)
+for k=1,5 do play(k) end
+assert(told[#told-1]=='Night Operation: wave 5 cleared.',tostring(told[#told-1]))
+assert(told[#told]:find('^Operation Successful: 5/5 waves cleared, 20 kills, score %d+, time %d:%d%d%.$'),told[#told])
+tick(2)
+assert(told[#told]:find('^Operation Successful'),'One end notice')
+assert(kit.shows==0,'Nothing drawn with the kit off')
+kit.is_off=false
+-- A HUD error: one STOP line, both groups hidden, then notices; the run goes on.
+bodies,told={},{}
+begin2()
+kit.raise='boom'
+tick()
+kit.raise=nil
+assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
+assert(not kit.shown.night and not kit.shown.night_result,'Both hidden')
+tick(20)
+assert(told[1]=='Night Operation: wave 1/5.',tostring(told[1]))
+night.stop('stop')
+-- A HUD error while the panel still holds a result (the root down for a load): the result goes to the notices.
+local night2=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+    tell=function(build) told[#told+1]=build(Tx.en) end})
+kit.groups,kit.shown={},{}
+night2.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+res=kit.groups.night_result.view
+bodies,told={},{}
+ok,message=night2.command('start')
+assert(ok,message)
+for _=1,4 do gt=gt+0.25; night2.tick() end
+kit.up=false
+night2.stop('map change')
+gt=gt+0.25; night2.tick()
+assert(#told==0,'The panel waits for the root')
+kit.up,kit.raise=true,'boom'
+gt=gt+0.25; night2.tick()
+kit.raise=nil
+assert(lines[#lines]=='STOP: HUD: boom' and not kit.shown.night_result,lines[#lines])
+assert(told[1]=='Operation Failed: 0/5 waves cleared, 0 kills, score 0, time 0:00.' and #told==2,tostring(told[1]))
+assert(told[2]=='Ended by a map change or a load.',tostring(told[2]))
+assert(#violations==0,violations[1])
+print('nightop_run_test ok')

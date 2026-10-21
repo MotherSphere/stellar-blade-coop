@@ -44,7 +44,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
-| `nightop.lua` | The `coop no` probe |
+| `nightop.lua` | The `coop no` probe, and the heal that the solo run fires |
+| `nightop_waves.lua` | The solo run's waves, keys, score, timers and states, with no engine call |
+| `nightop_run.lua` | The `coop nightop` solo run: start checks, spawns, the monsters it tracks, its card and result panel |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
@@ -52,8 +54,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
 notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
 the chat box closes, and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
-start, notices to show, chat lines in and out, the UI's root, the menu's rows and status line, the chat's feed, your
-friend's card, the capture and the remote table.
+start, notices to show, chat lines in and out, Night Operation's run, the UI's root, the menu's rows and status line,
+the chat's feed, your friend's card, the capture and the remote table.
 
 ### Files shared by Lua and the native part
 

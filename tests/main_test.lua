@@ -2,7 +2,8 @@
 -- the ghost's capture and remote table are fed every 250 ms with the world state, the ghost turns on with each session,
 -- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
--- on any slot even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
+-- on any slot even when that raises), coop nightop reaches Night Operation's run on the co-op save slot only, its stop
+-- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
 -- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
@@ -201,6 +202,18 @@ package.loaded.nightop={new=function(log,ask,status)
     return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
         tick=function() probe_ticks=probe_ticks+1 end}
 end}
+-- Night Operation's run: what nightop_run.new got (o), coop nightop's words, its ticks and stops, a stop that raises. A
+-- global: this chunk is at Lua's 200 locals.
+nr={o=nil,runs={},ticks=0,stops={},raise=nil}
+package.loaded.nightop_run={new=function(o)
+    nr.o=o
+    return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
+        tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
+        stop=function(reason)
+            nr.stops[#nr.stops+1]=reason
+            if nr.raise then error(nr.raise,0) end
+        end}
+end}
 local rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded.recruiter={new=function(log)
     rc_log=log
@@ -288,7 +301,7 @@ end,kit=function(opts)
             kit_calls[#kit_calls+1]='input'..word
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
-        paused=function() return kit_paused end,
+        paused=function(always) return kit_paused and (always==true or not kit_off) end,
         language=function()
             language_reads=language_reads+1
             if not kit_off then kit_language_seen=kit_language end
@@ -329,7 +342,8 @@ package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|'
+    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
+    ..'fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
@@ -344,6 +358,7 @@ local function load_main(with_native)
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
+    nr.o,nr.runs,nr.ticks,nr.stops=nil,{},0,{}
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
@@ -472,6 +487,21 @@ probe.log('baseline: x'); assert(last()=='[StellarCoop][NO] baseline: x\n',last(
 local asked_ok,asked_text=probe.ask('nightop')
 assert(asked_ok and asked_text=='asked the native part: nightop' and asked[#asked]=='nightop')
 assert(probe.status()==status_text)
+-- coop nightop: its words, an [NR] logger, the status and the UI kit's pause, with the co-op slot loaded.
+coop('nightop','start','noaggro')
+assert(#nr.runs==1 and nr.runs[1][1]=='start' and nr.runs[1][2]=='noaggro' and nr.runs[1][3]==nil)
+assert(last()=='[StellarCoop] OK: nightop start\n',last())
+coop('nightop'); coop('nightop','stop','x','y')
+assert(#nr.runs==3 and nr.runs[2][1]==nil and nr.runs[3][2]=='x' and nr.runs[3][3]=='y','Its own words')
+nr.o.log('start: x'); assert(last()=='[StellarCoop][NR] start: x\n',last())
+assert(nr.o.status()==status_text and nr.o.paused()==false)
+kit_paused=true; assert(nr.o.paused()==true); kit_paused=false
+kit_off,kit_paused=true,true; assert(nr.o.paused()==true,'The kit off'); kit_off,kit_paused=false,false
+-- Its HUD on the kit with the theme and the settings; its notices through tell, in the menu's words and in English.
+assert(nr.hud and nr.hud.kit and nr.hud.kit.paused and nr.hud.theme and nr.hud.theme.teal and nr.hud.settings
+    and nr.hud.settings.ui_language,'night.hud')
+nr.o.tell(function(w) return w.night.wave_notice:format(2,5) end)
+assert(said[#said]=='Night Operation: wave 2/5.' and said_en[#said]=='Night Operation: wave 2/5.',said[#said])
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())
@@ -492,6 +522,12 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
     status_text=case[1]
     local runs,recruits=#probe_runs,#rc_runs
     coop('no','rule'); assert(#probe_runs==runs and last()==STOP..case[2]..'\n',last())
+    local nights=#nr.runs
+    for _,args in ipairs({{'nightop','start'},{'nightop'}}) do
+        coop(table.unpack(args))
+        assert(#nr.runs==nights and last()==STOP:gsub('coop no','coop nightop')..case[2]..'\n',last())
+    end
+    coop('nightop','stop'); assert(#nr.runs==nights+1 and nr.runs[nights+1][1]=='stop','stop on any slot')
     coop('recruiter'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
     coop('recruiter','off'); assert(#rc_runs==recruits and last()==RC_STOP..case[2]..'\n',last())
 end
@@ -641,13 +677,17 @@ for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'rese
 end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
 assert(notice_stops==0 and ui_stops==0)
+nr.ticked=nr.ticks
+loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
+assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
 assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 local written=#states
 takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
+assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
 chatting=true; loops[2].f(); chatting=false
@@ -707,6 +747,11 @@ coop('off')
 assert(rc_stops==1 and toggles==2 and not active and asked[#asked]=='off' and notice_stops==stops+1)
 assert(logged('recruiter: FindRow: no table') and last()=='[StellarCoop] OK: asked the native part: off\n',last())
 rc_raise=nil
+nr.raise='no EVE'
+load_main(true)
+coop('off')
+assert(logged('nightop: no EVE') and last()=='[StellarCoop] OK: asked the native part: off\n','A run end that raises')
+nr.raise=nil
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.

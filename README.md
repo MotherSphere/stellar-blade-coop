@@ -47,9 +47,11 @@ before release. Its recruiter was meant to stand next to Roxanne in Xion's Scrap
 back for friends over Steam, with identical waves, kills in sync, and a shared timer and score, for two players first
 and then up to six. StellarCoop never contacts the cut mode's online services (Shift Up's servers).
 
-Two research previews run only on a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne,
-and you can talk to him. `coop no` tests parts of the cut mode in a solo game. Neither is a playable mode. See
-[docs/night-operation.md](docs/night-operation.md).
+`coop nightop start` runs a solo version on a co-op save, with no Steam session: five timed waves of the game's
+monsters come at EVE where she stands, with an 8-minute timer and a score. It has not been tested in game yet (see
+[docs/night-operation.md](docs/night-operation.md#the-solo-run-coop-nightop)). Two research previews also run only on
+a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and you can talk to him. `coop no` tests
+parts of the cut mode in a solo game. Neither preview is a playable mode.
 
 ## Install
 
@@ -68,7 +70,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 | [INSTALL.md](INSTALL.md) | Install, update, check the files, co-op saves, uninstall, which logs to send |
 | [docs/usage.md](docs/usage.md) | Keys, the co-op menu, the chat, the partner HUD, every `coop` command, `coop-settings.txt`, looks, notices, status lines, files |
 | [docs/how-it-works.md](docs/how-it-works.md) | The Steam link, the ghost pipeline, safety design, loopback and replay |
-| [docs/night-operation.md](docs/night-operation.md) | The cut mode, the plan, and the two previews |
+| [docs/night-operation.md](docs/night-operation.md) | The cut mode, the plan, the solo run and the two previews |
 | [docs/saves.md](docs/saves.md) | Save safety, backups, Steam Cloud, the co-op saves, recovery |
 | [docs/building.md](docs/building.md) | Building from source, tests, the reproducible build, repository layout |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems and which logs to send |
@@ -86,6 +88,24 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 StellarCoop is an unofficial fan mod. It is not affiliated with or endorsed by SHIFT UP or Sony Interactive
 Entertainment. Stellar Blade and its assets belong to their owners. This repository contains no game files; the mod
 runs on your own copy of the game.
+
+## Credits
+
+Night Operation's solo run (`coop nightop`) adapts code from
+[Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus Mods, Stellar Blade
+mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The adapted parts are:
+
+- sending a new monster at EVE;
+- giving a monster with no AI controller its default one;
+- moving a stuck or fallen monster;
+- spacing monsters around a spawn point;
+- finding wave monsters by their spawn key;
+- reading a tracked monster only while the game still lists it and it keeps its name;
+- telling a dying monster from one that can be executed;
+- watching for EVE's death screen, a map load, and EVE leaving the start point.
+
+`mod/StellarCoop/Scripts/nightop_run.lua` and `nightop_waves.lua` mark each adapted function. StellarCoop contains no
+file from Survival Protocol.
 
 ## License
 
