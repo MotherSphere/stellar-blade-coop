@@ -17,6 +17,7 @@ constexpr uint64_t kPadRepeatDelayMs = 400; // Up or down held repeats after thi
 constexpr uint64_t kPadRepeatEveryMs = 120; // ...then this often while held.
 constexpr int kPadStickPress = 16384;       // 50 % of the left stick's full scale (32767): at or past it, pressed.
 constexpr int kPadStickRelease = 9830;      // 30 %: under it, released (between the two, it stays as it was).
+constexpr int kPadAxisKeepPct = 110;        // The stick's pressed axis stays until the other one is past this % of it.
 constexpr size_t kPadRing = 8;              // Events waiting for Lua; a full ring drops the newest.
 constexpr uint64_t kPadRetryMs = 2000;      // A slot with no pad is asked again after this, one such slot a poll.
 
@@ -36,9 +37,10 @@ public:
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
   // and every kPadRepeatEveryMs while held (left and right change a value: once a press). A diagonal is up or down
-  // (the stick: its main axis), so a move never changes a value too. A and B on their press only; View once it was
-  // held kPadMenuHoldMs, once a hold. One step's events go in event order. No pad connected forgets what was held, so
-  // the next press is a new one; the events already made stay.
+  // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
+  // never changes a value too. A and B on their press only; View once it was held kPadMenuHoldMs, once a hold. One
+  // step's events go in event order. No pad connected forgets what was held, so the next press is a new one; the
+  // events already made stay.
   void step(const PadState &s, uint64_t now_ms) {
     if (!s.connected) {
       held_ = {};
@@ -48,7 +50,10 @@ public:
       return;
     }
     const int x = s.lx, y = s.ly; // As int: -(-32768) fits.
-    const bool vertical = std::abs(y) >= std::abs(x);
+    const int ax = std::abs(x), ay = std::abs(y);
+    const bool vertical = stick_[0] || stick_[1]   ? 100 * ax <= kPadAxisKeepPct * ay
+                          : stick_[2] || stick_[3] ? 100 * ay > kPadAxisKeepPct * ax
+                                                   : ay >= ax;
     stick_[0] = vertical && stick(stick_[0], y);
     stick_[1] = vertical && stick(stick_[1], -y);
     stick_[2] = !vertical && stick(stick_[2], -x);

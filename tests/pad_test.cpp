@@ -228,6 +228,23 @@ int main() {
     assert(drain(pad) == V{Pad::kUp});
   }
 
+  { // A stick held still at 45 degrees, its noise crossing the diagonal: the axis it pressed stays.
+    Pad pad;
+    pad.step(stick(23170, 23170), 0);
+    assert(drain(pad) == V{Pad::kUp});
+    for (uint64_t t = 8; t < 160; t += 8)
+      pad.step(stick(static_cast<int16_t>(t % 16 ? 23190 : 23150), 23170), t);
+    assert(drain(pad).empty());
+    pad.step(stick(26000, 23170), 160); // Right clearly the larger: right comes, up goes.
+    assert(drain(pad) == V{Pad::kRight});
+    for (uint64_t t = 168; t < 320; t += 8)
+      pad.step(stick(23170, static_cast<int16_t>(t % 16 ? 23190 : 23150)), t);
+    assert(drain(pad).empty());
+    pad.step(stick(0, 0), 320);
+    pad.step(stick(23190, 23170), 328); // From rest, the larger axis as before.
+    assert(drain(pad) == V{Pad::kRight});
+  }
+
   { // The slots: each that answered, every poll; at most one that did not, 2 s after its last ask.
     PadSlots slots;
     std::vector<unsigned> asked;
