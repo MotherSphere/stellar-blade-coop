@@ -167,6 +167,8 @@ assert(#R.run(r,{x=c1.x-500,y=1201,z=0},{x=c1.x+500,y=1201,z=0},1000)==0 and r.n
 assert(whats(R.run(r,{x=c1.x-500,y=1200,z=600},{x=c1.x+500,y=1200,z=600},1000))=='cp 1 1','On the edge, 6 m up')
 r=R.runner(LINE)
 assert(#R.run(r,{x=c1.x-500,y=0,z=601},{x=c1.x+500,y=0,z=601},1000)==0 and r.next==1,'6.01 m up')
+r=R.runner(LINE)
+assert(whats(R.run(r,{x=c1.x-500,y=0,z=-700},{x=c1.x+500,y=0,z=700},1000))=='cp 1 1','Up a slope: 7 m off at both ends')
 -- A 25 m step across a checkpoint counts nothing and ends the race; nothing after.
 r=R.runner(LINE)
 ev=R.run(r,{x=c1.x-1250,y=0,z=0},{x=c1.x+1250,y=0,z=0},1000)
@@ -174,6 +176,8 @@ assert(whats(ev)=='dnf teleport' and r.done and r.passed==0 and r.next==1)
 assert(#R.run(r,{x=c1.x,y=0,z=0},{x=c1.x+10,y=0,z=0},1100)==0)
 r=R.runner(LINE)
 assert(whats(R.run(r,{x=c1.x-1000,y=0,z=0},{x=c1.x+1000,y=0,z=0},1000))=='cp 1 1','Exactly 20 m: a step')
+r=R.runner(LINE)
+assert(whats(R.run(r,{x=0,y=0,z=0},{x=0,y=0,z=2001},1000))=='dnf teleport','20.01 m straight up')
 -- Missed: from checkpoint 1 straight to 3, then back to 2 and on; the banner each time a later one is entered.
 r=R.runner(LINE)
 local cp=LINE.cps
@@ -436,6 +440,16 @@ assert(table.concat(readies,',')=='ready 7 1,ready 7 0,ready 7 1',table.concat(r
 host,guest,log,said=sim({speed={host=900,guest=0}})
 assert(find(log.guest,'dnf').why=='late' and guest.me.why=='late' and host.her.why=='late')
 assert(result(host)==('host=%d#1 guest=nil#nil'):format(host.me.ms) and result(guest)==result(host))
+-- The host's rank comes before the guest's own wait ends: her fin never reaches him, so he ranks her out 65 s after his
+-- finish, and his rank line takes 300 ms. She shows his ranking, not her own.
+local slow
+host,guest,log,said=sim({speed={host=900,guest=850},tamper=function(to,text)
+    slow=text:find('^rank ')~=nil
+    if to=='host' and text:find('^fin ') then return nil end
+    return text
+end,delay=function() return slow and 300 or 30 end})
+assert(guest.me.ms and not host.her.ms and result(host):find('^host=%d+#1 guest=nil#nil$'))
+assert(result(guest)==result(host),result(guest))
 -- The 15 min limit: nobody finishes; each side DNFs itself at 15 min, and the host ranks both out.
 host,guest,log=sim({speed={host=0,guest=0}})
 assert(host.me.why=='time' and guest.me.why=='time' and result(host)=='host=nil#nil guest=nil#nil')
@@ -468,7 +482,6 @@ assert(guest.t_go<host.t_go and guest.me.why=='quit' and host.her.why=='quit' an
 assert(result(host):find('^host=%d+#1 guest=nil#nil$') and result(guest)==result(host),result(guest))
 -- The other way: the go line takes 500 ms and the host teleports right after his GO, so his DNF reaches a guest still
 -- in her countdown. She races on, wins, and keeps her own place in the ranking.
-local slow
 host,guest,log,said=sim({tamper=function(_,text) slow=text:find('^go ')~=nil; return text end,
     delay=function() return slow and 500 or 30 end,
     pos=function(side,m,now,pos)
@@ -476,6 +489,11 @@ host,guest,log,said=sim({tamper=function(_,text) slow=text:find('^go ')~=nil; re
     end})
 assert(guest.t_go>host.t_go+400 and guest.her.why=='teleport' and not guest.her.out)
 assert(result(host):find('^host=nil#nil guest=%d+#1$') and result(guest)==result(host),result(guest))
+-- The host quits in his countdown after the guest's GO: the race is cancelled for her too.
+host,guest,log,said=sim({delay=function() return 30 end,rtt=600,
+    dnf=function(side,m,now) return side=='host' and m.phase=='countdown' and now>=m.t_go-100 and 'quit' or nil end})
+assert(guest.t_go<host.t_go and said.host[#said.host]=='abort 7 quit' and find(log.guest,'go'))
+assert(find(log.guest,'cancelled').why=='quit' and guest.phase=='over' and not guest.results and not host.results)
 -- Her DNF crossed the host's false start: she stays out (his new start is his alone), never back in the ready check
 -- with her DNF wiped.
 do
@@ -488,11 +506,19 @@ do
     out,ev2=R.tick(g,{pos=R.slot(LINE,1),lines={'abort 7 false_start'}},4300)
     assert(g.phase=='over' and g.me.why=='quit' and whats(ev2)=='cancelled false_start' and #out==0,whats(ev2))
 end
+-- A rank line counts only in the race: one in the ready check is ignored.
+do
+    local g=R.guest()
+    R.tick(g,{lines=R.track_lines(LINE,7),map=MAP},0)
+    local _,ev2=R.tick(g,{lines={'rank 7 1000 -'}},100)
+    assert(g.phase=='ready' and #ev2==0 and not g.results)
+end
 
 -- The guest's checks on the host's real lines: another map, a line out of bounds, a changed number (the have sum).
 host,guest,log,said=sim({map='/game/other'})
 assert(said.guest[1]=='have 7 no map' and find(log.host,'refused').why=='map' and find(log.guest,'refused').why=='map')
 assert(#said.host==3 and result(host):find('^host=%d+#1$'),'No more line to her once she said no; the host races alone')
+assert(host.shown==host.first,'Alone: the results at his finish')
 local function bend(match,to)
     return function(where,text) if where=='guest' then return (text:gsub(match,to,1)) end return text end
 end
@@ -524,6 +550,7 @@ end
 -- A solo race: no line at all, the host alone from the start.
 host,guest,log,said=sim({solo=true})
 assert(#said.host==0 and #said.guest==0 and guest.phase=='idle' and result(host):find('^host=%d+#1$'))
+assert(host.shown==host.first,'Solo: the results at the finish')
 assert(R.place(host)==1)
 
 -- The session ends after any line: each side closes on its own, no line after, an unfinished racer out as 'left'.
@@ -570,6 +597,10 @@ do
     assert(R.place(m,nil)==1)
     m.her.out=true
     assert(select(2,R.place(m,nil))==1)
+    m=R.host(LOOP,7,0) -- Lap 2 of the circuit, both past 5: checkpoint 2 is next, not 4, which she stands nearer.
+    m.her.joined=true
+    m.me.passed,m.her.passed,m.pos=5,5,{x=4000,y=3000,z=0}
+    assert(R.place(m,{x=1000,y=1000,z=0})==1)
 end
 
 -- Together only: the model reads and writes nothing outside its tables (no io, os, require or game call).
