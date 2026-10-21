@@ -1883,6 +1883,28 @@ int main() {
     frame(g, *e, t += 16);
     assert(!Game::held(g.body(101), kBlockAiState) && e->host.counts.bad == 0);
   }
+  // A boss stays the host's (stage 5: bosses attack the host first): her hits never hand it over, with aggro=game.
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    e->bosses(200);
+    e->same_place(true);
+    e->set(true, true);
+    g.spawn(101, 5001, 0, 15005100, 1600, 4);
+    g.inbox.push_back(msg("SBF11 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    assert(g.table.on && g.table.count == 1 && e->host.linked() == 1);
+    std::string sent = lines(g);
+    for (uint32_t claim = 1; t < 12000; frame(g, *e, t += 16)) {
+      if (t % 1008 == 0)
+        g.inbox.push_back(msg("SBF11 hit 1 " + std::to_string(claim++) + " 101 0 0 10 3190 0"));
+      sent += lines(g);
+    }
+    assert(!has(sent, " own ") && e->counts.owns == 0 && g.table.pairs[0].owner == coop::pilot::kHost);
+    assert(e->host.counts.claims >= 11 && e->host.counts.bad == 0);
+  }
   // Her lethal claim on a pair of hers that a floor keeps alive (Immortal): our freeze off before the kill, then on
   // again from the next turn's marks, since this turn's state 39 was ours. Our copy the game froze first (its spawn
   // effects): drawn with no call of ours once she takes it, and not ours again while the game's freeze holds it (the
@@ -2733,6 +2755,66 @@ int main() {
     assert(std::none_of(G.made.begin(), G.made.end(), [](const Game::Made &m) { return m.id == 24; }));
   }
 
+  // ---- Bosses (stage 5), two worlds through channel 2 with same spawns on, the EVEs 20 m apart: boss A, which both
+  // saves still hold, pairs and has the host's boss_hp_scale in both games (the common enemies enemy_hp_scale); boss B,
+  // which only the host's save holds, stays unpaired and the host fights it alone; boss C, only in hers, stays hers.
+  // Same spawns never create or remove a boss (Save rows, and no common enemy), and nothing dies ----
+  {
+    Game H, G;
+    auto eh = engine(false, true), eg = engine(false, false);
+    for (Engine *e : {eh.get(), eg.get()}) {
+      e->allow(nullptr, 0);
+      e->same_spawns(true);
+    }
+    eh->scale(135, 115);
+    eh->bosses(200);
+    eg->bosses(300); // Hers counts for nothing.
+    eh->set(true, true), eg->set(true, false);
+    for (Game *w : {&H, &G}) {
+      const bool host = w == &H;
+      w->spawns();
+      w->zone(host ? 0xA1 : 0xB7, 40);
+      w->enter(host ? 0xA1 : 0xB7);
+      for (uint32_t id = 1; id <= 2; ++id)
+        w->spawn_row(id, 2, host ? 0xA1 : 0xB7);
+      for (uint32_t id = 30; id <= 32; ++id)
+        w->spawn_row(id, 1, host ? 0xA1 : 0xB7); // Save rows.
+      w->place(1, 0, host ? 0.f : 2000.f);
+      w->flags.her_ok = true;
+      w->flags.her[1] = host ? 2000.f : 0.f;
+      w->spawn(host ? 101 : 901, 1, 0);
+      w->spawn(host ? 102 : 902, 2, 0);
+      w->spawn(host ? 130 : 930, 30, 0, 15005100, 1600, 4); // Boss A.
+    }
+    H.spawn(131, 31, 0, 15039001, 1600, 4); // Boss B.
+    G.spawn(932, 32, 0, 25013001, 1600, 4); // Boss C.
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(5);
+    for (uint64_t t = 0; t <= 8000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    const auto max_hp = [](Game &g, uint32_t guid) { return g.mem.get<float>(g.fsb(guid) + kStatBase + 8); };
+    const bool c_alone = std::any_of(G.events.begin(), G.events.end(), [](const Event &e) {
+      return !std::strcmp(e.what, "unpaired") && !std::strcmp(e.why, "no host enemy") && e.spawn == 32;
+    });
+    assert(!eh->latched() && !eg->latched() && eh->host.counts.bad == 0 && eg->guest.counts.bad == 0);
+    assert(eh->host.linked() == 4 && eg->guest.linked() == 3 && c_alone && eg->snapshot().unshared_all == 0);
+    assert(max_hp(H, 101) == 2160 && max_hp(G, 901) == 2160 && max_hp(H, 130) == 3200 && max_hp(G, 930) == 3200);
+    assert(max_hp(H, 131) == 3200 && max_hp(G, 932) == 1600);
+    assert(eh->snapshot().spawning && eg->snapshot().spawning && eg->snapshot().epoch);
+    assert(G.made.empty() && G.despawned.empty() && H.despawned.empty() && count(H, "spawn sent") == 0);
+    for (Game *w : {&H, &G})
+      for (const auto &[la, b] : w->bodies)
+        assert(b.deaths == 0);
+  }
+
   // ---- Extra enemies (stage 4b), two worlds through channel 2 with enemy_extra=2 ----
   // Both games hold keys 1-4 in zone 40, the EVEs 20 m apart. Each of the host's four gets two extras through
   // NewActor, 2 and 3 m from it; same spawns send them, she makes the same keys (NewActor too, the host's charId,
@@ -3398,6 +3480,91 @@ int main() {
     frame(g, *e, 2000);
     assert(out(311).empty() && out(312).empty() && g.calls.size() == 2 && g.calls[1].la == g.by_guid[311]);
     assert(!e->latched());
+  }
+
+  // ---- Bosses (stage 5): with bosses on, fight_chars=auto also takes the BossMonsters (ActorType 4: the bosses and
+  // the Alpha Naytibas), each marked Seen::boss; the host by its own setting, the guest once the host's bosses line
+  // came. A boss's MaxHP gets boss_hp_scale instead of enemy_hp_scale (its balance enemy_balance_scale as any enemy),
+  // once, and its own maxes back at off with HP lowered in proportion ----
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    e->scale(135, 115);
+    e->bosses(200);
+    e->set(true, true);
+    g.spawn(201, 5201, 0, 7001);
+    g.spawn(202, 5202, 0, 15005100, 1600, 4);
+    g.spawn(203, 5203, 0, 7003, 1600, 2); // An NPC: still out.
+    const auto stat = [&](uint32_t guid, int type) {
+      return int(g.mem.get<float>(g.fsb(guid) + kStatBase + 4 * size_t(type)));
+    };
+    const auto boss = [&](uint32_t guid) {
+      for (size_t i = 0; i < 2; ++i)
+        if (e->seen()[i].guid == guid)
+          return e->seen()[i].boss;
+      assert(false);
+      return false;
+    };
+    g.inbox.push_back(msg("SBF11 on"));
+    frame(g, *e, 0);
+    assert(e->host.linked() == 2 && e->host.bosses() == 200 && boss(202) && !boss(201));
+    assert(has(lines(g), "SBF11 world 1\nSBF11 scale 1 135 115\nSBF11 bosses 1 200\n"
+                         "SBF11 up 1 202 5202 0 15005100 1600\nSBF11 up 1 201 5201 0 7001 1600\n"));
+    assert(stat(201, 2) == 2160 && stat(201, 1) == 2160 && stat(201, 13) == 230);
+    assert(stat(202, 3) == 3200 && stat(202, 2) == 3200 && stat(202, 1) == 3200 && stat(202, 13) == 230);
+    assert(e->snapshot().scaled == 2 && e->snapshot().bosses == 200);
+    size_t calls = g.calls.size();
+    frame(g, *e, 16);
+    assert(g.calls.size() == calls && boss(202)); // Held: never twice.
+    g.hit(202, kHp, 1600);
+    frame(g, *e, 32);
+    e->set(false, true);
+    frame(g, *e, 48);
+    assert(stat(202, 3) == 1600 && stat(202, 2) == 1600 && stat(202, 1) == 800 && stat(202, 13) == 200);
+    assert(stat(201, 2) == 1600 && e->snapshot().scaled == 0 && !e->latched());
+  }
+  // Bosses off: fight_chars=auto takes no boss, and a boss a list names gets enemy_hp_scale like any enemy it names.
+  for (const bool listed : {false, true}) {
+    Game g;
+    auto e = engine(false, true);
+    const uint32_t chars[] = {15005100};
+    e->allow(chars, listed);
+    e->scale(135, 100);
+    e->set(true, true);
+    g.spawn(202, 5202, 0, 15005100, 1600, 4);
+    g.inbox.push_back(msg("SBF11 on"));
+    frame(g, *e, 0);
+    assert(e->host.linked() == listed && !has(lines(g), "bosses"));
+    assert(g.mem.get<float>(g.fsb(202) + kStatBase + 8) == (listed ? 2160 : 1600));
+  }
+  // The guest: before the host's bosses line her census holds no boss, so the host's up for one pairs nothing; with
+  // it, her boss copy pairs and takes the host's percent (hers counts for nothing).
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->allow(nullptr, 0);
+    e->bosses(300);
+    e->set(true, false);
+    g.spawn(501, 5001, 0, 7001);
+    g.spawn(502, 5002, 0, 15005100, 1600, 4);
+    const auto max = [&](uint32_t guid, int type) {
+      return int(g.mem.get<float>(g.fsb(guid) + kStatBase + 4 * size_t(type)));
+    };
+    for (const char *line : {"SBF11 world 1", "SBF11 scale 1 135 115", "SBF11 up 1 101 5001 0 7001 1600",
+                             "SBF11 up 1 102 5002 0 15005100 1600"})
+      g.inbox.push_back(msg(line));
+    frame(g, *e, 0);
+    assert(e->guest.linked() == 1 && max(502, 2) == 1600 && max(501, 2) == 2160);
+    for (const char *line : {"SBF11 world 2", "SBF11 scale 2 135 115", "SBF11 bosses 2 200",
+                             "SBF11 up 2 101 5001 0 7001 1600", "SBF11 up 2 102 5002 0 15005100 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 16;
+    for (; t < 16 * 40 && e->guest.linked() < 2; t += 16)
+      frame(g, *e, t);
+    frame(g, *e, t);
+    assert(e->guest.linked() == 2 && e->guest.bosses() == 200 && e->snapshot().bosses == 200);
+    assert(max(502, 2) == 3200 && max(502, 13) == 230 && max(501, 2) == 2160 && !e->latched());
   }
 
   // ---- The host's count is what it shares: none until her on and after her off, however many it follows ----
@@ -4555,7 +4722,9 @@ int main() {
   }
   // A request's words reach the sides through the worker: the host's scaling in a record (its scale line follows its
   // world into the file; the fight= line says scale=), replayed into another PC's guest, which scales its copy by the
-  // recorded percents (a guest's own percents count for nothing) and says so too.
+  // recorded percents (a guest's own percents count for nothing) and says so too. The same for bosses (stage 5): the
+  // host's bosses line goes into the file after its scale line, the boss pairs in the replay, and both copies take
+  // the recorded boss_hp_scale; the fight= line says bosses=.
   {
     const auto gate = [] { return std::string(); };
     const std::vector<std::string> none;
@@ -4569,26 +4738,30 @@ int main() {
       Worker w(*e, *mail);
       Desk io;
       H.spawn(101, 5001, 0);
+      H.spawn(102, 5002, 0, 15005100, 1600, 4);
       uint64_t t = 0;
       w.pass(t, false, false, true, none, gate, io);
       const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
-      // Its scaling writes: refused before fight writes=armed, as a replay is.
+      // Its scaling writes: refused before fight writes=armed, as a replay is; a boss's scaling alone too.
       assert(ask("fight record scale 135 115 900") == "shared fight record refused: its scaling writes, and writes are "
                                                        "not armed yet (coop fight probe first)");
+      assert(ask("fight record bosses 200").rfind("shared fight record refused: its scaling writes", 0) == 0);
       assert(ask("fight probe").rfind("shared fight probe: ", 0) == 0);
       for (; !io.saying("fight writes=armed: ") && t < 1000; t += 16) {
         frame(H, *e, t);
         w.pass(t, false, false, true, none, gate, io);
       }
       assert(ask("fight off") == "shared fight off: coop fight off");
-      assert(ask("fight record scale 135 115 900").rfind("shared fight record:", 0) == 0);
+      assert(ask("fight record scale 135 115 bosses 200").rfind("shared fight record:", 0) == 0);
       for (const uint64_t from = t; t < from + 1500; t += 16) {
         frame(H, *e, t);
         w.pass(t, false, false, true, none, gate, io);
       }
-      assert(has(w.detail(), " scale=135/115 sim_us=") && max_hp(H, 101) == 2160);
+      assert(has(w.detail(), " scale=135/115 sim_us=") && max_hp(H, 101) == 2160 && max_hp(H, 102) == 3200);
+      assert(has(w.detail(), " bosses=200"));
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(has(io.file, " SBF11 world 1\n") && has(io.file, " SBF11 scale 1 135 115\n"));
+      assert(has(io.file, " SBF11 bosses 1 200\n") && has(io.file, " SBF11 up 1 102 5002 0 15005100 1600\n"));
       assert(has(io.file, " SBF11 up 1 101 5001 0 900 1600\n") && has(io.file, " 101:2160:100:230"));
       recording = io.file;
     }
@@ -4600,6 +4773,7 @@ int main() {
     Desk io;
     const auto ask = [&](const std::string &text) { return w.ask(coop::parse_request(text), gate, io); };
     G.spawn(901, 5001, 0);
+    G.spawn(902, 5002, 0, 15005100, 1600, 4);
     uint64_t t = 0;
     w.pass(t, false, false, true, none, gate, io);
     assert(ask("fight probe").rfind("shared fight probe: ", 0) == 0);
@@ -4610,18 +4784,19 @@ int main() {
     assert(ask("fight off") == "shared fight off: coop fight off" && max_hp(G, 901) == 1600);
     io.has_file = true;
     io.file = recording;
-    assert(ask("fight replay fought scale 200 200 900").rfind("shared fight replay: ", 0) == 0);
+    assert(ask("fight replay fought scale 200 200 bosses 300").rfind("shared fight replay: ", 0) == 0);
     for (const uint64_t from = t; t < from + 1500; t += 16) {
       frame(G, *e, t);
       w.pass(t, false, false, true, none, gate, io);
     }
-    assert(count(G, "paired") == 1 && max_hp(G, 901) == 2160 && has(w.detail(), " scale=135/115 sim_us="));
+    assert(count(G, "paired") == 2 && max_hp(G, 901) == 2160 && has(w.detail(), " scale=135/115 sim_us="));
+    assert(max_hp(G, 902) == 3200 && has(w.detail(), " bosses=200"));
     assert(ask("fight off") == "shared fight off: coop fight off");
     for (const uint64_t from = t; t < from + 100; t += 16) {
       frame(G, *e, t);
       w.pass(t, false, false, true, none, gate, io);
     }
-    assert(max_hp(G, 901) == 1600 && e->snapshot().scaled == 0);
+    assert(max_hp(G, 901) == 1600 && max_hp(G, 902) == 1600 && e->snapshot().scaled == 0);
   }
   // A recording stops at its cap: the mode ends and the file is written whole. Lines before its first world (an older
   // session's) and the job's on are left out; the host gets a guest's on at the start.

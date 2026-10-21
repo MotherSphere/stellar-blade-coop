@@ -169,6 +169,7 @@ int main() {
           "SBF11 hit 3 4294967295 77 400 0 0 400 1", "SBF11 hit 3 2 77 0 0 0 0 0", "SBF11 cc 3 77 9900001",
           "SBF11 cc 4294967295 4294967295 3000401", "SBF11 scale 3 135 115", "SBF11 scale 4294967295 400 100",
           "SBF11 place 3 1", "SBF11 place 4294967295 0", "SBF11 aggro 3 game", "SBF11 aggro 4294967295 host",
+          "SBF11 bosses 3 200", "SBF11 bosses 4294967295 400", "SBF11 bosses 3 100",
           "SBF11 own 3 77 G 1", "SBF11 own 4294967295 4294967295 H 255", "SBF11 own 3 77 H 0",
           "SBF11 own-no 3 77 0 unpaired", "SBF11 own-no 3 77 255 state", "SBF11 own-no 3 77 9 off",
           "SBF11 own-no 3 77 9 epoch", "SBF11 own-no 3 77 9 aggro", "SBF11 own-no 3 77 9 full",
@@ -206,6 +207,8 @@ int main() {
            msg("SBF11 place 3 1").place && !msg("SBF11 place 3 0").place);
     assert(msg("SBF11 aggro 3 host").type == Type::aggro && msg("SBF11 aggro 3 host").gen == 3 &&
            msg("SBF11 aggro 3 host").host_only && !msg("SBF11 aggro 3 game").host_only);
+    assert(msg("SBF11 bosses 3 250").type == Type::bosses && msg("SBF11 bosses 3 250").gen == 3 &&
+           msg("SBF11 bosses 3 250").boss == 250);
     Message own = msg("SBF11 own 3 77 G 200");
     assert(own.type == Type::own && own.gen == 3 && own.guid == 77 && own.to_guest && own.oe == 200);
     assert(!msg("SBF11 own 3 77 H 1").to_guest);
@@ -324,7 +327,11 @@ int main() {
           "SBF11 place 3 on", "SBF11 place 3 -1", "SBF11 place  3 1",
           // aggro: game or host. own: H or G at an epoch 0-255. own-no: one of kOwnNo.
           "SBF11 aggro 3", "SBF11 aggro 3 Host", "SBF11 aggro 3 near", "SBF11 aggro 0 game", "SBF11 aggro 3 game 1",
-          "SBF11 aggro 3 1", "SBF11 own 3 77 G", "SBF11 own 3 77 g 1", "SBF11 own 3 77 X 1", "SBF11 own 3 77 G 256",
+          "SBF11 aggro 3 1",
+          // bosses: the host's boss_hp_scale, a whole percent from 100 to 400, as scale's.
+          "SBF11 bosses 3", "SBF11 bosses 3 99", "SBF11 bosses 3 401", "SBF11 bosses 0 200", "SBF11 bosses 3 200 1",
+          "SBF11 bosses 3 2.0", "SBF11 bosses 3 -200", "SBF11 bosses 3 on", "SBF11 boss 3 200", "SBF11 bosses  3 200",
+          "SBF11 own 3 77 G", "SBF11 own 3 77 g 1", "SBF11 own 3 77 X 1", "SBF11 own 3 77 G 256",
           "SBF11 own 3 77 G -1", "SBF11 own 0 77 G 1", "SBF11 own 3 0 G 1", "SBF11 own 3 77 G 1 1",
           "SBF11 own 3 77 HG 1", "SBF11 own-no 3 77 1", "SBF11 own-no 3 77 1 why", "SBF11 own-no 3 77 1 State",
           "SBF11 own-no 3 77 256 off", "SBF11 own-no 0 77 1 off", "SBF11 own-no 3 0 1 off", "SBF11 own-no 3 77 1 off x",
@@ -394,6 +401,7 @@ int main() {
                                  "SBF11 dead 3 77", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
                                  "SBF11 hit 3 1 77 120 5 30 400 1", "SBF11 cc 3 77 9900001",
                                  "SBF11 scale 3 135 115", "SBF11 place 3 1", "SBF11 aggro 3 host",
+                                 "SBF11 bosses 3 200",
                                  "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state", "SBF11 exec 3 77 1",
                                  "SBF11 epoch 3 40 7", "SBF11 have 3 7 1 2 50110:0 50111:2",
                                  "SBF11 spawn 3 7 50110 0 15011001 -1200 340 0 90", "SBF11 drop 3 7 50110 0",
@@ -425,6 +433,7 @@ int main() {
         assert(m.delta[s] >= 0 && m.delta[s] <= kMaxStat);
       for (uint16_t pct : m.scale)
         assert(pct >= coop::kMinScale && pct <= coop::kMaxScale);
+      assert(m.type == Type::bosses ? m.boss >= coop::kMinScale && m.boss <= coop::kMaxScale : !m.boss);
       assert(m.why < kOwnNoCount);
       assert(m.keyed <= kHaveKeys && m.part <= m.parts && m.parts <= kHaveParts && m.yaw >= 0 && m.yaw < 360);
       assert(m.idn <= kMaxPhaseIds && m.effect >= 0);
@@ -832,6 +841,76 @@ int main() {
     plain.receive(msg("SBF11 on"), 0, u);
     step(plain, u, 1, 0);
     assert(!has(u.lines(), "aggro"));
+  }
+
+  // ---- Host: bosses (stage 5) ----
+  // Our bosses=on goes to the guest with our boss_hp_scale after our aggro line, in each whole list; nothing while
+  // off. With any scaling on (a boss's alone too), every enemy we follow is named for the engine, which picks each
+  // one's percent, and its first values wait for the next step. A guest's bosses line is a lie; the line is one a
+  // recording keeps.
+  {
+    World w;
+    w.add(101, 5001, 0);
+    w.add(102, 5002, 0, 15005100).s.boss = true;
+    Host h;
+    h.set_aggro(true);
+    h.set_bosses(200);
+    assert(h.bosses() == 200);
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    const std::string first = w.lines();
+    assert(first.rfind("SBF11 world 1\nSBF11 aggro 1 host\nSBF11 bosses 1 200\nSBF11 up 1 102 5002 0 15005100 1600\n"
+                       "SBF11 up 1 101 5001 0 900 1600\n",
+                       0) == 0 &&
+           !has(first, " hp "));
+    uint32_t guids[kMaxTracked];
+    assert(h.scaled(guids) == 2 && guids[0] == 102 && guids[1] == 101);
+    step(h, w, 2, 20);
+    assert(has(w.lines(), "SBF11 hp 1 1 0 102:1600:100:200 101:1600:100:200\n"));
+    h.receive(msg("SBF11 bosses 1 200"), 30, w);
+    assert(h.counts.bad == 1 && w.count("bad line", "not a guest's line") == 1);
+    Line kept;
+    assert(parse_line("10 SBF11 bosses 1 200", kept) && kept.message.type == Type::bosses);
+    World u;
+    u.add(102, 5002, 0, 15005100).s.boss = true;
+    Host flat; // Bosses on at 100 %, no other scaling: the line, and nothing to scale.
+    flat.set_bosses(100);
+    flat.receive(msg("SBF11 on"), 0, u);
+    step(flat, u, 1, 0);
+    assert(has(u.lines(), "SBF11 world 1\nSBF11 bosses 1 100\nSBF11 up 1 102 ") && !flat.scaled(guids));
+    Host off; // Bosses off: no line.
+    off.receive(msg("SBF11 on"), 0, u);
+    step(off, u, 1, 0);
+    assert(!has(u.lines(), "bosses") && !off.bosses());
+  }
+  // Boss pairs first in the 16 places: in one census the bosses take theirs before the common enemies; a boss takes a
+  // common enemy's place even when every one is in a fight (that one goes down for her), and no common enemy, hurt or
+  // not, takes a boss's place, even one at full HP that she never hit.
+  {
+    World w;
+    Host h;
+    for (uint32_t i = 0; i < 16; ++i)
+      w.add(200 + i, 6000 + i, 0);
+    w.add(300, 7000, 0, 15005100).s.boss = true;
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    assert(h.linked() == 16 && has(w.lines(), "SBF11 world 1\nSBF11 up 1 300 7000 0 15005100 1600\nSBF11 up 1 200 "));
+    uint32_t guids[kMaxTracked];
+    std::vector<uint32_t> held(guids, guids + h.tracked(guids));
+    assert(held[0] == 300 && std::count(held.begin(), held.end(), 215) == 0); // At full HP, the last waits.
+    for (uint32_t i = 0; i < 15; ++i)
+      w.hit(200 + i, kHp, 1);
+    w.add(301, 7001, 0, 15005100).s.boss = true;
+    step(h, w, 2, 100);
+    assert(w.lines().rfind("SBF11 down 1 200\nSBF11 up 1 301 7001 0 15005100 1600\n", 0) == 0 && h.linked() == 16);
+    w.hit(215, kHp, 100);
+    w.add(216, 6016, 0);
+    w.hit(216, kHp, 100);
+    step(h, w, 3, 200);
+    step(h, w, 4, 300);
+    held.assign(guids, guids + h.tracked(guids));
+    assert(!has(w.lines(), " up ") && w.count("full") == 1 && std::count(held.begin(), held.end(), 300) == 1 &&
+           std::count(held.begin(), held.end(), 301) == 1 && h.linked() == 16);
   }
 
   // ---- Host: her takedowns (stage 3c, PHASE11-STAGE3 3.9) ----
@@ -1558,6 +1637,40 @@ int main() {
     // takes none of the host's epoch, spawn and drop either (the engine does, before Guest).
     g.receive(msg("SBF11 have 1 7 1 1"), w);
     assert(g.counts.bad == bad + 2);
+  }
+
+  // ---- Guest: the host's bosses (stage 5) ----
+  // Held like its aggro line: of its generation, until its next world, on or off; 0 (off) before one. While it is above
+  // 100 %, the engine scales every copy (it picks each one's percent), even with no other scaling. A boss of the host's
+  // that her save no longer has stays unpaired, with no reason to list: no copy of hers holds its key.
+  {
+    World w;
+    w.add(501, 5001, 0, 15005100).s.boss = true;
+    Guest g;
+    assert(!g.bosses());
+    g.receive(msg("SBF11 world 1"), w);
+    g.receive(msg("SBF11 bosses 2 200"), w);
+    assert(!g.bosses() && g.counts.stale == 1);
+    g.receive(msg("SBF11 bosses 1 200"), w);
+    assert(g.bosses() == 200);
+    g.receive(msg("SBF11 up 1 102 5001 0 15005100 1600"), w);
+    g.receive(msg("SBF11 up 1 103 5003 0 15005100 1600"), w);
+    step(g, w, 1, 0);
+    uint32_t guids[kMaxTracked];
+    size_t maxhp = 0;
+    assert(g.linked() == 1 && g.scaled(guids) == 1 && guids[0] == 501 && !g.unshared(nullptr, 0, maxhp));
+    for (const char *end : {"SBF11 world 2", "SBF11 off coop fight off", "SBF11 on"}) {
+      g.receive(msg("SBF11 world 1"), w);
+      g.receive(msg("SBF11 bosses 1 200"), w);
+      assert(g.bosses() == 200);
+      g.receive(msg(end), w);
+      assert(!g.bosses());
+    }
+    g.receive(msg("SBF11 world 1"), w);
+    g.receive(msg("SBF11 bosses 1 100"), w);
+    g.receive(msg("SBF11 up 1 102 5001 0 15005100 1600"), w);
+    step(g, w, 2, 20);
+    assert(g.linked() == 1 && g.bosses() == 100 && !g.scaled(guids)); // 100 %: nothing to scale.
   }
 
   // ---- Guest, guest_kills=confirmed: our copies hold a 1 HP floor, so our lethal hit waits for the host's word ----

@@ -320,10 +320,11 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [aggro-host] [spawns]
-// [extra <n>] [<charId> ...]" (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to
-// kMaxScale each; the host's same_place=on; the host's aggro=host; the host's same_spawns=on, or with probe coop fight
-// spawn probe; the host's enemy_extra, 1 to kMaxExtra; fight_chars, at most kMaxFightChars, none: every Monster),
+// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [aggro-host] [bosses
+// <boss %>] [spawns] [extra <n>] [<charId> ...]" (guest_kills=confirmed; kill_credit=fought; the host's two-player
+// scaling, kMinScale to kMaxScale each; the host's same_place=on; the host's aggro=host; the host's bosses=on with its
+// boss_hp_scale, kMinScale to kMaxScale; the host's same_spawns=on, or with probe coop fight spawn probe; the host's
+// enemy_extra, 1 to kMaxExtra; fight_chars, at most kMaxFightChars, none: every Monster),
 // "fight off", "fight status", "fight test
 // hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
 // (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
@@ -370,6 +371,7 @@ struct Request {
   uint16_t scale[2] = {kMinScale, kMinScale}; // fight on, probe, record, replay: MaxHP and balance in % (a host's).
   bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
   bool aggro_host = false;     // fight on, probe, record, replay: aggro=host (a host's; aggro=game otherwise).
+  uint16_t bosses = 0;         // fight on, probe, record, replay: bosses=on with boss_hp_scale in % (a host's; 0: off).
   bool spawns = false;         // fight on, record, replay: same_spawns=on (a host's); probe: coop fight spawn probe.
   uint8_t extra = 0;           // fight on, record, replay: enemy_extra, 1 to 3 (a host's; 0: none).
   PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
@@ -410,6 +412,12 @@ inline Request parse_fight(const std::string &text) {
     i += r.place;
     r.aggro_host = i < w.size() && w[i] == "aggro-host";
     i += r.aggro_host;
+    if (i < w.size() && w[i] == "bosses") {
+      if (++i == w.size() || !number(w[i], v) || v < kMinScale || v > kMaxScale)
+        return Request();
+      r.bosses = static_cast<uint16_t>(v);
+      ++i;
+    }
     r.spawns = i < w.size() && w[i] == "spawns";
     i += r.spawns;
     if (i < w.size() && w[i] == "extra") {

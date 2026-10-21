@@ -351,6 +351,17 @@ int main() {
                           "fight on aggro-host scale 135 115", "fight on aggro", "fight on aggro-game",
                           "fight on Aggro-host", "fight off aggro-host", "fight pilot aggro-host"})
     assert(parse_request(bad).command == Command::none);
+  // Stage 5: bosses=on as "bosses" and boss_hp_scale in whole percents (100 to 400), after aggro-host (or where it
+  // would be), before spawns and the ids; none: 0, bosses off.
+  f = parse_request("fight on scale 135 115 place aggro-host bosses 200 spawns extra 1 15011001");
+  assert(f.aggro_host && f.bosses == 200 && f.spawns && f.extra == 1 && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight record bosses 100").bosses == 100 && parse_request("fight on bosses 400").bosses == 400);
+  assert(parse_request("fight on aggro-host spawns").bosses == 0 && parse_request("fight on 1").bosses == 0);
+  for (const char *bad : {"fight on bosses", "fight on bosses 99", "fight on bosses 401", "fight on bosses 2.0",
+                          "fight on bosses -200", "fight on bosses x", "fight on bosses 200 aggro-host",
+                          "fight on spawns bosses 200", "fight on bosses 200 bosses 200", "fight on 1 bosses 200",
+                          "fight on Bosses 200", "fight on boss 200", "fight off bosses 200", "fight pilot bosses 200"})
+    assert(parse_request(bad).command == Command::none);
   // Stage 4: same_spawns=on as "spawns", one word after aggro-host (or where it would be), before the ids; none: off.
   f = parse_request("fight on scale 135 115 place aggro-host spawns 15011001");
   assert(f.place && f.aggro_host && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));

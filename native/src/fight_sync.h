@@ -19,6 +19,8 @@
 //                                                                  its world (and scale) while on, and at each change
 //   SBF11 aggro <gen> <game|host>                                  host, reliable: its aggro (stage 3b), after its
 //                                                                  place while host, and at each change
+//   SBF11 bosses <gen> <boss %>                                    host, reliable: its bosses=on (stage 5) and its
+//                                                                  boss_hp_scale, after its aggro while on
 //   SBF11 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
 //                                                                  game's own MaxHP (never a scaled one)
 //   SBF11 down <gen> <hguid>, SBF11 dead <gen> <hguid>             host, reliable: gone without a death, or its death
@@ -54,9 +56,9 @@
 //                                                                  comes into the set, and on her first line for a
 //                                                                  copy each one it lacks, so a repeat changes nothing
 //                                                                  and brings back a line refused before she paired
-// The host answers the guest's on and world with its whole list (world, its scale and place, then every up), and the
-// guest
-// answers the host's on with its own (hers may have come while the host was off), so either side may restart.
+// The host answers the guest's on and world with its whole list (world, its scale, place, aggro and bosses, then every
+// up), and the guest answers the host's on with its own (hers may have come while the host was off), so either side
+// may restart.
 // Same-place enemies (pilot.h) send their show, show-set and show-stop lines on this channel with the same tag, from
 // the side that owns an enemy; pilot_line() tells them apart, and pilot.h parses them. own and own-no are the
 // engine's (fight_engine.h keeps the owners), never Host's or Guest's; so are same spawns' four (spawn_sync.h), and
@@ -119,6 +121,9 @@ inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + k
 // kMinScale, none, to kMaxScale), the host's for both worlds and fixed for its session.
 enum Scale : int { kScaleHp, kScaleBalance, kScales };
 inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || pct[kScaleBalance] > kMinScale; }
+// With bosses on (stage 5, boss: the host's boss_hp_scale in percent; 0 off), a boss's MaxHP takes that percent in
+// place of enemy_hp_scale; its balance takes enemy_balance_scale as any enemy's.
+inline bool scaling(const uint16_t *pct, uint16_t boss) { return scaling(pct) || boss > kMinScale; }
 // Stage 3c (PHASE11-STAGE3 3.9): her takedowns. The host takes one exec 1 an enemy in kExecMs (R33). While hers runs,
 // it holds her lethal claim and its own dead for that enemy until her exec 0, kHoldMs at most from her exec 1, and her
 // lethal claim kHoldMs at most from its own arrival (M3-5).
@@ -257,8 +262,8 @@ inline bool summon_key_ok(const SpawnKey &k) { return is_summon(k.spawn) && (k.s
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
 // bstart and phase: the host's, never recorded.
 enum class Type : uint8_t {
-  invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn, drop,
-  epoch, bstart, phase
+  invalid, on, off, world, scale, place, aggro, bosses, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn,
+  drop, epoch, bstart, phase
 };
 // One enemy in an hp message.
 struct Values {
@@ -282,6 +287,7 @@ struct Message {
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // scale: MaxHP and MaxStamina in percent.
   bool place = false;                               // place: the host's same_place on.
   bool host_only = false;                           // aggro: aggro=host (game otherwise).
+  uint16_t boss = 0;                                // bosses: boss_hp_scale in percent.
   bool to_guest = false;                            // own: G (H otherwise).
   uint8_t oe = 0;                                   // own, own-no, phase: the owner epoch.
   uint8_t why = kUnpaired;                          // own-no: one of OwnNo.
@@ -311,6 +317,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::scale: return t + "scale" + n(m.gen) + n(m.scale[kScaleHp]) + n(m.scale[kScaleBalance]);
   case Type::place: return t + "place" + n(m.gen) + n(m.place);
   case Type::aggro: return t + "aggro" + n(m.gen) + (m.host_only ? " host" : " game");
+  case Type::bosses: return t + "bosses" + n(m.gen) + n(m.boss);
   case Type::up: return t + "up" + n(m.gen) + n(m.guid) + n(m.spawn) + n(m.index) + n(m.chr) + n(m.max_hp);
   case Type::down: return t + "down" + n(m.gen) + n(m.guid);
   case Type::dead: return t + "dead" + n(m.gen) + n(m.guid);
@@ -463,6 +470,10 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && (f[1] == "game" || f[1] == "host");
     m.host_only = f[1] == "host";
     type = Type::aggro;
+  } else if (kind == "bosses") {
+    ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && number(f[1], v) && v >= kMinScale && v <= kMaxScale;
+    m.boss = static_cast<uint16_t>(ok ? v : 0);
+    type = Type::bosses;
   } else if (kind == "own") {
     ok = split(rest, f, 4, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && (f[2] == "H" || f[2] == "G") &&
          number(f[3], v) && v <= 255;
@@ -592,6 +603,7 @@ struct Seen {
   bool immortal = false;                 // It holds Immortal (27): SB's own floor keeps its HP at 1 or more.
   bool dying = false;                    // Pending death or life state 3 (Dead): it may stay in the map a while.
   bool scaled = false;                   // The engine holds our two-player scaling on it: its maxes are not its own.
+  bool boss = false;                     // A BossMonster (ActorType 4): a boss or an Alpha Naytiba (stage 5).
   bool marked = false; // A takedown runs on it: Check_LinkSkillHit_Skill (5000039) or LinkState_MonsterHit (2006004).
   bool takedown = false; // A Monster in life state 1 holding Groggy (7) or a takedown marker: R33's test of an exec 1.
   bool monster = false;  // A Monster in life state 1: R33 also takes an exec 1 for it once its balance is 0.
@@ -773,11 +785,16 @@ public:
   // Each turn, before step(): our aggro (stage 3b), true for aggro=host. She hears it after our place while it says
   // host, and at each change.
   void set_aggro(bool host_only) { host_only_ = host_only; }
+  // Before the first step: our bosses=on (stage 5) with our boss_hp_scale in percent, 0 for off. She hears it after
+  // our aggro, in each whole list.
+  void set_bosses(uint16_t pct) { boss_ = pct; }
+  uint16_t bosses() const { return boss_; }
   // The enemies whose scaling the engine holds after this step: every one followed while her on held, until it leaves
-  // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling.
+  // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling; with a
+  // boss's alone, every one too (the engine picks each one's percent by its type).
   size_t scaled(uint32_t *guids) const {
     size_t n = 0;
-    for (size_t i = 0; scaling(scale_) && i < count_; ++i)
+    for (size_t i = 0; scaling(scale_, boss_) && i < count_; ++i)
       if (enemies_[i].scaled)
         guids[n++] = enemies_[i].guid;
     return n;
@@ -890,7 +907,7 @@ public:
         }
         e.take(*s);
         if (!e.scaled && peer_on_)
-          e.scaled = true, e.due = scaling(scale_);
+          e.scaled = true, e.due = scaling(scale_, boss_);
         e.cc.apply(e.guid, *s, now, counts, io);
         ++i;
         continue;
@@ -918,11 +935,13 @@ public:
         io.send(note(e.died ? Type::dead : Type::down, e.guid));
       enemies_[i] = enemies_[--count_];
     }
-    for (size_t i = 0; i < n; ++i) { // One we still hold scaled comes back at a census once the engine let it go.
-      if (dying(seen[i]) || seen[i].scaled || find(seen[i].guid))
+    // New ones, the bosses first (stage 5). One we still hold scaled comes back at a census once the engine let it go.
+    for (size_t k = 0; k < 2 * n; ++k) {
+      const size_t i = k % n;
+      if ((k < n) != seen[i].boss || dying(seen[i]) || seen[i].scaled || find(seen[i].guid))
         continue;
       const bool hurt = seen[i].value[kHp] < whole(seen[i].max[kHp]), room = count_ < kMaxPairs;
-      Enemy *place = room ? &enemies_[count_++] : hurt ? idle() : nullptr;
+      Enemy *place = room ? &enemies_[count_++] : hurt || seen[i].boss ? evict(seen[i].boss) : nullptr;
       if (!place) {
         if (hurt && !full_said_)
           full_said_ = true, io.event(Event{"full", "every place holds an enemy in a fight; a hurt one is not shared"});
@@ -934,7 +953,7 @@ public:
       e.guid = seen[i].guid;
       e.max_hp = std::max(1, whole(std::round(seen[i].max[kHp])));
       e.take(seen[i]);
-      e.scaled = peer_on_, e.due = peer_on_ && scaling(scale_);
+      e.scaled = peer_on_, e.due = peer_on_ && scaling(scale_, boss_);
       // Hurt before it was shared (by our EVE, or by her claims before a pause or a restart): fought. HP only, as for
       // a fight above: whether Shield and balance always start full is not known.
       e.fought = hurt;
@@ -957,6 +976,11 @@ public:
         io.send(placed());
       if ((told_aggro_ = host_only_)) // Nor game: her world reset it to game.
         io.send(aggro());
+      if (boss_) { // Nor off.
+        Message b = note(Type::bosses, 0);
+        b.boss = boss_;
+        io.send(b);
+      }
       for (size_t i = 0; i < count_; ++i)
         io.send(up(enemies_[i]));
       next_hp_ = next_refresh_ = now; // Every value at once.
@@ -1001,6 +1025,7 @@ private:
                           // our hp lines say 0.
     bool died = false;    // Dead in our world while her takedown runs (stage 3c): our dead waits; hp lines say 0.
     bool takedown = false, monster = false; // Seen::takedown and Seen::monster at the last pass.
+    bool boss = false;                      // Seen::boss: never a common enemy's place to take (stage 5).
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
     bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
@@ -1017,6 +1042,7 @@ private:
         struck_ours = struck_ours || s.value[k] < value[k];
       fought = fought || struck_ours;
       spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage, takedown = s.takedown, monster = s.monster;
+      boss = s.boss;
       std::copy(s.max, s.max + kStats, max);
       std::copy(s.value, s.value + kStats, value);
     }
@@ -1040,12 +1066,19 @@ private:
         return &enemies_[i];
     return nullptr;
   }
-  // The first enemy out of any fight: at full HP, never hit by her. Null when every one fights.
-  Enemy *idle() {
-    for (size_t i = 0; i < count_; ++i)
-      if (!enemies_[i].hit && enemies_[i].value[kHp] >= whole(enemies_[i].max[kHp]))
-        return &enemies_[i];
-    return nullptr;
+  // The place a newcomer takes with every place held: the first common enemy out of any fight (at full HP, never hit
+  // by her), else for a boss the first common enemy. Never a boss's. Null when none.
+  Enemy *evict(bool boss) {
+    Enemy *common = nullptr;
+    for (size_t i = 0; i < count_; ++i) {
+      Enemy &e = enemies_[i];
+      if (e.boss)
+        continue;
+      if (!e.hit && e.value[kHp] >= whole(e.max[kHp]))
+        return &e;
+      common = common ? common : &e;
+    }
+    return boss ? common : nullptr;
   }
   Message note(Type type, uint32_t guid) const {
     Message m;
@@ -1256,6 +1289,7 @@ private:
   bool credit_all_ = true;
   bool place_ = false, told_place_ = false; // Our same_place, and as the guest last heard it.
   bool host_only_ = false, told_aggro_ = false; // Our aggro=host, and as the guest last heard it.
+  uint16_t boss_ = 0;                            // Our boss_hp_scale with bosses=on; 0: off.
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
@@ -1288,6 +1322,9 @@ public:
   bool place() const { return place_; }
   // The host's aggro=host from its aggro line, the same way: false (aggro=game) before one.
   bool host_only() const { return host_only_; }
+  // The host's boss_hp_scale from its bosses line (stage 5), the same way: 0 (bosses off) before one. While set, the
+  // engine's census takes our bosses too.
+  uint16_t bosses() const { return boss_; }
   uint32_t gen() const { return known_gen_; } // The host's generation, from its world line; 0 before one.
   size_t linked() const {
     size_t n = 0;
@@ -1309,10 +1346,10 @@ public:
         }
     return n;
   }
-  // With the host's scaling: the copies the engine scales after this step, as tracked(). Any other gets its own maxes
-  // back, a copy the host's dead killed this step too: the engine takes a dying copy's scaling off without lowering
-  // its HP.
-  size_t scaled(uint32_t *guids) const { return scaling(scale_) ? tracked(guids) : 0; }
+  // With the host's scaling (a boss's alone too): the copies the engine scales after this step, as tracked(); the
+  // engine picks each one's percent by its type. Any other gets its own maxes back, a copy the host's dead killed this
+  // step too: the engine takes a dying copy's scaling off without lowering its HP.
+  size_t scaled(uint32_t *guids) const { return scaling(scale_, boss_) ? tracked(guids) : 0; }
   // The host's enemies left unpaired for a reason (unshared, logged once each), the first max of them into out: how
   // many in all, and in maxhp how many of them for MaxHP (another difficulty or New Game+ in one game).
   size_t unshared(Unshared *out, size_t max, size_t &maxhp) const {
@@ -1391,6 +1428,7 @@ public:
     case Type::scale:
     case Type::place:
     case Type::aggro:
+    case Type::bosses:
     case Type::up:
     case Type::down:
     case Type::dead:
@@ -1409,6 +1447,8 @@ public:
       return (void)(place_ = m.place);
     if (m.type == Type::aggro)
       return (void)(host_only_ = m.host_only);
+    if (m.type == Type::bosses)
+      return (void)(boss_ = m.boss);
     Pair *p = find(m.guid);
     if (m.type == Type::up) {
       if (p) // Announced once a generation: a repeat changes nothing.
@@ -1546,6 +1586,7 @@ private:
     logged_ = 0;
     std::fill(scale_, scale_ + kScales, kMinScale);
     place_ = host_only_ = false;
+    boss_ = 0;
   }
   Pair *find(uint32_t hguid) {
     for (size_t i = 0; i < count_; ++i)
@@ -1739,6 +1780,7 @@ private:
   uint16_t scale_[kScales] = {kMinScale, kMinScale};
   bool place_ = false;     // The host's same_place (its place line).
   bool host_only_ = false; // The host's aggro=host (its aggro line).
+  uint16_t boss_ = 0;      // The host's boss_hp_scale (its bosses line); 0: bosses off.
   bool confirm_ = false, credit_all_ = true;
   struct Key {
     uint32_t spawn = 0;
@@ -1750,8 +1792,9 @@ private:
 
 // ---- Record and replay ----
 
-// The host's lines as sent (world, scale, place, aggro, up, down, dead, hp, cc), each "<ms since the start> <SBF11
-// text>\n", in a file the worker writes at the stop; read back whole and checked, then played once into the guest role.
+// The host's lines as sent (world, scale, place, aggro, bosses, up, down, dead, hp, cc), each "<ms since the start>
+// <SBF11 text>\n", in a file the worker writes at the stop; read back whole and checked, then played once into the
+// guest role.
 // The first line is a world (the recorder starts with the host's list), so the guest takes the recorded generation;
 // pairing goes by key, so a recorded enemy pairs with the same spawn after a camp rest.
 constexpr size_t kMaxRecording = size_t(4) << 20, kMaxRecordLines = 20000;

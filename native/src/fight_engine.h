@@ -94,7 +94,7 @@ constexpr int kMaxHpValue = 3, kMaxHpRate = 4, kMaxStamina = 13;
 // FSBActor: its ESBActorType, a byte copied from its CharacterTable row when it is made (PHASE11-STAGE2-RE 5): 1 PC,
 // 2 NPC, 3 Monster, 4 BossMonster (the bosses and the Elite Alpha Naytibas); 0 none, never 5 or more.
 constexpr size_t kActorType = 0x368;
-constexpr uint8_t kTypePc = 1, kTypeMonster = 3, kTypes = 5;
+constexpr uint8_t kTypePc = 1, kTypeMonster = 3, kTypeBoss = 4, kTypes = 5;
 // fight_chars=auto leaves out the odd Monsters until stage 5, the bosses' (CharacterTable and DifficultyStatGroupTable
 // exports, PHASE11-STAGE2-RE 5): by charId, M_Gorgon (50330, Rank Boss, 100,000 MaxHP) and the SE_M_TurretLaser_02 and
 // _03 turrets (35027002 and 35027003, 999,999); and any Monster whose MaxHP as read is above kMaxAutoHp. The other
@@ -378,6 +378,7 @@ struct Snapshot {
   size_t floors = 0;                     // Enemies holding our floor (guest_kills=confirmed).
   size_t scaled = 0;                     // Enemies whose MaxHP we scaled.
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // The side's scaling: the host's own, or as its scale line said.
+  uint16_t bosses = 0; // The side's boss_hp_scale with bosses on (stage 5), as scale; 0: off.
   size_t actors = 0;                     // Live actors at the last census (the probe's), or allocated slots.
   bool eve = false;                      // The last census found our EVE (RE4).
   // The guest's side: the host's enemies left unpaired (Guest::unshared), the first kMaxUnshared of them, how many
@@ -542,6 +543,10 @@ public:
   // Any thread: our aggro (stage 3b, the host's for both games), true for aggro=host: every enemy stays the host's, as
   // in 3a. The guest hears it like same_place.
   void aggro(bool host_only) { aggro_host_ = host_only; }
+  // Any thread: our bosses=on (stage 5) with our boss_hp_scale in percent (0: off), the host's for both games; set
+  // while off. On, fight_chars=auto shares the BossMonsters too (bosses and Alpha Naytibas, never handed to her), and
+  // a boss's MaxHP takes this percent in place of enemy_hp_scale. A guest's side takes the host's from its bosses line.
+  void bosses(uint16_t pct) { bosses_ = pct; }
   // Any thread: our same_spawns (stage 4), the host's for both games; set while off. On, the host tells her its zone
   // and epoch and answers her rounds; she runs only on its epoch line, whatever hers says.
   void same_spawns(bool on) { same_spawns_ = on; }
@@ -695,6 +700,7 @@ public:
       guest.credit(credit_all_);
       host.credit(credit_all_);
       host.set_scale(scale_hp_, scale_balance_);
+      host.set_bosses(bosses_);
       session_seen_ = session;
       hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
       probing_seen_ = probing_;
@@ -766,11 +772,13 @@ public:
       host.set_place(same_place_ && !pilot_off_ && !pilot_stopped_);
       host.set_aggro(aggro_host_);
       host.step(seen_, n, census, turn, now_ms, io);
-      hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance));
+      hold_scales(g, logic, followed, host.scaled(followed), host.scale(kScaleHp), host.scale(kScaleBalance),
+                  host.bosses());
     } else if (!latched_) {
       guest.step(seen_, n, census, turn, now_ms, io);
       hold_floors(g, logic, followed, guest.floored(followed));
-      hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance));
+      hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance),
+                  guest.bosses());
     }
     if (!latched_ && census)
       spawn_turn(g, logic, now_ms);
@@ -876,6 +884,7 @@ public:
     }
     for (int k = 0; k < kScales; ++k)
       s.scale[k] = hosting_seen_ ? host.scale(k) : guest.scale(k);
+    s.bosses = hosting_seen_ ? host.bosses() : guest.bosses();
     if (!hosting_seen_) {
       s.unshared_all = guest.unshared(s.unshared, kMaxUnshared, s.maxhp);
       s.lonely = guest.lonely();
@@ -1005,10 +1014,12 @@ private:
     a.seen.stunned = a.states & kStunned;
     a.seen.immortal = held(27);
     // Stage 3c: a takedown marker on it, and whether R33 lets her take one down (a Monster in life state 1 holding
-    // Groggy or a marker, or with its balance at 0; its type read in life state 1 only, a failed read: no).
+    // Groggy or a marker, or with its balance at 0; a failed read of its type: no). Stage 5: a BossMonster.
     uint8_t type = 0;
+    const bool typed = g.read(a.fsb + kActorType, &type, 1);
     a.seen.marked = marker;
-    a.seen.monster = a.life == 1 && !a.pending && g.read(a.fsb + kActorType, &type, 1) && type == kTypeMonster;
+    a.seen.monster = a.life == 1 && !a.pending && typed && type == kTypeMonster;
+    a.seen.boss = typed && type == kTypeBoss;
     a.seen.takedown = a.seen.monster && (held(7) || marker);
     int32_t task = 0;
     const bool skill = fighting(a) && g.read(a.fsb + kAiTask, &task, sizeof task) && task;
@@ -1064,7 +1075,8 @@ private:
     return true;
   }
   // Stage 1's enemy: not a player, spawned by an EventSpawn row, fighting (no pending death), and of an allowlisted
-  // charId or, with no list, a Monster that auto_out() keeps. The type is read for such an actor only, and the MaxHP
+  // charId or, with no list, a Monster that auto_out() keeps, or a BossMonster while the side's bosses are on (stage
+  // 5: the host's own setting, or as its bosses line said). The type is read for such an actor only, and the MaxHP
   // for such a Monster; a type past BossMonster is implausible.
   template <class Game> bool eligible(Game &g, const Actor &a) {
     if (a.controlled || a.player || !a.seen.spawn || !fighting(a))
@@ -1078,6 +1090,8 @@ private:
       latch("implausible actor type");
       return false;
     }
+    if (type == kTypeBoss)
+      return (hosting_seen_ ? host.bosses() : guest.bosses()) != 0;
     float max_hp = 0;
     return type == kTypeMonster && get(g, a.fsb + kStatBase + 4 * size_t(kStatType[kHp] + 1), max_hp) &&
            !auto_out(a.seen.chr, max_hp);
@@ -1442,34 +1456,41 @@ private:
         latch("implausible floor");
     }
   }
-  // After the side's step: two-player scaling on each enemy it names (both percents kMinScale: it names none), off
-  // every other.
+  // After the side's step: two-player scaling on each enemy it names (all percents kMinScale: it names none), off
+  // every other. boss: the side's boss_hp_scale with bosses on (stage 5), a BossMonster's MaxHP percent; 0: off.
   template <class Game>
-  void hold_scales(Game &g, uint64_t logic, const uint32_t *want, size_t n, uint16_t hp, uint16_t balance) {
+  void hold_scales(Game &g, uint64_t logic, const uint32_t *want, size_t n, uint16_t hp, uint16_t balance,
+                   uint16_t boss) {
     let_go(g, logic, kMaxHpValue, want, n);
     let_go(g, logic, kMaxStamina, want, n);
     for (size_t k = 0; k < n && !latched_; ++k) {
-      scale_enemy(g, logic, want[k], kMaxHpValue, hp);
+      scale_enemy(g, logic, want[k], kMaxHpValue, hp, boss);
       scale_enemy(g, logic, want[k], kMaxStamina, balance);
     }
   }
-  // One enemy's max of this type times pct / 100, once: stat 3 by round(stat 3 x (pct - 100) / 100), which MaxHP
-  // follows, or MaxStamina by its own share; then HP or Stamina raised in proportion (a rise: no number, no on-damaged
-  // effect). Captured before the call. An enemy gone, dying or unread this turn is tried at the next step. Nothing to
-  // do (100 %, no balance gauge, a MaxHP that is not stat 3 x (1 + stat 4) because something else changed it, a result
-  // past kMaxStat) takes a capture of 0. The stat must then read exactly what was added, else this build keeps it
-  // elsewhere and the feature stops for the run (the latch's lift_all takes the delta back off wherever it went).
-  template <class Game> void scale_enemy(Game &g, uint64_t logic, uint32_t guid, int type, uint16_t pct) {
+  // One enemy's max of this type times pct / 100, once (MaxHP by boss in place of pct for a BossMonster while boss is
+  // set): stat 3 by round(stat 3 x (pct - 100) / 100), which MaxHP follows, or MaxStamina by its own share; then HP or
+  // Stamina raised in proportion (a rise: no number, no on-damaged effect). Captured before the call. An enemy gone,
+  // dying or unread this turn is tried at the next step. Nothing to do (100 %, no balance gauge, a MaxHP that is not
+  // stat 3 x (1 + stat 4) because something else changed it, a result past kMaxStat) takes a capture of 0. The stat
+  // must then read exactly what was added, else this build keeps it elsewhere and the feature stops for the run (the
+  // latch's lift_all takes the delta back off wherever it went).
+  template <class Game>
+  void scale_enemy(Game &g, uint64_t logic, uint32_t guid, int type, uint16_t pct, uint16_t boss = 0) {
     if (captures_ == kMaxCaptures || captured(guid, type))
       return;
     Actor a;
     const int stat = type == kMaxHpValue ? kHp : kStamina;
     float base = 0, rate = 0;
+    uint8_t actor_type = 0;
     const uint64_t la = g.find(logic, guid);
     if (!la || !live(g, la, guid, a) || !fighting(a) || !stats(g, a) ||
         !get(g, a.fsb + kStatBase + 4 * size_t(type), base) ||
-        (type == kMaxHpValue && !get(g, a.fsb + kStatBase + 4 * size_t(kMaxHpRate), rate)))
+        (type == kMaxHpValue && !get(g, a.fsb + kStatBase + 4 * size_t(kMaxHpRate), rate)) ||
+        (boss && !get(g, a.fsb + kActorType, actor_type)))
       return;
+    if (boss && actor_type == kTypeBoss)
+      pct = boss;
     const float max = a.seen.max[stat];
     const int32_t value = a.seen.value[stat], add = int32_t(std::lround(double(base) * (pct - kMinScale) / kMinScale));
     const bool fits = add >= 1 && max >= 1 && std::fabs(max - std::trunc(base * (1 + rate))) < 1 &&
@@ -2069,7 +2090,8 @@ private:
       f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
                  pilot::closer(o->owner, enemy, eve_at, flags_.her);
       const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_;
-      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_, lost || host.ignored()))
+      // A boss stays ours, as with aggro=host (stage 5: bosses attack the host first).
+      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || host.ignored()))
         continue;
       Message own;
       own.type = Type::own;
@@ -2176,6 +2198,7 @@ private:
   std::atomic<bool> same_spawns_{false};
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
+  std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
   std::atomic<const char *> why_{nullptr};
   std::atomic<uint32_t> generation_{0}, session_{0}, idle_arms_{0}; // idle_arms_: pushes since the live arm last ran.
@@ -2525,7 +2548,7 @@ private:
     coop_ = refused.empty(), gate_ms_ = now_;
     if (!coop_ && !(r.fight == Fight::on && no_coop(refused)))
       return "shared fight off: " + refused;
-    if (r.fight == Fight::record && scaling(r.scale) && !armed_)
+    if (r.fight == Fight::record && scaling(r.scale, r.bosses) && !armed_)
       return "shared fight record refused: its scaling writes, and writes are not armed yet (coop fight probe first)";
     if (r.fight == Fight::replay) {
       if (!armed_)
@@ -2544,6 +2567,7 @@ private:
     e_.credit(!r.fought);
     e_.same_place(r.place);
     e_.aggro(r.aggro_host);
+    e_.bosses(r.bosses);
     e_.same_spawns(r.spawns);
     e_.enemy_extra(r.extra);
     e_.pilot_off(false);
@@ -2785,11 +2809,15 @@ private:
                     "desync=%llu unpaired=%zu maxhp=%zu",
                     name(ran_), s.paired, u(s.guest.claims), u(s.guest.corrections), u(s.guest.kills),
                     u(s.guest.floored), u(s.guest.desync), s.unshared_all, s.maxhp);
-    // The side's scaling: the host's own, or as the host's scale line said (100/100 before it, and without one).
-    std::snprintf(tail, sizeof tail, "%s sim_us=%llu/%llu threads=%u/%u/%u",
+    // The side's scaling: the host's own, or as the host's scale line said (100/100 before it, and without one); its
+    // bosses (stage 5) the same way, with their boss_hp_scale, or off.
+    std::snprintf(tail, sizeof tail, "%s sim_us=%llu/%llu threads=%u/%u/%u%s",
                   ran_ == Fight::probe ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
                                                std::to_string(s.scale[kScaleBalance])).c_str(),
-                  u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
+                  u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread,
+                  ran_ == Fight::probe ? ""
+                  : s.bosses           ? (" bosses=" + std::to_string(s.bosses)).c_str()
+                                       : " bosses=off");
     return std::string(head) + spawns_field(s) + tail;
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
