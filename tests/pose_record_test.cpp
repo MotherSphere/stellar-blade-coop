@@ -252,7 +252,7 @@ int main() {
   std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good, protocol_6 = good, protocol_7 = good,
               protocol_8 = good, protocol_9 = good, protocol_10 = good, d_age_0 = d1;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x0b");
+  assert(kHead == "SBR\x0c");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
   protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.

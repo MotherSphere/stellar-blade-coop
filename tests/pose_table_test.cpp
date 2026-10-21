@@ -295,7 +295,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 11\n");
+  assert(kSbt == "SBT 12\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);

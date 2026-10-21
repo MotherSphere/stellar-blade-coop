@@ -225,59 +225,59 @@ int main() {
     host_step(h, ep, w, 0, true, 0); // Our zone unknown: nothing.
     assert(w.lines().empty());
     host_step(h, ep, w, 0);
-    assert(w.lines() == "SBF11 epoch 1 40 1\n");
+    assert(w.lines() == "SBF12 epoch 1 40 1\n");
     host_step(h, ep, w, 250);
     assert(w.lines().empty()); // Once a change.
     h.clear();                 // Her on, off or world: said again.
     host_step(h, ep, w, 500);
-    assert(w.lines() == "SBF11 epoch 1 40 1\n");
+    assert(w.lines() == "SBF12 epoch 1 40 1\n");
     // Her round in two lines at our epoch, before our zone is settled: stale, no answer.
-    h.have(msg("SBF11 have 1 1 1 2 7002:0 7006:0"), 1, 600);
-    h.have(msg("SBF11 have 1 1 2 2 7020:0 7023:0 7004:0 7005:0"), 1, 600);
+    h.have(msg("SBF12 have 1 1 1 2 7002:0 7006:0"), 1, 600);
+    h.have(msg("SBF12 have 1 1 2 2 7020:0 7023:0 7004:0 7005:0"), 1, 600);
     host_step(h, ep, w, 700);
     assert(w.lines().empty() && h.counts.stale == 1 && h.counts.answered == 0);
     // Settled: spawn for 7001, 7003, 7024 and 7025 (ours, Monsters, taking part, in our zone, she lacks them); never
     // the save row, the keep row, the event row, the other zone's, the dying one or the NPC. Drop for 7006, hers,
     // which we lack; never for 7030 (a save row), 7031 (another zone) or 7032 (no row), nor 7004 and 7005 (ours).
-    h.have(msg("SBF11 have 1 1 1 2 7002:0 7006:0"), 1, 3000);
-    h.have(msg("SBF11 have 1 1 2 2 7030:0 7031:0 7032:0 7004:0 7005:0"), 1, 3000);
+    h.have(msg("SBF12 have 1 1 1 2 7002:0 7006:0"), 1, 3000);
+    h.have(msg("SBF12 have 1 1 2 2 7030:0 7031:0 7032:0 7004:0 7005:0"), 1, 3000);
     host_step(h, ep, w, 3100);
     const std::string answer = w.lines();
-    assert(answer == "SBF11 spawn 1 1 7001 0 900 1 -250 13 270\nSBF11 spawn 1 1 7003 0 900 3 -250 13 270\n"
-                     "SBF11 spawn 1 1 7024 0 900 24 -250 13 270\nSBF11 spawn 1 1 7025 0 900 25 -250 13 270\n"
-                     "SBF11 drop 1 1 7006 0\n");
+    assert(answer == "SBF12 spawn 1 1 7001 0 900 1 -250 13 270\nSBF12 spawn 1 1 7003 0 900 3 -250 13 270\n"
+                     "SBF12 spawn 1 1 7024 0 900 24 -250 13 270\nSBF12 spawn 1 1 7025 0 900 25 -250 13 270\n"
+                     "SBF12 drop 1 1 7006 0\n");
     assert(h.counts.answered == 1 && h.counts.spawn_lines == 4 && h.counts.drop_lines == 1);
     assert(w.count("spawn sent") == 4 && w.count("drop sent") == 1);
     // Another round within 500 ms: over the rate. A round of the last epoch: dropped (stale), no lines.
-    h.have(msg("SBF11 have 1 1 1 1"), 1, 3200);
+    h.have(msg("SBF12 have 1 1 1 1"), 1, 3200);
     assert(h.counts.rate == 1);
     host_step(h, ep, w, 3300);
     assert(w.lines().empty());
     w.mine[0].guid = 1, w.mine[1].guid = 2, w.mine[2].guid = 3; // A reset of ours: epoch 2.
     epoch(ep, w, 0xA1, 3, 4000);
-    h.have(msg("SBF11 have 1 1 1 1"), 1, 4000);
+    h.have(msg("SBF12 have 1 1 1 1"), 1, 4000);
     host_step(h, ep, w, 7100);
-    assert(w.lines() == "SBF11 epoch 1 40 2\n" && h.counts.stale == 2);
+    assert(w.lines() == "SBF12 epoch 1 40 2\n" && h.counts.stale == 2);
     // Her EVE more than 100 m away (the engine's near): no answer.
-    h.have(msg("SBF11 have 1 2 1 1"), 1, 7200);
+    h.have(msg("SBF12 have 1 2 1 1"), 1, 7200);
     host_step(h, ep, w, 7300, false);
     assert(w.lines().empty() && h.counts.stale == 3);
     // Out of order (a line lost) or another generation: the round is dropped.
-    h.have(msg("SBF11 have 1 2 2 2 7002:0"), 1, 8000);
-    h.have(msg("SBF11 have 1 2 1 2 7002:0"), 1, 8000);
-    h.have(msg("SBF11 have 1 2 1 1 7002:0"), 1, 8000); // Part 1 again: a new round of one line.
+    h.have(msg("SBF12 have 1 2 2 2 7002:0"), 1, 8000);
+    h.have(msg("SBF12 have 1 2 1 2 7002:0"), 1, 8000);
+    h.have(msg("SBF12 have 1 2 1 1 7002:0"), 1, 8000); // Part 1 again: a new round of one line.
     host_step(h, ep, w, 8100);
     assert(has(w.lines(), "spawn") && h.counts.answered == 2);
-    h.have(msg("SBF11 have 1 2 1 3 7002:0"), 1, 9000);
-    h.have(msg("SBF11 have 1 2 3 3 7003:0"), 1, 9000); // Part 2 lost.
-    h.have(msg("SBF11 have 2 2 1 1"), 1, 9500);         // Another generation.
+    h.have(msg("SBF12 have 1 2 1 3 7002:0"), 1, 9000);
+    h.have(msg("SBF12 have 1 2 3 3 7003:0"), 1, 9000); // Part 2 lost.
+    h.have(msg("SBF12 have 2 2 1 1"), 1, 9500);         // Another generation.
     host_step(h, ep, w, 9600);
     assert(w.lines().empty() && h.counts.stale == 6);
     // The epoch line again every 5 s, the same: one lost on the way stalls nothing for long.
     host_step(h, ep, w, 7100 + kHaveAgainMs - 1);
     assert(w.lines().empty());
     host_step(h, ep, w, 7100 + kHaveAgainMs);
-    assert(w.lines() == "SBF11 epoch 1 40 2\n");
+    assert(w.lines() == "SBF12 epoch 1 40 2\n");
     // At most kMaxAnswer lines of each kind a round; the rest goes with the next.
     World big;
     Epochs bep;
@@ -285,7 +285,7 @@ int main() {
     for (uint32_t id = 1; id <= 40; ++id)
       big.row(id, kReset), big.row(100 + id, kReset), big.add(id, id);
     epoch(bep, big, 0xA1, 3, 0);
-    std::string round = "SBF11 have 1 1 1 1";
+    std::string round = "SBF12 have 1 1 1 1";
     for (uint32_t id = 101; id <= 120; ++id)
       round += " " + std::to_string(id) + ":0";
     bh.have(msg(round), 1, kGraceMs);
@@ -303,13 +303,13 @@ int main() {
     far.add(1, 1).at[0] = 150000;
     far.add(2, 2);
     epoch(fep, far, 0xA1, 3, 0);
-    fh.have(msg("SBF11 have 1 1 1 1"), 1, kGraceMs);
+    fh.have(msg("SBF12 have 1 1 1 1"), 1, kGraceMs);
     host_step(fh, fep, far, kGraceMs);
-    assert(far.lines() == "SBF11 epoch 1 40 1\nSBF11 spawn 1 1 2 0 900 2 -250 13 270\n");
+    assert(far.lines() == "SBF12 epoch 1 40 1\nSBF12 spawn 1 1 2 0 900 2 -250 13 270\n");
     const float nearer[3] = {60000, 0, 0};
-    fh.have(msg("SBF11 have 1 1 1 1 2:0"), 1, kGraceMs + kRoundMs);
+    fh.have(msg("SBF12 have 1 1 1 1 2:0"), 1, kGraceMs + kRoundMs);
     host_step(fh, fep, far, kGraceMs + kRoundMs, true, kZone, nearer);
-    assert(far.lines() == "SBF11 spawn 1 1 1 0 900 150000 -250 13 270\n");
+    assert(far.lines() == "SBF12 spawn 1 1 1 0 900 150000 -250 13 270\n");
   }
 
   // ---- The guest: nothing before the host's epoch line; her rounds in the host's zone ----
@@ -327,33 +327,33 @@ int main() {
     Epochs ep;
     SpawnGuest g;
     epoch(ep, w, 0xA1, 3, 0);
-    g.heard(msg("SBF11 spawn 1 1 7050 0 900 0 0 0 0"), 1); // Before the epoch line: stale.
+    g.heard(msg("SBF12 spawn 1 1 7050 0 900 0 0 0 0"), 1); // Before the epoch line: stale.
     guest_step(g, ep, w, 5000);
     assert(!g.on() && w.sent.empty() && w.created.empty() && g.counts.stale == 1);
-    g.heard(msg("SBF11 epoch 2 40 1"), 1); // Another generation: stale.
+    g.heard(msg("SBF12 epoch 2 40 1"), 1); // Another generation: stale.
     assert(!g.on() && g.counts.stale == 2);
-    g.heard(msg("SBF11 epoch 1 40 1"), 1);
+    g.heard(msg("SBF12 epoch 1 40 1"), 1);
     assert(g.on() && g.zone() == kZone && g.epoch() == 1);
     guest_step(g, ep, w, 5000, false, false); // The host's EVE too far.
     guest_step(g, ep, w, 5000, false, true, kOther); // In another zone.
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000);
     std::string round = w.lines();
-    assert(round.rfind("SBF11 have 1 1 1 2 7001:0 7002:0 ", 0) == 0 && has(round, "\nSBF11 have 1 1 2 2 7025:0 ") &&
+    assert(round.rfind("SBF12 have 1 1 1 2 7001:0 7002:0 ", 0) == 0 && has(round, "\nSBF12 have 1 1 2 2 7025:0 ") &&
            has(round, " 7030:0\n") && !has(round, "704") && !has(round, "7099") && !has(round, "7001:1"));
     assert(g.counts.haves == 1 && w.created.empty());
     guest_step(g, ep, w, 5500);
-    g.heard(msg("SBF11 epoch 1 40 1"), 1); // The host's epoch line again (every 5 s), the same epoch: no round at once.
+    g.heard(msg("SBF12 epoch 1 40 1"), 1); // The host's epoch line again (every 5 s), the same epoch: no round at once.
     guest_step(g, ep, w, 5000 + kHaveMs);
     guest_step(g, ep, w, 5000 + kHaveAgainMs - 1);
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000 + kHaveAgainMs);
     assert(w.lines() == round); // Again every 5 s while shared.
-    g.heard(msg("SBF11 epoch 1 40 2"), 1); // A new epoch: at once, but 1 s after the last at least.
+    g.heard(msg("SBF12 epoch 1 40 2"), 1); // A new epoch: at once, but 1 s after the last at least.
     guest_step(g, ep, w, 5000 + kHaveAgainMs + kHaveMs - 1);
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000 + kHaveAgainMs + kHaveMs);
-    assert(has(w.lines(), "SBF11 have 1 2 1 2 "));
+    assert(has(w.lines(), "SBF12 have 1 2 1 2 "));
   }
 
   // ---- The guest: the host's spawn and drop lines, each checked (R33) ----
@@ -370,7 +370,7 @@ int main() {
     Epochs ep;
     SpawnGuest g;
     epoch(ep, w, 0xA1, 3, 0);
-    g.heard(msg("SBF11 epoch 1 40 1"), 1);
+    g.heard(msg("SBF12 epoch 1 40 1"), 1);
     guest_step(g, ep, w, kGraceMs);
     w.lines();
     const auto take = [&](std::initializer_list<const char *> lines, uint64_t now, bool moved = false,
@@ -380,15 +380,15 @@ int main() {
       epoch(ep, w, 0xA1, 3, now);
       guest_step(g, ep, w, now, moved, close);
     };
-    take({"SBF11 spawn 1 1 7010 0 900 600 -250 12 270", // Created where the host's stands.
-          "SBF11 spawn 1 1 7011 0 900 600 0 0 0", "SBF11 spawn 1 1 7010 0 900 600 0 0 0", // Again: stale.
-          "SBF11 spawn 1 1 7001 0 900 600 0 0 0",                                           // She has it: stale.
-          "SBF11 spawn 1 1 7012 0 900 101000 0 0 0",                                        // Past 1 km of her EVE.
-          "SBF11 spawn 1 1 7080 0 900 600 0 0 0",                                           // No row in her tables.
-          "SBF11 spawn 1 1 7077 0 900 600 0 0 0", "SBF11 spawn 1 1 7071 0 900 600 0 0 0",
-          "SBF11 spawn 1 1 7072 0 900 600 0 0 0", "SBF11 spawn 1 1 7078 0 900 600 0 0 0",
-          "SBF11 spawn 2 1 7013 0 900 600 0 0 0",                                           // Another gen: stale.
-          "SBF11 spawn 1 2 7014 0 900 600 0 0 0"},                                          // Another epoch: stale.
+    take({"SBF12 spawn 1 1 7010 0 900 600 -250 12 270", // Created where the host's stands.
+          "SBF12 spawn 1 1 7011 0 900 600 0 0 0", "SBF12 spawn 1 1 7010 0 900 600 0 0 0", // Again: stale.
+          "SBF12 spawn 1 1 7001 0 900 600 0 0 0",                                           // She has it: stale.
+          "SBF12 spawn 1 1 7012 0 900 101000 0 0 0",                                        // Past 1 km of her EVE.
+          "SBF12 spawn 1 1 7080 0 900 600 0 0 0",                                           // No row in her tables.
+          "SBF12 spawn 1 1 7077 0 900 600 0 0 0", "SBF12 spawn 1 1 7071 0 900 600 0 0 0",
+          "SBF12 spawn 1 1 7072 0 900 600 0 0 0", "SBF12 spawn 1 1 7078 0 900 600 0 0 0",
+          "SBF12 spawn 2 1 7013 0 900 600 0 0 0",                                           // Another gen: stale.
+          "SBF12 spawn 1 2 7014 0 900 600 0 0 0"},                                          // Another epoch: stale.
          kGraceMs + 100);
     assert(w.created.size() == 2 && w.created[0].key == (SpawnKey{7010, 0}) && w.created[0].at[0] == 600 &&
            w.created[0].at[1] == -250 && w.created[0].at[2] == 12 && w.created[0].yaw == 270);
@@ -409,12 +409,12 @@ int main() {
     assert(!has(round, " 7012:0"));
     assert(!has(round, " 7070:0") && !has(round, " 7073:0")); // Hers, but out of the set: a save row, another zone.
     assert(!has(round, " 7013:0") && !has(round, " 7014:0"));
-    take({"SBF11 spawn 1 1 7012 0 900 600 0 0 0"}, kGraceMs + kHaveAgainMs + 50);
+    take({"SBF12 spawn 1 1 7012 0 900 600 0 0 0"}, kGraceMs + kHaveAgainMs + 50);
     assert(w.created.size() == 3 && w.created[2].key == (SpawnKey{7012, 0}) && g.counts.spawned == 3);
     // Drops: her live Monster of a key that takes part, despawned (never killed); never a paired one (stage 1's), a
     // dying one, an NPC, a save row's or another zone's, nor one she lacks or despawned already.
-    take({"SBF11 drop 1 1 7002 0", "SBF11 drop 1 1 7002 0", "SBF11 drop 1 1 7003 0", "SBF11 drop 1 1 7004 0",
-          "SBF11 drop 1 1 7005 0", "SBF11 drop 1 1 7070 0", "SBF11 drop 1 1 7073 0", "SBF11 drop 1 1 7050 0"},
+    take({"SBF12 drop 1 1 7002 0", "SBF12 drop 1 1 7002 0", "SBF12 drop 1 1 7003 0", "SBF12 drop 1 1 7004 0",
+          "SBF12 drop 1 1 7005 0", "SBF12 drop 1 1 7070 0", "SBF12 drop 1 1 7073 0", "SBF12 drop 1 1 7050 0"},
          kGraceMs + kHaveAgainMs + 100);
     assert(w.despawned.size() == 1 && w.despawned[0] == 102 && g.counts.despawned == 1);
     assert(w.count("despawned") == 1 && w.count("drop refused", "not shared") == 1 &&
@@ -424,8 +424,8 @@ int main() {
     round = w.lines();
     assert(!has(round, " 7002:0") && has(round, " 7001:0")); // Despawned: no longer hers.
     // A created key that shows as no Monster, or of another charId than the host's, is despawned again.
-    take({"SBF11 spawn 1 1 7075 0 900 600 0 0 0", "SBF11 spawn 1 1 7076 0 900 600 0 0 0",
-          "SBF11 spawn 1 1 7074 0 900 600 0 0 0"},
+    take({"SBF12 spawn 1 1 7075 0 900 600 0 0 0", "SBF12 spawn 1 1 7076 0 900 600 0 0 0",
+          "SBF12 spawn 1 1 7074 0 900 600 0 0 0"},
          kGraceMs + 2 * kHaveAgainMs + 100);
     take({}, kGraceMs + 2 * kHaveAgainMs + 350);
     assert(g.counts.undone == 2 && w.count("spawn undone", "charId") == 1 &&
@@ -435,11 +435,11 @@ int main() {
     assert(g.counts.undone == 2); // Once each.
     // A charId the shared fight does not share here (fight_chars, or the auto rule's bosses): refused before any call.
     w.unshared.push_back(50330);
-    take({"SBF11 spawn 1 1 7019 0 50330 600 0 0 0"}, kGraceMs + 2 * kHaveAgainMs + 650);
+    take({"SBF12 spawn 1 1 7019 0 50330 600 0 0 0"}, kGraceMs + 2 * kHaveAgainMs + 650);
     assert(w.count("spawn refused", "not shared") == 1 && !w.actor(SpawnKey{7019, 0}) && g.counts.differ == 11);
     // Not shared (the host's EVE too far, or our zone not settled): the lines are stale, nothing done.
     const size_t made = w.created.size();
-    take({"SBF11 spawn 1 1 7020 0 900 600 0 0 0", "SBF11 drop 1 1 7001 0"}, kGraceMs + 2 * kHaveAgainMs + 700, false,
+    take({"SBF12 spawn 1 1 7020 0 900 600 0 0 0", "SBF12 drop 1 1 7001 0"}, kGraceMs + 2 * kHaveAgainMs + 700, false,
          false);
     assert(w.created.size() == made && w.despawned.size() == 3);
     // A created key that showed right and then died (the host's kill, through stage 1) leaves her rounds, since the
@@ -458,7 +458,7 @@ int main() {
     epoch(ep, w, 0xA1, 3, 30000 + kGraceMs);
     guest_step(g, ep, w, 30000 + kGraceMs);
     round = w.lines();
-    assert(has(round, "SBF11 have 1 1 1 1 ") && !has(round, " 7080:0") && has(round, " 7011:0"));
+    assert(has(round, "SBF12 have 1 1 1 1 ") && !has(round, " 7080:0") && has(round, " 7011:0"));
     // The rates: at most kCallsPerSecond spawns and despawns a second; the rest over the rate, never answered.
     World r;
     for (uint32_t id = 1; id <= 80; ++id)
@@ -466,9 +466,9 @@ int main() {
     Epochs rep;
     SpawnGuest rg;
     epoch(rep, r, 0xA1, 3, 0);
-    rg.heard(msg("SBF11 epoch 1 40 1"), 1);
+    rg.heard(msg("SBF12 epoch 1 40 1"), 1);
     for (uint32_t id = 1; id <= kMaxQueued + 1; ++id) {
-      const std::string line = "SBF11 spawn 1 1 " + std::to_string(id) + " 0 900 500 0 0 0";
+      const std::string line = "SBF12 spawn 1 1 " + std::to_string(id) + " 0 900 500 0 0 0";
       rg.heard(msg(line), 1);
     }
     assert(rg.counts.rate == 1);
@@ -482,9 +482,9 @@ int main() {
     Epochs uep;
     SpawnGuest ug;
     epoch(uep, u, 0xA1, 3, 0);
-    ug.heard(msg("SBF11 epoch 1 40 1"), 1);
+    ug.heard(msg("SBF12 epoch 1 40 1"), 1);
     for (uint32_t id = 1; id <= 20; ++id)
-      ug.heard(msg("SBF11 spawn 1 1 " + std::to_string(id) + " 0 900 500 0 0 0"), 1);
+      ug.heard(msg("SBF12 spawn 1 1 " + std::to_string(id) + " 0 900 500 0 0 0"), 1);
     for (uint64_t now : {kGraceMs, kGraceMs + 250}) {
       epoch(uep, u, 0xA1, 3, now);
       guest_step(ug, uep, u, now);
@@ -501,8 +501,8 @@ int main() {
     Epochs nep;
     SpawnGuest ng;
     epoch(nep, nm, 0xA1, 3, 0);
-    ng.heard(msg("SBF11 epoch 1 40 1"), 1);
-    ng.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
+    ng.heard(msg("SBF12 epoch 1 40 1"), 1);
+    ng.heard(msg("SBF12 spawn 1 1 1 0 900 500 0 0 0"), 1);
     guest_step(ng, nep, nm, kGraceMs);
     assert(nm.count("spawn refused", "no spawn manager") == 1 && ng.counts.refused == 1 && ng.counts.differ == 0);
     // A created key of another charId that the despawn cannot find again (it is dying) stays, logged as kept, once.
@@ -511,8 +511,8 @@ int main() {
     Epochs kep;
     SpawnGuest kg;
     epoch(kep, kw, 0xA1, 3, 0);
-    kg.heard(msg("SBF11 epoch 1 40 1"), 1);
-    kg.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
+    kg.heard(msg("SBF12 epoch 1 40 1"), 1);
+    kg.heard(msg("SBF12 spawn 1 1 1 0 900 500 0 0 0"), 1);
     guest_step(kg, kep, kw, kGraceMs);
     for (uint64_t now : {kGraceMs + 250, kGraceMs + 500}) {
       epoch(kep, kw, 0xA1, 3, now);
@@ -530,20 +530,20 @@ int main() {
     Epochs bep;
     SpawnGuest bg;
     epoch(bep, bw, 0xA1, 3, 0);
-    bg.heard(msg("SBF11 epoch 1 40 1"), 1);
-    bg.heard(msg("SBF11 drop 1 1 1 0"), 1);
+    bg.heard(msg("SBF12 epoch 1 40 1"), 1);
+    bg.heard(msg("SBF12 drop 1 1 1 0"), 1);
     guest_step(bg, bep, bw, kGraceMs);
     assert(bw.despawned.empty() && bw.count("drop refused", "busy") == 1 && bg.counts.differ == 0);
     assert(has(bw.lines(), " 1:0"));
     bw.busy.clear();
-    bg.heard(msg("SBF11 drop 1 1 1 0"), 1);
+    bg.heard(msg("SBF12 drop 1 1 1 0"), 1);
     epoch(bep, bw, 0xA1, 3, kGraceMs + 250);
     guest_step(bg, bep, bw, kGraceMs + 250);
     assert(bw.despawned == std::vector<uint32_t>{11} && bg.counts.despawned == 1 && bg.counts.differ == 0);
     // The host's world, on or off forgets its epoch: nothing until its next epoch line.
     ng.clear();
     assert(!ng.on());
-    ng.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
+    ng.heard(msg("SBF12 spawn 1 1 1 0 900 500 0 0 0"), 1);
     nm.lines();
     guest_step(ng, nep, nm, 2 * kGraceMs);
     assert(nm.sent.empty() && nm.created.empty());
@@ -647,10 +647,10 @@ int main() {
     Epochs hep;
     SpawnHost sh;
     epoch(hep, h, 0xA1, 3, 0);
-    sh.have(msg("SBF11 have 1 1 1 1 1:0 3758096641:1 3758096897:1"), 1, kGraceMs); // 0xE0000101, 0xE0000201.
+    sh.have(msg("SBF12 have 1 1 1 1 1:0 3758096641:1 3758096897:1"), 1, kGraceMs); // 0xE0000101, 0xE0000201.
     host_step(sh, hep, h, kGraceMs);
-    assert(h.lines() == "SBF11 epoch 1 40 1\nSBF11 spawn 1 1 3758096642 2 900 642 -250 13 270\n"
-                        "SBF11 drop 1 1 3758096897 1\n");
+    assert(h.lines() == "SBF12 epoch 1 40 1\nSBF12 spawn 1 1 3758096642 2 900 642 -250 13 270\n"
+                        "SBF12 drop 1 1 3758096897 1\n");
     World g;
     g.row(1, kReset), g.row(0xE0000301, kReset); // A row of hers in the extras' range.
     g.chars[1] = 901;
@@ -658,11 +658,11 @@ int main() {
     Epochs gep;
     SpawnGuest sg;
     epoch(gep, g, 0xA1, 3, 0);
-    sg.heard(msg("SBF11 epoch 1 40 1"), 1);
-    sg.heard(msg("SBF11 spawn 1 1 3758096642 2 901 258 -250 13 270"), 1);
-    sg.heard(msg("SBF11 spawn 1 1 3758097153 1 901 258 -250 13 270"), 1); // 0xE0000301: her row's.
-    sg.heard(msg("SBF11 spawn 1 1 3758096643 3 777 258 -250 13 270"), 1); // No Monster of hers is charId 777.
-    sg.heard(msg("SBF11 drop 1 1 3758096897 1"), 1);
+    sg.heard(msg("SBF12 epoch 1 40 1"), 1);
+    sg.heard(msg("SBF12 spawn 1 1 3758096642 2 901 258 -250 13 270"), 1);
+    sg.heard(msg("SBF12 spawn 1 1 3758097153 1 901 258 -250 13 270"), 1); // 0xE0000301: her row's.
+    sg.heard(msg("SBF12 spawn 1 1 3758096643 3 777 258 -250 13 270"), 1); // No Monster of hers is charId 777.
+    sg.heard(msg("SBF12 drop 1 1 3758096897 1"), 1);
     guest_step(sg, gep, g, kGraceMs);
     assert(g.created.size() == 1 && g.created[0].key == extra_key(1, 2) && g.created[0].chr == 901);
     assert(g.count("spawn refused", "row taken") == 1 && g.count("spawn refused", "no such enemy") == 1 &&
@@ -679,9 +679,9 @@ int main() {
     assert(!has(round, " 3758096643:3")); // No charId 777 here: not answered, so the host sends it again.
     g.chars[2] = 777, g.add(203, 2);      // Her enemy of charId 777, made from the same answer, shows.
     g.refuse[0xE0000401] = "full", g.refuse[0xE0000402] = "not made";
-    sg.heard(msg("SBF11 spawn 1 1 3758096643 3 777 258 -250 13 270"), 1);
-    sg.heard(msg("SBF11 spawn 1 1 3758097409 1 901 258 -250 13 270"), 1); // 0xE0000401: no room.
-    sg.heard(msg("SBF11 spawn 1 1 3758097410 2 901 258 -250 13 270"), 1); // 0xE0000402: NewActor made nothing.
+    sg.heard(msg("SBF12 spawn 1 1 3758096643 3 777 258 -250 13 270"), 1);
+    sg.heard(msg("SBF12 spawn 1 1 3758097409 1 901 258 -250 13 270"), 1); // 0xE0000401: no room.
+    sg.heard(msg("SBF12 spawn 1 1 3758097410 2 901 258 -250 13 270"), 1); // 0xE0000402: NewActor made nothing.
     epoch(gep, g, 0xA1, 3, kGraceMs + kHaveAgainMs + 250);
     guest_step(sg, gep, g, kGraceMs + kHaveAgainMs + 250);
     assert(g.created.size() == 2 && g.created[1].key == extra_key(1, 3) && g.created[1].chr == 777);
@@ -699,8 +699,8 @@ int main() {
     Epochs gep;
     SpawnGuest sg;
     epoch(gep, g, 0xA1, 3, 0);
-    sg.heard(msg("SBF11 epoch 1 40 1"), 1);
-    sg.heard(msg("SBF11 spawn 1 1 4026597377 0 900 258 -250 13 270 77 5026003"), 1); // 0xF0010001.
+    sg.heard(msg("SBF12 epoch 1 40 1"), 1);
+    sg.heard(msg("SBF12 spawn 1 1 4026597377 0 900 258 -250 13 270 77 5026003"), 1); // 0xF0010001.
     guest_step(sg, gep, g, kGraceMs);
     assert(g.created.empty() && g.count("spawn refused", "no row") == 1 && sg.counts.spawned == 0);
   }
