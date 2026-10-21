@@ -74,12 +74,12 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/pose_codec_test.cpp -o 
 build/host/pose_codec_test
 ```
 
-- Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`,
-  `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
-  objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
-  also covers `coop fight pilot` (its `test target` and boss tests included), the `same_place` and `aggro` settings
-  and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings and rows, `coop fight spawn probe`,
-  and the same place and same spawns notices in both languages.
+- Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `nightop_run`, `nightop_waves`, `notice`,
+  `partner`, `puppet`, `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`, `ui_text`)
+  run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake
+  EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss tests included), the
+  `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings
+  and rows, `coop fight spawn probe`, and the same place and same spawns notices in both languages.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` and the boss

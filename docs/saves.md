@@ -39,7 +39,8 @@ The game has five save slots: the files `StellarBladeSave00.sav` to `StellarBlad
 
 ## Backups
 
-Back up the saves before you play with any mod, and always before a Night Operation preview or a new look.
+Back up the saves before you play with any mod, and always before a new look, a Night Operation run or a Night Operation
+preview.
 
 On Windows, with the game closed, copy the whole `SaveGames` folder to a place outside the game and Steam folders (see
 [INSTALL.md](../INSTALL.md#saves-and-steam-cloud)).
@@ -72,7 +73,7 @@ Steam Cloud syncs the save folder. If a save looks wrong, do not start the game 
 for Stellar Blade (right-click the game, Properties, General), so the bad save does not replace the good copy in the
 cloud. Then restore your backup.
 
-Keep Steam Cloud off during Night Operation preview runs and while you test new features.
+Keep Steam Cloud off during Night Operation runs and previews and while you test new features.
 
 Steam Cloud syncs the co-op copies (`StellarBladeCoop0N.sav`), but not `StellarCoopSaves.txt`, the backups in
 `StellarCoopBackups` or the `.coop-tmp` files. On another PC every copy then counts as played in co-op, so the mod never
@@ -81,9 +82,9 @@ PC that copy counts as an ordinary save, and the previews refuse to run there.
 
 ## Co-op saves
 
-Some features run only on a co-op save and never on your own saves: the two Night Operation previews (`coop no` and
-`coop recruiter`) and the experimental shared enemies (`coop fight`). The ghost, the keys and the Steam link work on any
-save. Nothing is copied back from a co-op save to your own saves.
+Some features run only on a co-op save and never on your own saves: Night Operation's solo run (`coop nightop`), the two
+Night Operation previews (`coop no` and `coop recruiter`) and the experimental shared enemies (`coop fight`). The ghost,
+the keys and the Steam link work on any save. Nothing is copied back from a co-op save to your own saves.
 
 A co-op save is either a co-op copy, which the mod makes, or the manual co-op slot of `StellarCoopSlot.txt` (below).
 

@@ -85,9 +85,10 @@ To change a key, select its row, then press the new key: `F1` to `F12` except `F
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
-The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, and the
-shared enemies', same place and same spawns notices use the game's text language, any of the 23 that the game ships. So
-do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English.
+The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, the
+shared enemies', same place and same spawns notices, and Night Operation's card, result panel and notices use the
+game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6) and the
+ghost's notices. `ui_language=english` keeps them all in English.
 The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the
 error messages from the coop commands, shown in the menu or the code box.
 
@@ -330,6 +331,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
+| `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's solo run](night-operation.md#the-solo-run-coop-nightop) (untested in game, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -434,6 +436,10 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 ```
 
 (`now no slot status` without the native part.)
+
+`coop nightop`, Night Operation's solo run, runs only on a co-op save too, with the same `STOP:` line under its own
+name, except `coop nightop stop`, which works on any save. See
+[night-operation.md](night-operation.md#the-solo-run-coop-nightop).
 
 The ghost, the link and every other command except `coop fight` (below) run on any save. `coop fight pilot` runs on
 any save too, since same place only moves enemies while shared enemies run.
@@ -849,10 +855,11 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
 
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
 loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
-the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), the Night
-Operation poller, a recruiter (despawned if one was requested, in Xion) and the photo pause (released; the native tick
-keeps running for this alone). Afterwards only `coop status` and `coop report` answer. Every other command answers
-`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys.
+the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
+run (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in Xion) and the
+photo pause (released; the native tick keeps running for this alone). Afterwards only `coop status` and `coop report`
+answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the menu, host and
+leave keys.
 
 ## coop-settings.txt
 

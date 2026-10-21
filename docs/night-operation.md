@@ -1,8 +1,9 @@
 # Night Operation
 
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
-Much of it is still in the game files. StellarCoop has two research previews that test parts of the cut mode. Neither
-preview is a playable mode.
+Much of it is still in the game files. StellarCoop has a solo run of its waves, `coop nightop`, and two research
+previews that test parts of the cut mode. The previews are not playable modes, and the solo run has not been tested in
+game yet.
 
 ## What the game files contain
 
@@ -30,8 +31,132 @@ The plan is to bring Night Operation back as a mode you play with friends over S
 - The mode runs on a co-op save, a copy of your save, and never on your own saves.
 - The recruiter's lines are translated into the game's 23 languages.
 
-The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The waves,
-the shared timer and the score do not exist yet. The previews below test how the cut mode's parts behave.
+The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The solo run
+below has the waves, a timer and a score on one PC, with no Steam session. Waves for two players, kills in sync and a
+shared timer and score do not exist yet. The previews test how the cut mode's parts behave.
+
+## The solo run (`coop nightop`)
+
+`coop nightop start` sends five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
+a score. It runs on a co-op save with no Steam session, and it has not been tested in game yet. Each step is logged in
+`UE4SS.log` as `[StellarCoop][NR]` lines.
+
+The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
+rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
+Protocol, with its author's permission (see [Credits](../README.md#credits)).
+
+| Command | What it does |
+| --- | --- |
+| `coop nightop start` | Start a run where EVE stands |
+| `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
+| `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
+| `coop nightop stop` | End the run, on any save. `coop off` ends it too |
+| `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and which monsters of earlier runs are still in the world |
+
+### Before your first run
+
+1. Load a co-op save, as in step 1 of [Before you try a preview](#before-you-try-a-preview). Leave any Steam session
+   (`coop leave`): the run is solo.
+2. Back up your saves and keep Steam Cloud off for Stellar Blade (steps 2 and 3 there). Whether the game saves a wave
+   monster that is still alive when it saves is not known yet.
+3. If you used `coop no rule` in this game run, restart the game: a run does not start while the probe's rule is set.
+
+A run edits no game table, so you can quit from the menu afterwards as usual. The co-op save keeps the session's
+progress like any co-op save, and your own saves are not touched.
+
+### Starting a run
+
+Go to open ground outside Xion, with no enemy or other character within 40 m of EVE, and type `coop nightop start`.
+The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is the run's number. The command refuses
+with one `STOP:` line, and changes nothing, when:
+
+- the save is not a co-op save;
+- a Steam session is linked, or the Steam link is not ready yet;
+- a run is already on;
+- the `coop no` probe's rule is set in this game run;
+- EVE is not in the world;
+- EVE is in Xion, whose people and quests stay out of a fight;
+- a living character other than EVE stands within 40 m. The line gives the count and the nearest distance, for
+  example `STOP: census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies: go where no one is within 40 m`.
+
+### The waves
+
+A 5 s countdown comes first. Run time starts at 0 when it ends, and wave 1 comes at once. Each later wave comes at its
+run time below, or 10 s after the wave before it is down if that is sooner. A wave also waits while the monsters still
+up plus its own would be more than 8. Run time is game time, so it stops while the game is paused.
+
+| Wave | Run time | Monsters |
+| --- | --- | --- |
+| 1 | 0:00 | 4 `M_Antlion` |
+| 2 | 1:15 | 2 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
+| 3 | 2:30 | 3 `M_HedgeBoarA`, 2 `M_LurkerA` |
+| 4 | 4:00 | 2 `M_SkullSpearAlone`, 2 `M_SkullGunnerAlone` |
+| 5 | 5:30 | 1 `M_SkullHammerAlone`, 2 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
+
+The monsters come from seven of the game's base monster rows (character IDs 50110, 50173, 50183, 50193, 50440, 50450
+and 50161). These rows drop nothing and have no kill achievement of their own. The Skull rows are the `Alone`
+variants, which summon no Skullings. Each wave appears at four points 14 m from where EVE started: two ahead of her,
+40 degrees to each side of the way she faced, and two behind, 140 degrees to each side. A number drawn at the start
+picks the order of the points for each wave. A fifth monster stands 2.5 m from its point. Each monster faces the start
+point.
+
+The mod then sends each new monster at EVE. 0.6 s after the monster is found, the mod reports a 0.01 damage event and
+a noise from EVE, puts the monster in battle state, and gives it EVE as focus and a move towards her; if it is still
+not fighting 4 s later, the mod does this again. A monster with no AI controller gets its default one first.
+
+From 2.5 s after it is found, and then every 3 s, a monster more than 10 m below both the start point and EVE, or more
+than 40 m from both, is moved to 7 m from EVE. This happens at most twice per monster. A monster still out after that
+no longer holds up its wave, and killing it later still scores. A monster not found 2.5 s after its wave's last spawn
+is logged as `missing`, and its wave does not wait for it.
+
+Once wave 2 is down, and again once wave 4 is down, the mod fires the game's full heal (the probe's heal event,
+`SE_10_E_ActorEff_011`).
+
+### Score and the end of a run
+
+Each kill scores by the monster's rank: 10 for `M_Antlion`, 20 for `M_SkullGunnerAlone` and `M_LurkerA`, 40 for
+`M_SkullSwordAlone`, `M_SkullSpearAlone` and `M_HedgeBoarA`, and 60 for `M_SkullHammerAlone`. A monster counts as down
+for its wave once it is dying or can be executed, and it scores once it dies.
+
+A run ends in one of four ways:
+
+- Success: every monster of the five waves is down. The score gets 1 point for each whole second left.
+- Time up: run time reaches 8:00.
+- Failed: EVE dies. The game's death screen and respawn run as usual.
+- Aborted: `coop nightop stop` or `coop off`; fast travel, a map change or a load; EVE more than 80 m from the start
+  point for 10 s; a save that is no longer a co-op save; a Steam session that starts; or an error in the run, which
+  `UE4SS.log` names.
+
+The log then has one line such as `result: success waves=5/5 kills=20 score=732 time=5:28 find_ms=0.9/2.4`.
+`find_ms` is the mean and the longest time the mod took to list the game's characters, which it does once a second
+while monsters are tracked.
+
+Monsters still alive after a time up, a failed or an aborted run stay in the world as ordinary enemies, and they no
+longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its monsters stay
+too. The next run takes a run number that no monster in the world carries, so they never count for it.
+
+### What you see
+
+A card at the top centre of the screen shows `NIGHT OPERATION` over the countdown (`STARTS IN 5`), then the wave, the
+run time left and the score (`WAVE 2/5  6:12  SCORE 140`). After a wave is down, the line counts down to the next one
+instead (`NEXT WAVE IN 9  6:12  SCORE 140`). The card hides while the game is paused or shows one of its own screens.
+
+When the run ends, a result panel takes the card's place for 10 s. Its heading is the game's own text for the mode,
+Operation Successful or Operation Failed in the game's language. The line under it says why a run did not succeed, and
+the rows give the waves cleared, the kills, the score and the time. The card and the panel follow the game's language,
+or English with `ui_language=english` (see [usage.md](usage.md#options)).
+
+With `coop ui off`, the same facts come as notices: the start, each wave, each wave cleared, and the result.
+
+### What a run touches
+
+A run spawns its monsters with the same game request as the probe's `coop no actor`. Each monster carries a wave key
+from `0xD8000000` to `0xD8FFFFFF`, a range that none of the game's spawn rows uses. The heal is the only zone event a
+run fires. A run adds or edits no table row, starts no rule, writes no save, and never hides or removes a monster. No
+word typed after `start` reaches a game call: `noaggro` and `nomove` only turn off the mod's own steps.
+
+Each kill most likely counts toward the game's general kill achievements, as any kill does: the one for 1500 kills
+and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
 
 ## The two previews
 
@@ -168,8 +293,8 @@ game in these ways:
   checks that the shipped zone event table is the only one in memory, so no other copy of the row can run. If any check
   fails, it stops, and no recruiter is spawned.
 - Each preview fires zone events through one guarded function that accepts only its own short list: the heal event and
-  eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. No
-  console argument reaches that function.
+  eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. The solo
+  run fires only the heal, through the probe's function. No console argument reaches that function.
 - `tests/matchmaking_scan_test.py` scans every script and native source of the mod and fails if any of them could
   reach the matchmaking path. The Join row may appear only as the recruiter's constant, which the recruiter neutralizes
   and never fires. The test also sets how many calls each file may make that fire zone events, add table rows or make
