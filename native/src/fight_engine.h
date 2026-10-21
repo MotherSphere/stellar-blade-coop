@@ -1637,7 +1637,7 @@ private:
       // Out of battle mode as SB's own calls leave it (its boss bar and music [L]; the arena walls are its spawn row's
       // events, not this call's); a dying copy needs none (the call's body refuses life states 3 to 5). The host's next
       // bstart for it calls again.
-      guest.started(c.key, false);
+      guest.started(c.key, false, c.guid);
       if (found && fighting(a)) {
         g.battle(a.fsb, false);
         g.event(Event{"battle off", "", c.key, a.seen.spawn, a.seen.index});

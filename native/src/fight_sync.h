@@ -1476,9 +1476,10 @@ public:
     return true;
   }
   // The engine's boss start went for the host's enemy hguid: its next bstarts are "again"; until the engine took its
-  // battle mode off again (taken false), then the next one calls again.
-  void started(uint32_t hguid, bool taken = true) {
-    if (Pair *p = find(hguid))
+  // battle mode off again (taken false), then the next one calls again. With local, only while the pair holds that copy:
+  // a copy the pair lost in the turn it paired another leaves the new one's mark alone.
+  void started(uint32_t hguid, bool taken = true, uint32_t local = 0) {
+    if (Pair *p = find(hguid); p && (!local || p->local == local))
       p->started = taken;
   }
   // A phase line boss_line() took, once the engine's checks passed: the rows to apply on the copy (phase_plan(); held,

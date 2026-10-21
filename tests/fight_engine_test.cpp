@@ -3249,6 +3249,40 @@ int main() {
     assert(!eg->latched());
   }
 
+  // ---- Bosses (stage 5), the guest's side: her copy 930 in battle mode is gone, and 940 of the same spawn key pairs
+  // in the census that brings the host's next bstart. 940 goes into battle mode; 930's capture, lifted in that turn,
+  // leaves 940's started mark alone, so the host's repeats come back as "again" with no second SetBattleMode ----
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100", "SBF11 up 1 130 30 0 15005100 1600"})
+      G.inbox.push_back(msg(line));
+    G.spawn(930, 30, 0, 15005100, 1600, kTypeBoss);
+    G.spawn(939, 39, 0); // Hers alone, in every census: the swap is no new world.
+    uint64_t t = 0;
+    for (; t <= 500; t += 16)
+      frame(G, *eg, t);
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    frame(G, *eg, t += 16);
+    assert(eg->guest.linked() == 1 && (G.battles == std::vector<uint64_t>{G.fsb(930)}));
+    for (const uint64_t c = eg->counts.censuses; eg->counts.censuses == c;)
+      frame(G, *eg, t += 16);
+    for (uint32_t i = 1; i < kCensusTurns; ++i) // The next turn takes a census.
+      frame(G, *eg, t += 16);
+    G.unlink(930);
+    G.spawn(940, 30, 0, 15005100, 1600, kTypeBoss);
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    frame(G, *eg, t += 16);
+    assert(count(G, "unpaired", "gone") == 1 && count(G, "paired") == 2 && eg->guest.linked() == 1);
+    assert((G.battles == std::vector<uint64_t>{G.fsb(930), G.fsb(940)}) && G.battles_off.empty());
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    frame(G, *eg, t += 16);
+    assert(G.battles.size() == 2 && G.battles_off.empty() && !eg->latched());
+  }
+
   // ---- Bosses (stage 5), the guest's solo probes (coop fight pilot test bstart|phase|finish|summon) as in a replay:
   // the host's lines fed in, her GorillaB copies 931 (5 m from her EVE) and 932 (30 m) and a common enemy 933 paired,
   // drawn and frozen, BattleMode in the owner's stream for the three. Each test takes the nearer boss copy through the
