@@ -2937,6 +2937,8 @@ int main() {
     for (uint32_t guid : G.despawned)
       assert(guid >= 909 && guid <= 912);
     assert(sh.spawning && sg.spawning && sh.epoch == 2 && sg.epoch == 2 && sg.spawns.stale >= 1 && G.made.size() == 4);
+    // The fight= line's epoch: the host's own zone and n with its one reset; hers the host's, with no reset of hers.
+    assert(sh.zone == 40 && sh.resets == 1 && sg.zone == 40 && sg.resets == 0);
     assert(sg.spawns.stale > stale_before && stale_before >= 1 && count(G, "drop refused") == 0);
     assert(sh.spawns.answered >= 2 && sh.spawns.stale >= 1); // Answered at epoch 2 too; her round of epoch 1 dropped.
     assert(eg->guest.linked() == 8); // The created four paired through stage 1.
@@ -3084,6 +3086,60 @@ int main() {
     assert(count(H, "summon sent") == 2 && eh->counts.summons == 2);
   }
 
+  // ---- The fight= line's boss= and battle=, at each census ----
+  // The host: a boss it follows in battle mode (+0xb58) reads boss; the enemies in BattleMode (state 30) within 30 m of
+  // our EVE count in battle, one 40 m away does not. The guest: the host's bstart taken holds boss for 10 s after it,
+  // with her copy out of battle mode too.
+  {
+    Game H;
+    auto eh = engine(false, true);
+    eh->allow(nullptr, 0);
+    eh->same_place(true);
+    eh->bosses(100);
+    eh->set(true, true);
+    H.spawn(130, 30, 0, 35026001, 1600, kTypeBoss);
+    for (uint32_t i = 0; i < 3; ++i) {
+      H.spawn(101 + i, 5001 + i, 0);
+      H.place(101 + i, i == 0 ? 1000.f : i == 1 ? 2990.f : 4000.f, 0);
+    }
+    H.inbox.push_back(msg("SBF12 on"));
+    uint64_t t = 0;
+    const auto run = [&](Game &w, Engine &e, uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(w, e, t);
+    };
+    run(H, *eh, 500);
+    assert(eh->host.linked() == 4 && !eh->snapshot().boss && eh->snapshot().battle == 0);
+    for (uint32_t guid : {101u, 102u, 103u})
+      H.state(guid, kBattleState, 1);
+    H.mem.put<uint8_t>(H.fsb(130) + kBattleFlag, 1);
+    run(H, *eh, 1000);
+    assert(eh->snapshot().boss && eh->snapshot().battle == 2);
+    H.mem.put<uint8_t>(H.fsb(130) + kBattleFlag, 0);
+    H.state(101, kBattleState, 0);
+    run(H, *eh, 1500);
+    assert(!eh->snapshot().boss && eh->snapshot().battle == 1);
+    Game G;
+    G.spawns(); // The job sender and the reg made.
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(930, 30, 0, 35026001, 1600, kTypeBoss);
+    for (const char *line : {"SBF12 world 1", "SBF12 place 1 1", "SBF12 bosses 1 100",
+                             "SBF12 up 1 130 30 0 35026001 1600"})
+      G.inbox.push_back(msg(line));
+    t = 0;
+    run(G, *eg, 496);
+    assert(eg->guest.linked() == 1 && G.table.on && !eg->snapshot().boss);
+    G.inbox.push_back(msg("SBF12 bstart 1 130"));
+    run(G, *eg, 800);
+    assert(G.battles.size() == 1 && eg->snapshot().boss);
+    G.mem.put<uint8_t>(G.fsb(930) + kBattleFlag, 0);
+    run(G, *eg, 10200);
+    assert(eg->snapshot().boss);
+    run(G, *eg, 10800);
+    assert(!eg->snapshot().boss);
+  }
   // ---- Bosses (stage 5), the guest's side, the host's lines fed in: her copies of Marionette (930) and GorillaB (931)
   // paired and drawn, a common enemy (932) too ----
   // bstart: SetBattleMode on her copy once, whatever the host's repeats; none for a copy she does not pair. phase: the
@@ -5447,6 +5503,16 @@ int main() {
     w.pass(t += 1000, true, false, true, none, gate, io);
     assert(has(w.detail(), " spawns=stopped spawned=4 despawned=3 spawns_differ=2 scale="));
     s.spawning = false, s.pilot_why = "fight", s.spawns = SpawnCounts();
+    // The revive's and the travel's guards last: a boss in battle mode, the enemies in battle mode near our EVE, and
+    // the epoch's zone, n and our own resets.
+    assert(has(w.detail(), " bosses=off boss=0 battle=0 epoch=0/0/0"));
+    s.boss = true, s.battle = 3, s.zone = 40, s.epoch = 2, s.resets = 1;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
+    assert(has(w.detail(), " bosses=off boss=1 battle=3 epoch=40/2/1 her="));
+    s.boss = false, s.battle = 0, s.zone = 0, s.epoch = 0, s.resets = 0;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);

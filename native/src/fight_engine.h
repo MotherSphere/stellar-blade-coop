@@ -441,6 +441,11 @@ struct Snapshot {
   SpawnCounts spawns;
   uint32_t epoch = 0;
   uint8_t extra = 0;
+  // The revive's and the travel's guards, at the last census: a boss of this side in battle mode (the guest's: or the
+  // host's bstart taken in the last kBattleEndMs), the enemies in BattleMode within kPartCm of our EVE; the zone of
+  // epoch (the guest's: the host's last epoch line), and our own epoch moves for a reset (a rest, a respawn) this run.
+  bool boss = false;
+  uint32_t battle = 0, zone = 0, resets = 0;
 };
 
 // One logic actor as the liveness test and the reads see it.
@@ -779,7 +784,7 @@ public:
       zone_told_ = false;
       probe_fence_.clear();
       next_probe_ = 0;
-      mate_ = Life::unknown, mate_ms_ = 0;
+      mate_ = Life::unknown, mate_ms_ = 0, bstart_ms_ = 0, boss_ = false, battle_ = zone_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
       // from it (a late claim number would make the new guest's claims look like lies, and 16 of them ignore her).
       Message on;
@@ -836,6 +841,8 @@ public:
     size_t n = pass(g, logic, census, followed, count);
     if (!latched_)
       slow_motion(g, n);
+    if (!latched_ && census)
+      battles(g, n, now_ms);
     if (!latched_ && hosting) {
       host.set_place(same_place_ && !pilot_off_ && !pilot_stopped_);
       host.set_aggro(aggro_host_);
@@ -960,6 +967,8 @@ public:
     s.spawns = hosting_seen_ ? spawn_host_.counts : spawn_guest_.counts;
     s.epoch = hosting_seen_ ? epochs_.n() : spawn_guest_.epoch();
     s.extra = per_;
+    s.boss = boss_, s.battle = battle_, s.resets = resets_;
+    s.zone = hosting_seen_ ? zone_ : spawn_guest_.zone();
     for (size_t i = 0; i < captures_; ++i) {
       s.floors += caps_[i].type == kFloorStat;
       s.scaled += caps_[i].type == kMaxHpValue && caps_[i].delta;
@@ -1445,6 +1454,22 @@ private:
     const uint64_t fsb = local_fsb(g);
     int32_t life = 0;
     return plausible(fsb) && g.read(fsb + kLife, &life, sizeof life) ? life : 0;
+  }
+  // At each census, for the fight= line's boss= and battle=: a BossMonster of this pass in battle mode (+0xb58), or on
+  // the guest's side the host's bstart taken in the last kBattleEndMs; and the enemies of this pass in BattleMode
+  // (state 30, as marks() read it) within kPartCm of our EVE.
+  template <class Game> void battles(Game &g, size_t n, uint64_t now) {
+    float eve[3], at[3];
+    const uint64_t fsb = local_fsb(g);
+    const bool eve_ok = plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve);
+    boss_ = !hosting_seen_ && bstart_ms_ && now - bstart_ms_ < kBattleEndMs;
+    battle_ = 0;
+    for (size_t i = 0; i < n; ++i) {
+      uint8_t flag = 0;
+      boss_ = boss_ || (seen_[i].boss && !dying(seen_[i]) && g.read(fsbs_[i] + kBattleFlag, &flag, 1) && flag);
+      battle_ += (marks_[i] & kRowBattle) && eve_ok && g.read(fsbs_[i] + kLocation, at, sizeof at) &&
+                 within(at, eve, kPartCm);
+    }
   }
   // A copy whose +0x638 our own effect call made our EVE (cast()): the other side's crowd control, not her part.
   bool lent(uint32_t guid) const {
@@ -1978,10 +2003,12 @@ private:
     const char *why = epochs_.step(alias, state, mine_, mines_, now);
     if (why) {
       ++(hosting ? spawn_host_.counts : spawn_guest_.counts).epochs;
+      resets_ += !std::strcmp(why, "reset");
       g.event(Event{"spawns epoch", why});
     }
     const uint64_t tables = tables_at(g);
     const uint32_t zone = tables ? zone_id(g, tables, alias) : 0;
+    zone_ = zone;
     float eve[3] = {};
     const uint64_t fsb = local_fsb(g);
     const bool eve_ok = plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve) && std::isfinite(eve[0]) &&
@@ -2456,6 +2483,8 @@ private:
                                                                         : nullptr;
     if (latched_)
       return "latched";
+    if (!why || !std::strcmp(why, "again")) // Taken: the fight= line's boss= holds for kBattleEndMs.
+      bstart_ms_ = now;
     for (size_t i = 0; why && !std::strcmp(why, "again") && i < captures_; ++i)
       if (caps_[i].type == kBattleOn && caps_[i].key == m.guid)
         caps_[i].battle = now;
@@ -3213,10 +3242,13 @@ private:
   std::atomic<bool> calm_{false};
   bool calm_seen_ = false; // calm_ as this session started.
   // A down EVE: her life as the worker's last mate message said it, and when; our EVE's life state this turn (0:
-  // unread).
+  // unread). The fight= line's guards (battles()): the guest's last bstart taken, a boss in battle mode, the enemies in
+  // battle near our EVE; our zone at the last spawn turn, and our epoch moves for a reset this run.
   Life mate_ = Life::unknown;
-  uint64_t mate_ms_ = 0;
+  uint64_t mate_ms_ = 0, bstart_ms_ = 0;
   int32_t eve_life_ = 0;
+  bool boss_ = false;
+  uint32_t battle_ = 0, zone_ = 0, resets_ = 0;
 };
 
 // ---- Between the job and the worker ----
@@ -3766,7 +3798,7 @@ private:
   std::string counts_line() const {
     const Snapshot &s = last_;
     using u = unsigned long long;
-    char head[320], tail[160];
+    char head[320], tail[160], guards[96] = "";
     if (ran_ == Fight::probe)
       std::snprintf(head, sizeof head, "fight=on mode=probe actors=%zu eve=%d turn=%u turns_per_s=%llu writes=%s",
                     s.actors, int(s.eve), s.turn, u(rate_), armed_ ? "armed" : "off");
@@ -3781,7 +3813,8 @@ private:
                     name(ran_), s.paired, u(s.guest.claims), u(s.guest.corrections), u(s.guest.kills),
                     u(s.guest.floored), u(s.guest.desync), s.unshared_all, s.maxhp);
     // The side's scaling: the host's own, or as the host's scale line said (100/100 before it, and without one); its
-    // bosses (stage 5) the same way, with their boss_hp_scale, or off.
+    // bosses (stage 5) the same way, with their boss_hp_scale, or off. Then the revive's and the travel's guards
+    // (Snapshot::boss, battle, and the epoch as zone/n/resets).
     std::snprintf(tail, sizeof tail, "%s sim_us=%llu/%llu threads=%u/%u/%u%s",
                   ran_ == Fight::probe ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
                                                std::to_string(s.scale[kScaleBalance])).c_str(),
@@ -3789,7 +3822,10 @@ private:
                   ran_ == Fight::probe ? ""
                   : s.bosses           ? (" bosses=" + std::to_string(s.bosses)).c_str()
                                        : " bosses=off");
-    return std::string(head) + spawns_field(s) + tail;
+    if (ran_ != Fight::probe)
+      std::snprintf(guards, sizeof guards, " boss=%d battle=%u epoch=%u/%u/%u", int(s.boss), s.battle, s.zone, s.epoch,
+                    s.resets);
+    return std::string(head) + spawns_field(s) + tail + guards;
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
   // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
