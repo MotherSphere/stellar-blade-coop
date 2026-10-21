@@ -171,6 +171,27 @@ assert(link.paks().same and link.paks().ours==3)
 files[STATUS]='mod=v\npeer=2 name=x paks=differ 1 2\npaks=odd\n'
 link.changes()
 assert(link.paks()==nil,'Not from a peer line, nor a line of another shape')
+-- The shared quests' line (Phase 12) and their notes, from the start of their own lines only. The first notes call
+-- only primes the count (a reload never shows old ones); then each new note once, in order, its zone for kind zone
+-- only. A note of another shape, or in a peer's name, is none.
+files[STATUS]='mod=v\npeer=2 name=x quests=on mode=on role=host partner=on\nquests=waiting mode=on why=save\n'
+    ..'quest_note=1 kill 54 Quest_Sub_017 -\nlast=#3 x\n'
+link.changes()
+assert(link.quests()=='quests=waiting mode=on why=save',tostring(link.quests()))
+assert(#link.quest_notes()==0,'The first call primes')
+files[STATUS]='mod=v\r\nquests=on mode=on role=guest partner=on\r\nquest_note=1 kill 54 Quest_Sub_017 -\r\n'
+    ..'quest_note=2 zone 41 Quest_Sub_001 Zone_WLA_30\r\nquest_note=3 forced_warp 30 Quest_Epic_Hidden -\r\n'
+    ..'peer=2 name=x quest_note=9 kill 54 Quest_Sub_017 -\r\nquest_note=10 kill 54 Quest Sub -\r\n'
+    ..'quest_note=11 kill 54 Quest_Sub_017\r\nquest_note=12 Kill! 54 Quest_Sub_017 -\r\n'
+link.changes()
+assert(link.quests()=='quests=on mode=on role=guest partner=on','CRLF')
+local qn=link.quest_notes()
+assert(#qn==2 and qn[1].kind=='zone' and qn[1].id=='41' and qn[1].alias=='Quest_Sub_001' and qn[1].zone=='Zone_WLA_30'
+    and qn[2].kind=='forced_warp' and qn[2].id=='30' and qn[2].alias=='Quest_Epic_Hidden' and qn[2].zone==nil,#qn)
+assert(#link.quest_notes()==0,'Each once')
+files[STATUS]=nil
+link.changes()
+assert(link.quests()==nil and #link.quest_notes()==0,'No status: none')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 -- A join code as typed (the code box, coop join <code>): either case, the dash after the third character, a space there
@@ -452,6 +473,33 @@ s,notes=Link.parse_settings('bosses=yes\nboss_hp_scale=4.5')
 assert(#notes==2 and notes[1]=="settings: line 1: 'yes' is not allowed for bosses (use on or off); bosses stays on"
     and notes[2]=="settings: line 2: '4.5' is not allowed for boss_hp_scale (use 1.0 to 4.0); boss_hp_scale stays 2.0"
     and s.bosses==true and s.boss_hp_scale==2,table.concat(notes,'|'))
+
+-- shared_quests (Phase 12, experimental): on or off in any case, off by default and in a file written before it;
+-- quest_deny (the host's) empty by default, else names or numbers with spaces or commas, at most 200 bytes. A new file
+-- names both right after boss_hp_scale, with their comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n# Shared quests, experimental: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('\nshared_quests=off\nquest_deny=\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.shared_quests==false and s.quest_deny=='')
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.shared_quests==false and s.quest_deny=='')
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('shared_quests='..case[1])
+    assert(#notes==0 and s.shared_quests==case[2],case[1])
+end
+s,notes=Link.parse_settings('shared_quests=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_quests (use on or off); "
+    .."shared_quests stays off" and s.shared_quests==false,notes[1])
+for _,good in ipairs({'Quest_Epic_14_1','Quest_Sub_017, 54 Quest_Epic_14_3','54,55',('1'):rep(200)}) do
+    s,notes=Link.parse_settings('quest_deny='..good..'  ')
+    assert(#notes==0 and s.quest_deny==good,good)
+end
+for _,bad in ipairs({'Quest;Sub','a\tb','Quête',('1'):rep(201)}) do
+    s,notes=Link.parse_settings('quest_deny='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for quest_deny (use quest names or "
+        .."numbers separated by spaces or commas, at most 200 characters); quest_deny stays empty"
+        and s.quest_deny=='',notes[1])
+end
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one

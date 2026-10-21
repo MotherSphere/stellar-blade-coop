@@ -21,7 +21,11 @@
 -- on both screens, moved by the game that runs its AI), with notices for how many it moves and why it went off; same
 -- spawns (stage 4, same_spawns in coop-settings.txt or the co-op menu, the host's for both games: where both players
 -- stand within 100 m in one zone, the guest's game holds the host's common enemies), with notices for on, stopped and
--- enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; the synced photo mode (photo_sync
+-- enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; coop quests
+-- on|off|status|probe|record|replay|force <number>, the shared quests of Phase 12 (experimental: on only with
+-- shared_quests=on in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only
+-- with a friend linked and both on a co-op save, and the probe, record and replay run on one only), with notices for
+-- on, off and each quest step that waits or that the host and the guest made apart; the synced photo mode (photo_sync
 -- in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during your own, the notices,
 -- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone,
 -- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
@@ -72,6 +76,8 @@ if settings then
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
+    log('shared quests: '..(settings.shared_quests and 'on' or 'off')..' (experimental)'
+        ..(settings.quest_deny~='' and ', quest_deny '..settings.quest_deny or ''))
 end
 -- A new token per Lua load: the native part then drops what an older load published (withdrawn here as well).
 if link then
@@ -103,7 +109,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -180,6 +186,14 @@ local function pilot(a,b,extra)
     if not ok or a~='status' then return ok,why end
     return true,link.pilot() or 'no same-place status yet'
 end
+-- coop quests (Phase 12, experimental): on (needs shared_quests=on; the native part waits for a friend and a co-op
+-- save), off, status (the quests= line, while the native part's whole answer follows in the log as quests_status
+-- lines), probe, record and replay (the solo tools, on a co-op save only), and force <number>: the step that quest
+-- holds for your own kill, or for a place the host's game could not read, made where you stand, once typed twice for
+-- the same quest within 10 s (it can unlock that quest's trophies). on, probe and record carry quest_deny.
+local QUESTS_USE='Use: coop quests on | off | status | probe | record | replay | force <quest number>'
+local QUESTS_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
+local force_asked=nil -- coop quests force: the number typed and when ({id=, at=}), until typed again.
 -- The synced photo mode: our player in SB's photo mode ('1'), its selfie mode ('s') or neither ('0'), from SB's
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
@@ -256,6 +270,18 @@ if settings and not settings.same_place and not off then
         local ok,why=ask('fight pilot off')()
         log((ok and 'OK: ' or 'STOP: ')..'same_place=off: '..tostring(why))
     end
+end
+-- shared_quests=on: coop quests on asked once a load, as soon as the native part judged the slot, as coop fight on is;
+-- it then waits there for a friend and a co-op save. coop quests off before then cancels the ask. The co-op menu's row
+-- asks it again (on) or asks coop quests off at once while it waits or runs (off); quests_wanted: the value last acted
+-- on. shared_quests=off at a reload (Ctrl+R) ends a coop quests on an earlier load asked, waiting or running; a probe,
+-- record or replay goes on.
+local quests_auto=settings~=nil and settings.shared_quests
+local quests_wanted=quests_auto
+if settings and not settings.shared_quests and not off
+    and ('\n'..(link.status() or '')):find('\nquests=%a+ mode=on ') then
+    local ok,why=ask('quests off')()
+    log((ok and 'OK: ' or 'STOP: ')..'shared_quests=off: '..tostring(why))
 end
 local refresh_asked=nil -- coop saves refresh: the slot typed and when ({slot=, at=}), until typed again.
 local commands={
@@ -354,6 +380,43 @@ local commands={
         local ok,why=ask(line)()
         if not ok or sub~='status' then return ok,why end
         return true,link.fight() or 'no shared fight status yet'
+    end,
+    quests=function(sub,a,extra)
+        if extra~=nil or not (QUESTS_ALONE[sub or ''] and a==nil or sub=='force' and a~=nil) then
+            return false,QUESTS_USE
+        end
+        if sub=='force' then
+            local id=a:match('^%d+$') and tonumber(a)
+            if not id or id<1 or id>65535 then return false,QUESTS_USE end
+            local now=os.clock()
+            if not (force_asked and force_asked.id==id and now-force_asked.at<=10) then
+                force_asked={id=id,at=now}
+                return false,'coop quests force '..id..' makes the step that quest '..id..' holds for your own kill, '
+                    ..'or for a place the host\'s game could not read, where you stand now; the game may then unlock '
+                    ..'that quest\'s trophies: type it again within 10 s to go on'
+            end
+            force_asked=nil
+            return ask('quests force '..id)()
+        end
+        if sub=='off' then quests_auto=false end
+        if sub~='off' and sub~='status' then
+            if not native_tick then return false,'the native tick is unavailable' end
+            if sub=='on' and not settings.shared_quests then
+                return false,'shared quests are off in coop-settings.txt (shared_quests=off)'
+            end
+            if sub~='on' then
+                local ok,why=coop_slot('coop quests')
+                if not ok then return false,why end
+            end
+        end
+        local line='quests '..sub
+        if (sub=='on' or sub=='probe' or sub=='record') and settings.quest_deny~='' then
+            line=line..' deny '..settings.quest_deny
+        end
+        local ok,why=ask(line)()
+        if not ok or sub~='status' then return ok,why end
+        return true,(link.quests() or 'no shared quests status yet')
+            ..' (the whole status follows in this log as quests_status lines)'
     end,
     -- The photo pause alone (the solo tests): our pause tag held for 1 to 3600 s, or until off; the native part refuses
     -- it off the pinned build and says why in the log.
@@ -669,6 +732,46 @@ if link then
         end
         pilot_was=state
     end
+    -- The shared quests' notices (Phase 12), in the menu's language: from the quests= line, on with her each time both
+    -- sides come on, her side off while ours runs, a wait for a co-op save (coop quests on, a friend linked) and
+    -- stopped for the run, each once as it starts; and each quest note once (link.quest_notes): her quest ahead (in the
+    -- host's words or hers, by our role), behind the host, a step waiting for its zone, a Request to hand in at her
+    -- board, a kill step, and coop quests force's answers. A Request not on her board yet and a step no zone can place
+    -- show in coop quests status only.
+    local QUEST_NOTES={ahead=true,behind=true,zone=true,board=true,kill=true,forced=true,forced_warp=true,
+        not_forced=true}
+    local quests_was,quests_with,quests_role=nil,false,nil
+    local function quest_notices()
+        local line=link.quests()
+        if line then
+            local state,why,partner=line:match('^quests=(%a+)'),line:match(' why=(%a+)'),line:match(' partner=(%a+)')
+            local with=state=='on' and partner=='on'
+            if with and not quests_with then
+                tell(function(w) return w.quests.on:format(her_name(w)) end)
+            elseif quests_with and state=='on' and partner=='off' then
+                tell(function(w) return w.quests.partner_off:format(her_name(w)) end)
+            end
+            local now=state..(why and ' '..why or '')
+            if now=='waiting save' and quests_was~=now and line:find(' mode=on ') then
+                tell(function(w) return w.quests.save end)
+            elseif state=='stopped' and quests_was and quests_was~='stopped' then
+                tell(function(w) return w.quests.stopped end)
+            end
+            quests_was,quests_with,quests_role=now,with,line:match(' role=(%a+)') or quests_role
+        end
+        for _,n in ipairs(link.quest_notes()) do
+            if QUEST_NOTES[n.kind] then
+                local key=n.kind=='ahead' and (quests_role=='host' and 'ahead_host' or 'ahead_guest') or n.kind
+                tell(function(w)
+                    local q=w.quests
+                    if key=='zone' then return q.zone:format(her_name(w),n.alias,n.zone or '?') end
+                    if key=='kill' then return q.kill:format(n.alias,n.id) end
+                    if key=='board' or key:find('forced') then return q[key]:format(n.alias) end
+                    return q[key]:format(her_name(w),n.alias) -- ahead_host, ahead_guest, behind
+                end)
+            end
+        end
+    end
     -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
     local paks_said=false
     local function paks_notice()
@@ -722,8 +825,25 @@ if link then
                 report(ok,'shared_enemies=on: '..tostring(message))
             end
         end
+        if settings.shared_quests~=quests_wanted and not off then -- The co-op menu's row.
+            quests_wanted=settings.shared_quests
+            quests_auto=quests_wanted
+            if not quests_wanted and (link.quests() or ''):find('^quests=%a+ mode=on ') then
+                local ok,message=ask('quests off')()
+                report(ok,'shared_quests=off: '..tostring(message))
+            end
+        end
+        if quests_auto and not off then
+            local verdict=(slot_line() or ''):match('^slot=(%a+)')
+            if verdict=='coop' or verdict=='main' or verdict=='none' then
+                quests_auto=false
+                local ok,message=commands.quests('on')
+                report(ok,'shared_quests=on: '..tostring(message))
+            end
+        end
         fight_notices()
         pilot_notices()
+        quest_notices()
         paks_notice()
         local mode=link.mode()
         if mode then

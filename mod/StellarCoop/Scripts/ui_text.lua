@@ -1,10 +1,10 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
--- place's, same spawns', the status line's and the notices' words that the Lua side writes. T.en is English; another
--- language's table sits under its game culture name as recruiter_text.lua's culture() gives it (T.fr, T.de,
--- T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The game's language picks
--- the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word missing from one,
--- reads English. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...), or
--- <setting>_<id> where one setting's value needs other words (aggro_game).
+-- place's, same spawns', the shared quests', the status line's and the notices' words that the Lua side writes. T.en
+-- is English; another language's table sits under its game culture name as recruiter_text.lua's culture() gives it
+-- (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The game's
+-- language picks the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word
+-- missing from one, reads English. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both,
+-- game...), or <setting>_<id> where one setting's value needs other words (aggro_game).
 local T={}
 T.en={
     title='CO-OP',
@@ -24,7 +24,8 @@ T.en={
         enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards',
         same_place='Same place (experimental)',aggro="Enemies attack (host's)",
         same_spawns='Same spawns (experimental)',enemy_extra="Extra enemies (host's)",
-        bosses='Shared bosses (experimental)',boss_hp_scale="Boss HP (host's)"},
+        bosses='Shared bosses (experimental)',boss_hp_scale="Boss HP (host's)",
+        shared_quests='Shared quests (experimental)'},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',friends='Friends',
         code='With a code',private='Invited only',ask='Ask',always='Always',all='Every shared enemy',
         fought='Enemies I hit',aggro_game='Both players',aggro_host='The host only',photo_pause_full='Full',
@@ -111,6 +112,22 @@ T.en={
         stopped='Same spawns stopped by an error until the game restarts. coop-link.log says why.',
         differ="Same spawns: some enemies differ between your game and %s's (other .pak mods or fight_chars) and "
             ..'stay as they are. coop-link.log names them.'},
+    -- The shared quests' notices (main.lua): on with her, waiting for a co-op save, stopped, her side off, and one
+    -- per quest note; %s: her name (or fight.friend), the quest's row name, a zone or the quest's number, in that
+    -- order where they appear.
+    quests={on='Shared quests on with %s.',
+        save='Shared quests need a co-op save, not your own. They start once you load one.',
+        stopped='Shared quests stopped until the game restarts. coop-quests.log says why.',
+        partner_off='%s stopped sharing quests.',
+        ahead_host='%s is ahead of you on %s. Nothing is undone; the step stays in their save.',
+        ahead_guest='You are ahead of %s on %s. Nothing is undone; the step stays in your save.',
+        behind='You are behind %s on %s. Finish it in your own game to share it again.',
+        zone="%s's step on %s waits until you reach %s.",
+        board='%s is ready: hand it in at your request board.',
+        kill='%s waits until you kill its target yourself. coop quests force %s skips that step.',
+        forced='%s: the held step was applied.',
+        forced_warp='%s: the held step was applied, and the game moves you for it.',
+        not_forced='%s: nothing to force. coop quests status lists what each quest waits for.'},
 }
 T.fr={
     title='CO-OP',
@@ -131,7 +148,8 @@ T.fr={
         enemy_balance_scale='Équilibre des ennemis (hôte)',kill_credit='Mes récompenses',
         same_place='Même position (expérimental)',aggro='Les ennemis attaquent (hôte)',
         same_spawns='Mêmes apparitions (expérimental)',enemy_extra='Ennemis en plus (hôte)',
-        bosses='Boss partagés (expérimental)',boss_hp_scale='PV des boss (hôte)'},
+        bosses='Boss partagés (expérimental)',boss_hp_scale='PV des boss (hôte)',
+        shared_quests='Quêtes partagées (expérimental)'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',friends='Amis',
         code='Avec un code',private='Sur invitation',ask='Demander',always='Toujours',all='Tous les ennemis partagés',
         fought='Ceux que je frappe',aggro_game='Les deux joueurs',aggro_host="L'hôte seulement",
@@ -214,6 +232,20 @@ T.fr={
         stopped="Mêmes apparitions arrêtées par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi.",
         differ='Mêmes apparitions : certains ennemis diffèrent entre votre partie et celle de %s (autres mods .pak ou '
             ..'fight_chars) et restent tels quels. coop-link.log les nomme.'},
+    quests={on='Quêtes partagées actives avec %s.',
+        save='Les quêtes partagées demandent une sauvegarde co-op, pas la vôtre. Elles démarrent dès que vous en '
+            ..'chargez une.',
+        stopped="Quêtes partagées arrêtées jusqu'au redémarrage du jeu. coop-quests.log dit pourquoi.",
+        partner_off='%s ne partage plus les quêtes.',
+        ahead_host="%s est en avance sur vous dans %s. Rien n'est annulé : l'étape reste dans sa sauvegarde.",
+        ahead_guest="Vous êtes en avance sur %s dans %s. Rien n'est annulé : l'étape reste dans votre sauvegarde.",
+        behind='Vous êtes en retard sur %s dans %s. Terminez-la dans votre partie pour la partager à nouveau.',
+        zone="L'étape de %s dans %s attend que vous atteigniez %s.",
+        board='%s est prête : rendez-la à votre tableau des requêtes.',
+        kill='%s attend que vous tuiez vous-même sa cible. coop quests force %s passe cette étape.',
+        forced="%s : l'étape en attente a été appliquée.",
+        forced_warp="%s : l'étape en attente a été appliquée, et le jeu vous déplace pour elle.",
+        not_forced='%s : rien à forcer. coop quests status indique ce que chaque quête attend.'},
 }
 T.ar={
     title='اللعب التعاوني',
@@ -233,6 +265,7 @@ T.ar={
         kill_credit='مكافآتي من الأعداء',same_place='تطابق المواضع (تجريبي)',aggro='الأعداء يهاجمون (المضيف)',
         same_spawns='تطابق الظهور (تجريبي)',enemy_extra='أعداء إضافيون (المضيف)',
         bosses='مشاركة الزعماء (تجريبي)',boss_hp_scale='نقاط صحة الزعماء (المضيف)',
+        shared_quests='مشاركة المهام (تجريبي)',
         photo_pause='الإيقاف في وضع الصور (تجريبي)'},
     value={on='تشغيل',off='إيقاف',both='إيقاف مؤقت وإشعار',notice='إشعار فقط',game='لغة اللعبة',english='English',
         friends='الأصدقاء',code='برمز الانضمام',private='المدعوون فقط',ask='السؤال كل مرة',always='دائمًا',
@@ -309,6 +342,19 @@ T.ar={
         stopped='أوقف خطأ تطابق الظهور حتى إعادة تشغيل اللعبة. يذكر coop-link.log السبب.',
         differ='تطابق الظهور: بعض أعداء %s مختلفون (تعديلات .pak أو fight_chars) فيبقون كما هم. يسميهم '
             ..'coop-link.log.'},
+    quests={on='مشاركة المهام مفعّلة مع %s.',
+        save='مشاركة المهام تتطلب حفظًا تعاونيًا لا حفظك الخاص. تبدأ فور تحميل واحد.',
+        stopped='توقفت مشاركة المهام حتى إعادة تشغيل اللعبة. يذكر coop-quests.log السبب.',
+        partner_off='توقف %s عن مشاركة المهام.',
+        ahead_host='%s متقدم عليك في %s. لا يُلغى شيء، وتبقى الخطوة محفوظة لديه.',
+        ahead_guest='أنت متقدم على %s في %s. لا يُلغى شيء، وتبقى الخطوة في حفظك.',
+        behind='أنت متأخر عن %s في %s. أكملها في لعبتك لتعود مشاركتها.',
+        zone='خطوة %s في %s تنتظر حتى تصل إلى %s.',
+        board='%s جاهزة: سلّمها عند لوحة الطلبات الخاصة بك.',
+        kill='%s تنتظر أن تقتل هدفها بنفسك. الأمر coop quests force %s يتخطى هذه الخطوة.',
+        forced='%s: طُبّقت الخطوة المعلّقة.',
+        forced_warp='%s: طُبّقت الخطوة المعلّقة، وستنقلك اللعبة لأجلها.',
+        not_forced='%s: لا شيء لفرضه. يعرض coop quests status ما تنتظره كل مهمة.'},
 }
 T.da={
     title='CO-OP',
@@ -329,6 +375,7 @@ T.da={
         same_place='Samme position (eksperimentel)',aggro='Fjender angriber (værtens)',
         same_spawns='Samme spawns (eksperimentel)',enemy_extra='Ekstra fjender (værtens)',
         bosses='Delte bosser (eksperimentel)',boss_hp_scale='Bossernes HP (værtens)',
+        shared_quests='Delte quests (eksperimentel)',
         photo_pause='Fotopause (eksperimentel)'},
     value={on='Til',off='Fra',both='Begge',notice='Kun besked',game='Spillets sprog',english='Engelsk',
         friends='Venner',code='Med en kode',private='Kun inviterede',ask='Spørg',always='Altid',
@@ -409,6 +456,19 @@ T.da={
         stopped='Samme spawns stoppet af en fejl, indtil spillet genstartes. coop-link.log forklarer hvorfor.',
         differ='Samme spawns: nogle fjender er forskellige i dit spil og hos %s (andre .pak-mods eller fight_chars) '
             ..'og forbliver, som de er. coop-link.log nævner dem.'},
+    quests={on='Delte quests er slået til med %s.',
+        save='Delte quests kræver et gemt co-op-spil, ikke dit eget. De starter, så snart du indlæser et.',
+        stopped='Delte quests stoppet, indtil spillet genstartes. coop-quests.log forklarer hvorfor.',
+        partner_off='%s deler ikke længere quests.',
+        ahead_host='%s er foran dig i %s. Intet bliver fortrudt; trinnet forbliver gemt der.',
+        ahead_guest='Du er foran %s i %s. Intet bliver fortrudt; trinnet forbliver i dit gemte spil.',
+        behind='Du er bagud i forhold til %s i %s. Gør questen færdig i dit eget spil for at dele den igen.',
+        zone='Trinnet fra %s i %s venter, til du når %s.',
+        board='%s er klar: aflever den ved din opgavetavle.',
+        kill='%s venter, til du selv dræber målet. coop quests force %s springer det trin over.',
+        forced='%s: det tilbageholdte trin er udført.',
+        forced_warp='%s: det tilbageholdte trin er udført, og spillet flytter dig.',
+        not_forced='%s: intet at gennemtvinge. coop quests status viser, hvad hver quest venter på.'},
 }
 T.de={
     title='KOOP',
@@ -430,6 +490,7 @@ T.de={
         same_place='Gleiche Position (experimentell)',aggro='Gegner greifen an (Host)',
         same_spawns='Gleiche Spawns (experimentell)',enemy_extra='Zusätzliche Gegner (Host)',
         bosses='Gemeinsame Bosse (experimentell)',boss_hp_scale='LP der Bosse (Host)',
+        shared_quests='Gemeinsame Quests (experimentell)',
         photo_pause='Fotomodus-Pause (experimentell)'},
     value={on='An',off='Aus',both='Beide',notice='Nur Hinweis',game='Spielsprache',english='Englisch',
         friends='Freunde',code='Mit Code',private='Nur auf Einladung',ask='Fragen',always='Immer',
@@ -516,6 +577,20 @@ T.de={
             ..'coop-link.log.',
         differ='Gleiche Spawns: Du und %s habt teils andere Gegner (andere .pak-Mods oder fight_chars). Sie bleiben, '
             ..'wie sie sind; coop-link.log nennt sie.'},
+    quests={on='Gemeinsame Quests mit %s aktiv.',
+        save='Gemeinsame Quests brauchen einen Koop-Speicherstand, nicht deinen eigenen. Sie starten, sobald du '
+            ..'einen lädst.',
+        stopped='Gemeinsame Quests bis zum Neustart des Spiels gestoppt. Der Grund steht in coop-quests.log.',
+        partner_off='%s teilt keine Quests mehr.',
+        ahead_host='%s ist dir bei %s voraus. Nichts wird zurückgesetzt; der Schritt bleibt dort gespeichert.',
+        ahead_guest='Du bist %s bei %s voraus. Nichts wird zurückgesetzt; der Schritt bleibt in deinem Speicherstand.',
+        behind='Gegenüber %s liegst du bei %s zurück. Schließe sie in deinem Spiel ab, um sie wieder zu teilen.',
+        zone='Der Schritt von %s in %s wartet, bis du %s erreichst.',
+        board='%s ist fertig: Gib sie an deiner Auftragstafel ab.',
+        kill='%s wartet, bis du ihr Ziel selbst besiegst. coop quests force %s überspringt diesen Schritt.',
+        forced='%s: Der zurückgehaltene Schritt wurde angewendet.',
+        forced_warp='%s: Der zurückgehaltene Schritt wurde angewendet, und das Spiel versetzt dich dafür.',
+        not_forced='%s: Nichts zu erzwingen. coop quests status zeigt, worauf jede Quest wartet.'},
 }
 T.es={
     title='CO-OP',
@@ -537,6 +612,7 @@ T.es={
         aggro='Los enemigos atacan (anfitrión)',same_spawns='Mismas apariciones (experimental)',
         enemy_extra='Enemigos extra (anfitrión)',bosses='Compartir jefes (experimental)',
         boss_hp_scale='PS de jefes (anfitrión)',
+        shared_quests='Compartir misiones (experimental)',
         photo_pause='Pausa en modo foto (experimental)'},
     value={on='Activado',off='Desactivado',both='Ambos',notice='Solo aviso',game='Idioma del juego',english='Inglés',
         friends='Amigos',code='Con un código',private='Solo invitados',ask='Preguntar',always='Siempre',
@@ -622,6 +698,19 @@ T.es={
             ..'motivo.',
         differ='Mismas apariciones: algunos enemigos difieren entre tu partida y la de %s (otros mods .pak o '
             ..'fight_chars) y se quedan como están. coop-link.log los enumera.'},
+    quests={on='Misiones compartidas activas con %s.',
+        save='Las misiones compartidas necesitan una partida co-op, no la tuya. Empiezan en cuanto cargues una.',
+        stopped='Misiones compartidas detenidas hasta que se reinicie el juego. coop-quests.log indica el motivo.',
+        partner_off='%s ha dejado de compartir misiones.',
+        ahead_host='%s va por delante de ti en %s. No se deshace nada; el paso queda en su partida.',
+        ahead_guest='Vas por delante de %s en %s. No se deshace nada; el paso queda en tu partida.',
+        behind='Vas por detrás de %s en %s. Termínala en tu propia partida para volver a compartirla.',
+        zone='El paso de %s en %s espera a que llegues a %s.',
+        board='%s está lista: entrégala en tu tablón de encargos.',
+        kill='%s espera a que derrotes tú a su objetivo. coop quests force %s se salta ese paso.',
+        forced='%s: se ha aplicado el paso pendiente.',
+        forced_warp='%s: se ha aplicado el paso pendiente y el juego te traslada.',
+        not_forced='%s: nada que forzar. coop quests status muestra qué espera cada misión.'},
 }
 T['es-MX']={
     title='CO-OP',
@@ -643,6 +732,7 @@ T['es-MX']={
         same_place='Misma posición (experimental)',aggro='Los enemigos atacan (anfitrión)',
         same_spawns='Mismas apariciones (experimental)',enemy_extra='Enemigos extra (anfitrión)',
         bosses='Compartir jefes (experimental)',boss_hp_scale='Salud de jefes (anfitrión)',
+        shared_quests='Compartir misiones (experimental)',
         photo_pause='Pausa de fotos (experimental)'},
     value={on='Sí',off='No',both='Ambos',notice='Solo aviso',game='Idioma del juego',english='Inglés',friends='Amigos',
         code='Con un código',private='Solo invitados',ask='Preguntar',always='Siempre',all='Todos los compartidos',
@@ -726,6 +816,19 @@ T['es-MX']={
         stopped='Mismas apariciones detenidas por un error hasta que reinicies el juego. coop-link.log dice por qué.',
         differ='Mismas apariciones: algunos enemigos difieren entre tu partida y la de %s (otros mods .pak o '
             ..'fight_chars) y se quedan como están. coop-link.log los nombra.'},
+    quests={on='Misiones compartidas activas con %s.',
+        save='Las misiones compartidas necesitan una partida co-op, no la tuya. Empiezan en cuanto cargues una.',
+        stopped='Misiones compartidas detenidas hasta que reinicies el juego. coop-quests.log dice por qué.',
+        partner_off='%s dejó de compartir misiones.',
+        ahead_host='%s va adelante de ti en %s. No se deshace nada; el paso se queda en su partida.',
+        ahead_guest='Vas adelante de %s en %s. No se deshace nada; el paso se queda en tu partida.',
+        behind='Vas atrás de %s en %s. Termínala en tu propia partida para volver a compartirla.',
+        zone='El paso de %s en %s espera a que llegues a %s.',
+        board='%s está lista: entrégala en tu tablero de encargos.',
+        kill='%s espera a que derrotes tú a su objetivo. coop quests force %s se salta ese paso.',
+        forced='%s: se aplicó el paso pendiente.',
+        forced_warp='%s: se aplicó el paso pendiente y el juego te mueve para eso.',
+        not_forced='%s: no hay nada que forzar. coop quests status muestra qué espera cada misión.'},
 }
 T.fi={
     title='CO-OP',
@@ -746,6 +849,7 @@ T.fi={
         same_place='Sama sijainti (kokeellinen)',aggro='Vihollisten kohde (isännän)',
         same_spawns='Samat viholliset (kokeellinen)',enemy_extra='Lisäviholliset (isännän)',
         bosses='Jaetut pomot (kokeellinen)',boss_hp_scale='Pomojen HP (isännän)',
+        shared_quests='Jaetut tehtävät (kokeellinen)',
         photo_pause='Kuvaustilan tauko (kokeellinen)'},
     value={on='Päällä',off='Pois',both='Molemmat',notice='Vain ilmoitus',game='Pelin kieli',english='Englanti',
         friends='Kaverit',code='Koodilla',private='Vain kutsutut',ask='Kysy',always='Aina',
@@ -833,6 +937,20 @@ T.fi={
             ..'coop-link.log-tiedostossa.',
         differ='Samat viholliset: %s pelaa peliä, jossa osa vihollisista eroaa pelistäsi (muut .pak-modit tai '
             ..'fight_chars). Ne jäävät ennalleen. coop-link.log nimeää ne.'},
+    quests={on='Jaetut tehtävät käytössä pelaajan %s kanssa.',
+        save='Jaetut tehtävät toimivat vain co-op-tallennuksella, eivät omallasi. Ne alkavat, kun lataat sellaisen.',
+        stopped='Jaetut tehtävät on pysäytetty, kunnes peli käynnistetään uudelleen. Syy on '
+            ..'coop-quests.log-tiedostossa.',
+        partner_off='%s ei enää jaa tehtäviä.',
+        ahead_host='%s on sinua edellä tehtävässä %s. Mitään ei peruta; vaihe pysyy tallessa.',
+        ahead_guest='Olet pelaajaa %s edellä tehtävässä %s. Mitään ei peruta; vaihe pysyy tallennuksessasi.',
+        behind='Olet pelaajaa %s jäljessä tehtävässä %s. Suorita se omassa pelissäsi, niin voit jakaa sen taas.',
+        zone='Pelaajan %s vaihe tehtävässä %s odottaa, kunnes saavut alueelle %s.',
+        board='%s on valmis: palauta se omalla tehtävätaulullasi.',
+        kill='%s odottaa, kunnes kukistat kohteen itse. coop quests force %s ohittaa vaiheen.',
+        forced='%s: odottanut vaihe tehtiin.',
+        forced_warp='%s: odottanut vaihe tehtiin, ja peli siirtää sinut.',
+        not_forced='%s: ei pakotettavaa. coop quests status kertoo, mitä kukin tehtävä odottaa.'},
 }
 T.it={
     title='CO-OP',
@@ -853,6 +971,7 @@ T.it={
         kill_credit='Le mie ricompense',same_place='Stessa posizione (sperimentale)',
         aggro='I nemici attaccano (host)',same_spawns='Stessi spawn (sperimentale)',
         enemy_extra='Nemici in più (host)',bosses='Boss condivisi (sperimentale)',boss_hp_scale='PS dei boss (host)',
+        shared_quests='Missioni condivise (sperimentale)',
         photo_pause='Pausa foto (sperimentale)'},
     value={on='Attiva',off='Disattiva',both='Entrambi',notice='Solo avviso',game='Lingua del gioco',
         english='Inglese',friends='Amici',code='Con un codice',private='Solo su invito',ask='Chiedi',always='Sempre',
@@ -935,6 +1054,19 @@ T.it={
         stopped='Stessi spawn fermati da un errore fino al riavvio del gioco. Il motivo è in coop-link.log.',
         differ='Stessi spawn: alcuni nemici sono diversi tra te e %s (altre mod .pak o fight_chars) e restano come '
             ..'sono. coop-link.log li elenca.'},
+    quests={on='Missioni condivise attive con %s.',
+        save='Le missioni condivise richiedono un salvataggio co-op, non il tuo. Partono appena ne carichi uno.',
+        stopped='Missioni condivise fermate fino al riavvio del gioco. Il motivo è in coop-quests.log.',
+        partner_off='%s non condivide più le missioni.',
+        ahead_host='%s è più avanti di te in %s. Non viene annullato nulla; il passo resta nel suo salvataggio.',
+        ahead_guest='Sei più avanti di %s in %s. Non viene annullato nulla; il passo resta nel tuo salvataggio.',
+        behind='Sei indietro rispetto a %s in %s. Completala nel tuo gioco per condividerla di nuovo.',
+        zone='Il passo di %s in %s attende che tu raggiunga %s.',
+        board='%s è pronta: consegnala alla tua bacheca delle richieste.',
+        kill='%s attende che tu elimini il suo bersaglio. coop quests force %s salta questo passo.',
+        forced='%s: il passo in attesa è stato applicato.',
+        forced_warp='%s: il passo in attesa è stato applicato e il gioco ti sposta.',
+        not_forced='%s: niente da forzare. coop quests status mostra cosa attende ogni missione.'},
 }
 T.ja={
     title='協力プレイ',
@@ -954,6 +1086,7 @@ T.ja={
         same_place='敵の位置同期（実験的）',aggro='敵の攻撃対象（ホスト設定）',
         same_spawns='敵配置の同期（実験的）',enemy_extra='追加の敵（ホスト設定）',
         bosses='ボスの共有（実験的）',boss_hp_scale='ボスのHP（ホスト設定）',
+        shared_quests='クエスト共有（実験的）',
         photo_pause='フォトモードの一時停止（実験的）'},
     value={on='オン',off='オフ',both='両方',notice='通知のみ',game='ゲームの言語',english='English',friends='フレンド',
         code='コードを持つ人',private='招待のみ',ask='毎回確認',always='常に使用',all='共有の敵すべて',
@@ -1031,6 +1164,19 @@ T.ja={
         stopped='敵配置の同期：エラーのためゲームを再起動するまで停止。理由はcoop-link.logにあります。',
         differ='敵配置の同期：%sのゲームと違う敵がいます（.pak MODやfight_charsの違い）。その敵はそのままです。'
             ..'詳細はcoop-link.log。'},
+    quests={on='クエスト共有：%sと共有中。',
+        save='クエスト共有には協力プレイ用セーブが必要です。ロードすると開始します。',
+        stopped='クエスト共有：ゲームを再起動するまで停止。理由はcoop-quests.logにあります。',
+        partner_off='%sがクエスト共有をやめました。',
+        ahead_host='%sは%sであなたより先行中。何も取り消されず、段階は相手のセーブに残ります。',
+        ahead_guest='あなたは%sより%sで先行中。何も取り消されず、段階はあなたのセーブに残ります。',
+        behind='あなたは%sより%sで遅れています。自分のゲームで終えると再び共有できます。',
+        zone='%sの「%s」の段階は、%sに着くまで保留されます。',
+        board='%sは報告できます：自分の依頼掲示板で報告してください。',
+        kill='%sは自分で標的を倒すまで保留されます。coop quests force %sでその段階を飛ばせます。',
+        forced='%s：保留中の段階を適用しました。',
+        forced_warp='%s：保留中の段階を適用しました。ゲームがあなたを移動させます。',
+        not_forced='%s：強制できるものはありません。各クエストの待ち状況はcoop quests statusで確認できます。'},
 }
 T.ko={
     title='코옵',
@@ -1050,6 +1196,7 @@ T.ko={
         same_place='적 위치 동기화 (실험)',aggro='적의 공격 대상 (호스트)',
         same_spawns='스폰 동기화 (실험)',enemy_extra='추가 적 (호스트)',
         bosses='보스 공유 (실험)',boss_hp_scale='보스 생명력 (호스트)',
+        shared_quests='퀘스트 공유 (실험)',
         photo_pause='포토 모드 일시 정지 (실험)'},
     value={on='켜기',off='끄기',both='양쪽',notice='알림만',game='게임 언어',english='English',friends='친구',
         code='코드 보유자',private='초대한 사람만',ask='매번 묻기',always='항상',all='모든 공유 적',
@@ -1124,6 +1271,19 @@ T.ko={
         stopped='오류로 게임을 다시 시작할 때까지 스폰 동기화가 중지됩니다. 이유는 coop-link.log 참고.',
         differ='스폰 동기화: 일부 적이 %s의 게임과 달라(다른 .pak 모드 또는 fight_chars) 그대로 둡니다. 목록은 '
             ..'coop-link.log에 있습니다.'},
+    quests={on='퀘스트 공유 켜짐: %s',
+        save='퀘스트 공유는 코옵 세이브에서만 됩니다. 코옵 세이브를 불러오면 시작됩니다.',
+        stopped='게임을 다시 시작할 때까지 퀘스트 공유가 중지됩니다. 이유는 coop-quests.log 참고.',
+        partner_off='%s 님이 퀘스트 공유를 껐습니다.',
+        ahead_host='%s 님이 %s에서 앞서 있습니다. 되돌리는 것은 없으며 그 단계는 상대 세이브에 남습니다.',
+        ahead_guest='%s 님보다 %s에서 앞서 있습니다. 되돌리는 것은 없으며 그 단계는 내 세이브에 남습니다.',
+        behind='%s 님보다 %s에서 뒤처져 있습니다. 내 게임에서 끝내면 다시 공유됩니다.',
+        zone='%s 님의 %s 단계는 %s에 도착할 때까지 대기합니다.',
+        board='%s 완료 가능: 내 의뢰 게시판에서 보고하세요.',
+        kill='%s: 대상을 직접 처치할 때까지 대기합니다. coop quests force %s로 건너뜁니다.',
+        forced='%s: 보류된 단계를 적용했습니다.',
+        forced_warp='%s: 보류된 단계를 적용했습니다. 게임이 위치를 옮깁니다.',
+        not_forced='%s: 강제할 단계가 없습니다. 퀘스트별 대기 이유는 coop quests status에서 확인하세요.'},
 }
 T.nl={
     title='CO-OP',
@@ -1144,6 +1304,7 @@ T.nl={
         same_place='Zelfde plek (experimenteel)',aggro='Vijanden vallen aan (host)',
         same_spawns='Zelfde spawns (experimenteel)',enemy_extra='Extra vijanden (host)',
         bosses='Gedeelde bazen (experimenteel)',boss_hp_scale='HP bazen (host)',
+        shared_quests='Gedeelde quests (experimenteel)',
         photo_pause='Pauze fotomodus (experimenteel)'},
     value={on='Aan',off='Uit',both='Beide',notice='Alleen melding',game='Taal van de game',english='Engels',
         friends='Vrienden',code='Met een code',private='Alleen op uitnodiging',ask='Vragen',always='Altijd',
@@ -1226,6 +1387,20 @@ T.nl={
         stopped='Zelfde spawns gestopt door een fout tot de game opnieuw start. coop-link.log zegt waarom.',
         differ='Zelfde spawns: sommige vijanden verschillen tussen jouw game en die van %s (andere .pak-mods of '
             ..'fight_chars) en blijven zoals ze zijn. coop-link.log noemt ze.'},
+    quests={on='Gedeelde quests aan met %s.',
+        save='Gedeelde quests vereisen een opgeslagen co-opgame, niet je eigen. Ze starten zodra je er een laadt.',
+        stopped='Gedeelde quests gestopt tot de game opnieuw start. coop-quests.log zegt waarom.',
+        partner_off='%s deelt geen quests meer.',
+        ahead_host='%s is je voor bij %s. Er wordt niets teruggedraaid; de stap blijft daar opgeslagen.',
+        ahead_guest='Je bent %s voor bij %s. Er wordt niets teruggedraaid; de stap blijft in je eigen opgeslagen '
+            ..'game.',
+        behind='Je loopt achter op %s bij %s. Rond die quest af in je eigen game om hem weer te delen.',
+        zone='De stap van %s in %s wacht tot je %s bereikt.',
+        board='%s is klaar: lever hem in bij je opdrachtenbord.',
+        kill='%s wacht tot je het doelwit zelf verslaat. coop quests force %s slaat die stap over.',
+        forced='%s: de vastgehouden stap is toegepast.',
+        forced_warp='%s: de vastgehouden stap is toegepast en de game verplaatst je ervoor.',
+        not_forced='%s: niets om te forceren. coop quests status toont waar elke quest op wacht.'},
 }
 T.no={
     title='CO-OP',
@@ -1246,6 +1421,7 @@ T.no={
         same_place='Samme posisjon (eksperimentelt)',aggro='Fiender angriper (vertens)',
         same_spawns='Samme spawns (eksperimentelt)',enemy_extra='Ekstra fiender (vertens)',
         bosses='Delte bosser (eksperimentelt)',boss_hp_scale='Boss-HP (vertens)',
+        shared_quests='Delte oppdrag (eksperimentelt)',
         photo_pause='Fotomoduspause (eksperimentelt)'},
     value={on='På',off='Av',both='Begge',notice='Bare varsel',game='Spillets språk',english='Engelsk',
         friends='Venner',code='Med kode',private='Bare inviterte',ask='Spør',always='Alltid',all='Alle delte fiender',
@@ -1327,6 +1503,19 @@ T.no={
         stopped='Samme spawns stoppet av en feil til spillet startes på nytt. coop-link.log sier hvorfor.',
         differ='Samme spawns: noen fiender er ulike i ditt spill og spillet til %s (andre .pak-modder eller '
             ..'fight_chars) og blir som de er. coop-link.log viser hvilke.'},
+    quests={on='Delte oppdrag er på med %s.',
+        save='Delte oppdrag krever en co-op-lagring, ikke din egen. De starter så snart du laster inn en.',
+        stopped='Delte oppdrag stoppet til spillet startes på nytt. coop-quests.log sier hvorfor.',
+        partner_off='%s deler ikke lenger oppdrag.',
+        ahead_host='%s er foran deg i %s. Ingenting blir angret; steget forblir lagret der.',
+        ahead_guest='Du er foran %s i %s. Ingenting blir angret; steget forblir i din lagring.',
+        behind='Du ligger bak %s i %s. Fullfør oppdraget i ditt eget spill for å dele det igjen.',
+        zone='Steget fra %s i %s venter til du når %s.',
+        board='%s er klart: lever det på oppdragstavlen din.',
+        kill='%s venter til du selv dreper målet. coop quests force %s hopper over det steget.',
+        forced='%s: det tilbakeholdte steget er utført.',
+        forced_warp='%s: det tilbakeholdte steget er utført, og spillet flytter deg.',
+        not_forced='%s: ingenting å tvinge. coop quests status viser hva hvert oppdrag venter på.'},
 }
 T.pl={
     title='CO-OP',
@@ -1347,6 +1536,7 @@ T.pl={
         same_place='Ta sama pozycja (eksperyment)',aggro='Wrogowie atakują (ustawia host)',
         same_spawns='Te same spawny (eksperyment)',enemy_extra='Dodatkowi wrogowie (ustawia host)',
         bosses='Wspólni bossowie (eksperyment)',boss_hp_scale='PŻ bossów (ustawia host)',
+        shared_quests='Wspólne zadania (eksperyment)',
         photo_pause='Pauza w trybie foto (eksperyment)'},
     value={on='Wł.',off='Wył.',both='Pauza i komunikat',notice='Tylko komunikat',game='Język gry',english='English',
         friends='Znajomi',code='Osoby z kodem',private='Tylko zaproszeni',ask='Pytaj',always='Zawsze',
@@ -1428,6 +1618,19 @@ T.pl={
         stopped='Te same spawny: zatrzymano przez błąd do restartu gry. coop-link.log podaje powód.',
         differ='Te same spawny: część wrogów różni się od tych, które ma %s (inne mody .pak lub '
             ..'fight_chars), i zostaje bez zmian. Lista jest w coop-link.log.'},
+    quests={on='Wspólne zadania włączone. Partner: %s.',
+        save='Wspólne zadania wymagają zapisu co-op, nie twojego. Ruszą, gdy go wczytasz.',
+        stopped='Wspólne zadania: zatrzymano do restartu gry. coop-quests.log podaje powód.',
+        partner_off='%s nie udostępnia już zadań.',
+        ahead_host='%s wyprzedza cię w %s. Nic nie zostaje cofnięte; ten etap zostaje w tamtym zapisie.',
+        ahead_guest='Wyprzedzasz %s w %s. Nic nie zostaje cofnięte; etap zostaje w twoim zapisie.',
+        behind='Jesteś za %s w %s. Ukończ zadanie we własnej grze, aby znów je udostępniać.',
+        zone='Etap gracza %s w %s czeka, aż dotrzesz do %s.',
+        board='%s jest gotowe: oddaj je przy swojej tablicy zleceń.',
+        kill='%s czeka, aż samodzielnie pokonasz cel. coop quests force %s pomija ten etap.',
+        forced='%s: wstrzymany etap został zastosowany.',
+        forced_warp='%s: wstrzymany etap został zastosowany, a gra cię przenosi.',
+        not_forced='%s: nie ma czego wymusić. coop quests status pokazuje, na co czeka każde zadanie.'},
 }
 T.pt={
     title='CO-OP',
@@ -1449,6 +1652,7 @@ T.pt={
         aggro='Inimigos atacam (anfitrião)',same_spawns='Mesmas aparições (experimental)',
         enemy_extra='Inimigos extra (anfitrião)',bosses='Partilhar bosses (experimental)',
         boss_hp_scale='PV dos bosses (anfitrião)',
+        shared_quests='Partilhar missões (experimental)',
         photo_pause='Pausa da fotografia (experimental)'},
     value={on='Ativado',off='Desativado',both='Ambos',notice='Só aviso',game='Idioma do jogo',english='Inglês',
         friends='Amigos',code='Com um código',private='Só por convite',ask='Perguntar',always='Sempre',
@@ -1531,6 +1735,19 @@ T.pt={
         stopped='Mesmas aparições paradas por um erro até o jogo reiniciar. O coop-link.log diz porquê.',
         differ='Mesmas aparições: tu e %s têm alguns inimigos diferentes (outros mods .pak ou fight_chars), que '
             ..'ficam como estão. O coop-link.log indica quais.'},
+    quests={on='Missões partilhadas ativas com %s.',
+        save='As missões partilhadas exigem dados guardados co-op, não os teus. Começam assim que carregares uns.',
+        stopped='Missões partilhadas paradas até o jogo reiniciar. O coop-quests.log diz porquê.',
+        partner_off='%s deixou de partilhar missões.',
+        ahead_host='%s está à tua frente em %s. Nada é desfeito; esse passo continua guardado.',
+        ahead_guest='Estás à frente de %s em %s. Nada é desfeito; o passo fica nos teus dados guardados.',
+        behind='Estás atrás de %s em %s. Termina-a no teu jogo para voltar a partilhá-la.',
+        zone='O passo de %s em %s espera até chegares a %s.',
+        board='%s está pronta: entrega-a no teu quadro de pedidos.',
+        kill='%s espera que derrotes tu o alvo. coop quests force %s salta esse passo.',
+        forced='%s: o passo em espera foi aplicado.',
+        forced_warp='%s: o passo em espera foi aplicado e o jogo leva-te para lá.',
+        not_forced='%s: nada para forçar. coop quests status mostra o que cada missão espera.'},
 }
 T['pt-BR']={
     title='CO-OP',
@@ -1551,6 +1768,7 @@ T['pt-BR']={
         same_place='Mesma posição (em teste)',aggro='Inimigos atacam (anfitrião)',
         same_spawns='Mesmos spawns (em teste)',enemy_extra='Inimigos extras (anfitrião)',
         bosses='Chefes compartilhados (em teste)',boss_hp_scale='PV dos chefes (anfitrião)',
+        shared_quests='Missões compartilhadas (em teste)',
         photo_pause='Pausa da fotografia (em teste)'},
     value={on='Ativar',off='Desativar',both='Ambos',notice='Só aviso',game='Idioma do jogo',english='Inglês',
         friends='Amigos',code='Com um código',private='Só convidados',ask='Perguntar',always='Sempre',
@@ -1633,6 +1851,19 @@ T['pt-BR']={
         stopped='Mesmos spawns parados por um erro até o jogo reiniciar. O coop-link.log diz o motivo.',
         differ='Mesmos spawns: alguns inimigos diferem entre o seu jogo e o de %s (outros mods .pak ou fight_chars) '
             ..'e ficam como estão. O coop-link.log mostra quais.'},
+    quests={on='Missões compartilhadas ativas com %s.',
+        save='Missões compartilhadas exigem um jogo salvo co-op, não o seu. Elas começam assim que você carregar um.',
+        stopped='Missões compartilhadas paradas até o jogo reiniciar. O coop-quests.log diz o motivo.',
+        partner_off='%s parou de compartilhar missões.',
+        ahead_host='%s está à sua frente em %s. Nada é desfeito; esse passo continua salvo.',
+        ahead_guest='Você está à frente de %s em %s. Nada é desfeito; o passo fica no seu jogo salvo.',
+        behind='Você está atrás de %s em %s. Termine-a no seu jogo para voltar a compartilhá-la.',
+        zone='O passo de %s em %s espera você chegar a %s.',
+        board='%s está pronta: entregue-a no seu quadro de pedidos.',
+        kill='%s espera você mesmo derrotar o alvo. coop quests force %s pula esse passo.',
+        forced='%s: o passo pendente foi aplicado.',
+        forced_warp='%s: o passo pendente foi aplicado e o jogo leva você até lá.',
+        not_forced='%s: nada para forçar. coop quests status mostra o que cada missão espera.'},
 }
 T.ru={
     title='КООПЕРАТИВ',
@@ -1653,6 +1884,7 @@ T.ru={
         kill_credit='Мои награды за убийства',same_place='Общие позиции (эксперимент)',
         aggro='Враги атакуют (хост)',same_spawns='Общие появления (эксперимент)',
         enemy_extra='Дополнительные враги (хост)',bosses='Общие боссы (эксперимент)',boss_hp_scale='ОЗ боссов (хост)',
+        shared_quests='Общие задания (эксперимент)',
         photo_pause='Пауза фоторежима (эксперимент)'},
     value={on='Вкл.',off='Выкл.',both='Пауза и уведомление',notice='Только уведомление',game='Язык игры',
         english='English',
@@ -1731,6 +1963,19 @@ T.ru={
         stopped='Общие появления остановлены ошибкой до перезапуска игры. Причина в coop-link.log.',
         differ='Общие появления: часть врагов у партнера (%s) другая (моды .pak, fight_chars) и не меняется. '
             ..'См. coop-link.log.'},
+    quests={on='Общие задания включены (партнер: %s).',
+        save='Общим заданиям нужно кооперативное сохранение. Они начнутся, когда вы его загрузите.',
+        stopped='Общие задания остановлены до перезапуска игры. Причина в coop-quests.log.',
+        partner_off='Партнер (%s) больше не делится заданиями.',
+        ahead_host='Партнер (%s) опережает вас в %s. Ничего не отменяется.',
+        ahead_guest='Вы опережаете партнера (%s) в %s. Этап остается в вашем сохранении.',
+        behind='Вы отстаете от партнера (%s) в %s. Завершите задание в своей игре.',
+        zone='Этап партнера (%s) в %s ждет, пока вы не дойдете до %s.',
+        board='%s готово: сдайте его у своей доски заданий.',
+        kill='%s ждет, пока вы сами не убьете цель. coop quests force %s пропускает этот этап.',
+        forced='%s: отложенный этап применен.',
+        forced_warp='%s: отложенный этап применен, игра перемещает вас.',
+        not_forced='%s: нечего применять. coop quests status показывает, чего ждет каждое задание.'},
 }
 T.sv={
     title='CO-OP',
@@ -1751,6 +1996,7 @@ T.sv={
         same_place='Samma position (experimentell)',aggro='Fiender anfaller (värdens)',
         same_spawns='Samma spawns (experimentell)',enemy_extra='Extra fiender (värdens)',
         bosses='Delade bossar (experimentell)',boss_hp_scale='Bossarnas hälsa (värdens)',
+        shared_quests='Delade uppdrag (experimentell)',
         photo_pause='Paus i fotoläget (experimentell)'},
     value={on='På',off='Av',both='Båda',notice='Bara meddelande',game='Spelets språk',english='Engelska',
         friends='Vänner',code='Med en kod',private='Bara inbjudna',ask='Fråga',always='Alltid',
@@ -1827,6 +2073,19 @@ T.sv={
         stopped='Samma spawns: ett fel stoppade funktionen tills spelet startas om. coop-link.log säger varför.',
         differ='Samma spawns: vissa fiender skiljer sig mellan ditt spel och spelet hos %s (andra .pak-moddar eller '
             ..'fight_chars) och lämnas orörda. coop-link.log namnger dem.'},
+    quests={on='Delade uppdrag är på med %s.',
+        save='Delade uppdrag kräver en co-op-sparfil, inte din egen. De startar så fort du laddar en.',
+        stopped='Delade uppdrag stoppade tills spelet startas om. coop-quests.log säger varför.',
+        partner_off='%s delar inte längre uppdrag.',
+        ahead_host='%s ligger före dig i %s. Inget ångras; steget finns kvar sparat där.',
+        ahead_guest='Du ligger före %s i %s. Inget ångras; steget finns kvar i din sparfil.',
+        behind='Du ligger efter %s i %s. Slutför uppdraget i ditt eget spel för att dela det igen.',
+        zone='Steget från %s i %s väntar tills du når %s.',
+        board='%s är klart: lämna in det på din uppdragstavla.',
+        kill='%s väntar tills du själv dödar målet. coop quests force %s hoppar över det steget.',
+        forced='%s: det väntande steget har genomförts.',
+        forced_warp='%s: det väntande steget har genomförts, och spelet flyttar dig.',
+        not_forced='%s: inget att tvinga. coop quests status visar vad varje uppdrag väntar på.'},
 }
 T.th={
     title='CO-OP',
@@ -1846,6 +2105,7 @@ T.th={
         same_place='ตำแหน่งเดียวกัน (ทดลอง)',aggro='ศัตรูโจมตีใคร (โฮสต์)',
         same_spawns='จุดเกิดเดียวกัน (ทดลอง)',enemy_extra='ศัตรูเพิ่ม (โฮสต์)',
         bosses='บอสร่วม (ทดลอง)',boss_hp_scale='HP บอส (โฮสต์)',
+        shared_quests='แชร์เควสต์ (ทดลอง)',
         photo_pause='การหยุดในโหมดถ่ายภาพ (ทดลอง)'},
     value={on='เปิด',off='ปิด',both='หยุดเกมและแจ้งเตือน',notice='แจ้งเตือนเท่านั้น',game='ภาษาของเกม',
         english='English',
@@ -1914,6 +2174,19 @@ T.th={
         guest='จุดเกิดเดียวกัน: ห่าง %s ไม่เกิน 100 ม. เกมคุณมีศัตรูแบบเกมเขา',
         stopped='จุดเกิดเดียวกันหยุดเพราะข้อผิดพลาดจนกว่าจะรีสตาร์ตเกม ดูใน coop-link.log',
         differ='จุดเกิดเดียวกัน: ศัตรูบางตัวต่างจากเกม %s จึงคงเดิม ดูใน coop-link.log'},
+    quests={on='แชร์เควสต์กับ %s แล้ว',
+        save='แชร์เควสต์ต้องใช้เซฟ co-op ไม่ใช่เซฟของคุณ จะเริ่มเมื่อโหลดเซฟนั้น',
+        stopped='แชร์เควสต์หยุดจนกว่าจะรีสตาร์ตเกม ดูสาเหตุใน coop-quests.log',
+        partner_off='%s เลิกแชร์เควสต์แล้ว',
+        ahead_host='%s นำหน้าคุณใน %s ไม่มีอะไรถูกย้อนกลับ',
+        ahead_guest='คุณนำหน้า %s ใน %s ไม่มีอะไรถูกย้อนกลับ',
+        behind='คุณตามหลัง %s ใน %s ทำให้จบในเกมของคุณก่อน',
+        zone='ขั้นของ %s ใน %s รอจนคุณไปถึง %s',
+        board='%s พร้อมแล้ว: ส่งที่บอร์ดคำขอของคุณ',
+        kill='%s รอให้คุณกำจัดเป้าหมายเอง coop quests force %s ข้ามขั้นนี้',
+        forced='%s: ใช้ขั้นที่ค้างไว้แล้ว',
+        forced_warp='%s: ใช้ขั้นที่ค้างไว้แล้ว เกมจะย้ายคุณไป',
+        not_forced='%s: ไม่มีอะไรให้บังคับ ดูสิ่งที่แต่ละเควสต์รอใน coop quests status'},
 }
 T.tr={
     title='CO-OP',
@@ -1934,6 +2207,7 @@ T.tr={
         same_place='Aynı konum (deneysel)',aggro='Düşman hedefi (ev sahibi)',
         same_spawns='Aynı doğma noktaları (deneysel)',enemy_extra='Ek düşmanlar (ev sahibi)',
         bosses='Ortak baş düşmanlar (deneysel)',boss_hp_scale='Baş düşman canı (ev sahibi)',
+        shared_quests='Ortak görevler (deneysel)',
         photo_pause='Fotoğraf duraklaması (deneysel)'},
     value={on='Açık',off='Kapalı',both='Duraklatma ve bildirim',notice='Yalnızca bildirim',game='Oyun dili',
         english='English',
@@ -2015,6 +2289,19 @@ T.tr={
             ..'dosyasında.',
         differ='Aynı doğma noktaları: bazı düşmanlar seninle %s arasında farklı (başka .pak modları ya da fight_chars) '
             ..'ve değişmez. Listesi coop-link.log dosyasında.'},
+    quests={on='Ortak görevler %s ile açık.',
+        save='Ortak görevler için kendi kaydın değil, co-op kaydı gerekir. Bir tane yüklediğinde başlarlar.',
+        stopped='Ortak görevler oyun yeniden başlayana dek durdu. Nedeni coop-quests.log dosyasında.',
+        partner_off='%s artık görev paylaşmıyor.',
+        ahead_host='%s, %s görevinde senden önde. Hiçbir şey geri alınmaz; adım orada kayıtlı kalır.',
+        ahead_guest='%s oyuncusundan %s görevinde öndesin. Hiçbir şey geri alınmaz; adım senin kaydında kalır.',
+        behind='%s oyuncusunun %s görevinde gerisindesin. Yeniden paylaşmak için görevi kendi oyununda bitir.',
+        zone='%s oyuncusunun %s görevindeki adımı, sen %s bölgesine varana dek bekler.',
+        board='%s hazır: kendi görev panonda teslim et.',
+        kill='%s, hedefi kendin öldürene dek bekler. coop quests force %s bu adımı atlar.',
+        forced='%s: bekleyen adım uygulandı.',
+        forced_warp='%s: bekleyen adım uygulandı, oyun seni oraya taşıyor.',
+        not_forced='%s: zorlanacak bir şey yok. coop quests status her görevin neyi beklediğini gösterir.'},
 }
 T['zh-Hans']={
     title='合作模式',
@@ -2033,6 +2320,7 @@ T['zh-Hans']={
         same_place='同步位置（实验性）',aggro='敌人攻击对象（房主）',
         same_spawns='同步刷怪（实验性）',enemy_extra='额外敌人（房主）',
         bosses='共享首领（实验性）',boss_hp_scale='首领生命（房主）',
+        shared_quests='共享任务（实验性）',
         photo_pause='拍照模式暂停（实验性）'},
     value={on='开',off='关',both='暂停并提示',notice='仅提示',game='游戏语言',english='English',friends='好友',
         code='凭房间码',private='仅受邀者',ask='每次询问',always='始终',all='所有共享敌人',
@@ -2101,6 +2389,19 @@ T['zh-Hans']={
         stopped='同步刷怪因错误停止，重启游戏前不会恢复。原因见coop-link.log。',
         differ='同步刷怪：部分敌人在你和%s的游戏中不同（其他.pak模组或fight_chars），将保持原样。'
             ..'coop-link.log列出了这些敌人。'},
+    quests={on='已与%s共享任务。',
+        save='共享任务需要合作存档，而非你自己的存档。加载合作存档后即开始。',
+        stopped='共享任务已停止，重启游戏前不会恢复。原因见coop-quests.log。',
+        partner_off='%s已停止共享任务。',
+        ahead_host='%s在%s中领先于你。不会撤销任何内容，该步骤保留在对方存档中。',
+        ahead_guest='你比%s在%s中进度更快。不会撤销任何内容，该步骤保留在你的存档中。',
+        behind='你比%s在%s中落后。在自己的游戏中完成后即可再次共享。',
+        zone='%s在%s中的步骤将等待你到达%s。',
+        board='%s可以提交了：请到你的委托公告板交付。',
+        kill='%s将等待你亲自击败目标。coop quests force %s可跳过该步骤。',
+        forced='%s：已应用保留的步骤。',
+        forced_warp='%s：已应用保留的步骤，游戏将移动你的位置。',
+        not_forced='%s：没有可强制的步骤。用coop quests status查看各任务在等待什么。'},
 }
 T['zh-Hant']={
     title='合作模式',
@@ -2117,6 +2418,7 @@ T['zh-Hant']={
         enemy_hp_scale='敵人生命值（主機）',enemy_balance_scale='敵人平衡（主機）',kill_credit='我的擊殺獎勵',
         same_place='敵人位置同步（實驗性）',aggro='敵人攻擊對象（主機）',same_spawns='敵人生成同步（實驗性）',
         enemy_extra='額外敵人（主機）',bosses='共享頭目（實驗性）',boss_hp_scale='頭目生命值（主機）',
+        shared_quests='共享任務（實驗性）',
         photo_pause='相片模式暫停（實驗性）'},
     value={on='開',off='關',both='暫停並通知',notice='僅通知',game='遊戲語言',english='English',friends='好友',
         code='使用代碼',private='僅限受邀者',ask='詢問',always='總是',all='所有共享敵人',fought='我攻擊過的敵人',
@@ -2186,6 +2488,19 @@ T['zh-Hant']={
         stopped='敵人生成同步因錯誤而停止，重新啟動遊戲前不會恢復。原因請見coop-link.log。',
         differ='敵人生成同步：部分敵人在你與%s的遊戲中不同（其他.pak模組或fight_chars），維持原樣。'
             ..'coop-link.log列有這些敵人。'},
+    quests={on='已與%s共享任務。',
+        save='共享任務需要合作存檔，不能用你自己的存檔。載入合作存檔後即開始。',
+        stopped='共享任務已停止，重新啟動遊戲前不會恢復。原因請見coop-quests.log。',
+        partner_off='%s已停止共享任務。',
+        ahead_host='%s在%s中領先你。不會撤銷任何內容，該步驟保留在對方存檔中。',
+        ahead_guest='你比%s在%s中進度更快。不會撤銷任何內容，該步驟保留在你的存檔中。',
+        behind='你比%s在%s中落後。在自己的遊戲中完成後即可再次共享。',
+        zone='%s在%s中的步驟會等到你抵達%s。',
+        board='%s可以交付了：請到你的委託公告板提交。',
+        kill='%s會等到你親自擊敗目標。coop quests force %s可跳過該步驟。',
+        forced='%s：已套用保留的步驟。',
+        forced_warp='%s：已套用保留的步驟，遊戲會移動你的位置。',
+        not_forced='%s：沒有可強制的步驟。用coop quests status查看各任務在等待什麼。'},
 }
 local culture=require('recruiter_text').culture
 -- A table and the tables in it read T.en's word for a key they lack.

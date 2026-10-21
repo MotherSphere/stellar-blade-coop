@@ -54,6 +54,7 @@ M.OPTIONS={
     later(toggle('rejoin','on')),
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
+    toggle('shared_quests','off'), -- At once: main.lua asks coop quests on or off.
     {head='combat'},
     toggle('shared_enemies','on'), -- At once: main.lua asks coop fight on or off.
     -- The host's for both games: at once while shared enemies wait or run (main.lua asks coop fight pilot off or on),
