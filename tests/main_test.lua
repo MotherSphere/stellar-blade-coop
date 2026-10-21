@@ -408,7 +408,7 @@ for k,line in ipairs(printed) do
         assert(printed[k+1]=='[StellarCoop] look: cloth=on dyes=off effects=off\n','Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto, same place off '
             ..'(experimental), same spawns off (experimental), extra enemies 0, bosses off (experimental), boss HP '
-            ..'200 %\n',printed[k+2])
+            ..'200 %, spawn filter off (experimental)\n',printed[k+2])
         assert(printed[k+3]=='[StellarCoop] photo sync: both, longest pause 600 s, ghost in your photos on, its name '
             ..'tag off\n',printed[k+3])
     end
@@ -1012,7 +1012,7 @@ settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 status_text=plain
 load_main(true)
 assert(logged('shared enemies: on (experimental), fight_chars 15011001 2, same place off (experimental), same spawns '
-    ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),
+    ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %, spawn filter off (experimental)'),
     table.concat(printed,'|'))
 for _,waiting in ipairs({plain,with_slot('slot=unknown index=? marker=4\n'),
         with_slot('friend=1 0 slot=coop index=4 marker=4\n')}) do
@@ -1056,7 +1056,7 @@ coop('fight','on'); assert(asked[#asked]=='fight on fought scale 123 101',asked[
 settings_text='shared_enemies=on\nsame_place=on\nfight_chars=15011001 2\n'
 load_main(true)
 assert(logged('shared enemies: on (experimental), fight_chars 15011001 2, same place on (experimental), same spawns '
-    ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),
+    ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %, spawn filter off (experimental)'),
     table.concat(printed,'|'))
 status_text=COOP
 loops[2].f()
@@ -1084,7 +1084,7 @@ settings_text='shared_enemies=on\nsame_place=on\naggro=host\nsame_spawns=on\nfig
 load_main(true)
 status_text=COOP
 assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place on (experimental), same spawns on '
-    ..'(experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),table.concat(printed,'|'))
+    ..'(experimental), extra enemies 0, bosses off (experimental), boss HP 200 %, spawn filter off (experimental)'),table.concat(printed,'|'))
 for _,case in ipairs({{'on','fight on scale 135 115 place aggro-host spawns 15011001'},{'record','fight record scale '
         ..'135 115 place aggro-host 15011001'},{'replay','fight replay 15011001'},{'probe','fight probe 15011001'}}) do
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
@@ -1100,16 +1100,35 @@ settings_text='shared_enemies=on\nsame_spawns=on\nenemy_extra=2\nfight_chars=150
 load_main(true)
 status_text=COOP
 assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place off (experimental), same spawns on '
-    ..'(experimental), extra enemies 2, bosses off (experimental), boss HP 200 %'),table.concat(printed,'|'))
+    ..'(experimental), extra enemies 2, bosses off (experimental), boss HP 200 %, spawn filter off (experimental)'),table.concat(printed,'|'))
 for _,case in ipairs({{'on','fight on scale 135 115 spawns extra 2 15011001'},{'record','fight record scale 135 115 '
         ..'15011001'},{'replay','fight replay 15011001'},{'probe','fight probe 15011001'}}) do
     coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
 end
+-- spawn_filter=on (the guest's own) goes with on and the spawn probe as "filter", after spawns and extra, before the
+-- ids, whatever same_spawns says (the host's decides); record, replay and the plain probe never carry it.
+settings_text='shared_enemies=on\nsame_spawns=on\nenemy_extra=2\nspawn_filter=on\nfight_chars=15011001\n'
+load_main(true)
+status_text=COOP
+assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place off (experimental), same spawns on '
+    ..'(experimental), extra enemies 2, bosses off (experimental), boss HP 200 %, spawn filter on (experimental)'),
+    table.concat(printed,'|'))
+for _,case in ipairs({{'on','fight on scale 135 115 spawns extra 2 filter 15011001'},{'record','fight record scale 135 '
+        ..'115 15011001'},{'replay','fight replay 15011001'},{'probe','fight probe 15011001'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+coop('fight','spawn','probe'); assert(asked[#asked]=='fight probe spawns filter 15011001',asked[#asked])
+settings_text='shared_enemies=on\nspawn_filter=ON\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 filter',asked[#asked])
+coop('fight','spawn','probe'); assert(asked[#asked]=='fight probe spawns filter',asked[#asked])
 for _,text in ipairs({'shared_enemies=on\nenemy_extra=3\n','shared_enemies=on\nsame_spawns=on\nenemy_extra=0\n'}) do
     settings_text=text
     load_main(true)
     status_text=COOP
-    coop('fight','on'); assert(not asked[#asked]:find('extra',1,true),asked[#asked])
+    coop('fight','on'); assert(not asked[#asked]:find('extra',1,true) and not asked[#asked]:find('filter',1,true),
+        asked[#asked])
 end
 -- bosses=on (the host's) goes with on and record as "bosses" and boss_hp_scale in whole percents, after aggro-host,
 -- before spawns and the ids; the guest takes the host's, so replay and probe never carry it. Off: none, whatever
@@ -1118,7 +1137,7 @@ settings_text='shared_enemies=on\naggro=host\nbosses=on\nboss_hp_scale=2.5\nsame
 load_main(true)
 status_text=COOP
 assert(logged('shared enemies: on (experimental), fight_chars 15011001, same place off (experimental), same spawns on '
-    ..'(experimental), extra enemies 0, bosses on (experimental), boss HP 250 %'),table.concat(printed,'|'))
+    ..'(experimental), extra enemies 0, bosses on (experimental), boss HP 250 %, spawn filter off (experimental)'),table.concat(printed,'|'))
 for _,case in ipairs({{'on','fight on scale 135 115 aggro-host bosses 250 spawns 15011001'},{'record','fight record '
         ..'scale 135 115 aggro-host bosses 250 15011001'},{'replay','fight replay 15011001'},
         {'probe','fight probe 15011001'}}) do
@@ -1146,7 +1165,7 @@ for _,text in ipairs({'','shared_enemies=on\n','shared_enemies=on\nfight_chars=a
     settings_text=text
     load_main(true)
     assert(logged('shared enemies: on (experimental), fight_chars auto, same place off (experimental), same spawns '
-        ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %'),
+        ..'off (experimental), extra enemies 0, bosses off (experimental), boss HP 200 %, spawn filter off (experimental)'),
         table.concat(printed,'|'))
     status_text=COOP; loops[2].f()
     assert(#asked==1 and asked[1]=='fight on scale 135 115',text)

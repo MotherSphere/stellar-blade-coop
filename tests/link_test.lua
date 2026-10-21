@@ -463,10 +463,28 @@ for _,bad in ipairs({'4','-1','1.5','two','03'}) do
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_extra (use 0 to 3); "
         .."enemy_extra stays 0" and s.enemy_extra==0,notes[1])
 end
+-- spawn_filter (the guest's own, experimental, no menu row): on or off in any case, off by default and in a file
+-- written before it; a new file names it right after enemy_extra, with its comment (one pointer in the game's memory
+-- on her PC, off until tested in game); a bad value keeps off, with a line.
+assert(Link.DEFAULT:find('\nenemy_extra=0\n# Spawn filter, experimental, ',1,true)
+    and Link.DEFAULT:find('\nspawn_filter=off\n',1,true))
+assert(Link.DEFAULT:find('one pointer in the game\'s memory on your PC',1,true)
+    and Link.DEFAULT:find('off\n# until it has been tested in game.',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.spawn_filter==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.spawn_filter==false)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('spawn_filter='..case[1])
+    assert(#notes==0 and s.spawn_filter==case[2],case[1])
+end
+s,notes=Link.parse_settings('spawn_filter=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for spawn_filter (use on or off); "
+    .."spawn_filter stays off" and s.spawn_filter==false,notes[1])
 -- bosses (stage 5, experimental, the host's): on or off in any case, on by default and in a file written before it;
 -- boss_hp_scale (the host's) from 1.0 to 4.0 like the other scales, 2.0 by default. A new file names both right after
--- enemy_extra, with their comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nenemy_extra=0\n# Shared bosses, experimental, ',1,true)
+-- spawn_filter, with their comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nspawn_filter=off\n# Shared bosses, experimental, ',1,true)
     and Link.DEFAULT:find('\nbosses=on\nboss_hp_scale=2.0\n',1,true))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.bosses==true and s.boss_hp_scale==2)

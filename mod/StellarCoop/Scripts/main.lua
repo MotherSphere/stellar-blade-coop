@@ -84,7 +84,8 @@ if settings then
         ..(settings.same_place and 'on' or 'off')..' (experimental), same spawns '
         ..(settings.same_spawns and 'on' or 'off')..' (experimental), extra enemies '..settings.enemy_extra
         ..', bosses '..(settings.bosses and 'on' or 'off')..' (experimental), boss HP '
-        ..math.floor(settings.boss_hp_scale*100+0.5)..' %')
+        ..math.floor(settings.boss_hp_scale*100+0.5)..' %, spawn filter '..(settings.spawn_filter and 'on' or 'off')
+        ..' (experimental)')
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
@@ -371,7 +372,8 @@ local commands={
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
     -- (the modes that can host), and same_place=on as "place", aggro=host as "aggro-host" and bosses=on as "bosses" and
     -- boss_hp_scale in whole percents after them, then with on only same_spawns=on as "spawns", and with it an
-    -- enemy_extra above 0 as "extra" and its number. status answers
+    -- enemy_extra above 0 as "extra" and its number, then with on and spawn probe the guest's own spawn_filter=on as
+    -- "filter". status answers
     -- with the fight= line; pilot is same-place enemies' own (pilot above). spawn probe is the probe with "spawns"
     -- before the ids: same spawns' reads alone (stage 4), whatever same_spawns says; its state is the fight= line's
     -- spawns=.
@@ -406,6 +408,7 @@ local commands={
                         and ' extra '..settings.enemy_extra or '')
             end
             if spawn_probe then line=line..' spawns' end
+            if (sub=='on' or spawn_probe) and settings.spawn_filter then line=line..' filter' end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end

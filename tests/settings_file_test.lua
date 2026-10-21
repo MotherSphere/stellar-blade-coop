@@ -17,6 +17,13 @@ assert(F.set(Link.DEFAULT,'fight_chars','auto')==Link.DEFAULT,'The value it has 
 assert(F.set(text,'fight_chars','')==Link.DEFAULT:gsub('\nfight_chars=auto\n','\nfight_chars=\n'),
     'An empty value is a value')
 
+-- spawn_filter has no menu row: a hand edit through set() changes its line only, and the mod reads it. The whole
+-- default file fits in what the mod reads.
+text=assert(F.set(Link.DEFAULT,'spawn_filter','on'))
+assert(text==Link.DEFAULT:gsub('\nspawn_filter=off\n','\nspawn_filter=on\n'))
+assert(Link.parse_settings(text).spawn_filter==true and Link.parse_settings(Link.DEFAULT).spawn_filter==false)
+assert(#Link.DEFAULT<8192)
+
 -- A commented example is a comment: the key goes at the end instead, and the comment stays.
 text=assert(F.set(Link.DEFAULT,'dyes','on'))
 assert(text==Link.DEFAULT..'dyes=on\n' and text:find('# For example: dyes=on\n',1,true))

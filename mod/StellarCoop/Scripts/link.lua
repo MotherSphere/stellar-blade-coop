@@ -11,8 +11,8 @@
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
--- same_place, aggro, same_spawns, enemy_extra, bosses and boss_hp_scale (Phase 11, experimental) are main.lua's coop
--- fight; its photo_sync,
+-- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
+-- main.lua's coop fight; its photo_sync,
 -- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
 -- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
 -- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
@@ -81,6 +81,11 @@ same_spawns=on
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
+# Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, off
+# until it has been tested in game. On, the mod changes one pointer in the game's memory on your PC, and an enemy the
+# host's game no longer has stays away when your zone resets after your death or your camp rest, instead of
+# appearing for a moment before it is removed.
+spawn_filter=off
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
 # hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
 # boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
@@ -125,12 +130,12 @@ card_details=on
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='on',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
     enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
-    bosses='on',boss_hp_scale='2.0',
+    spawn_filter='off',bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny=''}
-local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
-    photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
+local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
+    photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
