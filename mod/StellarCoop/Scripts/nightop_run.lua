@@ -8,7 +8,9 @@
 -- his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves around
 -- his start point and both cards show one timer and one score. Each world fights its own monsters, unless the shared
 -- fight pairs their copies by key: then the guest leaves the aggro and stuck moves of a key the host tracks and has
--- not done to the pilot while same-place enemies draw at least one copy. Never called here:
+-- not done to the pilot while same-place enemies draw at least one copy. A run of ours that went from its countdown to
+-- a success or a time up credits its final score as points to this player's wallet; coop nightop shop and buy spend
+-- them (nightop_shop.lua, which holds the one grant call). Never called here:
 -- a table row added, a rule or remain-time request, EndRule, ResetZone, a zone event other than nightop.lua's heal,
 -- EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call, RegisterHook,
 -- NotifyOnNewObject. No console word reaches a game call: start's words only set flags. Beyond the kit (ui.lua), the
@@ -19,6 +21,7 @@ local U=require('unreal')
 local W=require('nightop_waves')
 local N=require('nightop')
 local T=require('ui_text')
+local Shop=require('nightop_shop')
 local Run={}
 local MASK=0xFFFFFFFF
 local XION='/game/art/bg/worldmap/level_p/e04' -- Its people and quest scripts stay out of a fight.
@@ -190,7 +193,8 @@ end
 -- log(text) writes an [NR] line; status() is the native part's status text; paused() whether the game is paused or
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
--- what the partner did; send(line) writes our night line (link.lua's night); friend() the partner's Steam name.
+-- what the partner did; send(line) writes our night line (link.lua's night); friend() the partner's Steam name;
+-- store(name) link.lua's one-line file, for the shop's wallet.
 function Run.new(o)
     local log,status,paused,tell=o.log,o.status,o.paused or function() return false end,o.tell
     local send,friend=o.send,o.friend or function() return nil end
@@ -211,6 +215,8 @@ function Run.new(o)
         if more then notify(function(w) return select(2,Run.result(s,w,no_text)) end) end
     end
     local r=nil -- The run, nil when idle: s is nightop_waves.lua's state; role 'host' or 'guest' in a co-op run.
+    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,
+        busy=function() return r~=nil and r.s.phase~='result' end})
     -- The night line. Ours: n (one up a line), the last line's words but n and rt, ticks since it went. Hers: the last
     -- night= text read. Each (run byte, seed) the guest answered, her refusal while she sends it, and the run bytes she
     -- refused as taken (the host skips them until the next Lua load).
@@ -390,12 +396,25 @@ function Run.new(o)
             s.reason and ' ('..s.reason..')' or '',s.clears,#W.SCHEDULE,s.kills,s.score,t//60,t%60,
             r.ms_n>0 and r.ms_sum/r.ms_n or 0,r.ms_max))
     end
+    -- Together only: points for a success or a time up of a run of ours that went through its countdown (a guest's
+    -- run whose first line from the host was past it gets none), credited by this game to its own wallet. No line
+    -- carries points; the shop caps what a score gives.
+    local function earn()
+        local s=r.s
+        if s.outcome~='success' and s.outcome~='time' then return end
+        if not r.counted then return log('no points: this run did not go through its countdown') end
+        local got,total=shop.credit(s.score)
+        if not got then return log('no points: '..total) end
+        if tell then tell(function(w) return w.night.earned:format(got,total) end) end
+    end
     -- One tick of the run's states: the host's (solo or with her line as input.mate), or the guest's following his
     -- line (r.line, this tick's new one). A key she killed first scores nothing here.
     local function step(input)
+        r.counted=r.counted or r.s.phase=='countdown'
         local before,fresh=r.s.score,{}
         for _,b in ipairs(r.killed) do fresh[b]=not r.s.killed[b.key] end
         local events=r.role=='guest' and W.follow(r.s,r.line,r.now,input) or W.step(r.s,input,r.now)
+        r.counted=r.counted or r.s.phase=='countdown'
         for _,b in ipairs(r.killed) do
             if r.role=='guest' then log(string.format('kill %s %s',hex(b.key),alias(b)))
             else
@@ -424,6 +443,8 @@ function Run.new(o)
             elseif e.what=='end' then
                 finish()
                 if shown() then panel={s=r.s,left=W.RESULT/TICK} else notify_end(r.s) end
+                local paid,pe=pcall(earn) -- Its error must not keep the end from the partner.
+                if not paid then log('STOP: points: '..why(pe)) end
             end
         end
     end
@@ -547,7 +568,7 @@ function Run.new(o)
         end
         step(input)
     end
-    local USE='Use: coop nightop [start [noaggro|nomove] | stop]'
+    local USE='Use: coop nightop [start [noaggro|nomove] | stop | shop | buy <n> [count]]'
     -- A new run at game time now around at (whole cm) facing yaw (whole degrees): the run byte and seed give the gate
     -- order, so the host's and the guest's runs put each monster on the same spot.
     local function begin(run,seed,now,at,yaw,map,flag)
@@ -697,8 +718,9 @@ function Run.new(o)
         return line
     end
     local self={}
-    -- start [noaggro|nomove], stop, or nothing: the run's state, if any, and the census.
+    -- start [noaggro|nomove], stop, shop, buy <n> [count], or nothing: the run's state, if any, and the census.
     function self.command(sub,flag,extra)
+        if sub=='buy' then return shop.buy(flag,extra) end
         if extra~=nil then return false,USE end
         if sub=='start' and (flag==nil or flag=='noaggro' or flag=='nomove') then return start(flag) end
         if flag~=nil then return false,USE end
@@ -706,6 +728,7 @@ function Run.new(o)
             if not stop('stop') then return false,'no Night Operation run to stop' end
             return true,'Night Operation stopped'
         end
+        if sub=='shop' then return shop.list() end
         if sub~=nil then return false,USE end
         local eve=N.her()
         if not eve then return false,'no EVE in the world' end
