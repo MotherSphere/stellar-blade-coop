@@ -148,8 +148,9 @@ build/host/pose_codec_test
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss
-    pairs first in the 16 places, a common enemy's place taken by a boss and never the other way; the exec line's
-    checks, rate and holds of a kill and of a dead, an exec 1 that never restarts a running takedown, a held claim's 6 s
+    pairs first in the 16 places, a common enemy's place taken by a boss (not while its kill or her takedown is under
+    way) and never the other way; the exec line's checks, rate and holds of a kill and of a dead, an exec 1 that never
+    restarts a running takedown, a held claim's 6 s
     cap, a balance emptied by her claim in the step of her exec 1, refusals within 2 s counted with no line; same
     spawns' epoch, have, spawn and drop lines refused by Host and Guest, since the engine takes them, and never
     recorded), the boss table of stage 5 (one row a

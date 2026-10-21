@@ -1067,12 +1067,13 @@ private:
     return nullptr;
   }
   // The place a newcomer takes with every place held: the first common enemy out of any fight (at full HP, never hit
-  // by her), else for a boss the first common enemy. Never a boss's. Null when none.
+  // by her), else for a boss the first common enemy. Never a boss's, nor that of an enemy whose kill waits or that her
+  // takedown runs on (a dead held for it has one running): its kill or dead must still reach her. Null when none.
   Enemy *evict(bool boss) {
     Enemy *common = nullptr;
     for (size_t i = 0; i < count_; ++i) {
       Enemy &e = enemies_[i];
-      if (e.boss)
+      if (e.boss || e.holding || e.exec_ms)
         continue;
       if (!e.hit && e.value[kHp] >= whole(e.max[kHp]))
         return &e;

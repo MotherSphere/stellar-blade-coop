@@ -912,6 +912,32 @@ int main() {
     assert(!has(w.lines(), " up ") && w.count("full") == 1 && std::count(held.begin(), held.end(), 300) == 1 &&
            std::count(held.begin(), held.end(), 301) == 1 && h.linked() == 16);
   }
+  // Nor the place of a common enemy whose kill waits or that her takedown runs on: her lethal claim on 200 (grabbing our
+  // EVE) and her takedown of 201 keep theirs, the boss takes 202's, and 200's kill still reaches her.
+  {
+    World w;
+    Host h;
+    h.set_place(true);
+    for (uint32_t i = 0; i < 16; ++i)
+      w.add(200 + i, 6000 + i, 0);
+    w.actor(200)->s.nodamage = 3;
+    w.actor(201)->s.takedown = true;
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    for (uint32_t i = 202; i < 216; ++i)
+      w.hit(i, kHp, 1);
+    h.receive(msg("SBF11 hit 1 1 200 1600 0 0 1600 1"), 100, w);
+    h.receive(msg("SBF11 exec 1 201 1"), 100, w);
+    step(h, w, 2, 100);
+    assert(w.hp(200) == 1 && h.executing(201, 100));
+    w.lines();
+    w.add(300, 7000, 0, 15005100).s.boss = true;
+    step(h, w, 3, 200);
+    assert(w.lines().rfind("SBF11 down 1 202\nSBF11 up 1 300 ", 0) == 0 && h.linked() == 16);
+    w.actor(200)->s.nodamage = 0;
+    step(h, w, 4, 300);
+    assert(has(w.lines(), "SBF11 dead 1 200\n") && h.counts.kills == 1);
+  }
 
   // ---- Host: her takedowns (stage 3c, PHASE11-STAGE3 3.9) ----
   // Her exec 1 counts while same place runs on our side with aggro=game, for an enemy we follow whose copy is a Monster
