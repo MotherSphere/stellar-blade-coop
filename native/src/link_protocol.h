@@ -8,7 +8,10 @@
 //   SBC<protocol> photo <0|1|s|c> <both|notice> (the synced photo mode: ours, and whether she may pause our game for
 //   it; c: the host's cutscene plays),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
-//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
+//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ),
+//   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
+//   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
+//   none <why>.
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
@@ -152,13 +155,35 @@ inline Life life_of(const Vitals &v) {
                                                                                       : Life::unknown;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, camps_ask, camps };
+// The follow's camps lines (travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that id with
+// his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole metres
+// (0 to kMaxCampM), or with none and why (kCampsWhy). World and aliases: letters, digits and '_', kMaxAlias at most.
+constexpr size_t kMaxCamps = 8, kMaxAlias = 64;
+constexpr uint64_t kMaxCampId = 65535, kMaxCampM = 65535;
+struct Camp {
+  std::string alias;
+  uint32_t m = 0;
+};
+inline bool alias_word(std::string_view w) {
+  if (w.empty() || w.size() > kMaxAlias)
+    return false;
+  for (char c : w)
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_')
+      return false;
+  return true;
+}
+// Why the host has no camps for her: at the title, in a load (no EVE), no travel camp near him, a warp of his own.
+inline bool camps_why(std::string_view w) { return w == "title" || w == "loading" || w == "nocamp" || w == "busy"; }
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
-                         // 's' or 'c', then 1 for both. paks: the count of .pak mods, their hash.
-  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
+                         // 's' or 'c', then 1 for both. paks: the count of .pak mods, their hash. camps?, camps: id.
+  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. camps:
+                         // the host's world, or "none".
   Vitals vitals{};       // vitals: hers, plausible_vitals().
+  std::string why;         // camps none: why.
+  std::vector<Camp> camps; // camps: nearest first.
 };
 
 inline std::string hello(int protocol, const std::string &mod, uint32_t build) {
@@ -196,6 +221,25 @@ inline std::string vit_line(const Vitals &v) {
 // The .pak mods our game loads beyond the base game's (pak_list.h), reliable, once to each friend past the handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
+// The follow's camps lines, reliable (link_core.h relays them between Lua and the friend).
+inline std::string camps_ask_line(uint64_t id) {
+  return "SBC" + std::to_string(kProtocol) + " camps? " + std::to_string(id);
+}
+inline std::string camps_line(uint64_t id, const std::string &world, const std::vector<Camp> &camps) {
+  std::string line = "SBC" + std::to_string(kProtocol) + " camps " + std::to_string(id) + " " + world;
+  for (const Camp &c : camps)
+    line += " " + c.alias + ":" + std::to_string(c.m);
+  return line;
+}
+inline std::string camps_none_line(uint64_t id, const std::string &why) {
+  return "SBC" + std::to_string(kProtocol) + " camps " + std::to_string(id) + " none " + why;
+}
+// A parsed camps? or camps message as its line again.
+inline std::string camps_line(const Message &m) {
+  return m.kind == Kind::camps_ask ? camps_ask_line(m.a)
+         : m.text == "none"        ? camps_none_line(m.a, m.why)
+                                   : camps_line(m.a, m.text, m.camps);
+}
 // Channel 2's tags, versioned like channel 0's: "SBF12" for the shared fight, "SBQ12" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
@@ -286,6 +330,34 @@ inline Message parse(const char *data, size_t size) {
     }
     if (plausible_vitals(m.vitals))
       m.kind = Kind::vitals;
+  } else if (split(text, f, 3, nullptr) && f[0] == versioned_tag && f[1] == "camps?") {
+    if (number(f[2], m.a) && m.a <= kMaxCampId)
+      m.kind = Kind::camps_ask;
+  } else if (split(text, f, 4, &rest) && f[0] == versioned_tag && f[1] == "camps") {
+    if (!number(f[2], m.a) || m.a > kMaxCampId)
+      return Message();
+    if (f[3] == "none") {
+      if (!camps_why(rest))
+        return Message();
+      m.text = f[3], m.why = rest;
+    } else {
+      if (!alias_word(f[3]))
+        return Message();
+      m.text = f[3];
+      for (size_t at = 0, end = 0; at <= rest.size(); at = end + 1) {
+        end = rest.find(' ', at);
+        end = end == std::string::npos ? rest.size() : end;
+        const std::string item = rest.substr(at, end - at);
+        const size_t colon = item.find(':');
+        uint64_t metres = 0;
+        if (m.camps.size() == kMaxCamps || colon == std::string::npos ||
+            !alias_word(std::string_view(item).substr(0, colon)) ||
+            !number(std::string_view(item).substr(colon + 1), metres) || metres > kMaxCampM)
+          return Message();
+        m.camps.push_back(Camp{item.substr(0, colon), static_cast<uint32_t>(metres)});
+      }
+    }
+    m.kind = Kind::camps;
   }
   return m;
 }
@@ -357,10 +429,13 @@ inline uint64_t code_lobby(std::string_view text) {
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
 // (quest_engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
-// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>".
+// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the follow
+// (travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps lines,
+// relayed to the friend by link_core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
+// thread, pose_tick.cpp: an index above 0, both within 32 bits).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests
+  remove, copy, quests, camps, travel
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
@@ -407,6 +482,9 @@ struct Request {
   Quests quests = Quests::none; // quests: what.
   uint16_t quest = 0;           // quests force: the QuestTable ID.
   std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
+  std::string line;             // camps: the wire line (link_protocol.h's camps_line), as the link sends it.
+  std::string alias;            // travel: the camp's alias (for the log), and its FName.
+  uint32_t index = 0, number = 0;
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -571,6 +649,16 @@ inline Request parse_request(std::string text) {
               : word == "main"    ? SavesAsk::main
                                   : SavesAsk::none;
     r.command = r.saves == SavesAsk::none ? Command::none : Command::saves;
+  } else if (text.rfind("camps", 0) == 0) {
+    const std::string line = "SBC" + std::to_string(kProtocol) + " " + text;
+    const Message m = parse(line.data(), line.size());
+    if (m.kind == Kind::camps_ask || m.kind == Kind::camps)
+      r.command = Command::camps, r.line = camps_line(m);
+  } else if (uint64_t index = 0, number_ = 0; split(text, f, 4, nullptr) && f[0] == "travel" && alias_word(f[1]) &&
+                                              number(f[2], index) && index && index <= UINT32_MAX &&
+                                              number(f[3], number_) && number_ <= UINT32_MAX) {
+    r.command = Command::travel, r.alias = f[1];
+    r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;

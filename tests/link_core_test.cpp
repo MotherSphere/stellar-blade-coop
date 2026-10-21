@@ -2230,6 +2230,73 @@ int main() {
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
   }
 
+  // The follow's camps lines (travel.lua). Outside a session nothing goes. Between two Links, A hosting (Me) and B
+  // (Kaanta): her camps? goes reliable on channel 0 to A, whose status keeps the last as camps?=<id>; another within
+  // 2 s is dropped there with a log line. A's answer to her last id reaches B's status as camps=<id> ...; an answer
+  // with another id, and one that comes after she asked again, is dropped. The host never asks and the guest never
+  // answers: both requests are refused, and such a line from the friend is dropped. A session's end forgets both.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("camps? 1");
+    assert(saw("camps line not sent: no session") && F.sent.empty());
+  }
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto status = [](const Link &l) { return l.status(Counters{}); };
+    t.tick(t.b, 50, "camps? 1");
+    assert(sent_to(kMe, camps_ask_line(1)) == 1 && saw("B: sent camps? 1"));
+    for (auto &s : F.sent)
+      if (s.text.find(" camps") != std::string::npos)
+        assert(s.flags == kReliable && s.channel == kChannel);
+    t.tick(t.a, 50);
+    assert(status(t.a).find("\ncamps?=1\n") != std::string::npos && saw("A: camps? 1 from Kaanta"));
+    assert(status(t.a).find("\ncamps?=1\n") < status(t.a).find("\nnotice="));
+    t.tick(t.a, 50, "camps 1 Xion Xion_Camp_10:12 SE01_Camp_00:300");
+    assert(sent_to(kFriend, camps_line(1, "Xion", {{"Xion_Camp_10", 12}, {"SE01_Camp_00", 300}})) == 1);
+    t.tick(t.b, 50);
+    assert(status(t.b).find("\ncamps=1 Xion Xion_Camp_10:12 SE01_Camp_00:300\n") != std::string::npos);
+    t.tick(t.b, 500, "camps? 2");                              // 1.2 s after her first: dropped on A.
+    assert(status(t.b).find("\ncamps=") == std::string::npos); // Her new request: the old answer goes.
+    t.tick(t.a, 50);
+    assert(saw("A: dropped a camps line from Kaanta: over the rate limit (one each 2 s)") &&
+           status(t.a).find("\ncamps?=1\n") != std::string::npos);
+    t.tick(t.a, 50, "camps 1 Xion Xion_Camp_10:12"); // An answer to her last request but one.
+    t.tick(t.b, 50);
+    assert(saw("B: dropped a camps line from Me: not the id of our last request") &&
+           status(t.b).find("\ncamps=") == std::string::npos);
+    t.tick(t.b, 2000, "camps? 3");
+    t.tick(t.a, 50);
+    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos);
+    t.tick(t.a, 50, "camps 3 none busy");
+    t.tick(t.b, 50);
+    assert(status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
+    t.tick(t.a, 50, "camps? 4");
+    t.tick(t.b, 50, "camps 3 Xion A:1");
+    assert(saw("A: camps line not sent: the host does not ask") &&
+           saw("B: camps line not sent: only the host answers"));
+    F.inbox.push_back({kFriend, camps_line(3, "Xion", {{"A", 1}})}); // From her, to the host.
+    t.tick(t.a, 50);
+    assert(saw("A: dropped a camps line from Kaanta: an answer to the host"));
+    t.b.tick(t.now, "", 0, 0); // Unchanged: the request and the answer stay for Lua.
+    assert(status(t.a).find("\ncamps?=3\n") != std::string::npos &&
+           status(t.b).find("\ncamps=3 none busy\n") != std::string::npos);
+    t.tick(t.b, 50, "leave");
+    t.tick(t.a, 600);
+    assert(!t.a.linked() && !t.b.linked());
+    assert(status(t.a).find("camps") == std::string::npos && status(t.b).find("camps") == std::string::npos);
+  }
+
   // Our life= line and her life for the shared fight's job (mate_life()). life=<state> <hp> comes from our last vitals
   // read while a chat session holds and that read is under 3 s old (a load reads none), before the notices. Hers is
   // down in life state 3-5 or at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any other state, before her first

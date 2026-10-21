@@ -1,5 +1,6 @@
 // The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
-// not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines,
+// not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines, the
+// follow's camps lines,
 // channel 1, where the pose path's tables and poses and the pilot's enemy roots (SBE) travel, and channel 2, where the
 // shared enemies' lines and the pilot's show lines travel.
 // Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the
@@ -91,6 +92,8 @@ constexpr uint64_t kRejoinAt[kRejoinTries] = {2000, 12000, 42000}, kRejoinMs = 6
 constexpr size_t kNotices = 8, kMaxNotice = 300;
 // A joiner who is not the host's Steam friend waits this long for the host's answer, then is refused.
 constexpr uint64_t kApprovalMs = 60000;
+// The follow: the host takes at most one camps? from her each kCampsEveryMs.
+constexpr uint64_t kCampsEveryMs = 2000;
 
 // The SteamID in a SessionRequest's identity, or 0. Read in place: the callback thread must not call Steam.
 inline uint64_t steam_id_of(const Identity &who) {
@@ -589,6 +592,12 @@ public:
     // read, which the partner card's line does not give).
     if (has_own_ && chatting() && now_ - own_at_ < kMateMs)
       s += "life=" + std::to_string(own_[vital::life]) + " " + std::to_string(own_[vital::hp]) + "\n";
+    // The follow (travel.lua), while linked: as the host, her last camps? taken; as the guest, the host's answer to
+    // our last one, without its tag.
+    if (linked() && has_camps_ask_)
+      s += "camps?=" + std::to_string(camps_ask_) + "\n";
+    if (linked() && !camps_answer_.empty())
+      s += "camps=" + camps_answer_ + "\n";
     uint64_t n = notice_count_ - notices_.size();
     for (auto &text : notices_)
       s += "notice=" + std::to_string(++n) + " " + text + "\n";
@@ -830,6 +839,30 @@ private:
       }
       break;
     }
+    // The follow's camps lines (travel.lua writes them; link_protocol.h checked their shape): reliable, on channel 0,
+    // to the friend past the handshake, the guest's camps? and the host's answers only. A camps? of ours forgets the
+    // answer to the one before.
+    case Command::camps: {
+      const bool ask = r.line.find(" camps? ") != std::string::npos;
+      const char *why = !linked()        ? "no session"
+                        : ask && host_   ? "the host does not ask"
+                        : !ask && !host_ ? "only the host answers"
+                                         : nullptr;
+      if (why) {
+        event(std::string("camps line not sent: ") + why);
+        break;
+      }
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted)
+          send(p, r.line, kReliable);
+      if (ask) {
+        asked_camps_ = true;
+        camps_asked_ = parse(r.line.data(), r.line.size()).a;
+        camps_answer_.clear();
+      }
+      event("sent " + r.line.substr(r.line.find(' ') + 1));
+      break;
+    }
     case Command::copy:
       if (host_ && lobby_ && !code_.empty()) {
         copy_ = code_;
@@ -848,6 +881,7 @@ private:
     case Command::freeze:
     case Command::saves:
     case Command::quests:
+    case Command::travel:
       break;
     case Command::none:
       event("unknown request");
@@ -1169,6 +1203,8 @@ private:
     fight_in_.clear();
     fight_out_.clear();
     fight_waiting_ = false;
+    has_camps_ask_ = asked_camps_ = false; // The follow's camps lines belong to one session too.
+    camps_answer_.clear();
   }
 
   // A chat session's end (chatting() goes false: here, as for channel 2, or with loopback() between passes): the lines
@@ -1360,6 +1396,29 @@ private:
         peer.say_logged = true;
         event("dropped chat lines from " + peer.name + ": " + why);
       }
+      break;
+    }
+    case Kind::camps_ask:
+    case Kind::camps: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      const bool ask = message.kind == Kind::camps_ask;
+      const char *why = ask && !host_   ? "a request to the guest"
+                        : !ask && host_ ? "an answer to the host"
+                        : ask && has_camps_ask_ && now_ - camps_at_ < kCampsEveryMs
+                            ? "over the rate limit (one each 2 s)"
+                        : !ask && (!asked_camps_ || message.a != camps_asked_) ? "not the id of our last request"
+                                                                               : nullptr;
+      if (why) {
+        event("dropped a camps line from " + peer.name + ": " + why);
+        break;
+      }
+      const std::string line = camps_line(message);
+      event(line.substr(line.find(' ') + 1) + " from " + peer.name);
+      if (ask)
+        has_camps_ask_ = true, camps_ask_ = message.a, camps_at_ = now_;
+      else
+        camps_answer_ = line.substr(line.find(" camps ") + 7);
       break;
     }
     case Kind::invalid:
@@ -1565,6 +1624,11 @@ private:
   std::vector<std::pair<std::string, bool>> fight_out_;
   bool fight_linked_ = false;
   bool fight_waiting_ = false; // fight_out_'s first line was refused at an earlier pass.
+  // The follow's camps lines in this session: as the host, her last camps? taken and when; as the guest, our last camps?
+  // and the host's answer to it (without its tag; empty until one came).
+  bool has_camps_ask_ = false, asked_camps_ = false;
+  uint64_t camps_ask_ = 0, camps_at_ = 0, camps_asked_ = 0;
+  std::string camps_answer_;
   // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s, whether our Lua asks for
   // the host's cutscene pause; as of the last pass, hers ('0' with no friend or a lost one) and ours, whether our game
   // holds its pause and since when, whether the cap ended this photo session of hers.
