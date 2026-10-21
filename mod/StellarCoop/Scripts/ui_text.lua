@@ -1,8 +1,10 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
--- place's, same spawns', the status line's and the notices' words that the Lua side writes (D-UI8): English and French.
--- The game's language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other
--- language reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's
--- (on, both, game...), or <setting>_<id> where one setting's value needs other words (aggro_game).
+-- place's, same spawns', the status line's and the notices' words that the Lua side writes. T.en is English; another
+-- language's table sits under its game culture name as recruiter_text.lua's culture() gives it (T.fr, T.de,
+-- T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every level. The game's language picks
+-- the table (GetCurrentLanguage) unless ui_language=english; a language with no table, or a word missing from one,
+-- reads English. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...), or
+-- <setting>_<id> where one setting's value needs other words (aggro_game).
 local T={}
 T.en={
     title='CO-OP',
@@ -198,9 +200,16 @@ T.fr={
         differ='Mêmes apparitions : certains ennemis diffèrent entre votre partie et celle de %s (autres mods .pak ou '
             ..'fight_chars) et restent tels quels. coop-link.log les nomme.'},
 }
+local culture=require('recruiter_text').culture
+-- A table and the tables in it read T.en's word for a key they lack.
+local function fallback(t,en)
+    for k,v in pairs(t) do if type(v)=='table' and type(en[k])=='table' then fallback(v,en[k]) end end
+    return setmetatable(t,{__index=en})
+end
 -- The words for the game's culture (nil when unread) and ui_language.
-function T.pick(culture,setting)
-    if setting~='english' and type(culture)=='string' and culture:lower():find('^fr') then return T.fr end
-    return T.en
+function T.pick(name,setting)
+    local t=setting~='english' and T[culture(name)] or T.en
+    if t~=T.en and not getmetatable(t) then fallback(t,T.en) end
+    return t
 end
 return T
