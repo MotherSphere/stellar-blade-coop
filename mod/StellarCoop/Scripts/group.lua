@@ -1,7 +1,7 @@
 -- The friend's revive and the wait during the host's cutscene, on the game thread: main.lua ticks it every 250 ms with
 -- the Steam link. The revive sends nothing: each side reads its own game and the friend's vitals and ghost.
--- The downed side (us): our EVE is revived where she lies once all of these held for 3 s with no gap: our life state in
--- G.DOWN (the death screen's), the death screen's animation playing (unreal.lua's death_screen()), the engine line's
+-- The downed side (us): our EVE is revived where she lies once all of these held for 3 s with no gap: our life state
+-- 3 (the death screen's), the death screen's animation playing (unreal.lua's death_screen()), the engine line's
 -- warp=idle (no respawn or warp in flight, read by the native part), the friend linked with her vitals alive (life 1 or
 -- 6, HP above 0), her ghost shown on our map within 2 m across and 1 m up or down of our EVE, the fight= line's boss=0
 -- (the shared fight runs, which the native part allows on a co-op save only, and no boss of ours is in battle), the
@@ -30,7 +30,6 @@
 local U=require('unreal')
 local N=require('nightop')
 local G={}
-G.DOWN={3,3} -- Our life states that count as the death screen's for a co-op revive; coop revive test takes 3 to 5.
 local HOLD,AFTER=3,2 -- s: every condition held; then a read of our life state after each call.
 local ACROSS,UP,NEAR=200,100,300 -- cm: her ghost from our EVE across and up or down; our EVE from hers, for our revive.
 local LOOK=10 -- s between two lookups of the death screen while it is not found.
@@ -93,9 +92,8 @@ function G.new(o)
         if not probe and not settings.revive then return 'revive=off' end
         local life=link.life()
         if not life then return 'no life read (our life is read in a session only: start coop loopback 0 0 0 first)' end
-        local lo,hi=G.DOWN[1],G.DOWN[2]
-        if probe then lo,hi=3,5 end
-        if life.state<lo or life.state>hi then return 'life '..life.state end
+        -- The death screen's life state: 3 for a co-op revive, 3 to 5 for coop revive test.
+        if life.state<3 or life.state>(probe and 5 or 3) then return 'life '..life.state end
         local _,linked=link.friend()
         if not probe then
             if not linked then return 'no friend linked' end
