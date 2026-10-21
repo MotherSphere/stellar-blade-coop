@@ -54,6 +54,10 @@
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for group.lua.
+//
+// The follow's travel (travel.h): the worker hands over a camp's FName from Lua's travel request; the game thread calls
+// SB's own fast travel with it once travel.h's guard passes, under its own SEH latch, and watches the warp block every
+// 250 ms; status() puts the watch's state in the engine line for travel.lua, and the worker logs each call.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -80,6 +84,7 @@
 #include "pose_tick.h"
 #include "quest_engine.h"
 #include "save_slot.h"
+#include "travel.h"
 
 namespace coop::pose {
 namespace {
@@ -997,6 +1002,128 @@ uint64_t pilot_add_max_us = 0; // The game thread's: AddShow's longest call (a S
 constexpr uint64_t kForceTarget = 0x141a36010;
 using ForceTarget = void (*)(void *ai, void *target, uint64_t unused, float hold);
 
+// ---- Follow the host: SB's own fast travel to a camp, the game thread's call (travel.h) ----
+// kCampTravel, FUN_141cdd7b0(client, request): the fast travel SB's ReturnToCamp job, camp menu, quest warp node and
+// death respawn on another map call, to a ZoneCampTable alias. The worker hands over the camp's FName (index and
+// number, from Lua's FNAME_Find: never a new name); each frame the game thread takes a new ask, checks the count and
+// travel.h's guard over its reads (the globals the call's own getters reach, the client in game, no warp or respawn in
+// flight, our EVE in the world's actor map through FindActor), builds the request and calls, out of line under the
+// travel latch. Every 250 ms after an accepted call it reads the warp block for the watch. Never called: the getters
+// 141a978c0, 141a97c40, 141a97f20 and 141a97cb0, which allocate when their global is null. The first fault ends travel
+// for the run.
+constexpr uint64_t kCampTravel = 0x141cdd7b0;
+using CampTravel = uint8_t (*)(void *client, const void *request); // The return is a bool in AL.
+std::atomic<bool> travel_pinned{false}, travel_faulted{false};
+std::atomic<uint64_t> travel_fault_code{0}, travel_fault_rva{0}, travel_fault_address{0};
+// The worker's ask, its number and the camp's FName, taken by the game thread with try_lock only.
+std::mutex travel_m;
+uint32_t travel_asked = 0, travel_index = 0, travel_number = 0;
+// The game thread's word back: the last ask it handled (number << 32 | Why << 16 | other world << 8 | return), the
+// watch (State << 8 | Why), the asks handled, and the 24 bytes copied into +0x3c and +0x48 (read at the first call).
+std::atomic<uint64_t> travel_done{0};
+std::atomic<uint32_t> travel_watched{0}, travel_handled{0};
+std::atomic<uint64_t> travel_globals[3] = {};
+std::atomic<bool> travel_globals_read{false};
+// The game thread's own.
+uint32_t travel_taken = 0;
+uint64_t travel_next = 0;
+travel::Calls travel_calls;
+travel::Watch travel_watch;
+__declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, uint64_t now, uint8_t &ret,
+                                             uint8_t &other) {
+  if (const travel::Why why = travel_calls.check(now); why != travel::Why::none)
+    return why;
+  const auto global = [](uint64_t where) { return at<uintptr_t>(base + (where - nightop::kImageBase)); };
+  travel::Reads r;
+  r.index = index;
+  r.client = global(travel::kClientAt);
+  r.world = global(travel::kWorldAt);
+  r.tables = global(travel::kTablesAt);
+  r.registry = global(travel::kRegistryAt);
+  if (travel::plausible(r.tables))
+    r.tables_list = at<uintptr_t>(r.tables + travel::kTablesList);
+  uint32_t guid = 0;
+  if (travel::plausible(r.client)) {
+    r.flow = at<int32_t>(r.client + travel::kFlow);
+    r.phase = at<int32_t>(r.client + travel::kPhase);
+    r.warp = at<uint8_t>(r.client + travel::kWarp);
+    r.asked = at<uint8_t>(r.client + travel::kAsked);
+    r.waits = at<uint8_t>(r.client + travel::kWaits);
+    guid = at<uint32_t>(r.client + travel::kGuid);
+  }
+  if (travel::plausible(r.client) && travel::plausible(r.world)) {
+    r.respawn = at<int32_t>(r.world + travel::kRespawn);
+    const uintptr_t actors = at<uintptr_t>(r.world + travel::kActors);
+    const auto find = reinterpret_cast<FindFsb>(base + (kFindFsb - nightop::kImageBase));
+    r.player = travel::plausible(actors) && find(reinterpret_cast<void *>(actors), static_cast<int32_t>(guid));
+  }
+  if (const travel::Why why = travel::refuse(r); why != travel::Why::none)
+    return why;
+  uint8_t location[12], rotation[12];
+  std::memcpy(location, reinterpret_cast<const void *>(base + (travel::kLocationAt - nightop::kImageBase)), 12);
+  std::memcpy(rotation, reinterpret_cast<const void *>(base + (travel::kRotationAt - nightop::kImageBase)), 12);
+  if (!travel_globals_read) {
+    uint64_t words[3];
+    std::memcpy(words, location, 12);
+    std::memcpy(reinterpret_cast<uint8_t *>(words) + 12, rotation, 12);
+    for (int i = 0; i < 3; ++i)
+      travel_globals[i] = words[i];
+    travel_globals_read = true;
+  }
+  const travel::Request req = travel::request(guid, index, number, location, rotation);
+  const auto call = reinterpret_cast<CampTravel>(base + (kCampTravel - nightop::kImageBase));
+  ret = call(reinterpret_cast<void *>(r.client), req.data());
+  other = at<uint8_t>(r.client + travel::kOtherWorld);
+  return travel::Why::none;
+}
+__declspec(noinline) void travel_watch_body(uint64_t now) {
+  if (travel_watch.state != travel::State::pending && travel_watch.state != travel::State::warping)
+    return;
+  const uintptr_t client = at<uintptr_t>(base + (travel::kClientAt - nightop::kImageBase));
+  if (travel::plausible(client))
+    travel_watch.step(now, at<uint8_t>(client + travel::kWarp), at<uint8_t>(client + travel::kStarted));
+}
+void travel_tick() {
+  const uint64_t now = GetTickCount64();
+  bool got = false;
+  uint32_t asked = 0, index = 0, number = 0;
+  if (travel_m.try_lock()) {
+    got = travel_asked != travel_taken;
+    asked = travel_asked, index = travel_index, number = travel_number;
+    travel_m.unlock();
+  }
+  if (got) {
+    travel_taken = asked;
+    uint8_t ret = 0, other = 0;
+    travel::Why why = travel::Why::fault;
+    __try {
+      why = travel_body(index, number, now, ret, other);
+    } __except (fault_filter(GetExceptionInformation(), travel_fault_code, travel_fault_rva, travel_fault_address)) {
+      travel_faulted = true;
+    }
+    if (why == travel::Why::none) {
+      travel_calls.called(now, ret == 1);
+      if (ret == 1)
+        travel_watch.accepted(now);
+      else
+        travel_watch.refused(travel::Why::game);
+    } else {
+      travel_watch.refused(why);
+    }
+    travel_done = uint64_t(asked) << 32 | uint64_t(why) << 16 | uint64_t(other) << 8 | ret;
+    ++travel_handled;
+  }
+  if (now >= travel_next && !travel_faulted) {
+    travel_next = now + 250;
+    __try {
+      travel_watch_body(now);
+    } __except (fault_filter(GetExceptionInformation(), travel_fault_code, travel_fault_rva, travel_fault_address)) {
+      travel_faulted = true;
+    }
+  }
+  travel_watched = uint32_t(travel_watch.state) << 8 | uint32_t(travel_watch.why);
+}
+
 // pilot.h's Game: plain reads and writes (a fault is the latch's), the two lookups, and the drawn side's calls.
 struct PilotGame {
   struct Handle { // A stage handle as SB's functions take it.
@@ -1210,6 +1337,11 @@ std::function<void(const std::string &)> say = [](const std::string &) {}; // wo
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
      warp_fault_logged = false;
+// The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its number),
+// for the call's log line.
+bool travel_fault_logged = false, travel_globals_logged = false;
+uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
+std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
 uint64_t vitals_reads = 0, vitals_max_us = 0; // local_vitals()'s, for the 60 s line.
 bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
@@ -1597,6 +1729,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     freeze_pinned = pinned; // After base: the game thread's pause calls need it.
     quest_pinned = pinned;  // The same for the shared quests' pass.
     warp_pinned = pinned;   // The same for the revive's guard.
+    travel_pinned = pinned; // And for the follow's travel call.
     pilot_pinned = pinned;  // The same for the pilot's capture.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
@@ -1633,6 +1766,39 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(warp_fault_rva.load()),
                   static_cast<unsigned long long>(warp_fault_address.load()));
     event(text);
+  }
+  if (travel_faulted && !travel_fault_logged) {
+    travel_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "travel off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; no travel to the host until the "
+                  "game restarts",
+                  static_cast<unsigned long long>(travel_fault_code.load()),
+                  static_cast<unsigned long long>(travel_fault_rva.load()),
+                  static_cast<unsigned long long>(travel_fault_address.load()));
+    event(text);
+  }
+  if (travel_globals_read && !travel_globals_logged) { // Once: what the request carries at +0x3c and +0x48.
+    travel_globals_logged = true;
+    char text[120];
+    std::snprintf(text, sizeof text, "travel: the request's +0x3c and +0x48 bytes: %016llx %016llx %016llx",
+                  static_cast<unsigned long long>(travel_globals[0].load()),
+                  static_cast<unsigned long long>(travel_globals[1].load()),
+                  static_cast<unsigned long long>(travel_globals[2].load()));
+    event(text);
+  }
+  if (const uint64_t done = travel_done; uint32_t(done >> 32) != travel_logged) { // One line per ask handled.
+    travel_logged = uint32_t(done >> 32);
+    const auto why = travel::Why((done >> 16) & 0xff);
+    const std::string alias = travel_logged == travel_alias_ask ? travel_alias : std::string("?");
+    event(why == travel::Why::none
+              ? "travel call " + alias + " ret=" + std::to_string(done & 0xff) +
+                    " other_world=" + std::to_string((done >> 8) & 0xff)
+              : "travel refused " + alias + ": " + travel::why_name(why));
+  }
+  if (const uint32_t w = travel_watched; w != travel_watch_logged) { // And one per state the watch reaches.
+    travel_watch_logged = w;
+    event("travel=" + travel::state_text(travel::State(w >> 8), travel::Why(w & 0xff)));
   }
   if (nightop_on)
     poll_nightop(now_ms);
@@ -2334,6 +2500,23 @@ struct QuestIo {
 };
 } // namespace
 
+// The follow's travel (Lua's travel <alias> <index> <number>): the camp's FName for the game thread's next frame. An
+// ask the game thread has not taken yet is replaced. Refused off the pinned build, after coop off or after a fault.
+std::string ask_travel(const coop::Request &request) {
+  if (!travel_pinned || blocked || travel_faulted)
+    return "travel refused: " + (blocked          ? std::string("coop off")
+                                 : travel_faulted ? std::string("travel stopped for this run")
+                                                  : engine_reason);
+  {
+    std::lock_guard<std::mutex> lock(travel_m);
+    travel_alias_ask = ++travel_asked;
+    travel_index = request.index, travel_number = request.number;
+  }
+  travel_alias = request.alias;
+  return "travel asked: " + request.alias + " (FName " + std::to_string(request.index) + " " +
+         std::to_string(request.number) + ")";
+}
+
 std::string ask_quests(const coop::Request &request) {
   if (!pinned || blocked)
     return "quests refused: " + (blocked ? std::string("coop off") : engine_reason);
@@ -2450,6 +2633,13 @@ std::string status() {
   // read; none before the first one, after coop off or after its fault.
   if (const int warp = warp_state; warp >= 0 && !blocked)
     s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
+  // The follow's travel (travel.lua): the watch's state and the asks the game thread handled so far, so Lua knows a new
+  // answer from an old one; refused:fault once its latch ended it.
+  if (travel_pinned && !blocked)
+    s += " travel=" +
+         (travel_faulted ? std::string("refused:fault")
+                         : travel::state_text(travel::State(travel_watched >> 8), travel::Why(travel_watched & 0xff))) +
+         " travel_calls=" + std::to_string(travel_handled.load());
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)
@@ -2484,5 +2674,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The revive's guard, its own latch: a read each 250 ms, none after coop off or its first fault.
   if (warp_pinned && !warp_faulted && !blocked)
     warp_tick();
+  // The follow's travel, its own latch: a new ask each frame, the watch each 250 ms; none after coop off or a fault.
+  if (travel_pinned && !travel_faulted && !blocked)
+    travel_tick();
   return 0;
 }

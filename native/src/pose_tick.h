@@ -101,6 +101,10 @@ std::string ask_quests(const coop::Request &request);
 // StellarCoopSlot.txt names.
 void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
                 bool (*send)(const std::string &), const QuestFiles &files);
+// Worker thread, the follow's travel (travel.h): Lua's travel request, the camp's FName for the game thread's next
+// frame, which calls SB's fast travel once travel.h's guard passes. Refused off the pinned build, after coop off and
+// after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
+std::string ask_travel(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (quest_engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",

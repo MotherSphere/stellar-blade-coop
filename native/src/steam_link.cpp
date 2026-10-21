@@ -9,7 +9,8 @@
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
 // and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h), and
-// puts our join code on the clipboard on the copy request (clipboard.h).
+// puts our join code on the clipboard on the copy request (clipboard.h). The follow's camps lines go through the link
+// (link_core.h), its travel request to the game thread (pose_tick.cpp).
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -523,6 +524,10 @@ bool step() {
       break;
     case coop::Command::quests:
       event(coop::pose::ask_quests(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::travel: // The follow's call: the game thread's.
+      event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::freeze: {
