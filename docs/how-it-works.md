@@ -38,6 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `chat.lua` | The session chat: its history (memory only), the feed of chat lines and notices, and the text box |
 | `join.lua` | The code box and the host's question about a player who is not her Steam friend |
 | `partner.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
+| `booth.lua` | The camp phone booths near EVE, for the co-op line |
 | `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui_model.lua` | The menu's rows and settings, with no engine call |
 | `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line and the notices written in Lua, in the game's 23 text languages |
@@ -55,7 +56,18 @@ Both games run the same pipeline in both directions, so each player sees the oth
 notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
 the chat box closes, and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
 start, notices to show, chat lines in and out, Night Operation's run, the UI's root, the menu's rows and status line,
-the chat's feed, your friend's card, the capture and the remote table.
+the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+
+The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
+`Env_Camp_TeleportMachine_C` (the booth of every full camp, Xion's five included) and
+`Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
+`booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4 s, and
+only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps each
+booth's `EnvActorName` and position, and no booth is read between scans. Each scan is timed: `UE4SS.log` gets
+`booths: <n> on <map> (<ms> ms)` when the count or the map changes, and `booths: slow scan <ms> ms (<n> found)` for a
+scan of 5 ms or more. The menu key opens the line when the nearest booth is within 3 m of EVE. Nothing in the game
+changes: the mod edits no table row, spawns nothing and fires no zone event, and the booth's travel and save stay the
+game's.
 
 ### Files shared by Lua and the native part
 

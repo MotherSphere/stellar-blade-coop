@@ -18,6 +18,9 @@ client that the game already runs, so the mod needs no other program and no serv
   dialog. A player who is not the host's Steam friend waits until the host accepts them. The invited friend joins once
   their save has loaded, even if Steam had to start their game. The menu also invites, joins, leaves and changes the
   settings. F6 shows the status and F8 leaves the session.
+- At a camp phone booth (any full camp, Xion's booths, the Wasteland and Great Desert warp phones), F5 opens the co-op
+  line: the menu's session rows, Co-op menu and Hang up, and a sentence that says whether the line is free, open or
+  linked with your friend. The booth's own fast travel works as before. The line is not tested in game yet.
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Her ponytail moves as cloth, as in solo (on by default). Her hair colour and
   her attack and skill effects are optional looks, off by default. None of the three looks is tested in game yet.

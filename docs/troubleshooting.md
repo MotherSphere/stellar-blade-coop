@@ -133,6 +133,21 @@ host's question is answered with Deny, and the game gets its keys back. Without 
 means that the on-screen UI hit an engine error and turned itself off; notices then show on the line above EVE.
 `coop ui off` turns the UI off the same way by hand.
 
+### No co-op line hint at a camp phone booth
+
+- Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the last
+  scan found on that map. With no `booths:` line at all, no scan has run: the on-screen UI is off
+  (`UI off until the mod reloads`, or `coop ui off`), or `coop off` ran. `booths: 0 on <map>` means that no booth was
+  loaded at the scan: walk closer and wait 4 s. `booths: scan failed on <map>: <why>` means that the scan hit an error;
+  the next one runs 4 s later.
+- Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
+  opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
+- The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
+  `coop ui reset` in the console (F10 or `~`) closes them all.
+- `booths: slow scan <ms> ms (<n> found)`: one scan took 5 ms or more on that PC. The scan runs on the game thread, so
+  that frame took as much longer. If the line comes back, send `UE4SS.log` (see
+  [Which logs to send](#which-logs-to-send)).
+
 ### Screen notices stopped
 
 `Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line above EVE. That line stays off

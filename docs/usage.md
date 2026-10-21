@@ -11,7 +11,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 
 | Key (default) | Action | Console equivalent |
 | --- | --- | --- |
-| F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session | (none) |
+| F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session. Within 3 m of a camp phone booth, open the [co-op line](#co-op-line) instead | (none) |
 | F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
 | F8 | Leave the session | `coop leave` |
 | Enter | During a session, open the [chat](#session-chat) box, then send a line; Esc closes the box | (none) |
@@ -62,6 +62,35 @@ Under the rows, a status line shows the F6 text and, once your friend is linked,
 its own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the
 newest notice under 8 s old (for example the result of Join a friend). The menu closes by itself when the game pauses
 or shows the mouse cursor for one of its own screens.
+
+### Co-op line
+
+The camp phone booths open a short page of the menu, the co-op line. The booths are the phone booth of every full camp,
+Xion's five booths and the warp phones of the Wasteland and the Great Desert. Tetrapods are not booths here. Within 3 m
+of a booth, a hint at the bottom centre of the screen shows the menu key's name and `Co-op line`, and the menu key opens
+the line instead of the main page. The hint hides while the menu is open, while the game is paused or shows the mouse
+cursor, and while the chat box, the code box, the host's question or the co-op saves' question is open. The hint and the
+line use the menu's language.
+
+The line has a CO-OP LINE header, the main page's session rows that fit your session, then Co-op menu and Hang up.
+Under them are the status line and a sentence about the line:
+
+| Session | Session rows | Sentence |
+| --- | --- | --- |
+| None | Host a session, Join a friend, Join with a code | `The line is free. Host a session or join a friend.` |
+| You host | Invite a friend (Steam), Copy my code and Remove <name> when the main page shows them, Leave the session | `Your session is open. Invite a friend from here.`, or `On the line with <name>.` while your friend is linked |
+| You joined | Leave the session | `On the line with <name>.` while you are linked, none after a connection loss |
+| Steam not ready yet | none | none |
+
+The session rows work as on the main page: Host a session and Invite a friend close the line first, Join with a code
+opens the code box, and Leave the session and Remove <name> run on a second Select within 3 s. Co-op menu switches to
+the main page, where Chat, Options and the bug report are. Hang up, Esc and the menu key close the line. A message of
+the menu, such as `Select again within 3 s to leave.`, or a notice under 8 s old shows in place of the sentence.
+
+The booth keeps its own interaction: the game's Fast travel prompt still shows, and using the booth with the game's key
+travels and saves as it does without the mod. The line works on any save, as the menu does, and changes nothing in the
+game. Away from a booth, the menu key opens the main page as before. Each time the line opens, `UE4SS.log` names the
+booth, for example `line: booth Xion_10_EnvS_016 (Env_Camp_TeleportMachine_C) at 1.8 m`.
 
 ### Options
 
