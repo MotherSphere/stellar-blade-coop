@@ -1010,7 +1010,10 @@ title screen they show in the feed too, once the on-screen UI has loaded.
 While the on-screen UI is not up (in the first seconds after a load or a map change, during your own photo mode, or
 after an engine error), a notice shows instead as a line of text about 30 cm above your EVE, turned to the camera, for
 4 s, one after another. At most 4 wait; when more arrive, the oldest is dropped. If the engine refuses that line too,
-it stays off until the next Lua load (`Screen notices off: <why>; notices stay in UE4SS.log.`).
+it stays off until the next Lua load (`Screen notices off: <why>; notices stay in UE4SS.log.`). That line uses the
+engine's default font, which has the Latin-1 characters only. A notice whose words need other letters (Russian,
+Polish, Turkish, Arabic, Thai, Chinese, Japanese, Korean) shows there in English, and any character outside Latin-1 in
+a Steam name or a chat line shows as `?`.
 
 | Event | Notice |
 | --- | --- |

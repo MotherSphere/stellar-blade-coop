@@ -113,23 +113,24 @@ function Menu.new(o)
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
     function self.is_open() return open end
-    -- menu_key: open, or close; when it cannot open, false, why for the log and the same for the screen in the menu's
-    -- words (the kit off when it took the game's input: the menu would be open unseen).
+    -- menu_key: open, or close; when it cannot open, false, why for the log, the same for the screen in the menu's
+    -- words and in English (the kit off when it took the game's input: the menu would be open unseen).
     function self.toggle()
         if open then return self.close() end
         words=T.pick(kit.language(),settings.ui_language)
-        if kit.off() then return false,OFF,words.refused.off end
+        if kit.off() then return false,OFF,words.refused.off,T.en.refused.off end
         if not (world and kit.ready()) then
-            return false,'the co-op menu opens in the game world only',words.refused.world
+            return false,'the co-op menu opens in the game world only',words.refused.world,T.en.refused.world
         end
         if kit.paused() then
-            return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused
+            return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused,
+                T.en.refused.paused
         end
         model,open,capturing,note,page,back_at=M.new(),true,nil,nil,nil,nil
         values=M.read(link.settings_text() or '')
         kit.show('menu',true,os.clock())
         kit.input(true)
-        if kit.off() then self.close(); return false,OFF,words.refused.off end
+        if kit.off() then self.close(); return false,OFF,words.refused.off,T.en.refused.off end
         kit.sound('open')
         draw()
     end

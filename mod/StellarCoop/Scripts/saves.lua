@@ -31,8 +31,8 @@ local function exists(path)
     return true
 end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place: auto_coop_save, ui_language),
--- theme=ui.THEME, say=function(text) (a notice), log=function(line), exists=function(path) and env=function(name)
--- (io.open's and os.getenv's unless said: the tests' fakes)}.
+-- theme=ui.THEME, say=function(text,en) (a notice, en: the same in English), log=function(line),
+-- exists=function(path) and env=function(name) (io.open's and os.getenv's unless said: the tests' fakes)}.
 function Saves.new(o)
     local kit,link,settings,log=o.kit,o.link,o.settings,o.log
     local has,env=o.exists or exists,o.env or os.getenv
@@ -219,7 +219,8 @@ function Saves.new(o)
         end
         if queued and (world or kit.ready()) then
             pick()
-            o.say(lang.saves[queued[1]]:format(queued[2] or lang.saves.see_log))
+            local function line(w) return w.saves[queued[1]]:format(queued[2] or w.saves.see_log) end
+            o.say(line(lang),line(T.en))
             queued=nil
         end
         draw() -- The kit may have built its root again meanwhile: on change only.

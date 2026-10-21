@@ -84,12 +84,15 @@ local notice=require('notice').new()
 -- host's question: with the Steam link.
 local kit,menu,box,hud,saves_ui,code_box,approval
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
--- the UI is off or failed.
-local function say(text) if not (box and box.say(text)) then notice.say(text) end end
+-- the UI is off or failed. en: the same line in English (T.en's words), which that line shows when its font cannot
+-- draw the other.
+local function say(text,en) if not (box and box.say(text)) then notice.say(text,en) end end
 -- The words for the screen (ui_text.lua): the game's language unless ui_language=english; English while unread. The
 -- log keeps English.
 local T=require('ui_text')
 local function words() return T.pick(kit and kit.language(),settings and settings.ui_language) end
+-- A notice that build(words) puts together: in the menu's words, and in English for the line above EVE.
+local function tell(build) say(build(words()),build(T.en)) end
 local puppet=require('puppet').new(link,capture,say,settings and settings.name_tag,look,words)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
@@ -467,8 +470,8 @@ LoopInGameThreadWithDelay(1,function()
             local asked=chat_asked
             chat_asked=nil
             if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() then
-                local _,why=box.open() -- Said on screen only: Enter is the game's too.
-                if why then say(why) end
+                local _,why,en=box.open() -- Said on screen only: Enter is the game's too.
+                if why then say(why,en) end
             end
         end
         local t=os.clock()
@@ -508,10 +511,9 @@ if link then
     -- stops same spawns too), and as guest once a session when its spawns_differ= first counts an enemy. Forgotten
     -- with fight_maxhp.
     local spawns_on,spawns_stopped,spawns_differ=false,false,false
-    local function fight_words() return words().fight end
-    local function her_name(words) -- '' (a stranger's unknown name) as your friend.
+    local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
         local name=require('chat').clean((link.friend()) or '')
-        return name~='' and name or words.friend
+        return name~='' and name or w.fight.friend
     end
     local function fight_notices()
         if link.mode()=='none' then fight_told=nil end
@@ -523,39 +525,41 @@ if link then
         if now=='on on' then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
             if fight_count==0 and count>0 then
-                local words=fight_words()
-                local text,hp,balance=count==1 and words.one or words.on:format(count),line:match(' scale=(%d+)/(%d+)')
-                if hp and (hp~='100' or balance~='100') then
-                    text=text..' '..words.scale:format(tonumber(hp),tonumber(balance))
-                end
-                say(text)
+                local hp,balance=line:match(' scale=(%d+)/(%d+)')
+                if hp=='100' and balance=='100' then hp=nil end
+                tell(function(w)
+                    local text=count==1 and w.fight.one or w.fight.on:format(count)
+                    return hp and text..' '..w.fight.scale:format(tonumber(hp),tonumber(balance)) or text
+                end)
             end
             fight_count=count
             if not fight_maxhp and (tonumber(line:match(' maxhp=(%d+)')) or 0)>0 then
                 fight_maxhp=true
-                say(fight_words().maxhp:format(her_name(fight_words())))
+                tell(function(w) return w.fight.maxhp:format(her_name(w)) end)
             end
             local m=line:find(' role=guest ') and link.mate()
             local down=m and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) or false
-            if down and not host_down and count>0 then say(fight_words().host_down:format(her_name(fight_words()))) end
+            if down and not host_down and count>0 then
+                tell(function(w) return w.fight.host_down:format(her_name(w)) end)
+            end
             host_down=down
             local spawns=line:match(' spawns=(%a+)')
             if spawns=='on' and not spawns_on then
                 spawns_on=true
-                local w=words().spawns
-                say((line:find(' role=host ') and w.host or w.guest):format(her_name(fight_words())))
+                local host=line:find(' role=host ')
+                tell(function(w) return (host and w.spawns.host or w.spawns.guest):format(her_name(w)) end)
             elseif spawns=='stopped' and not spawns_stopped then
                 spawns_stopped=true
-                say(words().spawns.stopped)
+                tell(function(w) return w.spawns.stopped end)
             end
             if not spawns_differ and (tonumber(line:match(' spawns_differ=(%d+)')) or 0)>0 then
                 spawns_differ=true
-                say(words().spawns.differ:format(her_name(fight_words())))
+                tell(function(w) return w.spawns.differ:format(her_name(w)) end)
             end
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') and why~='coop fight off'
                 and why~='coop off' then
-                say(fight_words()[state])
+                tell(function(w) return w.fight[state] end)
             end
             fight_count,fight_maxhp,host_down=0,false,false
             spawns_on,spawns_stopped,spawns_differ=false,false,false
@@ -577,12 +581,12 @@ if link then
         end
         if not missing or missing==fight_told or chat_clock<fight_hold then return end
         fight_told,fight_hold=missing,chat_clock+FIGHT_HOLD
-        local words=fight_words()
         if missing=='you' then -- How to switch, or the manual slot when the co-op copies are off.
             local info=link.saves() or {}
-            say((settings.auto_coop_save=='off' or info.saves~='main') and words.you_manual or words.you)
+            local manual=settings.auto_coop_save=='off' or info.saves~='main'
+            tell(function(w) return manual and w.fight.you_manual or w.fight.you end)
         else
-            say(words[missing]:format(her_name(words)))
+            tell(function(w) return w.fight[missing]:format(her_name(w)) end)
         end
     end
     -- Same place's notices (stage 3a), from the pilot= line, in the menu's language (read only to say one): how many
@@ -597,16 +601,17 @@ if link then
         if state=='on' then
             local count=tonumber(line:match(' piloted=(%d+)')) or 0
             if pilot_count==0 and count>0 then
-                local w=words().pilot
-                say(count==1 and w.one or w.on:format(count))
+                tell(function(w) return count==1 and w.pilot.one or w.pilot.on:format(count) end)
             end
             pilot_count=count
         else
             pilot_count=0
             local why=line:match(' why=(%a+)')
             if pilot_was=='on' and (why=='host' or state=='stopped') then
-                local w=words().pilot
-                say(w.off:format(state=='stopped' and w.stopped or w.host:format(her_name(fight_words()))))
+                tell(function(w)
+                    local p=w.pilot
+                    return p.off:format(state=='stopped' and p.stopped or p.host:format(her_name(w)))
+                end)
             end
         end
         pilot_was=state
@@ -618,7 +623,7 @@ if link then
         if link.mode()=='none' then paks_said=false
         elseif paks and not paks.same and not paks_said then
             paks_said=true
-            say(fight_words().paks:format(her_name(fight_words()),paks.hers,paks.ours))
+            tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
         end
     end
     LoopInGameThreadWithDelay(250,function()
@@ -633,8 +638,8 @@ if link then
                 local got=chat.receive((link.friend()) or '',line.text,chat_clock)
                 -- While the feed cannot show it (the UI off or failed, or still warming): on the line above EVE.
                 if got and not kit.ready() then
-                    local w=words().chat
-                    notice.say(w.said:format(got.name~='' and got.name or w.partner)..got.text)
+                    local function said(w) return w.chat.said:format(got.name~='' and got.name or w.chat.partner) end
+                    notice.say(said(words())..got.text,said(T.en)..got.text)
                 end
             end
         end
@@ -736,12 +741,12 @@ if settings then
                 log('key '..name..': '..action)
                 if action=='status' then
                     report(true,link.summary())
-                    say(link.summary(words()))
+                    tell(link.summary)
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else
-                    local ok,why,shown=menu.toggle()
-                    if why then report(ok,why); say(shown or why) end
+                    local ok,why,shown,en=menu.toggle()
+                    if why then report(ok,why); say(shown or why,en) end
                 end
                 return
             end

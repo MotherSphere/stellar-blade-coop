@@ -211,8 +211,9 @@ function Chat.view(o)
     end
     -- Whether the box can open now (the menu's Chat row): a session, chat on, our root up.
     function self.can() return model.active() and settings.chat~=false and kit.ready() end
-    -- Enter, the box closed: true once open; false, and why once per 10 s outside a session, with chat off or the kit
-    -- off, else quietly (no root yet, the game paused or on a screen of its own: Enter is the game's then).
+    -- Enter, the box closed: true once open; false, and why (then the same in English) once per 10 s outside a session,
+    -- with chat off or the kit off, else quietly (no root yet, the game paused or on a screen of its own: Enter is the
+    -- game's then).
     function self.open()
         local off=kit.off()
         if open or (not off and (not kit.ready() or kit.paused())) then return false end
@@ -220,7 +221,8 @@ function Chat.view(o)
             if said and now-said<QUIET then return false end
             said=now
             pick()
-            return false,not model.active() and words.no_session or settings.chat==false and words.off or words.ui_off
+            local why=not model.active() and 'no_session' or settings.chat==false and 'off' or 'ui_off'
+            return false,words[why],T.en.chat[why]
         end
         pick()
         kit.show('chat',true,os.clock())

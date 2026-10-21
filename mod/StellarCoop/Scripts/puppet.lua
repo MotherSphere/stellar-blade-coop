@@ -97,9 +97,9 @@ local function transform(place)
 end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
--- Steam name. capture gives yaw_delta(), the loopback's offset. say(text) puts a line on screen; name_tag: the tag.
--- look: what else the ghost shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words:
--- the words for the screen now (ui_text.lua's T.en or T.fr; English when nil).
+-- Steam name. capture gives yaw_delta(), the loopback's offset. say(text,en) puts a line on screen (en: the same in
+-- English); name_tag: the tag. look: what else the ghost shows ({cloth=,dyes=,effects=true|false}, read at each build;
+-- nil: nothing more). words: the words for the screen now (ui_text.lua's T.en or T.fr; English when nil).
 function Puppet.new(link,capture,say,name_tag,look,words)
     look=look or {}
     words=words or function() return T.en end
@@ -388,7 +388,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local function retry()
         tries=tries+1
         failed=tries<3 and os.clock()+2 or math.huge
-        if tries==3 then say(words().ghost.failed) end
+        if tries==3 then say(words().ghost.failed,T.en.ghost.failed) end
     end
     -- One frame of the build, on the game thread: build_ghost(eve) first, then a step, and finish() after the last.
     local function step(eve)
@@ -721,7 +721,9 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             -- A friend away is said on screen too, by the maps' last segments ('b07').
             if source=='peer' and pair~=said_pair then
                 said_pair=pair
-                say(words().ghost.away:format(whose(),remote.map:match('[^/]*$'),map:match('[^/]*$')))
+                local hers,ours=remote.map:match('[^/]*$'),map:match('[^/]*$')
+                local function away(w) return w.ghost.away:format(whose(),hers,ours) end
+                say(away(words()),away(T.en))
             end
             return true,string.format('Ghost hidden: she is on %s, you are on %s.',remote.map,map)
         end

@@ -154,9 +154,9 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
 end}
 package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings} -- The real parser.
-local said,notice_ticks,notice_result,notice_stops={},0,nil,0
+local said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
 package.loaded.notice={new=function()
-    the_notice={say=function(text) said[#said+1]=text end,stop=function() notice_stops=notice_stops+1 end,
+    the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
         veil=function(on) veils[#veils+1]=on end,
         tick=function() notice_ticks=notice_ticks+1; if notice_result then return table.unpack(notice_result) end end}
     return the_notice
@@ -359,7 +359,8 @@ flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-
 assert(last():find('OK: asked the native part: leave',1,true),last())
 press('F5'); flush()
 assert(#asked==1 and logged('key F5: menu') and last()=='[StellarCoop] STOP: the co-op menu opens in the game world '
-    ..'only\n' and said[#said]=='The co-op menu opens in the game world only.','F5 opens the menu, never hosts')
+    ..'only\n' and said[#said]=='The co-op menu opens in the game world only.'
+    and said_en[#said]=='The co-op menu opens in the game world only.','F5 opens the menu, never hosts')
 press('F7'); press('F5','SHIFT'); flush(); assert(#asked==1 and not logged('key F7') and not logged('key Shift+F5'),
     'Keys no action holds: nothing')
 clock=clock+1 -- Past the drop of a plain press right after a modified one (below).
@@ -1132,7 +1133,7 @@ assert(fight_step(GUEST_ON..'1 maxhp=1')=='Ennemis partagés : Kaanta est à ter
     ..'ennemis partagés reviennent à pleine santé.')
 mate_v=nil
 fight_step('fight=off why=coop fight off')
--- The same notices in the game's language (French: 0 and 1 singular).
+-- The same notices in the game's language (French: 0 and 1 singular), each with its English for the line above EVE.
 local HOST_N='fight=on mode=on role=host claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 enemies='
 for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_N..'0',''},
         {HOST_N..'3','Ennemis partagés actifs : 3 ennemis liés.'},
@@ -1142,13 +1143,17 @@ for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_N..'0',''},
         {'fight=waiting mode=on why=no friend linked',''},
         {'fight=off','Ennemis partagés coupés. coop-link.log dit pourquoi.'},
         {HOST_N..'2 scale=150/100',"Ennemis partagés actifs : 2 ennemis liés. PV des ennemis 150 %, équilibre 100 % "
-            .."(réglage de l'hôte)."},{'fight=off why=coop fight off',''}}) do
+            .."(réglage de l'hôte).","Shared enemies on: 2 enemies linked. Enemy HP 150 %, balance 100 % (the host's "
+            .."setting)."},{'fight=off why=coop fight off',''}}) do
     fight_text=step[1]
     local n=#said
     loops[2].f()
-    local got={}
-    for i=n+1,#said do if said[i]:find('^Ennemis partagés') then got[#got+1]=said[i] end end
+    local got,en={},{}
+    for i=n+1,#said do
+        if said[i]:find('^Ennemis partagés') then got[#got+1],en[#en+1]=said[i],said_en[i] end
+    end
     assert(table.concat(got,'|')==step[2],step[1]..': '..table.concat(got,'|'))
+    assert(not step[3] or table.concat(en,'|')==step[3],table.concat(en,'|'))
 end
 kit_language=nil
 local reads=fight_reads

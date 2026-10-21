@@ -396,6 +396,11 @@ state.ready=false
 model.receive('Kaanta','soon',59); view.slow(59.25)
 state.ready=true; view.slow(66.75)
 assert(since(n):find('sound chat',1,true),'Under 8 s: its sound')
+-- Enter with the kit off, in French: why in French, and in English for the line above EVE (Latin-1 only).
+state.off=true; view.slow(67)
+local _,why_fr,why_en=view.open()
+assert(why_fr==require('ui_text').fr.chat.ui_off and why_en=='The chat box is off (the UI stopped, see UE4SS.log).')
+state.off=false
 -- coop off: closed, nothing more asked of the kit (kit.stop gives the input back).
 n=#calls
 view.stop()
