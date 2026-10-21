@@ -638,6 +638,7 @@ public:
       hosting_ = hosting;
       probing_ = probing;
       ++session_;
+      blocks_.publish(nullptr, 0); // Before the gate opens: an old session's last run may never have come.
     }
     on_ = on;
   }

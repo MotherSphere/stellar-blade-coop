@@ -569,10 +569,11 @@ private:
 };
 
 // The spawn filter's table (spawn_filter=on, the guest's): her blocked keys (SpawnGuest::blocked) for the glue's hook
-// on SB's spawn request (pose_tick.cpp), which refuses a request whose key it holds. Written by our job only
-// (publish), read by the hook on whichever thread SB spawns from (has): spawnId << 8 | index a slot, 0 for an empty
-// one. A hook racing a publish may miss a key that moved down a slot: that spawn goes on and the host's drop removes
-// it, as with the filter off. installed, seen and refused are the hook's, for the stats line.
+// on SB's spawn request (pose_tick.cpp), which refuses a request whose key it holds. Written by our job (publish) and
+// emptied when a session starts (Engine::set), read by the hook on whichever thread SB spawns from (has): spawnId << 8
+// | index a slot, 0 for an empty one. A hook racing a publish may miss a key that moved down a slot: that spawn goes on
+// and the host's drop removes it, as with the filter off. installed, seen and refused are the hook's, for the stats
+// line.
 // ponytail: the first entry into a zone still spawns and then removes the keys the host lacks, since the guest learns
 // them only from the host's drops and from its dead lines for her paired copies; the table takes her later resets in
 // that host epoch (her deaths, her camp rests). Upgrade: the host sends its zone's absent keys with its epoch line,

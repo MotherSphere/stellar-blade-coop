@@ -2959,8 +2959,9 @@ int main() {
     e->latch("test");
     assert(!e->filtering());
   }
-  // A key she still blocks when the session ends, and her table published empty at the next session's first turn,
-  // whatever the old one held: a host's session after it never filters.
+  // A key she still blocks when the host turns off: her side clears at once, and so does the table. A new session
+  // empties the table before its gate opens (a world teardown may drop the old one's job before its last run), and
+  // again at its first turn (an old turn's publish racing that set()).
   {
     Game G;
     auto e = engine(true, false);
@@ -2983,6 +2984,13 @@ int main() {
     G.inbox.push_back(msg("SBF12 off coop fight off"));
     frame(G, *e, t += 16);
     assert(!e->blocks().has(6, 0));
+    const SpawnKey left[] = {{6, 0}};
+    e->blocks().publish(left, 1);
+    e->set(true, false);
+    assert(e->filtering() && !e->blocks().has(6, 0));
+    e->blocks().publish(left, 1);
+    frame(G, *e, t += 16);
+    assert(e->filtering() && !e->blocks().has(6, 0));
   }
   // The host's dead on her paired copy blocks its key, at her next census; her own lethal hit (guest_kills=at_once)
   // blocks nothing while the host decides, nor once it refuses it (desync guest-dead): its enemy lives there.
