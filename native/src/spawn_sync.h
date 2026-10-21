@@ -13,6 +13,7 @@
 //
 // The Io both sides take:
 //   bool row(uint32_t id, SpawnRow &out): the EventSpawnTable row of this EventSpawnId in our tables; false when none;
+//   bool shares(uint32_t chr): the shared fight shares this charId here (fight_chars, or the auto rule's charIds);
 //   bool create(const SpawnKey &k, const float *at, float yaw): SB's spawn of that key there (the guest's); false when
 //     the game cannot take one now;
 //   bool despawn(uint32_t guid, const SpawnKey &k): SB's despawn of that actor, found again by GUID, of that key and
@@ -48,8 +49,9 @@ inline const char *row_out(const SpawnRow &r) {
 }
 
 // One keyed actor of ours at a census: not a player, fighting or dying (one leaving the map counts as gone). A dying
-// one is still ours: its death is stage 1's. paired: stage 1 follows it on the guest's side, so its end is the host's
-// dead, never a drop. Where it stands and its yaw are read for a Monster only.
+// one is still ours: its death is stage 1's. monster: a Monster (ActorType 3) the shared fight shares, the only ones
+// same spawns create or remove. paired: stage 1 follows it on the guest's side, so its end is the host's dead, never a
+// drop. Where it stands and its yaw are read for a monster only.
 struct Mine {
   SpawnKey key;
   uint32_t guid = 0, chr = 0;
@@ -349,8 +351,8 @@ private:
     if (made_ < kMaxKeys)
       made_at_[made_++] = Made{k, chr, created, !created};
   }
-  // R33's last check, once a key we created shows in our census: a Monster of the charId the host named; else
-  // despawned again, never killed.
+  // R33's last check, once a key we created shows in our census: a Monster we share, of the charId the host named;
+  // else despawned again, never killed.
   template <class Io> void check(Made &d, const Mine *mine, size_t n, Io &io) {
     const Mine *x = d.checked ? nullptr : fight::find(mine, n, d.key);
     if (!x)
@@ -358,14 +360,15 @@ private:
     d.checked = true;
     if (x->monster && x->chr == d.chr)
       return;
-    const char *why = x->monster ? "charId" : "not a Monster";
+    const char *why = x->monster ? "charId" : "not shared";
     if (io.despawn(x->guid, d.key))
       ++counts.undone, io.event(Event{"spawn undone", why, 0, d.key.spawn, d.key.index});
   }
   // One of the host's lines (R33): at its current epoch and while the zone is shared, else stale. A spawn: a key of
   // our tables in the host's zone that takes part, which we hold no actor of and did not answer in this epoch, within
-  // 1 km of our EVE. A drop: our live Monster of a key that takes part in that zone, not followed by stage 1 and not
-  // despawned in this epoch. A refused spawn counts as answered, so our rounds name it and the host stops asking.
+  // 1 km of our EVE, of a charId we share. A drop: our live shared Monster of a key that takes part in that zone, not
+  // followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our rounds name it and
+  // the host stops asking.
   template <class Io>
   void take(const Message &m, bool shared, const float *eve, bool eve_ok, const Mine *mine, size_t n, uint64_t now,
             Io &io) {
@@ -384,6 +387,7 @@ private:
       const float at[3] = {float(m.at[0]), float(m.at[1]), float(m.at[2])};
       const char *why = !eve_ok || !within(at, eve, kSpawnRangeCm) ? "too far"
                         : made_ == kMaxKeys                        ? "full"
+                        : !io.shares(m.chr)                        ? "not shared"
                                                                    : out(k, io);
       if (!why && !io.create(k, at, float(m.yaw)))
         why = "no spawn manager";
@@ -399,7 +403,7 @@ private:
     }
     if (rated(now))
       return;
-    const char *why = !x->monster ? "not a Monster" : gone_ == kMaxKeys ? "full" : out(k, io);
+    const char *why = !x->monster ? "not shared" : gone_ == kMaxKeys ? "full" : out(k, io);
     if (!why && !io.despawn(x->guid, k))
       why = "gone";
     if (!why)

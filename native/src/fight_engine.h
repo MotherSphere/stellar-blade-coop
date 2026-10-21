@@ -806,7 +806,7 @@ public:
     if (latched_ || !census)
       return latched_ ? 0 : n;
     ++counts.censuses;
-    mines_ = 0;
+    mines_ = 0, keys_whole_ = true;
     if (!walk(g, logic))
       return 0;
     const uint64_t local = local_fsb(g);
@@ -885,6 +885,7 @@ private:
     Game &g;
     uint64_t logic;
     bool row(uint32_t id, SpawnRow &out) { return e.spawn_row(g, id, out); }
+    bool shares(uint32_t chr) { return e.shares(chr); }
     bool create(const SpawnKey &k, const float *at, float yaw) { return e.create(g, k, at, yaw); }
     bool despawn(uint32_t guid, const SpawnKey &k) { return e.despawn(g, logic, guid, k); }
     void send(const Message &m) { g.send(m); }
@@ -1091,6 +1092,7 @@ private:
           continue;
         if (found_count_ == kMaxCensus) {
           ++counts.cut;
+          keys_whole_ = false;
           continue;
         }
         const uint64_t element = data + uint64_t(w * 32 + b) * kElement;
@@ -1594,25 +1596,41 @@ private:
   }
   // ---- Same spawns (stage 4, PHASE11-STAGE3 9.2) ----
   // A keyed actor of this census into mine_ while same spawns run here (not our EVE, not a player; fighting or dying,
-  // never one leaving the map): its type, and for a Monster where it stands. One whose reads fail is left out.
+  // never one leaving the map): whether it is a Monster the shared fight shares (Mine::monster: of a charId in
+  // fight_chars, or with none one auto_out() keeps), and for one where it stands. A read that fails, or no room left,
+  // makes this census's list partial (keys_whole_): same spawns then do nothing at it, since a key missing from the
+  // list would read as one this game lacks.
   template <class Game> void keyed(Game &g, const Actor &a) {
     if (!spawning_ || !a.seen.spawn || a.controlled || a.player || !(fighting(a) || a.seen.dying))
       return;
     if (mines_ == kMaxSeen) {
       ++counts.cut;
+      keys_whole_ = false;
       return;
     }
     Mine &m = mine_[mines_] = Mine();
     uint8_t type = 0;
-    float rot[3] = {};
+    float max_hp = 0, rot[3] = {};
     m.key = SpawnKey{a.seen.spawn, a.seen.index}, m.guid = a.seen.guid, m.chr = a.seen.chr, m.dying = a.seen.dying;
-    if (!g.read(a.fsb + kActorType, &type, 1))
+    if (!g.read(a.fsb + kActorType, &type, 1) ||
+        (type == kTypeMonster && !chars_ &&
+         !g.read(a.fsb + kStatBase + 4 * size_t(kStatType[kHp] + 1), &max_hp, sizeof max_hp))) {
+      keys_whole_ = false;
       return;
-    m.monster = type == kTypeMonster;
-    if (m.monster && (!g.read(a.fsb + kLocation, m.at, sizeof m.at) || !g.read(a.fsb + kFsbRotation, rot, sizeof rot)))
+    }
+    m.monster = type == kTypeMonster && (chars_ ? shares(m.chr) : !auto_out(m.chr, max_hp));
+    if (m.monster && (!g.read(a.fsb + kLocation, m.at, sizeof m.at) || !g.read(a.fsb + kFsbRotation, rot, sizeof rot))) {
+      keys_whole_ = false;
       return;
+    }
     m.yaw = rot[1];
     ++mines_;
+  }
+  // The charIds the shared fight shares, as far as a charId tells: fight_chars, or with none every one auto_out() does
+  // not name.
+  bool shares(uint32_t chr) const {
+    return chars_ ? std::find(allowed_, allowed_ + chars_, chr) != allowed_ + chars_
+                  : std::find(std::begin(kAutoDenied), std::end(kAutoDenied), chr) == std::end(kAutoDenied);
   }
   // Each census, after the side's step (the host's world and up lines go first): our epoch, then the host's epoch line
   // and answers, or her rounds and calls (spawn_sync.h). Nothing while same spawns do not run here: our same_spawns off
@@ -1625,6 +1643,8 @@ private:
         spawn_host_.clear();
       return;
     }
+    if (!keys_whole_)
+      return;
     uint64_t alias = 0, manager = 0;
     uint32_t state = 0;
     if (!get(g, logic + kZoneAlias, alias) || !get(g, base_ + (kSpawnManager - kImageBase), manager) ||
@@ -1967,6 +1987,7 @@ private:
   SpawnGuest spawn_guest_;
   Mine mine_[kMaxSeen];
   size_t mines_ = 0;
+  bool keys_whole_ = true; // This census's keyed actors all in mine_.
   uint32_t row_ids_[kMaxRows] = {};
   SpawnRow row_at_[kMaxRows];
   bool row_ok_[kMaxRows] = {};

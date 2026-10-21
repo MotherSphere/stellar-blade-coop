@@ -673,8 +673,9 @@ has no menu row.
 - `coop-link.log` names each change by spawn key. On the guest: `fight spawned <key>`, `fight despawned <key>`,
   `fight spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from
   your EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
-  manager`, `not a Monster` or `gone`; and `fight spawn undone <key> <why>` when an enemy it created turns out to be no
-  common enemy (`not a Monster`) or another character than the host's (`charId`). On the host: `fight spawn sent
+  manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name) or
+  `gone`; and `fight spawn undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out
+  (`not shared`) or another character than the host's (`charId`). On the host: `fight spawn sent
   <key>` and `fight drop sent <key>`. Both log `fight spawns epoch <why>` when their zone changes (`zone`), its enemies
   reset (`reset`), or 3 or more of them come back at once (`guids`).
 - The `fight stats:` lines in `coop-fight.log` add `same spawns <on|off>, epoch <n> (ours moved <n> times), <n> rounds

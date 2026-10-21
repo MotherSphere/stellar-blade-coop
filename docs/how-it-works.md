@@ -479,8 +479,9 @@ Same spawns (`same_spawns`, experimental, off by default, not tested in game yet
 common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates pairs through its
 spawn key like any other.
 
-- Only EventSpawnTable rows that spawn on zone entry (SpawnType EnterZone), whose enemy is a Monster and whose
-  SaveType is None, ResetZone or ResetZoneWithTransform take part. Save and SaveWithTransform rows, rows that keep
+- Only EventSpawnTable rows that spawn on zone entry (SpawnType EnterZone), whose enemy is a Monster that shared
+  enemies share (`fight_chars`, or with `auto` every Monster but the few it leaves out) and whose SaveType is None,
+  ResetZone or ResetZoneWithTransform take part. Save and SaveWithTransform rows, rows that keep
   their object through a zone reset (`bResetZoneKeepObject`), and ZoneEvent and quest rows are never touched. Each
   game reads a row through the game's own lookup (`FUN_141a9db80`) and the row's zone through the ZoneTable lookup
   (`FUN_141a9b8a0`), and keeps what it read for the session.
@@ -502,7 +503,9 @@ spawn key like any other.
   pair. A created enemy that shows up as no Monster, or as another character than the host's, is removed again. A
   key she refused counts as hers in her next list, so the host stops asking for it until the epoch moves.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the
-  table holder and the job sender are read from their globals and never made by the mod.
+  table holder and the job sender are read from their globals and never made by the mod. A census whose list of
+  enemies came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing, since an
+  enemy missing from it would read as one the game lacks.
 
 The log lines are in [usage.md](usage.md#same-spawns-experimental).
 

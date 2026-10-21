@@ -120,8 +120,9 @@ build/host/pose_codec_test
     takedown, `coop fight pilot test exec`) and in two worlds, where her takedown holds the host's kill until her exec
     0 reaches it; same spawns in two worlds: nothing while the host's `same_spawns` is off or the players stand 200 m
     apart, then her set becomes the host's (keys created where the host's stand and paired, keys the host lacks
-    despawned, save, keep, event and other-zone keys left, nothing killed), and a spawn line of an old epoch dropped
-    after the host's zone resets;
+    despawned, save, keep, event and other-zone keys left, a Monster outside `fight_chars` never sent, nothing
+    killed), a spawn line of an old epoch dropped after the host's zone resets, and nothing done while a census's list
+    of keys is partial;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,

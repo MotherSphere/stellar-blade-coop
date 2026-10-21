@@ -2498,7 +2498,7 @@ int main() {
       for (uint32_t id = 1; id <= 12; ++id)
         w->spawn_row(id, 2, here);
       w->spawn_row(20, 1, here), w->spawn_row(21, 2, here, 0, true), w->spawn_row(22, 2, here, 1);
-      w->spawn_row(23, 2, there);
+      w->spawn_row(23, 2, there), w->spawn_row(13, 2, here);
       w->place(1, 0, w == &H ? 0.f : 2000.f);
       w->flags.her_ok = true;
       w->flags.her[1] = w == &H ? 20000.f : -18000.f; // The other EVE's ghost, 200 m away.
@@ -2507,6 +2507,8 @@ int main() {
       H.spawn(100 + id, id, 0);
       H.place(100 + id, 300.f * float(id), 500, -45.f);
     }
+    H.spawn(130, 13, 0, 50330, 100000); // A Monster the shared fight does not share (not in fight_chars): never sent.
+    H.place(130, 900, 500);
     for (uint32_t id = 5; id <= 12; ++id)
       G.spawn(900 + id, id, 0);
     for (uint32_t id = 20; id <= 23; ++id)
@@ -2571,6 +2573,42 @@ int main() {
     assert(sh.spawns.answered >= 2 && sh.spawns.stale >= 1); // Answered at epoch 2 too; her round of epoch 1 dropped.
     assert(eg->guest.linked() == 8); // The created four paired through stage 1.
     assert(count(G, "spawned") == 4 && count(G, "despawned") == 4 && count(H, "spawns epoch", "reset") == 1);
+    assert(count(H, "spawn sent") == 4 && count(G, "spawn refused") == 0); // Never key 13's.
+  }
+
+  // ---- Same spawns stop while a census's list of keys is partial ----
+  // Past kMaxSeen keyed actors (here NPCs), a key missing from the list would read as one this game lacks: nothing is
+  // sent, created or removed until the list is whole again.
+  {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->same_spawns(true);
+    for (Game *w : {&H, &G}) {
+      w->spawns();
+      w->zone(0xA1, 40);
+      w->enter(0xA1);
+      for (uint32_t id = 1; id <= 4; ++id)
+        w->spawn_row(id, 2, 0xA1);
+      w->flags.her_ok = true;
+    }
+    H.spawn(101, 1, 0), H.spawn(102, 2, 0);
+    G.spawn(903, 3, 0), G.spawn(904, 4, 0);
+    for (uint32_t i = 0; i < kMaxSeen; ++i)
+      G.spawn(2000 + i, 9000 + i, 0, 70000, 100, 2); // NPCs with keys of their own.
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(12);
+    for (uint64_t t = 0; t <= 8000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    assert(G.made.empty() && G.despawned.empty() && eg->snapshot().spawns.haves == 0 && eg->counts.cut > 0);
+    assert(eh->snapshot().spawns.answered == 0 && eg->snapshot().epoch == 1 && !eh->latched() && !eg->latched());
   }
 
   // ---- Two-player scaling (PHASE11-STAGE2-RE 4): on each enemy the side names, MaxHPValue (stat 3, which MaxHP

@@ -39,6 +39,7 @@ struct World {
   std::vector<uint32_t> despawned;
   std::vector<SpawnKey> coming; // Created, shows at the next census.
   bool manager = true;          // SB's spawn manager is made.
+  std::vector<uint32_t> unshared; // charIds the shared fight does not share here.
   uint32_t next_guid = 5000;
 
   void row(uint32_t id, uint8_t save, uint32_t zone = kZone, uint8_t spawn_type = 0, bool keep = false) {
@@ -88,6 +89,7 @@ struct World {
     out = it->second;
     return true;
   }
+  bool shares(uint32_t chr) { return std::find(unshared.begin(), unshared.end(), chr) == unshared.end(); }
   bool create(const SpawnKey &k, const float *at, float yaw) {
     if (!manager)
       return false;
@@ -359,7 +361,7 @@ int main() {
           "SBF11 drop 1 1 7005 0", "SBF11 drop 1 1 7070 0", "SBF11 drop 1 1 7073 0", "SBF11 drop 1 1 7050 0"},
          kGraceMs + kHaveAgainMs + 100);
     assert(w.despawned.size() == 1 && w.despawned[0] == 102 && g.counts.despawned == 1);
-    assert(w.count("despawned") == 1 && w.count("drop refused", "not a Monster") == 1 &&
+    assert(w.count("despawned") == 1 && w.count("drop refused", "not shared") == 1 &&
            w.count("drop refused", "save-row") == 1 && w.count("drop refused", "another zone") == 1);
     assert(g.counts.stale == 4 + 4);
     take({}, kGraceMs + 2 * kHaveAgainMs);
@@ -371,10 +373,14 @@ int main() {
          kGraceMs + 2 * kHaveAgainMs + 100);
     take({}, kGraceMs + 2 * kHaveAgainMs + 350);
     assert(g.counts.undone == 2 && w.count("spawn undone", "charId") == 1 &&
-           w.count("spawn undone", "not a Monster") == 1);
+           w.count("spawn undone", "not shared") == 1);
     assert(w.actor(SpawnKey{7074, 0}) && w.actor(SpawnKey{7074, 0})->monster); // The right one stays.
     take({}, kGraceMs + 2 * kHaveAgainMs + 600);
     assert(g.counts.undone == 2); // Once each.
+    // A charId the shared fight does not share here (fight_chars, or the auto rule's bosses): refused before any call.
+    w.unshared.push_back(50330);
+    take({"SBF11 spawn 1 1 7019 0 50330 600 0 0 0"}, kGraceMs + 2 * kHaveAgainMs + 650);
+    assert(w.count("spawn refused", "not shared") == 1 && !w.actor(SpawnKey{7019, 0}));
     // Not shared (the host's EVE too far, or our zone not settled): the lines are stale, nothing done.
     const size_t made = w.created.size();
     take({"SBF11 spawn 1 1 7020 0 900 600 0 0 0", "SBF11 drop 1 1 7001 0"}, kGraceMs + 2 * kHaveAgainMs + 700, false,
