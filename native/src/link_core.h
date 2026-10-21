@@ -270,7 +270,7 @@ struct Peer {
   bool asking = false;
   uint64_t asking_at = 0;
   int invalid = 0; // Junk messages received; only the first is logged.
-  uint64_t build = 0, ping_seq = 0, next_ping = 0, last_heard = 0;
+  uint64_t ping_seq = 0, next_ping = 0, last_heard = 0;
   uint64_t next_hello = 0; // Our last hello to her plus kHelloAgainMs.
   int64_t rtt_ms = -1;
   int session_state = 0, session_ping = -1;
@@ -663,7 +663,6 @@ public:
 
   uint64_t lobby() const { return lobby_; }
   bool host() const { return host_; }
-  uint32_t build() const { return build_; }
   const std::vector<Peer> &peers() const { return peers_; }
 
 private:
@@ -1372,7 +1371,6 @@ private:
     case Kind::hello: {
       bool first = !peer.hello_received;
       peer.hello_received = true;
-      peer.build = message.b;
       peer.name = name_of(peer.id); // Steam's name, refreshed: a non-friend's may have been unknown at first.
       if (message.a != static_cast<uint64_t>(kProtocol) || message.b != build_) {
         std::string why = "protocol " + std::to_string(message.a) + " build " + std::to_string(message.b) + " (mod " +
