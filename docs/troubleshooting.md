@@ -251,20 +251,29 @@ guest's copy of a boss follows the host's through the lines in
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
   logs `fight bstart sent <key> hguid=<n>` when its boss enters battle mode.
 - Her copy's HP stops at a phase threshold while the host's boss fights on: look for `fight phase hguid=<n>` lines.
-  `fight phase hguid=<n> the game refused a row` means the game refused a phase effect on her frozen copy. `fight bad
+  `fight phase hguid=<n> the game refused a row` means the game refused a phase effect on her frozen copy. Her game
+  tries again at the host's next line (every second in battle mode) and logs the refusal once until a line goes
+  through. `fight bad
   line hguid=<n> not its row` or `not a boss` means the two games do not run the same build of the mod. The host logs
   `fight phase sent <key> hguid=<n>` at each phase change.
 - `fight finish guard <key> hguid=<n>` is expected once her copy reaches its finishing stance: her game takes the
   finisher's state (`Passive_FinishReady`) off and keeps the copy at 1 HP. The boss ends with the host's finisher. On
   the host, `fight finish-held <key> hguid=<n>` means her killing hit came while the host's boss waited for its
-  finisher; the `finish-held` count of the host's `fight stats:` lines shows how often.
+  finisher; the `finish-held` count of the host's `fight stats:` lines shows how often. `fight finish guard ended <key>
+  Immortal off` means the pair ended before the host's finisher (the link dropped, the host's world changed, `coop
+  fight off`): her copy is at 1 HP with no Immortal, and her own hit ends it in her game. With `the game refused its
+  dispel` in place of `Immortal off`, her copy keeps its Immortal at 1 HP: load a checkpoint to fight that boss again.
 - A summoned enemy missing on her side: the host logs `fight summon keyed <key>` and `fight summon sent <key>
-  hguid=<owner>`, and she logs `fight summon made <key>` or `fight summon refused <key> <why>`. The reason is `off`
+  hguid=<owner>`, and she logs `fight summon made <key>` or `fight summon refused <key> <why>`. The host sends the line
+  again every second while it follows the summon, and she logs a refusal only when its reason changes for that key,
+  so a refusal for a passing reason can be followed by `fight summon made` for the same key. The reason is `off`
   (same place not running on her side), `owner` (she does not pair the boss that summoned it), `too far` (more than 1 km
   from her EVE), `full`, `not made` (a game object was not made yet), `stale`, `key`, `not a summon` or `charId` (the
-  two games differ). `fight summon despawned <key> unpaired` means the host's summon never joined the shared list (16
-  places in use) within 3 s, so hers went. `fight summon made <key> the game refused an effect of its row` means her
-  copy may take more damage than the host's.
+  two games differ). `fight summon despawned <key> unpaired` means no pair held her summon 3 s after she made it: the
+  host's summon never joined the shared list (16 places in use), or its pair ended. `fight summon despawned <key> its
+  row's effects refused` means the game refused an effect of the summon's row on her copy, so her game removed it at
+  once. After either line her game does not make that key again until the next on, off or world line of either game,
+  and the host fights that summon alone.
 - The `fight stats:` lines in `coop-fight.log` add `bosses: <n> summons made, <n> bstart, <n> phase rows (<n>
   refused), <n> finish guards` on the guest's side and `bosses: <n> summons sent` on the host's.
 

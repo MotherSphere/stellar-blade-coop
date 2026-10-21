@@ -614,10 +614,13 @@ applies them to her copy:
   <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
   does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
   game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
-  that came into the host's set since her last line for that copy (on her first line, each row her copy lacks), in the
-  host's order. Before them she applies `MinimumHP_Dispel` when a threshold left the set and none came in, and the
-  boss's phase dispel row (Crawler 5022094, SkullJuggernaut 5015002) when a phase row left and none came in. The phase
-  row's own stance change does the rest on her copy. 19 bosses have a row in the table; the other BossMonsters (the
+  that came into the host's set since her last line for that copy, in the host's order, a dispel row first (the host's
+  copy holds a row next to the dispel that would end it only when that row started later). On her first line for a
+  copy, and on the line after the game refused one of her rows, she compares the set with her copy's effect list
+  instead: each row the copy lacks has come, and each row of the allowlist it holds that the set lacks has left. Before
+  them she applies `MinimumHP_Dispel` when a threshold left the set and none came in, and the boss's phase dispel row
+  (Crawler 5022094, SkullJuggernaut 5015002) when a phase row left and none came in. The phase row's own stance change
+  does the rest on her copy. 19 bosses have a row in the table; the other BossMonsters (the
   Alpha Naytibas, challenge and variant rows) get bstart lines only.
 - At each census the host looks for actors with no spawn key whose owner (logic actor `+0x400`) is a boss it shares,
   and finds the SummonActor row that made each one in the owner's effect list, by the effect GUID at `+0x40c` (an
@@ -625,19 +628,26 @@ applies them to her copy:
   dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
   EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
   shared list under it. After its up the host sends `SBF11 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
-  hguid> <row>`, with epoch 1 when same spawns do not run. The guest makes it through `NewActor`, as for extra enemies,
+  hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
+  summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
+  can go through later. The guest makes it through `NewActor`, as for extra enemies,
   with that key where the host's stands: only within 1 km of her EVE, for an owner she pairs as a BossMonster, and for a
   row of her table that makes that charId. She then applies the row's effects through the effect call (its Start row,
   which holds the summon still for a moment, and its Check row), and the pair forms on the key; same place freezes and
-  drives it like any other copy. A summon of hers that no pair holds 3 s after she made it is despawned, and so is
-  every one still fighting when the session ends. She holds 32 at most at once.
+  drives it like any other copy. If the game refuses one of those effects, she despawns the summon at once: without
+  them her hits would take far more HP than the host's copy loses. A summon of hers that no pair holds 3 s after she
+  made it is despawned too, and so is every one still fighting when the session ends. A key she despawned for either
+  reason is not made again until the next on, off or world line of either game. She holds 32 at most at once.
 - A Finish stance (HP under 2) applies `Passive_DeathReady` (2001101), which chains `Passive_FinishReady` (2001102, the
   state the finisher needs). In each turn a paired boss copy of hers holds either one, her game applies
   `FinishReady_Dispel` (2001103) and then the boss's own `Passive_Immortal` (2001100) again: her hits stop at 1 HP and
   no finisher starts on her side. On the host's side, her claim that would kill a boss whose copy holds either row takes
-  it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). Only the host's finisher ends
-  a shared boss. When the host's `dead` comes for a boss, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel`
-  to her copy before the kill, so neither a threshold nor Immortal holds it.
+  it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). So a boss in its Finish stance
+  ends only by the host's finisher; a boss without one dies of her killing hit, unless its own thresholds or Immortal
+  hold it. When the host's `dead` comes for a boss, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel` to her
+  copy before the kill, so neither a threshold nor Immortal holds it. When the pair ends any other way (the host's
+  `down` or world line, the link, `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded
+  copy still under 2 HP, so the Immortal it put back goes and her own hit ends that boss in her game.
 - Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
 

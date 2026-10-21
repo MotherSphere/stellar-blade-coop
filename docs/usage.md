@@ -570,8 +570,10 @@ the ghost. The host's game applies the guest's killing hit only once her takedow
 the enemy during her takedown, her game gets that death only then too. An enemy that lives through a takedown stays
 with the player who did it for 10 s, or until the other player hits it. With `aggro=host`, the guest's takedown plays
 only on her screen, and the host's still shows on hers. The host's game refuses the guest's takedown of a boss or an
-Alpha Naytiba, shared through `bosses=on` or named in `fight_chars`. Her killing hit leaves the host's boss at 1 HP,
-and her game takes the finisher's state off her copy, so only the host's finisher ends a shared boss.
+Alpha Naytiba, shared through `bosses=on` or named in `fight_chars`. A boss in its Finish stance (GorillaB, Tachy or
+SkullJuggernaut at 1 HP, for example) ends only by the host's finisher: her killing hit leaves the host's boss at 1 HP,
+and her game takes the finisher's state off her copy. A boss without a Finish stance dies of her killing hit as a
+common enemy does, unless its own thresholds or Immortal hold it.
 
 In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
 out of the game's movement manager, writes its position every frame from the other game's stream and replays that
@@ -748,8 +750,11 @@ not been tested in game yet, and they are off by default. With same place on, th
 copy her game draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode,
 which phase effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events,
 the phase changes and the summoned enemies, which are shared like any other. Without same place, each game runs these
-for its own copy. Only the host's finisher ends a shared boss: a killing hit of the guest's leaves it at 1 HP, and her
-game takes the finisher's state off her copy. When the host's boss dies, her copy dies too, its thresholds taken off
+for its own copy. A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then
+leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss stops being shared first (the link
+drops, the host's world changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own
+hit ends that boss in her game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless
+its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too, its thresholds taken off
 first. [How it works](how-it-works.md#shared-bosses) has the details, and
 [troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
