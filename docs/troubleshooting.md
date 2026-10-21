@@ -249,16 +249,17 @@ Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
 
 - `spawns=off` on the host: its `same_spawns` is off, or the guest's shared enemies are not on (the line's `her=`
   says so). After turning the row on, turn Shared enemies off and on again.
-- `spawns=off` on the guest: the host's game has not sent its zone yet. It does so once its zone is known, and again
-  after each map load.
+- `spawns=off` on the guest: the host's `same_spawns` is off (only the host's value counts), or the host's game has
+  not sent its zone yet. It sends it once its zone is known, and again after each map load.
 - `spawns=on` but nothing changes: both players must be in the same zone, within 100 m of each other, and 3 s past
-  either game's last zone entry or reset (a camp rest, a death). The guest may also hold the host's set already.
+  either game's last zone entry or reset (a camp rest, a death). The guest may also hold the host's set already. If
+  the other PC's line says `spawns=stopped`, its error stopped same spawns in both games.
 - `spawns=stopped`: the same-place error stopped same spawns too, until the game restarts. `coop-link.log` has the
   `same-place enemies fault` line.
 - `spawns_differ=` above 0 on the guest: her game refused, or removed again, enemies whose spawn rows or character
   differ from the host's, or that her `fight_chars` leaves out. Her `coop-link.log` names each one in `fight spawn
-  refused <key> <why>`, `fight drop refused <key> <why>` or `fight spawn undone <key> <why>`. The same .pak mods and
-  the same `fight_chars` on both PCs avoid it.
+  refused <key> <why>`, `fight drop refused <key> <why>`, `fight spawn undone <key> <why>` or `fight spawn kept <key>
+  <why>`. The same .pak mods and the same `fight_chars` on both PCs avoid it.
 - `fight spawn refused <key> no spawn manager` on the guest: her game had not made its spawn manager yet. The host asks
   for that enemy again after either game's next zone change or reset.
 

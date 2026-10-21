@@ -126,9 +126,9 @@ build/host/pose_codec_test
     her side, nothing done while a census's list of keys is partial, and a Save row logged once, with keys that have no
     row kept out of the 512-row cache and rows past it never logged; the two game calls on fake memory (the spawn with
     the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn
-    and the GUID), none with no spawn manager made or after a latch on an unreadable row, and a host enemy of a
-    SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told once an epoch, nothing
-    sent or called); the `fight=` line's `spawns=` field;
+    and the GUID), none with no spawn manager made, and no call, line or log line after a latch on an unreadable row,
+    and a host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told
+    once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
@@ -140,7 +140,8 @@ build/host/pose_codec_test
     reset of the spawn manager, 3 or more keys with a new GUID) and its 3 s grace, the host's epoch line, her rounds
     and its answers (a key more than 1 km from her held back until she is nearer), the guest's rounds and her checks
     of each answer (the epoch, the shared zone, her own tables, 1 km, the rates, a created key that is no Monster or
-    another charId, removed again within the rates, the refusals that show the two games differ counted apart), a key
+    another charId, removed again within the rates or kept and logged when it cannot be found again, the refusals
+    that show the two games differ counted apart), a key
     refused as too far asked again, a created key that died
     leaving her rounds, and two fake worlds through a delayed line until her set is the host's, with an epoch that
     moves while a round is on the way;

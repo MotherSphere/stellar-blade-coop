@@ -528,7 +528,8 @@ using ApplyEffect = void *(*)(void *logic, void *target, void *caster, int32_t i
 using SpawnRow = void *(*)(void *tables, uint64_t unused, uint32_t id);
 using ZoneRow = void *(*)(void *tables, uint8_t none, uint64_t alias);
 // The spawn manager, the EventSpawnId, the SpawnIndex, where, the rotation (pitch, yaw, roll), an unused argument, no
-// extra request data and its flag 0: the key spawns now (RequestSpawn with no delay).
+// extra request data and its flag 0 (its use not known yet). The key spawns now: the function itself passes
+// RequestSpawn (FUN_141c1ca40) a delay of 0.
 using SpawnByKey = void (*)(void *manager, uint32_t id, uint32_t index, const float *at, const float *rot,
                             uint64_t unused, void *extra, uint8_t flag);
 // The job sender, the logic turn and the actor's GUID: a despawn job for it.
