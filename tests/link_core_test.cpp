@@ -2058,17 +2058,20 @@ int main() {
     assert(has("mark 1: title screen") && w.status().find("\nmark=1 ours: title screen\n") != std::string::npos);
     assert(w.status().find(" held=7000\n") != std::string::npos && !saw("dropped") && joins() == 0);
     w.tick("mark");
-    assert(has("mark 2") && w.status().find("\nmark=2 ours\n") != std::string::npos && !saw("mark=1"));
+    assert(has("mark 2") && w.status().find("\nmark=2 ours\n") != std::string::npos &&
+           w.status().find("mark=1") == std::string::npos);
     w.tick("leave"); // Drops the held invite: a lobby of our own next.
     w.tick("host");
     finish_all();
     w.tick();
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
+    w.tick("mark pre"); // She is in the lobby but not past the handshake: counted and logged, sent to no one.
+    assert(has("mark 3: pre") && sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " mark ") == 0);
     F.inbox.push_back({kFriend, mark_line(4, "early")});
     const size_t logged = events.size();
     w.tick();
-    assert(events.size() == logged && w.status().find("\nmark=2 ours\n") != std::string::npos);
+    assert(events.size() == logged && w.status().find("\nmark=3 ours: pre\n") != std::string::npos);
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
     F.inbox.push_back({kFriend, accept()});
     F.inbox.push_back({kFriend, mark_line(5, "hers")});
@@ -2077,12 +2080,12 @@ int main() {
     assert(has("mark 5 from Kaanta: hers") && status.find("\nmark=5 from Kaanta: hers\n") != std::string::npos);
     assert(status.find("\nmark=") > status.find("\npeer=") && status.find("\nmark=") > status.find("\nlink="));
     w.tick("mark mine again"); // Our count goes on from ours, whatever hers says.
-    assert(has("mark 3: mine again") && sent_to(kFriend, mark_line(3, "mine again")) == 1);
+    assert(has("mark 4: mine again") && sent_to(kFriend, mark_line(4, "mine again")) == 1);
   }
 
   // coop mark between two Links: A's line goes reliable on channel 0 to B, whose log and status name A; B's own count
-  // starts at 1. A refused send is logged, the mark kept. Her flood: ten a second pass (the chat's window), the rest
-  // dropped with one log line a minute.
+  // starts at 1. A refused send is logged, the mark kept. Her flood: ten lines a second pass, chat and marks together
+  // (the chat's window), the rest dropped with one log line a minute.
   reset();
   {
     Two t;
@@ -2117,11 +2120,13 @@ int main() {
            t.a.status(Counters{}).find("\nmark=2 ours: lost\n") != std::string::npos);
     for (int second = 0; second < 2; ++second) {
       t.tick(t.a, 1000);
+      for (int i = 0; second == 0 && i < 5; ++i) // Five chat lines first: five marks left in that second.
+        inbox(0, kChannel).push_back({kFriend, say_line("chat")});
       for (int i = 0; i < 12; ++i)
         inbox(0, kChannel).push_back({kFriend, mark_line(100 + 12 * second + i, "spam")});
       t.tick(t.a, 0);
     }
-    assert(count("from Kaanta: spam") == 20 && count("A: dropped marks from Kaanta: over the rate limit") == 1);
+    assert(count("from Kaanta: spam") == 15 && count("A: dropped marks from Kaanta: over the rate limit") == 1);
     assert(t.a.linked() && t.b.linked() && count("invalid message") == 0);
   }
 

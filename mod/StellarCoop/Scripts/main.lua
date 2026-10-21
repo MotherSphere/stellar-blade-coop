@@ -9,22 +9,21 @@
 -- notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's card, marker and off-screen
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
--- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
--- coop where, a line of coordinates to compare between the two PCs; coop mark [text], a numbered line in both players'
--- logs (coop-link.log, and UE4SS.log through the status's mark= line) to line up a test played together; coop no
--- [heal|rule|spawnpt|actor], the Night
--- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop],
--- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
--- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
--- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
--- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
--- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
--- pilot status|probe|on|off|test freeze|cmc|drive|replay|target, same-place enemies (stages 3a and 3b, same_place and
--- aggro in coop-settings.txt or the co-op menu, the host's for both games: each shared enemy stands in the same place
--- on both screens, moved by the game that runs its AI), with notices for how many it moves and why it went off; same
--- spawns (stage 4, same_spawns in coop-settings.txt or the co-op menu, the host's for both games: where both players
--- stand within 100 m in one zone, the guest's game holds the host's common enemies), with notices for on, stopped and
--- enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; coop quests
+-- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and coop where, a line of
+-- coordinates to compare between the two PCs; coop mark [text], a numbered line in both players' logs (coop-link.log,
+-- and UE4SS.log through the status's mark= line) to line up a test played together; coop no [heal|rule|spawnpt|actor],
+-- the Night Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start
+-- [noaggro|nomove]|stop], Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop
+-- recruiter [off], the cut Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save
+-- only; coop fight on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with
+-- shared_enemies=on in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only
+-- on a co-op save, and the probe, test, record and replay run on one only), with notices for what keeps it from
+-- sharing; coop fight pilot status|probe|on|off|test freeze|cmc|drive|replay|target, same-place enemies (stages 3a and
+-- 3b, same_place and aggro in coop-settings.txt or the co-op menu, the host's for both games: each shared enemy stands
+-- in the same place on both screens, moved by the game that runs its AI), with notices for how many it moves and why it
+-- went off; same spawns (stage 4, same_spawns in coop-settings.txt or the co-op menu, the host's for both games: where
+-- both players stand within 100 m in one zone, the guest's game holds the host's common enemies), with notices for on,
+-- stopped and enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; coop quests
 -- on|off|status|probe|record|replay|force <number>, the shared quests of Phase 12 (experimental: on only with
 -- shared_quests=on in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only
 -- with a friend linked and both on a co-op save, and the probe, record and replay run on one only), with notices for
