@@ -103,41 +103,43 @@ build/host/pose_codec_test
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken
-    off before a kill and on every way out but left on a copy the game froze first, a refused dispel tried again, a copy
-    the game thread would not drive let go the same way) with the pair table for the game thread, the rows it captures
-    (only those the side owns and does not draw), the rows it drives (only those it draws) and how it reads the table
-    (fresh for 1 s after the job published it and never once the engine is latched; the Shows told so far are told again
-    only after a new session, a new generation or a change of the table's on, not after a stale table), against fake
-    memory. Same place is the host's setting: the guest draws only while the host's last place line says on, and never
-    reads her own; `coop fight pilot off` and the pilot's latch stop it on either side (the host then sends place 0),
-    and the worker's `pilot=` words say why it does not run (on the guest's side, `host` only once the host's list came,
-    `fight` after its off or on line); stage 3b's hand-overs on both sides (the host's rule and its own lines, its
-    freeze and thaw, her answers and give-backs with each own-no reason, `target` for a take-over her game thread
-    refused, a pair kept from her for 30 s after her own-no about it, the table's taken mark only after a hand-over) and
-    in two worlds, where an enemy has no AI copy or two for one hop at most; stage 3c's takedowns (her exec lines from
-    the markers, exec 0 after 200 ms without one, the host's hand-over past the guards once its copy is kReady and its
-    freeze despite Groggy, the host's own takedown, a BossMonster refused, a balance emptied by her claim in the turn of
-    her exec 1, her lethal claim held until her exec 0 or for 6 s, a copy frozen on its stream's takedown, `coop fight
-    pilot test exec`) and in two worlds, where her takedown holds the host's kill until her exec 0 reaches it; same
-    spawns in two worlds: nothing while the host's `same_spawns` is off or the players stand 200 m apart, then her set
-    becomes the host's (keys created where the host's stand and paired, keys the host lacks despawned, save, keep, event
-    and other-zone keys left, a Monster outside `fight_chars` never sent, nothing killed), a spawn line of an old epoch
-    dropped after the host's zone resets, a drop line ignored for a key paired on her side, nothing done while a
-    census's list of keys is partial, and a Save row logged once, with keys that have no row kept out of the 512-row
-    cache and rows past it never logged; the two game calls on fake memory (the spawn with the spawn manager, the key,
-    where the host's enemy stands and its yaw; the despawn with the job sender, the turn and the GUID), none with no
-    spawn manager, job sender or reg made, no despawn while her enemy holds BattleMode or runs a takedown marker (then
-    one once she is done), and no call, line or log line after a latch on an unreadable row, and a host enemy of a
-    SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told once an epoch, 32 a
-    census at most, nothing sent or called); the `fight=` line's `spawns=` field; extra enemies in two worlds with
-    `enemy_extra=2` (two `NewActor` calls for each of the host's four enemies, 2 and 3 m from it, the same keys made on
-    her side where the host's stand, all twelve paired, one 130 m from both EVEs despawned on the host and then by a
-    drop on hers, the rest despawned at the end, hers when the host's off line comes, nothing killed), and on the host
-    alone (no extras for a BossMonster, an NPC, a ZoneEvent or Quest spawn or a charId not shared, none before the zone
-    is settled or while she stands 200 m away, an extra 105 m from her ghost kept, a dying one left and the other
-    despawned when her shared enemies stop, extras off when the tables hold a row at the first key, `NewActor` refusing
-    or the reg not made logged once a life, an extra whose GUID cannot be read logged as kept, a new session's extras
-    under the next n); the `extra` word reaching the stats line;
+    off before a kill and on every way out, none of ours on a copy the game froze first until the game's freeze ends by
+    its dispel or a timed row running out, a refused dispel tried again and its copy not taken later for one the game
+    froze, a floor that keeps a killed copy alive frozen again from the next turn, a copy the game thread would not
+    drive let go the same way) with the pair table for the game thread, the rows it captures (only those the side owns
+    and does not draw), the rows it drives (only those it draws) and how it reads the table (fresh for 1 s after the job
+    published it and never once the engine is latched; the Shows told so far are told again only after a new session, a
+    new generation or a change of the table's on, not after a stale table), against fake memory. Same place is the
+    host's setting: the guest draws only while the host's last place line says on, and never reads her own; `coop fight
+    pilot off` and the pilot's latch stop it on either side (the host then sends place 0), and the worker's `pilot=`
+    words say why it does not run (on the guest's side, `host` only once the host's list came, `fight` after its off or
+    on line); stage 3b's hand-overs on both sides (the host's rule and its own lines, its freeze and thaw, her answers
+    and give-backs with each own-no reason, no hand-over to a side whose copy the game froze first but for her takedown,
+    `target` for a take-over her game thread refused, a pair kept from her for 30 s after her own-no about it, the
+    table's taken mark only after a hand-over) and in two worlds, where an enemy has no AI copy or two for one hop at
+    most; stage 3c's takedowns (her exec lines from the markers, exec 0 after 200 ms without one, the host's hand-over
+    past the guards once its copy is kReady and its freeze despite Groggy, the host's own takedown, a BossMonster
+    refused, a balance emptied by her claim in the turn of her exec 1, her lethal claim held until her exec 0 or for 6
+    s, a copy frozen on its stream's takedown, `coop fight pilot test exec`) and in two worlds, where her takedown holds
+    the host's kill until her exec 0 reaches it; same spawns in two worlds: nothing while the host's `same_spawns` is
+    off or the players stand 200 m apart, then her set becomes the host's (keys created where the host's stand and
+    paired, keys the host lacks despawned, save, keep, event and other-zone keys left, a Monster outside `fight_chars`
+    never sent, nothing killed), a spawn line of an old epoch dropped after the host's zone resets, a drop line ignored
+    for a key paired on her side, nothing done while a census's list of keys is partial, and a Save row logged once,
+    with keys that have no row kept out of the 512-row cache and rows past it never logged; the two game calls on fake
+    memory (the spawn with the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the
+    job sender, the turn and the GUID), none with no spawn manager, job sender or reg made, no despawn while her enemy
+    holds BattleMode or runs a takedown marker (then one once she is done), and no call, line or log line after a latch
+    on an unreadable row, and a host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared
+    Monster's row told once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field;
+    extra enemies in two worlds with `enemy_extra=2` (two `NewActor` calls for each of the host's four enemies, 2 and 3
+    m from it, the same keys made on her side where the host's stand, all twelve paired, one 130 m from both EVEs
+    despawned on the host and then by a drop on hers, the rest despawned at the end, hers when the host's off line
+    comes, nothing killed), and on the host alone (no extras for a BossMonster, an NPC, a ZoneEvent or Quest spawn or a
+    charId not shared, none before the zone is settled or while she stands 200 m away, an extra 105 m from her ghost
+    kept, a dying one left and the other despawned when her shared enemies stop, extras off when the tables hold a row
+    at the first key, `NewActor` refusing or the reg not made logged once a life, an extra whose GUID cannot be read
+    logged as kept, a new session's extras under the next n); the `extra` word reaching the stats line;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
