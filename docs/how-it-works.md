@@ -33,14 +33,14 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `main.lua` | Entry point: loads the DLL, reads the settings, registers the `coop` command and the keys, runs the loops |
 | `link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
-| `puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, `coop where` |
+| `puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
 | `notice.lua` | The line of notices above your EVE, used while the on-screen UI is not up |
 | `chat.lua` | The session chat: its history (memory only), the feed of chat lines and notices, and the text box |
 | `join.lua` | The code box and the host's question about a player who is not her Steam friend |
 | `partner.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
 | `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui_model.lua` | The menu's rows and settings, with no engine call |
-| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line and the notices written in Lua, in the game's 23 text languages |
+| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
@@ -49,13 +49,17 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `nightop_run.lua` | The `coop nightop` solo run: start checks, spawns, the monsters it tracks, its card and result panel |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
+| `doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
+| `race_model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
+| `race.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
-the chat box closes, and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
-start, notices to show, chat lines in and out, Night Operation's run, the UI's root, the menu's rows and status line,
-the chat's feed, your friend's card, the capture and the remote table.
+Doro look, a Doro race (with the incoming lines while one is armed), the notice line, the previews' follow-ups, the UI's
+open and close animations, the game's input given back after the menu or the chat box closes, and your friend's marker
+and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out,
+Night Operation's run, the race's session and map checks, the UI's root, the menu's rows and status line, the chat's
+feed, your friend's card, the capture and the remote table.
 
 ### Files shared by Lua and the native part
 
@@ -74,6 +78,11 @@ file is written in full beside its final name and then renamed over it, so the r
   not be sent) once Lua has taken the previous file, and Lua reads and deletes it every 250 ms. Both files are deleted
   when a session ends, when the native part starts and when the game exits. Chat text is written nowhere else. A crash
   dump (`Saved/Crashes`) holds the game's memory, so it may hold lines of the session.
+- A Doro race uses the same pattern. Lua queues its race lines and writes all those waiting into `coop-race.txt` once
+  the native part has taken the previous file, and the native part takes it at its next pass and sends each line in
+  order. Your friend's race lines come in `coop-chat.txt` as `race <text>`, beside the chat lines, and Lua reads that
+  file every frame while a race is armed. `coop-race.txt` is deleted with the chat files.
+
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
@@ -174,6 +183,7 @@ SBC12 photo <0|1|s> <both|notice>
 SBC12 say <text>
 SBC12 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 SBC12 paks <count> <hash>
+SBC12 race <text>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -186,9 +196,9 @@ released.
 The say line is one chat line, sent reliable. Both games clean it the same way: they keep well-formed UTF-8 only, drop
 control, bidi and zero-width characters, trim spaces, and keep at most 200 bytes, never cutting inside a character.
 At most 3 lines a second are sent, and at most 10 a second are kept from a friend. The rest are dropped, with one log
-line a minute that holds no text. At most 16 received lines wait for the Lua side. The text never goes into
-`coop-link.log`, `coop-status.txt`, `coop-report.txt` or the console. When the session ends, the log gets the counts
-only: `chat this session: <n> in, <n> out, <n> dropped`.
+line a minute that holds no text. At most 64 received lines, chat and race lines together, wait for the Lua side. The
+text never goes into `coop-link.log`, `coop-status.txt`, `coop-report.txt` or the console. When the session ends, the
+log gets the counts only: `chat this session: <n> in, <n> out, <n> dropped; race lines: <n> in, <n> out, <n> dropped`.
 
 The vit line is sent unreliable. It carries your EVE's numbers for your friend's partner card, in whole units: HP,
 shield and shield blocks, Beta, Burst and Tachy with their maximums, and the life state. It is sent when a number
@@ -206,7 +216,14 @@ their paths and sizes, and of their `.ucas` and `.utoc` files. The header of `co
 `paks=differ <yours> <theirs>` and a notice says so once a session; with the same hash it has `paks=same`. Nothing is
 refused: enemies that differ already stay unshared (same character id and maximum HP for each pair).
 
-Say, vit and paks lines from a friend who has not passed the handshake are ignored, without a log line.
+The race line carries one line of a [Doro race](#doro-races), sent reliable. The link passes its text on as it is: it
+reads no further, and only refuses a line with a byte outside printable ASCII (0x20 to 0x7e) or longer than 512 bytes
+in all. At most 40 lines a second are sent, and at most 40 a second are kept from a friend. The rest are dropped, with
+one line per friend and session in `coop-link.log` (`dropped race lines from <name>: over the rate limit` or `too many
+waiting`). During `coop loopback` with no friend linked, your race lines come back as your friend's.
+
+Say, vit, paks and race lines from a friend who has not passed the handshake are ignored, without a log line.
+
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -257,7 +274,8 @@ instead of misread:
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
-| 12 | Shared quests: the `SBQ` lines on channel 2 (this version) |
+| 12 | Shared quests: the `SBQ` lines on channel 2; Doro races: the race line on channel 0 (this version) |
+
 
 ### Link health in the log
 
@@ -727,6 +745,113 @@ host's marks (`h` lines) and the host lines the guest's game took (`g` lines). T
 name check as the co-op copies, at most once a second and only on a change, as a temporary file renamed over the old
 one. A bad line only loses that quest's marks; her live quests always decide what is made.
 
+## Doro races
+
+A Doro race runs in Lua: `race.lua` on the game side, `race_model.lua` for the rules and the race lines, `doro.lua`
+for the Doros. Its only SB calls are two reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the
+rest are engine functions. The native part only carries the race lines. The commands and rules are in
+[usage.md](usage.md#doro-races).
+
+### The display Doro
+
+Each Doro the mod shows is a plain `Actor` that Lua spawns, with one `SkeletalMeshComponent` that holds Doro's mesh
+(`CH_NPC_Dororong`, at the game's own scale of 1.5, about 59 cm tall) and collision off. It is not an SB character: it
+has no row in the game's tables, no AI and nothing that can die. Doro's own animation Blueprint is never used. The
+component runs the engine's single-node animation (`SetAnimationMode(1)`), and each frame Lua picks what it plays with
+`PlayAnimation`, `SetBlendSpaceInput`, `SetPlayRate` and `SetPosition`:
+
+- On the ground, the two-legged blend space `IdleRun_BS_Peaceful_2`, with the speed as its input up to 500 cm/s (EVE's
+  run) and played faster above that, up to 1.8 times. The speed is smoothed over about 0.1 s.
+- On all fours (`IdleRun_BS_Peaceful_1`) while EVE sprints, and for 0.3 s after.
+- In a jump, `N_Dororong_Evade`: its first 0.5 s at take-off, its frame at 0.5 s held while she is in the air (play
+  rate 0, the position set without firing notifies), and the rest, from 0.5 to 1.07 s, at landing.
+- At the results, while the racer stands (under 50 cm/s): `N_Dororong_Evade` in a loop for the winner and
+  `N_Dororong_Exhaust` for the other racer.
+
+The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). A race shows at most two
+Doros of its own: before GO one at the start line's centre, and during the race one at the next checkpoint and one at
+the one after it, facing the checkpoint before them. Their object paths stay in `coop-race-doros.txt` while they stand,
+so a Lua reload (Ctrl+R) in a race destroys them at its first tick.
+
+### The Doro look
+
+The look draws your EVE as a Doro. Its Doro is placed each frame, after the native tick, at the world location and
+rotation of EVE's main mesh (her feet); it is not attached to her. The look is the one feature that writes to the
+player actor, and it writes two things:
+
+- `bHiddenInGame` on each of EVE's mesh components that did not have it, through `SetHiddenInGame`. The game shows and
+  hides her parts (a drawn blade) with `SetVisibility`, which sets the separate `bVisible` flag, so the look neither
+  fights those changes nor undoes them. `SetActorHiddenInGame` on EVE is not used.
+- `VisibilityBasedAnimTickOption` on her main mesh, set to 0 (always tick the pose). EVE's Blueprint ticks her pose
+  only while she is drawn, so a hidden EVE would stop her pose, her animation notifies and the root-motion moves of
+  dodges and ledges.
+
+Before it changes anything, the look writes `coop-look.txt`: EVE's object path, the old tick option, its Doro's path
+and the names of the parts it hides. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns
+off), hides again any listed part the game showed, and sets the tick option back to 0. The log counts both once a
+minute (`[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min ...`) and names each flag change the
+game made (`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`).
+
+Turning the look off destroys its Doro, clears `bHiddenInGame` on the listed parts only, puts the tick option back and
+deletes the file. That runs at the race's end, on `coop race look off` and `coop off`, after a map change and at the
+look's first error, after which the look stays off until the mod reloads. If one of those steps fails, the file stays.
+A Lua load that finds `coop-look.txt` (after Ctrl+R, or a Lua state that stopped) uses it at its first game-thread
+tick: it destroys the Doro named there if that actor still shows Doro's mesh, clears `bHiddenInGame` on the listed
+parts that still have it, puts the tick option back and deletes the file. The log says
+`[StellarCoop][DR] look restored <n> parts from coop-look.txt`.
+
+The capture is unchanged, and it counts a part with `bHiddenInGame` as hidden. While the look is on, your friend's game
+therefore receives every part of your EVE as hidden, and draws your ghost with no body unless its Doro mode is on.
+After the look ends, the next capture pass (once a second) publishes the parts as shown again.
+
+### The ghost's Doro mode
+
+Your friend's ghost is drawn as a Doro while their game takes part in the race: on the host's PC from the guest's
+`have` line, on the guest's PC once the host's track has arrived and passed the checks, until the race closes. A guest
+whose game answers `have <id> no <why>` stays EVE on both screens.
+
+In Doro mode, `puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's mesh,
+on the ghost's main mesh, where her feet are. The ghost is the mod's own actor, so nothing of the game's is touched. The
+Doro's speed and vertical speed come from the ghost's feet between poses, measured over 50 ms at least. The pose stream
+has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520 cm/s, and a
+vertical speed over 400 cm/s, up or down, counts as being in the air. The ghost's own hiding (no pose for 1 s, another
+map) covers the Doro too. A Doro that cannot be made leaves the ghost drawn as EVE, with the reason in the log. The pose
+stream is the same during a race: the bones still arrive and are written into the hidden parts.
+
+### Race lines
+
+The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
+host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
+its own racer's lines. Each line travels as `SBC12 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
+with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
+
+| Line | From | Meaning |
+| --- | --- | --- |
+| `track <id> <n> <laps> <x> <y> <z> <yaw> <map>` | host | A race is armed on that start line and map; `n` checkpoints follow |
+| `cps <id> <first> <x> <y> <z> <r> ...` | host | Up to 12 checkpoints from the `first`th one, so a line stays under 512 bytes |
+| `have <id> <sum>` or `have <id> no map\|track\|save` | guest | The track arrived and passed the checks (`sum`: all its numbers added, modulo 2^32), or why the guest stays out |
+| `ready <id> 0\|1` | both | Out of or in the start slot |
+| `go <id> <ms>` or `abort <id> <why>` | host | The countdown's length (4000), or the race cancelled (`false_start`: the ready check again) |
+| `cp <id> <lap> <i> <ms>` | both | A checkpoint passed, with the race time |
+| `fin <id> <ms> <flags>` or `dnf <id> <why>` | both | Your finish time and flags (1 fast run, 2 paused), or why you did not finish (`teleport`, `map`, `quit`, `left`, `late`, `time`) |
+| `rank <id> <host ms or -> <guest ms or ->` | host | The final ranking |
+| `end <id>` | host | The race closed |
+
+The guest's game refuses a track with fewer than 2 or more than 64 checkpoints, `|x|` or `|y|` over 2,000,000,
+`|z|` over 500,000, a radius outside 300 to 3000, a time over 3,600,000 ms, or another map than its own. A line that
+fails a check is dropped and counted. The guest's countdown starts when `go` arrives, less half the round trip of the
+link's pings. A host that gets no `have` line within 10 s sends `abort <id> track` and races alone.
+
+In `coop loopback` with no friend linked, the host's lines come back as the friend's. A second, guest instance of the
+race model answers them, run on the loopback ghost's feet, and its lines go straight to the host's.
+
+Each PC logs a `[StellarCoop][DR] result` line per race, with the race's length by `os.clock` and by `os.time`. The race
+clock is `os.clock`, and the two values show whether it counts wall time on that PC.
+
+
+A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
+is `/Script/Engine.Actor`. `tests/race_test.lua` checks both in `doro.lua`, `race_model.lua` and `race.lua`.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
@@ -763,6 +888,8 @@ claim the host accepts):
   never applies a step of a quest she is behind on.
 - Night Operation runs only without a Steam session: its start refuses one, and a session that starts ends the run. Its
   kills are the player's own.
+- A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
+  or save function.
 
 ## Safety design
 

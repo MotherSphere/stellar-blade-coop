@@ -14,10 +14,11 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session | (none) |
 | F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
 | F8 | Leave the session | `coop leave` |
+| F9 | While you record a [Doro race](#doro-races) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
 | Enter | During a session, open the [chat](#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change F5, F6 and F8 in the menu's Options page or in [coop-settings.txt](#coop-settingstxt), and `host_key`
+You can change F5, F6, F8 and F9 in the menu's Options page or in [coop-settings.txt](#coop-settingstxt), and `host_key`
 in the file only. A key passes its action to the game thread, where the same checks as for the console command apply
 (`coop off` included). The log says `key F5: menu`. The other keys then log the usual `OK:` or `STOP:` line; the menu
 key logs one only when the menu cannot open.
@@ -66,11 +67,11 @@ or shows the mouse cursor for one of its own screens.
 ### Options
 
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
-(the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
-looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the title
-and [shared quests](#shared-quests-experimental)), Combat (shared enemies, same place, who same-place enemies attack,
-same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards), Display (the size,
-sounds and language of the menu, the chat and the partner HUD) and Chat.
+(the menu, status, leave and race checkpoint keys), Photo mode, Partner (the name tag and the
+[partner HUD](#partner-hud)), Ghost (the looks and the send rate), Session (who can join a session you host), Saves (the
+[co-op saves](#co-op-saves) at the title and [shared quests](#shared-quests-experimental)), Combat (shared enemies, same
+place, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and
+your kill rewards), Display (the size, sounds and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
@@ -86,11 +87,11 @@ A key that another action already holds is refused, and the menu names that acti
 works at once.
 
 The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, the
-shared enemies', same place, same spawns and shared quests notices, and Night Operation's card, result panel and notices
-use the game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6) and
-the ghost's notices. `ui_language=english` keeps them all in English. The notices of the Steam link (a friend joined or
-left, your join code) and `UE4SS.log` stay in English, and so do the error messages from the coop commands, shown in the
-menu or the code box.
+shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel and notices,
+and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that the game ships.
+So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in
+English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so
+do the error messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -310,6 +311,162 @@ says `photo pause: no player controller at coop off`. Whether the game keeps the
 checked, so choose Full before you remove the mod. The setting does not change your friend's game, and the synced photo
 pause above works the same with both values.
 
+## Doro races
+
+A Doro race is a run along a track of checkpoints that you record, for one player or two. Each racer is drawn as a
+Doro (Dororong): your EVE on your screen, and your ghost on your friend's. EVE still does the running, with her own
+moves, jumps, dodges and camera. Doro races have not been tested in game yet.
+
+### Recording a track
+
+1. Stand where the race starts, facing the way it goes, and type `coop race record <name>`. The name is 1 to 24
+   characters of `a-z`, `0-9`, `_` and `-`. The start line is where EVE's feet are, facing her way.
+2. Run the route. At each checkpoint, press F9 (`race_key`) or type `coop race cp`. The checkpoint is where EVE's feet
+   are at that moment, with a 12 m radius. It must be at least 15 m from the one before it (from the start line for
+   the first), or it is refused with `Too close: 15 m at least between checkpoints.` A track holds at most 64
+   checkpoints, and the last one is the finish.
+3. Type `coop race save` to write the track to `coop-track-<name>.txt` beside `coop-settings.txt`. It replaces a
+   track of the same name, and it needs 2 checkpoints at least. `coop race save <laps>` (1 to 9) makes a circuit,
+   which needs the last checkpoint within 30 m of the start line. `coop race cancel` drops the recording and writes
+   nothing.
+
+The log line `[StellarCoop][DR] track <name> saved: <n> checkpoints, <laps> laps, path <m> m in <s> s` gives the
+distance you ran and how long it took. Recording works on any save. A checkpoint on another map than the start line's
+is refused, and F9 does nothing while no track is being recorded. The mod ships no track of its own.
+
+### Starting a race
+
+`coop race start <name>` arms a race on `coop-track-<name>.txt`, on a co-op save only. The host starts every race: a
+guest's `coop race start` is refused, and the guest's game takes part when the host starts one. The start is also
+refused while a Night Operation run is on, while a track is being recorded, when the track is on another map than
+yours, and when your friend is on another map or their map is not known yet. `coop nightop start` is refused while a
+race is armed.
+
+- With no session, you race alone against the clock.
+- With a friend linked, your game sends the track to theirs, which checks it and joins the race. They need no track
+  file, and their screen says `<host> starts a race: walk to your start.` When their game does not join, you race
+  alone, and your notice says why: they are on another map, their game could not read the track, they do not play a
+  co-op save, or no answer came within 10 s.
+- During `coop loopback` with no friend linked, the loopback ghost races as the second player, which tests the
+  two-player race on one PC. It walks 2 m to your right, so it stands in the guest's slot while you stand in yours.
+
+### Slots and countdown
+
+The start line has two slots, 3 m apart across its facing: the host's on the left and the guest's on the right. Alone,
+you take the left one. A marker labelled `Your start` stands over yours, and a Doro stands at the centre of the line.
+Walk to your slot: the mod moves nobody. You are in it within 2.5 m of its centre, and out of it past 3 m.
+
+Once every racer has stood in their slot for 1 s, the host's game starts a 4 s countdown: 3, 2, 1, then GO. On the
+guest's PC the countdown starts when the host's line arrives, less half the ping.
+
+Leaving your slot before the countdown holds the start. Leaving it during the countdown is a false start: the
+countdown stops on both screens with `False start: back to your start.`, and the 1 s check starts again. A false
+start has no penalty.
+
+### Rules
+
+- Checkpoints count only in order. A checkpoint counts when EVE's path from one frame to the next comes within its
+  radius horizontally and within 6 m vertically, at any speed. A marker over the next checkpoint shows its distance,
+  and an arrow at the edge of the screen points to it when it is off screen or behind you. A Doro stands at the next
+  checkpoint and another at the one after it. The Doro at the finish hops in a loop.
+- `MISSED CHECKPOINT <n>`: you entered a later checkpoint while checkpoint `<n>` was still due. Nothing counts until
+  you go back through it.
+- `WRONG WAY`: the distance to the next checkpoint grew 20 m past its lowest since your last checkpoint, after you ran
+  more than 25 m. It clears once that distance drops by 10 m.
+- Neither a missed checkpoint nor a wrong way has a penalty other than the time it costs.
+- On a circuit, the checkpoints repeat from the first one each lap. You finish at the last checkpoint of the last lap.
+- Each racer is timed from their own GO by their own game's clock. Pausing the game does not stop it.
+
+A DNF (did not finish) ends your race. A notice says why:
+
+| Notice | Cause |
+| --- | --- |
+| `Moved more than 20 m at once.` | EVE moved over 20 m in one frame: a fast travel, a respawn at a camp after a death, or any other warp |
+| `Left the map.` | A map change, or no EVE in the world for 2 s (a load, the title screen) |
+| `The session ended.` | The link with your friend ended |
+| `Not finished 60 s after the winner.` | You were still racing 60 s after the first racer finished |
+| `Over the 15 min limit.` | You were still racing 15 min after GO |
+
+`coop race quit` and `coop off` end your race as a DNF too, with the command's answer instead of a notice. Before GO,
+the host's quit or map change cancels the race for both players (`Race cancelled.`). A guest who does the same leaves
+the race, and the host races alone.
+
+### Results
+
+During the race, the panel at the top centre shows `DORO RACE`, your time (`1:23.45`), `CP`, `LAP` and `POS`. Your
+place comes from laps, checkpoints and the distance to the next checkpoint, your friend's from where their ghost is.
+
+Once every racer has finished or is out, `RESULTS` takes the panel's place for 10 s, with each racer's place and time,
+or `DNF`. Times within 10 ms share a place. The host's game sends the ranking, so both screens show the same one. While
+they stand still, the winner's Doro hops in place and the other Doro plays its tired animation. Then the race closes:
+its Doros go, and EVE and the ghost are drawn as themselves again.
+
+Two flags can show under `RESULTS` for your own run. Neither changes the ranking.
+
+- `fast run`: for 1 s or more, EVE moved faster than 5.5 m/s horizontally while she was not sprinting and not in the
+  air. The flag is there for Tachy mode, which runs faster; the mod cannot read whether Tachy mode is on.
+- `paused`: the game was paused, or showed one of its own screens, for 2 s or more.
+
+Each PC logs one line per race: `[StellarCoop][DR] result id=<id> track=<name> ms=<ms> clock=<s> time=<s> flags=<n>
+rank=<place>`. `ms` is your time in milliseconds, `clock` and `time` measure the race with two different clocks (for a
+bug report), `flags` adds 1 for a fast run and 2 for paused, and `rank` is your place. `ms` and `rank` read `-` after a
+DNF, and `track` reads `-` on the guest's PC.
+
+The panel, the banners and the results hide while the game is paused or shows one of its own screens. With the
+co-op UI off (`coop ui off`, or after an engine error), they do not show, and the banners other than the countdown
+come as notices on the line above EVE.
+
+### The Doro look
+
+From the start of a race on your PC until it closes, your EVE is drawn as a Doro. The Doro stands at EVE's feet, walks
+and runs on two legs, runs on all fours while she sprints, and hops when she jumps. Your friend's ghost is drawn as a
+Doro from the moment their game joins the race. If it does not join, it stays EVE on both screens.
+
+To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. The
+race's end, `coop race quit`, `coop off`, a map change and the look's first error undo both changes. While the look is
+on, `coop-look.txt` holds what it changed, so the next Lua load (Ctrl+R) undoes them when this one could not. If EVE
+stays hidden, see [troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+
+While the look is on, your friend's game receives your EVE's parts as hidden. In a race their game joined, they see
+your ghost as a Doro. Otherwise your ghost on their screen shows its name and marker but no body until the look ends.
+After a race, it can show no body for about 1 s.
+
+Two test commands are left out of the usage line. Both need a co-op save, except `coop race look off`:
+
+- `coop race look on` turns on the look on your EVE and the Doro on your friend's ghost, with no race.
+  `coop race look off` turns both off, on any save.
+- `coop race probe doro` shows a Doro 3 m in front of EVE that plays each of its animations in turn, for about 45 s,
+  with a `[StellarCoop][DR]` line in `UE4SS.log` for each step.
+
+### Limits
+
+- Two players at most. The host starts every race, and only the host needs the track file.
+- Both players must be on the track's map.
+
+- Enemies stay as they are: each game runs its own fights during a race, and shared enemies, same place and same
+  spawns work as usual. Record tracks through ground you have cleared.
+- A race gives no reward, item, progress or achievement, and writes nothing to a save. Its Doros are display only,
+  with collision off: nothing can hit them, and they cannot die.
+
+### Track files
+
+A track file is plain text:
+
+```
+SBR 1
+map /game/art/bg/worldmap/e03_wasteland_p/e03_wasteland_p
+laps 1
+grid -42511 -14642 -2682 -165
+cp -46580 -15709 -2473 1200
+cp -49676 -17231 -2472 1200
+```
+
+`grid x y z yaw` is the start line's centre in centimetres and its facing in degrees. Each `cp x y z r` line is a
+checkpoint's centre (EVE's feet when it was set) and its radius in centimetres. With the game closed, you can change a
+radius by hand, from 300 to 3000. The file keeps this form: whole numbers, single spaces, 1 to 9 laps, 2 to 64
+checkpoints, each at least 15 m from the one before it (the first from the start line), at most 4096 bytes.
+`coop race start` refuses a file that breaks a rule, with the reason.
+
 ## Console commands
 
 The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)) and opens with F10 or `~`.
@@ -341,6 +498,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's solo run](night-operation.md#the-solo-run-coop-nightop) (untested in game, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
+| `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
+| `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, on by default) and its solo test steps |
@@ -452,8 +611,8 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 name, except `coop nightop stop`, which works on any save. See
 [night-operation.md](night-operation.md#the-solo-run-coop-nightop).
 
-The ghost, the link and every other command except `coop fight` (below) run on any save. `coop fight pilot` runs on
-any save too, since same place only moves enemies while shared enemies run.
+The ghost, the link and every other command except `coop fight` and `coop race start` (below) run on any save.
+`coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Shared enemies (experimental)
 
@@ -978,9 +1137,11 @@ reads: it logs what it finds of your quests in `coop-quests.log` and makes no st
 loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
 run (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared
-quests and the photo pause (released; the native tick keeps running for this alone). Afterwards only `coop status` and
-`coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
-menu, host and leave keys.
+quests, the photo pause (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or
+cancelled before GO), a race track being recorded (dropped, nothing written) and the Doro look (EVE drawn again).
+Afterwards only `coop status` and `coop report` answer. Every other command answers
+`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
+
 
 ## coop-settings.txt
 
@@ -996,11 +1157,13 @@ The file the mod writes:
 # StellarCoop settings, read when the mod loads (game start, or Ctrl+R). The co-op menu (menu_key) changes them too,
 # one line at a time, and keeps the file as it was as coop-settings.old.txt. Delete this file to get the defaults back.
 # Keys: F1 to F12 except F10, optionally with Shift+, Ctrl+ or Alt+ in front (for example Shift+F7). menu_key opens
-# the co-op menu, whose first row hosts; host_key hosts at once, or none.
+# the co-op menu, whose first row hosts; host_key hosts at once, or none. race_key drops a checkpoint while you record
+# a race track (coop race record).
 menu_key=F5
 host_key=none
 status_key=F6
 leave_key=F8
+race_key=F9
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -1093,6 +1256,7 @@ card_details=on
 | `host_key` | same, or `none`: a key that hosts at once, without the menu | `none` |
 | `status_key` | same as `menu_key` | `F6` |
 | `leave_key` | same as `menu_key` | `F8` |
+| `race_key` | same, or `none`: a key that sets a [Doro race](#doro-races) checkpoint while you record a track | `F9` |
 | `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](#join-codes); `private`: only the friends you invite) | `friends` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
@@ -1134,8 +1298,11 @@ Rules:
   first 8192 bytes are read.
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
-- If two actions share one key, all four keys go back to their defaults: `F5` for the menu, `none` to host, `F6` and
-  `F8`.
+- If two actions share one key, all five keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F8`
+  and `F9`.
+- A file with no `race_key` line (one written before Doro races) whose other keys already use `F9`: `race_key` reads
+  `none`, and `UE4SS.log` says so, for example `[StellarCoop] settings: F9 is leave_key: race_key has no key`.
+  `coop race cp` still sets checkpoints.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
@@ -1150,9 +1317,9 @@ Rules:
   `[StellarCoop] settings:` line. `kill_credit=fought` stays. A hand-written `kill_credit=all` is refused and reads
   `together`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
-  `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
-  earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in
-  use.
+  `keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second`. Another line says when a mod
+  loaded earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo
+  settings in use.
 
 ## Looks
 
@@ -1326,12 +1493,17 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |
-| `coop-chat.txt` | native | Your friend's chat lines, for a moment: Lua takes and deletes the file within 250 ms |
+| `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
+| `coop-race.txt` | Lua | Your [Doro race](#doro-races) lines, for a moment: the native part takes and deletes the file at its next pass |
+| `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
+| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path and the names of the parts the look hid, so the next Lua load (Ctrl+R) can show her again |
+| `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
 it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,
-state and chat files, and any stale request or report. The chat files are also deleted when a session ends and when
-the game exits. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the
+state and chat files, `coop-race.txt`, and any stale request or report. The chat files and `coop-race.txt` are also
+deleted when a session ends and when the game exits.
+ A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the
 previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the

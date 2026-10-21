@@ -28,8 +28,8 @@ StellarCoop is an experimental pre-release, played in only a few sessions betwee
 - `Native tick unavailable`: the DLL loaded but its per-frame entry did not. Without it no pose is read or drawn, so
   no ghost shows, and the loopback, record and replay refuse to start.
 - A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. `F10` is never allowed, and
-  two actions on one key put all four keys back to their defaults: `F5` (menu), `none` (host), `F6` (status) and `F8`
-  (leave). See [usage.md](usage.md#coop-settingstxt).
+  two actions on one key put all five keys back to their defaults: `F5` (menu), `none` (host), `F6` (status), `F8`
+  (leave) and `F9` (race checkpoint). See [usage.md](usage.md#coop-settingstxt).
 - `keys: <key> is also bound by a mod loaded earlier; both run`: another mod uses the same key. Pick another key.
 
 ### `Co-op: waiting for Steam.` or `Co-op: the Steam link stopped; coop status says why.`
@@ -125,6 +125,25 @@ The cloth, dyes and effects looks have not been tested in game yet, and cloth is
 the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `effects=off`) in `coop-settings.txt`,
 Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
 effects off until the game restarts; the ghost stays, without effects.
+
+### EVE is invisible, or only a Doro shows
+
+During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and draws a
+Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show her again. If she stays hidden:
+
+- Type `coop race look off`. While the look is still on, it answers `OK: Doro look off (coop race look off): <n> parts
+  shown again, tick option <t> back.` If it answers `The Doro look is off already.`, go on to Ctrl+R.
+- Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE again at its
+  first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`. This covers a look
+  stopped by a Lua error, and an off that failed (`Doro look off (...): ...; <error>` in the log keeps the file for
+  this).
+- Restart the game if neither works. The look's changes are in memory only, and no save holds them.
+
+A Doro left standing alone where a race was (at a checkpoint or the start line) goes at the next Lua load too:
+`[StellarCoop][DR] race: <n> display Doros an earlier Lua load left destroyed`.
+
+While your look is on, your friend sees your ghost with no body unless their game takes part in the race (see
+[how-it-works.md](how-it-works.md#the-doro-look)).
 
 ### The game ignores its keys after the co-op menu or the chat
 
@@ -405,8 +424,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
-ghost <x> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the ghost and of the co-op
-menu, chat and partner HUD. To see what the marker and the arrow cost, compare a minute with them on against a minute
+ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the
+ghost, of the Doro look, of a Doro race and of the co-op menu, chat and partner HUD.
+ To see what the marker and the arrow cost, compare a minute with them on against a minute
 with Options > Partner > HP marker and Off-screen arrow set to Off.
 
 A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.

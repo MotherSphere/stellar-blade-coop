@@ -29,6 +29,10 @@ client that the game already runs, so the mod needs no other program and no serv
 - Your friend's card at the top left shows their name with their ping and map, then their HP, shield and Beta. A
   marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
+- Doro races: record a track by setting checkpoints with F9, then race it alone against the clock or against your
+  friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
+  It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
+  [docs/usage.md](docs/usage.md#doro-races)).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make
