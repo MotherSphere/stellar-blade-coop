@@ -2106,6 +2106,9 @@ do
 end
 clock=clock+1
 key('F7'); assert(logged('key F7: status'))
+-- The follow key took the file's F9 with the menu key's change (every key comes from the file): F9 follows now.
+clock=clock+1
+key('F9'); assert(logged('key F9: follow'))
 -- coop off: closed, the kit stopped (it gives the game its input back), no key opens it again.
 coop('off')
 assert(kit_calls[#kit_calls]=='stop nil')
