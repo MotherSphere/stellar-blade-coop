@@ -148,6 +148,7 @@ struct Link {
   bool armed = true, load = false;
   std::vector<std::string> sent, said; // This step's host and guest lines.
   std::vector<std::string> heard;      // Every guest line so far.
+  std::vector<std::string> lose;       // Heads of host lines lost on the way to her, once each.
   int applied = 0;
   explicit Link(Record hr = Record(), Record gr = Record(), Deny deny = Deny())
       : host(std::move(hr), kGuestId, deny), guest(std::move(gr), kHostId) {
@@ -162,8 +163,13 @@ struct Link {
     Tuple live[kRowCount];
     hw.tuples(live);
     sent = host.pass(live, host_zone, std::exchange(load, false), now);
-    for (const std::string &l : sent)
-      guest.receive(wire(l));
+    for (const std::string &l : sent) {
+      const auto lost = std::find_if(lose.begin(), lose.end(), [&](const std::string &h) { return starts(l, h); });
+      if (lost != lose.end())
+        lose.erase(lost);
+      else
+        guest.receive(wire(l));
+    }
     said.clear();
     Plan p = guest.pass(gw.v.data(), guest_zone, armed, now, said);
     for (const std::string &l : said)
@@ -880,6 +886,126 @@ void together() {
   assert(!one_step(r1, a.tuple(s1), a.tuple(s1)));
   b.play(s1);
   assert(!one_step(r1, a.tuple(s1), b.tuple(s1)));
+  // With two tasks or more done, the host's last one is not known: Quest_Sub_005's group 1 holds three tasks in one
+  // container, so only its first task is one step.
+  const size_t s5 = at("Quest_Sub_005");
+  const Row &r5 = kRows[s5];
+  std::vector<World> c(4);
+  for (size_t n = 0; n < c.size(); ++n) {
+    c[n].acquire(s5);
+    for (size_t t = 0; t <= n; ++t)
+      c[n].play(s5);
+  }
+  assert(one_step(r5, c[0].tuple(s5), c[1].tuple(s5)) && c[3].tuple(s5).groups == 2);
+  assert(!one_step(r5, c[1].tuple(s5), c[2].tuple(s5)) && !one_step(r5, c[2].tuple(s5), c[3].tuple(s5)));
+  // So when she did task 1 and the host task 0 before the session, the host's task 1 does not give her task 0.
+  auto other = std::make_unique<Link>();
+  Link &o = *other;
+  o.host_zone = o.guest_zone = "Zone_WLA_10";
+  for (World *w : {&o.hw, &o.gw})
+    w->acquire(s5), w->play(s5);
+  o.hw.complete(s5, 0, 0), o.gw.complete(s5, 0, 1);
+  o.step();
+  o.hw.complete(s5, 0, 1);
+  o.steps(2);
+  assert(o.guest.planned(44).why == Why::behind && o.gw.tuple(s5).tasks == 1 && o.applied == 0);
+}
+
+// Lines lost on the way (a reliable send the link refused). A gap in a quest's sequence hides the host's state before
+// the step, so the step is hers only where her quest already stands at the host's; a lost end line ends its snapshot
+// at the host's at line, which comes right after it.
+void lost_lines() {
+  const size_t s1 = at("Quest_Sub_001"), s17 = at("Quest_Sub_017");
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  auto logged = [&](const std::string &part) {
+    return std::any_of(k.guest.log.begin(), k.guest.log.end(),
+                       [&](const std::string &l) { return l.find(part) != std::string::npos; });
+  };
+  k.lose = {"end"}; // The first snapshot's end.
+  k.step();
+  assert(!k.guest.snapshot_complete() && logged("snapshot 1 incomplete, its end line was lost"));
+  k.hw.acquire(s17);
+  k.step();
+  assert(k.gw.tuple(s17).state == 1 && k.applied == 1); // A live line again: shared.
+  // Quest_Sub_001 taken together; she steps away and the host's next line is lost; back with the host for its next
+  // step, neither the one she missed nor this one is hers.
+  k.host_zone = k.guest_zone = "Zone_WLA_30";
+  k.hw.acquire(s1);
+  k.step();
+  assert(k.gw.tuple(s1).state == 1 && k.applied == 2);
+  k.guest_zone = "Zone_DED20";
+  k.hw.play(s1);
+  k.lose = {"q "};
+  k.step();
+  k.guest_zone = "Zone_WLA_30";
+  k.step();
+  k.hw.play(s1);
+  k.steps(3);
+  assert(k.gw.tuple(s1).groups == 0 && k.guest.planned(41).why == Why::behind && k.applied == 2);
+  // Her record keeps the last line of a step made with her: the acquire.
+  const Record::Line *l = k.guest.record().find('g', kHostId, 41);
+  assert(l && l->e.seq == 1 && l->e.t.groups == 0);
+  // Out of order (seq 3 before seq 2) reads the same: 3 is not hers, and 2 then comes as an older line.
+  Guest g(Record(), kHostId);
+  World w;
+  std::vector<std::string> out;
+  for (const char *line : {"snap 1 0", "end 1 0 0", "at 1 Zone_Xion_10", "q 1 1 54 1 - - - ."})
+    g.receive(wire(q(line)));
+  const Plan p = g.pass(w.v.data(), "Zone_Xion_10", true, 5000, out);
+  assert(p.ready());
+  w.apply(p);
+  assert(g.receive(wire(q("q 1 3 54 3 - 0:t.0:t - t"))) && !g.receive(wire(q("q 1 2 54 1 - 0:t - ."))));
+  for (uint64_t now = 5250; now < 6000; now += 250)
+    assert(!g.pass(w.v.data(), "Zone_Xion_10", true, now, out).ready());
+  assert(g.planned(54).why == Why::behind && w.tuple(s17).groups == 0);
+}
+
+// A Request made together up to its hand-in, which the host then makes while she stands elsewhere: she is told to
+// hand hers in at her own board, not that she is behind. Nothing is applied either way.
+void board_elsewhere() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  const size_t r6 = at("Quest_Request_006");
+  k.host_zone = k.guest_zone = "Zone_WLA_10";
+  k.hw.v[r6].state = k.gw.v[r6].state = 0;
+  k.step();
+  k.hw.acquire(r6);
+  k.steps(2);
+  k.hw.play(r6);
+  k.steps(2);
+  assert(k.gw.v[r6].state == 2 && k.applied == 2);
+  k.guest_zone = "Zone_DED20";
+  k.hw.hand_in(r6);
+  k.steps(2);
+  assert(k.guest.planned(kRows[r6].id).why == Why::board && k.guest.behind.empty() && k.gw.v[r6].state == 2);
+}
+
+// Her own reload: a save from inside the steps she shared with the host gets them again, once each; a save from
+// before the first of them is behind, so the acquire the host made alone before the session never reaches her, nor a
+// step the host makes while her quest stands back there.
+void reloads() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  const size_t s1 = at("Quest_Sub_001");
+  k.host_zone = k.guest_zone = "Zone_WLA_30";
+  k.hw.acquire(s1), k.gw.acquire(s1); // Both took it before the session.
+  k.step();
+  k.hw.play(s1);
+  k.step();
+  assert(k.gw.tuple(s1) == k.hw.tuple(s1) && k.applied == 1);
+  k.gw.v[s1] = View(), k.gw.acquire(s1); // A save from after the acquire: the shared step comes back.
+  k.steps(2);
+  assert(k.gw.tuple(s1) == k.hw.tuple(s1) && k.applied == 2 && k.guest.behind.empty());
+  k.gw.v[s1] = View(); // A save from before she took it.
+  k.steps(2);
+  assert(k.gw.v[s1].state == 0 && k.guest.planned(41).why == Why::behind && k.applied == 2);
+  k.hw.play(s1);
+  k.steps(2);
+  k.gw.acquire(s1); // Taken again on her own: still nothing, the host's last step was made while she stood back.
+  k.steps(3);
+  assert(k.gw.tuple(s1).groups == 0 && k.guest.planned(41).why == Why::behind && k.applied == 2);
+  assert(k.guest.behind == std::vector<uint16_t>{41});
 }
 
 // A quest SB acquires inside another's step waits for her copy of that step: Quest_Epic_06's last group, a kill,
@@ -1024,9 +1150,10 @@ void idempotence() {
   assert(run(3) == 1 && gw.v[s17].state == 1);
   // The same line twice, then an older one: nothing more.
   assert(!guest.receive(wire(q("q 1 1 54 1 - - - ."))) && run(3) == 0);
-  // Out of order: seq 3 (both groups) before seq 2 (group 0): 2 is dropped, 3 drives both groups.
+  // Seq 2 (group 0), then seq 3 (group 1): each once; seq 2 again after 3 is dropped.
+  assert(guest.receive(wire(q("q 1 2 54 1 - 0:t - ."))) && run(2) == 1);
   assert(guest.receive(wire(q("q 1 3 54 3 - 0:t.0:t - t"))) && !guest.receive(wire(q("q 1 2 54 1 - 0:t - ."))));
-  assert(run(4) == 2 && gw.v[s17].state == 3 && gw.completes == 2);
+  assert(run(4) == 1 && gw.v[s17].state == 3 && gw.completes == 2);
   // A full snapshot after the diffs: a new generation, the same state, nothing applied twice.
   for (const char *l : {"snap 2 1", "q 2 4 54 3 - 0:t.0:t - t"})
     guest.receive(wire(q(l)));
@@ -1156,6 +1283,9 @@ int main() {
   marks_from_the_host();
   before_the_session();
   together();
+  lost_lines();
+  board_elsewhere();
+  reloads();
   chains();
   bounds();
   host_marks();

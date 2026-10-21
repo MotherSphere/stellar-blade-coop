@@ -1188,8 +1188,8 @@ inline Message parse(const char *data, size_t size) {
 
 // ---- The record file ----
 
-// StellarCoopQuests0N.txt beside co-op slot N: h lines, a host's marks for each partner; g lines, the last line a
-// guest took from each host. A bad line only loses that quest's marks and origin; the live quests always decide.
+// StellarCoopQuests0N.txt beside co-op slot N: h lines, a host's marks for each partner; g lines, the last line of a
+// step a guest made with each host. A bad line only loses that quest's marks and origin; the live quests always decide.
 constexpr size_t kMaxRecord = size_t(1) << 20, kMaxRecordLines = 4096;
 struct Record {
   struct Line {
@@ -1509,7 +1509,8 @@ enum class Why : uint8_t {
   locked,  // a Request not on her board yet
   chain,   // SB acquires it inside a step of her parent quest (kChains), which she has not made yet
   ahead,   // her quest holds a part the host's lacks: nothing is applied
-  behind,  // the host's step was not made with her (her quest was behind, or she stood elsewhere): never applied
+  behind,  // the host's step was not made with her (her quest was behind, she stood elsewhere, a line before it was
+           // lost, or her reload took her quest back before the steps she shared): never applied
   failed,  // a failure, hers or the host's: never touched
   unarmed, // acquire waits until this load's check passed
   blocked, // the host's container or task is not one she can complete
@@ -1547,20 +1548,19 @@ struct Where {
 // Whether her quest t made step s: 0 its acquire, 1 + g the end of group g.
 inline bool made(const Tuple &t, size_t s) { return t.state >= 1 && t.groups >= s; }
 
-// Whether one SB transition takes her quest g to the host's h: the acquire, or one more task done in her active group,
-// which may end that group (the last one ends the quest, or brings a Request to its hand-in).
+// Whether one SB transition takes her quest g to the host's h, and it is the one the host made: the acquire, the first
+// task done in her active group, or the end of that group through a container of one task (the last group ends the
+// quest, or brings a Request to its hand-in). With more tasks done the host's last one is not known, so the task she
+// lacks may be one the host did without her: false.
 inline bool one_step(const Row &r, const Tuple &g, const Tuple &h) {
   if (g.state <= 0)
     return h.state == 1 && !h.groups && !h.tasks;
   if (g.state != 1 || !covers(h, g) || covers(g, h))
     return false;
   if (h.groups == g.groups)
-    return h.state == 1 && h.tasks == g.tasks + 1;
+    return h.state == 1 && h.tasks == 1 && !g.tasks;
   const size_t a = g.groups;
-  if (h.groups != a + 1 || h.tasks)
-    return false;
-  const size_t c = h.cont[a];
-  return size_t(std::count_if(g.task, g.task + g.tasks, [&](Pos x) { return x.c == c; })) + 1 == tasks(r, a, c);
+  return h.groups == a + 1 && !h.tasks && tasks(r, a, h.cont[a]) == 1;
 }
 
 // The next step toward the host's entry h for her quest (view v, tuple g), and why it waits.
@@ -1644,8 +1644,9 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
 
 // The guest's side: takes the host's lines (checked against her own table), plans one step per pass over her
 // quests, and says what she reached, what waits and where she is ahead. A quest whose last move the host made without
-// her (her copy behind it, she elsewhere, or a snapshot of moves made while she was away) is behind: nothing of it is
-// planned until her own play reaches the host's state.
+// her (her copy behind it, she elsewhere, a snapshot of moves made while she was away, or a lost line between) is
+// behind: nothing of it is planned until her own play reaches the host's state. So is one her own reload took back
+// before the first step she shared with the host; a reload inside those steps gets them again, as they were hers.
 class Guest {
 public:
   Guest(Record record, uint64_t host) : record_(std::move(record)), host_(host) {
@@ -1681,7 +1682,9 @@ public:
     }
     if (m.gen != gen_)
       return m.gen > gen_ ? bad("generation") : false;
-    if (m.type == Type::at) {
+    if (m.type == Type::at) { // The host sends one right after each snapshot's end: a lost end ends it here.
+      if (std::exchange(in_snap_, false))
+        log.push_back("quests: snapshot " + std::to_string(gen_) + " incomplete, its end line was lost");
       host_at_ = m.text;
       return true;
     }
@@ -1731,9 +1734,14 @@ public:
       else if (!decide_[size_t(i)])
         decide_.set(size_t(i)), was_.set(size_t(i), known_[size_t(i)]), before_[i] = h_[i].t;
     }
+    // The host numbers each line of a quest one past the last: a gap is a lost line, so the host's state before this
+    // step is not known, nor whether she was with the steps between. Judged as a first line.
+    if (!in_snap_ && known_[size_t(i)] && m.e.seq != h_[i].seq + 1)
+      with_.reset(size_t(i)), was_.reset(size_t(i));
     known_.set(size_t(i));
     h_[i] = m.e, held_.set(size_t(i));
-    Entry g = m.e;
+    Entry &g = g_[i];
+    g = m.e;
     auto alias = [&](Mark &k) {
       if (k.kind == 'z') {
         const int z = record_.zones.add(*zones_.name(k.zone));
@@ -1743,8 +1751,7 @@ public:
     alias(g.acq), alias(g.done);
     std::for_each(g.group, g.group + g.t.groups, alias);
     std::for_each(g.task, g.task + g.t.tasks, alias);
-    record_.put('g', host_, g);
-    prev_[i] = g.t, had_.set(size_t(i)), changed_ = true;
+    put_.set(size_t(i)); // Her record takes it at her next pass, if that pass finds the step made with her.
     return true;
   }
 
@@ -1788,13 +1795,26 @@ public:
         const Chain *k = chain(r.id);
         const size_t up = k ? size_t(row_index(k->parent)) : 0;
         const bool ordered = !k || made(tuple_of(kRows[up], views[up]), k->step);
+        // Her quest back before where this run of shared steps began (her own reload): its steps are not hers again.
+        const bool back = with_[i] && !covers(g, from_[i]);
         if (decide_[i]) { // The host's quest moved: with her if she stands in its zone and stood where it stood.
           decide_.reset(i);
           const bool here = zone_alias(zone) && zone == host_at_;
-          with_.set(i, here && (with_[i] || (was_[i] ? covers(g, before_[i]) : covers(g, h.t) || one_step(r, g, h.t))));
+          const bool with =
+              here && ((with_[i] && !back) ||
+                       (was_[i] ? covers(g, before_[i]) : covers(g, h.t) || one_step(r, g, h.t)));
+          if (with && (!with_[i] || back))
+            from_[i] = covers(g, h.t) ? h.t : was_[i] ? before_[i] : g;
+          with_.set(i, with);
         }
+        if (put_[i] && with_[i]) { // Her record keeps only the lines of steps made with her.
+          record_.put('g', host_, g_[i]);
+          prev_[i] = g_[i].t, had_.set(i), changed_ = true;
+        }
+        put_.reset(i);
         Plan p = plan(r, h, views[i], g, Where{zone, armed, force == r.id, &zones_, ordered});
-        if (!with_[i] && p.why != Why::done && p.why != Why::ahead && p.why != Why::failed && p.why != Why::deny) {
+        if ((!with_[i] || !covers(g, from_[i])) && p.why != Why::done && p.why != Why::ahead &&
+            p.why != Why::failed && p.why != Why::deny && p.why != Why::board) {
           p = Plan();
           p.id = r.id, p.why = Why::behind;
           if (!behind_[i]) {
@@ -1899,10 +1919,12 @@ private:
   Zones zones_;
   Entry h_[kRowCount];
   std::bitset<kRowCount> held_, unsynced_, had_, based_, ahead_sent_, undefined_, blocked_;
-  // Together: known_, a line of that quest this session; with_, its last move was made with her; decide_, a move the
-  // next pass judges, against before_ (the host's state before it) when was_ (known then).
-  std::bitset<kRowCount> known_, with_, decide_, was_, behind_;
-  Tuple prev_[kRowCount], base_[kRowCount], before_[kRowCount];
+  // Together: known_, a line of that quest this session; with_, its last move was made with her, in a run of shared
+  // steps that began where from_ holds; decide_, a move the next pass judges, against before_ (the host's state before
+  // it) when was_ (known then); put_, a line g_ her record takes once that pass finds it made with her.
+  std::bitset<kRowCount> known_, with_, decide_, was_, behind_, put_;
+  Tuple prev_[kRowCount], base_[kRowCount], before_[kRowCount], from_[kRowCount];
+  Entry g_[kRowCount];
   std::string host_at_; // The host's zone from its at line.
   uint32_t have_[kRowCount] = {}, wait_seq_[kRowCount] = {};
   std::string wait_[kRowCount];

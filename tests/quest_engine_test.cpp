@@ -857,9 +857,11 @@ void two_worlds() {
   assert(h.calls == 0 && !has(k.guest->log, "refused") && g.calls == g.acquires + g.accepts + g.completes);
   assert(std::all_of(g.w.rewards.begin(), g.w.rewards.end(), [](int n) { return n <= 1; }));
   assert(g.w.rewards[s1] == 1 && g.w.rewards[e1] == 1 && g.w.rewards[r6] == 1 && g.w.rewards[s17] == 0);
-  // Her record holds the host's lines, his holds his marks for her.
+  // His record holds his marks for her; hers (this session's: her on starts it empty here) the host's lines of steps
+  // made with her, never one of a quest she is behind on.
   assert(k.host->record.find("h 76561198000000002 41 ") != std::string::npos);
-  assert(k.guest->record.find("g 76561198000000001 41 ") != std::string::npos);
+  assert(k.guest->record.find("g 76561198000000001 42 ") != std::string::npos);
+  assert(k.guest->record.find("g 76561198000000001 54 ") == std::string::npos);
 }
 
 // The host comes on after her: her first on found nothing running, so the host's on brings her on again, once.
