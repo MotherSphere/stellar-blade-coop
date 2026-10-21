@@ -24,6 +24,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -163,7 +164,7 @@ public:
 
   // ---- The game thread ----
   // One pass, every 250 ms. base: the game's image base; slot: the save-slot line (slot::line), whose "slot=coop "
-  // gates the feature and must not change while it runs.
+  // gates the feature; while it runs, only a load's none or unknown may stand in for that co-op save.
   template <class Game> void tick(Game &g, uint64_t base, std::string_view slot, uint64_t now_ms) {
     std::vector<std::string> inbox;
     uint16_t force = 0;
@@ -297,15 +298,28 @@ private:
     if (running_ && say)
       out_.log.push_back("quests: off (" + why + ")");
     running_ = armed_ = said_on_ = false;
-    host_.reset(), guest_.reset(), held_in_.clear();
+    host_.reset(), guest_.reset(), held_in_.clear(), heard_.reset();
   }
 
-  // The gate: not on SB's logic thread, a co-op save, the world, the manager and the unit as they were at on.
+  // The slot line without its marker= field: the verdict, the index and the saves mode.
+  static std::string slot_key(std::string_view slot) {
+    const size_t a = slot.find(" marker="), b = a == std::string_view::npos ? a : slot.find(' ', a + 1);
+    return a == std::string_view::npos ? std::string(slot)
+                                       : std::string(slot.substr(0, a)) +
+                                             std::string(b == std::string_view::npos ? "" : slot.substr(b));
+  }
+  // The gate: not on SB's logic thread, and the co-op save of on (verdict, index and saves mode). A load (the title, a
+  // map) reads slot=none or unknown and no world, manager or unit for a while: the side waits through it, then takes
+  // the world, manager, unit and owner SB has then; the walk sees the load by the quest objects.
   template <class Game> bool gate(Game &g, std::string_view slot) {
     if (!game_thread(g))
       return false;
-    if (slot.rfind("slot=coop ", 0) != 0) {
-      drop(armed_ ? "slot" : "save", "not on a co-op save (" + std::string(slot) + ")");
+    if (armed_ && (slot.rfind("slot=none ", 0) == 0 || slot.rfind("slot=unknown ", 0) == 0))
+      return false;
+    if (slot.rfind("slot=coop ", 0) != 0 || (armed_ && slot_key(slot) != slot_key(slot_))) {
+      drop(armed_ ? "slot" : "save",
+           std::string(armed_ ? "another save than the co-op one of on (" : "not on a co-op save (") +
+               std::string(slot) + ")");
       return false;
     }
     uint64_t logic = 0, world = 0, mgr = 0, unit = 0;
@@ -313,28 +327,22 @@ private:
     if (!get(g, rebased(kLogicGlobal), logic) || !get(g, rebased(kWorldGlobal), world) ||
         !get(g, rebased(kManagerGlobal), mgr))
       return false;
-    auto changed = [&] {
-      drop("slot", "the save, world or quest unit changed");
-      return false;
-    };
-    if (armed_ && (slot != slot_ || world != world_ || mgr != mgr_))
-      return changed();
     if (!world || !mgr) // Loading: wait.
       return false;
     if (!plausible(world) || !plausible(mgr) || (logic && !plausible(logic)))
       return implausible("globals");
     unit = g.unit(mgr);
-    if (armed_ && unit != unit_)
-      return changed();
     if (!unit)
       return false;
     if (!plausible(unit) || !get(g, unit + kOwner, owner))
       return implausible("quest unit");
-    if (armed_ && owner != owner_)
-      return changed();
+    if (!owner)
+      return false;
+    if (armed_ && (world != world_ || mgr != mgr_ || unit != unit_ || owner != owner_)) {
+      log("quests: the game world or quest unit is new (a load)");
+      world_ = world, mgr_ = mgr, unit_ = unit, owner_ = owner;
+    }
     if (!armed_) {
-      if (!owner)
-        return false;
       slot_ = std::string(slot), world_ = world, mgr_ = mgr, unit_ = unit, owner_ = owner, armed_ = true;
       first_ = true;
       const size_t at = slot.find(" index=");
@@ -522,7 +530,8 @@ private:
     return true;
   }
 
-  // The current zone's alias, "" while unknown (no logic yet, None, a numbered name or the pool not ready).
+  // The current zone's alias, "" while unknown (no logic yet, None or the pool not ready). An FName keeps a trailing
+  // "_<n>" as its Number, n + 1 (Zone_Xion_10 is Zone_Xion with 11), which SB's FUN_142939000 adds back the same way.
   template <class Game> bool zone(Game &g, std::string &out) {
     uint32_t name[2] = {}, none = 0;
     uint8_t ready = 0;
@@ -533,31 +542,33 @@ private:
     if (!read(g, logic_ + kZoneAt, name, sizeof name) || !get(g, rebased(kNoneName), none) ||
         !get(g, rebased(kNamesReady), ready))
       return false;
-    if (!ready || !name[0] || name[0] == none || name[1]) {
+    if (!ready || !name[0] || name[0] == none) {
       out.clear();
       return true;
     }
-    if (name[0] == zone_index_) {
-      out = zone_text_;
-      return true;
-    }
+    if (name[0] != zone_index_ && !zone_text(g, name[0]))
+      return false;
+    out = name[1] ? zone_text_ + "_" + std::to_string(name[1] - 1) : zone_text_;
+    return true;
+  }
+  // The text of the name pool's entry index into zone_text_, cached by index.
+  template <class Game> bool zone_text(Game &g, uint32_t index) {
     uint32_t block = 0;
     uint64_t at = 0;
     uint16_t header = 0;
     char text[kMaxName];
-    if (!get(g, rebased(kNamePool) + 8, block) || (name[0] >> 16) > block ||
-        !get(g, rebased(kNamePool) + 0x10 + 8 * uint64_t(name[0] >> 16), at) || !plausible(at) ||
-        !get(g, at + 2 * uint64_t(name[0] & 0xffff), header))
+    if (!get(g, rebased(kNamePool) + 8, block) || (index >> 16) > block ||
+        !get(g, rebased(kNamePool) + 0x10 + 8 * uint64_t(index >> 16), at) || !plausible(at) ||
+        !get(g, at + 2 * uint64_t(index & 0xffff), header))
       return implausible("zone name");
     const size_t n = header >> 6;
     if ((header & 1) || !n || n > kMaxName)
       return implausible("zone name");
-    if (!read(g, at + 2 * uint64_t(name[0] & 0xffff) + 2, text, n))
+    if (!read(g, at + 2 * uint64_t(index & 0xffff) + 2, text, n))
       return false;
     if (!std::all_of(text, text + n, [](char c) { return c >= 0x20 && c < 0x7f; }))
       return implausible("zone name");
-    zone_index_ = name[0], zone_text_.assign(text, n);
-    out = zone_text_;
+    zone_index_ = index, zone_text_.assign(text, n);
     return true;
   }
 
@@ -565,8 +576,10 @@ private:
   template <class Game>
   void pass(Game &g, std::string_view slot, uint64_t now_ms, std::vector<std::string> &inbox, uint16_t force,
             std::vector<std::string> &lines) {
-    for (std::string &l : inbox) // Kept until the side runs: her on may come before ours is armed.
-      if (held_in_.size() < kMaxInbox)
+    // Kept until the side runs: her on may come before ours is armed. A recording, a probe and a replay have no
+    // partner: a linked one's lines would mix with theirs.
+    for (std::string &l : inbox)
+      if (held_in_.size() < kMaxInbox && (side_.mode == Mode::host || side_.mode == Mode::guest))
         held_in_.push_back(std::move(l));
     if (!gate(g, slot) || !running_)
       return;
@@ -662,10 +675,17 @@ private:
     return latched_;
   }
 
-  // The host's side of her lines: the good ones that show something.
+  // The host's side of her lines: the good ones that show something, her ahead once a quest and generation as she
+  // sends it.
   void heard(const Message &m, uint64_t now_ms) {
     if (!host_->receive(m, now_ms) || m.type != Type::ahead)
       return;
+    if (heard_gen_ != host_->generation())
+      heard_gen_ = host_->generation(), heard_.reset();
+    const int i = row_index(m.e.id);
+    if (i < 0 || heard_[size_t(i)])
+      return;
+    heard_.set(size_t(i));
     Note n;
     n.why = Why::ahead, n.id = m.e.id;
     notes_.push_back(n);
@@ -851,7 +871,8 @@ private:
   std::unique_ptr<Guest> guest_;
   bool running_ = false, armed_ = false, said_on_ = false, first_ = false, arm_ = false, fed_ready_ = false;
   uint64_t base_ = 0, world_ = 0, mgr_ = 0, unit_ = 0, logic_ = 0, start_ms_ = 0, stats_ms_ = 0, host_on_ms_ = 0;
-  uint32_t owner_ = 0, zone_index_ = 0;
+  uint32_t owner_ = 0, zone_index_ = 0, heard_gen_ = 0;
+  std::bitset<kRowCount> heard_; // Quests her ahead was shown for in heard_gen_.
   int slot_index_ = -1;
   std::string slot_, zone_, zone_text_, replay_at_, waited_;
   std::deque<std::string> feed_;

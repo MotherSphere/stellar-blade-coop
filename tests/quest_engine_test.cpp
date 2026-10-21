@@ -1,14 +1,15 @@
 // Shared quests in the game, on the build machine against fake memory laid out like the pinned build: the walk over
 // the quest unit's three arrays and its ID map (inline and heap allocation bits, a free slot's stale pointer, Request
-// objects only in the map), implausible reads latching, the zone's FName from the name pool, the guards before each of
-// SB's calls (the task's state, group and Complete slot, acquire only off the map and once armed for the load, the
-// Request accept only at state 0 on a Normal row with the Request vtable, never on SB's logic thread), the gate (a
-// co-op save, the same world and unit), one step a pass, a fault, a link dropped between two steps; two PCs through
+// objects only in the map), implausible reads latching, the zone's FName from the name pool with its number, the guards
+// before each of SB's calls (the task's state, group and Complete slot, acquire only off the map and once armed for the
+// load, the Request accept only at state 0 on a Normal row with the Request vtable, never on SB's logic thread), the
+// gate (the co-op save of on; another save says off, a load only pauses), one step a pass, a fault, a link dropped
+// between two steps, partner lines in a mode with no partner, her ahead shown once; two PCs through
 // channel 2's text at 120 +/- 30 ms: steps made together applied once with SB's completion and reward once, a step
 // acting in another zone waiting for her there, a kill step waiting for her own kill, a denied quest never moving, her
 // Request handed in at her own board, a guest away or behind getting nothing of that quest, her own quest shown as
 // ahead on both sides, a re-join snapshot, a host that comes on after her, coop quests force and status, and lost
-// lines; and a recording replayed into another save.
+// lines, loading screens and reloads on both sides; and a recording replayed into another save.
 #include "quest_engine.h"
 
 #include <array>
@@ -180,7 +181,7 @@ struct Pc {
   std::map<uint64_t, std::array<size_t, 4>> where; // A task object: its row, group, container, position.
   std::vector<uint64_t> extra;                      // Helper quests SB completed: in the Complete array.
   std::vector<bool> lone = std::vector<bool>(kRowCount); // An object in the ID map only, at state 0.
-  bool extra_mapped = true, heap_bits = false;
+  bool extra_mapped = true, heap_bits = false, no_unit = false;
   uint64_t logic = 0, world = 0, mgr = 0, unit_at = 0, data = 0, bits = 0, lists[3] = {}, block = 0;
   uint32_t owner = 0x51, thread_id = 100, cursor = 1;
   int calls = 0, acquires = 0, accepts = 0, completes = 0, units = 0;
@@ -227,9 +228,14 @@ struct Pc {
       names[text] = index;
     return index;
   }
+  // The zone's FName as UE makes it: a trailing "_<n>" (n with no leading zero) is kept as the Number, n + 1.
   void zone(const std::string &z) {
-    mem.put<uint32_t>(logic + kZoneAt, z.empty() ? 0 : name(z));
-    mem.put<uint32_t>(logic + kZoneAt + 4, 0);
+    const size_t u = z.rfind('_');
+    const std::string n = u == std::string::npos ? "" : z.substr(u + 1);
+    const bool split = !n.empty() && n.size() < 10 && (n.size() == 1 || n[0] != '0') &&
+                       std::all_of(n.begin(), n.end(), [](char c) { return c >= '0' && c <= '9'; });
+    mem.put<uint32_t>(logic + kZoneAt, z.empty() ? 0 : name(split ? z.substr(0, u) : z));
+    mem.put<uint32_t>(logic + kZoneAt + 4, split ? uint32_t(std::stoul(n)) + 1 : 0);
   }
   void render() {
     where.clear();
@@ -330,7 +336,7 @@ struct Pc {
   uint64_t unit(uint64_t manager) {
     ++units;
     assert(manager == mgr && thread_id != logic_thread());
-    return unit_at;
+    return no_unit ? 0 : unit_at;
   }
   bool acquire(uint64_t manager, uint32_t who, uint32_t quest) {
     ++calls;
@@ -479,8 +485,9 @@ void implausible() {
   }
 }
 
-// The zone's alias from the name pool: narrow text; unknown (and no hold on it) for None, a numbered name, or the pool
-// not ready; a wide entry or a block past the pool's current one is implausible.
+// The zone's alias from the name pool: narrow text, with "_" and Number - 1 after it when the Number is not 0
+// (Zone_Xion_10 is Zone_Xion with 11, Zone_ME_04 and Zone_DED10 are whole names); unknown (and no hold on it) for
+// None or the pool not ready; a wide entry or a block past the pool's current one is implausible.
 void zone_names() {
   auto read_zone = [](void (*set)(Pc &)) {
     auto s = std::make_unique<Side>(setup(Mode::probe));
@@ -494,15 +501,23 @@ void zone_names() {
     return l.substr(a, l.find(',', a) - a);
   };
   assert(zone_of(*read_zone([](Pc &) {})) == "Zone_Xion_10");
+  auto split = read_zone([](Pc &) {});
+  uint32_t number = 0;
+  split->pc.mem.read(split->pc.logic + kZoneAt + 4, &number, 4);
+  assert(number == 11 && split->pc.names.count("Zone_Xion") && !split->pc.names.count("Zone_Xion_10"));
+  split->pc.zone("Zone_Xion_20"), split->e.ask_status(), split->tick(1250); // The same entry, another number.
+  assert(split->status.find("zone Zone_Xion_20") != std::string::npos);
+  assert(zone_of(*read_zone([](Pc &p) { p.zone("Zone_ME_04"); })) == "Zone_ME_04");
+  assert(zone_of(*read_zone([](Pc &p) { p.zone("Zone_DED10"); })) == "Zone_DED10");
   assert(zone_of(*read_zone([](Pc &p) { p.zone(""); })) == "unknown");
   assert(zone_of(*read_zone([](Pc &p) { p.zone("None"); })) == "unknown");
-  assert(zone_of(*read_zone([](Pc &p) { p.mem.put<uint32_t>(p.logic + kZoneAt + 4, 3); })) == "unknown");
+  assert(zone_of(*read_zone([](Pc &p) { p.mem.put<uint32_t>(p.logic + kZoneAt + 4, 3); })) == "Zone_Xion_2");
   assert(zone_of(*read_zone([](Pc &p) { p.mem.put<uint8_t>(rebased(kNamesReady), 0); })) == "unknown");
   auto wide = read_zone([](Pc &p) { p.mem.put<uint32_t>(p.logic + kZoneAt, p.name("Zone_Wide", true)); });
   assert(wide->e.latched() && has(wide->log, "implausible zone name"));
   auto past = read_zone([](Pc &p) { p.mem.put<uint32_t>(p.logic + kZoneAt, 0x10002); });
   assert(past->e.latched() && has(past->log, "implausible zone name"));
-  auto bad = read_zone([](Pc &p) { p.mem.put<uint8_t>(p.block + 2 * p.names["Zone_Xion_10"] + 3, 7); });
+  auto bad = read_zone([](Pc &p) { p.mem.put<uint8_t>(p.block + 2 * p.names["Zone_Xion"] + 3, 7); });
   assert(bad->e.latched() && has(bad->log, "implausible zone name"));
 }
 
@@ -614,8 +629,10 @@ void one_a_pass() {
   assert(has(r->log, "Quest_Sub_016 unsynced for the session"));
 }
 
-// The gate: a co-op save at on, then the same save line, world, manager and unit; any change says off slot and stops
-// before any call. Nothing happens before the world and the unit exist.
+// The gate: a co-op save at on. After that another save (another co-op slot, a main one, another saves mode) says off
+// slot and stops before any call; a load (slot=none or unknown, no world, manager or unit for a while) only pauses the
+// side, which then takes the world, manager, unit and owner SB has; a marker read anew changes nothing. Nothing happens
+// before the world and the unit exist.
 void gate() {
   auto main_save = std::make_unique<Side>(setup(Mode::guest, kHostId));
   main_save->slot = "slot=main index=1 marker=2 saves=main";
@@ -631,25 +648,60 @@ void gate() {
   loading->pc.mem.put(rebased(kWorldGlobal), loading->pc.world), loading->tick(1250);
   assert(loading->lines == std::vector<std::string>{q("on 0")});
 
-  for (int change = 0; change < 5; ++change) {
+  const size_t e1 = at("Quest_Epic_01"), s16 = at("Quest_Sub_016");
+  auto session = [] {
     auto s = std::make_unique<Side>(setup(Mode::guest, kHostId));
     host_says(*s, {"q 1 1 14 1 - - - ."});
     s->tick(1000);
     assert(s->pc.acquires == 1);
     s->hear(q("q 1 2 14 3 - 0:- - -"));
-    switch (change) {
-    case 0: s->slot = "slot=coop index=3 marker=3 saves=coop"; break;
-    case 1: s->pc.mem.put<uint64_t>(rebased(kWorldGlobal), 0); break;
-    case 2: s->pc.mem.put(rebased(kManagerGlobal), s->pc.mem.alloc(0x1b8)); break;
-    case 3: s->pc.unit_at = s->pc.mem.alloc(0xa0), s->pc.render(); break;
-    case 4: s->pc.owner = 0x52, s->pc.render(); break;
-    }
+    return s;
+  };
+  for (const char *other : {"slot=coop index=3 marker=3 saves=coop", "slot=main index=2 marker=1 saves=main",
+                            "slot=coop index=2 marker=2 saves=off"}) {
+    auto s = session();
+    s->slot = other;
     s->tick(1250);
-    assert(s->lines.back() == q("off slot") && has(s->log, "the save, world or quest unit changed"));
+    assert(s->lines.back() == q("off slot") && has(s->log, std::string("another save than the co-op one of on (") + other));
     assert(s->pc.calls == 1 && !s->e.latched());
     s->tick(1500);
     assert(s->pc.calls == 1);
   }
+  for (int load = 0; load < 5; ++load) {
+    auto s = session();
+    Pc &pc = s->pc;
+    switch (load) {
+    case 0: s->slot = "slot=none index=2 marker=2 saves=coop"; break;
+    case 1: s->slot = "slot=unknown index=? marker=? saves=?"; break;
+    case 2: pc.mem.put<uint64_t>(rebased(kWorldGlobal), 0); break;
+    case 3: pc.mem.put<uint64_t>(rebased(kManagerGlobal), 0); break;
+    case 4: pc.no_unit = true; break;
+    }
+    s->tick(1250), s->tick(1500);
+    assert(pc.calls == 1 && !has(s->lines, q("off")));
+    s->slot = kSlot, pc.no_unit = false;
+    pc.mem.put(rebased(kWorldGlobal), pc.world), pc.mem.put(rebased(kManagerGlobal), pc.mgr);
+    s->tick(1750);
+    assert(pc.calls == 2 && pc.w.v[e1].state == 3 && !has(s->lines, q("off")));
+  }
+  auto marker = session();
+  marker->slot = "slot=coop index=2 marker=? saves=coop";
+  marker->tick(1250);
+  assert(marker->pc.calls == 2 && !has(marker->lines, q("off")));
+  // A load of the same co-op save: SB's world, manager, unit and owner anew and every quest object made again. The
+  // side takes them and her next step goes to the new manager and owner.
+  auto reload = session();
+  Pc &pc = reload->pc;
+  reload->slot = "slot=none index=2 marker=2 saves=coop", pc.mem.put<uint64_t>(rebased(kWorldGlobal), 0);
+  reload->tick(1250);
+  pc.world = pc.mem.alloc(0x2230), pc.mgr = pc.mem.alloc(0x1b8), pc.unit_at = pc.mem.alloc(0xa0), pc.owner = 0x52;
+  pc.mem.put(rebased(kWorldGlobal), pc.world), pc.mem.put(rebased(kManagerGlobal), pc.mgr);
+  pc.load();
+  reload->slot = kSlot;
+  reload->hear(q("q 1 1 53 1 - - - ."));
+  reload->tick(1500), reload->tick(1750);
+  assert(has(reload->log, "quests: the game world or quest unit is new (a load)") && has(reload->log, "a save load"));
+  assert(pc.calls == 3 && pc.w.v[e1].state == 3 && pc.w.v[s16].state == 1 && !has(reload->lines, q("off")));
 }
 
 // A fault in the glue's SEH guard: off fault to the partner, nothing more this run, a new on included.
@@ -663,6 +715,46 @@ void fault() {
   s->e.on(setup(Mode::guest, kHostId));
   s->tick(1500);
   assert(s->lines.back() == q("off fault") && s->pc.calls == 1);
+}
+
+// A recording, a probe and a replay have no partner: lines that come in anyway change nothing (a guest's off would
+// stop a recording, a live host's lines would mix with a replay's).
+void unlinked_modes() {
+  auto rec = std::make_unique<Side>(setup(Mode::record));
+  rec->tick(1000);
+  rec->hear(q("off title"));
+  rec->tick(1250);
+  rec->pc.acquire(at("Quest_Sub_017"));
+  rec->tick(1500);
+  assert(!rec->recorded.empty() && rec->recorded.back() == "500 " + q("q 1 1 54 1 - - - ."));
+  Setup r = setup(Mode::replay);
+  auto play = std::make_unique<Side>(r);
+  play->tick(1000);
+  host_says(*play, {"q 1 1 14 1 - - - ."});
+  play->tick(1250), play->tick(1500);
+  assert(play->pc.calls == 0 && play->lines.empty());
+}
+
+// Her ahead, sent again and again by a buggy or hostile guest: the host shows it once a quest and generation.
+void ahead_once() {
+  auto s = std::make_unique<Side>(setup(Mode::host, kGuestId));
+  auto shown = [&](uint16_t id) {
+    return std::count_if(s->notes.begin(), s->notes.end(), [&](const Note &n) { return n.why == Why::ahead && n.id == id; });
+  };
+  s->hear(q("on 0"));
+  s->tick(1000);
+  assert(has(s->lines, q("snap 1 0")));
+  for (int n = 0; n < 6; ++n)
+    s->hear(q("ahead 1 49"));
+  s->hear(q("ahead 1 41"));
+  s->tick(1250), s->tick(1500);
+  assert(shown(49) == 1 && shown(41) == 1);
+  s->hear(q("on 0"));
+  s->tick(6000);
+  assert(has(s->lines, q("snap 2 0")));
+  s->hear(q("ahead 2 49")), s->hear(q("ahead 2 49"));
+  s->tick(6250);
+  assert(shown(49) == 2 && shown(41) == 1);
 }
 
 // The link drops between two of her steps: she keeps the step made, one SB transition short of the host, a state SB
@@ -879,6 +971,37 @@ void late_host() {
   assert(count(k.guest->lines, q("on 0")) == 2 && count(k.host->lines, q("snap ")) == 1);
 }
 
+// Loading screens in a session: the host's reload of the same co-op save sends a new snapshot (a new generation) and
+// the steps made together go on; hers re-arms acquire for the load and goes on too. Nobody says off.
+void loads() {
+  auto two = std::make_unique<Two>();
+  Two &k = *two;
+  Pc &h = k.host->pc, &g = k.guest->pc;
+  const size_t s1 = at("Quest_Sub_001"), s16 = at("Quest_Sub_016");
+  k.zone("Zone_WLA_30");
+  k.steps(4);
+  h.acquire(s1);
+  k.steps(2);
+  assert(g.w.v[s1].state == 1 && g.calls == 1);
+  auto reload = [&](Side &s) { // The title (no save, no world), then the same save with every quest object anew.
+    s.slot = "slot=none index=2 marker=? saves=coop", s.pc.mem.put<uint64_t>(rebased(kWorldGlobal), 0);
+    k.steps(3);
+    s.pc.load(), s.pc.mem.put(rebased(kWorldGlobal), s.pc.world), s.slot = kSlot;
+    k.steps(3);
+    assert(has(s.log, "quests: a save load"));
+  };
+  reload(*k.host);
+  assert(has(k.host->lines, q("snap 2 1")) && has(k.guest->log, "quests: snapshot 2 complete, 1 quests"));
+  h.play(s1);
+  k.steps(3);
+  assert(k.g(s1) == k.h(s1) && g.calls == 2);
+  reload(*k.guest);
+  h.acquire(s16);
+  k.steps(3);
+  assert(g.w.v[s16].state == 1 && g.calls == 3);
+  assert(!has(k.host->lines, q("off")) && !has(k.guest->lines, q("off")));
+}
+
 // coop quests force: a step held as unseen (here the host's zone could not be read when it ended Quest_WALN10_001's
 // group, whose warp the tables cannot place) goes where she stands, once, and the notice says SB moves her; a zone
 // hold is never forced.
@@ -1027,9 +1150,12 @@ int main() {
   one_a_pass();
   gate();
   fault();
+  unlinked_modes();
+  ahead_once();
   dropped();
   two_worlds();
   late_host();
+  loads();
   forced();
   lossy();
   record_replay();
