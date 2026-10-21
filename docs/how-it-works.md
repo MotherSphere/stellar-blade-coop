@@ -40,7 +40,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `partner.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
 | `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui_model.lua` | The menu's rows and settings, with no engine call |
-| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line and the notices written in Lua, in English and French |
+| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line and the notices written in Lua, in the game's 23 text languages |
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
@@ -90,7 +90,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`9:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`11:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -124,7 +124,7 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
 - `deny <SteamID>`, or 60 s with no answer, refuses the player, and so does leaving before the answer.
   `remove <SteamID>` refuses any player already in, friends included.
 - A refused player gets a `SBC reject` with the reason (`you were not let in`, `no answer within 60 s`, `you were
-  removed from this session`). Every protocol 9 build shows it as `<host> refused the link: <reason>` and leaves. That
+  removed from this session`). Every build since protocol 9 shows it as `<host> refused the link: <reason>` and leaves. That
   player stays refused until the host creates a new lobby: the host never greets them again, ignores their session
   requests and messages, and sends `you cannot join this session again` each time they come back. Steam has no way to
   remove a lobby member, so a game that ignores the reject keeps the second place in the lobby. It gets the reject
@@ -166,11 +166,12 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC9 ping <seq> <ms>
-SBC9 pong <seq> <ms>
-SBC9 photo <0|1|s> <both|notice>
-SBC9 say <text>
-SBC9 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC11 ping <seq> <ms>
+SBC11 pong <seq> <ms>
+SBC11 photo <0|1|s> <both|notice>
+SBC11 say <text>
+SBC11 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC11 paks <count> <hash>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -195,7 +196,15 @@ every 100 ms, or 500 ms after a read that took over 1 ms (game build 24463856 on
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
 blocks or the life state is over 255. Your friend's last line shows in `coop status` as `mate=` for 3 s.
 
-Say and vit lines from a friend who has not passed the handshake are ignored, without a log line.
+The paks line is sent reliable, once after each handshake. At start the native part lists the files under
+`SB/Content/Paks` (three folders deep) and leaves out the base game's own (`pakchunk<n>-WindowsNoEditor` and
+`pakchunk<n>optional-WindowsNoEditor`, `global`). The line carries the number of `.pak` files left and a 64-bit hash of
+their paths and sizes, and of their `.ucas` and `.utoc` files. The header of `coop-link.log` names those `.pak` files
+(`paks <n> beyond the base game, hash <hash>: ...`). When your friend's hash differs from yours, `coop status` has
+`paks=differ <yours> <theirs>` and a notice says so once a session; with the same hash it has `paks=same`. Nothing is
+refused: enemies that differ already stay unshared (same character id and maximum HP for each pair).
+
+Say, vit and paks lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -206,9 +215,11 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 9` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 11` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
-without Nagle delay).
+without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
+second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
+other screen.
 
 - Your table goes to your friend at once and again every 5 s, so a table lost with a broken session, or sent before
   they accepted, arrives with a later resend. An identical table is ignored. A changed capture (a new outfit, the
@@ -217,9 +228,9 @@ without Nagle delay).
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
 - Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
   sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
-  5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s, under
-  Steam's default send rate of 256 KiB/s.
-- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 160 messages
+  5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s
+  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s.
+- Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 240 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
   logged once (`ignored pose data from <id>: not in our lobby`). Channel 1 traffic does not count as hearing from a
@@ -241,7 +252,9 @@ instead of misread:
 | 6 | Four effect slots in each pose |
 | 7 | Steam channel 2 for the shared enemies, and the photo line |
 | 8 | The say and vit lines, for the chat and the partner card |
-| 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 (this version) |
+| 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
+| 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
+| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines (this version) |
 
 ### Link health in the log
 
@@ -376,6 +389,270 @@ pose's four slots, and the native part writes the drawn slots into four boxes be
 starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the run and
 the ghost stays. See [usage.md](usage.md#looks).
 
+## Same-place enemies
+
+Same place (`same_place`, experimental, on by default, not tested in game yet) builds on shared enemies: the same
+pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs the enemy's AI and
+moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner. HP, Shield,
+balance and death stay with the host's game whoever owns the pair.
+
+- The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
+  (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
+  guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
+  off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
+  again, while shared enemies wait or run (`coop fight pilot off` and `on`).
+- Every pair starts as the host's. With `aggro=game` (the host's setting, the default) the host's job runs a rule on
+  each pair every turn: the pair goes to whoever hit it last (a hit on the host's copy, or a claim of hers that
+  lowered a stat), and after 10 s without a hit to the other player once that player's EVE has stood at least 3 m
+  nearer for 2 s. Nothing changes hands within 4 s of the last change, while an AI task runs on the owner's copy,
+  during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the host draws a copy that the game
+  froze before the mod did (below: its AI would not run once the host owns it); the start of a takedown is the
+  exception (below). Each change moves the owner epoch one up and goes to her as
+  `SBF11 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H.
+  With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
+- The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
+  side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
+  except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
+  `SBF11 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
+  other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
+  pauses.
+- In the frame a hand-over makes a pair a game's own at a new epoch, its game thread first puts the copy back
+  (below), then calls the game's force target function (`FUN_141a36010`) toward its own EVE: detect result 3, aggro
+  level 1, and the game's own TargetedByEnemy jobs. The call runs only with the cached net mode 0 (in net mode 3 that
+  function would send server requests), no logic task in flight, the two game objects it fetches already made (their
+  getters would make them), the copy found by its GUID, its own EVE found and an AI owner on the copy. A task in
+  flight or a copy not found puts it off for up to 250 ms. A refused take-over goes back to the job, and the guest
+  gives the pair back with `own-no target`. A pair that comes back to the host after an own-no or
+  place 0 gets no call: the host's copy keeps the target it had.
+- Every 33 ms the owner's game thread reads each enemy it owns: position, rotation, animation speed, BattleMode,
+  whether it is dying and whether an AI task runs, into one `SBE` message on channel 1 (26 bytes an enemy, 16 enemies
+  at most), stamped with the pose clock. It also walks the game's Show manager (the game's animation sequences) for the
+  Shows each enemy starts, and sends `show`, `show-set` and `show-stop` lines on channel 2 with the asset's path and
+  the hit context. It never sends a Show that one of its own replays started, so a pair just taken over sends nothing
+  back. Only two lookups by GUID are called for this; the rest is plain reads.
+- On the drawing side's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel
+  2004400), only in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5
+  times in any 10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the
+  BlockAI dispel effect (2000101) takes it off. That dispel would also end the game's own BlockAI, and the game
+  freezes some enemies from their spawn until an event of its own (a boss before its cutscene, the sitting LabMutants
+  of AYL_02). Timed rows hold the same state too, such as LV_Sequence_Warp_Effect (7000144, 1 s). A copy that already
+  holds state 39 when the mod first freezes it gets no effect from the mod and no dispel on the way out
+  (`thaw skipped` in the log). When the game's freeze ends, by its own dispel or by running out, the next census finds
+  state 39 gone and the mod freezes the copy as any other. A copy whose last dispel the game refused is the exception:
+  its state 39 is the mod's, so the mod freezes it and dispels it again (it keeps the last 16 such copies).
+- On the drawing side's game thread, each frame, each copy is found again by its GUID. Its movement component goes out
+  of the game's parallel movement manager through the game's own function for that (only on the game's class with the
+  game's function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the
+  owner's speed, the root moves to the sample at the ghost's draw time, and Velocity follows the samples. Each Show is
+  replayed through the game's Show handle API when the draw time reaches its stamp, with its hit context written into
+  the new player. A Show that the drawing game started on the copy less than 1 s before (a hit's reaction, a
+  mirrored crowd control, its death) and still plays is not replayed a second time.
+- A copy that is knocked down, groggy, in the air or in a takedown is released: the game moves it until 200 ms after
+  that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
+- Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
+  (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
+  with `aggro=game`, she sends `SBF11 exec <gen> <hguid> 1`, and `SBF11 exec <gen> <hguid> 0` once her copy has held
+  none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
+  one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
+  holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
+  without the 4 s hold or the guards, in that turn once its copy is out of NoDamageNoHit, freezes its copy although
+  Groggy releases it, and holds her lethal claim (its copy at 1 HP, its hp lines at 0) and its own dead for that enemy
+  until her exec 0: 6 s after her exec 1 at most, and her lethal claim 6 s after it came at most (`held-expired`). A
+  marker on the host's copy of an enemy she owns gives it back to the host the same way. While a takedown runs it counts
+  as its executor's hit, so a living enemy stays with them for 10 s after it unless the other player hits it. The guest
+  takes an own G for a copy in her takedown even under NoDamageNoHit.
+- The owner's SBE entry carries flag 8 (`kExec`) while its copy holds a marker. The drawing side then freezes its copy
+  despite Groggy, follows the stream through Groggy and through the stream's dying flag, and goes back onto the stream
+  at once instead of after 200 ms, so the takedown plays there with the executor's ghost. Its own copy's death still
+  releases it. Nothing in the mod starts `Passive_FinishReady` (2001102), and the host refuses an exec line for a
+  BossMonster. The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too; the finish
+  guard ([Shared bosses](#shared-bosses)) takes it off her copy and holds her killing hit on the host's boss.
+- Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
+  in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
+  its own SEH latch: the first fault stops it for the run, and after a fault in the mod's own reads every copy is put
+  back once.
+- `coop fight pilot test` limits the guest's side for solo tests from a recording: `freeze` (the BlockAI effect only),
+  `cmc` (the movement component out too, nothing written), `drive` (root, speed and Velocity too) or `replay` (all of
+  it, the default). Each change puts every copy back once. `coop fight pilot test target` calls the force target once,
+  on the first enemy this game owns, and logs its target, aggro level and detect result as they change for a second.
+  `coop fight pilot test exec` empties the balance of the first frozen copy this game draws at the job's next turn
+  (a stamina drop, as a hit of its EVE), so the copy goes groggy and can be taken down.
+
+The commands, the notices and the solo test are in [usage.md](usage.md#same-place-experimental).
+
+## Same spawns
+
+Same spawns (`same_spawns`, experimental, on by default, not tested in game yet) has the guest's game hold the host's
+common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates pairs through its
+spawn key like any other.
+
+- Only EventSpawnTable rows that spawn on zone entry (SpawnType EnterZone), whose enemy is a Monster that shared
+  enemies share (`fight_chars`, or with `auto` every Monster but the few it leaves out) and whose SaveType is None,
+  ResetZone or ResetZoneWithTransform take part. Save and SaveWithTransform rows, rows that keep
+  their object through a zone reset (`bResetZoneKeepObject`), and ZoneEvent and quest rows are never touched. Each
+  game reads a row through the game's own lookup (`FUN_141a9db80`) and the row's zone through the ZoneTable lookup
+  (`FUN_141a9b8a0`), and keeps what it read for the session. The game runs a row's lazy init (vtable slot `+0x20`)
+  before its first use; in this build that slot is an empty function for both row types, so reading the rows without
+  it skips nothing.
+- Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
+- Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
+  manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF11
+  epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
+  side drops a line of another epoch.
+- The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
+  spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
+  `SBF11 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF11 spawn <gen> <n> <spawnId> <idx>
+  <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
+  the host's world; never a dying one), where it stands in whole
+  centimetres, and `SBF11 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+- The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
+  her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
+  function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
+  job (`FUN_141b077f0`, as a ZoneEvent despawn does): never a kill, and never an enemy that shared enemies pair. A
+  created enemy that shows up as no Monster, or as another character than the host's, is removed again, within the same
+  32 calls a second. One the despawn cannot find again (a dying one, for example) stays and is logged as kept. A key she
+  refused counts as hers in her next list, so the host stops asking for it until the epoch moves. A key refused as too
+  far or for room (`full`) is left out of the list, so the host asks again once she is nearer or has room, and an enemy
+  she created leaves the list once it has died or left her game.
+- Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the table
+  holder and the job sender are read from their globals and never made by the mod: their getters (`FUN_141adc3d0`,
+  `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing. The spawn call gets the spawn manager, the
+  EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no extra request data and flag 0 (what the flag
+  does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to `FUN_141c1ca40`, so the key spawns at once. It
+  reads the table holder through its getter, and for a row with EventOnSpawning events it sends them through the job
+  sender's getter. The spawn it starts reaches `NewActor`, whose actor setup reads the reg through `FUN_141a97cb0`. So
+  the guest calls it only while the holder, its tables, the job sender and the reg exist; with the spawn manager or
+  one of those not made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job
+  sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID with that key and still fighting.
+  While that enemy holds BattleMode (state 30) or runs a takedown marker, or either read fails, she refuses the drop
+  (`busy`): the enemy stays in her list, so the host asks again and the despawn goes once she is done with it. A census
+  whose list of enemies came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing,
+  since an enemy missing from it would read as one the game lacks.
+- The `fight=` line of `coop-status.txt` carries `spawns=off`, `on` or `stopped` (the pilot's latch stops same spawns,
+  since the ghost's position no longer reaches the job), and on the guest's side `spawned=`, `despawned=` and
+  `spawns_differ=`: the refusals, and the created enemies undone or kept, whose reason shows that the two games' tables
+  or `fight_chars` differ (`no row`, `save-row`, `keep-row`, `event-row`, `another zone`, `row taken`, `not shared`,
+  `charId`), not those of the moment (`too far`, `full`, `no spawn manager`, `not made`, `gone`, `busy`, `no such
+  enemy`). Lua's notices read it.
+- `coop fight spawn probe` (`fight probe spawns`) runs the same census, epoch and row reads in the probe's job on one
+  game, and logs the outcome for each shared Monster once an epoch, 32 a census at most so that one hand-over's 128 log
+  lines are enough. It sends no line and calls neither the spawn nor the despawn function.
+
+The log lines are in [usage.md](usage.md#same-spawns-experimental).
+
+## Extra enemies
+
+Extra enemies (`enemy_extra`, 0 to 3, the host's value, 0 by default, not tested in game yet) build on same spawns:
+the host's game makes that many more of each common enemy where both players stand, and same spawns hand them to the
+guest's game like any other key of the host's that she lacks.
+
+- The host gives extras to a Monster that shared enemies share, of a row that same spawns reconcile (an EnterZone row
+  that is no Save or keep row: the guest's save may hold that enemy dead), not dying, within 116 m of either EVE (so
+  its farthest extra stands within 120 m), while the zone is shared. Bosses and Alpha Naytibas are BossMonsters
+  (ActorType 4), so they get none, and neither do the four Monsters the CharacterTable ranks Boss or Elite: M_Gorgon
+  (50330), M_RoyalGuardFemale (50500) and its WLA_ and WLB_ variants (45050001, 55050001). An enemy gets its extras
+  once a life: after a respawn under a new GUID it gets new ones. Extras are made only while the shared Monsters within
+  120 m of either EVE, counted with the host's extras and the new ones, stay at 16 or fewer, the most stage 1 can
+  pair.
+- An extra's key is EventSpawnId `0xE0000000 | n << 8 | slot` and SpawnIndex `slot`, where n counts the enemies given
+  extras since the game started (a new session goes on counting, so a dying extra of the last one never shares a key
+  with a new one) and slot runs from 1 to 3. No EventSpawnTable row of this build is in that range (its highest
+  EventSpawnId is `0xD42B5F51`). The host checks once a session that its tables hold no row at the first key,
+  `0xE0000101`; if they do, extras stay off for the session. The game's death path skips the respawn and the zone
+  bookkeeping for an actor whose key has no row; that a save never holds one is still to be checked in game.
+- Slot s stands 100 + 100 s cm from its enemy (2, 3 or 4 m), 120 degrees apart around the enemy's yaw, at the
+  enemy's height and facing its way. The game's `NewActor` (`FUN_141ad1290`) makes it, with the arguments
+  `SpawnRequest::Execute` passes: the logic singleton, the charId, the position, the rotation (0, yaw, 0), not a
+  player (0, 0), the key, 0 for the row field, 0, 1, no request extra data, 0, flag 0 (no actor replaced) and 0. The
+  request extra data is null because the game's FSBActor creation (`FUN_141ca9100`) checks it for null and then keeps
+  the same default a fresh request would copy in.
+- Same spawns count an extra's key as part of the shared zone without a row: the host sends `spawn` for one she lacks
+  and `drop` for one of hers it lacks. She makes the key through `NewActor` too, with the charId of the host's line,
+  and refuses it (`row taken`) when her own tables hold a row at that key, or (`no such enemy`) when no Monster of
+  hers that shared enemies share has that charId: the host makes extras of common enemies only, so any other charId
+  would be a character the host picked freely. A key refused as `no such enemy` or `full` is left out of her list, so
+  the host sends it again: an extra's own enemy can come in the same answer and only show in her next census. Stage 1
+  then pairs the two copies by key.
+- Each game keeps the extras it made in its capture list, 48 at most. One that left the map (killed, despawned) is
+  forgotten at the next census. The host despawns one still fighting more than 120 m from both EVEs. At the session's
+  end every extra still fighting is despawned in each game, and a dying one is left to its death. The host's extras
+  also go when her shared enemies stop (her off line) or her lines are ignored, and hers when the host's same spawns
+  stop on her side (its off or world line). Every despawn goes through the game's despawn
+  job (`FUN_141b077f0`), never a kill.
+- `NewActor` runs inside the shared fight's job on the logic thread, under its fault latch, only while the table
+  holder, the world's actor manager, the job sender and the reg exist: `NewActor` and its actor setup
+  (`FUN_141ba6d20`) read them through getters that would make them (the job sender's `FUN_141a97b90` and the reg's
+  `FUN_141a97cb0` for the last two). An extra whose GUID cannot be read right after `NewActor` stops the shared fight
+  for the run and is logged as kept, since no capture can take it off.
+
+The log lines are in [usage.md](usage.md#extra-enemies-experimental).
+
+## Shared bosses
+
+Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
+Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
+any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
+game. The host sends `SBF11 bosses <gen> <percent>` with its list.
+
+With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
+battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
+applies them to her copy:
+
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF11 bstart <gen> <hguid>` when it turns on,
+  then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
+  once a copy, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
+  argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
+  once. Called from the logic thread, the game queues it for its game thread. She calls it only for a copy her game
+  draws as a BossMonster in life state 1, with the job sender and the reg already made (the call reads both through
+  getters that would make them). A refused bstart is taken at the host's next repeat.
+- The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
+  tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF11 phase <gen> <hguid> <oe>
+  <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
+  does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
+  game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
+  that came into the host's set since her last line for that copy, in the host's order, a dispel row first (the host's
+  copy holds a row next to the dispel that would end it only when that row started later). On her first line for a
+  copy, and on the line after the game refused one of her rows, she compares the set with her copy's effect list
+  instead: each row the copy lacks has come, and each row of the allowlist it holds that the set lacks has left. Before
+  them she applies `MinimumHP_Dispel` when a threshold left the set and none came in, and the boss's phase dispel row
+  (Crawler 5022094, SkullJuggernaut 5015002) when a phase row left and none came in. The phase row's own stance change
+  does the rest on her copy. 19 bosses have a row in the table; the other BossMonsters (the
+  Alpha Naytibas, challenge and variant rows) get bstart lines only.
+- At each census the host looks for actors with no spawn key whose owner (logic actor `+0x400`) is a boss it shares,
+  and finds the SummonActor row that made each one in the owner's effect list, by the effect GUID at `+0x40c` (an
+  effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
+  dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
+  EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
+  shared list under it. After its up the host sends `SBF11 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
+  summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
+  can go through later. The guest makes it through `NewActor`, as for extra enemies,
+  with that key where the host's stands: only within 1 km of her EVE, for an owner she pairs as a BossMonster, and for a
+  row of her table that makes that charId. She then applies the row's effects through the effect call (its Start row,
+  which holds the summon still for a moment, and its Check row), and the pair forms on the key; same place freezes and
+  drives it like any other copy. If the game refuses one of those effects, she despawns the summon at once: without
+  them her hits would take far more HP than the host's copy loses. A summon of hers that no pair holds 3 s after she
+  made it is despawned too, and so is every one still fighting when the session ends. A key she despawned for either
+  reason is not made again until the next on, off or world line of either game. She holds 32 at most at once.
+- A Finish stance (HP under 2) applies `Passive_DeathReady` (2001101), which chains `Passive_FinishReady` (2001102, the
+  state the finisher needs). In each turn a paired boss copy of hers holds either one, her game applies
+  `FinishReady_Dispel` (2001103) and then the boss's own `Passive_Immortal` (2001100) again: her hits stop at 1 HP and
+  no finisher starts on her side. On the host's side, her claim that would kill a boss whose copy holds either row takes
+  it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). So a boss in its Finish stance
+  ends only by the host's finisher; a boss without one dies of her killing hit, unless its own thresholds or Immortal
+  hold it. When the host's `dead` comes for a boss, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel` to her
+  copy before the kill, so neither a threshold nor Immortal holds it. When the pair ends any other way (the host's
+  `down` or world line, the link, `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded
+  copy still under 2 HP, so the Immortal it put back goes and her own hit ends that boss in her game.
+- Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
+  new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
+
+The log lines are in [troubleshooting.md](troubleshooting.md#a-shared-boss-differs-between-the-two-games).
+
 ## Safety design
 
 StellarCoop reads and writes game memory, so it fails closed: a failed check or a fault stops the affected feature or
@@ -398,20 +675,20 @@ drops the input.
   swaps them. Every 60 s the log gives the tick's cost and, while poses flow, the stream's counts.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
   tests), the mesh path rule, the channel 1 size and rate limits, and at most 8 effect starts a second.
-- The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert` or `saves coop`
-  request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the title: Lua
-  reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game was not
-  chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The native
-  part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back. One
-  name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt` and the backup in
-  `StellarCoopBackups` pass it. The backup is taken before any copy whenever `StellarCoopSaves.txt` does not exist
-  yet. The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read
-  back every 250 ms; an entry that moves or changes stops it for the run.
+- The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
+  `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
+  title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
+  was not chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The
+  native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back.
+  One name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt` and the backup in
+  `StellarCoopBackups` pass it. The backup is taken before any copy whenever `StellarCoopSaves.txt` does not exist yet,
+  and a refresh backs up the copy it replaces first. The switch to the copies is one 8-byte compare-and-swap in the
+  game's memory, on the pinned build only, read back every 250 ms; an entry that moves or changes stops it for the run.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
-  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), nothing is copied between
-  the two players' games. Beside the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest
-  `StellarCoopSaves.txt`; Lua only checks whether a copy exists, opening none of your own saves. See
-  [saves.md](saves.md).
+  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), and their positions and
+  animations with the experimental same place (on by default), nothing is copied between the two players' games. Beside
+  the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
+  only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
   because the native part keeps the flag.
 - The DLL pins itself in memory, so a Lua reload that frees the script's libraries never unloads code the worker is
@@ -427,9 +704,12 @@ These solo tools run the whole pipeline on one PC, so most of the mod can be tes
   like a single relay route. What comes back is handled exactly like a friend's data: the table is checked and the ghost
   built from it, and the poses are decoded and drawn on the playback clock. Because the ghost is yours, it walks 2 m to
   your right.
-- A recording keeps what is sent (the table and the poses, as the exact wire bytes) in memory for up to 120 s or 24 MiB,
+- A recording keeps what is sent (the table and the poses, as the exact wire bytes) in memory for up to 120 s or 25 MiB,
   and writes it to `coop-record.bin` when it stops. The file holds `SBR` and the protocol, then entries of a kind (`T` a
-  table or `P` a pose), a size and the bytes.
+  table, `P` a keyframe, `D` a delta, `E` a same-place enemies' `SBE` or `S` a show line), a size and the bytes.
+  `SBE` messages and show lines come after the first pose and are re-stamped with the poses on replay. A show line over
+  493 bytes is not recorded: its new time can be up to 19 digits longer, and past 512 bytes the line would lose its
+  hit context.
 - A replay reads and checks the whole file before anything plays (the tests fuzz the reader), then plays it in a loop as
   the remote side, each pose re-stamped as if sent now. A file made under another protocol is refused.
 

@@ -2,9 +2,11 @@
 // steam_api64.dll exists and checks that it attaches, that its link waits for Steam (coop-status.txt says
 // steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s; with no Steam and no pinned
 // build the slot line reads neither the game's memory, though a plausible client holding slot 3 sits at the pinned
-// build's global, nor a marker, nor the save name (saves=off); the shared fight's line says fight=off), that coop_tick
-// is exported and one call returns 0, and that the nightop, fight probe and coop freeze requests are refused on an
-// unpinned exe (coop-link.log, within 3 s each), as the save name's probe is, at load and on request, and saves coop;
+// build's global, nor a marker, nor the save name (saves=off); the shared fight's line says fight=off and the pilot's
+// pilot=refused with the engine's reason), that coop_tick is exported and one call returns 0, and that the nightop,
+// fight probe, pilot test, pilot test target and coop freeze requests are refused on an unpinned exe (coop-link.log,
+// within 3 s each), as
+// the save name's probe is, at load and on request, and saves coop, while coop fight pilot off is taken;
 // that the chat files a previous run left are deleted at start, and a typed line is taken within 3 s with no session,
 // its text never in coop-link.log; that a request the worker cannot delete (here read-only) is never run, so never run
 // twice, and runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process,
@@ -107,7 +109,8 @@ int wmain(int argc, wchar_t **argv) {
   auto settled = [](const std::string &text) {
     return text.find("steam=waiting") != std::string::npos &&
            text.find("engine=off reason=build stamp") != std::string::npos &&
-           text.find("\nslot=unknown index=? marker=? saves=off\nconvert=idle\nfight=off\n") != std::string::npos;
+           text.find("\nslot=unknown index=? marker=? saves=off\nconvert=idle\nfight=off\n") != std::string::npos &&
+           text.find("\nfight=off\npilot=refused why=build stamp") != std::string::npos;
   };
   std::string status = read_text(status_path);
   for (ULONGLONG end = GetTickCount64() + 3000;
@@ -136,9 +139,34 @@ int wmain(int argc, wchar_t **argv) {
       fight = read_text(folder + L"coop-link.log").find("shared fight off: build stamp") != std::string::npos;
     }
 
+  // Same-place enemies call SB only on the pinned build: a pilot test is refused with the same reason.
+  bool pilot = false;
+  if (fight && write_request(folder, "fight pilot test freeze"))
+    for (ULONGLONG end = GetTickCount64() + 3000; !pilot && GetTickCount64() < end;) {
+      Sleep(50);
+      pilot = read_text(folder + L"coop-link.log").find("pilot test refused: build stamp") != std::string::npos;
+    }
+  // So is the force target test (stage 3b).
+  bool target = false;
+  if (pilot && write_request(folder, "fight pilot test target"))
+    for (ULONGLONG end = GetTickCount64() + 3000; !target && GetTickCount64() < end;) {
+      Sleep(50);
+      target =
+          read_text(folder + L"coop-link.log").find("pilot test target refused: build stamp") != std::string::npos;
+    }
+
+  // coop fight pilot off is the runtime kill switch: it calls nothing in SB, so it is taken on any exe.
+  bool pilot_off = false;
+  if (target && write_request(folder, "fight pilot off"))
+    for (ULONGLONG end = GetTickCount64() + 3000; !pilot_off && GetTickCount64() < end;) {
+      Sleep(50);
+      pilot_off = read_text(folder + L"coop-link.log").find("same-place enemies off until the next coop fight on") !=
+                  std::string::npos;
+    }
+
   // The photo pause calls SB only on the pinned build: coop freeze is refused with the same reason.
   bool freeze = false;
-  if (fight && write_request(folder, "freeze 5"))
+  if (pilot_off && write_request(folder, "freeze 5"))
     for (ULONGLONG end = GetTickCount64() + 3000; !freeze && GetTickCount64() < end;) {
       Sleep(50);
       freeze = read_text(folder + L"coop-link.log").find("coop freeze refused: build stamp") != std::string::npos;
@@ -220,18 +248,21 @@ int wmain(int argc, wchar_t **argv) {
   const bool clip_ok = coop::copy_text(L"CCS-CBMH") && clipboard_text() == L"CCS-CBMH";
 
   // coop_tick is required since Phase 2; the fake client must be mapped, or index=? proves nothing.
-  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && freeze && saves && chat_ok &&
-            once && rpm_ok && clip_ok;
+  bool ok = waiting && page && !steam && tick && ticked == 0 && nightop && fight && pilot && target && pilot_off &&
+            freeze && saves && chat_ok && once && rpm_ok && clip_ok;
   std::string first = status.empty() ? "none" : status.substr(0, status.find_first_of("\r\n"));
   char tick_text[48];
   if (tick)
     std::snprintf(tick_text, sizeof tick_text, "present, returned %d", ticked);
   std::printf("smoke: %s | load=ok | status: %s | fake client=%s | steam_api64=%s | coop_tick: %s | nightop=%s | "
-              "fight probe=%s | freeze=%s | saves probe=%s | chat files=%s | undeletable request=%s | clipboard=%s | "
-              "rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, %.1f us a read)\n",
+              "fight probe=%s | pilot=%s | pilot target=%s | pilot off=%s | freeze=%s | saves probe=%s | "
+              "chat files=%s | undeletable request=%s | clipboard=%s | rpm=%s (stack %s, 0x1000 %s, PAGE_NOACCESS %s, "
+              "%.1f us a read)\n",
               ok ? "PASS" : "FAIL", first.c_str(), page ? "mapped" : "FAIL", steam ? "loaded" : "absent",
               tick ? tick_text : "absent", nightop ? "refused" : "FAIL", fight ? "refused" : "FAIL",
-              freeze ? "refused" : "FAIL", saves ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL",
+              pilot ? "refused" : "FAIL", target ? "refused" : "FAIL", pilot_off ? "taken" : "FAIL",
+              freeze ? "refused" : "FAIL",
+              saves ? "refused" : "FAIL", chat_ok ? "taken" : "FAIL",
               once ? "run once" : "FAIL", clip_ok ? "read back" : "FAIL", rpm_ok ? "ok" : "FAIL",
               stack_read ? "equal" : "FAIL", low_read ? "FAIL" : "refused", noaccess, us);
   std::fflush(stdout);

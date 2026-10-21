@@ -68,23 +68,28 @@ or shows the mouse cursor for one of its own screens.
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies), Display (the size, sounds and language of the menu, the chat and the partner HUD) and
-Chat.
+title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, extra enemies, shared bosses,
+the host's enemy and boss scaling and your kill rewards), Display (the size, sounds
+and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
-it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says
-`Saved. It takes effect when the mod reloads (game start or Ctrl+R).`
+it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
+when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, Shared bosses,
+scaling and kill reward rows, which
+count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
+Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
+while they wait or run, and only on your screen).
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
 The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, and the
-shared enemies' notices use the game's language when it is French, and English otherwise. So do the status line (under
-the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English. The notices of the Steam
-link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the error messages from the
-coop commands, shown in the menu or the code box.
+shared enemies', same place and same spawns notices use the game's text language, any of the 23 that the game ships. So
+do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English.
+The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the
+error messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -183,7 +188,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (9) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
+- Both players need the same protocol (11) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -248,6 +253,10 @@ after 60 s with no key, it closes as Decide later, and `auto_coop_save=always` o
 Load Game before the question shows loads your own save; the question comes back at the next title screen.
 `coop ui reset` closes it as Decide later.
 
+A friend's invite accepted on the title screen waits until a save loads (`Invite held: joining once your save has
+loaded.`). The question then starts with `Your friend's invite waits until your save loads.` If you already answered
+Play solo normally or Decide later on that title screen, it asks once more when the invite comes.
+
 `auto_coop_save=always` makes the copies and switches to them at each title screen without asking; `off` turns the
 question and the automatic copies off. Options > Saves > Co-op saves changes it at once. The result shows as a notice in the
 feed (see [Notices](#notices)). While the game uses the co-op copies, the title screen shows `CO-OP SAVES` at the
@@ -273,6 +282,25 @@ the game's own pause, held in memory only, and nothing is saved. This has not be
   photo sync gives notices only.
 - `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, so you can test it without a friend.
   `coop freeze off` ends it, and so does a load.
+
+### Photo mode pause (experimental)
+
+Options > Photo mode > Photo mode pause (experimental), or `photo_pause` in `coop-settings.txt`, changes how your own
+photo mode stops your game:
+
+- Full (`full`, the default): the game's own pause. Nothing moves while you take photos, as without the mod.
+- Scenery live (`scenery`): the game's own experimental photo method, which the game ships but does not use. The world
+  stops only while photo mode opens. Then animations, physics, cloth, hair, effects and sounds go on moving, while
+  enemies, combat, events and shared enemies stay stopped. Your friend's ghost moves only while their game runs: with
+  `photo_sync=both` on both PCs, your photo mode pauses their game, so the ghost holds its pose. Moving things may
+  smear a little, and enemies may slide when photo mode ends. This has not been tested in game yet.
+
+The mod sets the game's console variable `SB.PhotoMode.PauseMethod` (0 for Full, 1 for Scenery live), and only when it
+differs from the setting. The game reads it each time photo mode opens, so a change applies from your next photo mode.
+`coop off` sets it back to 0 when it can: during a load there is no player controller to set it with, and the log then
+says `photo pause: no player controller at coop off`. Whether the game keeps the value after it exits has not been
+checked, so choose Full before you remove the mod. The setting does not change your friend's game, and the synced photo
+pause above works the same with both values.
 
 ## Console commands
 
@@ -306,12 +334,16 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
+| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, on by default) and its solo test steps |
+| `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](#shared-bosses-experimental) on the boss copy of a replay (experimental) |
+| `coop fight spawn probe` | Solo probe of [same spawns](#same-spawns-experimental) (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
+| `coop saves refresh <0-4>` | At the title, while the game uses your own saves: replace that slot's co-op copy, even one played in co-op, with a new copy of your save. Type it twice within 10 s; the old copy goes to `StellarCoopBackups` first |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -374,11 +406,11 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   rate. The table is never lost. The ghost is yours, so it walks 2 m to your right. `coop loopback 0 0 0` shows it with
   no delay. New settings drop what is in flight and send the table again. `coop loopback off` removes the ghost.
 - `coop record` records what is sent (the table and your poses), with or without the loopback or a linked friend, for
-  up to 120 s or 24 MiB, or until `coop record off`. The recording is kept in memory. When it stops, it is written to
+  up to 120 s or 25 MiB, or until `coop record off`. The recording is kept in memory. When it stops, it is written to
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 9). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 11). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -403,16 +435,66 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 
 (`now no slot status` without the native part.)
 
-The ghost, the link and every other command except `coop fight` (below) run on any save.
+The ghost, the link and every other command except `coop fight` (below) run on any save. `coop fight pilot` runs on
+any save too, since same place only moves enemies while shared enemies run.
 
 ### Shared enemies (experimental)
 
 `coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each
 enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
 balance gauge and death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's
-enemy still fights only its own EVE, and positions are not shared. It changes enemy stats through the game's own code,
-so it shares enemies only on a co-op save, and kills count in the co-op save. Back up your saves first (see
-[saves.md](saves.md)).
+enemy still fights only its own EVE, and positions are not shared unless [same place](#same-place-experimental) is on.
+It changes enemy stats through the game's own code, so it shares enemies only on a co-op save, and kills count in the
+co-op save. Back up your saves first (see [saves.md](saves.md)). When an enemy becomes shared, or shared again after a
+death, a load or photo mode, the guest's copy takes the host's HP without a damage number; later drops from the host's
+hits show one.
+
+When a hit knocks a shared enemy down (face up or face down), launches it or slams it into a wall on one screen, the
+other game starts the same effect on its copy, as if its own EVE had landed that hit. A copy that is already down, in
+the air or groggy finishes that first and skips it, and a copy the game holds immune to it stays up. Groggy needs
+nothing of this: each copy goes groggy when the shared balance gauge empties.
+
+When you are the guest and your hit kills a shared enemy, `guest_kills=at_once` (the default) kills it on your screen
+at once. If the host's copy had more HP left (more than 10 % of the enemy's maximum HP above what yours had), the
+host's game refuses that kill: the enemy lives on in the host's game and stays dead in yours, and `coop-link.log` says
+`desync guest-dead`. With `guest_kills=confirmed`, your copies keep at least 1 HP until the host's game kills its own,
+so the enemy dies on your screen about one ping later, and a refused kill leaves it alive at the host's HP. Only the
+guest's setting counts. The mod holds that 1 HP through the game's MinimumHP stat and sets the stat back when the
+enemy dies or stops being shared, and when shared enemies stop. After a fault inside the game's own code it leaves the
+stat as it is: the fault's line in `coop-link.log` then says how many of these changes stay until their enemies leave
+the map.
+
+A kill decided in the other game waits while your copy of the enemy holds the game's NoDamageNoHit state (it grabs
+your EVE, burrows or warps in), because the game never kills an enemy in the middle of a grab. Your copy dies when the
+state ends, or after 6 seconds anyway. When the guest's hit is the kill, the host's copy waits at 1 HP.
+`coop-link.log` says `fight kill held <key>`, then `fight held-expired <key>` when the 6 seconds ran out.
+
+Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
+multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
+(no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used, and the
+guest's `coop-link.log` says so once a run when they are not both `1.0`. An enemy gets
+them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP stays at half.
+When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same share of HP and
+balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies or leaves the
+16 shared places, even while the guest pauses. That covers every enemy in the 16 places, also one the guest's game
+never links (it is in another part of the map, or its copy does not match), which the host then fights alone at the
+higher values. The mod changes the game's MaxHPValue and MaxStamina stats through the game's own code. An enemy whose
+maximum HP the game has changed in another way keeps its own (the stats line of `coop-fight.log` counts it as
+unscaled). The `Shared enemies on` notice names the values when they are not both 1.0,
+for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the
+`fight=` line of `coop status` has `scale=135/115`.
+
+`kill_credit` is each player's own. With `all`, the default, every shared enemy that dies gives you the kill in your
+game. With `fought`, an enemy your EVE never hit in your game (its HP, shield and balance never dropped to your hits)
+dies there with no killer, and your game skips its kill rewards. An enemy that is already hurt when it becomes shared
+in your game counts as fought, even if only the other player hurt it. This happens after either player's photo mode,
+when shared enemies restart, and when an enemy stops being shared and comes back; an enemy back at full HP by then
+counts as not fought. Whether an enemy with no killer still drops loot is not tested yet. An enemy that your own hit
+kills always gives you the kill.
+
+Slow motion is not shared: each game slows down on its own. The stats lines in `coop-fight.log` count it (the turns in
+which your EVE or a shared enemy ran below normal speed, how often that began, and the lowest speed in percent), to
+measure how often the two games drift apart this way.
 
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](#options) shows On, and a
 new [coop-settings.txt](#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
@@ -422,7 +504,8 @@ linked only while you are on the same map. Turning the row off (`shared_enemies=
 solo test tools below.
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the
-game's BossMonster type) are not shared yet. `auto` also leaves out a few Monster-type enemies that are not common
+game's BossMonster type) are shared only with the host's `bosses=on` ([shared bosses](#shared-bosses-experimental)).
+`auto` also leaves out a few Monster-type enemies that are not common
 ones: the Gorgon (character id 50330), the two laser turrets with 999,999 HP (35027002 and 35027003), and any enemy
 with more than 500,000 maximum HP. The common enemy with the most HP has 213,125, on Hard. A list of character ids
 instead, for example `fight_chars=15011001 15011002` (16 at most), shares those enemies only, of any type, including
@@ -452,24 +535,315 @@ enemies get linked after none (the host counts none until the friend's side is o
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
+When your friend's game loads other `.pak` mods than yours, a notice says so once a session, for example
+`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` The mod compares the
+`.pak` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`), by name and size;
+`coop-link.log` lists yours at its start. It is a warning only.
+
+The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
+game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
+leaves, when an enemy of the host's cannot be paired because its maximum HP differs (by more than 0.5, before any
+scaling). `Shared enemies: <name> is down. Once they respawn, the enemies you share go back to full health.` shows each
+time the host goes down while enemies are linked: the host's respawn resets the enemies in the host's game, and your
+copies follow them back to full health. A respawn on another map leaves your copies unshared, with the HP they had.
+
 - `coop fight on` asks for it by hand (it needs `shared_enemies=on`) and `coop fight off` stops it until the mod
   reloads or the row is turned off and on again. It waits for a linked friend, a loaded save and a co-op save, and pauses
   while either player is in photo mode (selfies and the pause menu do not pause it). Loading your own save pauses it
   until you load a co-op save again. Setting `shared_enemies=off` in the file and pressing Ctrl+R also stops it (the
   solo test tools below keep running).
 - `coop fight status` prints the `fight=` line of `coop status`, for example
-  `fight=on mode=on role=host enemies=3 ... her=on`. While a friend is linked, `her=` gives their side: `on`,
-  `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run), `waiting` (a load, photo
-  mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their game yet).
+  `fight=on mode=on role=host enemies=3 ... her=on`. The guest's line has `unpaired=<n>` (the host's enemies it could
+  not pair) and `maxhp=<n>` (those of them with another maximum HP), and the answer then lists up to 8 of them by spawn
+  key and reason (`charId`, `maxhp` or `duplicate`), for example
+  `; unpaired: 5003:0 charId, 5005:1 maxhp; 3 of ours not on the host's list`. The last count is the guest's own
+  enemies that the host's list lacked since the host's last world change. While a friend is linked, `her=` gives
+  their side: `on`, `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run),
+  `waiting` (a load, photo mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their
+  game yet).
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, type, HP, Shield, Stamina) to
   `coop-fight.log`, where you find the ids for `fight_chars`. With no `fight_chars` list, the line of a Monster that
-  `auto` leaves out ends with `left_out=charId` (the Gorgon or a turret) or `left_out=MaxHP` (more than 500,000
-  maximum HP). Once the log says `fight writes=armed`,
+  `auto` leaves out has `left_out=charId` (the Gorgon or a turret) or `left_out=MaxHP` (more than 500,000
+  maximum HP). A line adds `states=` when the actor holds one of the game states the mod reads: 3
+  (NoDamageNoHit, during a grab), 4 (NoDamage), 6 (Down), 7 (Groggy), 8 (Airborne) or 27 (Immortal). A `cc=` part
+  follows when a knockdown or launch effect the mod mirrors runs on it: 9900001 (Airborne), 3000300 (Down), 3000301
+  (DownFaceUp), 3000303 (DownFaceDown) or 3000401 (WallHit). Once the log says `fight writes=armed`,
   `coop fight test hp|sh|st <change>` (whole units, never 0) and `coop fight test kill` write to the shared enemy with
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
-  `coop fight replay` plays that file into the guest's side.
+  `coop fight replay` plays that file into the guest's side. Both change enemies (record through the host's scaling,
+  when it is above 1.0), so the mod refuses them until the log says `fight writes=armed`.
 - The solo test tools stop on another slot with
   `STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>`.
+
+### Same place (experimental)
+
+With `same_place=on` in the host's game, each shared enemy stands in the same place on both screens. One game runs the
+enemy's AI, so the enemy moves there and attacks that game's EVE. In the other game the copy follows it about 200 ms
+late, the same delay as the ghost, and plays its attacks, reactions, sounds and effects with the game's own animation
+files. Hits land on either copy and count through shared enemies as before, and HP and death stay with the host's
+game.
+
+The host's `aggro` setting decides which game runs an enemy's AI. With `aggro=game`, the default, an enemy goes to the
+player who hit it last. After 10 s without a hit, it goes to the other player once that player's EVE has stood at least
+3 m nearer to it for 2 s. An enemy changes hands at most once in 4 s, and never during one of its attacks, while it is
+down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
+the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place is on by default and has not been tested in game yet.
+
+A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
+the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
+the ghost. The host's game applies the guest's killing hit only once her takedown ends, or after 6 s. If the host kills
+the enemy during her takedown, her game gets that death only then too. An enemy that lives through a takedown stays
+with the player who did it for 10 s, or until the other player hits it. With `aggro=host`, the guest's takedown plays
+only on her screen, and the host's still shows on hers. The host's game refuses the guest's takedown of a boss or an
+Alpha Naytiba, shared through `bosses=on` or named in `fight_chars`. A boss in its Finish stance (GorillaB, Tachy or
+SkullJuggernaut at 1 HP, for example) ends only by the host's finisher: her killing hit leaves the host's boss at 1 HP,
+and her game takes the finisher's state off her copy. A boss without a Finish stance dies of her killing hit as a
+common enemy does, unless its own thresholds or Immortal hold it.
+
+In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
+out of the game's movement manager, writes its position every frame from the other game's stream and replays that
+game's Shows (the game's animation sequences) on it. A copy that is knocked down, groggy or in the air moves by the
+game's own rules until that ends. When an enemy changes hands, the game that takes it removes BlockAI, puts the movement
+component back and points the enemy at its own EVE with the game's force target function.
+[how-it-works.md](how-it-works.md#same-place-enemies) has the details.
+
+- It needs shared enemies running, and only the host's value counts, as with the scaling: Options > Combat > Same
+  place (experimental) in the host's co-op menu, or `same_place=on` in its [coop-settings.txt](#coop-settingstxt).
+- `aggro` is the host's too, and counts from the next start of shared enemies: Options > Combat > Enemies attack
+  (host's), Both players (`aggro=game`) or The host only (`aggro=host`).
+- While shared enemies wait or run, turning the row off stops same place at once on your side (as host, on both
+  screens), and turning it on starts it again. Otherwise, as host, the next start of shared enemies takes the row's
+  value. As guest, the host's value decides at every start.
+- `coop fight pilot off` stops it on your side until the next `coop fight on`. As host, the guest's copies go back
+  too. `coop fight pilot on` starts it again (it needs `same_place=on`). `coop fight off`, `shared_enemies=off` and
+  `coop off` stop it with shared enemies. As host, a reload (Ctrl+R) with `same_place=off` in coop-settings.txt stops
+  it too while shared enemies run or wait. Each copy goes back to the game within a second and fights its own EVE
+  again.
+- `coop fight pilot status` prints the `pilot=` line of `coop status`: `pilot=on piloted=<n> owned=<n> drawn=<n>`
+  (piloted: the enemies this game moves as host, or the copies it moves as guest; owned: the enemies whose AI runs in
+  this game; drawn: the copies it draws from the other game), `pilot=off why=<why>`, `pilot=stopped` (an error
+  stopped it until the game restarts) or `pilot=refused why=<why>` (another game build, or `coop off`), with
+  `probe=on` and `test=<step>` while those run. `why=` is `fight` (shared enemies are not running), `setting` (the
+  host's `same_place` is off), `host` (as guest: the host's game has it off) or `asked` (`coop fight pilot off`).
+- Notices, in the menu's language: `Same place: <n> enemies piloted.` when enemies start to be moved after none,
+  `Same place off: <name>'s game turned it off.` on the guest's screen when the host's game stops it, and
+  `Same place off: stopped by an error until the game restarts. coop-link.log says why.` Your own
+  `coop fight pilot off` and the row show nothing.
+- While it runs, `coop-fight.log` gets a `pilot stats:` line each second (the `pilot=` line, the host's reads of its
+  enemies and their cost, the show lines sent, and the bytes both ways with the rate a second, `-` on the first line
+  after a pause) and a `pilot drawn:` line when the guest's side changed (copies moved, movement components taken out,
+  releases, snaps, drift, Shows replayed, late or missing, those not replayed because the copy already plays them, and
+  the game thread's time a frame while it holds copies).
+  `coop fight pilot probe` adds each `SBE` message and show line sent and received, until `coop fight pilot off`. The
+  `SBE` messages take about 13 KB/s with 16 enemies.
+- The drawing game's `coop-link.log` gets a line for each copy released (`pilot released hguid=<n>`), back on the
+  stream (`pilot converged hguid=<n>`) or moved in one jump (`pilot snapped hguid=<n>`).
+- Each change of hands is logged: on the host, `fight own <key> hguid=<n> to her` or `back`, and
+  `fight own-no hguid=<n> <why>` when the guest refuses one or gives one back; on the guest, `fight own <key> hguid=<n>
+  taken` and `fight own-no hguid=<n> <why>`. The game that takes an enemy logs `pilot taken hguid=<n> oe=<epoch>:
+  target our EVE`, or `pilot take-over refused hguid=<n> oe=<epoch>: <why>` when its force target cannot run: `not
+  net mode 0`, `a logic task in flight` or `copy not found` after 250 ms, `a game singleton not made yet`, `no EVE of
+  ours` or `no AI on the copy`. The guest then gives the enemy back (`own-no target`). The `pilot stats:` line counts
+  these take-overs.
+- Takedowns are logged in `coop-link.log`. On the guest: `fight exec <key> hguid=<n> our takedown begins` and `our
+  takedown ends` (without the key once the copy is gone). On the host: `fight exec <key> hguid=<n> her takedown begins`,
+  `her takedown ended` or `her takedown timed out` (no end within 6 s), `fight exec refused <key> hguid=<n> <why>` (`no
+  Groggy or takedown on our copy`, or `one runs already`; one within 2 s of her last one for that enemy is counted with
+  no line), `fight kill held <key> hguid=<n> her takedown` and `fight dead held <key> hguid=<n> her takedown` while the
+  host waits, and `fight held-expired <key> hguid=<n>` when 6 s passed first. The `fight stats:` lines count `takedowns
+  of hers (<n> refused)` on the host and `takedowns told` on the guest.
+- After an error in the game's own code, copies the mod already moved can keep their movement component out of the
+  manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
+  so.
+
+To test it alone, record the host's side once, then play it into the guest's side after a camp
+rest:
+
+1. With `same_place=on`: `coop puppet`, then `coop fight probe` until `coop-link.log` says `fight writes=armed`, then
+   `coop fight off`.
+2. `coop record` and `coop fight record`, fight one enemy (a few hits from different sides and a skill or two), then
+   `coop fight off` and `coop record off`.
+3. Rest at a camp, so the enemy is back where it started.
+4. `coop fight pilot test <step>`, then `coop replay` and `coop fight replay`. Watch the enemy, then `coop fight off`
+   and `coop replay off`.
+
+The step says how far the guest's side goes: `freeze` (the BlockAI effect only: the enemy stands and plays its own
+animations), `cmc` (its movement component out of the game's manager too, nothing written: the `pilot drawn:` line's
+drift says how far the game still moves it), `drive` (its position, speed and velocity from the recording too, no Show
+replayed) or `replay` (all of it). It holds until the next `coop fight pilot test` or `coop fight on`.
+
+`coop fight pilot test target` tests the force target alone, during step 2 (as host, every shared enemy runs in your
+game). At the next frame it points the first of them at your EVE. `coop-link.log` says
+`pilot target test hguid=<n>: forced` or `pilot target test hguid=<n> refused: <why>`, then
+`pilot target test hguid=<n> +<ms> ms: target <our EVE|another actor|none>, aggro level <n>, detect result <n>` each
+time one of the three changes during the next second.
+
+`coop fight pilot test exec` tests a takedown, during step 4 with `replay`. At the shared fight's next turn it empties
+the balance of the first frozen copy, so the copy goes groggy; take it down before that ends. `coop-link.log` says
+`fight pilot test exec <key> hguid=<n> balance emptied: take it down`, or why not (`refused: no frozen copy drawn`,
+`refused: gone or dying`, `its balance is empty already`). Then come `pilot released hguid=<n>` as the copy goes
+groggy, `fight exec <key> hguid=<n> our takedown begins` and `our takedown ends` around the takedown, and
+`pilot converged hguid=<n>` (or `pilot snapped hguid=<n>`) once the copy lives on after it.
+
+### Same spawns (experimental)
+
+With `same_spawns=on` in the host's coop-settings.txt, the guest's game holds the same common enemies as the host's
+game wherever both players stand within 100 m of each other in one zone. The guest's game creates the enemies it lacks
+where the host's stand, and removes the ones the host's game lacks without killing them, so they give no rewards.
+Bosses, Alpha Naytibas, quest and event enemies, and the enemies a save records (Save rows, and rows kept through a
+zone reset) stay as they are in both games. Same spawns is on by default and has not been tested in game yet.
+
+The guest's game calls its own spawn function for each enemy it lacks (the one the game calls when a zone's enemies
+spawn) and its own despawn job for each enemy the host's game lacks (the one zone events send). No code of the game is
+changed. When she enters a zone, her game spawns its own enemies first, so an enemy can appear there and vanish again
+a few seconds later.
+
+- It needs shared enemies running. Only the host's value counts, from the next `coop fight on`: Options > Combat >
+  Same spawns (experimental) in the host's co-op menu, or `same_spawns=on` in its
+  [coop-settings.txt](#coop-settingstxt). Record, replay and the probe never use it.
+- A zone counts as shared from 3 s after either game entered it or reset its enemies (a camp rest, a death), so the
+  game's own spawns come in first. Where the other player stands comes from the same-place code, so after its error
+  on either PC (`pilot=stopped`) same spawns stop in both games until that PC's game restarts.
+- The guest's game sends its list of enemies there at once, then every 5 s while the zone is shared. The host's game
+  answers with up to 16 enemies to create and 16 to remove each time. It asks for an enemy more than 1 km from the
+  guest only once she comes nearer.
+- `coop-link.log` names each change by spawn key. On the guest: `fight spawned <key>`, `fight despawned <key>`, `fight
+  spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from your
+  EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
+  manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name),
+  `full` (240 enemies already handled since either game's last `fight spawns epoch`, or 48 extras), `row taken`, `no
+  such enemy` and `not made` (for an extra, below), `gone` or `busy` (you are fighting that enemy or taking it down: it
+  is removed once you are done, if the host's game still lacks it); and `fight spawn
+  undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out (`not shared`) or another
+  character than the host's (`charId`), or `fight spawn kept <key> <why>` when that enemy could not be removed (it was
+  dying, for one). On the host: `fight spawn sent <key>` and `fight drop sent <key>`. Both log `fight spawns epoch
+  <why>` when their zone changes (`zone`), its enemies reset (`reset`), or 3 or more of them come back at once
+  (`guids`). `fight spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for a row of a shared enemy
+  that same spawns leave as it is. A game keeps the first 512 rows it reads, and rows past those are not logged.
+- The `fight=` line of `coop status` (and `coop fight status`) says `spawns=off`, `spawns=on` or `spawns=stopped` (the
+  error of same place stopped them too), and on the guest's side `spawned=<n> despawned=<n> spawns_differ=<n>`: the
+  enemies her game created and removed, and the refusals that show the two games differ (`no row`, `save-row`,
+  `keep-row`, `event-row`, `another zone`, `row taken` and `not shared`, and enemies undone or kept).
+- Notices, in the menu's language, once a session each: `Same spawns on: where you and <name> stand within 100 m of
+  each other in one zone, their game holds the same common enemies as yours.` (on the guest's screen: `your game
+  holds the same common enemies as theirs.`), `Same spawns stopped by an error until the game restarts.
+  coop-link.log says why.`, and on the guest's screen `Same spawns: some enemies differ between your game and
+  <name>'s (other .pak mods or fight_chars) and stay as they are. coop-link.log names them.`
+- The `fight stats:` lines in `coop-fight.log` add `same spawns <on|off>, epoch <n> (ours moved <n> times), <n> rounds
+  <answered|sent>, <n> spawn and <n> drop lines, <n> spawned, <n> despawned (<n> undone), <n> refused, <n> differ,
+  <n> stale, <n> over the rates`. `differ` is the count `spawns_differ=` shows, so it can exceed `refused`.
+
+`coop fight spawn probe` checks the reads of same spawns on one PC, with no friend: it runs on a co-op save, as
+`coop fight probe` does, whatever `same_spawns` says. At each probe census, `coop-link.log` gets `fight spawns epoch
+<why>` when the zone changes or its enemies reset (rest at a camp to see `reset`, or `guids` when the reset fell
+between two probe censuses, which come once a second), and once an epoch for each shared enemy, 32 a census at most,
+`fight spawns probe <key> <how>`: `takes part` (same spawns would create or remove it), `save-row`, `keep-row`,
+`event-row`, `another zone` or `no row`. `fight spawns probe no zone` means the current zone has no ZoneTable ID. The
+probe reads two game tables and calls neither the spawn function nor the despawn job. The `fight=` line says
+`spawns=probe` while it runs; `coop fight off` ends it.
+
+### Extra enemies (experimental)
+
+With `enemy_extra` at 1, 2 or 3 in the host's coop-settings.txt and same spawns on, each common enemy where both players
+stand within 100 m of each other in one zone gets that many more next to it, 2 to 4 m away, in both games. Bosses, Alpha
+Naytibas, Elites (the game ranks M_RoyalGuardFemale and its two variants Elite), quest and event enemies, and the
+enemies a save records get none, and so does an enemy more than 116 m from both players. No more extras come while 16
+common enemies stand within 120 m of either player, counting the extras: shared enemies pair 16 at most. An extra goes
+once both players are more than 120 m from it, and every extra goes when shared enemies stop on either PC. Extras have
+not been tested in game yet, and the default is 0.
+
+- Only the host's value counts, from the next `coop fight on`, and only with `same_spawns=on`: Options > Combat >
+  Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](#coop-settingstxt).
+- `coop-link.log` names each extra by its key: `3758096641:1` is the first enemy's first extra. In both games: `fight
+  extra made <key>` and, at the end, `fight extra despawned <key> end`. On the host: `fight extra refused <key> <why>`
+  (`full`: 48 extras already; `not made`: the game made none), `fight extra despawned <key> far` (both players more than
+  120 m away), and `fight extras off <key> key range taken` when the host's tables use the extras' first key, so no
+  extras this session. `fight extra kept <key> <why>` means the despawn job could not be sent, or with `guid unread`
+  that the game made the extra but its GUID could not be read: shared enemies stop until the game restarts, and that
+  extra stays until it leaves the map. On the guest an extra arrives as any same spawns key (`fight spawned <key>`).
+  `fight spawn refused <key> row taken` means her game's tables hold a row at that key. `fight spawn refused <key> no
+  such enemy` means none of her common enemies has the extra's charId yet: the host's game sends that extra again, and
+  it comes once the enemy it stands next to is in her game. `full` there means her game holds 48 extras, and `not made`
+  that her game made none. None of these three counts in `spawns_differ=`.
+- The `fight stats:` lines in `coop-fight.log` add `extras <n> an enemy, <n> made, <n> despawned`.
+
+### Shared bosses (experimental)
+
+With `bosses=on` in the host's coop-settings.txt, shared enemies also share the bosses and Alpha Naytibas (the game's
+BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses are on
+by default and have not been tested in game yet. With same place on, the guest's copy is frozen like any
+copy her game draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode,
+which phase effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events,
+the phase changes and the summoned enemies, which are shared like any other. Without same place, each game runs these
+for its own copy. A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then
+leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss stops being shared first (the link
+drops, the host's world changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own
+hit ends that boss in her game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless
+its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too, its thresholds taken off
+first. [How it works](how-it-works.md#shared-bosses) has the details, and
+[troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
+
+- Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
+  Boss HP (host's) in the host's co-op menu, or `bosses` and `boss_hp_scale` in its
+  [coop-settings.txt](#coop-settingstxt). `coop fight record` keeps them in its file, and `coop fight replay` uses the
+  recorded ones.
+- `boss_hp_scale` (default `2.0`, from `1.0` to `4.0`) multiplies a shared boss's maximum HP in place of
+  `enemy_hp_scale`, the Alpha Naytibas' too; `enemy_balance_scale` still sets its balance gauge. The mod does not adjust
+  a boss's phase thresholds yet. The game sets each one (a minimum HP) as a share of the maximum HP the boss has when
+  the threshold starts. The first one starts at spawn, before the scaling: at `2.0`, a boss whose first phase ends at
+  60 % can end it at 30 % of its scaled HP (not measured in game yet). Later ones start from the scaled maximum and can
+  sit above the HP the boss has left, which then rises to the threshold the next time the boss is hit: at `2.0`,
+  Tachy's first threshold leaves it at 75 % of its unscaled maximum, and its second one, 45 % of the scaled maximum, is
+  90 %. When the scaling ends during a fight (`coop fight off`, the end of the session), a threshold taken from the
+  scaled maximum stays as it was and can be above the boss's own maximum HP.
+- A boss takes one of the 16 shared places before any common enemy, even the place of a common enemy in a fight, which
+  then stops being shared, unless that enemy's death or takedown is under way. A common enemy never takes a boss's
+  place.
+- With same place on, a shared boss always fights the host: its AI never moves to the guest's game, whoever hits it.
+- A boss that only one save still holds (the other player already killed it, for example) stays unshared. The host's
+  game fights its own alone, at `boss_hp_scale` once the guest's side is on, as with common enemies; a boss that only
+  the guest's save holds stays as it is in her game. Same spawns never create or remove a boss.
+- The `fight=` line of `coop status` carries `bosses=<percent>` (the host's `boss_hp_scale`) or `bosses=off`, on
+  both PCs.
+
+To test shared bosses alone, record the host's side of a boss fight as the [same place](#same-place-experimental)
+steps do, with `bosses=on`, load the save again so the boss is back, then play the recording into the guest's side
+with `coop replay` and `coop fight replay`. A recording keeps no boss start, phase or summon lines, so the guest's side
+of a shared boss does not run in a replay by itself. Four commands run it on the frozen boss copy nearest your EVE, at
+the shared fight's next turn, one test at a time. They work only while `coop fight replay` runs; otherwise
+`coop-link.log` says `pilot test <name> refused: only while coop fight replay runs`. Each test logs `fight pilot test
+<name> <key> hguid=<n> ...` lines in `coop-link.log` and ends with a `done` line, or with a `stopped` line when the
+copy goes. A test asked while another one runs is refused (`another test runs`).
+
+- `coop fight pilot test bstart` logs the copy's battle mode, first-time latch, on-battle flag, states 30 and 39 and
+  whether its AI runs a task (`before: b58=<0|1> 45a=<n> 45b=<n> state30=<0|1> state39=<0|1> ai=<0|1>`), starts the
+  boss fight on the copy as the host's game would (`SetBattleMode called`, or `SetBattleMode not called: <why>`, where
+  `again` means it already ran on this copy), then logs each change of those values for 1 s (`after <ms> ms: ...`, then
+  `done: ...`). From the next `coop fight replay` until the next `coop fight on`, boss copies get no `BattleMode_5s`
+  from the recording, so a second run after a reload shows the boss start alone. The replay that ran the test still
+  gets it on its boss copies, so its other tests find the copy as the guest's side would.
+- `coop fight pilot test phase` sends the copy the first phase row of its boss that it lacks (5005115 for GorillaB),
+  and 5 s later the dispel of its HP threshold, as the host's phase lines would. Each line logs `line: <rows>; floor
+  <stat 107>` and `cast: <n> taken, <n> refused`, and at the next turn `next turn: floor <stat 107>; rows <the rows
+  it holds>`. `refused: every phase row held` means the copy holds them all already.
+- `coop fight pilot test finish` holds the copy at 1 HP for 10 s through the guest's HP correction, so none of the drop
+  counts as your hit, then gives it the host's HP back. It logs `start: HP <n>, floor <n>, 2001101=<0|1>
+  2001102=<0|1> state27=<0|1> state3=<0|1>` (Passive_DeathReady and Passive_FinishReady on the copy, then its
+  Immortal and NoDamageNoHit states), each change as `after <ms> ms: HP <n> ...`, and `done: <n> guard turns, HP <n>;
+  the host's HP from the next turn`. Run it after `phase`, so no threshold holds the copy above 1 HP. Back up your
+  saves first ([saves.md](saves.md)): a boss that dies here stays dead in that save once the game saves. Hit the copy
+  once, and only after a line shows `state27=1` (its Immortal): with the finish guard working, it stays at 1 HP. If
+  the test stops before its `done` line (`coop fight off`, or the copy no longer drawn), the copy gets back the HP it
+  had when the test started.
+- `coop fight pilot test summon` makes a DollHead (SE_M_DollHead_02) 3 m in front of your EVE under the first summon
+  key, `4026531841:0`, with its summon row's effects (5025010 and 5025013) and the guest's freeze, as her game does
+  for a host's summon: `fight summon made 4026531841:0`, then `made 3 m ahead: life <n>, freeze taken`, or `the game
+  froze it first` when its row's effects froze it already. For 10 s it logs each change of the DollHead's life state
+  and state 39, and freezes it again when the game ends the freeze (`frozen again`). If the game refuses the guest's
+  freeze, the mod removes the DollHead at once (`not made: freeze refused` or `stopped: freeze refused`, and `fight
+  summon despawned 4026531841:0 freeze refused`). No host enemy pairs with it, so 3 s after its `done` line the mod
+  removes it (`fight summon despawned 4026531841:0 unpaired`), or at `coop fight off`. `refused: same place off`
+  means same place does not run on this side.
 
 ### `coop off`
 
@@ -515,20 +889,53 @@ send_rate=60
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
-# shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
-# example fight_chars=15011001.
+# death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
+# and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
+# for example fight_chars=15011001.
 shared_enemies=on
 fight_chars=auto
+# guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
+# stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
+guest_kills=at_once
+# Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit: all (every
+# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
+enemy_hp_scale=1.35
+enemy_balance_scale=1.15
+kill_credit=all
+# Same place, experimental, the host's for both games: on or off. As guest, yours decides nothing at a start; the
+# co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
+# shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
+# last, or else the nearer player) or host (enemies fight the host only).
+same_place=on
+aggro=game
+# Same spawns, experimental, the host's for both games: on or off. On, while both players stand within 100 m of each
+# other in one zone, the guest's game adds the common enemies the host's game has there and removes those it lacks.
+# Bosses, quest and event enemies, and the enemies a save records, stay as they are.
+same_spawns=on
+# Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
+# of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
+# 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
+# Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
+enemy_extra=0
+# Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
+# hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
+# boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
+# to 4.0.
+bosses=on
+boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
-# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
+# experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
+# method: enemies, combat and shared enemies stay stopped while animations, cloth and effects go on moving), from your
+# next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
-# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
-# english.
+photo_pause=full
+# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
 ui_language=game
@@ -558,13 +965,21 @@ card_details=on
 | `effects` | `on` or `off` | `off` |
 | `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
+| `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](#shared-enemies-experimental)) | `at_once` |
+| `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
+| `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
+| `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
+| `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
+| `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
+| `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `off` |
+| `enemy_extra` | `0` to `3`: [extra enemies](#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
 | `photo_name_tag` | `on` or `off`: its name tag in your own photos | `off` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
-| `ui_language` | `game` (French or English, as the game) or `english` | `game` |
+| `ui_language` | `game` (the game's text language) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
 | `partner_bar` | `on` or `off`: the [marker](#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
@@ -575,7 +990,7 @@ Rules:
 
 - `F10` is refused because it opens the console (as does `~`). Function keys do not depend on the keyboard layout.
 - Names and values ignore case, a UTF-8 BOM (Notepad) is accepted, and lines starting with `#` are comments. Only the
-  first 4096 bytes are read.
+  first 8192 bytes are read.
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all four keys go back to their defaults: `F5` for the menu, `none` to host, `F6` and
@@ -622,7 +1037,10 @@ title screen they show in the feed too, once the on-screen UI has loaded.
 While the on-screen UI is not up (in the first seconds after a load or a map change, during your own photo mode, or
 after an engine error), a notice shows instead as a line of text about 30 cm above your EVE, turned to the camera, for
 4 s, one after another. At most 4 wait; when more arrive, the oldest is dropped. If the engine refuses that line too,
-it stays off until the next Lua load (`Screen notices off: <why>; notices stay in UE4SS.log.`).
+it stays off until the next Lua load (`Screen notices off: <why>; notices stay in UE4SS.log.`). That line uses the
+engine's default font, which has the Latin-1 characters only. A notice whose words need other letters (Russian,
+Polish, Turkish, Arabic, Thai, Chinese, Japanese, Korean) shows there in English, and any character outside Latin-1 in
+a Steam name or a chat line shows as `?`.
 
 | Event | Notice |
 | --- | --- |
@@ -653,7 +1071,10 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
 | Co-op saves switched on | `Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.` |
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
+| Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
+| Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
+| Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 
 ## Status lines
 
@@ -698,6 +1119,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 - Shared enemies: `fight=on mode=<on|probe|record|replay> ...` with its counts, `fight=waiting mode=<mode> why=<what it
   waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see
   [Shared enemies](#shared-enemies-experimental)).
+- Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
+  [Same place](#same-place-experimental)).
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
   your friend gets (`notice` when your game cannot pause).

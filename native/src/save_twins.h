@@ -7,6 +7,8 @@
 // those of the save it came from: a copy that still matches its line is untouched and follows the player's save; one
 // that does not, or has no line, was played in co-op and is never replaced. A missing or bad manifest keeps every copy.
 // The manifest is written after each copy, so a pass stopped half way never leaves a new copy without its line.
+// A refresh (saves refresh N) replaces one slot's copy even when it was played, after a backup of that copy into a new
+// folder of the backups' folder.
 // Whenever there is no manifest (the first conversion, or one removed since), every StellarBlade*.sav of the account is
 // copied into a new folder of %LOCALAPPDATA%\SB\Saved\StellarCoopBackups, outside the synced folder, and read back,
 // before any copy is written; the manifest is written as soon as that backup is whole, so a pass stopped after it
@@ -211,44 +213,12 @@ inline std::string describe(const Plan &p) {
 class Convert {
 public:
   // Plans a pass and removes temporary files an earlier run left. The line for the log.
-  template <class Fs> std::string start(Fs &fs) {
-    if (busy())
-      return "co-op saves: a conversion is under way";
-    plan_ = plan(fs);
-    jobs_.clear();
-    next_ = copied_ = 0;
-    started_ = true;
-    ready_ = false;
-    error_.clear();
-    lines_ = Lines();
-    why_ = {};
-    for (int n = 0; n <= kSlots; ++n) { // The manifest's temporary file too.
-      const std::string temp = (n < kSlots ? twin_name(n) : std::string(kManifest)) + kTemp;
-      if (fs.stat(temp).exists)
-        remove(fs, temp);
-    }
-    bool any = false; // A fresh player, or a folder that is not the game's: no manifest, so the backup waits for saves.
-    for (int n = 0; n < kSlots; ++n)
-      any = any || plan_.main[n].exists;
-    if (!any)
-      return stop(fs, "no save of yours in this account's folder");
-    if (plan_.backups.size() > kMaxBackups)
-      return stop(fs, "too many save files to back up");
-    for (size_t i = 0; i < plan_.backups.size(); ++i)
-      jobs_.push_back({Job::backup, -1, plan_.backups[i]});
-    for (int n = 0; n < kSlots; ++n) {
-      present_[n] = plan_.twin[n].exists;
-      if (plan_.act[n] == Act::copy || plan_.act[n] == Act::refresh)
-        jobs_.push_back({Job::copy, n, {}});
-      if (plan_.act[n] == Act::refresh || (plan_.act[n] == Act::none && same(plan_.twin[n], plan_.old[n].twin)))
-        lines_[n] = plan_.old[n]; // Untouched: its line stays (until a refresh replaces it).
-    }
-    jobs_.push_back({Job::manifest, -1, {}});
-    std::string s = "co-op saves: converting";
-    if (!plan_.manifest)
-      s += " (a backup of " + std::to_string(plan_.backups.size()) + " files first)";
-    return s + describe(plan_).substr(describe(plan_).find(';'));
-  }
+  template <class Fs> std::string start(Fs &fs) { return begin(fs, -1); }
+  // saves refresh: slot n's copy, played in co-op or not, replaced by a new copy of the player's save. The old copy is
+  // backed up first into a new backup folder (with no manifest, the first conversion's whole backup), never deleted.
+  // Every other slot keeps its copy; a played one loses its line, as at any pass. Ready at its end when that one copy
+  // was made.
+  template <class Fs> std::string refresh(Fs &fs, int n) { return begin(fs, n); }
 
   // The next job; its line for the log, or empty.
   template <class Fs> std::string step(Fs &fs) {
@@ -264,7 +234,7 @@ public:
     if (!put(fs, kManifest, format(lines_)))
       error_ = "the manifest could not be written";
     for (int n = 0; n < kSlots; ++n)
-      if (plan_.main[n].exists && (!present_[n] || !why_[n].empty()) && error_.empty())
+      if ((only_ < 0 || n == only_) && plan_.main[n].exists && (!present_[n] || !why_[n].empty()) && error_.empty())
         error_ = why_[n].empty() ? "slot " + std::to_string(n) + "'s save has no co-op copy" : why_[n];
     ready_ = error_.empty();
     return ready_ ? "co-op saves ready: " + std::to_string(copied_) + " copied" : "co-op saves not ready: " + error_;
@@ -300,6 +270,53 @@ private:
     int slot;
     std::string name;
   };
+
+  // A pass: every slot (only -1), or the one slot a refresh replaces.
+  template <class Fs> std::string begin(Fs &fs, int only) {
+    if (busy())
+      return "co-op saves: a conversion is under way";
+    plan_ = plan(fs);
+    jobs_.clear();
+    next_ = copied_ = 0;
+    started_ = true;
+    ready_ = false;
+    error_.clear();
+    lines_ = Lines();
+    why_ = {};
+    only_ = only;
+    for (int n = 0; n <= kSlots; ++n) { // The manifest's temporary file too.
+      const std::string temp = (n < kSlots ? twin_name(n) : std::string(kManifest)) + kTemp;
+      if (fs.stat(temp).exists)
+        remove(fs, temp);
+    }
+    bool any = false; // A fresh player, or a folder that is not the game's: no manifest, so the backup waits for saves.
+    for (int n = 0; n < kSlots; ++n)
+      any = any || plan_.main[n].exists;
+    if (only >= 0 && !plan_.main[only].exists)
+      return stop(fs, "slot " + std::to_string(only) + " has no save of yours to copy");
+    if (!any)
+      return stop(fs, "no save of yours in this account's folder");
+    if (plan_.backups.size() > kMaxBackups)
+      return stop(fs, "too many save files to back up");
+    for (size_t i = 0; i < plan_.backups.size(); ++i)
+      jobs_.push_back({Job::backup, -1, plan_.backups[i]});
+    if (only >= 0 && plan_.manifest && plan_.twin[only].exists) // The copy about to be replaced.
+      jobs_.push_back({Job::backup, -1, twin_name(only)});
+    for (int n = 0; n < kSlots; ++n) {
+      present_[n] = plan_.twin[n].exists;
+      if (only >= 0 ? n == only : plan_.act[n] == Act::copy || plan_.act[n] == Act::refresh)
+        jobs_.push_back({Job::copy, n, {}});
+      if (plan_.act[n] == Act::refresh || (plan_.act[n] == Act::none && same(plan_.twin[n], plan_.old[n].twin)))
+        lines_[n] = plan_.old[n]; // Untouched: its line stays (until a refresh replaces it).
+    }
+    jobs_.push_back({Job::manifest, -1, {}});
+    const std::string backed = !plan_.manifest ? " (a backup of " + std::to_string(plan_.backups.size()) + " files first)"
+                               : only >= 0 && plan_.twin[only].exists ? " (the old one is backed up first)"
+                                                                      : "";
+    if (only >= 0)
+      return "co-op saves: replacing slot " + std::to_string(only) + "'s co-op copy" + backed;
+    return "co-op saves: converting" + backed + describe(plan_).substr(describe(plan_).find(';'));
+  }
 
   // The only calls that write, rename or remove in the account's folder, each behind the name check.
   template <class Fs> static bool write(Fs &fs, const std::string &name, const std::string &bytes) {
@@ -390,7 +407,10 @@ private:
     // Its line now, so a stop before the manifest job leaves it untouched, not played. lines_ holds the old line of
     // every refresh not yet made and none for a copy not yet made. A failure here is the last job's to say.
     put(fs, kManifest, format(lines_));
-    return "co-op saves: slot " + std::to_string(n) + (plan_.act[n] == Act::refresh ? " refreshed (" : " copied (") +
+    return "co-op saves: slot " + std::to_string(n) +
+           (n == only_ && plan_.twin[n].exists ? "'s co-op copy replaced ("
+            : plan_.act[n] == Act::refresh     ? " refreshed ("
+                                               : " copied (") +
            std::to_string(bytes.size()) + " bytes)";
   }
   std::string fail(int n, const std::string &why) {
@@ -401,6 +421,7 @@ private:
   Plan plan_;
   std::vector<Job> jobs_;
   size_t next_ = 0, copied_ = 0;
+  int only_ = -1;                       // A refresh's one slot, or -1.
   Lines lines_{};                       // The manifest as this pass will write it.
   std::array<bool, kSlots> present_{};  // A copy is beside the slot's save now.
   std::array<std::string, kSlots> why_; // Why the slot's copy failed this pass.
@@ -413,7 +434,8 @@ private:
 //   says a save is loaded), bool title() (Lua says the title screen is shown), int load_mode() (client +0x86c),
 //   std::string swap(bool coop) (save_slot.h's Names::swap, empty once switched).
 // saves convert makes the copies; saves coop makes them, then switches the name at the pass's end; saves main switches
-// back, or withdraws the switch a running saves coop pass would make; all at the title only. The title's slot list is
+// back, or withdraws the switch a running saves coop pass would make; saves refresh N replaces slot N's copy (Convert's
+// refresh), while the game uses the player's saves; all at the title only. The title's slot list is
 // the game's, rebuilt from the files only at its own load points (0x141cd4ef0, at StartClient and at each return to the
 // title). The mod never calls that rebuild: it reads and loads every slot on the game thread, and the game follows it
 // with its own UI updates. So once a co-op save was loaded, the title lists the copies, and a switch back would load
@@ -421,7 +443,7 @@ private:
 // name stays until the game exits.
 class Switch {
 public:
-  template <class Fs, class Game> std::string ask(SavesAsk what, Fs *fs, Game &game) {
+  template <class Fs, class Game> std::string ask(SavesAsk what, Fs *fs, Game &game, int slot = -1) {
     const slot::Saves now = game.saves();
     if (what == SavesAsk::main && now == slot::Saves::main) { // Withdraws a switch asked for after the pass.
       if (!asked_)
@@ -431,7 +453,7 @@ public:
     }
     if (what == SavesAsk::coop && now == slot::Saves::coop)
       return "co-op saves are already on";
-    if (what == SavesAsk::convert && now == slot::Saves::coop)
+    if ((what == SavesAsk::convert || what == SavesAsk::refresh) && now == slot::Saves::coop)
       return "co-op saves refused: copies are made only while the game uses your own saves";
     if (now != slot::Saves::main && now != slot::Saves::coop)
       return std::string("co-op saves refused: the save name reads ") + slot::saves_name(now) +
@@ -444,14 +466,18 @@ public:
       const std::string why = game.swap(false);
       return why.empty() ? "co-op saves off: the game uses your own saves again" : "co-op saves switch failed: " + why;
     }
+    if (what == SavesAsk::refresh && (slot < 0 || slot >= kSlots))
+      return "co-op saves refused: there is no slot " + std::to_string(slot);
     if (!fs)
       return "co-op saves refused: the Steam account is not known yet";
+    if (what == SavesAsk::refresh && convert_.busy())
+      return "co-op saves refused: a conversion is under way";
     if (convert_.busy()) {
       asked_ = asked_ || what == SavesAsk::coop;
       return asked_ ? "co-op saves: a conversion is under way; the switch follows it"
                     : "co-op saves: a conversion is under way";
     }
-    const std::string line = convert_.start(*fs);
+    const std::string line = what == SavesAsk::refresh ? convert_.refresh(*fs, slot) : convert_.start(*fs);
     asked_ = what == SavesAsk::coop && convert_.busy(); // A pass that stopped at its start switches nothing.
     return line;
   }

@@ -316,6 +316,20 @@ model.receive('Kaanta',string.rep('x',150),28)
 view.slow(28)
 assert(rows[9].s=='[21:04] Kaanta:' and rows[10].s==string.rep('x',70) and rows[11].s==string.rep('x',70)
     and rows[12].s==string.rep('x',10),'A word longer than a row: on rows of its own, cut between characters')
+model.receive('Kaanta',string.rep('敵',40),28)
+view.slow(28)
+assert(rows[10].s=='[21:04] Kaanta:' and rows[11].s==string.rep('敵',35) and rows[12].s==string.rep('敵',5),
+    'A Chinese or Japanese character takes two of the 70 columns')
+-- Thai and Arabic vowel and tone marks (Thai U+0E31, U+0E34 to U+0E3A, U+0E47 to U+0E4E; Arabic U+064B to U+065F,
+-- U+0670) take no column: never the first thing on a row, they stay with the letter before them, the 70th's too.
+-- Thai text with no space breaks between two letters; one with a space, at the space.
+local function wrapped(text,wide) return table.concat(Chat.wrap(text,wide),'|') end
+local THI,KO='ที่','กิ้' -- A letter and two marks each: one column.
+assert(wrapped(THI:rep(75),70)==THI:rep(70)..'|'..THI:rep(5),'Thai, no space: 70 letters a row, marks and all')
+assert(wrapped(('ก'):rep(69)..KO..'ข',70)==('ก'):rep(69)..KO..'|ข','The 70th letter keeps its marks')
+assert(wrapped(('ก'):rep(40)..' '..('ข'):rep(40),70)==('ก'):rep(40)..'|'..('ข'):rep(40),'At the space')
+assert(wrapped(('بَ'):rep(72),70)==('بَ'):rep(70)..'|'..('بَ'):rep(2),'Arabic: the fatha stays with its letter')
+assert(wrapped(('ب'):rep(69)..'ىٰ'..'ب',70)==('ب'):rep(69)..'ىٰ|ب','And the superscript alef (U+0670)')
 
 -- The session ends: the box closes and empties, the history goes (the notice that says so comes after).
 box.text='half typed'
@@ -392,6 +406,11 @@ state.ready=false
 model.receive('Kaanta','soon',59); view.slow(59.25)
 state.ready=true; view.slow(66.75)
 assert(since(n):find('sound chat',1,true),'Under 8 s: its sound')
+-- Enter with the kit off, in French: why in French, and in English for the line above EVE (Latin-1 only).
+state.off=true; view.slow(67)
+local _,why_fr,why_en=view.open()
+assert(why_fr==require('ui_text').fr.chat.ui_off and why_en=='The chat box is off (the UI stopped, see UE4SS.log).')
+state.off=false
 -- coop off: closed, nothing more asked of the kit (kit.stop gives the input back).
 n=#calls
 view.stop()

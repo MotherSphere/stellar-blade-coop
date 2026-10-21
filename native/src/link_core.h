@@ -1,6 +1,7 @@
 // The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
 // not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines,
-// channel 1, where the pose path's tables and poses travel, and channel 2, where the shared enemies' lines travel.
+// channel 1, where the pose path's tables and poses and the pilot's enemy roots (SBE) travel, and channel 2, where the
+// shared enemies' lines and the pilot's show lines travel.
 // Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the
 // build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
@@ -63,12 +64,13 @@ constexpr int kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentity
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
-constexpr size_t kMaxBinary = 65536;                                       // pose_table.h kMaxTable
-constexpr uint64_t kBinaryPerSecond = 160, kBinaryBytesPerSecond = 1 << 20; // ~61/s, ~200 KB/s at most expected
+constexpr size_t kMaxBinary = 65536; // pose_table.h kMaxTable
+// ~91/s (60 poses, 30 SBE, a table) and ~200 KB/s at most expected.
+constexpr uint64_t kBinaryPerSecond = 240, kBinaryBytesPerSecond = 1 << 20;
 // Channel 2, per member: lines waiting each way, and lines a second (each within kMaxMessage). The host's busiest
-// second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths); the guest paces her claims to
-// 41. A full outbox, sent at once when Steam takes lines again after refusing them, fits in one second with the
-// busiest.
+// second is about 75 (two hp lines at 20 Hz for 16 enemies, a world, 16 ups, 16 deaths), plus the pilot's show lines
+// (a show and its stop, a few a second per enemy); the guest paces her claims to 41. A full outbox, sent at once when
+// Steam takes lines again after refusing them, fits in one second with the busiest.
 constexpr size_t kFightQueue = 256;
 constexpr uint64_t kFightPerSecond = 2 * kFightQueue, kFightBytesPerSecond = kFightPerSecond * kMaxMessage;
 constexpr uint64_t kLostAfterMs = 10000, kPingEveryMs = 2000;
@@ -274,6 +276,11 @@ struct Peer {
   std::string photo_sent;
   Window photo_window;
   Window say_window;       // Her chat lines.
+  // Her .pak mods beyond the base game's (pak_list.h) from her paks line, once one came; our paks line as she last got
+  // it (sent again after each hello of hers, like the photo line).
+  bool has_paks = false;
+  uint64_t paks_count = 0, paks_hash = 0;
+  std::string paks_sent;
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
@@ -294,7 +301,7 @@ struct Counters {
 
 class Link {
 public:
-  // binary: a handshaken member's channel-1 message (her table or pose), called from tick().
+  // binary: a handshaken member's channel-1 message (her table, pose or SBE), called from tick().
   Link(const Api &api, std::string mod_version, std::function<void(const std::string &)> event,
        std::function<void(const uint8_t *, size_t)> binary = nullptr)
       : api_(api), mod_(token(std::move(mod_version))), event_(std::move(event)), binary_(std::move(binary)) {}
@@ -371,6 +378,7 @@ public:
       receive_fight();
       send_fight_queue();
       send_photo();
+      send_paks();
       ping_peers();
     }
     photo_pass(); // Also once the session ended: a pause held for her goes.
@@ -389,7 +397,7 @@ public:
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }
 
-  // The pose path's table (reliable) or pose (unreliable), on channel 1 to every friend past the handshake only.
+  // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every friend past the handshake only.
   // Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
   // line's queue). Over 100 ms, add NoDelay (4) or SendRateMin/Max through SetConfigValue.
@@ -421,6 +429,14 @@ public:
   }
   // Her channel-2 lines since the last call, oldest first. The link never parses them: fight_sync.h does, strictly.
   std::vector<std::string> take_fight() { return std::exchange(fight_in_, {}); }
+
+  // Our .pak mods beyond the base game's (pak_list.h), once, before the first tick(): each friend past the handshake
+  // gets them, and status() compares hers. No paks line goes before this call.
+  void paks(uint32_t count, uint64_t hash) {
+    paks_on_ = true;
+    paks_count_ = count;
+    paks_hash_ = hash;
+  }
 
   // The synced photo mode (FEATURE-PARITY.md 6.3), from Lua's coop-state.txt, before each tick(): ours ('0', '1' or
   // 's'), our photo_sync as she gets it (both only while this game can pause, so she never counts on a pause it cannot
@@ -541,6 +557,12 @@ public:
       const Peer &p = peers_.front();
       s += std::string("friend=") + (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
            p.name + "\n";
+    }
+    // Her .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ <ours> <hers>".
+    if (!peers_.empty() && peers_.front().has_paks && paks_on_) {
+      const Peer &p = peers_.front();
+      s += std::string("paks=") + (p.paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
+           " " + std::to_string(p.paks_count) + "\n";
     }
     // Her vitals for the partner card, while a session holds and her last line is under kMateMs old.
     if (has_mate_ && chatting() && now_ - mate_at_ < kMateMs) {
@@ -1053,13 +1075,15 @@ private:
         event(peer->name + " is back");
         notice(peer->name + " is back.");
         peer->photo_sent.clear(); // Our last photo line may have gone with a broken session: it goes again.
+        peer->paks_sent.clear();
       }
       on_message(*peer, message);
     }
   }
 
-  // Channel 1: bytes the link never reads, handed on only from a member past the handshake, within kMaxBinary and the
-  // rate limit. A friend's flood or a stranger's junk stops here. Liveness stays channel 0's.
+  // Channel 1: bytes the link never reads (tables, poses and SBE alike), handed on only from a member past the
+  // handshake, within kMaxBinary and the rate limit. A friend's flood or a stranger's junk stops here. Liveness stays
+  // channel 0's.
   void receive_binary() {
     NetMessage *batch[16];
     int n = api_.receive(msgs_, kPoseChannel, batch, 16);
@@ -1101,8 +1125,9 @@ private:
     }
   }
 
-  // Per member and channel, one window a second. Channel 1: 160 messages and 1 MiB, 2.6 times her 60 Hz stream with
-  // its table, and 5 times her byte budget (pose_codec.h); channel 2: kFightPerSecond lines. Only what passes counts.
+  // Per member and channel, one window a second. Channel 1: 240 messages and 1 MiB, 2.6 times her 60 poses and 30 SBE
+  // a second with her table, and 5 times her byte budget (pose_codec.h); channel 2: kFightPerSecond lines. Only what
+  // passes counts.
   bool over_rate(Window &w, size_t size, uint64_t count, uint64_t bytes) {
     if (now_ - w.at >= 1000) {
       w.at = now_;
@@ -1236,6 +1261,7 @@ private:
       }
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
+      peer.paks_sent.clear();  // The same for our paks line.
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -1288,6 +1314,16 @@ private:
       peer.photo_both = both;
       break;
     }
+    case Kind::paks:
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      if (!peer.has_paks || message.a != peer.paks_count || message.b != peer.paks_hash)
+        event(peer.name + " loads " + std::to_string(message.a) + " .pak mods" +
+              (!paks_on_                    ? std::string()
+               : message.b == paks_hash_ ? ", the same as ours"
+                                         : ", not the same as ours (" + std::to_string(paks_count_) + " here)"));
+      peer.has_paks = true, peer.paks_count = message.a, peer.paks_hash = message.b;
+      break;
     case Kind::vitals:
       if (peer.compatible && peer.accepted) // Before the handshake: ignored, with no log line.
         mate_ = message.vitals, mate_at_ = now_, has_mate_ = true;
@@ -1315,6 +1351,15 @@ private:
 
   // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
   // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
+  void send_paks() {
+    if (!paks_on_)
+      return;
+    const std::string line = paks_line(paks_count_, paks_hash_);
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && p.paks_sent != line &&
+          send(p, line.data(), line.size(), kReliable) == kResultOk)
+        p.paks_sent = line;
+  }
   void send_photo() {
     if (!photo_on_)
       return;
@@ -1495,6 +1540,8 @@ private:
   // ('0' with no friend or a lost one) and ours, whether our game holds its pause and since when, whether the cap ended
   // this photo session of hers.
   bool photo_on_ = false;
+  bool paks_on_ = false; // paks() said ours.
+  uint64_t paks_count_ = 0, paks_hash_ = 0;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;
   uint32_t photo_max_ = 0;

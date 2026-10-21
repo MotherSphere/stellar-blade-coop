@@ -42,6 +42,7 @@ M.OPTIONS={
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
     {key='photo_freeze_max',min=30,max=3600,step=60,zero=true,default='600'},
     toggle('photo_ghost','on'),toggle('photo_name_tag','off'),
+    {key='photo_pause',values={'full','scenery'},default='full'}, -- From the next photo mode.
     {head='partner'},
     reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
     toggle('card_details','on'), -- Ping and the friend's map on the card.
@@ -55,6 +56,18 @@ M.OPTIONS={
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     {head='combat'},
     toggle('shared_enemies','on'), -- At once: main.lua asks coop fight on or off.
+    -- The host's for both games: at once while shared enemies wait or run (main.lua asks coop fight pilot off or on),
+    -- else from their next start.
+    toggle('same_place','on'),
+    -- The host's values for both games, and our own kill credit: each from the next start of shared enemies. aggro:
+    -- who a same-place enemy fights (game: whoever hit it last, or else the nearer player; host: the host only).
+    {key='aggro',values={'game','host'},default='game'},
+    -- Same spawns (stage 4): where both players stand within 100 m in one zone, the guest's game holds the host's
+    -- common enemies there. enemy_extra (stage 4b): that many more of each, used with same spawns only. bosses (stage
+    -- 5): bosses and Alpha Naytibas shared too, their maximum HP times boss_hp_scale.
+    toggle('same_spawns','on'),range('enemy_extra',0,3,1,0),toggle('bosses','on'),
+    range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),range('boss_hp_scale',1,4,0.05,2),
+    {key='kill_credit',values={'all','fought'},default='all'},
     {head='display'},
     later(toggle('notices','on')),later(toggle('chat_feed','on')),
     later({key='status_overlay',values={'off','compact','detailed'},default='off'}),

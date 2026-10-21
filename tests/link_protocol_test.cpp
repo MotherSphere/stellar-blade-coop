@@ -125,6 +125,16 @@ int main() {
   over[vital::hp] = 1601; // HP over MaxHP.
   assert(!plausible_vitals(over) && parse_text(vit_line(over)).kind == Kind::invalid);
 
+  // The paks line, reliable: how many .pak mods her game loads beyond the base game's, and their hash (pak_list.h).
+  assert(paks_line(2, 18446744073709551615ull) == p + " paks 2 18446744073709551615");
+  m = parse_text(paks_line(2, 18446744073709551615ull));
+  assert(m.kind == Kind::paks && m.a == 2 && m.b == 18446744073709551615ull);
+  m = parse_text(paks_line(uint32_t(kMaxPaks), 0));
+  assert(m.kind == Kind::paks && m.a == kMaxPaks && m.b == 0);
+  for (const std::string &bad : {p + " paks", p + " paks 1", p + " paks 100001 5", p + " paks 1 5 6", p + " paks x 5",
+                                 p + " paks 1 -5", p + " paks 1 18446744073709551616", std::string("SBC9 paks 1 5")})
+    assert(parse_text(bad).kind == Kind::invalid);
+
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
   // typed reject; her pings are dropped. Channel 2's tag carries the protocol too, and its lines are never channel 0's.
   static_assert(kProtocol > 6, "6 is v0.1.1's protocol, an older one");
@@ -134,8 +144,18 @@ int main() {
   assert(parse_text("SBC6 ping 1 2").kind == Kind::invalid && parse_text("SBC6 pong 1 2").kind == Kind::invalid);
   // A v0.2.0 peer runs protocol 7: it would count say and vit as invalid and drop them, so a chat line would vanish
   // without a word. Protocol 8 makes her lobby tag and hello refuse the link instead; her lines are dropped too.
-  static_assert(kProtocol == 9, "9 adds pose deltas (SBD) on channel 1; 8 adds say and vit; 7 is v0.2.0's");
-  assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856");
+  // A v0.3.0 peer runs protocol 9: it would drop the shared fight's scale line as malformed and keep its copies at
+  // their own maxes while the host's are scaled, so the two HP bars would disagree. Protocol 10 refuses the link.
+  // A stage 2 peer runs protocol 10: it would count the pilot's show lines as malformed and its SBE as junk, so its
+  // copies would stay where its own game puts them. Protocol 11 refuses the link.
+  static_assert(kProtocol == 11, "11 adds SBE and the show lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 "
+                                 "say and vit; 7 is v0.2.0's");
+  assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
+         lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856");
+  assert(parse_text("SBC9 ping 1 2").kind == Kind::invalid && parse_text("SBC9 vit 1").kind == Kind::invalid);
+  assert(parse_text("SBC10 ping 1 2").kind == Kind::invalid && parse_text("SBC10 paks 1 5").kind == Kind::invalid);
+  m = parse_text("SBC hello 10 v0.4.0 24463856"); // Still answered: the link rejects it by its number.
+  assert(m.kind == Kind::hello && m.a == 10);
   assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
   assert(parse_text("SBC8 say hi").kind == Kind::invalid && parse_text("SBC8 vit 1").kind == Kind::invalid);
   assert(fight_tag() == "SBF" + std::to_string(kProtocol));
@@ -177,7 +197,7 @@ int main() {
   // Fuzz: random bytes and mutated valid messages never crash, and anything parsed respects the limits.
   std::mt19937 rng(1234);
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
-                               photo_line('1', true), say_line("é ok"), vit_line(v)};
+                               photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77)};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -185,7 +205,7 @@ int main() {
       for (char &c : text)
         c = static_cast<char>(rng());
     } else {
-      text = seeds[rng() % 8];
+      text = seeds[rng() % 9];
       for (int k = rng() % 4; k >= 0 && !text.empty(); --k)
         text[rng() % text.size()] = static_cast<char>(rng());
     }
@@ -196,6 +216,8 @@ int main() {
       assert(!f.text.empty() && f.text == chat_clean(f.text));
     if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
       assert(plausible_vitals(f.vitals));
+    if (f.kind == Kind::paks)
+      assert(f.a <= kMaxPaks);
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= kMaxReason);
       for (char c : f.text)
@@ -253,8 +275,14 @@ int main() {
   assert(parse_request("saves convert").saves == SavesAsk::convert);
   assert(parse_request("saves coop\n").saves == SavesAsk::coop);
   assert(parse_request("saves main").saves == SavesAsk::main && parse_request("saves main").command == Command::saves);
-  for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh 0",
-                          "saves coop now", "saves Coop", "saves co", "saves mains", "saves convert 1"})
+  // saves refresh <slot>: one slot's copy replaced, slots 0 to 4.
+  assert(parse_request("saves refresh 0").saves == SavesAsk::refresh && parse_request("saves refresh 0").slot == 0);
+  assert(parse_request("saves refresh 4\r\n").command == Command::saves && parse_request("saves refresh 4").slot == 4);
+  assert(parse_request("saves coop").slot == -1);
+  for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh",
+                          "saves refresh 5", "saves refresh 01", "saves refresh -1", "saves refresh x",
+                          "saves refresh 1 2", "saves refresh  1", "saves coop now", "saves Coop", "saves co",
+                          "saves mains", "saves convert 1"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).saves == SavesAsk::none);
   // The shared fight's: each mode with fight_chars (none for the probe too), off, status, and the probe's tests (a
   // whole change with or without its sign, or a kill); anything else, a typo included, is no request.
@@ -269,6 +297,35 @@ int main() {
     sixteen += " " + std::to_string(i);
   assert(parse_request(sixteen).chars.size() == kMaxFightChars);
   assert(parse_request(sixteen + " 17").command == Command::none);
+  // guest_kills=confirmed: one word right after the mode, before the ids.
+  f = parse_request("fight on confirmed 15011001");
+  assert(f.fight == Fight::on && f.confirmed && (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight replay confirmed");
+  assert(f.fight == Fight::replay && f.confirmed && f.chars.empty());
+  assert(!parse_request("fight on 15011001").confirmed && !parse_request("fight probe").confirmed);
+  assert(parse_request("fight on confirmed" + sixteen.substr(8)).chars.size() == kMaxFightChars);
+  for (const char *bad : {"fight on 1 confirmed", "fight on confirmed confirmed", "fight on Confirmed",
+                          "fight on confirm", "fight on  confirmed", "fight test kill confirmed",
+                          "fight off confirmed"})
+    assert(parse_request(bad).command == Command::none);
+  // kill_credit=fought: one word after confirmed (or the mode), before the ids. The host's two-player scaling: "scale"
+  // and two whole percents from 100 (none) to 200, MaxHP's then balance's, after those words. None: 100 and 100.
+  f = parse_request("fight on confirmed fought scale 135 115 15011001");
+  assert(f.fight == Fight::on && f.confirmed && f.fought && f.scale[0] == 135 && f.scale[1] == 115 &&
+         (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight replay fought");
+  assert(f.fight == Fight::replay && !f.confirmed && f.fought && f.scale[0] == 100 && f.scale[1] == 100);
+  f = parse_request("fight record scale 400 100");
+  assert(f.fight == Fight::record && !f.fought && f.scale[0] == 400 && f.scale[1] == 100 && f.chars.empty());
+  f = parse_request("fight on 15011001");
+  assert(!f.fought && f.scale[0] == 100 && f.scale[1] == 100);
+  assert(parse_request("fight on fought scale 100 100" + sixteen.substr(8)).chars.size() == kMaxFightChars);
+  for (const char *bad : {"fight on fought confirmed", "fight on scale 135 115 fought", "fight on fought fought",
+                          "fight on scale 135", "fight on scale 99 115", "fight on scale 135 401",
+                          "fight on scale 1.35 1.15", "fight on scale 135 115 scale 135 115", "fight on Fought",
+                          "fight on 1 fought", "fight on 1 scale 135 115", "fight test kill fought",
+                          "fight off scale 135 115", "fight status fought"})
+    assert(parse_request(bad).command == Command::none);
   assert(parse_request("fight off").fight == Fight::off && parse_request("fight status\r\n").fight == Fight::status);
   f = parse_request("fight test hp -10");
   assert(f.command == Command::fight && f.fight == Fight::test && f.stat == 0 && f.change == -10);
@@ -278,6 +335,91 @@ int main() {
   assert(f.fight == Fight::test && f.stat == 2 && f.change == 10000000);
   f = parse_request("fight test kill");
   assert(f.command == Command::fight && f.fight == Fight::test && f.stat == -1);
+  // Same-place enemies (stage 3a): same_place=on as "place", one word after the scaling, before the ids, with the modes
+  // that can host or pilot (on, probe, record, replay); none: off.
+  f = parse_request("fight on confirmed fought scale 135 115 place 15011001");
+  assert(f.fight == Fight::on && f.confirmed && f.fought && f.scale[0] == 135 && f.place &&
+         (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight record place").place && parse_request("fight replay place").place);
+  assert(!parse_request("fight on scale 135 115").place && !parse_request("fight record 1").place);
+  assert(parse_request("fight on place" + sixteen.substr(8)).chars.size() == kMaxFightChars);
+  for (const char *bad : {"fight on place scale 135 115", "fight on place place", "fight on 1 place",
+                          "fight on place fought", "fight on Place", "fight off place", "fight status place",
+                          "fight test kill place", "fight on  place"})
+    assert(parse_request(bad).command == Command::none);
+  // Stage 3b: aggro=host as "aggro-host", one word after place (or where place would be), before the ids; none:
+  // aggro=game.
+  f = parse_request("fight on scale 135 115 place aggro-host 15011001");
+  assert(f.place && f.aggro_host && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight record aggro-host").aggro_host && !parse_request("fight record aggro-host").place);
+  assert(!parse_request("fight on place").aggro_host && !parse_request("fight on place 1").aggro_host);
+  for (const char *bad : {"fight on aggro-host place", "fight on place aggro-host aggro-host", "fight on 1 aggro-host",
+                          "fight on aggro-host scale 135 115", "fight on aggro", "fight on aggro-game",
+                          "fight on Aggro-host", "fight off aggro-host", "fight pilot aggro-host"})
+    assert(parse_request(bad).command == Command::none);
+  // Stage 5: bosses=on as "bosses" and boss_hp_scale in whole percents (100 to 400), after aggro-host (or where it
+  // would be), before spawns and the ids; none: 0, bosses off.
+  f = parse_request("fight on scale 135 115 place aggro-host bosses 200 spawns extra 1 15011001");
+  assert(f.aggro_host && f.bosses == 200 && f.spawns && f.extra == 1 && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight record bosses 100").bosses == 100 && parse_request("fight on bosses 400").bosses == 400);
+  assert(parse_request("fight on aggro-host spawns").bosses == 0 && parse_request("fight on 1").bosses == 0);
+  for (const char *bad : {"fight on bosses", "fight on bosses 99", "fight on bosses 401", "fight on bosses 2.0",
+                          "fight on bosses -200", "fight on bosses x", "fight on bosses 200 aggro-host",
+                          "fight on spawns bosses 200", "fight on bosses 200 bosses 200", "fight on 1 bosses 200",
+                          "fight on Bosses 200", "fight on boss 200", "fight off bosses 200", "fight pilot bosses 200"})
+    assert(parse_request(bad).command == Command::none);
+  // Stage 4: same_spawns=on as "spawns", one word after aggro-host (or where it would be), before the ids; none: off.
+  f = parse_request("fight on scale 135 115 place aggro-host spawns 15011001");
+  assert(f.place && f.aggro_host && f.spawns && (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight on spawns");
+  assert(f.command == Command::fight && f.spawns && !f.place && !f.aggro_host && f.chars.empty());
+  assert(!parse_request("fight on place aggro-host").spawns && !parse_request("fight on 1").spawns);
+  for (const char *bad : {"fight on spawns aggro-host", "fight on spawns place", "fight on spawns spawns",
+                          "fight on 1 spawns", "fight on spawns scale 135 115", "fight on spawn", "fight on Spawns",
+                          "fight off spawns", "fight status spawns", "fight pilot spawns"})
+    assert(parse_request(bad).command == Command::none);
+  // Stage 4b: enemy_extra as "extra" and 1 to 3 after spawns, before the ids; none: 0.
+  f = parse_request("fight on scale 135 115 spawns extra 3 15011001");
+  assert(f.spawns && f.extra == 3 && (f.chars == std::vector<uint32_t>{15011001}));
+  assert(parse_request("fight on spawns extra 1").extra == 1 && parse_request("fight on spawns").extra == 0);
+  for (const char *bad : {"fight on spawns extra", "fight on spawns extra 0", "fight on spawns extra 4",
+                          "fight on spawns extra -1", "fight on spawns extra x", "fight on extra 2 spawns",
+                          "fight on spawns extra 2 extra 2", "fight on 1 extra 2", "fight off extra 2"})
+    assert(parse_request(bad).command == Command::none);
+  // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
+  // too), its status, how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before), the
+  // force target test, the takedown test and the boss tests.
+  f = parse_request("fight pilot probe\n");
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::probe && !f.off);
+  f = parse_request("fight pilot off");
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::off);
+  assert(parse_request("fight pilot status").pilot == PilotAsk::status);
+  assert(parse_request("fight pilot on").pilot == PilotAsk::on && parse_request("fight pilot on").fight == Fight::pilot);
+  const std::pair<const char *, PilotTest> tests[] = {{"freeze", PilotTest::freeze}, {"cmc", PilotTest::cmc},
+                                                      {"drive", PilotTest::drive}, {"replay", PilotTest::replay}};
+  for (const auto &[word, test] : tests) {
+    f = parse_request(std::string("fight pilot test ") + word);
+    assert(f.fight == Fight::pilot && f.pilot == PilotAsk::test && f.test == test);
+  }
+  f = parse_request("fight pilot test target"); // SB's force target once (stage 3b), not a step of the drawn side.
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::target);
+  f = parse_request("fight pilot test exec"); // A frozen copy's balance emptied (stage 3c), not a step either.
+  assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::exec);
+  // Stage 5's solo probes on a frozen boss copy, none a step either.
+  const std::pair<const char *, PilotAsk> probes[] = {{"bstart", PilotAsk::bstart}, {"phase", PilotAsk::phase},
+                                                      {"finish", PilotAsk::finish}, {"summon", PilotAsk::summon}};
+  for (const auto &[word, ask] : probes) {
+    f = parse_request(std::string("fight pilot test ") + word + "\r\n");
+    assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == ask && f.test == PilotTest::replay);
+    assert(parse_request(std::string("fight pilot test ") + word + " 1").command == Command::none);
+  }
+  for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on 1", "fight pilot  probe",
+                          "fight pilot Probe", "fight pilot off 1", "fight pilot status 1", "fight pilot test",
+                          "fight pilot test target 1", "fight pilot test exec 1", "fight pilot test Exec",
+                          "fight pilot test Bstart", "fight pilot test summons", "fight pilot bstart",
+                          "fight pilot test freeze 1",
+                          "fight pilot test Freeze", "fight pilot test  cmc", "fight pilot tests drive"})
+    assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);
   for (const char *bad : {"fight", "fight ", "fight on x", "fight on 0", "fight on 4294967296", "fight on  1",
                           "fight on -1", "fight off now", "fight status 1", "fight test", "fight test hp",
                           "fight test hp 0", "fight test hp -0", "fight test hp 10000001", "fight test hp --1",

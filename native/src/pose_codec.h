@@ -264,8 +264,9 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
 // A keyframe at least this often: after a lost one the ghost waits at most this long for the next.
 constexpr uint64_t kKeyEveryUs = 250'000;
 // The sender's poses at most this many bytes a second, with this much burst: under Steam's default send rate (262144
-// B/s), with room for the table's resends and channel 2. A pose waits while the budget is spent.
-constexpr int64_t kPoseBytesPerSecond = 196'608, kPoseBurst = 2 * kMaxPose;
+// B/s), with room for the table's resends and channel 2. A pose waits while the budget is spent. While the sender
+// streams SBE on the same channel (pilot.h, at most about 13 KB/s), its poses get kSbeBytesPerSecond less.
+constexpr int64_t kPoseBytesPerSecond = 196'608, kPoseBurst = 2 * kMaxPose, kSbeBytesPerSecond = 16'384;
 constexpr size_t kWorldAt = kPoseHeader + 1; // The world transform in a pose: after component 0's status.
 
 // Each unit of a pose of t, in order, as f(offset in the pose, bytes); stops when f returns false.
@@ -387,13 +388,15 @@ public:
     credit_ = kPoseBurst * 1'000'000;
     credited_ = 0;
   }
-  // Whether the budget lets a pose go at now (µs). It fills at kPoseBytesPerSecond up to kPoseBurst; each pose sent
-  // takes its size, so it may go below 0, and then the next pose waits.
-  bool due(uint64_t now) {
+  // Whether the budget lets a pose go at now (µs). It fills at kPoseBytesPerSecond (kSbeBytesPerSecond less while
+  // sbe: our SBE goes out too) up to kPoseBurst; each pose sent takes its size, so it may go below 0, and then the
+  // next pose waits.
+  bool due(uint64_t now, bool sbe = false) {
     if (now > credited_) {
+      const int64_t rate = kPoseBytesPerSecond - (sbe ? kSbeBytesPerSecond : 0);
       if (credited_) // In byte-microseconds: no rounding at any frame rate.
         credit_ = std::min(kPoseBurst * 1'000'000,
-                           credit_ + int64_t(std::min<uint64_t>(now - credited_, 1'000'000)) * kPoseBytesPerSecond);
+                           credit_ + int64_t(std::min<uint64_t>(now - credited_, 1'000'000)) * rate);
       credited_ = now;
     }
     return credit_ >= 0;

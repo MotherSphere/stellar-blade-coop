@@ -110,7 +110,10 @@ for _,row in ipairs(M.OPTIONS) do
             local found=false
             for _,v in ipairs(row.values) do found=found or v==d end
             assert(found,row.key)
-        else assert(row.min<=tonumber(d) and tonumber(d)<=row.max and tonumber(d)%row.step==0,row.key) end
+        else -- A whole number of steps (the scales' 0.05 to within a rounding).
+            local steps=tonumber(d)/row.step
+            assert(row.min<=tonumber(d) and tonumber(d)<=row.max and math.abs(steps-math.floor(steps+0.5))<1e-9,row.key)
+        end
         -- A row the mod reads today: its values are the mod's (link.parse_settings), its default too.
         local s=Link.parse_settings('')
         if not row.later then assert(s[row.key]~=nil,row.key..': shown, so the mod must read it') end
@@ -123,7 +126,10 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.name_tag=='on' and values.cloth=='off' and values.dyes=='off' and values.effects=='off'
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
-    and values.ui_language=='game' and values.chat=='on')
+    and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
+    and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='on'
+    and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
+    and values.boss_hp_scale=='2.0')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -150,7 +156,7 @@ assert(file=='host_key=none\nstatus_key=F6\nleave_key=F8\nmenu_key=F7\n',file)
 s=Link.parse_settings(file)
 assert(s.menu_key.name=='F7' and s.host_key.name=='none' and M.read(file).host_key=='none')
 assert(M.write('menu_key=F5\nhost_key=F9\n','menu_key','F7')=='menu_key=F7\nhost_key=F9\n','A menu_key line: as set')
-local pad='#'..string.rep('x',4094)..'\n'
+local pad='#'..string.rep('x',8190)..'\n'
 assert(M.write(pad..OLD,'menu_key','F7')==nil,'A file over the limit: nothing changes')
 
 -- The Options page: opened from the main page, back to it on its row.
@@ -164,10 +170,10 @@ assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='opti
 menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
-    ..'photo_name_tag head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies head:display '
-    ..'ui_scale ui_sounds '
-    ..'ui_language head:chat chat',
+    ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
+    ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies same_place '
+    ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
+    ..'ui_scale ui_sounds ui_language head:chat chat',
     ids(menu,NONE))
 -- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at
 -- once (main.lua asks coop fight on or off).
@@ -191,6 +197,10 @@ action,key,text=menu.select(NONE,0,values)
 assert(action=='set' and key=='name_tag' and text=='off','Select flips a toggle too')
 on('photo_sync')
 assert(select(3,menu.change(NONE,values,1))=='notice' and select(3,menu.change(NONE,values,-1))=='off')
+-- The photo pause: full (the default) or scenery, either way; in effect at once (from the next photo mode).
+on('photo_pause')
+assert(values.photo_pause=='full' and select(3,menu.change(NONE,values,1))=='scenery'
+    and select(3,menu.change(NONE,values,-1))=='scenery')
 -- The co-op saves at the title: ask (the default), always or off, wrapping; in effect at once.
 on('auto_coop_save')
 assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='always'
@@ -214,6 +224,26 @@ for _,v in ipairs({'0','60','105','3600'}) do
 end
 on('ui_language')
 assert(select(3,menu.change(NONE,values,1))=='english')
+-- The host's scaling: 1.0 to 4.0 in steps of 0.05, as the file holds it (no float residue: 1.35 then 1.4); kill credit
+-- all or fought.
+on('enemy_hp_scale')
+assert(select(3,menu.change(NONE,values,1))=='1.4' and select(3,menu.change(NONE,values,-1))=='1.3')
+assert(menu.change(NONE,{enemy_hp_scale='4'},1)==nil and menu.change(NONE,{enemy_hp_scale='1'},-1)==nil)
+assert(select(3,menu.change(NONE,{enemy_hp_scale='1.05'},-1))=='1' and
+    select(3,menu.change(NONE,{enemy_hp_scale='3.95'},1))=='4')
+file=assert(SF.set(Link.DEFAULT,'enemy_hp_scale',select(3,menu.change(NONE,values,1))))
+assert(M.read(file).enemy_hp_scale=='1.4' and Link.parse_settings(file).enemy_hp_scale==1.4)
+on('enemy_balance_scale')
+assert(select(3,menu.change(NONE,values,-1))=='1.1')
+-- The host's boss_hp_scale the same way, from its 2.0.
+on('boss_hp_scale')
+assert(select(3,menu.change(NONE,values,1))=='2.05' and select(3,menu.change(NONE,values,-1))=='1.95')
+file=assert(SF.set(Link.DEFAULT,'boss_hp_scale',select(3,menu.change(NONE,values,1))))
+assert(M.read(file).boss_hp_scale=='2.05' and Link.parse_settings(file).boss_hp_scale==2.05)
+on('bosses')
+assert(select(3,menu.change(NONE,values,1))=='off')
+on('kill_credit')
+assert(select(3,menu.change(NONE,values,1))=='fought' and select(3,menu.change(NONE,values,-1))=='fought')
 on('ui_scale')
 assert(select(3,menu.change(NONE,values,1))=='105')
 -- Through the file: the line is rewritten, read back, and the mod reads the same.

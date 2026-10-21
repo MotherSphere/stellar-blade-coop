@@ -83,6 +83,10 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
                 bool (*send)(const std::string &, bool));
 // Worker: coop-status.txt's fight line (fight_engine.h's Worker::detail).
 std::string fight_status();
+// Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",
+// "pilot=off why=<word>", "pilot=stopped" or "pilot=refused why=<why>", with " probe=on" and " test=<how far>" before
+// the why.
+std::string pilot_status();
 // The synced photo mode's pause (photo_freeze.h), which the game thread holds as our own tag in SB's pause set. Worker
 // thread. Whether this game can hold it: the pinned build, before coop off, no fault so far.
 bool can_freeze();

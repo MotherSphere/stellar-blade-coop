@@ -77,14 +77,14 @@ local link={
     write_settings=function(text) if refuse then return false,refuse end file=text; return true end,
 }
 local settings={auto_coop_save='ask',ui_language='game',shared_enemies=false}
-local said,logs={},{}
+local said,said_en,logs={},{},{} -- said_en: the English given with each.
 local env={LOCALAPPDATA='C:\\Users\\Ana\\AppData\\Local'}
 local present,opened={},{} -- The files that exist; every path looked at.
 local view
 local function new()
-    calls,built,holder,inputting,said,logs,asked,opened={},{},nil,false,{},{},{},{}
+    calls,built,holder,inputting,said,said_en,logs,asked,opened={},{},nil,false,{},{},{},{},{}
     return Saves.new({kit=kit,link=link,settings=settings,theme={shade='shade',text='white'},
-        say=function(text) said[#said+1]=text end,log=function(line) logs[#logs+1]=line end,
+        say=function(text,en) said[#said+1]=text; said_en[#said]=en end,log=function(line) logs[#logs+1]=line end,
         env=function(name) return env[name] end,
         exists=function(path) opened[#opened+1]=path; return present[path]==true end})
 end
@@ -375,8 +375,11 @@ state.off=false
 -- later in a world.
 settings.auto_coop_save='always'
 saves=new()
-info=at()
+info=at({slot='unknown'}) -- At a game start Lua sees the title before the native part read coop-state.txt.
 state.ready=false
+quarter(false,true)
+assert(#asked==0 and not saves.is_open(),'Not before the native part judged the title: it would refuse for the run')
+info=at()
 quarter(false,true)
 assert(asked[1]=='saves coop' and #calls==0 and not saves.is_open(),'No question, no kit needed')
 quarter(false,true); assert(#asked==1,'Once a visit')
@@ -395,6 +398,17 @@ quarter(false,true)
 assert(said[1]=='Co-op saves off for this load: the backup folder could not be made. You play your own saves.',said[1])
 quarter(false,true); assert(#asked==1)
 quarter(true,false); info=at(); quarter(false,true); assert(#asked==2 and asked[2]=='saves coop','A new visit')
+-- In Japanese the line comes with its English: the line above EVE shows that one (its font has Latin-1 only).
+state.language='ja-JP'
+saves=new()
+info=at()
+quarter(false,true)
+info=at({convert='error:the backup folder could not be made'})
+quarter(false,true)
+assert(#said==1 and said[1]~=said_en[1] and said[1]:find('the backup folder could not be made',1,true)
+    and said_en[1]=='Co-op saves off for this load: the backup folder could not be made. You play your own saves.',
+    tostring(said_en[1]))
+state.language=nil
 
 -- off: nothing at all.
 settings.auto_coop_save='off'
@@ -403,6 +417,122 @@ info=at()
 for _=1,3 do quarter(false,true) end
 assert(#calls==0 and #asked==0 and #said==0 and #logs==0)
 settings.auto_coop_save='ask'
+
+-- A friend's invite held at the title (link.saves()'s held, joined from the title): the question's first line says so.
+-- Answered without co-op in this visit, it asks once more when an invite is held, on its first choice; once a visit.
+settings.auto_coop_save='ask'
+saves=new()
+info=at({held=true})
+quarter(false,true)
+assert(screen()=="CO-OP SAVES\nYour friend's invite waits until your save loads.\nPlay co-op on copies of your saves?\n"
+    ..'StellarCoop copies your saves to separate co-op files, and Continue and Load\n'
+    ..'Game then use those copies. Your own saves are not changed.\n'
+    ..'Convert and play co-op||focus\nPlay solo normally||normal\nDecide later||normal\n'
+    ..'Don\'t ask again|Always co-op|normal',screen())
+saves.nav('back')
+quarter(false,true); assert(not saves.is_open(),'Asked with the invite already: not again')
+saves=new()
+info=at()
+quarter(false,true); saves.nav('down'); saves.nav('select')
+quarter(false,true); assert(not saves.is_open() and not screen():find('invite',1,true))
+info=at({held=true}); quarter(false,true)
+assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite waits until your save loads%.\n")
+    and screen():find('Convert and play co-op||focus',1,true),screen())
+saves.nav('back'); quarter(false,true); assert(not saves.is_open(),'Once a visit')
+quarter(true,false); quarter(false,true); assert(saves.is_open(),'A new visit')
+saves.nav('back')
+-- An invite that comes while the question is open adds its line there: answered without co-op, not asked again.
+saves=new()
+info=at()
+quarter(false,true); info=at({held=true}); quarter(false,true)
+assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite waits until your save loads%.\n"),
+    screen())
+saves.nav('down'); saves.nav('select')
+quarter(false,true); quarter(false,true); assert(not saves.is_open(),'The invite line seen: no second ask')
+-- The kit not whole on the tick the invite comes: the second ask waits for it.
+saves=new()
+info=at()
+quarter(false,true); saves.nav('back')
+info=at({held=true}); state.whole=false; quarter(false,true); assert(not saves.is_open())
+state.whole=true; quarter(false,true); assert(saves.is_open(),'Asked once the kit is whole')
+saves.nav('back')
+-- Co-op chosen: nothing more (the game then uses the copies). always: no question at all.
+saves=new()
+info=at()
+quarter(false,true); saves.nav('select')
+info=at({held=true,convert='busy 1/6'}); quarter(false,true)
+assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 1 of 6.',screen())
+settings.auto_coop_save='always'
+saves=new()
+info=at({held=true})
+quarter(false,true); quarter(false,true)
+assert(not saves.is_open() and #asked==1,'always: the switch, no question')
+settings.auto_coop_save='ask'
+state.language='fr-FR'
+saves=new()
+info=at({held=true})
+quarter(false,true)
+assert(screen()=="SAUVEGARDES CO-OP\nL'invitation de votre partenaire attend le chargement de votre sauvegarde.\n"
+    ..'Jouer en co-op sur des copies de vos sauvegardes ?\n'
+    ..'StellarCoop copie vos sauvegardes dans des fichiers co-op séparés, et la\n'
+    ..'partie que vous chargez ensuite est une de ces copies. Vos propres sauvegardes\nne changent pas.\n'
+    ..'Convertir et jouer en co-op||focus\nJouer en solo normalement||normal\nDécider plus tard||normal\n'
+    ..'Ne plus demander|Toujours co-op|normal',screen())
+saves.nav('back')
+state.language=nil
+
+-- A manual co-op slot (link.saves()'s marker: StellarCoopSlot.txt names slot 4) once the game uses the co-op copies:
+-- said once a Lua load, at the title or in a world, with what is no longer needed, and in English too. Not while the
+-- game uses your own saves, where the manual slot is still the co-op save.
+saves=new()
+info=at({marker='4'})
+quarter(false,true); saves.nav('back')
+quarter(true,false); assert(#said==0,'Own saves: the manual slot is the co-op save')
+info=at({saves='coop',marker='4'})
+quarter(true,false)
+assert(#said==1 and said[1]=='Co-op now plays StellarBladeCoop04.sav. With the game closed, you can move '
+    ..'StellarCoopSlot.txt out of the save folder, and StellarBladeSave04.sav unless you played it after that copy was '
+    ..'made.',said[1])
+quarter(false,true); quarter(true,false); assert(#said==1,'Once a Lua load')
+state.language='fr-FR'
+saves=new()
+info=at({saves='coop',marker='2'})
+quarter(true,false)
+assert(said[1]=='Le co-op utilise désormais StellarBladeCoop02.sav. Jeu fermé, vous pouvez sortir StellarCoopSlot.txt '
+    ..'du dossier, et StellarBladeSave02.sav sauf si vous y avez joué après cette copie.',said[1])
+assert(said_en[1]=='Co-op now plays StellarBladeCoop02.sav. With the game closed, you can move StellarCoopSlot.txt '
+    ..'out of the save folder, and StellarBladeSave02.sav unless you played it after that copy was made.',
+    tostring(said_en[1])) -- The English for the line above EVE.
+state.language=nil
+
+-- Another game build (a game update: link.saves()'s build): the co-op saves are off; with ask or always, said once a Lua
+-- load at the title, nothing asked; with off, nothing. saves=off for another reason (coop off) says nothing.
+for _,want in ipairs({'ask','always'}) do
+    settings.auto_coop_save=want
+    saves=new()
+    info=at({saves='off',build=true})
+    quarter(true,false); assert(#said==0,'Not in a world')
+    quarter(false,true)
+    assert(#said==1 and said[1]=='Co-op saves are off: StellarCoop does not support this version of the game. You play '
+        ..'your own saves until StellarCoop is updated.' and #asked==0 and #calls==0 and not saves.is_open(),said[1])
+    assert(logs[1]=='co-op saves: off on this game build (coop-link.log: engine off): your own saves',logs[1])
+    quarter(true,false); quarter(false,true); assert(#said==1,'Once a Lua load')
+end
+saves=new()
+info=at({saves='off'})
+quarter(false,true); assert(#said==0 and #logs==0,'Not another build')
+settings.auto_coop_save='off'
+saves=new()
+info=at({saves='off',build=true})
+quarter(false,true); assert(#said==0 and #logs==0,'off: nothing')
+settings.auto_coop_save='ask'
+state.language='fr-FR'
+saves=new()
+info=at({saves='off',build=true})
+quarter(false,true)
+assert(said[1]=="Sauvegardes co-op coupées : StellarCoop ne prend pas en charge cette version du jeu. Vous jouez sur "
+    .."vos propres sauvegardes jusqu'à une mise à jour de StellarCoop.",said[1])
+state.language=nil
 
 -- In a session on your own save with shared enemies on, nothing from here: main.lua's shared enemies notice says how to
 -- switch, once.
@@ -431,6 +561,14 @@ settings.ui_language='english'
 quarter(true,false); quarter(false,true)
 assert(screen():find('^CO%-OP SAVES\n'),'ui_language=english')
 settings.ui_language='game'
+-- Japanese: the line under the failure ends with 。, as the failure's own line does.
+state.language='ja-JP'
+saves=new()
+info=at()
+quarter(false,true); saves.nav('select')
+info=at({convert='done'}); quarter(false,true)
+assert(screen():find('\n理由：coop-link.log。\n',1,true),screen())
+saves.nav('back')
 state.language=nil
 -- Both languages complete.
 for k in pairs(T.en.saves) do assert(T.fr.saves[k],k) end

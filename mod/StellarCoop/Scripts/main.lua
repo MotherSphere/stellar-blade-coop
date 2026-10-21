@@ -9,19 +9,25 @@
 -- notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's card, marker and off-screen
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
--- copies and save name by hand; and
+-- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
--- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; the synced
--- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
--- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
--- to test the pause alone; coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
--- (the co-op UI gone until the mod reloads); coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen
--- for 5 s and its checks in the log; a test tool, left out of the usage line). coop off stops everything until the
--- game restarts.
+-- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
+-- pilot status|probe|on|off|test freeze|cmc|drive|replay|target, same-place enemies (stages 3a and 3b, same_place and
+-- aggro in coop-settings.txt or the co-op menu, the host's for both games: each shared enemy stands in the same place
+-- on both screens, moved by the game that runs its AI), with notices for how many it moves and why it went off; same
+-- spawns (stage 4, same_spawns in coop-settings.txt or the co-op menu, the host's for both games: where both players
+-- stand within 100 m in one zone, the guest's game holds the host's common enemies), with notices for on, stopped and
+-- enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; the synced photo mode (photo_sync
+-- in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during your own, the notices,
+-- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone,
+-- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
+-- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
+-- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
+-- of the usage line). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -58,7 +64,11 @@ end
 if settings then
     log(looks())
     log('shared enemies: '..(settings.shared_enemies and 'on' or 'off')..' (experimental), fight_chars '
-        ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'auto'))
+        ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'auto')..', same place '
+        ..(settings.same_place and 'on' or 'off')..' (experimental), same spawns '
+        ..(settings.same_spawns and 'on' or 'off')..' (experimental), extra enemies '..settings.enemy_extra
+        ..', bosses '..(settings.bosses and 'on' or 'off')..' (experimental), boss HP '
+        ..math.floor(settings.boss_hp_scale*100+0.5)..' %')
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
@@ -75,12 +85,15 @@ local notice=require('notice').new()
 -- host's question: with the Steam link.
 local kit,menu,box,hud,saves_ui,code_box,approval
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
--- the UI is off or failed.
-local function say(text) if not (box and box.say(text)) then notice.say(text) end end
+-- the UI is off or failed. en: the same line in English (T.en's words), which that line shows when its font cannot
+-- draw the other.
+local function say(text,en) if not (box and box.say(text)) then notice.say(text,en) end end
 -- The words for the screen (ui_text.lua): the game's language unless ui_language=english; English while unread. The
 -- log keeps English.
 local T=require('ui_text')
 local function words() return T.pick(kit and kit.language(),settings and settings.ui_language) end
+-- A notice that build(words) puts together: in the menu's words, and in English for the line above EVE.
+local function tell(build) say(build(words()),build(T.en)) end
 local puppet=require('puppet').new(link,capture,say,settings and settings.name_tag,look,words)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
@@ -90,7 +103,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -135,7 +148,9 @@ local ui=require('ui').new(ui_log)
 local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
-local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay'
+local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay | '
+    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec | '
+    ..'pilot test bstart|phase|finish|summon | spawn probe'
 local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
 local function fight_line(sub,a,b,extra)
     if extra~=nil then return nil end
@@ -144,6 +159,26 @@ local function fight_line(sub,a,b,extra)
     if a=='kill' and b==nil then return 'fight test kill' end
     local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
     if n and n~=0 and n>=-10000000 and n<=10000000 then return string.format('fight test %s %d',a,n) end
+end
+-- coop fight pilot (same-place enemies, stages 3a to 3c): status (the pilot= line, after asking the native part,
+-- which then logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test and
+-- how far the drawn side goes, test target (the game's force target once, on an enemy this side owns), test exec
+-- (T11d-solo's takedown probe: the first frozen copy this side draws loses its balance) or test bstart, phase, finish
+-- and summon (stage 5's solo probes on the frozen boss copy of a replay; the native part answers why not otherwise).
+local PILOT_ALONE={status=true,probe=true,on=true,off=true}
+local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=true,bstart=true,phase=true,
+    finish=true,summon=true}
+local function pilot(a,b,extra)
+    if extra~=nil or not (PILOT_ALONE[a] and b==nil or a=='test' and PILOT_TESTS[b]) then
+        return false,FIGHT_USE
+    end
+    if a~='off' and a~='status' and not native_tick then return false,'the native tick is unavailable' end
+    if a=='on' and not settings.same_place then
+        return false,'same place is off in coop-settings.txt (same_place=off)'
+    end
+    local ok,why=ask(b and 'fight pilot test '..b or 'fight pilot '..a)()
+    if not ok or a~='status' then return ok,why end
+    return true,link.pilot() or 'no same-place status yet'
 end
 -- The synced photo mode: our player in SB's photo mode ('1'), its selfie mode ('s') or neither ('0'), from SB's
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
@@ -162,6 +197,37 @@ local function photo_state()
     log('photo sync: photo mode unreadable, off until the mod reloads: '..tostring(state))
     return '0'
 end
+-- photo_pause (experimental): scenery is SB's own SB.PhotoMode.PauseMethod 1, the method its help calls experimental.
+-- The world stops only while photo mode opens; then animations, physics, cloth and effects go on moving (the ghost
+-- too, unless photo sync paused the friend's game) while SB's logic stays stopped (enemies, combat, our shared
+-- fight). full is 0, the game's default. Each 250 ms with a save loaded or the title shown, the console variable is
+-- read and set only when it differs from the setting (with the player controller), then read back: full on an
+-- untouched game changes nothing. SB reads it as each photo mode opens, so a change applies from the next. The first
+-- engine error, or a set that does not take (another game build), stops it for this Lua load. coop off sets 0 again
+-- unless 0 was the last value matched, and logs a line when no player controller lets it.
+local UE=require('UEHelpers')
+local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
+local pause={synced=nil,failed=false} -- The method last matched (read or set); off for this load.
+local function photo_pause(want,why)
+    if pause.failed or pause.synced==want then return end
+    local ok,result=pcall(function()
+        local library=U.find('/Script/Engine.Default__KismetSystemLibrary')
+        if library:GetConsoleVariableIntValue(PAUSE_METHOD)==want then return true end
+        local pc=U.valid(UE.GetPlayerController())
+        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
+        if pc and not pc:IsA(U.find('/Script/Engine.PlayerController')) then pc=nil end
+        if not pc then return false end -- Not yet: tried again in 250 ms.
+        library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
+        local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
+        if now~=want then error(PAUSE_METHOD..' reads '..tostring(now)..' after the set',0) end
+        log('photo pause: '..PAUSE_METHOD..' '..want..' ('..why..')')
+        return true
+    end)
+    if not ok then
+        pause.failed=true
+        log('photo pause: off until the mod reloads: '..tostring(result))
+    elseif result then pause.synced=want end
+end
 -- shared_enemies=on: coop fight on asked once a load, as soon as the native part judged the slot (coop, main, or none
 -- at the title: its build is pinned then); it then waits there for a friend, a co-op save and a loaded save. coop
 -- fight off before then cancels the ask. The co-op menu's row changes shared_enemies while the mod runs: on asks again
@@ -169,6 +235,10 @@ end
 -- on); a probe, record or replay goes on, as at a reload below.
 local fight_auto=settings~=nil and settings.shared_enemies
 local fight_wanted=fight_auto
+-- The co-op menu's same_place row while a mode that pairs (on, record, replay) waits or runs: off asks coop fight
+-- pilot off at once, on coop fight pilot on (place_wanted: the value last acted on). With none asked, the next coop
+-- fight on carries the setting.
+local place_wanted=settings~=nil and settings.same_place
 -- shared_enemies=off is a kill switch at a reload too (Ctrl+R): the native part outlives Lua, so a coop fight on that an
 -- earlier load started ends here, waiting or running (its fight= line, from the start of its own line). A probe, record
 -- or replay goes on: shared_enemies does not gate them.
@@ -177,6 +247,17 @@ if settings and not settings.shared_enemies and not off
     local ok,why=ask('fight off')()
     log((ok and 'OK: ' or 'STOP: ')..'shared_enemies=off: '..tostring(why))
 end
+-- same_place=off too, on the side that hosts: a same place an earlier load asked for ends here, running or waiting
+-- (coop fight pilot off, until the next coop fight on). Only there: a guest's own value decides nothing at a start,
+-- so a reload never stops what the host's game shows her.
+if settings and not settings.same_place and not off then
+    local raw='\n'..(link.status() or '')
+    if raw:find('\nfight=%a+ mode=record ') or (raw:find('\nfight=%a+ mode=on ') and raw:find('\nlink=host ')) then
+        local ok,why=ask('fight pilot off')()
+        log((ok and 'OK: ' or 'STOP: ')..'same_place=off: '..tostring(why))
+    end
+end
+local refresh_asked=nil -- coop saves refresh: the slot typed and when ({slot=, at=}), until typed again.
 local commands={
     puppet=puppet.toggle, invite=ask('invite'),
     host=function() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end,
@@ -227,9 +308,22 @@ local commands={
     end,
     -- on needs shared_enemies=on, on any save: the native part waits for a co-op save. probe, test, record and replay
     -- are the solo T11a tools, on a co-op save only (the native part checks again, and says in the log why it
-    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). status
-    -- answers with the fight= line.
+    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). Before
+    -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
+    -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
+    -- (the modes that can host), and same_place=on as "place", aggro=host as "aggro-host" and bosses=on as "bosses" and
+    -- boss_hp_scale in whole percents after them, then with on only same_spawns=on as "spawns", and with it an
+    -- enemy_extra above 0 as "extra" and its number. status answers
+    -- with the fight= line; pilot is same-place enemies' own (pilot above). spawn probe is the probe with "spawns"
+    -- before the ids: same spawns' reads alone (stage 4), whatever same_spawns says; its state is the fight= line's
+    -- spawns=.
     fight=function(sub,a,b,extra)
+        if sub=='pilot' then return pilot(a,b,extra) end
+        local spawn_probe=sub=='spawn'
+        if spawn_probe then
+            if a~='probe' or b~=nil or extra~=nil then return false,FIGHT_USE end
+            sub,a=a,nil
+        end
         local line=fight_line(sub,a,b,extra)
         if not line then return false,FIGHT_USE end
         if sub=='off' then fight_auto=false end
@@ -242,6 +336,18 @@ local commands={
                 local ok,why=coop_slot('coop fight')
                 if not ok then return false,why end
             end
+            if (sub=='on' or sub=='replay') and settings.guest_kills=='confirmed' then line=line..' confirmed' end
+            if (sub=='on' or sub=='replay') and settings.kill_credit=='fought' then line=line..' fought' end
+            if sub=='on' or sub=='record' then
+                line=line..string.format(' scale %d %d',math.floor(settings.enemy_hp_scale*100+0.5),
+                    math.floor(settings.enemy_balance_scale*100+0.5))..(settings.same_place and ' place' or '')
+                    ..(settings.aggro=='host' and ' aggro-host' or '')
+                    ..(settings.bosses and string.format(' bosses %d',math.floor(settings.boss_hp_scale*100+0.5)) or '')
+                    ..(sub=='on' and settings.same_spawns and ' spawns' or '')
+                    ..(sub=='on' and settings.same_spawns and settings.enemy_extra>0
+                        and ' extra '..settings.enemy_extra or '')
+            end
+            if spawn_probe then line=line..' spawns' end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end
@@ -260,11 +366,24 @@ local commands={
         return ask(seconds and 'freeze '..seconds or 'freeze off')()
     end,
     -- The co-op saves by hand (the question at the title asks for them): probe logs what the native part reads and the
-    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back.
-    -- The native part refuses all but probe off the title screen, and says why in coop-link.log.
-    saves=function(sub,extra)
+    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back;
+    -- refresh <0-4> replaces that slot's co-op copy, played or not, with a new copy of the player's save (the native
+    -- part backs the old one up first), once typed twice for the same slot within 10 s. The native part refuses all but
+    -- probe off the title screen, and says why in coop-link.log.
+    saves=function(sub,extra,more)
+        if sub=='refresh' and more==nil and type(extra)=='string' and extra:match('^[0-4]$') then
+            local now=os.clock()
+            if not (refresh_asked and refresh_asked.slot==extra and now-refresh_asked.at<=10) then
+                refresh_asked={slot=extra,at=now}
+                return false,'coop saves refresh '..extra..' replaces the co-op copy StellarBladeCoop0'..extra..'.sav, '
+                    ..'played in co-op or not, with a new copy of your save StellarBladeSave0'..extra..'.sav (the old '
+                    ..'copy goes to StellarCoopBackups first): type it again within 10 s to go on'
+            end
+            refresh_asked=nil
+            return ask('saves refresh '..extra)()
+        end
         if extra~=nil or not ({probe=true,convert=true,coop=true,main=true})[sub or ''] then
-            return false,'Use: coop saves probe | convert | coop | main'
+            return false,'Use: coop saves probe | convert | coop | main | refresh <0-4>'
         end
         return ask('saves '..sub)()
     end,
@@ -297,6 +416,13 @@ local commands={
         if code_box then code_box.stop(); approval.stop() end
         if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
+        if pause.synced~=0 then -- The game's own photo pause back (a reload may not have read it yet).
+            photo_pause(0,'coop off')
+            if pause.synced~=0 and not pause.failed then
+                log('photo pause: no player controller at coop off: '..PAUSE_METHOD..' stays as it is until the game '
+                    ..'exits')
+            end
+        end
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -397,8 +523,8 @@ LoopInGameThreadWithDelay(1,function()
             local asked=chat_asked
             chat_asked=nil
             if typed_at<asked-0.3 and not menu.is_open() and not approval.is_open() then
-                local _,why=box.open() -- Said on screen only: Enter is the game's too.
-                if why then say(why) end
+                local _,why,en=box.open() -- Said on screen only: Enter is the game's too.
+                if why then say(why,en) end
             end
         end
         local t=os.clock()
@@ -418,17 +544,30 @@ if link then
     -- A status read with no mode (before Steam, or unreadable) is no leave.
     local last_mode='none'
     -- The shared enemies' notices, from the fight= line (an unread status changes nothing), in the menu's language
-    -- (read only to say one): on with the count when its enemies go from none to some; off, or stopped for the run,
-    -- once it ran or waited, in any mode, unless our own player ended it (coop fight off, the menu's row, coop off);
+    -- (read only to say one): on with the count when its enemies go from none to some, and the host's scaling unless it
+    -- is 100 % and 100 % (the line's scale=, which the guest has from the host); off, or stopped for the run, once it
+    -- ran or waited, in any mode, unless our own player ended it (coop fight off, the menu's row, coop off);
     -- and while coop fight on waits or runs, one notice for what keeps it from sharing, said again only when that
     -- changes, and FIGHT_HOLD seconds after the last at the soonest (her lines set her state, so a friend flipping it
     -- cannot flood them): your save or hers not a co-op one, her shared enemies off or stopped for the run, or the two
     -- of you on different maps. Waits that end by themselves (no friend yet, a load, photo mode) say nothing. Sharing
-    -- with her on the same map, or the session's end, forgets what was said.
+    -- with her on the same map, or the session's end, forgets what was said. Sharing as the guest, two more: once
+    -- until it stops or the friend leaves, when the host has enemies we cannot pair for their MaxHP (the line's
+    -- maxhp=: another difficulty or New Game+); and each time the host goes down (her vitals, as the partner card reads
+    -- them) while enemies are linked: its respawn resets its enemies, and ours heal back to them.
     local P=require('partner')
     local FIGHT_HOLD=5
     local fight_was,fight_count,fight_told,fight_hold=nil,0,nil,0
-    local function fight_words() return words().fight end
+    local fight_maxhp,host_down=false,false
+    -- Same spawns' notices (stage 4), from the same line while coop fight on runs: on once a session when its spawns=
+    -- first reads on (the host's words or the guest's), stopped once when it reads stopped (the same-place error that
+    -- stops same spawns too), and as guest once a session when its spawns_differ= first counts an enemy. Forgotten
+    -- with fight_maxhp.
+    local spawns_on,spawns_stopped,spawns_differ=false,false,false
+    local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
+        local name=require('chat').clean((link.friend()) or '')
+        return name~='' and name or w.fight.friend
+    end
     local function fight_notices()
         if link.mode()=='none' then fight_told=nil end
         local line=link.fight()
@@ -439,16 +578,47 @@ if link then
         if now=='on on' then
             local count=tonumber(line:match(' enemies=(%d+)') or line:match(' pairs=(%d+)')) or 0
             if fight_count==0 and count>0 then
-                local words=fight_words()
-                say(count==1 and words.one or words.on:format(count))
+                local hp,balance=line:match(' scale=(%d+)/(%d+)')
+                if hp=='100' and balance=='100' then hp=nil end
+                tell(function(w)
+                    local text=count==1 and w.fight.one or w.fight.on:format(count)
+                    return hp and text..' '..w.fight.scale:format(tonumber(hp),tonumber(balance)) or text
+                end)
             end
             fight_count=count
+            if not fight_maxhp and (tonumber(line:match(' maxhp=(%d+)')) or 0)>0 then
+                fight_maxhp=true
+                tell(function(w) return w.fight.maxhp:format(her_name(w)) end)
+            end
+            local m=line:find(' role=guest ') and link.mate()
+            local down=m and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) or false
+            if down and not host_down and count>0 then
+                tell(function(w) return w.fight.host_down:format(her_name(w)) end)
+            end
+            host_down=down
+            local spawns=line:match(' spawns=(%a+)')
+            if spawns=='on' and not spawns_on then
+                spawns_on=true
+                local host=line:find(' role=host ')
+                tell(function(w) return (host and w.spawns.host or w.spawns.guest):format(her_name(w)) end)
+            elseif spawns=='stopped' and not spawns_stopped then
+                spawns_stopped=true
+                tell(function(w) return w.spawns.stopped end)
+            end
+            if not spawns_differ and (tonumber(line:match(' spawns_differ=(%d+)')) or 0)>0 then
+                spawns_differ=true
+                tell(function(w) return w.spawns.differ:format(her_name(w)) end)
+            end
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') and why~='coop fight off'
                 and why~='coop off' then
-                say(fight_words()[state])
+                tell(function(w) return w.fight[state] end)
             end
-            fight_count=0
+            fight_count,fight_maxhp,host_down=0,false,false
+            spawns_on,spawns_stopped,spawns_differ=false,false,false
+        elseif why=='no friend linked' then -- The friend left: the next one hears about MaxHP again.
+            fight_maxhp,host_down=false,false
+            spawns_on,spawns_stopped,spawns_differ=false,false,false
         end
         fight_was=now
         if mode~='on' or (state~='on' and state~='waiting') then return end
@@ -464,13 +634,49 @@ if link then
         end
         if not missing or missing==fight_told or chat_clock<fight_hold then return end
         fight_told,fight_hold=missing,chat_clock+FIGHT_HOLD
-        local words=fight_words()
         if missing=='you' then -- How to switch, or the manual slot when the co-op copies are off.
             local info=link.saves() or {}
-            say((settings.auto_coop_save=='off' or info.saves~='main') and words.you_manual or words.you)
+            local manual=settings.auto_coop_save=='off' or info.saves~='main'
+            tell(function(w) return manual and w.fight.you_manual or w.fight.you end)
         else
-            local name=require('chat').clean((link.friend()) or '') -- '' (a stranger's unknown name) as nil.
-            say(words[missing]:format(name~='' and name or words.friend))
+            tell(function(w) return w.fight[missing]:format(her_name(w)) end)
+        end
+    end
+    -- Same place's notices (stage 3a), from the pilot= line, in the menu's language (read only to say one): how many
+    -- enemies it moves when they go from none to some, and why it went off once it was on (the host's game turned it
+    -- off, or an error stopped it); never for our own coop fight pilot off or the row (why=asked), the host's own
+    -- setting (why=setting) or the shared fight not running (why=fight: its own notices say so).
+    local pilot_was,pilot_count=nil,0
+    local function pilot_notices()
+        local line=link.pilot()
+        if not line then return end
+        local state=line:match('^pilot=(%a+)')
+        if state=='on' then
+            local count=tonumber(line:match(' piloted=(%d+)')) or 0
+            if pilot_count==0 and count>0 then
+                tell(function(w) return count==1 and w.pilot.one or w.pilot.on:format(count) end)
+            end
+            pilot_count=count
+        else
+            pilot_count=0
+            local why=line:match(' why=(%a+)')
+            if pilot_was=='on' and (why=='host' or state=='stopped') then
+                tell(function(w)
+                    local p=w.pilot
+                    return p.off:format(state=='stopped' and p.stopped or p.host:format(her_name(w)))
+                end)
+            end
+        end
+        pilot_was=state
+    end
+    -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
+    local paks_said=false
+    local function paks_notice()
+        local paks=link.paks()
+        if link.mode()=='none' then paks_said=false
+        elseif paks and not paks.same and not paks_said then
+            paks_said=true
+            tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
         end
     end
     LoopInGameThreadWithDelay(250,function()
@@ -485,8 +691,8 @@ if link then
                 local got=chat.receive((link.friend()) or '',line.text,chat_clock)
                 -- While the feed cannot show it (the UI off or failed, or still warming): on the line above EVE.
                 if got and not kit.ready() then
-                    local w=words().chat
-                    notice.say(w.said:format(got.name~='' and got.name or w.partner)..got.text)
+                    local function said(w) return w.chat.said:format(got.name~='' and got.name or w.chat.partner) end
+                    notice.say(said(words())..got.text,said(T.en)..got.text)
                 end
             end
         end
@@ -500,6 +706,14 @@ if link then
                 report(ok,'shared_enemies=off: '..tostring(message))
             end
         end
+        if settings.same_place~=place_wanted and not off then -- The co-op menu's row.
+            place_wanted=settings.same_place
+            local mode=(link.fight() or ''):match('^fight=%a+ mode=(%a+)')
+            if mode and mode~='probe' then
+                local ok,message=ask(place_wanted and 'fight pilot on' or 'fight pilot off')()
+                report(ok,'same_place='..(place_wanted and 'on' or 'off')..': '..tostring(message))
+            end
+        end
         if fight_auto and not off then
             local verdict=(slot_line() or ''):match('^slot=(%a+)')
             if verdict=='coop' or verdict=='main' or verdict=='none' then
@@ -509,6 +723,8 @@ if link then
             end
         end
         fight_notices()
+        pilot_notices()
+        paks_notice()
         local mode=link.mode()
         if mode then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
@@ -535,6 +751,7 @@ if link then
             hud.slow()
             saves_ui.slow(world==true,title==true)
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
+            if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end
@@ -578,12 +795,12 @@ if settings then
                 log('key '..name..': '..action)
                 if action=='status' then
                     report(true,link.summary())
-                    say(link.summary(words()))
+                    tell(link.summary)
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else
-                    local ok,why,shown=menu.toggle()
-                    if why then report(ok,why); say(shown or why) end
+                    local ok,why,shown,en=menu.toggle()
+                    if why then report(ok,why); say(shown or why,en) end
                 end
                 return
             end

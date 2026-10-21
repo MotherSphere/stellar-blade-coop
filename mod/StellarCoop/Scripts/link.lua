@@ -10,10 +10,12 @@
 -- at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
--- coop-settings.txt's shared_enemies and fight_chars (Phase 11, experimental) are main.lua's coop fight; its
--- photo_sync, photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part
--- through coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op
--- menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
+-- same_place, aggro, same_spawns, enemy_extra, bosses and boss_hp_scale (Phase 11, experimental) are main.lua's coop
+-- fight; its photo_sync,
+-- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
+-- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
+-- here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -47,20 +49,53 @@ send_rate=60
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
-# shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
-# example fight_chars=15011001.
+# death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
+# and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
+# for example fight_chars=15011001.
 shared_enemies=on
 fight_chars=auto
+# guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
+# stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
+guest_kills=at_once
+# Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit: all (every
+# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
+enemy_hp_scale=1.35
+enemy_balance_scale=1.15
+kill_credit=all
+# Same place, experimental, the host's for both games: on or off. As guest, yours decides nothing at a start; the
+# co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
+# shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
+# last, or else the nearer player) or host (enemies fight the host only).
+same_place=on
+aggro=game
+# Same spawns, experimental, the host's for both games: on or off. On, while both players stand within 100 m of each
+# other in one zone, the guest's game adds the common enemies the host's game has there and removes those it lacks.
+# Bosses, quest and event enemies, and the enemies a save records, stay as they are.
+same_spawns=on
+# Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
+# of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
+# 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
+# Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
+enemy_extra=0
+# Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
+# hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
+# boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
+# to 4.0.
+bosses=on
+boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
-# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
+# experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
+# method: enemies, combat and shared enemies stay stopped while animations, cloth and effects go on moving), from your
+# next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
-# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
-# english.
+photo_pause=full
+# The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
 ui_language=game
@@ -78,16 +113,20 @@ card_details=on
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
-    dyes='off',effects='off',shared_enemies='on',fight_chars='auto',photo_sync='both',photo_freeze_max='600',
-    photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
-    partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
-local SWITCHES={name_tag=true,shared_enemies=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true, -- on or off.
-    chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true}
+    dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
+    enemy_balance_scale='1.15',kill_credit='all',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
+    bosses='on',boss_hp_scale='2.0',
+    photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
+    ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
+    who_can_join='friends',auto_coop_save='ask'}
+local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
+    photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
+    card_details=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
-local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},
-    who_can_join={'friends','code','private'},
-    auto_coop_save={'ask','always','off'}}
+local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
+    kill_credit={'all','fought'},who_can_join={'friends','code','private'},
+    auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -95,8 +134,9 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- A setting's value from its text, or nil and why it is refused. A key is keybind.lua's ({key='F7', mod='SHIFT' or nil,
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
--- written before auto); a choice (CHOICES: photo_sync, ui_language, who_can_join, auto_coop_save) one of its words;
--- photo_freeze_max a whole number of seconds; ui_scale one of percent.
+-- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
+-- auto_coop_save, aggro, photo_pause) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of
+-- percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole percents).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -126,6 +166,14 @@ local function setting(name,text)
         local rate=text:match('^%d+$') and tonumber(text)
         if rate and rate>=10 and rate<=60 then return rate end
         return nil,'use 10 to 60'
+    elseif name=='enemy_hp_scale' or name=='enemy_balance_scale' or name=='boss_hp_scale' then
+        local x=text:match('^%d+%.?%d*$') and tonumber(text)
+        if x and x>=1 and x<=4 then return x end
+        return nil,'use 1.0 to 4.0'
+    elseif name=='enemy_extra' then
+        local n=text:match('^%d$') and tonumber(text)
+        if n and n<=3 then return n end
+        return nil,'use 0 to 3'
     elseif name=='ui_scale' then
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end
@@ -150,14 +198,33 @@ function Link.migrate_rate(text)
     local nl=new:find('\r\n',1,true) and '\r\n' or '\n'
     return new..((new=='' or new:sub(-1)=='\n') and '' or nl)..RATE_NOTE..nl
 end
+-- 0.4.0-beta.1 wrote same_place, same_spawns and bosses as off, with "off until it has been tested in game" in the
+-- same spawns comment. A file with that comment: its text with each of the three that says off set to on and the
+-- comment's first sentence as Link.DEFAULT has it, so it is changed once and an off picked later stays. nil for any
+-- other file, and nil, why when a line cannot be set.
+local OLD_ON_NOTE="# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game."
+local ON_NOTE="# Same spawns, experimental, the host's for both games: on or off."
+function Link.migrate_on(text)
+    local at,stop=text:find(OLD_ON_NOTE,1,true)
+    if not at then return nil end
+    local new=text:sub(1,at-1)..ON_NOTE..text:sub(stop+1)
+    for _,key in ipairs({'same_place','same_spawns','bosses'}) do
+        if (SF.get(new,key) or ''):lower()=='off' then
+            local set,why=SF.set(new,key,'on')
+            if not set then return nil,why end
+            new=set
+        end
+    end
+    return new
+end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
     local settings,notes,n={},{},0
     for name,value in pairs(DEFAULTS) do settings[name]=setting(name,value) end
     text=text:gsub('^\239\187\191','') -- Notepad's "UTF-8 with BOM".
-    if #text>4096 then -- Whole lines only: a cut F11 would read as F1.
-        text=text:sub(1,4096):match('^.*\n') or ''
-        notes[1]='settings: only the first 4096 bytes are read'
+    if #text>8192 then -- Whole lines only: a cut F11 would read as F1.
+        text=text:sub(1,8192):match('^.*\n') or ''
+        notes[1]='settings: only the first 8192 bytes are read'
     end
     local named={} -- The settings a line names, taken or not.
     for line in ((text:gsub('\r',''))..'\n'):gmatch('([^\n]*)\n') do
@@ -225,12 +292,12 @@ function Link.new(folder,fs)
     local seen,remote={},{}
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
-    -- handed out; fight: the shared fight's line; photo: the photo line's {mine=,peer=,frozen=}; mate: her vitals;
-    -- ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits
-    -- for the handshake (kept across changes() until she is linked or we are no longer a guest); saves: the co-op
-    -- saves' state (saves()).
-    local mode,friend,listed,dead,held,rejoin,shown,fight,photo=nil,nil,nil,false,nil,nil,nil,nil,nil
-    local mate,ping,loopback,rejoined,saves=nil,nil,false,false,{}
+    -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
+    -- peer=,frozen=}; mate: her vitals; ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a
+    -- rejoin got her lobby back and waits for the handshake (kept across changes() until she is linked or we are no
+    -- longer a guest); saves: the co-op saves' state (saves()); paks: her .pak mods against ours (paks()).
+    local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
+    local mate,ping,loopback,rejoined,saves,paks=nil,nil,false,false,{},nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
     -- lobby members' SteamIDs (peer lines). strangers: each joiner seen waiting in the lobby strangers_in names
@@ -248,7 +315,22 @@ function Link.new(folder,fs)
         if not ok then return false,'cannot write '..name..': '..tostring(why) end
         return true
     end
+    -- The native part takes one coop-request.txt a pass, and a write before it took the last one replaced it: two
+    -- requests in one Lua tick (coop fight on and saves coop at a game start) lost the first. So a request waits here,
+    -- in order, while one is on disk, and changes() writes the next once the native part took it.
+    -- ponytail: 8 at most, the newest kept, for a native part that never takes them (a fault, another build).
+    local queue={}
+    local function send()
+        if queue[1] and not fs.read(path('coop-request.txt')) and put('coop-request.txt',queue[1]..'\n') then
+            table.remove(queue,1)
+        end
+    end
     function self.request(line)
+        if queue[1] or fs.read(path('coop-request.txt')) then
+            if #queue>=8 then table.remove(queue,1) end
+            queue[#queue+1]=line
+            return true,'asked the native part: '..line
+        end
         local ok,why=put('coop-request.txt',line..'\n')
         if not ok then return false,why end
         return true,'asked the native part: '..line
@@ -315,13 +397,18 @@ function Link.new(folder,fs)
         return lines
     end
     function self.changes()
+        send()
         local text,now,new=fs.read(status_path),{},{}
         -- From the pose path's line only: a peer line before it carries a Steam name the other player chooses.
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
-        mode,friend,listed,dead,held,rejoin,fight,photo=nil,nil,nil,false,nil,nil,nil,nil
-        mate,ping,loopback,saves=nil,nil,engine:find(' loopback=')~=nil,{}
+        mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
+        mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
+        -- The engine off on another game build (check_build's reasons): a game update, said at the title (saves.lua).
+        if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
+            saves.build=true
+        end
         lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
         listed={}
@@ -353,6 +440,9 @@ function Link.new(folder,fs)
             if id then members[#members+1]=id end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
+            if line:find('^pilot=') then pilot=line end
+            local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
+            if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
             if mine then photo={mine=mine,peer=peer,frozen=frozen=='1'} end
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
@@ -360,10 +450,11 @@ function Link.new(folder,fs)
             local n,notice=line:match('^notice=(%d+) (.*)$')
             if n then listed[#listed+1]={tonumber(n),notice} end
             local verdict,names=line:match('^slot=(%a+) .* saves=(%S+)$')
-            if verdict then saves.slot,saves.saves=verdict,names end
+            if verdict then saves.slot,saves.saves,saves.marker=verdict,names,line:match(' marker=(%d) ') end
             saves.convert=saves.convert or line:match('^convert=(.+)$')
             if line:find('^mod=') then saves.steamid=line:match(' steamid=(%d+) ') end
         end
+        if held then saves.held=true end -- The question at the title says an invite waits (saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
         if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
@@ -388,6 +479,12 @@ function Link.new(folder,fs)
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
     function self.fight() return fight end
+    -- Same-place enemies' line ("pilot=on piloted=3 owned=1 drawn=2", "pilot=off why=host", "pilot=stopped",
+    -- "pilot=refused why=..."; native pilot_status()), from the start of its own line; nil without one.
+    function self.pilot() return pilot end
+    -- Her .pak mods against ours, once her game said them: {same=, ours=, hers=} (the counts beyond the base game's
+    -- paks), or nil.
+    function self.paks() return paks end
     -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a
@@ -418,7 +515,9 @@ function Link.new(folder,fs)
     end
     -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
     -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
-    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits)}; a field unread is nil.
+    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits), build=true when the engine is off
+    -- on another game build, held=true while an invite waits for a save (the link line's held=), marker=the slot digit
+    -- StellarCoopSlot.txt names (the manual co-op slot)}; a field unread is nil.
     function self.saves() return saves end
     -- The status key's line, in words (ui_text.lua's T.en or T.fr; English when not given). Her name is an argument
     -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer
@@ -443,7 +542,7 @@ function Link.new(folder,fs)
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
     function self.settings()
-        local text,wrote=fs.read(path('coop-settings.txt')),nil
+        local text,wrote,turned=fs.read(path('coop-settings.txt')),nil,nil
         if not text then
             text=Link.DEFAULT
             local ok,why=put('coop-settings.txt',text,true)
@@ -461,8 +560,20 @@ function Link.new(folder,fs)
             elseif why then
                 wrote='settings: send_rate=20, the old default, kept: '..why
             end
+            local on,why_on=Link.migrate_on(text) -- 0.4.0-beta.1's three off lines, read as on.
+            if on then
+                local ok
+                ok,why_on=self.write_settings(on)
+                text=on
+                turned=ok and 'settings: same_place, same_spawns and bosses are now on in coop-settings.txt'
+                    or 'settings: same_place, same_spawns and bosses read as on (coop-settings.txt not rewritten: '
+                        ..tostring(why_on)..')'
+            elseif why_on then
+                turned='settings: same_place, same_spawns and bosses kept as they are: '..why_on
+            end
         end
         local settings,notes=Link.parse_settings(text)
+        if turned then table.insert(notes,1,turned) end
         if wrote then table.insert(notes,1,wrote) end
         return settings,notes
     end

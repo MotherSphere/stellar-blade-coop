@@ -94,7 +94,7 @@ Options) says when:
 
 | Value | At the title |
 | --- | --- |
-| `ask` (default) | A question: Convert and play co-op (Play co-op once a copy exists), Play solo normally, Decide later, Don't ask again (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)) |
+| `ask` (default) | A question: Convert and play co-op (Play co-op once a copy exists), Play solo normally, Decide later, Don't ask again (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)). It asks once more on the same title screen when a friend's invite is accepted after an answer without co-op |
 | `always` | The copies and the switch, without a question, each time the title screen shows while the game uses your own saves |
 | `off` | Nothing: your own saves, and the manual co-op slot as the only co-op save |
 
@@ -116,6 +116,20 @@ A copy pass:
 `coop saves probe` logs the plan of the next pass without writing anything. `coop saves main` switches back to your
 own saves at the title, as long as no co-op save has been loaded since the game started.
 
+To start a co-op character over from your own save, use `coop saves refresh N` (N from 0 to 4) at the title, while
+the game uses your own saves. The first time, it only says what it replaces; typed again within 10 s, it asks the
+native part. That pass:
+
+- copies the copy it replaces, `StellarBladeCoop0N.sav`, into a new folder of `StellarCoopBackups` and reads it back
+  (with no `StellarCoopSaves.txt`, the backup of every `StellarBlade*.sav` comes first instead);
+- then replaces it with a checked copy of `StellarBladeSave0N.sav`, as any copy, and writes its line in
+  `StellarCoopSaves.txt`;
+- leaves the other slots' copies alone and switches nothing (as at any pass, a copy played in co-op loses its line
+  and stays kept);
+- replaces nothing if the backup fails, and refuses a slot with no save of yours.
+
+The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N's co-op copy replaced` or why not.
+
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 
 | Line | Meaning |
@@ -123,7 +137,7 @@ To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.lo
 | `slot=coop index=2 marker=none saves=coop` | A co-op copy is loaded (here `StellarBladeCoop02.sav`) |
 | `slot=main index=0 marker=none saves=main` | One of your own saves is loaded (here file 00) |
 | `slot=none ... saves=coop` | No save is loaded yet (the title screen); the game uses the copies |
-| `saves=off` | The mod cannot read the save file name (another game build, or a check failed): no copies, no question |
+| `saves=off` | The mod cannot read the save file name (another game build, or a check failed): no copies, no question. On another game build, the title screen says so once |
 | `slot=unknown`, `index=?` or `saves=?` | Not read yet, another game build, or after `coop off` |
 
 The `convert=` line gives the last copy pass: `idle`, `busy <done>/<jobs>`, `done` or `error:<why>`.
@@ -134,6 +148,14 @@ With the game using your own saves (`saves=main` or `saves=off`), the co-op save
 `StellarCoopSlot.txt`, in the same folder as the saves. The file holds one line, the slot's file name (for example
 `StellarBladeSave04.sav`), saved as UTF-8. Blank lines and lines starting with `#` are ignored. It is the only co-op
 save with `auto_coop_save=off`.
+
+Once the game uses the co-op copies (`saves=coop`), the manual slot no longer counts: co-op plays its copy,
+`StellarBladeCoop0N.sav`. A copy not played in co-op follows `StellarBladeSave0N.sav` at each pass; a copy played in
+co-op is kept, so progress you made later in `StellarBladeSave0N.sav` (through the manual slot, with the copies off) is
+not in it; `coop saves refresh N` replaces that copy with it (the old copy is backed up first). A notice says once a
+load which files co-op no longer needs. The mod moves nothing: with the game closed, you can move `StellarCoopSlot.txt`
+out of the save folder, and `StellarBladeSave0N.sav` unless you played it after its copy was made, or keep both for
+`auto_coop_save=off`.
 
 [INSTALL.md: Manual co-op slot](../INSTALL.md#manual-co-op-slot-auto_coop_saveoff) says how to make it; on Linux,
 `tools/save_guard.py slot` does it:

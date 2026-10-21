@@ -1,7 +1,9 @@
 // Record and replay on the build machine: the recorder's file reads back, every refusal of the reader one defect at a
 // time, fuzzed files that must never crash and replay sanely whenever they are accepted, re-stamping across 3 loops
-// (deltas too: their keyframe's age stays right), and a recording of keyframes and deltas played through the
-// receiver's own path (parse_table, KeyedDecoder, Playback) with no stall at the loop seams.
+// (deltas too: their keyframe's age stays right; same-place enemies' SBE and show lines on the poses' clock), and a
+// recording of keyframes and deltas played through the receiver's own path (parse_table, KeyedDecoder, Playback) with
+// no stall at the loop seams.
+#include "pilot.h"
 #include "pose_record.h"
 #include "pose_stream.h"
 
@@ -92,6 +94,30 @@ struct Delivered {
   uint64_t now;
   std::string bytes;
 };
+
+// Same-place enemies' messages (pilot.h): an SBE of two enemies (x cm), and a show line of enemy 4100.
+std::string sbe(uint32_t seq, uint64_t publication, float x = 100) {
+  coop::pilot::SbeHeader h;
+  h.gen = 7, h.seq = seq, h.publication = publication;
+  coop::pilot::Entry e[2];
+  e[0].guid = 4100, e[0].loc[0] = x, e[0].speed = 300;
+  e[1].guid = 4101, e[1].loc[1] = -x, e[1].flags = coop::pilot::kBattle;
+  uint8_t out[coop::pilot::kMaxSbe];
+  const size_t n = coop::pilot::encode_sbe(h, e, 2, out);
+  assert(n == coop::pilot::kHeaderBytes + 2 * coop::pilot::kEntryBytes);
+  return std::string(reinterpret_cast<const char *>(out), n);
+}
+std::string show(coop::pilot::Kind kind, uint8_t id, uint64_t t_ms) {
+  coop::pilot::ShowLine l;
+  l.kind = kind, l.gen = 7, l.guid = 4100, l.id = id, l.t_ms = t_ms;
+  l.rate = kind == coop::pilot::Kind::stop ? 0 : 1000;
+  if (kind == coop::pilot::Kind::show) {
+    assert(coop::pilot::set_path(l, 0, "CH_M_NA_05_Gorilla/Skill/M_GorillaB_S03_ShortMoveLeft"));
+    l.ctx[coop::pilot::kHitPos] = 12345;
+  }
+  return coop::pilot::format(l);
+}
+coop::pilot::ShowLine show_of(const std::string &text) { return coop::pilot::parse_show(text.data(), text.size()); }
 } // namespace
 
 int main() {
@@ -101,6 +127,7 @@ int main() {
   const std::string good = kHead + entry('T', t1) + entry('P', p1) + entry('P', p2) + entry('T', t1) + entry('P', p3);
   Recording r = recording(good);
   assert(r.entries.size() == 5 && r.poses == 3 && r.first == 1'000'000 && r.last == 1'100'000 && r.file == good);
+  assert(r.tables == 2 && r.sbe == 0 && r.shows == 0 && r.end == r.last);
   assert(r.entries[1].kind == 'P' && r.entries[1].size == p1.size() && r.entries[4].publication == 1'100'000);
   assert(good.compare(r.entries[3].at, t1.size(), t1) == 0);
 
@@ -133,14 +160,72 @@ int main() {
   // Read back, a delta counts as a pose, and the loop runs to the last delta (coop replay's line).
   const Recording kr = recording(keyed);
   assert(kr.poses == 6 && kr.entries.size() == 8 && kr.first == 2'000'000 && kr.last == 2'116'667);
+  // Same-place enemies (protocol 11): SBE and the show lines are kept after the first pose, on the poses' clock: an SBE
+  // published after the SBE before it, a show line stamped (t_ms) no earlier than the show line before it. What may not
+  // follow is skipped: one before any pose (or stamped before the first), one that goes back, a malformed one, a
+  // channel-2 line that is no show line.
+  using coop::pilot::Kind;
+  const std::string e1 = sbe(1, 1'010'000), e2 = sbe(2, 1'043'333, 110), s1 = show(Kind::show, 1, 1'020),
+                    s2 = show(Kind::set, 1, 1'020), s3 = show(Kind::stop, 1, 1'060);
+  {
+    const std::string bad_e = "SBE" + std::string(1, char(coop::kProtocol - 1)) + e2.substr(4);
+    const std::string early_e = sbe(9, 999'000), early_s = show(Kind::show, 2, 998),
+                      hp = coop::fight_tag() + " hp 1 1 0 77:1:2:3";
+    assert(rec.start(t1));
+    for (const std::string *m :
+         {&e1, &s1, &p1, &early_e, &early_s, &e1, &s1, &s2, &bad_e, &hp, &p2, &e2, &e2, &s3, &s1})
+      assert(rec.add(u8(*m), m->size()));
+    const std::string mixed = kHead + entry('T', t1) + entry('P', p1) + entry('E', e1) + entry('S', s1) +
+                              entry('S', s2) + entry('P', p2) + entry('E', e2) + entry('S', s3);
+    assert(rec.bytes() == mixed && rec.rules().poses == 2 && rec.rules().sbe == 2 && rec.rules().shows == 3);
+    const Recording mr = recording(mixed);
+    assert(mr.entries.size() == 8 && mr.poses == 2 && mr.first == 1'000'000 && mr.last == 1'050'000);
+    // Counted by kind for coop replay's line, whose loop runs to the show-stop after the last pose.
+    assert(mr.tables == 1 && mr.sbe == 2 && mr.shows == 3 && mr.end == 1'060'000);
+    const uint64_t stamps[8] = {0, 1'000'000, 1'010'000, 1'020'000, 1'020'000, 1'050'000, 1'043'333, 1'060'000};
+    for (size_t i = 0; i < 8; ++i)
+      assert(mr.entries[i].publication == stamps[i] && mr.entries[i].kind == "TPESSPES"[i]);
+  }
+  // A show line's replay keeps its context: kMaxShowLine bytes is the most a line with a 1-digit t_ms may hold so that
+  // the same line with a 20-digit t_ms still fits kMaxMessage. One byte more and format() would drop the context, so
+  // the recorder skips such a line and the reader refuses it.
+  {
+    coop::pilot::ShowLine l;
+    l.kind = Kind::show, l.gen = 7, l.guid = 4100, l.id = 1, l.t_ms = 5, l.rate = 1000;
+    std::fill(l.ctx, l.ctx + coop::pilot::kCtx, -1'000'000'000);
+    l.ctx[coop::pilot::kHitLevel] = l.ctx[coop::pilot::kHitLevel60] = 0;
+    auto sized = [&](size_t want) {
+      for (size_t p = 1; p <= coop::pilot::kMaxPath; ++p) {
+        assert(coop::pilot::set_path(l, 0, std::string(p, 'a')));
+        if (coop::pilot::format(l).size() == want)
+          return coop::pilot::format(l);
+      }
+      assert(!"no path length gives that size");
+      return std::string();
+    };
+    const std::string edge = sized(kMaxShowLine), over = sized(kMaxShowLine + 1);
+    for (const std::string *s : {&edge, &over}) {
+      coop::pilot::ShowLine longest = show_of(*s);
+      longest.t_ms = UINT64_MAX;
+      const std::string again = coop::pilot::format(longest);
+      assert(show_of(again).ctx[coop::pilot::kHitPos] == (s == &edge ? -1'000'000'000 : 0));
+    }
+    const std::string p5 = pose(a, 1, 5'000), head = kHead + entry('T', t1) + entry('P', p5);
+    const char *why = parse(head + entry('S', over));
+    assert(!parse(head + entry('S', edge)) && why && std::string(why) == "show length");
+    assert(rec.start(t1));
+    for (const std::string *m : {&p5, &over, &edge})
+      assert(rec.add(u8(*m), m->size()));
+    assert(rec.bytes() == head + entry('S', edge) && rec.rules().shows == 1);
+  }
   // Full at kMaxEntries: the file still reads back.
   assert(rec.start(t1));
   for (uint32_t k = 1; k < kMaxEntries; ++k) {
-    std::string p = pose(a, k, 1'000'000 + k * 10'000);
+    std::string p = pose(a, k, 1'000'000 + k * 7'000);
     assert(rec.add(u8(p), p.size()));
   }
   assert(!rec.add(u8(p1), p1.size()) && rec.rules().entries == kMaxEntries && !parse(rec.bytes()));
-  // Full at kMaxRecording: the largest poses (16370 bytes, the effect slots' 60 among them) at 20 a second, 77 s of
+  // Full at kMaxRecording: the largest poses (16370 bytes, the effect slots' 60 among them) at 20 a second, 80 s of
   // them. One bone more and the table has no pose size.
   const std::string big_table = table_text(7, 901);
   const Table big = table_of(big_table);
@@ -162,20 +247,24 @@ int main() {
   for (uint32_t k = 1; k <= kMaxEntries; ++k) {
     if (k == kMaxEntries)
       at_entries = over_entries;
-    over_entries += entry('P', pose(a, k, 1'000'000 + k * 10'000));
+    over_entries += entry('P', pose(a, k, 1'000'000 + k * 7'000));
   }
   std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good, protocol_6 = good, protocol_7 = good,
-              protocol_8 = good, d_age_0 = d1;
+              protocol_8 = good, protocol_9 = good, protocol_10 = good, d_age_0 = d1;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x09");
+  assert(kHead == "SBR\x0b");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
   protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.
   protocol_8[3] = 8; // Chat's, before deltas: keyframes only.
+  protocol_9[3] = 9;   // v0.3.0's: the same bytes, made before the shared enemies' scale line.
+  protocol_10[3] = 10; // Stage 2's: the same bytes, made before SBE and the show lines.
   std::memset(&d_age_0[kPoseHeader], 0, 4);
   const std::string bd_k1 = delta(b, pose(b, 30, 2'000'000), pose(b, 31, 2'016'667)); // Its age leads to k1's time.
   bad_byte_3[3] = char(coop::kProtocol + 1);
   const std::string span_end = pose(a, 2, 1'000'000 + kMaxSpanUs + 1);
+  std::string e1_protocol_10 = e1;
+  e1_protocol_10[3] = 10;
   const std::pair<std::string, const char *> refused[] = {
       {std::string(kMaxRecording + 1, 'x'), "size"},
       {"", "magic"},
@@ -186,6 +275,8 @@ int main() {
       {protocol_6, "protocol"},
       {protocol_7, "protocol"},
       {protocol_8, "protocol"},
+      {protocol_9, "protocol"},
+      {protocol_10, "protocol"},
       {good + entry('X', p1), "kind"},
       {good + entry('p', p1), "kind"},
       {kHead + entry('X', t1) + entry('P', p1), "kind"},
@@ -216,6 +307,21 @@ int main() {
       {over_entries, "entries"},
       {kHead + entry('T', t1), "no pose"},
       {kHead, "no pose"},
+      // Same-place enemies' SBE and show lines (first: p1's 1'000'000 us).
+      {good + entry('E', "SBE" + e1.substr(3, e1.size() - 4)), "sbe"},
+      {good + entry('E', e1_protocol_10), "sbe"},
+      {good + entry('E', p1), "sbe"},
+      {kHead + entry('T', t1) + entry('E', e1) + entry('P', p1), "before a pose"},
+      {good + entry('E', sbe(1, 999'999)), "before a pose"},
+      {good + entry('E', sbe(1, 1'000'000 + kMaxSpanUs + 1)), "span"},
+      {good + entry('E', e1) + entry('E', sbe(2, 1'010'000)), "publication"},
+      {good + entry('S', s1 + " "), "show"},
+      {good + entry('S', coop::fight_tag() + " hp 1 1 0 77:1:2:3"), "show"},
+      {good + entry('S', p1), "show"},
+      {kHead + entry('T', t1) + entry('S', s1) + entry('P', p1), "before a pose"},
+      {good + entry('S', show(Kind::stop, 1, 999)), "before a pose"},
+      {good + entry('S', show(Kind::stop, 1, 1'000 + kMaxSpanUs / 1000 + 1)), "span"},
+      {good + entry('S', s3) + entry('S', s1), "time"},
       {good + std::string(1, '\0'), "trailing bytes"},
       {good + std::string("P\x10\0\0", 4), "trailing bytes"},
       {good.substr(0, good.size() - 1), "trailing bytes"},
@@ -229,6 +335,13 @@ int main() {
   assert(!parse(at_entries) && recording(at_entries).entries.size() == kMaxEntries);
   assert(!parse(kHead + entry('T', t1) + entry('P', p1) + entry('P', pose(a, 2, 1'000'000 + kMaxSpanUs))));
   assert(!parse(kHead + entry('T', t1) + entry('P', p1))); // One pose.
+  assert(!parse(good + entry('E', sbe(1, 1'000'000)) + entry('E', sbe(2, 1'000'000 + kMaxSpanUs))));
+  assert(!parse(good + entry('S', show(Kind::stop, 1, 1'000)) + entry('S', show(Kind::stop, 2, 1'000)) +
+                entry('S', show(Kind::stop, 3, 1'000 + kMaxSpanUs / 1000))));
+  // A show line stamped in the first pose's millisecond, but before it: kept, at the pose's time.
+  const std::string same_ms =
+      kHead + entry('T', t1) + entry('P', pose(a, 1, 1'000'500)) + entry('S', show(Kind::stop, 1, 1'000));
+  assert(!parse(same_ms) && recording(same_ms).entries[2].publication == 1'000'500);
 
   // Re-stamped: 7 poses unevenly spaced (frames of 16.7 ms), a table resent after the fourth, played 3 times. The
   // sequence counts up across the loops, the spacing is kept, each loop starts 100 ms after the last pose, and every
@@ -316,6 +429,70 @@ int main() {
       else
         assert(publication - field(m, kPoseHeader, 4) == key_publication);
     }
+  }
+
+  // SBE and the show lines re-stamped on the poses' clock: 3 loops of a keyframe, an SBE, a show, a pose, an SBE, a
+  // show-set and a show-stop, each delivered once due, in file order. An SBE gets its own sequence, counting up across
+  // the loops, and its publication moved with the poses'; a show line its t_ms moved the same way (rounded down to the
+  // ms); every other byte or field stays as recorded. Each loop starts 100 ms after the last stamp of the one before,
+  // here the show-stop's.
+  {
+    const uint64_t t0 = 3'000'000'333; // Not on a whole ms.
+    const std::vector<std::pair<char, std::string>> sent = {
+        {'P', pose(a, 1, t0)},
+        {'E', sbe(41, t0 + 10'000)},
+        {'S', show(Kind::show, 9, (t0 + 20'000) / 1000)},
+        {'P', pose(a, 2, t0 + 33'333, 1)},
+        {'E', sbe(42, t0 + 43'333, 120)},
+        {'S', show(Kind::set, 9, (t0 + 50'000) / 1000)},
+        {'S', show(Kind::stop, 9, (t0 + 66'000) / 1000)}};
+    std::string file = kHead + entry('T', t1);
+    std::vector<uint64_t> stamp; // As recorded, us: an SBE's publication, a show line's t_ms * 1000.
+    for (const auto &[kind, bytes] : sent) {
+      file += entry(kind, bytes);
+      stamp.push_back(kind == 'P'   ? field(bytes, 16, 8)
+                      : kind == 'E' ? field(bytes, 10, 8)
+                                    : std::max(show_of(bytes).t_ms * 1000, t0));
+    }
+    Replay replay;
+    const uint64_t start = 60'000'000;
+    replay.start(recording(file), start);
+    std::vector<Delivered> got;
+    for (uint64_t now = start; got.size() < 3 * 8; now += 1000)
+      replay.deliver(now, [&](const uint8_t *data, size_t size) {
+        got.push_back({now, std::string(reinterpret_cast<const char *>(data), size)});
+      });
+    uint64_t loop_start = start, last = 0;
+    uint32_t sbe_sequence = 0, pose_sequence = 0;
+    for (size_t i = 0; i < 3 * 8; ++i) {
+      const size_t k = i % 8;
+      const std::string &m = got[i].bytes;
+      if (k == 0) {
+        assert(m == t1);
+        loop_start = i ? last + Replay::kLoopGapUs : start;
+        continue;
+      }
+      const auto &[kind, bytes] = sent[k - 1];
+      const uint64_t due = loop_start + (stamp[k - 1] - t0);
+      assert(got[i].now >= due && got[i].now - due < 1000); // Delivered once due, not before.
+      if (kind == 'P') {
+        assert(field(m, 12, 4) == ++pose_sequence && field(m, 16, 8) == due);
+      } else if (kind == 'E') {
+        assert(field(m, 6, 4) == ++sbe_sequence && field(m, 10, 8) == due);
+        assert(m.compare(0, 6, bytes, 0, 6) == 0 && m.compare(18, std::string::npos, bytes, 18) == 0);
+        coop::pilot::SbeHeader h;
+        coop::pilot::Entry e[coop::pilot::kMaxEnemies];
+        size_t n = 0;
+        assert(coop::pilot::decode_sbe(u8(m), m.size(), h, e, n) && n == 2 && h.gen == 7);
+      } else {
+        coop::pilot::ShowLine l = show_of(m), r = show_of(bytes);
+        assert(l.kind == r.kind && l.t_ms == due / 1000);
+        r.t_ms = l.t_ms;
+        assert(coop::pilot::format(r) == m);
+      }
+      last = std::max(last, due);
+    }
+    assert(sbe_sequence == 6 && pose_sequence == 6);
   }
 
   // A recording through the receiver's own path: the recorder writes 3 s of poses (frame-quantized) as the sender
@@ -409,8 +586,9 @@ int main() {
   std::uniform_int_distribution<int> any(0, 255);
   const std::string alphabet = std::string("TPSBR\n 0123456789-\xff\x01") + '\0';
   const std::string b3 = pose(b, 3, 1'100'000);
-  const std::string seed = kHead + entry('T', t1) + entry('P', p1) + entry('D', delta(a, p1, p2)) + entry('T', t2) +
-                           entry('P', b3) + entry('D', delta(b, b3, pose(b, 4, 1'150'000, 1)));
+  const std::string seed = kHead + entry('T', t1) + entry('P', p1) + entry('E', e1) + entry('S', s1) +
+                           entry('D', delta(a, p1, p2)) + entry('T', t2) + entry('P', b3) + entry('S', s3) +
+                           entry('D', delta(b, b3, pose(b, 4, 1'150'000, 1))) + entry('E', e2);
   auto mutate = [&](std::string file) {
     for (int edits = 1 + any(rng) % 3; edits--;) {
       size_t at = size_t(any(rng) * 256 + any(rng)) % file.size();
@@ -425,7 +603,7 @@ int main() {
   };
   size_t accepted = 0;
   Replay replay;
-  uint32_t sequence = 0;
+  uint32_t sequence = 0, sbe_sequence = 0;
   for (int round = 0; round < 200000; ++round) {
     std::string file = kHead;
     if (round % 8)
@@ -441,10 +619,24 @@ int main() {
     for (const Recording::Entry &e : got.entries)
       span = e.kind == 'P' ? e.publication - got.first : span;
     replay.start(std::move(got), 1'000'000'000);
-    uint64_t generation = 0, last = 0, key_publication = 0;
+    uint64_t generation = 0, last = 0, key_publication = 0, last_sbe = 0, last_show = 0;
     size_t delivered = 0;
     replay.deliver(1'000'000'000 + 2 * (span + Replay::kLoopGapUs), [&](const uint8_t *data, size_t size) {
       ++delivered;
+      if (data[2] == 'E') { // An SBE that decodes, its sequence and publication counting up.
+        coop::pilot::SbeHeader h;
+        coop::pilot::Entry e[coop::pilot::kMaxEnemies];
+        size_t n = 0;
+        assert(coop::pilot::decode_sbe(data, size, h, e, n) && h.seq == ++sbe_sequence && h.publication > last_sbe);
+        last_sbe = h.publication;
+        return;
+      }
+      if (data[2] == 'F') { // A show line that parses, stamped no earlier than the one before.
+        const coop::pilot::ShowLine l = coop::pilot::parse_show(reinterpret_cast<const char *>(data), size);
+        assert(l.kind != coop::pilot::Kind::invalid && l.t_ms >= last_show);
+        last_show = l.t_ms;
+        return;
+      }
       if (data[2] == 'T') {
         auto t = parse_table(std::string(reinterpret_cast<const char *>(data), size), false);
         assert(t);

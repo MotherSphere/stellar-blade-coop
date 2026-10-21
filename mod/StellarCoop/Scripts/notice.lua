@@ -2,26 +2,31 @@
 -- in turn. A plain actor of its own, never attached to EVE, so the player actor is never touched. Notices queued with
 -- no EVE in the world (the title screen) are dropped: UE4SS.log already has them. During your own photo mode nothing is
 -- drawn, so no notice lands in a photo: they wait. The first engine error turns the line off for this Lua load.
+-- The line has no font of its own: the engine's default, RobotoDistanceField, has Latin-1's 256 characters only.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local valid,value_of,find=U.valid,U.value_of,U.find
+local Chat=require('chat')
 local Notice={}
-local KEEP,SECONDS,WIDTH,SIZE,RISE=4,4,40,10,120 -- Notices queued, seconds each, characters a line, cm high, cm above EVE.
--- Lines of at most WIDTH characters, broken on spaces; a longer word keeps a line of its own.
-local function wrap(text)
-    local lines,line={},nil
-    for word in text:gmatch('[^ ]+') do -- Not %S: 0xA0, the end of 'à', is a space in some code pages.
-        if line and #line+1+#word<=WIDTH then line=line..' '..word else lines[#lines+1]=line; line=word end
-    end
-    lines[#lines+1]=line
-    return table.concat(lines,'\n')
+local KEEP,SECONDS,WIDTH,SIZE,RISE=4,4,40,10,120 -- Notices queued, seconds each, columns a line, cm high, cm above EVE.
+-- Lines of at most WIDTH columns (a Chinese, Japanese or Korean character two), broken at a space, else between two
+-- characters: the feed's wrap.
+local function wrap(text) return table.concat(Chat.wrap(text,WIDTH),'\n') end
+local BEYOND='[\xC4-\xF4][\x80-\xBF]*' -- A character past Latin-1 (U+0100 on) in well-formed UTF-8.
+-- What the default font can draw of a notice: its English (en) when its own words go past Latin-1 (it has more such
+-- characters than en, whose only ones come from names), and '?' for each character past Latin-1 still left (a name or
+-- a chat line as typed).
+local function latin1(text,en)
+    if en and select(2,text:gsub(BEYOND,''))>select(2,en:gsub(BEYOND,'')) then text=en end
+    return (text:gsub(BEYOND,'?'))
 end
 function Notice.new()
     local self,queue={},{}
     local actor,label,since,visible,off=nil,nil,nil,false,false -- since: when the head notice went up, nil before.
     local veiled=false -- Our own photo mode: the line is hidden, the queue kept.
-    function self.say(text)
-        queue[#queue+1]=text
+    -- A notice, and the same in English when it was put together from the menu's words (ui_text.lua).
+    function self.say(text,en)
+        queue[#queue+1]=latin1(text,en)
         if #queue>KEEP then table.remove(queue,1); since=nil end
     end
     local function hide()

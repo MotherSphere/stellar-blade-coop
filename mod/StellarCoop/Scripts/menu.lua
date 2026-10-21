@@ -30,12 +30,14 @@ function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
     local values,words={},T.en
-    -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150.
-    kit.add('menu',{x=180,y=330,w=1240,h=1500,hit=true,pivot={X=0,Y=0.5}},function(b)
-        b.panel(0,0,1240,1500)
+    -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150. As
+    -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so a value of up
+    -- to 26 columns of Bold 40 and a label of up to 34 fit side by side (ui_text_test.lua checks every word).
+    kit.add('menu',{x=180,y=330,w=1500,h=1500,hit=true,pivot={X=0,Y=0.5}},function(b)
+        b.panel(0,0,1500,1500)
         local v={title=b.text(48,36,'','title'),rows={}}
         b.text(300,58,o.version or '','num')
-        for i=1,ROWS do v.rows[i]=b.row(24,130+(i-1)*76,1192) end
+        for i=1,ROWS do v.rows[i]=b.row(24,130+(i-1)*76,1452,600) end
         v.status,v.note=b.text(48,1290,'','status'),b.text(48,1340,'','status')
         v.hints=b.hints(48,1400,320,{{'move',''},{'enter',''},{'escape',''}})
         return v
@@ -48,10 +50,13 @@ function Menu.new(o)
     local function value(row)
         local v=values[row.key]
         if row.bind then return capturing==row.key and words.press or v end
-        if row.values then return words.value[v] or v end
+        if row.values then return words.value[row.key..'_'..v] or words.value[v] or v end -- aggro_game before game.
         local n=tonumber(v)
         if row.key=='photo_freeze_max' then
             return n==0 and words.no_limit or (n%60==0 and words.minutes:format(n//60) or words.seconds:format(n))
+        end
+        if row.key=='enemy_hp_scale' or row.key=='enemy_balance_scale' or row.key=='boss_hp_scale' then -- 1.35: 135 %.
+            return words.percent:format(math.floor(n*100+0.5))
         end
         return row.key=='ui_scale' and words.percent:format(n) or v
     end
@@ -110,23 +115,24 @@ function Menu.new(o)
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
     function self.is_open() return open end
-    -- menu_key: open, or close; when it cannot open, false, why for the log and the same for the screen in the menu's
-    -- words (the kit off when it took the game's input: the menu would be open unseen).
+    -- menu_key: open, or close; when it cannot open, false, why for the log, the same for the screen in the menu's
+    -- words and in English (the kit off when it took the game's input: the menu would be open unseen).
     function self.toggle()
         if open then return self.close() end
         words=T.pick(kit.language(),settings.ui_language)
-        if kit.off() then return false,OFF,words.refused.off end
+        if kit.off() then return false,OFF,words.refused.off,T.en.refused.off end
         if not (world and kit.ready()) then
-            return false,'the co-op menu opens in the game world only',words.refused.world
+            return false,'the co-op menu opens in the game world only',words.refused.world,T.en.refused.world
         end
         if kit.paused() then
-            return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused
+            return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused,
+                T.en.refused.paused
         end
         model,open,capturing,note,page,back_at=M.new(),true,nil,nil,nil,nil
         values=M.read(link.settings_text() or '')
         kit.show('menu',true,os.clock())
         kit.input(true)
-        if kit.off() then self.close(); return false,OFF,words.refused.off end
+        if kit.off() then self.close(); return false,OFF,words.refused.off,T.en.refused.off end
         kit.sound('open')
         draw()
     end

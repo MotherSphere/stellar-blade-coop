@@ -334,7 +334,9 @@ local base,q1,q3=textured('cube0'),textured('cube1'),textured('cube3')
 assert(vis(base[5])==3 and vis(base[6])==1 and vis(q1[3])==3 and vis(q3[3])==1 and vis(q3[1])==3)
 card.name.set('Alexandra')
 assert(text('Alexandra'))
-menu.row.set('Host a session','','focus')
+menu.row.set('Host a session','On','focus')
+assert(pos(select(2,text('Host a session')))=='76,212' and pos(select(2,text('On')))=='500,212',
+    'The label 36 units in, the value in the last 300 units unless said')
 local flats={}
 for _,o in ipairs(of('Image')) do if not stores[o].brush.ResourceObject then flats[#flats+1]=o end end
 assert(#flats==2 and vis(flats[1])==0 and size(flats[1])=='760x76','The row takes the mouse')
@@ -972,7 +974,7 @@ assert(k.paused()==false and k.language()=='fr-FR' and #calls==n)
 local function last_at(name) for i=#calls,1,-1 do if calls[i]==name then return i end end end
 local function chat_kit()
     local ck=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
-    ck.add('menu',{x=180,y=330,w=1240,h=1500,hit=true},function(b) return {row=b.row(0,0,100)} end)
+    ck.add('menu',{x=180,y=330,w=1500,h=1500,hit=true},function(b) return {row=b.row(24,130,1452,600)} end)
     ck.add('chat',{x=96,y=330,w=1300,h=660,hit=true},function(b)
         b.panel(0,0,1300,660)
         return {box=b.field(24,572,1252,56,'Message')}
@@ -982,6 +984,9 @@ end
 reset()
 k=chat_kit()
 up(k)
+local cells={}
+for _,o in ipairs(of('TextBlock')) do cells[#cells+1]=pos(o) end
+assert(table.concat(cells,' ')=='60,142 876,142','The co-op menu\'s row: its value in its last 600 units')
 local box=of('EditableTextBox')[1]
 local bs=stores[box]
 assert(bs.props.ClearKeyboardFocusOnCommit==false and bs.props.RevertTextOnEscape==true)

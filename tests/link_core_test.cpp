@@ -495,11 +495,12 @@ int main() {
     std::string mod;
     uint64_t build;
   };
-  // Protocol 6 is v0.1.1's, 7 v0.2.0's. A channel-2 line from such a member never gets through, nor can we send her
-  // one.
-  static_assert(kProtocol > 7, "6 is v0.1.1's protocol, 7 v0.2.0's: older ones");
+  // Protocol 6 is v0.1.1's, 7 v0.2.0's, 10 stage 2's (no SBE, no show lines). A channel-2 line from such a member
+  // never gets through, nor can we send her one.
+  static_assert(kProtocol > 10, "6 is v0.1.1's protocol, 7 v0.2.0's, 10 stage 2's: older ones");
   for (const Theirs &t : {Theirs{1, "old", kBuild}, Theirs{6, "v0.1.1", kBuild}, Theirs{7, "v0.2.0", kBuild},
-                          Theirs{kProtocol + 1, "new", kBuild}, Theirs{kProtocol, "v", 123}}) {
+                          Theirs{10, "v0.4.0", kBuild}, Theirs{kProtocol + 1, "new", kBuild},
+                          Theirs{kProtocol, "v", 123}}) {
     std::string their = hello(t.protocol, t.mod, t.build);
     reset();
     World w;
@@ -536,10 +537,10 @@ int main() {
     assert(noticed(w.status(), "Kaanta refused the link: protocol 3 build 1, mine protocol 9 build 1 (mod x)"));
   }
 
-  // A v0.1.1 (6), v0.2.0 (7) or chat-only build (8) friend's lobby carries her protocol in its tag: we leave it before
-  // greeting her, and say why with both protocols, never silently (her hello's reject, above, is the backstop). Her
-  // older version joining ours does the same on her side: the same code with her protocol.
-  for (const char *theirs : {"6", "7", "8"}) {
+  // A v0.1.1 (6), v0.2.0 (7), chat-only (8) or stage 2 build (10) friend's lobby carries her protocol in its tag: we
+  // leave it before greeting her, and say why with both protocols, never silently (her hello's reject, above, is the
+  // backstop). Her older version joining ours does the same on her side: the same code with her protocol.
+  for (const char *theirs : {"6", "7", "8", "10"}) {
     reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);
@@ -1213,29 +1214,34 @@ int main() {
                "25.0 ms"));
     assert(saw("B: Me, last 60 s: in 21 (2.6 KB/s), out 21 (3.5 KB/s), 0 dropped, 0 failed (last result 1); rtt avg "));
 
-    // e. 170 messages of 100 B over 11 passes 1 ms apart: 160 pass (her 60 poses a second with their table, 2.6 times
-    // over), the rest are over the rate limit. A new second lets them through again.
+    // e. 250 messages of 100 B over 16 passes 1 ms apart, two poses then an SBE (pilot.h) in turn: 240 pass (her 60
+    // poses and 30 SBE a second with their table, 2.6 times over), handed on as they are, in order; the rest are over
+    // the rate limit, whatever their kind. A new second lets them through again.
     sink[0].clear();
-    for (int i = 0; i < 170; ++i)
-      send_binary(t.b, std::string(100, 'p'), false);
-    for (int i = 0; i < 11; ++i)
+    std::vector<std::string> mixed;
+    for (int i = 0; i < 250; ++i) {
+      mixed.push_back(i % 3 == 2 ? "SBE" + std::string(97, char('a' + i % 26)) : std::string(100, 'p'));
+      send_binary(t.b, mixed.back(), false);
+    }
+    for (int i = 0; i < 16; ++i)
       t.tick(t.a, 1);
-    assert(sink[0].size() == 160 && saw("A: dropped pose data from Kaanta: over the rate limit"));
+    assert(sink[0] == std::vector<std::string>(mixed.begin(), mixed.begin() + 240));
+    assert(saw("A: dropped pose data from Kaanta: over the rate limit"));
     send_binary(t.b, std::string(100, 'q'), false);
     t.tick(t.a, 1000);
-    assert(sink[0].size() == 161 && sink[0].back() == std::string(100, 'q'));
+    assert(sink[0].size() == 241 && sink[0].back() == std::string(100, 'q'));
     // 17 messages at the size bound in a new second: 16 make 1 MiB and pass, the 17th is over the rate limit.
     for (int i = 0; i < 17; ++i)
       send_binary(t.b, std::string(kMaxBinary, 'm'), false);
     t.tick(t.a, 1000);
     t.tick(t.a, 1);
-    assert(sink[0].size() == 177);
+    assert(sink[0].size() == 257);
     // A send Steam refuses is a failure with its EResult, never counted as out.
     F.send_result = 25;
     send_binary(t.a, "SBT refused", false);
     F.send_result = 1;
     t.tick(t.a, 60000);
-    assert(saw("A: Kaanta, last 60 s: in 177 (17.3 KB/s), out 0 (0.0 KB/s), 11 dropped, 1 failed (last result 25)"));
+    assert(saw("A: Kaanta, last 60 s: in 257 (17.5 KB/s), out 0 (0.0 KB/s), 11 dropped, 1 failed (last result 25)"));
 
     // d. Past the bound, or empty: a bad size, logged once a 60 s line. A throw in the pose path is a drop too, and
     // its message is still released (i).
@@ -1243,7 +1249,7 @@ int main() {
     send_binary(t.b, "", true);
     send_binary(t.b, "throw", true);
     t.tick(t.a, 1);
-    assert(saw("A: dropped pose data from Kaanta: bad size") && sink[0].size() == 177);
+    assert(saw("A: dropped pose data from Kaanta: bad size") && sink[0].size() == 257);
     assert(t.a.peers()[0].dropped == 3 && count("A: dropped pose data from Kaanta") == 3);
 
     // f. A stranger on channel 1: ignored, logged once. A log line out of memory is lost, never the release of the
@@ -1255,7 +1261,7 @@ int main() {
     event_throws = true;
     t.tick(t.a, 1);
     assert(count("A: ignored pose data from 9009: not in our lobby") == 1 && !saw("from 3003"));
-    assert(sink[0].size() == 177);
+    assert(sink[0].size() == 257);
 
     // i. Every message pushed is released, once both read what is left.
     auto all_read = [] {
@@ -1276,7 +1282,7 @@ int main() {
     inbox(0, kPoseChannel).push_back({kFriend, "late"});
     ++by_hand;
     t.tick(t.a, 1);
-    assert(saw("A: ignored pose data from 2002: not in our lobby") && sink[0].size() == 177);
+    assert(saw("A: ignored pose data from 2002: not in our lobby") && sink[0].size() == 257);
     assert(all_read() && F.released == static_cast<int>(F.sent.size()) + by_hand);
 
     // j. Ten more visits: she joins, links and leaves. A's lobby stays, B keeps nothing, and her asked leave never
@@ -1357,7 +1363,7 @@ int main() {
 
     // c. Size: a line of kMaxMessage goes, a longer or empty one is refused; one longer or empty from her is dropped.
     reset_drop_lines();
-    const std::string widest = fight_tag() + " off " + std::string(kMaxMessage - 9, 'r');
+    const std::string widest = fight_tag() + " off " + std::string(kMaxMessage - fight_tag().size() - 5, 'r');
     assert(widest.size() == kMaxMessage && t.b.send_fight(widest, true));
     assert(!t.b.send_fight(widest + "r", true) && !t.b.send_fight("", true));
     inbox(0, kFightChannel).push_back({kFriend, widest + "r"});
@@ -2023,6 +2029,42 @@ int main() {
     t.tick(t.a, 50);
     assert(!t.a.chatting() && !t.a.chat_waiting() && !t.b.chatting());
     assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
+  }
+
+  // Pak mods: ours goes once to the friend past the handshake (again after her next hello); hers, once it came, shows
+  // as the status's paks= line against ours and is logged when it changes; before the handshake it is ignored with no
+  // log line.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.link.paks(2, 77);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    const std::string paks = "SBC" + std::to_string(kProtocol) + " paks ";
+    F.inbox.push_back({kFriend, paks_line(1, 5)});
+    const size_t logged = events.size();
+    w.tick();
+    assert(sent_to(kFriend, paks) == 0 && w.status().find("\npaks=") == std::string::npos && events.size() == logged);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    F.inbox.push_back({kFriend, paks_line(1, 5)});
+    w.tick();
+    assert(sent_to(kFriend, paks_line(2, 77)) == 1 && w.status().find("\npaks=differ 2 1\n") != std::string::npos);
+    assert(saw("Kaanta loads 1 .pak mods, not the same as ours (2 here)"));
+    F.inbox.push_back({kFriend, paks_line(1, 5)}); // The same again: no new log line.
+    w.tick();
+    assert(sent_to(kFriend, paks) == 1 && count("Kaanta loads") == 1);
+    F.inbox.push_back({kFriend, paks_line(2, 77)});
+    w.tick();
+    assert(w.status().find("\npaks=same 2 2\n") != std::string::npos &&
+           saw("Kaanta loads 2 .pak mods, the same as ours"));
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)}); // Her session may be new: ours goes again.
+    w.tick();
+    assert(sent_to(kFriend, paks_line(2, 77)) == 2);
   }
 
   // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the

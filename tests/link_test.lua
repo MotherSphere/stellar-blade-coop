@@ -15,8 +15,12 @@ local REQUEST,STATUS='C:\\Mod\\coop-request.txt','C:\\Mod\\coop-status.txt'
 
 local ok,message=link.request('host')
 assert(ok and files[REQUEST]=='host\n' and not files[REQUEST..'.tmp'] and renames==1,message)
-ok,message=link.request('join 42') -- The native part has not taken the previous request: the newest wins.
-assert(ok and files[REQUEST]=='join 42\n',message)
+ok,message=link.request('join 42') -- The native part has not taken the previous request: this one waits for it.
+assert(ok and files[REQUEST]=='host\n',message)
+link.changes(); assert(files[REQUEST]=='host\n','Still not taken')
+files[REQUEST]=nil -- The native part took it.
+link.changes(); assert(files[REQUEST]=='join 42\n','The next goes once the last was taken')
+files[REQUEST]=nil
 local write=fs.write
 fs.write=function() return false end
 ok,message=link.request('leave')
@@ -76,12 +80,14 @@ files[STATUS]='mod=v proto=8 steam=ready steamid=76561198000000001 appid=3489700
 link.changes()
 local sv=link.saves()
 assert(sv.slot=='coop' and sv.saves=='coop' and sv.convert=='busy 2/6' and sv.steamid=='76561198000000001')
+assert(sv.marker==nil,'marker=none: no manual co-op slot')
 files[STATUS]='mod=v proto=8 steam=waiting\nfriend=1 0 x\nslot=main index=0 marker=4 saves=main\n'
     ..'convert=error:the manifest could not be written\n'
 link.changes()
 sv=link.saves()
 assert(sv.slot=='main' and sv.saves=='main' and sv.convert=='error:the manifest could not be written'
     and sv.steamid==nil,'No Steam ID before Steam')
+assert(sv.marker=='4','The manual co-op slot StellarCoopSlot.txt names')
 files[STATUS]='mod=v proto=8 steam=ready steamid=7 appid=1\nfriend=1 0 x slot=coop index=1 marker=1 saves=coop\n'
     ..'peer=2 name=y convert=done\n'
 link.changes()
@@ -90,6 +96,24 @@ assert(sv.slot==nil and sv.saves==nil and sv.convert==nil and sv.steamid=='7','N
 files[STATUS]=nil
 link.changes()
 assert(next(link.saves())==nil,'Nothing read: nothing known')
+-- A friend's invite held until a save loads (the link line's held=): the question at the title says so.
+files[STATUS]='mod=v proto=8 steam=ready\nlink=none lobby=0 held=7000\nslot=none index=? marker=none saves=main\n'
+link.changes()
+assert(link.saves().held==true and link.saves().saves=='main')
+files[STATUS]='mod=v proto=8 steam=ready\nlink=none lobby=0\nfriend=1 0 x held=7\nlast=held=7\n'
+link.changes()
+assert(link.saves().held==nil,'Only the link line says so')
+-- Another game build (a game update): the pose path's line says why the engine is off, so the title can say why the
+-- co-op saves are off. coop off and a fault are not another build; a peer's line never counts.
+for status,build in pairs({['engine=off reason=build stamp 6512abcd size 0a1b2c3d\nslot=none index=? marker=none saves=off\n']=true,
+        ['engine=off reason=code bytes differ\nslot=none index=? marker=none saves=off\n']=true,
+        ['engine=off reason=coop_off\nslot=none index=? marker=none saves=off\n']=false,
+        ['engine=off reason=engine off: fault 0x1 at StellarCoop.dll+0x2 reading 0x3\n']=false,
+        ['peer=2 name=x engine=off reason=build stamp 1 size 2\nengine=on\n']=false}) do
+    files[STATUS]='mod=v proto=8 steam=ready\n'..status
+    link.changes()
+    assert(link.saves().build==(build or nil),status)
+end
 -- A peer's Steam name is hers to choose: only the pose path's line is read.
 files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=on 0 0 0 remote=1799 5 loopback\n'
 link.changes()
@@ -123,6 +147,30 @@ link.changes()
 files[STATUS]=nil
 link.changes()
 assert(link.fight()==nil,'No status: none either')
+-- Same-place enemies' line (stage 3a), likewise from the start of its own line only; nil without one.
+files[STATUS]='mod=v\npeer=2 name=x pilot=on piloted=9\nfight=off\npilot=on piloted=3 probe=on\nlast=#10 x\n'
+link.changes()
+assert(link.pilot()=='pilot=on piloted=3 probe=on',tostring(link.pilot()))
+files[STATUS]='mod=v\r\npilot=refused why=build stamp 0 (not the pinned game)\r\nlast=#11 x\r\n'
+link.changes()
+assert(link.pilot()=='pilot=refused why=build stamp 0 (not the pinned game)','CRLF')
+files[STATUS]='mod=v\npeer=2 name=x pilot=on piloted=1\nlast=pilot=on piloted=1\n'
+link.changes()
+assert(link.pilot()==nil,'Not from a peer line nor from the last line')
+files[STATUS]=nil
+link.changes()
+assert(link.pilot()==nil,'No status: none either')
+-- Her .pak mods against ours (paks=same|differ <ours> <hers>), from the start of its own line only; nil without one.
+files[STATUS]='mod=v\npeer=2 name=x paks=same 1 1\npaks=differ 2 0\nlast=#9 x\n'
+link.changes()
+local paks=link.paks()
+assert(paks and paks.same==false and paks.ours==2 and paks.hers==0)
+files[STATUS]='mod=v\npaks=same 3 3\n'
+link.changes()
+assert(link.paks().same and link.paks().ours==3)
+files[STATUS]='mod=v\npeer=2 name=x paks=differ 1 2\npaks=odd\n'
+link.changes()
+assert(link.paks()==nil,'Not from a peer line, nor a line of another shape')
 
 assert(link.valid_lobby('109775241234567890') and not link.valid_lobby('12x') and not link.valid_lobby('0'))
 -- A join code as typed (the code box, coop join <code>): either case, the dash after the third character, a space there
@@ -190,10 +238,15 @@ assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.menu_key.name==
 s,notes=Link.parse_settings('colour=red\n\nnot a setting\n')
 assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', ignored"
     and notes[2]=="settings: line 3: unknown setting 'not a setting', ignored",notes[1])
-local long='#'..string.rep('x',4088)..'\nsend_rate=25\n' -- The 4096th byte is the r of "send_r": the line is dropped.
-long=long..'#'..string.rep('x',5000-#long-2)..'\n'
+local long='#'..string.rep('x',8184)..'\nsend_rate=25\n' -- The 8192nd byte is the r of "send_r": the line is dropped.
+long=long..'#'..string.rep('x',9000-#long-2)..'\n'
 s,notes=Link.parse_settings(long)
-assert(#long==5000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 4096 bytes are read',notes[1])
+assert(#long==9000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 8192 bytes are read',notes[1])
+-- The default file saved with CRLF and five ids in fight_chars is read to its last line (card_details).
+local crlf=Link.DEFAULT:gsub('fight_chars=auto','fight_chars=15011001 15011002 15011003 15011004 15011005')
+crlf=crlf:gsub('card_details=on','card_details=off'):gsub('\n','\r\n')
+s,notes=Link.parse_settings(crlf)
+assert(#notes==0 and s.card_details==false and #crlf>4096,notes[1])
 s,notes=Link.parse_settings('\239\187\191menu_key=F7\n')
 assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
@@ -290,7 +343,115 @@ local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
 assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==60
-    and s.name_tag==true and s.cloth==false)
+    and s.name_tag==true and s.cloth==false and s.guest_kills=='at_once')
+-- guest_kills: at_once (the default, F4) or confirmed (F4's fallback: the guest's copies hold a 1 HP floor until the
+-- host's game confirms the death), in any case; a new file names it; a bad value keeps at_once, with a line.
+assert(Link.DEFAULT:find('\nguest_kills=at_once\n',1,true),'Written in a new file')
+for _,case in ipairs({{'confirmed','confirmed'},{'Confirmed','confirmed'},{'AT_ONCE','at_once'}}) do
+    s,notes=Link.parse_settings('guest_kills='..case[1])
+    assert(#notes==0 and s.guest_kills==case[2],case[1])
+end
+s,notes=Link.parse_settings('guest_kills=later')
+assert(#notes==1 and notes[1]=="settings: line 1: 'later' is not allowed for guest_kills (use at_once or confirmed); "
+    .."guest_kills stays at_once" and s.guest_kills=='at_once',notes[1])
+-- Two-player scaling, the host's for both games: enemy_hp_scale and enemy_balance_scale from 1.0 to 4.0, whole or with
+-- decimals (1.35 and 1.15 by default); kill_credit all (the default) or fought, in any case. A new file names all
+-- three; a file written before them reads the defaults with no line; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nenemy_hp_scale=1.35\nenemy_balance_scale=1.15\n',1,true),'Written in a new file')
+assert(Link.DEFAULT:find('\nkill_credit=all\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.enemy_hp_scale==1.35 and s.enemy_balance_scale==1.15 and s.kill_credit=='all')
+for _,case in ipairs({{'1','4','FOUGHT'},{'2.0','1.5','all'},{'1.05','1.00','Fought'},{'1.','3.999','ALL'}}) do
+    s,notes=Link.parse_settings('enemy_hp_scale='..case[1]..'\nenemy_balance_scale='..case[2]..'\nkill_credit='
+        ..case[3])
+    assert(#notes==0 and s.enemy_hp_scale==tonumber(case[1]) and s.enemy_balance_scale==tonumber(case[2])
+        and s.kill_credit==case[3]:lower(),case[1])
+end
+for _,bad in ipairs({'0.99','4.01','1,35','x','-1.2','1e0','0x1','','1.2.3','.5','135'}) do
+    s,notes=Link.parse_settings('enemy_balance_scale='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_balance_scale (use 1.0 to "
+        .."4.0); enemy_balance_scale stays 1.15" and s.enemy_balance_scale==1.15,bad..': '..tostring(notes[1]))
+end
+s,notes=Link.parse_settings('kill_credit=mine')
+assert(#notes==1 and notes[1]=="settings: line 1: 'mine' is not allowed for kill_credit (use all or fought); "
+    .."kill_credit stays all" and s.kill_credit=='all',notes[1])
+-- same_place (stage 3a, experimental): on or off in any case, on by default and in a file written before it; a new
+-- file names it after kill_credit, with its comment; a bad value keeps on, with a line.
+assert(Link.DEFAULT:find('\nkill_credit=all\n# Same place, experimental, ',1,true)
+    and Link.DEFAULT:find('\nsame_place=on\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.same_place==true)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.same_place==true)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('same_place='..case[1])
+    assert(#notes==0 and s.same_place==case[2],case[1])
+end
+s,notes=Link.parse_settings('same_place=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for same_place (use on or off); "
+    .."same_place stays on" and s.same_place==true,notes[1])
+-- aggro (stage 3b, the host's): game or host in any case, game by default and in a file written before it; a new
+-- file names it right after same_place; a bad value keeps game, with a line.
+assert(Link.DEFAULT:find('\nsame_place=on\naggro=game\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.aggro=='game')
+for _,case in ipairs({{'host','host'},{'HOST','host'},{'Game','game'}}) do
+    s,notes=Link.parse_settings('aggro='..case[1])
+    assert(#notes==0 and s.aggro==case[2],case[1])
+end
+s,notes=Link.parse_settings('aggro=guest')
+assert(#notes==1 and notes[1]=="settings: line 1: 'guest' is not allowed for aggro (use game or host); aggro stays "
+    .."game" and s.aggro=='game',notes[1])
+-- same_spawns (stage 4, experimental, the host's): on or off in any case, on by default and in a file written before
+-- it; a new file names it right after aggro, with its comment; a bad value keeps on, with a line.
+assert(Link.DEFAULT:find('\naggro=game\n# Same spawns, experimental, ',1,true)
+    and Link.DEFAULT:find('\nsame_spawns=on\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.same_spawns==true)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.same_spawns==true)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('same_spawns='..case[1])
+    assert(#notes==0 and s.same_spawns==case[2],case[1])
+end
+s,notes=Link.parse_settings('same_spawns=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for same_spawns (use on or off); "
+    .."same_spawns stays on" and s.same_spawns==true,notes[1])
+-- enemy_extra (stage 4b, the host's, used with same_spawns only): a whole number from 0 to 3, 0 by default and in a
+-- file written before it; a new file names it right after same_spawns, with its comment; a bad value keeps 0, with a
+-- line.
+assert(Link.DEFAULT:find('\nsame_spawns=on\n# Extra enemies, experimental, ',1,true)
+    and Link.DEFAULT:find('\nenemy_extra=0\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.enemy_extra==0)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.enemy_extra==0)
+for n=0,3 do
+    s,notes=Link.parse_settings('enemy_extra='..n)
+    assert(#notes==0 and s.enemy_extra==n and math.type(s.enemy_extra)=='integer',n)
+end
+for _,bad in ipairs({'4','-1','1.5','two','03'}) do
+    s,notes=Link.parse_settings('enemy_extra='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_extra (use 0 to 3); "
+        .."enemy_extra stays 0" and s.enemy_extra==0,notes[1])
+end
+-- bosses (stage 5, experimental, the host's): on or off in any case, on by default and in a file written before it;
+-- boss_hp_scale (the host's) from 1.0 to 4.0 like the other scales, 2.0 by default. A new file names both right after
+-- enemy_extra, with their comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nenemy_extra=0\n# Shared bosses, experimental, ',1,true)
+    and Link.DEFAULT:find('\nbosses=on\nboss_hp_scale=2.0\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.bosses==true and s.boss_hp_scale==2)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.bosses==true and s.boss_hp_scale==2)
+for _,case in ipairs({{'on',true,'1'},{'ON',true,'4'},{'Off',false,'2.55'}}) do
+    s,notes=Link.parse_settings('bosses='..case[1]..'\nboss_hp_scale='..case[3])
+    assert(#notes==0 and s.bosses==case[2] and s.boss_hp_scale==tonumber(case[3]),case[1])
+end
+s,notes=Link.parse_settings('bosses=yes\nboss_hp_scale=4.5')
+assert(#notes==2 and notes[1]=="settings: line 1: 'yes' is not allowed for bosses (use on or off); bosses stays on"
+    and notes[2]=="settings: line 2: '4.5' is not allowed for boss_hp_scale (use 1.0 to 4.0); boss_hp_scale stays 2.0"
+    and s.bosses==true and s.boss_hp_scale==2,table.concat(notes,'|'))
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
@@ -321,6 +482,16 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for pho
 assert(Link.DEFAULT:find('\nphoto_sync=both\nphoto_freeze_max=600\nphoto_ghost=on\nphoto_name_tag=off\n',1,true))
 s,notes=Link.parse_settings(Link.DEFAULT)
 assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost and not s.photo_name_tag)
+-- photo_pause, experimental: full (the game's whole pause, the default) or scenery (SB's own PauseMethod 1), any case.
+-- A new file names it after the other photo settings.
+s,notes=Link.parse_settings('')
+assert(s.photo_pause=='full')
+s,notes=Link.parse_settings('photo_pause=Scenery\n')
+assert(#notes==0 and s.photo_pause=='scenery')
+s,notes=Link.parse_settings('photo_pause=off\n')
+assert(#notes==1 and notes[1]=="settings: line 1: 'off' is not allowed for photo_pause (use full or scenery); "
+    .."photo_pause stays full" and s.photo_pause=='full',notes[1])
+assert(Link.DEFAULT:find('\nphoto_name_tag=off\nphoto_pause=full\n',1,true))
 local before_photo=Link.DEFAULT:gsub('# Synced photo mode.*$','')
 assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
 s,notes=Link.parse_settings(before_photo)
@@ -670,3 +841,20 @@ if full then
 end
 
 print('link_test ok')
+
+-- A 0.4.0-beta.1 file (its same spawns comment says "off until it has been tested in game") gets same_place, same_spawns
+-- and bosses on once, and its comment's first sentence as now; any other file, and the file after that, is left alone.
+do
+    local old=Link.DEFAULT:gsub("# Same spawns, experimental, the host's for both games: on or off%.",
+        "# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game.")
+        :gsub('\nsame_place=on\n','\nsame_place=off\n'):gsub('\nsame_spawns=on\n','\nsame_spawns=Off\n')
+        :gsub('\nbosses=on\n','\nbosses=off\n')
+    assert(old~=Link.DEFAULT and old:find('\nsame_place=off\n',1,true))
+    local new=assert(Link.migrate_on(old))
+    s,notes=Link.parse_settings(new)
+    assert(#notes==0 and s.same_place and s.same_spawns and s.bosses)
+    assert(not new:find('off until it has been tested in game. On, while',1,true))
+    assert(Link.migrate_on(new)==nil,'once')
+    assert(Link.migrate_on('same_place=off\nsame_spawns=off\nbosses=off\n')==nil,'an off picked by hand stays')
+    assert(Link.migrate_on(Link.DEFAULT)==nil)
+end

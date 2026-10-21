@@ -601,30 +601,32 @@ int main() {
   }
 
   // The byte budget: every unit of a 900-bone outfit changing every frame (every pose a 16 KB keyframe) asked 60 times
-  // a second by a 144 fps game thread for 10 s goes at kPoseBytesPerSecond, plus at most the burst and one pose. A
-  // small pose at 60 a second is never held.
+  // a second by a 144 fps game thread for 10 s goes at kPoseBytesPerSecond, plus at most the burst and one pose; while
+  // SBE runs (pilot.h), at kSbeBytesPerSecond less. A small pose at 60 a second is never held, SBE or not.
+  static_assert(kPoseBytesPerSecond - kSbeBytesPerSecond == 180'224, "196,608 B/s less 16 KiB/s while SBE runs");
   {
     Table large;
     large.generation = 42;
     large.eve = {Part{1, 1, 1, 900, true}};
     std::vector<uint8_t> large_bones(900 * kTransformBytes), buf(kMaxPose);
     const Effect none[kEffectSlots];
-    for (int pass = 0; pass < 2; ++pass) {
-      const Table &u = pass ? t : large;
+    for (int pass = 0; pass < 4; ++pass) {
+      const bool small = pass >= 2, sbe = pass % 2;
+      const Table &u = small ? t : large;
       KeyedEncoder sender;
       sender.reset(pose_size(u));
       uint64_t bytes = 0, poses = 0, held = 0, next = 0, sequence = 0;
       for (uint64_t now = 1'000'000; now < 11'000'000; now += 6944) {
         if (now < next)
           continue;
-        if (!sender.due(now)) {
+        if (!sender.due(now, sbe)) {
           ++held;
           continue;
         }
         next = (next && now - next < 16667 ? next : now) + 16667;
         float r[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
-        uint8_t *bones_of = pass ? bones.data() : large_bones.data();
-        for (size_t k = 0; k < (pass ? kLeaderBones : 900); ++k) {
+        uint8_t *bones_of = small ? bones.data() : large_bones.data();
+        for (size_t k = 0; k < (small ? kLeaderBones : 900); ++k) {
           float f[12] = {};
           random_rotation(rng, f);
           for (int c = 0; c < 3; ++c)
@@ -636,13 +638,14 @@ int main() {
         bytes += sender.encode(u, buf.data(), n, now);
         ++poses;
       }
-      std::printf("codec: budget, %s: %llu poses, %llu bytes in 10 s (%.1f KiB/s), %llu frames held\n",
-                  pass ? "small pose" : "16 KB keyframes", (unsigned long long)poses, (unsigned long long)bytes,
-                  bytes / 10.0 / 1024, (unsigned long long)held);
-      if (pass) {
+      std::printf("codec: budget, %s%s: %llu poses, %llu bytes in 10 s (%.1f KiB/s), %llu frames held\n",
+                  small ? "small pose" : "16 KB keyframes", sbe ? " with SBE" : "", (unsigned long long)poses,
+                  (unsigned long long)bytes, bytes / 10.0 / 1024, (unsigned long long)held);
+      const uint64_t rate = uint64_t(kPoseBytesPerSecond - (sbe ? kSbeBytesPerSecond : 0));
+      if (small) {
         assert(held == 0 && poses >= 599);
       } else {
-        assert(bytes <= kPoseBytesPerSecond * 10 + kPoseBurst + kMaxPose && bytes >= kPoseBytesPerSecond * 10);
+        assert(bytes <= rate * 10 + kPoseBurst + kMaxPose && bytes >= rate * 10);
         assert(held > 0 && poses < 140);
       }
     }

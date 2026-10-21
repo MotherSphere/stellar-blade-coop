@@ -6,29 +6,38 @@
 // Every other message carries the protocol number and is dropped by a peer that runs another one:
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
 //   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
-//   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card).
+//   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
+//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
-// (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h). Channel 2 carries the shared
-// enemies' text lines, which start with fight_tag() (fight_sync.h parses them).
+// (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
+// roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
+// pilot's show lines, which start with fight_tag() (fight_sync.h and pilot.h parse them).
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 9; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
-                             // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
-                             // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
-                             // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines, which
-                             // a protocol-7 peer would count as invalid and drop without a word; 9 adds the pose delta
-                             // (SBD) on channel 1, which a protocol-8 peer would count malformed. An older peer (6:
-                             // v0.1.1, 7: v0.2.0) is told why: the lobby tag, then the hello's reject, name both.
+constexpr int kProtocol = 11; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+                              // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
+                              // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
+                              // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
+                              // which a protocol-7 peer would count as invalid and drop without a word; 9 adds the pose
+                              // delta (SBD) on channel 1, which a protocol-8 peer would count malformed; 10 adds the
+                              // shared fight's scale line, which a protocol-9 guest would drop as malformed, keeping
+                              // its copies at their own maxes while the host's grow, and the paks line (a protocol-9
+                              // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
+                              // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
+                              // copies where its own game puts them. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
+                              // 10: stage 2's builds) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -127,11 +136,11 @@ inline bool plausible_vitals(const Vitals &v) {
   return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
-                         // 's', then 1 for both.
+                         // 's', then 1 for both. paks: the count of .pak mods, their hash.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
 };
@@ -167,7 +176,10 @@ inline std::string vit_line(const Vitals &v) {
     line += " " + std::to_string(x);
   return line;
 }
-// Channel 2's tag, versioned like channel 0's: "SBF9".
+// The .pak mods our game loads beyond the base game's (pak_list.h), reliable, once to each friend past the handshake.
+constexpr uint64_t kMaxPaks = 100000;
+inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
+// Channel 2's tag, versioned like channel 0's: "SBF11".
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
@@ -236,6 +248,9 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && (f[1] == "ping" || f[1] == "pong")) {
     if (number(f[2], m.a) && number(f[3], m.b))
       m.kind = f[1] == "ping" ? Kind::ping : Kind::pong;
+  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "paks") {
+    if (number(f[2], m.a) && m.a <= kMaxPaks && number(f[3], m.b))
+      m.kind = Kind::paks;
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "photo" &&
              (f[2] == "0" || f[2] == "1" || f[2] == "s") && (f[3] == "both" || f[3] == "notice")) {
     m.kind = Kind::photo;
@@ -305,22 +320,42 @@ inline uint64_t code_lobby(std::string_view text) {
 // "off", "loopback <one-way delay ms> <jitter ms> <segment loss %>", "loopback off", "record", "record off", "replay"
 // and "replay off"; for the Night Operation probe (Phase 6, T6 only) "nightop" (start the read-only poller) and
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
-// Worker) "fight on|probe|record|replay [<charId> ...]" (fight_chars, at most kMaxFightChars; none: every Monster),
-// "fight off", "fight status", "fight test hp|sh|st <change>" (whole units, with or without a sign) and "fight test
-// kill"; for the synced photo mode's solo tests "freeze <seconds>" (1 to kMaxFreezeS: our pause held that long) and
-// "freeze off"; for the co-op saves (save_slot.h, save_twins.h) "saves probe" (read-only lines in the log), "saves
-// convert" (make the co-op copies), "saves coop" (make them, then switch to them) and "saves main" (switch back to the
-// player's own saves).
+// Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [aggro-host] [bosses
+// <boss %>] [spawns] [extra <n>] [<charId> ...]" (guest_kills=confirmed; kill_credit=fought; the host's two-player
+// scaling, kMinScale to kMaxScale each; the host's same_place=on; the host's aggro=host; the host's bosses=on with its
+// boss_hp_scale, kMinScale to kMaxScale; the host's same_spawns=on, or with probe coop fight spawn probe; the host's
+// enemy_extra, 1 to kMaxExtra; fight_chars, at most kMaxFightChars, none: every Monster),
+// "fight off", "fight status", "fight test
+// hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
+// (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
+// same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
+// fight on, probe, record or replay, or pilot on), "fight pilot status", "fight pilot test freeze|cmc|drive|replay"
+// (how far the drawn side goes), "fight pilot test target" (SB's force target on one enemy this side owns, once),
+// "fight pilot test exec" (the first frozen copy this side draws loses its balance, for a takedown) and "fight pilot
+// test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
+// for the synced photo mode's solo tests "freeze
+// <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
+// save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
+// them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
+// slot's copy replaced by a new copy of the player's save, the old one backed up first).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
-enum class Fight { none, on, off, status, probe, test, record, replay };
-enum class SavesAsk { none, probe, convert, coop, main };
+enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
+// fight pilot ...; bstart to summon: stage 5's probes (fight_engine.h's Engine::boss_test).
+enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bstart, phase, finish, summon };
+// fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
+// out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
+// too (all of it, the default).
+enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
+enum class SavesAsk { none, probe, convert, coop, main, refresh };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
+constexpr uint16_t kMinScale = 100, kMaxScale = 400; // Two-player scaling in percent: none, four times.
+constexpr uint64_t kMaxExtra = 3;                     // enemy_extra: extra enemies a common enemy, at most.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
@@ -333,7 +368,18 @@ struct Request {
   uint64_t player = 0;                   // allow, deny, remove: her SteamID.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
+  int slot = -1;                    // saves refresh: the slot, 0 to 4.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
+  bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
+  bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
+  uint16_t scale[2] = {kMinScale, kMinScale}; // fight on, probe, record, replay: MaxHP and balance in % (a host's).
+  bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
+  bool aggro_host = false;     // fight on, probe, record, replay: aggro=host (a host's; aggro=game otherwise).
+  uint16_t bosses = 0;         // fight on, probe, record, replay: bosses=on with boss_hp_scale in % (a host's; 0: off).
+  bool spawns = false;         // fight on, record, replay: same_spawns=on (a host's); probe: coop fight spawn probe.
+  uint8_t extra = 0;           // fight on, record, replay: enemy_extra, 1 to 3 (a host's; 0: none).
+  PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
+  PilotTest test = PilotTest::replay;    // fight pilot test: how far.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
 };
@@ -353,8 +399,39 @@ inline Request parse_fight(const std::string &text) {
   if ((what == "off" || what == "status") && w.size() == 1) {
     r.fight = what == "off" ? Fight::off : Fight::status;
   } else if (what == "on" || what == "probe" || what == "record" || what == "replay") {
-    for (size_t i = 1; i < w.size(); ++i) {
-      if (i > kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
+    size_t i = 1;
+    r.confirmed = i < w.size() && w[i] == "confirmed";
+    i += r.confirmed;
+    r.fought = i < w.size() && w[i] == "fought";
+    i += r.fought;
+    if (i < w.size() && w[i] == "scale") {
+      for (uint16_t &pct : r.scale) {
+        if (++i == w.size() || !number(w[i], v) || v < kMinScale || v > kMaxScale)
+          return Request();
+        pct = static_cast<uint16_t>(v);
+      }
+      ++i;
+    }
+    r.place = i < w.size() && w[i] == "place";
+    i += r.place;
+    r.aggro_host = i < w.size() && w[i] == "aggro-host";
+    i += r.aggro_host;
+    if (i < w.size() && w[i] == "bosses") {
+      if (++i == w.size() || !number(w[i], v) || v < kMinScale || v > kMaxScale)
+        return Request();
+      r.bosses = static_cast<uint16_t>(v);
+      ++i;
+    }
+    r.spawns = i < w.size() && w[i] == "spawns";
+    i += r.spawns;
+    if (i < w.size() && w[i] == "extra") {
+      if (++i == w.size() || !number(w[i], v) || !v || v > kMaxExtra)
+        return Request();
+      r.extra = static_cast<uint8_t>(v);
+      ++i;
+    }
+    for (; i < w.size(); ++i) {
+      if (r.chars.size() == kMaxFightChars || !number(w[i], v) || !v || v > UINT32_MAX)
         return Request();
       r.chars.push_back(static_cast<uint32_t>(v));
     }
@@ -362,6 +439,24 @@ inline Request parse_fight(const std::string &text) {
               : what == "probe"  ? Fight::probe
               : what == "record" ? Fight::record
                                  : Fight::replay;
+  } else if (what == "pilot" && w.size() == 2 &&
+             (w[1] == "probe" || w[1] == "on" || w[1] == "off" || w[1] == "status")) {
+    r.fight = Fight::pilot;
+    r.pilot = w[1] == "probe" ? PilotAsk::probe
+              : w[1] == "on"  ? PilotAsk::on
+              : w[1] == "off" ? PilotAsk::off
+                              : PilotAsk::status;
+  } else if (what == "pilot" && w.size() == 3 && w[1] == "test") {
+    static const char *const kTests[] = {"freeze", "cmc", "drive", "replay"};
+    // No step of the drawn side: PilotAsk from target on.
+    static const char *const kAsks[] = {"target", "exec", "bstart", "phase", "finish", "summon"};
+    const auto at = std::find(std::begin(kTests), std::end(kTests), w[2]);
+    const auto ask = std::find(std::begin(kAsks), std::end(kAsks), w[2]);
+    if (at == std::end(kTests) && ask == std::end(kAsks))
+      return Request();
+    r.fight = Fight::pilot;
+    r.pilot = ask == std::end(kAsks) ? PilotAsk::test : PilotAsk(uint8_t(PilotAsk::target) + (ask - std::begin(kAsks)));
+    r.test = at == std::end(kTests) ? PilotTest::replay : PilotTest(at - std::begin(kTests));
   } else if (what == "test" && w.size() == 2 && w[1] == "kill") {
     r.fight = Fight::test;
     r.stat = -1;
@@ -414,7 +509,10 @@ inline Request parse_request(std::string text) {
     r.off = text.size() > 6;
   } else if (text.rfind("saves ", 0) == 0) {
     const std::string word = text.substr(6);
-    r.saves = word == "probe"     ? SavesAsk::probe
+    if (word.size() == 9 && !word.compare(0, 8, "refresh ") && word[8] >= '0' && word[8] <= '4')
+      r.slot = word[8] - '0';
+    r.saves = r.slot >= 0         ? SavesAsk::refresh
+              : word == "probe"   ? SavesAsk::probe
               : word == "convert" ? SavesAsk::convert
               : word == "coop"    ? SavesAsk::coop
               : word == "main"    ? SavesAsk::main

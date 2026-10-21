@@ -3,13 +3,12 @@
 StellarCoop is a co-op mod for Stellar Blade on PC. Two players link their games over Steam, and each one sees the
 other's EVE in their own world.
 
-Status: v0.3.0-beta.1, an experimental pre-release. It runs on Stellar Blade's Steam build 24463856 only. The ghost
-co-op was first played between two PCs on 2026-10-17 with v0.1.1, one on Linux with Proton and one on Windows, between
-Belgium and Brazil at about 240 ms ping. Builds from before this release ran between two PCs on 2026-10-19 and
-2026-10-20, and the 2026-10-20 build showed the co-op menu and the partner HUD in game. The changes made after that
-build have not been tested in game, among them join codes, the menu's key icons, the partner HUD fixes and sending 60
-poses a second. Shared enemies, the co-op saves, synced photo mode, the chat, the optional looks, longer sessions and
-level changes between two PCs have not been tested in game either.
+Status: v0.4.0-beta.1, an experimental pre-release. It runs on Stellar Blade's Steam build 24463856 only. Two-PC
+co-op was first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at
+about 240 ms ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies (one HP
+bar and one death for each common enemy) and with same place (each enemy in the same spot on both screens, passing
+from one player to the other). Shared bosses, same spawns, extra enemies, executions by the guest, synced photo mode,
+the chat, the optional looks, longer sessions and level changes between two PCs have not been tested in game yet.
 
 StellarCoop is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through the Steam
 client that the game already runs, so the mod needs no other program and no server of its own.
@@ -80,7 +79,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same StellarCoop protocol (9 in this version) and the same game build.
+- To play together, both players need the same StellarCoop protocol (11 in this version) and the same game build.
 
 ## Disclaimer
 

@@ -146,6 +146,15 @@ while the on-screen UI is up.
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).
 
+### Photo mode still freezes everything with Scenery live
+
+- `UE4SS.log` has `[StellarCoop] photo pause: off until the mod reloads: <why>`: the game refused the console variable
+  `SB.PhotoMode.PauseMethod` (`reads 0 after the set` on another game build), and photo mode keeps the game's full
+  pause until the mod reloads.
+- The change applies from the next photo mode: leave photo mode and press P again.
+- To go back to the game's own pause, choose Full in Options, or type `SB.PhotoMode.PauseMethod 0` in the console
+  (F10).
+
 ### The co-op saves question does not show
 
 It shows only with `auto_coop_save=ask`, on the title screen, once the on-screen UI has loaded. `coop status` gives the
@@ -155,6 +164,9 @@ reason:
   the title screen. They stay on until the game restarts.
 - `saves=off` or `saves=?`: the mod cannot use the save file name on this game build, or a check failed. The
   `save name: saves=...` line of `coop-link.log` says why. The mod makes no copies, and the game uses your own saves.
+  After a game update, the engine line reads `engine=off reason=build stamp ...` or `reason=code bytes differ`, and
+  the title screen says once `Co-op saves are off: StellarCoop does not support this version of the game.` Wait for a
+  StellarCoop update for the new game version.
 - `steam=waiting`: Steam is not ready yet, and the mod needs your Steam ID to find your save folder.
 - `convert=busy ...`: a copy pass runs. The question waits for its end.
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI
@@ -175,12 +187,140 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   older build of the mod sends nothing until their shared enemies run.
 - `fight=on mode=on role=host enemies=0` or `role=guest pairs=0` while you both fight the same enemies: the two games
   spawned them differently (another map, a different save), or `fight_chars=auto` leaves them out, or a `fight_chars`
-  list does not name them. `auto` leaves out bosses, Alpha Naytibas, the Gorgon, two turrets with 999,999 HP and any
-  enemy above 500,000 maximum HP; `coop fight probe` marks the last three with `left_out=`.
+  list does not name them. `auto` leaves out bosses and Alpha Naytibas (unless the host has `bosses=on`), the Gorgon,
+  two turrets with 999,999 HP and any enemy above 500,000 maximum HP; `coop fight probe` marks the last three with
+  `left_out=`. On the guest's side, `coop fight status` lists the host's enemies it could not pair and why: `charId`
+  (another enemy at that spawn point), `maxhp` (another difficulty or New Game+ in one of the two games) or
+  `duplicate`.
+- `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
+  `paks` line at the top; compare the two lists.
+- `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
+  state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
+  takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).
 - `fight full every place holds an enemy in a fight; a hurt one is not shared` in the host's `coop-link.log`: 16 enemies
   are in fights at once, which is the most it shares. The others stay unshared until one of the 16 dies or leaves.
 - `fight=stopped why=<why>`: shared enemies stopped for this run, and the ghost and the link go on. A reason that
   starts with `implausible` means a value in the game's memory did not look as expected on this game build.
+- `fight desync guest-dead` in the guest's `coop-link.log`: an enemy died on the guest's screen and lives on in the
+  host's game, whose copy had more HP left. If it happens often, the guest can set `guest_kills=confirmed` in
+  `coop-settings.txt`: the guest's copies then keep 1 HP until the host's game kills its own.
+
+### Same place does not start, or stops
+
+Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
+the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-place-experimental)):
+
+- `pilot=refused why=...`: another game build, or `coop off`.
+- `pilot=off why=fight`: shared enemies are not running. See [Enemies are not shared](#enemies-are-not-shared).
+- `pilot=off why=setting`: you host and your `same_place` is off. Turn on Options > Combat > Same place (experimental)
+  in the co-op menu.
+- `pilot=off why=host`: you are the guest, and the host's game has it off: its row is off, it typed
+  `coop fight pilot off`, or an error stopped it there.
+- `pilot=off why=asked`: `coop fight pilot off` on this PC. `coop fight pilot on` or the next `coop fight on` lifts it.
+- `pilot=stopped`: an error stopped it until the game restarts, and `coop-link.log` has a `same-place enemies fault`
+  line. That line also says whether the copies the mod already moved went back to the game. If they did not, they
+  stand still until they leave the map or you rest at a camp.
+- `pilot=on piloted=0`: it runs, but no enemy is shared yet.
+- `fight pilot refused <key> hguid=<n> its movement component is not the game's` in the guest's `coop-link.log`: that
+  copy stays an ordinary enemy in her game.
+- `fight freeze-lost <key> hguid=<n> state 39 gone too often` in the guest's `coop-link.log`: the game took the mod's
+  freeze off a copy 5 times within 10 s. The copy stays an ordinary enemy until the pair ends.
+- `fight frozen <key> hguid=<n> the game froze it first`, and later `fight thaw skipped <key> the game froze it first`,
+  in `coop-link.log`: the game had frozen that enemy itself (a boss before its cutscene, an enemy that waits for a
+  trigger). The mod adds no freeze until the game's freeze ends and leaves it on when it lets the copy go, so the enemy
+  wakes at the game's own event. Until then the game with that frozen copy does not take the enemy over, except for
+  the guest's takedown: the guest answers a hand-over with `fight own-no hguid=<n> state`, and the host does not take
+  back an enemy that the guest runs.
+- `pilot take-over refused hguid=<n> oe=<n>: <why>` in `coop-link.log`: that game took an enemy over but could not
+  point it at its EVE. The reason is `not net mode 0`, `a logic task in flight` or `copy not found` (each after 250 ms
+  of waiting), `a game singleton not made yet`, `no EVE of ours` or `no AI on the copy`. As guest, the enemy goes back
+  to the host (`fight own-no hguid=<n> target`), which keeps it for 30 s.
+- Enemies never fight the guest: the host's `aggro` is `host` (Options > Combat > Enemies attack (host's)), or her
+  side answers each hand-over with `fight own-no` (its reason follows the GUID in her `coop-link.log`).
+- A takedown shows only on the screen of the player who does it: compare the `fight exec` lines of both
+  `coop-link.log` files. No `fight exec` line on the guest's side: same place is off there, or the host's `aggro` is
+  `host`. `fight exec refused <key> hguid=<n> no Groggy or takedown on our copy` on the host: its copy was no longer
+  groggy when her line came. `one runs already`: her game started a takedown of that enemy again while the host still
+  ran the last one. A takedown that starts within 2 s of her last one on that enemy is refused with no line; the
+  `refused` count of `takedowns of hers` in the host's `fight stats:` lines shows it. A takedown also does not move an
+  enemy that the guest refused or gave back in the last 30 s, and it moves an enemy only once the host's copy is out
+  of the game's NoDamageNoHit state.
+- `fight held-expired` right after `fight kill held ... her takedown` or `fight dead held ... her takedown` on the
+  host: the end of her takedown did not reach the host within 6 s of its start, and the host killed the enemy anyway.
+
+If copies slide, stand still or play no animation, keep `coop-fight.log` from both PCs: its `pilot drawn:` lines count
+the copies moved, the Shows replayed, late and missing, and the drift (how far the game moved a copy between two of the
+mod's writes, in cm/s and degrees a second). Drift above a few cm/s on a copy at rest means something in the game still
+moves it.
+
+### A shared boss differs between the two games
+
+Shared bosses (`bosses=on` in the host's settings) are experimental and not tested in game yet. With same place on, the
+guest's copy of a boss follows the host's through the lines in
+[how-it-works.md: Shared bosses](how-it-works.md#shared-bosses). Look in the guest's `coop-link.log` first:
+
+- No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
+  it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
+  logs `fight bstart sent <key> hguid=<n>` when its boss enters battle mode.
+- Her copy's HP stops at a phase threshold while the host's boss fights on: look for `fight phase hguid=<n>` lines.
+  `fight phase hguid=<n> the game refused a row` means the game refused a phase effect on her frozen copy. Her game
+  tries again at the host's next line (every second in battle mode) and logs the refusal once until a line goes
+  through. `fight bad
+  line hguid=<n> not its row` or `not a boss` means the two games do not run the same build of the mod. The host logs
+  `fight phase sent <key> hguid=<n>` at each phase change.
+- `fight finish guard <key> hguid=<n>` is expected once her copy reaches its finishing stance: her game takes the
+  finisher's state (`Passive_FinishReady`) off and keeps the copy at 1 HP. The boss ends with the host's finisher. On
+  the host, `fight finish-held <key> hguid=<n>` means her killing hit came while the host's boss waited for its
+  finisher; the `finish-held` count of the host's `fight stats:` lines shows how often. `fight finish guard ended <key>
+  Immortal off` means the pair ended before the host's finisher (the link dropped, the host's world changed, `coop
+  fight off`): her copy is at 1 HP with no Immortal, and her own hit ends it in her game. With `the game refused its
+  dispel` in place of `Immortal off`, her copy keeps its Immortal at 1 HP: load a checkpoint to fight that boss again.
+- A summoned enemy missing on her side: the host logs `fight summon keyed <key>` and `fight summon sent <key>
+  hguid=<owner>`, and she logs `fight summon made <key>` or `fight summon refused <key> <why>`. The host sends the line
+  again every second while it follows the summon, and she logs a refusal only when its reason changes for that key,
+  so a refusal for a passing reason can be followed by `fight summon made` for the same key. The reason is `off`
+  (same place not running on her side), `owner` (she does not pair the boss that summoned it), `too far` (more than 1 km
+  from her EVE), `full`, `not made` (a game object was not made yet), `stale`, `key`, `not a summon` or `charId` (the
+  two games differ). `fight summon despawned <key> unpaired` means no pair held her summon 3 s after she made it: the
+  host's summon never joined the shared list (16 places in use), or its pair ended. `fight summon despawned <key> its
+  row's effects refused` means the game refused an effect of the summon's row on her copy, so her game removed it at
+  once. After either line her game does not make that key again until the next on, off or world line of either game,
+  and the host fights that summon alone.
+- The `fight stats:` lines in `coop-fight.log` add `bosses: <n> summons made, <n> bstart, <n> phase rows (<n>
+  refused), <n> finish guards` on the guest's side and `bosses: <n> summons sent` on the host's.
+
+### Same spawns do not start, or enemies appear and vanish
+
+Same spawns (`same_spawns`) is experimental, on by default and not tested in game yet. With it on in the host's game,
+the guest's game creates the common enemies it lacks where the host's stand and removes those the host's game lacks,
+through the game's own spawn function and despawn job. On her screen an enemy can therefore appear out of nowhere, or
+vanish without dying and without rewards. Both happen only where the two players stand within 100 m of each other in
+one zone, and only to enemies of rows the zone resets anyway (bosses, quest and event enemies and the enemies a save
+records are never touched). To go back, turn off Options > Combat > Same spawns (experimental) in the host's menu, then
+turn Shared enemies off and on again or restart the game: the setting counts from the next start of shared enemies.
+[usage.md](usage.md#same-spawns-experimental) has the details.
+
+Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
+
+- `spawns=off` on the host: its `same_spawns` is off, or the guest's shared enemies are not on (the line's `her=`
+  says so). After turning the row on, turn Shared enemies off and on again.
+- `spawns=off` on the guest: the host's `same_spawns` is off (only the host's value counts), or the host's game has
+  not sent its zone yet. It sends it once its zone is known, again after each map load, and every 5 s.
+- `spawns=on` but nothing changes: both players must be in the same zone, within 100 m of each other, and 3 s past
+  either game's last zone entry or reset (a camp rest, a death). The guest may also hold the host's set already. If
+  the other PC's line says `spawns=stopped`, its error stopped same spawns in both games.
+- `spawns=stopped`: the same-place error stopped same spawns too, until the game restarts. `coop-link.log` has the
+  `same-place enemies fault` line.
+- `spawns_differ=` above 0 on the guest: her game refused, or removed again, enemies whose spawn rows or character
+  differ from the host's, or that her `fight_chars` leaves out. Her `coop-link.log` names each one in `fight spawn
+  refused <key> <why>`, `fight drop refused <key> <why>`, `fight spawn undone <key> <why>` or `fight spawn kept <key>
+  <why>`. The same .pak mods and the same `fight_chars` on both PCs avoid it.
+- `fight spawn refused <key> no spawn manager` on the guest: her game had not made its spawn manager or its job
+  sender yet. The host asks for that enemy again after either game's next zone change or reset.
+
+`coop fight spawn probe` checks the reads on one PC: each shared enemy in your zone gets a `fight spawns probe <key>`
+line in `coop-link.log` saying whether same spawns would handle it. For a report, keep `coop-link.log` and
+`coop-fight.log` from both PCs.
 
 ### `Co-op saves off for this load: <why>`
 
