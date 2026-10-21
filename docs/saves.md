@@ -124,7 +124,8 @@ native part. That pass:
   (with no `StellarCoopSaves.txt`, the backup of every `StellarBlade*.sav` comes first instead);
 - then replaces it with a checked copy of `StellarBladeSave0N.sav`, as any copy, and writes its line in
   `StellarCoopSaves.txt`;
-- leaves the other slots and their lines alone, and switches nothing;
+- leaves the other slots' copies alone and switches nothing (as at any pass, a copy played in co-op loses its line
+  and stays kept);
 - replaces nothing if the backup fails, and refuses a slot with no save of yours.
 
 The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N's co-op copy replaced` or why not.

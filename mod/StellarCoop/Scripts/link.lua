@@ -73,8 +73,8 @@ aggro=game
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
 # experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
-# method: enemies, combat and shared enemies stay stopped while animations, cloth, effects and your friend's ghost go on
-# moving), from your next photo mode.
+# method: enemies, combat and shared enemies stay stopped while animations, cloth and effects go on moving), from your
+# next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on

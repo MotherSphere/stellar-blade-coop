@@ -289,9 +289,10 @@ your game:
 
 - Full (`full`, the default): the game's own pause. Nothing moves while you take photos, as without the mod.
 - Scenery live (`scenery`): the game's own experimental photo method, which the game ships but does not use. The world
-  stops only while photo mode opens. Then animations, physics, cloth, hair, effects, sounds and your friend's ghost go
-  on moving, while enemies, combat, events and shared enemies stay stopped. Moving things may smear a little, and
-  enemies may slide when photo mode ends. This has not been tested in game yet.
+  stops only while photo mode opens. Then animations, physics, cloth, hair, effects and sounds go on moving, while
+  enemies, combat, events and shared enemies stay stopped. Your friend's ghost moves only while their game runs: with
+  `photo_sync=both` on both PCs, your photo mode pauses their game, so the ghost holds its pose. Moving things may
+  smear a little, and enemies may slide when photo mode ends. This has not been tested in game yet.
 
 The mod sets the game's console variable `SB.PhotoMode.PauseMethod` (0 for Full, 1 for Scenery live), and only when it
 differs from the setting. The game reads it each time photo mode opens, so a change applies from your next photo mode.
@@ -746,8 +747,8 @@ aggro=game
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
 # experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
-# method: enemies, combat and shared enemies stay stopped while animations, cloth, effects and your friend's ghost go on
-# moving), from your next photo mode.
+# method: enemies, combat and shared enemies stay stopped while animations, cloth and effects go on moving), from your
+# next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on

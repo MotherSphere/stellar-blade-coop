@@ -216,7 +216,8 @@ public:
   template <class Fs> std::string start(Fs &fs) { return begin(fs, -1); }
   // saves refresh: slot n's copy, played in co-op or not, replaced by a new copy of the player's save. The old copy is
   // backed up first into a new backup folder (with no manifest, the first conversion's whole backup), never deleted.
-  // Every other slot keeps its copy and its line. Ready at its end when that one copy was made.
+  // Every other slot keeps its copy; a played one loses its line, as at any pass. Ready at its end when that one copy
+  // was made.
   template <class Fs> std::string refresh(Fs &fs, int n) { return begin(fs, n); }
 
   // The next job; its line for the log, or empty.

@@ -633,9 +633,9 @@ int main() {
          logged(said, "co-op saves switch failed: the save name could not be written"));
   // saves refresh N (AUTO-COOP-SAVE §4.2 item 5): one slot's copy, played in co-op or not, replaced by a new copy of the
   // player's save, at the title only and while the game uses the player's saves. The old copy goes into a new backup
-  // folder first and is never deleted; every other slot keeps its copy and its line; nothing switches. With no
-  // manifest, the first conversion's whole backup comes first. A slot with no save of the player's, a slot out of
-  // 0-4 and a pass under way are refused; a backup that cannot be made replaces nothing.
+  // folder first and is never deleted; every other slot keeps its copy (a played one loses its line, as at any pass);
+  // nothing switches. With no manifest, the first conversion's whole backup comes first. A slot with no save of the
+  // player's, a slot out of 0-4 and a pass under way are refused; a backup that cannot be made replaces nothing.
   HostFs r;
   r.dir = root / "SaveGames" / "76561198000000005";
   r.backups = root / "StellarCoopBackups7";
