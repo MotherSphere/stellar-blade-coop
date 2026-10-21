@@ -306,7 +306,7 @@ public:
       forget();
     const bool shared = zone && zone == zone_ && ep.settled(now) && close;
     for (size_t i = 0; i < made_; ++i)
-      check(made_at_[i], mine, n, io);
+      check(made_at_[i], mine, n, now, io);
     for (size_t i = 0; i < queued_; ++i)
       take(queue_[i], shared, eve, eve_ok, mine, n, now, io);
     queued_ = 0;
@@ -354,14 +354,18 @@ private:
       made_at_[made_++] = Made{k, chr, created, !created};
   }
   // R33's last check, once a key we created shows in our census: a Monster we share, of the charId the host named;
-  // else despawned again, never killed.
-  template <class Io> void check(Made &d, const Mine *mine, size_t n, Io &io) {
+  // else despawned again, never killed, within the calls a second (over them: at a later census).
+  template <class Io> void check(Made &d, const Mine *mine, size_t n, uint64_t now, Io &io) {
     const Mine *x = d.checked ? nullptr : fight::find(mine, n, d.key);
     if (!x)
       return;
-    d.checked = true;
-    if (x->monster && x->chr == d.chr)
+    if (x->monster && x->chr == d.chr) {
+      d.checked = true;
       return;
+    }
+    if (rated(now))
+      return;
+    d.checked = true;
     const char *why = x->monster ? "charId" : "not shared";
     if (io.despawn(x->guid, d.key))
       ++counts.undone, io.event(Event{"spawn undone", why, 0, d.key.spawn, d.key.index});

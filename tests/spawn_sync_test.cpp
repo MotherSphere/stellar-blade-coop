@@ -431,6 +431,25 @@ int main() {
     epoch(rep, r, 0xA1, 3, kGraceMs);
     guest_step(rg, rep, r, kGraceMs);
     assert(r.created.size() == kCallsPerSecond && rg.counts.rate == 1 + kMaxQueued - kCallsPerSecond);
+    // Despawning a created key again counts with them: 20 spawns, then 12 undone in that second and 8 in the next.
+    World u;
+    for (uint32_t id = 1; id <= 20; ++id)
+      u.row(id, kReset), u.chars[id] = 901;
+    Epochs uep;
+    SpawnGuest ug;
+    epoch(uep, u, 0xA1, 3, 0);
+    ug.heard(msg("SBF11 epoch 1 40 1"), 1);
+    for (uint32_t id = 1; id <= 20; ++id)
+      ug.heard(msg("SBF11 spawn 1 1 " + std::to_string(id) + " 0 900 500 0 0 0"), 1);
+    for (uint64_t now : {kGraceMs, kGraceMs + 250}) {
+      epoch(uep, u, 0xA1, 3, now);
+      guest_step(ug, uep, u, now);
+    }
+    assert(u.created.size() == 20 && ug.counts.undone == kCallsPerSecond - 20 &&
+           ug.counts.rate == 40 - kCallsPerSecond);
+    epoch(uep, u, 0xA1, 3, kGraceMs + 1000);
+    guest_step(ug, uep, u, kGraceMs + 1000);
+    assert(ug.counts.undone == 20 && ug.counts.rate == 40 - kCallsPerSecond && u.despawned.size() == 20);
     // No spawn manager made yet: refused, never the getter.
     World nm;
     nm.row(1, kReset);
