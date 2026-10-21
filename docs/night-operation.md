@@ -279,9 +279,11 @@ wave starts, the timer and the score are still shared.
 
 A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final
 score, at most 42 a run. A full run with a score of about 730 gives 29. Your game adds them to your own points and shows
-`Night Operation: +29 points, 41 in all.` A solo run counts too; a challenge gives none. A failed or aborted run gives
-nothing, and a guest whose game missed the countdown gets nothing either. Each game credits only its own player: no line
-between the two games carries points. If the points cannot be written, a notice says so and `UE4SS.log` says why.
+`Night Operation: +29 points, 41 in all.` A success where a monster never came (its spawn failed) or nothing was killed
+pays for its kills only, without the bonus for the time left. A solo run counts too; a challenge gives none. A failed or
+aborted run gives nothing, and a guest whose game missed the countdown gets nothing either. Each game credits only its
+own player: no line between the two games carries points. If the points cannot be written, a notice says so and
+`UE4SS.log` says why.
 
 `coop nightop shop` lists your points and the four items:
 

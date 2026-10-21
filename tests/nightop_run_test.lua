@@ -30,9 +30,10 @@
 -- both worlds at once scores once, a key killed in her world alone scores once however many lines carry it, a copy
 -- alive in her world keeps the wave open, and no other field of her line moves the score. Points: coop nightop shop and
 -- buy reach the shop (a buy refused during a run, sold in the result's 10 s); a solo success and a time up credit the
--- final score to the wallet of this SteamID and slot, capped, an abort or a death none; for two players, each game
--- credits its own wallet after a success with a notice, none after her death, and none for her run when no line of his
--- countdown reached her; a credit refused or raising is a notice, and his end line still goes. The panel's fifth row,
+-- final score to the wallet of this SteamID and slot, capped, an abort or a death none, a success with every monster
+-- missing its kills only (no time bonus); for two players, each game credits its own wallet after a success with a
+-- notice, none after her death, and none for her run when no line of his countdown reached her; a credit refused or
+-- raising is a notice, and his end line still goes. The panel's fifth row,
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
 -- notice.
@@ -672,6 +673,20 @@ assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
 tick(8)
 assert(count('PC:ServerRequest_CreateActor')==spawned and #bodies==7)
 assert(#violations==0,violations[1])
+-- A success whose waves cleared with no fight: every spawn failed (no body carries its key), so every monster is
+-- missing. Its time bonus pays no points.
+bodies,calls,lines={},{},{}
+fill_key=false
+ok,message=run.command('start')
+for _=1,2000 do
+    tick()
+    if result_line() then break end
+end
+fill_key=true
+local bonus_only=tonumber(result_line():match('^result: success waves=5/5 kills=0 score=(%d+) '))
+assert(bonus_only and bonus_only>=25,result_line())
+assert(logged('points: no time bonus (a monster never came)'),since(0))
+assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
 
 -- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
 -- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro

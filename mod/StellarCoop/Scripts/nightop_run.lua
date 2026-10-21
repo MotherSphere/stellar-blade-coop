@@ -461,7 +461,15 @@ function Run.new(o)
         if s.outcome~='success' and s.outcome~='time' then return end
         if s.def~=W.NIGHT then return end -- A challenge gives none.
         if not r.counted then return log('no points: this run did not go through its countdown') end
-        local got,total=shop.credit(s.score)
+        -- A success whose waves cleared without a fight pays its kills only: the time bonus nightop_waves.lua's finish
+        -- added goes.
+        local score,no=s.score,s.outcome=='success'
+            and (r.missing and 'a monster never came' or s.kills==0 and 'no kill')
+        if no then
+            score=math.max(0,score-math.floor((s.def.limit-s.time)*s.def.bonus))
+            log('points: no time bonus ('..no..')')
+        end
+        local got,total=shop.credit(score)
         if not got then return unpaid('no points: '..total) end
         if tell then tell(function(w) return w.night.earned:format(got,total) end) end
     end
