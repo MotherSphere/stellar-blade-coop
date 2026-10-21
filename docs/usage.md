@@ -312,6 +312,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, off by default) and its solo test steps |
+| `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](#shared-bosses-experimental) on the boss copy of a replay (experimental) |
 | `coop fight spawn probe` | Solo probe of [same spawns](#same-spawns-experimental) (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
@@ -780,6 +781,39 @@ first. [How it works](how-it-works.md#shared-bosses) has the details, and
   the guest's save holds stays as it is in her game. Same spawns never create or remove a boss.
 - The `fight=` line of `coop status` carries `bosses=<percent>` (the host's `boss_hp_scale`) or `bosses=off`, on
   both PCs.
+
+To test shared bosses alone, record the host's side of a boss fight as the [same place](#same-place-experimental)
+steps do, with `bosses=on`, load the save again so the boss is back, then play the recording into the guest's side
+with `coop replay` and `coop fight replay`. A recording keeps no boss start, phase or summon lines, so the guest's side
+of a shared boss does not run in a replay by itself. Four commands run it on the frozen boss copy nearest your EVE, at
+the shared fight's next turn, one test at a time. They work only while `coop fight replay` runs; otherwise
+`coop-link.log` says `pilot test <name> refused: only while coop fight replay runs`. Each test logs `fight pilot test
+<name> <key> hguid=<n> ...` lines in `coop-link.log` and ends with a `done` line, or with a `stopped` line when the
+copy goes. A test asked while another one runs is refused (`another test runs`).
+
+- `coop fight pilot test bstart` logs the copy's battle mode, first-time latch, on-battle flag, states 30 and 39 and
+  whether its AI runs a task (`before: b58=<0|1> 45a=<n> 45b=<n> state30=<0|1> state39=<0|1> ai=<0|1>`), starts the
+  boss fight on the copy as the host's game would (`SetBattleMode called`, or `SetBattleMode not called: <why>`, where
+  `again` means it already ran on this copy), then logs each change of those values for 1 s (`after <ms> ms: ...`, then
+  `done: ...`). From then until the next `coop fight on`, boss copies get no `BattleMode_5s` from the recording, so a
+  second run after a reload shows the boss start alone.
+- `coop fight pilot test phase` sends the copy the first phase row of its boss that it lacks (5005115 for GorillaB),
+  and 5 s later the dispel of its HP threshold, as the host's phase lines would. Each line logs `line: <rows>; floor
+  <stat 107>` and `cast: <n> taken, <n> refused`, and at the next turn `next turn: floor <stat 107>; rows <the rows
+  it holds>`. `refused: every phase row held` means the copy holds them all already.
+- `coop fight pilot test finish` holds the copy at 1 HP for 10 s through the guest's HP correction, so none of the drop
+  counts as your hit, then gives it the host's HP back. It logs `start: HP <n>, floor <n>, 2001101=<0|1>
+  2001102=<0|1> state27=<0|1> state3=<0|1>` (Passive_DeathReady and Passive_FinishReady on the copy, then its
+  Immortal and NoDamageNoHit states), each change as `after <ms> ms: HP <n> ...`, and `done: <n> guard turns, HP <n>;
+  the host's HP from the next turn`. Run it after `phase`, so no threshold holds the copy above 1 HP, and hit the copy
+  once while it is held: with the finish guard working, it stays at 1 HP.
+- `coop fight pilot test summon` makes a DollHead (SE_M_DollHead_02) 3 m in front of your EVE under the first summon
+  key, `4026531841:0`, with its summon row's effects (5025010 and 5025013) and the guest's freeze, as her game does
+  for a host's summon: `fight summon made 4026531841:0`, then `made 3 m ahead: life <n>, freeze taken`. For 10 s it
+  logs each change of the DollHead's life state and state 39, and freezes it again when the game ends the freeze
+  (`frozen again`). No host enemy pairs with it, so 3 s after its `done` line the mod removes it (`fight summon
+  despawned 4026531841:0 unpaired`), or at `coop fight off`. `refused: same place off` means same place does not run
+  on this side.
 
 ### `coop off`
 

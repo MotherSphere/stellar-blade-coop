@@ -77,12 +77,13 @@ build/host/pose_codec_test
 - Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`,
   `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
   objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
-  also covers `coop fight pilot` (its `test target` included), the `same_place` and `aggro` settings and rows, the
-  `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings and rows, `coop fight spawn probe`, and the same
-  place and same spawns notices in both languages.
+  also covers `coop fight pilot` (its `test target` and boss tests included), the `same_place` and `aggro` settings
+  and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings and rows, `coop fight spawn probe`,
+  and the same place and same spawns notices in both languages.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-    `aggro-host`, `bosses <boss %>`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` included),
+    `aggro-host`, `bosses <boss %>`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` and the boss
+    tests included),
     and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the
     check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
@@ -144,7 +145,11 @@ build/host/pose_codec_test
     (BossMonsters taken by `fight_chars=auto` only with bosses on, on the guest once the host's bosses line came; their
     MaxHP times `boss_hp_scale` once and back at off; a boss never handed to her; in two worlds with same spawns on, a
     boss both saves hold paired and scaled in both, one only the host's save holds left unpaired, one only hers left
-    hers, none created or removed), and the `bosses` word through a recording and its replay;
+    hers, none created or removed), the `bosses` word through a recording and its replay, and the boss tests of
+    `coop fight pilot test` on the nearest frozen boss copy (SetBattleMode once a copy and no BattleMode_5s on boss
+    copies after it, a phase line and the threshold's dispel 5 s later, the copy held at 1 HP with no claim and the
+    host's HP back after 10 s, a summon made, frozen and frozen again, then removed as unpaired; one test at a time,
+    none left after the session ends);
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss
