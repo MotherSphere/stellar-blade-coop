@@ -3363,9 +3363,6 @@ public:
   // The worker: the job's lines (to on_line), events (to on_event) and probe census (to on_probe) handed over so far,
   // oldest first, then the snapshot. Under the lock: the logic thread's try_lock meanwhile waits for its next
   // hand-over.
-  template <class L, class E> Snapshot take(L &&on_line, E &&on_event) {
-    return take(on_line, on_event, [](const Actor &) {});
-  }
   template <class L, class E, class P> Snapshot take(L &&on_line, E &&on_event, P &&on_probe) {
     Snapshot s;
     {

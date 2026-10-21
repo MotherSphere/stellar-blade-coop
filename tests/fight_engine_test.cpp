@@ -5635,7 +5635,7 @@ int main() {
     std::vector<std::string> out, said;
     const auto take = [&] {
       return mail.take([&](const Message &m) { out.push_back(format(m)); },
-                       [&](const Event &ev) { said.push_back(line(ev)); });
+                       [&](const Event &ev) { said.push_back(line(ev)); }, [](const Actor &) {});
     };
     mail.send(msg("SBF12 up 1 101 5001 0 900 1600"));
     mail.event(Event{"paired", "", 101, 5001, 0});
@@ -5689,7 +5689,7 @@ int main() {
           std::thread logic([&] { busy = !mail.exchange(s); });
           logic.join();
         },
-        [](const Event &) {});
+        [](const Event &) {}, [](const Actor &) {});
     assert(busy);
     take();
     assert(out.empty() && mail.exchange(s));
