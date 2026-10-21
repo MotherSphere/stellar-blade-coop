@@ -82,9 +82,10 @@ same_spawns=on
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
 # Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, off
-# until it has been tested in game. On, the mod changes one pointer in the game's memory on your PC, and an enemy the
-# host's game no longer has stays away when your zone resets after your death or your camp rest, instead of
-# appearing for a moment before it is removed.
+# until it has been tested in game. On, the mod changes one pointer in the game's memory on your PC. An enemy your
+# game removed because the host's game no longer has it, or a shared enemy you fought that died in both games, then
+# stays away when your zone resets after your death or your camp rest, instead of appearing for a moment before it is
+# removed.
 spawn_filter=off
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
 # hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
