@@ -1301,13 +1301,17 @@ link_mode,saves_info,settings_text='none',{},''
 fight_text=nil
 status_text=plain
 local Words=require('ui_text') -- Both languages complete.
-for k in pairs(Words.en.fight) do assert(Words.fr.fight[k],k) end
-for k in pairs(Words.fr.fight) do assert(Words.en.fight[k],k) end
+for _,group in ipairs({'fight','spawns'}) do
+    for k in pairs(Words.en[group]) do assert(Words.fr[group][k],group..'.'..k) end
+    for k in pairs(Words.fr[group]) do assert(Words.en[group][k],group..'.'..k) end
+end
 -- Every notice fits the feed's 200 bytes a line (Chat.clean cuts the rest) with a 32-character Steam name.
 for _,lang in ipairs({'en','fr'}) do
-    for k,text in pairs(Words[lang].fight) do
-        local full=text:gsub('%%s',string.rep('W',32)):gsub('%%d','16')
-        assert(Chat.clean(full)==full,lang..'.fight.'..k..': '..#full..' bytes')
+    for _,group in ipairs({'fight','spawns'}) do
+        for k,text in pairs(Words[lang][group]) do
+            local full=text:gsub('%%s',string.rep('W',32)):gsub('%%d','16')
+            assert(Chat.clean(full)==full,lang..'.'..group..'.'..k..': '..#full..' bytes')
+        end
     end
     local scaled=Words[lang].fight.on:format(16)..' '..Words[lang].fight.scale:format(200,200) -- The longest on.
     assert(Chat.clean(scaled)==scaled,lang..': '..#scaled..' bytes')
