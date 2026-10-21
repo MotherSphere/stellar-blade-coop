@@ -132,6 +132,7 @@ function Travel.new(o)
     local id=os.time()%65536 -- The guest's last camps? (a new Lua load starts elsewhere, so the host answers again).
     local req=nil -- The travel under way: {id=, at=, probe=, list=, i=, calls=, handled=, call_at=}.
     local accepted,watch,stuck=-math.huge,nil,nil -- The last accepted call; its warp, until it ran; a map it stuck on.
+    local asked_at=-math.huge -- Our last camps?: the host's game takes one each 2 s.
     -- The offer: key, the place offered (the host's map, or far on ours); due, always's start; quiet, no offer for the
     -- next place (the one a travel brought her to).
     local offer={}
@@ -162,6 +163,7 @@ function Travel.new(o)
         if not mine then return 'no EVE (a load)' end
         if host==mine and not (m and m>FAR) then return 'the host is within 150 m' end
         if req then return 'a travel is under way' end
+        if now-asked_at<2 then return 'one request to the host each 2 s' end
         local life=link.life()
         if not (life and (life.state==1 or life.state==6) and life.hp>0) then return 'our EVE is down','busy' end
         if not line('engine'):find(' warp=idle',1,true) then return 'a warp or respawn is under way','busy' end
@@ -265,7 +267,7 @@ function Travel.new(o)
         id=(id+1)%65536
         local ok,e=link.request('camps? '..id)
         if not ok then return false,e end
-        req={id=id,at=now}
+        req,asked_at={id=id,at=now},now
         return true,"asked the host's game for the camps nearest them (camps? "..id..')'
     end
     -- The offer's place: the host's map while it differs from ours, far on ours, nil when neither, or false while it

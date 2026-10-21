@@ -235,6 +235,15 @@ for _,case in ipairs({{'nocamp',NONE},{'busy',FAILED},{'loading',FAILED}}) do
     run(t,0.25)
     assert(last(W.said)==case[2] and #W.requests==1,case[1])
 end
+-- One camps? each 2 s, as the host's game takes them: a press sooner is refused in the log only.
+t=world()
+assert(t.press())
+W.answer=asked_id()..' none nocamp'
+run(t,0.25)
+local ok2,why2=t.press()
+assert(not ok2 and why2:find('each 2 s',1,true) and #W.requests==1 and last(W.said)==NONE)
+run(t,1.75)
+assert(t.press() and #W.requests==2)
 -- An answer from a test world, or a camp of another world, is never asked of the native part.
 t=world(function(w) w.names={SysTest_Camp_01=9,DED10_Camp_07=8} end)
 assert(t.press())
