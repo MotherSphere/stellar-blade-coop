@@ -84,6 +84,8 @@ end
 -- Night Operation's run (nightop_run.lua) takes the same EVE, controller and heal. The heal alone: false, with nothing
 -- called, while the heal row is not a name in this game run.
 NightOp.her,NightOp.controller=her,controller
+-- Whether the probe rule's row is in the table: it stays there for the game run once the rule was asked.
+function NightOp.rule_row() return U.find(TABLE):FindRow(RULE)~=nil end
 function NightOp.heal()
     if index_of(find_name(HEAL))==0 then return false end
     zone_event(2,HEAL)

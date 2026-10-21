@@ -456,7 +456,7 @@ for kind=0,255 do
     end
 end
 -- 9. Night Operation's run takes the heal alone: the same guarded zone event, with no poller and no request; false and
--- no call while the heal row is not a name. EVE and the controller are the probe's own.
+-- no call while the heal row is not a name. EVE and the controller are the probe's own; rule_row reads the table.
 poller(nil)
 known[HEAL]=nil
 reset(); assert(NightOp.heal()==false and effects()=='',effects())
@@ -465,4 +465,8 @@ reset(); assert(NightOp.heal()==true and effects()=='BPL:CreateSBZoneEvent',effe
 _,call=at('BPL:CreateSBZoneEvent')
 assert(call.args[1]==2 and call.args[2]:ToString()==HEAL and #lines==0)
 assert(NightOp.her()==eve and NightOp.controller()==pc)
+-- It also refuses to start while the probe rule's row is in the table, a read with no other call.
+reset(); assert(NightOp.rule_row()==true and effects()=='' and calls[#calls].what=='Table:FindRow')
+table_rows={}
+reset(); assert(NightOp.rule_row()==false and effects()=='' and calls[#calls].what=='Table:FindRow')
 print('nightop_test ok')

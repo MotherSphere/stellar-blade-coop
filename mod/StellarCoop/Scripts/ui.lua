@@ -972,9 +972,10 @@ function Ui.kit(opts)
         end
     end
     -- Whether the game is paused (its own menu, a cutscene) or shows the mouse cursor (one of its screens that does
-    -- not pause: a shop, a dialogue choice): the menu does not open then. false when unread.
-    function self.paused()
-        if off then return false end
+    -- not pause: a shop, a dialogue choice): the menu does not open then. false when unread. Off, false too, unless
+    -- always (Night Operation's run reads no body under a game screen, kit or not).
+    function self.paused(always)
+        if off and not always then return false end
         local ok,paused=pcall(function()
             local pc=controller()
             return pc and (U.find(STATICS):IsGamePaused(pc) or pc.bShowMouseCursor)

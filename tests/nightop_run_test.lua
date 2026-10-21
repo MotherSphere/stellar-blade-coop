@@ -6,7 +6,10 @@
 -- and idle); the live-list guard (a freed body, a pause, a reused body, a new key, a killed body never read again); the
 -- death signals (executable, hidden, killed after down); a missing body; the default controller; the stuck rule and its
 -- two moves; noaggro and nomove; time up; every abort (stop, coop off, map change, EVE gone, 80 m, slot, link, death
--- screen) with no body read in that tick; a Lua error in a tick.
+-- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
+-- refuse; a signed key read; aggro after a new controller; a body near EVE far from the start is not moved; a refused
+-- teleport; a load (slot=none) and a new world on the same map; a death screen first found playing; an error in the
+-- result's 10 s.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -66,7 +69,7 @@ local eve=uobject('EVE','BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0
     K2_GetActorRotation=function() return {Pitch=0,Yaw=eve_yaw,Roll=0} end,GetWorld=function() return world end},
     {BroadcastSpawnInfo={EventSpawnId=0},InteractionState=0})
 local bodies={} -- What the game holds, in FindAllOf's order after EVE.
-local spawn_ai,fill_key=true,true
+local spawn_ai,fill_key,signed,teleport_ok=true,true,false,true
 local function ai()
     return uobject('AI','AIController /Game/Map.Map:PersistentLevel.AI_C_1',{K2_SetFocus=function() end})
 end
@@ -80,7 +83,7 @@ local function monster(id,at,key,with_ai)
         GetFullName=function() return 'M_C /Game/Map.Map:PersistentLevel.M_C_'..m.index end,
         GetFName=function() return {GetComparisonIndex=function() return m.index end} end,
         K2_GetActorLocation=function() return m.at end,
-        K2_TeleportTo=function(_,to) m.at={X=to.X,Y=to.Y,Z=to.Z}; return true end,
+        K2_TeleportTo=function(_,to) if teleport_ok then m.at={X=to.X,Y=to.Y,Z=to.Z} end; return teleport_ok end,
         SpawnDefaultController=function() m.ctl=ai() end,
         IsBattle=function() return m.battle end,
         Event_ChangeBattleState=function(_,on) m.battle=on end,
@@ -94,7 +97,9 @@ local function monster(id,at,key,with_ai)
         if k=='InteractionState' then return m.st end
         if k=='Controller' then return m.ctl or invalid end
         if k=='bCharacterHiddenInGame' then return m.hidden end
-        if k=='BroadcastSpawnInfo' then return {EventSpawnId=m.key} end
+        if k=='BroadcastSpawnInfo' then -- signed: the int32 read of a key with its top bit set.
+            return {EventSpawnId=signed and m.key>=0x80000000 and m.key-0x100000000 or m.key}
+        end
         error('a monster has no '..tostring(k),2)
     end,__newindex=function(_,k) violate('wrote '..tostring(k)..' on a monster') end})
     bodies[#bodies+1]=m
@@ -118,7 +123,12 @@ local dead_w=uobject('Dead','WB_MainHUD_Dead_C /Engine/Transient.GameEngine_1:WB
 local huds={uobject('HUD','WB_MainHUD_Master_C /Game/UI/WB_MainHUD_Master.Default__WB_MainHUD_Master_C',{},
     {WB_MainHUD_Dead=invalid}),uobject('HUD','WB_MainHUD_Master_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_1',
     {},{WB_MainHUD_Dead=dead_w})}
+local rule_row=false -- The probe rule's row in MultiPlayRuleTable.
 local by_path={['/Script/SB.SBCharacter']=SBCharacter,['/Script/SB.SBNetworkPlayerController']=SBPC,
+    ['/Game/Local/Data/MultiPlayRuleTable.MultiPlayRuleTable']=uobject('Table','DataTable',{FindRow=function(_,name)
+        assert(name=='CoopProbeRule')
+        return rule_row and {} or nil
+    end}),
     ['/Script/SB.Default__SBBlueprintLibrary']=uobject('BPL','SBBlueprintLibrary',{CreateSBZoneEvent=function() end}),
     ['/Script/Engine.Default__GameplayStatics']=uobject('GS','GameplayStatics',{GetTimeSeconds=function(_,context)
         assert(context==eve,'the clock reads EVE\'s world')
@@ -171,10 +181,15 @@ link_line='link=host lobby=7'
 refused('Night Operation is solo for now: leave the Steam session first (coop leave)')
 link_line='link=guest lobby=7'
 refused('Night Operation is solo for now: leave the Steam session first (coop leave)')
+link_line='steam=waiting'
+refused('the Steam link is not ready yet: try again in a moment')
 link_line='link=none lobby=0'
 engine='engine=on remote=0 0 none nightop=rule'
 refused('a coop no probe rule is set in this game run: restart the game first')
 engine='engine=on remote=0 0 none'
+rule_row=true -- The token gone (the poller capped), the row still there.
+refused('a coop no probe rule is set in this game run: restart the game first')
+rule_row=false
 player=nil; refused('no EVE in the world'); player=eve
 controller=nil; refused('no SB player controller'); controller=pc
 map='/Game/Art/BG/WorldMap/Level_P/E04.E04'
@@ -381,12 +396,22 @@ assert(logged(string.format('wave 2/5 at run time %.1f s: 3 monsters',clear+10))
 run.stop('stop')
 assert(result_line():find('^result: aborted %(stop%) waves=1/5 kills=0 score=0 '),result_line())
 
--- 5. A body found with no controller gets its default one 1 s after; missing bodies count for the wave.
+-- 5. A body found with no controller gets its default one 0.5 s after, before the aggro: the new one gets the focus and
+-- the move. Missing bodies count for the wave.
 spawn_ai=false
 list=begin()
 assert(logged(string.format('controller 0x%08X: SpawnDefaultController gave one',W.key(byte,1,0))),since(0))
 assert(count('M:SpawnDefaultController')==4)
+assert(count('AI:K2_SetFocus')==4 and count('AIHelper:SimpleMoveToActor')==4,'The new controller is aggroed')
+assert(logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, move ok',W.key(byte,1,0))))
 spawn_ai=true
+run.stop('stop')
+-- An int32 read of the key (top bit set) is the same key: all four tracked, none missing or lost.
+signed=true
+list=begin()
+tick(8)
+assert(not since(0):find('missing',1,true) and not since(0):find('lost',1,true),since(0))
+signed=false
 run.stop('stop')
 fill_key=false
 bodies,lines={},{}
@@ -420,6 +445,23 @@ for _,mv in ipairs(moved) do if mv.m==list[2] then twos=twos+1 end end
 assert(twos==1 and math.abs(math.sqrt(list[2].at.X^2+list[2].at.Y^2)-700)<1 and list[2].at.Z==1050,'7 m from EVE')
 assert(#moved==3)
 run.stop('stop')
+-- EVE fights 30 m out and 15 m down: bodies near her are left alone, below the start or 50 m from it; one far from
+-- both is moved, and a teleport the game refuses still counts as a move.
+list=begin()
+eve_at={X=3000,Y=0,Z=-500}
+list[1].at,list[2].at,list[3].at={X=5000,Y=0,Z=-500},{X=0,Y=6000,Z=1000},{X=3300,Y=0,Z=-500}
+teleport_ok,n=false,#calls
+tick(40)
+teleport_ok,eve_at=true,{X=0,Y=0,Z=1000}
+local tries={}
+for i=n+1,#calls do
+    if calls[i].what=='M:K2_TeleportTo' then tries[calls[i].args[1]]=(tries[calls[i].args[1]] or 0)+1 end
+end
+assert(tries[list[2]]==2 and not tries[list[1]] and not tries[list[3]],since(0))
+assert(since(0):find(string.format('\nmove refused 0x%08X M_Antlion from 0,6000,1000 %%(60%%.0 m from the start%%) to '
+    ..'[-%%d,]+ %%(2/2%%)\n',W.key(byte,1,1))),since(0))
+assert(logged(string.format('written off 0x%08X M_Antlion at 0,6000,1000 after 2 moves',W.key(byte,1,1))),since(0))
+run.stop('stop')
 list=begin('nomove')
 list[1].at={X=6000,Y=0,Z=1000}
 tick(40)
@@ -450,6 +492,22 @@ assert(not result_line(),'EVE gone 1.75 s: not yet')
 no_read_in(function() tick() end)
 assert(result_line():find('^result: aborted %(map change%)'),result_line())
 player=eve
+-- A load: EVE gone and the slot line at none (no loaded save) a tick later; the gone rule still decides. slot=none
+-- with EVE there (the line a tick late) ends nothing.
+begin()
+slot_line='slot=none index=4 marker=4'
+tick(4)
+assert(not result_line(),'slot=none with EVE: nothing')
+player=nil
+no_read_in(function() tick(7) end)
+assert(not result_line(),'A load 1.75 s: not yet')
+no_read_in(function() tick() end)
+assert(result_line():find('^result: aborted %(map change%)'),result_line())
+player,slot_line=eve,'slot=coop index=4 marker=4'
+-- The save loaded again on the same map: a new world, its clock back near 0, with EVE there.
+begin()
+no_read_in(function() gt=20; tick() end)
+assert(result_line():find('^result: aborted %(map change%)'),result_line())
 begin()
 eve_at={X=8001,Y=0,Z=1000}
 tick(39)
@@ -488,6 +546,14 @@ for _=1,4 do -- The tick that sees it reads no body.
 end
 assert(result_line():find('^result: failed waves=0/5 '),result_line())
 dying=false
+-- The death screen not found at the start, then found with its animation already playing: a death too.
+local all_huds=huds
+huds={}
+begin()
+huds,dying=all_huds,true
+tick(8)
+assert(result_line() and result_line():find('^result: failed waves=0/5 '),since(0))
+dying=false
 -- A Lua error in a tick: one STOP line, the run aborted (error), nothing after.
 begin()
 clock_fails='boom'
@@ -500,6 +566,16 @@ for i=n+1,#calls do
     assert(not calls[i].what:find('^M:') and not calls[i].what:find('^PC:') and calls[i].what~='FindAllOf','No retry')
 end
 assert(#lines==before)
+-- An error in the result's 10 s: one STOP line, then the run is gone.
+begin()
+run.stop('stop')
+clock_fails='boom'
+n=#lines
+tick(4)
+clock_fails=nil
+assert(#lines==n+1 and lines[#lines]=='STOP: boom',since(n))
+ok,message=run.command()
+assert(not run.stop('stop') and ok and message:find('^census:'),'Idle: '..message)
 
 -- 8. Time up: nothing killed, so wave 3 never fits under the cap; the monsters stay, nothing spawns after the end.
 bodies,calls,lines={},{},{}

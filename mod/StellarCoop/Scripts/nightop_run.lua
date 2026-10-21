@@ -18,7 +18,9 @@ local CLEAR=40 -- Metres: no living character but EVE this close at the start.
 local LEAVE,LEAVE_FOR,GONE_FOR=80,10,2 -- EVE farther than LEAVE m from the start for LEAVE_FOR s, or gone GONE_FOR s.
 -- Seconds after a wave's last spawn call: its bodies are looked for; one not found by the last is missing.
 local FINDS={1,2.5}
-local ADOPT,AGGRO,AGAIN=1,0.6,4 -- Seconds after a body is found: a controller if it has none; aggro, and again later.
+-- Seconds after a body is found: a controller if it has none, before the aggro so that a new one gets the focus and the
+-- move (the second aggro skips a body in battle); aggro, and again later.
+local ADOPT,AGGRO,AGAIN=0.5,0.6,4
 local STUCK,EVERY,BELOW,AWAY,NEAR,MOVES=2.5,3,10,40,7,2 -- The stuck rule: seconds, then metres, then moves per body.
 local SLOW=5 -- ms: a live-list refresh this slow gets its own line.
 local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
@@ -75,13 +77,11 @@ local function aggro(c,eve)
     return text..', battle '..state..', focus '..focus..', move '..move
 end
 -- Adapted from Survival Protocol's stuck rule: K2_TeleportTo only (no hit result to fill), NEAR m from EVE on her line
--- to the body, half a metre up, facing her.
-local function move(c,eve,l)
-    local e=location(eve)
+-- to the body, half a metre up, facing her. Also whether the game refused the teleport (it returned false).
+local function move(c,e,l)
     local d=math.max(1,math.sqrt((l.X-e.X)^2+(l.Y-e.Y)^2))
     local to={X=e.X+(l.X-e.X)/d*NEAR*100,Y=e.Y+(l.Y-e.Y)/d*NEAR*100,Z=e.Z+50}
-    c:K2_TeleportTo(to,{Pitch=0,Yaw=U.yaw_to(to,e),Roll=0})
-    return to
+    return to,c:K2_TeleportTo(to,{Pitch=0,Yaw=U.yaw_to(to,e),Roll=0})==false
 end
 -- Adapted from Survival Protocol's death watch: the live HUD's death screen (the copy under GameEngine) plays an
 -- animation from EVE's death on and none while she lives.
@@ -186,23 +186,25 @@ function Run.new(o)
             log(string.format('aggro %s%s: %s',hex(b.key),again and ' again' or '',aggro(c,r.eve)))
         end)
     end
-    -- Below or far from the start point: moved next to EVE, at most MOVES times and never twice within EVERY s (one
-    -- check each EVERY s); still out after that, written off for the wave check (a later kill still scores).
+    -- Below the start point and EVE, or far from both (a body chasing her where she fights is left alone): moved next
+    -- to EVE, at most MOVES times and never twice within EVERY s (one check each EVERY s); still out after that,
+    -- written off for the wave check (a later kill still scores).
     local function stuck(b)
         local function check(now)
             with(b,function(c)
                 local _,down=signals(c)
-                local l=location(c)
-                if not down and (l.Z<r.p0.Z-BELOW*100 or metres(l,r.p0)>AWAY) then
+                local l,e=location(c),location(r.eve)
+                if not down and (l.Z<math.min(r.p0.Z,e.Z)-BELOW*100 or metres(l,r.p0)>AWAY and metres(l,e)>AWAY) then
                     if b.moves>=MOVES then
                         r.input.done[#r.input.done+1]=b.key
                         log(string.format('written off %s %s at %s after %d moves',hex(b.key),alias(b),xyz(l),b.moves))
                         return
                     end
-                    b.moves=b.moves+1
-                    local to=move(c,r.eve,l)
-                    log(string.format('moved %s %s from %s (%.1f m from the start) to %s (%d/%d)',hex(b.key),alias(b),
-                        xyz(l),metres(l,r.p0),xyz(to),b.moves,MOVES))
+                    b.moves=b.moves+1 -- A refused teleport counts too.
+                    local to,refused=move(c,e,l)
+                    log(string.format('%s %s %s from %s (%.1f m from the start) to %s (%d/%d)',
+                        refused and 'move refused' or 'moved',hex(b.key),alias(b),xyz(l),metres(l,r.p0),xyz(to),b.moves,
+                        MOVES))
                 end
                 r.timers.add(now+EVERY,check)
             end)
@@ -306,7 +308,8 @@ function Run.new(o)
         end
     end
     -- Adapted from Survival Protocol's death watch: once a second, a death when the screen's animation starts. The
-    -- screen is looked for again at most every 10 s while not found.
+    -- screen is looked for again at most every 10 s while not found. A screen found playing is a death too (start
+    -- throws its first look away).
     local function died()
         if not U.valid(r.screen) then
             if r.ticks<r.look_at then return false end
@@ -316,7 +319,7 @@ function Run.new(o)
         end
         local playing,was=r.screen:IsAnyAnimationPlaying()==true,r.playing
         r.playing=playing
-        return was==false and playing
+        return playing and was~=true
     end
     local function tick()
         r.ticks=r.ticks+1
@@ -330,17 +333,19 @@ function Run.new(o)
         local input={killed={},done={}}
         r.input,r.eve=input,eve
         -- The abort watch, every tick, paused or not. Adapted from Survival Protocol's arena exit (80 m for 10 s) and
-        -- its map-load hygiene: a map change or a death drops every handle without a read.
+        -- its map-load hygiene: a map change or a death drops every handle without a read. slot=none means no EVE
+        -- (a load, the title): the gone rule decides. A new world on the same map restarts the game clock.
         local raw='\n'..(status() or '')
         local slot,linked=raw:match('\nslot=(%a+)'),raw:match('\nlink=(%a+)')
-        if slot and slot~='coop' then input.abort='slot'
+        local now
+        if slot and slot~='coop' and slot~='none' then input.abort='slot'
         elseif linked and linked~='none' then input.abort='link'
         elseif not eve then
             r.gone=r.gone+1
             if r.gone*TICK>=GONE_FOR then input.abort='map change' end
         else
-            r.gone=0
-            if U.map_of(eve)~=r.map then input.abort='map change'
+            r.gone,now=0,clock(eve)
+            if U.map_of(eve)~=r.map or now<r.now then input.abort='map change'
             else
                 r.far=metres(location(eve),r.p0)>LEAVE and r.far+1 or 0
                 if r.far*TICK>=LEAVE_FOR then input.abort='left' end
@@ -351,7 +356,7 @@ function Run.new(o)
                 local ok,dead=pcall(died)
                 if ok then input.dead=dead else r.screen=nil end -- Looked for again.
             end
-            r.now=clock(eve)
+            r.now=now
         end
         if not (input.abort or input.dead) then
             if not eve or paused() then r.stale=true
@@ -370,9 +375,13 @@ function Run.new(o)
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if linked~='none' then
-            return false,'Night Operation is solo for now: leave the Steam session first (coop leave)'
+            return false,linked and 'Night Operation is solo for now: leave the Steam session first (coop leave)'
+                or 'the Steam link is not ready yet: try again in a moment'
         end
-        if ((raw:match('\nengine=[^\r\n]*') or ''):match(' nightop=(%a+)'))=='rule' then
+        -- The token goes with the probe's poller (capped at 4 MB); the rule's row stays in the table.
+        local token=(raw:match('\nengine=[^\r\n]*') or ''):match(' nightop=(%a+)')
+        local read,row=pcall(N.rule_row)
+        if token=='rule' or (read and row) then
             return false,'a coop no probe rule is set in this game run: restart the game first'
         end
         local eve=N.her()
@@ -422,14 +431,17 @@ function Run.new(o)
         end
         return true,text
     end
-    -- Every 250 ms. A Lua error ends the run as aborted (error), with one STOP line and no retry.
+    -- Every 250 ms. A Lua error ends the run as aborted (error), with one STOP line and no retry; in the result's 10 s,
+    -- it drops the run at once.
     function self.tick()
         if not r then return end
         local ok,e=pcall(tick)
         if ok or not r then return end
         log('STOP: '..why(e))
         r.killed={} -- Kills of the failed tick are not counted: none is logged.
-        local ended,e2=pcall(function() if r.s.phase~='result' then step({killed={},done={},abort='error'}) end end)
+        local ended,e2=pcall(function()
+            if r.s.phase~='result' then step({killed={},done={},abort='error'}) else r=nil end
+        end)
         if not ended then
             log('STOP: '..why(e2))
             r=nil

@@ -138,9 +138,9 @@ end
 local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
 -- Night Operation's solo run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
--- ticks every 250 ms and logs [NR] lines.
+-- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off.
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
-    status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused() end})
+    status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.

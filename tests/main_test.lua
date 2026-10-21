@@ -301,7 +301,7 @@ end,kit=function(opts)
             kit_calls[#kit_calls+1]='input'..word
         end,scale=said_kit('scale'),
         sounds=said_kit('sounds'),sound=function(name) kit_sounds[#kit_sounds+1]=name end,
-        paused=function() return kit_paused end,
+        paused=function(always) return kit_paused and (always==true or not kit_off) end,
         language=function()
             language_reads=language_reads+1
             if not kit_off then kit_language_seen=kit_language end
@@ -496,6 +496,7 @@ assert(#nr.runs==3 and nr.runs[2][1]==nil and nr.runs[3][2]=='x' and nr.runs[3][
 nr.o.log('start: x'); assert(last()=='[StellarCoop][NR] start: x\n',last())
 assert(nr.o.status()==status_text and nr.o.paused()==false)
 kit_paused=true; assert(nr.o.paused()==true); kit_paused=false
+kit_off,kit_paused=true,true; assert(nr.o.paused()==true,'The kit off'); kit_off,kit_paused=false,false
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())
