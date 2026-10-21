@@ -348,7 +348,8 @@ race is armed.
   alone, and your notice says why: they are on another map, their game could not read the track, they do not play a
   co-op save, or no answer came within 10 s.
 - During `coop loopback` with no friend linked, the loopback ghost races as the second player, which tests the
-  two-player race on one PC. It walks 2 m to your right, so it stands in the guest's slot while you stand in yours.
+  two-player race on one PC. It walks 2 m to your right as you faced when it appeared, and keeps that side. Start the
+  loopback facing the way the race goes: the ghost then stands in the guest's slot while you stand in yours.
 
 ### Slots and countdown
 
@@ -389,7 +390,8 @@ A DNF (did not finish) ends your race. A notice says why:
 
 `coop race quit` and `coop off` end your race as a DNF too, with the command's answer instead of a notice. Before GO,
 the host's quit or map change cancels the race for both players (`Race cancelled.`). A guest who does the same leaves
-the race, and the host races alone.
+the race. Before the countdown the host then races alone; during it, the guest stays in the race as a DNF, so `POS`
+counts two racers and the results list the guest as `DNF`.
 
 ### Results
 
@@ -407,10 +409,10 @@ Two flags can show under `RESULTS` for your own run. Neither changes the ranking
   air. The flag is there for Tachy mode, which runs faster; the mod cannot read whether Tachy mode is on.
 - `paused`: the game was paused, or showed one of its own screens, for 2 s or more.
 
-Each PC logs one line per race: `[StellarCoop][DR] result id=<id> track=<name> ms=<ms> clock=<s> time=<s> flags=<n>
-rank=<place>`. `ms` is your time in milliseconds, `clock` and `time` measure the race with two different clocks (for a
-bug report), `flags` adds 1 for a fast run and 2 for paused, and `rank` is your place. `ms` and `rank` read `-` after a
-DNF, and `track` reads `-` on the guest's PC.
+Each PC logs one line per race that reaches its results there: `[StellarCoop][DR] result id=<id> track=<name> ms=<ms>
+clock=<s> time=<s> flags=<n> rank=<place>`. `ms` is your time in milliseconds, `clock` and `time` measure the race with
+two different clocks (for a bug report), `flags` adds 1 for a fast run and 2 for paused, and `rank` is your place. `ms`
+and `rank` read `-` after a DNF, and `track` reads `-` on the guest's PC.
 
 The panel, the banners and the results hide while the game is paused or shows one of its own screens. With the
 co-op UI off (`coop ui off`, or after an engine error), they do not show, and the banners other than the countdown
@@ -442,7 +444,6 @@ Two test commands are left out of the usage line. Both need a co-op save, except
 
 - Two players at most. The host starts every race, and only the host needs the track file.
 - Both players must be on the track's map.
-
 - Enemies stay as they are: each game runs its own fights during a race, and shared enemies, same place and same
   spawns work as usual. Record tracks through ground you have cleared.
 - A race gives no reward, item, progress or achievement, and writes nothing to a save. Its Doros are display only,
@@ -611,7 +612,8 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 name, except `coop nightop stop`, which works on any save. See
 [night-operation.md](night-operation.md#the-solo-run-coop-nightop).
 
-The ghost, the link and every other command except `coop fight` and `coop race start` (below) run on any save.
+The ghost, the link and every other command except `coop fight` (below), and `coop race start`, `coop race look on`
+and `coop race probe doro` (see [Doro races](#doro-races)), run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Shared enemies (experimental)
@@ -1142,7 +1144,6 @@ cancelled before GO), a race track being recorded (dropped, nothing written) and
 Afterwards only `coop status` and `coop report` answer. Every other command answers
 `STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
-
 ## coop-settings.txt
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` with the defaults when the file is missing. After that, only the
@@ -1502,9 +1503,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
 it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,
 state and chat files, `coop-race.txt`, and any stale request or report. The chat files and `coop-race.txt` are also
-deleted when a session ends and when the game exits.
- A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the
-previous run.
+deleted when a session ends and when the game exits. A run without `coop no` writes no probe file, so
+`nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.

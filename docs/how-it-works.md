@@ -83,7 +83,6 @@ file is written in full beside its final name and then renamed over it, so the r
   order. Your friend's race lines come in `coop-chat.txt` as `race <text>`, beside the chat lines, and Lua reads that
   file every frame while a race is armed. `coop-race.txt` is deleted with the chat files.
 
-
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
 ## The Steam link
@@ -218,12 +217,12 @@ refused: enemies that differ already stay unshared (same character id and maximu
 
 The race line carries one line of a [Doro race](#doro-races), sent reliable. The link passes its text on as it is: it
 reads no further, and only refuses a line with a byte outside printable ASCII (0x20 to 0x7e) or longer than 512 bytes
-in all. At most 40 lines a second are sent, and at most 40 a second are kept from a friend. The rest are dropped, with
-one line per friend and session in `coop-link.log` (`dropped race lines from <name>: over the rate limit` or `too many
-waiting`). During `coop loopback` with no friend linked, your race lines come back as your friend's.
+in all. At most 40 lines a second are sent, and at most 40 a second are kept from a friend. Your friend's lines past
+that are dropped, with at most one line a minute per friend in `coop-link.log` (`dropped race lines from <name>: over
+the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
+`coop loopback` with no friend linked, your race lines come back as your friend's.
 
 Say, vit, paks and race lines from a friend who has not passed the handshake are ignored, without a log line.
-
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -275,7 +274,6 @@ instead of misread:
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; Doro races: the race line on channel 0 (this version) |
-
 
 ### Link health in the log
 
@@ -845,9 +843,9 @@ link's pings. A host that gets no `have` line within 10 s sends `abort <id> trac
 In `coop loopback` with no friend linked, the host's lines come back as the friend's. A second, guest instance of the
 race model answers them, run on the loopback ghost's feet, and its lines go straight to the host's.
 
-Each PC logs a `[StellarCoop][DR] result` line per race, with the race's length by `os.clock` and by `os.time`. The race
-clock is `os.clock`, and the two values show whether it counts wall time on that PC.
-
+Each PC logs a `[StellarCoop][DR] result` line per race that reaches its results there, with the race's length by
+`os.clock` and by `os.time`. The race clock is `os.clock`, and the two values show whether it counts wall time on that
+PC.
 
 A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
 is `/Script/Engine.Actor`. `tests/race_test.lua` checks both in `doro.lua`, `race_model.lua` and `race.lua`.
@@ -912,7 +910,12 @@ drops the input.
   frame. Nothing is allocated under the lock: the worker sizes the pose buffers beforehand and the game thread only
   swaps them. Every 60 s the log gives the tick's cost and, while poses flow, the stream's counts.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
-  tests), the mesh path rule, the channel 1 size and rate limits, and at most 8 effect starts a second.
+  tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, and race lines
+  (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race lines](#race-lines)).
+- The [Doro look](#the-doro-look) is the only write to the player actor: `bHiddenInGame` on EVE's mesh parts and
+  `VisibilityBasedAnimTickOption` on her main mesh. It writes `coop-look.txt` before it changes either, and undoes both
+  at the race's end, on `coop race look off` and `coop off`, after a map change and at its first error. The next Lua
+  load undoes them from that file when this one could not.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game

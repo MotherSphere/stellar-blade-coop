@@ -92,9 +92,8 @@ changes one line of the file at a time, and keeps the file as it was before its 
 - `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
   `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` takes the same keys, or `none` (the
   default); a key set there hosts at once, without the menu. `race_key` (`F9`) takes the same keys, or `none`. If two
-  actions share one key, all five keys go back to their defaults.
- A file written before the menu existed has no `menu_key` line: the menu then opens on that file's
-  `host_key`, and no key hosts at once.
+  actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
+  `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
 - `who_can_join`: `friends` (the default: your Steam friends can join from their friends list), `code` (anyone with
   your join code can join; a player who is not your Steam friend waits for your answer) or `private` (only the
   friends you invite can join). It counts for the next session you host.

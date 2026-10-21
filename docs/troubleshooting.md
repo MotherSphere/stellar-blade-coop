@@ -425,9 +425,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
 ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the
-ghost, of the Doro look, of a Doro race and of the co-op menu, chat and partner HUD.
- To see what the marker and the arrow cost, compare a minute with them on against a minute
-with Options > Partner > HP marker and Off-screen arrow set to Off.
+ghost, of the Doro look, of a Doro race and of the co-op menu, chat and partner HUD. To see what the marker and the
+arrow cost, compare a minute with them on against a minute with Options > Partner > HP marker and Off-screen arrow set
+to Off.
 
 A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.
 
