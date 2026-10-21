@@ -757,6 +757,12 @@ claim the host accepts):
 - `coop fight test kill` (the solo probe) kills only an enemy our EVE took part in, by the same test with the 30 m.
 - The mod's kills pass no skill to ApplyStat, so they never count toward the skill-kill achievements. The mirrored
   crowd controls and the HP corrections never kill, and the game's AchievementTable has no row for a hit.
+- [Shared quests](#shared-quests) keep the same rule: the guest's game takes a host step only when her quest stood
+  where the host's did and she stood in the host's zone when its line came. A kill task waits for her own copy to
+  complete it, by her own kill or by a shared enemy that died in her world under the rule above. `coop quests force`
+  never applies a step of a quest she is behind on.
+- Night Operation runs only without a Steam session: its start refuses one, and a session that starts ends the run. Its
+  kills are the player's own.
 
 ## Safety design
 
