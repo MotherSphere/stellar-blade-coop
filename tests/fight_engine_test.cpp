@@ -2116,6 +2116,7 @@ int main() {
     g.spawn(104, 5004, 0, kChar, 1600, 4);
     g.state(104, 7, 1);
     g.spawn(105, 5005, 0);
+    g.spawn(106, 5006, 0);
     g.inbox.push_back(msg("SBF11 on"));
     uint64_t t = 0;
     frame(g, *e, t);
@@ -2207,6 +2208,15 @@ int main() {
     g.inbox.push_back(msg("SBF11 hit 1 4 105 0 0 200 1600 0"));
     assert(has(turn("SBF11 exec 1 105 1"), "SBF11 own 1 105 G 1\n") && e->host.executing(105, t));
     assert(e->host.counts.execs == 5 && e->host.counts.bad == 0 && !e->latched());
+    // 106, groggy under NoDamageNoHit, which our freeze waits out: her takedown hands it to her only once that ends, so
+    // its AI never runs in both games.
+    g.state(106, 7, 1);
+    g.state(106, kNoDamageNoHit, 1);
+    turn();
+    assert(!has(turn("SBF11 exec 1 106 1"), "own") && e->host.executing(106, t));
+    assert(!has(turn(), "own") && casts(106).empty());
+    g.state(106, kNoDamageNoHit, 0);
+    assert(has(turn(), "SBF11 own 1 106 G 1\n") && casts(106) == freeze && e->host.counts.execs == 6);
   }
   // Her side. A takedown marker on her copy, while same-place enemies run here with aggro=game: exec 1 in that turn,
   // exec 0 once it has held none for 200 ms (a turn between the two markers ends nothing), or in the turn same place

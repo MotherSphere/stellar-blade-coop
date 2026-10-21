@@ -1611,7 +1611,9 @@ private:
       const bool skill =
           o->owner == pilot::kHost ? (m & kRowSkill) != 0 : std::find(skills, skills_end, guids[i]) != skills_end;
       f.busy = skill || !(m & kReady) || (m & (kRowRelease | kRowDying)) || dying(*s) || cast_on(guids[i]);
-      f.host_exec = s->marked, f.guest_exec = host.executing(guids[i], now); // Stage 3c's takedowns.
+      // Stage 3c's takedowns. Hers hands the enemy over only once our freeze can start (kReady), so its AI never runs
+      // in both games.
+      f.host_exec = s->marked, f.guest_exec = host.executing(guids[i], now) && (m & kReady);
       float enemy[3];
       f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
                  pilot::closer(o->owner, enemy, eve_at, flags_.her);
