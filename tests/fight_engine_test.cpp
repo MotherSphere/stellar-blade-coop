@@ -527,13 +527,16 @@ struct Game {
   // FUN_141ad08b0(logic, target, caster, id, &zero, 0, nullptr): the effect, which starts at this turn's actor tick, or
   // 0 when the target refuses it. A copy in a crowd control never gets a mirrored one from us. FinishReady_Dispel and
   // MinimumHP_Dispel start inside the call, as the call starts any effect when its sixth argument is 0: a kill right
-  // after them meets neither Immortal nor a floor. starts_now: every effect does.
-  bool starts_now = false;
+  // after them meets neither Immortal nor a floor. starts_now: every effect does. marks_last: the call stores the
+  // caster's GUID at the target's +0x638, as FUN_141ba8190 would if the call reached it.
+  bool starts_now = false, marks_last = false;
   uint64_t effect(uint64_t lg, uint64_t la, uint64_t caster, int32_t id) {
     casts.push_back({lg, la, caster, id, ++ops});
     assert(!cc_effect(uint64_t(id)) || !in_cc(la));
     if (bodies[la].immune || id == bodies[la].refuses)
       return 0;
+    if (marks_last && caster != la)
+      mem.put(la + kLastPlayer, mem.get<uint32_t>(caster + kGuid));
     const Body::Running e{mem.alloc(0x110), id, 0};
     if (starts_now || id == kFinishDispel || id == kFloorDispel)
       start(la, e);
@@ -1908,17 +1911,26 @@ int main() {
     assert(!until(t + 6000, "own"));
     g.mem.put<int32_t>(g.fsb(101) + kAiTask, 0);
     assert(until(t + 100, "SBF11 own 1 101 G 4\n"));
-    // Nearer: once nobody hit it for 10 s, our EVE 3 m closer than hers for 2 s takes it back. Her ghost drawn 9 s
-    // after her hit: the 2 s count from then (the job reads the game thread's word a turn late).
+    // Nearer: once nobody hit it for 10 s, our EVE 3 m closer than hers for 2 s takes it back, only within 30 m of it
+    // (the force target would make our EVE its last player, which counts as taking part): 40 m away, never. Her ghost
+    // drawn 9 s after her hit: the 2 s count from then (the job reads the game thread's word a turn late).
     const uint64_t enemy = g.fsb(101) + kLocation, ours = g.fsb(1) + kLocation;
     for (int k = 0; k < 3; ++k) {
       g.mem.put<float>(enemy + 4 * size_t(k), 0);
-      g.mem.put<float>(ours + 4 * size_t(k), k ? 0.f : 100.f);
+      g.mem.put<float>(ours + 4 * size_t(k), k ? 0.f : 4000.f);
     }
     assert(!until(her_hit + 9000, "own"));
-    g.flags.her[0] = 1000, g.flags.her_ok = true;
+    g.flags.her[0] = 8000, g.flags.her_ok = true;
+    assert(!until(t + 4000, "own"));
+    g.mem.put<float>(ours, 100.f);
+    g.flags.her[0] = 1000;
     const uint64_t near_from = t;
     assert(!until(near_from + 1984, "own") && until(near_from + 2100, "SBF11 own 1 101 H 5\n"));
+    // Ours now: her EVE 60 m away and 40 m closer than ours never takes it, however long.
+    g.mem.put<float>(ours, 10000.f);
+    g.flags.her[0] = 6000;
+    assert(!until(t + 8000, "own") && row.owner == coop::pilot::kHost);
+    g.mem.put<float>(ours, 100.f);
     g.flags.her_ok = false;
     // aggro=host: told at once, and nothing goes to her.
     e->aggro(true);
@@ -2316,13 +2328,13 @@ int main() {
   // ---- Stage 3b, two worlds through channel 2: 90-150 ms each way, in order ----
   // Three paired enemies. Enemy 0 goes to her by her hit at 5 s, back by the host's at 12 s, to her again at 20 s and
   // back by the nearer rule 10 s later. Enemy 1 nobody hits: hers by the nearer rule while her EVE stands by it (6 s to
-  // 18 s), then the host's. Enemy 2: her hit at 5.5 s while her copy holds NoDamageNoHit (a grab), so she refuses it
-  // and it comes back; hers at her next hit, at 37 s (none goes to her for 30 s after her own-no about it). On each
-  // frame each enemy runs SB's AI on one copy (state 39 off on it)
-  // but in a hand-over: a hand-over leaves 0 or 2 for one hop at most (the one-way delay and the receiver's turn), a
-  // refused one 0 for a round trip (two hops). No pair at an epoch is ever captured by both sides, and between
-  // hand-overs the side that does not own a pair draws it at the owner's epoch (R35). Then the link goes: every copy
-  // local, none frozen.
+  // 18 s), then the host's, whose EVE walks up at 18 s to 25 m from enemies 0 and 1 (the nearer rule hands an enemy
+  // only to an EVE within 30 m of it). Enemy 2: her hit at 5.5 s while her copy holds NoDamageNoHit (a grab), so she
+  // refuses it and it comes back; hers at her next hit, at 37 s (none goes to her for 30 s after her own-no about it).
+  // On each frame each enemy runs SB's AI on one copy (state 39 off on it) but in a hand-over: a hand-over leaves 0 or
+  // 2 for one hop at most (the one-way delay and the receiver's turn), a refused one 0 for a round trip (two hops). No
+  // pair at an epoch is ever captured by both sides, and between hand-overs the side that does not own a pair draws it
+  // at the owner's epoch (R35). Then the link goes: every copy local, none frozen.
   {
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
@@ -2352,6 +2364,9 @@ int main() {
       G.state(902, kNoDamageNoHit, t >= 5000 && t < 7000);
       H.flags.her_ok = t >= 6000;
       at(H.flags.her, t < 18000 ? 5000.f : -3000.f, t < 18000 ? 100.f : 5000.f);
+      if (t == 18000)
+        for (int k = 0; k < 3; ++k)
+          H.mem.put<float>(H.fsb(1) + kLocation + 4 * size_t(k), k ? 0.f : 2500.f);
       if (t == 4992 || t == 20000) // Frames every 16 ms.
         G.hit(900, kStamina, 10);
       if (t == 12000)
@@ -3186,6 +3201,47 @@ int main() {
       G.hit(guid, kHp, 500);
     run(t + 100);
     assert(G.dying(931) && G.dying(933) && !G.dying(935) && !eg->latched());
+  }
+
+  // ---- Bosses (stage 5), the guest's side: the host's dead on a boss copy she took no part in ----
+  // Her GorillaB copy 941 at 1 HP in its Finish stance under the finish guard, our EVE 60 m away and never its last
+  // player: the host's dead ends the pair (dead-unshared) with the copy back to its full HP first, so the guard's lift
+  // dispels nothing and its Immortal stays. Her lethal hit later stops at 1 HP: no boss kill in her world.
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    for (const char *line :
+         {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100", "SBF11 up 1 141 41 0 15005100 1600"})
+      G.inbox.push_back(msg(line));
+    G.spawn(941, 41, 0, 15005100, 1600, kTypeBoss);
+    G.place(941, 6000, 0);
+    G.knock(941, kImmortalRow);
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    run(500);
+    assert(eg->guest.linked() == 1);
+    G.inbox.push_back(msg("SBF11 hp 1 1 0 141:1:100:200")); // The host's fight: its copy at 1 HP, so ours.
+    run(t + 100);
+    assert(G.hp(941) == 1);
+    G.knock(941, kDeathReady);
+    run(t + 600);
+    assert(count(G, "finish guard") == 1 && G.body(941).immortal && G.hp(941) == 1);
+    const uint64_t op = G.ops;
+    G.inbox.push_back(msg("SBF11 dead 1 141"));
+    run(t + 100);
+    const std::vector<int32_t> c = G.cast_ids(941, op);
+    assert(count(G, "dead-unshared", "not taken part") == 1 && eg->guest.linked() == 0 && G.hp(941) == 1600);
+    assert(std::count(c.begin(), c.end(), kFinishDispel) == 0 && count(G, "finish guard ended") == 0);
+    assert(G.body(941).immortal && !G.body(941).deaths);
+    G.hit(941, kHp, 1600);
+    run(t + 100);
+    assert(G.hp(941) == 1 && !G.dying(941) && !eg->latched());
   }
 
   // ---- Bosses (stage 5), the guest's side: bstart far from her copy ----
@@ -4512,10 +4568,40 @@ int main() {
     assert(!n.body(908).deaths && en->guest.counts.unshared == 1 && !en->counts.no_eve);
   }
 
+  // ---- Together only: our effect call naming our EVE as the game's last player ----
+  // The host's crowd control mirrored on her copy 911, 60 m from our EVE: when SB's effect call stores our EVE at the
+  // copy's +0x638 (the hit path's FUN_141ba8190, not ruled out), that is noted and logged once, and the host's dead
+  // then finds no part of ours: dead-unshared. 912, whose +0x638 was our EVE before the call, still dies ours.
+  {
+    Game g;
+    g.marks_last = true;
+    auto e = engine(true, false);
+    g.inbox.push_back(msg("SBF11 world 1"));
+    for (uint32_t i = 0; i < 2; ++i) {
+      g.spawn(911 + i, 5011 + i, 0);
+      g.place(911 + i, 6000, 0);
+      g.inbox.push_back(msg("SBF11 up 1 " + std::to_string(111 + i) + " " + std::to_string(5011 + i) + " 0 900 1600"));
+    }
+    g.mem.put<uint32_t>(g.by_guid[912] + kLastPlayer, 1);
+    frame(g, *e, 0);
+    assert(e->guest.linked() == 2);
+    g.inbox.push_back(msg("SBF11 cc 1 111 3000300"));
+    g.inbox.push_back(msg("SBF11 cc 1 112 3000300"));
+    frame(g, *e, 16);
+    assert(g.casts.size() == 2 && g.mem.get<uint32_t>(g.by_guid[911] + kLastPlayer) == 1);
+    assert(count(g, "last player", "set by a mirrored crowd control") == 1);
+    g.inbox.push_back(msg("SBF11 dead 1 111"));
+    g.inbox.push_back(msg("SBF11 dead 1 112"));
+    frame(g, *e, 32);
+    assert(!g.body(911).deaths && g.body(912).deaths == 1 && g.body(912).killer == g.eve);
+    assert(e->guest.counts.unshared == 1 && count(g, "dead-unshared", "not taken part") == 1);
+  }
+
   // ---- Together only, the host's side with same spawns: a copy given up stays out ----
-  // Her lethal claim on 101, 60 m from our EVE, which our EVE never hit and is not the last player of: no kill, its
-  // dead sent; it is never taken in again, and her rounds that lack its key get no spawn line for it (the key of 102,
-  // shared and alive, gets one).
+  // Her claims on 101, 60 m from our EVE, which our EVE never hit and is not the last player of: 600 HP, then the
+  // lethal rest. No kill, its dead sent, and it is back to its full HP with no cause and no number, so one hit of ours
+  // never ends what hers did; it is never taken in again, and her rounds that lack its key get no spawn line for it
+  // (the key of 102, shared and alive, gets one).
   {
     Game H;
     auto eh = engine(true, true);
@@ -4532,12 +4618,16 @@ int main() {
     H.inbox.push_back(msg("SBF11 on"));
     frame(H, *eh, 0);
     assert(eh->host.linked() == 2 && has(lines(H), "SBF11 up 1 101 5001 0 "));
-    H.inbox.push_back(msg("SBF11 hit 1 1 101 1600 0 0 1600 1"));
+    H.inbox.push_back(msg("SBF11 hit 1 1 101 600 0 0 1600 0"));
     frame(H, *eh, 16);
-    assert(!H.body(101).deaths && eh->host.counts.unshared == 1 && eh->host.linked() == 1);
+    assert(H.hp(101) == 1000);
+    H.inbox.push_back(msg("SBF11 hit 1 2 101 1000 0 0 1000 1"));
+    frame(H, *eh, 32);
+    assert(!H.body(101).deaths && eh->host.counts.unshared == 1 && eh->host.linked() == 1 && H.hp(101) == 1600);
+    assert(H.calls.back().delta == 600 && !H.calls.back().cause && !H.calls.back().notify);
     std::string sent = lines(H);
     assert(has(sent, "SBF11 dead 1 101\n"));
-    for (uint64_t t = 32; t <= 4500; t += 16) {
+    for (uint64_t t = 48; t <= 4500; t += 16) {
       if (t == 4000)
         H.inbox.push_back(msg("SBF11 have " + std::to_string(eh->host.gen()) + " 1 1 1"));
       frame(H, *eh, t);
@@ -5280,6 +5370,14 @@ int main() {
     frame(g, *e, t);
     t += 16;
     assert(count(g, "test", "refused: no eligible enemy") == 1 && g.calls.size() == 5 && !e->latched());
+    // Together only, as a shared kill: no kill of an enemy our EVE took no part in (60 m away, never hit).
+    g.spawn(107, 5007, 0);
+    g.place(107, 6000, 0);
+    e->test(-1, 0);
+    frame(g, *e, t);
+    t += 16;
+    assert(count(g, "test", "refused: not taken part") == 1 && g.calls.size() == 5 && !g.body(107).deaths);
+    g.unlink(107);
     // Off: a test asked meanwhile goes too.
     e->test(kHp, -10);
     e->set(false, false);

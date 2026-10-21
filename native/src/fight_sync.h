@@ -717,7 +717,17 @@ inline std::string line(const Event &e) {
 // achievements, and nothing done without a player reaches that player's save. The mod never calls an achievement
 // function; the game raises its Kill achievement, rewards, drops, quest kill tasks and a boss's story beat from a
 // death in its own world. So the other side's kill kills our copy only when our EVE took part in its fight (fought,
-// or took_part); else our copy never dies by the mod, and lives on as an enemy of ours alone.
+// or took_part); else our copy never dies by the mod, and lives on as an enemy of ours alone, at its full HP
+// (heal()).
+
+// A copy whose kill was the other side's alone back to its full HP, with no cause and no number: the HP the other
+// side's hits took off it (her claims, or the host's values) is not ours to finish with one hit. A boss copy of the
+// guest's then keeps its Immortal: the finish guard's lift (fight_engine.h) dispels it only at 1 HP.
+template <class Io> void heal(uint32_t guid, const float *max, const int32_t *value, Io &io) {
+  int32_t after = value[kHp];
+  if (whole(max[kHp]) > value[kHp])
+    io.apply(Write{guid, kHp, whole(max[kHp]) - value[kHp], false, false, false}, after);
+}
 
 // A host enemy the guest could not pair, for coop fight status: its key and why ("charId", "maxhp", "duplicate").
 struct Unshared {
@@ -1288,8 +1298,8 @@ private:
   }
   // The kill of a claim, now: true when e left our list (its dead sent). A kill that a floor holds keeps it, and one on
   // a boss in its Finish stance never goes. Together only: when our EVE took no part in its fight, her kill is hers
-  // alone. Our copy lives on as it stands, never shared again (Io::unshare), and she hears our dead, so her copy, which
-  // her hit killed or holds at the floor, dies on her side's own test.
+  // alone. Our copy lives on at its full HP (heal()), never shared again (Io::unshare), and she hears our dead, so her
+  // copy, which her hit killed or holds at the floor, dies on her side's own test.
   template <class Io> bool kill(Enemy &e, Io &io) {
     if (e.finish)
       return finish_held(e, io), false;
@@ -1301,6 +1311,7 @@ private:
     if (!e.fought && !io.took_part(e.guid)) {
       ++counts.unshared;
       io.event(Event{"kill-unshared", "not taken part", e.guid, e.spawn, e.index});
+      heal(e.guid, e.max, e.value, io);
       io.unshare(e.guid);
       io.send(note(Type::dead, e.guid));
       e = enemies_[--count_];
@@ -1633,9 +1644,9 @@ public:
     pair(seen, n, io);
     // The host's deaths, after the pairing so an enemy killed right after its up dies here too: each kills our copy
     // with our EVE as the cause, so this world gives her the kill (F3), when she took part in its fight (together
-    // only); else the pair ends with no write (dead-unshared) and our copy lives on as an enemy of ours alone, its
-    // floor, scaling, freeze and finish guard let go. An unpaired one waits for a census, the only pass that can pair
-    // it. A copy in NoDamageNoHit waits for it to end, kHoldMs at most (as on the host).
+    // only); else the pair ends (dead-unshared) and our copy lives on as an enemy of ours alone, at its full HP
+    // (heal()), its floor, scaling, freeze and finish guard let go. An unpaired one waits for a census, the only pass
+    // that can pair it. A copy in NoDamageNoHit waits for it to end, kHoldMs at most (as on the host).
     for (size_t i = 0; i < count_;) {
       Pair &p = pairs_[i];
       if (!p.dead || (!p.local && !census)) {
@@ -1659,6 +1670,7 @@ public:
       if (s && !dying(*s) && !p.fought && !io.took_part(p.local)) {
         ++counts.unshared;
         io.event(Event{"dead-unshared", "not taken part", p.hguid, p.spawn, p.index});
+        heal(p.local, s->max, s->value, io);
         p = pairs_[--count_];
         continue;
       }

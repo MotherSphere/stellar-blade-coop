@@ -199,7 +199,9 @@ constexpr size_t kAiTask = 0x744, kLocation = 0x4cc;
 // GUID FUN_141ba8190 stores, only a player's, from FSBActorAddTargetedByEnemy::Execute (FUN_141b0f440: it targeted
 // her) and from the hit paths FUN_141bf10c0 and FUN_141bfbf10 (her hit landed); 0 from actor init (FUN_141b9f040).
 // Each world has one player, so it is 0 or our EVE. SB's death handler (FUN_141bae5d0) takes it as the killer when a
-// death has no player cause: its Kill achievement and its Tachy gain.
+// death has no player cause: its Kill achievement and its Tachy gain. Our own effect call (cast()) names our EVE as the
+// caster and may reach FUN_141ba8190 too (not ruled out): a copy whose +0x638 turned into our EVE in that call is
+// noted, and its +0x638 no longer counts (lent()).
 constexpr size_t kLastPlayer = 0x638;
 constexpr float kPartCm = 3000; // 30 m.
 constexpr uint8_t kReady = 0x80; // A pass's only, never in a row: life state 1, no pending death, no NoDamageNoHit.
@@ -764,7 +766,7 @@ public:
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
       summoned_count_ = guards_ = 0; // summon_n_ goes on for the run, as the extras' n.
       trial_ = Trial();
-      unshared_n_ = 0;
+      unshared_n_ = lent_n_ = 0;
       calm_seen_ = calm_;
       per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
@@ -1343,6 +1345,10 @@ private:
     Event done{"test", "refused: no eligible enemy", 0, aim.seen.spawn, aim.seen.index};
     if (!aim.seen.guid)
       return g.event(done);
+    if (test < 0 && !took_part(g, logic, aim.seen.guid, true)) { // Together only, as a shared kill.
+      done.why = "refused: not taken part";
+      return g.event(done);
+    }
     Write w;
     w.guid = aim.seen.guid;
     w.stat = test < 0 ? kHp : test;
@@ -1414,10 +1420,15 @@ private:
     const uint64_t la = g.find(logic, guid), fsb = local_fsb(g);
     if (!la || !live(g, la, guid, a) || !eve(g, logic) || latched_)
       return false;
-    if (g.read(la + kLastPlayer, &last, sizeof last) && last == eve_)
+    if (g.read(la + kLastPlayer, &last, sizeof last) && last == eve_ && !lent(guid))
       return true;
     return nearby && g.read(a.fsb + kLocation, at, sizeof at) && g.read(fsb + kLocation, here, sizeof here) &&
            within(at, here, kPartCm);
+  }
+  // A copy whose +0x638 our own effect call made our EVE (cast()): the other side's crowd control, not her part.
+  bool lent(uint32_t guid) const {
+    const uint32_t *end = lent_ + std::min(lent_n_, kMaxSeen);
+    return std::find(lent_, end, guid) != end;
   }
   // A copy the host gave up (Io::unshare): its kill was hers alone. Never taken in again, nor same spawns' Monster.
   bool given_up(uint32_t guid) const {
@@ -1429,15 +1440,22 @@ private:
   // write, then SB's effect call as SB's ApplyStat makes it for an attacker's effects, our EVE the caster as for a hit
   // of hers: SB then weighs the copy's immunities (ImmuneDown and the like) and runs the effect's chain and end itself.
   // No EVE of ours found: not started. Noted for this turn: SB starts it inside the call, so this pass's marks are old
-  // for that copy, and our freeze waits (hold_freeze).
+  // for that copy, and our freeze waits (hold_freeze). A copy whose last player (+0x638) the call made our EVE is noted
+  // too, and logged once: that crowd control was the other side's, not our EVE's part in its fight (lent()).
   template <class Game> bool cast(Game &g, uint64_t logic, uint32_t guid, int32_t id) {
     Actor a;
     const uint64_t la = g.find(logic, guid);
     if (!la || !live(g, la, guid, a) || !fighting(a))
       return false;
     const uint64_t caster = eve(g, logic);
+    uint32_t last = 0;
+    const bool ours = g.read(la + kLastPlayer, &last, sizeof last) && last == eve_;
     if (!caster || latched_ || !g.effect(logic, la, caster, id))
       return false;
+    if (!ours && !lent(guid) && g.read(la + kLastPlayer, &last, sizeof last) && last == eve_) {
+      lent_[lent_n_++ % kMaxSeen] = guid;
+      g.event(Event{"last player", "set by a mirrored crowd control", 0, a.seen.spawn, a.seen.index});
+    }
     return noted(guid), true;
   }
   void noted(uint32_t guid) {
@@ -2896,8 +2914,11 @@ private:
       // in both games.
       f.host_exec = s->marked, f.guest_exec = host.executing(guids[i], now) && (m & kReady);
       float enemy[3];
+      // Nearer only within kPartCm of the side it would go to: the force target that follows marks that EVE as the
+      // enemy's last player (+0x638), which counts as taking part in its fight.
       f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
-                 pilot::closer(o->owner, enemy, eve_at, flags_.her);
+                 pilot::closer(o->owner, enemy, eve_at, flags_.her) &&
+                 within(enemy, o->owner == pilot::kHost ? flags_.her : eve_at, kPartCm);
       const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_;
       // A boss stays ours, as with aggro=host (stage 5: bosses attack the host first).
       if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || host.ignored()))
@@ -3035,6 +3056,10 @@ private:
   // shared again, and then given up again at her next kill: nothing of hers reaches us either way.
   uint32_t unshared_[kMaxPairs] = {};
   size_t unshared_n_ = 0;
+  // Copies whose +0x638 our effect call made our EVE this session (cast()), the last kMaxSeen. ponytail: a ring; one
+  // pushed out counts its +0x638 again, a session-long fight over 256 such copies being the ceiling.
+  uint32_t lent_[kMaxSeen] = {};
+  size_t lent_n_ = 0;
   PilotTable table_;
   StreamFlags flags_;         // The game thread's word, as of the last publish.
   uint32_t lost_[kMaxPairs] = {}; // Copies whose freeze was lost, while their pairs last.
