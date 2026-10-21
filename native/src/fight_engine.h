@@ -523,8 +523,8 @@ public:
       j.vtable = vtable;
   }
   // fight_chars (F8): the charIds this stage shares, at most kMaxChars, of any type; none (fight_chars=auto): every
-  // Monster but those auto_out() leaves out, so not the bosses and the Alphas (BossMonster) before stage 5. Set while
-  // off.
+  // Monster but those auto_out() leaves out, and the BossMonsters (bosses and Alphas) only while the side's bosses are
+  // on. Set while off.
   void allow(const uint32_t *chars, size_t n) {
     chars_ = std::min(n, kMaxChars);
     std::copy(chars, chars + chars_, allowed_);

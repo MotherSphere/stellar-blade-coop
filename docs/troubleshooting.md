@@ -175,10 +175,11 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   older build of the mod sends nothing until their shared enemies run.
 - `fight=on mode=on role=host enemies=0` or `role=guest pairs=0` while you both fight the same enemies: the two games
   spawned them differently (another map, a different save), or `fight_chars=auto` leaves them out, or a `fight_chars`
-  list does not name them. `auto` leaves out bosses, Alpha Naytibas, the Gorgon, two turrets with 999,999 HP and any
-  enemy above 500,000 maximum HP; `coop fight probe` marks the last three with `left_out=`. On the guest's side,
-  `coop fight status` lists the host's enemies it could not pair and why: `charId` (another enemy at that spawn
-  point), `maxhp` (another difficulty or New Game+ in one of the two games) or `duplicate`.
+  list does not name them. `auto` leaves out bosses and Alpha Naytibas (unless the host has `bosses=on`), the Gorgon,
+  two turrets with 999,999 HP and any enemy above 500,000 maximum HP; `coop fight probe` marks the last three with
+  `left_out=`. On the guest's side, `coop fight status` lists the host's enemies it could not pair and why: `charId`
+  (another enemy at that spawn point), `maxhp` (another difficulty or New Game+ in one of the two games) or
+  `duplicate`.
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
   `paks` line at the top; compare the two lists.
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another

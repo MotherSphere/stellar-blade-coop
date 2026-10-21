@@ -747,25 +747,31 @@ BossMonster type) that both games hold: one HP bar, balance gauge and death, as 
 not been tested in game yet, and they are off by default. Boss phases, the arena events of a boss fight and the enemies
 a boss summons are not shared yet: each game runs them for its own copy. With same place on, the guest's copy is
 frozen like any copy her game draws, so it cannot change phase yet. Its HP then stops at its first phase threshold on
-her screen while the host's boss fights on. Nothing holds a boss for its finisher yet either: a killing hit of the
-guest's can end a shared boss without the host's finisher.
+her screen while the host's boss fights on. When the host's boss dies, her copy survives at that threshold with its AI
+running, and she fights the rest of that boss alone. Nothing holds a boss for its finisher yet either: a killing hit of
+the guest's can end a shared boss without the host's finisher.
 
 - Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
   Boss HP (host's) in the host's co-op menu, or `bosses` and `boss_hp_scale` in its
   [coop-settings.txt](#coop-settingstxt). `coop fight record` keeps them in its file, and `coop fight replay` uses the
   recorded ones.
 - `boss_hp_scale` (default `2.0`, from `1.0` to `4.0`) multiplies a shared boss's maximum HP in place of
-  `enemy_hp_scale`, the Alpha Naytibas' too; `enemy_balance_scale` still sets its balance gauge. A boss's first phase
-  threshold comes from an effect the game applies at spawn, as a share of the maximum HP it has then, so it stays where
-  the unscaled maximum puts it: at `2.0`, a boss whose first phase ends at 60 % ends it at 30 % of its scaled HP. Later
-  thresholds follow the scaled maximum.
+  `enemy_hp_scale`, the Alpha Naytibas' too; `enemy_balance_scale` still sets its balance gauge. The mod does not adjust
+  a boss's phase thresholds yet. The game sets each one (a minimum HP) as a share of the maximum HP the boss has when
+  the threshold starts. The first one starts at spawn, before the scaling: at `2.0`, a boss whose first phase ends at
+  60 % can end it at 30 % of its scaled HP (not measured in game yet). Later ones start from the scaled maximum and can
+  sit above the HP the boss has left, which then rises to the threshold the next time the boss is hit: at `2.0`,
+  Tachy's first threshold leaves it at 75 % of its unscaled maximum, and its second one, 45 % of the scaled maximum, is
+  90 %. When the scaling ends during a fight (`coop fight off`, the end of the session), a threshold taken from the
+  scaled maximum stays as it was and can be above the boss's own maximum HP.
 - A boss takes one of the 16 shared places before any common enemy, even the place of a common enemy in a fight, which
-  then stops being shared. A common enemy never takes a boss's place.
+  then stops being shared, unless that enemy's death or takedown is under way. A common enemy never takes a boss's
+  place.
 - With same place on, a shared boss always fights the host: its AI never moves to the guest's game, whoever hits it.
 - A boss that only one save still holds (the other player already killed it, for example) stays unshared. The host's
   game fights its own alone, at `boss_hp_scale` once the guest's side is on, as with common enemies; a boss that only
   the guest's save holds stays as it is in her game. Same spawns never create or remove a boss.
-- The `fight=` line of `coop status` ends with `bosses=<percent>` (the host's `boss_hp_scale`) or `bosses=off`, on
+- The `fight=` line of `coop status` carries `bosses=<percent>` (the host's `boss_hp_scale`) or `bosses=off`, on
   both PCs.
 
 ### `coop off`

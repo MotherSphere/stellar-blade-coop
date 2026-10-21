@@ -467,7 +467,8 @@ balance and death stay with the host's game whoever owns the pair.
   at once instead of after 200 ms, so the takedown plays there with the executor's ghost. Its own copy's death still
   releases it. Nothing in the mod starts `Passive_FinishReady` (2001102), and the host refuses an exec line for a
   BossMonster. The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too, and her lethal
-  claim on a boss named in `fight_chars` is not held for its finisher: the finish guard is not built yet.
+  claim on a shared boss (`bosses=on`, or named in `fight_chars`) is not held for its finisher: the finish guard is not
+  built yet.
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
   in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
   its own SEH latch: the first fault stops it for the run, and after a fault in the mod's own reads every copy is put
