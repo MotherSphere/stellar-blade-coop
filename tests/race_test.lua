@@ -42,15 +42,19 @@ end
 local player=nil
 package.loaded.UEHelpers={GetPlayer=function() return player end}
 -- The display Doros (doro.lua's spawn, apply, remove and sweep): each spawned one with its path, its asset and whether
--- it is gone; the paths swept (a Doro: those under /Doro/).
-local doros,spawn_error,swept={},nil,{}
+-- it is gone; the paths swept (a Doro: those under /Doro/). remove_error makes remove raise.
+local doros,spawn_error,remove_error,swept={},nil,nil,{}
 package.loaded.doro={spawn=function(w,at,rot)
         if spawn_error then error(spawn_error,0) end
         local d={world=w,at=at,rot=rot,path='/Doro/'..(#doros+1)}
         doros[#doros+1]=d
         return d
     end,apply=function(d,c) d.asset,d.loop=c.asset,c.loop end,
-    remove=function(d) assert(not d.removed,'removed twice'); d.removed=true end,
+    remove=function(d)
+        if remove_error then error(remove_error,0) end
+        assert(not d.removed,'removed twice')
+        d.removed=true
+    end,
     sweep=function(p) swept[#swept+1]=p; return p:find('^/Doro/')~=nil end}
 local function alive()
     local list={}
@@ -728,6 +732,22 @@ do
     S.stored='/Doro/later'
     S.race.tick()
     assert(#swept==2 and S.stored=='/Doro/later','Once a Lua load')
+end
+-- A Doro that would not go when its race closed stays in the file for the next Lua load's sweep.
+do
+    local S=side()
+    S.files[FILE],S.move=TEXT,racer(0)
+    player=S.eve
+    assert(S.race.command('start','quest'))
+    step({S})
+    local d=doros[#doros]
+    assert(not d.removed and S.stored==d.path,tostring(S.stored))
+    remove_error='destroy failed'
+    assert(S.race.command('quit'))
+    step({S}) -- Closed at the next frame.
+    remove_error=nil
+    assert(not S.race.armed() and S.stored==d.path,tostring(S.stored))
+    d.removed=true
 end
 
 -- 15. Together only: race.lua, race_model.lua and doro.lua name no achievement, reward, item, quest, save or console

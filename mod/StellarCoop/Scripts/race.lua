@@ -104,14 +104,20 @@ function Race.new(o)
         r.banner,r.wrong={build=build,color=color,til=seconds and os.clock()+seconds},nil
         if notice~=false and not quiet(r) and not shown() then tell(build) end
     end
-    -- The race gone on this PC: its Doros, the look and her ghost's Doro mode if it turned them on, the HUD.
+    -- The Doros' actor paths on one line, tab-separated, for the next Lua load; the file cleared once none stands.
+    local function keep(r)
+        local paths={}
+        for _,d in pairs(r.doros) do paths[#paths+1]=d.path end
+        if paths[1] then store.save(table.concat(paths,'\t')) else store.clear() end
+    end
+    -- The race gone on this PC: its Doros (one that would not go stays in coop-race-doros.txt for the next Lua load),
+    -- the look and her ghost's Doro mode if it turned them on, the HUD.
     local function close(r,why)
         if race==r then race=nil end
         for key,d in pairs(r.doros) do
-            r.doros[key]=nil
-            pcall(Doro.remove,d)
+            if pcall(Doro.remove,d) then r.doros[key]=nil end
         end
-        pcall(store.clear)
+        pcall(keep,r)
         if r.ghost then
             pcall(puppet.emote,nil)
             pcall(puppet.doro,false)
@@ -236,12 +242,6 @@ function Race.new(o)
         add(run.next,run.lap)
         if run.next<n then add(run.next+1,run.lap) elseif run.lap<laps then add(1,run.lap+1) end
         return list
-    end
-    -- The Doros' actor paths on one line, tab-separated, for the next Lua load; the file cleared once none stands.
-    local function keep(r)
-        local paths={}
-        for _,d in pairs(r.doros) do paths[#paths+1]=d.path end
-        if paths[1] then store.save(table.concat(paths,'\t')) else store.clear() end
     end
     local function place_doros(r,e)
         local want,changed=wanted(r),false
