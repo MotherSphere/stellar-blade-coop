@@ -1019,13 +1019,13 @@ std::atomic<uint64_t> travel_fault_code{0}, travel_fault_rva{0}, travel_fault_ad
 std::mutex travel_m;
 uint32_t travel_asked = 0, travel_index = 0, travel_number = 0;
 // The game thread's word back: the last ask it handled (number << 32 | Why << 16 | other world << 8 | return), the
-// watch (State << 8 | Why), the asks handled, and the 24 bytes copied into +0x3c and +0x48 (read at the first call).
-std::atomic<uint64_t> travel_done{0};
-std::atomic<uint32_t> travel_watched{0}, travel_handled{0};
+// asks handled with the watch (count << 32 | State << 8 | Why: one word, so Lua never reads a new count with the state
+// before it), and the 24 bytes copied into +0x3c and +0x48 (read at the first call).
+std::atomic<uint64_t> travel_done{0}, travel_watched{0};
 std::atomic<uint64_t> travel_globals[3] = {};
 std::atomic<bool> travel_globals_read{false};
 // The game thread's own.
-uint32_t travel_taken = 0;
+uint32_t travel_taken = 0, travel_handled = 0;
 uint64_t travel_next = 0;
 travel::Calls travel_calls;
 travel::Watch travel_watch;
@@ -1121,7 +1121,7 @@ void travel_tick() {
       travel_faulted = true;
     }
   }
-  travel_watched = uint32_t(travel_watch.state) << 8 | uint32_t(travel_watch.why);
+  travel_watched = uint64_t(travel_handled) << 32 | uint32_t(travel_watch.state) << 8 | uint32_t(travel_watch.why);
 }
 
 // pilot.h's Game: plain reads and writes (a fault is the latch's), the two lookups, and the drawn side's calls.
@@ -1337,8 +1337,8 @@ std::function<void(const std::string &)> say = [](const std::string &) {}; // wo
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
      warp_fault_logged = false;
-// The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its number),
-// for the call's log line.
+// The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its
+// number), for the call's log line.
 bool travel_fault_logged = false, travel_globals_logged = false;
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
@@ -1771,8 +1771,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     travel_fault_logged = true;
     char text[200];
     std::snprintf(text, sizeof text,
-                  "travel off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; no travel to the host until the "
-                  "game restarts",
+                  "travel off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; no travel to the host until "
+                  "the game restarts",
                   static_cast<unsigned long long>(travel_fault_code.load()),
                   static_cast<unsigned long long>(travel_fault_rva.load()),
                   static_cast<unsigned long long>(travel_fault_address.load()));
@@ -1796,7 +1796,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                     " other_world=" + std::to_string((done >> 8) & 0xff)
               : "travel refused " + alias + ": " + travel::why_name(why));
   }
-  if (const uint32_t w = travel_watched; w != travel_watch_logged) { // And one per state the watch reaches.
+  if (const uint32_t w = uint32_t(travel_watched); w != travel_watch_logged) { // And one per state the watch reaches.
     travel_watch_logged = w;
     event("travel=" + travel::state_text(travel::State(w >> 8), travel::Why(w & 0xff)));
   }
@@ -2635,10 +2635,11 @@ std::string status() {
     s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
   // The follow's travel (travel.lua): the watch's state and the asks the game thread handled so far, so Lua knows a new
   // answer from an old one; refused:fault once its latch ended it.
-  if (const uint32_t w = travel_watched; travel_pinned && !blocked)
+  if (const uint64_t w = travel_watched; travel_pinned && !blocked)
     s += " travel=" +
-         (travel_faulted ? std::string("refused:fault") : travel::state_text(travel::State(w >> 8), travel::Why(w & 0xff))) +
-         " travel_calls=" + std::to_string(travel_handled.load());
+         (travel_faulted ? std::string("refused:fault")
+                         : travel::state_text(travel::State((w >> 8) & 0xff), travel::Why(w & 0xff))) +
+         " travel_calls=" + std::to_string(w >> 32);
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)
