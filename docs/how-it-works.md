@@ -254,7 +254,7 @@ instead of misread:
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
-| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses line (this version) |
+| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines (this version) |
 
 ### Link health in the log
 
@@ -466,9 +466,8 @@ balance and death stay with the host's game whoever owns the pair.
   despite Groggy, follows the stream through Groggy and through the stream's dying flag, and goes back onto the stream
   at once instead of after 200 ms, so the takedown plays there with the executor's ghost. Its own copy's death still
   releases it. Nothing in the mod starts `Passive_FinishReady` (2001102), and the host refuses an exec line for a
-  BossMonster. The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too, and her lethal
-  claim on a shared boss (`bosses=on`, or named in `fight_chars`) is not held for its finisher: the finish guard is not
-  built yet.
+  BossMonster. The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too; the finish
+  guard ([Shared bosses](#shared-bosses)) takes it off her copy and holds her killing hit on the host's boss.
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
   in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
   its own SEH latch: the first fault stops it for the run, and after a fault in the mod's own reads every copy is put
@@ -590,6 +589,59 @@ guest's game like any other key of the host's that she lacks.
   for the run and is logged as kept, since no capture can take it off.
 
 The log lines are in [usage.md](usage.md#extra-enemies-experimental).
+
+## Shared bosses
+
+Shared bosses (`bosses`, experimental, the host's value, off by default, not tested in game yet) add the bosses and
+Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
+any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
+game. The host sends `SBF11 bosses <gen> <percent>` with its list.
+
+With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
+battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
+applies them to her copy:
+
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF11 bstart <gen> <hguid>` when it turns on,
+  then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
+  once a copy, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
+  argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
+  once. Called from the logic thread, the game queues it for its game thread. She calls it only for a copy her game
+  draws as a BossMonster in life state 1, with the job sender and the reg already made (the call reads both through
+  getters that would make them). A refused bstart is taken at the host's next repeat.
+- The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
+  tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF11 phase <gen> <hguid> <oe>
+  <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
+  does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
+  game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
+  that came into the host's set since her last line for that copy (on her first line, each row her copy lacks), in the
+  host's order. Before them she applies `MinimumHP_Dispel` when a threshold left the set and none came in, and the
+  boss's phase dispel row (Crawler 5022094, SkullJuggernaut 5015002) when a phase row left and none came in. The phase
+  row's own stance change does the rest on her copy. 19 bosses have a row in the table; the other BossMonsters (the
+  Alpha Naytibas, challenge and variant rows) get bstart lines only.
+- At each census the host looks for actors with no spawn key whose owner (logic actor `+0x400`) is a boss it shares,
+  and finds the SummonActor row that made each one in the owner's effect list, by the effect GUID at `+0x40c` (an
+  effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
+  dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
+  EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
+  shared list under it. After its up the host sends `SBF11 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  hguid> <row>`, with epoch 1 when same spawns do not run. The guest makes it through `NewActor`, as for extra enemies,
+  with that key where the host's stands: only within 1 km of her EVE, for an owner she pairs as a BossMonster, and for a
+  row of her table that makes that charId. She then applies the row's effects through the effect call (its Start row,
+  which holds the summon still for a moment, and its Check row), and the pair forms on the key; same place freezes and
+  drives it like any other copy. A summon of hers that no pair holds 3 s after she made it is despawned, and so is
+  every one still fighting when the session ends. She holds 32 at most at once.
+- A Finish stance (HP under 2) applies `Passive_DeathReady` (2001101), which chains `Passive_FinishReady` (2001102, the
+  state the finisher needs). In each turn a paired boss copy of hers holds either one, her game applies
+  `FinishReady_Dispel` (2001103) and then the boss's own `Passive_Immortal` (2001100) again: her hits stop at 1 HP and
+  no finisher starts on her side. On the host's side, her claim that would kill a boss whose copy holds either row takes
+  it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). Only the host's finisher ends
+  a shared boss. When the host's `dead` comes for a boss, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel`
+  to her copy before the kill, so neither a threshold nor Immortal holds it.
+- Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
+  new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
+
+The log lines are in [troubleshooting.md](troubleshooting.md#a-shared-boss-differs-between-the-two-games).
 
 ## Safety design
 

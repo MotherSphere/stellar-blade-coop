@@ -570,8 +570,8 @@ the ghost. The host's game applies the guest's killing hit only once her takedow
 the enemy during her takedown, her game gets that death only then too. An enemy that lives through a takedown stays
 with the player who did it for 10 s, or until the other player hits it. With `aggro=host`, the guest's takedown plays
 only on her screen, and the host's still shows on hers. The host's game refuses the guest's takedown of a boss or an
-Alpha Naytiba, shared through `bosses=on` or named in `fight_chars`. That does not stop the finisher on her copy or her
-killing hit on the host's boss: the guard for boss finishers is not built yet.
+Alpha Naytiba, shared through `bosses=on` or named in `fight_chars`. Her killing hit leaves the host's boss at 1 HP,
+and her game takes the finisher's state off her copy, so only the host's finisher ends a shared boss.
 
 In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
 out of the game's movement manager, writes its position every frame from the other game's stream and replays that
@@ -744,12 +744,14 @@ not been tested in game yet, and the default is 0.
 
 With `bosses=on` in the host's coop-settings.txt, shared enemies also share the bosses and Alpha Naytibas (the game's
 BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses have
-not been tested in game yet, and they are off by default. Boss phases, the arena events of a boss fight and the enemies
-a boss summons are not shared yet: each game runs them for its own copy. With same place on, the guest's copy is
-frozen like any copy her game draws, so it cannot change phase yet. Its HP then stops at its first phase threshold on
-her screen while the host's boss fights on. When the host's boss dies, her copy survives at that threshold with its AI
-running, and she fights the rest of that boss alone. Nothing holds a boss for its finisher yet either: a killing hit of
-the guest's can end a shared boss without the host's finisher.
+not been tested in game yet, and they are off by default. With same place on, the guest's copy is frozen like any
+copy her game draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode,
+which phase effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events,
+the phase changes and the summoned enemies, which are shared like any other. Without same place, each game runs these
+for its own copy. Only the host's finisher ends a shared boss: a killing hit of the guest's leaves it at 1 HP, and her
+game takes the finisher's state off her copy. When the host's boss dies, her copy dies too, its thresholds taken off
+first. [How it works](how-it-works.md#shared-bosses) has the details, and
+[troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
 - Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
   Boss HP (host's) in the host's co-op menu, or `bosses` and `boss_hp_scale` in its
