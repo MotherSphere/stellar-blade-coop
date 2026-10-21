@@ -6,7 +6,8 @@
 -- game time and it ends itself. Never called here: a table row added, a rule or remain-time request, EndRule,
 -- ResetZone, a zone event other than nightop.lua's heal, EnterZone, a hide, a collision or pool flag write, a destroy,
 -- a save, inventory, equip or quest call, RegisterHook, NotifyOnNewObject. No console word reaches a game call: start's
--- words only set flags. The HUD itself calls the game for one thing only: its own result words (StringTable_UI).
+-- words only set flags. Beyond the kit (ui.lua), the HUD calls the game for one thing only: its own result words
+-- (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local U=require('unreal')
@@ -29,7 +30,7 @@ local SLOW=5 -- ms: a live-list refresh this slow gets its own line.
 -- The HUD in the kit's layout units (3840 by 2160), both groups at the top centre and scaled from there: the card
 -- (its title over one line) and, in its place once the run ends, the result panel (a heading, a line under it, then
 -- four rows: a label at the left, its value at the right).
-local HUD_W,CARD_H,RESULT_H,HUD_Y=1100,160,450,96
+local HUD_W,CARD_H,RESULT_H,HUD_Y=1040,160,450,96 -- 1040: clear of the chat's feed (x 96 to 1396).
 local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
 -- The game's own words for the result (StringTable_UI, in its 23 cultures), and ui_text.lua's words for each abort
 -- reason (stop and coop off: stop).
@@ -134,13 +135,14 @@ local function census(eve)
 end
 local function clock_text(seconds) return string.format('%d:%02d',seconds//60,seconds%60) end
 -- The card's title and line for the run's state s at game time now, in words w (ui_text.lua's): the countdown, then
--- the wave or, once it is down, the next one's countdown, each with the run time left and the score.
+-- the wave or, once it is down, the next one's countdown (the wave again once it is due and the cap holds it), each
+-- with the run time left and the score.
 function Run.card(s,now,w)
     local n=w.night
     if s.phase=='countdown' then return n.title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
     local rt=now-s.t0
-    local head=s.phase=='breather' and n.next:format(math.max(0,math.ceil((s.next_at or rt)-rt)))
-        or n.wave:format(s.wave,#W.SCHEDULE)
+    local wait=s.phase=='breather' and s.next_at and math.ceil(s.next_at-rt)
+    local head=wait and wait>0 and n.next:format(wait) or n.wave:format(s.wave,#W.SCHEDULE)
     return n.title,head..'  '..clock_text(math.max(0,math.ceil(W.LIMIT-rt)))..'  '..n.score:format(s.score)
 end
 -- An ended run's heading, the line under it ('' after a success) and its rows {label, value}, in words w. game(key):
@@ -157,10 +159,11 @@ function Run.result(s,w,game)
         {n.time,clock_text(math.floor(s.time))}}
 end
 local function no_text() return nil end
--- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table's id is not
--- a name yet (nothing is called then) or the key not registered, or on any error.
+-- The game's text for a StringTable_UI key in its own language, as its menus show it; nil while that table is not
+-- loaded or its id not a name (nothing is called then, so nothing loads it) or the key not registered, or on any error.
 local function game_text(key)
     local ok,text=pcall(function()
+        if not U.valid(StaticFindObject(STRINGS)) then return nil end
         local id=FName(STRINGS,EFindName.FNAME_Find)
         if id:GetComparisonIndex()==0
             or not U.find('/Script/Engine.Default__KismetStringTableLibrary'):IsRegisteredTableEntry(id,key) then
@@ -179,7 +182,18 @@ function Run.new(o)
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
     local panel=nil
     -- What the HUD shows goes to the notices instead while there is no kit or it is off.
-    local function notify(build) if tell and not (hud and not hud.kit.off()) then tell(build) end end
+    local function shown() return hud~=nil and not hud.kit.off() end
+    local function notify(build) if tell and not shown() then tell(build) end end
+    -- An ended run's state s as notices: the result, then what ended it unless it was a success.
+    local function notify_end(s)
+        local more=false
+        notify(function(w)
+            local head,line,rows=Run.result(s,w,no_text)
+            more=line~=''
+            return w.night.end_notice:format(head,s.clears,#W.SCHEDULE,s.kills,s.score,rows[4][2])
+        end)
+        if more then notify(function(w) return select(2,Run.result(s,w,no_text)) end) end
+    end
     local r=nil -- The run, nil when idle: s is nightop_waves.lua's state.
     local function clock(eve) return U.find('/Script/Engine.Default__GameplayStatics'):GetTimeSeconds(eve) end
     -- The live list: the addresses of the latest FindAllOf('SBCharacter'), timed. Returns the characters.
@@ -369,15 +383,7 @@ function Run.new(o)
                     or 'not asked ('..(ok and 'the heal row is not a name in this game run' or why(healed))..')'))
             elseif e.what=='end' then
                 finish()
-                local s=r.s
-                panel={s=s,left=W.RESULT/TICK}
-                local more=false -- With the kit off: the result, then what ended it unless it was a success.
-                notify(function(w)
-                    local head,line,rows=Run.result(s,w,no_text)
-                    more=line~=''
-                    return w.night.end_notice:format(head,s.clears,#W.SCHEDULE,s.kills,s.score,rows[4][2])
-                end)
-                if more then notify(function(w) return select(2,Run.result(s,w,no_text)) end) end
+                if shown() then panel={s=r.s,left=W.RESULT/TICK} else notify_end(r.s) end
             end
         end
     end
@@ -514,7 +520,11 @@ function Run.new(o)
     local picked,lang,words=nil,nil,nil
     local function draw()
         local kit=hud.kit
-        if kit.off() then return end -- The notices say it.
+        if kit.off() then -- The notices say it, and the result the panel still held.
+            if panel then notify_end(panel.s) end
+            panel=nil
+            return
+        end
         local running=r~=nil and r.s.phase~='result'
         local away=(running or panel~=nil) and kit.paused()
         local card,res=kit.view('night'),kit.view('night_result')
@@ -547,7 +557,8 @@ function Run.new(o)
         if panel.left<=0 then panel=nil end
     end
     -- Every 250 ms. A Lua error ends the run as aborted (error), with one STOP line and no retry; in the result's 10 s,
-    -- it drops the run at once. Then the HUD: an error in it gives one STOP line, and notices from then on.
+    -- it drops the run at once. Then the HUD: an error in it gives one STOP line, and notices from then on (the result
+    -- too, if the panel still held it).
     function self.tick()
         if r then
             local ok,e=pcall(tick)
@@ -569,6 +580,9 @@ function Run.new(o)
             log('STOP: HUD: '..why(e))
             pcall(function() hud.kit.show('night',false); hud.kit.show('night_result',false) end)
             hud=nil
+            local p=panel
+            panel=nil
+            if p then pcall(notify_end,p.s) end -- The result the panel still held.
         end
     end
     -- The HUD's two groups on the Uplink kit, before its first build (main.lua, after the partner HUD): o is {kit,

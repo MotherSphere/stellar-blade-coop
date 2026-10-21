@@ -13,7 +13,9 @@
 -- next wave's countdown, the time left and the score in the game's language; hidden while paused; the result panel
 -- with the game's own heading when it can be read (none with ui_language=english), shown for 10 s of ticks it can be
 -- seen, after a respawn or a load too; notices at the start, each wave, each clear and the end with the kit off; a HUD
--- error turns it to notices.
+-- error turns it to notices. The card while the cap holds a wave past its time; the game's text only once its table is
+-- loaded and its id a name; a success's panel and its single notice; a result the panel still holds goes to the notices
+-- when the kit turns off or the HUD fails, and a new run drops it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -601,6 +603,7 @@ local Tx=require('ui_text')
 local STRINGS='/Game/Local/Localize/StringTable_UI.StringTable_UI'
 local game_words={UI_Night_OperationSuccess='Réussite (jeu)',UI_Night_OperationFail='Échec (jeu)',
     UI_Night_OperationFail_Des='Tous morts (jeu)'}
+by_path[STRINGS]=invalid -- Not loaded yet.
 by_path['/Script/Engine.Default__KismetStringTableLibrary']=uobject('STL','KismetStringTableLibrary',
     {IsRegisteredTableEntry=function(_,id,key) return id:ToString()==STRINGS and game_words[key]~=nil end})
 by_path['/Script/Engine.Default__KismetTextLibrary']=uobject('KTL','KismetTextLibrary',{
@@ -667,7 +670,7 @@ assert(card.line.text==string.format('VAGUE SUIVANTE DANS 10  %d:%02d  SCORE 40'
 tick(4)
 assert(card.line.text:find('^VAGUE SUIVANTE DANS 9  '),card.line.text)
 assert(#told==0,'The kit is up: no notice')
--- The end: the result panel in the card's place, ui_text's heading while the game's table is not a name yet.
+-- The end: the result panel in the card's place, ui_text's heading while the game's table is not loaded.
 ok,message=night.command('stop')
 tick()
 assert(not kit.shown.night and kit.shown.night_result,'The result panel')
@@ -682,8 +685,19 @@ kit.away=false; kit.up=false; tick(20); kit.up=true
 tick(38); assert(kit.shown.night_result,'38 + 1 seen')
 tick(); assert(kit.shown.night_result,'40 seen')
 tick(); assert(not kit.shown.night_result,'Then hidden')
--- The game's own words once its table is a name: a death's heading and line.
-FName(STRINGS)
+-- Loaded but its id not a name, then a name but not loaded: still ui_text's words, nothing asked.
+local loaded=uobject('StringTable','StringTable /Game/Local/Localize/StringTable_UI.StringTable_UI',{})
+local function a_name() FName(STRINGS); by_path[STRINGS]=invalid end
+for _,step in ipairs({function() by_path[STRINGS]=loaded end,a_name}) do
+    step()
+    bodies={}
+    begin2()
+    night.stop('stop')
+    tick()
+    assert(res.head.text=="Échec de l'opération" and count('STL:IsRegisteredTableEntry')==0,res.head.text)
+end
+-- The game's own words once its table is loaded and its id a name: a death's heading and line.
+by_path[STRINGS]=loaded
 bodies={}
 begin2()
 tick(8)
@@ -691,6 +705,15 @@ dying=true
 tick(8)
 dying=false
 assert(kit.shown.night_result and res.head.text=='Échec (jeu)' and res.sub.text=='Tous morts (jeu)',res.head.text)
+assert(res.head.c=='warn','A failure in the warning colour')
+-- A success: the game's heading in teal, no line under it.
+bodies,lines={},{}
+begin2()
+byte=tonumber(message:match('run 0x(%x+)'),16)
+for k=1,5 do play(k) end
+assert(kit.shown.night_result and res.head.text=='Réussite (jeu)' and res.sub.text=='' and res.head.c=='teal',
+    res.head.text)
+assert(#told==0,'The kit is up: no notice')
 -- ui_language=english: English words, no game text read.
 settings.ui_language='english'
 local stl=count('STL:IsRegisteredTableEntry')
@@ -703,7 +726,11 @@ tick()
 assert(res.head.text=='Operation Failed' and res.sub.text=='Ended by a map change or a load.',res.sub.text)
 assert(count('STL:IsRegisteredTableEntry')==stl,'No game text read')
 settings.ui_language='game'
-assert(res.head.c=='warn','A failure in the warning colour')
+assert(res.head.c=='warn','A failure in the warning colour, after a success')
+-- Run.card alone: a breather's countdown, then the wave again while the cap holds the next one past its time.
+local held={phase='breather',t0=0,wave=2,next_at=90,score=40}
+assert(select(2,Run.card(held,85,Tx.en))=='NEXT WAVE IN 5  6:35  SCORE 40',select(2,Run.card(held,85,Tx.en)))
+assert(select(2,Run.card(held,95,Tx.en))=='WAVE 2/5  6:25  SCORE 40',select(2,Run.card(held,95,Tx.en)))
 -- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
 -- off as a stop), the rows.
 local function ended(outcome,reason) return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5} end
@@ -717,8 +744,32 @@ for reason,word in pairs({stop='stop',['coop off']='stop',['map change']='map',l
         error='error'}) do
     assert(select(2,Run.result(ended('aborted',reason),Tx.en,game))==Tx.en.night.why[word],reason)
 end
--- With the kit off: notices at the start, each wave and each clear, and the end, in the menu's words.
+-- A result the panel has not shown yet (the root down for a load) goes to the notices once the kit turns off.
+bodies,told={},{}
+begin2()
+tick(4)
+kit.up=false
+night.stop('map change')
+tick()
+assert(#told==0 and not kit.shown.night_result,'The panel waits for the root')
 kit.is_off=true
+tick(2)
+assert(told[1]=='Operation Failed: 0/5 waves cleared, 0 kills, score 0, time 0:00.' and #told==2,tostring(told[1]))
+assert(told[2]=='Ended by a map change or a load.',tostring(told[2]))
+-- A new run drops a result the panel still holds.
+kit.is_off=false
+bodies,told={},{}
+begin2()
+tick(4)
+night.stop('map change')
+tick()
+begin2()
+kit.is_off=true
+tick()
+assert(#told==0,tostring(told[1]))
+night.stop('stop')
+kit.up=true
+-- With the kit off: notices at the start, each wave and each clear, and the end, in the menu's words.
 bodies,told,kit.shows={},{},0
 begin2()
 assert(told[1]=='Night Operation starts in 5 s.',told[1])
@@ -730,17 +781,47 @@ assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
 night.command('stop')
 assert(told[4]:find('^Operation Failed: 1/5 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
 assert(told[5]=='Stopped with coop nightop stop.' and #told==5,tostring(told[5]))
+-- A success: its result alone, with no line after it.
+bodies,lines,told={},{},{}
+begin2()
+byte=tonumber(message:match('run 0x(%x+)'),16)
+for k=1,5 do play(k) end
+assert(told[#told-1]=='Night Operation: wave 5 cleared.',tostring(told[#told-1]))
+assert(told[#told]:find('^Operation Successful: 5/5 waves cleared, 20 kills, score %d+, time %d:%d%d%.$'),told[#told])
+tick(2)
+assert(told[#told]:find('^Operation Successful'),'One end notice')
 assert(kit.shows==0,'Nothing drawn with the kit off')
 kit.is_off=false
--- A HUD error: one STOP line, then notices; the run goes on.
+-- A HUD error: one STOP line, both groups hidden, then notices; the run goes on.
 bodies,told={},{}
 begin2()
 kit.raise='boom'
 tick()
 kit.raise=nil
 assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
+assert(not kit.shown.night and not kit.shown.night_result,'Both hidden')
 tick(20)
 assert(told[1]=='Night Operation: wave 1/5.',tostring(told[1]))
 night.stop('stop')
+-- A HUD error while the panel still holds a result (the root down for a load): the result goes to the notices.
+local night2=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+    tell=function(build) told[#told+1]=build(Tx.en) end})
+kit.groups,kit.shown={},{}
+night2.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+res=kit.groups.night_result.view
+bodies,told={},{}
+ok,message=night2.command('start')
+assert(ok,message)
+for _=1,4 do gt=gt+0.25; night2.tick() end
+kit.up=false
+night2.stop('map change')
+gt=gt+0.25; night2.tick()
+assert(#told==0,'The panel waits for the root')
+kit.up,kit.raise=true,'boom'
+gt=gt+0.25; night2.tick()
+kit.raise=nil
+assert(lines[#lines]=='STOP: HUD: boom' and not kit.shown.night_result,lines[#lines])
+assert(told[1]=='Operation Failed: 0/5 waves cleared, 0 kills, score 0, time 0:00.' and #told==2,tostring(told[1]))
+assert(told[2]=='Ended by a map change or a load.',tostring(told[2]))
 assert(#violations==0,violations[1])
 print('nightop_run_test ok')

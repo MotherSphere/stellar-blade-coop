@@ -117,18 +117,18 @@ for name in pairs(R.TEXT) do
         for _,text in ipairs(texts) do rows=rows+#Chat.wrap(text,78) end
         assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..texts[1])
     end
-    -- Night Operation's card (nightop_run.lua: 1100 units wide, 24 in from each side; title Bold 36, its line Bold 40,
+    -- Night Operation's card (nightop_run.lua: 1040 units wide, 24 in from each side; title Bold 36, its line Bold 40,
     -- about 23 units a column), with the longest numbers; its result panel: the heading Bold 56 (about 32 units a
     -- column), the line under it and the row labels Mideum 34 (18 units a column, as the feed's) from 96 units in, a
     -- label before its value's 5 Bold 40 columns at the right end.
     local n=w.night
-    fits(name..'.night.title',n.title,44)
-    fits(name..'.night.starts',n.starts:format(5),44)
+    fits(name..'.night.title',n.title,43)
+    fits(name..'.night.starts',n.starts:format(5),43)
     for _,head in ipairs({n.wave:format(5,5),n.next:format(10)}) do
-        fits(name..'.night line',head..'  8:00  '..n.score:format(9999),44)
+        fits(name..'.night line',head..'  8:00  '..n.score:format(9999),43)
     end
-    fits(name..'.night.success',n.success,32)
-    fits(name..'.night.fail',n.fail,32)
+    fits(name..'.night.success',n.success,31)
+    fits(name..'.night.fail',n.fail,31)
     for _,text in ipairs({n.died,n.time_up}) do fits(name..'.night: '..text,text,54) end
     for k,text in pairs(n.why) do fits(name..'.night.why.'..k,text,54) end
     for _,k in ipairs({'waves','kills','points','time'}) do fits(name..'.night.'..k,n[k],40) end
