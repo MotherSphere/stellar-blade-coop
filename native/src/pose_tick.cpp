@@ -2279,11 +2279,16 @@ Filter filter_state = Filter::untried; // The worker's.
 std::atomic<bool> filter_faulted{false};
 std::atomic<uint64_t> filter_fault_code{0}, filter_fault_rva{0}, filter_fault_address{0};
 bool filter_fault_logged = false;
-// The keys the hook refused, for the worker's log: a ring of 16 entries, each the low 24 bits of its push number << 40
-// | spawnId << 8 | index, so the worker skips an entry not written yet or already written over.
+// The keys the hook refused, for the worker's log: a ring of 16 entries, each the low 24 bits of its push number + 1
+// << 40 | spawnId << 8 | index, so the worker skips an entry not written yet (a slot still 0 too) or already written
+// over.
 constexpr uint64_t kFilterRing = 16;
 std::atomic<uint64_t> filter_ring[kFilterRing] = {}, filter_pushed{0};
 uint64_t filter_read = 0, filter_unlogged = 0; // The worker's.
+// The keys the log named while the gate stays open (the worker's): SB asks again for a refused spawn after its
+// interval, so each key is named once and later refusals show only in the stats line's count.
+// ponytail: kMaxKeys names at most; past that, new keys count as not listed.
+std::vector<uint64_t> filter_named;
 
 // The request's key as Execute finds it (spawnId << 8 | index), or 0 when its row is not found. Out of line, since
 // clang-cl catches a fault only in a function the __try calls.
@@ -2324,7 +2329,7 @@ void *filter_execute(void *request) {
     return execute(request);
   ++table.refused;
   const uint64_t n = filter_pushed.fetch_add(1);
-  filter_ring[n % kFilterRing] = (n & 0xffffff) << 40 | key;
+  filter_ring[n % kFilterRing] = ((n + 1) & 0xffffff) << 40 | key;
   return nullptr;
 }
 // The slot's address in the game, as the decompiles name it, and what a value in it points at.
@@ -2390,7 +2395,7 @@ void filter_undo(const char *why) {
         ", left as it is");
 }
 // Each fight pass, on the worker thread: the hook's fault said once (and the slot swapped back), the swap when the
-// gate first opens, and the keys the hook refused since the last pass.
+// gate first opens, and the keys the hook refused since the last pass that the log has not named yet.
 void filter_pass() {
   if (filter_faulted && !filter_fault_logged) {
     filter_fault_logged = true;
@@ -2401,18 +2406,28 @@ void filter_pass() {
     say(text);
     filter_undo("a fault");
   }
-  if (filter_state == Filter::untried && pinned && !blocked && !filter_faulted && fight_engine.filtering())
+  const bool gate = fight_engine.filtering();
+  if (filter_state == Filter::untried && pinned && !blocked && !filter_faulted && gate)
     filter_install();
+  if (!gate)
+    filter_named.clear();
   const uint64_t pushed = filter_pushed;
   if (pushed - filter_read > kFilterRing)
     filter_unlogged += pushed - filter_read - kFilterRing, filter_read = pushed - kFilterRing;
   for (; filter_read < pushed; ++filter_read) {
-    const uint64_t entry = filter_ring[filter_read % kFilterRing];
-    if (entry >> 40 != (filter_read & 0xffffff)) {
+    const uint64_t entry = filter_ring[filter_read % kFilterRing], key = entry & 0xffffffffffull;
+    if (entry >> 40 != ((filter_read + 1) & 0xffffff)) {
       ++filter_unlogged;
       continue;
     }
-    say("spawn filter refused " + std::to_string(uint32_t(entry >> 8)) + ":" + std::to_string(entry & 0xff));
+    if (std::find(filter_named.begin(), filter_named.end(), key) != filter_named.end())
+      continue;
+    if (filter_named.size() == fight::kMaxKeys) {
+      ++filter_unlogged;
+      continue;
+    }
+    filter_named.push_back(key);
+    say("spawn filter refused " + std::to_string(uint32_t(key >> 8)) + ":" + std::to_string(key & 0xff));
   }
   if (filter_unlogged)
     say("spawn filter: " + std::to_string(std::exchange(filter_unlogged, 0)) + " more refused, not listed");
