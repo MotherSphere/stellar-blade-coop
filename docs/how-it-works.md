@@ -157,11 +157,11 @@ The kit makes its root focusable (`bIsFocusable`) before it adds it to the viewp
 itself. Every 250 ms while the UI holds the input, it reads `HasAnyUserFocus` or `HasFocusedDescendants` on the root.
 The watchdog arms at the first yes since the input was taken; armed, 1 s of no fires it once. `main.lua` then runs the
 same function as `coop ui reset`: the menu, the chat box and the code box closed, an open host's question denied (which
-fails closed), the co-op saves' question closed as Decide later, the input given back at once and the menu's cursor put
-back. One log line names the holder; nothing shows on screen. A root that never had the focus 2 s after a take leaves
-the watchdog unarmed, with one log line a Lua load. The Steam overlay should keep Slate's focus where it was and then
-not fire the watchdog (not tested in game yet). The game, another mod, or a middle or side mouse button moving the
-focus does.
+fails closed), the co-op saves' question closed as Decide later (a copy pass already asked for keeps running and is
+followed on, where `coop ui reset` withdraws it), the input given back at once and the menu's cursor put back. One log
+line names the holder; nothing shows on screen. A root that never had the focus 2 s after a take leaves the watchdog
+unarmed, with one log line a Lua load. The Steam overlay should keep Slate's focus where it was and then not fire the
+watchdog (not tested in game yet). The game, another mod, or a middle or side mouse button moving the focus does.
 
 ### Line breaks
 

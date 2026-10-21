@@ -2663,6 +2663,15 @@ key('LEFT_MOUSE_BUTTON'); assert(not kit_shown.saves and #asked==n_asked,'A clic
 saves_view.rows[2].hover=nil
 in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
 assert(kit_shown.saves)
+-- The focus watchdog while a pass runs: the question hidden, the pass not withdrawn (coop ui reset withdraws it).
+clock=clock+1; key('RETURN'); quarter()
+n_asked=#asked
+assert(asked[n_asked]=='saves coop')
+kit_lost='saves'; quarter()
+assert(not kit_shown.saves and #asked==n_asked,'Hidden, nothing withdrawn')
+saves_info.saves='coop'; quarter(); saves_info.saves='main'
+in_world,at_title=true,false; quarter(); in_world,at_title=false,true; quarter()
+assert(kit_shown.saves)
 coop('off')
 key('RETURN'); assert(asked[#asked]=='off','Stopped: its keys do nothing')
 settings_text='auto_coop_save=always\n'
