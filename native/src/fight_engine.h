@@ -1859,7 +1859,8 @@ private:
   // SB's NewActor of charId chr with an extra's key there at yaw, the host's or hers: captured (kExtra), so the
   // session's end despawns it, and logged. Null when made, else why not: no room (kMaxExtras, or the capture list), the
   // tables or the world's actor manager not made (NewActor reads both through getters that would make them), or
-  // NewActor made nothing.
+  // NewActor made nothing. One whose GUID cannot be read is never captured, so it stays until it leaves the map: logged
+  // as kept.
   template <class Game>
   const char *make_extra(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     uint64_t net = 0, lg = 0, world = 0, manager = 0;
@@ -1871,8 +1872,12 @@ private:
       return "not made";
     const float rot[3] = {0, yaw, 0};
     const uint64_t la = g.make(logic, chr, at, rot, k.spawn, k.index);
-    if (!la || !plausible(la) || !get(g, la + kGuid, guid) || !guid)
+    if (!la || !plausible(la))
       return "not made";
+    if (!get(g, la + kGuid, guid) || !guid) { // Made but not captured: logged even after the latch the read took.
+      g.event(Event{"extra kept", "guid unread", 0, k.spawn, k.index});
+      return "not made";
+    }
     caps_[captures_++] = Capture{guid, kExtra, 1};
     ++spawn_counts().extras;
     g.event(Event{"extra made", "", 0, k.spawn, k.index});

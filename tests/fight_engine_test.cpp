@@ -612,11 +612,13 @@ struct Game {
   // Extras (stage 4b): NewActor (FUN_141ad1290) of charId chr with an extra's key, from inside the job, makes an actor
   // in the map at once in Spawn state, a Monster; 0 with refuse_make set.
   std::vector<Made> extras;
-  bool refuse_make = false;
+  bool refuse_make = false, unread_make = false; // unread_make: an actor whose GUID cannot be read.
   uint64_t make(uint64_t lg, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index) {
     assert(lg == logic && processing && is_extra(id) && index >= 1 && index <= kMaxPer && (id & 0xff) == index);
     if (refuse_make)
       return 0;
+    if (unread_make)
+      return 0x7fff00000000; // Plausible, never mapped.
     const uint64_t la = spawn(next_guid, id, index, chr);
     place(next_guid, at[0], at[1], rot[1]);
     extras.push_back(Made{id, index, {at[0], at[1], at[2]}, {rot[0], rot[1], rot[2]}, next_guid++});
@@ -2687,9 +2689,11 @@ int main() {
   // Only the Monster of the shared charId and a SpawnType 0 row gets three; never a boss or an Elite (BossMonster), an
   // NPC, a ZoneEvent or Quest spawn, or a charId the shared fight does not share. 125 m from our EVE but 105 m from
   // her ghost, an extra stays; 145 m and 125 m, it goes. When her shared enemies stop (her off line, the host's still
-  // on), a dying extra is left to its death; the other one goes. When this build's tables hold a row at the extras' first key, extras stay off for the session (logged once);
-  // when NewActor makes nothing, the refusal is logged and nothing is kept.
-  for (const int run : {0, 1, 2}) { // 0: extras; 1: the key range taken; 2: NewActor refuses.
+  // on), a dying extra is left to its death; the other one goes. When this build's tables hold a row at the extras'
+  // first key, extras stay off for the session (logged once); when NewActor makes nothing, the refusal is logged and
+  // nothing is kept. An extra whose GUID cannot be read latches the side and is logged as kept, since no capture takes
+  // it off.
+  for (const int run : {0, 1, 2, 3}) { // 0: extras; 1: the key range taken; 2: NewActor refuses; 3: a GUID unread.
     Game H;
     auto eh = engine(true, true);
     eh->same_spawns(true), eh->enemy_extra(3);
@@ -2698,7 +2702,7 @@ int main() {
       H.spawn_row(id, 2, 0xA1, id == 4 ? 1 : id == 5 ? 2 : 0);
     if (run == 1)
       H.spawn_row(0xE0000101, 2, 0xA1);
-    H.refuse_make = run == 2;
+    H.refuse_make = run == 2, H.unread_make = run == 3;
     H.spawn(101, 1, 0);
     H.spawn(102, 2, 0, kChar, 1600, 4);     // A boss or an Elite.
     H.spawn(103, 3, 0, kChar, 1600, 2);     // An NPC.
@@ -2719,6 +2723,10 @@ int main() {
     assert(H.extras.empty() && count(H, "extra refused") == 0);
     H.flags.her[0] = 2000;
     run_to(6000);
+    if (run == 3) {
+      assert(eh->latched() && std::string(eh->why()) == "unreadable" && count(H, "extra kept", "guid unread") == 1);
+      continue;
+    }
     assert(!eh->latched() && H.despawned.empty());
     if (run == 1) {
       assert(H.extras.empty() && count(H, "extras off", "key range taken") == 1 && count(H, "extra refused") == 0);
@@ -2988,7 +2996,8 @@ int main() {
       assert(count(G, "spawn refused", "no spawn manager") == 2 && count(G, "drop refused", "gone") == 2 &&
              eg->snapshot().spawns.differ == 0);
     } else if (run == 4) {
-      assert(G.made.size() == 2 && !eg->latched() && count(G, "drop refused") == 2 && eg->snapshot().spawns.differ == 0);
+      assert(G.made.size() == 2 && !eg->latched() && count(G, "drop refused") == 2 &&
+             eg->snapshot().spawns.differ == 0);
       assert(std::count(G.despawned.begin(), G.despawned.end(), 903u) == 1 &&
              std::count(G.despawned.begin(), G.despawned.end(), 904u) == 1);
     } else { // Key 1's spawn comes before key 5's row is read; nothing after it, the two drops neither.

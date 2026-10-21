@@ -566,7 +566,9 @@ guest's game like any other key of the host's that she lacks.
   stop on her side (its off or world line). Every despawn goes through the game's despawn
   job (`FUN_141b077f0`), never a kill.
 - `NewActor` runs inside the shared fight's job on the logic thread, under its fault latch, only while the table
-  holder and the world's actor manager exist: `NewActor` reads both through getters that would make them.
+  holder and the world's actor manager exist: `NewActor` reads both through getters that would make them. An extra
+  whose GUID cannot be read right after `NewActor` stops the shared fight for the run and is logged as kept, since no
+  capture can take it off.
 
 The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 

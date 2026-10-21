@@ -724,12 +724,13 @@ goes when shared enemies stop on either PC. Extras have not been tested in game 
   Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](#coop-settingstxt).
 - `coop-link.log` names each extra by its key: `3758096641:1` is the first enemy's first extra. In both games: `fight
   extra made <key>` and, at the end, `fight extra despawned <key> end`. On the host: `fight extra refused <key> <why>`
-  (`full`: 48 extras already; `not made`: the game made none), `fight extra despawned <key> far` (both players more
-  than 120 m away), and `fight extras off <key> key range taken` when the host's tables use the extras' first key, so
-  no extras this session. `fight extra kept <key> <why>` means the despawn job could not be sent. On the guest an
-  extra arrives as any same spawns key (`fight spawned <key>`). `fight spawn refused <key> row taken` means her game's
-  tables hold a row at that key, and `fight spawn refused <key> not shared` that none of her common enemies has the
-  extra's charId.
+  (`full`: 48 extras already; `not made`: the game made none), `fight extra despawned <key> far` (both players more than
+  120 m away), and `fight extras off <key> key range taken` when the host's tables use the extras' first key, so no
+  extras this session. `fight extra kept <key> <why>` means the despawn job could not be sent, or with `guid unread`
+  that the game made the extra but its GUID could not be read: shared enemies stop until the game restarts, and that
+  extra stays until it leaves the map. On the guest an extra arrives as any same spawns key (`fight spawned <key>`).
+  `fight spawn refused <key> row taken` means her game's tables hold a row at that key, and `fight spawn refused <key>
+  not shared` that none of her common enemies has the extra's charId.
 - The `fight stats:` lines in `coop-fight.log` add `extras <n> an enemy, <n> made, <n> despawned`.
 
 ### `coop off`
