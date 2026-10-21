@@ -33,8 +33,9 @@
 -- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
 -- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
 -- of the usage line); coop race look on|off, your EVE drawn as a Doro and the ghost too, and coop race probe doro, a
--- Doro playing each of its clips (doro.lua; test tools, left out of the usage line; both start on a co-op save only).
--- coop off stops everything until the game restarts.
+-- Doro playing each of its clips (doro.lua; test tools, left out of the usage line; both start on a co-op save only);
+-- coop race record <name>|cp|save [laps]|cancel|start <name>|quit, Doro races on a track you record (race.lua; race_key
+-- drops a checkpoint while you record; start on a co-op save only). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -56,9 +57,9 @@ if link then
     local notes
     settings,notes=link.settings()
     for _,note in ipairs(notes) do log(note) end
-    log(string.format('keys: menu=%s host=%s status=%s leave=%s, name tag %s, %d poses a second',settings.menu_key.name,
-        settings.host_key.name,settings.status_key.name,settings.leave_key.name,settings.name_tag and 'on' or 'off',
-        settings.send_rate))
+    log(string.format('keys: menu=%s host=%s status=%s leave=%s race=%s, name tag %s, %d poses a second',
+        settings.menu_key.name,settings.host_key.name,settings.status_key.name,settings.leave_key.name,
+        settings.race_key.name,settings.name_tag and 'on' or 'off',settings.send_rate))
 end
 -- What the ghost shows: the settings', changed by coop look until the mod reloads (game start or Ctrl+R: the settings
 -- again). The ghost holds this same table.
@@ -112,7 +113,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -160,10 +161,15 @@ local ui=require('ui').new(ui_log)
 -- The Doro look and probe (doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
+-- Doro races (race.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs. Its start
+-- and the guest's answer need a co-op save; it never arms during a Night Operation run.
+local race=require('race').new({log=doro.log,link=link,puppet=puppet,look=doro,tell=tell,night=night.active,
+    slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
+    settings=settings})
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
--- 250 ms so the file never stays on disk, session or not, and ours leave through coop-say.txt in the same loop. Its
--- clock counts that loop's ticks: os.clock is CPU time under some C runtimes, os.time whole seconds. chat.lua's view
--- shows and sends the lines (box, below).
+-- 250 ms so the file never stays on disk, session or not, and each frame while a race is armed (her race lines come in
+-- it too); ours leave through coop-say.txt in the 250 ms loop. Its clock counts that loop's ticks: os.clock is CPU
+-- time under some C runtimes, os.time whole seconds. chat.lua's view shows and sends the lines (box, below).
 local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
@@ -341,6 +347,7 @@ local commands={
         return nightop.run(sub,extra)
     end,
     nightop=function(sub,a,b)
+        if sub=='start' and race.armed() then return false,'a Doro race is armed: coop race quit leaves it' end
         if sub~='stop' then
             local ok,why=coop_slot('coop nightop')
             if not ok then return false,why end
@@ -508,7 +515,12 @@ local commands={
             if not ok then return false,why end
             return doro.probe()
         end
-        return false,'Use: coop race look on|off | probe doro'
+        if sub=='look' or sub=='probe' then return false,'Use: coop race look on|off | probe doro' end
+        if sub=='start' and a~=nil and extra==nil then
+            local ok,why=coop_slot('coop race start')
+            if not ok then return false,why end
+        end
+        return race.command(sub,a,extra)
     end,
     off=function()
         off=true
@@ -533,6 +545,8 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(night.stop,'coop off')
         if not stopped then log('nightop: '..tostring(e)) end
+        stopped,e=pcall(race.stop)
+        if not stopped then log('race: '..tostring(e)) end
         stopped,e=pcall(doro.stop)
         if not stopped then log('doro: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
@@ -581,6 +595,7 @@ if settings then
         covered=function() return menu.is_open() end})
     hud=require('partner').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
+    race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     local Join=require('join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
     menu=require('menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
@@ -595,8 +610,24 @@ local chat_asked,typed_at=nil,-math.huge
 local hud_shown=false -- Our HUD may show (a world, out of our photos): the chat's box opens then only, not at the title.
 -- The Lua frame time of the ghost's place and of the UI's ticks (UI-DESIGN 7.3, measured in T-UI1), summed and logged
 -- once a minute with the UI up. os.clock steps by whole ms under the game's C runtime: over a minute's frames the sum
--- averages out. The Doro look's frame is timed beside them.
-local timed={ghost=0,doro=0,ui=0,frames=0,since=nil}
+-- averages out. The Doro look's frame and the race's are timed beside them.
+local timed={ghost=0,doro=0,race=0,ui=0,frames=0,since=nil}
+-- coop-chat.txt, taken and deleted at once: her chat lines to the chat (on the line above EVE while the feed cannot
+-- show them: the UI off or failed, or still warming), her race lines to the race, a line of ours that could not go to
+-- the chat's fail. Every 250 ms, and each frame while a race is armed.
+local function inbox()
+    for _,line in ipairs(link.take_chat()) do
+        if line.fail then chat.fail()
+        elseif line.race then race.receive(line.race)
+        elseif line.text then
+            local got=chat.receive((link.friend()) or '',line.text,chat_clock)
+            if got and not kit.ready() then
+                local function said(w) return w.chat.said:format(got.name~='' and got.name or w.chat.partner) end
+                notice.say(said(words())..got.text,said(T.en)..got.text)
+            end
+        end
+    end
+end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
@@ -618,6 +649,11 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=doro.tick() -- After the native tick: EVE's mesh is where this frame draws her.
     if message then report(ok,message) end
     looked=os.clock()-looked
+    local raced=os.clock()
+    if link and race.armed() then inbox() end
+    ok,message=race.tick() -- After the look: its Doros and HUD from where EVE is drawn this frame.
+    if message then report(ok,message) end
+    raced=os.clock()-raced
     ok,message=notice.tick()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
@@ -645,14 +681,15 @@ LoopInGameThreadWithDelay(1,function()
         end
         local t=os.clock()
         timed.since=timed.since or t
-        timed.ghost,timed.doro,timed.ui,timed.frames=timed.ghost+placed,timed.doro+looked,timed.ui+t-now,timed.frames+1
+        timed.ghost,timed.doro,timed.race=timed.ghost+placed,timed.doro+looked,timed.race+raced
+        timed.ui,timed.frames=timed.ui+t-now,timed.frames+1
         if t-timed.since>=60 then
             if kit.ready() then
                 local function ms(v) return v*1000/timed.frames end
-                log(string.format('Lua frame time, last 60 s: ghost %.3f ms, doro %.3f ms, UI %.3f ms a frame '
-                    ..'(%d frames)',ms(timed.ghost),ms(timed.doro),ms(timed.ui),timed.frames))
+                log(string.format('Lua frame time, last 60 s: ghost %.3f ms, doro %.3f ms, race %.3f ms, UI %.3f ms a '
+                    ..'frame (%d frames)',ms(timed.ghost),ms(timed.doro),ms(timed.race),ms(timed.ui),timed.frames))
             end
-            timed={ghost=0,doro=0,ui=0,frames=0,since=t}
+            timed={ghost=0,doro=0,race=0,ui=0,frames=0,since=t}
         end
     end
 end)
@@ -843,17 +880,7 @@ if link then
         chat_clock=chat_clock+0.25
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
         if off or chatting~=nil then chat.session(not off and chatting) end
-        for _,line in ipairs(link.take_chat()) do
-            if line.fail then chat.fail()
-            elseif line.text then -- A race line ({race=}) has no reader yet: dropped.
-                local got=chat.receive((link.friend()) or '',line.text,chat_clock)
-                -- While the feed cannot show it (the UI off or failed, or still warming): on the line above EVE.
-                if got and not kit.ready() then
-                    local function said(w) return w.chat.said:format(got.name~='' and got.name or w.chat.partner) end
-                    notice.say(said(words())..got.text,said(T.en)..got.text)
-                end
-            end
-        end
+        if not race.armed() then inbox() end -- Each frame while one is.
         local typed=chat.take(chat_clock) -- One of ours for the native part, two a second at most; never logged.
         if typed and not link.say(typed) then chat.fail() end
         if settings.shared_enemies~=fight_wanted and not off then -- The co-op menu's row.
@@ -927,6 +954,9 @@ if link then
             saves_ui.slow(world==true,title==true)
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
             if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
+            -- The race's session and map checks, from the ghost's world read just above.
+            local raced,why=race.slow()
+            if why then report(raced,why) end
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end
@@ -936,9 +966,10 @@ if link then
 end
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
--- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line or
--- Leave. The host's question takes the navigation keys, Enter and Esc first while it is open. Enter goes to the menu's
--- key capture, then selects; the navigation keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z;
+-- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line, Leave
+-- or a race checkpoint (race_key, while a track is recorded; nothing otherwise). The host's question takes the
+-- navigation keys, Enter and Esc first while it is open. Enter goes to the menu's key capture, then selects; the
+-- navigation keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z;
 -- down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc), and to the co-op saves' question while
 -- it is open. The code box takes Enter (join) and Esc (cancel). With all closed, Enter opens the chat's box, then
 -- sends, and Esc cancels; while the question or a box is open our F-keys do nothing. A
@@ -948,7 +979,7 @@ end
 -- in the log in English and on screen in the menu's words; coop status keeps the full status.
 if settings then
     local K=require('keybind')
-    local ACTIONS={'menu','host','status','leave'}
+    local ACTIONS={'menu','host','status','leave','race'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=settings[action..'_key']
@@ -971,6 +1002,11 @@ if settings then
                 if action=='status' then
                     report(true,link.summary())
                     tell(link.summary)
+                elseif action=='race' then -- A checkpoint while a track is recorded; nothing otherwise.
+                    if not off then
+                        local ok,why=race.key()
+                        if why then report(ok,why) end
+                    end
                 elseif action~='menu' then run(action)
                 elseif off then report(false,OFF)
                 else
