@@ -19,7 +19,9 @@
 -- the night line relayed between them: the ask, her answer and both countdowns; the same keys on the same spots; one
 -- score from kills in either world; a wave that waits for both; a lost line repaired by the next; each end on both
 -- screens with its words (a death on either side, a stop, a travel, a lost link, a game that stops ticking); each of
--- her refusals in order, a run byte she found taken skipped, no answer in 5 s; the line on change and once a second.
+-- her refusals in order, a run byte she found taken skipped, no answer in 5 s; the line on change and once a second;
+-- a status not read for a tick ends nothing; her stop during her ask ends his countdown; a success with the same time
+-- and score on both, her clock moved by her round trip, and each clear and heal on both.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -160,7 +162,9 @@ FindAllOf=function(name)
     return list
 end
 local link_line,engine,slot_line='link=none lobby=0','engine=on remote=0 0 none','slot=coop index=4 marker=4'
+local unread=false -- The status file not read: status() gives nil.
 local function status()
+    if unread then return nil end
     return 'mod=v proto=9 steam=ready\n'..link_line..'\n'..engine..'\n'..slot_line..'\nlast=#1 ready\n'
 end
 
@@ -737,6 +741,9 @@ assert(res.head.c=='warn','A failure in the warning colour, after a success')
 local held={phase='breather',t0=0,wave=2,next_at=90,score=40}
 assert(select(2,Run.card(held,85,Tx.en))=='NEXT WAVE IN 5  6:35  SCORE 40',select(2,Run.card(held,85,Tx.en)))
 assert(select(2,Run.card(held,95,Tx.en))=='WAVE 2/5  6:25  SCORE 40',select(2,Run.card(held,95,Tx.en)))
+-- The ask: the host waits for her; her card counts down from her answer.
+assert(select(2,Run.card({phase='ask',role='host',t0=10},7,Tx.en))=='WAITING FOR PARTNER')
+assert(select(2,Run.card({phase='ask',role='guest',t0=10},7,Tx.en))=='STARTS IN 3')
 -- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
 -- off as a stop), the rows.
 local function ended(outcome,reason) return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5} end
@@ -851,8 +858,9 @@ local function side(name,mate_name,x,t)
 end
 local function enter(w)
     bodies,gt,eve_at,map,slot_line,dying,paused=w.bodies,w.gt,w.eve_at,w.map,w.slot,w.dying,w.paused
-    link_line=w.link..'\n'..w.friend..'\npeer=9 name=x hello=1 accepted=1 compatible=1 lost=0 invalid=0 rtt_ms=40 '
-        ..'session=3 session_ping=20'..(w.night and not w.link:find('none') and '\nnight='..w.night or '')
+    link_line=w.link..'\n'..w.friend..'\npeer=9 name=x hello=1 accepted=1 compatible=1 lost=0 invalid=0 rtt_ms='
+        ..(w.rtt or 40)..' session=3 session_ping=20'
+        ..(w.night and not w.link:find('none') and '\nnight='..w.night or '')
 end
 local function leave(w) w.bodies,w.gt,w.eve_at,w.map,w.dying=bodies,gt,eve_at,map,dying end
 local function on(w,f)
@@ -1077,5 +1085,63 @@ round(1)
 Gs.night='h 1 1 dance'
 round(1,Gs)
 assert(has(Gs.lines,'night in: h 1 1 dance (refused)'))
+-- A status not read for a tick ends nothing: not his ask, not hers, not a run on either side.
+pair()
+host_start()
+unread=true
+round(1,Hs)
+unread=false
+round(1)
+unread=true
+round(1,Gs)
+unread=false
+round(2)
+assert(state(Hs) and state(Gs) and state(Hs).phase=='countdown' and state(Gs).phase=='countdown',Gs.lines[#Gs.lines])
+round(28)
+unread=true
+round(1)
+unread=false
+round(3)
+assert(state(Hs).phase=='wave' and state(Gs).phase=='wave' and not find(Hs.lines,'^result: ')
+    and not find(Gs.lines,'^result: '),'Still on')
+-- Her stop while she waits for his countdown (his lines lost on the way): her line says abort, so his run ends at once
+-- as her leaving, before any spawn; hers ends with her own words.
+pair()
+run=host_start()
+round(1)
+Hs.drop=1000
+round(1)
+assert(state(Hs).phase=='countdown' and state(Gs).phase=='ask')
+assert(on(Gs,function() return Gs.run.command('stop') end))
+round(2)
+assert(find(Gs.lines,'^result: aborted %(stop%) waves=0/5 '),Gs.lines[#Gs.lines])
+assert(Gs.told[#Gs.told]=='Stopped with coop nightop stop.',tostring(Gs.told[#Gs.told]))
+assert(Gs.sent[#Gs.sent]:find(string.format('^g %%d+ %d abort 0 0 0 stop$',run)),Gs.sent[#Gs.sent])
+assert(find(Hs.lines,'^result: aborted %(mate%) waves=0/5 '),Hs.lines[#Hs.lines])
+assert(Hs.told[#Hs.told]=='Your partner left the run.' and #Hs.bodies==0,tostring(Hs.told[#Hs.told]))
+-- A success on both screens: one score and one time, though her round trip (2 s) moves her clock on; each wave's
+-- clear and heal on both sides, the last wave's clear too.
+pair()
+Gs.rtt=2000
+host_start()
+for k=1,5 do
+    local found_k,n=string.format('^wave %d find %%+2%%.5 s',k),0
+    while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
+        round()
+        n=n+1
+        assert(n<400,'Wave '..k..' on both')
+    end
+    kill_all(Hs,k)
+    kill_all(Gs,k)
+    round(3)
+end
+round(2)
+local hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
+assert(hr and hr:find('^result: success waves=5/5 kills=20 score=%d+ time='),hr)
+assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),gr)
+for _,w in ipairs({Hs,Gs}) do
+    for k=1,5 do assert(has(w.told,string.format('Night Operation: wave %d cleared.',k)),k) end
+    assert(find(w.lines,'^heal after wave 2: ') and find(w.lines,'^heal after wave 4: '),'Both heals')
+end
 assert(#violations==0,violations[1])
 print('nightop_run_test ok')

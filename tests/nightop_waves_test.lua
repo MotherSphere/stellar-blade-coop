@@ -440,5 +440,17 @@ assert(follow(g,line(2,'wave',2,30000),112)=='' and g.wave==1)
 g=start()
 follow(g,line(1,'wave',1,0),105)
 assert(follow(g,line(2,'wave',1,1000),106,{abort='left'})=='end aborted left')
+-- His clears as her waves: a rest line names its wave, any other clear goes to the lowest wave not cleared; each heal
+-- comes with its own wave; a wave that clears while the next one runs, and the last clears on his end line, get their
+-- clear time (her notices) with no heal.
+g=start()
+follow(g,line(1,'wave',2,80000),105)
+assert(follow(g,line(2,'rest',2,90000,{clears=1}),115)=='heal 2' and g.clear_at[2]==90 and not g.clear_at[1],
+    'Wave 2 down first: its heal')
+assert(follow(g,line(3,'rest',2,95000,{clears=2}),120)=='' and g.clear_at[1]==95,'Then wave 1: no heal')
+assert(follow(g,line(4,'wave',4,200000,{clears=2}),225)=='wave 3, wave 4')
+assert(follow(g,line(5,'wave',4,210000,{clears=3}),235)=='' and g.clear_at[3]==210,'Wave 3 down while 4 runs')
+assert(follow(g,line(6,'end',5,300000,{clears=5,outcome='success'}),325)=='end success')
+assert(g.clear_at[4]==300 and g.clear_at[5]==300 and g.clears==5,'His last clears, from his end line')
 
 print('nightop_waves_test: ok')

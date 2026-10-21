@@ -143,13 +143,13 @@ local function census(eve)
     return c
 end
 local function clock_text(seconds) return string.format('%d:%02d',seconds//60,seconds%60) end
--- The card's title and line for the run's state s at game time now, in words w (ui_text.lua's): the countdown, then
--- the wave or, once it is down, the next one's countdown (the wave again once it is due and the cap holds it), each
--- with the run time left and the score.
+-- The card's title and line for the run's state s at game time now, in words w (ui_text.lua's): the host's wait for
+-- her answer, the countdown (hers from her answer on), then the wave or, once it is down, the next one's countdown
+-- (the wave again once it is due and the cap holds it), each with the run time left and the score.
 function Run.card(s,now,w)
     local n=w.night
-    if s.phase=='ask' then return n.title,n.waiting end
-    if s.phase=='countdown' then return n.title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
+    if s.phase=='ask' and s.role=='host' then return n.title,n.waiting end
+    if s.phase=='countdown' or s.phase=='ask' then return n.title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
     local rt=now-s.t0
     local wait=s.phase=='breather' and s.next_at and math.ceil(s.next_at-rt)
     local head=wait and wait>0 and n.next:format(wait) or n.wave:format(s.wave,#W.SCHEDULE)
@@ -438,7 +438,7 @@ function Run.new(o)
             notify(function(w) return w.night.start_notice:format(W.COUNTDOWN) end)
             return
         end
-        local why=line and line.state=='refuse' and line.why or (r.asked>=ASK or mode~='host') and 'none'
+        local why=line and line.state=='refuse' and line.why or (r.asked>=ASK or mode and mode~='host') and 'none'
         if not why then return end
         if why=='taken' then taken[r.s.run]=true end
         log(string.format('%s cannot join run 0x%02X: %s',name,r.s.run,why))
@@ -456,7 +456,7 @@ function Run.new(o)
             return true
         end
         r.asked=r.asked+1
-        if r.asked>=ASK or mode~='guest' then
+        if r.asked>=ASK or mode and mode~='guest' then
             log(string.format('run 0x%02X dropped: no countdown from the host',r.s.run))
             r=nil
         end
@@ -479,7 +479,9 @@ function Run.new(o)
             if r.role=='host' then return host_ask(eve,mode,line) end
             if not guest_ask(mode,line) then return end
         end
-        if r.role=='guest' and line then -- Her run time: his, plus half the round trip (none before the first pong).
+        -- Her run time: his, plus half the round trip (none before the first pong). His end line's rt is his final
+        -- time, not a clock: it stays as it is.
+        if r.role=='guest' and line and line.phase~='end' then
             local rtt=math.tointeger(tonumber(raw:match('\npeer=[^\r\n]* rtt_ms=(%-?%d+)') or '')) or 0
             line.rt=line.rt+math.max(0,rtt)//2
         end
@@ -489,12 +491,13 @@ function Run.new(o)
         -- The abort watch, every tick, paused or not. Adapted from Survival Protocol's arena exit (80 m for 10 s) and
         -- its map-load hygiene: a map change or a death drops every handle without a read. slot=none means no EVE
         -- (a load, the title): the gone rule decides. A new world on the same map restarts the game clock. A solo run
-        -- ends when a Steam session starts; a co-op one when the session ends or the partner's line stops.
+        -- ends when a Steam session starts; a co-op one when the session ends or the partner's line stops. A status not
+        -- read (no link= word) ends nothing: the partner's line still has to come within QUIET ticks.
         local slot=raw:match('\nslot=(%a+)')
         local now
         if slot and slot~='coop' and slot~='none' then input.abort='slot'
         elseif not r.role and mode and mode~='none' then input.abort='link'
-        elseif r.role and (mode~=r.role or r.quiet>=QUIET) then input.abort='lost'
+        elseif r.role and (mode and mode~=r.role or r.quiet>=QUIET) then input.abort='lost'
         elseif not eve then
             r.gone=r.gone+1
             if r.gone*TICK>=GONE_FOR then input.abort='map change' end
@@ -607,9 +610,11 @@ function Run.new(o)
         log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s%s',h.run,h.seed,xyz(r.p0),h.yaw,h.map,
             text))
     end
+    -- The host's ask has no run yet: dropped, with no result. The guest's ask ends as an abort, so her line tells a
+    -- host already counting down at once.
     local function stop(reason)
         if not r or r.s.phase=='result' then return false end
-        if r.s.phase=='ask' then -- No run yet: dropped, with no result.
+        if r.s.phase=='ask' and r.role=='host' then
             log(string.format('run 0x%02X dropped: %s',r.s.run,reason))
             r=nil
             return true

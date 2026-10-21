@@ -331,6 +331,21 @@ end
 -- ponytail: her run time is his rt as last heard plus her own game time since; t0 moves only when off by more than
 -- 1 s, so jitter shows as a 1 s step at most. Smooth it if the test shows the steps.
 local FOLLOW={ask='ask',count='countdown',wave='wave',rest='breather'}
+-- His clears as her waves, up to his count: the wave a rest line names, then the lowest waves not cleared yet; each
+-- with its heal, none from his end line (no heal fires for a run that ends).
+-- ponytail: the line has no done mask, so a wave that clears out of order outside a rest line gets the wrong number,
+-- its heal too. Put his done mask on the line if the test shows it.
+local function cleared(s,h,out,heals)
+    local n=0
+    for _ in pairs(s.clear_at) do n=n+1 end
+    local function mark(k)
+        if s.clear_at[k] or n>=h.clears then return end
+        s.clear_at[k],n=h.rt/1000,n+1
+        if heals and W.HEALS[k] then out[#out+1]={what='heal',wave=k} end
+    end
+    if h.phase=='rest' and h.wave>0 then mark(h.wave) end
+    for k=1,h.wave do mark(k) end
+end
 function W.follow(s,h,now,input)
     if s.phase=='idle' or s.phase=='result' then return W.step(s,{},now) end
     input=input or {}
@@ -352,21 +367,19 @@ function W.follow(s,h,now,input)
             if not s.synced or math.abs(t0-s.t0)>1 then s.t0,s.synced=t0,true end
         end
         if h.phase=='end' then
+            cleared(s,h,out,false)
             local reason=h.reason
             if h.outcome=='aborted' and reason~='lost' then reason='mate' end
             finish(s,out,now,h.outcome,reason)
             s.time,s.score,s.kills,s.clears=math.max(0,math.min(h.rt/1000,W.LIMIT)),h.score,h.kills,h.clears
             return out
         end
-        for c=s.clears+1,h.clears do
-            if W.HEALS[c] then out[#out+1]={what='heal',wave=c} end -- ponytail: by the count of clears, as waves
-        end                                                            -- clear in order nearly always.
+        cleared(s,h,out,true)
         for k=s.wave+1,h.wave do
             s.wave=k
             out[#out+1]={what='wave',wave=k}
         end
         s.score,s.kills,s.clears,s.phase=h.score,h.kills,h.clears,FOLLOW[h.phase]
-        if h.phase=='rest' and not s.clear_at[s.wave] then s.clear_at[s.wave]=h.rt/1000 end
     end
     s.up=0
     for k=1,s.wave do
