@@ -193,6 +193,12 @@ More about sessions:
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
+Achievements follow one rule: a shared enemy you fight together counts for both of you, and nothing done without you
+reaches your save. The mod never unlocks an achievement itself. Your game unlocks them from what happens in your own
+world, and a shared enemy dies there only if you took part in its fight (`kill_credit` under
+[shared enemies](#shared-enemies-experimental)). An enemy or a boss your friend kills in a fight you were not in does
+not die in your game, so it gives you no kill, rewards, drops, quest progress or trophy.
+
 ### Join codes
 
 With Options > Session > Who can join set to With a code (`who_can_join=code`), Host a session creates a lobby that
@@ -442,8 +448,9 @@ any save too, since same place only moves enemies while shared enemies run.
 
 `coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each
 enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
-balance gauge and death, decided by the host. Each player gets the kill and the loot in their own game. Each screen's
-enemy still fights only its own EVE, and positions are not shared unless [same place](#same-place-experimental) is on.
+balance gauge and death, decided by the host. Each player who took part in its fight gets the kill and the loot in
+their own game (`kill_credit` below). Each screen's enemy still fights only its own EVE, and positions are not shared
+unless [same place](#same-place-experimental) is on.
 It changes enemy stats through the game's own code, so it shares enemies only on a co-op save, and kills count in the
 co-op save. Back up your saves first (see [saves.md](saves.md)). When an enemy becomes shared, or shared again after a
 death, a load or photo mode, the guest's copy takes the host's HP without a damage number; later drops from the host's
@@ -484,13 +491,17 @@ unscaled). The `Shared enemies on` notice names the values when they are not bot
 for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the
 `fight=` line of `coop status` has `scale=135/115`.
 
-`kill_credit` is each player's own. With `all`, the default, every shared enemy that dies gives you the kill in your
-game. With `fought`, an enemy your EVE never hit in your game (its HP, shield and balance never dropped to your hits)
-dies there with no killer, and your game skips its kill rewards. An enemy that is already hurt when it becomes shared
-in your game counts as fought, even if only the other player hurt it. This happens after either player's photo mode,
-when shared enemies restart, and when an enemy stops being shared and comes back; an enemy back at full HP by then
-counts as not fought. Whether an enemy with no killer still drops loot is not tested yet. An enemy that your own hit
-kills always gives you the kill.
+`kill_credit` is each player's own and decides when you took part in a shared enemy's fight. With `together`, the
+default, you took part when your EVE hit it, when it targeted your EVE, or when your EVE stands within 30 m of it as it
+dies. With `fought`, the distance does not count. Whether it targeted you or your hit landed comes from the game's
+record of the last player an enemy fought, the record the game itself uses to credit a kill. An enemy that your own hit
+kills always gives you the kill. When the other player kills a shared enemy you took no part in, your copy does not die:
+it stops being shared and stays alive in your game, so its kill rewards, drops, quest kills and achievements never reach
+your save. The guest's `coop-link.log` then says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
+`fight kill-unshared <key> hguid=<n> not taken part`, and the host's game does not share that enemy again in this
+session. Damage dealt before an enemy became shared does not count as yours, since the other player may have dealt it.
+`kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone (see
+[coop-settings.txt](#coop-settingstxt)).
 
 Slow motion is not shared: each game slows down on its own. The stats lines in `coop-fight.log` count it (the turns in
 which your EVE or a shared enemy ran below normal speed, how often that began, and the lowest speed in percent), to
@@ -572,6 +583,11 @@ copies follow them back to full health. A respawn on another map leaves your cop
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
   `coop fight replay` plays that file into the guest's side. Both change enemies (record through the host's scaling,
   when it is above 1.0), so the mod refuses them until the log says `fight writes=armed`.
+- The test tools are typed on purpose. `coop fight test kill` kills an enemy by command, outside the together-only
+  rule: its kill rewards and achievements count in your save as if your EVE had killed it. A `test hp` drop larger than
+  the enemy's HP kills it too, with no killer: your game skips its kill rewards, but its drops and the game's other
+  death events still happen. A replay kills your copies on the recorded deaths with the `kill_credit` rule of a live
+  fight, so with `together` one within 30 m of your EVE dies with your EVE as its killer.
 - The solo test tools stop on another slot with
   `STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>`.
 
@@ -779,8 +795,11 @@ for its own copy. A boss in its Finish stance ends only by the host's finisher: 
 leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss stops being shared first (the link
 drops, the host's world changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own
 hit ends that boss in her game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless
-its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too, its thresholds taken off
-first. [How it works](how-it-works.md#shared-bosses) has the details, and
+its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too if she took part in its fight
+(`kill_credit` under [shared enemies](#shared-enemies-experimental)), its thresholds taken off first. Otherwise her
+copy stays alive in her game, so the boss's trophy and story events come only when she fights it herself. Her game
+starts the boss fight on her copy (the arena events) only while her EVE stands within 30 m of it or has hit it.
+[How it works](how-it-works.md#shared-bosses) has the details, and
 [troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
 - Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
@@ -831,10 +850,10 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
   2001102=<0|1> state27=<0|1> state3=<0|1>` (Passive_DeathReady and Passive_FinishReady on the copy, then its
   Immortal and NoDamageNoHit states), each change as `after <ms> ms: HP <n> ...`, and `done: <n> guard turns, HP <n>;
   the host's HP from the next turn`. Run it after `phase`, so no threshold holds the copy above 1 HP. Back up your
-  saves first ([saves.md](saves.md)): a boss that dies here stays dead in that save once the game saves. Hit the copy
-  once, and only after a line shows `state27=1` (its Immortal): with the finish guard working, it stays at 1 HP. If
-  the test stops before its `done` line (`coop fight off`, or the copy no longer drawn), the copy gets back the HP it
-  had when the test started.
+  saves first ([saves.md](saves.md)): a boss that dies here stays dead in that save once the game saves, and its kill,
+  trophy and story events count there. Hit the copy once, and only after a line shows `state27=1` (its Immortal): with
+  the finish guard working, it stays at 1 HP. If the test stops before its `done` line (`coop fight off`, or the copy
+  no longer drawn), the copy gets back the HP it had when the test started.
 - `coop fight pilot test summon` makes a DollHead (SE_M_DollHead_02) 3 m in front of your EVE under the first summon
   key, `4026531841:0`, with its summon row's effects (5025010 and 5025013) and the guest's freeze, as her game does
   for a host's summon: `fight summon made 4026531841:0`, then `made 3 m ahead: life <n>, freeze taken`, or `the game
@@ -843,7 +862,8 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
   freeze, the mod removes the DollHead at once (`not made: freeze refused` or `stopped: freeze refused`, and `fight
   summon despawned 4026531841:0 freeze refused`). No host enemy pairs with it, so 3 s after its `done` line the mod
   removes it (`fight summon despawned 4026531841:0 unpaired`), or at `coop fight off`. `refused: same place off`
-  means same place does not run on this side.
+  means same place does not run on this side. A DollHead you kill meanwhile counts in your save (its kill and album
+  entry).
 
 ### `coop off`
 
@@ -898,11 +918,12 @@ fight_chars=auto
 # stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
 guest_kills=at_once
 # Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
-# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit: all (every
-# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit is yours:
+# a shared enemy dies in your game, with its rewards, drops and achievements, only if you took part in its fight.
+# together: you hit it, it targeted you, or you stood within 30 m when it died. fought: you hit it or it targeted you.
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
-kill_credit=all
+kill_credit=together
 # Same place, experimental, the host's for both games: on or off. As guest, yours decides nothing at a start; the
 # co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
 # shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
@@ -968,7 +989,7 @@ card_details=on
 | `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](#shared-enemies-experimental)) | `at_once` |
 | `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
 | `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
-| `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
+| `kill_credit` | `together` or `fought`: when a shared enemy dies in your game, with its rewards and achievements: you hit it, it targeted you, or (`together` only) you stood within 30 m when it died (see [shared enemies](#shared-enemies-experimental)) | `together` |
 | `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
 | `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `off` |
@@ -1000,6 +1021,10 @@ Rules:
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
   60. The mod writes `send_rate=60` and the new comment into it once, keeps the file as it was as
   `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. Any other rate stays.
+- A file written by 0.4.0-beta.1 (its `kill_credit` comment still names `all`) gets `kill_credit=together` in place of
+  `all` and the new comment once, keeps the file as it was as `coop-settings.old.txt`, and logs a
+  `[StellarCoop] settings:` line. `kill_credit=fought` stays. A hand-written `kill_credit=all` is refused and reads
+  `together`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
   earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in

@@ -607,7 +607,8 @@ applies them to her copy:
   argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
   once. Called from the logic thread, the game queues it for its game thread. She calls it only for a copy her game
   draws as a BossMonster in life state 1, with the job sender and the reg already made (the call reads both through
-  getters that would make them). A refused bstart is taken at the host's next repeat.
+  getters that would make them), and only while her EVE is within 30 m of her copy or its last player
+  ([Achievements](#achievements)). A refused bstart is taken at the host's next repeat.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
   thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF11 phase <gen> <hguid> <oe>
@@ -644,14 +645,39 @@ applies them to her copy:
   no finisher starts on her side. On the host's side, her claim that would kill a boss whose copy holds either row takes
   it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). So a boss in its Finish stance
   ends only by the host's finisher; a boss without one dies of her killing hit, unless its own thresholds or Immortal
-  hold it. When the host's `dead` comes for a boss, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel` to her
-  copy before the kill, so neither a threshold nor Immortal holds it. When the pair ends any other way (the host's
-  `down` or world line, the link, `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded
-  copy still under 2 HP, so the Immortal it put back goes and her own hit ends that boss in her game.
+  hold it. When the host's `dead` comes for a boss whose fight she took part in, her game applies `MinimumHP_Dispel`
+  and `FinishReady_Dispel` to her copy before the kill, so neither a threshold nor Immortal holds it. When the pair
+  ends any other way (the host's `dead` for a fight she was not in, the host's `down` or world line, the link,
+  `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded copy still under 2 HP, so the
+  Immortal it put back goes and her own hit ends that boss in her game.
 - Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
 
 The log lines are in [troubleshooting.md](troubleshooting.md#a-shared-boss-differs-between-the-two-games).
+
+## Achievements
+
+The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
+and a boss's story events from a death in its own world, with the death's cause as the killer. Shared enemies keep one
+rule there: a fight done together counts for both players, and nothing done without a player reaches that player's
+save. The rule applies where the mod makes a death, the other game's kill (the host's `dead`, or the guest's lethal
+claim the host accepts):
+
+- That kill kills our copy, with our EVE as the cause, only when our EVE took part in its fight: a drop on our copy
+  that no write of ours made (her own hit), our EVE as the game's last player on the copy, or, with
+  `kill_credit=together` (the default), our EVE within 30 m of the copy (FSBActor `+0x4cc`) at the kill. The last
+  player is the GUID at logic actor `+0x638`, which the game stores (`FUN_141ba8190`) when an enemy targets a player or
+  a player's hit lands, and which its death handler (`FUN_141bae5d0`) takes as the killer of a death with no player
+  cause. No EVE of ours found counts as no part. Damage from before the enemy was shared or paired does not count as
+  our hit: the other player's claims before a pause hurt it too.
+- Without part, our copy does not die, since a death with no cause still drops loot, records the death in the zone and
+  runs the enemy's death events. The guest ends the pair with no write (`dead-unshared`), so her copy lives on as her
+  own enemy, its floor, scaling, freeze and finish guard taken off. The host keeps its copy alive, leaves it out of
+  its later censuses and of same spawns (`kill-unshared`), and sends `dead`, so her copy dies on her side's own test.
+- A boss's `bstart` runs SetBattleMode on her copy only while her EVE is within 30 m of it or its last player, so its
+  battle-start events never run in her world for a fight she is not in.
+- The mod's kills pass no skill to ApplyStat, so they never count toward the skill-kill achievements. The mirrored
+  crowd controls and the HP corrections never kill, and the game's AchievementTable has no row for a hit.
 
 ## Safety design
 
