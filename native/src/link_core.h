@@ -1,7 +1,7 @@
 // The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
 // not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines,
-// Night Operation's night line, channel 1, where the pose path's tables and poses and the pilot's enemy roots (SBE) travel, and channel 2, where the
-// shared enemies' lines and the pilot's show lines travel.
+// Night Operation's night line, channel 1, where the pose path's tables and poses and the pilot's enemy roots (SBE)
+// travel, and channel 2, where the shared enemies' lines and the pilot's show lines travel.
 // Every Steam call goes through the Api table, so tests/link_core_test.cpp drives this file with a fake Steam on the
 // build machine, and steam_link.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
