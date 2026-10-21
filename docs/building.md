@@ -113,12 +113,17 @@ build/host/pose_codec_test
     host's list came, `fight` after its off or on line); stage 3b's hand-overs on both sides (the host's rule and its
     own lines, its freeze and thaw, her answers and give-backs with each own-no reason, `target` for a take-over her
     game thread refused, a pair kept from her for 30 s after her own-no about it, the table's taken mark only after a
-    hand-over) and in two worlds, where an enemy has no AI copy or two for one hop at most;
+    hand-over) and in two worlds, where an enemy has no AI copy or two for one hop at most; stage 3c's takedowns (her
+    exec lines from the markers, the host's hand-over past the guards and its freeze despite Groggy, the host's own
+    takedown, a BossMonster refused, her lethal claim held until her exec 0 or for 6 s, a copy frozen on its stream's
+    takedown, `coop fight pilot test exec`) and in two worlds, where her takedown holds the host's kill until her exec
+    0 reaches it;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
-    and own-no lines taken from the right side only), and two fake
+    and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead),
+    and two fake
     worlds linked through a delayed, lossy line;
-  - `pilot_test`: the core of same-place enemies (stages 3a and 3b): the SBE message with a fuzz, the gen and owner epoch
+  - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
     their timeline and line ids, the FNamePool decode and compact id over fake blocks, the
@@ -138,7 +143,9 @@ build/host/pose_codec_test
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
     change and driven only from the next frame); stage 3b's owners (the host's rule, its guards and hold, random
-    hand-overs over a delayed link, the 30 s pause after an own-no) and the take-over (the copy put back first, then
+    hand-overs over a delayed link, the 30 s pause after an own-no), stage 3c's takedowns (the rule giving a pair to its
+    executor at once, the guest's exec lines and their spacing, a drawn copy following the stream through a takedown)
+    and the take-over (the copy put back first, then
     the game's force target, only on a pair a hand-over brought; its net mode and logic task gates, a stale or missing
     copy, the refusals named for the job's own-no, the latch, `coop fight pilot test
     target`), and two worlds through a delayed, lossy line (120 ms, plus or minus

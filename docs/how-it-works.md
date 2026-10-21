@@ -405,9 +405,10 @@ balance and death stay with the host's game whoever owns the pair.
   each pair every turn: the pair goes to whoever hit it last (a hit on the host's copy, or a claim of hers that
   lowered a stat), and after 10 s without a hit to the other player once that player's EVE has stood at least 3 m
   nearer for 2 s. Nothing changes hands within 4 s of the last change, while an AI task runs on the owner's copy,
-  during Down, Groggy, Airborne or a takedown, or while the enemy dies. Each change moves the owner epoch one up and
-  goes to her as `SBF11 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it
-  sends own H. With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
+  during Down, Groggy, Airborne or a takedown, or while the enemy dies; the start of a takedown is the exception
+  (below). Each change moves the owner epoch one up and goes to her as `SBF11 own <gen> <hguid> <H|G> <oe>`; the host
+  freezes its copy as it sends own G and thaws it as it sends own H. With `aggro=host` the host keeps every pair
+  (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. Otherwise, and when she can no longer run a pair she owns, she answers
   `SBF11 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
@@ -441,6 +442,21 @@ balance and death stay with the host's game whoever owns the pair.
   mirrored crowd control, its death) and still plays is not replayed a second time.
 - A copy that is knocked down, groggy, in the air or in a takedown is released: the game moves it until 200 ms after
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
+- Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
+  (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
+  with `aggro=game`, she sends `SBF11 exec <gen> <hguid> 1`, and `SBF11 exec <gen> <hguid> 0` once her copy holds none
+  (the takedown over, the copy dying or gone). The host takes one exec 1 an enemy in 2 s, and only when its own copy
+  is a Monster (ActorType 3) in life state 1 holding Groggy or a marker. It then hands her the enemy in that turn,
+  without the 4 s hold or the guards, freezes its copy although Groggy releases it, and holds her lethal claim (its
+  copy at 1 HP, its hp lines at 0) and its own dead for that enemy until her exec 0, 6 s after her exec 1 at most
+  (`held-expired`). A marker on the host's copy of an enemy she owns gives it back to the host the same way. While a
+  takedown runs it counts as its executor's hit, so a living enemy stays with them after it. The guest takes an own G
+  for a copy in her takedown even under NoDamageNoHit.
+- The owner's SBE entry carries flag 8 (`kExec`) while its copy holds a marker. The drawing side then freezes its copy
+  despite Groggy, follows the stream through Groggy and through the stream's dying flag, and goes back onto the stream
+  at once instead of after 200 ms, so the takedown plays there with the executor's ghost. Its own copy's death still
+  releases it. Nothing in the mod starts `Passive_FinishReady` (2001102), and the host refuses an exec line for a
+  BossMonster, so boss finishers stay with the host.
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
   in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
   its own SEH latch: the first fault stops it for the run, and after a fault in the mod's own reads every copy is put
@@ -449,6 +465,8 @@ balance and death stay with the host's game whoever owns the pair.
   `cmc` (the movement component out too, nothing written), `drive` (root, speed and Velocity too) or `replay` (all of
   it, the default). Each change puts every copy back once. `coop fight pilot test target` calls the force target once,
   on the first enemy this game owns, and logs its target, aggro level and detect result as they change for a second.
+  `coop fight pilot test exec` empties the balance of the first frozen copy this game draws at the job's next turn
+  (a stamina drop, as a hit of its EVE), so the copy goes groggy and can be taken down.
 
 The commands, the notices and the solo test are in [usage.md](usage.md#same-place-experimental).
 

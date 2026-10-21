@@ -310,7 +310,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
-| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target` | [Same place](#same-place-experimental) (experimental, off by default) and its solo test steps |
+| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, off by default) and its solo test steps |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads |
@@ -561,6 +561,14 @@ player who hit it last. After 10 s without a hit, it goes to the other player on
 down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
 the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place has not been tested in game yet, and it is off by default.
 
+A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
+the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
+the ghost. The host's game applies the guest's killing hit only once her takedown ends, or after 6 s. If the host kills
+the enemy during her takedown, her game gets that death only then too. An enemy that lives through a takedown stays
+with the player who did it until the other player hits it. With `aggro=host`, a takedown plays only on the screen of
+the player who does it. The host's game refuses the guest's takedown of a boss or an Alpha Naytiba named in
+`fight_chars`, so boss finishers stay with the host.
+
 In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
 out of the game's movement manager, writes its position every frame from the other game's stream and replays that
 game's Shows (the game's animation sequences) on it. A copy that is knocked down, groggy or in the air moves by the
@@ -606,6 +614,13 @@ component back and points the enemy at its own EVE with the game's force target 
   net mode 0`, `a logic task in flight` or `copy not found` after 250 ms, `a game singleton not made yet`, `no EVE of
   ours` or `no AI on the copy`. The guest then gives the enemy back (`own-no target`). The `pilot stats:` line counts
   these take-overs.
+- Takedowns are logged in `coop-link.log`. On the guest: `fight exec <key> hguid=<n> our takedown begins` and `our
+  takedown ends` (without the key once the copy is gone). On the host: `fight exec <key> hguid=<n> her takedown begins`,
+  `her takedown ended` or `her takedown timed out` (no end within 6 s), `fight exec refused <key> hguid=<n> <why>`
+  (`within 2 s` of her last one for that enemy, or `no Groggy or takedown on our copy`), `fight kill held <key>
+  hguid=<n> her takedown` and `fight dead held <key> hguid=<n> her takedown` while the host waits, and `fight
+  held-expired <key> hguid=<n>` when 6 s passed first. The `fight stats:` lines count `takedowns of hers (<n> refused)`
+  on the host and `takedowns told` on the guest.
 - After an error in the game's own code, copies the mod already moved can keep their movement component out of the
   manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
   so.
@@ -631,6 +646,13 @@ game). At the next frame it points the first of them at your EVE. `coop-link.log
 `pilot target test hguid=<n>: forced` or `pilot target test hguid=<n> refused: <why>`, then
 `pilot target test hguid=<n> +<ms> ms: target <our EVE|another actor|none>, aggro level <n>, detect result <n>` each
 time one of the three changes during the next second.
+
+`coop fight pilot test exec` tests a takedown, during step 4 with `replay`. At the shared fight's next turn it empties
+the balance of the first frozen copy, so the copy goes groggy; take it down before that ends. `coop-link.log` says
+`fight pilot test exec <key> hguid=<n> balance emptied: take it down`, or why not (`refused: no frozen copy drawn`,
+`refused: gone or dying`, `its balance is empty already`). Then come `pilot released hguid=<n>` as the copy goes
+groggy, `fight exec <key> hguid=<n> our takedown begins` and `our takedown ends` around the takedown, and
+`pilot converged hguid=<n>` (or `pilot snapped hguid=<n>`) once the copy lives on after it.
 
 ### `coop off`
 

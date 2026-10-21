@@ -182,7 +182,8 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
   `paks` line at the top; compare the two lists.
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
-  state that takes no damage. It goes when the state ends, or after 6 s (`fight held-expired`).
+  state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
+  takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).
 - `fight full every place holds an enemy in a fight; a hurt one is not shared` in the host's `coop-link.log`: 16 enemies
   are in fights at once, which is the most it shares. The others stay unshared until one of the 16 dies or leaves.
 - `fight=stopped why=<why>`: shared enemies stopped for this run, and the ghost and the link go on. A reason that
@@ -217,6 +218,13 @@ the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-pla
   to the host (`fight own-no hguid=<n> target`), which keeps it for 30 s.
 - Enemies never fight the guest: the host's `aggro` is `host` (Options > Combat > Enemies attack (host's)), or her
   side answers each hand-over with `fight own-no` (its reason follows the GUID in her `coop-link.log`).
+- A takedown shows only on the screen of the player who does it: compare the `fight exec` lines of both
+  `coop-link.log` files. No `fight exec` line on the guest's side: same place is off there, or the host's `aggro` is
+  `host`. `fight exec refused <key> hguid=<n> no Groggy or takedown on our copy` on the host: its copy was no longer
+  groggy when her line came. `within 2 s`: two of her takedowns of one enemy started within 2 s. A takedown also does
+  not move an enemy that the guest refused or gave back in the last 30 s.
+- `fight held-expired` right after `fight kill held ... her takedown` or `fight dead held ... her takedown` on the
+  host: the end of her takedown did not reach the host within 6 s of its start, and the host killed the enemy anyway.
 
 If copies slide, stand still or play no animation, keep `coop-fight.log` from both PCs: its `pilot drawn:` lines count
 the copies moved, the Shows replayed, late and missing, and the drift (how far the game moved a copy between two of the
