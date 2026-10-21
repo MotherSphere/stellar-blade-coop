@@ -32,6 +32,9 @@ local Puppet={}
 local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
 local TAG_SIZE,TAG_HEIGHT=18,200 -- cm: the name tag's letters, and its height above the main mesh (her feet).
 local ABOVE=TAG_HEIGHT+20 -- cm: the UI marker's anchor above her feet, over the tag's place.
+-- cm in one pose: a longer step of the root is a teleport (a fast travel, a respawn). 60 m/s at 30 FPS, above any of
+-- her moves.
+local TELEPORT=200
 local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
@@ -542,7 +545,9 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     -- After the native tick of the same frame: a new stamp in the mailbox is a pose just written, so the root takes its
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
     -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
-    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was. A new
+    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was. While it
+    -- shows, the root moves without the teleport flag: the flag reaches a cloth part through the attachment and clears
+    -- its inertia, so the strands would hang and never trail. Hidden, or a step over TELEPORT, it teleports. A new
     -- effects stamp in the mailbox is a slot box just written: only then are the boxes read. Our photo mode's veils
     -- (self.photo) keep the ghost or its tag out of the shot.
     function self.place()
@@ -571,8 +576,11 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     local yaw=math.rad(rotation.Yaw+capture.yaw_delta())
                     x,y=x-math.sin(yaw)*RIGHT,y+math.cos(yaw)*RIGHT
                 end
+                -- ponytail: one distance threshold, add a rotation threshold if a snap turn throws the tail.
+                local f=g.feet
+                local jump=g.hidden or not f or (x-f.X)^2+(y-f.Y)^2+(at.Z-f.Z)^2>TELEPORT^2
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
-                    {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},true)
+                    {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},jump)
                 g.feet={X=x,Y=y,Z=at.Z}
                 if g.hidden and not veil_ghost then
                     g.actor:SetActorHiddenInGame(false)

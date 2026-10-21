@@ -1,6 +1,7 @@
 -- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
--- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
+-- fallback; the display file; hidden until the first pose and after a second without one; the root teleported only as
+-- it shows or steps over 2 m, so a cloth part keeps its inertia; the loopback's offset; the
 -- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again (2 s apart, 3 times,
 -- then said on screen), the strict table read; every UE4SS call on UE4SS's own Lua state, never in a coroutine;
@@ -104,7 +105,10 @@ local function poseable(actor)
     function p:GetNumBones() return #self.mesh.bones end
     function p:GetBoneName(j) return fname(self.mesh.bones[j+1]) end
     function p:SetVisibility(v) self.visible=v end
-    function p:K2_SetWorldLocationAndRotation(at,r) self.at,self.rot=at,r; self.moves=(self.moves or 0)+1 end
+    function p:K2_SetWorldLocationAndRotation(at,r,sweep,_,teleport)
+        assert(sweep==false,'Never a sweep')
+        self.at,self.rot,self.teleport=at,r,teleport; self.moves=(self.moves or 0)+1
+    end
     function p:K2_AttachToComponent(parent,socket,a,b,c) self.attached={parent=parent,socket=socket:ToString(),rules={a,b,c}} end
     function p:K2_SetRelativeTransform(t) self.relative=t end
     function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
@@ -380,7 +384,7 @@ box.RelativeScale3D.Z=5
 box.RelativeLocation={X=100,Y=0,Z=30}
 box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 ghost.place()
-assert(actor.hidden==false and root.moves==1,'Shown at the first stamp')
+assert(actor.hidden==false and root.moves==1 and root.teleport==true,'Shown at the first stamp, by a teleport')
 assert(math.abs(root.at.X-(100-200))<1e-6 and math.abs(root.at.Y)<1e-6 and root.at.Z==30,'Her right: mesh yaw 0 plus 90')
 -- The UI marker's anchor: 2.2 m over where the root was put (the tag's 2 m and 20 cm), and her feet there.
 local top,feet=ghost.anchor()
@@ -406,7 +410,7 @@ ghost.place()
 assert(actor.hidden==true and tag.visible==false and root.moves==2,'At once, no pose needed')
 box.RelativeScale3D.Z=6.5
 ghost.place()
-assert(actor.hidden==true and root.moves==3 and tag.shows==1,'Still placed, still hidden')
+assert(actor.hidden==true and root.moves==3 and root.teleport==true and tag.shows==1,'Still placed, still hidden')
 ghost.photo(false,true)
 box.RelativeScale3D.Z=6.6
 ghost.place()
@@ -428,6 +432,20 @@ assert(tag.visible==false and tag.shows==3,'Still veiled')
 ghost.photo(false,false)
 ghost.place()
 assert(tag.visible==true and tag.shows==4)
+-- Shown, the root moves without a teleport, which would clear a cloth part's inertia at each pose; the first pose after
+-- a hide (above) and a step over 2 m in one pose (a fast travel, a respawn) are teleports.
+assert(root.teleport==true,'Shown again after the photo: a teleport')
+local function pose_at(stamp,at) box.RelativeScale3D.Z,box.RelativeLocation=stamp,at; ghost.place() end
+pose_at(6.7,{X=105,Y=0,Z=30})
+assert(root.teleport==false and math.abs(root.at.X+95)<1e-6,'5 cm on: moved, no teleport')
+pose_at(6.8,{X=105,Y=0,Z=230})
+assert(root.teleport==false and root.at.Z==230,'2 m up: not over 2 m, no teleport')
+pose_at(6.9,{X=606,Y=0,Z=230})
+assert(root.teleport==true and math.abs(root.at.X-406)<1e-6,'5.01 m on: a teleport')
+pose_at(6.93,{X=606,Y=0,Z=30})
+assert(root.teleport==false,'Back to small steps')
+pose_at(6.96,{X=100,Y=0,Z=30})
+assert(root.teleport==true,'Back where it was, 5 m away: a teleport')
 
 -- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
 local displays_before=#displays
