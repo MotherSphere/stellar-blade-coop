@@ -284,35 +284,60 @@ struct Game {
   // The rows as this fake runs them: the turns each lasts, what its end chains into, the state it holds. The crowd
   // controls (Down 6, Groggy 7, Airborne 8; Getup none); same-place enemies' BlockAI_Infinite (39, for good),
   // SkillCancel, BlockAI_Dispel (start() ends every BlockAI_Infinite), BattleMode_5s (30) and the takedown markers.
+  // Bosses (stage 5): Passive_Immortal (27, the floor of 1), Passive_DeathReady (3, 0.5 s, then FinishReady),
+  // Passive_FinishReady (3), their dispel and MinimumHP_Dispel (start() ends what their DispelFlagsArray names); a
+  // summon's Start row (BlockAI, 0.5 s, then its chain takes it off). The other rows of the boss table (phases, floors)
+  // and of the summon table (SummonActor rows, Check rows) stay, holding no state.
   struct Row {
     int32_t id;
     int turns;
     int32_t next, state;
   };
-  static const Row &row(int32_t id) {
+  static Row row(int32_t id) {
     static const Row rows[] = {{9900001, 6, 9900003, 8}, {9900003, 4, 3000300, 6}, {3000300, 4, kGetup, 6},
                                {3000301, 4, kGetup, 6},  {3000303, 4, kGetup, 6},  {kGetup, 3, 0, 0},
                                {3000401, 2, 3000402, 7}, {3000402, 6, 0, 7},
                                {kBlockAi, 1 << 30, 0, kBlockAiState}, {kSkillCancel, 6, 0, 0}, {kDispel, 6, 0, 0},
                                {kBattleMode, 300, 0, kBattleState}, {5000039, 60, 0, 0}, {2006004, 60, 0, 0},
-                               {kWarp, kWarpTurns, 0, kBlockAiState}};
+                               {kWarp, kWarpTurns, 0, kBlockAiState}, {kImmortalRow, 1 << 30, 0, 27},
+                               {kDeathReady, 30, kFinishReady, kNoDamageNoHit},
+                               {kFinishReady, 1 << 30, 0, kNoDamageNoHit}, {kFinishDispel, 1, 0, 0},
+                               {kFloorDispel, 6, 0, 0}, {5025007, 30, 0, kBlockAiState},
+                               {5025010, 30, 0, kBlockAiState}, {5041011, 30, 0, kBlockAiState}};
     for (const Row &r : rows)
       if (r.id == id)
         return r;
+    for (const Boss &b : kBosses)
+      if (mirrored(b, id))
+        return Row{id, 1 << 30, 0, 0};
+    for (const Summon &m : kSummons)
+      if (m.effect == id || std::count(m.list, m.list + kMaxSummonEffects, id))
+        return Row{id, 1 << 30, 0, 0};
     assert(false);
     return rows[0];
   }
-  // An effect starts on la: in its list, its state held one more time.
+  // The rows an effect ends as it starts (its DispelFlagsArray), as this fake knows them.
+  static bool dispels(int32_t by, int32_t id) {
+    return (by == kDispel && id == kBlockAi) || (by == kDeathReady && id == kImmortalRow) ||
+           (by == kFinishReady && (id == kDeathReady || id == kImmortalRow)) ||
+           (by == kFinishDispel && (id == kFinishReady || id == kImmortalRow)) || (by == kFloorDispel && floor_row(id));
+  }
+  // An effect starts on la: in its list, its state held one more time; what it dispels goes first. Passive_Immortal
+  // holds HP at 1 or more while it runs (Body::immortal).
   void start(uint64_t la, Body::Running e) {
     Body &b = bodies[la];
-    const Row &r = row(e.id);
-    for (size_t i = 0; e.id == kDispel && i < b.effects.size();)
-      if (b.effects[i].id == kBlockAi) {
+    const Row r = row(e.id);
+    for (size_t i = 0; i < b.effects.size();)
+      if (dispels(e.id, b.effects[i].id)) {
+        const Row gone = row(b.effects[i].id);
+        b.immortal = b.immortal && gone.id != kImmortalRow;
         b.effects.erase(b.effects.begin() + long(i));
-        put_state(b, kBlockAiState, b.states[kBlockAiState] - 1);
+        if (gone.state)
+          put_state(b, gone.state, b.states[gone.state] - 1);
       } else {
         ++i;
       }
+    b.immortal = b.immortal || e.id == kImmortalRow;
     e.left = r.turns;
     mem.put<int32_t>(e.at + kEffectId, e.id);
     b.effects.push_back(e);
@@ -352,7 +377,7 @@ struct Game {
           ++i;
           continue;
         }
-        const Row &r = row(b.effects[i].id);
+        const Row r = row(b.effects[i].id);
         b.effects.erase(b.effects.begin() + long(i));
         if (r.state)
           put_state(b, r.state, b.states[r.state] - 1);
@@ -500,14 +525,49 @@ struct Game {
     stat(la, type, delta, cause, notify, true);
   }
   // FUN_141ad08b0(logic, target, caster, id, &zero, 0, nullptr): the effect, which starts at this turn's actor tick, or
-  // 0 when the target refuses it. A copy in a crowd control never gets a mirrored one from us.
+  // 0 when the target refuses it. A copy in a crowd control never gets a mirrored one from us. FinishReady_Dispel and
+  // MinimumHP_Dispel start inside the call, as the call starts any effect when its sixth argument is 0: a kill right
+  // after them meets neither Immortal nor a floor.
   uint64_t effect(uint64_t lg, uint64_t la, uint64_t caster, int32_t id) {
     casts.push_back({lg, la, caster, id, ++ops});
     assert(!cc_effect(uint64_t(id)) || !in_cc(la));
     if (bodies[la].immune || id == bodies[la].refuses)
       return 0;
-    starting.push_back({la, {mem.alloc(0x110), id, 0}});
-    return starting.back().second.at;
+    const Body::Running e{mem.alloc(0x110), id, 0};
+    if (id == kFinishDispel || id == kFloorDispel)
+      start(la, e);
+    else
+      starting.push_back({la, e});
+    return e.at;
+  }
+  // The casts on guid's logic actor since op from, by EffectTable ID, in order.
+  std::vector<int32_t> cast_ids(uint32_t guid, uint64_t from = 0) {
+    std::vector<int32_t> out;
+    for (const Cast &c : casts)
+      if (c.la == by_guid[guid] && c.op > from)
+        out.push_back(c.id);
+    return out;
+  }
+  // SetBattleMode's wrapper FUN_141a7cd30(fsb, 1, 0, 0, 0, 1) from inside the job: the game's battle mode on (its
+  // functor runs later on the game thread, which this fake folds in).
+  std::vector<uint64_t> battles;
+  void battle(uint64_t f) {
+    assert(processing);
+    battles.push_back(f);
+    mem.put<uint8_t>(f + kBattleFlag, 1);
+  }
+  // A summon of owner made by SummonActor row row: an actor of no spawn key in Spawn state, of that row's charId, its
+  // owner at +0x400 and the GUID of the effect that made it at +0x40c; that effect runs on the owner (infinite).
+  uint64_t summon(uint32_t guid, uint32_t owner, int32_t row_id, uint32_t effect_guid) {
+    const Summon *m = summon_row(row_id);
+    assert(m);
+    const uint64_t la = spawn(guid, 0, 0, m->chr, 1600);
+    mem.put(la + kOwner, by_guid[owner]);
+    mem.put<uint32_t>(la + kSummonEffect, effect_guid);
+    const uint64_t e = mem.alloc(0x110);
+    mem.put<uint32_t>(e + kEffectGuid, effect_guid);
+    start(by_guid[owner], {e, row_id, 0});
+    return la;
   }
   void push(Job *job) { queue[processing ? turn() + 1 : turn() - late].push_back(job); }
   bool receive(Message &m) {
@@ -619,7 +679,8 @@ struct Game {
   std::vector<Made> extras;
   bool refuse_make = false, unread_make = false; // unread_make: an actor whose GUID cannot be read.
   uint64_t make(uint64_t lg, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index) {
-    assert(lg == logic && processing && is_extra(id) && index >= 1 && index <= kMaxPer && (id & 0xff) == index);
+    assert(lg == logic && processing &&
+           ((is_extra(id) && index >= 1 && index <= kMaxPer && (id & 0xff) == index) || (summon_key_ok({id, index}))));
     if (refuse_make)
       return 0;
     if (unread_make)
@@ -2815,6 +2876,284 @@ int main() {
         assert(b.deaths == 0);
   }
 
+  // ---- Bosses (stage 5), the host's side: for each boss it follows while same place runs with her, a bstart line at
+  // the edge of its battle mode (FSBActor +0xb58) and every second while it lasts, and a phase line with the rows of
+  // that boss's allowlist its copy runs, in its effect list's order, at each change and every second in battle mode.
+  // An Alpha Naytiba (a BossMonster with no table row) gets bstart lines only. A summon of the boss gets the run's
+  // first key, then its up and its spawn line (owner, SummonActor row); one whose effect is not on its owner, and one a
+  // common enemy made, stay unshared. Her world line brings the phase, up and spawn lines again. Her lethal claim on a
+  // boss in its Finish stance (FinishReady in its effect list) leaves it at 1 HP, also 7 s later ----
+  {
+    Game H;
+    auto eh = engine(false, true);
+    eh->allow(nullptr, 0);
+    eh->same_place(true);
+    eh->bosses(100);
+    eh->set(true, true);
+    H.spawn(130, 30, 0, 35026001, 1600, kTypeBoss); // Marionette.
+    H.spawn(131, 31, 0, 77777, 1600, kTypeBoss);    // An Alpha Naytiba.
+    H.knock(130, 1001307);                          // Its first floor, from its spawn.
+    H.knock(130, 3000310);                          // Getup: not in its allowlist.
+    H.inbox.push_back(msg("SBF11 on"));
+    std::vector<std::pair<uint64_t, std::string>> said; // Its bstart and phase lines, by time.
+    const auto run = [&](uint64_t from, uint64_t to) {
+      for (uint64_t t = from; t <= to; t += 16) {
+        if (t == 1008 || t == 3008)
+          for (uint32_t guid : {130u, 131u})
+            H.mem.put<uint8_t>(H.fsb(guid) + kBattleFlag, t == 1008);
+        if (t == 2496)
+          H.knock(130, 5026013);
+        if (t == 4000) {
+          H.spawn(132, 32, 0, 900, 1600);
+          H.summon(150, 130, 5026003, 7801);
+          H.summon(151, 130, 5026004, 7802);
+          H.mem.put<uint32_t>(H.by_guid[151] + kSummonEffect, 7999); // Not on its owner.
+          H.summon(152, 132, 5026001, 7803);                         // A common enemy's.
+          H.place(150, 120, -80, -90);
+        }
+        if (t == 5008)
+          H.inbox.push_back(msg("SBF11 world 5"));
+        frame(H, *eh, t);
+        for (const Message &m : H.sent)
+          if (m.type == Type::bstart || m.type == Type::phase || has(format(m), " 4026531841 "))
+            said.emplace_back(t, format(m));
+        H.sent.clear();
+      }
+    };
+    run(0, 6000);
+    const auto lines_of = [&](const std::string &head) {
+      std::vector<uint64_t> at;
+      for (const auto &[t, text] : said)
+        if (text.rfind(head, 0) == 0)
+          at.push_back(t);
+      return at;
+    };
+    const auto starts = lines_of("SBF11 bstart 1 130"), phases = lines_of("SBF11 phase 1 130 0 ");
+    assert(lines_of("SBF11 bstart 1 131").size() == 2 && lines_of("SBF11 phase 1 131").empty());
+    assert((starts == std::vector<uint64_t>{1008, 2016}));
+    assert(said.front() == std::make_pair(uint64_t(0), std::string("SBF11 phase 1 130 0 1001307")));
+    assert((lines_of("SBF11 phase 1 130 0 1001307,5026013") == std::vector<uint64_t>{2496, 5008})); // At once, then
+    assert((phases == std::vector<uint64_t>{0, 1008, 2016, 2496, 5008})); // in battle; again after her world.
+    const auto summon_lines = lines_of("SBF11 up 1 150 4026531841 0 35025002 1600");
+    assert(summon_lines.size() == 2 && summon_lines[0] > 4000 && summon_lines[0] < 4300 && summon_lines[1] == 5008);
+    assert(lines_of("SBF11 spawn 1 1 4026531841 0 35025002 120 -80 0 270 130 5026003") == summon_lines);
+    assert(count(H, "summon keyed") == 1 && eh->counts.summons == 2 && eh->host.linked() == 4);
+    // Her lethal claim on 130 in its Finish stance: down to 1 HP, never killed.
+    H.knock(130, kFinishReady);
+    run(6016, 6100);
+    H.inbox.push_back(msg("SBF11 hit " + std::to_string(eh->host.gen()) + " 1 130 1600 0 0 1600 1"));
+    run(6112, 13500);
+    assert(H.hp(130) == 1 && !H.dying(130) && eh->host.counts.finish_held == 1 && count(H, "finish-held") == 1);
+    assert(eh->host.counts.kills == 0 && eh->host.counts.expired == 0 && eh->host.linked() == 4 && !eh->latched());
+  }
+
+  // ---- Bosses (stage 5), the guest's side, the host's lines fed in: her copies of Marionette (930) and GorillaB (931)
+  // paired and drawn, a common enemy (932) too ----
+  // bstart: SetBattleMode on her copy once, whatever the host's repeats; none for a copy she does not pair. phase: the
+  // rows that came in, through the game's effect call with her copy its own caster; a row of another boss or a line of
+  // another owner epoch changes nothing. The finish guard: Passive_DeathReady on 931 (its Finish stance) brings
+  // FinishReady_Dispel then Passive_Immortal in that turn, each turn while DeathReady runs and once its chain starts
+  // FinishReady, so the prompt's state goes and her hit at 1 HP leaves it at 1 HP; the host's dead then
+  // kills it although it holds Immortal: MinimumHP_Dispel and FinishReady_Dispel go first. Summons: NewActor with the
+  // host's key, then the summon row's effects, then the freeze once paired (the game's own first, from the Start row,
+  // then ours); one the host never pairs goes after 3 s; refused for an owner that is no boss or dead, or too far; and
+  // despawned when the session ends.
+  {
+    Game G;
+    G.spawns(); // The job sender and the reg made.
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(930, 30, 0, 35026001, 1600, kTypeBoss);
+    G.spawn(931, 31, 0, 15005100, 1600, kTypeBoss);
+    G.spawn(932, 32, 0, 900, 1600);
+    G.knock(930, 1001307);
+    G.knock(931, kImmortalRow); // Its own, from its DefaultEffectArray.
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100",
+                             "SBF11 up 1 130 30 0 35026001 1600", "SBF11 up 1 131 31 0 15005100 1600",
+                             "SBF11 up 1 132 32 0 900 1600"})
+      G.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    run(500);
+    assert(eg->guest.linked() == 3 && G.table.on && Game::held(G.body(930), kBlockAiState));
+    const uint64_t la930 = G.by_guid[930];
+    // bstart.
+    for (const char *line : {"SBF11 bstart 1 130", "SBF11 bstart 1 139", "SBF11 bstart 1 130"})
+      G.inbox.push_back(msg(line));
+    run(600);
+    assert((G.battles == std::vector<uint64_t>{G.fsb(930)}) && eg->counts.bstarts == 1 && count(G, "bstart") == 1);
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    run(700);
+    assert(G.battles.size() == 1);
+    // phase.
+    uint64_t op = G.ops;
+    G.inbox.push_back(msg("SBF11 phase 1 130 0 1001307,5026013,5026021"));
+    run(800);
+    assert((G.cast_ids(930, op) == std::vector<int32_t>{5026013, 5026021}) && eg->counts.phase_rows == 2);
+    for (const Game::Cast &c : G.casts)
+      assert(c.op <= op || c.la != la930 || c.caster == la930);
+    op = G.ops;
+    for (const char *line : {"SBF11 phase 1 130 0 1001307,5026013,5026021", "SBF11 phase 1 130 0 5005115",
+                             "SBF11 phase 1 130 3 5026013", "SBF11 phase 1 132 0 1001307"})
+      G.inbox.push_back(msg(line));
+    run(900);
+    assert(G.cast_ids(930, op).empty() && eg->guest.counts.bad == 2);
+    G.inbox.push_back(msg("SBF11 phase 1 130 0 5026013,5026021"));
+    run(1000);
+    assert((G.cast_ids(930, op) == std::vector<int32_t>{kFloorDispel}) && eg->counts.phase_rows == 3);
+    // The finish guard.
+    op = G.ops;
+    G.knock(931, kDeathReady);
+    run(t);
+    const std::vector<int32_t> guard = G.cast_ids(931, op);
+    assert((guard == std::vector<int32_t>{kFinishDispel, kImmortalRow}) && eg->counts.finish_guards == 1);
+    run(t + 600); // DeathReady runs out into FinishReady, which the guard ends too.
+    assert(eg->counts.finish_guards > 30 && count(G, "finish guard") == 1);
+    const auto running = [&](uint32_t guid, int32_t id) {
+      const auto &e = G.body(guid).effects;
+      return std::any_of(e.begin(), e.end(), [&](const Game::Body::Running &r) { return r.id == id; });
+    };
+    assert(!running(931, kDeathReady) && !running(931, kFinishReady) && running(931, kImmortalRow));
+    G.mem.put(G.stat_at(931, kHp), 1.f);
+    G.hit(931, kHp, 500);
+    run(t + 100);
+    assert(G.hp(931) == 1 && !G.dying(931) && G.body(931).immortal);
+    // The host's dead: both dispels before the kill, which Immortal no longer holds.
+    op = G.ops;
+    G.inbox.push_back(msg("SBF11 dead 1 131"));
+    run(t + 100);
+    const std::vector<int32_t> before = G.cast_ids(931, op);
+    assert(std::find(before.begin(), before.end(), kFloorDispel) != before.end() &&
+           std::find(before.begin(), before.end(), kFinishDispel) != before.end());
+    uint64_t kill_op = 0, dispel_op = 0;
+    for (const Game::Call &c : G.calls)
+      kill_op = c.la == G.by_guid[931] && c.type == 1 && c.op > op ? c.op : kill_op;
+    for (const Game::Cast &c : G.casts)
+      dispel_op = c.la == G.by_guid[931] && c.id == kFinishDispel && c.op > op ? c.op : dispel_op;
+    assert(kill_op > dispel_op && dispel_op && G.dying(931) && G.body(931).deaths == 1);
+    // Summons. 0xF0000001 of Marionette's row 5026001: made, its two effects, never paired (no up): gone after 3 s.
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531841 0 35025002 300 400 0 90 130 5026001"));
+    run(t);
+    const uint64_t made = t;
+    assert(G.extras.size() == 1 && G.extras[0].id == 0xF0000001 && G.extras[0].index == 0);
+    const uint32_t first = G.extras[0].guid;
+    assert((G.cast_ids(first) == std::vector<int32_t>{5025010, 5025013}) && eg->counts.summons == 1);
+    assert(G.extras[0].at[0] == 300 && G.extras[0].at[1] == 400 && G.extras[0].rot[1] == 90);
+    for (const char *line : {"SBF11 spawn 1 1 4026531841 0 35025002 300 400 0 90 130 5026001", // Again.
+                             "SBF11 spawn 1 1 4026531843 0 35025002 300 400 0 90 132 5026001", // Not a boss.
+                             "SBF11 spawn 1 1 4026531844 0 35025002 300 400 0 90 131 5026001", // Dead.
+                             "SBF11 spawn 1 1 4026531845 0 35025002 9000000 0 0 0 130 5026001"}) // Too far.
+      G.inbox.push_back(msg(line));
+    run(t + 100);
+    assert(G.extras.size() == 1 && count(G, "summon refused") == 3);
+    run(made + 2800);
+    assert(!G.despawned.size());
+    run(made + 3300);
+    assert((G.despawned == std::vector<uint32_t>{first}) && count(G, "summon despawned", "unpaired") == 1);
+    // 0xF0000002 of row 5026000, which the host's up pairs: its effects, then the freeze (the game's own, its Start
+    // row's BlockAI, then ours once that ends).
+    G.inbox.push_back(msg("SBF11 up 1 140 4026531842 0 35025002 1600"));
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531842 0 35025002 -300 0 0 0 130 5026000"));
+    run(t + 1000);
+    const uint32_t second = G.extras.back().guid;
+    const std::vector<int32_t> casts = G.cast_ids(second);
+    assert(casts.size() >= 3 && casts[0] == 5025007 && casts[1] == 5025013 && casts[2] == kBlockAi);
+    assert(eg->guest.linked() == 3 && count(G, "frozen", "the game froze it first") == 1);
+    assert(Game::held(G.body(second), kBlockAiState));
+    // The session ends: the summon despawned, every freeze off.
+    eg->set(false, false);
+    run(t + 100);
+    assert(G.despawned.back() == second && count(G, "summon despawned", "end") == 1);
+    assert(!Game::held(G.body(930), kBlockAiState) && !eg->latched() && eg->guest.counts.bad == 2);
+  }
+
+  // ---- Bosses (stage 5), two worlds through channel 2, a scripted fight: Marionette in both games, same place on.
+  // Its battle mode starts on the host (her copy's SetBattleMode once), two phase changes (her copy gets 5026013 and
+  // 5026021, then MinimumHP_Dispel), three summons (each made in her game with the host's key and its effects before
+  // any freeze, paired and drawn), the host kills one (hers dies too), then the link goes mid-fight: no copy of hers
+  // stays frozen and none of her summons is left ----
+  {
+    Game H, G;
+    auto eh = engine(false, true), eg = engine(false, false);
+    for (Engine *e : {eh.get(), eg.get()})
+      e->allow(nullptr, 0);
+    eh->same_place(true);
+    eh->bosses(100);
+    eh->set(true, true), eg->set(true, false);
+    for (Game *w : {&H, &G}) {
+      w->spawns();
+      w->spawn(w == &H ? 130 : 930, 30, 0, 35026001, 1600, kTypeBoss);
+      w->knock(w == &H ? 130 : 930, 1001307);
+    }
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(9);
+    std::vector<uint32_t> summoned;
+    for (uint64_t t = 0; t <= 8000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 1504)
+        H.mem.put<uint8_t>(H.fsb(130) + kBattleFlag, 1);
+      if (t == 2512)
+        H.knock(130, 5026013), H.knock(130, 5026021);
+      if (t == 3504)
+        for (uint32_t i = 0; i < 3; ++i) {
+          H.summon(140 + i, 130, 5026000 + int32_t(i), 7700 + i);
+          H.place(140 + i, 200.f * float(i), 300);
+        }
+      if (t == 5504)
+        H.end(130, 1001307);
+      if (t == 6512)
+        H.hit(140, kHp, 5000);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    for (const Game::Made &m : G.extras)
+      summoned.push_back(m.guid);
+    assert(summoned.size() == 3 && eg->guest.linked() == 3 && eh->host.linked() == 3);
+    for (uint32_t i = 0; i < 3; ++i) { // Each with its key, its effects first.
+      assert(G.extras[i].id == (kSummonBase | (i + 1)) && G.extras[i].index == 0 && G.extras[i].at[0] == 200.f * i);
+      const std::vector<int32_t> c = G.cast_ids(summoned[i]);
+      assert(c.size() >= 2 && c[0] == (i ? 5025010 : 5025007) && c[1] == 5025013);
+      assert(std::find(c.begin(), c.begin() + 2, kBlockAi) == c.begin() + 2);
+    }
+    assert(G.body(summoned[0]).deaths == 1 && H.body(140).deaths == 1); // The host's kill.
+    assert((G.battles == std::vector<uint64_t>{G.fsb(930)}));
+    const std::vector<int32_t> rows = G.cast_ids(930);
+    const auto at = [&](int32_t id) { return std::find(rows.begin(), rows.end(), id) - rows.begin(); };
+    assert(at(5026013) < at(5026021) && at(5026021) < at(kFloorDispel) && at(kFloorDispel) < long(rows.size()));
+    assert(std::count(rows.begin(), rows.end(), 5026013) == 1);
+    assert(std::count(rows.begin(), rows.end(), kFloorDispel) == 1);
+    for (uint32_t guid : {summoned[1], summoned[2]})
+      assert(Game::held(G.body(guid), kBlockAiState) && !G.dying(guid));
+    assert(Game::held(G.body(930), kBlockAiState) && eh->host.counts.bad == 0 && eg->guest.counts.bad == 0);
+    // The link goes mid-fight: each side's session ends.
+    eh->set(false, true);
+    eg->set(false, false);
+    for (uint64_t t = 8016; t <= 8100; t += 16) {
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+    }
+    for (const auto &[la, b] : G.bodies) {
+      const int32_t life = G.mem.get<int32_t>(b.fsb + kLife);
+      assert(life != 1 || !Game::held(b, kBlockAiState)); // No copy of hers frozen.
+    }
+    for (uint32_t guid : {summoned[1], summoned[2]}) // No summon of hers left: despawned, never killed.
+      assert(std::count(G.despawned.begin(), G.despawned.end(), guid) == 1 && G.body(guid).deaths == 0);
+    assert(H.despawned.empty() && H.extras.empty() && !eh->latched() && !eg->latched());
+    std::printf("fight_engine_test: a boss fight in two worlds: %llu phase rows applied on her copy, %llu summons "
+                "made, one bstart\n",
+                static_cast<unsigned long long>(eg->counts.phase_rows),
+                static_cast<unsigned long long>(eg->counts.summons));
+  }
+
   // ---- Extra enemies (stage 4b), two worlds through channel 2 with enemy_extra=2 ----
   // Both games hold keys 1-4 in zone 40, the EVEs 20 m apart. Each of the host's four gets two extras through
   // NewActor, 2 and 3 m from it; same spawns send them, she makes the same keys (NewActor too, the host's charId,
@@ -4164,11 +4503,13 @@ int main() {
     // A stats line traced in the second its side's counts moved, then none until they move again or a minute passed.
     io.said.clear(), io.traced.clear();
     s.guest.claims = 3, s.runs = 10, s.us = 200;
+    s.job.summons = 2, s.job.bstarts = 1, s.job.phase_rows = 4, s.job.phase_refused = 1, s.job.finish_guards = 9;
     assert(mail.exchange(s));
     for (t = 1000; t <= 2000; t += 16)
       w.pass(t, true, false, true, none, gate, io);
     assert(io.said.empty() && io.traced.size() == 1 &&
            has(io.traced[0], "fight stats: guest, 1 pairs, 3 claims sent, 0 corrections") &&
+           has(io.traced[0], "; bosses: 2 summons made, 1 bstart, 4 phase rows (1 refused), 9 finish guards; job: ") &&
            has(io.traced[0], "Simulate mean 20 us"));
     for (; t <= 62100; t += 16)
       w.pass(t, true, false, true, none, gate, io);
@@ -4643,7 +4984,7 @@ int main() {
       assert(io.tracing("; same spawns on, epoch 1 (ours moved 1 times), 0 rounds answered") == 1);
       assert(has(w.detail(), " floored=0 spawns=on scale=")); // The host's: no counts of the guest's.
       assert(io.tracing(", 0 refused, 0 differ, 0 stale, ") == 1);
-      assert(io.tracing("; extras 0 an enemy, 0 made, 0 despawned; job: ") == 1);
+      assert(io.tracing("; extras 0 an enemy, 0 made, 0 despawned; bosses: 0 summons sent; job: ") == 1);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(!has(io.file, "epoch") && !io.lines().size());
       // extra: the host's enemy_extra, from the next start; the stats line says how many an enemy once its key range

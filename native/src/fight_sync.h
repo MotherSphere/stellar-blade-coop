@@ -256,6 +256,12 @@ constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = ~kSummonBase;
 inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
 inline SpawnKey summon_key(uint32_t n) { return SpawnKey{kSummonBase | n, 0}; }
 inline bool summon_key_ok(const SpawnKey &k) { return is_summon(k.spawn) && (k.spawn & kMaxSummons) && !k.index; }
+// The finish guard's rows: a Finish stance (HP under 2) applies Passive_DeathReady, which chains Passive_FinishReady,
+// the state of the finisher prompt; FinishReady_Dispel ends FinishReady and Immortal, so the guard puts the boss's own
+// Passive_Immortal back after it. MinimumHP_Dispel ends every MinimumHP row, the floors kFirstFloor to kLastFloor.
+constexpr int32_t kImmortalRow = 2001100, kDeathReady = 2001101, kFinishReady = 2001102, kFinishDispel = 2001103;
+constexpr int32_t kFirstFloor = 1001302, kLastFloor = 1001322, kFloorDispel = 1001323;
+inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor; }
 
 // ---- Channel 2 ----
 
@@ -579,6 +585,40 @@ inline const char *phase_out(const Message &m, uint32_t chr) {
   return nullptr;
 }
 
+// The rows the guest applies for phase line m on her copy of boss b, into out (kMaxPhaseIds + 2 at most), in this
+// order: MinimumHP_Dispel when a floor left the host's set and no floor came into it; b's dispel row when a phase row
+// left it and no phase row came into it (a new phase row's own dispels end the old one; no dispel row: nothing); then
+// each row that came into the set, in the host's order. was: the set of the last line she applied for that copy;
+// first: none yet, and then each row of m her copy does not hold (held, hn) counts as come. A dispel leaving the set
+// brings nothing, and no row goes twice.
+inline size_t phase_plan(const Boss &b, const int32_t *was, size_t wn, bool first, const Message &m,
+                         const int32_t *held, size_t hn, int32_t *out) {
+  const auto in = [](const int32_t *set, size_t n, int32_t id) { return n && std::find(set, set + n, id) != set + n; };
+  const auto dispel = [&](int32_t id) { return id == kFloorDispel || id == b.dispel; };
+  int32_t came[kMaxPhaseIds];
+  size_t cn = 0, n = 0;
+  bool floor_left = false, phase_left = false, floor_came = false, phase_came = false;
+  for (size_t i = 0; i < m.idn && i < kMaxPhaseIds; ++i)
+    if (first ? !in(held, hn, m.ids[i]) : !in(was, wn, m.ids[i])) {
+      came[cn++] = m.ids[i];
+      (floor_row(m.ids[i]) ? floor_came : phase_came) |= !dispel(m.ids[i]);
+    }
+  for (size_t i = 0; !first && i < wn; ++i)
+    if (!in(m.ids, m.idn, was[i]) && !dispel(was[i]))
+      (floor_row(was[i]) ? floor_left : phase_left) = true;
+  const auto add = [&](int32_t id) {
+    if (id && !in(out, n, id))
+      out[n++] = id;
+  };
+  if (floor_left && !floor_came)
+    add(kFloorDispel);
+  if (phase_left && !phase_came)
+    add(b.dispel);
+  for (size_t i = 0; i < cn; ++i)
+    add(came[i]);
+  return n;
+}
+
 // One of same-place enemies' lines (pilot.h's show, show-set or show-stop), by its tag and word only: the worker hands
 // it to the pilot, never to parse(), which takes none.
 inline bool pilot_line(const std::string &text) {
@@ -604,6 +644,7 @@ struct Seen {
   bool dying = false;                    // Pending death or life state 3 (Dead): it may stay in the map a while.
   bool scaled = false;                   // The engine holds our two-player scaling on it: its maxes are not its own.
   bool boss = false;                     // A BossMonster (ActorType 4): a boss or an Alpha Naytiba (stage 5).
+  bool finish = false; // A BossMonster running Passive_DeathReady or Passive_FinishReady: its Finish stance (stage 5).
   bool marked = false; // A takedown runs on it: Check_LinkSkillHit_Skill (5000039) or LinkState_MonsterHit (2006004).
   bool takedown = false; // A Monster in life state 1 holding Groggy (7) or a takedown marker: R33's test of an exec 1.
   bool monster = false;  // A Monster in life state 1: R33 also takes an exec 1 for it once its balance is 0.
@@ -687,6 +728,7 @@ struct Counts {
   uint64_t cc_skipped = 0;           // The other side's not started: our copy in a crowd control, or the game refused.
   uint64_t execs = 0;                // Host: her exec 1 taken. Guest: our exec 1 sent (stage 3c, the engine's).
   uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, too soon, one runs).
+  uint64_t finish_held = 0;          // Host: kills of hers held at 1 HP, our copy in its Finish stance (stage 5).
 };
 
 // A copy's crowd control (kCcEffects and the stunned states) as our last pass saw it, and the other side's to start.
@@ -1026,6 +1068,7 @@ private:
     bool died = false;    // Dead in our world while her takedown runs (stage 3c): our dead waits; hp lines say 0.
     bool takedown = false, monster = false; // Seen::takedown and Seen::monster at the last pass.
     bool boss = false;                      // Seen::boss: never a common enemy's place to take (stage 5).
+    bool finish = false;                    // Seen::finish: only our own finisher ends it (stage 5).
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
     bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
@@ -1042,7 +1085,7 @@ private:
         struck_ours = struck_ours || s.value[k] < value[k];
       fought = fought || struck_ours;
       spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage, takedown = s.takedown, monster = s.monster;
-      boss = s.boss;
+      boss = s.boss, finish = s.finish;
       std::copy(s.max, s.max + kStats, max);
       std::copy(s.value, s.value + kStats, value);
     }
@@ -1173,6 +1216,8 @@ private:
       }
       return;
     }
+    if (e->finish)
+      return finish_held(*e, io);
     if (e->nodamage == kNoDamageNoHit || running(*e, now)) {
       e->holding = true, e->hold_ms = now;
       ++counts.held;
@@ -1216,8 +1261,20 @@ private:
     ++counts.execs;
     io.event(Event{"exec", "her takedown begins", e->guid, e->spawn, e->index});
   }
-  // The kill of a claim, now: true when e left our list (its dead sent). A kill that a floor holds keeps it.
+  // A kill of hers on a boss in its Finish stance (stage 5): only our own finisher ends it, so her claim takes it down
+  // to 1 HP, whenever it came, and nothing waits.
+  template <class Io> void finish_held(Enemy &e, Io &io) {
+    e.holding = false;
+    ++counts.finish_held;
+    io.event(Event{"finish-held", "", e.guid, e.spawn, e.index});
+    if (e.value[kHp] > 1)
+      write(e, kHp, 1 - e.value[kHp], false, io);
+  }
+  // The kill of a claim, now: true when e left our list (its dead sent). A kill that a floor holds keeps it, and one on
+  // a boss in its Finish stance never goes.
   template <class Io> bool kill(Enemy &e, Io &io) {
+    if (e.finish)
+      return finish_held(e, io), false;
     if (e.holding && (e.nodamage == kNoDamageNoHit || e.exec_ms)) {
       ++counts.expired;
       io.event(Event{"held-expired", "", e.guid, e.spawn, e.index});
@@ -1381,9 +1438,10 @@ public:
 
   // Stage 5's lines (R33) for the engine, which acts on what passes: the host's bstart and phase for one of its
   // enemies we pair, at its generation, not dead. A bstart counts once a copy (from its pairing to its unpairing, the
-  // host's down or the host's next world; the host's repeats then come back as "again", no fault), a phase when
-  // phase_out() passes it for the charId of the host's up. Null when taken, local then the copy's GUID; else why not.
-  // The copy's ActorType and the phase's owner epoch are the engine's to check.
+  // host's down or the host's next world): once the engine's call went, it marks it (started()), and the host's
+  // repeats come back as "again", no fault. A phase when phase_out() passes it for the charId of the host's up. Null
+  // when taken, local then the copy's GUID; else why not. The copy's ActorType, its drawing and the phase's owner epoch
+  // are the engine's to check.
   const char *boss_line(const Message &m, uint32_t &local) {
     Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
     const char *why = !known_gen_ || m.gen != known_gen_ ? "stale"
@@ -1392,8 +1450,26 @@ public:
                       : m.type == Type::phase            ? phase_out(m, p->chr)
                                                          : "not a boss line";
     if (!why)
-      local = p->local, p->started = p->started || m.type == Type::bstart;
+      local = p->local;
     return why;
+  }
+  // The engine's boss start went for the host's enemy hguid: its next bstarts are "again".
+  void started(uint32_t hguid) {
+    if (Pair *p = find(hguid))
+      p->started = true;
+  }
+  // A phase line boss_line() took, once the engine's checks passed: the rows to apply on the copy (phase_plan(); held,
+  // hn: the rows the copy runs, read on its first line), and the line's set kept as the copy's last. None for a pair
+  // that is gone or a charId with no table row.
+  size_t phase(const Message &m, const int32_t *held, size_t hn, int32_t *out) {
+    Pair *p = find(m.guid);
+    const Boss *b = p && p->local ? boss_row(p->chr) : nullptr;
+    if (!b)
+      return 0;
+    const size_t n = phase_plan(*b, p->phase, p->phases, !p->phased, m, held, hn, out);
+    std::copy(m.ids, m.ids + std::min<size_t>(m.idn, kMaxPhaseIds), p->phase);
+    p->phases = std::min<uint8_t>(m.idn, kMaxPhaseIds), p->phased = true;
+    return n;
   }
   // A summon's spawn line (R33): at the host's generation, a key of summon_key_ok(), a SummonActor row of kSummons
   // that makes the line's charId, and an owner we pair, not dead. Null when it passes, owner then the owner's copy's
@@ -1564,6 +1640,9 @@ private:
     uint64_t hold_ms = 0;
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
     bool started = false;        // Its bstart was taken (stage 5): one a copy.
+    bool phased = false;         // A phase line was applied to the copy (stage 5): phase, phases its set.
+    int32_t phase[kMaxPhaseIds] = {};
+    uint8_t phases = 0;
     bool logged = false;         // Its unpaired reason was logged.
     const char *why = nullptr;   // That reason, while it stays unpaired for it.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
@@ -1603,7 +1682,8 @@ private:
   }
   static void unpair(Pair &p) {
     p.local = p.lethal = 0;
-    p.held = p.fought = p.started = false;
+    p.held = p.fought = p.started = p.phased = false;
+    p.phases = 0;
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.logged = false;

@@ -2063,8 +2063,11 @@ int main() {
     w.add(503, 5003, 0);
     Guest g;
     uint32_t local = 0, owner = 0;
-    auto line = [&](const char *text) {
-      const char *why = g.boss_line(msg(text), local);
+    auto line = [&](const char *text) { // A bstart taken is marked as the engine marks it once its game call went.
+      const Message m = msg(text);
+      const char *why = g.boss_line(m, local);
+      if (!why && m.type == Type::bstart)
+        g.started(m.guid);
       return std::string(why ? why : "");
     };
     auto summon = [&](const char *text) {
@@ -2082,7 +2085,9 @@ int main() {
     // ActorType is the engine's to check, so a common enemy's passes here.
     assert(line("SBF11 bstart 1 101").empty() && local == 501);
     assert(line("SBF11 bstart 1 101") == "again" && line("SBF11 bstart 1 101") == "again");
-    assert(line("SBF11 bstart 1 102").empty() && local == 502);
+    // One the engine did not act on (its own checks refused it) is taken again at the host's repeat.
+    assert(!g.boss_line(msg("SBF11 bstart 1 102"), local) && !g.boss_line(msg("SBF11 bstart 1 102"), local));
+    assert(line("SBF11 bstart 1 102").empty() && local == 502 && line("SBF11 bstart 1 102") == "again");
     assert(line("SBF11 bstart 1 104") == "unpaired" && line("SBF11 bstart 1 105") == "unpaired");
     assert(line("SBF11 bstart 2 103") == "stale");
     // phase: that boss's rows only, at the host's generation, for a pair; any number of times.
@@ -2149,6 +2154,117 @@ int main() {
     assert(g.counts.bad == bad + 2);
     Line kept;
     assert(!parse_line("10 SBF11 bstart 1 101", kept) && !parse_line("10 SBF11 phase 1 101 0 -", kept));
+  }
+
+  // ---- Bosses (stage 5): the rows the guest applies for a phase line, and the finish guard on the host ----
+  {
+    // phase_plan: the rows that came into the host's set since her last line for that copy, in the host's order; on
+    // her first line each one her copy lacks. A floor that left with none coming: MinimumHP_Dispel first. A phase row
+    // that left with none coming: the boss's dispel row first (none: nothing). A dispel leaving brings nothing, a row
+    // goes once, and a repeat brings nothing, so a 0.1 s dispel seen in two lines is applied once.
+    const Boss &tachy = *boss_row(25021001), &crawler = *boss_row(35022001);
+    auto plan = [](const Boss &b, std::vector<int32_t> was, bool first, const char *ids, std::vector<int32_t> held) {
+      const Message m = msg(std::string("SBF11 phase 1 77 0 ") + ids);
+      int32_t out[kMaxPhaseIds + 2];
+      const size_t n = phase_plan(b, was.data(), was.size(), first, m, held.data(), held.size(), out);
+      return std::vector<int32_t>(out, out + n);
+    };
+    using V = std::vector<int32_t>;
+    assert(plan(tachy, {}, true, "1001304", {1001304, 2001100}).empty()); // Her copy holds it already.
+    assert((plan(tachy, {}, true, "1001304,5021001", {1001304}) == V{5021001}));
+    assert((plan(tachy, {}, true, "5021002,1001311", {}) == V{5021002, 1001311})); // The host's order.
+    assert((plan(tachy, {1001304}, false, "1001311,5021001", {1001304}) == V{1001311, 5021001})); // Floor replaced.
+    assert((plan(tachy, {1001311, 5021001}, false, "5021001", {}) == V{1001323}));             // Floor gone.
+    assert((plan(tachy, {1001311, 5021001}, false, "1001323,5021001", {}) == V{1001323}));     // The host's own.
+    assert(plan(tachy, {1001323, 5021001}, false, "1001323,5021001", {}).empty());               // A repeat.
+    assert(plan(tachy, {1001323, 5021001}, false, "5021001", {}).empty());                       // The dispel ends.
+    assert(plan(tachy, {5021001}, false, "-", {}).empty()); // A phase row gone, and Tachy has no dispel row.
+    assert((plan(tachy, {5021001}, false, "5021002", {5021001}) == V{5021002})); // Not first: held is not read.
+    assert((plan(crawler, {1001303, 5022001}, false, "1001303", {}) == V{5022094}));           // Phase gone.
+    assert((plan(crawler, {1001303, 5022001}, false, "1001313,5022002", {}) == V{1001313, 5022002}));
+    assert((plan(crawler, {5022001}, false, "5022094", {}) == V{5022094})); // Its dispel seen: once.
+    assert(plan(crawler, {5022094}, false, "-", {}).empty());
+    assert((plan(crawler, {1001303, 5022001}, false, "-", {}) == V{1001323, 5022094})); // Both gone: both dispels.
+    assert((plan(crawler, {1001303, 5022001}, false, "1001323", {}) == V{1001323, 5022094})); // A dispel is no phase.
+    // The widest line: every row of RavenBeast's allowlist on a copy that holds none.
+    const Boss &raven = *boss_row(75042001);
+    Message wide;
+    wide.type = Type::phase, wide.gen = 1, wide.guid = 77;
+    while (wide.idn < kMaxPhaseIds && raven.ids[wide.idn])
+      wide.ids[wide.idn] = raven.ids[wide.idn], ++wide.idn;
+    int32_t out[kMaxPhaseIds + 2];
+    assert(phase_plan(raven, nullptr, 0, true, wide, nullptr, 0, out) == wide.idn && out[0] == raven.ids[0]);
+
+    // The guest keeps each copy's last set: GorillaB's copy 501. Its first line brings what it lacks, the next ones
+    // what came in; a new copy (unpaired, paired again) starts over.
+    World w;
+    w.add(501, 5001, 0, 15005100, 120000);
+    Guest g;
+    g.receive(msg("SBF11 world 1"), w);
+    g.receive(msg("SBF11 up 1 101 5001 0 15005100 120000"), w);
+    step(g, w, 1, 0);
+    uint32_t local = 0, copy = 501;
+    auto take = [&](const char *text, std::vector<int32_t> held) {
+      const Message m = msg(text);
+      assert(!g.boss_line(m, local) && local == copy);
+      int32_t rows[kMaxPhaseIds + 2];
+      const size_t n = g.phase(m, held.data(), held.size(), rows);
+      return std::vector<int32_t>(rows, rows + n);
+    };
+    assert(take("SBF11 phase 1 101 0 1001307", {1001307}).empty());
+    assert((take("SBF11 phase 1 101 0 1001307,5005115", {1001307}) == V{5005115}));
+    assert(take("SBF11 phase 1 101 0 1001307,5005115", {}).empty());
+    assert((take("SBF11 phase 1 101 0 5005115", {}) == V{1001323}));
+    int32_t none[kMaxPhaseIds + 2];
+    assert(g.phase(msg("SBF11 phase 1 102 0 5005115"), nullptr, 0, none) == 0); // No such pair: nothing.
+    w.remove(501);
+    step(g, w, 2, 20); // Gone: unpaired.
+    w.add(511, 5001, 0, 15005100, 120000);
+    step(g, w, 3, 40);
+    copy = 511;
+    assert(g.linked() == 1 && !g.boss_line(msg("SBF11 phase 1 101 0 5005115"), local) && local == copy);
+    assert((take("SBF11 phase 1 101 0 1001307,5005115", {1001307}) == V{5005115})); // Its first: what it lacks.
+
+    // The host's finish guard: 101, a boss in its Finish stance (FinishReady: NoDamageNoHit), never dies of her claim:
+    // her lethal claim takes it down to 1 HP and waits for nothing, also past kHoldMs; our hp lines say 1. 102, a boss
+    // whose kill waited for a NoDamageNoHit window (a grab) when its Finish stance came: it never dies either. 103, a
+    // common enemy holding the same rows, is a common enemy's kill as before; so is 104, a boss out of its Finish
+    // stance.
+    World hw;
+    for (uint32_t i = 0; i < 4; ++i) {
+      Seen &s = hw.add(101 + i, 5001 + i, 0, i == 2 ? 900 : 15005100, 1600).s;
+      s.boss = i != 2;
+      s.finish = i == 0;
+      s.nodamage = i < 2 ? kNoDamageNoHit : 0;
+    }
+    Host h;
+    h.receive(msg("SBF11 on"), 0, hw);
+    step(h, hw, 1, 0);
+    hw.lines();
+    h.receive(msg("SBF11 hit 1 1 101 1600 0 0 1600 1"), 100, hw);
+    h.receive(msg("SBF11 hit 1 2 102 1600 0 0 1600 1"), 100, hw);
+    h.receive(msg("SBF11 hit 1 3 103 1600 0 0 1600 1"), 100, hw);
+    h.receive(msg("SBF11 hit 1 4 104 1600 0 0 1600 1"), 100, hw);
+    step(h, hw, 2, 100);
+    assert(hw.hp(101) == 1 && hw.hp(102) == 1 && hw.actor(103)->s.dying && hw.actor(104)->s.dying);
+    assert(h.counts.finish_held == 1 && hw.count("finish-held") == 1 && h.counts.held == 1 && h.linked() == 2);
+    assert(hw.lines() == "SBF11 dead 1 103\nSBF11 dead 1 104\nSBF11 hp 1 2 4 101:1:100:200 102:0:100:200\n");
+    hw.actor(102)->s.finish = true; // Its HP under 2 brings its Finish stance meanwhile.
+    uint32_t seq = 5, turn = 3;
+    for (const uint64_t t : {uint64_t(200), 100 + kHoldMs, 100 + 2 * kHoldMs}) { // Her lethal claims on 101 go on.
+      h.receive(msg("SBF11 hit 1 " + std::to_string(seq++) + " 101 1 0 0 1 1"), t, hw);
+      step(h, hw, turn++, t);
+    }
+    step(h, hw, turn++, 200 + 2 * kHoldMs);
+    assert(hw.hp(101) == 1 && hw.hp(102) == 1 && !hw.actor(101)->s.dying && !hw.actor(102)->s.dying);
+    assert(h.counts.finish_held == 5 && h.counts.kills == 2 && h.counts.expired == 0 && h.linked() == 2);
+    for (const Write &x : hw.writes)
+      assert(!x.kill || x.guid == 103 || x.guid == 104);
+    // Its Finish stance gone (the host's finisher, or the guard's dispel on her side has no say here): a kill again.
+    hw.actor(101)->s.finish = false, hw.actor(101)->s.nodamage = 0;
+    h.receive(msg("SBF11 hit 1 99999 101 1 0 0 1 1"), 300 + 2 * kHoldMs, hw);
+    step(h, hw, turn, 300 + 2 * kHoldMs);
+    assert(hw.actor(101)->s.dying && h.counts.kills == 3);
   }
 
   // ---- Two worlds through a line: 90-150 ms each way, in order, 2 % of hp lines lost ----

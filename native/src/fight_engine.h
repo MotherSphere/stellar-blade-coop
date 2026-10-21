@@ -4,7 +4,9 @@
 // same_place on, it freezes the copies this side draws through the same effect call and hands the game thread the
 // pair table (pilot.h's sides), and in stage 3b the host hands enemies to her and back by its rule (own and own-no
 // lines, pilot.h's Owners), and in stage 4 the guest's game holds the host's common enemies where both stand
-// (spawn_sync.h); then it pushes itself for the next turn. The game thread arms the job after a world
+// (spawn_sync.h), and in stage 5 the host tells her its bosses' battle mode, phases and summons, which her frozen
+// copies would never start, and a boss in its Finish stance waits for the host's finisher; then it pushes itself for
+// the next turn. The game thread arms the job after a world
 // load and again when it stopped running. Every access goes through a Game (the glue on Windows, under its SEH
 // guard; fake memory and a fake ApplyStat in tests/fight_engine_test.cpp), so nothing here is Windows-specific. Fixed
 // arrays only: Simulate never allocates (ApplyStat and the effect call do internally, as for SB's own logic-thread
@@ -37,7 +39,11 @@
 //   extra enemies (stage 4b), from inside our job only:
 //   uint64_t make(uint64_t logic, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index):
 //     FUN_141ad1290(logic, chr, at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0, 0), SB's NewActor as
-//     SpawnRequest::Execute calls it: the new logic actor, or 0.
+//     SpawnRequest::Execute calls it: the new logic actor, or 0 (a boss's summons on the guest's side too, stage 5);
+//   bosses (stage 5), from inside our job only:
+//   void battle(uint64_t fsb): FUN_141a7cd30(fsb, 1, 0, 0, 0, 1), SetBattleMode's wrapper with the arguments of SB's
+//     FSBActor::AddTargetedByEnemy, so the boss's EventOnBattle runs (arena walls); from the logic thread SB queues it
+//     for its game thread.
 #pragma once
 
 #include <algorithm>
@@ -309,6 +315,17 @@ constexpr uint64_t kPhotoMode = 0x147032598;
 constexpr size_t kPhotoActive = 0x38, kPhotoCamera = 0x48;
 constexpr int32_t kSelfie = 2;
 
+// ---- Bosses (stage 5): the logic side ----
+// FSBActor +0xb58: its battle mode, a byte SetBattleMode's body (FUN_141a7cda0) writes. Logic actor +0x400: a summon's
+// owner, a logic actor, and +0x40c the GUID of the effect that made it, as SetOwner (FUN_141ba6860) stores them; an
+// effect's GUID at +0x20 (its vtable's slot 7, FUN_140e4d660, as an actor's). The SummonActor effect that made a summon
+// runs on its owner, so the owner's effect list names its row.
+constexpr size_t kBattleFlag = 0xb58, kOwner = 0x400, kSummonEffect = 0x40c, kEffectGuid = 0x20;
+constexpr size_t kMaxSummoned = kMaxTracked; // Summons the host keys at once.
+// A summon the guest made that no pair holds this many turns later (about 3 s at 60 FPS: the host's up comes first)
+// is despawned: the host's own is not shared (its list full), or gone.
+constexpr uint32_t kSummonWaitTurns = 180;
+
 // ---- Our job ----
 
 constexpr uint16_t kJobType = 0xffff;  // SB pools job types 0-116 only, so its pool return never touches ours.
@@ -335,8 +352,8 @@ constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowli
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
 // Overrides held at once: on each enemy the side follows, a floor (the guest's), its MaxHP and MaxStamina scaled, and
-// same-place enemies' freeze; and the extra enemies made on this side.
-constexpr size_t kMaxCaptures = 4 * kMaxTracked + kMaxExtras;
+// same-place enemies' freeze; and the extra enemies and bosses' summons made on this side.
+constexpr size_t kMaxCaptures = 4 * kMaxTracked + kMaxExtras + kMaxSummoned;
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -361,6 +378,9 @@ struct JobCounts {
   // Stage 3b: enemies that changed hands (the host's own lines; her own G taken), and own-no (the host's taken; hers
   // sent).
   uint64_t owns = 0, own_nos = 0;
+  // Stage 5, the guest's: SetBattleMode calls, phase rows applied and refused by the game, finish guards (turns the
+  // guard ran on a copy), summons made; the host's: summon lines sent.
+  uint64_t bstarts = 0, phase_rows = 0, phase_refused = 0, finish_guards = 0, summons = 0;
 };
 
 // What the worker logs about the job: the logic thread's side, copied at each hand-over (Mail), with the game thread's
@@ -716,6 +736,9 @@ public:
       new (&spawn_host_) SpawnHost();
       new (&spawn_guest_) SpawnGuest();
       extras_.clear(); // Its n goes on for the run: no key of an old session's dying extra comes back.
+      boss_in_.clear();
+      std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
+      summoned_count_ = guards_ = 0; // summon_n_ goes on for the run, as the extras' n.
       per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
       zone_told_ = false;
@@ -754,6 +777,9 @@ public:
         own_in_.push(m); // Answered after the pass (answer()), which reads the copy. kMail: never full.
       else if (hosting && m.type == Type::have)
         her_have(m, now_ms);
+      else if (!hosting && (m.type == Type::bstart || m.type == Type::phase ||
+                            (m.type == Type::spawn && is_summon(m.spawn))))
+        boss_in_.push(m); // Taken after the pass (bosses()), which reads the copies. kMail: never full.
       else if (!hosting && (m.type == Type::epoch || m.type == Type::spawn || m.type == Type::drop))
         spawn_guest_.heard(m, guest.gen());
       else
@@ -784,6 +810,8 @@ public:
       spawn_turn(g, logic, now_ms);
     if (!latched_)
       pilot_turn(g, logic, n, census, now_ms);
+    if (!latched_)
+      bosses(g, logic, n, census, now_ms);
     if (latched_) // Stopped in this turn: no other run comes, so our overrides come off now.
       lift_all(g, logic);
     publish(g, turn, now_ms);
@@ -815,10 +843,12 @@ public:
     Actor a;
     for (size_t i = 0; i < count && n < kMaxSeen && !latched_; ++i) {
       uint64_t la = g.find(logic, followed[i]);
+      const bool found = la && live(g, la, followed[i], a);
+      if (found)
+        summoned(a); // The host's summons go under their key.
       // A life state we do not know is left out (gone, so down or unpaired), never read as a death; so is one leaving
       // the map with HP left.
-      if (la && live(g, la, followed[i], a) && (fighting(a) || a.seen.dying || leaving(a)) && stats(g, a) &&
-          (!leaving(a) || dying(a.seen))) {
+      if (found && (fighting(a) || a.seen.dying || leaving(a)) && stats(g, a) && (!leaving(a) || dying(a.seen))) {
         marks(g, la, a);
         a.seen.scaled = scaled(a.seen.guid);
         fsbs_[n] = a.fsb;
@@ -834,12 +864,16 @@ public:
       return 0;
     const uint64_t local = local_fsb(g);
     eve_ = 0;
+    for (size_t i = 0; i < summoned_count_; ++i)
+      summoned_[i].seen = false;
     for (size_t i = 0; i < found_count_ && !latched_; ++i) {
       const Found &f = found_[i];
       if (!live(g, f.la, f.guid, a)) {
         counts.rejected += !latched_;
         continue;
       }
+      if (hosting_seen_ && !a.seen.spawn && !summoned(a))
+        new_summon(g, f.la, a, followed, count);
       keyed(g, a);
       if (a.controlled == 1 && local && a.fsb == local && pc(g, a))
         eve_ = f.guid;
@@ -855,6 +889,10 @@ public:
         seen_[n++] = a.seen;
       }
     }
+    if (!latched_ && keys_whole_) // The host's summons that left the map are forgotten (none at a cut census).
+      summoned_count_ = size_t(std::remove_if(summoned_, summoned_ + summoned_count_,
+                                              [](const Summoned &x) { return !x.seen; }) -
+                               summoned_);
     return latched_ ? 0 : n;
   }
   const Seen *seen() const { return seen_; }
@@ -870,6 +908,8 @@ public:
     s.job.slow_turns = c.slow_turns, s.job.slow_starts = c.slow_starts, s.job.slow_min = c.slow_min;
     s.job.frozen = c.frozen, s.job.refrozen = c.refrozen, s.job.freeze_lost = c.freeze_lost, s.job.thawed = c.thawed;
     s.job.thaw_refused = c.thaw_refused, s.job.battles = c.battles, s.job.owns = c.owns, s.job.own_nos = c.own_nos;
+    s.job.bstarts = c.bstarts, s.job.phase_rows = c.phase_rows, s.job.phase_refused = c.phase_refused;
+    s.job.finish_guards = c.finish_guards, s.job.summons = c.summons;
     s.host = host.counts, s.guest = guest.counts;
     s.hosted = host.peer_on() ? host.linked() : 0, s.paired = guest.linked(), s.session = session_seen_;
     s.turn = turn_, s.actors = probing_seen_ ? actors_ : found_count_, s.eve = eve_ != 0;
@@ -1000,11 +1040,11 @@ private:
   // while an actor is dying.
   template <class Game> void marks(Game &g, uint64_t la, Actor &a) {
     a.states = 0, a.seen.cc = 0;
-    bool read = false, marker = false;
+    bool read = false, marker = false, finish = false;
     if (fighting(a)) {
       read = held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, a.states);
       counts.unread += !read;
-      if (!effects(g, la, a.seen.cc, marker)) {
+      if (!effects(g, la, a.seen.cc, marker, finish)) {
         ++counts.unread;
         read = false;
       }
@@ -1020,6 +1060,7 @@ private:
     a.seen.marked = marker;
     a.seen.monster = a.life == 1 && !a.pending && typed && type == kTypeMonster;
     a.seen.boss = typed && type == kTypeBoss;
+    a.seen.finish = a.seen.boss && finish; // Stage 5: Passive_DeathReady or Passive_FinishReady on a BossMonster.
     a.seen.takedown = a.seen.monster && (held(7) || marker);
     int32_t task = 0;
     const bool skill = fighting(a) && g.read(a.fsb + kAiTask, &task, sizeof task) && task;
@@ -1028,11 +1069,9 @@ private:
                       (skill ? kRowSkill : 0) |
                       (read && a.life == 1 && !a.pending && !held(kNoDamageNoHit) ? kReady : 0));
   }
-  // The kCcEffects running on la, as Seen::cc's bits, and whether a kMarkers one does; false, with none, when its list
-  // fails a check.
-  template <class Game> bool effects(Game &g, uint64_t la, uint8_t &cc, bool &marker) {
-    cc = 0;
-    marker = false;
+  // Each effect running on la, in its list's order: f(effect, its EffectTable ID). False, maybe after some calls, when
+  // the list fails a check.
+  template <class Game, class F> bool each_effect(Game &g, uint64_t la, F &&f) {
     uint8_t h[kEffectCount + 4 - kEffects];
     uint64_t list[kMaxEffects];
     if (!g.read(la + kEffects, h, sizeof h))
@@ -1041,18 +1080,28 @@ private:
     const int32_t num = nightop::get<int32_t>(h, kEffectCount - kEffects);
     if (num < 0 || num > kMaxEffects || (num && (!plausible(data) || !g.read(data, list, 8 * size_t(num)))))
       return false;
-    uint8_t bits = 0;
-    bool found = false;
     for (int32_t i = 0; i < num; ++i) {
       int32_t id = 0;
       if (!plausible(list[i]) || !g.read(list[i] + kEffectId, &id, sizeof id))
         return false;
-      for (size_t k = 0; k < kCc; ++k)
-        bits |= id == kCcEffects[k] ? uint8_t(1u << k) : 0;
-      found = found || std::find(std::begin(kMarkers), std::end(kMarkers), id) != std::end(kMarkers);
+      f(list[i], id);
     }
-    cc = bits;
-    marker = found;
+    return true;
+  }
+  // The kCcEffects running on la, as Seen::cc's bits, whether a kMarkers one does, and whether Passive_DeathReady or
+  // Passive_FinishReady does (stage 5); false, with none, when its list fails a check.
+  template <class Game> bool effects(Game &g, uint64_t la, uint8_t &cc, bool &marker, bool &finish) {
+    uint8_t bits = 0;
+    bool found = false, ready = false;
+    cc = 0, marker = finish = false;
+    if (!each_effect(g, la, [&](uint64_t, int32_t id) {
+          for (size_t k = 0; k < kCc; ++k)
+            bits |= id == kCcEffects[k] ? uint8_t(1u << k) : 0;
+          found = found || std::find(std::begin(kMarkers), std::end(kMarkers), id) != std::end(kMarkers);
+          ready = ready || id == kDeathReady || id == kFinishReady;
+        }))
+      return false;
+    cc = bits, marker = found, finish = ready;
     return true;
   }
   // HP, Shield and Stamina with their maxes. Implausible (the feature off for the run) unless every one is finite and
@@ -1375,6 +1424,15 @@ private:
         ++i;
     if (w.kill)
       noted(w.guid);
+    // The host's dead on a boss copy of hers (stage 5): its MinimumHP rows and its Passive_Immortal off first, so the
+    // kill is not held at a phase threshold or at 1 HP that the host's copy no longer had.
+    uint8_t type = 0;
+    if (w.kill && !hosting_seen_ && !probing_seen_ && g.read(a.fsb + kActorType, &type, 1) && type == kTypeBoss) {
+      self_cast(g, logic, w.guid, kFloorDispel);
+      self_cast(g, logic, w.guid, kFinishDispel);
+      if (latched_)
+        return false;
+    }
     g.apply(la, kStatType[w.stat], float(w.delta), cause, w.notify);
     if (!stats(g, a))
       return false;
@@ -1393,6 +1451,7 @@ private:
   // again each turn.
   static constexpr int kFreeze = -1; // Not a stat: BlockAI_Infinite and SkillCancel on a copy this side draws.
   static constexpr int kExtra = -2;  // Not a stat: an extra enemy this side made (stage 4b), despawned at the end.
+  static constexpr int kSummon = -3; // Not a stat: a boss's summon the guest made (stage 5), despawned at the end.
   struct Capture {
     uint32_t guid = 0;
     int type = 0; // ESBActorStatType, or kFreeze.
@@ -1407,6 +1466,7 @@ private:
     uint32_t turn = 0, tries = 0;
     uint64_t again[kRefreezes] = {}, battle = 0;
     bool refused = false;
+    uint32_t key = 0; // A summon: its EventSpawnId (the host's key); turn then the turn it was made.
   };
   bool captured(uint32_t guid, int type) const {
     for (size_t i = 0; i < captures_; ++i)
@@ -1529,9 +1589,9 @@ private:
     Actor a;
     const uint64_t la = g.find(logic, c.guid);
     const bool found = la && live(g, la, c.guid, a), thaw = found && c.type == kFreeze && fighting(a);
-    if (c.type == kExtra) { // A dying one is left to its death.
+    if (c.type == kExtra || c.type == kSummon) { // A dying one is left to its death.
       if (found && fighting(a))
-        unmake(g, logic, a, "end");
+        unmake(g, logic, a, "end", c.type == kSummon);
     } else if (thaw && c.game_froze) {
       g.event(Event{"thaw skipped", "the game froze it first", 0, a.seen.spawn, a.seen.index});
     } else if (thaw) {
@@ -1732,13 +1792,14 @@ private:
     return la && live(g, la, guid, a) && a.life == 1 && !a.pending && !latched_ ? g.effect(logic, la, la, id) : 0;
   }
   // ---- Same spawns (stage 4, PHASE11-STAGE3 9.2) ----
-  // A keyed actor of this census into mine_ while same spawns run here (not our EVE, not a player; fighting or dying,
-  // never one leaving the map): whether it is a Monster the shared fight shares (Mine::monster: of a charId in
-  // fight_chars, or with none one auto_out() keeps), and for one where it stands. A read that fails, or no room left,
-  // makes this census's list partial (keys_whole_): same spawns then do nothing at it, since a key missing from the
-  // list would read as one this game lacks.
+  // A keyed actor of this census into mine_ while same spawns run here (not our EVE, not a player, not a boss's summon
+  // under the host's key; fighting or dying, never one leaving the map): whether it is a Monster the shared fight
+  // shares (Mine::monster: of a charId in fight_chars, or with none one auto_out() keeps), and for one where it stands.
+  // A read that fails, or no room left, makes this census's list partial (keys_whole_): same spawns then do nothing at
+  // it, since a key missing from the list would read as one this game lacks.
   template <class Game> void keyed(Game &g, const Actor &a) {
-    if (!spawning_ || !a.seen.spawn || a.controlled || a.player || !(fighting(a) || a.seen.dying))
+    if (!spawning_ || !a.seen.spawn || is_summon(a.seen.spawn) || a.controlled || a.player ||
+        !(fighting(a) || a.seen.dying))
       return;
     if (mines_ == kMaxSeen) {
       ++counts.cut;
@@ -1923,12 +1984,15 @@ private:
   // session's end despawns it, and logged. Null when made, else why not: no room (kMaxExtras, or the capture list), a
   // singleton NewActor reads through a getter that would make it not made (the table holder and its tables, the
   // world's actor manager, the job sender, the reg: senders_made), or NewActor made nothing. One whose GUID cannot be
-  // read is never captured, so it stays until it leaves the map: logged as kept.
+  // read is never captured, so it stays until it leaves the map: logged as kept. A boss's summon on the guest's side
+  // (stage 5, summon: its row) is made the same way with the host's key (kMaxSummoned at most), captured as kSummon,
+  // then given the row's effects through SB's effect call, itself their caster, as SB's SummonActor gives them.
   template <class Game>
-  const char *make_extra(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
+  const char *make_extra(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw,
+                         const Summon *summon = nullptr) {
     uint64_t net = 0, lg = 0, world = 0, manager = 0;
     uint32_t guid = 0;
-    if (extras() == kMaxExtras || captures_ == kMaxCaptures)
+    if ((summon ? summons() == kMaxSummoned : extras() == kMaxExtras) || captures_ == kMaxCaptures)
       return "full";
     if (!tables_at(g) || !globals(g, net, lg, world) || !plausible(world) || !get(g, world + kManager, manager) ||
         !plausible(manager) || !senders_made(g) || latched_)
@@ -1938,16 +2002,29 @@ private:
     if (!la || !plausible(la))
       return "not made";
     if (!get(g, la + kGuid, guid) || !guid) { // Made but not captured: logged even after the latch the read took.
-      g.event(Event{"extra kept", "guid unread", 0, k.spawn, k.index});
+      g.event(Event{summon ? "summon kept" : "extra kept", "guid unread", 0, k.spawn, k.index});
       return "not made";
     }
-    caps_[captures_++] = Capture{guid, kExtra, 1};
-    ++spawn_counts().extras;
-    g.event(Event{"extra made", "", 0, k.spawn, k.index});
+    Capture &c = caps_[captures_++] = Capture{guid, summon ? kSummon : kExtra, 1};
+    if (!summon) {
+      ++spawn_counts().extras;
+      g.event(Event{"extra made", "", 0, k.spawn, k.index});
+      return nullptr;
+    }
+    c.key = k.spawn, c.turn = turn_;
+    ++counts.summons;
+    bool all = true;
+    for (const int32_t id : summon->list)
+      all = (!id || self_cast(g, logic, guid, id)) && all;
+    if (!latched_)
+      g.event(Event{"summon made", all ? "" : "the game refused an effect of its row", 0, k.spawn, k.index});
     return nullptr;
   }
   size_t extras() const {
     return size_t(std::count_if(caps_, caps_ + captures_, [](const Capture &c) { return c.type == kExtra; }));
+  }
+  size_t summons() const {
+    return size_t(std::count_if(caps_, caps_ + captures_, [](const Capture &c) { return c.type == kSummon; }));
   }
   SpawnCounts &spawn_counts() { return hosting_seen_ ? spawn_host_.counts : spawn_guest_.counts; }
   // Each census while same spawns run: our extras that left the map (killed, despawned, their slot reused) are
@@ -1973,18 +2050,19 @@ private:
       }
     }
   }
-  // One of our extras despawned through SB's job sender at the logic's turn now, never killed (why: far, end); logged,
-  // as kept when the job sender is not made.
-  template <class Game> void unmake(Game &g, uint64_t logic, const Actor &a, const char *why) {
+  // One of our extras (or summons) despawned through SB's job sender at the logic's turn now, never killed (why: far,
+  // end, unpaired); logged, as kept when the job sender is not made.
+  template <class Game> void unmake(Game &g, uint64_t logic, const Actor &a, const char *why, bool summon = false) {
     uint64_t sender = 0;
     uint32_t turn = 0;
     const bool sent =
         get(g, base_ + (kJobSender - kImageBase), sender) && plausible(sender) && get(g, logic + kTurn, turn);
     if (sent) {
       g.despawn(sender, turn, a.seen.guid);
-      ++spawn_counts().extras_gone;
+      spawn_counts().extras_gone += !summon;
     }
-    g.event(Event{sent ? "extra despawned" : "extra kept", why, 0, a.seen.spawn, a.seen.index});
+    g.event(Event{summon ? sent ? "summon despawned" : "summon kept" : sent ? "extra despawned" : "extra kept", why, 0,
+                  a.seen.spawn, a.seen.index});
   }
   // The guest: SB's despawn job for one actor of hers, found again by GUID with that key and fighting (never dying),
   // through SB's job sender with this turn. Never a kill, and never under her: not while it holds BattleMode or runs a
@@ -1993,18 +2071,287 @@ private:
     Actor a;
     uint64_t sender = 0, held = 0;
     uint8_t cc = 0;
-    bool marker = false;
+    bool marker = false, finish = false;
     const uint64_t la = g.find(logic, guid);
     if (!la || !live(g, la, guid, a) || !fighting(a) || a.seen.spawn != k.spawn || a.seen.index != k.index ||
         !get(g, base_ + (kJobSender - kImageBase), sender) || !plausible(sender) || latched_)
       return "gone";
     if (!held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, held) ||
-        !effects(g, la, cc, marker) || (held >> kBattleState & 1) || marker)
+        !effects(g, la, cc, marker, finish) || (held >> kBattleState & 1) || marker)
       return "busy";
     g.despawn(sender, turn_, guid);
     return nullptr;
   }
 
+  // ---- Bosses (stage 5) ----
+  // The host: a summon it keyed (summoned_) goes under its key, kSummonBase | n, SpawnIndex 0, in this pass and for
+  // Host (its up), so her NewActor copy pairs on it; and it was seen in this census. False when a is none.
+  bool summoned(Actor &a) {
+    for (size_t i = 0; hosting_seen_ && !a.seen.spawn && i < summoned_count_; ++i)
+      if (summoned_[i].guid == a.seen.guid) {
+        a.seen.spawn = summon_key(summoned_[i].n).spawn, a.seen.index = 0;
+        return summoned_[i].seen = true;
+      }
+    return false;
+  }
+  // The host, at a census while same place runs with her: a fighting actor of no spawn key whose owner (logic actor
+  // +0x400) is a BossMonster we follow (followed) and whose SummonActor row, read on the owner's effect list by the
+  // GUID at +0x40c, is one of kSummons for its charId, gets the next key of the run, then goes under it. The reward
+  // dummies, the Elder's dummy and any other summon have no such row: never shared. Reads only; one that fails is no
+  // summon.
+  template <class Game>
+  void new_summon(Game &g, uint64_t la, Actor &a, const uint32_t *followed, size_t count) {
+    uint64_t owner = 0, owner_fsb = 0;
+    uint32_t owner_guid = 0, made_by = 0;
+    uint8_t type = 0;
+    if (!table_.on || a.controlled || a.player || a.life != 1 || a.pending || summoned_count_ == kMaxSummoned ||
+        summon_n_ == kMaxSummons || !g.read(la + kOwner, &owner, sizeof owner) || !plausible(owner) ||
+        !g.read(owner + kGuid, &owner_guid, sizeof owner_guid) ||
+        std::find(followed, followed + count, owner_guid) == followed + count ||
+        !g.read(owner + kFsb, &owner_fsb, sizeof owner_fsb) || !plausible(owner_fsb) ||
+        !g.read(owner_fsb + kActorType, &type, 1) || type != kTypeBoss ||
+        !g.read(la + kSummonEffect, &made_by, sizeof made_by) || !made_by)
+      return;
+    int32_t row = 0;
+    each_effect(g, owner, [&](uint64_t effect, int32_t id) {
+      uint32_t guid = 0;
+      if (!row && g.read(effect + kEffectGuid, &guid, sizeof guid) && guid == made_by)
+        row = id;
+    });
+    const Summon *s = summon_row(row);
+    if (!s || s->chr != a.seen.chr)
+      return;
+    summoned_[summoned_count_++] = Summoned{a.seen.guid, ++summon_n_, owner_guid, row, false, false};
+    summoned(a);
+    g.event(Event{"summon keyed", "", 0, a.seen.spawn, a.seen.index});
+  }
+  // The EffectTable IDs running on la, in its list's order, into out (kMaxEffects): how many, or -1 when its list
+  // fails a check.
+  template <class Game> int32_t effect_ids(Game &g, uint64_t la, int32_t *out) {
+    int32_t n = 0;
+    return each_effect(g, la, [&](uint64_t, int32_t id) { out[n++] = id; }) ? n : -1;
+  }
+  // After the pair table (n: this pass's enemies). The host tells her about its bosses and their summons; the guest
+  // acts on the host's lines and holds the finish guard on her boss copies.
+  template <class Game> void bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
+    if (hosting_seen_)
+      return boss_lines(g, logic, n, now);
+    for (Message m; boss_in_.pop(m) && !latched_;)
+      if (m.type == Type::bstart)
+        bstart_in(g, logic, m, n);
+      else if (m.type == Type::phase)
+        phase_in(g, logic, m, n);
+      else
+        summon_in(g, logic, m, n);
+    uint32_t local[kMaxTracked], hguid[kMaxTracked], guarded[kMaxPairs];
+    const size_t count = guest.tracked(local, hguid);
+    size_t guards = 0;
+    // The finish guard: a boss copy of hers in its Finish stance gets FinishReady_Dispel, then its own Passive_Immortal
+    // back, in that turn, each turn the stance shows, until the host's dead. So her hits stop at 1 HP, and the
+    // finisher prompt never stays on her side: the boss ends only by the host's finisher, then its dead.
+    for (size_t i = 0; i < count && !latched_; ++i) {
+      const Seen *s = fight::find(seen_, n, local[i]);
+      if (!s || !s->finish || dying(*s))
+        continue;
+      const bool off = self_cast(g, logic, local[i], kFinishDispel) != 0;
+      const bool back = self_cast(g, logic, local[i], kImmortalRow) != 0;
+      ++counts.finish_guards;
+      if (std::find(guarded_, guarded_ + guards_, local[i]) == guarded_ + guards_ && !latched_)
+        g.event(Event{"finish guard", off && back ? "" : "the game refused a row", hguid[i], s->spawn, s->index});
+      if (guards < kMaxPairs)
+        guarded[guards++] = local[i];
+    }
+    std::copy(guarded, guarded + guards, guarded_);
+    guards_ = guards;
+    // Her summons: one that left the map is forgotten, and at a census one no pair holds kSummonWaitTurns after it was
+    // made goes (the host's is not shared, or gone).
+    for (size_t i = 0; census && i < captures_ && !latched_;) {
+      Actor a;
+      const Capture c = caps_[i];
+      const uint64_t la = c.type == kSummon ? g.find(logic, c.guid) : 0;
+      if (c.type != kSummon || std::find(local, local + count, c.guid) != local + count) {
+        ++i;
+      } else if (!la || !live(g, la, c.guid, a)) {
+        caps_[i] = caps_[--captures_];
+      } else if (turn_ - c.turn >= kSummonWaitTurns) {
+        caps_[i] = caps_[--captures_];
+        if (fighting(a))
+          unmake(g, logic, a, "unpaired", true);
+      } else {
+        ++i;
+      }
+    }
+  }
+  // The host, while same place runs with her: for each boss pair, bstart at the edge of its battle mode (FSBActor
+  // +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy runs in its list's
+  // order, whenever they change (the first time too) and every kRefreshMs in battle mode; then each summon we keyed and
+  // follow, once (again after her on, off or world), after its up. A boss with no table row (an Alpha Naytiba, a
+  // family's other row) gets bstart only.
+  template <class Game> void boss_lines(Game &g, uint64_t logic, size_t n, uint64_t now) {
+    for (BossOut &o : boss_out_) {
+      bool kept = false;
+      for (uint8_t r = 0; r < table_.count && !kept; ++r)
+        kept = table_.pairs[r].hguid == o.hguid;
+      if (!kept)
+        o = BossOut();
+    }
+    if (!table_.on || host.ignored())
+      return;
+    for (uint8_t r = 0; r < table_.count && !latched_; ++r) {
+      const PilotPair &p = table_.pairs[r];
+      const Seen *s = fight::find(seen_, n, p.local);
+      uint8_t battle = 0;
+      if (!s || !s->boss || dying(*s) || !g.read(fsbs_[s - seen_] + kBattleFlag, &battle, 1))
+        continue;
+      BossOut *o = std::find_if(std::begin(boss_out_), std::end(boss_out_),
+                                [&](const BossOut &x) { return x.hguid == p.hguid; });
+      if (o == std::end(boss_out_))
+        o = std::find_if(std::begin(boss_out_), std::end(boss_out_), [](const BossOut &x) { return !x.hguid; });
+      if (o == std::end(boss_out_)) // Never: one a pair.
+        continue;
+      o->hguid = p.hguid;
+      if (battle && (!o->battle || now >= o->next_start)) {
+        Message m;
+        m.type = Type::bstart, m.gen = host.gen(), m.guid = p.hguid;
+        g.send(m);
+        if (!o->battle)
+          g.event(Event{"bstart sent", "", p.hguid, s->spawn, s->index});
+        o->next_start = now + kRefreshMs;
+      }
+      o->battle = battle != 0;
+      const Boss *b = boss_row(s->chr);
+      int32_t held[kMaxEffects];
+      const uint64_t la = b ? g.find(logic, p.local) : 0;
+      const int32_t hn = la ? effect_ids(g, la, held) : -1;
+      if (hn < 0)
+        continue;
+      Message m;
+      m.type = Type::phase, m.gen = host.gen(), m.guid = p.hguid, m.oe = p.oe;
+      for (int32_t i = 0; i < hn && m.idn < kMaxPhaseIds; ++i)
+        if (mirrored(*b, held[i]) && std::find(m.ids, m.ids + m.idn, held[i]) == m.ids + m.idn)
+          m.ids[m.idn++] = held[i];
+      const bool changed = !o->told || o->n != m.idn || !std::equal(m.ids, m.ids + m.idn, o->ids);
+      if (!changed && !(o->battle && now >= o->next_phase))
+        continue;
+      g.send(m);
+      if (changed && o->told)
+        g.event(Event{"phase sent", "", p.hguid, s->spawn, s->index});
+      std::copy(m.ids, m.ids + m.idn, o->ids);
+      o->n = m.idn, o->told = true, o->next_phase = now + kRefreshMs;
+    }
+    uint32_t followed[kMaxTracked];
+    const size_t count = host.tracked(followed);
+    for (size_t i = 0; i < summoned_count_ && !latched_; ++i) {
+      Summoned &x = summoned_[i];
+      const Seen *s = std::find(followed, followed + count, x.guid) != followed + count
+                          ? fight::find(seen_, n, x.guid) : nullptr;
+      float at[3], rot[3];
+      if (x.sent || !s || dying(*s) || !g.read(fsbs_[s - seen_] + kLocation, at, sizeof at) ||
+          !g.read(fsbs_[s - seen_] + kFsbRotation, rot, sizeof rot) || !std::isfinite(rot[1]))
+        continue;
+      Message m;
+      m.type = Type::spawn, m.gen = host.gen(), m.epoch = std::max(1u, epochs_.n());
+      m.spawn = s->spawn, m.index = 0, m.chr = s->chr, m.guid = x.owner, m.effect = x.row;
+      bool fits = true;
+      for (int k = 0; k < 3; ++k) {
+        fits = fits && std::fabs(at[k]) < 2147483520.f; // Whole cm within an int32, as the line carries them.
+        m.at[k] = fits ? int32_t(std::lround(at[k])) : 0;
+      }
+      if (!fits)
+        continue;
+      m.yaw = int32_t(std::lround(rot[1])) % 360;
+      m.yaw += m.yaw < 0 ? 360 : 0;
+      g.send(m);
+      x.sent = true;
+      ++counts.summons;
+      g.event(Event{"summon sent", "", x.owner, s->spawn, s->index});
+    }
+  }
+  // The guest: our copy of the host's enemy this turn's pair table draws, seen as a BossMonster in life state 1, or
+  // null.
+  const Seen *drawn_boss(uint32_t local, size_t n) const {
+    for (uint8_t r = 0; r < table_.count; ++r)
+      if (table_.pairs[r].local == local && (table_.pairs[r].bits & kRowDrawn)) {
+        const Seen *s = fight::find(seen_, n, local);
+        return s && s->boss && !dying(*s) ? s : nullptr;
+      }
+    return nullptr;
+  }
+  // The guest: the host's bstart (R33: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and the
+  // reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy. The
+  // host's repeats while its boss is in battle mode bring back one refused before (no pair yet, not drawn yet).
+  template <class Game> void bstart_in(Game &g, uint64_t logic, const Message &m, size_t n) {
+    uint32_t local = 0;
+    Actor a;
+    const char *why = guest.boss_line(m, local);
+    const uint64_t la = why ? 0 : g.find(logic, local);
+    if (!why)
+      why = !drawn_boss(local, n)                                       ? "not drawn"
+            : !la || !live(g, la, local, a) || a.life != 1 || a.pending ? "gone"
+            : !senders_made(g)                                          ? "not made"
+                                                                        : nullptr;
+    if (latched_ || (why && std::strcmp(why, "again") == 0))
+      return;
+    if (why) {
+      ++guest.counts.stale;
+      return;
+    }
+    g.battle(a.fsb);
+    guest.started(m.guid);
+    ++counts.bstarts;
+    g.event(Event{"bstart", "", m.guid});
+  }
+  // The guest: the host's phase line (R33: Guest::boss_line, the pair's owner epoch, a copy we draw as a BossMonster):
+  // the rows Guest::phase picks, through SB's effect call, the copy its own caster, as its own skill's step applies
+  // them. A row of another boss, or a line for an enemy with no table row, is a lie (a bad line).
+  template <class Game> void phase_in(Game &g, uint64_t logic, const Message &m, size_t n) {
+    uint32_t local = 0;
+    const char *why = guest.boss_line(m, local);
+    if (why && (!std::strcmp(why, "not its row") || !std::strcmp(why, "not a boss"))) {
+      if (!guest.counts.bad++)
+        g.event(Event{"bad line", why, m.guid});
+      return;
+    }
+    const uint64_t la = why ? 0 : g.find(logic, local);
+    int32_t held[kMaxEffects], rows[kMaxPhaseIds + 2];
+    const int32_t hn = la && m.oe == owners_.oe(m.guid) && drawn_boss(local, n) ? effect_ids(g, la, held) : -1;
+    if (hn < 0) {
+      ++guest.counts.stale;
+      return;
+    }
+    const size_t k = guest.phase(m, held, size_t(hn), rows);
+    size_t refused = 0;
+    for (size_t i = 0; i < k; ++i)
+      refused += !self_cast(g, logic, local, rows[i]);
+    counts.phase_rows += k - refused, counts.phase_refused += refused;
+    if (k && !latched_)
+      g.event(Event{"phase", refused ? "the game refused a row" : "", m.guid});
+  }
+  // The guest: the host's summon (R33: Guest::summon_out, then an owner copy we pair as a BossMonster, same place
+  // running here, no summon of ours of that key, within 1 km of our EVE): made through NewActor with its key, then its
+  // row's effects (make_extra); the pair table freezes it once stage 1 pairs it, as any copy the host owns.
+  template <class Game> void summon_in(Game &g, uint64_t logic, const Message &m, size_t n) {
+    uint32_t owner = 0;
+    const char *why = guest.summon_out(m, owner);
+    const Seen *o = why ? nullptr : fight::find(seen_, n, owner);
+    const float at[3] = {float(m.at[0]), float(m.at[1]), float(m.at[2])};
+    float eve[3] = {};
+    const uint64_t fsb = why ? 0 : local_fsb(g);
+    const bool again = std::any_of(caps_, caps_ + captures_,
+                                   [&](const Capture &c) { return c.type == kSummon && c.key == m.spawn; });
+    if (!why)
+      why = !table_.on       ? "off"
+            : !o || !o->boss ? "owner"
+            : again          ? "again"
+            : !plausible(fsb) || !g.read(fsb + kLocation, eve, sizeof eve) || !within(at, eve, kSpawnRangeCm)
+                ? "too far"
+                : nullptr;
+    if (!why)
+      why = make_extra(g, logic, SpawnKey{m.spawn, m.index}, m.chr, at, float(m.yaw), summon_row(m.effect));
+    if (latched_ || !why || !std::strcmp(why, "again"))
+      return;
+    g.event(Event{"summon refused", why, 0, m.spawn, m.index});
+  }
   // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
   // Where both sides count epochs again (pilot.h's Owners), seen in the lines as they go out (Io::send) and come in,
   // so each side sees them at the same point of the host's stream: a world line, an on or off (her list dropped,
@@ -2016,6 +2363,9 @@ private:
     case Type::off:
     case Type::world:
       spawn_host_.clear(), spawn_guest_.clear(); // Same spawns: the epoch line again, the host's epoch forgotten.
+      std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut()); // Bosses: their lines and summons again.
+      for (size_t i = 0; i < summoned_count_; ++i)
+        summoned_[i].sent = false;
       return owners_.clear(), own_in_.clear(), execs_.clear();
     case Type::place:
       if (!m.place)
@@ -2260,6 +2610,28 @@ private:
   SpawnKey probed_at_[kMaxSeen];
   size_t probed_ = 0;
   bool zone_told_ = false;
+  // Bosses (stage 5). The guest: the host's bstart, phase and summon spawn lines, for bosses() after the pass, and the
+  // copies the finish guard took last turn (logged as it starts). The host: what it told her of each boss pair, and
+  // the summons it keyed (n of the run's counter, the owner's GUID, the SummonActor row; sent; seen in this census).
+  Ring<Message, kMail> boss_in_;
+  uint32_t guarded_[kMaxPairs] = {};
+  size_t guards_ = 0;
+  struct BossOut {
+    uint32_t hguid = 0;
+    bool battle = false, told = false;
+    uint64_t next_start = 0, next_phase = 0;
+    int32_t ids[kMaxPhaseIds] = {};
+    uint8_t n = 0;
+  };
+  BossOut boss_out_[kMaxPairs];
+  struct Summoned {
+    uint32_t guid = 0, n = 0, owner = 0;
+    int32_t row = 0;
+    bool sent = false, seen = false;
+  };
+  Summoned summoned_[kMaxSummoned];
+  size_t summoned_count_ = 0;
+  uint32_t summon_n_ = 0; // For the run, as the extras' n.
 };
 
 // ---- Between the job and the worker ----
@@ -2866,12 +3238,14 @@ private:
     else if (side_)
       std::snprintf(head, sizeof head,
                     "fight stats: host%s, %zu enemies, %llu claims applied, %llu lethal refused, %llu kills (%llu "
-                    "floored, %llu without credit, %llu held in state 3 or her takedown, %llu held-expired), nodamage "
+                    "floored, %llu without credit, %llu held in state 3 or her takedown, %llu held-expired, %llu "
+                    "finish-held), nodamage "
                     "bypass %llu in state 3 and %llu in 4, %llu takedowns of hers (%llu refused), %llu crowd controls "
                     "told, %llu mirrored (%llu skipped), %llu stale, %llu over the rates, %llu bad, %llu ignored, %zu "
                     "scaled (%u %% HP, %u %% balance)",
                     as, s.hosted, u(c.claims), u(c.refused), u(c.kills), u(c.floored), u(c.uncredited), u(c.held),
-                    u(c.expired), u(c.bypass3), u(c.bypass4), u(c.execs), u(c.exec_refused), u(c.cc_told),
+                    u(c.expired), u(c.finish_held), u(c.bypass3), u(c.bypass4), u(c.execs), u(c.exec_refused),
+                    u(c.cc_told),
                     u(c.cc_mirrored), u(c.cc_skipped), u(c.stale), u(c.rate), u(c.bad), u(c.ignored), s.scaled,
                     s.scale[kScaleHp], s.scale[kScaleBalance]);
     else
@@ -2895,6 +3269,13 @@ private:
                     u(p.undone), u(p.refused), u(p.differ), u(p.stale), u(p.rate), unsigned(s.extra), u(p.extras),
                     u(p.extras_gone));
     const JobCounts &j = s.job;
+    char bosses[192] = ""; // Stage 5: the guest's calls, or the host's summon lines.
+    if (!probe && side_)
+      std::snprintf(bosses, sizeof bosses, "; bosses: %llu summons sent", u(j.summons));
+    else if (!probe)
+      std::snprintf(bosses, sizeof bosses,
+                    "; bosses: %llu summons made, %llu bstart, %llu phase rows (%llu refused), %llu finish guards",
+                    u(j.summons), u(j.bstarts), u(j.phase_rows), u(j.phase_refused), u(j.finish_guards));
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "
                   "%llu in another net mode, %llu censuses (%llu cut, %llu rejected), %llu kills without our EVE, "
@@ -2908,7 +3289,7 @@ private:
                   u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
                   u(j.thaw_refused), u(j.battles), u(j.owns), u(j.own_nos), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
-    io.trace(std::string(head) + spawns + tail);
+    io.trace(std::string(head) + spawns + bosses + tail);
   }
 
   Engine &e_;
