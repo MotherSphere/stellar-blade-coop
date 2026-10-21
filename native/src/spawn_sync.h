@@ -26,6 +26,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "fight_sync.h" // Message, Event, SpawnKey, kHaveKeys, kHaveParts, kMaxSeen
 
@@ -48,6 +49,15 @@ inline const char *row_out(const SpawnRow &r) {
   return r.keep ? "keep-row" : nullptr;
 }
 
+// A refusal of the guest's that says the two games differ (her tables, or what her shared fight shares), not a state
+// of the moment (too far, no room, no spawn manager yet, an actor gone).
+inline bool differs(const char *why) {
+  for (const char *passing : {"too far", "full", "no spawn manager", "gone"})
+    if (std::strcmp(why, passing) == 0)
+      return false;
+  return true;
+}
+
 // One keyed actor of ours at a census: not a player, fighting or dying (one leaving the map counts as gone). A dying
 // one is still ours: its death is stage 1's. monster: a Monster (ActorType 3) the shared fight shares, the only ones
 // same spawns create or remove. paired: stage 1 follows it on the guest's side, so its end is the host's dead, never a
@@ -68,6 +78,8 @@ struct SpawnCounts {
   uint64_t spawned = 0, despawned = 0, undone = 0;   // Guest: created, despawned on the host's word, despawned
                                                      // again because the created one was no Monster or another charId.
   uint64_t refused = 0;                              // Lines R33 refused (logged).
+  uint64_t differ = 0;                               // Guest: refused or undone because the two games differ
+                                                     // (differs()).
   uint64_t stale = 0;                                // Lines true once: another epoch or generation, a key already
                                                      // settled, out of the shared zone, a round cut.
   uint64_t rate = 0;                                 // Over the rates.
@@ -370,6 +382,7 @@ private:
       return;
     d.checked = true, d.created = false;
     const char *why = x->monster ? "charId" : "not shared";
+    ++counts.differ;
     if (io.despawn(x->guid, d.key))
       ++counts.undone, io.event(Event{"spawn undone", why, 0, d.key.spawn, d.key.index});
   }
@@ -404,6 +417,7 @@ private:
       if (!distant)
         made(k, m.chr, !why);
       ++(why ? counts.refused : counts.spawned);
+      counts.differ += why && differs(why);
       io.event(Event{why ? "spawn refused" : "spawned", why ? why : "", 0, k.spawn, k.index});
       return;
     }
@@ -420,6 +434,7 @@ private:
     if (!why)
       gone_at_[gone_++] = k;
     ++(why ? counts.refused : counts.despawned);
+    counts.differ += why && differs(why);
     io.event(Event{why ? "drop refused" : "despawned", why ? why : "", 0, k.spawn, k.index});
   }
   // Our keys in the host's zone, as kHaveKeys a line: our Monsters of keys that take part there (dying ones too), less

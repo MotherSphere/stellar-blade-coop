@@ -365,6 +365,9 @@ int main() {
            w.count("spawn refused", "no row") == 1 && w.count("spawn refused", "save-row") == 1 &&
            w.count("spawn refused", "keep-row") == 1 && w.count("spawn refused", "event-row") == 1 &&
            w.count("spawn refused", "another zone") == 1);
+    // The refusals that say her tables differ from the host's count apart (the status line's spawns_differ=); one too
+    // far does not.
+    assert(g.counts.differ == 5);
     // Her next round names what she created and what she refused, so the host stops asking; but not the one too far,
     // which the host may send again once she is nearer.
     take({}, kGraceMs + kHaveAgainMs);
@@ -384,7 +387,7 @@ int main() {
     assert(w.despawned.size() == 1 && w.despawned[0] == 102 && g.counts.despawned == 1);
     assert(w.count("despawned") == 1 && w.count("drop refused", "not shared") == 1 &&
            w.count("drop refused", "save-row") == 1 && w.count("drop refused", "another zone") == 1);
-    assert(g.counts.stale == 4 + 4);
+    assert(g.counts.stale == 4 + 4 && g.counts.differ == 5 + 3);
     take({}, kGraceMs + 2 * kHaveAgainMs);
     round = w.lines();
     assert(!has(round, " 7002:0") && has(round, " 7001:0")); // Despawned: no longer hers.
@@ -394,14 +397,14 @@ int main() {
          kGraceMs + 2 * kHaveAgainMs + 100);
     take({}, kGraceMs + 2 * kHaveAgainMs + 350);
     assert(g.counts.undone == 2 && w.count("spawn undone", "charId") == 1 &&
-           w.count("spawn undone", "not shared") == 1);
+           w.count("spawn undone", "not shared") == 1 && g.counts.differ == 8 + 2);
     assert(w.actor(SpawnKey{7074, 0}) && w.actor(SpawnKey{7074, 0})->monster); // The right one stays.
     take({}, kGraceMs + 2 * kHaveAgainMs + 600);
     assert(g.counts.undone == 2); // Once each.
     // A charId the shared fight does not share here (fight_chars, or the auto rule's bosses): refused before any call.
     w.unshared.push_back(50330);
     take({"SBF11 spawn 1 1 7019 0 50330 600 0 0 0"}, kGraceMs + 2 * kHaveAgainMs + 650);
-    assert(w.count("spawn refused", "not shared") == 1 && !w.actor(SpawnKey{7019, 0}));
+    assert(w.count("spawn refused", "not shared") == 1 && !w.actor(SpawnKey{7019, 0}) && g.counts.differ == 11);
     // Not shared (the host's EVE too far, or our zone not settled): the lines are stale, nothing done.
     const size_t made = w.created.size();
     take({"SBF11 spawn 1 1 7020 0 900 600 0 0 0", "SBF11 drop 1 1 7001 0"}, kGraceMs + 2 * kHaveAgainMs + 700, false,
@@ -469,7 +472,7 @@ int main() {
     ng.heard(msg("SBF11 epoch 1 40 1"), 1);
     ng.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
     guest_step(ng, nep, nm, kGraceMs);
-    assert(nm.count("spawn refused", "no spawn manager") == 1 && ng.counts.refused == 1);
+    assert(nm.count("spawn refused", "no spawn manager") == 1 && ng.counts.refused == 1 && ng.counts.differ == 0);
     // The host's world, on or off forgets its epoch: nothing until its next epoch line.
     ng.clear();
     assert(!ng.on());

@@ -2552,7 +2552,22 @@ private:
                   ran_ == Fight::probe ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
                                                std::to_string(s.scale[kScaleBalance])).c_str(),
                   u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
-    return std::string(head) + tail;
+    return std::string(head) + spawns_field(s) + tail;
+  }
+  // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
+  // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
+  // and refused or undid because the two games differ (spawn_sync.h's differs()).
+  std::string spawns_field(const Snapshot &s) const {
+    if (ran_ == Fight::probe)
+      return std::string();
+    if (!s.spawning)
+      return " spawns=off";
+    const bool stopped = s.pilot_why && std::strcmp(s.pilot_why, "stopped") == 0;
+    std::string text = stopped ? " spawns=stopped" : " spawns=on";
+    if (!side_)
+      text += " spawned=" + std::to_string(s.spawns.spawned) + " despawned=" + std::to_string(s.spawns.despawned) +
+              " spawns_differ=" + std::to_string(s.spawns.differ);
+    return text;
   }
   // Each second while running: the status line's counts, and a line of them traced when the side's counts (the
   // probe's actors, EVE or turn going back) moved, else each minute; at once for coop fight status.
@@ -2606,10 +2621,11 @@ private:
     if (!probe)
       std::snprintf(spawns, sizeof spawns,
                     "; same spawns %s, epoch %u (ours moved %llu times), %llu rounds %s, %llu spawn and %llu drop "
-                    "lines, %llu spawned, %llu despawned (%llu undone), %llu refused, %llu stale, %llu over the rates",
+                    "lines, %llu spawned, %llu despawned (%llu undone), %llu refused (%llu differ), %llu stale, %llu "
+                    "over the rates",
                     s.spawning ? "on" : "off", s.epoch, u(p.epochs), u(side_ ? p.answered : p.haves),
                     side_ ? "answered" : "sent", u(p.spawn_lines), u(p.drop_lines), u(p.spawned), u(p.despawned),
-                    u(p.undone), u(p.refused), u(p.stale), u(p.rate));
+                    u(p.undone), u(p.refused), u(p.differ), u(p.stale), u(p.rate));
     const JobCounts &j = s.job;
     std::snprintf(tail, sizeof tail,
                   "; job: %llu turns, %llu arms (%llu deferred, %llu forced, %llu paused), %llu stale, %llu doubled, "

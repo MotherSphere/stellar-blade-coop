@@ -3563,6 +3563,20 @@ int main() {
     assert(mail.exchange(s));
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(!has(ask("fight status"), "; unpaired"));
+    // Same spawns in the fight= line, before the scaling: off, on with the guest's counts (created, despawned, and the
+    // refusals that say the two games differ), or stopped once the pilot's latch stopped them.
+    assert(has(w.detail(), " maxhp=0 spawns=off scale="));
+    s.spawning = true, s.spawns.spawned = 4, s.spawns.despawned = 3, s.spawns.refused = 5, s.spawns.differ = 2;
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
+    assert(has(w.detail(), " maxhp=0 spawns=on spawned=4 despawned=3 spawns_differ=2 scale="));
+    s.pilot_why = "stopped";
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
+    assert(has(w.detail(), " spawns=stopped spawned=4 despawned=3 spawns_differ=2 scale="));
+    s.spawning = false, s.pilot_why = "fight", s.spawns = SpawnCounts();
+    assert(mail.exchange(s));
+    w.pass(t += 1000, true, false, true, none, gate, io);
     // Her link lost: paused, nothing sent (she is gone); a new session when she is back.
     io.said.clear();
     w.pass(t += 16, false, false, true, none, gate, io);
@@ -3997,6 +4011,8 @@ int main() {
       io.traced.clear();
       w.ask(coop::parse_request("fight status"), gate, io);
       assert(io.tracing("; same spawns on, epoch 1 (ours moved 1 times), 0 rounds answered") == 1);
+      assert(has(w.detail(), " floored=0 spawns=on scale=")); // The host's: no counts of the guest's.
+      assert(io.tracing(", 0 refused (0 differ), 0 stale, ") == 1);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(!has(io.file, "epoch") && !io.lines().size());
       assert(w.ask(coop::parse_request("fight record"), gate, io).rfind("shared fight record: ", 0) == 0);
@@ -4004,6 +4020,7 @@ int main() {
       io.traced.clear();
       w.ask(coop::parse_request("fight status"), gate, io);
       assert(io.tracing("; same spawns off, epoch 0 (ours moved 0 times)") == 1);
+      assert(has(w.detail(), " floored=0 spawns=off scale="));
       w.ask(coop::parse_request("fight off"), gate, io);
     }
     Game G;
