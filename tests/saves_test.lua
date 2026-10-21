@@ -3,12 +3,12 @@
 -- runs, once the kit has its whole look; Convert and play co-op (Play co-op once a co-op copy exists) asks for "saves
 -- coop" and shows the pass until saves=coop, then closes with a notice; a pass that ends without the switch, or a
 -- request with no answer in 2 s, shows why with only the solo choices left (an unread status is no answer; a pass said
--- failed that switches after all is said on); a solo choice after a request asks "saves main"; Decide later, Esc and
--- 60 s with no key close it for this visit; a left click takes the choice under the mouse; Don't ask again rewrites
--- only auto_coop_save's line, then plays co-op; the title left closes it. With always, no question: the request at each
--- visit, its result as a notice. With off, nothing. The game's input is the question's while it is open and comes back
--- 150 ms after it closes. While the game uses the co-op copies, a badge at the top right of the title. English and
--- French.
+-- failed that switches after all is said on); a solo choice after a request asks "saves main"; Decide later, Esc and 60
+-- s with no key close it for this visit; Enter and a click take a choice only from 1 s after it shows; a left click
+-- takes the choice under the mouse; Don't ask again rewrites only auto_coop_save's line, then plays co-op; the title
+-- left closes it. With always, no question: the request at each visit, its result as a notice. With off, nothing. The
+-- game's input is the question's while it is open and comes back 150 ms after it closes. While the game uses the co-op
+-- copies, a badge at the top right of the title. English and French.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local Saves=require('saves')
@@ -98,6 +98,8 @@ local function screen() -- The question as drawn: title, body rows, then the cho
 end
 local function since(n) return table.concat(calls,'|',n+1) end
 local function quarter(world,title) clock=clock+0.25; return saves.slow(world,title) end
+-- Enter or a click, 1 s on: the question takes no choice sooner after it shows.
+local function pick(what) clock=clock+1; return saves.nav(what) end
 local MAIN={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
 local function at(t) local c={}; for k,v in pairs(MAIN) do c[k]=v end; for k,v in pairs(t or {}) do c[k]=v end; return c end
 
@@ -152,6 +154,14 @@ saves.nav('down'); saves.nav('down'); assert(screen():find('Play solo normally||
 local n=#calls
 saves.nav('left'); saves.nav('right'); assert(#calls==n and screen():find('Play solo normally||focus',1,true))
 
+-- Enter and a click take a choice only from 1 s after the question showed, so a press meant for the title screen does
+-- not answer it; the arrows and Esc act at once.
+built.saves.view.rows[3].hover=true
+saves.nav('select'); saves.nav('click'); clock=clock+0.75; saves.nav('select'); saves.nav('click')
+assert(saves.is_open() and #calls==n and #asked==0 and screen():find('Play solo normally||focus',1,true),since(n))
+built.saves.view.rows[3].hover=nil
+clock=clock+0.25
+
 -- Play solo normally: closed, nothing asked, the game's input back 150 ms later (not before), once this visit.
 saves.nav('select')
 assert(not saves.is_open() and #asked==0 and since(n)=='sound select|show saves false tween|sound close',since(n))
@@ -188,10 +198,10 @@ assert(screen()=='CO-OP SAVES\nPlay co-op on your co-op saves?\n'
 
 -- Play co-op: "saves coop", the question stays with the pass's steps (no choice left; Esc cancels), until saves=coop.
 n=#calls
-saves.nav('select')
+pick('select')
 assert(asked[1]=='saves coop' and saves.is_open() and logs[#logs]=='co-op saves: asked the native part: saves coop')
 assert(screen()=='CO-OP SAVES\nSwitching to the co-op saves.',screen())
-saves.nav('select'); saves.nav('down'); assert(#asked==1 and screen()=='CO-OP SAVES\nSwitching to the co-op saves.')
+pick('select'); saves.nav('down'); assert(#asked==1 and screen()=='CO-OP SAVES\nSwitching to the co-op saves.')
 info=at({convert='busy 2/6'}); quarter(false,true)
 assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 2 of 6.',screen())
 info=at({convert='busy 5/6'}); quarter(false,true)
@@ -209,7 +219,7 @@ present={}
 saves=new()
 info=at({convert='done'}) -- An earlier pass.
 quarter(false,true)
-saves.nav('select'); assert(asked[1]=='saves coop')
+pick('select'); assert(asked[1]=='saves coop')
 info=at({convert="error:slot 3's save fails the game's own check, so it was not copied"})
 quarter(false,true)
 assert(screen()=='CO-OP SAVES\nThe co-op saves could not be switched on. Your own saves were not changed.\n'
@@ -218,13 +228,13 @@ assert(screen()=='CO-OP SAVES\nThe co-op saves could not be switched on. Your ow
 assert(logs[#logs]=="co-op saves stay off: slot 3's save fails the game's own check, so it was not copied",logs[#logs])
 saves.nav('down'); assert(screen():find('Decide later||focus',1,true))
 saves.nav('down'); assert(screen():find('Play solo normally||focus',1,true),'Two choices, wrapping')
-saves.nav('select')
+pick('select')
 assert(asked[2]=='saves main' and not saves.is_open() and #said==0,'Withdrawn, closed, nothing said')
 
 -- The same pass result as before the request, for 2 s: refused (said in coop-link.log); Esc then withdraws too.
 saves=new()
 info=at({convert='done'})
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 for _=1,7 do quarter(false,true) end
 assert(screen()=='CO-OP SAVES\nSwitching to the co-op saves.','Under 2 s: still waiting')
 quarter(false,true)
@@ -234,20 +244,20 @@ saves.nav('back'); assert(asked[2]=='saves main' and not saves.is_open())
 -- A pass still running after 2 minutes counts as failed; a pass whose line changed without the switch at once.
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='busy 1/6'})
 for _=1,479 do quarter(false,true) end
 assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 1 of 6.')
 quarter(false,true); assert(screen():find('could not be switched on',1,true),'2 minutes')
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='done'}); quarter(false,true)
 assert(screen():find('coop-link.log says why.',1,true),'Done, yet still saves=main: the switch failed')
 -- Esc while the pass runs: "saves main" withdraws the switch, the question closes for this visit.
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='busy 1/6'}); quarter(false,true)
 saves.nav('back')
 assert(asked[1]=='saves coop' and asked[2]=='saves main' and not saves.is_open())
@@ -257,19 +267,19 @@ saves=new()
 info=at()
 quarter(false,true)
 refuse='cannot write C:\\Mod\\coop-request.txt.tmp'
-saves.nav('select')
+pick('select')
 assert(#asked==0 and screen():find('cannot write C:\\Mod\\coop-request.txt.tmp',1,true),screen())
 refuse=nil
 -- A reason the native part wrote with controls or bytes that are not UTF-8: cleaned, never raised.
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='error:bad\0 \255name\27'}); quarter(false,true)
 assert(screen():find('\nbad name\n',1,true),screen())
 -- An unread status (link.changes() keeps no line then) during a pass is no news: the pass goes on to the switch.
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='busy 1/6'}); quarter(false,true)
 info={}; quarter(false,true)
 assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 1 of 6.',screen())
@@ -280,7 +290,7 @@ assert(not saves.is_open() and said[1]:find('^Co%-op saves on') and #asked==1,'S
 saves=new()
 info=at()
 quarter(false,true)
-info={}; saves.nav('select')
+info={}; pick('select')
 info=at(); quarter(false,true)
 assert(asked[1]=='saves coop' and screen()=='CO-OP SAVES\nSwitching to the co-op saves.',screen())
 info={}
@@ -296,7 +306,7 @@ file='\239\187\191# mine\r\nmenu_key=F7\r\nauto_coop_save=ask\r\nchat=off\r\n'
 saves=new()
 info=at()
 quarter(false,true)
-saves.nav('up'); saves.nav('select')
+saves.nav('up'); pick('select')
 assert(file=='\239\187\191# mine\r\nmenu_key=F7\r\nauto_coop_save=always\r\nchat=off\r\n',file)
 assert(settings.auto_coop_save=='always' and asked[1]=='saves coop' and saves.is_open())
 assert(logs[#logs-1]=='co-op saves: auto_coop_save=always saved in coop-settings.txt',logs[#logs-1])
@@ -305,7 +315,7 @@ info=at({saves='coop',convert='done'}); quarter(false,true); assert(not saves.is
 settings.auto_coop_save,file='ask',nil
 saves=new()
 info=at()
-quarter(false,true); saves.nav('up'); saves.nav('select')
+quarter(false,true); saves.nav('up'); pick('select')
 assert(settings.auto_coop_save=='ask' and asked[1]=='saves coop'
     and logs[#logs-1]=='co-op saves: auto_coop_save=always not saved: coop-settings.txt cannot be read',logs[#logs-1])
 
@@ -314,9 +324,9 @@ saves=new()
 info=at()
 quarter(false,true)
 n=#calls
-saves.nav('click'); assert(saves.is_open() and #calls==n,'Over no choice')
+pick('click'); assert(saves.is_open() and #calls==n,'Over no choice')
 built.saves.view.rows[2].hover=true
-saves.nav('click')
+pick('click')
 assert(not saves.is_open() and #asked==0 and calls[n+1]=='sound select'
     and logs[#logs]=='co-op saves: Play solo normally: your own saves',logs[#logs])
 
@@ -336,7 +346,7 @@ assert(not saves.is_open() and #asked==0 and logs[#logs-1]=='co-op saves: no key
     and logs[#logs]=='co-op saves: Decide later: your own saves',logs[#logs])
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='busy 1/6'})
 for _=1,300 do quarter(false,true) end
 assert(saves.is_open() and screen():find('step 1 of 6',1,true),'Not while the pass runs')
@@ -353,7 +363,7 @@ quarter(false,false)
 assert(not saves.is_open() and #asked==0 and calls[#calls]=='sound close')
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 quarter(true,false)
 assert(not saves.is_open() and #asked==1)
 info=at({convert='error:Continue or Load Game was chosen at the title (load mode 2)',slot='main'})
@@ -368,7 +378,7 @@ state.off=true
 quarter(false,true); quarter(false,true)
 assert(#calls==0 and not saves.is_open() and #logs==1
     and logs[1]=='co-op saves: the question cannot show (the co-op UI is off): your own saves',logs[1])
-saves.nav('select'); assert(#asked==0)
+pick('select'); assert(#asked==0)
 state.off=false
 
 -- always: no question; "saves coop" once a visit at the title; its result said once the kit shows, at the title or
@@ -433,7 +443,7 @@ saves.nav('back')
 quarter(false,true); assert(not saves.is_open(),'Asked with the invite already: not again')
 saves=new()
 info=at()
-quarter(false,true); saves.nav('down'); saves.nav('select')
+quarter(false,true); saves.nav('down'); pick('select')
 quarter(false,true); assert(not saves.is_open() and not screen():find('invite',1,true))
 info=at({held=true}); quarter(false,true)
 assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite waits until your save loads%.\n")
@@ -447,7 +457,7 @@ info=at()
 quarter(false,true); info=at({held=true}); quarter(false,true)
 assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite waits until your save loads%.\n"),
     screen())
-saves.nav('down'); saves.nav('select')
+saves.nav('down'); pick('select')
 quarter(false,true); quarter(false,true); assert(not saves.is_open(),'The invite line seen: no second ask')
 -- The kit not whole on the tick the invite comes: the second ask waits for it.
 saves=new()
@@ -459,7 +469,7 @@ saves.nav('back')
 -- Co-op chosen: nothing more (the game then uses the copies). always: no question at all.
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({held=true,convert='busy 1/6'}); quarter(false,true)
 assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 1 of 6.',screen())
 settings.auto_coop_save='always'
@@ -565,7 +575,7 @@ settings.ui_language='game'
 state.language='ja-JP'
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 info=at({convert='done'}); quarter(false,true)
 assert(screen():find('\n理由：coop-link.log。\n',1,true),screen())
 saves.nav('back')
@@ -577,7 +587,7 @@ for k in pairs(T.fr.saves) do assert(T.en.saves[k],k) end
 -- coop ui reset closes it as Decide later (a request out: withdrawn); coop off stops it with no kit call.
 saves=new()
 info=at()
-quarter(false,true); saves.nav('select')
+quarter(false,true); pick('select')
 saves.close()
 assert(not saves.is_open() and asked[2]=='saves main')
 saves=new()

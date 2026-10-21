@@ -1443,6 +1443,14 @@ public:
       n += pairs_[i].local && !pairs_[i].lethal;
     return n;
   }
+  // The keys of our copies the host's dead killed since the last call, into out (kMaxTracked at most between two
+  // calls; the rest not given): the host's game lacks these enemies now, so same spawns' filter blocks them
+  // (SpawnGuest::died). Never one our lethal claim alone killed, nor a dead-unshared one.
+  size_t died(SpawnKey *out) {
+    const size_t n = std::exchange(died_, size_t(0));
+    std::copy(died_at_, died_at_ + n, out);
+    return n;
+  }
   // The copies' GUIDs the next pass must re-find, at most kMaxTracked: a copy held at the floor while the host decides
   // on our lethal claim too. hguids, when given, takes the host's GUID of each. The host's dead (a kill held) come
   // last, so the first kMaxPairs (the engine's pair table) hold every live pair.
@@ -1706,8 +1714,11 @@ public:
           }
         }
       }
-      if (p.local)
+      if (p.local) {
         io.event(Event{"dead", "", p.hguid, p.spawn, p.index});
+        if (died_ < kMaxTracked)
+          died_at_[died_++] = SpawnKey{p.spawn, p.index};
+      }
       p = pairs_[--count_];
     }
   }
@@ -1955,6 +1966,8 @@ private:
     uint8_t index = 0;
   } logged_key_[kMaxSeen];
   size_t logged_ = 0;
+  SpawnKey died_at_[kMaxTracked]; // died()'s.
+  size_t died_ = 0;
   Fence fence_;
 };
 

@@ -837,6 +837,18 @@ assert(#logs==1,'Not built again while open')
 k.show('menu',false)
 k.slow(true)
 assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
+-- Nor while our UI holds the game's input with no hit group shown (the host's question): the input focused that root.
+reset()
+k=kit()
+for _=1,#UMG+6 do k.slow(true) end
+assert(#viewport==1 and #logs==1 and k.holding()==false)
+k.input(true,'card')
+assert(k.holding()==true)
+for _=1,60 do k.slow(true) end
+assert(#logs==1 and #viewport==1,'Not built again while it holds the input')
+k.input(false,'card')
+k.slow(true)
+assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
 
 
 -- The menu's input: the game's keys off while open (UIOnlyEx on our root, no mouse lock), back on at close; each once;
@@ -915,14 +927,16 @@ assert(k.off() and count(LIB..'SetInputMode_GameOnly')==1)
 pc=real
 k.input(false); k.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==2,'Still given back once the kit is off')
--- Ctrl+R with the menu open: the old load's input mode stays in the game's viewport, so its path says so and the new
--- load gives the input back as it sweeps the root (or later, with no player controller yet).
+-- Ctrl+R with the menu open: the old load's input mode and mouse cursor stay in the game, so its path says so and the
+-- new load gives the input back and hides the cursor as it sweeps the root (or later, with no player controller yet).
+-- A record from before the cursor: the input only.
 reset()
 k=kit()
 up(k)
 local root_path=saved
+pc.bShowMouseCursor=false
 k.input(true)
-assert(saved==root_path..' input','The input marked with the path')
+assert(saved==root_path..' input cursor','The input and the cursor marked with the path')
 k.input(false)
 assert(saved==root_path)
 k.input(true)
@@ -930,16 +944,25 @@ registry[root_path]=viewport[1]
 local reloaded=kit()
 reloaded.slow(true)
 assert(#viewport==0 and count(LIB..'SetInputMode_GameOnly')==2 and saved==nil,'Swept, the input given back')
+assert(pc.bShowMouseCursor==false,'The cursor hidden again')
 reloaded.stop()
 assert(count(LIB..'SetInputMode_GameOnly')==2,'Once')
-saved=root_path..' input'
+saved=root_path..' input cursor'
 pc=nil
 reloaded=kit()
 reloaded.slow(true)
 pc=real
+pc.bShowMouseCursor=true
 assert(count(LIB..'SetInputMode_GameOnly')==2)
 reloaded.input(false)
-assert(count(LIB..'SetInputMode_GameOnly')==3,'Still due: given back once there is a player controller')
+assert(count(LIB..'SetInputMode_GameOnly')==3 and pc.bShowMouseCursor==false,
+    'Still due: given back, the cursor hidden, once there is a player controller')
+saved=root_path..' input'
+reloaded=kit()
+reloaded.slow(true)
+pc.bShowMouseCursor=true
+reloaded.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==4 and pc.bShowMouseCursor==true,'An older record: the cursor untouched')
 -- At the title (the co-op saves' question), given back as GameAndUIEx with no widget, no mouse lock and the cursor
 -- kept, so the title menu keeps its mouse; GameOnly when the engine refuses it (the kit stays on); in a world GameOnly.
 reset()
@@ -959,6 +982,33 @@ assert(count(LIB..'SetInputMode_GameAndUIEx')==2 and count(LIB..'SetInputMode_Ga
 k.slow(true,true)
 k.input(true); k.reset()
 assert(count(LIB..'SetInputMode_GameAndUIEx')==3,'coop ui reset at the title too')
+-- The menu's mouse cursor: shown while the menu holds the game's input (set after its input mode), never for a group's
+-- field; the value found put back when it gives the input back, when a field takes it, at coop ui reset and when the
+-- kit stops. paused() never reads our own cursor as a game screen.
+reset()
+k=kit()
+up(k)
+pc.bShowMouseCursor=false
+n=#calls
+k.input(true)
+assert(pc.bShowMouseCursor==true and at('set PC.bShowMouseCursor',n)>at(LIB..'SetInputMode_UIOnlyEx',n),
+    'Shown after the input mode')
+assert(k.paused()==false,'Our own cursor is no game screen')
+special['GameplayStatics.IsGamePaused']=function() return true end
+assert(k.paused()==true,'The game paused still reads')
+special['GameplayStatics.IsGamePaused']=nil
+k.input(false)
+assert(pc.bShowMouseCursor==false and k.paused()==false,'Hidden again')
+k.input(true,'chat'); assert(pc.bShowMouseCursor==false,"Not for the chat's box")
+k.input(true); assert(pc.bShowMouseCursor==true,'The menu over a closing chat')
+k.input(true,'chat'); assert(pc.bShowMouseCursor==false,'The chat took it from the menu: hidden')
+k.input(false,'chat')
+pc.bShowMouseCursor=true
+k.input(true); k.input(false); assert(pc.bShowMouseCursor==true,'The value found: shown stays shown')
+assert(k.paused()==true,'Not ours: a game screen')
+pc.bShowMouseCursor=false
+k.input(true); k.reset(); assert(pc.bShowMouseCursor==false,'coop ui reset')
+k.input(true); k.stop(); assert(pc.bShowMouseCursor==false,'coop off')
 -- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
 -- (nil when unread); nothing once off, where the language is the last one read (the fallback notices keep it), and
 -- the pause only when asked always.
@@ -983,6 +1033,98 @@ raise['GameplayStatics.IsGamePaused']=nil
 special['GameplayStatics.IsGamePaused']=function() return true end
 assert(k.paused(true)==true,'Off, always still reads the pause')
 special['GameplayStatics.IsGamePaused']=nil
+
+-- The focus watchdog. The root is made focusable before AddToViewport, so the input mode focuses it. While our UI
+-- holds the game's input and the world shows, each slow reads whether the root or a widget in it has the focus: armed
+-- by a first yes since the input was taken, then 1 s of no (a yes starts it over) fires it once: lost() is true once,
+-- with who held the input. Never armed 2 s after the take: one log line a Lua load, nothing fires. A read that raises
+-- counts for nothing. A refused bIsFocusable: one log line a Lua load, nothing read.
+;(function()
+    local has,below=false,false -- The root's own focus, a widget's in it (the chat's box), as the engine reads them.
+    special['UserWidget.HasAnyUserFocus']=function() return has end
+    special['UserWidget.HasFocusedDescendants']=function() return below end
+    local function last(name) for i=#calls,1,-1 do if calls[i]==name then return i end end end
+    local function lines(text) local c=0; for _,m in ipairs(logs) do if m==text then c=c+1 end end return c end
+    local NEVER='focus watchdog: our root never took the focus'
+    reset()
+    local k=kit()
+    local function quarter() clock=clock+0.25; k.slow(true) end
+    up(k)
+    assert(stores[viewport[1]].props.bIsFocusable==true and last('set UserWidget.bIsFocusable')<last('UserWidget.'
+        ..'AddToViewport') and last('set UserWidget.bIsFocusable')>last('construct UserWidget'),
+        'Focusable, set before AddToViewport')
+    for _=1,8 do quarter() end
+    assert(count('UserWidget.HasAnyUserFocus')==0,'The game has its input: nothing read')
+    k.input(true)
+    has=true; quarter(); has=false
+    for _=1,4 do quarter() end
+    assert(k.lost()==false,'Not before 1 s')
+    quarter()
+    local lost,who=k.lost()
+    assert(lost==true and who=='menu','1 s without the focus')
+    assert(k.lost()==false,'Once')
+    for _=1,8 do quarter() end
+    assert(k.lost()==false,'Not again for that take')
+    -- A yes in between starts the second over; the chat's box (a widget in the root) holds the focus too.
+    k.input(true,'chat')
+    below=true; quarter(); below=false; quarter(); quarter(); below=true; quarter(); below=false
+    for _=1,4 do quarter() end
+    assert(k.lost()==false,'Started over')
+    quarter()
+    lost,who=k.lost()
+    assert(lost and who=='chat')
+    -- Never armed: nothing fires; one line 2 s after the take, once a Lua load.
+    k.input(false,'chat'); k.input(true)
+    for _=1,7 do quarter() end
+    assert(lines(NEVER)==0,'Not before 2 s')
+    quarter()
+    assert(lines(NEVER)==1)
+    for _=1,12 do quarter() end
+    k.input(false); k.input(true)
+    for _=1,12 do quarter() end
+    assert(k.lost()==false and lines(NEVER)==1,'Never armed: nothing fires, said once')
+    -- A read that raises, the world hidden, the input given back: nothing read or counted.
+    has=true; quarter(); has=false
+    raise['UserWidget.HasAnyUserFocus']='no slate widget'
+    for _=1,8 do quarter() end
+    raise['UserWidget.HasAnyUserFocus']=nil
+    assert(k.lost()==false and not k.off(),'A raise: nothing')
+    local n=count('UserWidget.HasAnyUserFocus')
+    for _=1,8 do clock=clock+0.25; k.slow(false) end
+    assert(count('UserWidget.HasAnyUserFocus')==n and k.lost()==false,'Hidden: nothing read')
+    k.input(false)
+    for _=1,8 do quarter() end
+    assert(count('UserWidget.HasAnyUserFocus')==n and k.lost()==false,'Given back: nothing read')
+    -- A mouse button while our UI holds the input (Slate gives a click on none of our widgets to the game's viewport):
+    -- the root focused again 50 ms later, once, and the second starts over; nothing while the game has its input.
+    k.click(); clock=clock+0.0625; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==0,'The game has its input: nothing')
+    k.input(true)
+    has=true; quarter(); has=false
+    for _=1,3 do quarter() end
+    k.click(); clock=clock+0.03125; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==0,'Not before 50 ms')
+    clock=clock+0.03125; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==1 and stores[viewport[1]].last.SetKeyboardFocus,'Our root focused')
+    clock=clock+0.0625; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==1,'Once a click')
+    for _=1,4 do quarter() end
+    assert(k.lost()==false,'1 s from the click only')
+    quarter()
+    assert(k.lost()==true,'Still lost: fired')
+    k.input(false)
+    -- Refused: said once a Lua load (two builds), the watchdog unarmed, nothing read.
+    reset()
+    raise['set UserWidget.bIsFocusable']='no such property'
+    k=kit()
+    up(k)
+    assert(not k.off() and lines('focus watchdog off: the UI root refused bIsFocusable (no such property)')==1,
+        table.concat(logs,'|'))
+    k.input(true)
+    for _=1,20 do quarter() end
+    assert(count('UserWidget.HasAnyUserFocus')==0 and lines(NEVER)==0 and k.lost()==false)
+    special['UserWidget.HasAnyUserFocus'],special['UserWidget.HasFocusedDescendants']=nil,nil
+end)()
 
 -- The chat box (b.field): an EditableTextBox that keeps its keyboard focus on Enter and reverts on Esc, in Mideum 34,
 -- white on the dark glass, with its hint, all set before AddToViewport; it takes the mouse in its hit group (a click
@@ -1050,6 +1192,12 @@ field.focus()
 assert(count('EditableTextBox.SetKeyboardFocus')==focused+1)
 field.hint('Indice')
 assert(bs.last.SetHintText[1].text=='Indice')
+-- A mouse button while the chat holds the input: its box focused again 50 ms later, not our root.
+k.input(true,'chat')
+focused=count('EditableTextBox.SetKeyboardFocus')
+k.click(); clock=clock+0.0625; k.tick(clock)
+assert(count('EditableTextBox.SetKeyboardFocus')==focused+1 and count('UserWidget.SetKeyboardFocus')==0)
+k.input(false,'chat')
 -- A root rebuilt (a map change): the box's handles never touch the freed one.
 for _,o in ipairs(constructed) do stores[o].alive=false end
 local n=#calls

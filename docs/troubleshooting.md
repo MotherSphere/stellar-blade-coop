@@ -147,10 +147,10 @@ While your look is on, your friend sees your ghost with no body unless their gam
 
 ### The game ignores its keys after the co-op menu or the chat
 
-Open the console (F10 or `~`) and type `coop ui reset`: the menu, the chat box and the code box close, an open
-host's question is answered with Deny, and the game gets its keys back. Without the console, press Ctrl+R or restart the game. `UI off until the mod reloads: <why>` in `UE4SS.log`
-means that the on-screen UI hit an engine error and turned itself off; notices then show on the line above EVE.
-`coop ui off` turns the UI off the same way by hand.
+Open the console (F10 or `~`) and type `coop ui reset`: the menu, the chat box and the code box close, an open host's
+question is answered with Deny, and the game gets its keys back. Without the console, press Ctrl+R or restart the game.
+`UI off until the mod reloads: <why>` in `UE4SS.log` means that the on-screen UI hit an engine error and turned itself
+off; notices then show on the line above EVE. `coop ui off` turns the UI off the same way by hand.
 
 ### No co-op line hint at a camp phone booth
 
@@ -166,6 +166,47 @@ means that the on-screen UI hit an engine error and turned itself off; notices t
 - `booths: slow scan <ms> ms (<n> found)`: one scan took 5 ms or more on that PC. The scan runs on the game thread, so
   that frame took as much longer. If the line comes back, send `UE4SS.log` (see
   [Which logs to send](#which-logs-to-send)).
+
+### The co-op menu or the chat box closed by itself
+
+- `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its input back` in
+  `UE4SS.log`: something took the keyboard focus from the mod's UI for 1 s (one of the game's screens, another mod, a
+  window switch), so the mod closed it as `coop ui reset` does and gave the game its keys back. Who is `menu`, `chat`,
+  `code`, `ask` (the host's question, answered with Deny) or `saves` (the co-op saves' question, closed as Decide
+  later). A click of the middle or a side mouse button does this too. Open the menu again. If it closes this way with
+  nothing else on screen, send `UE4SS.log` with a note of what you did just before. See
+  [usage.md: Focus watchdog](usage.md#focus-watchdog).
+- No watchdog line: the menu also closes when the game pauses or shows the mouse cursor for one of its own screens
+  (EVE dies, a shop opens, your friend's photo mode pauses your game). The chat box closes the same way, and what you
+  typed is lost.
+
+### The controller does nothing in the co-op menu
+
+Look at the `pad:` lines in `coop-link.log`:
+
+- `pad: no XInput pad`: the mod sees no XInput controller. A DualSense read by the game's own PlayStation support is
+  not one: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller), restart the
+  game, and look for `pad: XInput pads connected: 0` (or another slot number).
+- `pad: no XInput in System32: no controller in the co-op menu`: Windows' `xinput1_4.dll` and `xinput9_1_0.dll` were
+  not found in System32. The mod never loads them from the game folder, where other tools put their own
+  `xinput1_3.dll`.
+- `Native pad unavailable (no controller in the co-op menu)` in `UE4SS.log`: `StellarCoop.dll` is older than the
+  scripts. Install the whole folder of one version again.
+- `pad: XInput pads connected: ...` and still nothing: hold View for a full second, in a world with the game's HUD
+  shown. The mod reads the controller only while the game's window is in front. If the menu cannot open, the same
+  `STOP:` line as for F5 shows. The host's question takes no controller input, and in the chat box and the code box
+  only B acts (it closes them).
+
+### Turn the spawn filter off
+
+The spawn filter (`spawn_filter`, the guest's own setting, off by default) has not been tested in game. If the game
+misbehaves with it on (a crash, a door or a zone event that waits for enemies that never come), close the game, set
+`spawn_filter=off` in the guest's `coop-settings.txt` and start again. `coop off` puts the game's pointer back at once,
+until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: the `spawn filter` lines name each
+enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stats:` lines count `filter <n> seen, <n>
+refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
+or the page would not become writable), and every spawn went on as with it off. See
+[usage.md: Spawn filter](usage.md#spawn-filter-experimental).
 
 ### Screen notices stopped
 
@@ -363,13 +404,14 @@ With same place on, the guest's copy of a boss follows the host's through the li
 A shared enemy dies in your game only if you took part in its fight ([usage.md: Shared
 enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit, that never targeted
 you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy stays alive at full HP,
-and its kill, loot and achievements do not reach your save. Fight it yourself to get them. The guest's `coop-link.log`
-says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says `fight kill-unshared <key> hguid=<n> not
-taken part`, and the `fight stats:` lines in `coop-fight.log` count them as `not taken part`. With `kill_credit=fought`
-the 30 m do not count, and they never count while your EVE is down. A `kill_credit=all` line from 0.4.0-beta.1 reads as
-`together`. A `fight last player <key> set by a mirrored crowd control` line means that a knockdown the other player
-started made the game record your EVE as that enemy's last player. The mod then stops counting that record for this
-enemy, so only your hit or the 30 m make its kill yours.
+and its kill, loot and achievements do not reach your save. Fight it yourself to get them. As the guest, while same
+spawns run (within 100 m of each other in one zone), the host's next drop line removes that copy a few seconds later
+instead, without a kill. The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the
+host's says `fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count
+them as `not taken part`. With `kill_credit=fought` the 30 m do not count, and they never count while your EVE is down.
+A `kill_credit=all` line from 0.4.0-beta.1 reads as `together`. A `fight last player <key> set by a mirrored crowd
+control` line means that a knockdown the other player started made the game record your EVE as that enemy's last player.
+The mod then stops counting that record for this enemy, so only your hit or the 30 m make its kill yours.
 
 ### Travel to the host does not start
 
@@ -453,6 +495,12 @@ Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
 `coop fight spawn probe` checks the reads on one PC: each shared enemy in your zone gets a `fight spawns probe <key>`
 line in `coop-link.log` saying whether same spawns would handle it. For a report, keep `coop-link.log` and
 `coop-fight.log` from both PCs.
+
+An enemy that the host's game lacks still appears for a moment on the guest's screen after her death or a camp rest,
+then vanishes: that is same spawns with the spawn filter off, its default. With `spawn_filter=on` on her PC it stays
+away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
+`coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
+[usage.md: Spawn filter](usage.md#spawn-filter-experimental)).
 
 ### `Co-op saves off for this load: <why>`
 

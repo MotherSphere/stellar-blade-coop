@@ -76,6 +76,9 @@ together. Two games with different protocols cannot link, and the player who tri
   below). While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
   ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
   page with the same session rows. See [usage.md](docs/usage.md#co-op-menu).
+- On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
+  and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
+  [usage.md](docs/usage.md#controller).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
 - `F9` sets a checkpoint while you record a Doro race track. See [usage.md](docs/usage.md#doro-races).
@@ -168,8 +171,11 @@ Load Game and every save the game makes go to them.
 On the title screen, once the mod's on-screen UI has loaded (a few seconds), the mod asks how to play. If you choose
 Continue or Load Game before it shows, the game loads your own save, and the question comes back at the next title
 screen. Up and down arrows (or W, Z and S) move, Enter selects, Esc is Decide later, and a left click selects the
-choice under the mouse. A controller cannot answer it: after 60 s with no key, the question closes as Decide later. To
-play with a controller only, set `auto_coop_save` to `always` or `off`.
+choice under the mouse. On a controller, the D-pad or the left stick moves, A selects and B is Decide later. For 1 s
+after the question shows, Enter, Space, A and a click do nothing, so a press meant for the title screen does not
+answer it. The mod reads XInput controllers (Xbox controllers, the Steam Deck, any controller under Steam Input); a
+DualSense needs Steam Input on for Stellar Blade (see [usage.md](docs/usage.md#controller)). With no answer for 60 s,
+the question closes as Decide later.
 
 - Convert and play co-op (Play co-op once copies exist): the mod copies your saves, then switches the game to the
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into

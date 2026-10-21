@@ -17,7 +17,8 @@ client that the game already runs, so the mod needs no other program and no serv
   Options can limit the session to invited friends, or open it to anyone who has its 7-character join code, with no
   dialog. A player who is not the host's Steam friend waits until the host accepts them. The invited friend joins once
   their save has loaded, even if Steam had to start their game. The menu also invites, joins, leaves and changes the
-  settings. F6 shows the status and F8 leaves the session.
+  settings. F6 shows the status and F8 leaves the session. On an XInput controller (an Xbox controller, the Steam Deck,
+  or any controller under Steam Input), View held for 1 s opens the menu, and the mouse works in it too.
 - At a camp phone booth (any full camp, Xion's booths, the Wasteland and Great Desert warp phones), F5 opens the co-op
   line: the menu's session rows, Co-op menu and Hang up, and a sentence that says whether the line is free, open or
   linked with your friend. The booth's own fast travel works as before. The line is not tested in game yet.

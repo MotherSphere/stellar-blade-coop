@@ -98,6 +98,25 @@ menu.move(CODE,-1); menu.move(CODE,-1)
 assert(menu.select(CODE,61)=='confirm_leave','Not after a first Select on Remove')
 menu.move(CODE,1); menu.move(CODE,1); menu.move(CODE,1)
 assert(menu.select(CODE,61.5)=='confirm_remove','Moving forgets it')
+-- The mouse on a row (point, one of rows()): the cursor on it, true when it moved there; a header or a row not shown,
+-- nothing. A first Select on Leave or Remove stays while the mouse points at that same row only.
+menu=M.new()
+local rows=menu.rows(CODE) -- head:session leave invite copy remove chat head:settings options head:help report close
+assert(menu.point(CODE,rows[4])==true and menu.current(CODE).id=='copy','The row under the mouse')
+assert(menu.point(CODE,rows[4])==false,'Already there')
+assert(menu.point(CODE,rows[1])==false and menu.current(CODE).id=='copy','A header: nothing')
+assert(menu.point(CODE,M.MAIN[2])==false and menu.current(CODE).id=='copy','Host, not shown while we host: nothing')
+assert(menu.select(CODE,70)=='copy')
+menu.point(CODE,rows[5])
+assert(menu.select(CODE,71)=='confirm_remove')
+menu.point(CODE,rows[5])
+assert(menu.select(CODE,72)=='remove','The same row: the first Select kept')
+assert(menu.select(CODE,73)=='confirm_remove')
+menu.point(CODE,rows[2]); menu.point(CODE,rows[5])
+assert(menu.select(CODE,74)=='confirm_remove','Another row in between: forgotten')
+menu.point(CODE,rows[2])
+assert(menu.select(CODE,75)=='confirm_leave' and menu.point(CODE,rows[3]) and menu.point(CODE,rows[2])
+    and menu.select(CODE,76)=='confirm_leave','Leave too')
 
 -- The Options tree: every row a header or a setting with a unique name the file can hold, and a default it takes.
 local names={}

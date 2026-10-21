@@ -502,6 +502,26 @@ int main() {
                           "fight on spawns extra -1", "fight on spawns extra x", "fight on extra 2 spawns",
                           "fight on spawns extra 2 extra 2", "fight on 1 extra 2", "fight off extra 2"})
     assert(parse_request(bad).command == Command::none);
+  // The spawn filter (spawn_filter=on, the guest's own) as "filter" after spawns and extra, before the ids, with on
+  // and probe only (the probe's: coop fight spawn probe); none: off.
+  f = parse_request("fight on scale 135 115 spawns extra 2 filter 15011001");
+  assert(f.fight == Fight::on && f.spawns && f.extra == 2 && f.filter && (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight on filter");
+  assert(f.command == Command::fight && f.filter && !f.spawns && f.extra == 0 && f.chars.empty());
+  f = parse_request("fight on spawns filter 15011001 2");
+  assert(f.spawns && f.filter && (f.chars == std::vector<uint32_t>{15011001, 2}));
+  f = parse_request("fight probe spawns filter 15011001");
+  assert(f.fight == Fight::probe && f.spawns && f.filter && (f.chars == std::vector<uint32_t>{15011001}));
+  f = parse_request("fight probe filter");
+  assert(f.fight == Fight::probe && f.filter && !f.spawns);
+  assert(!parse_request("fight on spawns extra 2").filter && !parse_request("fight probe spawns").filter &&
+         !parse_request("fight on 1").filter);
+  for (const char *bad : {"fight on filter spawns", "fight on filter extra 2", "fight on spawns filter extra 2",
+                          "fight on filter filter", "fight on 1 filter", "fight on Filter", "fight on filters",
+                          "fight probe filter spawns", "fight record filter", "fight replay filter",
+                          "fight record spawns filter", "fight off filter", "fight status filter",
+                          "fight pilot filter"})
+    assert(parse_request(bad).command == Command::none);
   // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
   // too), its status, how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before), the
   // force target test, the takedown test and the boss tests.

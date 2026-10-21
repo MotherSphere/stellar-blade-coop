@@ -45,6 +45,8 @@
 -- Doro playing each of its clips (doro.lua; test tools, left out of the usage line; both start on a co-op save only);
 -- coop race record <name>|cp|save [laps]|cancel|start <name>|quit, Doro races on a track you record (race.lua; race_key
 -- drops a checkpoint while you record; start on a co-op save only). coop off stops everything until the game restarts.
+-- An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or
+-- closes the menu.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -60,6 +62,16 @@ if loaded then
     local f,tick_why=package.loadlib(folder..'\\StellarCoop.dll','coop_tick')
     if type(f)=='function' then native_tick=f else log('Native tick unavailable: '..tostring(tick_why)) end
 end
+-- The XInput pad, read by the native part: UE4SS binds keyboard keys only, and while the menu or a question holds the
+-- game's input the game ignores the pad. An older DLL without it: said once, no pad.
+local native_pad=nil
+if loaded then
+    local f,pad_why=package.loadlib(folder..'\\StellarCoop.dll','coop_pad')
+    if type(f)=='function' then native_pad=f
+    else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
+end
+-- The DLL links no Lua: its event (0 for none) is how many of these seven arguments it hands back.
+local function pad() return select('#',native_pad(0,0,0,0,0,0,0)) end
 local link=loaded and require('link').new(folder) or nil
 local settings=nil
 if link then
@@ -85,7 +97,8 @@ if settings then
         ..(settings.same_place and 'on' or 'off')..' (experimental), same spawns '
         ..(settings.same_spawns and 'on' or 'off')..' (experimental), extra enemies '..settings.enemy_extra
         ..', bosses '..(settings.bosses and 'on' or 'off')..' (experimental), boss HP '
-        ..math.floor(settings.boss_hp_scale*100+0.5)..' %')
+        ..math.floor(settings.boss_hp_scale*100+0.5)..' %, spawn filter '..(settings.spawn_filter and 'on' or 'off')
+        ..' (experimental)')
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
@@ -103,6 +116,13 @@ local notice=require('notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
 -- host's question: with the Steam link.
 local kit,menu,box,hud,saves_ui,code_box,approval
+-- coop ui reset and the focus watchdog: the menu, the chat's box and the code box closed, an open host's question
+-- denied, the co-op saves' question closed as Decide later, the game's input given back now and the menu's mouse
+-- cursor put back; why, when given, logged.
+local function ui_reset(why)
+    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(); kit.reset()
+    if why then log(why) end
+end
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
 -- the UI is off or failed. en: the same line in English (T.en's words), which that line shows when its font cannot
 -- draw the other.
@@ -427,7 +447,8 @@ local commands={
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
     -- (the modes that can host), and same_place=on as "place", aggro=host as "aggro-host" and bosses=on as "bosses" and
     -- boss_hp_scale in whole percents after them, then with on only same_spawns=on as "spawns", and with it an
-    -- enemy_extra above 0 as "extra" and its number. status answers
+    -- enemy_extra above 0 as "extra" and its number, then with on and spawn probe the guest's own spawn_filter=on as
+    -- "filter". status answers
     -- with the fight= line; pilot is same-place enemies' own (pilot above). spawn probe is the probe with "spawns"
     -- before the ids: same spawns' reads alone (stage 4), whatever same_spawns says; its state is the fight= line's
     -- spawns=.
@@ -462,6 +483,7 @@ local commands={
                         and ' extra '..settings.enemy_extra or '')
             end
             if spawn_probe then line=line..' spawns' end
+            if (sub=='on' or spawn_probe) and settings.spawn_filter then line=line..' filter' end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end
@@ -548,7 +570,7 @@ local commands={
                 menu.stop(); box.stop(); code_box.stop(); kit.stop()
                 return true,'co-op UI off until the mod reloads: notices on the line above EVE'
             end
-            menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(); kit.reset()
+            ui_reset()
             return true,'co-op UI reset: menu and chat closed, the game has its input back'
         end
         if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then
@@ -694,6 +716,33 @@ local function inbox()
         end
     end
 end
+-- A pad event, routed as the keys route theirs (the key block below): the menu open takes the six navigation words, and
+-- menu (View held 1 s) closes it; the co-op saves' question takes up, down, select and back; with nothing open, in a
+-- world with our HUD shown, menu opens the co-op menu as menu_key does, its refusals said the same way. Nothing while
+-- the host's question is open (A is Jump and the D-pad uses items: a press meant for the game never answers a
+-- stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The chat's box and the code
+-- box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad alone is never stuck there.
+local PAD={'up','down','left','right','select','back','menu'}
+local function pad_event(what)
+    if approval.is_open() then return end
+    if code_box.is_open() or box.is_open() then
+        if what=='back' then (code_box.is_open() and code_box or box).cancel() end
+        return
+    end
+    if menu.is_open() then
+        if what~='menu' then return menu.nav(what) end
+        if menu.capturing() then return end
+        log('pad: menu')
+        return menu.toggle()
+    end
+    if saves_ui.is_open() then
+        if what=='up' or what=='down' or what=='select' or what=='back' then saves_ui.nav(what) end
+    elseif what=='menu' and hud_shown then
+        log('pad: menu')
+        local ok,why,shown,en=menu.toggle(booth.near(puppet.me()))
+        if why then report(ok,why); say(shown or why,en) end
+    end
+end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
@@ -738,6 +787,13 @@ LoopInGameThreadWithDelay(1,function()
         approval.tick(now)
         saves_ui.tick(now)
         hud.tick(now)
+        if native_pad then -- At most 8 pad events a frame, the native part's whole ring.
+            for _=1,8 do
+                local what=PAD[pad()]
+                if not what then break end
+                pad_event(what)
+            end
+        end
         if chat_asked and now>=chat_asked+0.1 then
             local asked=chat_asked
             chat_asked=nil
@@ -1050,6 +1106,11 @@ if link then
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
+            local dropped,who=kit.lost() -- The focus watchdog fired: as coop ui reset, nothing said on screen.
+            if dropped then
+                ui_reset('focus watchdog: '..who..' lost the focus for 1 s: co-op UI closed, the game has its input '
+                    ..'back')
+            end
             menu.slow(shown,not (box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open())
                 and booth.near(puppet.me()) or nil)
             booth.tick(os.clock(),shown and kit.ready() and not kit.off() and not kit.paused() and not menu.is_open()
@@ -1079,11 +1140,16 @@ end
 -- menu's key capture, then selects; the navigation keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow,
 -- W or Z; down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc), and to the co-op saves'
 -- question while it is open. The code box takes Enter (join) and Esc (cancel). With all closed, Enter opens the chat's
--- box, then sends, and Esc cancels; while the question or a box is open our F-keys do nothing. A key callback runs on
+-- box, then sends, and Esc cancels; while the question or a box is open our F-keys do nothing. The mouse buttons are
+-- the menu's while it is open (a left click selects the row under the mouse, a right click goes back), then the left
+-- one the co-op saves' question's (the choice under the mouse); closed, they are the game's. A key callback runs on
 -- UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop off included)
 -- apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a Shift+F5, the
 -- plain press that follows at once is the same press, dropped. The status key gives a one-line summary, in the log in
--- English and on screen in the menu's words; coop status keeps the full status.
+-- English and on screen in the menu's words; coop status keeps the full status. An XInput pad, which no bind can take,
+-- comes through the native part (pad_event above, each frame): View held 1 s does what menu_key does, the D-pad or the
+-- left stick, A and B navigate the menu and the co-op saves' question, B closes the chat's box and the code box; never
+-- the host's question.
 if settings then
     local K=require('keybind')
     local ACTIONS={'menu','host','status','leave','follow','race'}
@@ -1168,10 +1234,20 @@ if settings then
         elseif code_box.is_open() then ExecuteInGameThread(code_box.cancel)
         elseif box.is_open() then ExecuteInGameThread(box.cancel) end
     end)
-    -- A left click answers the co-op saves' question with the choice under the mouse (the kit's input leaves Slate the
-    -- mouse, and UE4SS calls the bind whatever has it); no gamepad button can be bound.
+    -- A left click selects the co-op menu's row under the mouse, or answers the co-op saves' question with the choice
+    -- under it; a right click goes back in the menu (the kit's input leaves Slate the mouse, and UE4SS calls the binds
+    -- whatever has it). While our UI holds the game's input, either button first has the kit put our focus back (a
+    -- click on none of our widgets gives it to the game's viewport). No gamepad button can be bound: the pad comes
+    -- through the native part.
     bind('LEFT_MOUSE_BUTTON',nil,function()
-        if saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('click') end) end
+        if not (kit.holding() or menu.is_open() or saves_ui.is_open()) then return end
+        ExecuteInGameThread(function()
+            kit.click()
+            if menu.is_open() then menu.nav('click') elseif saves_ui.is_open() then saves_ui.nav('click') end
+        end)
+    end)
+    bind('RIGHT_MOUSE_BUTTON',nil,function()
+        if kit.holding() or menu.is_open() then ExecuteInGameThread(function() kit.click(); menu.nav('back') end) end
     end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)

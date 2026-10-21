@@ -45,6 +45,11 @@
 // stops all of it for the run and, when it was in this DLL, puts every copy back once. coop fight pilot off turns it
 // off on this side until the next start.
 //
+// The spawn filter (spawn_filter=on, the guest's own, off by default) swaps one pointer of the game's image, once a
+// run: the Execute slot of SB's spawn request vtable, for a hook that refuses a request whose key the shared fight's
+// engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
+// first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
+//
 // The shared quests (Phase 12, quest_engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
 // SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
 // through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands the game
@@ -61,6 +66,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
+#include <xinput.h>
 
 #include <array>
 #include <atomic>
@@ -76,6 +82,7 @@
 #include "fight_engine.h"
 #include "link_protocol.h"
 #include "nightop_probe.h"
+#include "pad.h"
 #include "photo_freeze.h"
 #include "pose_codec.h"
 #include "pose_engine.h"
@@ -98,6 +105,13 @@ std::atomic<int> current_part{-1}; // The part being read or written, for the fa
 std::atomic<bool> effects_on{true};
 std::atomic<uint64_t> fx_fault_code{0}, fx_fault_rva{0}, fx_fault_address{0};
 std::atomic<int> fx_fault_part{-1};
+// The XInput pads (coop_pad): the worker loads XInputGetState once, the game thread polls it. pad_seen is the game
+// thread's last read for the worker's log: the slots connected as bits, kPadUnread before the first poll, kPadMissing
+// when System32 has no XInput.
+using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
+std::atomic<XInputGetStateFn> xinput_get{nullptr};
+constexpr int kPadUnread = -1, kPadMissing = -2;
+std::atomic<int> pad_seen{kPadUnread};
 
 // What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings), while a
 // recording is made or while a friend is linked.
@@ -1337,6 +1351,7 @@ std::function<void(const std::string &)> say = [](const std::string &) {}; // wo
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
      warp_fault_logged = false;
+int pad_logged = kPadUnread; // pad_seen as last logged.
 // The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its
 // number), for the call's log line.
 bool travel_fault_logged = false, travel_globals_logged = false;
@@ -1732,6 +1747,28 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     travel_pinned = pinned; // And for the follow's travel call.
     pilot_pinned = pinned;  // The same for the pilot's capture.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
+    // XInput for coop_pad, from System32 only: the game's folder holds another tool's xinput1_3.dll proxy.
+    HMODULE xinput = LoadLibraryExW(L"xinput1_4.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!xinput)
+      xinput = LoadLibraryExW(L"xinput9_1_0.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (const FARPROC get = xinput ? GetProcAddress(xinput, "XInputGetState") : nullptr)
+      xinput_get = reinterpret_cast<XInputGetStateFn>(reinterpret_cast<void *>(get));
+    else
+      pad_seen = kPadMissing;
+  }
+  // Each change of the pads coop_pad sees, so a test's log says whether the pad is read.
+  if (const int seen = pad_seen; seen != pad_logged) {
+    pad_logged = seen;
+    std::string line = "pad: no XInput pad";
+    if (seen == kPadMissing)
+      line = "pad: no XInput in System32: no controller in the co-op menu";
+    else if (seen > 0) {
+      line = "pad: XInput pads connected:";
+      for (int slot = 0; slot < 4; ++slot)
+        if (seen & (1 << slot))
+          line += " " + std::to_string(slot);
+    }
+    event(line);
   }
   if (faulted && !fault_logged) {
     fault_logged = true;
@@ -2446,6 +2483,184 @@ std::string pilot_status() {
          (test < uint8_t(PilotTest::replay) ? std::string(" test=") + kTests[test] : std::string()) + why;
 }
 
+namespace {
+// ---- The spawn filter (spawn_filter=on, the guest's) ----
+// SB's SpawnRequest vtable (.rdata 0x145c10018) holds its destructor, then Execute (0x141c10a90) in the slot at
+// 0x145c10020. RequestSpawn (FUN_141c1ca40) calls Execute directly only while the slot holds it, and through the slot
+// otherwise; the consumer of its delayed queue (FUN_141c1cd20) always calls through the slot; neither has a CFG check.
+// So one aligned 8-byte store into the slot routes both call sites through filter_execute from then on, and no
+// instruction byte of the game changes. The worker makes it once a run, by a compare-and-swap from Execute only, and
+// undoes it at coop off and after a fault in the hook, by a compare-and-swap from our hook only: another mod's value
+// is never overwritten. The DLL is pinned (never unloaded), so a thread still inside the hook after the undo is safe.
+constexpr uint64_t kSpawnSlot = 0x145c10020, kExecute = 0x141c10a90, kRowByName = 0x141a9a780;
+// SpawnRequest: its row's name (an FName, +0x28) and the SpawnIndex byte Execute passes NewActor (+0x30); the
+// EventSpawnTable row: the EventSpawnId Execute passes NewActor (+0x10).
+constexpr size_t kRequestName = 0x28, kRequestIndex = 0x30, kRowSpawnId = 0x10;
+using Execute = void *(*)(void *request);
+// The table holder (DAT_147032510, which the getter FUN_141a97f20 returns; never called here, since it makes one when
+// none is made), an unused argument and the row's name: the EventSpawnTable row, or null. It runs the row's lazy init,
+// as Execute's own first call does.
+using RowByName = void *(*)(void *holder, uint64_t unused, const void *name);
+enum class Filter : uint8_t { untried, on, refused, off };
+Filter filter_state = Filter::untried; // The worker's.
+std::atomic<bool> filter_faulted{false};
+std::atomic<uint64_t> filter_fault_code{0}, filter_fault_rva{0}, filter_fault_address{0};
+bool filter_fault_logged = false;
+// The keys the hook refused, for the worker's log: a ring of 16 entries, each the low 24 bits of its push number + 1
+// << 40 | spawnId << 8 | index, so the worker skips an entry not written yet (a slot still 0 too) or already written
+// over.
+constexpr uint64_t kFilterRing = 16;
+std::atomic<uint64_t> filter_ring[kFilterRing] = {}, filter_pushed{0};
+uint64_t filter_read = 0, filter_unlogged = 0; // The worker's.
+// The keys the log named while the gate stays open (the worker's): SB asks again for a refused spawn after its
+// interval, so each key is named once and later refusals show only in the stats line's count.
+// ponytail: kMaxKeys names at most; past that, new keys count as not listed.
+std::vector<uint64_t> filter_named;
+
+// The request's key as Execute finds it (spawnId << 8 | index), or 0 when its row is not found. Out of line, since
+// clang-cl catches a fault only in a function the __try calls.
+__declspec(noinline) uint64_t filter_key_body(const uint8_t *request) {
+  void *const holder = *reinterpret_cast<void *const *>(base + (fight::kTables - nightop::kImageBase));
+  const auto *row = holder ? static_cast<const uint8_t *>(
+                                 game_function<RowByName>(kRowByName)(holder, 0, request + kRequestName))
+                           : nullptr;
+  if (!row)
+    return 0;
+  uint32_t id = 0;
+  std::memcpy(&id, row + kRowSpawnId, sizeof id);
+  return uint64_t(id) << 8 | request[kRequestIndex];
+}
+// Under the filter's own latch: after its first fault every request goes straight to Execute, and the worker swaps
+// the slot back.
+uint64_t filter_key(const uint8_t *request) {
+  __try {
+    return filter_key_body(request);
+  } __except (fault_filter(GetExceptionInformation(), filter_fault_code, filter_fault_rva, filter_fault_address)) {
+    filter_faulted = true;
+    return 0;
+  }
+}
+// The slot's target once swapped, on whichever thread SB spawns from: Execute, as SB would call it, unless the gate is
+// open (fight::Engine::filtering: the guest's session asked with filter, or coop fight spawn probe) and the engine's
+// table holds the request's key. That request gets null, which every caller takes (the immediate path returns it,
+// the delayed one ignores it), and is counted and pushed for the log. Execute reads RCX only, so a one-argument hook
+// forwards all it needs; it runs outside the guard, so a fault inside the game's own code is never taken for ours.
+void *filter_execute(void *request) {
+  const auto execute = game_function<Execute>(kExecute);
+  if (filter_faulted || !fight_engine.filtering())
+    return execute(request);
+  fight::BlockTable &table = fight_engine.blocks();
+  ++table.seen;
+  const uint64_t key = filter_key(static_cast<const uint8_t *>(request));
+  if (!key || !table.has(uint32_t(key >> 8), uint8_t(key)))
+    return execute(request);
+  ++table.refused;
+  const uint64_t n = filter_pushed.fetch_add(1);
+  filter_ring[n % kFilterRing] = ((n + 1) & 0xffffff) << 40 | key;
+  return nullptr;
+}
+// The slot's address in the game, as the decompiles name it, and what a value in it points at.
+const char kSlotName[] = "0x145c10020";
+std::string slot_value(uint64_t value) {
+  char text[64];
+  if (value - base < kSizeOfImage)
+    std::snprintf(text, sizeof text, "0x%llx in the game",
+                  static_cast<unsigned long long>(value - base + nightop::kImageBase));
+  else
+    std::snprintf(text, sizeof text, "0x%llx outside the game", static_cast<unsigned long long>(value));
+  return text;
+}
+// The slot's compare-and-swap from from to to, its page writable for the store only: what the slot held (from when
+// the swap was made), or false when the page's protection would not change.
+bool swap_slot(uint64_t from, uint64_t to, uint64_t &held) {
+  void *const slot = reinterpret_cast<void *>(base + (kSpawnSlot - nightop::kImageBase));
+  DWORD old = 0;
+  if (!VirtualProtect(slot, sizeof(uint64_t), PAGE_READWRITE, &old))
+    return false;
+  held = static_cast<uint64_t>(InterlockedCompareExchange64(static_cast<volatile LONG64 *>(slot),
+                                                            static_cast<LONG64>(to), static_cast<LONG64>(from)));
+  VirtualProtect(slot, sizeof(uint64_t), old, &old);
+  return true;
+}
+uint64_t execute_address() { return base + (kExecute - nightop::kImageBase); }
+uint64_t hook_address() { return reinterpret_cast<uintptr_t>(&filter_execute); }
+// Once a run, on the worker thread, when the gate first opens on the pinned build before coop off and before a fault
+// of the hook: the slot swapped from Execute to the hook. A slot that holds anything else (another mod's hook) is
+// refused and never written.
+void filter_install() {
+  const uint64_t execute = execute_address();
+  uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (kSpawnSlot - nightop::kImageBase));
+  const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(execute, hook_address(), held);
+  const bool on = page_ok && held == execute;
+  filter_state = on ? Filter::on : Filter::refused;
+  fight_engine.blocks().installed = on;
+  if (on)
+    say(std::string("spawn filter on: ") + kSlotName + " swapped from the game's Execute to our filter");
+  else if (slot_ok && !page_ok)
+    say("spawn filter refused: the page of " + std::string(kSlotName) + " would not become writable (error " +
+        std::to_string(GetLastError()) + "); every spawn goes on as without the filter");
+  else
+    say("spawn filter refused: " + std::string(kSlotName) + " holds " + slot_value(held) +
+        ", not the game's Execute (another mod's hook?); left as it is, every spawn goes on as without the filter");
+}
+// The slot back to Execute by a compare-and-swap from our hook only, at coop off and after a fault of the hook. If the
+// swap cannot be made, the hook stays and passes every request on: the gate is shut at coop off, and the latch after
+// a fault.
+void filter_undo(const char *why) {
+  if (filter_state != Filter::on)
+    return;
+  filter_state = Filter::off;
+  fight_engine.blocks().installed = false;
+  uint64_t held = 0;
+  if (!swap_slot(hook_address(), execute_address(), held))
+    say(std::string("spawn filter off (") + why + "): the page of " + kSlotName +
+        " would not become writable; our filter stays in it and passes every spawn on");
+  else if (held == hook_address())
+    say(std::string("spawn filter off (") + why + "): " + kSlotName + " holds the game's Execute again");
+  else
+    say(std::string("spawn filter off (") + why + "): " + kSlotName + " holds " + slot_value(held) +
+        ", left as it is");
+}
+// Each fight pass, on the worker thread: the hook's fault said once (and the slot swapped back), the swap when the
+// gate first opens, and the keys the hook refused since the last pass that the log has not named yet.
+void filter_pass() {
+  if (filter_faulted && !filter_fault_logged) {
+    filter_fault_logged = true;
+    char text[300];
+    std::snprintf(text, sizeof text, "spawn filter fault 0x%08llx in %s reading 0x%llx: off for this run",
+                  static_cast<unsigned long long>(filter_fault_code.load()), fault_where(filter_fault_rva).c_str(),
+                  static_cast<unsigned long long>(filter_fault_address.load()));
+    say(text);
+    filter_undo("a fault");
+  }
+  const bool gate = fight_engine.filtering();
+  if (filter_state == Filter::untried && pinned && !blocked && !filter_faulted && gate)
+    filter_install();
+  if (!gate)
+    filter_named.clear();
+  const uint64_t pushed = filter_pushed;
+  if (pushed - filter_read > kFilterRing)
+    filter_unlogged += pushed - filter_read - kFilterRing, filter_read = pushed - kFilterRing;
+  for (; filter_read < pushed; ++filter_read) {
+    const uint64_t entry = filter_ring[filter_read % kFilterRing], key = entry & 0xffffffffffull;
+    if (entry >> 40 != ((filter_read + 1) & 0xffffff)) {
+      ++filter_unlogged;
+      continue;
+    }
+    if (std::find(filter_named.begin(), filter_named.end(), key) != filter_named.end())
+      continue;
+    if (filter_named.size() == fight::kMaxKeys) {
+      ++filter_unlogged;
+      continue;
+    }
+    filter_named.push_back(key);
+    say("spawn filter refused " + std::to_string(uint32_t(key >> 8)) + ":" + std::to_string(key & 0xff));
+  }
+  if (filter_unlogged)
+    say("spawn filter: " + std::to_string(std::exchange(filter_unlogged, 0)) + " more refused, not listed");
+}
+} // namespace
+
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool), coop::Life mate) {
   fight_send = send;
@@ -2471,6 +2686,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   if (now_ms >= next_photo)
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
   fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo, mate);
+  filter_pass();
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();
 }
@@ -2608,6 +2824,7 @@ void block() {
   engine_on = false;
   quest_worker.block(); // Its side ends; the game thread's passes stop with it.
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
+  filter_undo("coop off");
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
@@ -2647,7 +2864,54 @@ std::string status() {
       c = ' ';
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
+
+namespace {
+// The pads, the game thread's (coop_pad): pad.h's PadSlots picks the slots to ask.
+constexpr uint64_t kPadPollMs = 8;
+coop::Pad pad;
+coop::PadSlots pad_slots;
+uint64_t pad_next_poll = 0;
+
+void poll_pad(uint64_t now) {
+  const XInputGetStateFn get = xinput_get;
+  if (!get)
+    return; // Not loaded yet (the worker's first pass), or no XInput.
+  // XInput answers whatever window is in front: with another program's there, the pad is that program's. Nothing is
+  // read, and the held state goes (a disconnect for pad.h), so nothing acts on a menu the player cannot see.
+  DWORD owner = 0;
+  if (!GetWindowThreadProcessId(GetForegroundWindow(), &owner) || owner != GetCurrentProcessId()) {
+    pad.step(coop::PadState{}, now);
+    return;
+  }
+  const coop::PadState s = pad_slots.poll(now, [get](unsigned slot, coop::PadState &one) {
+    XINPUT_STATE x{};
+    if (get(slot, &x) != ERROR_SUCCESS) // ERROR_DEVICE_NOT_CONNECTED, or any other failure the same way.
+      return false;
+    one.buttons = x.Gamepad.wButtons;
+    one.lx = x.Gamepad.sThumbLX;
+    one.ly = x.Gamepad.sThumbLY;
+    return true;
+  });
+  pad_seen = pad_slots.answered();
+  pad.step(s, now);
+}
+} // namespace
 } // namespace coop::pose
+
+// Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 7 arguments and gets that many of them
+// back, 0 for none or pad.h's event 1 to 7, so this never returns more than 7. Polls the pads at most once per 8 ms, so
+// Lua can take several events in one frame. Never throws, never waits.
+extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
+  using namespace coop::pose;
+  const uint64_t now = GetTickCount64();
+  if (now >= pad_next_poll) {
+    pad_next_poll = now + kPadPollMs;
+    poll_pad(now);
+  }
+  const int event = pad.next();
+  return event >= 0 && event <= 7 ? event : 0;
+}
 
 // Called by Lua once per frame (package.loadlib(dll, "coop_tick")), in lua_CFunction's shape: the Lua state is
 // ignored and nothing is returned to Lua. Never throws, never waits.

@@ -1,20 +1,21 @@
 -- The co-op menu (UI-DESIGN 4.1, D-UI2, D-UI4): ui_model.lua's two pages drawn with the Uplink kit (ui.lua), opened and
 -- closed by menu_key, in a world only and never while the game is paused or shows the mouse cursor (one of its
 -- screens). While it is open the game ignores its own keys (the kit's input), and main.lua's binds hand it the
--- navigation keys: up, down, left and right to move and change, select and back (each a no-op while it is closed). Its
--- rows run the console commands (Host and Invite close it first: the Steam overlay takes the focus); Leave and Remove
--- <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code shows our join code and
--- asks the native part to copy it; Chat (in a session) and Join with a code close it and open the chat's box or the
--- code box (join.lua). A setting changed on the Options page rewrites its own line of coop-settings.txt (link.lua
--- keeps the file as it was as coop-settings.old.txt) and applies at once, but the name tag, at the next load; a key
--- row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while open: the status line,
--- the rows of the session's state and, unless a row said something, the newest notice (the feed hides under the
--- menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit off, it closes. The
--- game's input comes back 150 ms after a close, so the key that closed it (Esc would open the pause menu) never
--- reaches the game, and is asked again each 250 ms while closed until the kit has given it. Within 3 m of a camp phone
--- booth (booth.lua) a hint shows the menu key, which opens the co-op line instead: the main page's session rows, Co-op
--- menu (the main page) and Hang up, over a sentence that says whether the line is free, open or linked. No engine call
--- here: the kit makes them.
+-- navigation keys: up, down, left and right to move and change, select and back (each a no-op while it is closed); and
+-- the mouse, which the kit shows: the row it moves onto takes the focus, a left click selects the row under it, a right
+-- click goes back. Its rows run the console commands (Host and Invite close it first: the Steam overlay takes the
+-- focus); Leave and Remove <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code
+-- shows our join code and asks the native part to copy it; Chat (in a session) and Join with a code close it and open
+-- the chat's box or the code box (join.lua). A setting changed on the Options page rewrites its own line of
+-- coop-settings.txt (link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, but the name tag,
+-- at the next load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms while
+-- open: the status line, the rows of the session's state and, unless a row said something, the newest notice (the feed
+-- hides under the menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit off,
+-- it closes. The game's input comes back 150 ms after a close, so the key that closed it (Esc would open the pause
+-- menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it. Within 3 m of a
+-- camp phone booth (booth.lua) a hint shows the menu key, which opens the co-op line instead: the main page's session
+-- rows, Co-op menu (the main page) and Hang up, over a sentence that says whether the line is free, open or linked. No
+-- engine call here: the kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
@@ -22,6 +23,7 @@ local Join=require('join')
 local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
 local HINT_W,HINT_Y=700,1830 -- The booth hint's width and top, in the kit's 3840 by 2160 units.
+local HOVER=0.1 -- Seconds between two looks at the row under the mouse.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
 local ROW={} -- Options rows by setting name.
@@ -32,6 +34,9 @@ for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
+    -- The drawn slot under the mouse at the last look (nil: none; false: not looked at since the menu opened), and
+    -- when the next look is due.
+    local hover,hover_at=false,0
     local values,words={},T.en
     -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150. As
     -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so a value of up
@@ -79,7 +84,9 @@ function Menu.new(o)
         end
         return row.key=='ui_scale' and words.percent:format(n) or v
     end
-    -- The page as it is now, scrolled to keep the cursor's row and the one above it in view.
+    -- The page as it is now, scrolled to keep the cursor's row and the ones above and below it in view (the mouse on
+    -- the first or last slot scrolls by one).
+    -- ponytail: one row a pass of the mouse over an edge slot; bind the mouse wheel if testers find it slow.
     local function draw()
         local v=open and kit.view('menu')
         if not v then return end
@@ -89,7 +96,7 @@ function Menu.new(o)
         local at=1
         for i,row in ipairs(rows) do if row==current then at=i end end
         top=math.max(0,math.min(top,#rows-ROWS))
-        if at<=top+1 then top=math.max(0,at-2) elseif at>top+ROWS then top=at-ROWS end
+        if at<=top+1 then top=math.max(0,at-2) elseif at>=top+ROWS then top=math.min(#rows-ROWS,at-ROWS+1) end
         for i,w in ipairs(v.rows) do
             local row=rows[top+i]
             if not row then w.set('','','normal')
@@ -105,6 +112,15 @@ function Menu.new(o)
         v.status.set(link.summary(words)..(linked and ping and ' · '..ping..' ms' or ''))
         v.note.set(note or (o.chat and o.chat.notice()) or (page=='line' and line(ctx)) or '')
         for i,hint in ipairs({'move','select','back'}) do v.hints[i].set(words.hint[hint]) end
+    end
+    -- The drawn row under the mouse: its slot and the page's row there (a header, or nil for an empty slot); nil when
+    -- the mouse is over none.
+    local function under()
+        local v=kit.view('menu')
+        if not v then return nil end
+        for i,w in ipairs(v.rows) do
+            if w.hovered() then return i,model.rows(context())[top+i] end
+        end
     end
     -- A change in effect, from the file now written: every key (the file may hold another clash), else the one setting.
     local function apply(text,key)
@@ -134,6 +150,8 @@ function Menu.new(o)
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
     function self.is_open() return open end
+    -- Whether a key row waits for a key (main.lua's pad leaves it alone then, but for back).
+    function self.capturing() return open and capturing~=nil end
     -- menu_key: open, or close; when it cannot open, false, why for the log, the same for the screen in the menu's
     -- words and in English (the kit off when it took the game's input: the menu would be open unseen). at: the camp
     -- phone booth within reach (booth.near's {id, class, d}), which opens the co-op line; nil, the main page.
@@ -148,7 +166,7 @@ function Menu.new(o)
             return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused,
                 T.en.refused.paused
         end
-        model,open,capturing,note,page,back_at=M.new(at and 'line' or nil),true,nil,nil,nil,nil
+        model,open,capturing,note,page,back_at,hover=M.new(at and 'line' or nil),true,nil,nil,nil,nil,false
         values=M.read(link.settings_text() or '')
         kit.show('menu',true,os.clock())
         kit.input(true)
@@ -166,8 +184,9 @@ function Menu.new(o)
         kit.sound('close')
         back_at=os.clock()+BACK
     end
-    -- A navigation key while open: 'up', 'down', 'left', 'right', 'select' or 'back'. While a key row waits for a key,
-    -- back only, which stops waiting.
+    -- A navigation key while open: 'up', 'down', 'left', 'right', 'select' or 'back'; or 'click', a left click: the row
+    -- under the mouse takes the focus and Select runs as for Enter (on a header or no row, nothing). While a key row
+    -- waits for a key, back only, which stops waiting.
     function self.nav(what)
         if not open then return end
         if kit.off() then return self.close() end -- Unseen: no row runs.
@@ -176,6 +195,12 @@ function Menu.new(o)
             return
         end
         local ctx=context()
+        if what=='click' then
+            local _,row=under()
+            if not row or row.head then return end
+            model.point(ctx,row)
+            what='select'
+        end
         note=nil
         if what=='up' or what=='down' then
             model.move(ctx,what=='up' and -1 or 1)
@@ -241,11 +266,25 @@ function Menu.new(o)
         if not (open or back_at) then kit.input(false) end
         draw()
     end
-    -- Each frame: the game's input back, once due.
+    -- Each frame: the game's input back, once due. While open, every 100 ms: the row the mouse moved onto (another
+    -- slot than at the last look) takes the focus, so a resting mouse never takes it back from the keys, nor the row
+    -- under the mouse as the menu opens; never while a key row waits for a key.
+    -- ponytail: 15 hovered() calls a look; a mouse-moved check through GetMousePosition first if the Lua frame time
+    -- line shows a cost.
     function self.tick(now)
         if back_at and now>=back_at then
             back_at=nil
             kit.input(false)
+        end
+        if open and now>=hover_at then
+            hover_at=now+HOVER
+            local slot,row=under()
+            local moved=hover~=false and slot~=hover
+            hover=slot
+            if moved and row and not capturing and model.point(context(),row) then
+                kit.sound('move')
+                draw()
+            end
         end
     end
     -- coop off: closed (kit.stop gives the game its input back), the hint hidden.

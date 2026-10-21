@@ -340,6 +340,7 @@ local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children 
 -- Row height; tween seconds; slide units; rebuilds in a row for a root that left the viewport, then off; units an
 -- inside group keeps from the viewport's edges.
 local ROW,OPEN,CLOSE,SLIDE,LOSSES,SAFE=76,0.16,0.12,32,3,48
+local REFOCUS=0.05 -- Seconds from a mouse button to our focus put back (Slate moves the focus as it takes the press).
 -- A key hint's icon, square, as the game's photo mode draws these icons beside its text; its label's top below the
 -- icon's, so the hint style's line sits on the icon's middle.
 local KEY_ICON,KEY_TEXT=66,9
@@ -376,6 +377,11 @@ function Ui.kit(opts)
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
     local titled=false -- The title screen shows (slow's title): the input given back there is the title menu's.
+    local cursor=nil -- While the menu shows the mouse cursor: whether the game showed it before (put back after).
+    -- The focus watchdog: since the input was taken ({at=, armed=a yes read, since=the first no after it}), who it
+    -- fired for (lost() takes it), and its two lines said.
+    local watch,fired,unfocusable_said,never_said=nil,nil,false,false
+    local refocus_at=nil -- A mouse button pressed while our UI holds the game's input: when our focus goes back.
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
@@ -383,17 +389,24 @@ function Ui.kit(opts)
         local x=w and valid(w.o)
         return x and U.text(x:GetFullName())==w.name and x or nil
     end
-    -- The root's path for the next Lua load's sweep (Ctrl+R), with ' input' while the game's input is ours: that load
-    -- gives it back (the ignore-input flag lives in the game's viewport, which a Lua reload keeps).
+    -- The root's path for the next Lua load's sweep (Ctrl+R), with ' input' while the game's input is ours and
+    -- ' cursor' while the menu shows the mouse cursor: that load gives the input back and hides the cursor (the
+    -- ignore-input flag lives in the game's viewport and the cursor in its player controller, which a Lua reload
+    -- keeps).
     local function keep()
-        if built then store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')) end
+        if built then
+            store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')..(cursor~=nil and ' cursor'
+                or ''))
+        end
     end
     -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx with our root
     -- focused, the menu's keys being UE4SS binds, which read the keyboard whatever has focus; or with a text box and
     -- its keyboard focus, the chat's); off, the game's again: GameOnly in a world; at the title GameAndUIEx with no
-    -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). With no player
-    -- controller (a map loads) or no root: nothing, and the change still due (input tries again). inputting changes
-    -- before the engine call: a refused call is not tried again by the fault it raises.
+    -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). The menu (holder
+    -- nil) also shows the mouse cursor, after its input mode; the value found goes back once another holder takes the
+    -- input or it is given back. With no player controller (a map loads) or no root: nothing, and the change still due
+    -- (input tries again). inputting changes before the engine call: a refused call is not tried again by the fault it
+    -- raises.
     local function input_mode(on,field)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
@@ -407,6 +420,14 @@ function Ui.kit(opts)
             if not (titled and pcall(function() lib:SetInputMode_GameAndUIEx(pc,nil,0,false) end)) then
                 lib:SetInputMode_GameOnly(pc)
             end
+        end
+        watch=on and {at=os.clock()} or nil
+        if on and holder==nil then
+            if cursor==nil then cursor=pc.bShowMouseCursor==true end
+            pc.bShowMouseCursor=true
+        elseif cursor~=nil then
+            pc.bShowMouseCursor=cursor
+            cursor=nil
         end
         keep()
     end
@@ -717,6 +738,13 @@ function Ui.kit(opts)
         n.root.on=hit and SELF_HIT or HIT_TEST_INVISIBLE -- Mouse hits pass through, as the spike's, but a hit group's.
         n.root.v=n.root.on
         n.root.o:SetVisibility(n.root.on)
+        -- Focusable, so the input mode focuses our root and the focus watchdog can read it.
+        local why
+        n.focusable,why=pcall(function() n.root.o.bIsFocusable=true end)
+        if not (n.focusable or unfocusable_said) then
+            unfocusable_said=true
+            log('focus watchdog off: the UI root refused bIsFocusable ('..tostring(why)..')')
+        end
         n.root.o:AddToViewport(Z)
         need(n.root.o:IsInViewport(),'the UI root is not in the viewport')
         pending,built=nil,n
@@ -749,12 +777,14 @@ function Ui.kit(opts)
         return false
     end
     -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up. That load's menu open, the game's
-    -- input is given back first (or once there is a player controller: input(false) tries again).
+    -- input is given back first and the mouse cursor hidden (or once there is a player controller: input(false) tries
+    -- again).
     local function sweep()
         local left=store.load()
         store.clear()
         if not left then return false end
-        if left:find(' input$') then inputting=true; input_mode(false) end
+        if left:find(' cursor',1,true) then cursor=false end
+        if left:find(' input',1,true) then inputting=true; input_mode(false) end
         local x=valid(StaticFindObject(left:match('^%S+')))
         if x and U.text(x:GetFullName()):find('^UserWidget ') and x:IsInViewport() then
             x:RemoveFromParent()
@@ -785,6 +815,7 @@ function Ui.kit(opts)
                 if built.root.v~=built.root.on then built.root.v=built.root.on; r:SetVisibility(built.root.on) end
                 if warm(built.partial) or not built.partial then return end
                 for _,def in ipairs(order) do if def.shown and def.place.hit then return end end -- Not under the mouse.
+                if inputting then return end -- Nor the root the input focused (the host's question has no hit group).
             elseif built.size==#order then
                 lost=lost+1 -- A map change took it out, or the game, or another mod.
                 need(lost<=LOSSES,'the UI root keeps leaving the viewport')
@@ -794,15 +825,63 @@ function Ui.kit(opts)
         end
         if not classes() then build() end
     end
+    -- The focus watchdog, each 250 ms while our UI holds the game's input and shows: whether our root or a widget in it
+    -- has the focus. Armed by a first yes since the input was taken; armed, 1 s of no fires it (lost()), once a take; a
+    -- mouse button starts that second over (click). Never armed 2 s after the take: said once a Lua load, nothing
+    -- fires. A read that raises counts for nothing. The Steam overlay keeps Slate's focus, so it never fires it; the
+    -- game or another mod moving the focus does.
+    local function guard()
+        local r=watch and not hidden and built and built.focusable and alive(built.root)
+        if not r then return end
+        local read,yes=pcall(function() return r:HasAnyUserFocus() or r:HasFocusedDescendants() end)
+        if not read then return end
+        local now=os.clock()
+        if yes then watch.armed,watch.since=true,nil
+        elseif watch.armed then
+            watch.since=watch.since or now
+            if now-watch.since>=1 then fired,watch=holder or 'menu',nil end
+        elseif now-watch.at>=2 and not never_said then
+            never_said=true
+            log('focus watchdog: our root never took the focus')
+        end
+    end
     -- Each 250 ms with whether our HUD may show (a world with EVE, not paused, the game's HUD up, no photo mode, or
     -- the title screen) and whether the title screen shows. Returns false and why once, when the kit turned off.
     function self.slow(world,title)
         titled=title==true
         if not off and order[1] then run(step,world) end
+        if not off and watch then run(guard) end
         return said_once()
     end
-    -- Each frame: the open and close tweens, only while one runs.
+    -- Once the focus watchdog fired: true and who held the game's input ('menu', or a group's name), once; else
+    -- false.
+    function self.lost()
+        local who=fired
+        fired=nil
+        return who~=nil,who
+    end
+    -- Whether our UI holds the game's input (main.lua's mouse binds read it on UE4SS's key thread).
+    function self.holding() return inputting end
+    -- A mouse button pressed (main.lua's binds, on the game thread): while our UI holds the game's input, our focus
+    -- goes back where the input put it (the root, or the holder's box) REFOCUS later, and the focus watchdog's second
+    -- starts over. Slate gives a click that no widget of ours takes (off the menu's rows or the chat's box, any click
+    -- under the host's question) to the game's viewport.
+    -- ponytail: the left and right buttons only; the middle and side ones move the focus too (the watchdog then closes
+    -- our UI): bind them in main.lua if a tester trips it.
+    function self.click()
+        refocus_at=os.clock()+REFOCUS
+        if watch then watch.since=nil end
+    end
+    -- Each frame: our focus back once due, while the input is still ours and the world shows; the open and close
+    -- tweens, only while one runs.
     function self.tick(now)
+        if refocus_at and now>=refocus_at then
+            refocus_at=nil
+            if inputting and not hidden and built then
+                local g=holder and built.groups[holder]
+                upd(g and g.field or built.root,function(x) x:SetKeyboardFocus() end)
+            end
+        end
         if not off and next(tweens) then
             run(function()
                 for name,t in pairs(tweens) do
@@ -978,13 +1057,13 @@ function Ui.kit(opts)
         end
     end
     -- Whether the game is paused (its own menu, a cutscene) or shows the mouse cursor (one of its screens that does
-    -- not pause: a shop, a dialogue choice): the menu does not open then. false when unread. Off, false too, unless
-    -- always (Night Operation's run reads no body under a game screen, kit or not).
+    -- not pause: a shop, a dialogue choice; never the cursor our menu shows): the menu does not open then. false when
+    -- unread. Off, false too, unless always (Night Operation's run reads no body under a game screen, kit or not).
     function self.paused(always)
         if off and not always then return false end
         local ok,paused=pcall(function()
             local pc=controller()
-            return pc and (U.find(STATICS):IsGamePaused(pc) or pc.bShowMouseCursor)
+            return pc and (U.find(STATICS):IsGamePaused(pc) or cursor==nil and pc.bShowMouseCursor)
         end)
         return ok and paused==true
     end
@@ -998,7 +1077,8 @@ function Ui.kit(opts)
         return ok and culture or nil
     end
     -- coop ui reset, the escape hatch (UI-DESIGN 7.5): the game's input given back now whoever holds it, even when this
-    -- load thinks the game has it (a later input(false) tries again while there is no player controller).
+    -- load thinks the game has it, and the menu's mouse cursor put back (a later input(false) tries again while there
+    -- is no player controller).
     function self.reset()
         inputting,holder=true,nil
         if off then pcall(input_mode,false) else run(input_mode,false) end

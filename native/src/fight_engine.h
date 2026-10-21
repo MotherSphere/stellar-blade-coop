@@ -64,7 +64,7 @@
 #include "fight_sync.h"    // Host, Guest, Seen, Write, Message, Event, kStatType
 #include "nightop_probe.h" // kImageBase, kGlobals, plausible, get
 #include "pilot.h"         // Side, kBattle, kDying: same-place enemies' pair table
-#include "spawn_sync.h"    // Epochs, SpawnHost, SpawnGuest, Mine, SpawnRow: same spawns
+#include "spawn_sync.h"    // Epochs, SpawnHost, SpawnGuest, Mine, SpawnRow, BlockTable: same spawns
 
 namespace coop::fight {
 
@@ -607,6 +607,17 @@ public:
   // where both players stand gets that many more (0 to kMaxPer), which she makes as well.
   void enemy_extra(uint8_t per) { extra_ = std::min(per, kMaxPer); }
   static_assert(kMaxPer == kMaxExtra, "the request's bound is the engine's");
+  // Any thread: our spawn_filter=on (the guest's own), set while off. On the guest's side the job then publishes her
+  // blocked keys (SpawnGuest::blocked) to blocks() after each of her steps and before each of her spawns, and none
+  // otherwise; with coop fight spawn probe it opens the gate over an empty table, so the hook refuses nothing.
+  void filter(bool on) { filter_ = on; }
+  // Any thread, the gate of the glue's hook on SB's spawn request: this session filters (the guest's side, or coop
+  // fight spawn probe, asked with filter), until a latch or the session's end.
+  bool filtering() const {
+    return on_ && filter_ && !latched_ && (probing_ ? same_spawns_.load() : !hosting_.load());
+  }
+  // The table the glue's hook reads, and its counts.
+  BlockTable &blocks() { return blocks_; }
   // Any thread: coop fight pilot off (true), until the next on, probe, record or replay (false): same-place enemies
   // off on this side whatever the host's same_place says, and the host tells her so.
   void pilot_off(bool off) { pilot_off_ = off; }
@@ -633,6 +644,7 @@ public:
       hosting_ = hosting;
       probing_ = probing;
       ++session_;
+      blocks_.publish(nullptr, 0); // Before the gate opens: an old session's last run may never have come.
     }
     on_ = on;
   }
@@ -741,6 +753,7 @@ public:
     if (!on_ || latched_) { // The job's last run (off, or stopped since): our overrides come off.
       if (zero)
         lift_all(g, logic);
+      blocks_.publish(nullptr, 0);
       return publish(g, turn, now_ms);
     }
     if (!zero) { // No call in this mode: our freezes stay, and the game thread drives none.
@@ -773,6 +786,7 @@ public:
       new (&epochs_) Epochs();
       new (&spawn_host_) SpawnHost();
       new (&spawn_guest_) SpawnGuest();
+      blocks_.publish(nullptr, 0);
       extras_.clear(); // Its n goes on for the run: no key of an old session's dying extra comes back.
       boss_in_.clear();
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
@@ -852,6 +866,9 @@ public:
                   host.bosses());
     } else if (!latched_) {
       guest.step(seen_, n, census, turn, now_ms, io);
+      SpawnKey died[kMaxTracked]; // The host's kills, for the spawn filter: each turn, as the step may take them.
+      for (size_t i = 0, k = guest.died(died); i < k; ++i)
+        spawn_guest_.died(died[i]);
       hold_floors(g, logic, followed, guest.floored(followed));
       hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance),
                   guest.bosses());
@@ -863,7 +880,7 @@ public:
     if (!latched_)
       bosses(g, logic, n, census, now_ms);
     if (latched_) // Stopped in this turn: no other run comes, so our overrides come off now.
-      lift_all(g, logic);
+      lift_all(g, logic), blocks_.publish(nullptr, 0);
     publish(g, turn, now_ms);
     if (!latched_)
       g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
@@ -2036,10 +2053,18 @@ private:
     if (hosting && per_ && close && zone && epochs_.settled(now) && !latched_)
       extras_.step(per_, std::min(kMaxExtras - extras(), kMaxCaptures - captures_), extras(), eve, flags_.her, her_ok,
                    mine_, mines_, io);
-    if (hosting)
+    if (hosting) {
       spawn_host_.step(host.gen(), zone, epochs_, close, flags_.her, mine_, mines_, now, io);
-    else
+    } else {
       spawn_guest_.step(guest.gen(), zone, epochs_, why != nullptr, close, eve, eve_ok, mine_, mines_, now, io);
+      publish_blocks();
+    }
+  }
+  // The guest's blocked keys to the spawn filter's table while this session filters (filter on her side), else none.
+  void publish_blocks() {
+    size_t n = 0;
+    const SpawnKey *keys = spawn_guest_.blocked(n);
+    blocks_.publish(keys, filter_ && !hosting_seen_ && !probing_seen_ ? n : 0);
   }
   // The host: her have line, at once (R33): none from an ignored peer, nor while same spawns do not run here (stale).
   void her_have(const Message &m, uint64_t now) {
@@ -2126,6 +2151,7 @@ private:
         !senders_made(g) || latched_)
       return "no spawn manager";
     const float rot[3] = {0, yaw, 0};
+    publish_blocks(); // Her step took the key off her list: our spawn goes through the filter too.
     g.create(manager, k.spawn, k.index, at, rot);
     return nullptr;
   }
@@ -2934,6 +2960,7 @@ private:
     case Type::off:
     case Type::world:
       spawn_host_.clear(), spawn_guest_.clear(); // Same spawns: the epoch line again, the host's epoch forgotten.
+      blocks_.publish(nullptr, 0);
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut()); // Bosses: their lines and summons again.
       for (size_t i = 0; i < summoned_count_; ++i)
         summoned_[i].sent = false, summoned_[i].next = 0;
@@ -3131,7 +3158,7 @@ private:
   size_t chars_ = 0;
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, nearby_{true};
   std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false}, aggro_host_{false}, exec_test_{false};
-  std::atomic<bool> same_spawns_{false};
+  std::atomic<bool> same_spawns_{false}, filter_{false};
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
@@ -3186,6 +3213,7 @@ private:
   Epochs epochs_;
   SpawnHost spawn_host_;
   SpawnGuest spawn_guest_;
+  BlockTable blocks_; // The spawn filter's table: written by the job only, read by the glue's hook.
   Mine mine_[kMaxSeen];
   size_t mines_ = 0;
   bool keys_whole_ = true; // This census's keyed actors all in mine_.
@@ -3584,6 +3612,7 @@ private:
     e_.bosses(r.bosses);
     e_.same_spawns(r.spawns);
     e_.enemy_extra(r.extra);
+    e_.filter(r.filter);
     e_.pilot_off(false);
     mode_ = r.fight;
     recording_.clear(), record_lines_ = 0;
@@ -3914,6 +3943,9 @@ private:
                     side_ ? "answered" : "sent", u(p.spawn_lines), u(p.drop_lines), u(p.spawned), u(p.despawned),
                     u(p.undone), u(p.refused), u(p.differ), u(p.stale), u(p.rate), unsigned(s.extra), u(p.extras),
                     u(p.extras_gone));
+    char filter[96] = ""; // The spawn filter's hook, while it is in SB's spawn request vtable.
+    if (const BlockTable &b = e_.blocks(); b.installed)
+      std::snprintf(filter, sizeof filter, "; filter %llu seen, %llu refused", u(b.seen), u(b.refused));
     const JobCounts &j = s.job;
     char bosses[192] = ""; // Stage 5: the guest's calls, or the host's summon lines.
     if (!probe && side_)
@@ -3935,7 +3967,7 @@ private:
                   u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
                   u(j.thaw_refused), u(j.battles), u(j.owns), u(j.own_nos), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
-    io.trace(std::string(head) + spawns + bosses + tail);
+    io.trace(std::string(head) + spawns + filter + bosses + tail);
   }
 
   Engine &e_;

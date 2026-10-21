@@ -331,6 +331,16 @@ assert(wrapped(('ก'):rep(40)..' '..('ข'):rep(40),70)==('ก'):rep(40)..'|'..
 assert(wrapped(('بَ'):rep(72),70)==('بَ'):rep(70)..'|'..('بَ'):rep(2),'Arabic: the fatha stays with its letter')
 assert(wrapped(('ب'):rep(69)..'ىٰ'..'ب',70)==('ب'):rep(69)..'ىٰ|ب','And the superscript alef (U+0670)')
 assert(Chat.columns('Ab 日本'..KO..'بَ')==9,'Columns as wrap counts them (the status strip measures with it)')
+-- A Thai leading vowel (U+0E40 to U+0E44), written before the consonant it follows in speech, never ends a row cut
+-- between letters: it goes to the next row with its consonant. A row it would leave empty keeps today's cut.
+for _,v in ipairs({'เ','แ','โ','ใ','ไ'}) do
+    assert(wrapped(('ก'):rep(69)..v..'ข',70)==('ก'):rep(69)..'|'..v..'ข',v..' moves to the next row')
+    assert(wrapped(('ก'):rep(68)..v..v..'ข',70)==('ก'):rep(68)..'|'..v..v..'ข',v..' twice: both move')
+    assert(wrapped(v..'ข',1)==v..'|ข',v..' alone on its row: kept there')
+end
+assert(wrapped(('ก'):rep(69)..'เ'..KO..'ข',70)==('ก'):rep(69)..'|เ'..KO..'ข','Marks still stay with their letter')
+assert(wrapped(('ก'):rep(68)..KO..'เ'..'ข',70)==('ก'):rep(68)..KO..'|เข','After a letter with its marks')
+assert(wrapped(('ก'):rep(40)..'เ '..('ข'):rep(40),70)==('ก'):rep(40)..'เ|'..('ข'):rep(40),'At a space: as before')
 
 -- The session ends: the box closes and empties, the history goes (the notice that says so comes after).
 box.text='half typed'

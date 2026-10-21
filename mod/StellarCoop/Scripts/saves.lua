@@ -1,31 +1,34 @@
 -- The co-op saves at the title (AUTO-COOP-SAVE §6), on the Uplink kit (ui.lua). UE4SS is not known yet to hold the
--- game's Continue and Load Game presses, so the question comes when the title screen shows, before any press. With
--- auto_coop_save=ask it shows once a visit of the title, while the game uses your own saves (the slot line's
+-- game's Continue and Load Game presses, so the question comes when the title screen shows, before any press; it takes
+-- a choice (Enter, Space, A on a pad, a click) only 1 s after it shows, so a press meant for the title does not answer
+-- it. With auto_coop_save=ask it shows once a visit of the title, while the game uses your own saves (the slot line's
 -- saves=main), the Steam ID is known and no copy pass runs, once the kit has its whole look: Convert and play co-op
--- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc, or 60 s
--- with no key: a controller alone cannot answer) and Don't ask again, which writes auto_coop_save=always as one line of
--- coop-settings.txt, then plays co-op. Co-op asks the native part for "saves coop" (it makes or refreshes the copies,
--- then switches the save name, at the title only) and shows the pass's steps until saves=coop; a pass that ends
--- without the switch, or a request with no answer in 2 s, shows why, with only the solo choices left. An unread status
--- is no answer. A solo choice after a request asks "saves main", which withdraws a switch still to come. The title
--- left closes it as Decide later; a pass under way is followed on, its result said as a notice. With always, no
--- question: "saves coop" once a visit, its result a notice. With off, nothing: the manual co-op slot that
--- StellarCoopSlot.txt names is the only co-op save (main.lua's shared enemies notice says how to switch in a session on
--- your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
--- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
--- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
--- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On
--- another game build (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at
--- the title. A friend's invite accepted at the title waits for a save (the link's held invite): the question's first
--- line says so, and once a visit it asks again when such an invite comes after an answer without co-op. With a manual
--- co-op slot (StellarCoopSlot.txt) once the game uses the co-op copies, a notice says once a Lua load which files co-op
--- no longer needs; nothing is moved. No engine call here: the kit makes them.
+-- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc or B on an
+-- XInput pad, or 60 s with no key: a pad that is not XInput cannot answer) and Don't ask again, which writes
+-- auto_coop_save=always as one line of coop-settings.txt, then plays co-op. Co-op asks the native part for "saves coop"
+-- (it makes or refreshes the copies, then switches the save name, at the title only) and shows the pass's steps until
+-- saves=coop; a pass that ends without the switch, or a request with no answer in 2 s, shows why, with only the solo
+-- choices left. An unread status is no answer. A solo choice after a request asks "saves main", which withdraws a
+-- switch still to come. The title left closes it as Decide later; a pass under way is followed on, its result said as a
+-- notice. With always, no question: "saves coop" once a visit, its result a notice. With off, nothing: the manual co-op
+-- slot that StellarCoopSlot.txt names is the only co-op save (main.lua's shared enemies notice says how to switch in a
+-- session on your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
+-- hand it up, down, select, back and a left click, and an XInput pad's D-pad, left stick, A and B through the native
+-- part), a shade over the whole screen takes the mouse so no click reaches the title menu under it, and the game's
+-- input comes back 150 ms after it closes. While the game uses the co-op copies (saves=coop), a CO-OP SAVES badge shows
+-- at the top right of the title screen, whatever auto_coop_save says. On another game build (a game update) the co-op
+-- saves are off: with ask or always, a notice says so once a Lua load at the title. A friend's invite accepted at the
+-- title waits for a save (the link's held invite): the question's first line says so, and once a visit it asks again
+-- when such an invite comes after an answer without co-op. With a manual co-op slot (StellarCoopSlot.txt) once the game
+-- uses the co-op copies, a notice says once a Lua load which files co-op no longer needs; nothing is moved. No engine
+-- call here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
 local Saves={}
--- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most, no key (then Decide later).
-local BACK,WAIT,SLOW,IDLE=0.15,8,480,240
+-- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most, no key (then Decide later);
+-- seconds after the question shows before it takes a choice.
+local BACK,WAIT,SLOW,IDLE,ARM=0.15,8,480,240,1
 local WIDE,BODY=78,5 -- Columns a body row (18 layout units each, as the feed's); body rows.
 local CHOICES={ask={'coop','solo','later','always'},error={'solo','later'}}
 local function exists(path)
@@ -42,6 +45,7 @@ function Saves.new(o)
     local has,env=o.exists or exists,o.env or os.getenv
     local self={}
     local phase,open,cursor,back_at=nil,false,1,nil -- phase: nil, 'ask', 'wait' (a request out) or 'error'.
+    local ready_at=0 -- When the question shown takes a choice.
     local visit,asked,copies=false,false,false -- This visit of the title is answered; "saves coop" is out; copies seen.
     local before,waited,quiet,progress,why,idle=nil,0,0,nil,nil,0
     local queued,stopped=nil,false -- queued: a notice to say once the kit is up or a world loads.
@@ -220,7 +224,7 @@ function Saves.new(o)
                 elseif kit.whole() then
                     visit,reasked,copies,phase,cursor,back_at,idle=true,reasked or invited,any_copy(info),'ask',1,nil,0
                     pick()
-                    open=true
+                    open,ready_at=true,os.clock()+ARM
                     kit.show('saves',true,os.clock())
                     kit.input(true,'saves')
                     kit.sound('open')
@@ -249,9 +253,10 @@ function Saves.new(o)
         draw() -- The kit may have built its root again meanwhile: on change only.
     end
     -- A navigation key while open: 'up', 'down', 'select', 'back' (Esc: Decide later, or the pass withdrawn) or
-    -- 'click' (the left mouse button: the choice under the mouse, if any).
+    -- 'click' (the left mouse button: the choice under the mouse, if any). select and click from ARM after it showed.
     function self.nav(what)
         if not open or kit.off() then return end -- Unseen: the next slow closes it.
+        if (what=='select' or what=='click') and os.clock()<ready_at then return end
         idle=0
         local list=CHOICES[phase] or {}
         if what=='click' then
