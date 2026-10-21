@@ -68,15 +68,15 @@ or shows the mouse cursor for one of its own screens.
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, extra enemies, the host's enemy
-scaling and your kill rewards), Display (the size, sounds
+title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, extra enemies, shared bosses,
+the host's enemy and boss scaling and your kill rewards), Display (the size, sounds
 and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
-when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, scaling and kill
-reward rows, which
+when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, Shared bosses,
+scaling and kill reward rows, which
 count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
 Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
 while they wait or run, and only on your screen).
@@ -479,7 +479,8 @@ linked only while you are on the same map. Turning the row off (`shared_enemies=
 solo test tools below.
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the
-game's BossMonster type) are not shared yet. `auto` also leaves out a few Monster-type enemies that are not common
+game's BossMonster type) are shared only with the host's `bosses=on` ([shared bosses](#shared-bosses-experimental)).
+`auto` also leaves out a few Monster-type enemies that are not common
 ones: the Gorgon (character id 50330), the two laser turrets with 999,999 HP (35027002 and 35027003), and any enemy
 with more than 500,000 maximum HP. The common enemy with the most HP has 213,125, on Hard. A list of character ids
 instead, for example `fight_chars=15011001 15011002` (16 at most), shares those enemies only, of any type, including
@@ -569,8 +570,8 @@ the ghost. The host's game applies the guest's killing hit only once her takedow
 the enemy during her takedown, her game gets that death only then too. An enemy that lives through a takedown stays
 with the player who did it for 10 s, or until the other player hits it. With `aggro=host`, the guest's takedown plays
 only on her screen, and the host's still shows on hers. The host's game refuses the guest's takedown of a boss or an
-Alpha Naytiba named in `fight_chars`. That does not stop the finisher on her copy or her killing hit on the host's
-boss: the guard for boss finishers is not built yet.
+Alpha Naytiba, shared through `bosses=on` or named in `fight_chars`. That does not stop the finisher on her copy or her
+killing hit on the host's boss: the guard for boss finishers is not built yet.
 
 In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
 out of the game's movement manager, writes its position every frame from the other game's stream and replays that
@@ -739,6 +740,34 @@ not been tested in game yet, and the default is 0.
   that her game made none. None of these three counts in `spawns_differ=`.
 - The `fight stats:` lines in `coop-fight.log` add `extras <n> an enemy, <n> made, <n> despawned`.
 
+### Shared bosses (experimental)
+
+With `bosses=on` in the host's coop-settings.txt, shared enemies also share the bosses and Alpha Naytibas (the game's
+BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses have
+not been tested in game yet, and they are off by default. Boss phases, the arena events of a boss fight and the enemies
+a boss summons are not shared yet: each game runs them for its own copy. With same place on, the guest's copy is
+frozen like any copy her game draws, so it cannot change phase yet. Its HP then stops at its first phase threshold on
+her screen while the host's boss fights on. Nothing holds a boss for its finisher yet either: a killing hit of the
+guest's can end a shared boss without the host's finisher.
+
+- Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
+  Boss HP (host's) in the host's co-op menu, or `bosses` and `boss_hp_scale` in its
+  [coop-settings.txt](#coop-settingstxt). `coop fight record` keeps them in its file, and `coop fight replay` uses the
+  recorded ones.
+- `boss_hp_scale` (default `2.0`, from `1.0` to `4.0`) multiplies a shared boss's maximum HP in place of
+  `enemy_hp_scale`, the Alpha Naytibas' too; `enemy_balance_scale` still sets its balance gauge. A boss's first phase
+  threshold comes from an effect the game applies at spawn, as a share of the maximum HP it has then, so it stays where
+  the unscaled maximum puts it: at `2.0`, a boss whose first phase ends at 60 % ends it at 30 % of its scaled HP. Later
+  thresholds follow the scaled maximum.
+- A boss takes one of the 16 shared places before any common enemy, even the place of a common enemy in a fight, which
+  then stops being shared. A common enemy never takes a boss's place.
+- With same place on, a shared boss always fights the host: its AI never moves to the guest's game, whoever hits it.
+- A boss that only one save still holds (the other player already killed it, for example) stays unshared. The host's
+  game fights its own alone, at `boss_hp_scale` once the guest's side is on, as with common enemies; a boss that only
+  the guest's save holds stays as it is in her game. Same spawns never create or remove a boss.
+- The `fight=` line of `coop status` ends with `bosses=<percent>` (the host's `boss_hp_scale`) or `bosses=off`, on
+  both PCs.
+
 ### `coop off`
 
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
@@ -783,9 +812,9 @@ send_rate=60
 # material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
 # For example: cloth=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
-# death, while both of you play a co-op save. fight_chars: auto (every common enemy; bosses and Alpha Naytibas are not
-# shared yet) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them), for
-# example fight_chars=15011001.
+# death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
+# and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
+# for example fight_chars=15011001.
 shared_enemies=on
 fight_chars=auto
 # guest_kills: when you are the guest, at_once (an enemy your hit kills dies at once on your screen) or confirmed (it
@@ -813,6 +842,12 @@ same_spawns=off
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
+# Shared bosses, experimental, the host's for both games: on or off, off until it has been tested in game. On, a boss
+# or an Alpha Naytiba that both games hold shares one HP bar and one death, as a common enemy does. With
+# same_place=on it fights the host only. boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place
+# of enemy_hp_scale, from 1.0 (no change) to 4.0.
+bosses=off
+boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.

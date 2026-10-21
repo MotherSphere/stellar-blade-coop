@@ -254,7 +254,7 @@ instead of misread:
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
-| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines (this version) |
+| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses line (this version) |
 
 ### Link health in the log
 
