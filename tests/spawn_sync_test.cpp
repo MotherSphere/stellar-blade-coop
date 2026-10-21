@@ -1,0 +1,495 @@
+// Same spawns (stage 4) on the build machine: which rows take part, each side's epoch (zone change, a reset of the
+// spawn manager, many keys with a new GUID) and its grace; the host's epoch line, her rounds and its answers; the
+// guest's rounds and her checks of each answer (R33: the epoch, the shared zone, her own tables, 1 km, the rates, a
+// created key that turns out no Monster or another charId); then two fake worlds through a delayed line until her set
+// is the host's, with an epoch that moves while lines are on the way. Nothing here ever kills an enemy.
+#include "spawn_sync.h"
+
+#include <algorithm>
+#include <cassert>
+#include <cstdio>
+#include <deque>
+#include <map>
+#include <random>
+#include <string>
+#include <vector>
+
+using namespace coop::fight;
+
+namespace {
+constexpr uint32_t kZone = 40, kOther = 41;
+// SaveType values.
+constexpr uint8_t kNone = 0, kSave = 1, kReset = 2, kSaveTm = 3, kResetTm = 4;
+
+// One world as spawn_sync.h sees it: its spawn rows, its keyed actors (a census), and what the side sent, made and
+// logged. A created key shows at the next census with the character its row names (chars) and a new GUID; a despawned
+// actor leaves at the next census.
+struct World {
+  std::map<uint32_t, SpawnRow> rows;
+  std::map<uint32_t, uint32_t> chars; // A row's charId, as this world's tables have it.
+  std::map<uint32_t, bool> npc;       // Rows of a character that is no Monster.
+  std::vector<Mine> mine;
+  std::vector<Message> sent;
+  std::vector<Event> events;
+  struct Call {
+    SpawnKey key;
+    float at[3], yaw;
+  };
+  std::vector<Call> created;
+  std::vector<uint32_t> despawned;
+  std::vector<SpawnKey> coming; // Created, shows at the next census.
+  bool manager = true;          // SB's spawn manager is made.
+  uint32_t next_guid = 5000;
+
+  void row(uint32_t id, uint8_t save, uint32_t zone = kZone, uint8_t spawn_type = 0, bool keep = false) {
+    rows[id] = SpawnRow{spawn_type, save, keep, zone};
+  }
+  Mine &add(uint32_t guid, uint32_t id, uint8_t index = 0, bool monster = true) {
+    Mine m;
+    m.key = SpawnKey{id, index}, m.guid = guid, m.chr = chars.count(id) ? chars[id] : 900, m.monster = monster;
+    m.at[0] = float(id % 1000), m.at[1] = -250.4f, m.at[2] = 12.6f, m.yaw = -90.4f;
+    mine.push_back(m);
+    return mine.back();
+  }
+  Mine *actor(SpawnKey k) {
+    for (Mine &m : mine)
+      if (m.key == k)
+        return &m;
+    return nullptr;
+  }
+  void census() { // What the game made of our calls since the last census.
+    for (const SpawnKey &k : coming) {
+      Mine &m = add(next_guid++, k.spawn, k.index, !npc[k.spawn]);
+      m.chr = chars.count(k.spawn) ? chars[k.spawn] : 900;
+    }
+    coming.clear();
+    mine.erase(std::remove_if(mine.begin(), mine.end(),
+                              [&](const Mine &m) {
+                                return std::find(despawned.begin(), despawned.end(), m.guid) != despawned.end();
+                              }),
+               mine.end());
+  }
+  std::vector<SpawnKey> keys() const {
+    std::vector<SpawnKey> out;
+    for (const Mine &m : mine)
+      if (m.monster)
+        out.push_back(m.key);
+    std::sort(out.begin(), out.end(),
+              [](const SpawnKey &a, const SpawnKey &b) { return a.spawn != b.spawn ? a.spawn < b.spawn : a.index < b.index; });
+    return out;
+  }
+  // The Io.
+  bool row(uint32_t id, SpawnRow &out) {
+    auto it = rows.find(id);
+    if (it == rows.end())
+      return false;
+    out = it->second;
+    return true;
+  }
+  bool create(const SpawnKey &k, const float *at, float yaw) {
+    if (!manager)
+      return false;
+    created.push_back(Call{k, {at[0], at[1], at[2]}, yaw});
+    coming.push_back(k);
+    return true;
+  }
+  bool despawn(uint32_t guid, const SpawnKey &k) {
+    const Mine *m = actor(k);
+    if (!m || m->guid != guid || m->dying)
+      return false;
+    despawned.push_back(guid);
+    return true;
+  }
+  void send(const Message &m) { sent.push_back(m); }
+  void event(const Event &e) { events.push_back(e); }
+  std::string lines() {
+    std::string text;
+    for (const Message &m : sent)
+      text += format(m) + "\n";
+    sent.clear();
+    return text;
+  }
+  size_t count(const std::string &what, const std::string &why = "") const {
+    size_t n = 0;
+    for (const Event &e : events)
+      n += what == e.what && (why.empty() || why == e.why);
+    return n;
+  }
+};
+
+Message msg(const std::string &text) {
+  Message m = parse(text.data(), text.size());
+  assert(m.type != Type::invalid);
+  return m;
+}
+bool has(const std::string &text, const std::string &part) { return text.find(part) != std::string::npos; }
+// A side's census step: its epoch first, then the side.
+const char *epoch(Epochs &ep, World &w, uint64_t alias, uint32_t state, uint64_t now) {
+  w.census();
+  return ep.step(alias, state, w.mine.data(), w.mine.size(), now);
+}
+void host_step(SpawnHost &h, Epochs &ep, World &w, uint64_t now, bool near = true, uint32_t zone = kZone) {
+  h.step(1, zone, ep, near, w.mine.data(), w.mine.size(), now, w);
+}
+const float kEve[3] = {500, 0, 0};
+void guest_step(SpawnGuest &g, Epochs &ep, World &w, uint64_t now, bool moved = false, bool near = true,
+                uint32_t zone = kZone) {
+  g.step(1, zone, ep, moved, near, kEve, true, w.mine.data(), w.mine.size(), now, w);
+}
+} // namespace
+
+int main() {
+  // ---- Which rows take part: EnterZone rows whose SaveType is None, ResetZone or ResetZoneWithTransform ----
+  {
+    assert(!row_out(SpawnRow{0, kNone, false, kZone}) && !row_out(SpawnRow{0, kReset, false, kZone}) &&
+           !row_out(SpawnRow{0, kResetTm, false, kZone}));
+    assert(std::string(row_out(SpawnRow{0, kSave, false, kZone})) == "save-row");
+    assert(std::string(row_out(SpawnRow{0, kSaveTm, false, kZone})) == "save-row");
+    assert(std::string(row_out(SpawnRow{0, kReset, true, kZone})) == "keep-row");
+    assert(std::string(row_out(SpawnRow{0, kSave, true, kZone})) == "save-row");
+    for (uint8_t type : {1, 2, 3}) // ZoneEvent, QuestEvent and anything later: never touched.
+      assert(std::string(row_out(SpawnRow{type, kReset, false, kZone})) == "event-row");
+    assert(std::string(row_out(SpawnRow{0, 5, false, kZone})) == "event-row");
+  }
+
+  // ---- Epochs: one more at each zone change, after a reset the spawn manager shows, and when many keys change
+  // GUID in one census with the zone unchanged; the zone is settled 3 s after the last one, while no pass runs ----
+  {
+    World w;
+    Epochs ep;
+    assert(!epoch(ep, w, 0, 0, 0) && ep.n() == 0 && !ep.settled(10000)); // No zone yet (a level's start).
+    assert(std::string(epoch(ep, w, 0xA1, 1, 100)) == "zone" && ep.n() == 1);
+    assert(!epoch(ep, w, 0xA1, 1, 200) && !ep.settled(5000)); // Entering: no pass may run under us.
+    assert(!epoch(ep, w, 0xA1, 3, 300) && ep.n() == 1 && !ep.settled(100 + kGraceMs - 1) && ep.settled(100 + kGraceMs));
+    for (uint32_t i = 0; i < 4; ++i)
+      w.add(100 + i, 7000 + i);
+    assert(!epoch(ep, w, 0xA1, 3, 4000)); // New keys are no reset.
+    assert(std::string(epoch(ep, w, 0xA1, 2, 4100)) == "reset" && ep.n() == 2 && !ep.settled(9000));
+    assert(!epoch(ep, w, 0xA1, 2, 4200) && !epoch(ep, w, 0xA1, 4, 4300) && ep.n() == 2);
+    assert(std::string(epoch(ep, w, 0xA1, 1, 8000)) == "reset" && ep.n() == 3); // Entering again after 4.
+    assert(!epoch(ep, w, 0xA1, 3, 8100) && ep.settled(8000 + kGraceMs));
+    w.mine[0].guid = 200, w.mine[1].guid = 201; // Two respawns: not a reset.
+    assert(!epoch(ep, w, 0xA1, 3, 12000) && ep.n() == 3);
+    w.mine[0].guid = 300, w.mine[1].guid = 301, w.mine[2].guid = 302; // Three at once: SB reset the zone.
+    assert(std::string(epoch(ep, w, 0xA1, 3, 12100)) == "guids" && ep.n() == 4 && !ep.settled(12100 + kGraceMs - 1));
+    w.mine[0].guid = 400, w.mine[1].guid = 401, w.mine[2].guid = 402, w.mine[3].guid = 403; // With a zone change: one.
+    assert(std::string(epoch(ep, w, 0xB2, 3, 16000)) == "zone" && ep.n() == 5);
+    assert(std::string(epoch(ep, w, 0, 0, 17000)) == "zone" && ep.n() == 6 && !ep.settled(30000)); // Level start.
+  }
+
+  // ---- The host: its epoch line, her round in parts, its answers ----
+  {
+    World w;
+    for (uint32_t id = 7001; id <= 7012; ++id)
+      w.row(id, kReset);
+    w.row(7020, kSave), w.row(7021, kReset, kZone, 0, true), w.row(7022, kReset, kZone, 1), w.row(7023, kReset, kOther);
+    w.row(7024, kNone), w.row(7025, kResetTm), w.row(7030, kSave), w.row(7031, kReset, kOther);
+    for (uint32_t id : {7001, 7002, 7003, 7020, 7021, 7022, 7023, 7024, 7025})
+      w.add(id + 100, id);
+    w.add(8000, 7004).dying = true; // Its death is under way (stage 1): ours still, never sent.
+    w.add(8002, 7007).dying = true; // The same, and she lacks it.
+    w.add(8001, 7005, 0, false);    // No Monster: never sent, but ours (no drop).
+    Epochs ep;
+    SpawnHost h;
+    epoch(ep, w, 0xA1, 3, 0);
+    host_step(h, ep, w, 0, true, 0); // Our zone unknown: nothing.
+    assert(w.lines().empty());
+    host_step(h, ep, w, 0);
+    assert(w.lines() == "SBF11 epoch 1 40 1\n");
+    host_step(h, ep, w, 250);
+    assert(w.lines().empty()); // Once a change.
+    h.clear();                 // Her on, off or world: said again.
+    host_step(h, ep, w, 500);
+    assert(w.lines() == "SBF11 epoch 1 40 1\n");
+    // Her round in two lines at our epoch, before our zone is settled: stale, no answer.
+    h.have(msg("SBF11 have 1 1 1 2 7002:0 7006:0"), 1, 600);
+    h.have(msg("SBF11 have 1 1 2 2 7020:0 7023:0 7004:0 7005:0"), 1, 600);
+    host_step(h, ep, w, 700);
+    assert(w.lines().empty() && h.counts.stale == 1 && h.counts.answered == 0);
+    // Settled: spawn for 7001, 7003, 7024 and 7025 (ours, Monsters, taking part, in our zone, she lacks them); never
+    // the save row, the keep row, the event row, the other zone's, the dying one or the NPC. Drop for 7006, hers,
+    // which we lack; never for 7030 (a save row), 7031 (another zone) or 7032 (no row), nor 7004 and 7005 (ours).
+    h.have(msg("SBF11 have 1 1 1 2 7002:0 7006:0"), 1, 3000);
+    h.have(msg("SBF11 have 1 1 2 2 7030:0 7031:0 7032:0 7004:0 7005:0"), 1, 3000);
+    host_step(h, ep, w, 3100);
+    const std::string answer = w.lines();
+    assert(answer == "SBF11 spawn 1 1 7001 0 900 1 -250 13 270\nSBF11 spawn 1 1 7003 0 900 3 -250 13 270\n"
+                     "SBF11 spawn 1 1 7024 0 900 24 -250 13 270\nSBF11 spawn 1 1 7025 0 900 25 -250 13 270\n"
+                     "SBF11 drop 1 1 7006 0\n");
+    assert(h.counts.answered == 1 && h.counts.spawn_lines == 4 && h.counts.drop_lines == 1);
+    assert(w.count("spawn sent") == 4 && w.count("drop sent") == 1);
+    // Another round within 500 ms: over the rate. A round of the last epoch: dropped (stale), no lines.
+    h.have(msg("SBF11 have 1 1 1 1"), 1, 3200);
+    assert(h.counts.rate == 1);
+    host_step(h, ep, w, 3300);
+    assert(w.lines().empty());
+    w.mine[0].guid = 1, w.mine[1].guid = 2, w.mine[2].guid = 3; // A reset of ours: epoch 2.
+    epoch(ep, w, 0xA1, 3, 4000);
+    h.have(msg("SBF11 have 1 1 1 1"), 1, 4000);
+    host_step(h, ep, w, 7100);
+    assert(w.lines() == "SBF11 epoch 1 40 2\n" && h.counts.stale == 2);
+    // Her EVE more than 100 m away (the engine's near): no answer.
+    h.have(msg("SBF11 have 1 2 1 1"), 1, 7200);
+    host_step(h, ep, w, 7300, false);
+    assert(w.lines().empty() && h.counts.stale == 3);
+    // Out of order (a line lost) or another generation: the round is dropped.
+    h.have(msg("SBF11 have 1 2 2 2 7002:0"), 1, 8000);
+    h.have(msg("SBF11 have 1 2 1 2 7002:0"), 1, 8000);
+    h.have(msg("SBF11 have 1 2 1 1 7002:0"), 1, 8000); // Part 1 again: a new round of one line.
+    host_step(h, ep, w, 8100);
+    assert(has(w.lines(), "spawn") && h.counts.answered == 2);
+    h.have(msg("SBF11 have 1 2 1 3 7002:0"), 1, 9000);
+    h.have(msg("SBF11 have 1 2 3 3 7003:0"), 1, 9000); // Part 2 lost.
+    h.have(msg("SBF11 have 2 2 1 1"), 1, 9500);         // Another generation.
+    host_step(h, ep, w, 9600);
+    assert(w.lines().empty() && h.counts.stale == 6);
+    // At most kMaxAnswer lines of each kind a round; the rest goes with the next.
+    World big;
+    Epochs bep;
+    SpawnHost bh;
+    for (uint32_t id = 1; id <= 40; ++id)
+      big.row(id, kReset), big.row(100 + id, kReset), big.add(id, id);
+    epoch(bep, big, 0xA1, 3, 0);
+    std::string round = "SBF11 have 1 1 1 1";
+    for (uint32_t id = 101; id <= 120; ++id)
+      round += " " + std::to_string(id) + ":0";
+    bh.have(msg(round), 1, kGraceMs);
+    host_step(bh, bep, big, kGraceMs);
+    const std::string capped = big.lines();
+    assert(size_t(std::count(capped.begin(), capped.end(), '\n')) == 1 + 2 * kMaxAnswer &&
+           bh.counts.spawn_lines == kMaxAnswer &&
+           bh.counts.drop_lines == kMaxAnswer);
+  }
+
+  // ---- The guest: nothing before the host's epoch line; her rounds in the host's zone ----
+  {
+    World w;
+    for (uint32_t id = 7001; id <= 7030; ++id)
+      w.row(id, kReset);
+    w.row(7040, kSave), w.row(7041, kReset, kZone, 0, true), w.row(7042, kReset, kZone, 2), w.row(7043, kNone, kOther);
+    for (uint32_t id = 7001; id <= 7030; ++id)
+      w.add(id + 100, id);
+    for (uint32_t id = 7040; id <= 7043; ++id)
+      w.add(id + 100, id);
+    w.add(9000, 7099); // No row in her tables.
+    w.add(9001, 7001, 1, false); // An NPC: never in a round.
+    Epochs ep;
+    SpawnGuest g;
+    epoch(ep, w, 0xA1, 3, 0);
+    g.heard(msg("SBF11 spawn 1 1 7050 0 900 0 0 0 0"), 1); // Before the epoch line: stale.
+    guest_step(g, ep, w, 5000);
+    assert(!g.on() && w.sent.empty() && w.created.empty() && g.counts.stale == 1);
+    g.heard(msg("SBF11 epoch 2 40 1"), 1); // Another generation: stale.
+    assert(!g.on() && g.counts.stale == 2);
+    g.heard(msg("SBF11 epoch 1 40 1"), 1);
+    assert(g.on() && g.zone() == kZone && g.epoch() == 1);
+    guest_step(g, ep, w, 5000, false, false); // The host's EVE too far.
+    guest_step(g, ep, w, 5000, false, true, kOther); // In another zone.
+    assert(w.sent.empty());
+    guest_step(g, ep, w, 5000);
+    std::string round = w.lines();
+    assert(round.rfind("SBF11 have 1 1 1 2 7001:0 7002:0 ", 0) == 0 && has(round, "\nSBF11 have 1 1 2 2 7025:0 ") &&
+           has(round, " 7030:0\n") && !has(round, "704") && !has(round, "7099") && !has(round, "7001:1"));
+    assert(g.counts.haves == 1 && w.created.empty());
+    guest_step(g, ep, w, 5500);
+    guest_step(g, ep, w, 5000 + kHaveAgainMs - 1);
+    assert(w.sent.empty());
+    guest_step(g, ep, w, 5000 + kHaveAgainMs);
+    assert(w.lines() == round); // Again every 5 s while shared.
+    g.heard(msg("SBF11 epoch 1 40 2"), 1); // A new epoch: at once, but 1 s after the last at least.
+    guest_step(g, ep, w, 5000 + kHaveAgainMs + kHaveMs - 1);
+    assert(w.sent.empty());
+    guest_step(g, ep, w, 5000 + kHaveAgainMs + kHaveMs);
+    assert(has(w.lines(), "SBF11 have 1 2 1 2 "));
+  }
+
+  // ---- The guest: the host's spawn and drop lines, each checked (R33) ----
+  {
+    World w;
+    for (uint32_t id = 7001; id <= 7060; ++id)
+      w.row(id, kReset);
+    w.row(7070, kSave), w.row(7071, kReset, kZone, 0, true), w.row(7072, kReset, kZone, 1), w.row(7073, kReset, kOther);
+    w.row(7074, kResetTm), w.row(7075, kReset), w.row(7076, kReset), w.row(7077, kSave), w.row(7078, kReset, kOther);
+    w.chars[7075] = 901; // Her tables name another character for it.
+    w.npc[7076] = true;  // And no Monster for that one.
+    w.add(101, 7001), w.add(102, 7002), w.add(103, 7003).paired = true, w.add(104, 7004).dying = true;
+    w.add(105, 7005, 0, false), w.add(106, 7070), w.add(107, 7073);
+    Epochs ep;
+    SpawnGuest g;
+    epoch(ep, w, 0xA1, 3, 0);
+    g.heard(msg("SBF11 epoch 1 40 1"), 1);
+    guest_step(g, ep, w, kGraceMs);
+    w.lines();
+    const auto take = [&](std::initializer_list<const char *> lines, uint64_t now, bool moved = false, bool near = true) {
+      for (const char *l : lines)
+        g.heard(msg(l), 1);
+      epoch(ep, w, 0xA1, 3, now);
+      guest_step(g, ep, w, now, moved, near);
+    };
+    take({"SBF11 spawn 1 1 7010 0 900 600 -250 12 270", // Created where the host's stands.
+          "SBF11 spawn 1 1 7011 0 900 600 0 0 0", "SBF11 spawn 1 1 7010 0 900 600 0 0 0", // Again: stale.
+          "SBF11 spawn 1 1 7001 0 900 600 0 0 0",                                           // She has it: stale.
+          "SBF11 spawn 1 1 7012 0 900 101000 0 0 0",                                        // Past 1 km of her EVE.
+          "SBF11 spawn 1 1 7080 0 900 600 0 0 0",                                           // No row in her tables.
+          "SBF11 spawn 1 1 7077 0 900 600 0 0 0", "SBF11 spawn 1 1 7071 0 900 600 0 0 0",
+          "SBF11 spawn 1 1 7072 0 900 600 0 0 0", "SBF11 spawn 1 1 7078 0 900 600 0 0 0",
+          "SBF11 spawn 2 1 7013 0 900 600 0 0 0",                                           // Another gen: stale.
+          "SBF11 spawn 1 2 7014 0 900 600 0 0 0"},                                          // Another epoch: stale.
+         kGraceMs + 100);
+    assert(w.created.size() == 2 && w.created[0].key == (SpawnKey{7010, 0}) && w.created[0].at[0] == 600 &&
+           w.created[0].at[1] == -250 && w.created[0].at[2] == 12 && w.created[0].yaw == 270);
+    assert(g.counts.spawned == 2 && g.counts.refused == 6 && g.counts.stale == 4);
+    assert(w.count("spawned") == 2 && w.count("spawn refused", "too far") == 1 &&
+           w.count("spawn refused", "no row") == 1 && w.count("spawn refused", "save-row") == 1 &&
+           w.count("spawn refused", "keep-row") == 1 && w.count("spawn refused", "event-row") == 1 &&
+           w.count("spawn refused", "another zone") == 1);
+    // Her next round names what she created and what she refused, so the host stops asking.
+    take({}, kGraceMs + kHaveAgainMs);
+    std::string round = w.lines();
+    for (const char *k : {" 7010:0", " 7011:0", " 7012:0", " 7080:0", " 7077:0", " 7071:0", " 7072:0", " 7078:0"})
+      assert(has(round, k));
+    assert(!has(round, " 7070:0") && !has(round, " 7073:0")); // Hers, but out of the set: a save row, another zone.
+    assert(!has(round, " 7013:0") && !has(round, " 7014:0"));
+    // Drops: her live Monster of a key that takes part, despawned (never killed); never a paired one (stage 1's), a
+    // dying one, an NPC, a save row's or another zone's, nor one she lacks or despawned already.
+    take({"SBF11 drop 1 1 7002 0", "SBF11 drop 1 1 7002 0", "SBF11 drop 1 1 7003 0", "SBF11 drop 1 1 7004 0",
+          "SBF11 drop 1 1 7005 0", "SBF11 drop 1 1 7070 0", "SBF11 drop 1 1 7073 0", "SBF11 drop 1 1 7050 0"},
+         kGraceMs + kHaveAgainMs + 100);
+    assert(w.despawned.size() == 1 && w.despawned[0] == 102 && g.counts.despawned == 1);
+    assert(w.count("despawned") == 1 && w.count("drop refused", "not a Monster") == 1 &&
+           w.count("drop refused", "save-row") == 1 && w.count("drop refused", "another zone") == 1);
+    assert(g.counts.stale == 4 + 4);
+    take({}, kGraceMs + 2 * kHaveAgainMs);
+    round = w.lines();
+    assert(!has(round, " 7002:0") && has(round, " 7001:0")); // Despawned: no longer hers.
+    // A created key that shows as no Monster, or of another charId than the host's, is despawned again.
+    take({"SBF11 spawn 1 1 7075 0 900 600 0 0 0", "SBF11 spawn 1 1 7076 0 900 600 0 0 0",
+          "SBF11 spawn 1 1 7074 0 900 600 0 0 0"},
+         kGraceMs + 2 * kHaveAgainMs + 100);
+    take({}, kGraceMs + 2 * kHaveAgainMs + 350);
+    assert(g.counts.undone == 2 && w.count("spawn undone", "charId") == 1 && w.count("spawn undone", "not a Monster") == 1);
+    assert(w.actor(SpawnKey{7074, 0}) && w.actor(SpawnKey{7074, 0})->monster); // The right one stays.
+    take({}, kGraceMs + 2 * kHaveAgainMs + 600);
+    assert(g.counts.undone == 2); // Once each.
+    // Not shared (the host's EVE too far, or our zone not settled): the lines are stale, nothing done.
+    const size_t made = w.created.size();
+    take({"SBF11 spawn 1 1 7020 0 900 600 0 0 0", "SBF11 drop 1 1 7001 0"}, kGraceMs + 2 * kHaveAgainMs + 700, false,
+         false);
+    assert(w.created.size() == made && w.despawned.size() == 3);
+    // Her own epoch moves (a camp rest of hers): what she answered is void (7080, refused, leaves her rounds), and a
+    // round goes once she is settled again; 7011, created, is one of her enemies now.
+    epoch(ep, w, 0xA1, 1, 30000);
+    guest_step(g, ep, w, 30000, true);
+    epoch(ep, w, 0xA1, 3, 30000 + kGraceMs);
+    guest_step(g, ep, w, 30000 + kGraceMs);
+    round = w.lines();
+    assert(has(round, "SBF11 have 1 1 1 1 ") && !has(round, " 7080:0") && has(round, " 7011:0"));
+    // The rates: at most kCallsPerSecond spawns and despawns a second; the rest over the rate, never answered.
+    World r;
+    for (uint32_t id = 1; id <= 80; ++id)
+      r.row(id, kReset);
+    Epochs rep;
+    SpawnGuest rg;
+    epoch(rep, r, 0xA1, 3, 0);
+    rg.heard(msg("SBF11 epoch 1 40 1"), 1);
+    for (uint32_t id = 1; id <= kMaxQueued + 1; ++id) {
+      const std::string line = "SBF11 spawn 1 1 " + std::to_string(id) + " 0 900 500 0 0 0";
+      rg.heard(msg(line), 1);
+    }
+    assert(rg.counts.rate == 1);
+    epoch(rep, r, 0xA1, 3, kGraceMs);
+    guest_step(rg, rep, r, kGraceMs);
+    assert(r.created.size() == kCallsPerSecond && rg.counts.rate == 1 + kMaxQueued - kCallsPerSecond);
+    // No spawn manager made yet: refused, never the getter.
+    World nm;
+    nm.row(1, kReset);
+    nm.manager = false;
+    Epochs nep;
+    SpawnGuest ng;
+    epoch(nep, nm, 0xA1, 3, 0);
+    ng.heard(msg("SBF11 epoch 1 40 1"), 1);
+    ng.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
+    guest_step(ng, nep, nm, kGraceMs);
+    assert(nm.count("spawn refused", "no spawn manager") == 1 && ng.counts.refused == 1);
+    // The host's world, on or off forgets its epoch: nothing until its next epoch line.
+    ng.clear();
+    assert(!ng.on());
+    ng.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
+    nm.lines();
+    guest_step(ng, nep, nm, 2 * kGraceMs);
+    assert(nm.sent.empty() && nm.created.empty());
+  }
+
+  // ---- Two worlds through a line, 90-150 ms each way: her set becomes the host's ----
+  // The host holds keys 1-30 in zone 40, she holds 11-40 plus a save row, a keep row, an event row and another zone's
+  // key, each of which she keeps. After a minute she holds 1-30 and her four, created where the host's stand, and
+  // nothing was ever killed. At 18.25 s the host's zone resets (epoch 2) as her round of epoch 1 comes: that round is
+  // dropped, and her set stays the host's.
+  {
+    World H, G;
+    for (World *w : {&H, &G}) {
+      for (uint32_t id = 1; id <= 40; ++id)
+        w->row(id, kReset);
+      w->row(50, kSave), w->row(51, kReset, kZone, 0, true), w->row(52, kReset, kZone, 1), w->row(53, kReset, kOther);
+    }
+    for (uint32_t id = 1; id <= 30; ++id)
+      H.add(100 + id, id);
+    for (uint32_t id = 11; id <= 40; ++id)
+      G.add(200 + id, id);
+    for (uint32_t id = 50; id <= 53; ++id)
+      G.add(200 + id, id);
+    Epochs eh, eg;
+    SpawnHost h;
+    SpawnGuest g;
+    std::deque<std::pair<uint64_t, std::string>> to_g, to_h;
+    std::mt19937 rng(9);
+    uint64_t last_g = 0, last_h = 0, settled_at = 0;
+    const auto ship = [&](World &from, std::deque<std::pair<uint64_t, std::string>> &q, uint64_t &last, uint64_t now) {
+      for (const Message &m : from.sent)
+        last = std::max<uint64_t>(now + 90 + rng() % 61, last), q.emplace_back(last, format(m));
+      from.sent.clear();
+    };
+    for (uint64_t t = 0; t <= 60000; t += 250) { // Each census.
+      for (; !to_h.empty() && to_h.front().first <= t; to_h.pop_front())
+        h.have(msg(to_h.front().second), 1, t);
+      for (; !to_g.empty() && to_g.front().first <= t; to_g.pop_front())
+        g.heard(msg(to_g.front().second), 1);
+      if (t == 18250) // The host's zone resets as her round of epoch 1 comes: every key respawns with a new GUID.
+        for (Mine &m : H.mine)
+          m.guid += 1000;
+      epoch(eh, H, 0xA1, 3, t);
+      const bool moved = epoch(eg, G, 0xB7, 3, t) != nullptr;
+      host_step(h, eh, H, t);
+      guest_step(g, eg, G, t, moved);
+      ship(H, to_g, last_g, t);
+      ship(G, to_h, last_h, t);
+      std::vector<SpawnKey> want = H.keys();
+      for (uint32_t id = 50; id <= 53; ++id)
+        want.push_back(SpawnKey{id, 0});
+      std::sort(want.begin(), want.end(),
+                [](const SpawnKey &a, const SpawnKey &b) { return a.spawn < b.spawn; });
+      if (G.keys() == want && !settled_at)
+        settled_at = t;
+    }
+    std::printf("spawn_sync_test: two worlds, same set at %llu ms; %llu answered (%llu spawn, %llu drop lines), %llu "
+                "spawned, %llu despawned, %llu stale on her side, %llu on the host's\n",
+                static_cast<unsigned long long>(settled_at), static_cast<unsigned long long>(h.counts.answered),
+                static_cast<unsigned long long>(h.counts.spawn_lines),
+                static_cast<unsigned long long>(h.counts.drop_lines), static_cast<unsigned long long>(g.counts.spawned),
+                static_cast<unsigned long long>(g.counts.despawned), static_cast<unsigned long long>(g.counts.stale),
+                static_cast<unsigned long long>(h.counts.stale));
+    assert(settled_at && settled_at < 18250 && eh.n() == 2 && h.counts.stale >= 1);
+    std::vector<SpawnKey> want = H.keys();
+    for (uint32_t id = 50; id <= 53; ++id)
+      want.push_back(SpawnKey{id, 0});
+    std::sort(want.begin(), want.end(), [](const SpawnKey &a, const SpawnKey &b) { return a.spawn < b.spawn; });
+    assert(G.keys() == want);
+    assert(g.counts.spawned == 10 && g.counts.despawned == 10 && g.counts.refused == 0 && g.counts.undone == 0);
+    for (const World::Call &c : G.created) // Where the host's stand.
+      assert(c.at[0] == float(c.key.spawn % 1000) && c.at[1] == -250 && c.at[2] == 13 && c.yaw == 270);
+    for (uint32_t guid : G.despawned)
+      assert(guid >= 231 && guid <= 240); // Only keys the host lacks: never her four, never a kill.
+  }
+
+  std::printf("spawn_sync_test: ok\n");
+}
