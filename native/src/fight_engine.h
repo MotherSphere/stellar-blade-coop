@@ -2683,7 +2683,7 @@ private:
     if (!probe)
       std::snprintf(spawns, sizeof spawns,
                     "; same spawns %s, epoch %u (ours moved %llu times), %llu rounds %s, %llu spawn and %llu drop "
-                    "lines, %llu spawned, %llu despawned (%llu undone), %llu refused (%llu differ), %llu stale, %llu "
+                    "lines, %llu spawned, %llu despawned (%llu undone), %llu refused, %llu differ, %llu stale, %llu "
                     "over the rates",
                     s.spawning ? "on" : "off", s.epoch, u(p.epochs), u(side_ ? p.answered : p.haves),
                     side_ ? "answered" : "sent", u(p.spawn_lines), u(p.drop_lines), u(p.spawned), u(p.despawned),

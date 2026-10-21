@@ -4153,7 +4153,7 @@ int main() {
       w.ask(coop::parse_request("fight status"), gate, io);
       assert(io.tracing("; same spawns on, epoch 1 (ours moved 1 times), 0 rounds answered") == 1);
       assert(has(w.detail(), " floored=0 spawns=on scale=")); // The host's: no counts of the guest's.
-      assert(io.tracing(", 0 refused (0 differ), 0 stale, ") == 1);
+      assert(io.tracing(", 0 refused, 0 differ, 0 stale, ") == 1);
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(!has(io.file, "epoch") && !io.lines().size());
       assert(w.ask(coop::parse_request("fight record"), gate, io).rfind("shared fight record: ", 0) == 0);
