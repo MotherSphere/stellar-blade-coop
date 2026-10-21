@@ -2692,6 +2692,50 @@ int main() {
     assert(eh->snapshot().spawns.answered == 0 && eg->snapshot().epoch == 1 && !eh->latched() && !eg->latched());
   }
 
+  // ---- coop fight spawn probe (fight probe spawns): same spawns' reads alone, on one game ----
+  // At each probe census: our epoch as same spawns count it, and once an epoch, for each Monster the shared fight
+  // shares, how its spawn row stands in our zone: takes part, save-row, keep-row, another zone, event-row or no row.
+  // Never an NPC's or a Monster fight_chars leaves out; nothing sent, nothing created or despawned. Our zone's reset (a
+  // camp rest: the spawn manager 2, then 4) moves the epoch, and each key is told again. Without spawns no row is read.
+  for (const bool spawns : {false, true}) {
+    Game G;
+    auto e = engine(false, false);
+    e->same_spawns(spawns);
+    e->set(true, false, true);
+    G.spawns();
+    G.zone(0xA1, 40), G.zone(0xA2, 41);
+    G.enter(0xA1);
+    G.spawn_row(1, 2, 0xA1), G.spawn_row(2, 1, 0xA1), G.spawn_row(3, 2, 0xA1, 0, true), G.spawn_row(4, 4, 0xA2);
+    G.spawn_row(5, 0, 0xA1, 1), G.spawn_row(7, 2, 0xA1), G.spawn_row(8, 2, 0xA1);
+    for (uint32_t id = 1; id <= 6; ++id)
+      G.spawn(100 + id, id, 0);
+    G.spawn(107, 7, 0, 70000, 100, 2); // An NPC.
+    G.spawn(108, 8, 0, 50330, 100000); // A Monster fight_chars leaves out.
+    for (uint64_t t = 0; t <= 6000; t += 16) {
+      if (t == 3008)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 2);
+      if (t == 4000)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 4);
+      frame(G, *e, t);
+    }
+    for (const Message &m : G.sent)
+      assert(m.type != Type::epoch && m.type != Type::have && m.type != Type::spawn && m.type != Type::drop);
+    assert(G.made.empty() && G.despawned.empty() && !e->latched());
+    if (!spawns) {
+      assert(G.lookups == 0 && std::none_of(G.events.begin(), G.events.end(), [](const Event &ev) {
+               return std::string(ev.what).rfind("spawns", 0) == 0;
+             }));
+      continue;
+    }
+    assert(count(G, "spawns epoch", "zone") == 1 && count(G, "spawns epoch", "reset") == 1);
+    const char *const told[] = {"takes part", "save-row", "keep-row", "another zone", "event-row", "no row"};
+    for (uint32_t id = 1; id <= 6; ++id)
+      assert(std::count_if(G.events.begin(), G.events.end(), [&](const Event &ev) {
+               return std::string(ev.what) == "spawns probe" && ev.spawn == id && ev.why == std::string(told[id - 1]);
+             }) == 2);
+    assert(count(G, "spawns probe") == 12 && e->snapshot().spawning);
+  }
+
   // ---- Same spawns' two game calls on fake memory: their arguments; none with no spawn manager or after a latch ----
   // The host holds keys 1 and 5:2 (where it stands, at its yaw), she holds 3 and 4. FUN_141c1c9a0 gets SB's spawn
   // manager as the global holds it, the key's EventSpawnId and SpawnIndex, where and (0, yaw, 0); FUN_141b077f0 the job
@@ -3961,6 +4005,13 @@ int main() {
     assert(io.tracing("chr=7003 type=3 life=1 hp=999999/999999 sh=100/100 st=200/200 left_out=MaxHP") == 1);
     assert(!io.tracing("chr=900 type=3 life=1 hp=1490/1600 sh=100/100 st=200/200 left_out"));
     assert(io.tracing("chr=900 type=3 life=1 hp=1490/1600 sh=100/100 st=200/200") == 2);
+    // coop fight spawn probe: the probe with same spawns' reads, said in its fight= line.
+    assert(!has(w.detail(), "spawns="));
+    ask("fight off");
+    g.spawns(), g.zone(0xA1, 40), g.enter(0xA1);
+    ask("fight probe spawns");
+    run(t + 1000);
+    assert(has(w.detail(), " writes=armed spawns=probe sim_us=") && io.saying("fight spawns probe 5001:0 no row") == 1);
   }
 
   // ---- Record on one PC, replay into another's guest: T11a's solo test of both roles ----

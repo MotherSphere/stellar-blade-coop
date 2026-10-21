@@ -322,8 +322,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // "nightop rule" (start it if needed and arm the verdict, once a run); for the shared fight (Phase 11, fight_engine.h's
 // Worker) "fight on|probe|record|replay [confirmed] [fought] [scale <hp %> <balance %>] [place] [aggro-host] [spawns]
 // [<charId> ...]" (guest_kills=confirmed; kill_credit=fought; the host's two-player scaling, kMinScale to kMaxScale
-// each; the host's same_place=on; the host's aggro=host; the host's same_spawns=on; fight_chars, at most
-// kMaxFightChars, none: every Monster),
+// each; the host's same_place=on; the host's aggro=host; the host's same_spawns=on, or with probe coop fight spawn
+// probe; fight_chars, at most kMaxFightChars, none: every Monster),
 // "fight off", "fight status", "fight test
 // hp|sh|st <change>" (whole units, with or without a sign), "fight test kill", and for same-place enemies
 // (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
@@ -369,7 +369,7 @@ struct Request {
   uint16_t scale[2] = {kMinScale, kMinScale}; // fight on, probe, record, replay: MaxHP and balance in % (a host's).
   bool place = false;          // fight on, probe, record, replay: same_place=on (a host's).
   bool aggro_host = false;     // fight on, probe, record, replay: aggro=host (a host's; aggro=game otherwise).
-  bool spawns = false;         // fight on, probe, record, replay: same_spawns=on (a host's).
+  bool spawns = false;         // fight on, record, replay: same_spawns=on (a host's); probe: coop fight spawn probe.
   PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
   PilotTest test = PilotTest::replay;    // fight pilot test: how far.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.

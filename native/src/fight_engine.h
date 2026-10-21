@@ -698,7 +698,8 @@ public:
       new (&epochs_) Epochs();
       new (&spawn_host_) SpawnHost();
       new (&spawn_guest_) SpawnGuest();
-      rows_ = zones_ = mines_ = 0;
+      rows_ = zones_ = mines_ = probed_ = 0;
+      zone_told_ = false;
       probe_fence_.clear();
       next_probe_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
@@ -1117,6 +1118,8 @@ private:
       return;
     next_probe_ = now_ms + kProbeMs;
     ++counts.censuses;
+    spawning_ = same_spawns_; // coop fight spawn probe: same spawns' reads only (spawn_probe()).
+    mines_ = 0, keys_whole_ = true;
     if (!walk(g, logic))
       return;
     const uint64_t local = local_fsb(g);
@@ -1139,6 +1142,7 @@ private:
       ++actors_;
       a.out = left_out(a);
       g.probe(a);
+      this->keyed(g, a);
       if (a.seen.spawn && !a.player && keyed < kMaxSeen)
         seen_[keyed++] = a.seen;
       const float max = a.seen.max[kHp];
@@ -1151,8 +1155,48 @@ private:
       return;
     if (const char *why = probe_fence_.changed(seen_, keyed, turn, true))
       g.event(Event{"world", why});
+    if (spawning_)
+      spawn_probe(g, logic, now_ms);
     if (test != kNoTest)
       try_test(g, logic, test, int32_t(uint32_t(asked)), aim);
+  }
+  // coop fight spawn probe (fight probe spawns), alone on one game: our epoch as same spawns count it (logged as it
+  // moves), then once an epoch for each Monster the shared fight shares, how its spawn row stands in our zone: "spawns
+  // probe <key> takes part", save-row, keep-row, event-row, another zone or no row; "spawns probe no zone" once an
+  // epoch while our zone has no ZoneTable ID. Only the two read-only lookups run: no line goes out, and SB's spawn and
+  // despawn are never called.
+  template <class Game> void spawn_probe(Game &g, uint64_t logic, uint64_t now) {
+    uint64_t alias = 0, manager = 0;
+    uint32_t state = 0;
+    if (!keys_whole_ || !get(g, logic + kZoneAlias, alias) || !get(g, base_ + (kSpawnManager - kImageBase), manager) ||
+        (plausible(manager) && !get(g, manager + kSpawnState, state)))
+      return;
+    if (const char *why = epochs_.step(alias, state, mine_, mines_, now)) {
+      ++(hosting_seen_ ? spawn_host_.counts : spawn_guest_.counts).epochs;
+      g.event(Event{"spawns epoch", why});
+      probed_ = 0, zone_told_ = false;
+    }
+    const uint64_t tables = tables_at(g);
+    const uint32_t zone = tables && alias ? zone_id(g, tables, alias) : 0;
+    if (!zone) {
+      if (alias && !zone_told_ && !latched_)
+        zone_told_ = true, g.event(Event{"spawns probe", "no zone"});
+      return;
+    }
+    SpawnRow row;
+    for (size_t i = 0; i < mines_ && probed_ < kMaxSeen && !latched_; ++i) {
+      const Mine &m = mine_[i];
+      if (!m.monster || listed(probed_at_, probed_, m.key))
+        continue;
+      const char *why = !spawn_row(g, m.key.spawn, row) ? "no row"
+                        : row_out(row)                   ? row_out(row)
+                        : row.zone != zone               ? "another zone"
+                                                         : "takes part";
+      if (latched_)
+        return;
+      probed_at_[probed_++] = m.key;
+      g.event(Event{"spawns probe", why, 0, m.key.spawn, m.key.index});
+    }
   }
   // HP, Shield and Stamina with their maxes as the probe shows them: whole units, -1 when not a number within
   // +-kMaxStat; any value is shown, never latched on (another actor's may be anything). Unreadable: latched.
@@ -2001,6 +2045,10 @@ private:
   uint64_t zone_alias_[kMaxZones] = {};
   uint32_t zone_ids_[kMaxZones] = {};
   size_t zones_ = 0;
+  // coop fight spawn probe: the keys told in this epoch, and whether "no zone" was.
+  SpawnKey probed_at_[kMaxSeen];
+  size_t probed_ = 0;
+  bool zone_told_ = false;
 };
 
 // ---- Between the job and the worker ----
@@ -2557,10 +2605,11 @@ private:
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
   // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
-  // and refused or undid because the two games differ (spawn_sync.h's differs()).
+  // and refused or undid because the two games differ (spawn_sync.h's differs()). The probe: " spawns=probe" while
+  // coop fight spawn probe reads, else nothing.
   std::string spawns_field(const Snapshot &s) const {
-    if (ran_ == Fight::probe)
-      return std::string();
+    if (ran_ == Fight::probe) // coop fight spawn probe.
+      return s.spawning ? " spawns=probe" : "";
     if (!s.spawning)
       return " spawns=off";
     const bool stopped = s.pilot_why && std::strcmp(s.pilot_why, "stopped") == 0;
