@@ -824,6 +824,18 @@ assert(#logs==1,'Not built again while open')
 k.show('menu',false)
 k.slow(true)
 assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
+-- Nor while our UI holds the game's input with no hit group shown (the host's question): the input focused that root.
+reset()
+k=kit()
+for _=1,#UMG+6 do k.slow(true) end
+assert(#viewport==1 and #logs==1 and k.holding()==false)
+k.input(true,'card')
+assert(k.holding()==true)
+for _=1,60 do k.slow(true) end
+assert(#logs==1 and #viewport==1,'Not built again while it holds the input')
+k.input(false,'card')
+k.slow(true)
+assert(#logs==2 and logs[2]:find('^UI built: '),logs[2])
 
 
 -- The menu's input: the game's keys off while open (UIOnlyEx on our root, no mouse lock), back on at close; each once;
@@ -1070,6 +1082,24 @@ special['GameplayStatics.IsGamePaused']=nil
     k.input(false)
     for _=1,8 do quarter() end
     assert(count('UserWidget.HasAnyUserFocus')==n and k.lost()==false,'Given back: nothing read')
+    -- A mouse button while our UI holds the input (Slate gives a click on none of our widgets to the game's viewport):
+    -- the root focused again 50 ms later, once, and the second starts over; nothing while the game has its input.
+    k.click(); clock=clock+0.0625; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==0,'The game has its input: nothing')
+    k.input(true)
+    has=true; quarter(); has=false
+    for _=1,3 do quarter() end
+    k.click(); clock=clock+0.03125; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==0,'Not before 50 ms')
+    clock=clock+0.03125; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==1 and stores[viewport[1]].last.SetKeyboardFocus,'Our root focused')
+    clock=clock+0.0625; k.tick(clock)
+    assert(count('UserWidget.SetKeyboardFocus')==1,'Once a click')
+    for _=1,4 do quarter() end
+    assert(k.lost()==false,'1 s from the click only')
+    quarter()
+    assert(k.lost()==true,'Still lost: fired')
+    k.input(false)
     -- Refused: said once a Lua load (two builds), the watchdog unarmed, nothing read.
     reset()
     raise['set UserWidget.bIsFocusable']='no such property'
@@ -1149,6 +1179,12 @@ field.focus()
 assert(count('EditableTextBox.SetKeyboardFocus')==focused+1)
 field.hint('Indice')
 assert(bs.last.SetHintText[1].text=='Indice')
+-- A mouse button while the chat holds the input: its box focused again 50 ms later, not our root.
+k.input(true,'chat')
+focused=count('EditableTextBox.SetKeyboardFocus')
+k.click(); clock=clock+0.0625; k.tick(clock)
+assert(count('EditableTextBox.SetKeyboardFocus')==focused+1 and count('UserWidget.SetKeyboardFocus')==0)
+k.input(false,'chat')
 -- A root rebuilt (a map change): the box's handles never touch the freed one.
 for _,o in ipairs(constructed) do stores[o].alive=false end
 local n=#calls

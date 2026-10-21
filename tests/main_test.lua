@@ -316,6 +316,7 @@ end,kit=function(opts)
         end,
         stop=said_kit('stop'),
         reset=said_kit('reset'),
+        holding=function() return kit_input end,click=said_kit('click'),
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end, -- A global: Lua's 200 locals.
         move=function() end,fade=function() end,
         project=function(anchor)
@@ -2366,8 +2367,10 @@ end)()
     -- left the focus.
     hover(5); key('LEFT_MOUSE_BUTTON'); hover(nil); key('LEFT_MOUSE_BUTTON')
     assert(kit_shown.menu and focus()=='Join a friend' and #kit_sounds==sounds,'A click on no row: nothing')
+    local clicks=#kit_calls
     hover(6); key('LEFT_MOUSE_BUTTON')
     assert(focus()=='Open this menu' and kit_sounds[#kit_sounds]=='select','A click selects the row under the mouse')
+    assert(kit_said('click nil')>clicks,'The kit puts our focus back')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')
     -- Hosting: Leave on two clicks within 3 s, as with Enter.
@@ -2401,6 +2404,12 @@ end)()
     link_mode='host'
     link_pending={id='76561198000000004',name='Six'}
     quarter(); assert(kit_shown.ask and kit_holder=='ask')
+    -- Under the host's question (no hit group), either mouse button only has the kit put our focus back.
+    local asks,clicks=#asked,0
+    calls=#kit_calls
+    key('LEFT_MOUSE_BUTTON'); key('RIGHT_MOUSE_BUTTON')
+    for i=calls+1,#kit_calls do if kit_calls[i]=='click nil' then clicks=clicks+1 end end
+    assert(clicks==2 and kit_shown.ask and #asked==asks,'Our focus back, nothing answered')
     kit_lost='ask'; quarter()
     assert(asked[#asked]=='deny 76561198000000004' and not kit_shown.ask
         and logged('focus watchdog: ask lost the focus for 1 s: co-op UI closed, the game has its input back'))

@@ -340,6 +340,7 @@ local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children 
 -- Row height; tween seconds; slide units; rebuilds in a row for a root that left the viewport, then off; units an
 -- inside group keeps from the viewport's edges.
 local ROW,OPEN,CLOSE,SLIDE,LOSSES,SAFE=76,0.16,0.12,32,3,48
+local REFOCUS=0.05 -- Seconds from a mouse button to our focus put back (Slate moves the focus as it takes the press).
 -- A key hint's icon, square, as the game's photo mode draws these icons beside its text; its label's top below the
 -- icon's, so the hint style's line sits on the icon's middle.
 local KEY_ICON,KEY_TEXT=66,9
@@ -380,6 +381,7 @@ function Ui.kit(opts)
     -- The focus watchdog: since the input was taken ({at=, armed=a yes read, since=the first no after it}), who it
     -- fired for (lost() takes it), and its two lines said.
     local watch,fired,unfocusable_said,never_said=nil,nil,false,false
+    local refocus_at=nil -- A mouse button pressed while our UI holds the game's input: when our focus goes back.
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
@@ -401,9 +403,9 @@ function Ui.kit(opts)
     -- focused, the menu's keys being UE4SS binds, which read the keyboard whatever has focus; or with a text box and
     -- its keyboard focus, the chat's); off, the game's again: GameOnly in a world; at the title GameAndUIEx with no
     -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). The menu (holder
-    -- nil) also shows the mouse cursor, after its input mode; the value found goes back once a field takes the input or
-    -- it is given back. With no player controller (a map loads) or no root: nothing, and the change still due (input
-    -- tries again). inputting changes before the engine call: a refused call is not tried again by the fault it
+    -- nil) also shows the mouse cursor, after its input mode; the value found goes back once another holder takes the
+    -- input or it is given back. With no player controller (a map loads) or no root: nothing, and the change still due
+    -- (input tries again). inputting changes before the engine call: a refused call is not tried again by the fault it
     -- raises.
     local function input_mode(on,field)
         local pc,root=controller(),on and alive(built.root)
@@ -812,6 +814,7 @@ function Ui.kit(opts)
                 if built.root.v~=built.root.on then built.root.v=built.root.on; r:SetVisibility(built.root.on) end
                 if warm(built.partial) or not built.partial then return end
                 for _,def in ipairs(order) do if def.shown and def.place.hit then return end end -- Not under the mouse.
+                if inputting then return end -- Nor the root the input focused (the host's question has no hit group).
             elseif built.size==#order then
                 lost=lost+1 -- A map change took it out, or the game, or another mod.
                 need(lost<=LOSSES,'the UI root keeps leaving the viewport')
@@ -822,9 +825,10 @@ function Ui.kit(opts)
         if not classes() then build() end
     end
     -- The focus watchdog, each 250 ms while our UI holds the game's input and shows: whether our root or a widget in it
-    -- has the focus. Armed by a first yes since the input was taken; armed, 1 s of no fires it (lost()), once a take.
-    -- Never armed 2 s after the take: said once a Lua load, nothing fires. A read that raises counts for nothing. The
-    -- Steam overlay keeps Slate's focus, so it never fires it; the game or another mod moving the focus does.
+    -- has the focus. Armed by a first yes since the input was taken; armed, 1 s of no fires it (lost()), once a take; a
+    -- mouse button starts that second over (click). Never armed 2 s after the take: said once a Lua load, nothing
+    -- fires. A read that raises counts for nothing. The Steam overlay keeps Slate's focus, so it never fires it; the
+    -- game or another mod moving the focus does.
     local function guard()
         local r=watch and not hidden and built and built.focusable and alive(built.root)
         if not r then return end
@@ -855,8 +859,28 @@ function Ui.kit(opts)
         fired=nil
         return who~=nil,who
     end
-    -- Each frame: the open and close tweens, only while one runs.
+    -- Whether our UI holds the game's input (main.lua's mouse binds read it on UE4SS's key thread).
+    function self.holding() return inputting end
+    -- A mouse button pressed (main.lua's binds, on the game thread): while our UI holds the game's input, our focus
+    -- goes back where the input put it (the root, or the holder's box) REFOCUS later, and the focus watchdog's second
+    -- starts over. Slate gives a click that no widget of ours takes (off the menu's rows or the chat's box, any click
+    -- under the host's question) to the game's viewport.
+    -- ponytail: the left and right buttons only; the middle and side ones move the focus too (the watchdog then closes
+    -- our UI): bind them in main.lua if a tester trips it.
+    function self.click()
+        refocus_at=os.clock()+REFOCUS
+        if watch then watch.since=nil end
+    end
+    -- Each frame: our focus back once due, while the input is still ours and the world shows; the open and close
+    -- tweens, only while one runs.
     function self.tick(now)
+        if refocus_at and now>=refocus_at then
+            refocus_at=nil
+            if inputting and not hidden and built then
+                local g=holder and built.groups[holder]
+                upd(g and g.field or built.root,function(x) x:SetKeyboardFocus() end)
+            end
+        end
         if not off and next(tweens) then
             run(function()
                 for name,t in pairs(tweens) do

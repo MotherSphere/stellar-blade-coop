@@ -1052,13 +1052,18 @@ if settings then
     end)
     -- A left click selects the co-op menu's row under the mouse, or answers the co-op saves' question with the choice
     -- under it; a right click goes back in the menu (the kit's input leaves Slate the mouse, and UE4SS calls the binds
-    -- whatever has it). No gamepad button can be bound: the pad comes through the native part.
+    -- whatever has it). While our UI holds the game's input, either button first has the kit put our focus back (a
+    -- click on none of our widgets gives it to the game's viewport). No gamepad button can be bound: the pad comes
+    -- through the native part.
     bind('LEFT_MOUSE_BUTTON',nil,function()
-        if menu.is_open() then ExecuteInGameThread(function() menu.nav('click') end)
-        elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('click') end) end
+        if not (kit.holding() or menu.is_open() or saves_ui.is_open()) then return end
+        ExecuteInGameThread(function()
+            kit.click()
+            if menu.is_open() then menu.nav('click') elseif saves_ui.is_open() then saves_ui.nav('click') end
+        end)
     end)
     bind('RIGHT_MOUSE_BUTTON',nil,function()
-        if menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end) end
+        if kit.holding() or menu.is_open() then ExecuteInGameThread(function() kit.click(); menu.nav('back') end) end
     end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)
