@@ -1692,7 +1692,9 @@ private:
                : 0;
   }
   // An EventSpawnTable row of our tables by EventSpawnId, with its zone's ZoneTable ID; kept for the session once read
-  // (kMaxRows of them). None while the tables are not made (not kept), or when the lookup finds none.
+  // (kMaxRows of them). None while the tables are not made (not kept), or when the lookup finds none. Only shared
+  // Monsters' keys are looked up, so a Save or keep row met is logged (once a session while it stays kept): it stays as
+  // it is in both games.
   template <class Game> bool spawn_row(Game &g, uint32_t id, SpawnRow &out) {
     for (size_t i = 0; i < rows_; ++i)
       if (row_ids_[i] == id) {
@@ -1713,6 +1715,8 @@ private:
       return false;
     row.keep = keep != 0;
     row.zone = ok ? zone_id(g, tables, alias) : 0;
+    if (const char *why = ok ? row_out(row) : nullptr; why && std::strcmp(why, "event-row") != 0)
+      g.event(Event{"spawns leave", why, 0, id});
     if (rows_ < kMaxRows)
       row_ids_[rows_] = id, row_at_[rows_] = row, row_ok_[rows_++] = ok;
     out = row;

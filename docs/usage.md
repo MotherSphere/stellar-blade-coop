@@ -677,7 +677,8 @@ has no menu row.
   `gone`; and `fight spawn undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out
   (`not shared`) or another character than the host's (`charId`). On the host: `fight spawn sent
   <key>` and `fight drop sent <key>`. Both log `fight spawns epoch <why>` when their zone changes (`zone`), its enemies
-  reset (`reset`), or 3 or more of them come back at once (`guids`).
+  reset (`reset`), or 3 or more of them come back at once (`guids`). `fight spawns leave <spawnId>:0 save-row` (or
+  `keep-row`) comes once a session for a row of a shared enemy that same spawns leave as it is.
 - The `fight stats:` lines in `coop-fight.log` add `same spawns <on|off>, epoch <n> (ours moved <n> times), <n> rounds
   <answered|sent>, <n> spawn and <n> drop lines, <n> spawned, <n> despawned (<n> undone), <n> refused, <n> stale, <n>
   over the rates`.

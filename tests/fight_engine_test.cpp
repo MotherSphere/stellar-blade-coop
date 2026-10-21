@@ -2574,6 +2574,8 @@ int main() {
     assert(eg->guest.linked() == 8); // The created four paired through stage 1.
     assert(count(G, "spawned") == 4 && count(G, "despawned") == 4 && count(H, "spawns epoch", "reset") == 1);
     assert(count(H, "spawn sent") == 4 && count(G, "spawn refused") == 0); // Never key 13's.
+    assert(count(G, "spawns leave", "save-row") == 1 && count(G, "spawns leave", "keep-row") == 1); // Once each.
+    assert(count(G, "spawns leave") == 2 && count(H, "spawns leave") == 0);
   }
 
   // ---- Same spawns stop while a census's list of keys is partial ----
