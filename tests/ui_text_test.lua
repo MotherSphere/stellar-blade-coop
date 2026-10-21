@@ -1,6 +1,7 @@
 -- ui_text.lua, pure (no fakes): a language's table only under one of the 23 culture names recruiter_text.lua's
 -- culture() gives, and either empty or with exactly T.en's keys at every level, each word with T.en's format
--- placeholders in T.en's order (Lua's format has no positional arguments); T.pick's choice (the game's culture through
+-- placeholders in T.en's order (Lua's format has no positional arguments; a percent sign, %%, may stand anywhere, as
+-- Turkish puts it first); T.pick's choice (the game's culture through
 -- culture(), English with ui_language=english, for a culture with no table and for a word a table lacks); in every
 -- language, every notice within the feed's 200 bytes a line (Chat.clean) with a 32-byte name, and every menu row,
 -- value and key hint within its column.
@@ -10,7 +11,7 @@ local R=require('recruiter_text')
 local Chat=require('chat')
 local function specs(s)
     local list={}
-    for p in s:gmatch('%%.') do list[#list+1]=p end
+    for p in s:gmatch('%%.') do if p~='%%' then list[#list+1]=p end end -- %% takes no argument: anywhere.
     return table.concat(list,' ')
 end
 -- t has exactly en's keys at every level, its words with en's placeholders.
