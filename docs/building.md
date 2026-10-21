@@ -78,11 +78,11 @@ build/host/pose_codec_test
   `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
   objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
   also covers `coop fight pilot` (its `test target` included), the `same_place` and `aggro` settings and rows, the
-  `same_spawns` setting and row, `coop fight spawn probe`, and the same place and same spawns notices in both
+  `same_spawns` and `enemy_extra` settings and rows, `coop fight spawn probe`, and the same place and same spawns notices in both
   languages.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-    `aggro-host` and `spawns` words and its `pilot` requests, `test target` included), and the join codes (both real
+    `aggro-host`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` included), and the join codes (both real
     lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, joining with a code, and the host's
@@ -128,7 +128,14 @@ build/host/pose_codec_test
     the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn
     and the GUID), none with no spawn manager made, and no call, line or log line after a latch on an unreadable row,
     and a host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told
-    once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field;
+    once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field; extra enemies in
+    two worlds with `enemy_extra=2` (two `NewActor` calls for each of the host's four enemies, 2 and 3 m from it, the
+    same keys made on her side where the host's stand, all twelve paired, one 130 m from both EVEs despawned on the
+    host and then by a drop on hers, the rest despawned at the end, hers when the host's off line comes, nothing
+    killed), and on the host alone (no extras for a BossMonster, an NPC, a ZoneEvent or Quest spawn or a charId not
+    shared, none before the zone is settled or while she stands 200 m away, an extra 105 m from her ghost kept, a
+    dying one left at the end, extras off when the tables hold a row at the first key, `NewActor` refusing logged once
+    a life); the `extra` word reaching the stats line;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
@@ -143,7 +150,8 @@ build/host/pose_codec_test
     another charId, removed again within the rates or kept and logged when it cannot be found again, the refusals
     that show the two games differ counted apart), a key
     refused as too far asked again, a created key that died
-    leaving her rounds, and two fake worlds through a delayed line until her set is the host's, with an epoch that
+    leaving her rounds, extra enemies (their keys and places, which enemies get them, once a life, the room left, the
+    host's answers and her checks for extra keys, `row taken`), and two fake worlds through a delayed line until her set is the host's, with an epoch that
     moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the

@@ -68,14 +68,15 @@ or shows the mouse cursor for one of its own screens.
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, the host's enemy scaling and
-your kill rewards), Display (the size, sounds
+title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, extra enemies, the host's enemy
+scaling and your kill rewards), Display (the size, sounds
 and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
-when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, scaling and kill reward rows, which
+when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, scaling and kill
+reward rows, which
 count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
 Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
 while they wait or run, and only on your screen).
@@ -711,6 +712,24 @@ between two probe censuses, which come once a second), and once an epoch for eac
 probe reads two game tables and calls neither the spawn function nor the despawn job. The `fight=` line says
 `spawns=probe` while it runs; `coop fight off` ends it.
 
+### Extra enemies (experimental)
+
+With `enemy_extra` at 1, 2 or 3 in the host's coop-settings.txt and same spawns on, each common enemy where both
+players stand within 100 m of each other in one zone gets that many more next to it, 2 to 4 m away, in both games.
+Bosses, Alpha Naytibas, quest and event enemies get none. An extra goes once both players are more than 120 m from it,
+and every extra goes when shared enemies stop. Extras have not been tested in game yet, and the default is 0.
+
+- Only the host's value counts, from the next `coop fight on`, and only with `same_spawns=on`: Options > Combat >
+  Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](#coop-settingstxt).
+- `coop-link.log` names each extra by its key: `3758096641:1` is the first enemy's first extra. In both games: `fight
+  extra made <key>` and, at the end, `fight extra despawned <key> end`. On the host: `fight extra refused <key> <why>`
+  (`full`: 48 extras already; `not made`: the game made none), `fight extra despawned <key> far` (both players more
+  than 120 m away), and `fight extras off <key> key range taken` when the host's tables use the extras' first key, so
+  no extras this session. `fight extra kept <key> <why>` means the despawn job could not be sent. On the guest an
+  extra arrives as any same spawns key (`fight spawned <key>`), and `fight spawn refused <key> row taken` means her
+  game's tables hold a row at that key.
+- The `fight stats:` lines in `coop-fight.log` add `extras <n> an enemy, <n> made, <n> despawned`.
+
 ### `coop off`
 
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
@@ -780,6 +799,11 @@ aggro=game
 # has there and removes those it lacks. Bosses, quest and event enemies, and the enemies a save records, stay as they
 # are.
 same_spawns=off
+# Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
+# of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
+# 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
+# Elites, quest and event enemies get none.
+enemy_extra=0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -825,6 +849,7 @@ card_details=on
 | `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
 | `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `off` |
+| `enemy_extra` | `0` to `3`: [extra enemies](#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |

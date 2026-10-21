@@ -529,6 +529,40 @@ spawn key like any other.
 
 The log lines are in [usage.md](usage.md#same-spawns-experimental).
 
+## Extra enemies
+
+Extra enemies (`enemy_extra`, 0 to 3, the host's value, 0 by default, not tested in game yet) build on same spawns:
+the host's game makes that many more of each common enemy where both players stand, and same spawns hand them to the
+guest's game like any other key of the host's that she lacks.
+
+- The host gives extras to a Monster that shared enemies share, of an EnterZone row (Save and keep rows included,
+  ZoneEvent and quest rows never), not dying, within 120 m of either EVE, while the zone is shared. Bosses and Alpha
+  Naytibas are BossMonsters (ActorType 4), so they get none. An enemy gets its extras once a life: after a respawn
+  under a new GUID it gets new ones.
+- An extra's key is EventSpawnId `0xE0000000 | n << 8 | slot` and SpawnIndex `slot`, where n counts the enemies given
+  extras this session and slot runs from 1 to 3. No EventSpawnTable row of this build is in that range (its highest
+  EventSpawnId is `0xD42B5F51`). The host checks once a session that its tables hold no row at the first key,
+  `0xE0000101`; if they do, extras stay off for the session. The game's death path skips the respawn and the zone
+  bookkeeping for an actor whose key has no row; that a save never holds one is still to be checked in game.
+- Slot s stands 100 + 100 s cm from its enemy (2, 3 or 4 m), 120 degrees apart around the enemy's yaw, at the
+  enemy's height and facing its way. The game's `NewActor` (`FUN_141ad1290`) makes it, with the arguments
+  `SpawnRequest::Execute` passes: the logic singleton, the charId, the position, the rotation (0, yaw, 0), not a
+  player (0, 0), the key, 0 for the row field, 0, 1, no request extra data, 0, flag 0 (no actor replaced) and 0. The
+  request extra data is null because the game's FSBActor creation (`FUN_141ca9100`) checks it for null and then keeps
+  the same default a fresh request would copy in.
+- Same spawns count an extra's key as part of the shared zone without a row: the host sends `spawn` for one she lacks
+  and `drop` for one of hers it lacks. She makes the key through `NewActor` too, with the charId of the host's line,
+  and refuses it (`row taken`) when her own tables hold a row at that key. Stage 1 then pairs the two copies by key.
+- Each game keeps the extras it made in its capture list, 48 at most. One that left the map (killed, despawned) is
+  forgotten at the next census. The host despawns one still fighting more than 120 m from both EVEs. At the session's
+  end every extra still fighting is despawned in each game, and a dying one is left to its death. Her extras also go
+  when the host's same spawns stop on her side (its off or world line). Every despawn goes through the game's despawn
+  job (`FUN_141b077f0`), never a kill.
+- `NewActor` runs inside the shared fight's job on the logic thread, under its fault latch, only while the table
+  holder and the world's actor manager exist: `NewActor` reads both through getters that would make them.
+
+The log lines are in [usage.md](usage.md#extra-enemies-experimental).
+
 ## Safety design
 
 StellarCoop reads and writes game memory, so it fails closed: a failed check or a fault stops the affected feature or
