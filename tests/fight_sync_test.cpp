@@ -171,7 +171,12 @@ int main() {
           "SBF11 own 3 77 G 1", "SBF11 own 4294967295 4294967295 H 255", "SBF11 own 3 77 H 0",
           "SBF11 own-no 3 77 0 unpaired", "SBF11 own-no 3 77 255 state", "SBF11 own-no 3 77 9 off",
           "SBF11 own-no 3 77 9 epoch", "SBF11 own-no 3 77 9 aggro", "SBF11 own-no 3 77 9 full",
-          "SBF11 own-no 3 77 9 target", "SBF11 exec 3 77 1", "SBF11 exec 4294967295 4294967295 0"}) {
+          "SBF11 own-no 3 77 9 target", "SBF11 exec 3 77 1", "SBF11 exec 4294967295 4294967295 0",
+          "SBF11 epoch 3 40 7", "SBF11 epoch 4294967295 4294967295 4294967295", "SBF11 have 3 7 1 1",
+          "SBF11 have 3 7 1 2 50110:0 50111:2", "SBF11 have 4294967295 4294967295 10 10 4294967295:255",
+          "SBF11 spawn 3 7 50110 0 15011001 -1200 340 0 90",
+          "SBF11 spawn 4294967295 4294967295 4294967295 255 4294967295 2147483647 -2147483647 0 359",
+          "SBF11 drop 3 7 50110 0", "SBF11 drop 4294967295 4294967295 4294967295 255"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -202,6 +207,29 @@ int main() {
     assert(no.type == Type::own_no && no.gen == 3 && no.guid == 77 && no.oe == 4 && no.why == kEpoch);
     Message exec = msg("SBF11 exec 3 77 1");
     assert(exec.type == Type::exec && exec.gen == 3 && exec.guid == 77 && exec.exec && !msg("SBF11 exec 3 77 0").exec);
+    // Same spawns (stage 4): the host's epoch in a zone, her keys there in parts, and its answers.
+    Message epoch = msg("SBF11 epoch 3 40 7");
+    assert(epoch.type == Type::epoch && epoch.gen == 3 && epoch.zone == 40 && epoch.epoch == 7);
+    Message have = msg("SBF11 have 3 7 2 3 50110:0 50111:2");
+    assert(have.type == Type::have && have.gen == 3 && have.epoch == 7 && have.part == 2 && have.parts == 3 &&
+           have.keyed == 2 && have.keys[0].spawn == 50110 && have.keys[0].index == 0 && have.keys[1].spawn == 50111 &&
+           have.keys[1].index == 2);
+    assert(msg("SBF11 have 3 7 1 1").keyed == 0); // She has none there.
+    Message spawn = msg("SBF11 spawn 3 7 50110 1 15011001 -1200 340 -5 90");
+    assert(spawn.type == Type::spawn && spawn.gen == 3 && spawn.epoch == 7 && spawn.spawn == 50110 && spawn.index == 1 &&
+           spawn.chr == 15011001 && spawn.at[0] == -1200 && spawn.at[1] == 340 && spawn.at[2] == -5 && spawn.yaw == 90);
+    Message drop = msg("SBF11 drop 3 7 50110 1");
+    assert(drop.type == Type::drop && drop.gen == 3 && drop.epoch == 7 && drop.spawn == 50110 && drop.index == 1);
+    assert(msg("SBF11 spawn 3 7 50110 0 1 -0 0 0 0").at[0] == 0); // Read as 0; we never write it.
+    // The widest have a guest sends (kHaveKeys keys, every number at its widest) fits one line.
+    Message wide;
+    wide.type = Type::have;
+    wide.gen = wide.epoch = UINT32_MAX;
+    wide.part = wide.parts = kHaveParts;
+    for (SpawnKey &k : wide.keys)
+      k = SpawnKey{UINT32_MAX - wide.keyed++, 255};
+    const std::string widest = format(wide);
+    assert(widest.size() <= coop::kMaxMessage && valid(widest) && msg(widest).keyed == kHaveKeys);
     Message odd;
     odd.type = Type::own_no, odd.gen = 3, odd.guid = 77, odd.why = 99; // Never written: read as unpaired.
     assert(format(odd) == "SBF11 own-no 3 77 0 unpaired");
@@ -273,8 +301,31 @@ int main() {
           "SBF11 own-no 3 77 off", "SBF11 own_no 3 77 1 off", "SBF11 ownno 3 77 1 off",
           // exec: 1 or 0 for one enemy.
           "SBF11 exec 3 77", "SBF11 exec 3 77 2", "SBF11 exec 3 77 01", "SBF11 exec 0 77 1", "SBF11 exec 3 0 1",
-          "SBF11 exec 3 77 1 1", "SBF11 exec 3 77 on", "SBF11 exec 3 77 -1", "SBF11 execs 3 77 1"})
+          "SBF11 exec 3 77 1 1", "SBF11 exec 3 77 on", "SBF11 exec 3 77 -1", "SBF11 execs 3 77 1",
+          // epoch: a generation, a ZoneTable ID and an epoch, none 0.
+          "SBF11 epoch 3 40", "SBF11 epoch 0 40 7", "SBF11 epoch 3 0 7", "SBF11 epoch 3 40 0", "SBF11 epoch 3 40 7 1",
+          "SBF11 epoch 3 -40 7", "SBF11 epoch 3 40 4294967296",
+          // have: its part from 1 to its parts, at most kHaveParts; up to kHaveKeys keys, each once, none only alone.
+          "SBF11 have 3 7 1", "SBF11 have 3 7 0 1", "SBF11 have 3 7 2 1 1:0", "SBF11 have 3 7 1 11 1:0",
+          "SBF11 have 3 7 11 11 1:0", "SBF11 have 3 7 1 2", "SBF11 have 0 7 1 1", "SBF11 have 3 0 1 1",
+          "SBF11 have 3 7 1 1 0:0", "SBF11 have 3 7 1 1 1:256", "SBF11 have 3 7 1 1 1:0 1:0", "SBF11 have 3 7 1 1 1",
+          "SBF11 have 3 7 1 1 1:0:0", "SBF11 have 3 7 1 1 :0", "SBF11 have 3 7 1 1 1:", "SBF11 have 3 7 1 1 1:0 ",
+          "SBF11 have 3 7 1 1  1:0", "SBF11 have 3 7 1 1 1;0", "SBF11 have 3 7 1 1 -1:0",
+          // spawn: a key, a charId, whole centimetres within an int32 and a yaw from 0 to 359.
+          "SBF11 spawn 3 7 50110 0 1 0 0 0", "SBF11 spawn 3 7 50110 0 1 0 0 0 0 0", "SBF11 spawn 3 7 0 0 1 0 0 0 0",
+          "SBF11 spawn 3 7 50110 256 1 0 0 0 0", "SBF11 spawn 3 7 50110 0 0 0 0 0 0",
+          "SBF11 spawn 3 7 50110 0 1 2147483648 0 0 0", "SBF11 spawn 3 7 50110 0 1 0 -2147483649 0 0",
+          "SBF11 spawn 3 7 50110 0 1 0 0 0 360", "SBF11 spawn 3 7 50110 0 1 0 0 0 -1", "SBF11 spawn 3 7 50110 0 1 0.5 0 0 0",
+          "SBF11 spawn 3 7 50110 0 1 - 0 0 0", "SBF11 spawn 3 7 50110 0 1 --1 0 0 0", "SBF11 spawn 3 7 50110 0 1 +1 0 0 0",
+          "SBF11 spawn 3 0 50110 0 1 0 0 0 0", "SBF11 spawn 0 7 50110 0 1 0 0 0 0",
+          // drop: a key.
+          "SBF11 drop 3 7 50110", "SBF11 drop 3 7 50110 0 0", "SBF11 drop 3 7 0 0", "SBF11 drop 3 7 50110 256",
+          "SBF11 drop 3 0 50110 0", "SBF11 drop 0 7 50110 0"})
       assert(!valid(bad));
+    std::string have25 = "SBF11 have 3 7 1 1"; // kHaveKeys + 1 keys: no.
+    for (uint32_t i = 1; i <= kHaveKeys + 1; ++i)
+      have25 += " " + std::to_string(i) + ":0";
+    assert(!valid(have25) && valid(have25.substr(0, have25.rfind(' '))));
     const char nul[] = {'S', 'B', 'F', '7', ' ', 'o', 'n', '\0'};
     assert(parse(nul, sizeof nul).type == Type::invalid && parse(nullptr, 3).type == Type::invalid);
     assert(format(Message()).empty());
@@ -295,7 +346,9 @@ int main() {
                                  "SBF11 dead 3 77", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
                                  "SBF11 hit 3 1 77 120 5 30 400 1", "SBF11 cc 3 77 9900001",
                                  "SBF11 scale 3 135 115", "SBF11 place 3 1", "SBF11 aggro 3 host",
-                                 "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state", "SBF11 exec 3 77 1"};
+                                 "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state", "SBF11 exec 3 77 1",
+                                 "SBF11 epoch 3 40 7", "SBF11 have 3 7 1 2 50110:0 50111:2",
+                                 "SBF11 spawn 3 7 50110 0 15011001 -1200 340 0 90", "SBF11 drop 3 7 50110 0"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -323,6 +376,7 @@ int main() {
       for (uint16_t pct : m.scale)
         assert(pct >= coop::kMinScale && pct <= coop::kMaxScale);
       assert(m.why < kOwnNoCount);
+      assert(m.keyed <= kHaveKeys && m.part <= m.parts && m.parts <= kHaveParts && m.yaw >= 0 && m.yaw < 360);
       std::string again = format(m, reason), reason2;
       Message n = parse(again.data(), again.size(), &reason2);
       assert(n.type == m.type && format(n, reason2) == again);
@@ -707,6 +761,16 @@ int main() {
     assert(h.counts.bad == 0);
     h.receive(msg("SBF11 own 1 101 G 1"), 130, w);
     assert(h.counts.bad == 1 && w.count("bad line", "not a guest's line") == 1);
+    // Same spawns' host lines (stage 4) from her are lies too; her have is the engine's (spawn_sync.h), never Host's.
+    w.lines();
+    for (const char *line : {"SBF11 epoch 1 40 7", "SBF11 spawn 1 7 50110 0 1 0 0 0 0", "SBF11 drop 1 7 50110 0",
+                             "SBF11 have 1 7 1 1"})
+      h.receive(msg(line), 140, w);
+    assert(h.counts.bad == 5 && w.lines().empty());
+    Line kept; // Never in a recording: the host's recorded lines are world to cc.
+    for (const char *line : {"10 SBF11 epoch 1 40 7", "10 SBF11 spawn 1 7 50110 0 1 0 0 0 0", "10 SBF11 drop 1 7 50110 0",
+                             "10 SBF11 have 1 7 1 1"})
+      assert(!parse_line(line, kept));
     World u;
     u.add(301, 7001, 0);
     Host plain; // aggro=game: no line at all.
@@ -1436,6 +1500,10 @@ int main() {
     g.receive(msg("SBF11 world 1"), w);
     g.receive(msg("SBF11 own-no 1 77 1 off"), w);
     assert(g.counts.bad == bad + 1);
+    // Same spawns (stage 4) are the engine's (spawn_sync.h): a have, her own line, is a lie from the host, and Guest
+    // takes none of the host's epoch, spawn and drop either (the engine does, before Guest).
+    g.receive(msg("SBF11 have 1 7 1 1"), w);
+    assert(g.counts.bad == bad + 2);
   }
 
   // ---- Guest, guest_kills=confirmed: our copies hold a 1 HP floor, so our lethal hit waits for the host's word ----

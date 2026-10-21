@@ -36,12 +36,19 @@
 //                                                                  one of kOwnNo
 //   SBF11 exec <gen> <hguid> <1|0>                                 guest, reliable: a takedown of hers on her copy of
 //                                                                  a same-place enemy begins (1) or ends (0), stage 3c
+//   SBF11 epoch <gen> <zone> <n>                                   host, reliable: same spawns (stage 4), our zone's
+//                                                                  ZoneTable ID and our epoch n there, at each change
+//   SBF11 have <gen> <n> <part> <parts> <spawnId>:<idx> ...        guest, reliable: her keys in that zone at epoch n,
+//                                                                  one round in parts lines of at most kHaveKeys
+//   SBF11 spawn <gen> <n> <spawnId> <idx> <charId> <x> <y> <z> <yaw> host, reliable: a key of ours she lacks, where
+//                                                                  ours stands (whole cm) and its yaw (0-359 degrees)
+//   SBF11 drop <gen> <n> <spawnId> <idx>                           host, reliable: a key of hers we lack, to despawn
 // The host answers the guest's on and world with its whole list (world, its scale and place, then every up), and the
 // guest
 // answers the host's on with its own (hers may have come while the host was off), so either side may restart.
 // Same-place enemies (pilot.h) send their show, show-set and show-stop lines on this channel with the same tag, from
 // the side that owns an enemy; pilot_line() tells them apart, and pilot.h parses them. own and own-no are the
-// engine's (fight_engine.h keeps the owners), never Host's or Guest's.
+// engine's (fight_engine.h keeps the owners), never Host's or Guest's; so are same spawns' four (spawn_sync.h).
 #pragma once
 
 #include <algorithm>
@@ -109,12 +116,21 @@ constexpr uint64_t kExecMs = 2000;
 // the take-over (SB's force target needs net mode 0 and no logic task in flight: pilot.h's Taker).
 constexpr const char *kOwnNo[] = {"unpaired", "state", "off", "epoch", "aggro", "full", "target"};
 enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kTarget, kOwnNoCount };
+// Same spawns (stage 4, spawn_sync.h): an enemy's spawn key, EventSpawnId and SpawnIndex; a have line's keys at most,
+// and the lines of one round at most.
+struct SpawnKey {
+  uint32_t spawn = 0;
+  uint8_t index = 0;
+};
+inline bool operator==(const SpawnKey &a, const SpawnKey &b) { return a.spawn == b.spawn && a.index == b.index; }
+constexpr size_t kHaveKeys = 24, kHaveParts = 10;
 
 // ---- Channel 2 ----
 
-// world..cc: the host's lines a recording keeps; hit, own-no and exec: the guest's; own: the host's, never recorded.
+// world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn and drop:
+// the host's, never recorded.
 enum class Type : uint8_t {
-  invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec
+  invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn, drop, epoch
 };
 // One enemy in an hp message.
 struct Values {
@@ -126,8 +142,8 @@ struct Message {
   uint32_t gen = 0;            // All but on and off.
   uint32_t guid = 0;           // up, down, dead, hit: the host's ActorGUID.
   uint32_t seq = 0;            // hit: the claim's number, from 1. hp: the ack, the last claim the host took.
-  uint32_t spawn = 0, chr = 0; // up: EventSpawnId and charId.
-  uint8_t index = 0;           // up: SpawnIndex.
+  uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop: the EventSpawnId).
+  uint8_t index = 0;           // up, spawn, drop: SpawnIndex.
   int32_t max_hp = 0;          // up: MaxHP, rounded.
   uint32_t batch = 0;          // hp: the host's turn of values, from 1; its lines share it.
   int32_t delta[kStats] = {};  // hit: the drops, each >= 0.
@@ -141,6 +157,11 @@ struct Message {
   uint8_t oe = 0;                                   // own, own-no: the owner epoch.
   uint8_t why = kUnpaired;                          // own-no: one of OwnNo.
   bool exec = false;                                // exec: her takedown begins (1) or ends (0).
+  uint32_t epoch = 0, zone = 0;   // have, spawn, drop, epoch: the host's epoch n; epoch: its zone's ZoneTable ID.
+  uint8_t part = 0, parts = 0;    // have: this line of the round, from 1, and the round's lines.
+  SpawnKey keys[kHaveKeys];       // have: her keys, keyed of them.
+  uint8_t keyed = 0;
+  int32_t at[3] = {}, yaw = 0;    // spawn: where, whole cm, and the yaw in whole degrees, 0 to 359.
   Values entries[kHpPerMessage];
   uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
 };
@@ -180,6 +201,19 @@ inline std::string format(const Message &m, const std::string &reason = std::str
     return t + "own-no" + n(m.gen) + n(m.guid) + n(m.oe) + " " +
            kOwnNo[m.why < kOwnNoCount ? m.why : uint8_t(kUnpaired)];
   case Type::exec: return t + "exec" + n(m.gen) + n(m.guid) + n(m.exec);
+  case Type::epoch: return t + "epoch" + n(m.gen) + n(m.zone) + n(m.epoch);
+  case Type::have: {
+    std::string text = t + "have" + n(m.gen) + n(m.epoch) + n(m.part) + n(m.parts);
+    for (size_t i = 0; i < m.keyed && i < kHaveKeys; ++i)
+      text += n(m.keys[i].spawn) + ":" + std::to_string(m.keys[i].index);
+    return text;
+  }
+  case Type::spawn: {
+    auto z = [](int32_t v) { return " " + std::to_string(v); };
+    return t + "spawn" + n(m.gen) + n(m.epoch) + n(m.spawn) + n(m.index) + n(m.chr) + z(m.at[0]) + z(m.at[1]) +
+           z(m.at[2]) + n(uint32_t(m.yaw));
+  }
+  case Type::drop: return t + "drop" + n(m.gen) + n(m.epoch) + n(m.spawn) + n(m.index);
   case Type::invalid: break;
   }
   return std::string();
@@ -200,6 +234,33 @@ inline bool whole(const std::string &text, int32_t &out) { // 0..kMaxStat.
   out = static_cast<int32_t>(v);
   return true;
 }
+inline bool cm(const std::string &text, int32_t &out) { // A whole number of cm, -INT32_MAX..INT32_MAX.
+  const bool minus = !text.empty() && text[0] == '-';
+  uint64_t v = 0;
+  if (!number(std::string_view(text).substr(minus), v) || v > uint64_t(INT32_MAX))
+    return false;
+  out = minus ? -static_cast<int32_t>(v) : static_cast<int32_t>(v);
+  return true;
+}
+// One have line's keys, "<spawnId>:<idx>" each once, at most kHaveKeys.
+inline bool keys(const std::string &tail, Message &m) {
+  for (size_t at = 0;;) {
+    const size_t space = tail.find(' ', at);
+    std::string entry = tail.substr(at, space == std::string::npos ? std::string::npos : space - at), e[2];
+    std::replace(entry.begin(), entry.end(), ':', ' ');
+    uint64_t v = 0;
+    SpawnKey k;
+    if (m.keyed == kHaveKeys || !split(entry, e, 2, nullptr) || !id(e[0], k.spawn) || !number(e[1], v) || v > 255)
+      return false;
+    k.index = static_cast<uint8_t>(v);
+    if (std::find(m.keys, m.keys + m.keyed, k) != m.keys + m.keyed)
+      return false;
+    m.keys[m.keyed++] = k;
+    if (space == std::string::npos)
+      return true;
+    at = space + 1;
+  }
+}
 } // namespace detail
 
 // Strict: exactly what format() writes (but leading zeros), within kMaxMessage, every number in range. Anything else
@@ -217,7 +278,7 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     m.type = Type::on;
     return m;
   }
-  std::string head[2], rest, f[8], tail;
+  std::string head[2], rest, f[9], tail;
   if (!split(text, head, 2, &rest) || head[0] != fight_tag())
     return Message();
   const std::string &kind = head[1];
@@ -264,6 +325,29 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     ok = split(rest, f, 3, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && (f[2] == "0" || f[2] == "1");
     m.exec = f[2] == "1";
     type = Type::exec;
+  } else if (kind == "epoch") {
+    ok = split(rest, f, 3, nullptr) && id(f[0], m.gen) && id(f[1], m.zone) && id(f[2], m.epoch);
+    type = Type::epoch;
+  } else if (kind == "have") { // No key only in a round of one line: she has none there.
+    const bool none = split(rest, f, 4, nullptr);
+    uint64_t parts = 0;
+    ok = (none || split(rest, f, 4, &tail)) && id(f[0], m.gen) && id(f[1], m.epoch) && number(f[2], v) && v >= 1 &&
+         number(f[3], parts) && parts >= v && parts <= kHaveParts && (!none || parts == 1) &&
+         (none || detail::keys(tail, m));
+    m.part = static_cast<uint8_t>(v), m.parts = static_cast<uint8_t>(parts);
+    type = Type::have;
+  } else if (kind == "spawn") {
+    uint64_t yaw = 0;
+    ok = split(rest, f, 9, nullptr) && id(f[0], m.gen) && id(f[1], m.epoch) && id(f[2], m.spawn) && number(f[3], v) &&
+         v <= 255 && id(f[4], m.chr) && detail::cm(f[5], m.at[0]) && detail::cm(f[6], m.at[1]) &&
+         detail::cm(f[7], m.at[2]) && number(f[8], yaw) && yaw < 360;
+    m.index = static_cast<uint8_t>(v), m.yaw = static_cast<int32_t>(yaw);
+    type = Type::spawn;
+  } else if (kind == "drop") {
+    ok = split(rest, f, 4, nullptr) && id(f[0], m.gen) && id(f[1], m.epoch) && id(f[2], m.spawn) && number(f[3], v) &&
+         v <= 255;
+    m.index = static_cast<uint8_t>(v);
+    type = Type::drop;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;
