@@ -704,8 +704,18 @@ for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'rese
 end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
 -- coop race look on|off and coop race probe doro: test tools, out of the usage line (USAGE above). The look and the
--- ghost's Doro mode go on together, the ghost's refusal said after; off ends both, the look on or not.
+-- ghost's Doro mode go on together, the ghost's refusal said after; off ends both, the look on or not, on any save.
+-- The look and the probe start on a co-op save only.
 assert(dr.store=='store' and dr.log,'coop-look.txt through the link')
+coop('race','look','on')
+assert(#dr.calls==0 and not dr.ghost and last()=='[StellarCoop] STOP: coop race look runs only on a co-op save '
+    ..'(INSTALL.md: Co-op saves); now no slot status\n',last())
+coop('race','probe','doro')
+assert(#dr.calls==0 and last():find('^%[StellarCoop%] STOP: coop race probe runs only on a co%-op save'),last())
+coop('race','look','off')
+assert(dr.calls[1]=='off coop race look off' and dr.ghost==false and last()=='[StellarCoop] OK: look off\n',last())
+table.remove(dr.calls)
+status_text=with_slot('slot=coop index=4 marker=4\n')
 coop('race','look','on')
 assert(dr.calls[1]=='on' and dr.ghost==true and dr.ghost_log==dr.log and last()=='[StellarCoop] OK: look on\n',last())
 dr.ghost_why='Doro mode off on the ghost: no mesh'
@@ -725,6 +735,7 @@ for _,bad in ipairs({{},{'look'},{'look','ON'},{'look','on','x'},{'probe'},{'pro
     coop('race',table.unpack(bad))
     assert(last()=='[StellarCoop] STOP: Use: coop race look on|off | probe doro\n' and #dr.calls==dr.n,last())
 end
+status_text=plain
 dr.log('look hid=4 tick=3->0 rehid=0/min')
 assert(last()=='[StellarCoop][DR] look hid=4 tick=3->0 rehid=0/min\n',last())
 -- Each frame: the restore (done once, inside doro.lua) and the look's tick, whose message is reported.

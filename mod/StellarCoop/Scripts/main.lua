@@ -33,8 +33,8 @@
 -- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
 -- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
 -- of the usage line); coop race look on|off, your EVE drawn as a Doro and the ghost too, and coop race probe doro, a
--- Doro playing each of its clips (doro.lua; test tools, left out of the usage line). coop off stops everything until
--- the game restarts.
+-- Doro playing each of its clips (doro.lua; test tools, left out of the usage line; both start on a co-op save only).
+-- coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -133,9 +133,10 @@ local function answer(verb)
 end
 -- Host by who_can_join: code (an invisible lobby with a join code), private (invited only), friends.
 local HOSTS={code='host code',private='host private'}
--- coop no, coop recruiter and coop fight run only on a co-op save (D2, N9): the native part's slot=coop, from the start
--- of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
--- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight and the Doro look and probe run only on a co-op save (D2, N9): the native part's
+-- slot=coop, from the start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the
+-- manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked
+-- to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -487,19 +488,26 @@ local commands={
         end
         return ui.test(arg=='game')
     end,
-    -- The look and the ghost's Doro mode go on together; off ends both, whether the look is on or not.
+    -- The look and the ghost's Doro mode go on together; off ends both, whether the look is on or not, on any save.
+    -- The look and the probe start on a co-op save only: the look writes to the player actor.
     race=function(sub,a,extra)
         if sub=='look' and (a=='on' or a=='off') and extra==nil then
             if a=='off' then
                 puppet.doro(false)
                 return doro.off('coop race look off')
             end
-            local ok,why=doro.on()
+            local ok,why=coop_slot('coop race look')
+            if not ok then return false,why end
+            ok,why=doro.on()
             if not ok then return false,why end
             local _,ghost_why=puppet.doro(true,doro.log)
             return true,why..(ghost_why and ' '..ghost_why or '')
         end
-        if sub=='probe' and a=='doro' and extra==nil then return doro.probe() end
+        if sub=='probe' and a=='doro' and extra==nil then
+            local ok,why=coop_slot('coop race probe')
+            if not ok then return false,why end
+            return doro.probe()
+        end
         return false,'Use: coop race look on|off | probe doro'
     end,
     off=function()
