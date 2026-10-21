@@ -37,6 +37,10 @@ assert(W.key(0x12,3,4)==0xD8120304)
 for _,key in ipairs({0,0xD42B5F51,0xE0000104,0xF0010002,0xD7FFFFFF,0xD9000000}) do
     assert(W.decode(key)==nil,string.format('0x%X is not a wave key',key))
 end
+-- Only the 32 bits, read signed or unsigned: no wider number, no float, no string carries a wave key.
+for _,key in ipairs({0x1D82A0100,W.key(1,1,0)-0x200000000,W.key(1,1,0)+0.5,0xD82A0100*1.0,'3626631424'}) do
+    assert(W.decode(key)==nil,tostring(key)..' is not a wave key')
+end
 for _,bad in ipairs({{0,1,0},{256,1,0},{1,0,0},{1,6,0},{1,1,8},{1,1,-1}}) do
     assert(not pcall(W.key,bad[1],bad[2],bad[3]),'Refused: '..table.concat(bad,','))
 end
@@ -187,8 +191,13 @@ assert(at(s,6,{killed={W.key(RUN+1,1,3),W.key(RUN,2,0),W.key(RUN,1,4),0xD42B5F51
 assert(s.phase=='wave' and s.score==0 and s.kills==0)
 assert(at(s,7,{done=keys(1,3,3),killed=keys(1,0,0)})=='' and s.phase=='breather' and s.score==10 and s.kills==1)
 assert(at(s,8,{killed=keys(1,0,1)})=='' and s.score==20 and s.kills==2,'Each key scores once')
+assert(at(s,9,{killed={W.key(RUN,1,1)-0x100000000}})=='' and s.score==20 and s.kills==2,'Signed: the same body')
 -- No wave 2 in the breather's first 10 s; then it comes.
 assert(at(s,16.75)=='' and at(s,17)=='wave 2')
+-- A body found missing under its key, then seen through the signed EventSpawnId and killed: one body, the wave not
+-- yet down, the cap not freed twice.
+assert(at(s,18,{done=keys(2,0,0)})=='' and at(s,19,{killed={W.key(RUN,2,0)-0x100000000}})=='')
+assert(s.kills==3 and s.score==20+40 and s.phase=='wave' and s.left[2]==2 and s.up==2)
 
 -- Time up at run time 480: monsters still up no longer score.
 s=start()
@@ -199,6 +208,13 @@ assert(at(s,479.75)=='wave 3','One wave a tick at most')
 assert(at(s,480)=='end time' and s.outcome=='time' and s.clears==1)
 near(s.time,480,'Time up')
 assert(kill(s,481,2)=='' and s.score==40,'No score after the end')
+
+-- The last body down in the tick of run time 480: success with no bonus, not time up.
+s=start()
+at(s,0)
+for wave=1,4 do kill(s,wave*10-10,wave) at(s,wave*10) end
+assert(s.wave==5 and kill(s,45,5,0,2)=='' and kill(s,480,5,3,3)=='end success')
+assert(s.score==580 and s.time==480)
 
 -- A death ends the run as failed, an abort as aborted with its reason, from the countdown, a wave or a breather.
 local function in_state(phase)
@@ -220,5 +236,22 @@ end
 s=in_state('countdown')
 assert(at(s,-1,{abort='stop'})=='end aborted stop')
 near(s.time,0,'Ended before run time 0')
+s=in_state('wave')
+assert(at(s,12,{dead=true,abort='map'})=='end failed','A death in the tick of an abort: failed')
+-- Kills seen in the tick of a death or an abort still count; a heal they earn does not fire.
+for want,input in pairs({['end failed']={dead=true},['end aborted stop']={abort='stop'}}) do
+    s=start()
+    at(s,0)
+    kill(s,10,1)
+    at(s,20)
+    input.killed=keys(2,0,2)
+    assert(said(W.step(s,input,105+30))==want,'No heal for an ended run')
+    assert(s.kills==7 and s.score==wave_points(1)+wave_points(2) and s.clears==2)
+end
+-- A death screen or a load stamps the end on the old world's clock; the new world's clock starts near 0. The panel
+-- does not wait for the old clock to come back.
+s=in_state('wave')
+at(s,2400,{abort='map'})
+assert(said(W.step(s,{},5))=='idle' and s.phase=='idle')
 
 print('nightop_waves_test: ok')

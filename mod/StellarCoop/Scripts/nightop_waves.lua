@@ -39,9 +39,10 @@ function W.key(run,wave,slot)
     assert(math.type(slot)=='integer' and slot>=0 and slot<W.CAP,'slot')
     return BASE|run<<16|wave<<8|slot
 end
--- run, wave, slot of any key in the range (a census reads other runs' keys too); nil off the range.
-function W.decode(key) -- A signed read of the same 32 bits decodes the same.
-    if key&0xFF000000~=BASE then return nil end
+-- run, wave, slot of any key in the range (a census reads other runs' keys too); nil off the range. Only 32-bit
+-- integers pass: a signed read of the same 32 bits decodes the same, and nothing wider aliases a key.
+function W.decode(key)
+    if math.type(key)~='integer' or key<-0x80000000 or key>MASK or key&0xFF000000~=BASE then return nil end
     return key>>16&0xFF,key>>8&0xFF,key&0xFF
 end
 -- The run byte: the first from t % 255 + 1 on (t = os.time()) that no body in the census carries (taken[byte]), so a
@@ -123,6 +124,7 @@ end
 local function body(s,out,key,killed,rt)
     local run,k,slot=W.decode(key)
     if run~=s.run or k<1 or k>s.wave or slot>=#W.SCHEDULE[k].ids then return end
+    key=key&MASK -- One body, read signed or unsigned.
     if killed and not s.killed[key] then
         s.killed[key]=true
         s.kills=s.kills+1
@@ -146,17 +148,18 @@ function W.step(s,input,now)
     local out={}
     if s.phase=='idle' then return out end
     if s.phase=='result' then
-        if now-s.ended>=W.RESULT then
+        if now<s.ended or now-s.ended>=W.RESULT then -- A new world's clock starts again near 0.
             s.phase='idle'
             out[1]={what='idle'}
         end
         return out
     end
-    if input.dead then return finish(s,out,now,'failed') end
-    if input.abort then return finish(s,out,now,'aborted',input.abort) end
     local rt=now-s.t0
     for _,key in ipairs(input.killed or {}) do body(s,out,key,true,rt) end
     for _,key in ipairs(input.done or {}) do body(s,out,key,false,rt) end
+    -- Kills seen in the tick of a death or a stop still count, but no heal fires for a run that ends.
+    if input.dead then return finish(s,{},now,'failed') end
+    if input.abort then return finish(s,{},now,'aborted',input.abort) end
     if s.wave==#W.SCHEDULE and s.up==0 then return finish(s,out,now,'success') end
     if rt>=W.LIMIT then return finish(s,out,now,'time') end
     local coming=W.SCHEDULE[s.wave+1]
