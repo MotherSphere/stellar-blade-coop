@@ -549,13 +549,13 @@ struct Game {
         out.push_back(c.id);
     return out;
   }
-  // SetBattleMode's wrapper FUN_141a7cd30(fsb, 1, 0, 0, 0, 1) from inside the job: the game's battle mode on (its
-  // functor runs later on the game thread, which this fake folds in).
-  std::vector<uint64_t> battles;
-  void battle(uint64_t f) {
+  // SetBattleMode's wrapper from inside the job: FUN_141a7cd30(fsb, 1, 0, 0, 0, 1), the game's battle mode on, or
+  // FUN_141a7cd30(fsb, 0, 0, 0, 1, 1), off (its functor runs later on the game thread, which this fake folds in).
+  std::vector<uint64_t> battles, battles_off;
+  void battle(uint64_t f, bool on) {
     assert(processing);
-    battles.push_back(f);
-    mem.put<uint8_t>(f + kBattleFlag, 1);
+    (on ? battles : battles_off).push_back(f);
+    mem.put<uint8_t>(f + kBattleFlag, on);
   }
   // A summon of owner made by SummonActor row row: an actor of no spawn key in Spawn state, of that row's charId, its
   // owner at +0x400 and the GUID of the effect that made it at +0x40c; that effect runs on the owner (infinite).
@@ -3186,6 +3186,133 @@ int main() {
       G.hit(guid, kHp, 500);
     run(t + 100);
     assert(G.dying(931) && G.dying(933) && !G.dying(935) && !eg->latched());
+  }
+
+  // ---- Bosses (stage 5), the guest's side: our battle mode undone. Her copies 930 to 933 take the host's bstart, so
+  // SetBattleMode (1, 0, 0, 0, 1) puts each in battle mode. Each way out puts it back through SetBattleMode (0, 0, 0,
+  // 1, 1), the arguments of SB's own battle-off calls: 930 once no bstart came for 10 s (the host's boss left battle
+  // mode; the host's repeats each second keep the others on), and its next bstart calls again; 931 at the host's down
+  // (its pair goes); 930 again once the host's lines came for 10 s since that bstart, a 15 s silence of the host's not
+  // counted; 933 at her own Same place off (its pair stays, no longer drawn), then at the session's end (coop fight off)
+  // after the host's next bstart. 932, killed by the host's dead, gets none: the game's body refuses one on a dying
+  // actor ----
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100"})
+      G.inbox.push_back(msg(line));
+    for (uint32_t i = 0; i < 4; ++i) {
+      G.spawn(930 + i, 30 + i, 0, 15005100, 1600, kTypeBoss);
+      G.inbox.push_back(msg("SBF11 up 1 " + std::to_string(130 + i) + " " + std::to_string(30 + i) +
+                            " 0 15005100 1600"));
+    }
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    const auto bstart = [&](std::initializer_list<uint32_t> hguids) {
+      for (const uint32_t hguid : hguids)
+        G.inbox.push_back(msg("SBF11 bstart 1 " + std::to_string(hguid)));
+    };
+    const auto flag = [&](uint32_t guid) { return G.mem.get<uint8_t>(G.fsb(guid) + kBattleFlag); };
+    run(500);
+    assert(eg->guest.linked() == 4 && G.table.on);
+    bstart({130, 131, 132, 133});
+    const uint64_t at = t;
+    run(t);
+    assert(G.battles.size() == 4 && G.battles_off.empty() && flag(930) && flag(933));
+    // The host's repeats each second, for 931 to 933 only.
+    for (uint64_t next = at + 1000; next < at + 10000; next += 1000) {
+      run(next);
+      bstart({131, 132, 133});
+    }
+    run(at + 9984);
+    assert(G.battles_off.empty() && count(G, "battle off") == 0);
+    run(at + 10000);
+    assert((G.battles_off == std::vector<uint64_t>{G.fsb(930)}) && !flag(930) && flag(931));
+    assert(count(G, "battle off") == 1 && G.battles.size() == 4);
+    bstart({130, 131, 132, 133}); // Her copy back in battle mode with the host's next bstart.
+    run(t);
+    assert(G.battles.size() == 5 && G.battles.back() == G.fsb(930) && flag(930));
+    G.inbox.push_back(msg("SBF11 down 1 131"));
+    run(t + 100);
+    assert((G.battles_off == std::vector<uint64_t>{G.fsb(930), G.fsb(931)}) && !flag(931) && flag(932));
+    G.inbox.push_back(msg("SBF11 dead 1 132"));
+    run(t + 100);
+    assert(G.dying(932) && G.battles_off.size() == 2 && count(G, "battle off") == 2);
+    // The host silent for 15 s (its world paused: its job waits while the link lives on): that time does not count, so
+    // 930 and 933 stay on. Then its lines again, with repeats for 933 only: 930 leaves battle mode once the host's lines
+    // came for 10 s in all since its last bstart (about 0.1 s of them before the silence).
+    run(t + 15000);
+    assert(G.battles_off.size() == 2 && flag(930) && flag(933));
+    const uint64_t resume = t;
+    bstart({133});
+    for (uint64_t next = resume + 1000; next < resume + 10000; next += 1000) {
+      run(next);
+      bstart({133});
+    }
+    run(resume + 9500);
+    assert(G.battles_off.size() == 2 && flag(930));
+    run(resume + 10000);
+    assert(G.battles_off.size() == 3 && G.battles_off.back() == G.fsb(930) && !flag(930) && flag(933));
+    // Her Same place off (coop fight pilot off) with 933's pair kept: no longer drawn, so out of battle mode, and the
+    // host's bstart is refused (not drawn) until she draws it again.
+    const size_t pairs = eg->guest.linked();
+    eg->pilot_off(true);
+    run(t + 100);
+    assert(G.battles_off.size() == 4 && G.battles_off.back() == G.fsb(933) && !flag(933));
+    const uint64_t stale = eg->guest.counts.stale;
+    bstart({133});
+    run(t);
+    assert(eg->guest.linked() == pairs && pairs == 2 && eg->guest.counts.stale == stale + 1);
+    assert(G.battles.size() == 5 && !flag(933));
+    eg->pilot_off(false);
+    run(t + 100);
+    bstart({133});
+    run(t);
+    assert(G.battles.size() == 6 && G.battles.back() == G.fsb(933) && flag(933));
+    eg->set(false, false);
+    run(t + 100);
+    assert(G.battles_off.size() == 5 && G.battles_off.back() == G.fsb(933) && !flag(933) && !flag(930));
+    assert(count(G, "battle off") == 5 && G.battles.size() == 6 && !eg->latched());
+  }
+
+  // ---- Bosses (stage 5), the guest's side: her copy 930 in battle mode is gone, and 940 of the same spawn key pairs
+  // in the census that brings the host's next bstart. 940 goes into battle mode; 930's capture, lifted in that turn,
+  // leaves 940's started mark alone, so the host's repeats come back as "again" with no second SetBattleMode ----
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100", "SBF11 up 1 130 30 0 15005100 1600"})
+      G.inbox.push_back(msg(line));
+    G.spawn(930, 30, 0, 15005100, 1600, kTypeBoss);
+    G.spawn(939, 39, 0); // Hers alone, in every census: the swap is no new world.
+    uint64_t t = 0;
+    for (; t <= 500; t += 16)
+      frame(G, *eg, t);
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    frame(G, *eg, t += 16);
+    assert(eg->guest.linked() == 1 && (G.battles == std::vector<uint64_t>{G.fsb(930)}));
+    for (const uint64_t c = eg->counts.censuses; eg->counts.censuses == c;)
+      frame(G, *eg, t += 16);
+    for (uint32_t i = 1; i < kCensusTurns; ++i) // The next turn takes a census.
+      frame(G, *eg, t += 16);
+    G.unlink(930);
+    G.spawn(940, 30, 0, 15005100, 1600, kTypeBoss);
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    frame(G, *eg, t += 16);
+    assert(count(G, "unpaired", "gone") == 1 && count(G, "paired") == 2 && eg->guest.linked() == 1);
+    assert((G.battles == std::vector<uint64_t>{G.fsb(930), G.fsb(940)}) && G.battles_off.empty());
+    G.inbox.push_back(msg("SBF11 bstart 1 130"));
+    frame(G, *eg, t += 16);
+    assert(G.battles.size() == 2 && G.battles_off.empty() && !eg->latched());
   }
 
   // ---- Bosses (stage 5), the guest's solo probes (coop fight pilot test bstart|phase|finish|summon) as in a replay:

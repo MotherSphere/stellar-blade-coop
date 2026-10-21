@@ -268,10 +268,11 @@ local function remote_text(generation,parts,map)
     return table.concat(lines,'\n')..'\n'
 end
 local remote_file,displays,stored,requests,said,said_en=nil,{},nil,{},{},{} -- said_en: the English given with each.
+local friend_name='Kaanta' -- Her Steam name, as the link gives it.
 local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
 local link={remote_table=function() return remote_file end,store=function() return store end,
     display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
-    friend=function() return 'Kaanta',true,false end,
+    friend=function() return friend_name,true,false end,
     request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
 local Words=require('ui_text')
@@ -740,6 +741,24 @@ clock=clock+2
 ok,message=build()
 assert(message:find('^Ghost 607 built') and spawned[#spawned]~=actor and spawned[#spawned].label.text=='Kaanta',message)
 assert(#requests==0,'No request')
+-- The tag sets no font, so the engine's default draws it, Latin-1 only: a character past U+00FF shows as '?', and a
+-- name that loses more than half its characters gives way to the partner card's word for her, in the player's language
+-- when that one draws whole, else in English. Cleaned as the card cleans her name.
+local tag_text=require('puppet').tag_text
+assert(tag_text('Zoë Ünal','Partner')=='Zoë Ünal' and tag_text(' \1Kaanta\n ','Partner')=='Kaanta')
+assert(tag_text('Ann日本','Partner')=='Ann??' and tag_text('ab日本','Partner')=='ab??','Half lost: still hers')
+assert(tag_text('日本a','Partenaire','Partner')=='Partenaire' and tag_text('','Partenaire','Partner')=='Partenaire')
+assert(tag_text(nil,'Partenaire','Partner')=='Partenaire')
+assert(tag_text('カンタ','パートナー','Partner')=='Partner' and tag_text('カンタ','Takım arkadaşı','Partner')=='Partner')
+friend_name='カンタ'
+player=menu
+ghost.tick()
+player=eve
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(message:find('^Ghost 607 built') and spawned[#spawned].label.text=='Partner',message)
+friend_name='Kaanta'
 -- A camera that cannot be read stops the tag turning, once, and never the ghost.
 actor=spawned[#spawned]
 tag,box=actor.label,actor.mailbox

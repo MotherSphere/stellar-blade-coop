@@ -1448,10 +1448,10 @@ public:
 
   // Stage 5's lines (R33) for the engine, which acts on what passes: the host's bstart and phase for one of its
   // enemies we pair, at its generation, not dead. A bstart counts once a copy (from its pairing to its unpairing, the
-  // host's down or the host's next world): once the engine's call went, it marks it (started()), and the host's
-  // repeats come back as "again", no fault. A phase when phase_out() passes it for the charId of the host's up. Null
-  // when taken, local then the copy's GUID; else why not. The copy's ActorType, its drawing and the phase's owner epoch
-  // are the engine's to check.
+  // host's down or the host's next world) while the copy stays in battle mode: once the engine's call went, it marks it
+  // (started()), and the host's repeats come back as "again", no fault, until the engine takes it out again. A phase
+  // when phase_out() passes it for the charId of the host's up. Null when taken, local then the copy's GUID; else why
+  // not. The copy's ActorType, its drawing and the phase's owner epoch are the engine's to check.
   const char *boss_line(const Message &m, uint32_t &local) {
     Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
     const char *why = !known_gen_ || m.gen != known_gen_ ? "stale"
@@ -1475,10 +1475,12 @@ public:
     p->stuck[kHp] = -1;
     return true;
   }
-  // The engine's boss start went for the host's enemy hguid: its next bstarts are "again".
-  void started(uint32_t hguid) {
-    if (Pair *p = find(hguid))
-      p->started = true;
+  // The engine's boss start went for the host's enemy hguid: its next bstarts are "again"; until the engine took its
+  // battle mode off again (taken false), then the next one calls again. With local, only while the pair holds that copy:
+  // a copy the pair lost in the turn it paired another leaves the new one's mark alone.
+  void started(uint32_t hguid, bool taken = true, uint32_t local = 0) {
+    if (Pair *p = find(hguid); p && (!local || p->local == local))
+      p->started = taken;
   }
   // A phase line boss_line() took, once the engine's checks passed: the rows to apply on the copy (phase_plan(); held,
   // hn: the rows the copy runs, read on its first line and after a refusal), and the line's set kept as the copy's
@@ -1673,7 +1675,7 @@ private:
     bool holding = false;        // That kill waits since hold_ms while our copy holds NoDamageNoHit.
     uint64_t hold_ms = 0;
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
-    bool started = false;        // Its bstart was taken (stage 5): one a copy.
+    bool started = false;        // Its bstart was taken (stage 5): one a copy while in battle mode.
     bool phased = false;         // A phase line was applied to the copy (stage 5): phase, phases its set.
     bool retry = false;          // The game refused a row of its last one: the next plans from the copy's list.
     int32_t test_hp = 0;         // coop fight pilot test finish's HP for the copy (test_hp()); 0: the host's.

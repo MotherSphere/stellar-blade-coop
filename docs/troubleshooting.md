@@ -255,13 +255,18 @@ moves it.
 
 ### A shared boss differs between the two games
 
-Shared bosses (`bosses=on` in the host's settings) are experimental and not tested in game yet. With same place on, the
-guest's copy of a boss follows the host's through the lines in
+Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
+With same place on, the guest's copy of a boss follows the host's through the lines in
 [how-it-works.md: Shared bosses](how-it-works.md#shared-bosses). Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
   logs `fight bstart sent <key> hguid=<n>` when its boss enters battle mode.
+- Her copy stays in battle mode after the host's fight: her game logs `fight battle off <key> hguid=<n>` when it takes
+  the copy out of battle mode, 10 s after the host's last bstart, or at once when the pair ends. A gap of over 2 s with
+  no line from the host (a paused host game) is not counted in those 10 s. Without that line her copy is still paired
+  and drawn, and the host's game still sends a bstart each second: the host's boss is still in battle mode. Leaving
+  battle mode does not take arena walls down; the game's own events for that boss do.
 - Her copy's HP stops at a phase threshold while the host's boss fights on: look for `fight phase hguid=<n>` lines.
   `fight phase hguid=<n> the game refused a row` means the game refused a phase effect on her frozen copy. Her game
   tries again at the host's next line (every second in battle mode) and logs the refusal once until a line goes

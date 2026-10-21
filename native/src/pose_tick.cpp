@@ -512,7 +512,8 @@ void guarded_tick() {
 // alias, the spawn of a key on SB's spawn manager (as FSBCreateActor::Simulate makes it) and the despawn job (as SB's
 // ZoneEvent Despawn sends it). Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7), only from inside our job: NewActor,
 // as SpawnRequest::Execute calls it. Bosses (stage 5), only from inside our job: SetBattleMode's wrapper, as
-// FSBActor::AddTargetedByEnemy calls it (NewActor again for a boss's summons, and the effect call for its rows).
+// FSBActor::AddTargetedByEnemy calls it and as SB's own battle-off calls do (NewActor again for a boss's summons, and
+// the effect call for its rows).
 constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720,
                    kApplyEffect = 0x141ad08b0, kSpawnRow = 0x141a9db80, kZoneRow = 0x141a9b8a0,
                    kSpawnByKey = 0x141c1c9a0, kDespawn = 0x141b077f0, kNewActor = 0x141ad1290,
@@ -544,9 +545,9 @@ using Despawn = void (*)(void *sender, uint32_t turn, uint32_t guid);
 using NewActor = void *(*)(void *logic, int32_t chr, const float *at, const float *rot, uint8_t player,
                            uint32_t player_id, uint32_t id, uint8_t index, uint64_t row_field, uint8_t, uint8_t,
                            const void *extra, uint8_t, uint8_t flag, uint64_t);
-// SetBattleMode's wrapper: the FSBActor, then 1 (battle mode on), 0, 0, 0, 1 as AddTargetedByEnemy passes them; the
-// fifth argument, 0, runs the boss's EventOnBattle. Called on the logic thread, it queues its functor for the game
-// thread.
+// SetBattleMode's wrapper: the FSBActor, then 1 (battle mode on), 0, 0, 0, 1 as AddTargetedByEnemy passes them, the
+// fifth argument, 0, running the boss's EventOnBattle; or 0 (off), 0, 0, 1, 1 as SB's own battle-off calls pass them.
+// Called on the logic thread, it queues its functor for the game thread.
 using SetBattleMode = void (*)(void *fsb, uint8_t on, uint8_t, uint8_t, uint8_t, uint8_t);
 template <class F> F game_function(uint64_t address) {
   return reinterpret_cast<F>(base + (address - nightop::kImageBase));
@@ -597,8 +598,8 @@ struct WinGame {
         reinterpret_cast<void *>(logic), static_cast<int32_t>(chr), at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0,
         0));
   }
-  void battle(uint64_t fsb) {
-    game_function<SetBattleMode>(kSetBattleMode)(reinterpret_cast<void *>(fsb), 1, 0, 0, 0, 1);
+  void battle(uint64_t fsb, bool on) {
+    game_function<SetBattleMode>(kSetBattleMode)(reinterpret_cast<void *>(fsb), on, 0, 0, !on, 1);
   }
   void push(fight::Job *job) { game_function<SendJob>(kSendJob)(nullptr, job, 0); }
   bool receive(fight::Message &m) { return fight_mail.receive(m); }
@@ -1907,10 +1908,11 @@ std::string ask_pilot(const coop::Request &request) {
   }
   if (request.pilot >= PilotAsk::bstart) {
     static const char *const kSay[] = {
-        ("the frozen boss copy nearest our EVE gets the host's boss start (SetBattleMode, once a copy); coop-link.log "
-         "says its battle mode, first-time latch, on-battle flag, states 30 and 39 and AI task before, then each "
-         "change for 1 s (fight pilot test bstart ...). From the next coop fight replay until coop fight on, boss "
-         "copies get no BattleMode_5s"),
+        ("the frozen boss copy nearest our EVE gets the host's boss start (SetBattleMode, once while it stays in "
+         "battle mode, which it leaves 10 s later: no host repeats it); coop-link.log says its battle mode, "
+         "first-time latch, on-battle flag, states 30 and 39 and AI task before, then each change for 1 s (fight "
+         "pilot test bstart ...). From the next coop fight replay until coop fight on, boss copies get no "
+         "BattleMode_5s"),
         ("the frozen boss copy nearest our EVE gets its first phase row it lacks, then 5 s later the dispel of its "
          "floor, as the host's phase lines would bring them; coop-link.log says each line, stat 107 and the rows the "
          "game took (fight pilot test phase ...)"),

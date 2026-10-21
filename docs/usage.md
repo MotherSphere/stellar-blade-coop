@@ -146,7 +146,8 @@ friend, in teal:
   for 3 s; both grey the card out and keep their last values.
 - The marker over their ghost's head: their name, a row of HP dots, a shield line, and the distance once they are more
   than 15 m away. While the marker shows their name, the ghost's own name tag is hidden. With the marker off, or the
-  on-screen UI stopped, the name tag is back (`name_tag`).
+  on-screen UI stopped, the name tag is back (`name_tag`). The tag draws only Latin-1 letters: others show as `?`,
+  and a name that would lose more than half of them reads `Partner` (in your language when the tag can draw it).
 - The arrow at the edge of the screen, which points to them when they are out of view or behind you, with the distance
   and three HP pips.
 
@@ -587,7 +588,8 @@ The host's `aggro` setting decides which game runs an enemy's AI. With `aggro=ga
 player who hit it last. After 10 s without a hit, it goes to the other player once that player's EVE has stood at least
 3 m nearer to it for 2 s. An enemy changes hands at most once in 4 s, and never during one of its attacks, while it is
 down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
-the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place is on by default and has not been tested in game yet.
+the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same
+place is on by default and has not been tested in game yet.
 
 A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
 the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
@@ -771,16 +773,17 @@ not been tested in game yet, and the default is 0.
 
 With `bosses=on` in the host's coop-settings.txt, shared enemies also share the bosses and Alpha Naytibas (the game's
 BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses are on
-by default and have not been tested in game yet. With same place on, the guest's copy is frozen like any
-copy her game draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode,
-which phase effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events,
-the phase changes and the summoned enemies, which are shared like any other. Without same place, each game runs these
-for its own copy. A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then
-leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss stops being shared first (the link
-drops, the host's world changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own
-hit ends that boss in her game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless
-its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too, its thresholds taken off
-first. [How it works](how-it-works.md#shared-bosses) has the details, and
+by default and have not been tested in game yet. With same place on, the guest's copy is frozen like any copy her game
+draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode, which phase
+effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events, the phase
+changes and the summoned enemies, which are shared like any other. Her copy leaves battle mode up to 10 s after the
+host's boss does, not counting time while the host's game is paused, and at once when it stops being shared. Without
+same place, each game runs these for its own copy. A boss in its Finish stance ends only by the host's finisher: a
+killing hit of the guest's then leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss
+stops being shared first (the link drops, the host's world changes, `coop fight off`), her game removes the Immortal it
+put back on her copy, and her own hit ends that boss in her game. A boss without a Finish stance dies of her killing hit
+as a common enemy does, unless its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too, its
+thresholds taken off first. [How it works](how-it-works.md#shared-bosses) has the details, and
 [troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
 - Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
@@ -816,12 +819,15 @@ the shared fight's next turn, one test at a time. They work only while `coop fig
 copy goes. A test asked while another one runs is refused (`another test runs`).
 
 - `coop fight pilot test bstart` logs the copy's battle mode, first-time latch, on-battle flag, states 30 and 39 and
-  whether its AI runs a task (`before: b58=<0|1> 45a=<n> 45b=<n> state30=<0|1> state39=<0|1> ai=<0|1>`), starts the
-  boss fight on the copy as the host's game would (`SetBattleMode called`, or `SetBattleMode not called: <why>`, where
-  `again` means it already ran on this copy), then logs each change of those values for 1 s (`after <ms> ms: ...`, then
-  `done: ...`). From the next `coop fight replay` until the next `coop fight on`, boss copies get no `BattleMode_5s`
-  from the recording, so a second run after a reload shows the boss start alone. The replay that ran the test still
-  gets it on its boss copies, so its other tests find the copy as the guest's side would.
+  whether its AI runs a task (`before: b58=<0|1> 45a=<n> 45b=<n> state30=<0|1> state39=<0|1> ai=<0|1>`), starts the boss
+  fight on the copy as the host's game would (`SetBattleMode called`, or `SetBattleMode not called: <why>`, where
+  `again` means it already ran on this copy and the copy is still in battle mode), then logs each change of those values
+  for 1 s (`after <ms> ms: ...`, then `done: ...`). A replay has no host to repeat the boss start, so the copy leaves
+  battle mode 10 s after the call (`fight battle off` in `coop-link.log`), and a test after that calls it again. Once
+  the replay has played all its lines, the copy stays in battle mode until `coop fight off`. From the next `coop fight
+  replay` until the next `coop fight on`, boss copies get no `BattleMode_5s` from the recording, so a second run after a
+  reload shows the boss start alone. The replay that ran the test still gets it on its boss copies, so its other tests
+  find the copy as the guest's side would.
 - `coop fight pilot test phase` sends the copy the first phase row of its boss that it lacks (5005115 for GorillaB),
   and 5 s later the dispel of its HP threshold, as the host's phase lines would. Each line logs `line: <rows>; floor
   <stat 107>` and `cast: <n> taken, <n> refused`, and at the next turn `next turn: floor <stat 107>; rows <the rows
@@ -969,10 +975,12 @@ card_details=on
 | `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
 | `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
 | `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
-| `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
+| `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `on` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
-| `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `off` |
+| `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
 | `enemy_extra` | `0` to `3`: [extra enemies](#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
+| `bosses` | `on` or `off`: [shared bosses](#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
+| `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
@@ -1000,6 +1008,10 @@ Rules:
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
   60. The mod writes `send_rate=60` and the new comment into it once, keeps the file as it was as
   `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. Any other rate stays.
+- A file whose same spawns comment says the setting stays off until it has been tested in game was written by a
+  development build before 0.4.0-beta.1, with `same_place`, `same_spawns` and `bosses` off. The mod sets each of the
+  three that says `off` to `on` and writes the new comment once, keeps the file as it was as `coop-settings.old.txt`,
+  and logs a `[StellarCoop] settings:` line. An `off` set after that stays.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
   earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in

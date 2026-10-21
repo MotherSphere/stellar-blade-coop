@@ -356,8 +356,10 @@ the ghost from it:
   morphs (a neutral face) and, without the cloth look, the ponytail is rigid. The ghost always draws its highest
   detail level, so it never pops as it walks away.
 - The ghost stays hidden until the first pose and after a second without one, so it never stands frozen. Your friend's
-  Steam name (or `loopback`, `replay`) stands above it, turned to the camera at each pose. A name tag that fails is
-  left out and the ghost stays.
+  Steam name (or `loopback`, `replay`) stands above it, turned to the camera at each pose. The tag's font has only the
+  Latin-1 characters: any other shows as `?`, and a name that would lose more than half its characters shows the
+  partner card's word for them instead (`Partner`, in your language when the font has its letters). A name tag that
+  fails is left out and the ghost stays.
 - The same generation with a part hung elsewhere, shown or hidden is applied to the ghost in place. A new generation is
   a new ghost. The `Ghost ... built` log line gives the parts, the meshes loaded and their time, those on the base suit
   (with how many of its bones follow) and those left out.
@@ -391,10 +393,10 @@ the ghost stays. See [usage.md](usage.md#looks).
 
 ## Same-place enemies
 
-Same place (`same_place`, experimental, on by default, not tested in game yet) builds on shared enemies: the same
-pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs the enemy's AI and
-moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner. HP, Shield,
-balance and death stay with the host's game whoever owns the pair.
+Same place (`same_place`, experimental, the host's value, on by default, not tested in game yet) builds on shared
+enemies: the same pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs
+the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
+HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
 - The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
@@ -483,9 +485,9 @@ The commands, the notices and the solo test are in [usage.md](usage.md#same-plac
 
 ## Same spawns
 
-Same spawns (`same_spawns`, experimental, on by default, not tested in game yet) has the guest's game hold the host's
-common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates pairs through its
-spawn key like any other.
+Same spawns (`same_spawns`, experimental, the host's value, on by default, not tested in game yet) has the guest's game
+hold the host's common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates
+pairs through its spawn key like any other.
 
 - Only EventSpawnTable rows that spawn on zone entry (SpawnType EnterZone), whose enemy is a Monster that shared
   enemies share (`fight_chars`, or with `auto` every Monster but the few it leaves out) and whose SaveType is None,
@@ -603,11 +605,16 @@ applies them to her copy:
 
 - The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF11 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
-  once a copy, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
-  argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
-  once. Called from the logic thread, the game queues it for its game thread. She calls it only for a copy her game
-  draws as a BossMonster in life state 1, with the job sender and the reg already made (the call reads both through
-  getters that would make them). A refused bstart is taken at the host's next repeat.
+  once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
+  then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
+  `EventFirstTimeOnBattle` once. Called from the logic thread, the game queues it for its game thread. She calls it only
+  for a copy her game draws as a BossMonster in life state 1, with the job sender and the reg already made (the call
+  reads both through getters that would make them). A refused bstart is taken at the host's next repeat. Her game takes
+  the copy out of battle mode through the same wrapper with off, then `0, 0, 1, 1`, the arguments of the game's own
+  battle-off calls: when the host's lines bring no bstart for 10 s (the host's boss left battle mode; a gap of over 2 s
+  with no line from the host, as while the host's game is paused, is not counted), when her game stops drawing the copy
+  (the pair ends, same place stops) and when the session ends (`coop fight off`, the link, the fault latch). A dying
+  copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
   thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF11 phase <gen> <hguid> <oe>
