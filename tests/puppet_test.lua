@@ -267,7 +267,7 @@ local function remote_text(generation,parts,map)
     end
     return table.concat(lines,'\n')..'\n'
 end
-local remote_file,displays,stored,requests,said=nil,{},nil,{},{}
+local remote_file,displays,stored,requests,said,said_en=nil,{},nil,{},{},{} -- said_en: the English given with each.
 local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
 local link={remote_table=function() return remote_file end,store=function() return store end,
     display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
@@ -279,8 +279,8 @@ local words=Words.en -- The words for the screen (main.lua's: the game's languag
 local function new(path_left,name_tag,look)
     stored=path_left
     package.loaded.puppet=nil
-    return require('puppet').new(link,capture,function(text) said[#said+1]=text end,name_tag~=false,look,
-        function() return words end)
+    return require('puppet').new(link,capture,function(text,en) said[#said+1]=text; said_en[#said]=en end,
+        name_tag~=false,look,function() return words end)
 end
 local ghost=new(nil)
 local count=0
@@ -312,6 +312,7 @@ local function give_up(gave_up)
     end
     fail_add=false
     assert(said[#said]==(gave_up or GAVE_UP),said[#said])
+    assert(said_en[#said]==GAVE_UP,'Its English too, for the line above EVE')
     local spawned_before=#spawned
     for _=1,5 do assert(ghost.tick()==nil); clock=clock+2 end
     assert(#spawned==spawned_before,'Never a 4th time by itself')
@@ -521,6 +522,7 @@ words=Words.fr
 send(543,her_parts(),'peer','/game/art/bg/worldmap/level_p/a01')
 ghost.tick()
 assert(#said==3 and said[3]=='Kaanta est dans a01, vous êtes dans e04.',tostring(said[3]))
+assert(said_en[3]=='Kaanta is in a01, you are in e04.',tostring(said_en[3]))
 words=Words.en
 send(505,her_parts())
 ok,message=build()

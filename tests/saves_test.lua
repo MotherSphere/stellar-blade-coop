@@ -77,14 +77,14 @@ local link={
     write_settings=function(text) if refuse then return false,refuse end file=text; return true end,
 }
 local settings={auto_coop_save='ask',ui_language='game',shared_enemies=false}
-local said,logs={},{}
+local said,said_en,logs={},{},{} -- said_en: the English given with each.
 local env={LOCALAPPDATA='C:\\Users\\Ana\\AppData\\Local'}
 local present,opened={},{} -- The files that exist; every path looked at.
 local view
 local function new()
-    calls,built,holder,inputting,said,logs,asked,opened={},{},nil,false,{},{},{},{}
+    calls,built,holder,inputting,said,said_en,logs,asked,opened={},{},nil,false,{},{},{},{},{}
     return Saves.new({kit=kit,link=link,settings=settings,theme={shade='shade',text='white'},
-        say=function(text) said[#said+1]=text end,log=function(line) logs[#logs+1]=line end,
+        say=function(text,en) said[#said+1]=text; said_en[#said]=en end,log=function(line) logs[#logs+1]=line end,
         env=function(name) return env[name] end,
         exists=function(path) opened[#opened+1]=path; return present[path]==true end})
 end
@@ -395,6 +395,17 @@ quarter(false,true)
 assert(said[1]=='Co-op saves off for this load: the backup folder could not be made. You play your own saves.',said[1])
 quarter(false,true); assert(#asked==1)
 quarter(true,false); info=at(); quarter(false,true); assert(#asked==2 and asked[2]=='saves coop','A new visit')
+-- In Japanese the line comes with its English: the line above EVE shows that one (its font has Latin-1 only).
+state.language='ja-JP'
+saves=new()
+info=at()
+quarter(false,true)
+info=at({convert='error:the backup folder could not be made'})
+quarter(false,true)
+assert(#said==1 and said[1]~=said_en[1] and said[1]:find('the backup folder could not be made',1,true)
+    and said_en[1]=='Co-op saves off for this load: the backup folder could not be made. You play your own saves.',
+    tostring(said_en[1]))
+state.language=nil
 
 -- off: nothing at all.
 settings.auto_coop_save='off'

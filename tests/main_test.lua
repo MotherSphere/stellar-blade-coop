@@ -531,6 +531,9 @@ assert(made:find('^session false|receive Kaanta secret one [%d.]+|fail|session t
     made)
 kit_language='fr-FR'; chatting=true; chat_lines={{text='secret three'}}; loops[2].f(); chatting=nil
 assert(table.concat(said,'|'):find('|Kaanta : secret three|',1,true),"In the game's language")
+for i=#said,1,-1 do
+    if said[i]=='Kaanta : secret three' then assert(said_en[i]=='Kaanta: secret three',tostring(said_en[i])) break end
+end
 kit_language=nil
 chatting=false
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
@@ -1666,6 +1669,10 @@ settings_text,in_world,kit_ready='',false,false
 settings_text,status_text,link_mode,chat_active='chat=off\n',plain,'host',false
 load_main(true)
 assert(chat_new[2]==false,'chat=off reaches the model')
+-- The kit off in a French game: why the box cannot open goes on the line above EVE, with its English.
+kit_language,in_world,kit_ready=('fr-FR'),true,true; quarter()
+kit_off=true; key('RETURN'); clock=clock+0.1; loops[1].f()
+assert(said[#said]=='La discussion demande une session.' and said_en[#said]=='Chat needs a session.',said[#said])
 settings_text=''
 load_main(true)
 chat_feed={}
