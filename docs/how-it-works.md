@@ -166,12 +166,12 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC11 ping <seq> <ms>
-SBC11 pong <seq> <ms>
-SBC11 photo <0|1|s> <both|notice>
-SBC11 say <text>
-SBC11 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC11 paks <count> <hash>
+SBC12 ping <seq> <ms>
+SBC12 pong <seq> <ms>
+SBC12 photo <0|1|s> <both|notice>
+SBC12 say <text>
+SBC12 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC12 paks <count> <hash>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -215,7 +215,7 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 11` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 12` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -254,7 +254,8 @@ instead of misread:
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
-| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines (this version) |
+| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
+| 12 | Shared quests: the `SBQ` lines on channel 2 (this version) |
 
 ### Link health in the log
 
@@ -396,7 +397,7 @@ pairs, the same host and the same Steam channel 2. Each pair has an owner, the g
 moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner. HP, Shield,
 balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF12 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -408,12 +409,12 @@ balance and death stay with the host's game whoever owns the pair.
   during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the host draws a copy that the game
   froze before the mod did (below: its AI would not run once the host owns it); the start of a takedown is the
   exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF11 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H.
-  With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
+  `SBF12 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H.
+  With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF12 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF11 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF12 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
@@ -452,7 +453,7 @@ balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF11 exec <gen> <hguid> 1`, and `SBF11 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF12 exec <gen> <hguid> 1`, and `SBF12 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -498,16 +499,16 @@ spawn key like any other.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF11
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF12
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF11 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF11 spawn <gen> <n> <spawnId> <idx>
+  `SBF12 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF12 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF11 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres, and `SBF12 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
@@ -595,13 +596,13 @@ The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF11 bosses <gen> <percent>` with its list.
+game. The host sends `SBF12 bosses <gen> <percent>` with its list.
 
 With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
 battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
 applies them to her copy:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF11 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF12 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
   once a copy, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
   argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
@@ -610,7 +611,7 @@ applies them to her copy:
   getters that would make them). A refused bstart is taken at the host's next repeat.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
-  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF11 phase <gen> <hguid> <oe>
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF12 phase <gen> <hguid> <oe>
   <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
   does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
   game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
@@ -627,7 +628,7 @@ applies them to her copy:
   effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
   dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
   EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
-  shared list under it. After its up the host sends `SBF11 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  shared list under it. After its up the host sends `SBF12 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
   hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
   summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
   can go through later. The guest makes it through `NewActor`, as for extra enemies,
@@ -652,6 +653,55 @@ applies them to her copy:
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
 
 The log lines are in [troubleshooting.md](troubleshooting.md#a-shared-boss-differs-between-the-two-games).
+
+## Shared quests
+
+Shared quests (`shared_quests`, experimental, off by default, not tested in game yet) move the guest's quests to the
+host's state through the game's own quest functions, one step at a time, for the steps the two players make together.
+`quest_sync.h` holds the line format, the quest table and each side's rules; `quest_engine.h` holds the reads and calls
+on the game's quest data and the worker's side.
+
+The game's quest manager runs on the game thread, so the mod's pass does too: every 250 ms `coop_tick` reads the local
+player's quest unit (the quest manager at `0x147032588`, its unit from `FUN_141c5e880`) under the shared quests' own SEH
+latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
+quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
+it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470634f0`) and that the save
+is still the co-op save it started on: another save ends the side with `SBQ12 off slot` (the worker starts a new one
+on the next co-op save), while a load (the title screen, a map change) only pauses it.
+
+- The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ12 q <gen> <seq> <id> <state>
+  <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
+  position), which the game builds the same on both PCs from the same tables.
+- Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
+  hint events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
+  `z<n>` in the zone where the host stood when its pass saw the step (for the 38 steps the tables cannot place), `?`
+  for such a step the host's pass did not see, `K` for a kill task and `#` for a quest the host denies. The table that
+  gives each step's class, zones and events is built into `quest_sync.h` from the tables of build 24463856; another
+  game build needs it built again.
+- The guest's pass compares each host line with her own quest and plans the next forward step: an Epic or Sub quest
+  she lacks is acquired by ID (`FUN_141c5cf20`, the call a quest zone event makes), a Request on her board is accepted
+  with the board's own call (the Request quest's vtable `+0x10`), and a task is completed through its own Complete
+  (task vtable `+0x60`). There is no quest-complete call: an Epic or Sub quest completes inside its last task's
+  Complete, with its reward and next quest, and a Request stops ready to hand in, as in solo play.
+- Each call has its guards, read again just before it: a task only at state 1 in her active group, whose parent is
+  that group and whose Complete slot is one of the game's two Complete functions; an acquire only for an ID her quest
+  map does not hold (the game refuses any other too, and after each load the pass checks that every complete and failed
+  quest is in that map before it acquires anything); a Request accept only at state 0 on a Request her board accepts.
+  A step the game refuses leaves that quest alone for the session. At most one step goes per pass.
+- A step is the guest's only when she stood in the host's zone when its line came and her quest stood where the host's
+  stood before the step. A quest the host moved without her is behind: nothing of it is planned, a forced step
+  included, until her own play brings it to the host's state.
+- The guest sends display lines only: `at` (her zone), `have`, `wait <why>` and `ahead`. The host applies nothing from
+  them.
+- When the guest's side comes on, the host sends a snapshot (`snap`, the `zone` and `q` lines, then `end` with their
+  count and an FNV-1a digest) of the quests it moved while linked with that friend. It sends a new one after its own
+  load, and when one of its quests goes back (an older save).
+
+The record beside each co-op slot (`StellarCoopQuests0N.txt` in the account's save folder) keeps, per friend, the
+host's marks (`h` lines) and the host lines the guest's game took (`g` lines). The worker writes it through the same
+name check as the co-op copies, at most once a second and only on a change, as a temporary file renamed over the old
+one. A bad line only loses that quest's marks; her live quests always decide what is made.
 
 ## Safety design
 
@@ -680,13 +730,16 @@ drops the input.
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
   was not chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The
   native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back.
-  One name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt` and the backup in
-  `StellarCoopBackups` pass it. The backup is taken before any copy whenever `StellarCoopSaves.txt` does not exist yet,
-  and a refresh backs up the copy it replaces first. The switch to the copies is one 8-byte compare-and-swap in the
-  game's memory, on the pinned build only, read back every 250 ms; an entry that moves or changes stops it for the run.
+  One name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt`, the shared quests'
+  records `StellarCoopQuests00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken
+  before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
+  The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
+  every 250 ms; an entry that moves or changes stops it for the run.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
-  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), and their positions and
-  animations with the experimental same place (on by default), nothing is copied between the two players' games. Beside
+  stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and
+  animations with the experimental same place (on by default), and the quest steps of the experimental shared quests
+  (off by default, co-op saves only, made by the guest's game through its own quest functions), nothing is copied
+  between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
   only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
