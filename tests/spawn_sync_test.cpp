@@ -19,6 +19,7 @@ using namespace coop::fight;
 
 namespace {
 constexpr uint32_t kZone = 40, kOther = 41;
+bool blocks(const SpawnGuest &g, const SpawnKey &k);
 // SaveType values.
 constexpr uint8_t kNone = 0, kSave = 1, kReset = 2, kSaveTm = 3, kResetTm = 4;
 
@@ -45,6 +46,8 @@ struct World {
   std::vector<uint32_t> unshared; // charIds the shared fight does not share here.
   std::map<uint32_t, const char *> refuse; // Keys (by EventSpawnId) the spawn refuses, and why.
   uint32_t next_guid = 5000;
+  const SpawnGuest *filter = nullptr;      // The guest whose blocked keys our spawn meets (the spawn filter's table).
+  std::vector<SpawnKey> blocked_at_create; // Keys our spawn was asked for while that guest still blocked them.
 
   void row(uint32_t id, uint8_t save, uint32_t zone = kZone, uint8_t spawn_type = 0, bool keep = false) {
     rows[id] = SpawnRow{spawn_type, save, keep, zone};
@@ -95,6 +98,8 @@ struct World {
   }
   bool shares(uint32_t chr) { return std::find(unshared.begin(), unshared.end(), chr) == unshared.end(); }
   const char *create(const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
+    if (filter && blocks(*filter, k))
+      blocked_at_create.push_back(k);
     if (!manager)
       return "no spawn manager";
     if (refuse.count(k.spawn))
@@ -135,6 +140,17 @@ struct World {
   }
 };
 
+// The guest's blocked keys hold k.
+bool blocks(const SpawnGuest &g, const SpawnKey &k) {
+  size_t n = 0;
+  const SpawnKey *keys = g.blocked(n);
+  return listed(keys, n, k);
+}
+size_t blocked(const SpawnGuest &g) {
+  size_t n = 0;
+  g.blocked(n);
+  return n;
+}
 Message msg(const std::string &text) {
   Message m = parse(text.data(), text.size());
   assert(m.type != Type::invalid);
@@ -703,6 +719,133 @@ int main() {
     sg.heard(msg("SBF12 spawn 1 1 4026597377 0 900 258 -250 13 270 77 5026003"), 1); // 0xF0010001.
     guest_step(sg, gep, g, kGraceMs);
     assert(g.created.empty() && g.count("spawn refused", "no row") == 1 && sg.counts.spawned == 0);
+  }
+
+  // ---- The guest's blocked keys, for the spawn filter: the keys the host lacks as far as she knows ----
+  // Added when she despawns a key on the host's drop, and when a paired shared Monster of a key that takes part dies in
+  // her census (a paired copy dies only by the host's word); removed when a spawn line of the host's epoch names the
+  // key, before her spawn runs (it goes through the same filter); cleared at a new host epoch and at clear(); kept
+  // through her own epoch moves (her resets respawn exactly these keys); never more than kMaxKeys.
+  {
+    World w;
+    for (uint32_t id = 1; id <= 12; ++id)
+      w.row(id, kReset);
+    w.row(20, kReset, kOther);
+    for (uint32_t id = 1; id <= 8; ++id)
+      w.add(100 + id, id);
+    w.add(120, 20);
+    w.add(109, 9, 0, false); // An NPC.
+    Epochs ep;
+    SpawnGuest g;
+    w.filter = &g;
+    epoch(ep, w, 0xA1, 3, 0);
+    g.heard(msg("SBF12 epoch 1 40 1"), 1);
+    guest_step(g, ep, w, kGraceMs);
+    assert(blocked(g) == 0);
+    const auto take = [&](std::initializer_list<const char *> lines, uint64_t now, bool moved = false) {
+      for (const char *l : lines)
+        g.heard(msg(l), 1);
+      guest_step(g, ep, w, now, moved);
+    };
+    // A drop she despawns blocks its key; one refused (busy) does not, nor a stale one.
+    w.busy.push_back(106);
+    take({"SBF12 drop 1 1 5 0", "SBF12 drop 1 1 6 0", "SBF12 drop 1 2 7 0"}, kGraceMs + 100);
+    assert(w.despawned == std::vector<uint32_t>{105} && blocked(g) == 1 && blocks(g, SpawnKey{5, 0}));
+    w.busy.clear();
+    // A paired shared Monster of a key that takes part, dying in her census: blocked. Not one dying unpaired (her own
+    // fight), nor a paired one alive, nor a paired one of another zone's key, nor an NPC.
+    epoch(ep, w, 0xA1, 3, kGraceMs + 200);
+    w.actor(SpawnKey{1, 0})->paired = true, w.actor(SpawnKey{1, 0})->dying = true;
+    w.actor(SpawnKey{2, 0})->dying = true;
+    w.actor(SpawnKey{3, 0})->paired = true;
+    w.actor(SpawnKey{20, 0})->paired = true, w.actor(SpawnKey{20, 0})->dying = true;
+    w.actor(SpawnKey{9, 0})->paired = true, w.actor(SpawnKey{9, 0})->dying = true;
+    take({}, kGraceMs + 200);
+    assert(blocked(g) == 2 && blocks(g, SpawnKey{1, 0}) && !blocks(g, SpawnKey{2, 0}) && !blocks(g, SpawnKey{3, 0}) &&
+           !blocks(g, SpawnKey{20, 0}) && !blocks(g, SpawnKey{9, 0}));
+    take({}, kGraceMs + 250); // Still dying at the next census: listed once.
+    assert(blocked(g) == 2);
+    // Her own epoch moves (a death of hers, a camp rest): what she answered is void, but the keys stay blocked.
+    epoch(ep, w, 0xA1, 1, 20000);
+    take({}, 20000, true);
+    epoch(ep, w, 0xA1, 3, 20000 + kGraceMs);
+    take({}, 20000 + kGraceMs);
+    assert(blocked(g) == 2 && blocks(g, SpawnKey{5, 0}) && blocks(g, SpawnKey{1, 0}));
+    // The host's epoch line again, same epoch (every 5 s): kept.
+    g.heard(msg("SBF12 epoch 1 40 1"), 1);
+    assert(blocked(g) == 2);
+    // A spawn line of another epoch names a key: stale, it stays blocked. A spawn line of the host's epoch: the key
+    // leaves the list before her spawn runs (the fake spawn sees it unblocked); one she refuses (too far) leaves it
+    // too, since the host holds that key again.
+    w.mine.erase(std::remove_if(w.mine.begin(), w.mine.end(), [](const Mine &m) { return m.key == SpawnKey{1, 0}; }),
+                 w.mine.end());
+    take({"SBF12 spawn 1 2 5 0 900 600 0 0 0"}, 20000 + kGraceMs + 100);
+    assert(blocks(g, SpawnKey{5, 0}) && w.created.empty());
+    take({"SBF12 spawn 1 1 5 0 900 600 0 0 0", "SBF12 spawn 1 1 1 0 900 200000 0 0 0"}, 20000 + kGraceMs + 200);
+    assert(w.created.size() == 1 && w.created[0].key == (SpawnKey{5, 0}) && w.blocked_at_create.empty());
+    assert(blocked(g) == 0 && w.count("spawn refused", "too far") == 1);
+    // A new host epoch clears the list; so does clear().
+    epoch(ep, w, 0xA1, 3, 20000 + kGraceMs + 300);
+    take({"SBF12 drop 1 1 4 0"}, 20000 + kGraceMs + 300);
+    assert(blocked(g) == 1 && blocks(g, SpawnKey{4, 0}));
+    g.heard(msg("SBF12 epoch 1 40 2"), 1);
+    assert(blocked(g) == 0);
+    g.heard(msg("SBF12 drop 1 2 6 0"), 1);
+    epoch(ep, w, 0xA1, 3, 20000 + kGraceMs + 400);
+    take({}, 20000 + kGraceMs + 400);
+    assert(blocked(g) == 1 && blocks(g, SpawnKey{6, 0}));
+    g.clear();
+    assert(blocked(g) == 0);
+  }
+  // The cap: kMaxKeys keys at most; one more is not blocked (no filter for it: spawned, then dropped, as today).
+  {
+    World w;
+    for (uint32_t id = 1; id <= kMaxKeys + 1; ++id) {
+      w.row(id, kReset);
+      Mine &m = w.add(1000 + id, id);
+      m.paired = m.dying = true;
+    }
+    Epochs ep;
+    SpawnGuest g;
+    epoch(ep, w, 0xA1, 3, 0);
+    g.heard(msg("SBF12 epoch 1 40 1"), 1);
+    guest_step(g, ep, w, kGraceMs);
+    assert(blocked(g) == kMaxKeys && blocks(g, SpawnKey{1, 0}) && blocks(g, SpawnKey{uint32_t(kMaxKeys), 0}) &&
+           !blocks(g, SpawnKey{uint32_t(kMaxKeys) + 1, 0}));
+  }
+  // The table the hook reads: each key as spawnId << 8 | index, 0 for an empty slot; a publish replaces the whole
+  // list. Empty slots never match, not even the key 0:0.
+  {
+    BlockTable t;
+    assert(!t.has(0, 0) && !t.has(7, 0));
+    const SpawnKey keys[] = {{7, 0}, {7, 1}, {0xFFFFFFFF, 255}, {0x12345678, 3}};
+    t.publish(keys, 4);
+    assert(t.has(7, 0) && t.has(7, 1) && t.has(0xFFFFFFFF, 255) && t.has(0x12345678, 3));
+    assert(!t.has(7, 2) && !t.has(8, 0) && !t.has(0x12345678, 4) && !t.has(0x123456, 0x78) && !t.has(0, 0));
+    t.publish(keys + 1, 1); // Fewer: the others go.
+    assert(t.has(7, 1) && !t.has(7, 0) && !t.has(0xFFFFFFFF, 255) && !t.has(0x12345678, 3) && !t.has(0, 0));
+    t.publish(nullptr, 0);
+    assert(!t.has(7, 1) && !t.has(0, 0));
+    std::vector<SpawnKey> many;
+    for (uint32_t id = 1; id <= kMaxKeys + 5; ++id)
+      many.push_back(SpawnKey{id, uint8_t(id)});
+    t.publish(many.data(), many.size()); // Past kMaxKeys: the first kMaxKeys.
+    assert(t.has(1, 1) && t.has(uint32_t(kMaxKeys), uint8_t(kMaxKeys)) &&
+           !t.has(uint32_t(kMaxKeys) + 1, uint8_t(kMaxKeys + 1)));
+    // A guest's list as the engine publishes it.
+    World w;
+    w.row(1, kReset), w.row(2, kReset);
+    w.add(101, 1), w.add(102, 2, 4);
+    Epochs ep;
+    SpawnGuest g;
+    epoch(ep, w, 0xA1, 3, 0);
+    g.heard(msg("SBF12 epoch 1 40 1"), 1);
+    g.heard(msg("SBF12 drop 1 1 2 4"), 1);
+    guest_step(g, ep, w, kGraceMs);
+    size_t n = 0;
+    const SpawnKey *list = g.blocked(n);
+    t.publish(list, n);
+    assert(n == 1 && t.has(2, 4) && !t.has(1, 0) && !t.has(2, 0));
   }
 
   // ---- Two worlds through a line, 90-150 ms each way: her set becomes the host's ----
