@@ -432,7 +432,11 @@ balance and death stay with the host's game whoever owns the pair.
 - On the drawing side's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel
   2004400), only in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5
   times in any 10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the
-  BlockAI dispel effect (2000101) takes it off.
+  BlockAI dispel effect (2000101) takes it off. That dispel also ends the game's own BlockAI, and the game freezes some
+  enemies at spawn until an event of its own, such as a boss before its cutscene. So a copy that already held BlockAI
+  when the mod first froze it keeps both (`thaw skipped` in the log); when the game's event dispels its BlockAI, the
+  mod's goes with it. Once the game has taken its own off and the mod froze the copy again, the dispel runs as for any
+  other copy.
 - On the drawing side's game thread, each frame, each copy is found again by its GUID. Its movement component goes out
   of the game's parallel movement manager through the game's own function for that (only on the game's class with the
   game's function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the
