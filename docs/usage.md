@@ -588,7 +588,8 @@ The host's `aggro` setting decides which game runs an enemy's AI. With `aggro=ga
 player who hit it last. After 10 s without a hit, it goes to the other player once that player's EVE has stood at least
 3 m nearer to it for 2 s. An enemy changes hands at most once in 4 s, and never during one of its attacks, while it is
 down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
-the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place is on by default and has not been tested in game yet.
+the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same
+place is on by default and has not been tested in game yet.
 
 A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
 the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
@@ -973,10 +974,12 @@ card_details=on
 | `enemy_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's maximum HP, used in both games | `1.35` |
 | `enemy_balance_scale` | `1.0` to `4.0`: the host's multiplier for a shared enemy's balance gauge, used in both games | `1.15` |
 | `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
-| `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
+| `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `on` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
-| `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `off` |
+| `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
 | `enemy_extra` | `0` to `3`: [extra enemies](#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
+| `bosses` | `on` or `off`: [shared bosses](#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
+| `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
@@ -1004,6 +1007,10 @@ Rules:
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
   60. The mod writes `send_rate=60` and the new comment into it once, keeps the file as it was as
   `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. Any other rate stays.
+- A file written by version 0.4.0-beta.1 has `same_place`, `same_spawns` and `bosses` off and a same spawns comment
+  that says they stay off until tested in game. The mod sets each of the three that says `off` to `on` and writes the
+  new comment once, keeps the file as it was as `coop-settings.old.txt`, and logs a `[StellarCoop] settings:` line. An
+  `off` set after that stays.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8, name tag on, 60 poses a second`. Another line says when a mod loaded
   earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo settings in

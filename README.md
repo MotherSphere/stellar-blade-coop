@@ -36,7 +36,8 @@ client that the game already runs, so the mod needs no other program and no serv
 
 The ghost is display only. Items and progress are not shared. The experimental Shared enemies option (co-op menu,
 Options, Combat) is on by default and untested in game. It shares common enemies only while both players play a co-op
-save (see [docs/usage.md](docs/usage.md#shared-enemies-experimental)).
+save (see [docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same spawns and shared bosses build
+on it. They are experimental and on by default too, and only the host's settings count for them.
 
 ## Night Operation
 

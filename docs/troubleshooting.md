@@ -255,8 +255,8 @@ moves it.
 
 ### A shared boss differs between the two games
 
-Shared bosses (`bosses=on` in the host's settings) are experimental and not tested in game yet. With same place on, the
-guest's copy of a boss follows the host's through the lines in
+Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
+With same place on, the guest's copy of a boss follows the host's through the lines in
 [how-it-works.md: Shared bosses](how-it-works.md#shared-bosses). Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy

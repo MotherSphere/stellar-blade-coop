@@ -393,10 +393,10 @@ the ghost stays. See [usage.md](usage.md#looks).
 
 ## Same-place enemies
 
-Same place (`same_place`, experimental, on by default, not tested in game yet) builds on shared enemies: the same
-pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs the enemy's AI and
-moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner. HP, Shield,
-balance and death stay with the host's game whoever owns the pair.
+Same place (`same_place`, experimental, the host's value, on by default, not tested in game yet) builds on shared
+enemies: the same pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs
+the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
+HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
 - The host's `same_place` decides for both games. The host sends it as `SBF11 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
@@ -485,9 +485,9 @@ The commands, the notices and the solo test are in [usage.md](usage.md#same-plac
 
 ## Same spawns
 
-Same spawns (`same_spawns`, experimental, on by default, not tested in game yet) has the guest's game hold the host's
-common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates pairs through its
-spawn key like any other.
+Same spawns (`same_spawns`, experimental, the host's value, on by default, not tested in game yet) has the guest's game
+hold the host's common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates
+pairs through its spawn key like any other.
 
 - Only EventSpawnTable rows that spawn on zone entry (SpawnType EnterZone), whose enemy is a Monster that shared
   enemies share (`fight_chars`, or with `auto` every Monster but the few it leaves out) and whose SaveType is None,
