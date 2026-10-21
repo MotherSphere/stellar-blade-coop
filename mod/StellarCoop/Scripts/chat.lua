@@ -121,8 +121,10 @@ local function columns(c)
 end
 -- Rows of at most wide columns (WIDE unless said; the text is well-formed UTF-8), broken at the last space within
 -- reach, else between two characters (Chinese, Japanese and Thai put no space between words). The break falls before
--- a character that takes a column, so a Thai or Arabic mark (no column) stays with the letter before it. The co-op
--- saves' question and the notice line wrap their text with it too.
+-- a character that takes a column, so a Thai or Arabic mark (no column) stays with the letter before it; between two
+-- characters, never right after a Thai leading vowel (U+0E40 to U+0E44, written before the consonant it follows in
+-- speech): the cut moves back before it, unless that would leave the row empty. The co-op saves' question and the
+-- notice line wrap their text with it too.
 local function wrap(text,wide)
     wide=wide or WIDE
     local rows={}
@@ -135,7 +137,10 @@ local function wrap(text,wide)
         if not cut then break end
         local space=text:sub(1,cut):match('.*() ')
         if space and space>1 then rows[#rows+1],text=text:sub(1,space-1),text:sub(space+1)
-        else rows[#rows+1],text=text:sub(1,cut-1),text:sub(cut) end
+        else
+            while cut>4 and text:sub(cut-3,cut-1):find('^\xE0\xB9[\x80-\x84]$') do cut=cut-3 end
+            rows[#rows+1],text=text:sub(1,cut-1),text:sub(cut)
+        end
     end
     rows[#rows+1]=text
     return rows
