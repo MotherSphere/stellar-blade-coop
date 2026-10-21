@@ -958,7 +958,6 @@ function Run.new(o)
     -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
     -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end
-    self.active=self.running
     return self
 end
 return Run

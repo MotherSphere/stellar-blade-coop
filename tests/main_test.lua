@@ -291,7 +291,7 @@ package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         challenge=function(sub,extra) nr.chs[#nr.chs+1]={sub,extra}; return true,'challenge '..tostring(sub) end,
-        running=function() return nr.running==true end,active=function() return nr.active==true end,
+        running=function() return nr.running==true end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
@@ -644,7 +644,7 @@ assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and r
 assert(ra.o.store=='store','coop-race-doros.txt through the link')
 assert(select(2,ra.o.slot())=='coop race runs only on a co-op save (INSTALL.md: Co-op saves); now no slot status')
 assert(ra.o.night()==false and ra.o.paused()==false)
-nr.active=true; assert(ra.o.night()==true); nr.active=nil
+nr.running=true; assert(ra.o.night()==true); nr.running=nil
 kit_paused=true; assert(ra.o.paused()==true); kit_paused=false
 ra.o.tell(function(w) return w.race.armed end)
 assert(said[#said]=='Race ready: walk to your start.' and said_en[#said]=='Race ready: walk to your start.')

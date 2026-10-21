@@ -213,7 +213,7 @@ local doro=require('doro').new({log=function(m) print('[StellarCoop][DR] '..tost
     store=link and link.store('coop-look.txt')})
 -- Doro races (race.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs. Its start
 -- and the guest's answer need a co-op save; it never arms during a Night Operation run.
-local race=require('race').new({log=doro.log,link=link,puppet=puppet,look=doro,tell=tell,night=night.active,
+local race=require('race').new({log=doro.log,link=link,puppet=puppet,look=doro,tell=tell,night=night.running,
     slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
     settings=settings,store=link and link.store('coop-race-doros.txt')})
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
