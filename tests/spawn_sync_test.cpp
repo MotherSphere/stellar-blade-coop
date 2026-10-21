@@ -188,6 +188,17 @@ int main() {
     w.mine[0].guid = 400, w.mine[1].guid = 401, w.mine[2].guid = 402, w.mine[3].guid = 403; // With a zone change: one.
     assert(std::string(epoch(ep, w, 0xB2, 3, 16000)) == "zone" && ep.n() == 5);
     assert(std::string(epoch(ep, w, 0, 0, 17000)) == "zone" && ep.n() == 6 && !ep.settled(30000)); // Level start.
+    // Two live actors of one key, for three keys (SB's late spawn next to ours): no GUID changed, no epoch at any
+    // census. Each pair respawned: a reset.
+    World d;
+    Epochs dep;
+    for (uint32_t i = 0; i < 3; ++i)
+      d.add(10 + i, 7000 + i), d.add(20 + i, 7000 + i);
+    assert(std::string(epoch(dep, d, 0xA1, 3, 0)) == "zone");
+    assert(!epoch(dep, d, 0xA1, 3, 250) && !epoch(dep, d, 0xA1, 3, 500) && dep.n() == 1);
+    for (Mine &m : d.mine)
+      m.guid += 100;
+    assert(std::string(epoch(dep, d, 0xA1, 3, 750)) == "guids" && dep.n() == 2);
   }
 
   // ---- The host: its epoch line, her round in parts, its answers ----

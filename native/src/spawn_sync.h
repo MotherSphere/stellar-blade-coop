@@ -160,14 +160,17 @@ public:
   bool settled(uint64_t now) const { return alias_ && now >= since_ + kGraceMs && state_ != 1 && state_ != 2; }
 
 private:
+  // Actors of a key the last census held whose GUID no actor of that key had then. Two live actors of one key (SB's
+  // late spawn next to ours) are no change.
   size_t churned(const Mine *mine, size_t n) const {
     size_t changed = 0;
-    for (size_t i = 0; i < n; ++i)
+    for (size_t i = 0; i < n; ++i) {
+      bool known = false, same = false;
       for (size_t k = 0; k < count_; ++k)
-        if (keys_[k] == mine[i].key) {
-          changed += guids_[k] != mine[i].guid;
-          break;
-        }
+        if (keys_[k] == mine[i].key)
+          known = true, same = same || guids_[k] == mine[i].guid;
+      changed += known && !same;
+    }
     return changed;
   }
   uint64_t alias_ = 0, since_ = 0;
