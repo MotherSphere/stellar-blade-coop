@@ -347,7 +347,7 @@ package.loaded.chat={new=function(lines,on)
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
-    ..'status | report | where | loopback '
+    ..'status | report | mark [text] | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
     ..'fight on|off|status|probe|test|record|replay|pilot|'
@@ -433,6 +433,12 @@ assert(last()=='[StellarCoop] OK: Co-op: not in a session.\n' and said[#said]=='
 press('F5'); flush()
 assert(last()=='[StellarCoop] STOP: the co-op menu opens in the game world only\n'
     and said[#said]=='Le menu co-op ne s\'ouvre que dans le monde du jeu.',said[#said])
+-- coop mark: every word typed, cleaned like a chat line, in one request; none is a mark with no text.
+coop('mark','boss','start','\27[31m','\226\128\174ok')
+assert(asked[#asked]=='mark boss start [31m ok'
+    and last()=='[StellarCoop] OK: asked the native part: mark boss start [31m ok\n',last())
+coop('mark'); assert(asked[#asked]=='mark' and last()=='[StellarCoop] OK: asked the native part: mark\n',last())
+coop('mark','\1'); assert(asked[#asked]=='mark' and asked[#asked-1]=='mark','Nothing left of the text: no text')
 kit_language=nil
 asked={}
 coop('host'); assert(asked[1]=='host' and last():find('OK: asked the native part: host',1,true),last())
@@ -703,6 +709,8 @@ chatting=true; loops[2].f(); chatting=false
 assert(chat_calls[#chat_calls]=='session false','No session after coop off, whatever the link says')
 assert(#states==written,'No world state after coop off: no engine access')
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
+before=#asked
+coop('mark','x'); assert(#asked==before and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
 local lines
 before,lines=#asked,#printed
 press('F5'); press('F8'); flush()
@@ -2268,6 +2276,7 @@ assert(look.cloth==false and look.dyes==false and look.effects==false and captur
 assert(#binds==0 and not logged('keys: menu'),'No keys without the native part')
 coop('host'); assert(#asked==0 and last():find('STOP: the Steam link needs the native part',1,true),last())
 coop('join','123'); assert(last():find('the Steam link needs the native part',1,true),last())
+coop('mark','x'); assert(#asked==0 and last()=='[StellarCoop] STOP: coop mark needs the Steam link\n',last())
 coop('status'); assert(last():find('STOP: no Steam link status yet',1,true),last())
 coop('where'); assert(wheres==2 and last():find('OK: where',1,true),'coop where needs no Steam link')
 coop('fight','off'); assert(last():find('STOP: the Steam link needs the native part',1,true),last())

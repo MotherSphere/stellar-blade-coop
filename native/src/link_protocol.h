@@ -7,7 +7,8 @@
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
 //   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
-//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
+//   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ),
+//   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
@@ -81,9 +82,9 @@ constexpr bool chat_control(uint32_t c) {
 // The same cleaning as chat.lua's Chat.clean, byte for byte (tests/link_protocol_test.cpp and tests/chat_test.lua
 // check one digest): well-formed UTF-8 only, a byte that starts no valid character dropped alone (overlongs,
 // surrogates and anything past U+10FFFF included); chat_control() characters dropped (a ZWJ too, so a joined emoji
-// shows as its parts); ASCII spaces trimmed; at most kMaxChat bytes, never cut inside a character, then trimmed again.
+// shows as its parts); ASCII spaces trimmed; at most max bytes, never cut inside a character, then trimmed again.
 // Empty when nothing is left.
-inline std::string chat_clean(std::string_view text) {
+inline std::string chat_clean(std::string_view text, size_t max = kMaxChat) {
   std::string out;
   for (size_t at = 0; at < text.size();) {
     const auto byte = [&](size_t i) { return static_cast<unsigned char>(text[i]); };
@@ -112,8 +113,8 @@ inline std::string chat_clean(std::string_view text) {
     t = first == std::string::npos ? std::string() : t.substr(first, t.find_last_not_of(' ') - first + 1);
   };
   trim(out);
-  if (out.size() > kMaxChat) {
-    size_t n = kMaxChat;
+  if (out.size() > max) {
+    size_t n = max;
     while (n && (static_cast<unsigned char>(out[n]) & 0xC0) == 0x80)
       --n;
     out.resize(n);
@@ -138,12 +139,13 @@ inline bool plausible_vitals(const Vitals &v) {
   return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
+enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, mark };
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
-                         // 's', then 1 for both. paks: the count of .pak mods, their hash.
-  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
+                         // 's', then 1 for both. paks: the count of .pak mods, their hash. mark: its number, from 1.
+  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. mark:
+                         // chat_clean() to kMaxMark, maybe empty.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
 };
 
@@ -181,6 +183,12 @@ inline std::string vit_line(const Vitals &v) {
 // The .pak mods our game loads beyond the base game's (pak_list.h), reliable, once to each friend past the handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
+// coop mark (grouped tests): a mark's number in the sender's game and its text, at most kMaxMark bytes once cleaned
+// (the caller's, already chat_clean()), reliable, past the handshake. Both logs then show the same number.
+constexpr size_t kMaxMark = 100;
+inline std::string mark_line(uint32_t n, const std::string &text) {
+  return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
+}
 // Channel 2's tags, versioned like channel 0's: "SBF12" for the shared fight, "SBQ12" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
@@ -271,6 +279,12 @@ inline Message parse(const char *data, size_t size) {
     }
     if (plausible_vitals(m.vitals))
       m.kind = Kind::vitals;
+  } else if (const bool more = split(text, f, 3, &rest);
+             (more || split(text, f, 3, nullptr)) && f[0] == versioned_tag && f[1] == "mark") {
+    if (number(f[2], m.a) && m.a && m.a <= UINT32_MAX) {
+      m.kind = Kind::mark;
+      m.text = more ? chat_clean(rest, kMaxMark) : std::string(); // A longer text is cut, not refused.
+    }
   }
   return m;
 }
@@ -342,10 +356,11 @@ inline uint64_t code_lobby(std::string_view text) {
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
 // (quest_engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
-// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>".
+// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; and "mark" or
+// "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests
+  remove, copy, quests, mark
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
@@ -392,6 +407,7 @@ struct Request {
   Quests quests = Quests::none; // quests: what.
   uint16_t quest = 0;           // quests force: the QuestTable ID.
   std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
+  std::string text;             // mark: its text, or empty.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -529,7 +545,10 @@ inline Request parse_request(std::string text) {
     r.command = Command::report;
   else if (text == "off")
     r.command = Command::off;
-  else if (text == "join" || text == "copy")
+  else if (text == "mark" || text.rfind("mark ", 0) == 0) {
+    r.command = Command::mark;
+    r.text = chat_clean(std::string_view(text).substr(4), kMaxMark);
+  } else if (text == "join" || text == "copy")
     r.command = text == "join" ? Command::join : Command::copy;
   else if (text.rfind("join ", 0) == 0) {
     const std::string what = text.substr(5);

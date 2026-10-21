@@ -10,7 +10,9 @@
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
 -- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
--- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
+-- coop where, a line of coordinates to compare between the two PCs; coop mark [text], a numbered line in both players'
+-- logs (coop-link.log, and UE4SS.log through the status's mark= line) to line up a test played together; coop no
+-- [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop],
 -- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
 -- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
@@ -110,7 +112,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -295,6 +297,13 @@ local commands={
     puppet=puppet.toggle, invite=ask('invite'),
     host=function() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end,
     leave=ask('leave'), report=ask('report'), copy=ask('copy'),
+    -- Every word typed after mark (the console handler joins them), cleaned like a chat line; the native part numbers
+    -- the mark, logs it and sends it to the friend. A console tool: no key, no text on screen.
+    mark=function(text)
+        if not link then return false,'coop mark needs the Steam link' end
+        text=require('chat').clean(text or '')
+        return link.request(text~='' and 'mark '..text or 'mark')
+    end,
     allow=answer('allow'), deny=answer('deny'), remove=answer('remove'),
     -- A lobby id, or a join code as the native part takes it.
     join=function(lobby)
@@ -570,6 +579,7 @@ local timed={ghost=0,ui=0,frames=0,since=nil}
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
+    if name=='mark' then a=table.concat(parameters,' ',2) end -- Its text, whatever the number of words.
     ExecuteInGameThread(function() run(name,a,b,c,d) end)
     return true
 end)

@@ -2044,6 +2044,87 @@ int main() {
     assert(saw("A: chat this session: 31 in, 1 out, 6 dropped") && saw("B: chat this session: 1 in, 4 out, 0 dropped"));
   }
 
+  // coop mark, one Link: numbered from 1 by this game alone, logged and shown as the status's mark= line with or
+  // without a text, with no lobby too; a held invite stays held, as a mark is no choice of lobby. Her mark line before
+  // the handshake is ignored with no log line; past it, logged with her name and shown as the last mark.
+  reset();
+  {
+    World w;
+    const auto has = [](const std::string &e) { return std::find(events.begin(), events.end(), e) != events.end(); };
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    her_lobby(7000);
+    w.tick("", 7000); // Accepted on the title screen: held.
+    w.tick("mark title screen");
+    assert(has("mark 1: title screen") && w.status().find("\nmark=1 ours: title screen\n") != std::string::npos);
+    assert(w.status().find(" held=7000\n") != std::string::npos && !saw("dropped") && joins() == 0);
+    w.tick("mark");
+    assert(has("mark 2") && w.status().find("\nmark=2 ours\n") != std::string::npos && !saw("mark=1"));
+    w.tick("leave"); // Drops the held invite: a lobby of our own next.
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    F.inbox.push_back({kFriend, mark_line(4, "early")});
+    const size_t logged = events.size();
+    w.tick();
+    assert(events.size() == logged && w.status().find("\nmark=2 ours\n") != std::string::npos);
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    F.inbox.push_back({kFriend, mark_line(5, "hers")});
+    w.tick();
+    const std::string status = w.status();
+    assert(has("mark 5 from Kaanta: hers") && status.find("\nmark=5 from Kaanta: hers\n") != std::string::npos);
+    assert(status.find("\nmark=") > status.find("\npeer=") && status.find("\nmark=") > status.find("\nlink="));
+    w.tick("mark mine again"); // Our count goes on from ours, whatever hers says.
+    assert(has("mark 3: mine again") && sent_to(kFriend, mark_line(3, "mine again")) == 1);
+  }
+
+  // coop mark between two Links: A's line goes reliable on channel 0 to B, whose log and status name A; B's own count
+  // starts at 1. A refused send is logged, the mark kept. Her flood: ten a second pass (the chat's window), the rest
+  // dropped with one log line a minute.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    const auto has = [](const std::string &e) { return std::find(events.begin(), events.end(), e) != events.end(); };
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const std::string mark = "SBC" + std::to_string(kProtocol) + " mark ";
+    t.tick(t.a, 50, "mark boss start");
+    assert(has("A: mark 1: boss start") && sent_to(kFriend, mark + "1 boss start") == 1);
+    for (auto &s : F.sent)
+      if (s.text.rfind(mark, 0) == 0)
+        assert(s.flags == kReliable && s.channel == kChannel);
+    assert(t.a.status(Counters{}).find("\nmark=1 ours: boss start\n") != std::string::npos);
+    t.tick(t.b, 50);
+    assert(has("B: mark 1 from Me: boss start") &&
+           t.b.status(Counters{}).find("\nmark=1 from Me: boss start\n") != std::string::npos);
+    t.tick(t.b, 50, "mark");
+    t.tick(t.a, 50);
+    assert(has("B: mark 1") && has("A: mark 1 from Kaanta"));
+    assert(t.a.status(Counters{}).find("\nmark=1 from Kaanta\n") != std::string::npos &&
+           t.a.status(Counters{}).find("\nmark=1 ours") == std::string::npos);
+    F.send_result = 25;
+    t.tick(t.a, 50, "mark lost");
+    F.send_result = 1;
+    assert(has("A: mark 2: lost") && has("A: mark 2 not sent to Kaanta") &&
+           t.a.status(Counters{}).find("\nmark=2 ours: lost\n") != std::string::npos);
+    for (int second = 0; second < 2; ++second) {
+      t.tick(t.a, 1000);
+      for (int i = 0; i < 12; ++i)
+        inbox(0, kChannel).push_back({kFriend, mark_line(100 + 12 * second + i, "spam")});
+      t.tick(t.a, 0);
+    }
+    assert(count("from Kaanta: spam") == 20 && count("A: dropped marks from Kaanta: over the rate limit") == 1);
+    assert(t.a.linked() && t.b.linked() && count("invalid message") == 0);
+  }
+
   // Pak mods: ours goes once to the friend past the handshake (again after her next hello); hers, once it came, shows
   // as the status's paks= line against ours and is logged when it changes; before the handshake it is ignored with no
   // log line.
