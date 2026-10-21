@@ -479,6 +479,8 @@ struct Takeover : Stage {
     put<uint64_t>(fsb + kAiOwner, 0x5e000000);
     net = global(kNetCacheAt, alloc(0x20));
     logic = global(kLogicSingletonAt, alloc(0x600));
+    for (uint64_t at : kTargetSingletonsAt)
+      global(at, alloc(0x20));
     eve = alloc(0xa00);
     put<uint8_t>(eve + kFsbPlayer, 1);
     const uint64_t actors = alloc(0x20);
@@ -2352,8 +2354,18 @@ int main() {
                        "take-over dropped hguid=4100 oe=9: copy not found\n"
                        "take-over refused hguid=4100 oe=11: no EVE of ours\n"
                        "take-over refused hguid=4100 oe=13: no AI on the copy\n");
-    // After the pilot's latch: nothing, whatever comes.
+    // A singleton the call would make (its getter makes it when null): refused, never made by us.
     s.put<uint64_t>(s.fsb + kAiOwner, 0x5e000000);
+    for (uint64_t at : kTargetSingletonsAt) {
+      s.put<uint64_t>(at, 0);
+      const Owned more{4100, 501, uint8_t(at == kTargetSingletonsAt[0] ? 17 : 19), 0};
+      t.step(g, kBase, 7, &more, 1, true, 6100);
+      s.put<uint64_t>(at, s.alloc(0x20));
+    }
+    assert(s.since(seen).empty() && t.counts.refused == 6);
+    assert(notes(t) == "take-over refused hguid=4100 oe=17: a game singleton not made yet\n"
+                       "take-over refused hguid=4100 oe=19: a game singleton not made yet\n");
+    // After the pilot's latch: nothing, whatever comes.
     t.fault();
     const Owned fifteen{4100, 501, 15, 0};
     t.test();

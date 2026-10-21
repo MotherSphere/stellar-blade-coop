@@ -413,8 +413,8 @@ function Link.new(folder,fs)
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
     function self.fight() return fight end
-    -- Same-place enemies' line ("pilot=on piloted=3", "pilot=off why=host", "pilot=stopped", "pilot=refused why=...";
-    -- native pilot_status()), from the start of its own line; nil without one.
+    -- Same-place enemies' line ("pilot=on piloted=3 owned=1 drawn=2", "pilot=off why=host", "pilot=stopped",
+    -- "pilot=refused why=..."; native pilot_status()), from the start of its own line; nil without one.
     function self.pilot() return pilot end
     -- Her .pak mods against ours, once her game said them: {same=, ours=, hers=} (the counts beyond the base game's
     -- paks), or nil.

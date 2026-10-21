@@ -2101,6 +2101,10 @@ private:
 // +0x14 (0 standalone), and the logic singleton, whose +0x5c0 is the logic task in flight (0: none).
 constexpr uint64_t kNetCacheAt = 0x147032528, kLogicSingletonAt = 0x147032568;
 constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
+// The two singletons SB's force target takes through their getters, FUN_141a97b90 (before its TargetedByEnemy jobs) and
+// FUN_141a97f20 (for a table row), each of which makes its singleton when it is still null: the call runs only once
+// both exist, so it never makes one (PHASE11-STAGE3 7 rule 4).
+constexpr uint64_t kTargetSingletonsAt[] = {0x147032560, 0x147032510};
 // The world's actor manager (Globals::manager): its FSBActor array, their count and the local player's index, as SB
 // finds its own EVE; an FSBActor's player flag.
 constexpr size_t kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c, kFsbPlayer = 0x49a;
@@ -2117,8 +2121,8 @@ constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads i
 // target, FUN_141a36010(fsb + kAi, our EVE's FSBActor, 0, kTargetHold): detect result 3, aggro level 1 and SB's
 // TargetedByEnemy jobs (the HUD and music). Only with the cached net mode 0 and no logic task in flight (M3-4: in net
 // mode 3 its senders become ServerRequest_*, and SB's own callers run inside logic tasks). A task in flight, or a copy
-// the lookups miss, puts it off a frame at a time for kTakeMs. Another net mode, a task still in flight after that, no
-// EVE of ours or a copy without AI refuse it: the pair stays in refused() while the table says it is ours at that
+// the lookups miss, puts it off a frame at a time for kTakeMs. Another net mode, a task still in flight after that, a
+// singleton the call would make (kTargetSingletonsAt), no EVE of ours or a copy without AI refuse it: the pair stays in refused() while the table says it is ours at that
 // epoch, and the job gives it back with own-no target. A copy still missing after kTakeMs is dropped (the job gives an
 // unpaired copy back by itself). A take-over is a pair this side owns at an epoch it did not own it at in the last
 // fresh table with same-place enemies on; never at epoch 0, every pair's first, the host's. coop fight pilot test
@@ -2206,9 +2210,9 @@ private:
     int32_t level = 0, result = 0;
     bool noted = false;
   };
-  enum Aim : uint8_t { kForced, kBusy, kMissing, kShut, kNoEve, kNoAi };
+  enum Aim : uint8_t { kForced, kBusy, kMissing, kShut, kNoEve, kNoAi, kUnmade };
   static constexpr const char *kWhy[] = {"forced", "a logic task in flight", "copy not found", "not net mode 0",
-                                         "no EVE of ours", "no AI on the copy"};
+                                         "no EVE of ours", "no AI on the copy", "a game singleton not made yet"};
 
   char *note() {
     if (notes_n_ < kNotes)
@@ -2254,6 +2258,11 @@ private:
       return kShut;
     if (task)
       return kBusy;
+    for (uint64_t at : kTargetSingletonsAt) {
+      uint64_t made = 0;
+      if (!read(base + (at - nightop::kImageBase), &made, sizeof made) || !nightop::plausible(made))
+        return kUnmade;
+    }
     Globals s;
     if (!globals(read, base, s) || !find_character(g, read, base + pose::kObjectsRva, s, local, fsb, root))
       return kMissing;

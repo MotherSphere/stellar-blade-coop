@@ -416,7 +416,8 @@ balance and death stay with the host's game whoever owns the pair.
 - In the frame a pair becomes a game's own at a new epoch, its game thread first puts the copy back (below), then
   calls the game's force target function (`FUN_141a36010`) toward its own EVE: detect result 3, aggro level 1, and the
   game's own TargetedByEnemy jobs. It runs only with the cached net mode 0 (in net mode 3 that function would send
-  server requests) and no logic task in flight; a task in flight puts it off for up to 250 ms. A refused take-over goes
+  server requests), no logic task in flight, and the two game objects it fetches already made (their getters would
+  make them); a task in flight puts it off for up to 250 ms. A refused take-over goes
   back to the job, and the guest gives the pair back with `own-no target`.
 - Every 33 ms the owner's game thread reads each enemy it owns: position, rotation, animation speed, BattleMode,
   whether it is dying and whether an AI task runs, into one `SBE` message on channel 1 (26 bytes an enemy, 16 enemies
