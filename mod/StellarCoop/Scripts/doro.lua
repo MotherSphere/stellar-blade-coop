@@ -2,8 +2,15 @@
 -- component hung on a given parent (the ghost's main mesh), with collision off. No SB character, no table row, no AI,
 -- nothing that can die, so nothing of it reaches a quest, an achievement or a save. Doro's own anim Blueprint is never
 -- used: the engine's single-node instance plays its blend spaces and clips (SetAnimationMode 1), driven by Doro.pick.
+-- The look (Doro.new): your EVE drawn as a Doro. It is the one place the mod writes to the player actor: while it is
+-- on, EVE's mesh components carry bHiddenInGame (only those that did not already) and her main mesh's
+-- VisibilityBasedAnimTickOption is 0, so her pose, notifies and root-motion moves still run while she is not drawn.
+-- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
+-- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
+-- The probe (coop race probe doro): a Doro 3 m ahead of EVE plays each clip in turn, with a log line a step.
+local UE=require('UEHelpers')
 local U=require('unreal')
-local valid,find=U.valid,U.find
+local valid,value_of,each,text,find,address=U.valid,U.value_of,U.each,U.text,U.find,U.address
 local Doro={}
 local DIR='/Game/DLC_2/Art/Character/NPC/CH_NPC_Dororong/'
 local function asset(path) return DIR..path..'.'..path:match('[^/]+$') end
@@ -133,5 +140,249 @@ function Doro.apply(d,c)
     if c.input then m:GetAnimInstance():SetBlendSpaceInput({X=c.input,Y=0,Z=0}) end
     m:SetPlayRate(c.rate)
     if c.at then m:SetPosition(c.at,false) end
+end
+
+local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
+local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
+local function flags(c)
+    return string.format('visible=%d hidden=%d',c.bVisible==true and 1 or 0,c.bHiddenInGame==true and 1 or 0)
+end
+-- The probe's steps: 3 s each unless said. Clips with no notify first, then sound states, footsteps, held frames.
+local PROBE={{name='turn_90l',asset='turn',loop=true,rate=1},{name='meet_01',asset='meet1',loop=true,rate=1},
+    {name='idle',asset='idle',loop=true,rate=1},{name='two_legs_0',asset='two',loop=true,input=0,rate=1},
+    {name='two_legs_250',asset='two',loop=true,input=250,rate=1},
+    {name='two_legs_500',asset='two',loop=true,input=500,rate=1},
+    {name='all_fours_500',asset='four',loop=true,input=500,rate=1},{name='evade',asset='evade',loop=false,rate=1},
+    {name='hold_0.25',asset='evade',loop=false,rate=0,at=0.25},{name='hold_0.5',asset='evade',loop=false,rate=0,at=0.5},
+    {name='hold_0.75',asset='evade',loop=false,rate=0,at=0.75},{name='exhaust',asset='exhaust',loop=true,rate=1},
+    {name='meet_03',asset='meet3',loop=false,rate=1,seconds=9.4}}
+
+-- o: log (the [DR] lines), store (coop-look.txt through link.store; nil without the native part: no restore).
+function Doro.new(o)
+    local log=o.log
+    local store=o.store or {save=function() end,load=function() end,clear=function() end}
+    local self={log=log}
+    local look -- While on: what it changed and what it drives.
+    local failed -- Why the look stopped on an error: off for this Lua load.
+    local restored,yaw_said=false,false
+    local probe -- While the probe runs.
+    -- The file an earlier Lua load left (its look was on): its Doro destroyed, EVE's listed parts shown and her tick
+    -- option back, then the file cleared. On the game thread (the first tick, or look on), never while the Lua state
+    -- loads. One line: EVE's path, the old tick option, the Doro's path, the parts' names, tab-separated.
+    function self.restore()
+        if restored then return end
+        restored=true
+        local line=store.load()
+        if not line then return end
+        local f={}
+        for field in (line..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
+        local shown=0
+        local ok,why=pcall(function()
+            local doro=f[3] and valid(StaticFindObject(f[3]))
+            local root=doro and valid(doro:K2_GetRootComponent())
+            if root and root:IsA(find('/Script/Engine.SkeletalMeshComponent')) then doro:K2_DestroyActor() end
+            local eve=her(valid(StaticFindObject(f[1])))
+            if not eve then return end
+            local listed={}
+            for k=4,#f do listed[f[k]]=true end
+            each(eve:K2_GetComponentsByClass(find('/Script/Engine.MeshComponent')),function(_,c)
+                c=valid(c)
+                if c and listed[text(c:GetFName())] and c.bHiddenInGame==true then
+                    c:SetHiddenInGame(false,false)
+                    shown=shown+1
+                end
+            end)
+            if tonumber(f[2]) then valid(eve.Mesh).VisibilityBasedAnimTickOption=tonumber(f[2]) end
+        end)
+        store.clear()
+        log(string.format('look restored %d parts from coop-look.txt%s',shown,ok and '' or ' ('..tostring(why)..')'))
+    end
+    function self.active() return look~=nil end
+    -- Each step its own pcall: one failing leaves the others done, and is said. Only the parts the look hid (p.flags
+    -- set) are shown again.
+    function self.off(why)
+        local l=look
+        if not l then return true,'The Doro look is off already.' end
+        look=nil
+        local shown,errors=0,{}
+        local function try(f)
+            local ok,e=pcall(f)
+            if not ok then errors[#errors+1]=tostring(e) end
+        end
+        try(function() if valid(l.doro.actor) then l.doro.actor:K2_DestroyActor() end end)
+        for _,p in ipairs(l.parts) do
+            try(function() if p.flags and valid(p.c) then p.c:SetHiddenInGame(false,false); shown=shown+1 end end)
+        end
+        try(function() if l.tick and valid(l.body) then l.body.VisibilityBasedAnimTickOption=l.tick end end)
+        store.clear()
+        return #errors==0,string.format('Doro look off (%s): %d parts shown again, tick option %s back%s.',why,shown,
+            l.tick,#errors>0 and '; '..table.concat(errors,'; ') or '')
+    end
+    function self.on()
+        self.restore()
+        if failed then
+            return false,'the Doro look stopped on an error ('..failed..'); it stays off until the mod reloads'
+        end
+        if look then return true,'The Doro look is on already.' end
+        local eve=her(valid(UE.GetPlayer()))
+        if not eve then return false,'no EVE in the world' end
+        local body=valid(eve.Mesh)
+        local at,rot=value_of(body:K2_GetComponentLocation()),value_of(body:K2_GetComponentRotation())
+        -- The Doro first: if it cannot be made, nothing of EVE was touched.
+        local d=Doro.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll})
+        local now=os.clock()
+        look={eve=eve,body=body,doro=d,state={},parts={},rehid=0,retick=0,check_at=now+0.25,speed_at=now,
+            minute_at=now+60}
+        local l=look
+        local ok,why=pcall(function()
+            l.at,l.map,l.move=address(eve),U.map_of(eve),valid(eve.CharacterMovement)
+            l.tick=assert(tonumber(value_of(body.VisibilityBasedAnimTickOption)),'her tick option is unreadable')
+            local names={}
+            each(eve:K2_GetComponentsByClass(find('/Script/Engine.MeshComponent')),function(_,c)
+                c=valid(c)
+                if c and c.bHiddenInGame~=true then
+                    l.parts[#l.parts+1]={c=c,name=text(c:GetFName())}
+                    names[#names+1]=l.parts[#l.parts].name
+                end
+            end)
+            -- The file before EVE changes: whatever happens next, the next Lua load can undo it.
+            local saved,save_why=store.save(table.concat({path_of(eve),tostring(l.tick),path_of(d.actor),
+                table.concat(names,'\t')},'\t'))
+            if saved==false then error(save_why,0) end
+            for _,p in ipairs(l.parts) do
+                p.c:SetHiddenInGame(true,false)
+                p.flags=flags(p.c)
+            end
+            body.VisibilityBasedAnimTickOption=0
+        end)
+        if not ok then
+            failed=tostring(why)
+            local _,message=self.off('error')
+            return false,'Doro look not turned on: '..failed..'. '..message
+        end
+        log(string.format('look hid=%d tick=%d->0 rehid=0/min',#l.parts,l.tick))
+        if not yaw_said then -- Her actor's yaw minus her main mesh's, as the capture measures it.
+            yaw_said=true
+            log(string.format('look yaw_delta=%.1f',value_of(eve:K2_GetActorRotation()).Yaw-rot.Yaw))
+        end
+        return true,string.format('Doro look on: %d parts of EVE hidden; coop race look off shows her again.',#l.parts)
+    end
+    -- Every 250 ms: the same EVE on the same map (else the look goes off), each listed part the game showed hidden
+    -- again, the tick option set back; each flag change the game made logged, and both counts once a minute.
+    local function check(l,now)
+        l.check_at=now+0.25
+        local pawn=valid(UE.GetPlayer())
+        if not pawn or address(pawn)~=l.at or U.map_of(pawn)~=l.map then return 'map change' end
+        for _,p in ipairs(l.parts) do
+            local c=valid(p.c)
+            if c then
+                local seen=flags(c)
+                if seen~=p.flags then log('flag '..p.name..' '..seen) end
+                if c.bHiddenInGame~=true then
+                    c:SetHiddenInGame(true,false)
+                    l.rehid=l.rehid+1
+                    seen=seen:gsub('hidden=0','hidden=1')
+                end
+                p.flags=seen
+            end
+        end
+        if value_of(l.body.VisibilityBasedAnimTickOption)~=0 then
+            l.body.VisibilityBasedAnimTickOption=0
+            l.retick=l.retick+1
+        end
+        if now>=l.minute_at then
+            log(string.format('look hid=%d tick=%d->0 rehid=%d/min retick=%d/min',#l.parts,l.tick,l.rehid,l.retick))
+            l.minute_at,l.rehid,l.retick=now+60,0,0
+        end
+    end
+    -- Each frame: the Doro where her main mesh is (her feet), animated from her speed, fall and sprint.
+    local function frame(l,now)
+        if not valid(l.eve) then return 'map change' end
+        if not valid(l.doro.actor) then return 'its Doro is gone' end -- Never a call on a destroyed actor.
+        local at,rot=value_of(l.body:K2_GetComponentLocation()),value_of(l.body:K2_GetComponentRotation())
+        l.doro.mesh:K2_SetWorldLocationAndRotation({X=at.X,Y=at.Y,Z=at.Z},{Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},
+            false,{},false)
+        local v=value_of(l.eve:GetVelocity())
+        local speed,sprint=math.sqrt(v.X*v.X+v.Y*v.Y),l.eve:IsSprint()==true
+        Doro.apply(l.doro,Doro.pick(l.state,{speed=speed,vz=v.Z,falling=l.move:IsFalling()==true,sprint=sprint,
+            now=now}))
+        if now>=l.speed_at then
+            l.speed_at=now+1
+            local read,sb=pcall(function() return string.format('%.0f',l.eve:GetSBSpeedForAnimGraph()) end)
+            log(string.format('speed v=%.0f sb=%s sprint=%d',speed,read and sb or '?',sprint and 1 or 0))
+        end
+        if now>=l.check_at then return check(l,now) end
+    end
+    -- The probe, a step at a time: each step's start logged (a crash names its step), a step that fails logged and
+    -- skipped; at the end one line with what was read and the time it took on both clocks.
+    local function probe_step(now)
+        local p=probe
+        if now<p.next then return end
+        local ending=PROBE[p.k]
+        if ending and ending.at then
+            local read,at=pcall(function() return string.format('%.2f',p.d.mesh:GetPosition()) end)
+            p.holds[#p.holds+1]=read and at or '?'
+        end
+        p.k=p.k+1
+        local step=PROBE[p.k]
+        if not step then
+            probe=nil
+            pcall(function() p.d.actor:K2_DestroyActor() end)
+            return log(string.format('probe anim=%s bs=%s rate=%s hold=%s height=%s phase=%s clock=%.1f time=%d',p.anim,
+                p.bs,p.rate,table.concat(p.holds,'/'),p.height,p.phase,now-p.clock,os.time()-p.time))
+        end
+        p.next,p.phase=now+(step.seconds or 3),step.name
+        log('probe phase='..step.name)
+        local ok,why=pcall(function()
+            if not valid(p.d.actor) then error('the Doro is gone',0) end
+            Doro.apply(p.d,step)
+        end)
+        if not ok then
+            log('probe phase='..step.name..' failed: '..tostring(why))
+            if step.input then p.bs='failed' end
+            if step.at then p.rate='failed' end
+        elseif p.anim=='?' then
+            pcall(function() p.anim=text(p.d.mesh:GetAnimInstance():GetClass():GetFName()) end)
+        end
+    end
+    function self.probe()
+        if probe then return false,'the Doro probe runs already' end
+        local eve=her(valid(UE.GetPlayer()))
+        if not eve then return false,'no EVE in the world' end
+        local body=valid(eve.Mesh)
+        local at,yaw=value_of(body:K2_GetComponentLocation()),math.rad(value_of(eve:K2_GetActorRotation()).Yaw)
+        local spot={X=at.X+math.cos(yaw)*300,Y=at.Y+math.sin(yaw)*300,Z=at.Z}
+        local d=Doro.spawn(eve:GetWorld(),spot,{Pitch=0,Yaw=value_of(body:K2_GetComponentRotation()).Yaw+180,Roll=0})
+        local read,height=pcall(function()
+            return string.format('%.1f',Doro.resolve(Doro.ASSETS.mesh,MESH):GetBounds().BoxExtent.Z*2
+                *value_of(d.mesh:K2_GetComponentScale()).Z)
+        end)
+        probe={d=d,k=0,next=0,clock=os.clock(),time=os.time(),holds={},bs='ok',rate='ok',anim='?',phase='none',
+            height=read and height or '?'}
+        return true,'Doro probe: a Doro 3 m ahead plays each clip in turn for about 45 s; [DR] lines in this log.'
+    end
+    -- Each frame, on the game thread. Returns ok, message when the look went off by itself.
+    function self.tick()
+        local now=os.clock()
+        if probe then probe_step(now) end
+        local l=look
+        if not l then return end
+        local ok,why=pcall(frame,l,now)
+        if ok and not why then return end
+        if ok then return self.off(why) end
+        failed=tostring(why)
+        local _,message=self.off('error')
+        return false,'Doro look stopped until the mod reloads: '..failed..'. '..message
+    end
+    -- coop off: the look off and the probe's Doro gone.
+    function self.stop()
+        if probe then
+            local p=probe
+            probe=nil
+            pcall(function() p.d.actor:K2_DestroyActor() end)
+        end
+        if look then log(select(2,self.off('coop off'))) end
+    end
+    return self
 end
 return Doro

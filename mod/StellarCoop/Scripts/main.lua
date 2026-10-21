@@ -32,7 +32,9 @@
 -- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
 -- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
 -- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
--- of the usage line). coop off stops everything until the game restarts.
+-- of the usage line); coop race look on|off, your EVE drawn as a Doro and the ghost too, and coop race probe doro, a
+-- Doro playing each of its clips (doro.lua; test tools, left out of the usage line). coop off stops everything until
+-- the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -154,6 +156,9 @@ local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '.
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end
 local ui=require('ui').new(ui_log)
+-- The Doro look and probe (doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
+local doro=require('doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
+    store=link and link.store('coop-look.txt')})
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
 -- 250 ms so the file never stays on disk, session or not, and ours leave through coop-say.txt in the same loop. Its
 -- clock counts that loop's ticks: os.clock is CPU time under some C runtimes, os.time whole seconds. chat.lua's view
@@ -482,6 +487,21 @@ local commands={
         end
         return ui.test(arg=='game')
     end,
+    -- The look and the ghost's Doro mode go on together; off ends both, whether the look is on or not.
+    race=function(sub,a,extra)
+        if sub=='look' and (a=='on' or a=='off') and extra==nil then
+            if a=='off' then
+                puppet.doro(false)
+                return doro.off('coop race look off')
+            end
+            local ok,why=doro.on()
+            if not ok then return false,why end
+            local _,ghost_why=puppet.doro(true,doro.log)
+            return true,why..(ghost_why and ' '..ghost_why or '')
+        end
+        if sub=='probe' and a=='doro' and extra==nil then return doro.probe() end
+        return false,'Use: coop race look on|off | probe doro'
+    end,
     off=function()
         off=true
         if puppet.active() then puppet.toggle() end
@@ -505,6 +525,8 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(night.stop,'coop off')
         if not stopped then log('nightop: '..tostring(e)) end
+        stopped,e=pcall(doro.stop)
+        if not stopped then log('doro: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -565,8 +587,8 @@ local chat_asked,typed_at=nil,-math.huge
 local hud_shown=false -- Our HUD may show (a world, out of our photos): the chat's box opens then only, not at the title.
 -- The Lua frame time of the ghost's place and of the UI's ticks (UI-DESIGN 7.3, measured in T-UI1), summed and logged
 -- once a minute with the UI up. os.clock steps by whole ms under the game's C runtime: over a minute's frames the sum
--- averages out.
-local timed={ghost=0,ui=0,frames=0,since=nil}
+-- averages out. The Doro look's frame is timed beside them.
+local timed={ghost=0,doro=0,ui=0,frames=0,since=nil}
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
@@ -575,6 +597,7 @@ RegisterConsoleCommandHandler('coop',function(_,parameters)
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
+    doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
@@ -583,6 +606,10 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
     if message then report(ok,message) end
     placed=os.clock()-placed
+    local looked=os.clock()
+    ok,message=doro.tick() -- After the native tick: EVE's mesh is where this frame draws her.
+    if message then report(ok,message) end
+    looked=os.clock()-looked
     ok,message=notice.tick()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
@@ -610,13 +637,14 @@ LoopInGameThreadWithDelay(1,function()
         end
         local t=os.clock()
         timed.since=timed.since or t
-        timed.ghost,timed.ui,timed.frames=timed.ghost+placed,timed.ui+t-now,timed.frames+1
+        timed.ghost,timed.doro,timed.ui,timed.frames=timed.ghost+placed,timed.doro+looked,timed.ui+t-now,timed.frames+1
         if t-timed.since>=60 then
             if kit.ready() then
-                log(string.format('Lua frame time, last 60 s: ghost %.3f ms, UI %.3f ms a frame (%d frames)',
-                    timed.ghost*1000/timed.frames,timed.ui*1000/timed.frames,timed.frames))
+                local function ms(v) return v*1000/timed.frames end
+                log(string.format('Lua frame time, last 60 s: ghost %.3f ms, doro %.3f ms, UI %.3f ms a frame '
+                    ..'(%d frames)',ms(timed.ghost),ms(timed.doro),ms(timed.ui),timed.frames))
             end
-            timed={ghost=0,ui=0,frames=0,since=t}
+            timed={ghost=0,doro=0,ui=0,frames=0,since=t}
         end
     end
 end)
