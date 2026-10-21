@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Wine smoke test: builds StellarCoop.dll and tests/wine/smoke.exe, then loads the DLL under Proton's wine in a scratch
 WINEPREFIX with no steam_api64.dll around. Checks that it attaches, waits for Steam, answers coop_tick when exported,
-says pilot=refused for same-place enemies, refuses the Night Operation poller, the shared fight's probe, a pilot test,
-the force target test, coop freeze and the save name's probe on an exe that is not the game but takes coop fight pilot off, logs the save name's state (off) once, and logs a clean process exit; that ReadProcessMemory behaves as
+says pilot=refused for same-place enemies and quests=off, refuses the Night Operation poller, the shared fight's probe, a
+pilot test, the force target test, coop freeze, the shared quests' probe and the save name's probe on an exe that is not the game but takes coop fight pilot off, logs the save name's state (off) once, and logs a clean process exit; that ReadProcessMemory behaves as
 the poller needs; and that the copy request's clipboard call is read back. Runs with no display, so the clipboard
 stays inside wine and the desktop's is never touched. Never touches the game folder or the game's prefix."""
 import argparse
@@ -82,7 +82,7 @@ def main():
     checks = {
         'smoke.exe exit code 0 (load, steam=waiting, fight=off, pilot=refused and the engine refusing smoke.exe within '
         '3 s, no steam_api64.dll, coop_tick exported and returning 0, nightop, fight probe, pilot test, pilot test '
-        'target, freeze and '
+        'target, freeze, quests probe and '
         'saves probe refused and pilot off taken within 3 s each, ReadProcessMemory reading its stack and refusing 0x1000, a join code read back from the '
         'clipboard)':
             result.returncode == 0,
