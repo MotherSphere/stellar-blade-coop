@@ -611,6 +611,8 @@ function Run.new(o)
     end
     -- coop off (or any reason): the run ends as aborted.
     function self.stop(reason) return stop(reason or 'stop') end
+    -- Whether a run is on (its result panel aside): a Doro race refuses to arm meanwhile.
+    function self.active() return r~=nil and r.s.phase~='result' end
     return self
 end
 return Run

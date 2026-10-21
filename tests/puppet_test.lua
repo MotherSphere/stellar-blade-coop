@@ -13,7 +13,8 @@
 -- simulated only while drawn, its reset as the ghost shows, and a plain part when that fails;
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
--- them in place(), within their budget; Doro mode, its Doro on part 0 and every part hidden until it goes off.
+-- them in place(), within their budget; Doro mode, its Doro on part 0 and every part hidden until it goes off, and the
+-- race's emote on it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -1311,6 +1312,15 @@ build()
 actor=spawned[#spawned]
 doro=actor.parts[7]
 assert(doro and doro.attached.parent==actor.parts[1] and actor.parts[1].visible==false,'Doro again')
+-- The race's results: standing, her Doro plays the emote it is given (lose: Exhaust), and her blend space once cleared.
+box=actor.mailbox
+ghost.emote('lose')
+pose_at(60,{X=110,Y=0,Z=90})
+assert(doro.playing.asset==meshes[DORO.exhaust] and doro.playing.loop==true,'lose: Exhaust')
+ghost.emote(nil)
+clock=clock+0.1
+pose_at(61,{X=110,Y=0,Z=90})
+assert(doro.playing.asset==meshes[DORO.two],'Cleared: her blend space again')
 -- Off: the Doro gone, each part shown as the table says (her ponytail hidden there).
 assert(ghost.doro(false)==nil and doro.destroyed)
 for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end

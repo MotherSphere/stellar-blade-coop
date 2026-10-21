@@ -227,6 +227,7 @@ assert(ok and message==string.format('census: 0 living within 40 m (nearest none
 assert(count('PC:ServerRequest_CreateActor')==0 and #lines==0)
 ok,message=run.command('stop'); assert(not ok and message=='no Night Operation run to stop')
 assert(not run.stop('coop off'))
+assert(not run.active(),'No run: a Doro race may arm')
 
 -- 2. The spawn choke point: pool rows and wave keys only, never a signed form; the ten arguments.
 for _,bad in ipairs({{50160,W.key(1,1,0)},{15011001,W.key(1,1,0)},{50110,0xE0000104},{50110,0},{50110,0xD42B5F51},
@@ -255,6 +256,7 @@ assert(lines[1]==string.format('start: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30
     ..'%d',byte,W.seed(T,byte),byte0,byte0),lines[1])
 ok,message=run.command('start')
 assert(not ok and message=='a run is on: coop nightop stop ends it')
+assert(run.active(),'A run on: a Doro race waits')
 local s=W.new{run=byte,seed=W.seed(T,byte),now=g0} -- The same draws, for the spots.
 tick(19)
 assert(count('PC:ServerRequest_CreateActor')==0 and #lines==1,'Countdown: nothing')
@@ -401,6 +403,7 @@ tick(32)
 assert(logged(string.format('wave 2/5 at run time %.1f s: 3 monsters',clear+10)),since(0))
 run.stop('stop')
 assert(result_line():find('^result: aborted %(stop%) waves=1/5 kills=0 score=0 '),result_line())
+assert(not run.active(),'Its result alone: a Doro race may arm')
 
 -- 5. A body found with no controller gets its default one 0.5 s after, before the aggro: the new one gets the focus and
 -- the move. Missing bodies count for the wave.

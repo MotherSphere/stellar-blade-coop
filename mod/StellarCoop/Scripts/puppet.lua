@@ -151,7 +151,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
-    local doro_on,doro_log=false,nil -- Doro mode, and where its [DR] lines go.
+    local doro_on,doro_log,doro_emote=false,nil,nil -- Doro mode, where its [DR] lines go, the race's emote.
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
     local function whose() return source=='peer' and files.friend() or tostring(source) end
     local function clear(why)
@@ -581,6 +581,8 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         pcall(doro_dress,g)
         return false,'Doro mode off on the ghost: '..tostring(why)
     end
+    -- The race's results on her Doro: 'win' or 'lose' while she stands (Doro.pick), nil for none.
+    function self.emote(e) doro_emote=e end
     function self.active() return wanted end
     function self.toggle()
         sweep()
@@ -668,13 +670,13 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         local now,f,from=os.clock(),g.feet,g.doro_from
         if jump or not from then
             g.doro_state,g.doro_from={},{X=f.X,Y=f.Y,Z=f.Z,at=now}
-            return Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=0,vz=0,now=now}))
+            return Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=0,vz=0,emote=doro_emote,now=now}))
         end
         local dt=now-from.at
         if dt<0.05 then return end
         local speed=math.sqrt((f.X-from.X)^2+(f.Y-from.Y)^2)/dt
         g.doro_from={X=f.X,Y=f.Y,Z=f.Z,at=now}
-        Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,now=now}))
+        Doro.apply(g.doro,Doro.pick(g.doro_state,{speed=speed,vz=(f.Z-from.Z)/dt,emote=doro_emote,now=now}))
         if doro_log and now>=(g.doro_said or 0) then
             g.doro_said=now+1
             doro_log(string.format('ghost doro speed=%.0f',speed))

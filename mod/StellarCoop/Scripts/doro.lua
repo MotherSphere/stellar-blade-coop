@@ -151,6 +151,11 @@ function Doro.spawn(world,at,rotation)
     d.actor=actor
     return d
 end
+-- A Doro of spawn()'s gone, if its actor is still the one spawn() made: never a call on another object.
+function Doro.remove(d)
+    local a=same(d.actor,d.path)
+    if a then a:K2_DestroyActor() end
+end
 -- One choice of pick() on a display: PlayAnimation only when the clip or its looping changes, then the blend space
 -- input, the play rate and the position (without notifies) as given.
 function Doro.apply(d,c)
@@ -220,6 +225,8 @@ function Doro.new(o)
         log(string.format('look restored %d parts from coop-look.txt%s',shown,ok and '' or ' ('..tostring(why)..')'))
     end
     function self.active() return look~=nil end
+    -- The race's results: 'win' or 'lose' while she stands (Doro.pick), nil for none; the look forgets it when it goes.
+    function self.emote(e) if look then look.emote=e end end
     -- Each step its own pcall: one failing leaves the others done, and is said, and keeps the file for the next Lua
     -- load. Only the parts the look hid (p.flags set) are shown again, and only what is still the object it met (after
     -- a map change, nothing is).
@@ -340,7 +347,7 @@ function Doro.new(o)
         local v=value_of(l.eve:GetVelocity())
         local speed,sprint=math.sqrt(v.X*v.X+v.Y*v.Y),l.eve:IsSprint()==true
         Doro.apply(l.doro,Doro.pick(l.state,{speed=speed,vz=v.Z,falling=l.move:IsFalling()==true,sprint=sprint,
-            now=now}))
+            emote=l.emote,now=now}))
         if now>=l.speed_at then
             l.speed_at=now+1
             local read,sb=pcall(function() return string.format('%.0f',l.eve:GetSBSpeedForAnimGraph()) end)

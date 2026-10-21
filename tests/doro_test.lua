@@ -1,11 +1,12 @@
 -- doro.lua with fake UE4SS objects: Doro.pick's mapping (blend space input and play rate from the speed, all fours
 -- while sprinting with its hold, the ghost's speed threshold with its hysteresis, take-off, a held fall and landing,
--- emotes only while standing, the smoothing), Doro.apply's calls; the look (only parts not already hidden are hidden,
--- listed and written to coop-look.txt before EVE changes; the Doro placed at her main mesh each frame; the 250 ms check
--- hides again and counts, and logs the flags the game changed; off clears only those parts and restores the tick
--- option, and keeps the file when a step fails; a map change turns it off, with no call on an object that took the
--- place of one it met; its first error turns it off until the mod reloads; a restore from an earlier Lua load's file; a
--- stale path only clears the file) and the probe's steps and lines.
+-- emotes only while standing, the smoothing), Doro.apply's calls, Doro.remove (only the actor spawn made); the look
+-- (only parts not already hidden are hidden, listed and written to coop-look.txt before EVE changes; the Doro placed at
+-- her main mesh each frame; the 250 ms check hides again and counts, and logs the flags the game changed; off clears
+-- only those parts and restores the tick option, and keeps the file when a step fails; a map change turns it off, with
+-- no call on an object that took the place of one it met; its first error turns it off until the mod reloads; a restore
+-- from an earlier Lua load's file; a stale path only clears the file; the race's emote while she stands) and the
+-- probe's steps and lines.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -275,6 +276,19 @@ local ok,why=pcall(Doro.attach,actor)
 assert(not ok and why:find('the Doro mesh is missing on this PC',1,true) and #actor.components==before,why)
 assets[mesh_path],mesh_asset.destroyed=mesh_asset,nil
 
+-- Doro.remove: a Doro of spawn()'s destroyed while it is that actor; once gone, or another object at its place, no call.
+do
+    local made=Doro.spawn(world,{X=1,Y=2,Z=3},{Pitch=0,Yaw=0,Roll=0})
+    Doro.remove(made)
+    assert(made.actor.destroyed)
+    made.actor.K2_DestroyActor=function() error('a call on a destroyed actor') end
+    Doro.remove(made)
+    local other=Doro.spawn(world,{X=1,Y=2,Z=3},{Pitch=0,Yaw=0,Roll=0})
+    other.path='/Game/Map.Map:PersistentLevel.Actor_0'
+    Doro.remove(other)
+    assert(not other.actor.destroyed,'Another object: left alone')
+    other.actor.destroyed=true
+end
 -- The look.
 local look=Doro.new({log=log,store=store})
 assert(look.log==log and not look.active())
@@ -343,6 +357,18 @@ assert(#logs==lines and face.writes==2,'Nothing changed: nothing said or written
 clock=160.1
 look.tick()
 assert(last()=='look hid=4 tick=3->0 rehid=1/min retick=1/min reload=1/min reload_ms=0' and Doro.reloads.n==0,last())
+-- The race's results: standing, the emote it is given (win: Evade in a loop), until cleared.
+eve.velocity={X=0,Y=0,Z=0}
+look.emote('win')
+clock=161
+root.calls={}
+look.tick()
+assert(root.calls[1]=='play evade true',table.concat(root.calls,'|'))
+look.emote(nil)
+clock=161.1
+root.calls={}
+look.tick()
+assert(root.calls[1]=='play two true',table.concat(root.calls,'|'))
 -- Off: only the listed parts are shown again, the tick option is back, the file and the Doro are gone.
 ok,why=look.off('coop race look off')
 assert(ok and why=='Doro look off (coop race look off): 4 parts shown again, tick option 3 back.',why)
