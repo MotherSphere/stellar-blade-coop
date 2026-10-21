@@ -145,13 +145,14 @@ build/host/pose_codec_test
     (BossMonsters taken by `fight_chars=auto` only with bosses on, on the guest once the host's bosses line came; their
     MaxHP times `boss_hp_scale` once and back at off; a boss never handed to her; in two worlds with same spawns on, a
     boss both saves hold paired and scaled in both, one only the host's save holds left unpaired, one only hers left
-    hers, none created or removed), her boss copies taken out of battle mode (10 s after the host's last bstart, at the
-    host's down and at the session's end, a dying one left alone), the `bosses` word through a recording and its replay,
-    and the boss tests of `coop fight pilot test` on the nearest frozen boss copy (SetBattleMode once a copy and no
-    BattleMode_5s on boss copies from the next session, a phase line and the threshold's dispel 5 s later, the copy held
-    at 1 HP with no claim and the host's HP back after 10 s, or its HP from the start when the test stops early, a
-    summon made, frozen and frozen again, then removed as unpaired, or at once when the freeze is refused; one test at a
-    time, none left after the session ends);
+    hers, none created or removed), her boss copies taken out of battle mode (after 10 s of the host's lines with no
+    bstart, a 15 s silence of the host's not counted, at the host's down, at her own same place off and at the session's
+    end, a dying one left alone; a new copy paired in the turn its pair's old one went keeps its boss start), the
+    `bosses` word through a recording and its replay, and the boss tests of `coop fight pilot test` on the nearest
+    frozen boss copy (SetBattleMode once a copy and no BattleMode_5s on boss copies from the next session, a phase line
+    and the threshold's dispel 5 s later, the copy held at 1 HP with no claim and the host's HP back after 10 s, or its
+    HP from the start when the test stops early, a summon made, frozen and frozen again, then removed as unpaired, or at
+    once when the freeze is refused; one test at a time, none left after the session ends);
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss

@@ -330,9 +330,10 @@ constexpr size_t kMaxSummoned = kMaxTracked; // Summons the host keys at once.
 // is despawned: the host's own is not shared (its list full), or gone.
 constexpr uint32_t kSummonWaitTurns = 180;
 // The host repeats bstart each kRefreshMs while its boss is in battle mode: a copy of hers that got none for this long
-// leaves battle mode (the host's boss left it). As long as the link's own loss delay, so a stall the link survives
-// never ends it.
-constexpr uint64_t kBattleEndMs = 10000;
+// leaves battle mode (the host's boss left it). Only time while the host's lines come counts: a host silent for over
+// kSilentMs (its world paused, where its job waits while the link lives on [G], or a stall) moves the wait on by its
+// silence. kSilentMs is two of the host's hp refreshes, which reach every pair each kRefreshMs while its job runs.
+constexpr uint64_t kBattleEndMs = 10000, kSilentMs = 2 * kRefreshMs;
 // The solo probes (Engine::trial()): how long bstart follows its copy, when phase sends its second line, how long
 // finish holds its copy at 1 HP and summon follows its summon; the summon row it makes (M_Marionette_SummonDollHead2:
 // SE_M_DollHead_02 with 5025010 and 5025013) and how far ahead of our EVE.
@@ -792,7 +793,7 @@ public:
       // The host takes only her on, off and world (R33): a place, down or dead from her is a bad line, and from an
       // ignored peer nothing counts. Each of the three also ends the hand-over pause after her own-no off.
       if (!hosting)
-        saw(m);
+        saw(m), heard(now_ms);
       else if ((m.type == Type::on || m.type == Type::off || m.type == Type::world) && !host.ignored())
         saw(m), her_off_until_ = 0;
       if (hosting && m.type == Type::own_no)
@@ -1480,8 +1481,9 @@ private:
   // 1 HP with its FinishReady ended. Undone when its pair goes without the host's dead: FinishReady_Dispel.
   static constexpr int kGuard = -4;
   // Not a stat: SetBattleMode put this boss copy of the guest's in battle mode at the host's bstart (stage 5); key the
-  // host's GUID, battle its last bstart (ms). Undone by SetBattleMode off once the copy is no longer drawn (its pair
-  // gone, same place off), no bstart came for kBattleEndMs, and on every lift path.
+  // host's GUID, battle its last bstart (ms; moved on by the host's silences, heard()). Undone by SetBattleMode off once
+  // the copy is no longer drawn (its pair gone, same place off), no bstart came for kBattleEndMs, and on every lift
+  // path.
   static constexpr int kBattleOn = -5;
   static constexpr const char *kUnlisted = "its row's effects refused"; // A summon's (make_extra()).
   struct Capture {
@@ -2193,6 +2195,14 @@ private:
     int32_t n = 0;
     return each_effect(g, la, [&](uint64_t, int32_t id) { out[n++] = id; }) ? n : -1;
   }
+  // The guest: a line of the host's at now. After a silence of over kSilentMs, each copy's wait for its next bstart
+  // (kBattleOn) moves on by that silence.
+  void heard(uint64_t now) {
+    for (size_t i = 0; i < captures_ && now - heard_ms_ > kSilentMs; ++i)
+      if (caps_[i].type == kBattleOn)
+        caps_[i].battle += now - heard_ms_;
+    heard_ms_ = now;
+  }
   // After the pair table (n: this pass's enemies). The host tells her about its bosses and their summons; the guest
   // acts on the host's lines and holds the finish guard on her boss copies.
   template <class Game> void bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
@@ -2207,9 +2217,11 @@ private:
         summon_in(g, logic, m, n);
     trial(g, logic, n, census, now); // Before the guard, so a finish test reads the stance as the game left it.
     // Our battle mode comes off a copy no longer drawn (its pair gone, same place off) and one whose host's boss left
-    // battle mode: no bstart for kBattleEndMs.
+    // battle mode: no bstart for kBattleEndMs while the host's lines came (heard()).
+    const bool hearing = now - heard_ms_ <= kSilentMs;
     for (size_t i = 0; i < captures_ && !latched_;)
-      if (caps_[i].type == kBattleOn && (!drawn_boss(caps_[i].guid, n) || now - caps_[i].battle >= kBattleEndMs))
+      if (caps_[i].type == kBattleOn &&
+          (!drawn_boss(caps_[i].guid, n) || (hearing && now >= caps_[i].battle + kBattleEndMs)))
         lift(g, logic, i);
       else
         ++i;
@@ -3072,6 +3084,7 @@ private:
   // copies the finish guard took last turn (logged as it starts). The host: what it told her of each boss pair, and
   // the summons it keyed (n of the run's counter, the owner's GUID, the SummonActor row; sent; seen in this census).
   Ring<Message, kMail> boss_in_;
+  uint64_t heard_ms_ = 0; // The guest: when the host's last line came (heard()).
   uint32_t guarded_[kMaxPairs] = {};
   size_t guards_ = 0;
   struct BossOut {

@@ -607,13 +607,14 @@ applies them to her copy:
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
   once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
   then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
-  `EventFirstTimeOnBattle` once. Called from the logic thread, the game queues it for its game thread. She calls it
-  only for a copy her game draws as a BossMonster in life state 1, with the job sender and the reg already made (the
-  call reads both through getters that would make them). A refused bstart is taken at the host's next repeat. Her game
-  takes the copy out of battle mode through the same wrapper with off, then `0, 0, 1, 1`, the arguments of the game's
-  own battle-off calls: when no bstart came for 10 s (the host's boss left battle mode; 10 s is also the link's loss
-  delay), when her game stops drawing the copy (the pair ends, same place stops) and when the session ends (`coop fight
-  off`, the link, the fault latch). A dying copy gets no call. The host's next bstart for that copy calls it again.
+  `EventFirstTimeOnBattle` once. Called from the logic thread, the game queues it for its game thread. She calls it only
+  for a copy her game draws as a BossMonster in life state 1, with the job sender and the reg already made (the call
+  reads both through getters that would make them). A refused bstart is taken at the host's next repeat. Her game takes
+  the copy out of battle mode through the same wrapper with off, then `0, 0, 1, 1`, the arguments of the game's own
+  battle-off calls: when the host's lines bring no bstart for 10 s (the host's boss left battle mode; a gap of over 2 s
+  with no line from the host, as while the host's game is paused, is not counted), when her game stops drawing the copy
+  (the pair ends, same place stops) and when the session ends (`coop fight off`, the link, the fault latch). A dying
+  copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
   thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF11 phase <gen> <hguid> <oe>
