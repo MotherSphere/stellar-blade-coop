@@ -734,7 +734,7 @@ using MakeName = uint64_t *(*)(uint64_t *out, const NameView *name, int find_typ
 using GetWorld = uintptr_t (*)(uintptr_t controller);
 
 // The worker's asks, and what the game thread did, for its log.
-std::atomic<bool> freeze_pinned{false}, freeze_sync{false}, freeze_held{false}, freeze_faulted{false};
+std::atomic<bool> freeze_sync{false}, freeze_held{false}, freeze_faulted{false};
 std::atomic<uint32_t> freeze_test{0};   // The running coop freeze's number, 0 when none.
 std::atomic<uint32_t> freeze_unsure{0}; // Bumped at each Lua load.
 std::atomic<uint64_t> freeze_reapplied{0}, freeze_dropped{0};
@@ -814,7 +814,7 @@ using QuestUnit = void *(*)(void *manager);
 using QuestAcquire = bool (*)(void *manager, uint32_t owner, uint32_t quest);
 using QuestCall = void (*)(void *object);
 quest::Engine quest_engine;
-std::atomic<bool> quest_pinned{false}, quest_faulted{false};
+std::atomic<bool> quest_faulted{false};
 std::atomic<uint64_t> quest_fault_code{0}, quest_fault_rva{0}, quest_fault_address{0};
 std::mutex quest_m;                       // The save-slot line, from the worker, and when it was read.
 std::string quest_slot = "slot=unknown "; // Its gate pauses on it until the worker's first line.
@@ -883,7 +883,7 @@ void quest_tick() {
 // the run, and the engine line then has no warp= (Lua's revive then waits forever).
 constexpr uint64_t kWarpBlock = 0xa20, kCampAsked = 0xb60, kCampWaits = 0xb61, kPlayerGuid = 0x58,
                    kRespawnState = 0x1c4;
-std::atomic<bool> warp_pinned{false}, warp_faulted{false};
+std::atomic<bool> warp_faulted{false};
 std::atomic<int> warp_state{-1}; // -1: no read (no client or world yet, or the latch); 0 idle; 1 busy.
 std::atomic<uint32_t> warp_me{0};
 std::atomic<uint64_t> warp_fault_code{0}, warp_fault_rva{0}, warp_fault_address{0};
@@ -933,7 +933,7 @@ struct PilotLine {
   bool peer = false; // For her: the table was on (same_place, her side on). Else the probe's alone.
 };
 // The worker's asks and what the game thread did.
-std::atomic<bool> pilot_pinned{false}, pilot_faulted{false}, pilot_probe{false};
+std::atomic<bool> pilot_faulted{false}, pilot_probe{false};
 // coop fight pilot test: how far the drawn side goes (PilotTest), for the game thread's Driver; back to replay (all of
 // it) at each coop fight on.
 std::atomic<uint8_t> pilot_test{uint8_t(PilotTest::replay)};
@@ -1027,7 +1027,7 @@ using ForceTarget = void (*)(void *ai, void *target, uint64_t unused, float hold
 // for the run.
 constexpr uint64_t kCampTravel = 0x141cdd7b0;
 using CampTravel = uint8_t (*)(void *client, const void *request); // The return is a bool in AL.
-std::atomic<bool> travel_pinned{false}, travel_faulted{false};
+std::atomic<bool> travel_faulted{false};
 std::atomic<uint64_t> travel_fault_code{0}, travel_fault_rva{0}, travel_fault_address{0};
 // The worker's ask, its number and the camp's FName, taken by the game thread with try_lock only.
 std::mutex travel_m;
@@ -1384,6 +1384,8 @@ void (*peer_send)(const uint8_t *, size_t, bool) = nullptr; // Set by peer() eac
 uint64_t next_table_ms = 0, last_renewal_us = 0;
 // Night Operation probe (Phase 6): read-only, its own latch (pinned && !blocked), so a pose fault leaves it running.
 bool pinned = false, nightop_on = false;
+// pinned for the game thread's pause, pilot, quest, revive and travel calls; each keeps its own *_faulted latch.
+std::atomic<bool> game_pinned{false};
 nightop::Poller poller;
 uint64_t nightop_next = 0;
 size_t nightop_bytes = 0;
@@ -1739,11 +1741,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     pinned = reason.empty();
     if (pinned) // Before any fight on: SB's image base and our jobs' vtable.
       fight_engine.init(base, &kJobVtable);
-    freeze_pinned = pinned; // After base: the game thread's pause calls need it.
-    quest_pinned = pinned;  // The same for the shared quests' pass.
-    warp_pinned = pinned;   // The same for the revive's guard.
-    travel_pinned = pinned; // And for the follow's travel call.
-    pilot_pinned = pinned;  // The same for the pilot's capture.
+    game_pinned = pinned; // After base: the game thread's calls need it.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
     // XInput for coop_pad, from System32 only: the game's folder holds another tool's xinput1_3.dll proxy.
     HMODULE xinput = LoadLibraryExW(L"xinput1_4.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
@@ -2461,7 +2459,7 @@ std::string fight_status() { return fight_worker.detail(); }
 // with " probe=on" while the probe runs and " test=<freeze|cmc|drive>" while a test holds the drawn side back, before
 // the why (the last field: engine reasons have spaces).
 std::string pilot_status() {
-  if (!pilot_pinned)
+  if (!game_pinned)
     return "pilot=refused why=" + engine_reason;
   if (blocked)
     return "pilot=refused why=coop off";
@@ -2715,7 +2713,7 @@ struct QuestIo {
 // The follow's travel (Lua's travel <alias> <index> <number>): the camp's FName for the game thread's next frame. An
 // ask the game thread has not taken yet is replaced. Refused off the pinned build, after coop off or after a fault.
 std::string ask_travel(const coop::Request &request) {
-  if (!travel_pinned || blocked || travel_faulted)
+  if (!game_pinned || blocked || travel_faulted)
     return "travel refused: " + (blocked          ? std::string("coop off")
                                  : travel_faulted ? std::string("travel stopped for this run")
                                                   : engine_reason);
@@ -2848,7 +2846,7 @@ std::string status() {
     s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
   // The follow's travel (travel.lua): the watch's state and the asks the game thread handled so far, so Lua knows a new
   // answer from an old one; refused:fault once its latch ended it.
-  if (const uint64_t w = travel_watched; travel_pinned && !blocked)
+  if (const uint64_t w = travel_watched; game_pinned && !blocked)
     s += " travel=" +
          (travel_faulted ? std::string("refused:fault")
                          : travel::state_text(travel::State((w >> 8) & 0xff), travel::Why(w & 0xff))) +
@@ -2922,20 +2920,20 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     guarded_arm();
   fight_ticked = fight_on;
   // The photo pause's own latch, after coop off too: its tag is released then, and nothing more is called.
-  if (freeze_pinned && !freeze_faulted)
+  if (game_pinned && !freeze_faulted)
     guarded_freeze();
   // Same-place enemies' capture and drive, their own latch too; after coop off while a drawn copy is held, to put it
   // back.
-  if (pilot_pinned && !pilot_faulted && (!blocked || driver.holding()))
+  if (game_pinned && !pilot_faulted && (!blocked || driver.holding()))
     guarded_pilot();
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
-  if (quest_pinned && !quest_faulted && !blocked)
+  if (game_pinned && !quest_faulted && !blocked)
     quest_tick();
   // The revive's guard, its own latch: a read each 250 ms, none after coop off or its first fault.
-  if (warp_pinned && !warp_faulted && !blocked)
+  if (game_pinned && !warp_faulted && !blocked)
     warp_tick();
   // The follow's travel, its own latch: a new ask each frame, the watch each 250 ms; none after coop off or a fault.
-  if (travel_pinned && !travel_faulted && !blocked)
+  if (game_pinned && !travel_faulted && !blocked)
     travel_tick();
   return 0;
 }
