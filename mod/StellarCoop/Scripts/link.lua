@@ -289,10 +289,6 @@ function Link.parse_settings(text)
     local settings,notes,n={},{},0
     for name,value in pairs(DEFAULTS) do settings[name]=setting(name,value) end
     text=text:gsub('^\239\187\191','') -- Notepad's "UTF-8 with BOM".
-    if #text>SF.LIMIT then -- Whole lines only: a cut F11 would read as F1.
-        text=text:sub(1,SF.LIMIT):match('^.*\n') or ''
-        notes[1]='settings: only the first '..SF.LIMIT..' bytes are read'
-    end
     local named={} -- The settings a line names, taken or not.
     for line in ((text:gsub('\r',''))..'\n'):gmatch('([^\n]*)\n') do
         n=n+1

@@ -277,10 +277,9 @@ assert(#notes==0 and s.name_tag==false and s.send_rate==25 and s.menu_key.name==
 s,notes=Link.parse_settings('colour=red\n\nnot a setting\n')
 assert(#notes==2 and notes[1]=="settings: line 1: unknown setting 'colour', ignored"
     and notes[2]=="settings: line 3: unknown setting 'not a setting', ignored",notes[1])
-local long='#'..string.rep('x',16376)..'\nsend_rate=25\n' -- The 16384th byte is the r of "send_r": the line is dropped.
-long=long..'#'..string.rep('x',17000-#long-2)..'\n'
-s,notes=Link.parse_settings(long)
-assert(#long==17000 and s.send_rate==60 and #notes==1 and notes[1]=='settings: only the first 16384 bytes are read',notes[1])
+-- A file of any length is read to its last line.
+s,notes=Link.parse_settings('#'..string.rep('x',17000)..'\nsend_rate=25\n')
+assert(s.send_rate==25 and #notes==0,notes[1])
 -- The default file saved with CRLF and five ids in fight_chars is read to its last line (status_overlay).
 local crlf=Link.DEFAULT:gsub('fight_chars=auto','fight_chars=15011001 15011002 15011003 15011004 15011005')
 crlf=crlf:gsub('card_details=on','card_details=off'):gsub('status_overlay=off','status_overlay=detailed')
