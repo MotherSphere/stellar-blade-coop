@@ -452,6 +452,28 @@ assert(screen()=="SAUVEGARDES CO-OP\nL'invitation de votre partenaire attend le 
 saves.nav('back')
 state.language=nil
 
+-- A manual co-op slot (link.saves()'s marker: StellarCoopSlot.txt names slot 4) once the game uses the co-op copies:
+-- said once a Lua load, at the title or in a world, with what is no longer needed. Not while the game uses your own
+-- saves, where the manual slot is still the co-op save.
+saves=new()
+info=at({marker='4'})
+quarter(false,true); saves.nav('back')
+quarter(true,false); assert(#said==0,'Own saves: the manual slot is the co-op save')
+info=at({saves='coop',marker='4'})
+quarter(true,false)
+assert(#said==1 and said[1]=='Co-op now plays StellarBladeCoop04.sav, the co-op copy of your manual co-op slot 4. '
+    ..'StellarCoopSlot.txt and StellarBladeSave04.sav are no longer needed for co-op: with the game closed, you can '
+    ..'move them out of the save folder.',said[1])
+quarter(false,true); quarter(true,false); assert(#said==1,'Once a Lua load')
+state.language='fr-FR'
+saves=new()
+info=at({saves='coop',marker='2'})
+quarter(true,false)
+assert(said[1]=='Le co-op utilise maintenant StellarBladeCoop02.sav, la copie co-op de votre emplacement co-op manuel '
+    ..'2. StellarCoopSlot.txt et StellarBladeSave02.sav ne servent plus au co-op : jeu fermé, vous pouvez les sortir '
+    ..'du dossier des sauvegardes.',said[1])
+state.language=nil
+
 -- Another game build (a game update: link.saves()'s build): the co-op saves are off; with ask or always, said once a Lua
 -- load at the title, nothing asked; with off, nothing. saves=off for another reason (coop off) says nothing.
 for _,want in ipairs({'ask','always'}) do

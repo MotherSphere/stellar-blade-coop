@@ -17,8 +17,9 @@
 -- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On
 -- another game build (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at
 -- the title. A friend's invite accepted at the title waits for a save (the link's held invite): the question's first
--- line says so, and once a visit it asks again when such an invite comes after an answer without co-op. No engine call
--- here: the kit makes them.
+-- line says so, and once a visit it asks again when such an invite comes after an answer without co-op. With a manual
+-- co-op slot (StellarCoopSlot.txt) once the game uses the co-op copies, a notice says once a Lua load which files co-op
+-- no longer needs; nothing is moved. No engine call here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
@@ -48,6 +49,7 @@ function Saves.new(o)
     local badged=false -- The badge is shown.
     local told=false -- Another game build said (once a Lua load).
     local invited,reasked=false,false -- An invite waits for a save; the question shown with one this visit.
+    local manual=nil -- The manual co-op slot's digit to say, then false once said (once a Lua load).
     -- At the top right, scaled from that corner; wide enough for the French title. Added first: the question draws over.
     kit.add('badge',{x=3024,y=96,w=720,h=96,pivot={X=1,Y=0}},function(b)
         b.panel(0,0,720,96)
@@ -233,6 +235,12 @@ function Saves.new(o)
             pick()
             o.say(lang.saves[queued[1]]:format(queued[2] or lang.saves.see_log))
             queued=nil
+        end
+        if manual==nil and info.saves=='coop' and info.marker then manual=info.marker end
+        if manual and (world or kit.ready()) then
+            pick()
+            o.say(lang.saves.manual:format(manual,manual,manual))
+            manual=false
         end
         draw() -- The kit may have built its root again meanwhile: on change only.
     end

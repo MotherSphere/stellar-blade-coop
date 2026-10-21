@@ -148,6 +148,11 @@ With the game using your own saves (`saves=main` or `saves=off`), the co-op save
 `StellarBladeSave04.sav`), saved as UTF-8. Blank lines and lines starting with `#` are ignored. It is the only co-op
 save with `auto_coop_save=off`.
 
+Once the game uses the co-op copies (`saves=coop`), the manual slot no longer counts: co-op plays its copy,
+`StellarBladeCoop0N.sav`, made from `StellarBladeSave0N.sav` like every other copy. A notice says so once a load and
+names the two files co-op no longer needs. The mod moves nothing: with the game closed, you can move
+`StellarCoopSlot.txt` and `StellarBladeSave0N.sav` out of the save folder, or keep them for `auto_coop_save=off`.
+
 [INSTALL.md: Manual co-op slot](../INSTALL.md#manual-co-op-slot-auto_coop_saveoff) says how to make it; on Linux,
 `tools/save_guard.py slot` does it:
 

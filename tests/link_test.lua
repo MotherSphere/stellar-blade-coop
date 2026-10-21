@@ -76,12 +76,14 @@ files[STATUS]='mod=v proto=8 steam=ready steamid=76561198000000001 appid=3489700
 link.changes()
 local sv=link.saves()
 assert(sv.slot=='coop' and sv.saves=='coop' and sv.convert=='busy 2/6' and sv.steamid=='76561198000000001')
+assert(sv.marker==nil,'marker=none: no manual co-op slot')
 files[STATUS]='mod=v proto=8 steam=waiting\nfriend=1 0 x\nslot=main index=0 marker=4 saves=main\n'
     ..'convert=error:the manifest could not be written\n'
 link.changes()
 sv=link.saves()
 assert(sv.slot=='main' and sv.saves=='main' and sv.convert=='error:the manifest could not be written'
     and sv.steamid==nil,'No Steam ID before Steam')
+assert(sv.marker=='4','The manual co-op slot StellarCoopSlot.txt names')
 files[STATUS]='mod=v proto=8 steam=ready steamid=7 appid=1\nfriend=1 0 x slot=coop index=1 marker=1 saves=coop\n'
     ..'peer=2 name=y convert=done\n'
 link.changes()
