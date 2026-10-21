@@ -155,7 +155,7 @@ assert(file=='host_key=none\nstatus_key=F6\nleave_key=F8\nmenu_key=F7\n',file)
 s=Link.parse_settings(file)
 assert(s.menu_key.name=='F7' and s.host_key.name=='none' and M.read(file).host_key=='none')
 assert(M.write('menu_key=F5\nhost_key=F9\n','menu_key','F7')=='menu_key=F7\nhost_key=F9\n','A menu_key line: as set')
-local pad='#'..string.rep('x',4094)..'\n'
+local pad='#'..string.rep('x',8190)..'\n'
 assert(M.write(pad..OLD,'menu_key','F7')==nil,'A file over the limit: nothing changes')
 
 -- The Options page: opened from the main page, back to it on its row.
