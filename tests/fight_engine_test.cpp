@@ -2922,8 +2922,11 @@ int main() {
   // inside the job). With the spawn manager's global still null her game refuses each spawn and calls nothing (the
   // drops go on: they need the job sender only). With the job sender's global null she calls neither: the spawn of a
   // row with EventOnSpawning events would make SB's getter allocate one. An unreadable spawn row latches her side: no
-  // call after it (the spawn before it went), and her side stops sending.
-  for (const int run : {0, 1, 2, 3}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row; 3: no job sender.
+  // call after it (the spawn before it went), and her side stops sending. While she fights 903 (BattleMode) and takes
+  // 904 down (a takedown marker), neither is despawned (busy, no difference between the games); once she is done,
+  // the host's next answer despawns both.
+  for (const int run : {0, 1, 2, 3, 4}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row; 3: no job
+                                          // sender; 4: her enemies busy until 5 s.
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
     eh->same_spawns(true);
@@ -2944,14 +2947,22 @@ int main() {
       G.spawn_rows[5] = 0x7fff00000000; // Plausible, never mapped.
     if (run == 3)
       G.mem.put<uint64_t>(rebased(kJobSender), 0);
+    if (run == 4) {
+      G.state(903, kBattleState, 1);
+      G.knock(904, 5000039), G.body(904).effects.back().left = 1 << 30;
+    }
     Wire to_host, to_guest;
     to_host.queue.emplace_back(120, "SBF11 on");
     to_guest.queue.emplace_back(120, "SBF11 on");
     std::mt19937 rng(14);
     G.watch = eg.get();
-    for (uint64_t t = 0; t <= 8000; t += 16) {
+    for (uint64_t t = 0; t <= (run == 4 ? 10000u : 8000u); t += 16) {
       to_host.deliver(t, H);
       to_guest.deliver(t, G);
+      if (run == 4 && t == 5008) {
+        assert(G.despawned.empty() && count(G, "drop refused", "busy") == 2);
+        G.state(903, kBattleState, 0), G.end(904, 5000039);
+      }
       frame(H, *eh, t);
       frame(G, *eg, t);
       to_guest.send(H, t, rng);
@@ -2975,6 +2986,10 @@ int main() {
       assert(G.made.empty() && G.despawned.empty() && !eg->latched());
       assert(count(G, "spawn refused", "no spawn manager") == 2 && count(G, "drop refused", "gone") == 2 &&
              eg->snapshot().spawns.differ == 0);
+    } else if (run == 4) {
+      assert(G.made.size() == 2 && !eg->latched() && count(G, "drop refused") == 2 && eg->snapshot().spawns.differ == 0);
+      assert(std::count(G.despawned.begin(), G.despawned.end(), 903u) == 1 &&
+             std::count(G.despawned.begin(), G.despawned.end(), 904u) == 1);
     } else { // Key 1's spawn comes before key 5's row is read; nothing after it, the two drops neither.
       assert(eg->latched() && std::string(eg->why()) == "unreadable" && G.made.size() == 1 && G.made[0].id == 1);
       assert(G.despawned.empty());

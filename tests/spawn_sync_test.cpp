@@ -39,6 +39,7 @@ struct World {
   };
   std::vector<Call> created, made; // Spawns (the guest's), and the host's extras (NewActor).
   std::vector<uint32_t> despawned;
+  std::vector<uint32_t> busy;   // Actors in BattleMode or a takedown: the despawn refuses them.
   std::vector<SpawnKey> coming; // Created, shows at the next census.
   bool manager = true;          // SB's spawn manager is made.
   std::vector<uint32_t> unshared; // charIds the shared fight does not share here.
@@ -105,12 +106,14 @@ struct World {
   void make(const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     made.push_back(Call{k, {at[0], at[1], at[2]}, yaw, chr});
   }
-  bool despawn(uint32_t guid, const SpawnKey &k) {
+  const char *despawn(uint32_t guid, const SpawnKey &k) {
     const Mine *m = actor(k);
     if (!m || m->guid != guid || m->dying)
-      return false;
+      return "gone";
+    if (std::find(busy.begin(), busy.end(), guid) != busy.end())
+      return "busy";
     despawned.push_back(guid);
-    return true;
+    return nullptr;
   }
   void send(const Message &m) { sent.push_back(m); }
   void event(const Event &e) { events.push_back(e); }
@@ -515,6 +518,25 @@ int main() {
     }
     assert(kw.created.size() == 1 && kw.despawned.empty() && kg.counts.undone == 0 && kg.counts.differ == 1);
     assert(kw.count("spawn kept", "charId") == 1 && kw.count("spawn undone") == 0);
+    // A drop of an enemy she fights (BattleMode) or takes down is refused as busy, no difference between the games:
+    // it stays hers, so her next round names it and the host asks again; the despawn goes once she is done with it.
+    World bw;
+    bw.row(1, kReset);
+    bw.add(11, 1);
+    bw.busy.push_back(11);
+    Epochs bep;
+    SpawnGuest bg;
+    epoch(bep, bw, 0xA1, 3, 0);
+    bg.heard(msg("SBF11 epoch 1 40 1"), 1);
+    bg.heard(msg("SBF11 drop 1 1 1 0"), 1);
+    guest_step(bg, bep, bw, kGraceMs);
+    assert(bw.despawned.empty() && bw.count("drop refused", "busy") == 1 && bg.counts.differ == 0);
+    assert(has(bw.lines(), " 1:0"));
+    bw.busy.clear();
+    bg.heard(msg("SBF11 drop 1 1 1 0"), 1);
+    epoch(bep, bw, 0xA1, 3, kGraceMs + 250);
+    guest_step(bg, bep, bw, kGraceMs + 250);
+    assert(bw.despawned == std::vector<uint32_t>{11} && bg.counts.despawned == 1 && bg.counts.differ == 0);
     // The host's world, on or off forgets its epoch: nothing until its next epoch line.
     ng.clear();
     assert(!ng.on());

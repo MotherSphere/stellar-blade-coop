@@ -125,9 +125,10 @@ build/host/pose_codec_test
     killed), a spawn line of an old epoch dropped after the host's zone resets, a drop line ignored for a key paired on
     her side, nothing done while a census's list of keys is partial, and a Save row logged once, with keys that have no
     row kept out of the 512-row cache and rows past it never logged; the two game calls on fake memory (the spawn with
-    the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn
-    and the GUID), none with no spawn manager or no job sender made, and no call, line or log line after a latch on an unreadable row,
-    and a host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told
+    the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn and
+    the GUID), none with no spawn manager or no job sender made, no despawn while her enemy holds BattleMode or runs a
+    takedown marker (then one once she is done), and no call, line or log line after a latch on an unreadable row, and a
+    host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told
     once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field; extra enemies in
     two worlds with `enemy_extra=2` (two `NewActor` calls for each of the host's four enemies, 2 and 3 m from it, the
     same keys made on her side where the host's stand, all twelve paired, one 130 m from both EVEs despawned on the
@@ -144,16 +145,15 @@ build/host/pose_codec_test
     refused by Host and Guest, since the engine takes them, and never recorded), and two fake worlds linked through a
     delayed, lossy line;
   - `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
-    reset of the spawn manager, 3 or more keys with a new GUID, two actors of one key no change) and its 3 s grace,
-    the host's epoch line (at each change and every 5 s), her rounds
-    and its answers (a key more than 1 km from her held back until she is nearer), the guest's rounds and her checks
-    of each answer (the epoch, the shared zone, her own tables, 1 km, the rates, a created key that is no Monster or
-    another charId, removed again within the rates or kept and logged when it cannot be found again, the refusals
-    that show the two games differ counted apart), a key
-    refused as too far asked again, a created key that died
-    leaving her rounds, extra enemies (their keys and places, which enemies get them, once a life, the room left, the
-    host's answers and her checks for extra keys, `row taken`), and two fake worlds through a delayed line until her set is the host's, with an epoch that
-    moves while a round is on the way;
+    reset of the spawn manager, 3 or more keys with a new GUID, two actors of one key no change) and its 3 s grace, the
+    host's epoch line (at each change and every 5 s), her rounds and its answers (a key more than 1 km from her held
+    back until she is nearer), the guest's rounds and her checks of each answer (the epoch, the shared zone, her own
+    tables, 1 km, the rates, a created key that is no Monster or another charId, removed again within the rates or kept
+    and logged when it cannot be found again, a drop of an enemy she fights refused as busy and asked again, the
+    refusals that show the two games differ counted apart), a key refused as too far asked again, a created key that
+    died leaving her rounds, extra enemies (their keys and places, which enemies get them, once a life, the room left,
+    the host's answers and her checks for extra keys, `row taken`), and two fake worlds through a delayed line until her
+    set is the host's, with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,

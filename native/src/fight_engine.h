@@ -912,7 +912,7 @@ private:
       if (const char *why = e.make_extra(g, logic, k, chr, at, yaw))
         event(Event{"extra refused", why, 0, k.spawn, k.index});
     }
-    bool despawn(uint32_t guid, const SpawnKey &k) { return e.despawn(g, logic, guid, k); }
+    const char *despawn(uint32_t guid, const SpawnKey &k) { return e.despawn(g, logic, guid, k); }
     void send(const Message &m) {
       if (!e.latched_)
         g.send(m);
@@ -1919,16 +1919,22 @@ private:
     g.event(Event{sent ? "extra despawned" : "extra kept", why, 0, a.seen.spawn, a.seen.index});
   }
   // The guest: SB's despawn job for one actor of hers, found again by GUID with that key and fighting (never dying),
-  // through SB's job sender with this turn. Never a kill.
-  template <class Game> bool despawn(Game &g, uint64_t logic, uint32_t guid, const SpawnKey &k) {
+  // through SB's job sender with this turn. Never a kill, and never under her: not while it holds BattleMode or runs a
+  // takedown marker (kMarkers), nor when either read fails. Null when sent, else why not (gone, busy).
+  template <class Game> const char *despawn(Game &g, uint64_t logic, uint32_t guid, const SpawnKey &k) {
     Actor a;
-    uint64_t sender = 0;
+    uint64_t sender = 0, held = 0;
+    uint8_t cc = 0;
+    bool marker = false;
     const uint64_t la = g.find(logic, guid);
     if (!la || !live(g, la, guid, a) || !fighting(a) || a.seen.spawn != k.spawn || a.seen.index != k.index ||
         !get(g, base_ + (kJobSender - kImageBase), sender) || !plausible(sender) || latched_)
-      return false;
+      return "gone";
+    if (!held_states([&](uint64_t at, void *out, size_t n) { return g.read(at, out, n); }, a.fsb, held) ||
+        !effects(g, la, cc, marker) || (held >> kBattleState & 1) || marker)
+      return "busy";
     g.despawn(sender, turn_, guid);
-    return true;
+    return nullptr;
   }
 
   // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----

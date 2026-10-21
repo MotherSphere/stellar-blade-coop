@@ -516,15 +516,17 @@ spawn key like any other.
   does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to `FUN_141c1ca40`, so the key spawns at once. It
   reads the table holder through its getter, and for a row with EventOnSpawning events it sends them through the job
   sender's getter, so the guest calls it only while the holder, its tables and the job sender exist; with no spawn
-  manager or job sender made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job sender, the logic turn and the
-  enemy's GUID, after the enemy is found again by GUID with that key and still fighting. A census whose list of enemies
-  came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing, since an enemy missing
-  from it would read as one the game lacks.
+  manager or job sender made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job
+  sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID with that key and still fighting.
+  While that enemy holds BattleMode (state 30) or runs a takedown marker, or either read fails, she refuses the drop
+  (`busy`): the enemy stays in her list, so the host asks again and the despawn goes once she is done with it. A census
+  whose list of enemies came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing,
+  since an enemy missing from it would read as one the game lacks.
 - The `fight=` line of `coop-status.txt` carries `spawns=off`, `on` or `stopped` (the pilot's latch stops same spawns,
   since the ghost's position no longer reaches the job), and on the guest's side `spawned=`, `despawned=` and
   `spawns_differ=`: the refusals, and the created enemies undone or kept, whose reason shows that the two games' tables
   or `fight_chars` differ (`no row`, `save-row`, `keep-row`, `event-row`, `another zone`, `not shared`, `charId`), not
-  those of the moment (`too far`, `full`, `no spawn manager`, `gone`). Lua's notices read it.
+  those of the moment (`too far`, `full`, `no spawn manager`, `gone`, `busy`). Lua's notices read it.
 - `coop fight spawn probe` (`fight probe spawns`) runs the same census, epoch and row reads in the probe's job on one
   game, and logs the outcome for each shared Monster once an epoch, 32 a census at most so that one hand-over's 128 log
   lines are enough. It sends no line and calls neither the spawn nor the despawn function.

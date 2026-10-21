@@ -683,13 +683,14 @@ a few seconds later.
   spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from your
   EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
   manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name),
-  `full` (240 enemies already handled since either game's last `fight spawns epoch`) or `gone`; and `fight spawn undone
-  <key> <why>` when an enemy it created turns out to be one shared enemies leave out (`not shared`) or another character
-  than the host's (`charId`), or `fight spawn kept <key> <why>` when that enemy could not be removed (it was dying, for
-  one). On the host: `fight spawn sent <key>` and `fight drop sent <key>`. Both log `fight spawns epoch <why>` when
-  their zone changes (`zone`), its enemies reset (`reset`), or 3 or more of them come back at once (`guids`). `fight
-  spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for a row of a shared enemy that same spawns
-  leave as it is. A game keeps the first 512 rows it reads, and rows past those are not logged.
+  `full` (240 enemies already handled since either game's last `fight spawns epoch`), `gone` or `busy` (you are fighting
+  that enemy or taking it down: it is removed once you are done, if the host's game still lacks it); and `fight spawn
+  undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out (`not shared`) or another
+  character than the host's (`charId`), or `fight spawn kept <key> <why>` when that enemy could not be removed (it was
+  dying, for one). On the host: `fight spawn sent <key>` and `fight drop sent <key>`. Both log `fight spawns epoch
+  <why>` when their zone changes (`zone`), its enemies reset (`reset`), or 3 or more of them come back at once
+  (`guids`). `fight spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for a row of a shared enemy
+  that same spawns leave as it is. A game keeps the first 512 rows it reads, and rows past those are not logged.
 - The `fight=` line of `coop status` (and `coop fight status`) says `spawns=off`, `spawns=on` or `spawns=stopped` (the
   error of same place stopped them too), and on the guest's side `spawned=<n> despawned=<n> spawns_differ=<n>`: the
   enemies her game created and removed, and the refusals that show the two games differ (`no row`, `save-row`,

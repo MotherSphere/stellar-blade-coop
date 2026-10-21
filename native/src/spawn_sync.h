@@ -16,8 +16,9 @@
 //   bool shares(uint32_t chr): the shared fight shares this charId here (fight_chars, or the auto rule's charIds);
 //   const char *create(const SpawnKey &k, uint32_t chr, const float *at, float yaw): SB's spawn of that key there (the
 //     guest's; an extra's key through NewActor, of charId chr); null when made, else why not;
-//   bool despawn(uint32_t guid, const SpawnKey &k): SB's despawn of that actor, found again by GUID, of that key and
-//     alive (the guest's); false when not;
+//   const char *despawn(uint32_t guid, const SpawnKey &k): SB's despawn of that actor, found again by GUID, of that key
+//     and alive (the guest's); null when sent, else why not: gone, or busy (in BattleMode or a takedown, or its states
+//     unread: never removed from under her);
 //   void send(const Message &m), void event(const Event &e): channel 2 and the log (by key only: the guest's own GUIDs
 //     are no host GUIDs).
 // Extras (stage 4b) take the same row(), and make(const SpawnKey &k, uint32_t chr, const float *at, float yaw): SB's
@@ -52,9 +53,9 @@ inline const char *row_out(const SpawnRow &r) {
 }
 
 // A refusal of the guest's that says the two games differ (her tables, or what her shared fight shares), not a state
-// of the moment (too far, no room, no spawn manager yet, an actor gone).
+// of the moment (too far, no room, no spawn manager yet, an actor gone or busy).
 inline bool differs(const char *why) {
-  for (const char *passing : {"too far", "full", "no spawn manager", "gone"})
+  for (const char *passing : {"too far", "full", "no spawn manager", "gone", "busy"})
     if (std::strcmp(why, passing) == 0)
       return false;
   return true;
@@ -402,7 +403,7 @@ private:
   }
   // R33's last check, once a key we created shows in our census: a Monster we share, of the charId the host named;
   // else despawned again, never killed, within the calls a second (over them: at a later census), and answered as a
-  // refused one. One the despawn cannot find again (dying, or no job sender) stays, logged as kept.
+  // refused one. One the despawn refuses (dying, no job sender, busy) stays, logged as kept.
   template <class Io> void check(Made &d, const Mine *mine, size_t n, uint64_t now, Io &io) {
     const Mine *x = d.checked ? nullptr : fight::find(mine, n, d.key);
     if (!x)
@@ -416,7 +417,7 @@ private:
     d.checked = true, d.created = false;
     const char *why = x->monster ? "charId" : "not shared";
     ++counts.differ;
-    const bool undone = io.despawn(x->guid, d.key);
+    const bool undone = !io.despawn(x->guid, d.key);
     counts.undone += undone;
     io.event(Event{undone ? "spawn undone" : "spawn kept", why, 0, d.key.spawn, d.key.index});
   }
@@ -424,7 +425,8 @@ private:
   // our tables in the host's zone that takes part, which we hold no actor of and did not answer in this epoch, within
   // 1 km of our EVE, of a charId we share. A drop: our live shared Monster of a key that takes part in that zone, not
   // followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our rounds name it and
-  // the host stops asking; one too far does not, so the host asks again once we are nearer.
+  // the host stops asking; one too far does not, so the host asks again once we are nearer. A drop refused as busy
+  // (our fight with it, or a takedown) stays ours, so our next round names it and the host asks again.
   template <class Io>
   void take(const Message &m, bool shared, const float *eve, bool eve_ok, const Mine *mine, size_t n, uint64_t now,
             Io &io) {
@@ -463,8 +465,8 @@ private:
     if (rated(now))
       return;
     const char *why = !x->monster ? "not shared" : gone_ == kMaxKeys ? "full" : out(k, io);
-    if (!why && !io.despawn(x->guid, k))
-      why = "gone";
+    if (!why)
+      why = io.despawn(x->guid, k);
     if (!why)
       gone_at_[gone_++] = k;
     ++(why ? counts.refused : counts.despawned);
