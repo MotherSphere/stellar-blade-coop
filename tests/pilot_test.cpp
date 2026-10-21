@@ -588,7 +588,7 @@ int main() {
   }
   // Guards: no change while busy (a skill on the owner's copy, a crowd control, a takedown, dying), the change once it
   // ends; a last hit counts for 10 s, then only the nearer rule does; aggro=host gives everything back to the host and
-  // never away.
+  // never away. force (a copy the host cannot draw, an ignored peer) takes it back in the same turn, guards or not.
   {
     Own o;
     o.hguid = 4100;
@@ -607,6 +607,10 @@ int main() {
     Facts near;
     near.closer = near.guest_hit = true;
     assert(!rule(g, near, 60000, true) && !rule(g, near, 90000, true) && g.owner == kHost);
+    Own f;
+    f.hguid = 10, f.owner = kGuest, f.oe = 2, f.since = 70000;
+    assert(rule(f, hers, 70016, false, true) && f.owner == kHost && f.oe == 3 && f.since == 70016);
+    assert(!rule(f, hers, 70032, false, true) && !rule(f, calm, 99000, false, true) && f.owner == kHost && f.oe == 3);
   }
   // Nearer: an enemy nobody hit for 10 s goes to the other player once her EVE has stood 3 m closer than the owner's
   // for 2 s without a break; back the same way, 4 s after it changed hands at the earliest. Within 10 s of a hit the

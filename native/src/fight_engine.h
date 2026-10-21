@@ -445,6 +445,15 @@ public:
     }
   }
   void clear() { head_ = count_ = 0; }
+  // Each item f picks goes; the others keep their order.
+  template <class F> void drop_if(F &&f) {
+    for (size_t k = count_; k--;) {
+      T t;
+      pop(t);
+      if (!f(t))
+        push(t);
+    }
+  }
 
 private:
   T items_[N] = {};
@@ -638,6 +647,7 @@ public:
       flags_ = StreamFlags();
       owners_.clear();
       own_in_.clear();
+      her_off_until_ = 0;
       probe_fence_.clear();
       next_probe_ = 0;
       // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
@@ -661,7 +671,12 @@ public:
     Io<Game> io{*this, g, logic};
     Message m;
     while (g.receive(m)) {
-      saw(m);
+      // The host takes only her on, off and world (R33): a place, down or dead from her is a bad line, and from an
+      // ignored peer nothing counts. Each of the three also ends the hand-over pause after her own-no off.
+      if (!hosting)
+        saw(m);
+      else if ((m.type == Type::on || m.type == Type::off || m.type == Type::world) && !host.ignored())
+        saw(m), her_off_until_ = 0;
       if (hosting && m.type == Type::own_no)
         refused(m, now_ms, io);
       else if (!hosting && m.type == Type::own)
@@ -1488,13 +1503,20 @@ private:
         owners_.home(), own_in_.clear();
       return;
     case Type::down:
-    case Type::dead: return owners_.drop(m.guid);
+    case Type::dead: // On her side, the host's own lines about it still queued this turn go too: stale.
+      own_in_.drop_if([&](const Message &o) {
+        const bool gone = o.guid == m.guid;
+        guest.counts.stale += gone;
+        return gone;
+      });
+      return owners_.drop(m.guid);
     default: return;
     }
   }
   // The host: her own-no, at once. Taken when she held the pair at that epoch (pilot.h's refused): ours again, so this
   // turn's table captures it and our freeze comes off; else stale (lines that crossed). Not from an ignored peer, an
-  // old world or a side that is off.
+  // old world or a side that is off. Taken with off or aggro, her side does not run same-place enemies: none goes to
+  // her for kHerOffMs (or until her next on, off or world), so her claims do not freeze our copy once each kOwnMs.
   template <class Game> void refused(const Message &m, uint64_t now, Io<Game> &io) {
     if (host.ignored()) {
       ++host.counts.ignored;
@@ -1505,14 +1527,17 @@ private:
       return;
     }
     ++counts.own_nos;
+    if (m.why == kOff || m.why == kAggro)
+      her_off_until_ = now + pilot::kHerOffMs;
     io.event(Event{"own-no", kOwnNo[m.why < kOwnNoCount ? m.why : uint8_t(kUnpaired)], m.guid});
   }
   // The host, while same-place enemies run: the rule on each pair it follows and found this pass (last hit, the nearer
   // EVE, the guards: an AI task on the owner's copy, ours as read or hers as her stream says; Down, Groggy, Airborne or
   // a takedown on ours, which the crowd-control mirror puts on both; dying; ours not in life state 1; a crowd control
   // of ours started on it this turn). A change goes to her as an own line at once. No table, no change. A pair whose
-  // copy we cannot draw (freeze lost, or refused by the game thread) is ours as with aggro=host: never hers, and taken
-  // back from her, so its AI never runs on both copies for good.
+  // copy we cannot draw (freeze lost, or refused by the game thread) is ours at once, guards or not, and never hers:
+  // its AI already runs on our copy. So is every pair once her lines are ignored. After her own-no off or aggro, none
+  // goes to her for a while (refused()).
   template <class Game> void hand_over(Game &g, const uint32_t *guids, size_t count, size_t n, uint64_t now) {
     owners_.keep(guids, count);
     for (size_t i = 0; i < count; ++i)
@@ -1539,7 +1564,7 @@ private:
       f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
                  pilot::closer(o->owner, enemy, eve_at, flags_.her);
       const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_;
-      if (!pilot::rule(*o, f, now, aggro_host_ || lost))
+      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_, lost || host.ignored()))
         continue;
       Message own;
       own.type = Type::own;
@@ -1642,6 +1667,7 @@ private:
   const char *pilot_why_ = "fight"; // Why same-place enemies do not run (pilot_turn), null while they do.
   pilot::Owners owners_;            // Stage 3b: each pair's owner and epoch on this side.
   Ring<Message, kMail> own_in_;     // The guest: the host's own lines, for answer() after the pass.
+  uint64_t her_off_until_ = 0;      // The host: no hand-over to her before this (her own-no off or aggro).
   size_t piloted_ = 0;              // The pairs they move: the host's captured, or the guest's drawn.
   uint32_t cast_[kMaxPairs] = {}; // This turn's crowd controls of ours (cast()), by copy, and how many in all.
   size_t casts_ = 0;

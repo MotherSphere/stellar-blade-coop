@@ -167,8 +167,9 @@ inline Side other(Side s) { return s == kHost ? kGuest : kHost; }
 // The host decides each pair's owner (aggro=game): whoever hit it last, and for an enemy nobody hit for kLastHitMs,
 // the other player once her EVE has stood at least kNearCm closer than the owner's for kNearMs. Never while a guard
 // holds (the owner has held it less than kOwnMs, or Facts::busy), and with aggro=host every pair is the host's, as in
-// 3a. Each change moves the epoch oe one up.
-constexpr uint64_t kLastHitMs = 10'000, kNearMs = 2'000, kOwnMs = 4'000;
+// 3a. Each change moves the epoch oe one up. After her own-no off or aggro (her side does not run same-place enemies)
+// the host hands her nothing for kHerOffMs, or until her next on, off or world line.
+constexpr uint64_t kLastHitMs = 10'000, kNearMs = 2'000, kOwnMs = 4'000, kHerOffMs = 30'000;
 constexpr float kNearCm = 300;
 
 // What one turn of the host's says about a pair.
@@ -194,8 +195,9 @@ struct Own {
 };
 
 // One turn of the host's rule for o at now (host_only: aggro=host). True when the pair changes hands: the other side
-// owns it from now, at the next epoch.
-inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only) {
+// owns it from now, at the next epoch. force: the host's at once, guards or not (a copy the host cannot draw, whose AI
+// runs already, or a peer whose lines no longer count).
+inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool force = false) {
   if (f.host_hit || f.guest_hit) {
     if (f.host_hit != f.guest_hit)
       o.hitter = f.host_hit ? kHost : kGuest;
@@ -205,11 +207,11 @@ inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only) {
   }
   if (f.closer != o.nearer)
     o.nearer = f.closer, o.nearer_ms = now;
-  const Side want = host_only                                  ? kHost
+  const Side want = host_only || force                         ? kHost
                     : o.hit && now - o.hit_ms < kLastHitMs     ? o.hitter
                     : o.nearer && now - o.nearer_ms >= kNearMs ? other(o.owner)
                                                                : o.owner;
-  if (want == o.owner || f.busy || now - o.since < kOwnMs)
+  if (want == o.owner || (!force && (f.busy || now - o.since < kOwnMs)))
     return false;
   o.owner = want, ++o.oe, o.since = now, o.nearer = false;
   return true;

@@ -1697,7 +1697,7 @@ int main() {
     assert(!Game::held(g.body(101), kBlockAiState) && e->host.counts.bad == 0);
   }
   // A pair whose copy the host cannot draw (its game thread refused it, or its freeze was lost) stays the host's: taken
-  // back from her once she held it 4 s, never handed over again.
+  // back from her at once (her 4 s and her stream's AI task or not), never handed over again.
   {
     Game g;
     auto e = engine(true, true);
@@ -1713,15 +1713,108 @@ int main() {
     }
     assert(has(sent, "SBF11 own 1 101 G 1\n") && g.table.pairs[0].owner == coop::pilot::kGuest);
     g.flags.refused[0] = 101, g.flags.refused_count = 1;
-    for (sent.clear(); t <= 8000; t += 16)
+    g.flags.skill[0] = 101, g.flags.skill_count = 1;
+    for (sent.clear(); t <= 4064; t += 16) // The word comes a turn late, and the copy is lost from the next turn.
       frame(g, *e, t), sent += lines(g);
     assert(has(sent, "SBF11 own 1 101 H 2\n") && count(g, "pilot refused") == 1);
-    g.flags.refused_count = 0;
+    g.flags.refused_count = g.flags.skill_count = 0;
     g.inbox.push_back(msg("SBF11 hit 1 2 101 0 0 10 1580 0"));
     for (sent.clear(); t <= 20000; t += 16)
       frame(g, *e, t), sent += lines(g);
     assert(!has(sent, "own") && g.table.pairs[0].owner == coop::pilot::kHost && !(g.table.pairs[0].bits & kRowDrawn));
     assert(!Game::held(g.body(101), kBlockAiState));
+  }
+  // The guards of the host's, read on its copy, hold a hand-over back while they last: a takedown marker
+  // (Check_LinkSkillHit_Skill 5000039), Groggy, DelayDeath, NoDamageNoHit; own G in the turn after each ends. Her
+  // own-no off (her side does not run same-place enemies) pauses hand-overs for 30 s, her claims or not, then one goes
+  // again; her world ends the pause at once. Her lethal claim on a pair the host held over 4 s kills it with no own
+  // line: the enemy leaves the host's list in that step.
+  {
+    Game g;
+    auto e = engine(true, true);
+    e->same_place(true);
+    g.spawn(101, 5001, 0);
+    g.spawn(102, 5002, 0);
+    g.inbox.push_back(msg("SBF11 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    size_t claim = 0;
+    const auto hers = [&](uint64_t at) {
+      g.inbox.push_back(msg("SBF11 hit 1 " + std::to_string(++claim) + " 101 0 0 10 1590 0"));
+      frame(g, *e, t = at);
+    };
+    const auto until = [&](uint64_t end, const std::string &line) {
+      for (std::string sent; t < end; frame(g, *e, t += 16))
+        if (has(sent = lines(g), line))
+          return true;
+      return false;
+    };
+    const auto guard = [&](int which, bool on) {
+      if (which == 0)
+        on ? g.knock(101, 5000039) : g.end(101, 5000039);
+      else
+        g.state(101, which == 1 ? 7 : which == 2 ? kDelayDeath : kNoDamageNoHit, on);
+    };
+    for (int which = 0, oe = 1; which < 4; ++which, ++oe) {
+      const uint64_t held = t; // Ours since: the start, then her own-no.
+      hers(held + 100);
+      assert(!until(held + 3800, "own"));
+      guard(which, true); // The marker's 60 turns outlast what follows.
+      assert(!until(held + 4600, "own"));
+      guard(which, false);
+      assert(until(t + 100, "SBF11 own 1 101 G " + std::to_string(oe) + "\n"));
+      g.inbox.push_back(msg("SBF11 own-no 1 101 " + std::to_string(oe) + " state"));
+      frame(g, *e, t += 16);
+    }
+    hers(t + 100);
+    assert(until(t + 4100, "SBF11 own 1 101 G 5\n"));
+    g.inbox.push_back(msg("SBF11 own-no 1 101 5 off"));
+    frame(g, *e, t += 16);
+    const uint64_t off = t;
+    for (uint64_t at = off + 2000; at < off + 30000; at += 2000) {
+      assert(!until(at, "own"));
+      hers(at);
+    }
+    assert(until(off + 30100, "SBF11 own 1 101 G 6\n") && t == off + 30000);
+    g.inbox.push_back(msg("SBF11 own-no 1 101 6 aggro"));
+    frame(g, *e, t += 16);
+    g.inbox.push_back(msg("SBF11 world 1")); // Her world: the pause ends, and the epochs start over.
+    frame(g, *e, t += 16);
+    hers(t + 16);
+    assert(until(t + 4100, "SBF11 own 1 101 G 1\n"));
+    g.inbox.push_back(msg("SBF11 hit 1 " + std::to_string(++claim) + " 102 99999 0 0 1600 1"));
+    frame(g, *e, t += 16);
+    const std::string sent = lines(g);
+    assert(has(sent, "SBF11 dead 1 102\n") && !has(sent, "own") && e->host.counts.bad == 0);
+  }
+  // Her place, down and dead are bad lines on the host's side (R33) and leave the owners alone: a pair she owns stays
+  // hers and drawn. Once 16 bad lines ignore her, every pair she owns comes back in that turn (own H), guards or not.
+  {
+    Game g;
+    auto e = engine(true, true);
+    e->same_place(true);
+    g.spawn(101, 5001, 0);
+    g.inbox.push_back(msg("SBF11 on"));
+    std::string sent;
+    uint64_t t = 0;
+    for (; t <= 4000; t += 16) {
+      if (t == 16)
+        g.inbox.push_back(msg("SBF11 hit 1 1 101 0 0 10 1590 0"));
+      frame(g, *e, t), sent += lines(g);
+    }
+    const PilotPair &row = g.table.pairs[0];
+    assert(has(sent, "SBF11 own 1 101 G 1\n") && row.owner == coop::pilot::kGuest);
+    g.flags.skill[0] = 101, g.flags.skill_count = 1; // Her stream's AI task on it.
+    for (const char *line : {"SBF11 place 1 0", "SBF11 dead 1 101", "SBF11 down 1 101"})
+      g.inbox.push_back(msg(line));
+    frame(g, *e, t += 16);
+    assert(!has(lines(g), "own") && e->host.counts.bad == 3 && !e->host.ignored());
+    assert(row.owner == coop::pilot::kGuest && row.oe == 1 && (row.bits & kRowDrawn) && g.table.on);
+    for (int i = 0; i < 13; ++i)
+      g.inbox.push_back(msg("SBF11 place 1 0"));
+    frame(g, *e, t += 16);
+    assert(e->host.ignored() && has(lines(g), "SBF11 own 1 101 H 2\n"));
+    assert(row.owner == coop::pilot::kHost && !(row.bits & kRowDrawn));
   }
   // ---- Stage 3b, the guest's side ----
   // An own G at her epoch plus one, for a paired copy in life state 1 while same-place enemies run here: hers, her
@@ -1801,6 +1894,29 @@ int main() {
     frame(g, *e, t += 16);
     assert(lines(g) == "SBF11 own-no 1 101 9 unpaired\n" && g.table.count == 0 && e->counts.own_nos == 6);
     assert(!e->latched());
+  }
+  // The host's own line and its dead for the same enemy in one turn of hers: the own line is stale (counted), never an
+  // own-no or a bad line, and leaves no entry behind.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    for (const char *line : {"SBF11 own 1 101 G 1", "SBF11 own 1 101 H 2"}) {
+      g.inbox.push_back(msg(line));
+      frame(g, *e, t += 16);
+    }
+    assert(lines(g).find("own-no") == std::string::npos && g.table.pairs[0].oe == 2);
+    const uint64_t bad = e->guest.counts.bad, stale = e->guest.counts.stale;
+    for (const char *line : {"SBF11 own 1 101 G 3", "SBF11 dead 1 101"})
+      g.inbox.push_back(msg(line));
+    frame(g, *e, t += 16);
+    assert(!has(lines(g), "own-no") && e->guest.counts.bad == bad && e->guest.counts.stale == stale + 1);
   }
   // ---- Stage 3b, two worlds through channel 2: 90-150 ms each way, in order ----
   // Three paired enemies. Enemy 0 goes to her by her hit at 5 s, back by the host's at 12 s, to her again at 20 s and
