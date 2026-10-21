@@ -51,7 +51,7 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
 | `coop nightop stop` | End the run, on any save. `coop off` ends it too |
-| `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and which monsters of earlier runs are still in the world |
+| `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world, this run's included, each with its run number (8 at most are named) |
 
 ### Before your first run
 
@@ -120,25 +120,29 @@ for its wave once it is dying or can be executed, and it scores once it dies.
 
 A run ends in one of four ways:
 
-- Success: every monster of the five waves is down. The score gets 1 point for each whole second left.
+- Success: every monster of the five waves is down, written off, missing or no longer tracked. The score gets 1 point
+  for each whole second left.
 - Time up: run time reaches 8:00.
 - Failed: EVE dies. The game's death screen and respawn run as usual.
 - Aborted: `coop nightop stop` or `coop off`; fast travel, a map change or a load; EVE more than 80 m from the start
   point for 10 s; a save that is no longer a co-op save; a Steam session that starts; or an error in the run, which
   `UE4SS.log` names.
 
-The log then has one line such as `result: success waves=5/5 kills=20 score=732 time=5:28 find_ms=0.9/2.4`.
+The log then has one line such as `result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4`.
 `find_ms` is the mean and the longest time the mod took to list the game's characters, which it does once a second
 while monsters are tracked.
 
-Monsters still alive after a time up, a failed or an aborted run stay in the world as ordinary enemies, and they no
-longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its monsters stay
-too. The next run takes a run number that no monster in the world carries, so they never count for it.
+Monsters still alive when a run ends, written-off ones after a success included, stay in the world as ordinary enemies,
+and they no longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its
+monsters stay too. The next run takes a run number that no monster in the world carries, so they never count for it.
+
+Resting at a camp during a run is not supported: the rest resets the area's enemies, and the run loses track of its
+monsters.
 
 ### What you see
 
 A card at the top centre of the screen shows `NIGHT OPERATION` over the countdown (`STARTS IN 5`), then the wave, the
-run time left and the score (`WAVE 2/5  6:12  SCORE 140`). After a wave is down, the line counts down to the next one
+run time left and the score (`WAVE 2/5  6:12  SCORE 100`). After a wave is down, the line counts down to the next one
 instead (`NEXT WAVE IN 9  6:12  SCORE 140`). The card hides while the game is paused or shows one of its own screens.
 
 When the run ends, a result panel takes the card's place for 10 s. Its heading is the game's own text for the mode,
@@ -155,8 +159,9 @@ from `0xD8000000` to `0xD8FFFFFF`, a range that none of the game's spawn rows us
 run fires. A run adds or edits no table row, starts no rule, writes no save, and never hides or removes a monster. No
 word typed after `start` reaches a game call: `noaggro` and `nomove` only turn off the mod's own steps.
 
-Each kill most likely counts toward the game's general kill achievements, as any kill does: the one for 1500 kills
-and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
+Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
+kills and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
+Restoring a backup does not take an unlocked achievement back.
 
 ## The two previews
 

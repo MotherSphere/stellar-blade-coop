@@ -78,7 +78,7 @@ Keep Steam Cloud off during Night Operation runs and previews and while you test
 Steam Cloud syncs the co-op copies (`StellarBladeCoop0N.sav`), but not `StellarCoopSaves.txt`, the backups in
 `StellarCoopBackups` or the `.coop-tmp` files. On another PC every copy then counts as played in co-op, so the mod never
 replaces one there. Steam Cloud also syncs a manual co-op slot's `.sav` copy but not `StellarCoopSlot.txt`: on another
-PC that copy counts as an ordinary save, and the previews refuse to run there.
+PC that copy counts as an ordinary save, and the previews and Night Operation's run refuse to run there.
 
 ## Co-op saves
 

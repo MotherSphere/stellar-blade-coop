@@ -95,9 +95,9 @@ error messages from the coop commands, shown in the menu or the code box.
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
 game gets its keys back. `coop ui off` removes the co-op menu, the chat box, the code box, the host's question, the
-feed, the partner HUD and the co-op saves' question until the mod reloads (game start or Ctrl+R). Notices then go back
-to the line above your EVE, and your friend's name back to the name tag above their ghost. With the UI off,
-`auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
+feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads (game
+start or Ctrl+R). Notices then go back to the line above your EVE, and your friend's name back to the name tag above
+their ghost. With the UI off, `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
 ## Session chat
 
@@ -341,7 +341,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight spawn probe` | Solo probe of [same spawns](#same-spawns-experimental) (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
-| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads |
+| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
