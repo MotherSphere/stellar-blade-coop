@@ -59,7 +59,7 @@ start, notices to show, chat lines in and out, Night Operation's run, the UI's r
 the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
-`Env_Camp_TeleportMachine_C` (the booth of every full camp, Xion's five included) and
+`Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
 `booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4 s, and
 only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps each

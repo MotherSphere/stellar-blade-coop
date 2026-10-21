@@ -79,7 +79,7 @@ Under them are the status line and a sentence about the line:
 | --- | --- | --- |
 | None | Host a session, Join a friend, Join with a code | `The line is free. Host a session or join a friend.` |
 | You host | Invite a friend (Steam), Copy my code and Remove <name> when the main page shows them, Leave the session | `Your session is open. Invite a friend from here.`, or `On the line with <name>.` while your friend is linked |
-| You joined | Leave the session | `On the line with <name>.` while you are linked, none after a connection loss |
+| You joined | Leave the session | `On the line with <name>.` while you are linked, none while connecting or after a connection loss |
 | Steam not ready yet | none | none |
 
 The session rows work as on the main page: Host a session and Invite a friend close the line first, Join with a code

@@ -136,10 +136,10 @@ means that the on-screen UI hit an engine error and turned itself off; notices t
 ### No co-op line hint at a camp phone booth
 
 - Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the last
-  scan found on that map. With no `booths:` line at all, no scan has run: the on-screen UI is off
-  (`UI off until the mod reloads`, or `coop ui off`), or `coop off` ran. `booths: 0 on <map>` means that no booth was
-  loaded at the scan: walk closer and wait 4 s. `booths: scan failed on <map>: <why>` means that the scan hit an error;
-  the next one runs 4 s later.
+  scan found on that map. With no `booths:` line at all, no scan has run yet: the on-screen UI is off
+  (`UI off until the mod reloads`, or `coop ui off`), `coop off` ran, or the native part is not loaded.
+  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer and wait 4 s.
+  `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 4 s later.
 - Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
 - The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
