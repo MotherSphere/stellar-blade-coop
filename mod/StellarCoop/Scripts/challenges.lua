@@ -65,7 +65,8 @@ function C.find(word)
     if word:find('^%d$') then return C.LIST[tonumber(word)] end
     for _,def in ipairs(C.LIST) do if def.id==word then return def end end
 end
-local function clock(s) return string.format('%d:%02d',s//60,s%60) end
+-- m:ss from seconds, a run's float time cut to whole seconds.
+local function clock(s) s=math.floor(s) return string.format('%d:%02d',s//60,s%60) end
 -- The console list line of a definition and its best run (score and seconds, or nil).
 function C.line(def,score,s)
     local best=score and string.format('best %d in %s',score,clock(s)) or 'no best yet'
@@ -87,8 +88,9 @@ function C.better(old_score,old_s,score,s)
     return old_score==nil or score>old_score or score==old_score and s<old_s
 end
 -- The records file's text with id's best set, or nil and why. A new or empty file starts with a line saying what it is.
+-- Score and seconds are cut to whole numbers, so a run's float time is stored the way C.best reads it back.
 function C.write(text,id,score,s)
     if not text or text=='' then text='# StellarCoop: your best challenge runs on this PC (score and seconds).\n' end
-    return F.set(text,'best_'..id,string.format('%d %d',score,s))
+    return F.set(text,'best_'..id,string.format('%d %d',math.floor(score),math.floor(s)))
 end
 return C

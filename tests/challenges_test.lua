@@ -64,24 +64,31 @@ local function bad(change)
 end
 assert(C.check((function() local d=copy(targets) d.id='mine' return d end)()),'A copy under a new id passes')
 assert(not C.check(copy(targets)),'A copy under a listed id: two definitions, one id')
-for what,change in pairs({
-    ['night id']=function(d) d.id='night' end,
-    ['stop id']=function(d) d.id='stop' end,
-    ['blank id']=function(d) d.id='' end,
-    ['id with a space']=function(d) d.id='my run' end,
-    ['no waves']=function(d) d.waves={} end,
-    ['not a pool row']=function(d) d.waves[1].ids[1]=50160 end,
-    ['an empty wave']=function(d) d.waves[2].ids={} end,
-    ['nine in a wave']=function(d) d.spots=nil for _=1,5 do table.insert(d.waves[1].ids,40010) end end,
-    ['wave 1 not at 0']=function(d) d.waves[1].at=5 end,
-    ['wave 1 with no time']=function(d) d.waves[1].at=nil end,
-    ['limit 0']=function(d) d.limit=0 end,
-    ['breather 0']=function(d) d.breather=0 end,
-    ['bonus 0']=function(d) d.bonus=0 end,
-    ['negative moves']=function(d) d.moves=-1 end,
-    ['fewer spots than a wave']=function(d) table.remove(d.spots) end,
-    ['a spot past 40 m']=function(d) d.spots[8][2]=41 end,
-}) do assert(bad(change),what) end
+-- Each bad definition is refused for its own reason (the text C.check gives, found as plain text).
+for what,case in pairs({
+    ['night id']={function(d) d.id='night' end,'night: id used twice'},
+    ['stop id']={function(d) d.id='stop' end,'id: stop'},
+    ['blank id']={function(d) d.id='' end,'id: '},
+    ['id with a space']={function(d) d.id='my run' end,'id: my run'},
+    ['no waves']={function(d) d.waves={} end,'mine: 1 to 255 waves'},
+    ['256 waves']={function(d) for _=4,256 do d.waves[#d.waves+1]={ids={40010}} end end,'mine: 1 to 255 waves'},
+    ['not a pool row']={function(d) d.waves[1].ids[1]=50160 end,'mine: 50160 is not a pool row'},
+    ['an empty wave']={function(d) d.waves[2].ids={} end,'mine: wave 2 has 1 to'},
+    ['nine in a wave']={function(d) d.spots=nil for _=1,5 do table.insert(d.waves[1].ids,40010) end end,
+        'mine: wave 1 has 1 to'},
+    ['wave 1 not at 0']={function(d) d.waves[1].at=5 end,'mine: wave 1 at 0'},
+    ['wave 1 with no time']={function(d) d.waves[1].at=nil end,'mine: wave 1 at 0'},
+    ['limit 0']={function(d) d.limit=0 end,'mine: limit not above 0'},
+    ['breather 0']={function(d) d.breather=0 end,'mine: breather not above 0'},
+    ['bonus 0']={function(d) d.bonus=0 end,'mine: bonus not above 0'},
+    ['negative moves']={function(d) d.moves=-1 end,'mine: moves'},
+    ['fractional moves']={function(d) d.moves=1.5 end,'mine: moves'},
+    ['fewer spots than a wave']={function(d) table.remove(d.spots) end,'mine: fewer spots than the biggest wave'},
+    ['a spot past 40 m']={function(d) d.spots[8][2]=41 end,'mine: spot 8 not within 40 m'},
+}) do
+    local why=bad(case[1])
+    assert(why:find(case[2],1,true)==1,what..': '..why)
+end
 
 -- Lookup by id or by number; nothing for anything else.
 for n,def in ipairs(C.LIST) do assert(C.find(def.id)==def and C.find(tostring(n))==def) end
@@ -131,5 +138,9 @@ for _,empty in pairs({[1]=false,[2]=''}) do
     assert(not first:find('best_'),'The comment names no key')
 end
 assert(C.write('# kept\n','swarm',1,2)=='# kept\nbest_swarm=1 2\n','A file with lines gets no second comment')
+-- A run's time is a float (now minus the start): written and shown in whole seconds, never a Lua error.
+assert(C.write('# kept\n','swarm',314,46.9)=='# kept\nbest_swarm=314 46\n')
+assert(C.write('# kept\n','swarm',314.0,46.0)=='# kept\nbest_swarm=314 46\n')
+assert(C.line(C.LIST[1],314,46.9)=='1 swarm Antlion Swarm: 3 waves, 3:00, best 314 in 0:46')
 
 print('challenges_test: ok')
