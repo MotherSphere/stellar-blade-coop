@@ -370,7 +370,9 @@ With same place on, the guest's copy of a boss follows the host's through the li
 A shared enemy dies in your game only if you took part in its fight
 ([usage.md: Shared enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit,
 that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy
-stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it yourself to get them.
+stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it yourself to get them. As
+the guest, while same spawns run (within 100 m of each other in one zone), the host's next drop line removes that copy
+a few seconds later instead, without a kill.
 The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
 `fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count them as
 `not taken part`. With `kill_credit=fought` the 30 m do not count. A `kill_credit=all` line from 0.4.0-beta.1 reads
@@ -413,7 +415,8 @@ line in `coop-link.log` saying whether same spawns would handle it. For a report
 
 An enemy that the host's game lacks still appears for a moment on the guest's screen after her death or a camp rest,
 then vanishes: that is same spawns with the spawn filter off, its default. With `spawn_filter=on` on her PC it stays
-away after the first entry into the zone (see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
+away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
+`coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
 [usage.md: Spawn filter](usage.md#spawn-filter-experimental)).
 
 ### `Co-op saves off for this load: <why>`

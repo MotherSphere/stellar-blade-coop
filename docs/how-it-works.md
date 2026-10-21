@@ -105,9 +105,9 @@ through XInput, a polling API that takes nothing from the game.
   slot per read, since asking an empty slot can cost milliseconds. While another process's window is in front nothing
   is read, and the held state counts as released: XInput answers whatever window has the focus.
 - `pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
-  its range, released under 30 %), a diagonal read as up or down only, up and down repeating after 400 ms then every
-  120 ms, A for select, B for back, and View held 1000 ms for the menu, once a hold. A ring of 8 holds them; a full
-  ring drops the newest.
+  its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
+  when both are equal), up and down repeating after 400 ms then every 120 ms, A for select, B for back, and View held
+  1000 ms for the menu, once a hold. A ring of 8 holds them; a full ring drops the newest.
 - The DLL links no Lua, so each event travels as a result count. Lua calls `select('#', native_pad(0,0,0,0,0,0,0))`:
   `coop_pad`, called as a Lua C function, returns n, and Lua hands back the top n of the 7 arguments on its stack. n is
   the event, 1 to 7, or 0 when the ring is empty. `main.lua` takes at most 8 events a frame and routes them as the keys
@@ -136,8 +136,9 @@ The watchdog arms at the first yes since the input was taken; armed, 1 s of no f
 same function as `coop ui reset`: the menu, the chat box and the code box closed, an open host's question denied (which
 fails closed), the co-op saves' question closed as Decide later, the input given back at once and the menu's cursor put
 back. One log line names the holder; nothing shows on screen. A root that never had the focus 2 s after a take leaves
-the watchdog unarmed, with one log line a Lua load. The Steam overlay keeps Slate's focus where it was, so it never
-fires the watchdog. The game, another mod, or a middle or side mouse button moving the focus does.
+the watchdog unarmed, with one log line a Lua load. The Steam overlay should keep Slate's focus where it was and then
+not fire the watchdog (not tested in game yet). The game, another mod, or a middle or side mouse button moving the
+focus does.
 
 ### Line breaks
 
@@ -645,8 +646,11 @@ stays 12.
   no part in does not die there ([Achievements](#achievements)) and is not listed; the host's next drop removes it
   and lists it then. Her own lethal hit adds nothing until the host's `dead` comes, since the host may refuse it. An
   extra enemy's key has no row, so no spawn request names it, and it is never listed. A spawn line of the host's epoch
-  takes its key off before her spawn runs (her own create meets the filter too). A new host epoch and the session's
-  end empty the list; her own epoch moves keep it, since her resets respawn exactly these keys. 240 keys at most.
+  takes its key off before her spawn runs (her own create meets the filter too). A new host epoch, a world line from
+  either side and the session's end empty the list: the host's on, off or world as it comes in, and hers as it goes
+  out (her fence: a load, or a census whose every enemy is new). Her own epoch moves keep it, since her resets respawn
+  exactly these keys, but a reset of hers that her fence also takes as a world change runs unfiltered. Which of her
+  deaths and camp rests do that is for the in-game test to show. 240 keys at most.
 - After each of her steps, and before each spawn of hers, the shared fight's job publishes the list to a table of 240
   atomics (`BlockTable`, `spawnId << 8 | index` a slot), which a hook on any thread can read without a lock. A new
   session empties the table before its gate opens.
@@ -676,8 +680,9 @@ stays 12.
   zone events, and ZoneEvent and Quest spawns are other rows that never reach the table. A wrong refusal heals: the
   host's next round sends `spawn` for the key, which leaves the table before her create runs.
 - The first entry into a zone still spawns and removes: the guest learns what the host lacks only from its drops and
-  its `dead` lines. The filter takes her later resets in that host epoch. Sending the host's absent keys with its epoch
-  line would cover the first entry too; it needs a walk of the EventSpawn table by zone, not reverse-engineered yet.
+  its `dead` lines. The filter takes her later resets in that host epoch, except one that is also a world change in
+  her game. Sending the host's absent keys with its epoch line would cover the first entry too; it needs a walk of the
+  EventSpawn table by zone, not reverse-engineered yet.
 
 The log lines are in [usage.md](usage.md#spawn-filter-experimental).
 
@@ -869,8 +874,9 @@ claim the host accepts):
 - Without part, our copy does not die, since a death with no cause still drops loot, records the death in the zone and
   runs the enemy's death events. It goes back to its full HP, with no cause and no damage number, so one hit later
   does not finish what the other player's hits did. The guest ends the pair (`dead-unshared`), so her copy lives on as
-  her own enemy, its floor, scaling, freeze and finish guard taken off. A boss copy is back above 1 HP before the
-  guard is taken off, so the guard keeps the boss's Immortal. The host keeps its copy alive, leaves it out of its later
+  her own enemy, its floor, scaling, freeze and finish guard taken off, until same spawns' next drop despawns it (the
+  host lacks it), which is no kill. A boss copy is back above 1 HP before the guard is taken off, so the guard keeps
+  the boss's Immortal. The host keeps its copy alive, leaves it out of its later
   censuses and of same spawns (`kill-unshared`), and sends `dead`, so her copy dies on her side's own test.
 - A boss's `bstart` runs SetBattleMode on her copy only while her EVE is within 30 m of it or its last player, so its
   battle-start events never run in her world for a fight she is not in.

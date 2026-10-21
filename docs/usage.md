@@ -69,7 +69,8 @@ or shows the mouse cursor for one of its own screens.
 
 A controller drives the co-op menu and the [co-op saves' question](#co-op-saves). Hold View (Back on an Xbox 360
 pad) for 1 s to open the menu, in a world with the game's HUD shown, and hold it again to close the menu. View is also
-the game's Scan button, and the game still gets the press that opens the menu.
+the game's Scan button, and the game still gets the press that opens the menu. The controller in the menu has not been
+tested in game yet.
 
 | Button | In the menu |
 | --- | --- |
@@ -79,7 +80,8 @@ the game's Scan button, and the game still gets the press that opens the menu.
 | B | Back, then close |
 | View held 1 s | Close |
 
-- A diagonal counts as up or down only. The stick counts as pressed past half of its range and as released under 30 %.
+- A D-pad diagonal counts as up or down. The stick counts along the axis it is pushed further on (up or down when both
+  are equal), as pressed past half of its range and as released under 30 %.
 - The mod reads the controller only while the game's window is in front.
 - While a key row waits for a key, only B acts: it stops the wait. A new key has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](#join-codes) as Esc does: nothing is typed or sent. A
@@ -94,8 +96,8 @@ that the game reads through its own PlayStation support is not an XInput control
 Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller) to use it in the menu.
 `coop-link.log` says at start and at each change which controllers it sees: `pad: XInput pads connected: 0` (the
 slots, 0 to 3), `pad: no XInput pad`, or `pad: no XInput in System32: no controller in the co-op menu`. `UE4SS.log`
-says `[StellarCoop] pad: menu` each time a View hold opens or closes the menu. With an older `StellarCoop.dll` it says
-`Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.
+says `[StellarCoop] pad: menu` each time a View hold asks to open or close the menu. With an older `StellarCoop.dll`
+it says `Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.
 
 ### Mouse
 
@@ -103,7 +105,8 @@ While the menu is open, it shows the mouse cursor. The row you move the mouse on
 every 100 ms, and a mouse at rest never takes the focus back from the keys). A left click selects the row under the
 mouse, as Enter does: Leave the session and Remove <name> still need a second click within 3 s. A right click goes
 back, then closes the menu. A click on a heading or on no row does nothing. On the Options page, the mouse on the first
-or last row shown scrolls the page by one row. While a key row waits for a key, the mouse moves nothing.
+or last row shown scrolls the page by one row. While a key row waits for a key, the mouse moves nothing. The mouse in
+the menu has not been tested in game yet.
 
 The cursor goes when the menu closes, and also after `coop ui reset`, `coop off` and a Ctrl+R with the menu open. While
 the menu is closed, the mouse buttons are the game's. The middle and side buttons stay the game's even with the menu
@@ -154,9 +157,11 @@ the mod checks every 250 ms that the keyboard focus is still on its UI. When som
 `coop ui reset` does: the menu and the boxes close, an open host's question is answered with Deny, the co-op saves'
 question closes as Decide later, the mouse cursor goes, and the game gets its keys back at once. Nothing shows on
 screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its
-input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`.
+input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`. The watchdog has not been
+tested in game yet.
 
-- The Steam overlay (Shift+Tab) leaves the focus where it was, so it never trips the watchdog.
+- The Steam overlay (Shift+Tab) should leave the focus where it was and then not trip the watchdog (not tested in
+  game yet).
 - A left or right click on none of the mod's widgets moves the focus to the game. The mod puts it back 50 ms later and
   starts the second over, so such a click closes nothing.
 - The watchdog starts once it has seen the focus on the mod's UI. If that has not happened 2 s after the UI took the
@@ -579,10 +584,12 @@ achievements never reach your save, and one hit of yours later does not finish w
 copy goes back to full HP the same way. Whether you can then beat that boss alone before the area reloads has not been
 tested in game. The guest's `coop-link.log` then says `fight dead-unshared <key> hguid=<n> not taken part`, the host's
 says `fight kill-unshared <key> hguid=<n> not taken part`, and the host's game does not share that enemy again in this
-session. Damage dealt before an enemy became shared does not count as yours, since the other player may have dealt it.
-When a knockdown the other player started, mirrored on your copy, makes the game record your EVE as that enemy's last
-player, the log says `fight last player <key> set by a mirrored crowd control` and that record no longer counts for
-this enemy: your hit or the 30 m still do.
+session. As the guest, while [same spawns](#same-spawns-experimental) run (within 100 m of each other in one zone), the
+host's next drop line removes the copy of a common enemy from your game a few seconds later, without a kill, unless you
+are fighting it. Damage dealt before an enemy became shared does not count as yours, since the other player may have
+dealt it. When a knockdown the other player started, mirrored on your copy, makes the game record your EVE as that
+enemy's last player, the log says `fight last player <key> set by a mirrored crowd control` and that record no longer
+counts for this enemy: your hit or the 30 m still do.
 `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone (see
 [coop-settings.txt](#coop-settingstxt)).
 
@@ -858,11 +865,14 @@ them a few seconds later. With it on, her game does not spawn those enemies at a
 enemy her game removed on the host's drop line, and a shared enemy whose death came from the host's game and that died
 in hers too (she took part in its fight). A spawn line from the host's game for one of these takes it off the list
 before her game creates it, so an enemy that the host's game holds again comes back. The list empties at the host's
-next epoch (its zone changes or resets) and when the session ends.
+next epoch (its zone changes or resets), at a world change in either game (a load, or a check that finds every enemy
+new: `fight world <why>` in `coop-link.log`), and when the session ends. Whether her deaths and camp rests count as
+world changes in her game has not been tested yet; one that does is not covered by the filter.
 
 - The first entry into a zone still shows the old spawn and its removal: her game learns what the host's lacks only
-  from those drop lines and deaths. The filter covers her later resets there, until the host's next epoch. It holds 240
-  enemies at most; one more spawns and is removed, as with the filter off.
+  from those drop lines and deaths. The filter covers her later resets there, until the host's next epoch, except a
+  reset that is also a world change in her game (see above). It holds 240 enemies at most; one more spawns and is
+  removed, as with the filter off.
 - The filter only refuses a spawn. It never kills, so a refused enemy gives no kill, reward, drop or quest progress,
   and no death of it is recorded. Quest and zone event enemies are other rows and never reach the list.
 - It refuses spawns on the guest's side only, on game build 24463856, and its list fills only while the host's

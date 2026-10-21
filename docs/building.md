@@ -222,9 +222,9 @@ build/host/pose_codec_test
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
-  - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a diagonal
-    read as up or down, the stick's thresholds, View held 1 s, a disconnect, the event queue) and which XInput slots
-    each poll asks;
+  - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
+    diagonal read as up or down and the stick along its main axis, the stick's thresholds, View held 1 s, a disconnect,
+    the event queue) and which XInput slots each poll asks;
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
     reloads;
