@@ -1,10 +1,11 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
 -- place's, same spawns', the shared quests', Night Operation's, the challenges', the status line's and the notices'
--- words that the Lua side writes. T.en is English; another language's table sits under its game culture name as recruiter_text.lua's
--- culture() gives it (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships), with T.en's keys at every
--- level. The game's language picks the table (GetCurrentLanguage) unless ui_language=english; a language with no table,
--- or a word missing from one, reads English. Row ids and setting names are ui_model.lua's; a value's word is its id's
--- (on, both, game...), or <setting>_<id> where one setting's value needs other words (aggro_game).
+-- words that the Lua side writes. T.en is English; another language's table sits under its game culture name as
+-- recruiter_text.lua's culture() gives it (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships), with
+-- T.en's keys at every level. The game's language picks the table (GetCurrentLanguage) unless ui_language=english; a
+-- language with no table, or a word missing from one, reads English. Row ids and setting names are ui_model.lua's; a
+-- value's word is its id's (on, both, game...), or <setting>_<id> where one setting's value needs other words
+-- (aggro_game).
 local T={}
 T.en={
     title='CO-OP',
@@ -268,7 +269,7 @@ T.fr={
         end_notice='%s : %d/%d vagues terminées, %d ennemis vaincus, score %d, temps %s.'},
     challenge={names={swarm='Essaim de fourmilions',skulls='Escouade Crâne',gauntlet="Épreuve d'endurance",
         targets='Entraînement au tir'},best='Record',record='Nouveau record personnel.',
-        stopped='Arrêté avec coop challenge stop.',start_notice='%s commence dans %d s.',
+        stopped='Arrêtée avec coop challenge stop.',start_notice='%s commence dans %d s.',
         wave_notice='%s : vague %d/%d.',clear_notice='%s : vague %d terminée.'},
     quests={on='Quêtes partagées actives avec %s.',
         save='Les quêtes partagées demandent une sauvegarde co-op, pas la vôtre. Elles démarrent dès que vous en '
@@ -792,7 +793,7 @@ T.es={
         end_notice='%s: %d/%d oleadas superadas, %d enemigos abatidos, %d puntos, tiempo %s.'},
     challenge={names={swarm='Enjambre de hormigas león',skulls='Escuadrón Calavera',gauntlet='Prueba de resistencia',
         targets='Práctica de tiro'},best='Récord',record='Nuevo récord personal.',
-        stopped='Detenido con coop challenge stop.',start_notice='%s empieza en %d s.',wave_notice='%s: oleada %d/%d.',
+        stopped='Detenida con coop challenge stop.',start_notice='%s empieza en %d s.',wave_notice='%s: oleada %d/%d.',
         clear_notice='%s: oleada %d superada.'},
     quests={on='Misiones compartidas activas con %s.',
         save='Las misiones compartidas necesitan una partida co-op, no la tuya. Empiezan en cuanto cargues una.',
@@ -926,7 +927,7 @@ T['es-MX']={
         end_notice='%s: %d/%d oleadas superadas, %d enemigos derrotados, %d puntos, tiempo %s.'},
     challenge={names={swarm='Enjambre de hormigas león',skulls='Escuadrón Calavera',gauntlet='Prueba de resistencia',
         targets='Práctica de tiro'},best='Récord',record='Nuevo récord personal.',
-        stopped='Detenido con coop challenge stop.',start_notice='%s empieza en %d s.',wave_notice='%s: oleada %d/%d.',
+        stopped='Detenida con coop challenge stop.',start_notice='%s empieza en %d s.',wave_notice='%s: oleada %d/%d.',
         clear_notice='%s: oleada %d superada.'},
     quests={on='Misiones compartidas activas con %s.',
         save='Las misiones compartidas necesitan una partida co-op, no la tuya. Empiezan en cuanto cargues una.',
@@ -1823,7 +1824,7 @@ T.pl={
         end_notice='%s: ukończone fale %d/%d, pokonani wrogowie %d, punkty %d, czas %s.'},
     challenge={names={swarm='Rój mrówkolwów',skulls='Oddział Czaszek',gauntlet='Próba wytrzymałości',
         targets='Trening strzelecki'},best='Rekord',record='Nowy rekord osobisty.',
-        stopped='Zatrzymane przez coop challenge stop.',start_notice='%s: start za %d s.',wave_notice='%s: fala %d/%d.',
+        stopped='Zatrzymana przez coop challenge stop.',start_notice='%s: start za %d s.',wave_notice='%s: fala %d/%d.',
         clear_notice='%s: fala %d ukończona.'},
     quests={on='Wspólne zadania włączone. Partner: %s.',
         save='Wspólne zadania wymagają zapisu co-op, nie twojego. Ruszą, gdy go wczytasz.',
@@ -1956,7 +1957,7 @@ T.pt={
         end_notice='%s: %d/%d vagas superadas, %d inimigos abatidos, %d pontos, tempo %s.'},
     challenge={names={swarm='Enxame de formigas-leão',skulls='Esquadrão Caveira',gauntlet='Prova de resistência',
         targets='Treino de tiro'},best='Recorde',record='Novo recorde pessoal.',
-        stopped='Interrompido com coop challenge stop.',start_notice='%s começa dentro de %d s.',
+        stopped='Interrompida com coop challenge stop.',start_notice='%s começa dentro de %d s.',
         wave_notice='%s: vaga %d/%d.',clear_notice='%s: vaga %d superada.'},
     quests={on='Missões partilhadas ativas com %s.',
         save='As missões partilhadas exigem dados guardados co-op, não os teus. Começam assim que carregares uns.',
@@ -2087,7 +2088,7 @@ T['pt-BR']={
         end_notice='%s: %d/%d ondas vencidas, %d inimigos abatidos, %d pontos, tempo %s.'},
     challenge={names={swarm='Enxame de formigas-leão',skulls='Esquadrão Caveira',gauntlet='Prova de resistência',
         targets='Treino de tiro'},best='Recorde',record='Novo recorde pessoal.',
-        stopped='Interrompido com coop challenge stop.',start_notice='%s começa em %d s.',wave_notice='%s: onda %d/%d.',
+        stopped='Interrompida com coop challenge stop.',start_notice='%s começa em %d s.',wave_notice='%s: onda %d/%d.',
         clear_notice='%s: onda %d vencida.'},
     quests={on='Missões compartilhadas ativas com %s.',
         save='Missões compartilhadas exigem um jogo salvo co-op, não o seu. Elas começam assim que você carregar um.',
@@ -2213,7 +2214,7 @@ T.ru={
         end_notice='%s: волны %d/%d, убито врагов %d, очки %d, время %s.'},
     challenge={names={swarm='Рой муравьиных львов',skulls='Отряд черепов',gauntlet='Испытание на выносливость',
         targets='Стрельба по мишеням'},best='Рекорд',record='Новый личный рекорд.',
-        stopped='Остановлено командой coop challenge stop.',start_notice='%s: старт через %d сек.',
+        stopped='Остановлена командой coop challenge stop.',start_notice='%s: старт через %d сек.',
         wave_notice='%s: волна %d/%d.',clear_notice='%s: волна %d пройдена.'},
     quests={on='Общие задания включены (партнер: %s).',
         save='Общим заданиям нужно кооперативное сохранение. Они начнутся, когда вы его загрузите.',

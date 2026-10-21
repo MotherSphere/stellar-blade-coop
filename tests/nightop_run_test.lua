@@ -1142,7 +1142,7 @@ do
     tk(8)
     ok,message=ch.challenge('stop')
     tk()
-    assert(res.sub.text=='Arrêté avec coop challenge stop.' and row(5)==best and res.head.c=='warn',res.sub.text)
+    assert(res.sub.text=='Arrêtée avec coop challenge stop.' and row(5)==best and res.head.c=='warn',res.sub.text)
     -- Night Operation's panel: its own stop line and its own best.
     bodies,lines={},{}
     ok,message=ch.command('start')
