@@ -367,7 +367,7 @@ assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the 
 assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say; 50 lines')
 for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
-        assert(printed[k+1]=='[StellarCoop] look: cloth=off dyes=off effects=off\n','Right after the keys')
+        assert(printed[k+1]=='[StellarCoop] look: cloth=on dyes=off effects=off\n','Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto, same place off '
             ..'(experimental), same spawns off (experimental), extra enemies 0, bosses off (experimental), boss HP '
             ..'200 %\n',printed[k+2])
@@ -375,7 +375,8 @@ for k,line in ipairs(printed) do
             ..'tag off\n',printed[k+3])
     end
 end
-assert(look.cloth==false and look.dyes==false and look.effects==false,'Off unless the settings say on')
+assert(look.cloth==true and look.dyes==false and look.effects==false,
+    'Cloth on unless the settings say off, dyes and effects off unless they say on')
 assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
@@ -533,37 +534,37 @@ coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true
 -- coop look: what the ghost shows, changed in the table the ghost holds until the mod reloads, and the ghost built again.
 local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects on|off]\n'
 coop('look')
-assert(last()=='[StellarCoop] OK: look: cloth=off dyes=off effects=off (coop look <cloth|dyes|effects> <on|off> changes '
+assert(last()=='[StellarCoop] OK: look: cloth=on dyes=off effects=off (coop look <cloth|dyes|effects> <on|off> changes '
     ..'one until the mod reloads: game start or Ctrl+R)\n',last())
 assert(#rebuilds==0,'Only said')
-coop('look','cloth','on')
-assert(last()=='[StellarCoop] OK: Cloth on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
-    ..'the ghost is built again.\n',
-    last())
-assert(look.cloth==true and #rebuilds==1 and rebuilds[1]=='look','The ghost is removed, to be built with cloth')
-coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=off (',1,true),last())
 coop('look','cloth','off')
 assert(last()=='[StellarCoop] OK: Cloth off until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
-assert(look.cloth==false and #rebuilds==2)
+assert(look.cloth==false and #rebuilds==1 and rebuilds[1]=='look','The ghost is removed, to be built without cloth')
+coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=off (',1,true),last())
+coop('look','cloth','on')
+assert(last()=='[StellarCoop] OK: Cloth on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
+    ..'the ghost is built again.\n',
+    last())
+assert(look.cloth==true and #rebuilds==2)
 coop('look','dyes','on')
 assert(last()=='[StellarCoop] OK: Dyes on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
-assert(look.dyes==true and look.cloth==false and #rebuilds==3)
-coop('look'); assert(last():find('OK: look: cloth=off dyes=on effects=off (',1,true),last())
+assert(look.dyes==true and look.cloth==true and #rebuilds==3)
+coop('look'); assert(last():find('OK: look: cloth=on dyes=on effects=off (',1,true),last())
 coop('look','dyes','off'); assert(look.dyes==false and #rebuilds==4,last())
 coop('look','effects','on')
 assert(last()=='[StellarCoop] OK: Effects on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
-assert(look.effects==true and look.cloth==false and look.dyes==false and #rebuilds==5)
-coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=on (',1,true),last())
+assert(look.effects==true and look.cloth==true and look.dyes==false and #rebuilds==5)
+coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=on (',1,true),last())
 coop('look','effects','off'); assert(look.effects==false and #rebuilds==6,last())
 for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effects'},{'face','on'},{'on'}}) do
     coop('look',table.unpack(bad))
-    assert(last()==LOOK_USE and #rebuilds==6 and look.cloth==false and look.dyes==false and look.effects==false,last())
+    assert(last()==LOOK_USE and #rebuilds==6 and look.cloth==true and look.dyes==false and look.effects==false,last())
 end
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
 loops[2].f()
@@ -710,11 +711,11 @@ rc_raise=nil
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
-settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\ncloth=on\ndyes=on\neffects=on\n'
+settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\ncloth=off\ndyes=on\neffects=on\n'
 load_main(true)
 assert(name_tag==false,'name_tag=off reaches the ghost')
-assert(look.cloth==true and look.dyes==true and look.effects==true and logged('look: cloth=on dyes=on effects=on'),
-    'cloth=on, dyes=on and effects=on reach the ghost')
+assert(look.cloth==false and look.dyes==true and look.effects==true and logged('look: cloth=off dyes=on effects=on'),
+    'cloth=off (an old file\'s, or the menu\'s), dyes=on and effects=on reach the ghost')
 assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays none"))
 assert(logged('keys: menu=F5 host=none status=F6 leave=Ctrl+F8, name tag off, 25 poses a second'),
     table.concat(printed,'|'))
@@ -1605,10 +1606,10 @@ assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the sta
     ..'Leave the session|F8|normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal\nLongest pause|10 min|normal\n'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
-assert(settings_text=='# mine\nname_tag=on\ncloth=on\n' and look.cloth==true and #rebuilds==rebuilt+1
-    and select(2,focus())=='On' and kit_sounds[#kit_sounds]=='change'
-    and logged('menu: cloth=on saved in coop-settings.txt'))
-key('LEFT_ARROW'); assert(look.cloth==false and settings_text=='# mine\nname_tag=on\ncloth=off\n')
+assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
+    and select(2,focus())=='Off' and kit_sounds[#kit_sounds]=='change'
+    and logged('menu: cloth=off saved in coop-settings.txt'))
+key('LEFT_ARROW'); assert(look.cloth==true and settings_text=='# mine\nname_tag=on\ncloth=on\n')
 to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')

@@ -366,7 +366,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop basesuit` draws the body and hair on the base suit whatever the table names, and rebuilds the ghost. Run it
   again to go back to each part's own mesh.
 - `coop look` with no arguments prints the same `look:` line that each load logs, for example
-  `look: cloth=off dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
+  `look: cloth=on dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
   reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](#looks).
 
 ### `coop where`
@@ -885,9 +885,10 @@ auto_coop_save=ask
 name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
-# What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
-# material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
-# For example: cloth=on
+# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it sends
+# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), both off unless set
+# here. dyes and effects off also stop sending yours.
+# For example: dyes=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
 # and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
@@ -960,7 +961,7 @@ card_details=on
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `60` poses sent a second | `60` |
-| `cloth` | `on` or `off` | `off` |
+| `cloth` | `on` or `off`: her ponytail as cloth on the ghost you see | `on` |
 | `dyes` | `on` or `off` | `off` |
 | `effects` | `on` or `off` | `off` |
 | `shared_enemies` | `on` or `off`: [shared enemies](#shared-enemies-experimental), experimental | `on` |
@@ -1007,16 +1008,21 @@ Rules:
 
 ## Looks
 
-Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt` and off by default. The file
-names them in a comment only, so add a line such as `cloth=on`, or change them in the menu's Options > Ghost.
-`coop look` changes one until the mod reloads. With one on, the `Ghost ... built` log line ends with `; look: ...`.
+Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`: `cloth` is on by default,
+`dyes` and `effects` are off. The file names them in a comment only, so add a line such as `dyes=on` or `cloth=off`,
+or change them in the menu's Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes
+one until the mod reloads. With one on, the `Ghost ... built` log line ends with `; look: ...`.
 
-The three looks have not been tested in game yet. Back up your saves before you turn one on (see [saves.md](saves.md)),
-and turn it off again if the game crashes or the ghost looks wrong.
+The three looks have not been tested in game yet. Back up your saves before you play with one on (see
+[saves.md](saves.md)), and turn it off if the game crashes or the ghost looks wrong.
 
-- `cloth`: her ponytail swings as cloth. A follower part whose mesh has clothing assets is drawn as a
-  SkeletalMeshComponent whose cloth simulates on its leader's bones. If that fails, it is a plain part, with a note in
-  the log. Off, the ponytail stays rigid. Only the viewer's setting counts.
+- `cloth`: her ponytail moves as in solo. In solo, the strands you see are an NvCloth simulation of the ponytail mesh,
+  pinned at the scalp; the bones that the poses carry only anchor it. Without cloth, the ghost's ponytail follows
+  those bones rigidly and looks like one long block. With cloth on, your game runs the same simulation on the ghost's
+  ponytail: a follower part whose mesh has clothing assets is drawn as a SkeletalMeshComponent whose cloth simulates
+  on its leader's bones. Nothing more goes over the network. Each PC simulates the ghost it draws, so only the
+  viewer's setting counts, and the strands follow the same rules as on her screen without being the same strands. If
+  the cloth part fails, the ponytail is a plain part, with a note in the log.
 - `dyes`: her hair colour and other material variants. Her capture also names each part's overridden materials (a
   material made at run time is sent as the asset it was made from), and the ghost puts on each one your PC has, by the
   same path rule as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours.

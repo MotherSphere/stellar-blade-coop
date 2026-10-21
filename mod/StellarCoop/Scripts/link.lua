@@ -45,9 +45,10 @@ auto_coop_save=ask
 name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
-# What the ghost shows, each on or off (off unless set here): cloth (her ponytail swings), dyes (hair colours and
-# material variants), effects (her attack and skill effects). dyes and effects off also stop sending yours.
-# For example: cloth=on
+# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it sends
+# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), both off unless set
+# here. dyes and effects off also stop sending yours.
+# For example: dyes=on
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
 # and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
@@ -112,7 +113,7 @@ card_details=on
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
-local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='on',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
     enemy_balance_scale='1.15',kill_credit='all',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
     bosses='on',boss_hp_scale='2.0',

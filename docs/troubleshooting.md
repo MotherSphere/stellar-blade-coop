@@ -121,9 +121,10 @@ go back.
 
 ### A look misbehaves
 
-The cloth, dyes and effects looks have not been tested in game yet. If the game crashes or the ghost looks wrong with
-one on, turn it off in `coop-settings.txt` (or with `coop look <look> off`). An `effects off: fault ...` line means a
-fault turned effects off until the game restarts; the ghost stays, without effects.
+The cloth, dyes and effects looks have not been tested in game yet, and cloth is on by default. If the game crashes or
+the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `effects=off`) in `coop-settings.txt`,
+Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
+effects off until the game restarts; the ghost stays, without effects.
 
 ### The game ignores its keys after the co-op menu or the chat
 

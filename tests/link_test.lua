@@ -285,7 +285,8 @@ s,notes=Link.parse_settings('Chat=OFF\n'); assert(#notes==0 and s.chat==false)
 s,notes=Link.parse_settings('chat=maybe\n')
 assert(#notes==1 and s.chat==true and notes[1]=="settings: line 1: 'maybe' is not allowed for chat (use on or off); "
     ..'chat stays on',notes[1])
-assert(s.cloth==false and s.dyes==false and s.effects==false,'The looks are comments in the defaults: off, as the code says')
+assert(s.cloth==true and s.dyes==false and s.effects==false,
+    'The looks are comments in the defaults: cloth on, dyes and effects off, as the code says')
 -- The partner HUD's parts (Options > Partner): the HP marker over her, the off-screen arrow, the card and its ping
 -- and map, each on or off; a new file names them.
 s=Link.parse_settings('')
@@ -294,14 +295,17 @@ assert(Link.DEFAULT:find('\npartner_bar=on\npartner_arrow=on\npartner_card=on\nc
 s,notes=Link.parse_settings('Partner_Bar=OFF\npartner_arrow=off\npartner_card=off\ncard_details=off\n')
 assert(#notes==0 and s.partner_bar==false and s.partner_arrow==false and s.partner_card==false
     and s.card_details==false)
--- The ghost's looks: on or off, any case; a bad value keeps it off.
+-- The ghost's looks: on or off, any case; a bad value keeps the default (cloth on, dyes and effects off). A file that
+-- says cloth=off (the menu writes it only when the player picks off) keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)
 s,notes=Link.parse_settings('CLOTH=Off'); assert(#notes==0 and s.cloth==false)
-s,notes=Link.parse_settings('dyes=ON'); assert(#notes==0 and s.dyes==true and s.cloth==false)
+s,notes=Link.parse_settings('dyes=ON'); assert(#notes==0 and s.dyes==true and s.cloth==true)
 s,notes=Link.parse_settings('effects=on'); assert(#notes==0 and s.effects==true and s.dyes==false)
 s,notes=Link.parse_settings('cloth=maybe')
-assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays off"
-    and s.cloth==false,notes[1])
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays on"
+    and s.cloth==true,notes[1])
+s,notes=Link.parse_settings('dyes=maybe')
+assert(#notes==1 and notes[1]:find('; dyes stays off$') and s.dyes==false,notes[1])
 -- The shared enemies (Phase 11, experimental): shared_enemies on or off, on by default; fight_chars auto (the default:
 -- every common enemy, an empty list for the native part) or at most 16 whole character ids from 1 to 2^32-1 separated
 -- by spaces. An empty value is auto too: the files written before auto said fight_chars= and shared nothing. A bad
@@ -343,7 +347,7 @@ local older=Link.DEFAULT:gsub('# Shared enemies.*$','')
 assert(older~=Link.DEFAULT and not older:find('fight') and not older:find('shared'))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.shared_enemies==true and #s.fight_chars==0 and s.menu_key.name=='F5' and s.send_rate==60
-    and s.name_tag==true and s.cloth==false and s.guest_kills=='at_once')
+    and s.name_tag==true and s.cloth==true and s.guest_kills=='at_once')
 -- guest_kills: at_once (the default, F4) or confirmed (F4's fallback: the guest's copies hold a 1 HP floor until the
 -- host's game confirms the death), in any case; a new file names it; a bad value keeps at_once, with a line.
 assert(Link.DEFAULT:find('\nguest_kills=at_once\n',1,true),'Written in a new file')

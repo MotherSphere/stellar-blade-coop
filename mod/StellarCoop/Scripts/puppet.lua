@@ -6,12 +6,13 @@
 -- outfit. A mesh this PC lacks (a DLC it does not own), one the path rule refused ('-'), or one with other bones than
 -- hers falls back to the base suit (body and hair), whose bones the native part drives by name (a remap); a part with
 -- no fallback is left out, with its followers. Parts hang as the table says (parent part, socket, placement) and
--- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (cloth=on in
--- coop-settings.txt, or coop look), a follower whose mesh has clothing assets (her ponytail) is a SkeletalMeshComponent
--- whose cloth swings on its leader's bones; else it is a rigid Poseable like the rest. With look.dyes, a part drawn on
--- its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path rule as
--- meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack and
--- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
+-- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (on unless
+-- coop-settings.txt says cloth=off, or coop look), a follower whose mesh has clothing assets (her ponytail) is a
+-- SkeletalMeshComponent whose cloth swings on its leader's bones, as hers does in solo: the bones only anchor the
+-- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. With look.dyes, a part
+-- drawn on its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path
+-- rule as meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack
+-- and skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
 -- The build resolves one mesh a frame (a step a tick, never a coroutine), then names what it built for the native part

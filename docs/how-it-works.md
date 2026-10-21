@@ -384,7 +384,9 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 
 ### Looks
 
-The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` lines to the table. Effects fill the
+The three looks (cloth, dyes, effects) use the same pipeline. Cloth, on by default, adds nothing to the table or the
+poses: each PC runs NvCloth on the ghost's ponytail from the body bones that already arrive (her hair chain
+`Ab-TL-HairB01` to `HairB09` among them). Dyes add `material` lines to the table. Effects fill the
 pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from which Lua
 starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the run and
 the ghost stays. See [usage.md](usage.md#looks).
