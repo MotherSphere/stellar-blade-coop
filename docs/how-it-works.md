@@ -9,11 +9,13 @@ StellarCoop has two parts, both in the mod folder `Mods/StellarCoop/`:
 - The Lua part (`Scripts/*.lua`), run by UE4SS on the game thread. It uses UE4SS's object API to read what EVE is made
   of, build the ghost's actor and place it, draw the co-op menu, the chat and your friend's card, marker and arrow,
   show notices, and handle the console and the keys.
-- The native part (`StellarCoop.dll`), loaded by the Lua script with `package.loadlib`. It has two entry points:
+- The native part (`StellarCoop.dll`), loaded by the Lua script with `package.loadlib`. It has three entry points:
   - a worker thread, started when Windows loads the DLL. It makes every Steam call, reads and writes the files shared
     with Lua, sends and receives tables and poses, and writes the logs.
   - `coop_tick`, an exported function that the Lua loop calls once per frame on the game thread. It reads and encodes
     EVE's pose from engine memory, decodes the poses that came back, and writes the ghost's bones.
+  - `coop_pad`, an exported function that the Lua loop calls each frame for the controller's events (see
+    [Controller](#controller)).
 
 ```
    your game                                                      friend's game
@@ -53,9 +55,10 @@ Both games run the same pipeline in both directions, so each player sees the oth
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
 notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
-the chat box closes, and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
-start, notices to show, chat lines in and out, Night Operation's run, the UI's root, the menu's rows and status line,
-the chat's feed, your friend's card, the capture and the remote table.
+the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your
+friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat
+lines in and out, Night Operation's run, the UI's root and its focus watchdog, the menu's rows and status line, the
+chat's feed, your friend's card, the capture and the remote table.
 
 ### Files shared by Lua and the native part
 
@@ -76,6 +79,74 @@ file is written in full beside its final name and then renamed over it, so the r
   dump (`Saved/Crashes`) holds the game's memory, so it may hold lines of the session.
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
+
+## The co-op UI's input
+
+The co-op menu, the co-op saves' question, the host's question, the chat box and the code box take the game's input
+while they are open. The kit (`ui.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's text
+field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
+stands still. The menu's keys are UE4SS key binds, which read the keyboard and the mouse buttons whatever has the focus.
+When the UI closes, the kit gives the input back 150 ms later, so the key that closed it never reaches the game (Esc
+would open the pause menu): `SetInputMode_GameOnly` in a world, and at the title `SetInputMode_GameAndUIEx` with no
+mouse capture, so the title menu keeps its cursor. The game reads the keys of its own screens as player controller
+actions (`UI_DPad_*`, `UI_FaceButton_*` and `UI_GameMenu` in its `DefaultInput.ini`), which need the viewport's input,
+so its screens work again after the give-back.
+
+### Controller
+
+UE4SS cannot bind a controller button, and UIOnly makes the game ignore the controller, so the native part reads it
+through XInput, a polling API that takes nothing from the game.
+
+- The worker loads `xinput1_4.dll`, else `xinput9_1_0.dll`, with `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)`,
+  and takes `XInputGetState` from it. The game's folder can hold another tool's `xinput1_3.dll` proxy, which is never
+  loaded.
+- `coop_pad` runs on the game thread. It reads slots 0 to 3 at most once per 8 ms, ORs their buttons and takes the
+  first connected controller's left stick. A slot with no controller is asked again only after 2 s, and only one such
+  slot per read, since asking an empty slot can cost milliseconds. While another process's window is in front nothing
+  is read, and the held state counts as released: XInput answers whatever window has the focus.
+- `pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
+  its range, released under 30 %), a diagonal read as up or down only, up and down repeating after 400 ms then every
+  120 ms, A for select, B for back, and View held 1000 ms for the menu, once a hold. A ring of 8 holds them; a full
+  ring drops the newest.
+- The DLL links no Lua, so each event travels as a result count. Lua calls `select('#', native_pad(0,0,0,0,0,0,0))`:
+  `coop_pad`, called as a Lua C function, returns n, and Lua hands back the top n of the 7 arguments on its stack. n is
+  the event, 1 to 7, or 0 when the ring is empty. `main.lua` takes at most 8 events a frame and routes them as the keys
+  route theirs: the open menu gets the six navigation words and View closes it, the co-op saves' question gets up,
+  down, select and back, the chat box and the code box get back only (it closes them), the host's question gets none,
+  and with nothing open, in a world with the HUD shown, View opens the menu through the same path as `menu_key`.
+- The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
+
+### Mouse
+
+While the menu holds the input, the kit sets the player controller's `bShowMouseCursor` after the input mode and keeps
+the value it found. That value goes back when the input goes back, when a text box takes the input, at `coop ui reset`
+and at `coop off`. A Ctrl+R with the menu open leaves ` cursor` beside ` input` in `coop-ui.txt`, and the next Lua load
+hides the cursor as it gives the input back. The check that keeps the menu closed while one of the game's screens shows
+the cursor ignores the cursor while it is the menu's. Every 100 ms the menu asks its 15 drawn rows whether the mouse is
+over them (`IsHovered`), and a row the mouse moved onto takes the focus. The `LEFT_MOUSE_BUTTON` bind selects the row
+under the mouse and `RIGHT_MOUSE_BUTTON` goes back. Slate gives a click that none of the mod's widgets takes to the
+game's viewport, with the keyboard focus, so while the UI holds the input either button has the kit focus its root (or
+the box's field) again 50 ms later.
+
+### Focus watchdog
+
+The kit makes its root focusable (`bIsFocusable`) before it adds it to the viewport, so the input mode focuses the root
+itself. Every 250 ms while the UI holds the input, it reads `HasAnyUserFocus` or `HasFocusedDescendants` on the root.
+The watchdog arms at the first yes since the input was taken; armed, 1 s of no fires it once. `main.lua` then runs the
+same function as `coop ui reset`: the menu, the chat box and the code box closed, an open host's question denied (which
+fails closed), the co-op saves' question closed as Decide later, the input given back at once and the menu's cursor put
+back. One log line names the holder; nothing shows on screen. A root that never had the focus 2 s after a take leaves
+the watchdog unarmed, with one log line a Lua load. The Steam overlay keeps Slate's focus where it was, so it never
+fires the watchdog. The game, another mod, or a middle or side mouse button moving the focus does.
+
+### Line breaks
+
+Every text the mod wraps goes through `chat.lua`'s `wrap`: the chat feed and history, the notice line above EVE and the
+co-op saves' question. The kit's UMG texts never wrap on their own. A row breaks at the last space within reach, else
+between two characters (Chinese, Japanese and Thai put no space between words), and a mark that takes no column (Thai
+and Arabic vowel and tone marks) stays with the letter before it. Thai writes the vowels U+0E40 to U+0E44 (เ แ โ ใ ไ)
+before the consonant they follow in speech, so a row never ends on one: between two characters the cut moves back
+before such a vowel, unless the row would be left empty.
 
 ## The Steam link
 
@@ -561,6 +632,55 @@ pairs through its spawn key like any other.
 
 The log lines are in [usage.md](usage.md#same-spawns-experimental).
 
+### The spawn filter
+
+Same spawns let the guest's game spawn its own enemies on each zone entry and reset, then remove the ones the host's
+game lacks on its drop lines, at best 3 s after the zone settles. The spawn filter (`spawn_filter`, the guest's own,
+off by default, not tested in game) has her game refuse those spawns instead. Lua adds the word `filter` to the `coop
+fight on` request (and to the spawn probe's); it is a word of that request, never a line on the wire, so the protocol
+stays 12.
+
+- The keys (`SpawnGuest` in `spawn_sync.h`): a key she despawned on the host's drop, and the key of each paired copy
+  of hers that died on the host's `dead` line, when its row takes part in the host's zone. A copy whose fight she took
+  no part in does not die there ([Achievements](#achievements)) and is not listed; the host's next drop removes it
+  and lists it then. Her own lethal hit adds nothing until the host's `dead` comes, since the host may refuse it. An
+  extra enemy's key has no row, so no spawn request names it, and it is never listed. A spawn line of the host's epoch
+  takes its key off before her spawn runs (her own create meets the filter too). A new host epoch and the session's
+  end empty the list; her own epoch moves keep it, since her resets respawn exactly these keys. 240 keys at most.
+- After each of her steps, and before each spawn of hers, the shared fight's job publishes the list to a table of 240
+  atomics (`BlockTable`, `spawnId << 8 | index` a slot), which a hook on any thread can read without a lock. A new
+  session empties the table before its gate opens.
+- The hook sits in one slot of the game's image: the second entry of the SpawnRequest vtable (`.rdata` `0x145c10020`,
+  the vtable at `0x145c10018`), which holds `SpawnRequest::Execute` (`0x141c10a90`). RequestSpawn (`FUN_141c1ca40`)
+  calls Execute directly while the slot holds it and through the slot otherwise, and the consumer of its delayed queue
+  (`FUN_141c1cd20`) always calls through the slot; neither has a CFG check. One aligned 8-byte store therefore routes
+  both through the hook, and no instruction byte of the game changes.
+- The worker makes the swap once a run, when the gate first opens (the guest's side asked with `filter`, or the spawn
+  probe), on the pinned build, before `coop off` and before any fault of the hook. It reads the slot, makes its page
+  writable with `VirtualProtect`, swaps it with `InterlockedCompareExchange64` from Execute only, and puts the page's
+  protection back. A slot that holds anything else (another mod's hook) is refused with a log line naming what it
+  holds, and never written. At `coop off`, and after a fault of the hook, a compare-and-swap from the hook only puts
+  Execute back; any other value is left. The DLL is pinned, so a thread still inside the hook after the undo returns
+  into mapped code. Between sessions the hook stays and passes every request on.
+- The hook takes the request. With the gate shut it calls Execute at once. With the gate open, under its own SEH latch,
+  it reads the table holder (`DAT_147032510`, never through its getter `FUN_141a97f20`, which makes one when none
+  exists), finds the request's EventSpawnTable row with `FUN_141a9a780(holder, 0, request + 0x28)` (the row's FName,
+  the call Execute makes first), and builds the key from the row's EventSpawnId (`+0x10`) and the request's SpawnIndex
+  (`+0x30`), the two values Execute passes to `NewActor`. A key in the table is counted, pushed to a 16-entry ring for
+  the worker's log, and refused: the hook returns null, which every caller takes (the immediate path returns it, the
+  delayed one ignores it, and SB's own spawn rule asks again later and is refused again). Any other request goes to
+  Execute, which runs outside the guard, so a fault inside the game's code is never taken for the hook's. Execute reads
+  RCX only, so a one-argument hook forwards all it reads.
+- It refuses only EnterZone Monster rows of None and ResetZone types that the host lacks at that place, the keys same
+  spawns already remove. It never kills, so nothing reaches rewards, drops, kill counters, the zone's death record or
+  zone events, and ZoneEvent and Quest spawns are other rows that never reach the table. A wrong refusal heals: the
+  host's next round sends `spawn` for the key, which leaves the table before her create runs.
+- The first entry into a zone still spawns and removes: the guest learns what the host lacks only from its drops and
+  its `dead` lines. The filter takes her later resets in that host epoch. Sending the host's absent keys with its epoch
+  line would cover the first entry too; it needs a walk of the EventSpawn table by zone, not reverse-engineered yet.
+
+The log lines are in [usage.md](usage.md#spawn-filter-experimental).
+
 ## Extra enemies
 
 Extra enemies (`enemy_extra`, 0 to 3, the host's value, 0 by default, not tested in game yet) build on same spawns:
@@ -755,6 +875,9 @@ claim the host accepts):
 - A boss's `bstart` runs SetBattleMode on her copy only while her EVE is within 30 m of it or its last player, so its
   battle-start events never run in her world for a fight she is not in.
 - `coop fight test kill` (the solo probe) kills only an enemy our EVE took part in, by the same test with the 30 m.
+- The [spawn filter](#the-spawn-filter) (off by default) refuses the guest's spawn of an enemy the host's game lacks
+  and never kills, so no kill, reward, drop, quest kill or achievement comes of it, and no death is recorded in her
+  zone.
 - The mod's kills pass no skill to ApplyStat, so they never count toward the skill-kill achievements. The mirrored
   crowd controls and the HP corrections never kill, and the game's AchievementTable has no row for a hit.
 - [Shared quests](#shared-quests) keep the same rule: the guest's game takes a host step only when her quest stood
@@ -796,6 +919,10 @@ drops the input.
   before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
   every 250 ms; an entry that moves or changes stops it for the run.
+- The [spawn filter](#the-spawn-filter), off by default, is the one write into the game's image rather than into
+  memory the game allocated: one 8-byte pointer in `.rdata`, swapped by compare-and-swap from the game's own value
+  only, with the page writable for that store alone, and swapped back from the mod's value only at `coop off` or after
+  a fault. A slot that holds another value is never written.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
   stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and
   animations with the experimental same place (on by default), and the quest steps of the experimental shared quests

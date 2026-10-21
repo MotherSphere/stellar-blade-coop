@@ -80,11 +80,15 @@ build/host/pose_codec_test
   EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss tests included), the
   `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings
   and rows, `coop fight spawn probe`, the same place and same spawns notices in both languages, and `coop quests` with
-  the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices.
+  the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices. It also covers the
+  controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the two boxes, never to
+  the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu, the focus watchdog's reset,
+  and the `spawn_filter` setting with the `filter` word it adds. `ui_kit_test` covers the menu's mouse cursor, the
+  focus put back after a click and the focus watchdog; `chat_test` the Thai leading vowels at a row's end.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-    `aggro-host`, `bosses <boss %>`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` and the boss
-    tests included),
+    `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
+    and the boss tests included),
     and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the
     check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
@@ -153,7 +157,11 @@ build/host/pose_codec_test
     frozen boss copy (SetBattleMode once a copy and no BattleMode_5s on boss copies from the next session, a phase line
     and the threshold's dispel 5 s later, the copy held at 1 HP with no claim and the host's HP back after 10 s, or its
     HP from the start when the test stops early, a summon made, frozen and frozen again, then removed as unpaired, or at
-    once when the freeze is refused; one test at a time, none left after the session ends);
+    once when the freeze is refused; one test at a time, none left after the session ends); and the spawn filter's
+    table in two worlds (her blocked keys published while she filters, refused by a fake hook on her reset, nothing
+    published without the filter or on the host's side, a key the host spawns again let through, the host's dead on
+    her paired copy blocking its key but not her own lethal hit, the table empty at a new session, at the host's off
+    and at the end, and the gate);
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss
@@ -179,8 +187,10 @@ build/host/pose_codec_test
     row, an Elite or an enemy past 116 m, once a life, the room left and stage 1's 16 pairs, n going on after a new
     session, the host's answers and her checks for extra keys, `row taken`, a charId none of her Monsters has yet or a
     `full` refusal asked again, `not made` counted as no difference; their keys below the summons' range, and a
-    summon's key never made by same spawns), and two fake worlds through a delayed line until her set is the host's,
-    with an epoch that moves while a round is on the way;
+    summon's key never made by same spawns), the guest's blocked keys for the spawn filter (a drop she despawned, the
+    host's kill of a paired copy, never an extra's key, a spawn line of the host's epoch taking a key off before her
+    spawn, cleared at a new host epoch and by `clear()`, kept through her own epoch moves, 240 at most), and two fake
+    worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
@@ -301,12 +311,14 @@ Platform-free headers, tested on the build machine:
 | `quest_sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
 | `quest_engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
 | `pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
+| `spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `photo_freeze.h` | The synced photo mode's pause |
+| `pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 
 The Windows side:
 
 | File | Contents |
 | --- | --- |
 | `steam_link.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `pose_tick.cpp`, `pose_tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua |
+| `pose_tick.cpp`, `pose_tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook |
 | `clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

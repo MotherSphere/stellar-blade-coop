@@ -12,6 +12,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | Key (default) | Action | Console equivalent |
 | --- | --- | --- |
 | F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session | (none) |
+| View held 1 s, on a [controller](#controller) | Open or close the co-op menu | (none) |
 | F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
 | F8 | Leave the session | `coop leave` |
 | Enter | During a session, open the [chat](#session-chat) box, then send a line; Esc closes the box | (none) |
@@ -28,9 +29,10 @@ key that hosts at once, set both `menu_key` and `host_key`.
 
 ## Co-op menu
 
-F5 opens the co-op menu on the left of the screen. It opens in a world only: not on the title screen, not while the
-game is paused or shows the mouse cursor for one of its own screens, and not during your own photo mode. While the menu
-is open, the game ignores its own keys, so EVE stands still.
+F5 opens the co-op menu on the left of the screen, and so does View held for 1 s on a [controller](#controller). It
+opens in a world only: not on the title screen, not while the game is paused or shows the mouse cursor for one of its
+own screens, and not during your own photo mode. While the menu is open, the game ignores its own keys and controller
+buttons, so EVE stands still.
 
 | Key | In the menu |
 | --- | --- |
@@ -62,6 +64,51 @@ Under the rows, a status line shows the F6 text and, once your friend is linked,
 its own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the
 newest notice under 8 s old (for example the result of Join a friend). The menu closes by itself when the game pauses
 or shows the mouse cursor for one of its own screens.
+
+### Controller
+
+A controller drives the co-op menu and the [co-op saves' question](#co-op-saves). Hold View (Back on an Xbox 360
+pad) for 1 s to open the menu, in a world with the game's HUD shown, and hold it again to close the menu. View is also
+the game's Scan button, and the game still gets the press that opens the menu.
+
+| Button | In the menu |
+| --- | --- |
+| D-pad or left stick, up or down | Up or down; held, it repeats after 0.4 s, then every 0.12 s |
+| D-pad or left stick, left or right | Previous or next value of a setting, once a press |
+| A | Select |
+| B | Back, then close |
+| View held 1 s | Close |
+
+- A diagonal counts as up or down only. The stick counts as pressed past half of its range and as released under 30 %.
+- The mod reads the controller only while the game's window is in front.
+- While a key row waits for a key, only B acts: it stops the wait. A new key has to come from the keyboard.
+- B closes the [chat](#session-chat) box and the [code box](#join-codes) as Esc does: nothing is typed or sent. A
+  controller cannot type in them.
+- The host's question (`<name> wants to join`) takes no controller input. A is Jump and the D-pad uses heal and
+  utility items in a fight, so a press meant for the game must never let a stranger in. Answer it with the keyboard;
+  with no answer, the player is refused after 60 s.
+- The key hints at the bottom of the menu show the keyboard keys.
+
+The native part reads XInput: Xbox controllers, the Steam Deck, and any controller under Steam Input. A DualSense
+that the game reads through its own PlayStation support is not an XInput controller, so the mod does not see it. Turn
+Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller) to use it in the menu.
+`coop-link.log` says at start and at each change which controllers it sees: `pad: XInput pads connected: 0` (the
+slots, 0 to 3), `pad: no XInput pad`, or `pad: no XInput in System32: no controller in the co-op menu`. `UE4SS.log`
+says `[StellarCoop] pad: menu` each time a View hold opens or closes the menu. With an older `StellarCoop.dll` it says
+`Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.
+
+### Mouse
+
+While the menu is open, it shows the mouse cursor. The row you move the mouse onto takes the focus (the mouse is read
+every 100 ms, and a mouse at rest never takes the focus back from the keys). A left click selects the row under the
+mouse, as Enter does: Leave the session and Remove <name> still need a second click within 3 s. A right click goes
+back, then closes the menu. A click on a heading or on no row does nothing. On the Options page, the mouse on the first
+or last row shown scrolls the page by one row. While a key row waits for a key, the mouse moves nothing.
+
+The cursor goes when the menu closes, and also after `coop ui reset`, `coop off` and a Ctrl+R with the menu open. While
+the menu is closed, the mouse buttons are the game's. The middle and side buttons stay the game's even with the menu
+open; a click with one of them can take the focus from the menu, which the [focus watchdog](#focus-watchdog) then
+closes.
 
 ### Options
 
@@ -99,6 +146,23 @@ feed, the partner HUD, Night Operation's card and result panel and the co-op sav
 start or Ctrl+R). Notices then go back to the line above your EVE, and your friend's name back to the name tag above
 their ghost. With the UI off, `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
+### Focus watchdog
+
+While the menu, the chat box, the code box, the host's question or the co-op saves' question holds the game's keys,
+the mod checks every 250 ms that the keyboard focus is still on its UI. When something else has kept the focus for 1 s
+(one of the game's screens, another mod, a window switch that does not give the focus back), the mod does what
+`coop ui reset` does: the menu and the boxes close, an open host's question is answered with Deny, the co-op saves'
+question closes as Decide later, the mouse cursor goes, and the game gets its keys back at once. Nothing shows on
+screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its
+input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`.
+
+- The Steam overlay (Shift+Tab) leaves the focus where it was, so it never trips the watchdog.
+- A left or right click on none of the mod's widgets moves the focus to the game. The mod puts it back 50 ms later and
+  starts the second over, so such a click closes nothing.
+- The watchdog starts once it has seen the focus on the mod's UI. If that has not happened 2 s after the UI took the
+  keys, `focus watchdog: our root never took the focus` shows once until the mod reloads, and nothing closes by itself.
+  `focus watchdog off: the UI root refused bIsFocusable (<why>)` means it is off until the mod reloads.
+
 ## Session chat
 
 During a session (or `coop loopback`), Enter opens a text box at the top left of the screen, under the feed. It opens
@@ -110,7 +174,7 @@ box closes and what you typed is lost. Alt+Enter never opens it.
 | Key | In the chat box |
 | --- | --- |
 | Enter | Send the line; on an empty line, close the box |
-| Esc | Close the box; what you typed is lost |
+| Esc, or B on a [controller](#controller) | Close the box; what you typed is lost |
 
 - Any keyboard layout works, with accents: the game's own text box turns your keys into characters. A line holds at
   most 200 bytes (200 letters, fewer with accents or emoji), and the rest is cut. From 160 bytes, a counter at the
@@ -190,7 +254,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (11) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
+- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -214,7 +278,7 @@ It works like the chat box: any keyboard layout, the game ignores its own keys, 
 | Key | In the code box |
 | --- | --- |
 | Enter | Join with the code typed, in capitals or not, with or without the dash. Other text stays in the box with `A join code is 7 letters and digits, like XXX-XXXX.`; an empty box closes. |
-| Esc | Close the box |
+| Esc, or B on a [controller](#controller) | Close the box |
 
 The box closes when a session starts, when the game pauses or shows the mouse cursor, and outside a world. The native
 part checks the code: most codes with a wrong character get `That is not a join code: check its 7 characters.` (see
@@ -226,8 +290,9 @@ A player who is not your Steam friend waits for your answer, whatever Who can jo
 join`, with Accept and Deny. It opens on its own, maybe while you walk or use the menu. Deny has the focus, and for
 1 s after it shows every key does nothing, so keys pressed for something else never answer it.
 
-- The Up and Down arrows move between Accept and Deny, Enter answers, and Esc denies. W, S and Space do nothing here.
-  While the question is open, the game ignores its own keys and the mod's keys do nothing.
+- The Up and Down arrows move between Accept and Deny, Enter answers, and Esc denies. W, S, Space and the
+  [controller](#controller) do nothing here. While the question is open, the game ignores its own keys and the mod's
+  keys do nothing.
 - The question opens in a world, while the game is not paused and the chat box is closed, and closes the co-op menu.
   Until then it waits. It hides while the game pauses and comes back after.
 - With no answer for 60 s, the native part refuses the player, even if the question never showed (with
@@ -249,17 +314,19 @@ and the rules.
 
 | Key | In the question |
 | --- | --- |
-| Up arrow, W or Z | Up |
-| Down arrow or S | Down |
-| Enter or Space | Select |
-| Esc | Decide later (while the copies are made: no switch, the game stays on your own saves) |
+| Up arrow, W or Z; D-pad or left stick up | Up |
+| Down arrow or S; D-pad or left stick down | Down |
+| Enter or Space; A | Select |
+| Esc; B | Decide later (while the copies are made: no switch, the game stays on your own saves) |
 | Left click | The choice under the mouse |
 
-While the question shows, the game ignores its own keys and a dark shade over the screen takes the mouse, so neither
-reaches the title menu. The game gets its keys back 150 ms after the question closes. A controller cannot answer it:
-after 60 s with no key, it closes as Decide later, and `auto_coop_save=always` or `off` skips it. Choosing Continue or
-Load Game before the question shows loads your own save; the question comes back at the next title screen.
-`coop ui reset` closes it as Decide later.
+The question opens with Convert and play co-op (or Play co-op) selected. For 1 s after it shows, Enter, Space, A and a
+click do nothing, so a press meant for the title screen does not answer it; the arrows, Esc and B act at once. While
+the question shows, the game ignores its own keys and a dark shade over the screen takes the mouse, so neither reaches
+the title menu. The game gets its keys back 150 ms after the question closes. A controller the mod cannot read (see
+[Controller](#controller)) cannot answer it: after 60 s with no key, it closes as Decide later, and
+`auto_coop_save=always` or `off` skips it. Choosing Continue or Load Game before the question shows loads your own
+save; the question comes back at the next title screen. `coop ui reset` closes it as Decide later.
 
 A friend's invite accepted on the title screen waits until a save loads (`Invite held: joining once your save has
 loaded.`). The question then starts with `Your friend's invite waits until your save loads.` If you already answered
@@ -732,7 +799,8 @@ zone reset) stay as they are in both games. Same spawns is on by default and has
 The guest's game calls its own spawn function for each enemy it lacks (the one the game calls when a zone's enemies
 spawn) and its own despawn job for each enemy the host's game lacks (the one zone events send). No code of the game is
 changed. When she enters a zone, her game spawns its own enemies first, so an enemy can appear there and vanish again
-a few seconds later.
+a few seconds later. The same happens after each reset of her zone, unless she turns the
+[spawn filter](#spawn-filter-experimental) on.
 
 - It needs shared enemies running. Only the host's value counts, from the next `coop fight on`: Options > Combat >
   Same spawns (experimental) in the host's co-op menu, or `same_spawns=on` in its
@@ -777,6 +845,51 @@ between two probe censuses, which come once a second), and once an epoch for eac
 `event-row`, `another zone` or `no row`. `fight spawns probe no zone` means the current zone has no ZoneTable ID. The
 probe reads two game tables and calls neither the spawn function nor the despawn job. The `fight=` line says
 `spawns=probe` while it runs; `coop fight off` ends it.
+
+### Spawn filter (experimental)
+
+`spawn_filter=on` in the guest's own coop-settings.txt keeps away, in her game, enemies that the host's game no longer
+has. It is off by default, has no row in the co-op menu, and has not been tested in game. On, the mod changes one
+pointer in the game's memory on her PC ([how-it-works.md](how-it-works.md#the-spawn-filter)).
+
+With it off, [same spawns](#same-spawns-experimental) work as above: when her zone resets (her death, a camp rest),
+her game spawns its own enemies again, the ones the host's game lacks among them, and the host's next drop lines remove
+them a few seconds later. With it on, her game does not spawn those enemies at all. The filter knows two kinds: an
+enemy her game removed on the host's drop line, and a shared enemy whose death came from the host's game and that died
+in hers too (she took part in its fight). A spawn line from the host's game for one of these takes it off the list
+before her game creates it, so an enemy that the host's game holds again comes back. The list empties at the host's
+next epoch (its zone changes or resets) and when the session ends.
+
+- The first entry into a zone still shows the old spawn and its removal: her game learns what the host's lacks only
+  from those drop lines and deaths. The filter covers her later resets there, until the host's next epoch. It holds 240
+  enemies at most; one more spawns and is removed, as with the filter off.
+- The filter only refuses a spawn. It never kills, so a refused enemy gives no kill, reward, drop or quest progress,
+  and no death of it is recorded. Quest and zone event enemies are other rows and never reach the list.
+- It refuses spawns on the guest's side only, on game build 24463856, and its list fills only while the host's
+  `same_spawns=on` runs. The setting is read when the mod loads and counts from the next start of shared enemies.
+- The pointer is changed once a run, when shared enemies first start with the filter on the guest's side (or at
+  `coop fight spawn probe`), and stays changed until `coop off` or the game exits. Between sessions every spawn passes.
+  `coop off` puts the game's pointer back at once. To turn the filter off, close the game and set `spawn_filter=off`.
+
+The guest's `coop-link.log` says:
+
+- `spawn filter on: 0x145c10020 swapped from the game's Execute to our filter`: the filter is in place.
+- `spawn filter refused <spawnId>:<index>`: her game asked to spawn that enemy, and the filter refused it. Her game asks
+  again after a while; each enemy is named once a session, and later refusals only count. `spawn filter: <n> more
+  refused, not listed` counts the ones the log did not name.
+- `spawn filter refused: 0x145c10020 holds <address>, not the game's Execute (another mod's hook?); ...` or `spawn
+  filter refused: the page of 0x145c10020 would not become writable (error <n>); ...`: the filter did not start, and
+  every spawn goes on as with it off. Nothing was written.
+- `spawn filter fault <code> in <where> reading <address>: off for this run`, then `spawn filter off (a fault): ...`:
+  a fault in the filter's lookup turned it off until the game restarts.
+- `spawn filter off (coop off): 0x145c10020 holds the game's Execute again`. If another value is there by then, the
+  line names it and the mod leaves it.
+
+While the filter is in place, the `fight stats:` lines in `coop-fight.log` add `filter <n> seen, <n> refused`: the
+spawn requests it looked at and those it refused.
+
+`coop fight spawn probe` with `spawn_filter=on` puts the filter in place with an empty list, so every spawn passes and
+`seen` counts them. It checks the pointer change on one PC.
 
 ### Extra enemies (experimental)
 
@@ -1048,6 +1161,12 @@ same_spawns=on
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
+# Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, off
+# until it has been tested in game. On, the mod changes one pointer in the game's memory on your PC. An enemy your
+# game removed because the host's game no longer has it, or a shared enemy you fought that died in both games, then
+# stays away when your zone resets after your death or your camp rest, instead of appearing for a moment before it is
+# removed.
+spawn_filter=off
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
 # hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
 # boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
@@ -1110,6 +1229,7 @@ card_details=on
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
 | `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
 | `enemy_extra` | `0` to `3`: [extra enemies](#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
+| `spawn_filter` | `on` or `off`: the [spawn filter](#spawn-filter-experimental), experimental; your own, used when you are the guest; no menu row | `off` |
 | `bosses` | `on` or `off`: [shared bosses](#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `shared_quests` | `on` or `off`: [shared quests](#shared-quests-experimental), experimental; both players need it on | `off` |
@@ -1254,7 +1374,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=8 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=12 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
   held and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the

@@ -17,7 +17,8 @@ client that the game already runs, so the mod needs no other program and no serv
   Options can limit the session to invited friends, or open it to anyone who has its 7-character join code, with no
   dialog. A player who is not the host's Steam friend waits until the host accepts them. The invited friend joins once
   their save has loaded, even if Steam had to start their game. The menu also invites, joins, leaves and changes the
-  settings. F6 shows the status and F8 leaves the session.
+  settings. F6 shows the status and F8 leaves the session. On an XInput controller (an Xbox controller, the Steam Deck,
+  or any controller under Steam Input), View held for 1 s opens the menu, and the mouse works in it too.
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Her ponytail moves as cloth, as in solo (on by default). Her hair colour and
   her attack and skill effects are optional looks, off by default. None of the three looks is tested in game yet.
