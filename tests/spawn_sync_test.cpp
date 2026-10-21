@@ -473,6 +473,22 @@ int main() {
     ng.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
     guest_step(ng, nep, nm, kGraceMs);
     assert(nm.count("spawn refused", "no spawn manager") == 1 && ng.counts.refused == 1 && ng.counts.differ == 0);
+    // A created key of another charId that the despawn cannot find again (it is dying) stays, logged as kept, once.
+    World kw;
+    kw.row(1, kReset), kw.chars[1] = 901;
+    Epochs kep;
+    SpawnGuest kg;
+    epoch(kep, kw, 0xA1, 3, 0);
+    kg.heard(msg("SBF11 epoch 1 40 1"), 1);
+    kg.heard(msg("SBF11 spawn 1 1 1 0 900 500 0 0 0"), 1);
+    guest_step(kg, kep, kw, kGraceMs);
+    for (uint64_t now : {kGraceMs + 250, kGraceMs + 500}) {
+      epoch(kep, kw, 0xA1, 3, now);
+      kw.actor(SpawnKey{1, 0})->dying = true;
+      guest_step(kg, kep, kw, now);
+    }
+    assert(kw.created.size() == 1 && kw.despawned.empty() && kg.counts.undone == 0 && kg.counts.differ == 1);
+    assert(kw.count("spawn kept", "charId") == 1 && kw.count("spawn undone") == 0);
     // The host's world, on or off forgets its epoch: nothing until its next epoch line.
     ng.clear();
     assert(!ng.on());

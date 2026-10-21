@@ -78,8 +78,8 @@ struct SpawnCounts {
   uint64_t spawned = 0, despawned = 0, undone = 0;   // Guest: created, despawned on the host's word, despawned
                                                      // again because the created one was no Monster or another charId.
   uint64_t refused = 0;                              // Lines R33 refused (logged).
-  uint64_t differ = 0;                               // Guest: refused or undone because the two games differ
-                                                     // (differs()).
+  uint64_t differ = 0;                               // Guest: refused, undone or kept because the two games
+                                                     // differ (differs()).
   uint64_t stale = 0;                                // Lines true once: another epoch or generation, a key already
                                                      // settled, out of the shared zone, a round cut.
   uint64_t rate = 0;                                 // Over the rates.
@@ -369,7 +369,7 @@ private:
   }
   // R33's last check, once a key we created shows in our census: a Monster we share, of the charId the host named;
   // else despawned again, never killed, within the calls a second (over them: at a later census), and answered as a
-  // refused one.
+  // refused one. One the despawn cannot find again (dying, or no job sender) stays, logged as kept.
   template <class Io> void check(Made &d, const Mine *mine, size_t n, uint64_t now, Io &io) {
     const Mine *x = d.checked ? nullptr : fight::find(mine, n, d.key);
     if (!x)
@@ -383,8 +383,9 @@ private:
     d.checked = true, d.created = false;
     const char *why = x->monster ? "charId" : "not shared";
     ++counts.differ;
-    if (io.despawn(x->guid, d.key))
-      ++counts.undone, io.event(Event{"spawn undone", why, 0, d.key.spawn, d.key.index});
+    const bool undone = io.despawn(x->guid, d.key);
+    counts.undone += undone;
+    io.event(Event{undone ? "spawn undone" : "spawn kept", why, 0, d.key.spawn, d.key.index});
   }
   // One of the host's lines (R33): at its current epoch and while the zone is shared, else stale. A spawn: a key of
   // our tables in the host's zone that takes part, which we hold no actor of and did not answer in this epoch, within

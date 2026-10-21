@@ -2614,8 +2614,8 @@ private:
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
   // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
-  // and refused or undid because the two games differ (spawn_sync.h's differs()). The probe: " spawns=probe" while
-  // coop fight spawn probe reads, else nothing.
+  // and refused, undid or kept because the two games differ (spawn_sync.h's differs()). The probe: " spawns=probe"
+  // while coop fight spawn probe reads, else nothing.
   std::string spawns_field(const Snapshot &s) const {
     if (ran_ == Fight::probe) // coop fight spawn probe.
       return s.spawning ? " spawns=probe" : "";
