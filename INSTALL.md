@@ -147,7 +147,8 @@ cloud. Then restore your backup.
 
 `coop fight`, `coop nightop`, `coop no` and `coop recruiter` run only on a co-op save, a copy of your save, and never
 on your own saves (`coop nightop stop` works on any save). The ghost, the keys and the Steam link work on any save.
-Nothing is copied back to your own saves.
+Nothing is copied back to your own saves. Items bought in Night Operation's shop (`coop nightop buy`) go into the
+co-op save you play, never into your own saves.
 
 The mod makes the copies itself, in the save folder above: `StellarBladeCoop00.sav` to `StellarBladeCoop04.sav`, one
 for each of your saves `StellarBladeSave00.sav` to `StellarBladeSave04.sav`. Once the game uses the copies, Continue,

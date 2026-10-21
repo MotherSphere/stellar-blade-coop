@@ -4,7 +4,10 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
 
 ## What the mod reads and writes
 
-- The mod never writes your own saves (`StellarBladeSave00.sav` to `04.sav`), the inventory, unlocks or equipment.
+- The mod never writes your own saves (`StellarBladeSave00.sav` to `04.sav`), unlocks or equipment. It adds to the
+  inventory only when you buy in Night Operation's shop (`coop nightop buy`), on a co-op save, so the items land in
+  that co-op save. The shop's points are kept in the mod folder, not in a save (see
+  [night-operation.md](night-operation.md#the-reward-shop)), so restoring a save backup does not change them.
 - The native part reads your saves only to make their co-op copies, `StellarBladeCoop00.sav` to `04.sav`, on a
   `saves convert` or `saves coop` request at the title. The question on the title screen and `auto_coop_save=always`
   send `saves coop` (see [Co-op saves](#co-op-saves)); `coop saves convert` and `coop saves coop` send them by hand. It
@@ -18,9 +21,9 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   it plays.
 - When the question shows, Lua checks whether a co-op copy exists, to name its first choice: it opens each
   `StellarBladeCoop0N.sav` and closes it at once, without reading it.
-- Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only) and the
-  quest steps of the experimental shared quests (`coop quests`, off by default, co-op saves only), nothing is copied
-  between the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI
+- Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), the
+  quest steps of the experimental shared quests (`coop quests`, off by default, co-op saves only) and a Night Operation
+  run's state (its waves, timer, score and end), nothing is copied between the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI
   and saves skip it, and nothing of it is written to a save. The meshes it loads are only loaded into memory; nothing is
   worn or unlocked.
 - In the save folder, the mod also reads the co-op marker `StellarCoopSlot.txt` (every 5 s), which names the
@@ -88,10 +91,10 @@ Night Operation's run refuse to run there.
 
 ## Co-op saves
 
-Some features run only on a co-op save and never on your own saves: Night Operation's solo run (`coop nightop`), the two
-Night Operation previews (`coop no` and `coop recruiter`), the experimental shared enemies (`coop fight`) and the
-experimental shared quests (`coop quests`). The ghost, the keys and the Steam link work on any save. Nothing is copied
-back from a co-op save to your own saves.
+Some features run only on a co-op save and never on your own saves: Night Operation's run and its shop (`coop nightop`),
+the two Night Operation previews (`coop no` and `coop recruiter`), the experimental shared enemies (`coop fight`) and
+the experimental shared quests (`coop quests`). The ghost, the keys and the Steam link work on any save. Nothing is
+copied back from a co-op save to your own saves.
 
 A co-op save is either a co-op copy, which the mod makes, or the manual co-op slot of `StellarCoopSlot.txt` (below).
 

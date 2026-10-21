@@ -338,7 +338,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
-| `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's solo run](night-operation.md#the-solo-run-coop-nightop) (untested in game, co-op save only; `stop` on any save) |
+| `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop), solo or, started by the host, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
+| `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its four items, and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -448,9 +449,17 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 
 (`now no slot status` without the native part.)
 
-`coop nightop`, Night Operation's solo run, runs only on a co-op save too, with the same `STOP:` line under its own
-name, except `coop nightop stop`, which works on any save. See
+`coop nightop`, Night Operation's run and its shop, runs only on a co-op save too, with the same `STOP:` line under its
+own name, except `coop nightop stop`, which works on any save. See
 [night-operation.md](night-operation.md#the-solo-run-coop-nightop).
+
+- With no Steam session, `coop nightop start` starts a solo run.
+- In a session, only the host starts a run, and it is for both players. The guest's game checks her side and joins
+  without a question, or the host gets a notice with the reason she cannot. On the guest's game the command answers
+  `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
+- `coop nightop shop` lists the points your runs gave and the four items, and `coop nightop buy <n> [count]` buys 1 to
+  10 of item n into the co-op save. Your points are in `coop-night-<steamid>-<index>.txt` in the mod folder, one file
+  per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 
 The ghost, the link and every other command except `coop fight` (below) run on any save. `coop fight pilot` runs on
 any save too, since same place only moves enemies while shared enemies run.
@@ -977,10 +986,10 @@ reads: it logs what it finds of your quests in `coop-quests.log` and makes no st
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
 loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
-run (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared
-quests and the photo pause (released; the native tick keeps running for this alone). Afterwards only `coop status` and
-`coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
-menu, host and leave keys.
+run (it ends as aborted, and so does the partner's; your shop points stay as they are), the Night Operation poller, a
+recruiter (despawned if one was requested, in Xion), the shared quests and the photo pause (released; the native tick
+keeps running for this alone). Afterwards only `coop status` and `coop report` answer. Every other command answers
+`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys.
 
 ## coop-settings.txt
 
@@ -1233,6 +1242,7 @@ a Steam name or a chat line shows as `?`.
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 | Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](#shared-quests-experimental) |
+| Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [night-operation.md](night-operation.md#the-co-op-run) |
 
 ## Status lines
 
@@ -1262,8 +1272,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   lobby; then a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer.
   Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a
   `friend=<linked 0|1> <lost 0|1> <name>` line, a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst
-  and Tachy for the partner card (while their last reading is under 3 s old; your own during `coop loopback`), and the
-  last 8 notices as `notice=<n> <text>`.
+  and Tachy for the partner card (while their last reading is under 3 s old; your own during `coop loopback`), a
+  `night=<line>` line with your friend's last Night Operation line while a session holds, and the last 8 notices as
+  `notice=<n> <text>`.
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `nightop=on` or `nightop=rule` while the probe's poller runs.
@@ -1291,8 +1302,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `ghost=waiting`, `ghost=hidden map` or `ghost=off`, plus `stray_parts=<n>` if ghost parts that are not this load's
   ghost stand in the world.
 
-Each changed status line, except the per-peer ones, the `fight=` line and the `mate=` line, also goes to `UE4SS.log`
-as `[StellarCoop] link: ...`. Each load logs the save slot as `link: slot=...`.
+Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` line and the `night=` line (Night
+Operation's run logs each one as an `[NR]` line), also goes to `UE4SS.log` as `[StellarCoop] link: ...`. Each load logs
+the save slot as `link: slot=...`.
 
 ## Files in the mod folder
 
@@ -1327,12 +1339,14 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |
 | `coop-chat.txt` | native | Your friend's chat lines, for a moment: Lua takes and deletes the file within 250 ms |
+| `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
+| `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation.md](night-operation.md#the-reward-shop)) |
 
-Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
-it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,
-state and chat files, and any stale request or report. The chat files are also deleted when a session ends and when
-the game exits. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the
-previous run.
+Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
+so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
+chat and night line files, and any stale request or report. The chat files are also deleted when a session ends and when
+the game exits. A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the previous
+run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.
