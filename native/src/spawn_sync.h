@@ -315,7 +315,9 @@ public:
   }
 
 private:
-  struct Made { // A key we answered for in this epoch: created (chr: the host's charId), or a spawn refused.
+  // A key we answered for in this epoch: created (chr: the host's charId) and checked once it showed, or a spawn
+  // refused or undone.
+  struct Made {
     SpawnKey key;
     uint32_t chr = 0;
     bool created = false, checked = false;
@@ -354,7 +356,8 @@ private:
       made_at_[made_++] = Made{k, chr, created, !created};
   }
   // R33's last check, once a key we created shows in our census: a Monster we share, of the charId the host named;
-  // else despawned again, never killed, within the calls a second (over them: at a later census).
+  // else despawned again, never killed, within the calls a second (over them: at a later census), and answered as a
+  // refused one.
   template <class Io> void check(Made &d, const Mine *mine, size_t n, uint64_t now, Io &io) {
     const Mine *x = d.checked ? nullptr : fight::find(mine, n, d.key);
     if (!x)
@@ -365,7 +368,7 @@ private:
     }
     if (rated(now))
       return;
-    d.checked = true;
+    d.checked = true, d.created = false;
     const char *why = x->monster ? "charId" : "not shared";
     if (io.despawn(x->guid, d.key))
       ++counts.undone, io.event(Event{"spawn undone", why, 0, d.key.spawn, d.key.index});
@@ -420,7 +423,8 @@ private:
     io.event(Event{why ? "drop refused" : "despawned", why ? why : "", 0, k.spawn, k.index});
   }
   // Our keys in the host's zone, as kHaveKeys a line: our Monsters of keys that take part there (dying ones too), less
-  // those we despawned, plus those we answered for in this epoch.
+  // those we despawned, plus those we answered for in this epoch but a created one that showed right: our census names
+  // it while it lives, and once it died (the host's kill, through stage 1) the host lacks it too, so no drop comes.
   template <class Io> void round(uint32_t gen, const Mine *mine, size_t n, uint64_t now, Io &io) {
     SpawnKey keys[kMaxKeys];
     size_t count = 0;
@@ -429,7 +433,7 @@ private:
           !out(mine[i].key, io))
         keys[count++] = mine[i].key;
     for (size_t i = 0; i < made_ && count < kMaxKeys; ++i)
-      if (!listed(keys, count, made_at_[i].key))
+      if ((!made_at_[i].created || !made_at_[i].checked) && !listed(keys, count, made_at_[i].key))
         keys[count++] = made_at_[i].key;
     Message m;
     m.type = Type::have, m.gen = gen, m.epoch = n_;

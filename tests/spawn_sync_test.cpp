@@ -407,6 +407,15 @@ int main() {
     take({"SBF11 spawn 1 1 7020 0 900 600 0 0 0", "SBF11 drop 1 1 7001 0"}, kGraceMs + 2 * kHaveAgainMs + 700, false,
          false);
     assert(w.created.size() == made && w.despawned.size() == 3);
+    // A created key that showed right and then died (the host's kill, through stage 1) leaves her rounds, since the
+    // host lacks it too and would answer drop each time. The undone ones and the refused one stay in them.
+    w.mine.erase(std::remove_if(w.mine.begin(), w.mine.end(),
+                                [](const Mine &m) { return m.key == SpawnKey{7010, 0}; }),
+                 w.mine.end());
+    take({}, kGraceMs + 3 * kHaveAgainMs);
+    round = w.lines();
+    assert(!has(round, " 7010:0") && has(round, " 7011:0") && has(round, " 7012:0") && has(round, " 7075:0") &&
+           has(round, " 7076:0") && has(round, " 7080:0"));
     // Her own epoch moves (a camp rest of hers): what she answered is void (7080, refused, leaves her rounds), and a
     // round goes once she is settled again; 7011, created, is one of her enemies now.
     epoch(ep, w, 0xA1, 1, 30000);
