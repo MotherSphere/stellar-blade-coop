@@ -479,8 +479,8 @@ saves.nav('back')
 state.language=nil
 
 -- A manual co-op slot (link.saves()'s marker: StellarCoopSlot.txt names slot 4) once the game uses the co-op copies:
--- said once a Lua load, at the title or in a world, with what is no longer needed. Not while the game uses your own
--- saves, where the manual slot is still the co-op save.
+-- said once a Lua load, at the title or in a world, with what is no longer needed, and in English too. Not while the
+-- game uses your own saves, where the manual slot is still the co-op save.
 saves=new()
 info=at({marker='4'})
 quarter(false,true); saves.nav('back')
@@ -497,6 +497,9 @@ info=at({saves='coop',marker='2'})
 quarter(true,false)
 assert(said[1]=='Le co-op utilise désormais StellarBladeCoop02.sav. Jeu fermé, vous pouvez sortir StellarCoopSlot.txt '
     ..'du dossier, et StellarBladeSave02.sav sauf si vous y avez joué après cette copie.',said[1])
+assert(said_en[1]=='Co-op now plays StellarBladeCoop02.sav. With the game closed, you can move StellarCoopSlot.txt '
+    ..'out of the save folder, and StellarBladeSave02.sav unless you played it after that copy was made.',
+    tostring(said_en[1])) -- The English for the line above EVE.
 state.language=nil
 
 -- Another game build (a game update: link.saves()'s build): the co-op saves are off; with ask or always, said once a Lua
