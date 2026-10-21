@@ -570,22 +570,9 @@ private:
 // SB's parallel manager, its root and Shows the owner's. released: still frozen, but SB moves it (its own Down, Groggy,
 // Airborne or takedown). converging: back from released (or from local) onto the stream over kConvergeMs.
 enum class State : uint8_t { local, piloted, released, converging };
-struct Mode {
-  bool ai_held;        // Our BlockAI on it (Simulate).
-  bool cmc_on;         // Its CMC in SB's parallel manager (only if it was before we took it, Capture).
-  bool root_stream;    // Its root written every frame from the stream.
-  bool owner_shows;    // The owner's Shows replayed on it.
-  bool speed_override; // char+0xC68/+0xC6C ours.
-};
-constexpr Mode mode(State s) {
-  switch (s) {
-  case State::piloted:
-  case State::converging: return Mode{true, false, true, true, true};
-  case State::released: return Mode{true, true, false, false, false};
-  case State::local: break;
-  }
-  return Mode{false, true, false, false, false};
-}
+// Its root written every frame from the stream, its CMC out of SB's manager, its speed ours and the owner's Shows
+// replayed on it.
+constexpr bool root_stream(State s) { return s == State::piloted || s == State::converging; }
 
 // One pair this side draws, from the pair table (fight::drawn()): the host's GUID, our copy's, its owner and epoch, and
 // what the logic side read on the copy: our BlockAI held (state 39), a release (Down, Groggy, Airborne or a takedown
@@ -620,7 +607,7 @@ public:
 
   State state() const { return state_; }
   // own: where the copy stands (read this frame); target: the stream's pose at the draw time, null before any sample.
-  // out takes the pose to write when mode(state).root_stream; snapped is set on a convergence that snapped instead.
+  // out takes the pose to write when root_stream(state); snapped is set on a convergence that snapped instead.
   State step(const Cues &c, const Pose &own, const Drawn *target, double now, Drawn &out, bool &snapped) {
     snapped = false;
     if (!c.eligible || !target) {
@@ -1976,7 +1963,7 @@ private:
     p.battle = has && (d.flags & kBattle) && st != State::local;
     p.skill = has && (d.flags & kSkill);
     p.exec = c.exec;
-    if (!mode(st).root_stream || limit_ == PilotTest::freeze)
+    if (!root_stream(st) || limit_ == PilotTest::freeze)
       return put_back(g, reg, p, &f), false;
     if (d.snap || snapped)
       ++counts.snaps, event("snapped", p.row.hguid);

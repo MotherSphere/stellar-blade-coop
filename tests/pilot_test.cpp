@@ -1090,15 +1090,8 @@ int main() {
 
   // ---- The drawn copy ----
   {
-    auto mode_is = [](State s, bool ai, bool cmc, bool root, bool shows, bool speed) {
-      Mode m = mode(s);
-      return m.ai_held == ai && m.cmc_on == cmc && m.root_stream == root && m.owner_shows == shows &&
-             m.speed_override == speed;
-    };
-    assert(mode_is(State::local, false, true, false, false, false));
-    assert(mode_is(State::piloted, true, false, true, true, true));
-    assert(mode_is(State::released, true, true, false, false, false));
-    assert(mode_is(State::converging, true, false, true, true, true));
+    assert(!root_stream(State::local) && root_stream(State::piloted) && !root_stream(State::released) &&
+           root_stream(State::converging));
 
     Copy c;
     Cues cue;
@@ -2808,12 +2801,10 @@ int main() {
         std::copy(c.quat, c.quat + 4, own.quat);
         bool snapped = false;
         const State st = c.copy.step(cue, own, has ? &d : nullptr, g / 1000.0, out, snapped);
-        const Mode mo = mode(st);
-        if (!mo.cmc_on && c.cmc) // The CMC out of SB's manager, taken once (slot 0x350, false).
-          c.cap.took_cmc(c.cmc), c.cmc = false;
-        if (mo.speed_override)
+        if (root_stream(st)) {
+          if (c.cmc) // The CMC out of SB's manager, taken once (slot 0x350, false).
+            c.cap.took_cmc(c.cmc), c.cmc = false;
           c.cap.took_speed(c.speed), c.speed = 1;
-        if (mo.root_stream) {
           std::copy(out.loc, out.loc + 3, c.loc);
           std::copy(out.quat, out.quat + 4, c.quat);
         }
@@ -2848,7 +2839,7 @@ int main() {
         worst_after = std::max(worst_after, at - double(l.t_ms));
         assert(at >= double(l.t_ms)); // Never before the copy is drawn at that host time.
         applied.push_back({int(l.guid - 4100), l.kind, l.id, l.t_ms});
-        if (!mode(c.copy.state()).owner_shows) {
+        if (!root_stream(c.copy.state())) {
           ++not_drawn;
         } else if (l.kind == Kind::show) {
           Live &live = c.lines.start(l.id, u); // AddShow on a new handle: its stage and player slot.
@@ -2906,7 +2897,7 @@ int main() {
       Drawn out;
       bool snapped = false;
       assert(c.copy.step(gone, own, nullptr, (kEnd + kOffset) / 1000.0, out, snapped) == State::local);
-      c.ai = mode(c.copy.state()).ai_held;
+      c.ai = c.copy.state() != State::local;
       assert(c.live.empty() && !c.ai && c.cmc && c.speed == 0 && !c.cap.cmc && !c.cap.speed);
     }
   }
