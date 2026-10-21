@@ -250,13 +250,11 @@ inline const Summon *summon_row(int32_t effect) {
 // A summon's spawn key, the host's (no row keys a summon: SB's SummonActor passes EventSpawnId 0): kSummonBase | n,
 // SpawnIndex 0, n from a counter the host keeps for the run, 1 to kMaxSummons, one per summon GUID. Pair slots move
 // (a list is compacted when an enemy goes) and summons outlive their owner, so neither the owner's slot nor a count
-// per owner keys one: the owner goes in the line. This build's highest EventSpawnId is 0xD42B5F51, and extras
-// (spawn_sync.h) stay below kSummonBase.
+// per owner keys one: the owner goes in the line. This build's highest EventSpawnId is 0xD42B5F51, Night Operation's
+// wave monsters key 0xD8000000 | run << 16 | wave << 8 | slot (nightop_waves.lua's W.key; no row holds one, so same
+// spawns leave them out), and extras (spawn_sync.h) stay below kSummonBase.
 constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = ~kSummonBase;
 inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
-// Night Operation's wave monsters: 0xD8000000 | run << 16 | wave << 8 | slot (nightop_waves.lua's W.key), a range above
-// every EventSpawnTable row and below the extras (spawn_sync.h) and summons.
-inline bool is_wave(uint32_t id) { return (id & 0xFF000000) == 0xD8000000; }
 inline SpawnKey summon_key(uint32_t n) { return SpawnKey{kSummonBase | n, 0}; }
 inline bool summon_key_ok(const SpawnKey &k) { return is_summon(k.spawn) && (k.spawn & kMaxSummons) && !k.index; }
 // The finish guard's rows: a Finish stance (HP under 2) applies Passive_DeathReady, which chains Passive_FinishReady,

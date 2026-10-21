@@ -6,7 +6,9 @@
 -- game time and it ends itself. Solo when no Steam session holds; linked, the host starts a run for both players: the
 -- night line (one full state from each side through the native part, link.lua's night) carries his ask, her answer,
 -- his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves around
--- his start point and both cards show one timer and one score. Each world fights its own monsters. Never called here:
+-- his start point and both cards show one timer and one score. Each world fights its own monsters, unless the shared
+-- fight pairs their copies by key: then the guest leaves the aggro and stuck moves of a key the host tracks to the
+-- pilot while same-place enemies run. Never called here:
 -- a table row added, a rule or remain-time request, EndRule, ResetZone, a zone event other than nightop.lua's heal,
 -- EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call, RegisterHook,
 -- NotifyOnNewObject. No console word reaches a game call: start's words only set flags. Beyond the kit (ui.lua), the
@@ -268,7 +270,18 @@ function Run.new(o)
                 ok and U.valid(c.Controller) and 'gave one' or 'failed'))
         end)
     end
+    -- The guest's copy of a key the host tracks (his line's found), while her shared fight runs as the guest and the
+    -- pilot is on: frozen and drawn from his stream, so an aggro or a teleport would fight the pilot. Said once a key.
+    local function piloted(b)
+        if r.bodies[b.key]~=b or not (r.piloted and r.found[b.key]) then return false end
+        if not b.piloted then
+            b.piloted=true
+            log(string.format('aggro %s: left to the pilot',hex(b.key)))
+        end
+        return true
+    end
     local function push(b,again)
+        if piloted(b) then return end
         with(b,function(c)
             if again and c:IsBattle()==true then return end
             log(string.format('aggro %s%s: %s',hex(b.key),again and ' again' or '',aggro(c,r.eve)))
@@ -279,6 +292,7 @@ function Run.new(o)
     -- written off for the wave check (a later kill still scores).
     local function stuck(b)
         local function check(now)
+            if piloted(b) then return r.timers.add(now+EVERY,check) end
             with(b,function(c)
                 local _,down=signals(c)
                 local l,e=location(c),location(r.eve)
@@ -486,6 +500,11 @@ function Run.new(o)
             line.rt=line.rt+math.max(0,rtt)//2
         end
         r.line=line
+        if r.role=='guest' then -- For piloted(), as of this tick.
+            if line then r.found=line.found end
+            r.piloted=(raw:match('\n(fight=on[^\r\n]*)') or ''):find(' role=guest ',1,true)~=nil
+                and raw:find('\npilot=on ',1,true)~=nil
+        end
         local input={killed={},done={},mate=r.role=='host' and r.mate or nil}
         r.input,r.eve=input,eve
         -- The abort watch, every tick, paused or not. Adapted from Survival Protocol's arena exit (80 m for 10 s) and
@@ -533,7 +552,7 @@ function Run.new(o)
     local function begin(run,seed,now,at,yaw,map,flag)
         r={s=W.new{run=run,seed=seed,now=now},seed=seed,p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
             nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},live_at=-math.huge,
-            now=now,ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,quiet=0}
+            now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,quiet=0}
         panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
     end
