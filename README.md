@@ -29,6 +29,15 @@ client that the game already runs, so the mod needs no other program and no serv
 - Your friend's card at the top left shows their name with their ping and map, then their HP, shield and Beta. A
   marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
+- Group play, not tested in game yet:
+  - as the guest, F7 takes you to the camp nearest the host through the game's own fast travel when the host is on
+    another map or more than 150 m away;
+  - when one EVE is down, the shared enemies near the other one fight it, and a down EVE gets no kill by standing near
+    one; with the experimental revive (off by default), a friend who stands next to the downed EVE for 3 s revives it
+    where it fell;
+  - the guest's game pauses while a cutscene plays in the host's game;
+  - in a shared area only the host's camp rest brings the enemies back, and a notice tells the guest so;
+  - the experimental solid partner option (off by default) stops your EVE at your friend's ghost.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, the inventory, unlocks or equipment. It reads your saves only to make

@@ -170,10 +170,13 @@ handshake, every message carries the protocol number, and a peer that runs anoth
 ```
 SBC12 ping <seq> <ms>
 SBC12 pong <seq> <ms>
-SBC12 photo <0|1|s> <both|notice>
+SBC12 photo <0|1|s|c> <both|notice>
 SBC12 say <text>
 SBC12 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 SBC12 paks <count> <hash>
+SBC12 camps? <id>
+SBC12 camps <id> <world> <camp>:<m> ...
+SBC12 camps <id> none <title|loading|nocamp|busy>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -181,7 +184,8 @@ game may be paused for the other player's photo mode (`both`). It is sent after 
 the receiver takes at most 8 a second. While your friend's line says `1 both` and your setting is `photo_sync=both`,
 the game thread holds a pause tag of the mod's own in the game's pause set. It sets the tag through the function that
 the game's photo mode pauses with (build 24463856 only). [usage.md](usage.md#synced-photo-mode) lists when the pause is
-released.
+released. A host's line says `c` while a cutscene plays in its game and its own photo state is `0`
+([Cutscene wait](#cutscene-wait)).
 
 The say line is one chat line, sent reliable. Both games clean it the same way: they keep well-formed UTF-8 only, drop
 control, bidi and zero-width characters, trim spaces, and keep at most 200 bytes, never cutting inside a character.
@@ -205,6 +209,12 @@ their paths and sizes, and of their `.ucas` and `.utoc` files. The header of `co
 (`paks <n> beyond the base game, hash <hash>: ...`). When your friend's hash differs from yours, `coop status` has
 `paks=differ <yours> <theirs>` and a notice says so once a session; with the same hash it has `paks=same`. Nothing is
 refused: enemies that differ already stay unshared (same character id and maximum HP for each pair).
+
+The camps lines carry the [follow](#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
+65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
+`none` and why. Only the guest asks and only the host answers. The host's link takes one `camps?` each 2 s, and the
+guest's keeps only the answer to her last number. A world or camp name is letters, digits and `_`, at most 64
+characters. Both lines show in `coop status` (`camps?=`, `camps=`) until the session ends.
 
 Say, vit and paks lines from a friend who has not passed the handshake are ignored, without a log line.
 
@@ -257,7 +267,7 @@ instead of misread:
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
-| 12 | Shared quests: the `SBQ` lines on channel 2 (this version) |
+| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines and the photo line's `c` on channel 0 (this version) |
 
 ### Link health in the log
 
@@ -348,8 +358,9 @@ Poses that belong to no table, or to a table the ghost is not built on yet, are 
 When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`. `puppet.lua` builds
 the ghost from it:
 
-- The ghost is a plain actor with one PoseableMeshComponent per part and no collision. It is not a Pawn, so lock-on,
-  AI and saves leave it out.
+- The ghost is a plain actor with one PoseableMeshComponent per part and no collision (the
+  [solid partner](#solid-partner) adds one capsule when it is on). It is not a Pawn, so lock-on, AI and saves leave it
+  out.
 - It is built one mesh a frame, which spreads the loading over several frames. Each part loads the mesh its path names.
   Loading only brings a cooked game asset into memory: nothing is worn or unlocked. Each part keeps the mesh's own
   materials (unless the dyes look is on), so the ghost wears the captured outfit.
@@ -405,6 +416,39 @@ or behind a wall for more than 1 s, it costs nothing, and it starts again from t
 again. The ponytail's cloth part is set up as SB sets up hers: the 18 body bones its collision bodies hang on
 (`AdditiveMasterBoneArray`), the outfit's `<body mesh>_PonytailPhysicsAsset` as `OverrideClothPhysicsAsset`, then its
 leader, then its mesh, which creates the cloth. The asset is loaded in a build step of its own, after the body's.
+
+### Solid partner
+
+With `collide=on` (experimental, off by default, not tested in game yet), `puppet.lua` adds one CapsuleComponent to the
+ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius and half height (40 and
+95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the ghost's main mesh with an
+absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in this
+build), and it blocks that channel and ignores every other. Your EVE's capsule blocks channel 24, the game's monster
+capsules ignore it and NPC capsules have another type, so only your EVE meets the ghost. If your capsule does not block
+its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. The capsule has no overlap
+events and cannot be stepped on. The ghost's parts, its name tag and any effect started on it have no collision. A Pawn
+profile would do nothing, since EVE's capsule ignores the Pawn channel.
+
+The capsule is QueryOnly while solid, and solid only while no rule opens it. `place()` checks the rules every frame,
+right after it moves the root, and calls `SetCollisionEnabled` only when the answer changes:
+
+| Rule | Open while | For |
+| --- | --- | --- |
+| a | `collide=off`, or the ghost hidden | A hidden ghost never blocks |
+| b | the two capsules overlap by more than 1 cm, then until 20 cm past touching | The ghost moves by teleport, so it can only step into your EVE; it lets her through instead of pushing her |
+| c | your feet 60 cm or more apart in height | One EVE on the other's head, on a ladder, or on an elevator that moved in one game only |
+| d | your movement mode other than Walking, NavWalking or Falling | Swimming, climbing, ziplines |
+| e | 2 s of contact (within 5 cm) with no gap, then until 50 cm apart | A friend standing in a doorway |
+| g | your friend's vitals missing for 3 s, or down | A downed friend can be reached for a revive |
+
+Rule g applies to a friend's ghost only: a replay and the loopback have no vitals. Rule f, which would tell a dodge from
+a run, is not built yet, so a dodge into the ghost stops at it, where it passes through an enemy. The start of each
+contact logs one line with your speed, `GetMaxSpeed()`, `MovementMode` and the move's root motion data, to find that
+rule in game. The capsule's build line logs your capsule as read, the camera boom's probe channel and the ghost's other
+parts with collision on (0 expected). `coop status` counts the capsule's changes by rule (`changes=`).
+
+Nothing goes over the network for it, and neither game's state changes: each PC decides for its own EVE. The ghost
+shows your friend about one ping late, so the two PCs never agree on a contact, and nothing depends on them agreeing.
 
 ## Same-place enemies
 
@@ -727,6 +771,116 @@ host's marks (`h` lines) and the host lines the guest's game took (`g` lines). T
 name check as the co-op copies, at most once a second and only on a change, as a temporary file renamed over the old
 one. A bad line only loses that quest's marks; her live quests always decide what is made.
 
+## Following the host
+
+The guest's travel to the host (`travel.lua`, the camps lines, `travel.h` and the native call) moves only the guest's
+EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in game yet.
+
+- The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
+  `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
+- The host's Lua answers from the game's spawn points on its map: those named after one of the travel camps of its
+  world, read once a map, sorted by distance to the host's EVE. The answer names the world and the 8 nearest, or
+  `none` with `title`, `loading`, `nocamp` or `busy` (a warp or respawn of the host's under way).
+- The travel camps are the 120 ZoneCampTable rows of type FullCamp, SimplyCamp, PhoneBooth or Tetrapod that lead to
+  exactly one story world in build 24463856. Autosave volumes, camps that lead to several worlds or none, and the camps
+  of the developer test worlds are left out. The guest's game uses a camp of the answer only if it is in her own table
+  under the host's world and already exists as a name in her game (`FName` with `FNAME_Find`, which never makes one).
+- Her Lua checks its guards again, then hands the camp's name to the native part. On the game thread, the native part
+  builds the game's 0x60-byte camp request as the game's ReturnToCamp job does and calls the game's fast travel
+  (`0x141cdd7b0`), out of line under its own SEH latch. Before the call it reads the globals that the call's getters
+  reach, the client's flow and phase, any warp or respawn in flight, and whether the local player's EVE is in the
+  world. It makes at most 3 calls in 10 s and none for 10 s after an accepted one.
+- A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer. The mod relies on that
+  refusal for a camp her save has not activated. Activating a camp counts toward the game's camp achievements
+  (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable), so a travel must not activate one for her. Whether
+  the game refuses such a camp has not been checked in game yet.
+- After an accepted call, the native part reads the game's warp block every 250 ms: `pending`, `warping`, `arrived`,
+  or `refused:stuck` when the warp has not started 10 s after the call. `coop status` shows it as `travel=` on the
+  engine line, and `coop-link.log` has one line per call and per state.
+- The guards, read before the request and again before each call: a guest in a session, on a co-op save, her EVE
+  alive, no warp or respawn under way, the game not paused and not in photo mode or a menu, no Night Operation run, no
+  cutscene in her game, and while shared enemies run no boss fight and no enemy in battle within 30 m on her side (the
+  `fight=` line's `boss=` and `battle=`), and 10 s since the last accepted travel.
+
+## A player down
+
+Each game reads its own EVE's life state with its vitals (`life=` in `coop status`) and the friend's from her vit line:
+down in life state 3 to 5 or at 0 HP, alive in 1 or 6, unknown in any other state or when no vit line came for 3 s. The
+native worker hands the friend's state to the shared fight's job as a local message, on each change and once a second.
+It never goes on the wire.
+
+- On the host, while the guest's EVE is down, each same-place pair she owns comes back to the host at the next turn,
+  guards or not, if the enemy stands within 30 m of the host's EVE, and stays his while she is down. While the host's
+  EVE is down and hers is alive, his common pairs within 30 m of her ghost go to her once the 4 s hold and the busy
+  guards allow it. Bosses stay the host's. An unknown state changes nothing, and `aggro=host` keeps every pair with the
+  host. Each of these hand-overs writes one log line.
+- The 30 m limit is there for achievements: the game that takes an enemy forces its target onto its own EVE, which makes
+  that EVE the enemy's last player, and a kill counts for its last player from any distance. A pair already where the
+  down rule puts it stays there, so nothing is handed to the down EVE.
+- While the host's EVE is down, the host drops the guest's claims on boss pairs. Their numbers are still acknowledged,
+  so her copy's HP goes back to the host's. The host's respawn resets the boss in his world and her copy follows, as a
+  death ends a boss fight in solo play.
+- A down EVE takes no part in a kill through the 30 m clause (see [Achievements](#achievements)).
+
+### Revive
+
+The revive runs on the downed player's side (`group.lua`, every 250 ms) and sends nothing: her game reads its own state,
+the friend's vitals and the friend's ghost. The friend's game calls nothing.
+
+- These conditions must hold for 3 s with no gap: the downed player's `revive=on`; her life state 3 and the death
+  screen's animation playing (the lookup Night Operation's solo run uses, in `unreal.lua`); `warp=idle` on the engine
+  line (no respawn or warp in flight, read by the native part on the game thread); the friend linked, with vitals
+  alive; the friend's ghost on her map within 2 m across and 1 m up or down of her EVE's mesh; `boss=0` on the
+  `fight=` line (shared enemies running and no boss fight on her side, the 10 s after a host's `bstart` included); a
+  standalone game (`KismetSystemLibrary::IsStandalone`, since in net mode 3 the call would go to a server); and no
+  Night Operation probe rule set (with one, the respawn would spend a life count).
+- Her game then calls `ServerRequest_ActorRespawn(<her EVE's id>, false)` on her player controller: the game's in-place
+  respawn, with no camp warp and no zone reset. The game refills the recovery items as at a camp respawn. If her life
+  state has not moved 2 s later and every condition holds again, `ServerRequest_ActorRevival` follows once. One call
+  per death.
+- A death screen that still plays over a living EVE is hidden, as Survival Protocol hides it, and shown again at the
+  next death, at the end of the session, when the revive turns off for the run and at `coop off`.
+- The log gives one `revive result` line: the life state, HP and death screen before and after, and whether the EVE
+  pawn is the same.
+- The friend's game shows its notices from her vitals: `<name> is down. Stand next to them for 3 s to revive them.`
+  once per death, while the friend's own EVE is alive, on her map and outside a boss fight; and `You revived <name>.`
+  when her vitals turn alive while the friend's EVE stands within 3 m of her ghost.
+- `coop revive test` makes the same call alone, at the death screen of a co-op save outside a session, for the first
+  in-game check.
+- With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
+  and same spawns brings the guest's enemies back to the host's set.
+
+## Camp rests in a shared area
+
+Either player may rest. Nothing blocks the guest's rest, since a block would need a hook on the camp interaction. A
+rest resets only the resting player's own game.
+
+- The host's rest resets his zone. Same spawns sees the spawn manager's reset states and moves its epoch, and the
+  guest's game follows the host's enemy set: full HP and the host's positions for her pairs, and the rows of his that
+  she lacks created on her side.
+- The guest's rest heals her and resets her own game. In the zone she shares with the host (his epoch line's zone,
+  his ghost within 100 m), same spawns then removes again each enemy she respawned that the host's game lacks, so her
+  rest brings no enemy back there. Elsewhere, or with same spawns off, her rest is the game's own.
+- The guest's Lua reads `epoch=<zone>/<n>/<resets>` on the `fight=` line. The host's `n` moving in the same zone,
+  while his vitals read alive and he was not down in the last 10 s, gives
+  `Enemies are back: the area reset in <host>'s game.` Her own `resets` moving while same spawns run, after her EVE
+  was alive for 10 s, gives `Shared area: only <host>'s camp rest brings its enemies back.` On the guest a reset counts
+  only in the host's zone while his ghost stands within 100 m. A respawn after a death gives neither notice.
+
+## Cutscene wait
+
+Each game looks once a second, while linked, for the game's theater observers (`SBTheaterLevelSequenceObserver`). A
+cutscene plays while one of them has a valid sequence player whose `IsPlaying()` is true. The log says
+`cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's reflection
+data, so Lua cannot read it.
+
+While a cutscene plays in the host's game and its own photo state is `0`, the host's Lua writes `c` as its photo state,
+and its photo line carries `c`. The guest's Lua writes `cut=1` in `coop-state.txt` while her `cutscene_wait` is on and
+the host's ghost is on her map. Her native part then holds the photo sync pause for that `c`, with the photo pause's
+release rules and `photo_freeze_max`; `photo_sync` plays no part in it. The native part shows no notice for it, and her
+Lua shows one in her language, once per pause. A cutscene in the guest's game pauses nothing on the host's side.
+Whether every story scene, dialogue and boss intro runs through a theater observer has not been checked in game yet.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
@@ -754,6 +908,9 @@ claim the host accepts):
   censuses and of same spawns (`kill-unshared`), and sends `dead`, so her copy dies on her side's own test.
 - A boss's `bstart` runs SetBattleMode on her copy only while her EVE is within 30 m of it or its last player, so its
   battle-start events never run in her world for a fight she is not in.
+- The 30 m clause counts only while our EVE is alive (life state 1 or 6), so a dead EVE gets no kill made next to her
+  body. While a player is down, the hand-overs move an enemy only within 30 m of the EVE that takes it
+  ([A player down](#a-player-down)).
 - `coop fight test kill` (the solo probe) kills only an enemy our EVE took part in, by the same test with the 30 m.
 - The mod's kills pass no skill to ApplyStat, so they never count toward the skill-kill achievements. The mirrored
   crowd controls and the HP corrections never kill, and the game's AchievementTable has no row for a hit.
@@ -763,6 +920,10 @@ claim the host accepts):
   never applies a step of a quest she is behind on.
 - Night Operation runs only without a Steam session: its start refuses one, and a session that starts ends the run. Its
   kills are the player's own.
+- The travel to the host is meant to reach only camps the guest's save has activated, and never to activate one, since
+  activating a camp counts toward achievements ([Following the host](#following-the-host)). A revive changes only the
+  downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills too. The cutscene wait
+  is a pause, and the solid partner changes no game state.
 
 ## Safety design
 
@@ -803,6 +964,10 @@ drops the input.
   between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
   only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
+- The follow and the revive call the game's own functions on the local player only. A travel runs on the guest's own
+  request, on a co-op save, for a camp of her own table that her game already knows by name, under its own SEH latch:
+  a fault turns it off until the game restarts. The revive calls the game's respawn on the downed player's own EVE,
+  once per death, at the death screen only. No address, pointer or name index goes over the network for either.
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
   because the native part keeps the flag.
 - The DLL pins itself in memory, so a Lua reload that frees the script's libraries never unloads code the worker is
