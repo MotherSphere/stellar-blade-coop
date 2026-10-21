@@ -2686,8 +2686,8 @@ int main() {
   // the session's end ----
   // Only the Monster of the shared charId and a SpawnType 0 row gets three; never a boss or an Elite (BossMonster), an
   // NPC, a ZoneEvent or Quest spawn, or a charId the shared fight does not share. 125 m from our EVE but 105 m from
-  // her ghost, an extra stays; 145 m and 125 m, it goes. At the end a dying extra is left to its death; the other one
-  // goes. When this build's tables hold a row at the extras' first key, extras stay off for the session (logged once);
+  // her ghost, an extra stays; 145 m and 125 m, it goes. When her shared enemies stop (her off line, the host's still
+  // on), a dying extra is left to its death; the other one goes. When this build's tables hold a row at the extras' first key, extras stay off for the session (logged once);
   // when NewActor makes nothing, the refusal is logged and nothing is kept.
   for (const int run : {0, 1, 2}) { // 0: extras; 1: the key range taken; 2: NewActor refuses.
     Game H;
@@ -2741,8 +2741,9 @@ int main() {
     run_to(8000);
     assert(count(H, "extra despawned", "far") == 1 && H.despawned == std::vector<uint32_t>{a});
     H.mem.put<uint8_t>(H.by_guid[b] + kPendingDeath, 1);
-    eh->set(false, true);
+    H.inbox.push_back(msg("SBF11 off coop fight off"));
     run_to(9000);
+    assert(eh->on() && !eh->snapshot().spawning);
     assert(count(H, "extra despawned", "end") == 1 && (H.despawned == std::vector<uint32_t>{a, c}));
     assert(H.extras.size() == 3 && eh->snapshot().spawns.extras == 3 && eh->snapshot().spawns.extras_gone == 2);
   }

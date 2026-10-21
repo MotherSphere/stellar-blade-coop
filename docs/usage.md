@@ -715,10 +715,10 @@ probe reads two game tables and calls neither the spawn function nor the despawn
 
 ### Extra enemies (experimental)
 
-With `enemy_extra` at 1, 2 or 3 in the host's coop-settings.txt and same spawns on, each common enemy where both
-players stand within 100 m of each other in one zone gets that many more next to it, 2 to 4 m away, in both games.
-Bosses, Alpha Naytibas, quest and event enemies get none. An extra goes once both players are more than 120 m from it,
-and every extra goes when shared enemies stop. Extras have not been tested in game yet, and the default is 0.
+With `enemy_extra` at 1, 2 or 3 in the host's coop-settings.txt and same spawns on, each common enemy where both players
+stand within 100 m of each other in one zone gets that many more next to it, 2 to 4 m away, in both games. Bosses, Alpha
+Naytibas, quest and event enemies get none. An extra goes once both players are more than 120 m from it, and every extra
+goes when shared enemies stop on either PC. Extras have not been tested in game yet, and the default is 0.
 
 - Only the host's value counts, from the next `coop fight on`, and only with `same_spawns=on`: Options > Combat >
   Extra enemies (host's) in the host's co-op menu, or `enemy_extra` in its [coop-settings.txt](#coop-settingstxt).

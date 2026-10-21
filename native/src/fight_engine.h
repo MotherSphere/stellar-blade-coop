@@ -1720,12 +1720,12 @@ private:
   // where the ghost stands no longer does.
   template <class Game> void spawn_turn(Game &g, uint64_t logic, uint64_t now) {
     const bool hosting = hosting_seen_;
-    if (!spawning_) { // On her side, our extras go with the host's same spawns (its off or world, our on).
+    if (!spawning_) { // Our extras go with same spawns: on the host's side her off or ignored, on hers the host's
+                      // off or world (and our on).
       if (hosting)
         spawn_host_.clear();
-      else
-        for (size_t i = 0; i < captures_;)
-          caps_[i].type == kExtra ? void(lift(g, logic, i)) : void(++i);
+      for (size_t i = 0; i < captures_;)
+        caps_[i].type == kExtra ? void(lift(g, logic, i)) : void(++i);
       return;
     }
     if (!keys_whole_)

@@ -561,8 +561,9 @@ guest's game like any other key of the host's that she lacks.
   be a character the host picked freely. Stage 1 then pairs the two copies by key.
 - Each game keeps the extras it made in its capture list, 48 at most. One that left the map (killed, despawned) is
   forgotten at the next census. The host despawns one still fighting more than 120 m from both EVEs. At the session's
-  end every extra still fighting is despawned in each game, and a dying one is left to its death. Her extras also go
-  when the host's same spawns stop on her side (its off or world line). Every despawn goes through the game's despawn
+  end every extra still fighting is despawned in each game, and a dying one is left to its death. The host's extras
+  also go when her shared enemies stop (her off line) or her lines are ignored, and hers when the host's same spawns
+  stop on her side (its off or world line). Every despawn goes through the game's despawn
   job (`FUN_141b077f0`), never a kill.
 - `NewActor` runs inside the shared fight's job on the logic thread, under its fault latch, only while the table
   holder and the world's actor manager exist: `NewActor` reads both through getters that would make them.

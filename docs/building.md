@@ -134,9 +134,9 @@ build/host/pose_codec_test
     same keys made on her side where the host's stand, all twelve paired, one 130 m from both EVEs despawned on the
     host and then by a drop on hers, the rest despawned at the end, hers when the host's off line comes, nothing
     killed), and on the host alone (no extras for a BossMonster, an NPC, a ZoneEvent or Quest spawn or a charId not
-    shared, none before the zone is settled or while she stands 200 m away, an extra 105 m from her ghost kept, a
-    dying one left at the end, extras off when the tables hold a row at the first key, `NewActor` refusing logged once
-    a life); the `extra` word reaching the stats line;
+    shared, none before the zone is settled or while she stands 200 m away, an extra 105 m from her ghost kept, a dying
+    one left and the other despawned when her shared enemies stop, extras off when the tables hold a row at the first
+    key, `NewActor` refusing logged once a life); the `extra` word reaching the stats line;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
