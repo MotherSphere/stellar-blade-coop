@@ -124,9 +124,9 @@ cutscene_wait=on
 # follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
 # Solid partner, experimental: on or off, off by default. Yours: on, your EVE cannot walk through your friend's ghost
-# while you both walk or fall on one map. The ghost lets her through while it overlaps her, while your feet are 60 cm
-# or more apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge
-# into it stops at it. Enemies, NPCs and the camera pass through it.
+# while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
+# apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge into it
+# stops at it. Enemies, NPCs and the camera pass through it.
 collide=off
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100

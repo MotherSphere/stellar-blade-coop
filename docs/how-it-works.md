@@ -425,9 +425,10 @@ ghost the first time the ghost shows. The capsule copies your EVE's movement cap
 absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in this
 build), and it blocks that channel and ignores every other. Your EVE's capsule blocks channel 24, the game's monster
 capsules ignore it and NPC capsules have another type, so only your EVE meets the ghost. If your capsule does not block
-its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. The capsule has no overlap
-events and cannot be stepped on. The ghost's parts, its name tag and any effect started on it have no collision. A Pawn
-profile would do nothing, since EVE's capsule ignores the Pawn channel.
+its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. Monster capsules block
+WorldDynamic too, so in that case the enemies whose AI runs on your PC stop at the ghost as well; the build line then
+says `ours type 1`. The capsule has no overlap events and cannot be stepped on. The ghost's parts, its name tag and any
+effect started on it have no collision. A Pawn profile would do nothing, since EVE's capsule ignores the Pawn channel.
 
 The capsule is QueryOnly while solid, and solid only while no rule opens it. `place()` checks the rules every frame,
 right after it moves the root, and calls `SetCollisionEnabled` only when the answer changes:
@@ -435,10 +436,10 @@ right after it moves the root, and calls `SetCollisionEnabled` only when the ans
 | Rule | Open while | For |
 | --- | --- | --- |
 | a | `collide=off`, or the ghost hidden | A hidden ghost never blocks |
-| b | the two capsules overlap by more than 1 cm, then until 20 cm past touching | The ghost moves by teleport, so it can only step into your EVE; it lets her through instead of pushing her |
+| b | the two capsules overlap by more than 1 cm, then until 20 cm past touching | The ghost moves by teleport, so it can only step into your EVE; it lets her through, and her movement pushes her out of an overlap of 1 cm or less |
 | c | your feet 60 cm or more apart in height | One EVE on the other's head, on a ladder, or on an elevator that moved in one game only |
 | d | your movement mode other than Walking, NavWalking or Falling | Swimming, climbing, ziplines |
-| e | 2 s of contact (within 5 cm) with no gap, then until 50 cm apart | A friend standing in a doorway |
+| e | 2 s of contact (within 5 cm) with no gap of 0.5 s, then until 50 cm apart | A friend standing in a doorway; a ghost that steps back for a pose does not restart the 2 s |
 | g | your friend's vitals missing for 3 s, or down | A downed friend can be reached for a revive |
 
 Rule g applies to a friend's ghost only: a replay and the loopback have no vitals. Rule f, which would tell a dodge from

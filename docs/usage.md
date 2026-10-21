@@ -1183,9 +1183,9 @@ cutscene_wait=on
 # follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
 # Solid partner, experimental: on or off, off by default. Yours: on, your EVE cannot walk through your friend's ghost
-# while you both walk or fall on one map. The ghost lets her through while it overlaps her, while your feet are 60 cm
-# or more apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge
-# into it stops at it. Enemies, NPCs and the camera pass through it.
+# while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
+# apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge into it
+# stops at it. Enemies, NPCs and the camera pass through it.
 collide=off
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
@@ -1311,12 +1311,14 @@ The three looks have not been tested in game yet. Back up your saves before you 
 
 With `collide=on` (Options > Ghost > Solid partner; off by default, not tested in game yet), your EVE cannot walk
 through your friend's ghost, as with an NPC in town. It is your own setting and changes nothing in your friend's game.
-Only your EVE is stopped: enemies, NPCs, the camera and attacks pass through the ghost.
+Only your EVE is stopped: enemies, NPCs, the camera and attacks pass through the ghost. If a game update changes her
+capsule's collision, the mod falls back to a capsule that the enemies run by your PC meet too, and its build line in
+`UE4SS.log` says `ours type 1`.
 
 The ghost lets your EVE through:
 
-- while it overlaps her, until they are more than 20 cm apart (the ghost shows your friend about one ping late, so it
-  can step into you; it never pushes you);
+- once it overlaps her by more than 1 cm, until they are more than 20 cm apart (the ghost shows your friend about one
+  ping late, so it can step into you; a smaller overlap stays solid and can move you by up to 1 cm);
 - while your feet are 60 cm or more apart in height (one of you on a ledge, a ladder or an elevator);
 - while your EVE swims, climbs, rides a zipline or does anything but walk, run or fall;
 - after 2 s of contact, until you are 50 cm apart (a friend standing in a doorway);

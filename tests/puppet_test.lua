@@ -1320,16 +1320,24 @@ for _,case in ipairs({
     for key,v in pairs(case[1]) do named[#named+1]=key..'='..tostring(v) end
     assert(solid==case[2] and why==case[3],table.concat(named,' ')..': '..tostring(solid)..' '..tostring(why))
 end
+-- Two rules open: the first one, b before c, c before d, d before e, e before g.
+assert(select(2,rule(nil,{h=50,v=100}))=='b' and select(2,rule(nil,{v=60,mode=5}))=='c')
+assert(select(2,rule({stuck=true},{mode=5}))=='d' and select(2,rule({stuck=true},{down=true}))=='e')
 -- b: once inside her, open until more than 20 cm past touching.
 local k={}
 assert(select(2,rule(k,{h=70}))=='b' and select(2,rule(k,{h=100}))=='b' and rule(k,{h=100.1})==true)
--- e: 2 s of contact (within 5 cm) with no gap, then open until 50 cm apart.
+-- e: 2 s of contact (within 5 cm) with no gap of 0.5 s, then open until 50 cm apart.
 k={}
 assert(rule(k,{h=82,now=0})==true and rule(k,{h=82,now=1.99})==true and select(2,rule(k,{h=82,now=2}))=='e')
 assert(select(2,rule(k,{h=129.9,now=3}))=='e' and rule(k,{h=130,now=4})==true)
 k={}
 rule(k,{h=82,now=0})
-rule(k,{h=85,now=1.5}) -- 5 cm apart: a gap.
+rule(k,{h=85,now=1}) -- 5 cm apart: a gap, under 0.5 s, so the 2 s go on (a ghost stepping back for one pose).
+assert(rule(k,{h=82,now=1.49})==true and rule(k,{h=82,now=1.99})==true and select(2,rule(k,{h=82,now=2}))=='e')
+k={}
+rule(k,{h=82,now=0})
+rule(k,{h=85,now=1})
+rule(k,{h=90,now=1.5}) -- A gap of 0.5 s: the 2 s start again.
 assert(rule(k,{h=82,now=1.6})==true and rule(k,{h=82,now=3.59})==true and select(2,rule(k,{h=82,now=3.6}))=='e')
 -- a: hidden or off forgets both.
 k={}
@@ -1404,11 +1412,21 @@ assert(ok==true and message=='Solid partner contact: speed=500 max=600 mode=1 ro
 assert(#cap.enabled==3 and cap.enabled[3]==0)
 assert(stand(63,505)==nil and #cap.enabled==3,'95 cm apart: still open, the same contact')
 assert(stand(64,499)==nil and #cap.enabled==4 and cap.enabled[4]==1,'Past 1 m: solid again')
--- c: her feet 60 cm higher than the ghost's.
+-- c: her feet 60 cm higher than the ghost's, or 60 cm lower. Across her while 1 m higher, the ghost is inside her (b:
+-- under the two half heights apart), so it stays open once level until more than 20 cm past touching.
 her_at={X=600,Y=0,Z=157}
 assert(ghost.place()==nil and cap.enabled[5]==0)
-her_at={X=600,Y=0,Z=156}
+her_at={X=600,Y=0,Z=37}
+assert(ghost.place()==nil and #cap.enabled==5,'60 cm lower: open')
+her_at={X=550,Y=0,Z=197}
+ok,message=ghost.place()
+assert(ok==true and message:find('^Solid partner contact: .* solid=0$') and #cap.enabled==5,tostring(message))
+her_at={X=590,Y=0,Z=97}
+assert(ghost.place()==nil and #cap.enabled==5,'Level, 91 cm apart: still inside her')
+her_at={X=600,Y=0,Z=38}
 assert(ghost.place()==nil and cap.enabled[6]==1)
+her_at={X=600,Y=0,Z=156}
+assert(ghost.place()==nil and #cap.enabled==6,'59 cm higher: solid')
 -- d: she swims, climbs or flies; falling still blocks.
 movement.MovementMode=5
 ghost.place()
@@ -1421,7 +1439,7 @@ movement.MovementMode=1
 mate=nil
 ghost.place()
 assert(cap.enabled[9]==0)
-for _,m in ipairs({{life=3,hp=50,max_hp=100},{life=1,hp=0,max_hp=100}}) do
+for _,m in ipairs({{life=3,hp=50,max_hp=100},{life=5,hp=50,max_hp=100},{life=1,hp=0,max_hp=100}}) do
     mate=m
     ghost.place()
     assert(#cap.enabled==9,'Down')
@@ -1446,13 +1464,17 @@ assert(ghost.place()==nil and #cap.enabled==11,'49 cm apart: still open')
 her_at={X=630,Y=0,Z=97}
 assert(ghost.place()==nil and cap.enabled[12]==1)
 movement.RootMotionData={pRootMotionData=invalid}
--- a: collide off; the ghost hidden a second after her last pose.
+-- a: collide off; the ghost hidden a second after her last pose. Off forgets the contact: the next one has its line.
+clock=clock+0.5
+her_at={X=582,Y=0,Z=97}
+ok,message=ghost.place()
+assert(ok==true and message:find('^Solid partner contact: .* solid=1$') and #cap.enabled==12,tostring(message))
 ghost.collide(false)
 ghost.place()
 assert(cap.enabled[13]==0)
 ghost.collide(true)
-ghost.place()
-assert(cap.enabled[14]==1)
+ok,message=ghost.place()
+assert(ok==true and message:find('^Solid partner contact: .* solid=1$') and cap.enabled[14]==1,tostring(message))
 clock=clock+1
 ghost.place()
 assert(actor.hidden and cap.enabled[15]==0 and #cap.enabled==15)
@@ -1480,6 +1502,15 @@ ok,message=stand(70,500)
 assert(ok==true and message:find(' response 0, .*; ours type 1; '),tostring(message))
 assert(actor.capsule.args.SetCollisionObjectType[1]==1 and actor.capsule.args.SetCollisionResponseToChannel[1]==24)
 blocks=2
+-- A frame that fails while it is solid (her movement unreadable): closed, said once, never tried again on this ghost.
+cap=actor.capsule
+assert(cap.enabled[#cap.enabled]==1,'Solid')
+getmetatable(player).__index.CharacterMovement=nil
+ok,message=stand(71,500)
+assert(ok==false and message:find('^Solid partner off on this ghost: '),tostring(message))
+assert(cap.enabled[#cap.enabled]==0 and not cap.destroyed and not actor.destroyed,'Closed, the ghost kept')
+assert(stand(72,500)==nil and ghost.status():find(' collide=failed$'),ghost.status())
+getmetatable(player).__index.CharacterMovement=movement
 -- One that fails while it is set up: removed, said once, never tried again on this ghost, which stays.
 fail_capsule=true
 her_at={X=1,Y=2,Z=3}

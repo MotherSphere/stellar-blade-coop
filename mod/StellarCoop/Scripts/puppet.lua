@@ -50,8 +50,8 @@ local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer'
 local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
 -- The solid partner (collide=on, off by default): one capsule on the ghost that only your EVE's movement meets. cm and
 -- s, for Puppet.solid: inside her by more than SLACK, out again past LEAVE; feet STEP apart in height; contact within
--- TOUCH, STUCK of it, then free until PART apart.
-local SLACK,LEAVE,STEP,TOUCH,STUCK,PART=1,20,60,5,2,50
+-- TOUCH, STUCK of it with no gap of GAP, then free until PART apart.
+local SLACK,LEAVE,STEP,TOUCH,STUCK,GAP,PART=1,20,60,5,2,0.5,50
 local WALKS={[1]=true,[2]=true,[3]=true} -- EMovementMode: Walking, NavWalking, Falling.
 local CHANGES={'solid','a','b','c','d','e','g'} -- The order status() counts the capsule's changes in.
 -- Whether the solid partner's capsule blocks your EVE now: true, or false and the first rule that opens it.
@@ -59,13 +59,13 @@ local CHANGES={'solid','a','b','c','d','e','g'} -- The order status() counts the
 -- of her capsule and the ghost's, which sit as high above their feet), r and hh (the two radii and the two half
 -- heights added), mode (your EVE's MovementMode), down (the friend's vitals missing or down; false for a replay or
 -- the loopback, which have none) and now (s). k keeps the rules' state from one frame to the next.
--- a: on and shown. b: not inside her (h at least r - 1 cm, or v at least hh); once inside, open until h is past
--- r + 20 cm, so the ghost walks through her and never pushes her. c: their feet less than 60 cm apart in height (her
--- on its head, a ladder, an elevator that moved in one world only). d: your EVE walking or falling (swimming,
--- climbing, a zipline pass). e: not 2 s of contact (h under r + 5 cm) with no gap; once tripped, open until 50 cm
--- apart (a partner standing in a doorway). g: the friend's vitals there and not down, so a downed friend is never a
--- wall and can be reached for a revive. No rule tells a dodge from a run yet: each contact's line (place()) logs
--- what could.
+-- a: on and shown. b: not inside her (h at least r - 1 cm, or v at least hh); once inside, open until h is past r + 20
+-- cm, so the ghost walks through her (an overlap of 1 cm or less stays solid: her movement pushes her out). c: their
+-- feet less than 60 cm apart in height (her on its head, a ladder, an elevator that moved in one world only). d: your
+-- EVE walking or falling (swimming, climbing, a zipline pass). e: not 2 s of contact (h under r + 5 cm) with no gap of
+-- 0.5 s, so a ghost stepping back for a pose cannot hold it; once tripped, open until 50 cm apart (a partner standing
+-- in a doorway). g: the friend's vitals there and not down, so a downed friend is never a wall and can be reached for a
+-- revive. No rule tells a dodge from a run yet: each contact's line (place()) logs what could.
 function Puppet.solid(k,i)
     if not (i.on and i.shown) then
         k.inside,k.since,k.stuck=nil,nil,nil
@@ -73,11 +73,12 @@ function Puppet.solid(k,i)
     end
     if i.h<i.r-SLACK and i.v<i.hh then k.inside=true elseif i.h>i.r+LEAVE then k.inside=nil end
     if k.stuck and i.h>=i.r+PART then k.stuck=nil end
-    if i.h<i.r+TOUCH then
-        k.since=k.since or i.now
+    local touch=i.h<i.r+TOUCH
+    if k.since and not touch then k.gap=k.gap or i.now end
+    if k.gap and i.now-k.gap>=GAP then k.since,k.gap=nil,nil end
+    if touch then
+        k.since,k.gap=k.since or i.now,nil
         if i.now-k.since>=STUCK then k.stuck=true end
-    else
-        k.since=nil
     end
     if k.inside then return false,'b' end
     if i.v>=STEP then return false,'c' end
