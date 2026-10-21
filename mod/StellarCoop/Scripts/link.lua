@@ -18,7 +18,8 @@
 -- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
 -- quest_notes() here; its revive and cutscene_wait group.lua's (the friend's revive, the wait during the host's
 -- cutscene); its follow_host and follow_key travel.lua's and main.lua's (the guest's travel to the camp nearest the
--- host), which reads camps() here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- host), which reads camps() here; its collide puppet.lua's (the solid partner). The co-op menu (menu.lua) changes
+-- the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -122,6 +123,11 @@ cutscene_wait=on
 # game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
 # follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
+# Solid partner, experimental: on or off, off by default. Yours: on, your EVE cannot walk through your friend's ghost
+# while you both walk or fall on one map. The ghost lets her through while it overlaps her, while your feet are 60 cm
+# or more apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge
+# into it stops at it. Enemies, NPCs and the camera pass through it.
+collide=off
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
@@ -146,10 +152,10 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',cutscene_wait='on',
-    follow_host='ask',follow_key='F7'}
+    follow_host='ask',follow_key='F7',collide='off'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true,revive=true,cutscene_wait=true} -- On or off.
+    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},

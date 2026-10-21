@@ -938,6 +938,7 @@ if link then
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             notice.veil(own)
             puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
+            puppet.collide(settings.collide) -- The solid partner, as the co-op menu last set it.
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (group.lua).
             local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
                 settings.photo_freeze_max,title,group.cut())

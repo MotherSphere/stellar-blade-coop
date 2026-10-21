@@ -551,6 +551,19 @@ assert(#notes==0 and s.status_key.name=='F7' and s.follow_key.name=='none','An o
 s,notes=Link.parse_settings('status_key=F7\nfollow_key=F7\n')
 assert(#notes==1 and notes[1]=='settings: F7 is set for two actions: default keys used' and s.follow_key.name=='F7'
     and s.status_key.name=='F6')
+-- collide (experimental, your own): on or off in any case, off by default and in a file written before it, named
+-- right after follow_host with its comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nfollow_host=ask\n# Solid partner, experimental: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('\ncollide=off\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.collide==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.collide==false)
+s,notes=Link.parse_settings('COLLIDE=On')
+assert(#notes==0 and s.collide==true)
+s,notes=Link.parse_settings('collide=solid')
+assert(#notes==1 and notes[1]=="settings: line 1: 'solid' is not allowed for collide (use on or off); collide stays off"
+    and s.collide==false,notes[1])
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
 -- written before them reads the defaults with no line. A bad value keeps the default, with a line.

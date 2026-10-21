@@ -13,7 +13,7 @@
 -- simulated only while drawn, its reset as the ghost shows, and a plain part when that fails;
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
--- them in place(), within their budget.
+-- them in place(), within their budget; with collide on, the solid partner's capsule and the rules that open it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -108,6 +108,7 @@ local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags a
 local function poseable(actor)
     local p=object('Poseable',{calls={}},0xc2)
     function p:SetLightingChannels(a,b,c) self.channels={a,b,c} end
+    function p:K2_IsCollisionEnabled() return self.calls.SetCollisionEnabled~=0 end
     function p:SetRenderCustomDepth(on) if fail_depth then error('no custom depth') end self.custom_depth=on end
     function p:SetCustomDepthStencilValue(v) self.stencil=v end
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
@@ -176,7 +177,8 @@ local fail_text,fail_color=false,false -- FText or FColor refuses its table: Lua
 FText=function(text) ue4ss(); if fail_text then error('no FText') end return {text=text} end
 local function text_render(actor)
     local l=object('TextRender',{},0xc3)
-    for _,f in ipairs({'SetWorldSize','SetHorizontalAlignment','SetTextRenderColor','SetAbsolute'}) do
+    for _,f in ipairs({'SetWorldSize','SetHorizontalAlignment','SetTextRenderColor','SetAbsolute',
+        'SetCollisionEnabled'}) do
         l[f]=function(self,a) if f=='SetTextRenderColor' and fail_color then error('no FColor') end self[f]=a end
     end
     function l:K2_AttachToComponent(parent,socket) self.attached={parent=parent,socket=socket:ToString()} end
@@ -185,7 +187,31 @@ local function text_render(actor)
     function l:K2_SetWorldRotation(r) self.rot=r; self.turns=(self.turns or 0)+1 end
     function l:SetVisibility(v,children) assert(children==false); self.visible=v; self.shows=(self.shows or 0)+1 end
     function l:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
+    function l:K2_IsCollisionEnabled() return self.SetCollisionEnabled~=0 end -- The call's value once it was made.
     return l
+end
+-- The solid partner's capsule: every call kept in order, with its arguments; collision as last set. fail_capsule:
+-- SetCapsuleSize refuses.
+local fail_capsule=false
+local function capsule_part(actor)
+    local c=object('Capsule',{order={},args={},enabled={}},0xc4)
+    for _,f in ipairs({'K2_SetRelativeLocation','SetAbsolute','SetCapsuleSize','SetGenerateOverlapEvents',
+        'SetCollisionObjectType','SetCollisionResponseToAllChannels','SetCollisionResponseToChannel'}) do
+        c[f]=function(self,...)
+            if f=='SetCapsuleSize' and fail_capsule then error('no capsule size') end
+            self.order[#self.order+1]=f; self.args[f]=table.pack(...)
+        end
+    end
+    function c:SetCollisionEnabled(v)
+        self.order[#self.order+1]='SetCollisionEnabled'
+        self.enabled[#self.enabled+1]=v
+    end
+    function c:K2_IsCollisionEnabled() return (self.enabled[#self.enabled] or 1)~=0 end
+    function c:K2_DestroyComponent(owner)
+        assert(owner==actor,'DestroyComponent takes the owner')
+        self.destroyed=true
+    end
+    return c
 end
 local fail_add,fail_label=false,false
 local box_reads=0 -- Reads of an effect box's relative fields: place() reads them only on a new effects stamp.
@@ -203,12 +229,22 @@ end
 local world=object('World',{SpawnActor=function(_,class,at)
     assert(class.path=='/Script/Engine.Actor' and at.X==1)
     local a=object('Ghost',{parts={},components={}})
-    function a:SetActorEnableCollision() end
+    function a:SetActorEnableCollision(on,fast) self.collision={on,fast} end
     function a:SetActorHiddenInGame(hidden) self.hidden=hidden end
+    function a:K2_GetComponentsByClass(c) -- Its primitives: the parts, the tag and the capsule.
+        assert(c.path=='/Script/Engine.PrimitiveComponent')
+        local list={}
+        for _,added in ipairs(self.components) do if added.K2_IsCollisionEnabled then list[#list+1]=added end end
+        return list
+    end
     function a:AddComponentByClass(c,manual)
         if fail_add then return nil end
         local added
-        if c.path=='/Script/Engine.SceneComponent' then
+        if c.path=='/Script/Engine.CapsuleComponent' then
+            assert(manual==false,'The capsule hangs on the root')
+            added=capsule_part(self)
+            self.capsule=added
+        elseif c.path=='/Script/Engine.SceneComponent' then
             assert(manual==true,'The mailbox and the effect boxes are never attached')
             if self.mailbox then -- After it: an effect box.
                 added=effect_box()
@@ -406,14 +442,15 @@ local d=displays[#displays]:gsub('0x%x+','0xX')
 assert(d=='display 500\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
 assert(displays[#displays]:find('\nmailbox 0x%x+ 0x5c0\ndrive 0 '..string.format('0x%x',root.GetAddress())..' 0xc2 '
     ..string.format('0x%x',meshes[BODY].GetAddress())..' 3\n'),'The loaded mesh, not hers')
-assert(ghost.status()=='ghost=on parts=6 leaders=3 basesuit=0 left_out=0 table=500 source=loopback',ghost.status())
+assert(ghost.status()=='ghost=on parts=6 leaders=3 basesuit=0 left_out=0 table=500 source=loopback collide=off',
+    ghost.status())
 -- The name tag: whose ghost (here her own, through the loopback), 2 m above the main mesh, never a part.
 local tag=actor.label
 assert(tag and tag.text=='loopback' and tag.attached.parent==root and tag.attached.socket=='None','Hung on the main mesh')
 assert(tag.relative.X==0 and tag.relative.Y==0 and tag.relative.Z==200 and tag.SetWorldSize==18 and not tag.destroyed)
 assert(actor.components[1]==root and actor.components[#actor.components]==actor.mailbox,'Before the mailbox, never root')
 FindAllOf=function(class) assert(class=='PoseableMeshComponent'); return actor.parts end
-assert(ghost.status():find('left_out=0 table=500 source=loopback$'),'No stray part: the tag is none')
+assert(ghost.status():find('left_out=0 table=500 source=loopback collide=off$'),'No stray part: the tag is none')
 FindAllOf=nil
 
 -- Shown at the first pose, placed from the mailbox 2 m to her right in loopback; hidden a second after the last pose.
@@ -516,7 +553,7 @@ send(500,her_parts({socket='SC_Back',blade_shown=false}),'replay')
 box.RelativeScale3D.Z=7
 ghost.place()
 assert(math.abs(root.at.X-100)<1e-6 and math.abs(root.at.Y)<1e-6,'No offset off the loopback')
-assert(ghost.status():find(' source=replay$'),ghost.status())
+assert(ghost.status():find(' source=replay collide=off$'),ghost.status())
 
 -- A new generation, every fallback reason: part 0 has no path ('-'), the hair is missing (a DLC this PC lacks), the
 -- blade has another bone count and no fallback: it is left out, and its scabbard with it.
@@ -1132,6 +1169,7 @@ local library=object('NiagaraFunctionLibrary',{SpawnSystemAttached=function(_,..
     if spawn_fails then error('no Niagara on a Poseable') end
     local fx=object('NiagaraComponent')
     function fx:Deactivate() events[#events+1]='Deactivate'; self.stopped=true end
+    function fx:SetCollisionEnabled(v) self.collision=v end -- Only on a ghost with the solid partner's capsule.
     function fx:K2_SetRelativeLocationAndRotation(at,rotation,sweep,hit,teleport)
         events[#events+1]='K2_SetRelativeLocationAndRotation'
         self.moved={at=at,rotation=rotation,sweep=sweep,hit=hit,teleport=teleport}
@@ -1253,6 +1291,221 @@ box.RelativeScale3D.X=14
 box.RelativeScale3D.Z=40
 assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
 spawn_fails=false
+
+-- The solid partner (collide=on, off by default). Puppet.solid's rules a to g as a table, one case each, then the
+-- latches of b and e and their reset by a. Then on fakes: no capsule while off; built the first time the ghost shows
+-- with collide on, from your EVE's capsule (size, height, object type), blocking her type alone, never a step, with
+-- the tag's collision off and the actor's on; closed or opened only on a change; one line at each contact; the
+-- friend's vitals (g) for a friend's ghost only; WorldDynamic when her capsule does not block its own type; an
+-- effect started on it without collision; a capsule that cannot be built said once and never tried again on that
+-- ghost, which stays.
+local Solid=package.loaded.puppet.solid
+local function rule(k,over) -- Two capsules of radius 40 and half height 95, 1 m apart across, level.
+    local i={on=true,shown=true,h=100,v=0,r=80,hh=190,mode=1,down=false,now=0}
+    for key,v in pairs(over or {}) do i[key]=v end
+    return Solid(k or {},i)
+end
+for _,case in ipairs({
+    {{},true},
+    {{on=false},false,'a'},{{shown=false},false,'a'},
+    {{h=78.9},false,'b'},{{h=79},true},
+    {{h=50,v=190},false,'c'}, -- Across her, but a capsule's height apart: not inside her, and c opens.
+    {{v=59.9},true},{{v=60},false,'c'},
+    {{mode=2},true},{{mode=3},true},{{mode=0},false,'d'},{{mode=5},false,'d'},{{mode=6},false,'d'},
+    {{down=true},false,'g'},
+    {{on=false,h=10,down=true},false,'a'}, -- The first rule that opens it is the one named.
+}) do
+    local solid,why=rule(nil,case[1])
+    local named={}
+    for key,v in pairs(case[1]) do named[#named+1]=key..'='..tostring(v) end
+    assert(solid==case[2] and why==case[3],table.concat(named,' ')..': '..tostring(solid)..' '..tostring(why))
+end
+-- b: once inside her, open until more than 20 cm past touching.
+local k={}
+assert(select(2,rule(k,{h=70}))=='b' and select(2,rule(k,{h=100}))=='b' and rule(k,{h=100.1})==true)
+-- e: 2 s of contact (within 5 cm) with no gap, then open until 50 cm apart.
+k={}
+assert(rule(k,{h=82,now=0})==true and rule(k,{h=82,now=1.99})==true and select(2,rule(k,{h=82,now=2}))=='e')
+assert(select(2,rule(k,{h=129.9,now=3}))=='e' and rule(k,{h=130,now=4})==true)
+k={}
+rule(k,{h=82,now=0})
+rule(k,{h=85,now=1.5}) -- 5 cm apart: a gap.
+assert(rule(k,{h=82,now=1.6})==true and rule(k,{h=82,now=3.59})==true and select(2,rule(k,{h=82,now=3.6}))=='e')
+-- a: hidden or off forgets both.
+k={}
+assert(select(2,rule(k,{h=70,now=0}))=='b' and select(2,rule(k,{h=82,now=2}))=='b','Inside, and 2 s of contact')
+assert(select(2,rule(k,{shown=false,now=2.1}))=='a' and rule(k,{h=90,now=2.2})==true,'Both forgotten')
+
+-- On fakes: your EVE with her capsule (object type 24, blocking it unless blocks says otherwise), her movement and her
+-- camera boom; her capsule's centre at her_at (the ghost spawns where she stands: X=1).
+local blocks,her_at=2,{X=1,Y=2,Z=3}
+local movement=object('CharMoveComp',{MovementMode=1,Velocity={X=300,Y=400,Z=50},
+    RootMotionData={pRootMotionData=invalid}})
+function movement:GetMaxSpeed() return 600 end
+local cylinder=object('CollisionCylinder')
+function cylinder:GetCollisionObjectType() return 24 end
+function cylinder:GetCollisionResponseToChannel(channel) return channel==24 and blocks or 0 end
+function cylinder:GetUnscaledCapsuleRadius() return 40 end
+function cylinder:GetUnscaledCapsuleHalfHeight() return 95 end
+local boom=object('CameraBoom',{ProbeChannel=4})
+local function solid_eve(name,capsule)
+    local her=eve_of(name)
+    local e=getmetatable(her).__index
+    e.CapsuleComponent,e.CharacterMovement=capsule,movement
+    e.K2_GetActorLocation=function() return her_at end
+    e.GetComponentByClass=function(_,class)
+        return class.path=='/Script/Engine.SpringArmComponent' and boom or invalid
+    end
+    e.Mesh.RelativeLocation={X=0,Y=0,Z=-97}
+    return her
+end
+local mate={life=1,hp=100,max_hp=100} -- Her vitals, as link.mate() gives them.
+link.mate=function() return mate end
+player=solid_eve('EVE8',cylinder)
+ghost=new(nil,true,look) -- Effects on (above).
+ghost.toggle()
+send(910,her_parts(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 910 built: '),message)
+actor=spawned[#spawned]
+box=actor.mailbox
+local function stand(stamp,x) -- A pose: the ghost's feet at (x, 0, 0), hers where her_at says.
+    box.RelativeScale3D.Z,box.RelativeLocation=stamp,{X=x,Y=0,Z=0}
+    return ghost.place()
+end
+her_at={X=600,Y=0,Z=97} -- 1 m from the ghost's feet across, level with its capsule.
+assert(stand(60,500)==nil and actor.hidden==false and not actor.capsule,'Off: no capsule')
+assert(ghost.status():find(' source=peer collide=off$'),ghost.status())
+-- On: built at the next frame, then solid in that frame (1 m apart, level, walking, her vitals alive).
+ghost.collide(true)
+ok,message=ghost.place()
+assert(ok==true and message=='Solid partner built: her capsule type 24 response 2, radius 40, half height 95, 97 cm '
+    ..'above her feet; ours type 24; camera probe channel 4; other parts with collision 0.',tostring(message))
+local cap=actor.capsule
+assert(table.concat(cap.order,' ')=='SetCollisionEnabled K2_SetRelativeLocation SetAbsolute SetCapsuleSize '
+    ..'SetGenerateOverlapEvents SetCollisionObjectType SetCollisionResponseToAllChannels '
+    ..'SetCollisionResponseToChannel SetCollisionEnabled',table.concat(cap.order,' '))
+local args=cap.args
+assert(args.K2_SetRelativeLocation[1].X==0 and args.K2_SetRelativeLocation[1].Z==97,'As high as her capsule')
+assert(args.SetAbsolute[1]==false and args.SetAbsolute[2]==true and args.SetAbsolute[3]==false,'Upright')
+assert(args.SetCapsuleSize[1]==40 and args.SetCapsuleSize[2]==95 and args.SetGenerateOverlapEvents[1]==false)
+assert(args.SetCollisionObjectType[1]==24 and args.SetCollisionResponseToAllChannels[1]==0
+    and args.SetCollisionResponseToChannel[1]==24 and args.SetCollisionResponseToChannel[2]==2,'Hers, blocked alone')
+assert(cap.CanCharacterStepUpOn==0 and actor.label.SetCollisionEnabled==0,'Never a step; the tag has no collision')
+assert(actor.collision[1]==true and actor.collision[2]==false,"The actor's collision on")
+assert(#cap.enabled==2 and cap.enabled[1]==0 and cap.enabled[2]==1,'Built closed, then solid')
+assert(ghost.place()==nil and stand(61,500)==nil and #cap.enabled==2,'Nothing changed: nothing called')
+-- b: the ghost steps into her (its stream lags hers): open in that frame, with the contact's line.
+ok,message=stand(62,560)
+assert(ok==true and message=='Solid partner contact: speed=500 max=600 mode=1 root_motion=none solid=0',
+    tostring(message))
+assert(#cap.enabled==3 and cap.enabled[3]==0)
+assert(stand(63,505)==nil and #cap.enabled==3,'95 cm apart: still open, the same contact')
+assert(stand(64,499)==nil and #cap.enabled==4 and cap.enabled[4]==1,'Past 1 m: solid again')
+-- c: her feet 60 cm higher than the ghost's.
+her_at={X=600,Y=0,Z=157}
+assert(ghost.place()==nil and cap.enabled[5]==0)
+her_at={X=600,Y=0,Z=156}
+assert(ghost.place()==nil and cap.enabled[6]==1)
+-- d: she swims, climbs or flies; falling still blocks.
+movement.MovementMode=5
+ghost.place()
+assert(cap.enabled[7]==0)
+movement.MovementMode=3
+ghost.place()
+assert(cap.enabled[8]==1 and #cap.enabled==8)
+movement.MovementMode=1
+-- g: no vitals from her, or down (life 3 to 5, or 0 HP), opens it; alive again closes it.
+mate=nil
+ghost.place()
+assert(cap.enabled[9]==0)
+for _,m in ipairs({{life=3,hp=50,max_hp=100},{life=1,hp=0,max_hp=100}}) do
+    mate=m
+    ghost.place()
+    assert(#cap.enabled==9,'Down')
+end
+mate={life=6,hp=100,max_hp=100}
+ghost.place()
+assert(cap.enabled[10]==1)
+-- e: in contact with her for 2 s (her walking into it in a doorway): open until 50 cm apart. The contact's line says
+-- her move's root motion data.
+movement.RootMotionData={pRootMotionData=object('RMD_Evade_F')}
+her_at={X=582,Y=0,Z=97}
+ok,message=ghost.place()
+assert(ok==true and message=='Solid partner contact: speed=500 max=600 mode=1 root_motion=RMD_Evade_F solid=1',
+    tostring(message))
+clock=clock+0.75; stand(65,499)
+clock=clock+0.75; stand(66,499)
+assert(#cap.enabled==10,'1.5 s: still solid')
+clock=clock+0.75; stand(67,499)
+assert(cap.enabled[11]==0,'2.25 s: open')
+her_at={X=628,Y=0,Z=97}
+assert(ghost.place()==nil and #cap.enabled==11,'49 cm apart: still open')
+her_at={X=630,Y=0,Z=97}
+assert(ghost.place()==nil and cap.enabled[12]==1)
+movement.RootMotionData={pRootMotionData=invalid}
+-- a: collide off; the ghost hidden a second after her last pose.
+ghost.collide(false)
+ghost.place()
+assert(cap.enabled[13]==0)
+ghost.collide(true)
+ghost.place()
+assert(cap.enabled[14]==1)
+clock=clock+1
+ghost.place()
+assert(actor.hidden and cap.enabled[15]==0 and #cap.enabled==15)
+assert(ghost.status():find(' source=peer collide=on solid=0 changes=solid:7,a:2,b:1,c:1,d:1,e:1,g:1$'),ghost.status())
+-- A replay has no vitals: g does not apply to it.
+mate=nil
+send(910,her_parts(),'replay')
+stand(68,499)
+assert(actor.hidden==false and #cap.enabled==16 and cap.enabled[16]==1,'Solid without vitals')
+-- An effect started on this ghost has no collision; one started on a ghost without the capsule was left as it was.
+local spawned_fx=#spawns
+slot(1,1,0,1)
+box.RelativeScale3D.X=2
+ghost.place()
+assert(#spawns==spawned_fx+1 and spawns[#spawns].fx.collision==0 and spawns[1].fx.collision==nil)
+-- Her capsule not blocking its own type: WorldDynamic (1), which hers blocks, still blocking her type alone.
+blocks=0
+her_at={X=1,Y=2,Z=3}
+ghost.rebuild('test')
+build()
+actor=spawned[#spawned]
+box=actor.mailbox
+her_at={X=600,Y=0,Z=97}
+ok,message=stand(70,500)
+assert(ok==true and message:find(' response 0, .*; ours type 1; '),tostring(message))
+assert(actor.capsule.args.SetCollisionObjectType[1]==1 and actor.capsule.args.SetCollisionResponseToChannel[1]==24)
+blocks=2
+-- One that fails while it is set up: removed, said once, never tried again on this ghost, which stays.
+fail_capsule=true
+her_at={X=1,Y=2,Z=3}
+ghost.rebuild('test')
+build()
+actor=spawned[#spawned]
+box=actor.mailbox
+her_at={X=600,Y=0,Z=97}
+ok,message=stand(71,500)
+assert(ok==false and message:find('^Solid partner off on this ghost: .*no capsule size$'),tostring(message))
+assert(actor.capsule.destroyed and #actor.capsule.enabled==1 and not actor.destroyed,'Removed, never with collision')
+assert(stand(72,500)==nil and ghost.status():find(' collide=failed$'),ghost.status())
+fail_capsule=false
+-- No capsule on her EVE at all: the same, nothing added.
+her_at={X=1,Y=2,Z=3}
+player=solid_eve('EVE9',nil)
+ghost.tick()
+clock=clock+2
+build()
+actor=spawned[#spawned]
+box=actor.mailbox
+her_at={X=600,Y=0,Z=97}
+ok,message=stand(73,500)
+assert(ok==false and message:find('^Solid partner off on this ghost: '),tostring(message))
+assert(not actor.capsule and not actor.destroyed and stand(74,500)==nil,'Said once, never tried again')
+link.mate=nil
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
 local part=cloth_part(object('Owner'))

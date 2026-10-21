@@ -48,7 +48,9 @@ M.OPTIONS={
     reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
-    toggle('cloth','on'),toggle('dyes','off'),toggle('effects','off'),later(toggle('basesuit','off')),
+    toggle('cloth','on'),toggle('dyes','off'),toggle('effects','off'),
+    toggle('collide','off'), -- Yours, at once: the solid partner (puppet.lua).
+    later(toggle('basesuit','off')),
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.

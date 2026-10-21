@@ -198,7 +198,8 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         world=function() return in_world,at_title end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
-        me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
+        me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end,
+        collide=function(on) package.loaded.puppet.collide=on end} -- Each 250 ms: no room for one more local.
 end}
 package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings} -- The real parser.
 local said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
@@ -864,6 +865,11 @@ assert(logged('photo sync: notice, longest pause no limit, ghost in your photos 
 in_world,photo_mode=true,true; loops[2].f()
 assert(photos[#photos]=='1 notice 0' and veils[#veils]==true)
 assert(photo_veils[#photo_veils][1]==true and photo_veils[#photo_veils][2]==false,'The ghost goes, its tag would stay')
+assert(package.loaded.puppet.collide==false,'collide=off by default, to the ghost each 250 ms')
+settings_text='collide=on\n'
+load_main(true)
+loops[2].f()
+assert(package.loaded.puppet.collide==true,'collide=on')
 settings_text='photo_sync=yes\nphoto_freeze_max=29\n'
 load_main(true)
 assert(logged("settings: line 1: 'yes' is not allowed for photo_sync (use both, notice or off); photo_sync stays both"))
