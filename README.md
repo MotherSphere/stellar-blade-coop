@@ -5,9 +5,11 @@ other's EVE in their own world.
 
 Status: v0.3.0-beta.1, an experimental pre-release. It runs on Stellar Blade's Steam build 24463856 only. The ghost
 co-op was first played between two PCs on 2026-10-17 with v0.1.1, one on Linux with Proton and one on Windows, between
-Belgium and Brazil at about 240 ms ping. The co-op menu has since been seen working in game. Join codes, shared enemies,
-the automatic co-op saves, 60 poses a second, synced photo mode, the chat, the partner HUD and the optional looks have
-not been tested in game yet, and neither have longer sessions or level changes between two PCs.
+Belgium and Brazil at about 240 ms ping. Builds from before this release ran between two PCs on 2026-10-19 and
+2026-10-20, and the 2026-10-20 build showed the co-op menu and the partner HUD in game. The changes made after that
+build have not been tested in game, among them join codes, the menu's key icons, the partner HUD fixes and sending 60
+poses a second. Shared enemies, the co-op saves, synced photo mode, the chat, the optional looks, longer sessions and
+level changes between two PCs have not been tested in game either.
 
 StellarCoop is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through the Steam
 client that the game already runs, so the mod needs no other program and no server of its own.
