@@ -1,5 +1,6 @@
 -- The Night Operation run without the game: the monster pool and the wave schedule, the wave keys, the run byte, the
--- seeded gate order and the gate spots, the timer list, the score and the run's states over a fake clock.
+-- seeded gate order and the gate spots, the timer list, the score and the run's states over a fake clock. Then a run
+-- read from another definition: waves that wait for a clear, its own limit, heals and bonus, and its own spots.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 
@@ -15,7 +16,10 @@ end
 assert(W.SCHEDULE[1].at==0 and W.CAP==8)
 local n=0
 for _ in pairs(W.POOL) do n=n+1 end
-assert(n==7,'Seven pool rows')
+assert(n==10,'Seven monster rows and three target dummies')
+for id,alias in pairs({[40010]='M_DummyA',[40020]='M_DummyB',[40030]='M_DummyC'}) do
+    assert(W.POOL[id].alias==alias and W.points(id)==40,alias)
+end
 assert(W.points(50110)==10 and W.points(50450)==20 and W.points(50440)==40 and W.points(50161)==60)
 assert(not W.POOL[50160] and not W.POOL[15011001],'No base Skull row (summons), no region row (rewards)')
 
@@ -41,7 +45,7 @@ end
 for _,key in ipairs({0x1D82A0100,W.key(1,1,0)-0x200000000,W.key(1,1,0)+0.5,0xD82A0100*1.0,'3626631424'}) do
     assert(W.decode(key)==nil,tostring(key)..' is not a wave key')
 end
-for _,bad in ipairs({{0,1,0},{256,1,0},{1,0,0},{1,6,0},{1,1,8},{1,1,-1}}) do
+for _,bad in ipairs({{0,1,0},{256,1,0},{1,0,0},{1,256,0},{1,1,8},{1,1,-1}}) do
     assert(not pcall(W.key,bad[1],bad[2],bad[3]),'Refused: '..table.concat(bad,','))
 end
 
@@ -454,5 +458,84 @@ assert(follow(g,line(4,'wave',4,200000,{clears=2}),225)=='wave 3, wave 4')
 assert(follow(g,line(5,'wave',4,210000,{clears=3}),235)=='' and g.clear_at[3]==210,'Wave 3 down while 4 runs')
 assert(follow(g,line(6,'end',5,300000,{clears=5,outcome='success'}),325)=='end success')
 assert(g.clear_at[4]==300 and g.clear_at[5]==300 and g.clears==5,'His last clears, from his end line')
+
+-- Night Operation is a definition of the same shape, built from the constants above; a run without one reads it, and
+-- its gate draws are the stored ones.
+assert(W.NIGHT.id=='night' and W.NIGHT.waves==W.SCHEDULE and W.NIGHT.limit==480 and W.NIGHT.breather==10)
+assert(W.NIGHT.heals==W.HEALS and W.NIGHT.bonus==1 and W.NIGHT.aggro==true and W.NIGHT.moves==2 and not W.NIGHT.spots)
+assert(start().def==W.NIGHT and orders(0x12345678)==(function()
+    local out={}
+    for _,o in ipairs(W.orders(0x12345678,W.NIGHT)) do out[#out+1]=table.concat(o) end
+    return table.concat(out,' ')
+end)())
+
+-- Keys take waves 1 to 255: a run of eight waves keys its last one.
+assert(W.key(RUN,8,7)==0xD82A0807 and W.key(1,255,0)==0xD801FF00)
+local r8,w8,s8=W.decode(W.key(RUN,8,7))
+assert(r8==RUN and w8==8 and s8==7)
+
+-- A definition whose later waves have no run time: each comes only a breather after the wave before it is down, however
+-- long that takes. Its limit, heals and bonus are its own.
+local DEF={id='test',waves={{at=0,ids={50110,50110}},{ids={40010}},{ids={40020,40030}}},limit=90,breather=3,
+    heals={[1]=true},bonus=10,aggro=false,moves=0}
+local function start_def(def) return W.new({run=RUN,seed=0x12345678,now=100,def=def}) end
+s=start_def(DEF)
+assert(s.def==DEF and at(s,0)=='wave 1' and s.next_at==nil,'No next wave while wave 1 is up')
+assert(at(s,60)=='' and s.wave==1,'Wave 2 waits for wave 1')
+assert(said(W.step(s,{killed=keys(1,0,1)},105+61))=='heal 1' and s.phase=='breather' and s.next_at==64,
+    'The definition\'s heal, then its 3 s breather')
+assert(at(s,63.75)=='' and at(s,64)=='wave 2')
+assert(said(W.step(s,{killed=keys(2,0,0)},105+70))=='' and s.next_at==73,'No heal after wave 2 here')
+assert(at(s,73)=='wave 3' and s.next_at==nil)
+-- Success at 80.25: 20 + 40 + 80 for the kills, 10 points a second left, floor((90 - 80.25) * 10) = 97.
+assert(said(W.step(s,{killed=keys(3,0,1)},105+80.25))=='end success' and s.score==140+97 and s.clears==3)
+near(s.time,80.25,'Run time at the end')
+-- Time up at the definition's 90 s, not Night Operation's 480.
+s=start_def(DEF)
+at(s,0)
+assert(at(s,89.75)=='' and at(s,90)=='end time' and s.time==90 and s.score==0)
+-- A wave that was never down never lets the next one come, even a breather after a body of it.
+s=start_def(DEF)
+at(s,0)
+assert(at(s,5,{done=keys(1,0,0)})=='' and at(s,30)=='' and s.wave==1 and s.phase=='wave')
+-- Eight waves of one each: every wave key counts, wave 8's down ends the run.
+local eight={id='eight',waves={{at=0,ids={50110}}},limit=600,breather=1,heals={},bonus=1,aggro=true,moves=2}
+for _=2,8 do eight.waves[#eight.waves+1]={ids={50110}} end
+s=start_def(eight)
+for k=1,8 do
+    assert(at(s,(k-1)*2)=='wave '..k,'Wave '..k)
+    local want=k==8 and 'end success' or ''
+    assert(said(W.step(s,{killed=keys(k,0,0)},105+(k-1)*2+1))==want,'Wave '..k..' down')
+end
+assert(s.kills==8 and s.clears==8 and s.score==80+math.floor(600-15))
+
+-- Spots: slot s of a wave stands on spot order[s+1], at the start yaw plus its degrees and its metres from P0, 1 m
+-- above P0, facing P0; each wave draws its own order of all the spots.
+local SPOTS={id='spots',waves={{at=0,ids={40010}},{ids={40010}},{ids={40010}}},limit=90,breather=3,heals={},
+    bonus=10,aggro=false,moves=0,spots={{-45,12},{45,12},{-25,18},{25,18},{0,22},{-40,26},{40,26},{0,32}}}
+local drawn=W.orders(0x12345678,SPOTS)
+assert(#drawn==3)
+for _,o in ipairs(drawn) do
+    local seen={}
+    for _,i in ipairs(o) do seen[i]=true end
+    assert(#o==8 and #seen==8,'All eight spots, each once: '..table.concat(o,','))
+end
+assert(table.concat(drawn[1])~=table.concat(drawn[2]) and table.concat(drawn[2])~=table.concat(drawn[3]),
+    'A new order each wave')
+assert(table.concat(start_def(SPOTS).order[2])==table.concat(drawn[2]),'The run keeps the definition\'s draws')
+for _,o in ipairs(drawn) do
+    for slot=0,7 do
+        local spot=SPOTS.spots[o[slot+1]]
+        local pos,face=W.spot(P0,90,o,slot,SPOTS)
+        near(math.sqrt((pos.X-P0.X)^2+(pos.Y-P0.Y)^2),spot[2]*100,'Its metres from P0')
+        near(pos.Z,P0.Z+100,'1 m up')
+        near(turn(bearing(pos)-(90+spot[1])),0,'Its degrees from the start yaw')
+        near(turn(face-bearing(pos)-180),0,'Faces P0')
+    end
+end
+-- Without spots the definition keeps the gates.
+local g1,y1=W.spot(P0,90,{3,1,2,4},0,DEF)
+local g2,y2=W.spot(P0,90,{3,1,2,4},0)
+assert(g1.X==g2.X and g1.Y==g2.Y and g1.Z==g2.Z and y1==y2)
 
 print('nightop_waves_test: ok')

@@ -13,7 +13,8 @@
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop|
 -- shop|buy <n> [count]], Night Operation's run (nightop_run.lua) and its reward shop (nightop_shop.lua), on a co-op
--- save only (stop anywhere); coop recruiter [off], the cut
+-- save only (stop anywhere); coop challenge [<name>|stop], the solo challenge runs on the same code (challenges.lua),
+-- with each one's best run in coop-records.txt, on a co-op save only (stop anywhere); coop recruiter [off], the cut
 -- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; the friend's revive
 -- (group.lua, revive in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at
 -- the death screen (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene
@@ -117,7 +118,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -154,10 +155,27 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 -- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
 -- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell). Linked, its night line
 -- goes out through link.night and the partner's name comes from link.friend. The shop's wallets are link.store files.
+-- commands.challenge starts the challenges on the same run. Their best runs go in coop-records.txt in the mod folder
+-- (none when it is unknown). No such file is no best yet; a file that cannot be opened raises, so nothing is written
+-- over it. It is written through a temporary file: a write that fails before the old file is deleted leaves it as it
+-- was, one that fails after leaves the new text in coop-records.txt.tmp.
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,send=function(line) if link then return link.night(line) end end,
-    friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end})
+    friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
+    records=folder and {
+        read=function()
+            local text,e,code=require('link').files.read(folder..'\\coop-records.txt')
+            if text==nil and code~=2 then error(e) end -- 2: ENOENT, no such file.
+            return text
+        end,
+        write=function(text)
+            local fs,p=require('link').files,folder..'\\coop-records.txt'
+            if not fs.write(p..'.tmp',text) then return false end
+            fs.remove(p) -- rename never replaces on Windows.
+            -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
+            return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
+        end} or nil})
 -- The friend's revive (group.lua) and the follow (travel.lua), with the Steam link only: built and ticked below.
 local group,travel=nil,nil
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
@@ -367,6 +385,13 @@ local commands={
         if sub=='host' and arg==nil then return travel.press() end
         if sub=='probe' and arg~=nil and extra==nil then return travel.probe(arg) end
         return false,'Use: coop travel host'
+    end,
+    challenge=function(sub,extra)
+        if sub~='stop' then
+            local ok,why=coop_slot('coop challenge')
+            if not ok then return false,why end
+        end
+        return night.challenge(sub,extra)
     end,
     recruiter=function(sub,extra)
         local ok,why=coop_slot('coop recruiter')

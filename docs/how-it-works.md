@@ -44,10 +44,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
-| `nightop.lua` | The `coop no` probe, and the heal that a Night Operation run fires |
-| `nightop_waves.lua` | The run's waves, keys, score, timers and states, alone or for two players, and the night line's two formats, with no engine call |
-| `nightop_run.lua` | The `coop nightop` run: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
+| `nightop.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
+| `nightop_waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
+| `nightop_run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
 | `nightop_shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
+| `challenges.lua` | The challenges' waves and rules, their check, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
@@ -947,6 +948,9 @@ claim the host accepts):
   player's save only by the took-part test above. The shop's points go only to a player whose own game ran the run from
   its countdown to a success or a time up: each game credits its own player, a guest whose game missed the countdown
   gets none, and no line between the games carries points.
+- The challenges run only without a Steam session: a start refuses one, and a session that starts ends the run. Their
+  kills are the player's own, and they give no shop points. A best run goes into `coop-records.txt` only on the PC
+  whose own solo run ended in success, never from a co-op run and never over the link.
 - The travel to the host is meant to reach only camps the guest's save has activated, and never to activate one, since
   activating a camp counts toward achievements ([Following the host](#following-the-host)). A revive changes only the
   downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills too. The cutscene wait

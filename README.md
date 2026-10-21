@@ -65,9 +65,12 @@ a score, on a co-op save. With no Steam session it is a solo run. In a session t
 the same waves while both screens show one timer and one score; with shared enemies on, each wave monster has one HP
 bar and one death in both games. A run that ends in success or time up gives points for a console shop that sells four
 of the game's items. None of this has been tested in game yet (see
-[docs/night-operation.md](docs/night-operation.md#the-co-op-run)). Two research previews also run only on a co-op
-save. `coop recruiter` brings back the cut recruiter near Roxanne, and you can talk to him. `coop no` tests
-parts of the cut mode in a solo game. Neither preview is a playable mode.
+[docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs four short fights on the same
+code, one of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. The
+challenges are solo: they need a co-op save and no Steam session, and give no shop points. They have not been tested
+in game yet either (see [docs/night-operation.md](docs/night-operation.md#challenges-coop-challenge)). Two research
+previews also run only on a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and you can talk
+to him. `coop no` tests parts of the cut mode in a solo game. Neither preview is a playable mode.
 
 ## Install
 
@@ -86,7 +89,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 | [INSTALL.md](INSTALL.md) | Install, update, check the files, co-op saves, uninstall, which logs to send |
 | [docs/usage.md](docs/usage.md) | Keys, the co-op menu, the chat, the partner HUD, every `coop` command, `coop-settings.txt`, looks, notices, status lines, files |
 | [docs/how-it-works.md](docs/how-it-works.md) | The Steam link, the ghost pipeline, safety design, loopback and replay |
-| [docs/night-operation.md](docs/night-operation.md) | The cut mode, the plan, the run alone and with a partner, the reward shop and the two previews |
+| [docs/night-operation.md](docs/night-operation.md) | The cut mode, the plan, the run alone and with a partner, the reward shop, the challenges and the two previews |
 | [docs/saves.md](docs/saves.md) | Save safety, backups, Steam Cloud, the co-op saves, recovery |
 | [docs/building.md](docs/building.md) | Building from source, tests, the reproducible build, repository layout |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems and which logs to send |
@@ -107,9 +110,11 @@ runs on your own copy of the game.
 
 ## Credits
 
-Night Operation's run (`coop nightop`) and the friend's revive adapt code from
-[Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus Mods, Stellar Blade
-mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The adapted parts are:
+Night Operation's run (`coop nightop`), the challenges (`coop challenge`), which run on the same code, and the friend's
+revive adapt code from [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus
+Mods, Stellar Blade mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The
+challenge list follows Survival Protocol's graded stages, its five difficulty stages picked from a list before a fight.
+The adapted parts are:
 
 - sending a new monster at EVE;
 - giving a monster with no AI controller its default one;

@@ -1,6 +1,7 @@
 -- Night Operation's run without a game call: the monster pool and the five-wave schedule, the wave keys, the run byte,
 -- the seeded gate order and the spot of each monster, the score, the timer list and the run's states, solo or for two
--- linked players (the night line's two codecs, the host's merge of her world, the guest's run following his). The
+-- linked players (the night line's two codecs, the host's merge of her world, the guest's run following his). A run
+-- reads its waves and rules from a definition (W.NIGHT, or a challenge from challenges.lua; a challenge is solo). The
 -- game side (spawns, bodies, the HUD, the line) reads and feeds it; tests/nightop_waves_test.lua covers it with lua5.4
 -- alone.
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
@@ -12,8 +13,9 @@ W.CAP=8 -- A wave starts only while the bodies still up plus its own size stay a
 W.HEALS={[2]=true,[4]=true} -- A full heal once these waves are down.
 W.REFRESH=1 -- Seconds between two refreshes of the live list while bodies are tracked; 2 if the log shows slow ones.
 W.MAX_SCORE=1060 -- The schedule's 580 kill points, plus 1 a second left at most.
--- The base monster rows with no reward group and no kill achievement of their own. The Skull rows are the Alone ones:
--- the base rows summon Skullings the run would not track.
+-- The rows a run may spawn: none has a reward group or a species kill row. The Skull rows are the Alone ones: the base
+-- rows summon Skullings the run would not track. The dummies are the game's own target rows (flag Dummy); the shipped
+-- game spawns M_DummyC in two DLC zones.
 W.POOL={
     [50110]={alias='M_Antlion',rank='Animal'},
     [50173]={alias='M_SkullSwordAlone',rank='Normal2'},
@@ -22,6 +24,9 @@ W.POOL={
     [50440]={alias='M_HedgeBoarA',rank='Normal2'},
     [50450]={alias='M_LurkerA',rank='Normal1'},
     [50161]={alias='M_SkullHammerAlone',rank='Normal3'},
+    [40010]={alias='M_DummyA',rank='Normal2'},
+    [40020]={alias='M_DummyB',rank='Normal2'},
+    [40030]={alias='M_DummyC',rank='Normal2'},
 }
 local POINTS={Animal=10,Normal1=20,Normal2=40,Normal3=60}
 function W.points(id) return POINTS[W.POOL[id].rank] end
@@ -34,12 +39,17 @@ W.SCHEDULE={
     {at=240,ids={50183,50183,50193,50193}},
     {at=330,ids={50161,50173,50173,50193}},
 }
+-- A run's definition. waves: {ids=, at=run time or nil}, wave 1 at 0; a wave with no at comes only a breather after the
+-- one before it is down. limit: run time before time up; heals: the waves after which EVE is healed; bonus: points per
+-- second left on a success; aggro: bodies sent at EVE; moves: stuck-rule moves per body; spots: nil for the four gates,
+-- else {degrees from the start yaw, metres from P0} each.
+W.NIGHT={id='night',waves=W.SCHEDULE,limit=W.LIMIT,breather=W.BREATHER,heals=W.HEALS,bonus=1,aggro=true,moves=2}
 -- A monster's EventSpawnId: 0xD8000000 | run << 16 | wave << 8 | slot, a range no EventSpawnTable row uses (its
 -- highest is 0xD42B5F51) below the shared enemies' extras (0xE...) and summons (0xF...).
 local BASE=0xD8000000
 function W.key(run,wave,slot)
     assert(math.type(run)=='integer' and run>=1 and run<=255,'run byte')
-    assert(math.type(wave)=='integer' and wave>=1 and wave<=#W.SCHEDULE,'wave')
+    assert(math.type(wave)=='integer' and wave>=1 and wave<=255,'wave')
     assert(math.type(slot)=='integer' and slot>=0 and slot<W.CAP,'slot')
     return BASE|run<<16|wave<<8|slot
 end
@@ -69,12 +79,15 @@ function W.rng(seed)
         return x
     end
 end
--- One order of the four gates per wave, in wave order: slot s goes to gate order[s % 4 + 1].
-function W.orders(seed)
-    local draw,out=W.rng(seed),{}
-    for k=1,#W.SCHEDULE do
-        local o={1,2,3,4}
-        for i=4,2,-1 do
+-- One order of the four gates (or of the definition's spots) per wave, in wave order: slot s goes to gate
+-- order[s % 4 + 1], or to spot order[s + 1].
+function W.orders(seed,def)
+    def=def or W.NIGHT
+    local draw,out,n=W.rng(seed),{},def.spots and #def.spots or 4
+    for k=1,#def.waves do
+        local o={}
+        for i=1,n do o[i]=i end
+        for i=n,2,-1 do
             local j=draw()%i+1
             o[i],o[j]=o[j],o[i]
         end
@@ -84,13 +97,21 @@ function W.orders(seed)
 end
 -- Where a slot stands and the yaw that faces p0 (centimetres and degrees, as the game's). The gates sit at the start
 -- yaw plus these degrees, 14 m from p0 and 1 m above it. Adapted from Survival Protocol spread: the first monster at a
--- gate stands on it, each further one 2.5 m from it at an angle of k x 2.1 rad.
+-- gate stands on it, each further one 2.5 m from it at an angle of k x 2.1 rad. A definition with spots stands each
+-- slot on its own spot instead.
 local GATES,OUT,UP,SPREAD,STEP={40,-40,140,-140},1400,100,250,2.1
-function W.spot(p0,yaw,order,slot)
-    local g,k=math.rad(yaw+GATES[order[slot%4+1]]),slot//4
-    local r=k>0 and SPREAD or 0
-    local x=p0.X+OUT*math.cos(g)+r*math.cos(k*STEP)
-    local y=p0.Y+OUT*math.sin(g)+r*math.sin(k*STEP)
+function W.spot(p0,yaw,order,slot,def)
+    local x,y
+    if def and def.spots then
+        local spot=def.spots[order[slot+1]]
+        local a=math.rad(yaw+spot[1])
+        x,y=p0.X+spot[2]*100*math.cos(a),p0.Y+spot[2]*100*math.sin(a)
+    else
+        local g,k=math.rad(yaw+GATES[order[slot%4+1]]),slot//4
+        local r=k>0 and SPREAD or 0
+        x=p0.X+OUT*math.cos(g)+r*math.cos(k*STEP)
+        y=p0.Y+OUT*math.sin(g)+r*math.sin(k*STEP)
+    end
     return {X=x,Y=y,Z=p0.Z+UP},math.deg(math.atan(p0.Y-y,p0.X-x))
 end
 -- The run's timers: add(due, action) on run time; drain(now) runs every entry due by now that was there when it began,
@@ -111,16 +132,18 @@ function W.timers()
     end
     return t
 end
--- A new run: {run=byte, seed=, now=game time}. Run time 0 is the end of the 5 s countdown.
+-- A new run: {run=byte, seed=, now=game time, def=its definition, W.NIGHT if none}. Run time 0 is the end of the 5 s
+-- countdown.
 function W.new(o)
-    return {run=o.run,order=W.orders(o.seed),t0=o.now+W.COUNTDOWN,phase='countdown',wave=0,left={},clear_at={},
-        done={},killed={},up=0,clears=0,kills=0,score=0}
+    local def=o.def or W.NIGHT
+    return {run=o.run,def=def,order=W.orders(o.seed,def),t0=o.now+W.COUNTDOWN,phase='countdown',wave=0,left={},
+        clear_at={},done={},killed={},up=0,clears=0,kills=0,score=0}
 end
 local function finish(s,out,now,outcome,reason)
     local rt=now-s.t0
     s.phase,s.outcome,s.reason,s.ended='result',outcome,reason,now
-    s.time=math.max(0,math.min(rt,W.LIMIT))
-    if outcome=='success' then s.score=s.score+math.floor(W.LIMIT-s.time) end
+    s.time=math.max(0,math.min(rt,s.def.limit))
+    if outcome=='success' then s.score=s.score+math.floor((s.def.limit-s.time)*s.def.bonus) end
     out[#out+1]={what='end',outcome=outcome,reason=reason}
     return out
 end
@@ -128,7 +151,7 @@ end
 -- body), with its wave and slot; nil for any other key.
 local function own(s,key)
     local run,k,slot=W.decode(key)
-    if run~=s.run or k<1 or k>s.wave or slot>=#W.SCHEDULE[k].ids then return nil end
+    if run~=s.run or k<1 or k>s.wave or slot>=#s.def.waves[k].ids then return nil end
     return key&MASK,k,slot
 end
 -- A body of this run is done (killed, down, written off, lost or missing) in this world; killed (here or in hers),
@@ -140,14 +163,14 @@ local function body(s,key,killed,here)
     if killed and not s.killed[key] then
         s.killed[key]=true
         s.kills=s.kills+1
-        s.score=s.score+W.points(W.SCHEDULE[k].ids[slot+1])
+        s.score=s.score+W.points(s.def.waves[k].ids[slot+1])
     end
     if here then s.done[key]=true end
 end
 -- Wave k's keys not done: in this world, and, once her line came (mate, her done set), in hers too.
 local function left(s,k,mate)
     local n=0
-    for slot=0,#W.SCHEDULE[k].ids-1 do
+    for slot=0,#s.def.waves[k].ids-1 do
         local key=W.key(s.run,k,slot)
         if not (s.done[key] and (not mate or mate[key])) then n=n+1 end
     end
@@ -163,17 +186,18 @@ local function recount(s,out,rt)
         if s.left[k]==0 and not s.clear_at[k] then
             s.clear_at[k]=rt
             s.clears=s.clears+1
-            if W.HEALS[k] then out[#out+1]={what='heal',wave=k} end
+            if s.def.heals[k] then out[#out+1]={what='heal',wave=k} end
         end
     end
 end
--- The next wave's run time: its scheduled one, or 10 s after the current wave is down when that is sooner; nil after
--- wave 5.
+-- The next wave's run time: its scheduled one, or a breather after the current wave is down when that is sooner; nil
+-- after the last wave. A wave with no schedule has nil until the current wave is down.
 local function due(s)
-    local coming=W.SCHEDULE[s.wave+1]
+    local coming=s.def.waves[s.wave+1]
     if not coming then return nil end
     local clear=s.clear_at[s.wave]
-    return clear and math.min(coming.at,clear+W.BREATHER) or coming.at
+    if not coming.at then return clear and clear+s.def.breather end
+    return clear and math.min(coming.at,clear+s.def.breather) or coming.at
 end
 -- One tick. input: {killed={key,...}, done={key,...}, dead=EVE died, abort=a reason}, each body reported at least once;
 -- in a co-op run on the host, also mate, her last line of this run (W.decode_mate): her kills score, a key is done once
@@ -181,7 +205,7 @@ end
 -- line stopped in her world; his own death is then failed 'host'). Returns the events, in order: {what='heal',wave=k},
 -- {what='wave',wave=k} (spawn it), {what='end',outcome='success'|'time'|'failed'|'aborted',reason=}, {what='idle'} once
 -- the 10 s result is over. s holds phase, wave, score, kills, clears, up, next_at (the next wave's run time, nil after
--- wave 5) and, once ended, outcome, reason and time (run time at the end).
+-- the last wave or while it waits for a clear) and, once ended, outcome, reason and time (run time at the end).
 function W.step(s,input,now)
     local out={}
     if s.phase=='idle' then return out end
@@ -206,23 +230,25 @@ function W.step(s,input,now)
     if mate and mate.state=='dead' then return finish(s,{},now,'failed','guest') end
     if input.abort then return finish(s,{},now,'aborted',input.abort) end
     if mate and mate.state=='abort' then return finish(s,{},now,'aborted',mate.why=='lost' and 'lost' or 'mate') end
-    if s.wave==#W.SCHEDULE and s.up==0 then return finish(s,out,now,'success') end
-    if rt>=W.LIMIT then return finish(s,out,now,'time') end
+    local waves=s.def.waves
+    if s.wave==#waves and s.up==0 then return finish(s,out,now,'success') end
+    if rt>=s.def.limit then return finish(s,out,now,'time') end
     local at=due(s)
-    if at and rt>=at and s.up+#W.SCHEDULE[s.wave+1].ids<=W.CAP then
+    if at and rt>=at and s.up+#waves[s.wave+1].ids<=W.CAP then
         s.wave=s.wave+1
-        s.left[s.wave]=#W.SCHEDULE[s.wave].ids
+        s.left[s.wave]=#waves[s.wave].ids
         s.up=s.up+s.left[s.wave]
         out[#out+1]={what='wave',wave=s.wave}
     end
     s.next_at=due(s)
-    if s.wave>0 then s.phase=(s.left[s.wave]==0 and s.wave<#W.SCHEDULE) and 'breather' or 'wave' end
+    if s.wave>0 then s.phase=(s.left[s.wave]==0 and s.wave<#waves) and 'breather' or 'wave' end
     return out
 end
 
 -- The night line (link.lua's self.night out, the status's night= line in): each side's whole state, written on change
 -- and at least once a second, so a lost line is repaired by the next. The native part checks its bytes and sides
--- only; these codecs check every field and refuse the whole line on any bad one.
+-- only; these codecs check every field and refuse the whole line on any bad one. Only Night Operation (W.NIGHT) runs
+-- for two, so the masks and bounds are its schedule's.
 -- A mask: one bit per key of the schedule, (wave - 1) * 8 + slot, as lowercase hex (40 bits at most).
 local FULL=0
 for k,wave in ipairs(W.SCHEDULE) do for slot=0,#wave.ids-1 do FULL=FULL|1<<((k-1)*8+slot) end end
@@ -342,7 +368,7 @@ local function cleared(s,h,out,heals)
     local function mark(k)
         if s.clear_at[k] or n>=h.clears then return end
         s.clear_at[k],n=h.rt/1000,n+1
-        if heals and W.HEALS[k] then out[#out+1]={what='heal',wave=k} end
+        if heals and s.def.heals[k] then out[#out+1]={what='heal',wave=k} end
     end
     if h.phase=='rest' and h.wave>0 then mark(h.wave) end
     for k=1,h.wave do mark(k) end
@@ -372,7 +398,7 @@ function W.follow(s,h,now,input)
             local reason=h.reason
             if h.outcome=='aborted' and reason~='lost' then reason='mate' end
             finish(s,out,now,h.outcome,reason)
-            s.time,s.score,s.kills,s.clears=math.max(0,math.min(h.rt/1000,W.LIMIT)),h.score,h.kills,h.clears
+            s.time,s.score,s.kills,s.clears=math.max(0,math.min(h.rt/1000,s.def.limit)),h.score,h.kills,h.clears
             return out
         end
         cleared(s,h,out,true)

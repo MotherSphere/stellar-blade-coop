@@ -165,10 +165,10 @@ with tempfile.TemporaryDirectory() as tmp:
     files = install.package('v', dll)
     shipped = {'enabled.txt', 'StellarCoop.dll', 'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt',
                *(f'Scripts/{name}.lua'
-                 for name in ('capture', 'chat', 'group', 'join', 'keybind', 'link', 'main', 'menu', 'nightop',
-                              'nightop_run', 'nightop_shop', 'nightop_waves', 'notice', 'partner', 'puppet',
-                              'recruiter', 'recruiter_text', 'saves', 'settings_file', 'travel', 'ui', 'ui_model',
-                              'ui_text', 'unreal', 'version'))}
+                 for name in ('capture', 'challenges', 'chat', 'group', 'join', 'keybind', 'link', 'main', 'menu',
+                              'nightop', 'nightop_run', 'nightop_shop', 'nightop_waves', 'notice', 'partner',
+                              'puppet', 'recruiter', 'recruiter_text', 'saves', 'settings_file', 'travel', 'ui',
+                              'ui_model', 'ui_text', 'unreal', 'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]

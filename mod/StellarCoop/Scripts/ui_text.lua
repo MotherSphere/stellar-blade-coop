@@ -1,9 +1,9 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
--- place's, same spawns', the shared quests', the follow's, Night Operation's, the status line's and the notices' words
--- that the Lua side writes. T.en is English; another language's table sits under its game culture name as
--- recruiter_text.lua's culture() gives it (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships), with
--- T.en's keys at every level. The game's language picks the table (GetCurrentLanguage) unless ui_language=english; a
--- language with no table, or a word missing from one, reads English. Row ids and setting names are ui_model.lua's; a
+-- place's, same spawns', the shared quests', the follow's, Night Operation's, the challenges', the status line's and
+-- the notices' words that the Lua side writes. T.en is English; another language's table sits under its game culture
+-- name as recruiter_text.lua's culture() gives it (T.fr, T.de, T['zh-Hans']...: the 23 text languages the game ships),
+-- with T.en's keys at every level. The game's language picks the table (GetCurrentLanguage) unless ui_language=english;
+-- a language with no table, or a word missing from one, reads English. Row ids and setting names are ui_model.lua's; a
 -- value's word is its id's (on, both, game...), or <setting>_<id> where one setting's value needs other words
 -- (aggro_game).
 local T={}
@@ -144,6 +144,11 @@ T.en={
     -- notice when she cannot join (%s her name, then refuse's word), and whose EVE died (named, so no word agrees with
     -- a player's gender). earned: the points a run gave for the shop (nightop_shop.lua), then the player's total;
     -- unpaid: a run's points that could not be credited (UE4SS.log says why).
+    -- panel reads from the game when it can; why: what ended a stopped run, by its reason. A challenge (coop challenge)
+    -- uses the same card, panel and end notice, with challenge's words: names, its name, the card's title in place of
+    -- night.title and the %s of its notices (start, wave, clear); best, the panel's fifth row, which Night Operation
+    -- shows too; record, the line under the heading after a success that wrote a new best; stopped, what ended a
+    -- challenge stopped with coop challenge stop.
     night={title='NIGHT OPERATION',starts='STARTS IN %d',wave='WAVE %d/%d',next='NEXT WAVE IN %d',score='SCORE %d',
         success='Operation Successful',fail='Operation Failed',died='All players have died.',time_up='Time is up.',
         why={stop='Stopped with coop nightop stop.',map='Ended by a map change or a load.',
@@ -161,6 +166,9 @@ T.en={
         you_died='Your EVE died.',
         earned='Night Operation: +%d points, %d in all.',
         unpaid='Night Operation: the points could not be saved. UE4SS.log says why.'},
+    challenge={names={swarm='Antlion Swarm',skulls='Skull Squad',gauntlet='Gauntlet',targets='Target Practice'},
+        best='Best',record='New personal best.',stopped='Stopped with coop challenge stop.',
+        start_notice='%s starts in %d s.',wave_notice='%s: wave %d/%d.',clear_notice='%s: wave %d cleared.'},
     -- The shared quests' notices (main.lua): on with her, waiting for a co-op save, stopped, her side off, and one
     -- per quest note; %s: her name (or fight.friend), the quest's row name, a zone or the quest's number, in that
     -- order where they appear.
@@ -318,6 +326,10 @@ T.fr={
         none='pas de réponse'},mate_died="L'EVE de votre partenaire est morte.",you_died='Votre EVE est morte.',
         earned='Opération nocturne : +%d points, %d au total.',
         unpaid="Opération nocturne : les points n'ont pas pu être enregistrés. UE4SS.log dit pourquoi."},
+    challenge={names={swarm='Essaim de fourmilions',skulls='Escouade Crâne',gauntlet="Épreuve d'endurance",
+        targets='Entraînement au tir'},best='Record',record='Nouveau record personnel.',
+        stopped='Arrêtée avec coop challenge stop.',start_notice='%s commence dans %d s.',
+        wave_notice='%s : vague %d/%d.',clear_notice='%s : vague %d terminée.'},
     quests={on='Quêtes partagées actives avec %s.',
         save='Les quêtes partagées demandent une sauvegarde co-op, pas la vôtre. Elles démarrent dès que vous en '
             ..'chargez une.',
@@ -462,6 +474,9 @@ T.ar={
         you_died='ماتت EVE الخاصة بك.',
         earned='التشغيل الليلي: +%d نقطة، المجموع %d.',
         unpaid='التشغيل الليلي: تعذر حفظ النقاط. السبب في UE4SS.log.'},
+    challenge={names={swarm='سرب أسود النمل',skulls='فرقة الجماجم',gauntlet='تحدي التحمّل',targets='تدريب الرماية'},
+        best='أفضل نتيجة',record='رقم قياسي شخصي جديد.',stopped='أُوقف بالأمر coop challenge stop.',
+        start_notice='بدء %s خلال %d ث.',wave_notice='%s: الموجة %d/%d.',clear_notice='%s: أُنجزت الموجة %d.'},
     quests={on='مشاركة المهام مفعّلة مع %s.',
         save='مشاركة المهام تتطلب حفظًا تعاونيًا لا حفظك الخاص. تبدأ فور تحميل واحد.',
         stopped='توقفت مشاركة المهام حتى إعادة تشغيل اللعبة. يذكر coop-quests.log السبب.',
@@ -611,6 +626,9 @@ T.da={
         you_died='Din EVE døde.',
         earned='Natmission: +%d point, %d i alt.',
         unpaid='Natmission: pointene kunne ikke gemmes. UE4SS.log forklarer hvorfor.'},
+    challenge={names={swarm='Myreløvesværm',skulls='Kraniebanden',gauntlet='Udholdenhedsprøve',targets='Skydetræning'},
+        best='Rekord',record='Ny personlig rekord.',stopped='Stoppet med coop challenge stop.',
+        start_notice='%s starter om %d s.',wave_notice='%s: bølge %d/%d.',clear_notice='%s: bølge %d klaret.'},
     quests={on='Delte quests er slået til med %s.',
         save='Delte quests kræver et gemt co-op-spil, ikke dit eget. De starter, så snart du indlæser et.',
         stopped='Delte quests stoppet, indtil spillet genstartes. coop-quests.log forklarer hvorfor.',
@@ -768,6 +786,10 @@ T.de={
         none='keine Antwort'},mate_died='Die EVE deines Partners ist gestorben.',you_died='Deine EVE ist gestorben.',
         earned='Nächtlicher Einsatz: +%d Punkte, insgesamt %d.',
         unpaid='Nächtlicher Einsatz: Die Punkte konnten nicht gespeichert werden. UE4SS.log nennt den Grund.'},
+    challenge={names={swarm='Ameisenlöwenschwarm',skulls='Schädeltrupp',gauntlet='Spießrutenlauf',
+        targets='Schießübung'},best='Bestleistung',record='Neue persönliche Bestleistung.',
+        stopped='Mit coop challenge stop beendet.',start_notice='%s beginnt in %d Sek.',wave_notice='%s: Welle %d/%d.',
+        clear_notice='%s: Welle %d geschafft.'},
     quests={on='Gemeinsame Quests mit %s aktiv.',
         save='Gemeinsame Quests brauchen einen Koop-Speicherstand, nicht deinen eigenen. Sie starten, sobald du '
             ..'einen lädst.',
@@ -924,6 +946,10 @@ T.es={
         mate_died='La EVE de tu compañero ha muerto.',you_died='Tu EVE ha muerto.',
         earned='Operación nocturna: +%d puntos, %d en total.',
         unpaid='Operación nocturna: no se pudieron guardar los puntos. UE4SS.log indica el motivo.'},
+    challenge={names={swarm='Enjambre de hormigas león',skulls='Escuadrón Calavera',gauntlet='Prueba de resistencia',
+        targets='Práctica de tiro'},best='Récord',record='Nuevo récord personal.',
+        stopped='Detenida con coop challenge stop.',start_notice='%s empieza en %d s.',wave_notice='%s: oleada %d/%d.',
+        clear_notice='%s: oleada %d superada.'},
     quests={on='Misiones compartidas activas con %s.',
         save='Las misiones compartidas necesitan una partida co-op, no la tuya. Empiezan en cuanto cargues una.',
         stopped='Misiones compartidas detenidas hasta que se reinicie el juego. coop-quests.log indica el motivo.',
@@ -1078,6 +1104,10 @@ T['es-MX']={
         mate_died='La EVE de tu compañero murió.',you_died='Tu EVE murió.',
         earned='Operación nocturna: +%d puntos, %d en total.',
         unpaid='Operación nocturna: no se pudieron guardar los puntos. UE4SS.log dice por qué.'},
+    challenge={names={swarm='Enjambre de hormigas león',skulls='Escuadrón Calavera',gauntlet='Prueba de resistencia',
+        targets='Práctica de tiro'},best='Récord',record='Nuevo récord personal.',
+        stopped='Detenida con coop challenge stop.',start_notice='%s empieza en %d s.',wave_notice='%s: oleada %d/%d.',
+        clear_notice='%s: oleada %d superada.'},
     quests={on='Misiones compartidas activas con %s.',
         save='Las misiones compartidas necesitan una partida co-op, no la tuya. Empiezan en cuanto cargues una.',
         stopped='Misiones compartidas detenidas hasta que reinicies el juego. coop-quests.log dice por qué.',
@@ -1234,6 +1264,10 @@ T.fi={
         you_died='EVE:si kuoli.',
         earned='Yöoperaatio: +%d pistettä, yhteensä %d.',
         unpaid='Yöoperaatio: pisteitä ei voitu tallentaa. UE4SS.log kertoo syyn.'},
+    challenge={names={swarm='Muurahaisleijonaparvi',skulls='Kalloryhmä',gauntlet='Kestävyyskoe',
+        targets='Ammuntaharjoitus'},best='Ennätys',record='Uusi henkilökohtainen ennätys.',
+        stopped='Pysäytetty komennolla coop challenge stop.',start_notice='%s alkaa %d s:n päästä.',
+        wave_notice='%s: aalto %d/%d.',clear_notice='%s: aalto %d selvitetty.'},
     quests={on='Jaetut tehtävät käytössä pelaajan %s kanssa.',
         save='Jaetut tehtävät toimivat vain co-op-tallennuksella, eivät omallasi. Ne alkavat, kun lataat sellaisen.',
         stopped='Jaetut tehtävät on pysäytetty, kunnes peli käynnistetään uudelleen. Syy on '
@@ -1387,6 +1421,10 @@ T.it={
         mate_died="L'EVE del partner è morta.",you_died='La tua EVE è morta.',
         earned='Operazione notturna: +%d punti, %d in totale.',
         unpaid='Operazione notturna: impossibile salvare i punti. Il motivo è in UE4SS.log.'},
+    challenge={names={swarm='Sciame di formicaleoni',skulls='Squadra Teschio',gauntlet='Prova di resistenza',
+        targets='Tiro al bersaglio'},best='Record',record='Nuovo record personale.',
+        stopped='Interrotta con coop challenge stop.',start_notice='%s inizia tra %d s.',
+        wave_notice='%s: ondata %d/%d.',clear_notice='%s: ondata %d superata.'},
     quests={on='Missioni condivise attive con %s.',
         save='Le missioni condivise richiedono un salvataggio co-op, non il tuo. Partono appena ne carichi uno.',
         stopped='Missioni condivise fermate fino al riavvio del gioco. Il motivo è in coop-quests.log.',
@@ -1524,6 +1562,9 @@ T.ja={
         taken='前回のオペレーションのモンスターが残っている',none='応答なし'},mate_died='パートナーのEVEが死亡した。',you_died='あなたのEVEが死亡した。',
         earned='夜間オペレーション：+%dポイント、合計%dポイント。',
         unpaid='夜間オペレーション：ポイントを保存できなかった。理由はUE4SS.logで確認。'},
+    challenge={names={swarm='アリジゴクの群れ',skulls='スカル部隊',gauntlet='連戦チャレンジ',targets='射撃訓練'},best='ベスト',record='自己ベスト更新。',
+        stopped='coop challenge stopで中止。',start_notice='%sは%d秒後に開始。',wave_notice='%s：ウェーブ%d/%d。',
+        clear_notice='%s：ウェーブ%dクリア。'},
     quests={on='クエスト共有：%sと共有中。',
         save='クエスト共有には協力プレイ用セーブが必要です。ロードすると開始します。',
         stopped='クエスト共有：ゲームを再起動するまで停止。理由はcoop-quests.logにあります。',
@@ -1658,6 +1699,9 @@ T.ko={
         taken='이전 작전의 몬스터가 아직 남아 있음',none='응답 없음'},mate_died='파트너의 EVE가 사망했습니다.',you_died='내 EVE가 사망했습니다.',
         earned='야간 작전: +%d포인트, 합계 %d포인트.',
         unpaid='야간 작전: 포인트를 저장하지 못했습니다. 이유는 UE4SS.log에서 확인.'},
+    challenge={names={swarm='개미귀신 무리',skulls='해골 분대',gauntlet='연속 전투',targets='사격 훈련'},best='최고 기록',
+        record='개인 최고 기록 경신.',stopped='coop challenge stop으로 중지됨.',start_notice='%s: %d초 후 시작됩니다.',
+        wave_notice='%s: 웨이브 %d/%d.',clear_notice='%s: 웨이브 %d 클리어.'},
     quests={on='퀘스트 공유 켜짐: %s',
         save='퀘스트 공유는 코옵 세이브에서만 됩니다. 코옵 세이브를 불러오면 시작됩니다.',
         stopped='게임을 다시 시작할 때까지 퀘스트 공유가 중지됩니다. 이유는 coop-quests.log 참고.',
@@ -1810,6 +1854,10 @@ T.nl={
         mate_died='De EVE van je partner is gestorven.',you_died='Je EVE is gestorven.',
         earned='Nachtelijke missie: +%d punten, %d in totaal.',
         unpaid='Nachtelijke missie: de punten konden niet worden opgeslagen. UE4SS.log zegt waarom.'},
+    challenge={names={swarm='Mierenleeuwenzwerm',skulls='Schedelploeg',gauntlet='Uithoudingsproef',
+        targets='Schietoefening'},best='Record',record='Nieuw persoonlijk record.',
+        stopped='Gestopt met coop challenge stop.',start_notice='%s begint over %d s.',wave_notice='%s: golf %d/%d.',
+        clear_notice='%s: golf %d voltooid.'},
     quests={on='Gedeelde quests aan met %s.',
         save='Gedeelde quests vereisen een opgeslagen co-opgame, niet je eigen. Ze starten zodra je er een laadt.',
         stopped='Gedeelde quests gestopt tot de game opnieuw start. coop-quests.log zegt waarom.',
@@ -1961,6 +2009,9 @@ T.no={
         you_died='Din EVE døde.',
         earned='Nattoperasjon: +%d poeng, %d totalt.',
         unpaid='Nattoperasjon: poengene kunne ikke lagres. UE4SS.log sier hvorfor.'},
+    challenge={names={swarm='Maurløvesverm',skulls='Skallegjengen',gauntlet='Utholdenhetsprøve',targets='Skytetrening'},
+        best='Rekord',record='Ny personlig rekord.',stopped='Stoppet med coop challenge stop.',
+        start_notice='%s starter om %d s.',wave_notice='%s: bølge %d/%d.',clear_notice='%s: bølge %d klart.'},
     quests={on='Delte oppdrag er på med %s.',
         save='Delte oppdrag krever en co-op-lagring, ikke din egen. De starter så snart du laster inn en.',
         stopped='Delte oppdrag stoppet til spillet startes på nytt. coop-quests.log sier hvorfor.',
@@ -2110,6 +2161,10 @@ T.pl={
         you_died='Twoja EVE zginęła.',
         earned='Nocna operacja: +%d pkt, łącznie %d pkt.',
         unpaid='Nocna operacja: nie udało się zapisać punktów. Powód podaje UE4SS.log.'},
+    challenge={names={swarm='Rój mrówkolwów',skulls='Oddział Czaszek',gauntlet='Próba wytrzymałości',
+        targets='Trening strzelecki'},best='Rekord',record='Nowy rekord osobisty.',
+        stopped='Zatrzymana przez coop challenge stop.',start_notice='%s: start za %d s.',wave_notice='%s: fala %d/%d.',
+        clear_notice='%s: fala %d ukończona.'},
     quests={on='Wspólne zadania włączone. Partner: %s.',
         save='Wspólne zadania wymagają zapisu co-op, nie twojego. Ruszą, gdy go wczytasz.',
         stopped='Wspólne zadania: zatrzymano do restartu gry. coop-quests.log podaje powód.',
@@ -2263,6 +2318,10 @@ T.pt={
         mate_died='A EVE do teu parceiro morreu.',you_died='A tua EVE morreu.',
         earned='Operação noturna: +%d pontos, %d no total.',
         unpaid='Operação noturna: não foi possível guardar os pontos. O UE4SS.log diz porquê.'},
+    challenge={names={swarm='Enxame de formigas-leão',skulls='Esquadrão Caveira',gauntlet='Prova de resistência',
+        targets='Treino de tiro'},best='Recorde',record='Novo recorde pessoal.',
+        stopped='Interrompida com coop challenge stop.',start_notice='%s começa dentro de %d s.',
+        wave_notice='%s: vaga %d/%d.',clear_notice='%s: vaga %d superada.'},
     quests={on='Missões partilhadas ativas com %s.',
         save='As missões partilhadas exigem dados guardados co-op, não os teus. Começam assim que carregares uns.',
         stopped='Missões partilhadas paradas até o jogo reiniciar. O coop-quests.log diz porquê.',
@@ -2414,6 +2473,10 @@ T['pt-BR']={
         none='sem resposta'},mate_died='A EVE do seu parceiro morreu.',you_died='Sua EVE morreu.',
         earned='Operação Noturna: +%d pontos, %d no total.',
         unpaid='Operação Noturna: não foi possível salvar os pontos. O UE4SS.log diz o motivo.'},
+    challenge={names={swarm='Enxame de formigas-leão',skulls='Esquadrão Caveira',gauntlet='Prova de resistência',
+        targets='Treino de tiro'},best='Recorde',record='Novo recorde pessoal.',
+        stopped='Interrompida com coop challenge stop.',start_notice='%s começa em %d s.',wave_notice='%s: onda %d/%d.',
+        clear_notice='%s: onda %d vencida.'},
     quests={on='Missões compartilhadas ativas com %s.',
         save='Missões compartilhadas exigem um jogo salvo co-op, não o seu. Elas começam assim que você carregar um.',
         stopped='Missões compartilhadas paradas até o jogo reiniciar. O coop-quests.log diz o motivo.',
@@ -2560,6 +2623,10 @@ T.ru={
         you_died='Ваша EVE погибла.',
         earned='Ночная операция: очки +%d, всего %d.',
         unpaid='Ночная операция: не удалось сохранить очки. Причина в UE4SS.log.'},
+    challenge={names={swarm='Рой муравьиных львов',skulls='Отряд черепов',gauntlet='Испытание на выносливость',
+        targets='Стрельба по мишеням'},best='Рекорд',record='Новый личный рекорд.',
+        stopped='Остановлена командой coop challenge stop.',start_notice='%s: старт через %d сек.',
+        wave_notice='%s: волна %d/%d.',clear_notice='%s: волна %d пройдена.'},
     quests={on='Общие задания включены (партнер: %s).',
         save='Общим заданиям нужно кооперативное сохранение. Они начнутся, когда вы его загрузите.',
         stopped='Общие задания остановлены до перезапуска игры. Причина в coop-quests.log.',
@@ -2706,6 +2773,9 @@ T.sv={
         you_died='Din EVE dog.',
         earned='Nattinsats: +%d poäng, %d totalt.',
         unpaid='Nattinsats: poängen kunde inte sparas. UE4SS.log säger varför.'},
+    challenge={names={swarm='Myrlejonsvärm',skulls='Dödskallegänget',gauntlet='Uthållighetsprov',
+        targets='Skjutträning'},best='Rekord',record='Nytt personbästa.',stopped='Stoppad med coop challenge stop.',
+        start_notice='%s startar om %d s.',wave_notice='%s: våg %d/%d.',clear_notice='%s: våg %d klarad.'},
     quests={on='Delade uppdrag är på med %s.',
         save='Delade uppdrag kräver en co-op-sparfil, inte din egen. De startar så fort du laddar en.',
         stopped='Delade uppdrag stoppade tills spelet startas om. coop-quests.log säger varför.',
@@ -2839,6 +2909,9 @@ T.th={
         you_died='EVE ของคุณตายแล้ว',
         earned='ปฏิบัติการกลางคืน: +%d แต้ม รวม %d แต้ม',
         unpaid='ปฏิบัติการกลางคืน: บันทึกแต้มไม่ได้ ดูสาเหตุใน UE4SS.log'},
+    challenge={names={swarm='ฝูงแมลงช้าง',skulls='หน่วยหัวกะโหลก',gauntlet='ศึกต่อเนื่อง',targets='ฝึกยิงเป้า'},
+        best='สถิติดีที่สุด',record='ทำสถิติส่วนตัวใหม่',stopped='หยุดด้วย coop challenge stop',
+        start_notice='%s เริ่มใน %d วินาที',wave_notice='%s: คลื่น %d/%d',clear_notice='%s: ผ่านคลื่น %d'},
     quests={on='แชร์เควสต์กับ %s แล้ว',
         save='แชร์เควสต์ต้องใช้เซฟ co-op ไม่ใช่เซฟของคุณ จะเริ่มเมื่อโหลดเซฟนั้น',
         stopped='แชร์เควสต์หยุดจนกว่าจะรีสตาร์ตเกม ดูสาเหตุใน coop-quests.log',
@@ -2989,6 +3062,9 @@ T.tr={
         you_died="EVE'n öldü.",
         earned='Gece Operasyonu: +%d puan, toplam %d.',
         unpaid='Gece Operasyonu: puanlar kaydedilemedi. Nedeni UE4SS.log içinde.'},
+    challenge={names={swarm='Karınca Aslanı Sürüsü',skulls='Kafatası Timi',gauntlet='Dayanıklılık Sınavı',
+        targets='Atış Talimi'},best='Rekor',record='Yeni kişisel rekor.',stopped='coop challenge stop ile durduruldu.',
+        start_notice='%s %d sn sonra başlıyor.',wave_notice='%s: dalga %d/%d.',clear_notice='%s: dalga %d temizlendi.'},
     quests={on='Ortak görevler %s ile açık.',
         save='Ortak görevler için kendi kaydın değil, co-op kaydı gerekir. Bir tane yüklediğinde başlarlar.',
         stopped='Ortak görevler oyun yeniden başlayana dek durdu. Nedeni coop-quests.log dosyasında.',
@@ -3114,6 +3190,9 @@ T['zh-Hans']={
         you_died='你的EVE已死亡。',
         earned='暗夜行动：+%d点，共%d点。',
         unpaid='暗夜行动：无法保存点数。原因见UE4SS.log。'},
+    challenge={names={swarm='蚁狮虫群',skulls='骷髅小队',gauntlet='连战考验',targets='射击训练'},best='最佳',record='刷新个人最佳纪录。',
+        stopped='已通过coop challenge stop停止。',start_notice='%s将在%d秒后开始。',wave_notice='%s：第%d/%d波。',
+        clear_notice='%s：第%d波已清除。'},
     quests={on='已与%s共享任务。',
         save='共享任务需要合作存档，而非你自己的存档。加载合作存档后即开始。',
         stopped='共享任务已停止，重启游戏前不会恢复。原因见coop-quests.log。',
@@ -3238,6 +3317,9 @@ T['zh-Hant']={
         you_died='你的EVE已死亡。',
         earned='夜間行動：+%d點，共%d點。',
         unpaid='夜間行動：無法儲存點數。原因請見UE4SS.log。'},
+    challenge={names={swarm='蟻獅蟲群',skulls='骷髏小隊',gauntlet='連戰考驗',targets='射擊訓練'},best='最佳',record='刷新個人最佳紀錄。',
+        stopped='已透過coop challenge stop停止。',start_notice='%s將於%d秒後開始。',wave_notice='%s：第%d/%d波。',
+        clear_notice='%s：第%d波已清除。'},
     quests={on='已與%s共享任務。',
         save='共享任務需要合作存檔，不能用你自己的存檔。載入合作存檔後即開始。',
         stopped='共享任務已停止，重新啟動遊戲前不會恢復。原因請見coop-quests.log。',

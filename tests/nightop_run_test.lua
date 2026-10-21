@@ -9,7 +9,9 @@
 -- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
 -- refuse; a signed key read; aggro after a new controller; a body near EVE far from the start is not moved; a refused
 -- teleport; a load (slot=none) and a new world on the same map; a death screen first found playing; an error in the
--- result's 10 s. The HUD on a fake kit: the card and the result panel at the top centre; the countdown, the wave, the
+-- result's 10 s. Challenges (coop challenge): Target Practice to a success and its best kept in coop-records.txt, a
+-- Skull Squad wave that waits for the clear, the list, the stops and refusals, ends that write nothing. The HUD on a
+-- fake kit: the card and the result panel at the top centre; the countdown, the wave, the
 -- next wave's countdown, the time left and the score in the game's language; hidden while paused; the result panel
 -- with the game's own heading when it can be read (none with ui_language=english), shown for 10 s of ticks it can be
 -- seen, after a respawn or a load too; notices at the start, each wave, each clear and the end with the kit off; a HUD
@@ -30,7 +32,10 @@
 -- buy reach the shop (a buy refused during a run, sold in the result's 10 s); a solo success and a time up credit the
 -- final score to the wallet of this SteamID and slot, capped, an abort or a death none; for two players, each game
 -- credits its own wallet after a success with a notice, none after her death, and none for her run when no line of his
--- countdown reached her; a credit refused or raising is a notice, and his end line still goes.
+-- countdown reached her; a credit refused or raising is a notice, and his end line still goes. The panel's fifth row,
+-- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
+-- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
+-- notice.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -386,7 +391,8 @@ for k=2,5 do play(k) end
 assert(count('BPL:CreateSBZoneEvent')==2 and logged('heal after wave 2: asked') and logged('heal after wave 4: asked'))
 local rt=gt-(g0+5)
 local bonus=math.floor(480-rt)
-local result=string.format('result: success waves=5/5 kills=20 score=%d time=%d:%02d find_ms=0.0/0.0',580+bonus,
+local result=string.format('result: success waves=5/5 kills=20 score=%d time=%d:%02d find_ms=0.0/0.0 challenge=night '
+    ..'best=none',580+bonus,
     math.floor(rt)//60,math.floor(rt)%60)
 assert(lines[#lines-1]==result,lines[#lines-1]..' / '..result)
 -- A success credits its final score: one point a 25, 42 at most.
@@ -655,13 +661,242 @@ for _=1,2000 do
     if result_line() then break end
     for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=m.at.Z} end
 end
-assert(result_line()=='result: time waves=0/5 kills=0 score=0 time=8:00 find_ms=0.0/0.0',result_line())
+assert(result_line()=='result: time waves=0/5 kills=0 score=0 time=8:00 find_ms=0.0/0.0 challenge=night best=none',
+    result_line())
 assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),'A time up credits its score: '..last())
 local spawned=count('PC:ServerRequest_CreateActor')
 assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
 tick(8)
 assert(count('PC:ServerRequest_CreateActor')==spawned and #bodies==7)
 assert(#violations==0,violations[1])
+
+-- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
+-- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro
+-- and no default controller, its dummies on its spots, a fallen one written off where it lies, the best written once;
+-- a worse run keeps it; failed, time up and aborted runs write nothing; a read or a write that fails is logged; so is a
+-- file too long; a success with a missing dummy, with no kill or with a test switch keeps no best; a Skull Squad wave
+-- waits for the clear; coop challenge stop and coop nightop stop end any run.
+do
+    local C=require('challenges')
+    local targets=C.find('targets')
+    local file,writes,write_ok,read_fails='# my notes\nbest_skulls=300 200\n',0,true,nil
+    local ch=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+        records={read=function() if read_fails then error(read_fails) end; return file end,write=function(text)
+            writes=writes+1
+            if write_ok then file=text end
+            return write_ok
+        end}})
+    local function tk(k) for _=1,k or 1 do gt=gt+0.25; ch.tick() end end
+    local function start(word,name) -- The log from the start on.
+        lines={}
+        ok,message=ch.challenge(word)
+        local run=tonumber(message:match('%(run 0x(%x+)%)$') or '',16)
+        assert(ok and message==string.format('%s starts in 5 s (run 0x%02X)',name,run),message)
+        return run,gt+5
+    end
+    -- Wave k of the run found (its +1 s find), then every body of it killed in one tick.
+    local function round(run,k,n)
+        local line=string.format('wave %d find +1 s: tracked %d/%d',k,n,n)
+        for _=1,400 do
+            if logged(line) then break end
+            tk()
+        end
+        assert(logged(line),since(0))
+        for _,m in ipairs(bodies) do
+            local r,w=W.decode(m.key)
+            if r==run and w==k then m.st,m.ctl=1,nil end
+        end
+        tk()
+    end
+    local function win(run) for k=1,3 do round(run,k,#targets.waves[k].ids) end end
+    bodies,calls,lines,spawn_ai={},{},{},false -- The dummies come with no controller.
+    -- Refusals: no game call, no line, no record read for a word that is not a challenge.
+    for _,word in ipairs({'night','0','5','x','TARGETS','start','swarm2'}) do
+        ok,message=ch.challenge(word)
+        assert(not ok and message=='unknown challenge: coop challenge lists them',word..': '..tostring(message))
+    end
+    for _,args in ipairs({{'targets','x'},{'stop','x'},{nil,'x'}}) do
+        ok,message=ch.challenge(args[1],args[2])
+        assert(not ok and message=='Use: coop challenge [<name>|stop]',tostring(message))
+    end
+    ok,message=ch.challenge('stop')
+    assert(not ok and message=='no run to stop',message)
+    link_line='link=host lobby=7'
+    ok,message=ch.challenge('targets')
+    assert(not ok and message=='Target Practice is solo for now: leave the Steam session first (coop leave)',message)
+    link_line='link=none lobby=0'
+    assert(#calls==0 and #lines==0 and writes==0,'Refusals call nothing')
+    -- The list: the four with their bests (none but the stored Skull Squad one), then Night Operation.
+    local LIST='1 swarm Antlion Swarm: 3 waves, 3:00, no best yet\n2 skulls Skull Squad: 3 waves, 6:00, best 300 in '
+        ..'3:20\n3 gauntlet Gauntlet: 8 waves, 12:00, no best yet\n4 targets Target Practice: 3 waves, 1:30, %s\n'
+        ..'night: Night Operation (coop nightop start), no best yet'
+    ok,message=ch.challenge()
+    assert(ok and message==LIST:format('no best yet'),message)
+    -- Target Practice, by its number. The start line names it; the list adds the run's state.
+    local run,t0=start('4','Target Practice')
+    assert(lines[1]:find(string.format('^start: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map '
+        ..'/game/art/bg/worldmap/level_p/f02 challenge targets; census: ',run,W.seed(T,run))),lines[1])
+    ok,message=ch.challenge()
+    assert(ok and message:sub(1,#LIST:format('no best yet'))==LIST:format('no best yet'),message)
+    assert(message:find(string.format('\nrun 0x%02X challenge targets: countdown, wave 0/3, run time %%-?%%d+ s, '
+        ..'score 0, kills 0$',run)),message)
+    ok,message=ch.challenge('targets')
+    assert(not ok and message=='a run is on: coop challenge stop ends it',message)
+    ok,message=ch.command('start')
+    assert(not ok and message=='a run is on: coop nightop stop ends it',message)
+    -- Wave 1: each dummy on its own spot, 1 m up, facing the start point; the order is the run's seeded one.
+    local s=W.new{run=run,seed=W.seed(T,run),now=t0-5,def=targets}
+    tk(20)
+    assert(last()=='wave 1/3 at run time 0.0 s: 4 monsters',last())
+    for slot=0,3 do
+        tk()
+        local c=calls[#calls]
+        local at,yaw=W.spot({X=0,Y=0,Z=1000},30,s.order[1],slot,targets)
+        assert(c.what=='PC:ServerRequest_CreateActor' and c.args[1]==targets.waves[1].ids[slot+1]
+            and c.args[7]==W.key(run,1,slot),c.what)
+        assert(c.args[2].X==at.X and c.args[2].Y==at.Y and c.args[2].Z==1100 and c.args[3].Yaw==yaw)
+        local d=math.sqrt(at.X^2+at.Y^2)/100
+        assert(d>=12-1e-9 and d<=32+1e-9,d)
+    end
+    tk(4)
+    assert(last()=='wave 1 find +1 s: tracked 4/4',last())
+    -- One falls 15 m below the start: written off at its first check, never moved; the others are shot.
+    local fallen=bodies[4]
+    fallen.at={X=fallen.at.X,Y=fallen.at.Y,Z=-500}
+    tk(10)
+    assert(logged(string.format('written off 0x%08X M_DummyB at %.0f,%.0f,-500 after 0 moves',W.key(run,1,3),
+        fallen.at.X,fallen.at.Y)),since(0))
+    for i=1,3 do bodies[i].st=1 end
+    tk()
+    assert(logged(string.format('kill 0x%08X M_DummyB +40 = 120',W.key(run,1,2))),since(0))
+    file=file..'# added during the run\n' -- The file is read again before the write: this line stays.
+    round(run,2,6)
+    round(run,3,8)
+    local rt=gt-t0
+    local score=680+math.floor((90-rt)*10)
+    local first=string.format('%d/%d',score,math.floor(rt))
+    assert(last()==string.format('result: success waves=3/3 kills=17 score=%d time=0:%02d find_ms=0.0/0.0 '
+        ..'challenge=targets best=%s new',score,math.floor(rt),first),last())
+    assert(count('Damage:ReportDamageEvent')==0 and count('Hearing:ReportNoiseEvent')==0
+        and count('M:Event_ChangeBattleState')==0 and count('M:SpawnDefaultController')==0,'No aggro, no controller')
+    assert(count('M:K2_TeleportTo')==0 and count('PC:ServerRequest_CreateActor')==18,'No move')
+    -- Written once, every other line kept.
+    assert(writes==1 and file:find('# my notes\nbest_skulls=300 200\n# added during the run\n',1,true)==1,file)
+    assert(select(1,C.best(file,'targets'))==score and select(2,C.best(file,'targets'))==math.floor(rt),file)
+    ok,message=ch.challenge()
+    assert(ok and message==LIST:format(string.format('best %d in 0:%02d',score,math.floor(rt))),message)
+    -- A slower run scores less: the file stays. The dummies left from the first run (no controller, or dead) do not
+    -- block the start.
+    local kept=file
+    run,t0=start('targets','Target Practice')
+    tk(120)
+    win(run)
+    assert(last():find(string.format('^result: success waves=3/3 kills=18 score=%%d+ .* challenge=targets best=%s '
+        ..'kept$',first)),last())
+    assert(writes==1 and file==kept)
+    -- Failed, time up and aborted runs read the best and write nothing.
+    run=start('targets','Target Practice')
+    tk(24)
+    dying=true
+    tk(8)
+    dying=false
+    assert(last():find('^result: failed waves=0/3 kills=0 score=0 .* challenge=targets best='..first..' kept$'),last())
+    run=start('targets','Target Practice')
+    for _=1,400 do
+        tk()
+        if last():find('^result: ') then break end
+    end
+    assert(last()=='result: time waves=0/3 kills=0 score=0 time=1:30 find_ms=0.0/0.0 challenge=targets best='..first
+        ..' kept',last())
+    run=start('targets','Target Practice')
+    tk(30)
+    ok,message=ch.challenge('stop')
+    assert(ok and message=='Target Practice stopped' and last():find('^result: aborted %(stop%) waves=0/3 '),last())
+    run=start('targets','Target Practice')
+    tk(30)
+    assert(ch.stop('coop off') and last():find('^result: aborted %(coop off%) .* best='..first..' kept$'),last())
+    assert(writes==1 and file==kept,'Only a better success writes')
+    -- A write that fails: logged, no best; a read that fails: logged, nothing written.
+    file,write_ok=nil,false
+    run=start('targets','Target Practice')
+    win(run)
+    assert(writes==2 and file==nil and logged('record: cannot write coop-records.txt (the write failed)'),since(0))
+    assert(last():find('^result: success .* challenge=targets best=none$'),last())
+    write_ok,read_fails=true,'boom'
+    run=start('targets','Target Practice')
+    assert(logged('record: cannot read coop-records.txt (boom)'),since(0))
+    win(run)
+    assert(writes==2 and file==nil and last():find(' best=none$'),last())
+    read_fails=nil
+    -- Read at the start but not at the end: the start's best is not shown as kept, nothing is written.
+    file=kept
+    run=start('targets','Target Practice')
+    read_fails='boom'
+    win(run)
+    read_fails=nil
+    assert(writes==2 and file==kept and last():find(' best=none$'),last())
+    -- A file too long for a best line to be read back: logged with that reason, nothing written.
+    file='#'..('x'):rep(8200)..'\n'
+    run=start('targets','Target Practice')
+    win(run)
+    assert(logged('record: cannot write coop-records.txt (the file is over 8192 bytes)'),since(0))
+    assert(writes==2 and last():find(' best=none$'),last())
+    -- Successes that keep no best: every dummy missing (no body with its key: the spawn failed), then every dummy
+    -- fallen and written off, so nothing is killed.
+    file=kept
+    fill_key=false
+    run=start('targets','Target Practice')
+    for _=1,400 do
+        tk()
+        if last():find('^result: ') then break end
+    end
+    fill_key=true
+    assert(last():find('^result: success waves=3/3 kills=0 .* challenge=targets best='..first..' kept$'),last())
+    assert(logged('record: not kept (a monster never came)') and writes==2,since(0))
+    run=start('targets','Target Practice')
+    for _=1,400 do
+        for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=-500} end
+        tk()
+        if last():find('^result: ') then break end
+    end
+    assert(last():find('^result: success waves=3/3 kills=0 .* challenge=targets best='..first..' kept$'),last())
+    assert(logged('record: not kept (no kill)') and since(0):find(' after 0 moves',1,true) and writes==2,since(0))
+    -- Skull Squad: wave 2 has no run time, so it waits for wave 1 to be down, then comes 5 s after.
+    spawn_ai,bodies,file=true,{},kept
+    run,t0=start('skulls','Skull Squad')
+    tk(20)
+    assert(last()=='wave 1/3 at run time 0.0 s: 3 monsters',last())
+    tk(240)
+    assert(not since(0):find('wave 2/3',1,true) and count('Damage:ReportDamageEvent')>0,since(0))
+    for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+    tk()
+    local clear=gt-t0
+    tk(19)
+    assert(not since(0):find('wave 2/3',1,true),since(0))
+    tk()
+    assert(logged(string.format('wave 2/3 at run time %.1f s: 3 monsters',clear+5)),since(0))
+    -- coop nightop stop ends a challenge; coop challenge stop ends Night Operation.
+    ok,message=ch.command('stop')
+    assert(ok and message=='Skull Squad stopped' and last():find('^result: aborted %(stop%) waves=1/3 .* '
+        ..'challenge=skulls best=300/200 kept$'),last())
+    bodies={}
+    ok,message=ch.command('start')
+    assert(ok,message)
+    ok,message=ch.challenge('targets')
+    assert(not ok and message=='a run is on: coop challenge stop ends it',message)
+    ok,message=ch.challenge('stop')
+    assert(ok and message=='Night Operation stopped' and last():find(' challenge=night best=none$'),last())
+    -- Night Operation's test switches keep no best, even after a success.
+    bodies,lines={},{}
+    ok,message=ch.command('start','noaggro')
+    run=tonumber(message:match('%(run 0x(%x+)%)$'),16)
+    for k=1,#W.SCHEDULE do round(run,k,#W.SCHEDULE[k].ids) end
+    -- Its points come after the result line (this run has no wallet store).
+    assert(result_line():find('^result: success waves=5/5 .* challenge=night best=none$'),result_line())
+    assert(logged('record: not kept (a test switch was on)'),since(0))
+    assert(writes==2,'Nothing more written')
+    assert(#violations==0,violations[1])
+end
 
 -- 9. The HUD (nightop_run.lua's hud) on a fake kit: groups, words in the game's language (fr-FR), hidden under a pause.
 local Tx=require('ui_text')
@@ -794,15 +1029,17 @@ assert(count('STL:IsRegisteredTableEntry')==stl,'No game text read')
 settings.ui_language='game'
 assert(res.head.c=='warn','A failure in the warning colour, after a success')
 -- Run.card alone: a breather's countdown, then the wave again while the cap holds the next one past its time.
-local held={phase='breather',t0=0,wave=2,next_at=90,score=40}
+local held={phase='breather',t0=0,wave=2,next_at=90,score=40,def=W.NIGHT}
 assert(select(2,Run.card(held,85,Tx.en))=='NEXT WAVE IN 5  6:35  SCORE 40',select(2,Run.card(held,85,Tx.en)))
 assert(select(2,Run.card(held,95,Tx.en))=='WAVE 2/5  6:25  SCORE 40',select(2,Run.card(held,95,Tx.en)))
 -- The ask: the host waits for her; her card counts down from her answer.
-assert(select(2,Run.card({phase='ask',role='host',t0=10},7,Tx.en))=='WAITING FOR PARTNER')
-assert(select(2,Run.card({phase='ask',role='guest',t0=10},7,Tx.en))=='STARTS IN 3')
+assert(select(2,Run.card({phase='ask',role='host',t0=10,def=W.NIGHT},7,Tx.en))=='WAITING FOR PARTNER')
+assert(select(2,Run.card({phase='ask',role='guest',t0=10,def=W.NIGHT},7,Tx.en))=='STARTS IN 3')
 -- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
 -- off as a stop), the rows.
-local function ended(outcome,reason) return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5} end
+local function ended(outcome,reason)
+    return {outcome=outcome,reason=reason,clears=5,kills=20,score=1059,time=400.5,def=W.NIGHT}
+end
 local function game(key) return key=='UI_Night_OperationSuccess' and 'Won (game)' or nil end
 local head,line,rows=Run.result(ended('success'),Tx.en,game)
 assert(head=='Won (game)' and line=='' and rows[1][1]=='Waves cleared' and rows[1][2]=='5/5' and rows[2][2]=='20')
@@ -813,6 +1050,29 @@ for reason,word in pairs({stop='stop',['coop off']='stop',['map change']='map',l
         error='error'}) do
     assert(select(2,Run.result(ended('aborted',reason),Tx.en,game))==Tx.en.night.why[word],reason)
 end
+-- The fifth row, Best: '-' with none kept, else its score and time. The record line only after a success that wrote
+-- it; a challenge's stop (coop off too) in the challenge's words, its other ends in Night Operation's.
+assert(rows[5][1]=='Best' and rows[5][2]=='-' and #rows==5,tostring(rows[5][2]))
+local kept,new={score=1250,s=37},{score=1059,s=400,new=true}
+head,line,rows=Run.result(ended('success'),Tx.en,game,new)
+assert(line=='New personal best.' and rows[5][2]=='1059  6:40',line)
+head,line,rows=Run.result(ended('success'),Tx.en,game,kept)
+assert(line=='' and rows[5][2]=='1250  0:37',rows[5][2])
+for _,outcome in ipairs({'failed','time'}) do
+    assert(select(2,Run.result(ended(outcome),Tx.en,game,new))~=Tx.en.challenge.record,outcome)
+end
+local function ended_challenge(reason)
+    local s=ended('aborted',reason)
+    s.def=require('challenges').find('swarm')
+    return s
+end
+for reason,line in pairs({stop=Tx.en.challenge.stopped,['coop off']=Tx.en.challenge.stopped,
+        ['map change']=Tx.en.night.why.map,link=Tx.en.night.why.link}) do
+    assert(select(2,Run.result(ended_challenge(reason),Tx.en,game,kept))==line,reason)
+end
+-- The card's title: the challenge's name as ui_text writes it, Night Operation's own.
+assert(Run.card({phase='countdown',t0=10,def=require('challenges').find('targets')},6,Tx.fr)=='Entraînement au tir')
+assert(Run.card({phase='countdown',t0=10,def=W.NIGHT},6,Tx.en)=='NIGHT OPERATION')
 -- A result the panel has not shown yet (the root down for a load) goes to the notices once the kit turns off.
 bodies,told={},{}
 begin2()
@@ -907,7 +1167,7 @@ local function side(name,mate_name,x,t)
         steamid=name=='host' and '76561198000000001' or '76561198000000002'}
     w.wallet='coop-night-'..w.steamid..'-4.txt'
     w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
-        store=store,
+        store=store,records={read=function() return '' end,write=function() w.writes=(w.writes or 0)+1 return true end},
         tell=function(build) w.told[#w.told+1]=build(Tx.en) end,friend=function() return mate_name end,
         send=function(line)
             w.sent[#w.sent+1]=line
@@ -1222,6 +1482,8 @@ for _,w in ipairs({Hs,Gs}) do
     assert(files[w.wallet]==points..'\n',w.wallet)
     assert(has(w.lines,string.format('credit +%d = %d (score %d, %s)',points,points,score,w.wallet)))
     assert(w.told[#w.told]==string.format('Night Operation: +%d points, %d in all.',points,points),w.told[#w.told])
+    -- The bests are solo runs: a co-op success writes none, on either side.
+    assert(has(w.lines,'record: not kept (a co-op run)') and w.writes==nil,w.lines[#w.lines])
 end
 assert(#violations==0,violations[1])
 -- A credit that fails is a notice, and his end line still goes: his wallet's save raises, hers is not written.
@@ -1380,4 +1642,109 @@ h,g=state(Hs),state(Gs)
 assert(h.score==4*p and h.kills==4 and h.phase=='breather' and g.phase=='breather' and g.score==4*p,h.phase)
 for _,l in ipairs(Gs.sent) do assert(W.decode_mate(l),l) end -- Her line: keys and counts, no score.
 assert(#violations==0,violations[1])
+
+-- 11. A challenge's HUD on the fake kit (fr-FR), with coop-records.txt in memory: the panel 506 units high with five
+-- rows; the challenge's name as the card's title; after a success that wrote its best, the record line and the Best
+-- row; a stopped challenge's line and the best it kept; Night Operation's own best. With the kit off: the notices with
+-- the challenge's name, the end notice, then the stop line or the record line.
+do
+    local C=require('challenges')
+    local file='best_night=500 300\n'
+    local ch=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+        tell=function(build) told[#told+1]=build(Tx.en) end,
+        records={read=function() return file end,write=function(text) file=text; return true end}})
+    kit.groups,kit.shown,kit.is_off,kit.up,kit.away,kit.raise={},{},false,true,false,nil
+    ch.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+    local g=kit.groups.night_result
+    card,res=kit.groups.night.view,g.view
+    assert(g.place.h==506 and g.panel[4]==506 and #res.rows==5,'The panel: 506 units, five rows')
+    for i=1,5 do assert(res.rows[i].label.y==200+(i-1)*56 and res.rows[i].value.y==200+(i-1)*56,i) end
+    local function tk(k) for _=1,k or 1 do gt=gt+0.25; ch.tick() end end
+    local function start(word)
+        bodies,lines,told={},{},{}
+        ok,message=ch.challenge(word)
+        assert(ok,message)
+        return tonumber(message:match('%(run 0x(%x+)%)$'),16)
+    end
+    -- Wave k of the run found, then every body of it killed in one tick.
+    local function round(run,k,n)
+        local found=string.format('wave %d find +1 s: tracked %d/%d',k,n,n)
+        for _=1,400 do
+            if logged(found) then break end
+            tk()
+        end
+        assert(logged(found),since(0))
+        for _,m in ipairs(bodies) do
+            local r,w=W.decode(m.key)
+            if r==run and w==k then m.st,m.ctl=1,nil end
+        end
+        tk()
+    end
+    local targets=C.find('targets')
+    local function win(run) for k=1,3 do round(run,k,#targets.waves[k].ids) end end
+    -- Target Practice to a success: its name on the card, then the record line and the Best row.
+    local run=start('targets')
+    tk()
+    assert(kit.shown.night and card.title.text=='Entraînement au tir' and card.line.text=='DÉBUT DANS 5',
+        card.title.text)
+    tk(20)
+    assert(card.title.text=='Entraînement au tir' and card.line.text=='VAGUE 1/3  1:30  SCORE 0',card.line.text)
+    win(run)
+    local score,secs=C.best(file,'targets')
+    assert(score and kit.shown.night_result and res.head.c=='teal' and res.sub.text=='Nouveau record personnel.',
+        res.sub.text)
+    local best=string.format('Record=%d  0:%02d',score,secs)
+    local function row(i) return res.rows[i].label.text..'='..res.rows[i].value.text end
+    assert(row(5)==best and row(1)=='Vagues terminées=3/3',row(5))
+    assert(#told==0,'The kit is up: no notice')
+    -- Stopped: the challenge's stop line, the best it kept.
+    start('targets')
+    tk(8)
+    ok,message=ch.challenge('stop')
+    tk()
+    assert(res.sub.text=='Arrêtée avec coop challenge stop.' and row(5)==best and res.head.c=='warn',res.sub.text)
+    -- Night Operation's panel: its own stop line and its own best.
+    bodies,lines={},{}
+    ok,message=ch.command('start')
+    assert(ok,message)
+    tk(2)
+    assert(card.title.text=='OPÉRATION NOCTURNE',card.title.text)
+    ch.command('stop')
+    tk()
+    assert(res.sub.text=='Arrêtée avec coop nightop stop.' and row(5)=='Record=500  5:00',row(5))
+    -- The kit off: Antlion Swarm's notices with its name; the end and the stop line.
+    kit.is_off=true
+    run=start('swarm')
+    assert(told[1]=='Antlion Swarm starts in 5 s.',tostring(told[1]))
+    tk(20)
+    assert(told[2]=='Antlion Swarm: wave 1/3.',tostring(told[2]))
+    round(run,1,4)
+    assert(told[3]=='Antlion Swarm: wave 1 cleared.',tostring(told[3]))
+    ch.challenge('stop')
+    assert(told[4]:find('^Operation Failed: 1/3 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
+    assert(told[5]=='Stopped with coop challenge stop.' and #told==5,tostring(told[5]))
+    -- A success that writes a best: the end notice, then the record line.
+    file=''
+    run=start('targets')
+    win(run)
+    assert(told[#told-1]:find('^Operation Successful: 3/3 waves cleared, 18 kills, score %d+, time 0:%d%d%.$'),
+        told[#told-1])
+    assert(told[#told]=='New personal best.' and C.best(file,'targets'),told[#told])
+    kit.is_off=false
+    -- The panel holds a success that wrote a best, then the kit goes off, then the HUD fails: each time the notices
+    -- get the end and the record line.
+    for _,cut in ipairs({function() kit.is_off=true end,function() kit.raise='boom' end}) do
+        file=''
+        run=start('targets')
+        win(run)
+        assert(kit.shown.night_result and #told==0,'The panel holds the result')
+        cut()
+        tk()
+        kit.is_off,kit.raise=false,nil
+        assert(told[1]:find('^Operation Successful: ') and told[2]=='New personal best.' and #told==2,
+            tostring(told[2]))
+    end
+    assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
+    assert(#violations==0,violations[1])
+end
 print('nightop_run_test ok')
