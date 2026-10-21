@@ -17,6 +17,8 @@
 //                                                                  MaxHP and MaxStamina, kMinScale to kMaxScale
 //   SBF11 place <gen> <0|1>                                        host, reliable: its same_place (stage 3a), after
 //                                                                  its world (and scale) while on, and at each change
+//   SBF11 aggro <gen> <game|host>                                  host, reliable: its aggro (stage 3b), after its
+//                                                                  place while host, and at each change
 //   SBF11 up <gen> <hguid> <spawnId> <idx> <charId> <maxHp>        host, reliable: an enemy it arbitrates, with the
 //                                                                  game's own MaxHP (never a scaled one)
 //   SBF11 down <gen> <hguid>, SBF11 dead <gen> <hguid>             host, reliable: gone without a death, or its death
@@ -27,11 +29,17 @@
 //                                                                  before them, and whether its copy died
 //   SBF11 cc <gen> <hguid> <effect>                                both, reliable: a crowd control (kCcEffects) that
 //                                                                  started on our copy
+//   SBF11 own <gen> <hguid> <H|G> <oe>                             host, reliable: a same-place enemy changes hands
+//                                                                  (stage 3b), at owner epoch oe
+//   SBF11 own-no <gen> <hguid> <oe> <why>                          guest, reliable: she does not run it at epoch oe
+//                                                                  (an own G refused, or one she gives back); why
+//                                                                  one of kOwnNo
 // The host answers the guest's on and world with its whole list (world, its scale and place, then every up), and the
 // guest
 // answers the host's on with its own (hers may have come while the host was off), so either side may restart.
 // Same-place enemies (pilot.h) send their show, show-set and show-stop lines on this channel with the same tag, from
-// the side that owns an enemy; pilot_line() tells them apart, and pilot.h parses them.
+// the side that owns an enemy; pilot_line() tells them apart, and pilot.h parses them. own and own-no are the
+// engine's (fight_engine.h keeps the owners), never Host's or Guest's.
 #pragma once
 
 #include <algorithm>
@@ -40,6 +48,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -89,10 +98,15 @@ inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + k
 // kMinScale, none, to kMaxScale), the host's for both worlds and fixed for its session.
 enum Scale : int { kScaleHp, kScaleBalance, kScales };
 inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || pct[kScaleBalance] > kMinScale; }
+// Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
+// side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair.
+constexpr const char *kOwnNo[] = {"unpaired", "state", "off", "epoch", "aggro", "full"};
+enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kOwnNoCount };
 
 // ---- Channel 2 ----
 
-enum class Type : uint8_t { invalid, on, off, world, scale, place, up, down, dead, hp, cc, hit }; // world..cc: host's.
+// world..cc: the host's lines a recording keeps; hit and own-no: the guest's; own: the host's, never recorded.
+enum class Type : uint8_t { invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no };
 // One enemy in an hp message.
 struct Values {
   uint32_t guid = 0;
@@ -113,6 +127,10 @@ struct Message {
   int32_t effect = 0;          // cc: one of kCcEffects.
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // scale: MaxHP and MaxStamina in percent.
   bool place = false;                               // place: the host's same_place on.
+  bool host_only = false;                           // aggro: aggro=host (game otherwise).
+  bool to_guest = false;                            // own: G (H otherwise).
+  uint8_t oe = 0;                                   // own, own-no: the owner epoch.
+  uint8_t why = kUnpaired;                          // own-no: one of OwnNo.
   Values entries[kHpPerMessage];
   uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
 };
@@ -130,6 +148,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::world: return t + "world" + n(m.gen);
   case Type::scale: return t + "scale" + n(m.gen) + n(m.scale[kScaleHp]) + n(m.scale[kScaleBalance]);
   case Type::place: return t + "place" + n(m.gen) + n(m.place);
+  case Type::aggro: return t + "aggro" + n(m.gen) + (m.host_only ? " host" : " game");
   case Type::up: return t + "up" + n(m.gen) + n(m.guid) + n(m.spawn) + n(m.index) + n(m.chr) + n(m.max_hp);
   case Type::down: return t + "down" + n(m.gen) + n(m.guid);
   case Type::dead: return t + "dead" + n(m.gen) + n(m.guid);
@@ -146,6 +165,10 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::hit:
     return t + "hit" + n(m.gen) + n(m.seq) + n(m.guid) + n(m.delta[kHp]) + n(m.delta[kShield]) + n(m.delta[kStamina]) +
            n(m.pre_hp) + n(m.lethal);
+  case Type::own: return t + "own" + n(m.gen) + n(m.guid) + (m.to_guest ? " G" : " H") + n(m.oe);
+  case Type::own_no:
+    return t + "own-no" + n(m.gen) + n(m.guid) + n(m.oe) + " " +
+           kOwnNo[m.why < kOwnNoCount ? m.why : uint8_t(kUnpaired)];
   case Type::invalid: break;
   }
   return std::string();
@@ -209,6 +232,23 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && (f[1] == "0" || f[1] == "1");
     m.place = f[1] == "1";
     type = Type::place;
+  } else if (kind == "aggro") {
+    ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && (f[1] == "game" || f[1] == "host");
+    m.host_only = f[1] == "host";
+    type = Type::aggro;
+  } else if (kind == "own") {
+    ok = split(rest, f, 4, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && (f[2] == "H" || f[2] == "G") &&
+         number(f[3], v) && v <= 255;
+    m.to_guest = f[2] == "G";
+    m.oe = static_cast<uint8_t>(v);
+    type = Type::own;
+  } else if (kind == "own-no") {
+    ok = split(rest, f, 4, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && number(f[2], v) && v <= 255;
+    m.oe = static_cast<uint8_t>(v);
+    const auto at = std::find_if(std::begin(kOwnNo), std::end(kOwnNo), [&](const char *w) { return f[3] == w; });
+    ok = ok && at != std::end(kOwnNo);
+    m.why = static_cast<uint8_t>(at - std::begin(kOwnNo));
+    type = Type::own_no;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;
@@ -449,6 +489,9 @@ public:
   // Each turn, before step(): our same_place as it stands (on, not turned off by coop fight pilot off or the pilot's
   // latch). The guest hears it with our list and at each change.
   void set_place(bool on) { place_ = on; }
+  // Each turn, before step(): our aggro (stage 3b), true for aggro=host. She hears it after our place while it says
+  // host, and at each change.
+  void set_aggro(bool host_only) { host_only_ = host_only; }
   // The enemies whose scaling the engine holds after this step: every one followed while her on held, until it leaves
   // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling.
   size_t scaled(uint32_t *guids) const {
@@ -472,6 +515,26 @@ public:
   uint32_t gen() const { return gen_; }
   size_t linked() const { return count_; }
   bool peer_on() const { return peer_on_; } // Her on came, and no off since.
+  bool ignored() const { return ignored_; } // Too many bad lines: nothing of hers counts until the session ends.
+  // This step's hits on one enemy (stage 3b's last hit): ours, a drop on our copy that no claim of hers made; hers, a
+  // claim with a drop in it, taken. False when we do not follow it.
+  bool struck(uint32_t guid, bool &ours, bool &hers) const {
+    for (size_t i = 0; i < count_; ++i)
+      if (enemies_[i].guid == guid) {
+        ours = enemies_[i].struck_ours, hers = enemies_[i].struck_hers;
+        return true;
+      }
+    return false;
+  }
+  // A line no honest guest sends (R33): counted and logged once; after kMaxBad of them her lines are ignored.
+  template <class Io> void bad(const char *why, Io &io) {
+    if (++counts.bad == 1)
+      io.event(Event{"bad line", why});
+    if (counts.bad == kMaxBad) {
+      ignored_ = true;
+      io.event(Event{"peer ignored", "too many bad lines; until the session ends"});
+    }
+  }
   // The GUIDs the next pass must re-find.
   size_t tracked(uint32_t *guids) const {
     for (size_t i = 0; i < count_; ++i)
@@ -582,6 +645,8 @@ public:
       }
       if ((told_place_ = place_)) // Off needs no line: her world dropped it.
         io.send(placed());
+      if ((told_aggro_ = host_only_)) // Nor game: her world reset it to game.
+        io.send(aggro());
       for (size_t i = 0; i < count_; ++i)
         io.send(up(enemies_[i]));
       next_hp_ = next_refresh_ = now; // Every value at once.
@@ -589,6 +654,10 @@ public:
     if (peer_on_ && place_ != told_place_) {
       told_place_ = place_;
       io.send(placed());
+    }
+    if (peer_on_ && host_only_ != told_aggro_) {
+      told_aggro_ = host_only_;
+      io.send(aggro());
     }
     for (size_t c = 0; c < claims_; ++c)
       apply(claim_[c], now, io);
@@ -613,6 +682,7 @@ private:
     bool fought = false;  // Hurt when it came, or a drop between two passes: our EVE hit it (kill_credit=fought).
     bool scaled = false;  // Followed while her on held: the engine scales it.
     bool holding = false; // Her claim's kill waits since hold_ms while it holds NoDamageNoHit; our hp lines say 0.
+    bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
     // Scaled from this step: its values wait for the next pass, which reads them scaled. Sent now, they would reach
     // her before the engine scales it, and her copy, already scaled, would take a drop with a number, then a heal.
@@ -622,8 +692,10 @@ private:
     Mirror cc;
     void take(const Seen &s) {
       due = false;
+      struck_ours = struck_hers = false;
       for (int k = 0; k < kStats; ++k)
-        fought = fought || s.value[k] < value[k];
+        struck_ours = struck_ours || s.value[k] < value[k];
+      fought = fought || struck_ours;
       spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage;
       std::copy(s.max, s.max + kStats, max);
       std::copy(s.value, s.value + kStats, value);
@@ -660,6 +732,11 @@ private:
     m.place = place_;
     return m;
   }
+  Message aggro() const {
+    Message m = note(Type::aggro, 0);
+    m.host_only = host_only_;
+    return m;
+  }
   Message up(const Enemy &e) const {
     Message m = note(Type::up, e.guid);
     m.spawn = e.spawn;
@@ -667,15 +744,6 @@ private:
     m.chr = e.chr;
     m.max_hp = e.max_hp;
     return m;
-  }
-
-  template <class Io> void bad(const char *why, Io &io) {
-    if (++counts.bad == 1)
-      io.event(Event{"bad line", why});
-    if (counts.bad == kMaxBad) {
-      ignored_ = true;
-      io.event(Event{"peer ignored", "too many bad lines; until the session ends"});
-    }
   }
 
   // R33. Every claim with a new number is acknowledged, taken or not: the guest then trusts our values over it. Sizes
@@ -723,6 +791,7 @@ private:
     }
     ++counts.claims;
     e->claimed = e->hit = true;
+    e->struck_hers = e->struck_hers || k.delta[kHp] || k.delta[kShield] || k.delta[kStamina];
     if ((e->nodamage == 3 || e->nodamage == 4) && (k.delta[kHp] || k.delta[kShield] || k.lethal))
       ++(e->nodamage == 3 ? counts.bypass3 : counts.bypass4);
     for (int s : {kShield, kStamina})
@@ -824,6 +893,7 @@ private:
   uint16_t scale_[kScales] = {kMinScale, kMinScale};
   bool credit_all_ = true;
   bool place_ = false, told_place_ = false; // Our same_place, and as the guest last heard it.
+  bool host_only_ = false, told_aggro_ = false; // Our aggro=host, and as the guest last heard it.
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
@@ -854,6 +924,8 @@ public:
   uint16_t scale(int which) const { return scale_[which]; }
   // The host's same_place from its place line, until its next world, on or off: false before one.
   bool place() const { return place_; }
+  // The host's aggro=host from its aggro line, the same way: false (aggro=game) before one.
+  bool host_only() const { return host_only_; }
   uint32_t gen() const { return known_gen_; } // The host's generation, from its world line; 0 before one.
   size_t linked() const {
     size_t n = 0;
@@ -923,6 +995,7 @@ public:
       return;
     case Type::scale:
     case Type::place:
+    case Type::aggro:
     case Type::up:
     case Type::down:
     case Type::dead:
@@ -939,6 +1012,8 @@ public:
       return (void)std::copy(m.scale, m.scale + kScales, scale_);
     if (m.type == Type::place)
       return (void)(place_ = m.place);
+    if (m.type == Type::aggro)
+      return (void)(host_only_ = m.host_only);
     Pair *p = find(m.guid);
     if (m.type == Type::up) {
       if (p) // Announced once a generation: a repeat changes nothing.
@@ -1074,7 +1149,7 @@ private:
     known_gen_ = batch_ = 0;
     logged_ = 0;
     std::fill(scale_, scale_ + kScales, kMinScale);
-    place_ = false;
+    place_ = host_only_ = false;
   }
   Pair *find(uint32_t hguid) {
     for (size_t i = 0; i < count_; ++i)
@@ -1266,7 +1341,8 @@ private:
   uint32_t known_gen_ = 0, own_gen_ = 0, seq_ = 0, batch_ = 0;
   uint64_t next_claim_ = 0;
   uint16_t scale_[kScales] = {kMinScale, kMinScale};
-  bool place_ = false; // The host's same_place (its place line).
+  bool place_ = false;     // The host's same_place (its place line).
+  bool host_only_ = false; // The host's aggro=host (its aggro line).
   bool confirm_ = false, credit_all_ = true;
   struct Key {
     uint32_t spawn = 0;
@@ -1278,10 +1354,10 @@ private:
 
 // ---- Record and replay ----
 
-// The host's lines as sent (world, scale, place, up, down, dead, hp, cc), each "<ms since the start> <SBF11 text>\n", in a
-// file the worker writes at the stop; read back whole and checked, then played once into the guest role. The first
-// line is a world (the recorder starts with the host's list), so the guest takes the recorded generation; pairing goes
-// by key, so a recorded enemy pairs with the same spawn after a camp rest.
+// The host's lines as sent (world, scale, place, aggro, up, down, dead, hp, cc), each "<ms since the start> <SBF11
+// text>\n", in a file the worker writes at the stop; read back whole and checked, then played once into the guest role.
+// The first line is a world (the recorder starts with the host's list), so the guest takes the recorded generation;
+// pairing goes by key, so a recorded enemy pairs with the same spawn after a camp rest.
 constexpr size_t kMaxRecording = size_t(4) << 20, kMaxRecordLines = 20000;
 struct Line {
   uint64_t ms = 0;

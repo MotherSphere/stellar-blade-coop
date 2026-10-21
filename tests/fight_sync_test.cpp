@@ -2,7 +2,8 @@
 // host's announces, values, claims and death rules, and its checks of every claim (R33); the guest's pairing, claims
 // (R35), corrections and death rules; the crowd control told and mirrored both ways; the world fence and the clearing
 // on both sides; two fake worlds linked through a delayed, lossy line until every enemy died once on each side; and
-// record and replay. The pilot's show lines are only told apart here (pilot_test.cpp parses them).
+// record and replay. The pilot's show lines are only told apart here (pilot_test.cpp parses them); stage 3b's aggro,
+// own and own-no lines round-trip here, and only the right side takes each (the owners are fight_engine.h's).
 #include "fight_sync.h"
 
 #include <algorithm>
@@ -166,7 +167,10 @@ int main() {
           "SBF11 hp 3 1 0 77:1600:100:200", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7", "SBF11 hit 3 1 77 120 5 30 400 0",
           "SBF11 hit 3 4294967295 77 400 0 0 400 1", "SBF11 hit 3 2 77 0 0 0 0 0", "SBF11 cc 3 77 9900001",
           "SBF11 cc 4294967295 4294967295 3000401", "SBF11 scale 3 135 115", "SBF11 scale 4294967295 400 100",
-          "SBF11 place 3 1", "SBF11 place 4294967295 0"}) {
+          "SBF11 place 3 1", "SBF11 place 4294967295 0", "SBF11 aggro 3 game", "SBF11 aggro 4294967295 host",
+          "SBF11 own 3 77 G 1", "SBF11 own 4294967295 4294967295 H 255", "SBF11 own 3 77 H 0",
+          "SBF11 own-no 3 77 0 unpaired", "SBF11 own-no 3 77 255 state", "SBF11 own-no 3 77 9 off",
+          "SBF11 own-no 3 77 9 epoch", "SBF11 own-no 3 77 9 aggro", "SBF11 own-no 3 77 9 full"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -188,6 +192,16 @@ int main() {
            scale.scale[kScaleBalance] == 115);
     assert(msg("SBF11 place 3 1").type == Type::place && msg("SBF11 place 3 1").gen == 3 &&
            msg("SBF11 place 3 1").place && !msg("SBF11 place 3 0").place);
+    assert(msg("SBF11 aggro 3 host").type == Type::aggro && msg("SBF11 aggro 3 host").gen == 3 &&
+           msg("SBF11 aggro 3 host").host_only && !msg("SBF11 aggro 3 game").host_only);
+    Message own = msg("SBF11 own 3 77 G 200");
+    assert(own.type == Type::own && own.gen == 3 && own.guid == 77 && own.to_guest && own.oe == 200);
+    assert(!msg("SBF11 own 3 77 H 1").to_guest);
+    Message no = msg("SBF11 own-no 3 77 4 epoch");
+    assert(no.type == Type::own_no && no.gen == 3 && no.guid == 77 && no.oe == 4 && no.why == kEpoch);
+    Message odd;
+    odd.type = Type::own_no, odd.gen = 3, odd.guid = 77, odd.why = 99; // Never written: read as unpaired.
+    assert(format(odd) == "SBF11 own-no 3 77 0 unpaired");
     assert(msg("SBF11 world 007").gen == 7); // Leading zeros read as the number; we never write them.
 
     // off's reason: cleaned both ways, never empty, bounded; a peer's text never breaks our log line.
@@ -246,7 +260,14 @@ int main() {
           "SBF11 scale 3 135 115 1", "SBF11 scale 3 1.35 1.15", "SBF11 scale 3 -135 115", "SBF11 scale 3 135  115",
           // place: the host's same_place, 0 or 1.
           "SBF11 place 3", "SBF11 place 3 2", "SBF11 place 0 1", "SBF11 place 3 1 0", "SBF11 place 3 01",
-          "SBF11 place 3 on", "SBF11 place 3 -1", "SBF11 place  3 1"})
+          "SBF11 place 3 on", "SBF11 place 3 -1", "SBF11 place  3 1",
+          // aggro: game or host. own: H or G at an epoch 0-255. own-no: one of kOwnNo.
+          "SBF11 aggro 3", "SBF11 aggro 3 Host", "SBF11 aggro 3 near", "SBF11 aggro 0 game", "SBF11 aggro 3 game 1",
+          "SBF11 aggro 3 1", "SBF11 own 3 77 G", "SBF11 own 3 77 g 1", "SBF11 own 3 77 X 1", "SBF11 own 3 77 G 256",
+          "SBF11 own 3 77 G -1", "SBF11 own 0 77 G 1", "SBF11 own 3 0 G 1", "SBF11 own 3 77 G 1 1",
+          "SBF11 own 3 77 HG 1", "SBF11 own-no 3 77 1", "SBF11 own-no 3 77 1 why", "SBF11 own-no 3 77 1 State",
+          "SBF11 own-no 3 77 256 off", "SBF11 own-no 0 77 1 off", "SBF11 own-no 3 0 1 off", "SBF11 own-no 3 77 1 off x",
+          "SBF11 own-no 3 77 off", "SBF11 own_no 3 77 1 off", "SBF11 ownno 3 77 1 off"})
       assert(!valid(bad));
     const char nul[] = {'S', 'B', 'F', '7', ' ', 'o', 'n', '\0'};
     assert(parse(nul, sizeof nul).type == Type::invalid && parse(nullptr, 3).type == Type::invalid);
@@ -267,7 +288,8 @@ int main() {
     const std::string seeds[] = {"SBF11 on", "SBF11 off why", "SBF11 world 3", "SBF11 up 3 77 50110 2 15011001 1600",
                                  "SBF11 dead 3 77", "SBF11 hp 3 2 9 77:0:0:0 78:5:6:7 79:1:1:1",
                                  "SBF11 hit 3 1 77 120 5 30 400 1", "SBF11 cc 3 77 9900001",
-                                 "SBF11 scale 3 135 115", "SBF11 place 3 1"};
+                                 "SBF11 scale 3 135 115", "SBF11 place 3 1", "SBF11 aggro 3 host",
+                                 "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -275,7 +297,7 @@ int main() {
         for (char &c : text)
           c = static_cast<char>(rng() % 3 ? "0123456789: SBF11onfworldupdeadhpit"[rng() % 35] : char(rng()));
       } else {
-        text = seeds[rng() % 10];
+        text = seeds[rng() % (sizeof seeds / sizeof seeds[0])];
         for (int k = rng() % 4; k >= 0 && !text.empty(); --k) {
           size_t at = rng() % text.size();
           switch (rng() % 3) {
@@ -294,6 +316,7 @@ int main() {
         assert(m.delta[s] >= 0 && m.delta[s] <= kMaxStat);
       for (uint16_t pct : m.scale)
         assert(pct >= coop::kMinScale && pct <= coop::kMaxScale);
+      assert(m.why < kOwnNoCount);
       std::string again = format(m, reason), reason2;
       Message n = parse(again.data(), again.size(), &reason2);
       assert(n.type == m.type && format(n, reason2) == again);
@@ -641,6 +664,50 @@ int main() {
     plain.receive(msg("SBF11 on"), 0, u);
     step(plain, u, 1, 0);
     assert(!has(u.lines(), "place"));
+  }
+
+  // ---- Host: aggro and hits (stage 3b) ----
+  // Our aggro goes to the guest like our same_place: after the place line while it says host, at each change while
+  // she is on. Her own and own-no lines are the engine's: an own from her is a lie (the host's line), and Host never
+  // takes an own-no either (the engine does, before Host). Each step names the hits on each enemy for the last-hit
+  // rule: a drop on our copy no claim made (ours), a claim with a drop in it (hers).
+  {
+    World w;
+    w.add(101, 5001, 0);
+    Host h;
+    h.set_place(true);
+    h.set_aggro(true);
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    assert(w.lines().rfind("SBF11 world 1\nSBF11 place 1 1\nSBF11 aggro 1 host\nSBF11 up 1 101 ", 0) == 0);
+    step(h, w, 2, 20);
+    assert(!has(w.lines(), "aggro"));
+    h.set_aggro(false);
+    step(h, w, 3, 40);
+    assert(has(w.lines(), "SBF11 aggro 1 game\n"));
+    bool ours = true, hers = true;
+    assert(h.struck(101, ours, hers) && !ours && !hers && !h.struck(102, ours, hers));
+    w.hit(101, kShield, 5);
+    step(h, w, 4, 60);
+    assert(h.struck(101, ours, hers) && ours && !hers);
+    step(h, w, 5, 80);
+    assert(h.struck(101, ours, hers) && !ours && !hers);
+    h.receive(msg("SBF11 hit 1 1 101 0 0 10 1590 0"), 90, w);
+    step(h, w, 6, 100);
+    assert(h.struck(101, ours, hers) && !ours && hers); // Her claim's own drop is no hit of ours.
+    h.receive(msg("SBF11 hit 1 2 101 0 0 0 1590 0"), 110, w);
+    step(h, w, 7, 120);
+    assert(h.struck(101, ours, hers) && !ours && !hers); // A claim of nothing.
+    assert(h.counts.bad == 0);
+    h.receive(msg("SBF11 own 1 101 G 1"), 130, w);
+    assert(h.counts.bad == 1 && w.count("bad line", "not a guest's line") == 1);
+    World u;
+    u.add(301, 7001, 0);
+    Host plain; // aggro=game: no line at all.
+    plain.set_place(true);
+    plain.receive(msg("SBF11 on"), 0, u);
+    step(plain, u, 1, 0);
+    assert(!has(u.lines(), "aggro"));
   }
 
   // ---- Host: crowd control told and mirrored (PHASE11-STAGE2-RE 2) ----
@@ -1149,6 +1216,33 @@ int main() {
       g.receive(msg(end), w);
       assert(!g.place());
     }
+  }
+
+  // ---- Guest: the host's aggro (stage 3b) ----
+  // Held like its place line: of its generation, until its next world, on or off. An own-no from the host is a lie,
+  // and Guest never takes an own either (the engine does, before Guest).
+  {
+    World w;
+    Guest g;
+    assert(!g.host_only());
+    g.receive(msg("SBF11 world 1"), w);
+    g.receive(msg("SBF11 aggro 2 host"), w);
+    assert(!g.host_only() && g.counts.stale == 1);
+    g.receive(msg("SBF11 aggro 1 host"), w);
+    assert(g.host_only());
+    g.receive(msg("SBF11 aggro 1 game"), w);
+    assert(!g.host_only());
+    for (const char *end : {"SBF11 world 2", "SBF11 off coop fight off", "SBF11 on"}) {
+      g.receive(msg("SBF11 world 1"), w);
+      g.receive(msg("SBF11 aggro 1 host"), w);
+      assert(g.host_only());
+      g.receive(msg(end), w);
+      assert(!g.host_only());
+    }
+    const uint64_t bad = g.counts.bad;
+    g.receive(msg("SBF11 world 1"), w);
+    g.receive(msg("SBF11 own-no 1 77 1 off"), w);
+    assert(g.counts.bad == bad + 1);
   }
 
   // ---- Guest, guest_kills=confirmed: our copies hold a 1 HP floor, so our lethal hit waits for the host's word ----
