@@ -260,4 +260,184 @@ s=in_state('wave')
 at(s,2400,{abort='map'})
 assert(said(W.step(s,{},5))=='idle' and s.phase=='idle')
 
+
+-- Masks: one bit per key of the schedule, (wave-1)*8+slot, as hex; another run's key or a slot past its wave is no bit.
+local function set(list) local out={} for _,k in ipairs(list) do out[k]=true end return out end
+local function same(a,b)
+    for k in pairs(a) do if not b[k] then return false end end
+    for k in pairs(b) do if not a[k] then return false end end
+    return true
+end
+assert(W.mask({},RUN)=='0' and W.mask(set({W.key(RUN,1,0)}),RUN)=='1' and W.mask(set({W.key(RUN,2,1)}),RUN)=='200')
+assert(W.mask(set({W.key(RUN,5,3),W.key(RUN+1,1,0)}),RUN)==string.format('%x',1<<35),'Another run: no bit')
+local every={}
+for k=1,5 do for slot=0,size(k)-1 do every[W.key(RUN,k,slot)]=true end end
+assert(#W.mask(every,RUN)<=10 and same(W.unmask(W.mask(every,RUN),RUN),every),'Round trip of a full run')
+assert(same(W.unmask('0',RUN),{}) and same(W.unmask('201',RUN),set({W.key(RUN,1,0),W.key(RUN,2,1)})))
+for _,bad in ipairs({'','-1','1g','F','0x1',' 1','10000000000',string.format('%x',1<<4),string.format('%x',1<<40),
+        string.format('%x',1<<39)}) do -- Slot 4 of wave 1 and slot 7 of wave 5 are no body.
+    assert(W.unmask(bad,RUN)==nil,'Refused mask: '..bad)
+end
+
+-- The host's line: every field round-trips; every field out of range, a word too many or too few, a double space,
+-- refuses the whole line.
+local every255={}
+for key in pairs(every) do every255[key&0xFF00FFFF|255<<16]=true end
+local host={n=65535,run=255,seed=4294967295,phase='end',wave=5,rt=-10000,score=W.MAX_SCORE,kills=40,clears=5,
+    found=every255,x=-2147483648,y=2147483647,z=0,yaw=-180,map='/game/art/bg/worldmap/level_p/f02-a',outcome='aborted',
+    reason='lost'}
+local text=W.encode_host(host)
+assert(text:sub(1,2)=='h ' and #text<=300 and W.MAX_SCORE==1060,text)
+local back=W.decode_host(text)
+for k,v in pairs(host) do
+    if k=='found' then assert(same(back.found,every255)) else assert(back[k]==v,k..': '..tostring(back[k])) end
+end
+local base={n=0,run=1,seed=0,phase='wave',wave=1,rt=600000,score=0,kills=0,clears=0,found={},x=1,y=2,z=3,yaw=360,
+    map='/m'}
+assert(W.decode_host(W.encode_host(base)).outcome==nil)
+for _,ending in ipairs({'success','time','failed:host','failed:guest','aborted:stop','aborted:map','aborted:left',
+        'aborted:slot','aborted:error','aborted:lost','aborted:mate'}) do
+    local h={}
+    for k,v in pairs(base) do h[k]=v end
+    h.phase,h.outcome,h.reason='end',ending:match('^(%a+)'),ending:match(':(%a+)$')
+    local d=W.decode_host(W.encode_host(h))
+    assert(d and d.outcome==h.outcome and d.reason==h.reason,ending)
+end
+local function host_with(field,value)
+    local words={}
+    for w in W.encode_host(base):gmatch('%S+') do words[#words+1]=w end
+    words[field]=value
+    return table.concat(words,' ')
+end
+for _,bad in ipairs({{2,'65536'},{2,'-1'},{2,'1.5'},{3,'0'},{3,'256'},{4,'4294967296'},{4,'-1'},{5,'count2'},
+        {5,'idle'},{6,'6'},{6,'-1'},{7,'600001'},{7,'-10001'},{8,'1061'},{9,'41'},{10,'6'},{11,'10'},{11,'x'},
+        {12,'2147483648'},{13,'-2147483649'},{14,'1e3'},{15,'361'},{15,'-361'},{16,'game'},{16,'/Game'},
+        {16,'/'..('a'):rep(128)},{16,'/a b'},{17,'success'},{17,'aborted:link'},{1,'g'}}) do
+    assert(W.decode_host(host_with(bad[1],bad[2]))==nil,'Refused: field '..bad[1]..' = '..bad[2])
+end
+local ended=W.encode_host(host)
+for _,bad in ipairs({ended:gsub(' aborted:lost$',' -'),ended:gsub(' aborted:lost$',' aborted:dance'),
+        ended:gsub(' aborted:lost$',' failed:both'),ended:gsub(' aborted:lost$',' success:'),
+        ended:gsub(' aborted:lost$',' time:host'),ended:gsub(' aborted:lost$',' aborted'),ended..' x',ended:gsub(' %S+$',''),ended:gsub(' ','  ',1),
+        ended..' ',' '..ended}) do
+    assert(W.decode_host(bad)==nil,'Refused: '..bad)
+end
+assert(W.decode_host(nil)==nil and W.decode_host('')==nil)
+
+-- The guest's line: each state with its word; a refusal word only with refuse, an abort reason only with abort.
+local mate={n=7,run=RUN,state='run',up=40,killed=set({W.key(RUN,1,0)}),done=every}
+text=W.encode_mate(mate)
+assert(text==string.format('g 7 %d run 40 1 %s -',RUN,W.mask(every,RUN)),text)
+back=W.decode_mate(text)
+assert(back.n==7 and back.run==RUN and back.state=='run' and back.up==40 and back.why==nil)
+assert(same(back.killed,mate.killed) and same(back.done,every))
+for _,case in ipairs({{'ready'},{'dead'},{'refuse','far'},{'refuse','map'},{'refuse','slot'},{'refuse','busy'},
+        {'refuse','near'},{'refuse','taken'},{'abort','stop'},{'abort','map'},{'abort','left'},{'abort','slot'},
+        {'abort','error'},{'abort','lost'}}) do
+    local d=W.decode_mate(W.encode_mate({n=1,run=2,state=case[1],up=0,killed={},done={},why=case[2]}))
+    assert(d and d.state==case[1] and d.why==case[2],case[1])
+end
+for _,bad in ipairs({'g 65536 1 run 0 0 0 -','g 1 0 run 0 0 0 -','g 1 256 run 0 0 0 -','g 1 1 walk 0 0 0 -',
+        'g 1 1 run 41 0 0 -','g 1 1 run -1 0 0 -','g 1 1 run 0 10 0 -','g 1 1 run 0 0 x -','g 1 1 run 0 0 0 far',
+        'g 1 1 refuse 0 0 0 -','g 1 1 refuse 0 0 0 stop','g 1 1 abort 0 0 0 far','g 1 1 abort 0 0 0 mate',
+        'g 1 1 ready 0 0 0 -  ','g 1 1 ready 0 0 0','g 1 1 ready 0 0 0 - x','h 1 1 ready 0 0 0 -','g 1  1 ready 0 0 0 -'}) do
+    assert(W.decode_mate(bad)==nil,'Refused: '..bad)
+end
+
+-- A co-op run on the host: her line as input.mate. A key scores once, killed in either world or both; a wave is down
+-- once each of its keys is done in both worlds, and the cap counts every key not done in both.
+local function her(state,killed,done,why) return {state=state,killed=set(killed or {}),done=set(done or {}),why=why} end
+s=start()
+assert(at(s,0,{mate=her('ready')})=='wave 1')
+assert(at(s,5,{mate=her('run',{W.key(RUN,1,0)},{W.key(RUN,1,0)})})=='' and s.score==10 and s.kills==1)
+assert(at(s,6,{killed={W.key(RUN,1,0)},mate=her('run',{W.key(RUN,1,0)},{W.key(RUN,1,0)})})=='' and s.score==10
+    and s.kills==1,'Killed in both worlds: once')
+assert(at(s,7,{killed=keys(1,1,3),mate=her('run',{W.key(RUN,1,0)},{W.key(RUN,1,0)})})=='' and s.score==40)
+assert(s.phase=='wave' and s.left[1]==3 and s.up==3,'Down here, not in her world: the wave waits for her')
+assert(at(s,8,{mate=her('run',{W.key(RUN,1,0),W.key(RUN,1,1)},keys(1,0,3))})=='' and s.phase=='breather')
+assert(s.score==40 and s.kills==4 and s.clears==1 and s.clear_at[1]==8)
+assert(at(s,18,{mate=her('run',{},keys(1,0,3))})=='wave 2' and s.up==3)
+assert(at(s,30,{killed=keys(2,0,2),mate=her('run',{},keys(1,0,3))})=='' and s.score==40+wave_points(2))
+assert(s.up==3 and s.left[2]==3 and s.phase=='wave','Down in his world only')
+-- Her line stays in the state: a tick without one still waits for her.
+assert(at(s,31,{})=='' and s.left[2]==3)
+-- Her bodies hold the cap: wave 1 down in his world only (4 up), wave 2 on time (7 up), wave 3 waits (7 + 5 > 8) until
+-- she clears wave 1.
+s=start()
+at(s,0,{mate=her('ready')})
+assert(kill(s,5,1)=='' and s.up==4 and at(s,75)=='wave 2' and s.up==7)
+assert(at(s,150)=='' and at(s,151,{mate=her('run',{},keys(1,0,3))})=='wave 3' and s.up==3+5)
+-- Her death: failed (guest); her abort: aborted (mate); his own death in a co-op run: failed (host).
+for want,state in pairs({['end failed guest']='dead',['end aborted mate']='abort'}) do
+    s=start()
+    at(s,0,{mate=her('ready')})
+    assert(at(s,3,{mate=her(state,{},{},state=='abort' and 'stop' or nil)})==want,state)
+end
+s=start()
+at(s,0,{mate=her('ready')})
+assert(at(s,3,{dead=true,mate=her('run')})=='end failed host' and s.reason=='host')
+s=start()
+at(s,0,{mate=her('ready')})
+assert(at(s,3,{abort='stop',mate=her('dead')})=='end failed guest','Her death before his abort')
+-- Success once both worlds are done, with the time bonus as solo.
+s=start()
+at(s,0,{mate=her('ready')})
+local done_all={}
+for k=1,5 do
+    for slot=0,size(k)-1 do done_all[#done_all+1]=W.key(RUN,k,slot) end
+    kill(s,(k-1)*20,k)
+    assert(at(s,(k-1)*20+0.25,{mate=her('run',{},done_all)})~='end success' or k==5)
+    if k<5 then at(s,(k-1)*20+10.5,{mate=her('run',{},done_all)}) end
+end
+assert(s.phase=='result' and s.outcome=='success' and s.score==580+399 and s.time==80.25,s.phase..' '..s.score)
+
+-- The guest's run follows the host's line (W.follow): his waves spawn here once each, in order, two at once when one
+-- was missed; a repeated line changes nothing; phase, score, kills and clears are his; the next wave's time follows
+-- his clear; the end is his outcome, with his time and score. Her own bodies are kept for her line, never scored here.
+local function line(n,phase,wave,rt,extra)
+    local h={n=n,run=RUN,seed=0x12345678,phase=phase,wave=wave,rt=rt,score=0,kills=0,clears=0,found={},x=0,y=0,z=0,
+        yaw=0,map='/m'}
+    for k,v in pairs(extra or {}) do h[k]=v end
+    return h
+end
+local function follow(g,h,now,input) return said(W.follow(g,h,now,input)) end
+local g=start()
+g.phase='ask'
+assert(follow(g,line(1,'ask',0,-5000),101)=='' and g.phase=='ask')
+assert(follow(g,line(2,'count',0,-4000),102)=='' and g.phase=='countdown' and g.t0==106,'t0 from his first count')
+assert(follow(g,line(2,'count',0,-4000),104.5)=='' and g.t0==106,'The same line again: nothing moves')
+assert(follow(g,line(3,'count',0,-2500),104)=='' and g.t0==106,'Off by 0.5 s: t0 stays')
+assert(follow(g,line(4,'count',0,-1000),107.5)=='' and g.t0==108.5,'Off by more than 1 s: t0 moves')
+assert(follow(g,line(5,'wave',1,0),108.5)=='wave 1' and g.wave==1 and g.phase=='wave')
+assert(follow(g,line(6,'wave',1,1000),109.5)=='','Once')
+assert(follow(g,nil,110,{killed={W.key(RUN,1,0)},done={W.key(RUN,1,1)}})=='' and g.score==0 and g.kills==0)
+assert(g.killed[W.key(RUN,1,0)] and g.done[W.key(RUN,1,0)] and g.done[W.key(RUN,1,1)] and g.up==2)
+assert(W.mask(g.killed,RUN)=='1' and W.mask(g.done,RUN)=='3')
+assert(follow(g,line(7,'rest',1,20000,{score=40,kills=4,clears=1}),128.5)=='' and g.phase=='breather')
+assert(g.score==40 and g.kills==4 and g.clears==1 and g.next_at==30,tostring(g.next_at))
+assert(follow(g,line(8,'wave',3,150000,{score=40,kills=4,clears=2}),258.5)=='heal 2, wave 2, wave 3' and g.wave==3,
+    'Two waves at once, and the heal after two clears')
+assert(follow(g,line(9,'end',3,200000,{score=900,kills=12,clears=2,outcome='failed',reason='host'}),308.5)
+    =='end failed host')
+assert(g.phase=='result' and g.outcome=='failed' and g.reason=='host' and g.time==200 and g.score==900)
+assert(follow(g,line(10,'end',3,201000,{outcome='failed',reason='host'}),309)=='','Ended: once')
+assert(follow(g,nil,318.5)=='idle' and g.phase=='idle')
+-- His end words as she reads them: his own abort is her partner leaving, a lost link stays lost; a success keeps his
+-- score (its bonus in it) and time.
+for want,ending in pairs({['end aborted mate']={'aborted','stop'},['end aborted lost']={'aborted','lost'},
+        ['end success']={'success'},['end time']={'time'},['end failed guest']={'failed','guest'}}) do
+    g=start()
+    follow(g,line(1,'count',0,-5000),100)
+    assert(follow(g,line(2,'end',0,30000,{score=659,outcome=ending[1],reason=ending[2]}),131)==want,want)
+    assert(g.score==659 and g.time==30)
+end
+-- Her own death or stop ends her run at once, with her own words; his later line changes nothing.
+g=start()
+follow(g,line(1,'wave',1,0),105)
+assert(follow(g,nil,110,{dead=true})=='end failed guest' and g.reason=='guest')
+assert(follow(g,line(2,'wave',2,30000),112)=='' and g.wave==1)
+g=start()
+follow(g,line(1,'wave',1,0),105)
+assert(follow(g,line(2,'wave',1,1000),106,{abort='left'})=='end aborted left')
+
 print('nightop_waves_test: ok')
