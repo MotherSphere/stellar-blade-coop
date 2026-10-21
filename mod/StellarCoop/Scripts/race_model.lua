@@ -345,13 +345,17 @@ local function false_start(m)
     emit(m,{what='false_start'})
 end
 -- coop race quit or a map change (why): before GO the host cancels the race and the guest leaves it; during it, a DNF.
+-- With our result already in, the dnf line still goes out once: race.lua closes the race here, so a guest waiting for
+-- the host's rank ranks herself on it, and the other side's ghost stops being a Doro.
 local function quit(m,now,why)
     if before_go(m) then
         send(m,(m.role=='host' and 'abort %d %s' or 'dnf %d %s'):format(m.id,why))
         m.phase='over'
         emit(m,{what='cancelled',why=why})
-    elseif m.phase=='race' then
-        finish(m,now,nil,why)
+    elseif m.phase=='race' and m.me.why~=why then
+        if not (m.me.ms or m.me.why) then return finish(m,now,nil,why) end
+        m.me.why=why
+        send(m,('dnf %d %s'):format(m.id,why))
     end
 end
 -- The session ended: the race closes on this side, with no line.
@@ -387,6 +391,8 @@ local function receive(m,text,input,now)
             her.why=l.why
             if m.phase=='ready' then -- No go line yet: she is out. After one she stays a DNF, owed the rank and end.
                 her.out=true
+                emit(m,{what='out',why=l.why})
+            elseif l.why=='quit' or l.why=='map' then -- Her race closed on her PC: out of it, still in the ranking.
                 emit(m,{what='out',why=l.why})
             end
         end
@@ -511,10 +517,10 @@ end
 
 -- The live order, for the panel: our place and the racers in the race (1 or 2). A finisher before anyone racing, by
 -- time; then checkpoints passed in all; then the distance left to the next one (hers from her ghost's position,
--- her_pos; none: behind on a tie). A DNF comes last.
+-- her_pos; none: behind on a tie). A DNF comes last; a finisher who left after it stays a finisher.
 local function ahead(a,b)
-    if a.why or b.why then return a.why==nil and b.why~=nil end
     if a.ms or b.ms then return a.ms~=nil and (b.ms==nil or a.ms<b.ms) end
+    if a.why or b.why then return a.why==nil and b.why~=nil end
     if a.passed~=b.passed then return a.passed>b.passed end
     return a.dist<b.dist
 end

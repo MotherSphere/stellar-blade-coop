@@ -511,11 +511,29 @@ assert(ok and message=='You left the race.')
 step({H,G})
 assert(not H.race.armed() and not H.look.on and H.look.why=='race quit' and H.wire[#H.wire]:find('^dnf %d+ quit$'))
 assert(not has(H.told,'Quit the race.'),'Its own reply says it')
+step({H,G})
+assert(not G.ghost.doro and G.told[#G.told]=='Host left the race.','His ghost is himself again')
 run({H,G},function() return find(G.logs,'^result ') end)
 assert(find(G.logs,'^result .* rank=1$'))
 run({H,G},function() return not G.race.armed() end)
 ok,message=H.race.command('quit')
 assert(not ok and message=='no race to quit')
+-- 7b. The host finishes, then quits before she does: his dnf line still goes out, so she ranks herself at her finish
+-- (no 60 s wait), second behind his time.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+run({H,G},function() return find(H.logs,'^race %d+ fin ') end)
+H.race.command('quit')
+step({H,G})
+assert(not H.race.armed() and H.wire[#H.wire]:find('^dnf %d+ quit$') and not G.ghost.doro)
+local fin_at
+run({H,G},function()
+    fin_at=fin_at or find(G.logs,'^race %d+ fin ') and clock
+    return find(G.logs,'^result ')
+end)
+assert(clock-fin_at<0.1 and find(G.logs,'^result .* rank=2$'),clock-fin_at)
+run({H,G},function() return not G.race.armed() end)
 
 -- 8. A teleport DNF of hers: the host wins alone.
 H,G=pair()

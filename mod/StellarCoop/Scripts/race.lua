@@ -143,7 +143,12 @@ function Race.new(o)
             if ghost_why then log(ghost_why) end
             log('race '..m.id..' joined')
             tell(function(t) return t.race.armed_guest:format(her_name(t)) end)
-        elseif w=='out' then tell(function(t) return t.race.out:format(her_name(t)) end)
+        elseif w=='out' then -- She left the race (her PC closed it): her ghost is herself again.
+            if r.ghost then
+                r.ghost=false
+                pcall(puppet.doro,false)
+            end
+            tell(function(t) return t.race.out:format(her_name(t)) end)
         elseif w=='cancelled' then
             if not r.ending then tell(function(t) return t.race.cancelled end) end
         elseif w=='count' then -- 3, 2, 1: on the HUD only, as notices they would come late.

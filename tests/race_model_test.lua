@@ -493,6 +493,27 @@ do
     for s=0,17000,500 do R.tick(g,{pos=at_distance(path,s)},5000+s) end
     assert(g.me.ms and g.phase=='race','A teleport DNF: the host still sends the rank')
 end
+-- A host who has his result (a finish, or a teleport DNF) and then quits still sends his dnf line, once: the guest ranks
+-- herself as soon as she finishes, his ghost leaves the race (out), and a finish keeps its time and place.
+for _,teleport in ipairs({false,true}) do
+    host,guest,log,said=sim({speed={host=900,guest=700},delay=function() return 30 end,
+        pos=function(side,m,now,pos)
+            if teleport and side=='host' and m.phase=='race' and now-m.t_go>3000 then
+                return {x=pos.x,y=pos.y+3000,z=pos.z}
+            end
+        end,
+        dnf=function(side,m,now)
+            return side=='host' and m.phase=='race' and (m.me.ms or m.me.why) and now-m.t_go>6000 and 'quit' or nil
+        end})
+    local quits=0
+    for _,text in ipairs(said.host) do quits=quits+(text=='dnf 7 quit' and 1 or 0) end
+    assert(quits==1 and find(log.guest,'out').why=='quit' and guest.her.why=='quit',teleport and 'teleport' or 'fin')
+    assert(guest.shown-(guest.t_go+guest.me.ms)<=2*FRAME,'Her results at her finish: '..guest.shown-guest.t_go)
+    if teleport then assert(result(guest):find('^host=nil#nil guest=%d+#1$'),result(guest))
+    else assert(result(guest):find('^host=%d+#1 guest=%d+#2$'),result(guest)) end
+end
+-- The live order: a finisher who left after it stays ahead of a racer.
+assert(R.place({track=LINE,me={passed=2},her={joined=true,ms=50000,why='quit',passed=4},pos=R.slot(LINE,1)})==2)
 -- Her save is not a co-op one (race.lua answers for her): the host races alone and says why.
 do
     local m=R.host(LINE,7,0)
