@@ -22,6 +22,12 @@ template <class T> T at(uintptr_t where) {
   return value;
 }
 
+// The exception codes the SEH guards (pose_tick.cpp) pass on instead of latching. UE 4.26's fatal error raises 1
+// (FWindowsErrorOutputDevice) or 0x4000 (ReportAssert) for the engine's crash report and exit, and a caught stack
+// overflow leaves the thread with no guard page. Any other code, an access violation or a C++ throw among them, is
+// latched.
+constexpr bool passed_on(uint32_t code) { return code == 1 || code == 0x4000 || code == 0xc00000fd; }
+
 // The pinned executable: PE TimeDateStamp, SizeOfImage and 19 code bytes (the sister repository's pin).
 constexpr uint32_t kTimeDateStamp = 0x6a6a3b74, kSizeOfImage = 0x15981000;
 constexpr uint32_t kPinRva = 0x2bf7a28;

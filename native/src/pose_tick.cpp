@@ -249,6 +249,8 @@ extern "C" IMAGE_DOS_HEADER __ImageBase; // This DLL: every instruction the nati
 int fault_filter(EXCEPTION_POINTERS *info, std::atomic<uint64_t> &code, std::atomic<uint64_t> &rva,
                  std::atomic<uint64_t> &address) {
   auto *exception = info->ExceptionRecord;
+  if (passed_on(exception->ExceptionCode)) // UE's fatal error or a stack overflow: the game's handlers take it.
+    return EXCEPTION_CONTINUE_SEARCH;
   code = exception->ExceptionCode;
   rva = reinterpret_cast<uintptr_t>(exception->ExceptionAddress) - reinterpret_cast<uintptr_t>(&__ImageBase);
   if (exception->NumberParameters >= 2) // Access violations: the address read or written.
@@ -675,7 +677,7 @@ void lift_after_fault() {
   if (fault_in_dll(fight_fault_rva)) {
     __try {
       lift_body();
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
     }
   }
   fight_floors_left = fight_engine.forget();
@@ -799,7 +801,7 @@ void guarded_freeze() {
   if (freeze_name) { // Even unheld: a fault inside an add may come after our tag went into SB's set.
     __try {
       freeze_release();
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
     }
   }
   freeze_held = false;
@@ -1321,7 +1323,7 @@ void guarded_pilot() {
     return;
   __try { // Once: coop_tick calls nothing here after a fault. A fault in it leaves the rest as it is.
     pilot_put_back();
-  } __except (EXCEPTION_EXECUTE_HANDLER) {
+  } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
   }
 }
 

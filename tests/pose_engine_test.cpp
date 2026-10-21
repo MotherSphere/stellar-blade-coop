@@ -71,6 +71,11 @@ int main() {
     assert(check_build(addr(image)) == "no image" && check_build(0) == "no image");
   }
 
+  // The SEH guards pass UE's fatal error (1, ReportAssert's 0x4000) and a stack overflow on to the game's handlers; an
+  // access violation, an int3 or privileged opcode met through a wrong address, and a C++ throw stay latched.
+  assert(passed_on(1) && passed_on(0x4000) && passed_on(0xc00000fd));
+  assert(!passed_on(0xc0000005) && !passed_on(0x80000003) && !passed_on(0xc0000096) && !passed_on(0xe06d7363));
+
   // Liveness and published components.
   Objects objects;
   const uint64_t eve_class = 0xc1, poseable_class = 0xc2, mesh = 0xae5;
