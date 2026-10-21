@@ -845,7 +845,7 @@ if link then
         if off or chatting~=nil then chat.session(not off and chatting) end
         for _,line in ipairs(link.take_chat()) do
             if line.fail then chat.fail()
-            else
+            elseif line.text then -- A race line ({race=}) has no reader yet: dropped.
                 local got=chat.receive((link.friend()) or '',line.text,chat_clock)
                 -- While the feed cannot show it (the UI off or failed, or still warming): on the line above EVE.
                 if got and not kit.ready() then

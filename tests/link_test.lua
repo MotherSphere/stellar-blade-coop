@@ -784,6 +784,58 @@ fs.remove=remove
 chat=link.take_chat()
 assert(#chat==1 and chat[1].text=='once' and files[CHAT]==nil and #link.take_chat()==0)
 
+-- Race lines: race() queues each one, race_flush() (from changes() too) writes every pending line into one new
+-- coop-race.txt, whole and in order, once the native part took the last; nothing is dropped below 512 waiting. Her
+-- race lines come in coop-chat.txt as "race <text>", kept apart from the chat's, in order.
+local RACE='C:\\Mod\\coop-race.txt'
+link.race('cp 7 1 3 41000')
+link.race_flush()
+assert(files[RACE]=='cp 7 1 3 41000\n' and not files[RACE..'.tmp'])
+link.race('fin 7 52000 0') -- Sent in the same tick, while the native part has not taken the first file.
+link.race_flush()
+assert(files[RACE]=='cp 7 1 3 41000\n','The first file is never replaced')
+local took={}
+files[RACE],took[1]=nil,files[RACE] -- The native part took it.
+link.changes()
+assert(files[RACE]=='fin 7 52000 0\n','changes() writes what waits')
+files[RACE],took[2]=nil,files[RACE]
+assert(table.concat(took)=='cp 7 1 3 41000\nfin 7 52000 0\n','Both reached the native part, in order')
+link.race_flush()
+assert(files[RACE]==nil,'Nothing waits: no file')
+files[RACE]='ready 7 1\n' -- Untaken.
+for i=1,50 do link.race('cp 7 1 '..i..' '..(1000*i)) end
+link.race_flush()
+assert(files[RACE]=='ready 7 1\n')
+files[RACE]=nil
+link.race_flush()
+local sent={}
+for line in files[RACE]:gmatch('([^\n]*)\n') do sent[#sent+1]=line end
+assert(#sent==50 and sent[1]=='cp 7 1 1 1000' and sent[50]=='cp 7 1 50 50000','50 pending, none dropped, in order')
+files[RACE]=nil
+fs.write=function(path,text) write(path,text); return false end -- A full disk: the lines wait for the next flush.
+link.race('end 7')
+link.race_flush()
+assert(not files[RACE],'Not written')
+fs.write=write
+link.race_flush()
+assert(files[RACE]=='end 7\n' and not files[RACE..'.tmp'])
+files[RACE]=nil
+files[CHAT]='race track 7 2 1 0 0 0 90 /game/map\nin Coucou\nrace cps 7 1 4000 0 0 1200 8000 0 0 1200\nrace \n'
+    ..'in race 9\nrace go 7 4000\n'
+chat=link.take_chat()
+assert(#chat==5 and chat[1].race=='track 7 2 1 0 0 0 90 /game/map' and not chat[1].text and chat[2].text=='Coucou'
+    and not chat[2].race and chat[3].race=='cps 7 1 4000 0 0 1200 8000 0 0 1200' and chat[4].text=='race 9'
+    and not chat[4].race and chat[5].race=='go 7 4000','Race lines apart from the chat, in order')
+-- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
+files[RACE]='stuck\n'
+for i=1,520 do link.race('cp 7 1 1 '..i) end
+files[RACE]=nil
+link.race_flush()
+sent={}
+for line in files[RACE]:gmatch('([^\n]*)\n') do sent[#sent+1]=line end
+assert(#sent==512 and sent[1]=='cp 7 1 1 9' and sent[512]=='cp 7 1 1 520')
+files[RACE]=nil
+
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
 -- second), the first peer's RTT (its last rtt_ms=, as a Steam name may hold one), and whether a chat session holds:
 -- a friend linked (lost or not), a rejoin under way, or the loopback.

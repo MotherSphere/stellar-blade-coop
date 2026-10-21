@@ -634,7 +634,7 @@ loops[2].f()
 -- lines reach the chat after the pass's session check, with her name; an unread status (nil) ends no session.
 local takes,calls=chat_takes,#chat_calls
 chat_lines={{text='secret one'},{fail=true}}; loops[2].f()
-chatting=true; chat_lines={{text='secret two'}}; loops[2].f()
+chatting=true; chat_lines={{race='go 7 4000'},{text='secret two'}}; loops[2].f() -- A race line never reaches the chat.
 chatting=nil; loops[2].f()
 assert(chat_takes==takes+3 and #chat_lines==0 and not table.concat(printed,'|'):find('secret'))
 local on_line=table.concat(said,'|')

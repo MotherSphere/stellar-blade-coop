@@ -5,9 +5,10 @@
 -- coop-remote.txt (the table the ghost is built from) the same way. Each line of the native coop-status.txt that
 -- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight= line)
 -- every second and her vitals (mate=) up to 10 times a second, so they stay in coop status, out of the log. The chat
--- has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see say()). The same read gives the
--- session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is never
--- at the start of one.
+-- has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see say()), and the race one more
+-- (coop-race.txt, see race()); her race lines come in coop-chat.txt. The same read gives the session's mode, the
+-- friend and the notices for the screen, each from the start of its own line: a Steam name is never at the start of
+-- one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
@@ -418,20 +419,40 @@ function Link.new(folder,fs)
         fs.remove(temp)
         return false,'cannot write'
     end
+    -- Race lines (race_model.lua's). The native part takes coop-race.txt at every pass and sends each line, in order;
+    -- a write before it took the last file would replace it, so a cp and a fin sent close together lost the cp. So
+    -- race() queues each line, and race_flush() writes every pending one into one new file once the last is gone:
+    -- changes() calls it, and the race each frame.
+    -- ponytail: 512 lines at most, the oldest dropped, for a native part that never takes them (a fault, another
+    -- build); steam_link.cpp reads that many.
+    local race_queue={}
+    function self.race(line)
+        if #race_queue>=512 then table.remove(race_queue,1) end
+        race_queue[#race_queue+1]=line
+    end
+    function self.race_flush()
+        if race_queue[1] and not fs.read(path('coop-race.txt'))
+            and put('coop-race.txt',table.concat(race_queue,'\n')..'\n') then
+            race_queue={}
+        end
+    end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=} for each of her lines, {fail=true} when one
-    -- of ours could not go, oldest first; anything else is ignored.
+    -- of ours could not go, {race=} for each of her race lines, oldest first; anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
         if not text or not fs.remove(name) then return lines end -- Not deleted: taken next time, never shown twice.
         for line in text:gmatch('[^\n]+') do
-            local said=line:match('^in (.+)$')
-            if said then lines[#lines+1]={text=said} elseif line=='fail' then lines[#lines+1]={fail=true} end
+            local said,raced=line:match('^in (.+)$'),line:match('^race (.+)$')
+            if said then lines[#lines+1]={text=said}
+            elseif raced then lines[#lines+1]={race=raced}
+            elseif line=='fail' then lines[#lines+1]={fail=true} end
         end
         return lines
     end
     function self.changes()
         send()
+        self.race_flush()
         local text,now,new=fs.read(status_path),{},{}
         -- From the pose path's line only: a peer line before it carries a Steam name the other player chooses.
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
