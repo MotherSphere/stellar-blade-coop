@@ -2578,6 +2578,37 @@ int main() {
     assert(count(G, "spawns leave") == 2 && count(H, "spawns leave") == 0);
   }
 
+  // ---- Same spawns stop after the pilot's latch: where the other EVE stands is no longer told ----
+  {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->same_spawns(true);
+    for (Game *w : {&H, &G}) {
+      w->spawns();
+      w->zone(0xA1, 40);
+      w->enter(0xA1);
+      for (uint32_t id = 1; id <= 4; ++id)
+        w->spawn_row(id, 2, 0xA1);
+      w->flags.her_ok = true;
+    }
+    H.spawn(101, 1, 0), H.spawn(102, 2, 0);
+    G.spawn(903, 3, 0), G.spawn(904, 4, 0);
+    eg->stop_pilot();
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(13);
+    for (uint64_t t = 0; t <= 8000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    assert(G.made.empty() && G.despawned.empty() && eg->snapshot().spawns.haves == 0 && eg->snapshot().epoch == 1);
+  }
+
   // ---- Same spawns stop while a census's list of keys is partial ----
   // Past kMaxSeen keyed actors (here NPCs), a key missing from the list would read as one this game lacks: nothing is
   // sent, created or removed until the list is whole again.

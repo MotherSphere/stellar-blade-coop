@@ -1635,7 +1635,8 @@ private:
   // Each census, after the side's step (the host's world and up lines go first): our epoch, then the host's epoch line
   // and answers, or her rounds and calls (spawn_sync.h). Nothing while same spawns do not run here: our same_spawns off
   // or her side off or ignored, on the host's side; before the host's epoch line, on hers. Close: the other EVE (as its
-  // ghost stands in our world) within 100 m of ours.
+  // ghost stands in our world) within 100 m of ours; never after the pilot's latch, since the game thread that tells
+  // where the ghost stands no longer does.
   template <class Game> void spawn_turn(Game &g, uint64_t logic, uint64_t now) {
     const bool hosting = hosting_seen_;
     if (!spawning_) {
@@ -1665,7 +1666,7 @@ private:
     const uint64_t fsb = local_fsb(g);
     const bool eve_ok = plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve) && std::isfinite(eve[0]) &&
                         std::isfinite(eve[1]) && std::isfinite(eve[2]);
-    const bool close = eve_ok && flags_.her_ok && within(eve, flags_.her, kNearCm);
+    const bool close = eve_ok && flags_.her_ok && !pilot_stopped_ && within(eve, flags_.her, kNearCm);
     if (latched_)
       return;
     SpawnIo<Game> io{*this, g, logic};

@@ -667,7 +667,8 @@ has no menu row.
 - It needs shared enemies running. Only the host's value counts, from the next `coop fight on`; record, replay and the
   probe never use it.
 - A zone counts as shared from 3 s after either game entered it or reset its enemies (a camp rest, a death), so the
-  game's own spawns come in first.
+  game's own spawns come in first. Where the other player stands comes from the same-place code, so after its error
+  (`pilot=stopped`) same spawns stop too, on that side, until the game restarts.
 - The guest's game sends its list of enemies there at once, then every 5 s while the zone is shared. The host's game
   answers with up to 16 enemies to create and 16 to remove each time.
 - `coop-link.log` names each change by spawn key. On the guest: `fight spawned <key>`, `fight despawned <key>`,
