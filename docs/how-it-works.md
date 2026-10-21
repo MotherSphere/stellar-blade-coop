@@ -556,7 +556,9 @@ guest's game like any other key of the host's that she lacks.
   the same default a fresh request would copy in.
 - Same spawns count an extra's key as part of the shared zone without a row: the host sends `spawn` for one she lacks
   and `drop` for one of hers it lacks. She makes the key through `NewActor` too, with the charId of the host's line,
-  and refuses it (`row taken`) when her own tables hold a row at that key. Stage 1 then pairs the two copies by key.
+  and refuses it (`row taken`) when her own tables hold a row at that key, or (`not shared`) when no Monster of hers
+  that shared enemies share has that charId: the host makes extras of common enemies only, so any other charId would
+  be a character the host picked freely. Stage 1 then pairs the two copies by key.
 - Each game keeps the extras it made in its capture list, 48 at most. One that left the map (killed, despawned) is
   forgotten at the next census. The host despawns one still fighting more than 120 m from both EVEs. At the session's
   end every extra still fighting is despawned in each game, and a dying one is left to its death. Her extras also go

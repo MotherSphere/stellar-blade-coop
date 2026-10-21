@@ -618,7 +618,8 @@ int main() {
   }
 
   // ---- Extra enemies through same spawns: the host answers its extras and hers with no row; she makes the key
-  // with NewActor's charId, never one a row of hers holds, and takes a drop of hers ----
+  // with NewActor's charId, only one of a shared Monster of hers and never one a row of hers holds, and takes a drop
+  // of hers ----
   {
     World h;
     h.row(1, kReset);
@@ -632,17 +633,20 @@ int main() {
                         "SBF11 drop 1 1 3758096897 1\n");
     World g;
     g.row(1, kReset), g.row(0xE0000301, kReset); // A row of hers in the extras' range.
+    g.chars[1] = 901;
     g.add(201, 1), g.add(202, 0xE0000201, 1);
     Epochs gep;
     SpawnGuest sg;
     epoch(gep, g, 0xA1, 3, 0);
     sg.heard(msg("SBF11 epoch 1 40 1"), 1);
     sg.heard(msg("SBF11 spawn 1 1 3758096642 2 901 258 -250 13 270"), 1);
-    sg.heard(msg("SBF11 spawn 1 1 3758097153 1 900 258 -250 13 270"), 1); // 0xE0000301: her row's.
+    sg.heard(msg("SBF11 spawn 1 1 3758097153 1 901 258 -250 13 270"), 1); // 0xE0000301: her row's.
+    sg.heard(msg("SBF11 spawn 1 1 3758096643 3 777 258 -250 13 270"), 1); // No Monster of hers is charId 777.
     sg.heard(msg("SBF11 drop 1 1 3758096897 1"), 1);
     guest_step(sg, gep, g, kGraceMs);
     assert(g.created.size() == 1 && g.created[0].key == extra_key(1, 2) && g.created[0].chr == 901);
-    assert(g.count("spawn refused", "row taken") == 1 && sg.counts.differ == 1);
+    assert(g.count("spawn refused", "row taken") == 1 && g.count("spawn refused", "not shared") == 1 &&
+           sg.counts.differ == 2);
     assert(g.despawned == std::vector<uint32_t>{202} && sg.counts.despawned == 1);
     epoch(gep, g, 0xA1, 3, kGraceMs + 250);
     guest_step(sg, gep, g, kGraceMs + 250); // It shows, a Monster of charId 901: checked, kept.

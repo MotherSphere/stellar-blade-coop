@@ -423,10 +423,11 @@ private:
   }
   // One of the host's lines (R33): at its current epoch and while the zone is shared, else stale. A spawn: a key of
   // our tables in the host's zone that takes part, which we hold no actor of and did not answer in this epoch, within
-  // 1 km of our EVE, of a charId we share. A drop: our live shared Monster of a key that takes part in that zone, not
-  // followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our rounds name it and
-  // the host stops asking; one too far does not, so the host asks again once we are nearer. A drop refused as busy
-  // (our fight with it, or a takedown) stays ours, so our next round names it and the host asks again.
+  // 1 km of our EVE, of a charId we share; an extra's key (no row to check) only of the charId of a shared Monster of
+  // ours, as the host makes extras of common enemies only. A drop: our live shared Monster of a key that takes part in
+  // that zone, not followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our
+  // rounds name it and the host stops asking; one too far does not, so the host asks again once we are nearer. A drop
+  // refused as busy (our fight with it, or a takedown) stays ours, so our next round names it and the host asks again.
   template <class Io>
   void take(const Message &m, bool shared, const float *eve, bool eve_ok, const Mine *mine, size_t n, uint64_t now,
             Io &io) {
@@ -444,10 +445,11 @@ private:
         return;
       const float at[3] = {float(m.at[0]), float(m.at[1]), float(m.at[2])};
       const bool distant = !eve_ok || !within(at, eve, kSpawnRangeCm);
-      const char *why = distant             ? "too far"
-                        : made_ == kMaxKeys ? "full"
-                        : !io.shares(m.chr) ? "not shared"
-                                            : out(k, io);
+      const bool known = std::any_of(mine, mine + n, [&](const Mine &x) { return x.monster && x.chr == m.chr; });
+      const char *why = distant                                              ? "too far"
+                        : made_ == kMaxKeys                                  ? "full"
+                        : !io.shares(m.chr) || (is_extra(k.spawn) && !known) ? "not shared"
+                                                                             : out(k, io);
       if (!why)
         why = io.create(k, m.chr, at, float(m.yaw));
       if (!distant)

@@ -152,8 +152,8 @@ build/host/pose_codec_test
     and logged when it cannot be found again, a drop of an enemy she fights refused as busy and asked again, the
     refusals that show the two games differ counted apart), a key refused as too far asked again, a created key that
     died leaving her rounds, extra enemies (their keys and places, which enemies get them, once a life, the room left,
-    the host's answers and her checks for extra keys, `row taken`), and two fake worlds through a delayed line until her
-    set is the host's, with an epoch that moves while a round is on the way;
+    the host's answers and her checks for extra keys, `row taken`, a charId none of her Monsters has), and two fake
+    worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
