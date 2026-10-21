@@ -174,6 +174,7 @@ SBC12 photo <0|1|s> <both|notice>
 SBC12 say <text>
 SBC12 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
 SBC12 paks <count> <hash>
+SBC12 mark <n> [<text>]
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -206,7 +207,14 @@ their paths and sizes, and of their `.ucas` and `.utoc` files. The header of `co
 `paks=differ <yours> <theirs>` and a notice says so once a session; with the same hash it has `paks=same`. Nothing is
 refused: enemies that differ already stay unshared (same character id and maximum HP for each pair).
 
-Say, vit and paks lines from a friend who has not passed the handshake are ignored, without a log line.
+The mark line is one `coop mark`, sent reliable to each friend past the handshake: its number in the sender's game
+(from 1, one count per game process) and its text, cleaned as a say line is and cut to 100 bytes, maybe empty. A longer
+text from a friend is cut, not refused. The receiver counts mark lines with say lines against the same 10 a second and
+drops the rest, with one log line a minute (`dropped marks from <name>: over the rate limit`). Unlike a say line, the
+text goes into `coop-link.log` on both sides (`mark <n>: <text>`, `mark <n> from <name>: <text>`) and into
+`coop-status.txt` as the `mark=` line, which the Lua side copies into `UE4SS.log`.
+
+Say, vit, paks and mark lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -257,7 +265,7 @@ instead of misread:
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
-| 12 | Shared quests: the `SBQ` lines on channel 2 (this version) |
+| 12 | Shared quests: the `SBQ` lines on channel 2; the mark line (this version) |
 
 ### Link health in the log
 
