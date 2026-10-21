@@ -103,7 +103,7 @@ local link_mode='none' -- What link.mode() says, as of the last changes().
 local ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 local mate_v=nil -- link.mate(): her vitals.
 local paks_v=nil -- link.paks(): her .pak mods against ours.
-local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked.
+local friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 local fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 local pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
 local chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
@@ -132,7 +132,6 @@ local fake_link={
         said_lines[#said_lines+1]=text
         return true
     end,
-    friend=function() return friend_name,friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
@@ -165,6 +164,7 @@ local fake_link={
 fake_link.Q={notes={}}
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
+fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
 local native_ok
 local captured,remoted={},nil
 local fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
@@ -2264,6 +2264,9 @@ saves_info,at_title,chatting,chat_active={},false,false,false
     assert(not kit_shown.line_hint,'The hint from the next 250 ms: the list was empty when it was asked')
     quarter()
     assert(kit_shown.line_hint and kit_views.line_hint.text.s=='F5  Co-op line',kit_views.line_hint.text.s)
+    kit_language='fr-FR'; quarter()
+    assert(kit_views.line_hint.text.s=='F5  Ligne co-op','In the game\'s language: '..kit_views.line_hint.text.s)
+    kit_language=nil; quarter()
     -- Free: Host, Join, Join with a code.
     key('F5')
     assert(kit_shown.menu and not kit_shown.line_hint,'The line open, the hint hidden')
@@ -2281,17 +2284,21 @@ saves_info,at_title,chatting,chat_active={},false,false,false
     key('F5'); to('Hang up'); key('RETURN')
     assert(not kit_shown.menu and kit_sounds[#kit_sounds]=='close','Hang up closes')
     key('F5'); key('ESCAPE'); assert(not kit_shown.menu,'Esc closes the line')
-    -- The sentence by state: open (hosting alone), linked (as host or guest, her name or A player), nothing while
-    -- connecting or before Steam.
+    -- The sentence by state: open (hosting alone or her connection lost), linked (as host or guest, her name or your
+    -- friend), nothing while connecting, as a guest whose connection is lost, or before Steam.
     link_mode='host'; key('F5')
     assert(screen()=='CO-OP LINE||disabled\nInvite a friend (Steam)||focus\nLeave the session||normal\n'
         ..'Co-op menu||normal\nHang up||normal',screen())
     assert(menu_view.note.s=='Your session is open. Invite a friend from here.',menu_view.note.s)
     friend_linked=true; quarter(); assert(menu_view.note.s=='On the line with Kaanta.',menu_view.note.s)
-    friend_name=nil; quarter(); assert(menu_view.note.s=='On the line with A player.',menu_view.note.s)
+    friend_name=nil; quarter(); assert(menu_view.note.s=='On the line with your friend.',menu_view.note.s)
     friend_name,link_mode='Kaanta','guest'; quarter()
     assert(screen()=='CO-OP LINE||disabled\nLeave the session||focus\nCo-op menu||normal\nHang up||normal'
         and menu_view.note.s=='On the line with Kaanta.',screen())
+    fake_link.lost=true; quarter(); assert(menu_view.note.s=='','A guest, her connection lost: no sentence')
+    link_mode='host'; quarter()
+    assert(menu_view.note.s=='Your session is open. Invite a friend from here.','A host, her connection lost')
+    fake_link.lost,link_mode=nil,'guest'
     friend_linked=false; quarter(); assert(menu_view.note.s=='','Connecting: no sentence')
     link_mode=nil; quarter()
     assert(screen()=='CO-OP LINE||disabled\nCo-op menu||focus\nHang up||normal' and menu_view.note.s=='',screen())
@@ -2354,7 +2361,13 @@ saves_info,at_title,chatting,chat_active={},false,false,false
     scans=bt.scans
     for _=1,40 do quarter() end
     assert(bt.scans==scans and not kit_shown.line_hint,'No scan after coop off')
-    bt.world,link_mode,in_world,kit_ready={},'none',false,false
+    -- The hint names the menu key as set.
+    settings_text='menu_key=Shift+F7\n'
+    load_main(true)
+    in_world,kit_ready=true,true; quarter(); quarter()
+    assert(kit_views.line_hint.text.s=='Shift+F7  Co-op line',kit_views.line_hint.text.s)
+    coop('off')
+    bt.world,link_mode,in_world,kit_ready,settings_text={},'none',false,false,''
 end)()
 
 -- Without the native tick export, the pose path's commands say so.

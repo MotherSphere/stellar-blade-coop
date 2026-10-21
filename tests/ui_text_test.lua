@@ -133,9 +133,10 @@ for name in pairs(R.TEXT) do
     for _,text in ipairs({n.died,n.time_up}) do fits(name..'.night: '..text,text,54) end
     for k,text in pairs(n.why) do fits(name..'.night.why.'..k,text,54) end
     for _,k in ipairs({'waves','kills','points','time'}) do fits(name..'.night.'..k,n[k],40) end
-    -- The co-op line (menu.lua): the booth hint's word after the menu key's name; each sentence in the menu's note
-    -- (the status style, 78 columns as the saves' question's body) with a 32-byte name, and within the feed's line.
-    fits(name..'.line.prompt',w.line.prompt,24)
+    -- The co-op line (menu.lua): the booth hint's word after the longest menu key name, within the hint's 700 units;
+    -- each sentence in the menu's note (the status style, 78 columns as the saves' question's body) with a 32-byte
+    -- name, and within the feed's line.
+    fits(name..'.line.prompt','Shift+F12  '..w.line.prompt,700//UNIT)
     for _,k in ipairs({'free','open','linked'}) do
         local text=fill(w.line[k])
         fits(name..'.line.'..k,text,78)

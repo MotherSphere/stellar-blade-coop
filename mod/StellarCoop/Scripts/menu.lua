@@ -56,13 +56,13 @@ function Menu.new(o)
         return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger()}
     end
     local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
-    -- The co-op line's state: free (no session), open (hosting, no friend linked), linked (her name), else nothing
-    -- (before Steam, connecting).
+    -- The co-op line's state: free (no session), open (hosting, no friend linked or her connection lost), linked (her
+    -- name, else the status line's word for her), else nothing (before Steam, connecting, a guest's connection lost).
     local function line(ctx)
-        local name,linked=link.friend()
+        local name,linked,lost=link.friend()
         if ctx.mode=='none' then return words.line.free end
-        if linked and (ctx.mode=='host' or ctx.mode=='guest') then
-            return words.line.linked:format(Join.name(name) or words.ask.someone)
+        if linked and not lost and (ctx.mode=='host' or ctx.mode=='guest') then
+            return words.line.linked:format(Join.name(name) or words.summary.friend)
         end
         if ctx.mode=='host' then return words.line.open end
     end
