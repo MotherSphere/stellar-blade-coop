@@ -1171,6 +1171,20 @@ do
         told[#told-1])
     assert(told[#told]=='New personal best.' and C.best(file,'targets'),told[#told])
     kit.is_off=false
+    -- The panel holds a success that wrote a best, then the kit goes off, then the HUD fails: each time the notices
+    -- get the end and the record line.
+    for _,cut in ipairs({function() kit.is_off=true end,function() kit.raise='boom' end}) do
+        file=''
+        run=start('targets')
+        win(run)
+        assert(kit.shown.night_result and #told==0,'The panel holds the result')
+        cut()
+        tk()
+        kit.is_off,kit.raise=false,nil
+        assert(told[1]:find('^Operation Successful: ') and told[2]=='New personal best.' and #told==2,
+            tostring(told[2]))
+    end
+    assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
     assert(#violations==0,violations[1])
 end
 print('nightop_run_test ok')
