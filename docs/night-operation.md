@@ -186,7 +186,7 @@ save with no Steam session, and log `[StellarCoop][NR]` lines. They have not bee
 With no best kept yet, the list reads:
 
 ```
-1 swarm Antlion Swarm: 3 waves, 3:00, no best yet
+OK: 1 swarm Antlion Swarm: 3 waves, 3:00, no best yet
 2 skulls Skull Squad: 3 waves, 6:00, no best yet
 3 gauntlet Gauntlet: 8 waves, 12:00, no best yet
 4 targets Target Practice: 3 waves, 1:30, no best yet
@@ -235,9 +235,9 @@ challenge after the map (`... map <map> challenge targets; census: ...`).
 
 The 5 s countdown comes first, and wave 1 comes when it ends. Each later wave comes only once the wave before it is
 down: 5 s after, or 3 s in Target Practice. Meanwhile the card counts down to it (`NEXT WAVE IN 4`). Unlike Night
-Operation's waves, a challenge's waves have no set run time, so a fast clear brings the next wave sooner. As in the
-solo run, a wave is down once each of its monsters is dying, can be executed, is written off, is missing or is no
-longer tracked.
+Operation's waves, a challenge's waves have no set run time, so a slow clear holds the next wave back until the time
+limit. As in the solo run, a wave is down once each of its monsters is dying, can be executed, is written off, is
+missing or is no longer tracked.
 
 In Antlion Swarm, Skull Squad and Gauntlet the monsters come as in the solo run: at the four points 14 m from where EVE
 started, sent at her, and moved back at most twice when they are stuck or fall (see [The waves](#the-waves)). The full
@@ -266,7 +266,8 @@ dummies look, whether they stand still and how many shots each one takes are not
 Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. On a slope a spot can lie
 inside the ground or above it. A dummy more than 10 m below both the start point and EVE, or more than 40 m from both,
 is written off where it is at its first check (2.5 s after it is found, then every 3 s). It is never moved, its wave
-stops waiting for it, and shooting it later still scores. Dummies left after a run stay until the next map load.
+stops waiting for it, and shooting it later still scores. Dummies left after a run stay in the world, as monsters do
+(see [Score and the end of a run](#score-and-the-end-of-a-run)).
 
 ### Score
 
@@ -285,8 +286,9 @@ includes `coop challenge stop`.
 The card shows the challenge's name in place of `NIGHT OPERATION`. The result panel is the solo run's (see
 [What you see](#what-you-see)), with a fifth row, Best: the best run kept for this challenge as score and time, for
 example `1250  0:37`, or `-` when none is kept. After a success that set a new best, the line under the heading reads
-`New personal best.` A challenge ended with `coop challenge stop`, `coop nightop stop` or `coop off` shows
-`Stopped with coop challenge stop.`
+`New personal best.` A challenge ended with `coop challenge stop` or `coop nightop stop` shows
+`Stopped with coop challenge stop.` `coop off` turns the mod's screens off before it ends the run, so only the
+`result: aborted (coop off)` line in `UE4SS.log` says how that run ended.
 
 The `result:` line in `UE4SS.log` ends with the challenge and its best:
 
@@ -317,9 +319,12 @@ never write it. A success keeps no best when a monster never came (its spawn fai
 `coop nightop start` ran with `noaggro` or `nomove`. The log says why in a `record: not kept (...)` line.
 
 Before it writes, the mod reads the file again and changes only that challenge's line, so every other line, a note of
-yours included, stays. It writes `coop-records.txt.tmp` first and renames it over the file, so a write that fails
-leaves the file as it was. A file that cannot be read or written gives a `record: cannot read coop-records.txt (...)`
-or `record: cannot write coop-records.txt (...)` line, and nothing is written.
+yours included, stays. It writes `coop-records.txt.tmp` first, then deletes the old file and renames the `.tmp` to
+`coop-records.txt`, or writes `coop-records.txt` directly if the rename is refused. A write that fails before the
+delete leaves the file as it was. One that fails after it leaves the new text only in `coop-records.txt.tmp`: rename
+that file to `coop-records.txt` before the next run or update, or the bests it holds are lost. A file that cannot be
+read gives a `record: cannot read coop-records.txt (...)` line, and nothing is written. A write that fails gives
+`record: cannot write coop-records.txt (...)`.
 
 The file stays on this PC and never goes over the Steam link. `tools/install.py` keeps it, as it keeps every
 `coop-*.txt` file, and `--uninstall` backs it up with the folder. When you update from the zip, copy it out and back

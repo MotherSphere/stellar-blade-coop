@@ -150,7 +150,8 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 -- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell). commands.challenge starts
 -- the challenges on the same run. Their best runs go in coop-records.txt in the mod folder (none when it is unknown).
 -- No such file is no best yet; a file that cannot be opened raises, so nothing is written over it. It is written
--- through a temporary file, so a write that fails leaves it as it was.
+-- through a temporary file: a write that fails before the old file is deleted leaves it as it was, one that fails after
+-- leaves the new text in coop-records.txt.tmp.
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,records=folder and {

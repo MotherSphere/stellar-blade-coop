@@ -56,7 +56,7 @@ monsters come at EVE where she stands, with an 8-minute timer and a score. It ha
 a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and you can talk to him. `coop no` tests
 parts of the cut mode in a solo game. Neither preview is a playable mode. `coop challenge` runs four short solo fights
 on the solo run's code, one of them against the game's target dummies, and keeps each one's best run in
-`coop-records.txt`. The challenges have not been tested in game yet either (see
+`coop-records.txt`. It also needs a co-op save. The challenges have not been tested in game yet either (see
 [docs/night-operation.md](docs/night-operation.md#challenges-coop-challenge)).
 
 ## Install
