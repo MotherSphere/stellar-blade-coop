@@ -42,6 +42,7 @@ M.OPTIONS={
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
     {key='photo_freeze_max',min=30,max=3600,step=60,zero=true,default='600'},
     toggle('photo_ghost','on'),toggle('photo_name_tag','off'),
+    {key='photo_pause',values={'full','scenery'},default='full'}, -- From the next photo mode.
     {head='partner'},
     reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
     toggle('card_details','on'), -- Ping and the friend's map on the card.

@@ -146,6 +146,15 @@ while the on-screen UI is up.
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).
 
+### Photo mode still freezes everything with Scenery live
+
+- `UE4SS.log` has `[StellarCoop] photo pause: off until the mod reloads: <why>`: the game refused the console variable
+  `SB.PhotoMode.PauseMethod` (`reads 0 after the set` on another game build), and photo mode keeps the game's full
+  pause until the mod reloads.
+- The change applies from the next photo mode: leave photo mode and press P again.
+- To go back to the game's own pause, choose Full in Options, or type `SB.PhotoMode.PauseMethod 0` in the console
+  (F10).
+
 ### The co-op saves question does not show
 
 It shows only with `auto_coop_save=ask`, on the title screen, once the on-screen UI has loaded. `coop status` gives the

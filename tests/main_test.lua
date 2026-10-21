@@ -52,7 +52,26 @@ os.clock=function() return clock end
 local settings_text=''
 -- SB's photo-mode getters on the library's default object (main.lua's photo poll), as UE4SS calls them.
 local photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
+-- The engine's library default object (main.lua's photo pause): SB.PhotoMode.PauseMethod (cv.value) read and set
+-- through it, as UE4SS calls them; cv.set: what the console command leaves (nil: the value asked); cv.pc: UEHelpers'
+-- player controller (nil: none yet).
+local cv={value=0,reads=0,runs={},PC={type=function() return 'UObject' end,IsValid=function() return true end}}
+cv.pc=cv.PC
+cv.kismet={type=function() return 'UObject' end,IsValid=function() return true end,
+    GetConsoleVariableIntValue=function(_,name)
+        assert(name=='SB.PhotoMode.PauseMethod',name)
+        cv.reads=cv.reads+1
+        if cv.error then error(cv.error,0) end
+        return cv.value
+    end,
+    ExecuteConsoleCommand=function(_,world,command,pc)
+        assert(world==cv.PC and pc==cv.PC,'The player controller as the world and the player')
+        cv.runs[#cv.runs+1]=command
+        cv.value=cv.set or tonumber(command:match('^SB%.PhotoMode%.PauseMethod (%d)$'))
+    end}
+package.loaded.UEHelpers={GetPlayerController=function() return cv.pc end}
 StaticFindObject=function(path)
+    if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
     assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
     local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
     return {type=function() return 'UObject' end,IsValid=function() return true end,
@@ -682,6 +701,49 @@ assert(logged("settings: line 2: '29' is not allowed for photo_freeze_max (use 0
     .."photo_freeze_max stays 600"),table.concat(printed,'|'))
 loops[2].f(); assert(photos[#photos]=='1 both 600')
 in_world,photo_mode,settings_text=false,false,''
+
+-- photo_pause (experimental): SB.PhotoMode.PauseMethod made to match it each 250 ms, a save loaded or the title shown:
+-- read, set only when it differs (full on an untouched game sets nothing), read back, then no further call. No player
+-- controller yet: it waits. A set that does not take (another game build) or an engine error: one log line, off for
+-- this load. coop off puts the game's own method back once scenery set it.
+do
+    cv.value,cv.runs=0,{}
+    load_main(true)
+    local cr=cv.reads
+    in_world,at_title=false,false; loops[2].f(); assert(cv.reads==cr,'No save, no title: not read')
+    in_world=true; loops[2].f(); assert(cv.reads==cr+1 and #cv.runs==0,'full on an untouched game: read only')
+    loops[2].f(); assert(cv.reads==cr+1,'Matched: no further call')
+    settings_text='photo_pause=scenery\n'
+    load_main(true)
+    in_world,at_title,cv.pc=false,true,nil
+    cr=cv.reads
+    loops[2].f(); assert(cv.reads==cr+1 and #cv.runs==0,'No player controller yet: waits')
+    cv.pc=cv.PC
+    loops[2].f()
+    assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 1' and cv.value==1 and cv.reads==cr+3
+        and logged('photo pause: SB.PhotoMode.PauseMethod 1 (scenery)'),table.concat(cv.runs,'|'))
+    loops[2].f(); assert(cv.reads==cr+3 and #cv.runs==1)
+    coop('off')
+    assert(cv.runs[2]=='SB.PhotoMode.PauseMethod 0' and cv.value==0
+        and logged('photo pause: SB.PhotoMode.PauseMethod 0 (coop off)'),table.concat(printed,'|'))
+    cv.runs,settings_text={},''
+    load_main(true); loops[2].f(); coop('off'); assert(#cv.runs==0,'Never set: coop off sets nothing')
+    settings_text='photo_pause=scenery\n'
+    cv.set=0 -- The console variable is unknown on this build.
+    load_main(true)
+    loops[2].f()
+    assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 1' and logged('photo pause: off until the mod reloads: '
+        ..'SB.PhotoMode.PauseMethod reads 0 after the set'),table.concat(printed,'|'))
+    cr=cv.reads
+    loops[2].f(); assert(cv.reads==cr and #cv.runs==1,'Off for this load')
+    cv.set,cv.error=nil,'GetConsoleVariableIntValue: no such function'
+    load_main(true)
+    loops[2].f()
+    assert(logged('photo pause: off until the mod reloads: GetConsoleVariableIntValue: no such function'))
+    cr=cv.reads
+    loops[2].f(); assert(cv.reads==cr)
+    cv.error,cv.value,cv.runs,at_title,settings_text=nil,0,{},false,''
+end
 
 -- The ghost turns on when the link goes from none to a session (D5.1): once per session, so a manual off holds until
 -- the next one; a status read that gave no mode is no leave; never after coop off.
@@ -1340,6 +1402,10 @@ key('LEFT_ARROW'); assert(look.cloth==false and settings_text=='# mine\nname_tag
 to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
+to('Photo mode pause'); key('D'); loops[2].f() -- No clock step: the frame-time test below counts whole seconds.
+assert(cv.value==1 and select(2,focus())=='Scenery live (experimental)' and settings_text:find('\nphoto_pause=scenery\n',1,true),
+    'At once: the next photo mode has it')
+key('A'); loops[2].f(); assert(cv.value==0 and select(2,focus())=='Full')
 to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=55')
 to('Who can join'); key('RETURN')
 assert(settings_text:find('\nwho_can_join=code\n',1,true) and select(2,focus())=='With a code')

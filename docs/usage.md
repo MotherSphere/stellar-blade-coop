@@ -282,6 +282,23 @@ the game's own pause, held in memory only, and nothing is saved. This has not be
 - `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, so you can test it without a friend.
   `coop freeze off` ends it, and so does a load.
 
+### Photo mode pause (experimental)
+
+Options > Photo mode > Photo mode pause (`photo_pause` in `coop-settings.txt`) changes how your own photo mode stops
+your game:
+
+- Full (`full`, the default): the game's own pause. Nothing moves while you take photos, as without the mod.
+- Scenery live (`scenery`): the game's own experimental photo method, which the game ships but does not use. The world
+  stops only while photo mode opens. Then animations, physics, cloth, hair, effects, sounds and your friend's ghost go
+  on moving, while enemies, combat, events and shared enemies stay stopped. Moving things may smear a little, and
+  enemies may slide when photo mode ends. This has not been tested in game yet.
+
+The mod sets the game's console variable `SB.PhotoMode.PauseMethod` (0 for Full, 1 for Scenery live), and only when it
+differs from the setting. The game reads it each time photo mode opens, so a change applies from your next photo mode.
+`coop off` sets it back to 0 if the mod set it to 1. Whether the game keeps the value after it exits has not been
+checked, so choose Full before you remove the mod. The setting does not change your friend's game, and the synced photo
+pause above works the same with both values.
+
 ## Console commands
 
 The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)) and opens with F10 or `~`.
@@ -725,11 +742,15 @@ same_place=off
 aggro=game
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
-# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
+# experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
+# method: enemies, combat and shared enemies stay stopped while animations, cloth, effects and your friend's ghost go on
+# moving), from your next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
+photo_pause=full
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's: English or French) or
 # english.
 ui_scale=100

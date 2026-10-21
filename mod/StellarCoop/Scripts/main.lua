@@ -22,7 +22,7 @@
 -- synced
 -- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
 -- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
--- to test the pause alone; coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
+-- to test the pause alone, and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
 -- (the co-op UI gone until the mod reloads); coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen
 -- for 5 s and its checks in the log; a test tool, left out of the usage line). coop off stops everything until the
 -- game restarts.
@@ -186,6 +186,35 @@ local function photo_state()
     log('photo sync: photo mode unreadable, off until the mod reloads: '..tostring(state))
     return '0'
 end
+-- photo_pause (experimental): scenery is SB's own SB.PhotoMode.PauseMethod 1, the method its help calls experimental.
+-- The world stops only while photo mode opens; then animations, physics, cloth, effects and the ghost go on moving
+-- while SB's logic stays stopped (enemies, combat, our shared fight). full is 0, the game's default. Each 250 ms with
+-- a save loaded or the title shown, the console variable is read and set only when it differs from the setting (with
+-- the player controller), then read back: full on an untouched game changes nothing. SB reads it as each photo mode
+-- opens, so a change applies from the next. The first engine error, or a set that does not take (another game build),
+-- stops it for this Lua load.
+local UE=require('UEHelpers')
+local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
+local pause={synced=nil,set=false,failed=false} -- The method last matched; whether we set scenery's; off.
+local function photo_pause(want,why)
+    if pause.failed or pause.synced==want then return end
+    local ok,result=pcall(function()
+        local library=U.find('/Script/Engine.Default__KismetSystemLibrary')
+        if library:GetConsoleVariableIntValue(PAUSE_METHOD)==want then return true end
+        local pc=U.valid(UE.GetPlayerController())
+        if not pc then return false end -- Not yet: tried again in 250 ms.
+        library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
+        local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
+        if now~=want then error(PAUSE_METHOD..' reads '..tostring(now)..' after the set',0) end
+        pause.set=want==1
+        log('photo pause: '..PAUSE_METHOD..' '..want..' ('..why..')')
+        return true
+    end)
+    if not ok then
+        pause.failed=true
+        log('photo pause: off until the mod reloads: '..tostring(result))
+    elseif result then pause.synced=want end
+end
 -- shared_enemies=on: coop fight on asked once a load, as soon as the native part judged the slot (coop, main, or none
 -- at the title: its build is pinned then); it then waits there for a friend, a co-op save and a loaded save. coop
 -- fight off before then cancels the ask. The co-op menu's row changes shared_enemies while the mod runs: on asks again
@@ -346,6 +375,7 @@ local commands={
         if code_box then code_box.stop(); approval.stop() end
         if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
+        if pause.set then photo_pause(0,'coop off') end -- The game's own photo pause back.
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -652,6 +682,7 @@ if link then
             hud.slow()
             saves_ui.slow(world==true,title==true)
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
+            if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end

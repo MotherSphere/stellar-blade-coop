@@ -169,7 +169,7 @@ assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='opti
 menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
-    ..'photo_name_tag head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
+    ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies same_place '
     ..'aggro enemy_hp_scale enemy_balance_scale kill_credit head:display ui_scale ui_sounds '
     ..'ui_language head:chat chat',
@@ -196,6 +196,10 @@ action,key,text=menu.select(NONE,0,values)
 assert(action=='set' and key=='name_tag' and text=='off','Select flips a toggle too')
 on('photo_sync')
 assert(select(3,menu.change(NONE,values,1))=='notice' and select(3,menu.change(NONE,values,-1))=='off')
+-- The photo pause: full (the default) or scenery, either way; in effect at once (from the next photo mode).
+on('photo_pause')
+assert(values.photo_pause=='full' and select(3,menu.change(NONE,values,1))=='scenery'
+    and select(3,menu.change(NONE,values,-1))=='scenery')
 -- The co-op saves at the title: ask (the default), always or off, wrapping; in effect at once.
 on('auto_coop_save')
 assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='always'

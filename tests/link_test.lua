@@ -426,6 +426,16 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for pho
 assert(Link.DEFAULT:find('\nphoto_sync=both\nphoto_freeze_max=600\nphoto_ghost=on\nphoto_name_tag=off\n',1,true))
 s,notes=Link.parse_settings(Link.DEFAULT)
 assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost and not s.photo_name_tag)
+-- photo_pause, experimental: full (the game's whole pause, the default) or scenery (SB's own PauseMethod 1), any case.
+-- A new file names it after the other photo settings.
+s,notes=Link.parse_settings('')
+assert(s.photo_pause=='full')
+s,notes=Link.parse_settings('photo_pause=Scenery\n')
+assert(#notes==0 and s.photo_pause=='scenery')
+s,notes=Link.parse_settings('photo_pause=off\n')
+assert(#notes==1 and notes[1]=="settings: line 1: 'off' is not allowed for photo_pause (use full or scenery); "
+    .."photo_pause stays full" and s.photo_pause=='full',notes[1])
+assert(Link.DEFAULT:find('\nphoto_name_tag=off\nphoto_pause=full\n',1,true))
 local before_photo=Link.DEFAULT:gsub('# Synced photo mode.*$','')
 assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
 s,notes=Link.parse_settings(before_photo)
