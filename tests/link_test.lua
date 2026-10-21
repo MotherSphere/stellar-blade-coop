@@ -753,6 +753,16 @@ lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
 files[STATUS]=nil
 
+-- Night Operation's line: coop-night.txt, written whole (beside, then renamed), the newest replacing one the native
+-- part has not taken; her line in the status (night=) stays out of the log, as nightop_run.lua logs it.
+local NIGHT='C:\\Mod\\coop-night.txt'
+assert(link.night('h 1 42 ask') and files[NIGHT]=='h 1 42 ask\n' and not files[NIGHT..'.tmp'])
+assert(link.night('h 2 42 count') and files[NIGHT]=='h 2 42 count\n','The newest wins')
+files[NIGHT]=nil
+files[STATUS]=HEAD..'friend=1 0 Kaanta\nnight=g 3 42 run 0 0 0 -\n'
+for _,line in ipairs(fresh.changes()) do assert(not line:find('^night='),'night= stays out of the log') end
+files[STATUS]=nil
+
 -- Chat (UI-DESIGN 4.2, 5.2): coop-say.txt, a typed line, is written only while the last one is gone, whole (beside,
 -- then renamed), and never left as a temporary; no returned message carries its text. coop-chat.txt is taken and
 -- deleted at once: "in <text>" is her line, "fail" says ours could not go, anything else is ignored.

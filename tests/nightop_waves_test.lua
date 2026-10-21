@@ -318,8 +318,8 @@ end
 local ended=W.encode_host(host)
 for _,bad in ipairs({ended:gsub(' aborted:lost$',' -'),ended:gsub(' aborted:lost$',' aborted:dance'),
         ended:gsub(' aborted:lost$',' failed:both'),ended:gsub(' aborted:lost$',' success:'),
-        ended:gsub(' aborted:lost$',' time:host'),ended:gsub(' aborted:lost$',' aborted'),ended..' x',ended:gsub(' %S+$',''),ended:gsub(' ','  ',1),
-        ended..' ',' '..ended}) do
+        ended:gsub(' aborted:lost$',' time:host'),ended:gsub(' aborted:lost$',' aborted'),ended..' x',
+        ended:gsub(' %S+$',''),ended:gsub(' ','  ',1),ended..' ',' '..ended}) do
     assert(W.decode_host(bad)==nil,'Refused: '..bad)
 end
 assert(W.decode_host(nil)==nil and W.decode_host('')==nil)
@@ -340,7 +340,8 @@ end
 for _,bad in ipairs({'g 65536 1 run 0 0 0 -','g 1 0 run 0 0 0 -','g 1 256 run 0 0 0 -','g 1 1 walk 0 0 0 -',
         'g 1 1 run 41 0 0 -','g 1 1 run -1 0 0 -','g 1 1 run 0 10 0 -','g 1 1 run 0 0 x -','g 1 1 run 0 0 0 far',
         'g 1 1 refuse 0 0 0 -','g 1 1 refuse 0 0 0 stop','g 1 1 abort 0 0 0 far','g 1 1 abort 0 0 0 mate',
-        'g 1 1 ready 0 0 0 -  ','g 1 1 ready 0 0 0','g 1 1 ready 0 0 0 - x','h 1 1 ready 0 0 0 -','g 1  1 ready 0 0 0 -'}) do
+        'g 1 1 ready 0 0 0 -  ','g 1 1 ready 0 0 0','g 1 1 ready 0 0 0 - x','h 1 1 ready 0 0 0 -',
+        'g 1  1 ready 0 0 0 -'}) do
     assert(W.decode_mate(bad)==nil,'Refused: '..bad)
 end
 

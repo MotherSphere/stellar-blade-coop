@@ -370,6 +370,9 @@ function Link.new(folder,fs)
         return true,'asked the native part: '..line
     end
     function self.session(token) return put('coop-session.txt',token..'\n') end
+    -- Night Operation's night line (nightop_run.lua): coop-night.txt, which the native part takes at every pass and
+    -- sends to the partner. An untaken one is replaced: the newest state wins.
+    function self.night(line) return put('coop-night.txt',line..'\n') end
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'), photo_sync and photo_freeze_max. Written when its text changes, and
@@ -449,7 +452,8 @@ function Link.new(folder,fs)
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
-            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=') then
+            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=')
+                and not line:find('^night=') then -- nightop_run.lua logs each night line itself.
                 new[#new+1]=line
             end
             if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.

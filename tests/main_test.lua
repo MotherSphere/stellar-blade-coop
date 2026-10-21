@@ -162,6 +162,9 @@ local fake_link={
 -- link.quests() says Q.line (the quests= line) and link.quest_notes() hands out Q.notes once; in fake_link.Q, as the
 -- main chunk is at Lua's 200 locals.
 fake_link.Q={notes={}}
+-- link.night's lines (coop-night.txt), in fake_link.nights for the same reason.
+fake_link.nights={}
+fake_link.night=function(line) fake_link.nights[#fake_link.nights+1]=line; return true end
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
 local native_ok
@@ -511,6 +514,9 @@ assert(nr.hud and nr.hud.kit and nr.hud.kit.paused and nr.hud.theme and nr.hud.t
     and nr.hud.settings.ui_language,'night.hud')
 nr.o.tell(function(w) return w.night.wave_notice:format(2,5) end)
 assert(said[#said]=='Night Operation: wave 2/5.' and said_en[#said]=='Night Operation: wave 2/5.',said[#said])
+-- Its night line goes through link.night; the partner's name is link.friend's.
+assert(nr.o.send('h 1 42 ask')==true and fake_link.nights[#fake_link.nights]=='h 1 42 ask')
+assert(nr.o.friend()=='Kaanta')
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())
