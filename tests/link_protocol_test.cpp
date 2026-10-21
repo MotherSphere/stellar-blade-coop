@@ -382,7 +382,7 @@ int main() {
     assert(parse_request(bad).command == Command::none);
   // The pilot's own: the probe on, same-place enemies on (our same_place on now) or off for the session (the probe
   // too), its status, how far the drawn side goes (freeze, cmc, drive or replay, each adding to the one before), the
-  // force target test and the takedown test.
+  // force target test, the takedown test and the boss tests.
   f = parse_request("fight pilot probe\n");
   assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::probe && !f.off);
   f = parse_request("fight pilot off");
@@ -399,9 +399,18 @@ int main() {
   assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::target);
   f = parse_request("fight pilot test exec"); // A frozen copy's balance emptied (stage 3c), not a step either.
   assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == PilotAsk::exec);
+  // Stage 5's solo probes on a frozen boss copy, none a step either.
+  const std::pair<const char *, PilotAsk> probes[] = {{"bstart", PilotAsk::bstart}, {"phase", PilotAsk::phase},
+                                                      {"finish", PilotAsk::finish}, {"summon", PilotAsk::summon}};
+  for (const auto &[word, ask] : probes) {
+    f = parse_request(std::string("fight pilot test ") + word + "\r\n");
+    assert(f.command == Command::fight && f.fight == Fight::pilot && f.pilot == ask && f.test == PilotTest::replay);
+    assert(parse_request(std::string("fight pilot test ") + word + " 1").command == Command::none);
+  }
   for (const char *bad : {"fight pilot", "fight pilot probe off", "fight pilot on 1", "fight pilot  probe",
                           "fight pilot Probe", "fight pilot off 1", "fight pilot status 1", "fight pilot test",
                           "fight pilot test target 1", "fight pilot test exec 1", "fight pilot test Exec",
+                          "fight pilot test Bstart", "fight pilot test summons", "fight pilot bstart",
                           "fight pilot test freeze 1",
                           "fight pilot test Freeze", "fight pilot test  cmc", "fight pilot tests drive"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).fight == Fight::none);

@@ -321,10 +321,19 @@ constexpr int32_t kSelfie = 2;
 // effect's GUID at +0x20 (its vtable's slot 7, FUN_140e4d660, as an actor's). The SummonActor effect that made a summon
 // runs on its owner, so the owner's effect list names its row.
 constexpr size_t kBattleFlag = 0xb58, kOwner = 0x400, kSummonEffect = 0x40c, kEffectGuid = 0x20;
+// FSBActor +0x45a: the latch of its spawn row's EventFirstTimeOnBattle; +0x45b, set when SetBattleMode's body runs its
+// EventOnBattle (FUN_141a681c0). Read by the solo probes only.
+constexpr size_t kFirstBattle = 0x45a, kOnBattle = 0x45b;
 constexpr size_t kMaxSummoned = kMaxTracked; // Summons the host keys at once.
 // A summon the guest made that no pair holds this many turns later (about 3 s at 60 FPS: the host's up comes first)
 // is despawned: the host's own is not shared (its list full), or gone.
 constexpr uint32_t kSummonWaitTurns = 180;
+// The solo probes (Engine::trial()): how long bstart follows its copy, when phase sends its second line, how long
+// finish holds its copy at 1 HP and summon follows its summon; the summon row it makes (M_Marionette_SummonDollHead2:
+// SE_M_DollHead_02 with 5025010 and 5025013) and how far ahead of our EVE.
+constexpr uint64_t kTrialStartMs = 1000, kTrialPhaseMs = 5000, kTrialHoldMs = 10000;
+constexpr int32_t kTrialSummonRow = 5026001;
+constexpr double kTrialSummonCm = 300;
 
 // ---- Our job ----
 
@@ -584,12 +593,18 @@ public:
   // Any thread: coop fight pilot test exec (T11d-solo's probe of stage 3c), for the next turn: the first copy this side
   // draws and holds frozen has its balance emptied, as a hit of ours would, so it goes Groggy and can be taken down.
   void exec_test() { exec_test_ = true; }
+  // Any thread: coop fight pilot test bstart|phase|finish|summon (stage 5's solo probes, run during a replay), for the
+  // next turn on the guest's side (trial()). Another ask before that turn replaces it.
+  void boss_test(PilotAsk what) { boss_test_ = uint8_t(what); }
+  // Any thread: on, the boss copies this side draws get no BattleMode_5s from the owner's stream, so a boss start test
+  // shows SetBattleMode's own path; on from a bstart test until coop fight on (the glue's calm(false)).
+  void calm(bool on) { calm_ = on; }
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
   // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
   // (simulate). A test not run yet (coop fight test, coop fight pilot test exec) goes either way.
   void set(bool on, bool hosting, bool probing = false) {
-    test_ = 0, exec_test_ = false;
+    test_ = 0, exec_test_ = false, boss_test_ = 0;
     if (on) {
       hosting_ = hosting;
       probing_ = probing;
@@ -740,6 +755,7 @@ public:
       boss_in_.clear();
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut());
       summoned_count_ = guards_ = 0; // summon_n_ goes on for the run, as the extras' n.
+      trial_ = Trial();
       per_ = 0, extras_checked_ = false;
       rows_ = zones_ = mines_ = probed_ = 0;
       zone_told_ = false;
@@ -1784,19 +1800,21 @@ private:
       c.game_froze = false;
       ++counts.refrozen;
       g.event(Event{"frozen again", "state 39 gone", p.hguid, s.spawn, s.index});
-      return freeze(g, logic, p.local);
+      return (void)freeze(g, logic, p.local);
     }
     const uint32_t *battle = flags_.battle, *end = battle + std::min<size_t>(flags_.count, kMaxPairs);
-    if (ready && now >= c.battle && std::find(battle, end, p.hguid) != end) {
+    if (ready && now >= c.battle && std::find(battle, end, p.hguid) != end && !(calm_ && s.boss)) {
       c.battle = now + kBattleMs;
       ++counts.battles;
       self_cast(g, logic, p.local, kBattleMode);
     }
   }
-  // BlockAI_Infinite, then SkillCancel once it started.
-  template <class Game> void freeze(Game &g, uint64_t logic, uint32_t guid) {
-    if (self_cast(g, logic, guid, kBlockAi))
-      self_cast(g, logic, guid, kSkillCancel);
+  // BlockAI_Infinite, then SkillCancel once it started. False when BlockAI did not start.
+  template <class Game> bool freeze(Game &g, uint64_t logic, uint32_t guid) {
+    if (!self_cast(g, logic, guid, kBlockAi))
+      return false;
+    self_cast(g, logic, guid, kSkillCancel);
+    return true;
   }
   // One of our effects on a copy, the copy its own caster: found again by GUID and tested as for a write, in life
   // state 1. The effect, or 0 when gone or refused.
@@ -2213,6 +2231,7 @@ private:
         ++i;
       }
     }
+    trial(g, logic, n, census, now);
   }
   // The host, while same place runs with her: for each boss pair, bstart at the edge of its battle mode (FSBActor
   // +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy runs in its list's
@@ -2315,8 +2334,9 @@ private:
   }
   // The guest: the host's bstart (checked: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and
   // the reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy. The
-  // host's repeats while its boss is in battle mode bring back one refused before (no pair yet, not drawn yet).
-  template <class Game> void bstart_in(Game &g, uint64_t logic, const Message &m, size_t n) {
+  // host's repeats while its boss is in battle mode bring back one refused before (no pair yet, not drawn yet). Null
+  // when called, else why not.
+  template <class Game> const char *bstart_in(Game &g, uint64_t logic, const Message &m, size_t n) {
     uint32_t local = 0;
     Actor a;
     const char *why = guest.boss_line(m, local);
@@ -2326,16 +2346,17 @@ private:
             : !la || !live(g, la, local, a) || a.life != 1 || a.pending ? "gone"
             : !senders_made(g)                                          ? "not made"
                                                                         : nullptr;
-    if (latched_ || (why && std::strcmp(why, "again") == 0))
-      return;
+    if (latched_)
+      return "latched";
     if (why) {
-      ++guest.counts.stale;
-      return;
+      guest.counts.stale += std::strcmp(why, "again") != 0;
+      return why;
     }
     g.battle(a.fsb);
     guest.started(m.guid);
     ++counts.bstarts;
     g.event(Event{"bstart", "", m.guid});
+    return nullptr;
   }
   // The guest: the host's phase line (checked: Guest::boss_line, the pair's owner epoch, a copy we draw as a
   // BossMonster): the rows Guest::phase picks, through SB's effect call, the copy its own caster, as its own skill's
@@ -2403,6 +2424,329 @@ private:
       g.event(Event{"summon refused", why, 0, key, 0});
     r->why = why ? why : r->why;
     r->final = r->final || final;
+  }
+  // ---- Stage 5's solo probes: coop fight pilot test bstart|phase|finish|summon ----
+  // On the guest's side, after the finish guard (the glue asks them only during a replay): the test asked starts at
+  // this turn on the boss copy this side draws and holds frozen nearest our EVE (summon needs none), through the
+  // stage's own guest path as the host's lines would take it, then follows its copy, logs what it reads (fight pilot
+  // test <name> ...), and ends by itself with a done line, or a stopped line when its copy goes. One at a time.
+  //   bstart: the copy's battle mode (FSBActor +0xb58), first-time latch (+0x45a), on-battle flag (+0x45b), states 30
+  //     and 39 and its AI task; then the host's bstart through bstart_in() (SetBattleMode, once a copy), and each
+  //     change of those for kTrialStartMs. calm() from then on.
+  //   phase: a phase line through phase_in(), with the copy's allowlisted rows and the first phase row of its table row
+  //     that it lacks; kTrialPhaseMs later the same line without its floors, so phase_in() casts MinimumHP_Dispel.
+  //     Stat 107 before each line, and the turn after it stat 107 and the copy's allowlisted rows.
+  //   finish: the guest's correction aims the copy at 1 HP (Guest::test_hp) for kTrialHoldMs, with each change of its
+  //     HP, Passive_DeathReady and Passive_FinishReady on its list and states 27 and 3; the finish guard runs as on any
+  //     boss copy. Then the host's HP again.
+  //   summon: a summon of kTrialSummonRow under the first summon key, kTrialSummonCm ahead of our EVE, made as the
+  //     host's summon line makes one (make_extra(): NewActor, then its row's effects), then our freeze; for
+  //     kTrialHoldMs, at each census, each change of its life state and state 39, and our freeze again when 39 goes.
+  //     Its capture's turn is kept fresh meanwhile; then the unpaired summons' rule despawns it, or the session's end.
+  static const char *trial_name(uint8_t what) {
+    return PilotAsk(what) == PilotAsk::bstart  ? "pilot test bstart"
+           : PilotAsk(what) == PilotAsk::phase ? "pilot test phase"
+           : PilotAsk(what) == PilotAsk::finish ? "pilot test finish"
+                                                : "pilot test summon";
+  }
+  // A line of the test running, about its copy; the caller adds the numbers to its note.
+  Event told(const char *why) const {
+    return Event{trial_name(trial_.what), why, trial_.hguid, trial_.spawn, trial_.index};
+  }
+  template <class Game> void end_trial(Game &g, const char *why) {
+    if (!latched_)
+      g.event(told(why));
+    trial_ = Trial();
+  }
+  template <class Game> void trial(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
+    if (const uint8_t asked = boss_test_.exchange(0)) {
+      if (!trial_.what)
+        return start_trial(g, logic, asked, n, now);
+      g.event(Event{trial_name(asked), "refused: another test runs"});
+    }
+    if (!trial_.what || latched_)
+      return;
+    if (PilotAsk(trial_.what) == PilotAsk::summon)
+      return follow_summon(g, logic, census, now);
+    const Seen *s = drawn_boss(trial_.local, n);
+    if (!s) {
+      guest.test_hp(trial_.hguid, 0);
+      return end_trial(g, "stopped: its copy is gone, dying or not drawn");
+    }
+    const uint64_t fsb = fsbs_[s - seen_], ms = now - trial_.start;
+    char note[128]; // Room left for the rest of the line in Event::note.
+    if (PilotAsk(trial_.what) == PilotAsk::bstart) {
+      const uint64_t v = battle_now(g, fsb);
+      const bool done = ms >= kTrialStartMs;
+      if (v == trial_.last && !done)
+        return;
+      trial_.last = v;
+      Event e = told(done ? "done:" : "after");
+      battle_note(note, sizeof note, v);
+      if (done)
+        std::snprintf(e.note, sizeof e.note, "%s", note);
+      else
+        std::snprintf(e.note, sizeof e.note, "%llu ms: %s", static_cast<unsigned long long>(ms), note);
+      g.event(e);
+      if (done)
+        trial_ = Trial();
+    } else if (PilotAsk(trial_.what) == PilotAsk::phase) {
+      if (trial_.step == 1) { // Its second line: the same without its floors, so MinimumHP_Dispel.
+        if (ms < kTrialPhaseMs)
+          return;
+        Message &m = trial_.line;
+        m.idn = uint8_t(std::remove_if(m.ids, m.ids + m.idn, floor_row) - m.ids);
+        trial_.step = 2;
+        return phase_line(g, logic, n, fsb);
+      }
+      float floor = 0;
+      int32_t held[kMaxEffects], rows[kMaxPhaseIds];
+      const Boss *b = boss_row(s->chr);
+      const uint64_t la = g.find(logic, trial_.local);
+      const int32_t hn = b && la ? effect_ids(g, la, held) : -1;
+      size_t k = 0;
+      for (int32_t i = 0; i < hn && k < kMaxPhaseIds; ++i)
+        if (mirrored(*b, held[i]) && std::find(rows, rows + k, held[i]) == rows + k)
+          rows[k++] = held[i];
+      g.read(fsb + kMinimumHp, &floor, sizeof floor);
+      Event e = told("next turn:");
+      std::snprintf(e.note, sizeof e.note, "floor %.0f; rows %s", double(floor),
+                    hn < 0 ? "unread" : ids_note(note, sizeof note, rows, k));
+      g.event(e);
+      if (++trial_.step == 3) // Step 0: after its first line; 2: after its second.
+        end_trial(g, "done");
+    } else {
+      const uint64_t v = finish_now(g, logic, fsb, trial_.local);
+      if (ms >= kTrialHoldMs) {
+        guest.test_hp(trial_.hguid, 0);
+        Event e = told("done:");
+        std::snprintf(e.note, sizeof e.note, "%llu guard turns, HP %d; the host's HP from the next turn",
+                      static_cast<unsigned long long>(counts.finish_guards - trial_.count), int32_t(uint32_t(v)));
+        g.event(e);
+        trial_ = Trial();
+      } else if (v != trial_.last) {
+        trial_.last = v;
+        Event e = told("after");
+        std::snprintf(e.note, sizeof e.note, "%llu ms: HP %d %s", static_cast<unsigned long long>(ms),
+                      int32_t(uint32_t(v)), finish_note(note, sizeof note, v));
+        g.event(e);
+      }
+    }
+  }
+  // The boss copy this side draws and holds frozen nearest our EVE (the first such when either place is unread), as
+  // its row of the pair table, or null.
+  template <class Game> const PilotPair *trial_copy(Game &g, size_t n) {
+    float eve[3] = {}, at[3] = {};
+    const uint64_t local = local_fsb(g);
+    const bool here = plausible(local) && g.read(local + kLocation, eve, sizeof eve);
+    const PilotPair *best = nullptr;
+    double nearest = 0;
+    for (uint8_t r = 0; r < table_.count; ++r) {
+      const PilotPair &p = table_.pairs[r];
+      const Seen *s = p.bits & kRowFrozen ? drawn_boss(p.local, n) : nullptr;
+      double d = 0;
+      if (!s)
+        continue;
+      if (here && g.read(fsbs_[s - seen_] + kLocation, at, sizeof at))
+        for (int k = 0; k < 3; ++k)
+          d += double(at[k] - eve[k]) * double(at[k] - eve[k]);
+      if (!best || d < nearest)
+        best = &p, nearest = d;
+    }
+    return best;
+  }
+  template <class Game> void start_trial(Game &g, uint64_t logic, uint8_t what, size_t n, uint64_t now) {
+    trial_ = Trial();
+    trial_.what = what, trial_.start = now;
+    if (PilotAsk(what) == PilotAsk::summon)
+      return start_summon(g, logic);
+    const PilotPair *p = trial_copy(g, n);
+    if (!p)
+      return end_trial(g, "refused: no frozen boss copy drawn");
+    const Seen &s = *drawn_boss(p->local, n);
+    const uint64_t fsb = fsbs_[&s - seen_];
+    trial_.local = p->local, trial_.hguid = p->hguid, trial_.spawn = s.spawn, trial_.index = s.index;
+    char note[128]; // Room left for the rest of the line in Event::note.
+    Message m;
+    m.gen = guest.gen(), m.guid = p->hguid, m.oe = p->oe;
+    if (PilotAsk(what) == PilotAsk::bstart) {
+      calm_ = true;
+      Event e = told("before:");
+      std::snprintf(e.note, sizeof e.note, "%s", battle_note(note, sizeof note, trial_.last = battle_now(g, fsb)));
+      g.event(e);
+      m.type = Type::bstart;
+      const char *why = bstart_in(g, logic, m, n);
+      if (latched_)
+        return;
+      e = told(why ? "SetBattleMode not called:" : "SetBattleMode called");
+      std::snprintf(e.note, sizeof e.note, "%s", why ? why : "");
+      return g.event(e);
+    }
+    if (PilotAsk(what) == PilotAsk::finish) {
+      float floor = 0;
+      g.read(fsb + kMinimumHp, &floor, sizeof floor);
+      trial_.last = finish_now(g, logic, fsb, p->local), trial_.count = counts.finish_guards;
+      guest.test_hp(p->hguid, 1);
+      Event e = told("start:");
+      std::snprintf(e.note, sizeof e.note, "HP %d, floor %.0f, %s", int32_t(uint32_t(trial_.last)), double(floor),
+                    finish_note(note, sizeof note, trial_.last));
+      return g.event(e);
+    }
+    const Boss *b = boss_row(s.chr);
+    int32_t held[kMaxEffects];
+    const uint64_t la = b ? g.find(logic, p->local) : 0;
+    const int32_t hn = la ? effect_ids(g, la, held) : -1;
+    if (!b)
+      return end_trial(g, "refused: no table row for its charId");
+    if (hn < 0)
+      return end_trial(g, "refused: its effect list unread");
+    m.type = Type::phase;
+    for (int32_t i = 0; i < hn; ++i)
+      if (mirrored(*b, held[i]) && std::find(m.ids, m.ids + m.idn, held[i]) == m.ids + m.idn)
+        m.ids[m.idn++] = held[i];
+    for (const int32_t id : b->ids)
+      if (id && !floor_row(id) && id != kFloorDispel && id != b->dispel &&
+          std::find(held, held + hn, id) == held + hn) {
+        m.ids[m.idn++] = id; // Room: the allowlist holds kMaxPhaseIds at most, and this one is not held.
+        trial_.line = m;
+        return phase_line(g, logic, n, fsb);
+      }
+    end_trial(g, "refused: every phase row held");
+  }
+  // phase: trial_.line through phase_in(), with stat 107 before it and the rows the game took or refused.
+  template <class Game> void phase_line(Game &g, uint64_t logic, size_t n, uint64_t fsb) {
+    float floor = 0;
+    char note[128]; // Room left for the rest of the line in Event::note.
+    g.read(fsb + kMinimumHp, &floor, sizeof floor);
+    Event e = told("line:");
+    ids_note(note, sizeof note, trial_.line.ids, trial_.line.idn);
+    std::snprintf(e.note, sizeof e.note, "%s; floor %.0f", note, double(floor));
+    g.event(e);
+    const uint64_t taken = counts.phase_rows, refused = counts.phase_refused;
+    phase_in(g, logic, trial_.line, n);
+    if (latched_)
+      return;
+    e = told("cast:");
+    std::snprintf(e.note, sizeof e.note, "%llu taken, %llu refused",
+                  static_cast<unsigned long long>(counts.phase_rows - taken),
+                  static_cast<unsigned long long>(counts.phase_refused - refused));
+    g.event(e);
+  }
+  // summon: made and frozen, or why not.
+  template <class Game> void start_summon(Game &g, uint64_t logic) {
+    const SpawnKey k = summon_key(1);
+    const Summon *row = summon_row(kTrialSummonRow);
+    const uint64_t fsb = local_fsb(g);
+    float at[3] = {}, rot[3] = {};
+    trial_.spawn = k.spawn;
+    if (!table_.on)
+      return end_trial(g, "refused: same place off");
+    if (std::any_of(caps_, caps_ + captures_, [&](const Capture &c) { return c.type == kSummon && c.key == k.spawn; }))
+      return end_trial(g, "refused: its summon is still here");
+    if (!plausible(fsb) || !g.read(fsb + kLocation, at, sizeof at) || !g.read(fsb + kFsbRotation, rot, sizeof rot) ||
+        !std::isfinite(at[0] + at[1] + at[2] + rot[1]))
+      return end_trial(g, "refused: our EVE unread");
+    const double yaw = double(rot[1]) * std::acos(-1.0) / 180;
+    at[0] += float(kTrialSummonCm * std::cos(yaw)), at[1] += float(kTrialSummonCm * std::sin(yaw));
+    if (const char *why = make_extra(g, logic, k, row->chr, at, rot[1], row)) {
+      Event e = told("not made:");
+      std::snprintf(e.note, sizeof e.note, "%s", why);
+      g.event(e);
+      return (void)(trial_ = Trial());
+    }
+    const Capture *c =
+        std::find_if(caps_, caps_ + captures_, [&](const Capture &x) { return x.type == kSummon && x.key == k.spawn; });
+    Actor a;
+    const uint64_t la = c != caps_ + captures_ ? g.find(logic, c->guid) : 0;
+    if (latched_ || !la || !live(g, la, c->guid, a))
+      return (void)(trial_ = Trial()); // A latch's lift_all despawns it.
+    trial_.local = c->guid, trial_.last = ~uint64_t(0);
+    const bool frozen = freeze(g, logic, c->guid);
+    Event e = told("made 3 m ahead:");
+    std::snprintf(e.note, sizeof e.note, "life %d, freeze %s", a.life, frozen ? "taken" : "refused");
+    g.event(e);
+  }
+  // summon: its capture kept from the unpaired summons' rule, and at each census its life state and state 39.
+  template <class Game> void follow_summon(Game &g, uint64_t logic, bool census, uint64_t now) {
+    Capture *c = std::find_if(caps_, caps_ + captures_,
+                              [&](const Capture &x) { return x.type == kSummon && x.guid == trial_.local; });
+    Actor a;
+    const uint64_t la = c != caps_ + captures_ ? g.find(logic, trial_.local) : 0;
+    if (!la || !live(g, la, trial_.local, a))
+      return end_trial(g, "stopped: its summon is gone");
+    c->turn = turn_;
+    const uint64_t ms = now - trial_.start;
+    if (ms >= kTrialHoldMs) {
+      Event e = told("done:");
+      std::snprintf(e.note, sizeof e.note, "%llu freezes again; unpaired, it goes in 3 s or at coop fight off",
+                    static_cast<unsigned long long>(trial_.count));
+      g.event(e);
+      return (void)(trial_ = Trial());
+    }
+    if (!census)
+      return;
+    uint64_t held = 0;
+    const bool frozen = fighting(a) && held_states([&](uint64_t at, void *out, size_t k) { return g.read(at, out, k); },
+                                                   a.fsb, held) && (held >> kBlockAiState & 1);
+    const uint64_t v = uint64_t(uint32_t(a.life)) | uint64_t(frozen) << 32;
+    if (v != trial_.last) {
+      trial_.last = v;
+      Event e = told("after");
+      std::snprintf(e.note, sizeof e.note, "%llu ms: life %d state39=%d", static_cast<unsigned long long>(ms), a.life,
+                    int(frozen));
+      g.event(e);
+    }
+    if (fighting(a) && !frozen && freeze(g, logic, trial_.local)) {
+      ++trial_.count;
+      g.event(told("frozen again"));
+    }
+  }
+  // bstart's reads of the copy now: +0xb58, +0x45a, +0x45b, states 30 and 39, an AI task in flight, packed.
+  template <class Game> uint64_t battle_now(Game &g, uint64_t fsb) {
+    uint8_t b58 = 0, first = 0, on = 0;
+    int32_t task = 0;
+    uint64_t held = 0;
+    g.read(fsb + kBattleFlag, &b58, 1), g.read(fsb + kFirstBattle, &first, 1), g.read(fsb + kOnBattle, &on, 1);
+    g.read(fsb + kAiTask, &task, sizeof task);
+    held_states([&](uint64_t at, void *out, size_t k) { return g.read(at, out, k); }, fsb, held);
+    return uint64_t(b58) | uint64_t(first) << 8 | uint64_t(on) << 16 | (held >> kBattleState & 1) << 24 |
+           (held >> kBlockAiState & 1) << 25 | uint64_t(task != 0) << 26;
+  }
+  static const char *battle_note(char *out, size_t size, uint64_t v) {
+    std::snprintf(out, size, "b58=%u 45a=%u 45b=%u state30=%u state39=%u ai=%u", unsigned(v & 0xff),
+                  unsigned(v >> 8 & 0xff), unsigned(v >> 16 & 0xff), unsigned(v >> 24 & 1), unsigned(v >> 25 & 1),
+                  unsigned(v >> 26 & 1));
+    return out;
+  }
+  // finish's reads of the copy now: its HP, DeathReady and FinishReady on its list, states 27 and 3, packed.
+  template <class Game> uint64_t finish_now(Game &g, uint64_t logic, uint64_t fsb, uint32_t guid) {
+    float hp = 0;
+    uint64_t held = 0;
+    bool death = false, ready = false;
+    const uint64_t la = g.find(logic, guid);
+    g.read(fsb + kStatBase + 4 * size_t(kStatType[kHp]), &hp, sizeof hp);
+    held_states([&](uint64_t at, void *out, size_t k) { return g.read(at, out, k); }, fsb, held);
+    if (la)
+      each_effect(g, la, [&](uint64_t, int32_t id) {
+        death = death || id == kDeathReady;
+        ready = ready || id == kFinishReady;
+      });
+    const int32_t whole = hp >= 0 && hp <= float(kMaxStat) ? int32_t(hp) : -1; // -1: not a number of HP.
+    return uint64_t(uint32_t(whole)) | uint64_t(death) << 32 | uint64_t(ready) << 33 |
+           (held >> 27 & 1) << 34 | (held >> kNoDamageNoHit & 1) << 35;
+  }
+  static const char *finish_note(char *out, size_t size, uint64_t v) {
+    std::snprintf(out, size, "2001101=%u 2001102=%u state27=%u state3=%u", unsigned(v >> 32 & 1),
+                  unsigned(v >> 33 & 1), unsigned(v >> 34 & 1), unsigned(v >> 35 & 1));
+    return out;
+  }
+  // IDs joined by commas into out ("-" for none), cut where out ends.
+  static const char *ids_note(char *out, size_t size, const int32_t *ids, size_t n) {
+    size_t at = 0;
+    std::snprintf(out, size, "-");
+    for (size_t i = 0; i < n && at < size; ++i)
+      at += size_t(std::max(0, std::snprintf(out + at, size - at, i ? ",%d" : "%d", ids[i])));
+    return out;
   }
   // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
   // Where both sides count epochs again (pilot.h's Owners), seen in the lines as they go out (Io::send) and come in,
@@ -2694,6 +3038,20 @@ private:
   };
   Refused refused_[kMaxSummoned];
   size_t refused_at_ = 0;
+  // The solo probe running (trial()): which (a PilotAsk, 0 for none), its copy (our GUID, the host's, its key), when it
+  // started, its step (phase), the values it last logged, a count for its done line (finish: the guard's turns before
+  // it; summon: its freezes again), and phase's line.
+  struct Trial {
+    uint8_t what = 0;
+    uint32_t local = 0, hguid = 0, spawn = 0;
+    uint8_t index = 0;
+    uint64_t start = 0, last = 0, count = 0;
+    int step = 0;
+    Message line;
+  };
+  Trial trial_;
+  std::atomic<uint8_t> boss_test_{0}; // A solo probe asked (boss_test()), 0 for none.
+  std::atomic<bool> calm_{false};
 };
 
 // ---- Between the job and the worker ----
@@ -2919,6 +3277,8 @@ public:
 
   // The mode on runs with her: our lines go to her (same-place enemies' too).
   bool sharing() const { return running_ && ran_ == Fight::on; }
+  // A replay runs: stage 5's solo probes may act on its copies.
+  bool replaying() const { return running_ && ran_ == Fight::replay; }
   // Same-place enemies as of the last second, for coop-status.txt's pilot line (pose_tick.cpp adds the rest): "on
   // piloted=<n>" while they run (n: the pairs this side captures as host, or draws as guest), "off why=<fight|asked|
   // setting|host>" (the shared fight not running a mode that pairs, coop fight pilot off, the host's same_place off on

@@ -686,6 +686,7 @@ struct Event {
   const char *why = "";
   uint32_t guid = 0, spawn = 0;
   uint8_t index = 0;
+  char note[160] = {}; // Numbers after the why (the engine's solo probes, through snprintf), or empty.
 };
 inline std::string line(const Event &e) {
   std::string t = e.what;
@@ -695,6 +696,8 @@ inline std::string line(const Event &e) {
     t += " hguid=" + std::to_string(e.guid);
   if (*e.why)
     t += std::string(" ") + e.why;
+  if (*e.note)
+    t += std::string(" ") + e.note;
   return t;
 }
 
@@ -1460,6 +1463,16 @@ public:
       local = p->local;
     return why;
   }
+  // coop fight pilot test finish: our copy of the host's enemy hguid is corrected toward hp in place of the host's HP
+  // (at least 1, as always) while hp is not 0; 0 gives the host's back. Our writes are never claims, so a copy held
+  // low this way costs the host nothing. False when no copy is paired with it.
+  bool test_hp(uint32_t hguid, int32_t hp) {
+    Pair *p = find(hguid);
+    if (!p || !p->local)
+      return false;
+    p->test_hp = hp;
+    return true;
+  }
   // The engine's boss start went for the host's enemy hguid: its next bstarts are "again".
   void started(uint32_t hguid) {
     if (Pair *p = find(hguid))
@@ -1661,6 +1674,7 @@ private:
     bool started = false;        // Its bstart was taken (stage 5): one a copy.
     bool phased = false;         // A phase line was applied to the copy (stage 5): phase, phases its set.
     bool retry = false;          // The game refused a row of its last one: the next plans from the copy's list.
+    int32_t test_hp = 0;         // coop fight pilot test finish's HP for the copy (test_hp()); 0: the host's.
     int32_t phase[kMaxPhaseIds] = {};
     uint8_t phases = 0;
     bool logged = false;         // Its unpaired reason was logged.
@@ -1702,6 +1716,7 @@ private:
   }
   static void unpair(Pair &p) {
     p.local = p.lethal = 0;
+    p.test_hp = 0;
     p.held = p.fought = p.started = p.phased = p.retry = false;
     p.phases = 0;
     p.pendings = 0;
@@ -1807,7 +1822,7 @@ private:
         owed += p.pending[i].delta[k];
       int32_t target = std::max(0, std::min(p.host[k] - owed, whole(s.max[k])));
       if (k == kHp)
-        target = std::max(target, 1);
+        target = std::max(p.test_hp ? std::min(p.test_hp, whole(s.max[k])) : target, 1);
       int32_t gap = target - p.seen[k];
       if (target == p.stuck[k] || std::abs(gap) < std::max(1.0, kCorrectShare * double(s.max[k])))
         continue;

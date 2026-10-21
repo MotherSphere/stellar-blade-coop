@@ -3187,6 +3187,198 @@ int main() {
     assert(G.dying(931) && G.dying(933) && !G.dying(935) && !eg->latched());
   }
 
+  // ---- Bosses (stage 5), the guest's solo probes (coop fight pilot test bstart|phase|finish|summon) as in a replay:
+  // the host's lines fed in, her GorillaB copies 931 (5 m from her EVE) and 932 (30 m) and a common enemy 933 paired,
+  // drawn and frozen, BattleMode in the owner's stream for the three. Each test takes the nearer boss copy through the
+  // stage's own guest path, logs what it reads, and ends by itself. bstart: its reads before, SetBattleMode once a
+  // copy, each change for 1 s, and no BattleMode_5s on a boss copy from the ask until calm(false). phase: the copy's
+  // floor row and phase row 5005115 in one line, 5 s later the line without the floor (MinimumHP_Dispel), stat 107
+  // before each and the rows the turn after; refused once every phase row is held. finish: the copy corrected to 1 HP
+  // for 10 s with no claim of hers, the finish guard as the stance comes, her hit leaving 1 HP, then the host's HP
+  // back. summon: refused with same place off; a DollHead 3 m ahead of her EVE under the first summon key, its row's
+  // effects, then our freeze, frozen again after the game's dispel, gone 3 s after the test by the unpaired summons'
+  // rule. One test at a time ----
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(931, 31, 0, 15005100, 1600, kTypeBoss);
+    G.spawn(932, 32, 0, 15005100, 1600, kTypeBoss);
+    G.spawn(933, 33, 0, 900, 1600);
+    G.place(1, 0, 0, 90); // Her EVE faces +y.
+    G.place(931, 500, 0);
+    G.place(932, 0, 3000);
+    G.place(933, 100, 0);
+    G.knock(931, 1001307); // Its phase 1 floor and Immortal, from its row.
+    G.knock(931, kImmortalRow);
+    G.mem.put(G.fsb(931) + kMinimumHp, 960.f);
+    G.mem.put<uint8_t>(G.fsb(931) + kFirstBattle, 1);
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    const auto said = [&](const char *what) { // A test's lines so far, as the log has them.
+      std::vector<std::string> out;
+      for (const Event &e : G.events)
+        if (!std::strcmp(e.what, what))
+          out.push_back(line(e));
+      return out;
+    };
+    const auto running = [&](uint32_t guid, int32_t id) {
+      const auto &e = G.body(guid).effects;
+      return std::any_of(e.begin(), e.end(), [&](const Game::Body::Running &r) { return r.id == id; });
+    };
+    const auto mirrors = [&](uint32_t guid) {
+      const std::vector<int32_t> c = G.cast_ids(guid);
+      return std::count(c.begin(), c.end(), kBattleMode);
+    };
+    eg->boss_test(coop::PilotAsk::summon); // No host list yet: same place is not running.
+    run(t);
+    assert(said("pilot test summon") ==
+           std::vector<std::string>{"pilot test summon 4026531841:0 refused: same place off"});
+    const char *const host[] = {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100",
+                                "SBF11 up 1 132 32 0 15005100 1600", "SBF11 up 1 131 31 0 15005100 1600",
+                                "SBF11 up 1 133 33 0 900 1600", "SBF11 hp 1 1 0 131:1600:100:200 132:1600:100:200"};
+    for (const char *line : host) // 132 first: the nearer copy is not the pair table's first.
+      G.inbox.push_back(msg(line));
+    eg->boss_test(coop::PilotAsk::phase); // Nothing paired yet.
+    run(t);
+    assert(said("pilot test phase") == std::vector<std::string>{"pilot test phase refused: no frozen boss copy drawn"});
+    G.flags.battle[0] = 131, G.flags.battle[1] = 132, G.flags.battle[2] = 133, G.flags.count = 3;
+    run(2500);
+    assert(eg->guest.linked() == 3 && Game::held(G.body(931), kBlockAiState) && Game::held(G.body(932), kBlockAiState));
+    assert(mirrors(931) && mirrors(932) && mirrors(933) && G.battles.empty());
+    // bstart.
+    eg->boss_test(coop::PilotAsk::bstart);
+    run(t + 1100);
+    assert((G.battles == std::vector<uint64_t>{G.fsb(931)}) && eg->counts.bstarts == 1 && count(G, "bstart") == 1);
+    std::vector<std::string> b = said("pilot test bstart");
+    assert(b.size() == 4);
+    assert(b[0] == "pilot test bstart 31:0 hguid=131 before: b58=0 45a=1 45b=0 state30=1 state39=1 ai=0");
+    assert(b[1] == "pilot test bstart 31:0 hguid=131 SetBattleMode called");
+    assert(b[2] == "pilot test bstart 31:0 hguid=131 after 16 ms: b58=1 45a=1 45b=0 state30=1 state39=1 ai=0");
+    assert(b[3] == "pilot test bstart 31:0 hguid=131 done: b58=1 45a=1 45b=0 state30=1 state39=1 ai=0");
+    const auto m931 = mirrors(931), m932 = mirrors(932), m933 = mirrors(933);
+    eg->boss_test(coop::PilotAsk::bstart); // One SetBattleMode a copy.
+    run(t + 4000);
+    b = said("pilot test bstart");
+    assert(G.battles.size() == 1 && b.size() == 7);
+    assert(b[5] == "pilot test bstart 31:0 hguid=131 SetBattleMode not called: again");
+    assert(mirrors(931) == m931 && mirrors(932) == m932 && mirrors(933) > m933);
+    eg->calm(false);
+    run(t + 2100);
+    assert(mirrors(931) > m931 && mirrors(932) > m932);
+    // phase.
+    G.flags.count = 0;
+    run(t + 100);
+    uint64_t op = G.ops;
+    eg->boss_test(coop::PilotAsk::phase);
+    const uint64_t asked = t;
+    run(t + 16);
+    std::vector<std::string> p = said("pilot test phase");
+    assert(p.size() == 4 && count(G, "phase") == 1);
+    assert(p[1] == "pilot test phase 31:0 hguid=131 line: 1001307,5005115; floor 960");
+    assert(p[2] == "pilot test phase 31:0 hguid=131 cast: 1 taken, 0 refused");
+    assert(p[3] == "pilot test phase 31:0 hguid=131 next turn: floor 960; rows 1001307,5005115");
+    while (said("pilot test phase").size() < 6)
+      frame(G, *eg, t), t += 16;
+    assert(t - 16 >= asked + 5000 && t - 16 < asked + 5100);
+    G.mem.put(G.fsb(931) + kMinimumHp, 0.f); // The game's restore of the floor it dispelled.
+    run(t + 16);
+    p = said("pilot test phase");
+    assert(p.size() == 8 && p[4] == "pilot test phase 31:0 hguid=131 line: 5005115; floor 960");
+    assert(p[5] == "pilot test phase 31:0 hguid=131 cast: 1 taken, 0 refused");
+    assert(p[6] == "pilot test phase 31:0 hguid=131 next turn: floor 0; rows 5005115,1001323"); // The dispel's 0.1 s.
+    assert(p[7] == "pilot test phase 31:0 hguid=131 done");
+    assert((G.cast_ids(931, op) == std::vector<int32_t>{5005115, kFloorDispel}) && eg->counts.phase_rows == 2);
+    assert(running(931, 5005115) && !running(931, 1001307) && G.cast_ids(932, op).empty());
+    eg->boss_test(coop::PilotAsk::phase);
+    run(t + 100);
+    assert(said("pilot test phase").back() == "pilot test phase 31:0 hguid=131 refused: every phase row held");
+    // finish.
+    lines(G);
+    eg->boss_test(coop::PilotAsk::finish);
+    const uint64_t held = t;
+    run(t + 100);
+    std::vector<std::string> f = said("pilot test finish");
+    assert(f.size() == 2 && G.hp(931) == 1 && G.hp(932) == 1600);
+    assert(f[0] == "pilot test finish 31:0 hguid=131 start: HP 1600, floor 0, 2001101=0 2001102=0 state27=1 state3=0");
+    assert(f[1] == "pilot test finish 31:0 hguid=131 after 16 ms: HP 1 2001101=0 2001102=0 state27=1 state3=0");
+    eg->boss_test(coop::PilotAsk::phase);
+    run(t);
+    assert(said("pilot test phase").back() == "pilot test phase refused: another test runs");
+    G.knock(931, kDeathReady); // The Finish stance at HP under 2.
+    run(t + 800);
+    f = said("pilot test finish");
+    assert(count(G, "finish guard") == 1 && !running(931, kFinishReady) && running(931, kImmortalRow));
+    assert(std::any_of(f.begin(), f.end(), [](const std::string &s) { return has(s, " 2001101=1 "); }));
+    G.hit(931, kHp, 500); // Hers, after the guard: it stays at 1 HP.
+    run(t + 100);
+    assert(G.hp(931) == 1 && !G.dying(931));
+    while (!has(said("pilot test finish").back(), " done: "))
+      frame(G, *eg, t), t += 16;
+    assert(t - 16 >= held + 10000 && t - 16 < held + 10100 && G.hp(931) == 1);
+    assert(has(said("pilot test finish").back(), "pilot test finish 31:0 hguid=131 done: ") &&
+           has(said("pilot test finish").back(), " guard turns, HP 1; the host's HP from the next turn"));
+    run(t + 100);
+    assert(G.hp(931) == 1600 && !has(lines(G), "SBF11 hit "));
+    // summon.
+    eg->boss_test(coop::PilotAsk::summon);
+    const uint64_t made = t;
+    run(t);
+    assert(G.extras.size() == 1 && G.extras[0].id == 0xF0000001 && G.extras[0].index == 0);
+    assert(std::fabs(G.extras[0].at[0]) < 1 && G.extras[0].at[1] == 300 && G.extras[0].rot[1] == 90);
+    const uint32_t doll = G.extras[0].guid;
+    assert((G.cast_ids(doll) == std::vector<int32_t>{5025010, 5025013, kBlockAi, kSkillCancel}));
+    std::vector<std::string> s = said("pilot test summon");
+    assert(s.size() == 2 && s[1] == "pilot test summon 4026531841:0 made 3 m ahead: life 1, freeze taken");
+    assert(count(G, "summon made") == 1 && eg->counts.summons == 1);
+    run(t + 1000); // Its row's own BlockAI runs out; ours holds.
+    s = said("pilot test summon");
+    assert(s.size() == 3 && has(s[2], "pilot test summon 4026531841:0 after ") && has(s[2], " ms: life 1 state39=1"));
+    G.dispel(doll); // The game ends every BlockAI on it, ours too: frozen again at the next census.
+    run(t + 600);
+    s = said("pilot test summon");
+    assert(s.size() == 6 && has(s[3], " ms: life 1 state39=0"));
+    assert(s[4] == "pilot test summon 4026531841:0 frozen again");
+    assert(has(s[5], " ms: life 1 state39=1") && Game::held(G.body(doll), kBlockAiState));
+    eg->boss_test(coop::PilotAsk::bstart);
+    run(t);
+    assert(said("pilot test bstart").back() == "pilot test bstart refused: another test runs" && G.battles.size() == 1);
+    run(made + 9900);
+    assert(said("pilot test summon").size() == 6);
+    run(made + 10100);
+    s = said("pilot test summon");
+    assert(s.size() == 7 && s[6] == "pilot test summon 4026531841:0 done: 1 freezes again; unpaired, it goes in 3 s "
+                                     "or at coop fight off");
+    eg->boss_test(coop::PilotAsk::summon);
+    run(t);
+    assert(said("pilot test summon").back() == "pilot test summon 4026531841:0 refused: its summon is still here");
+    run(made + 12800);
+    assert(G.despawned.empty());
+    run(made + 13300);
+    assert((G.despawned == std::vector<uint32_t>{doll}) && count(G, "summon despawned", "unpaired") == 1);
+    assert(G.extras.size() == 1 && !eg->latched() && eg->guest.counts.bad == 0);
+    // A test the session's end cuts short leaves nothing behind: the next session's copy has the host's HP, and its
+    // first test starts.
+    eg->boss_test(coop::PilotAsk::finish);
+    run(t + 100);
+    assert(G.hp(931) == 1);
+    eg->set(false, false);
+    run(t + 100);
+    eg->set(true, false);
+    for (const char *line : host)
+      G.inbox.push_back(msg(line));
+    run(t + 600);
+    eg->boss_test(coop::PilotAsk::phase);
+    run(t + 100);
+    assert(said("pilot test phase").back() == "pilot test phase 31:0 hguid=131 refused: every phase row held");
+    assert(G.hp(931) == 1600 && !eg->latched());
+  }
+
   // ---- Bosses (stage 5), two worlds through channel 2, a scripted fight: Marionette in both games, same place on.
   // Its battle mode starts on the host (her copy's SetBattleMode once), two phase changes (her copy gets 5026013 and
   // 5026021, then MinimumHP_Dispel), three summons (each made in her game with the host's key and its effects before
@@ -5132,7 +5324,7 @@ int main() {
     w.pass(t, false, false, true, none, gate, io);
     assert(ask("fight replay 900") == "shared fight replay refused: writes not armed yet (coop fight probe first)");
     // The probe first: its census finds our EVE, which arms writes for the run.
-    assert(ask("fight probe").rfind("shared fight probe: ", 0) == 0);
+    assert(ask("fight probe").rfind("shared fight probe: ", 0) == 0 && !w.replaying());
     for (; !io.saying("fight writes=armed: ") && t < 1000; t += 16) {
       frame(G, *e, t);
       w.pass(t, false, false, true, none, gate, io);
@@ -5145,7 +5337,7 @@ int main() {
     assert(ask("fight replay 900") ==
            "shared fight replay refused: coop-fight-record.txt fails its check (first line)");
     io.file = recording;
-    assert(ask("fight replay confirmed 900").rfind("shared fight replay: ", 0) == 0 && e->on());
+    assert(ask("fight replay confirmed 900").rfind("shared fight replay: ", 0) == 0 && e->on() && w.replaying());
     // A linked friend's dead line for the host's 102 once paired: it would kill 902 if it reached the guest.
     const std::vector<std::string> her = {"SBF11 dead 1 102"};
     for (const uint64_t from = t; t < from + 3500; t += 16) {
@@ -5170,7 +5362,7 @@ int main() {
       if (c.la == G.by_guid[901] && (c.type == kFloorStat || c.cause))
         on901.push_back(c.type == kFloorStat ? int(c.delta) : 0);
     assert((on901 == std::vector<int>{1, -1, 0}) && G.mem.get<float>(G.fsb(902) + kMinimumHp) == 1);
-    assert(ask("fight off") == "shared fight off: coop fight off");
+    assert(ask("fight off") == "shared fight off: coop fight off" && !w.replaying());
     for (const uint64_t from = t; t < from + 100; t += 16) {
       frame(G, *e, t);
       w.pass(t, false, false, true, none, gate, io);

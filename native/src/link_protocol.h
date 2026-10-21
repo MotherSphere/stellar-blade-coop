@@ -330,8 +330,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
 // same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
 // fight on, probe, record or replay, or pilot on), "fight pilot status", "fight pilot test freeze|cmc|drive|replay"
-// (how far the drawn side goes), "fight pilot test target" (SB's force target on one enemy this side owns, once) and
-// "fight pilot test exec" (the first frozen copy this side draws loses its balance, for a takedown);
+// (how far the drawn side goes), "fight pilot test target" (SB's force target on one enemy this side owns, once),
+// "fight pilot test exec" (the first frozen copy this side draws loses its balance, for a takedown) and "fight pilot
+// test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
 // save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
@@ -342,7 +343,8 @@ enum class Command {
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
-enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec }; // fight pilot ...
+// fight pilot ...; bstart to summon: stage 5's probes (fight_engine.h's Engine::boss_test).
+enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bstart, phase, finish, summon };
 // fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
 // out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
 // too (all of it, the default).
@@ -442,17 +444,17 @@ inline Request parse_fight(const std::string &text) {
               : w[1] == "on"  ? PilotAsk::on
               : w[1] == "off" ? PilotAsk::off
                               : PilotAsk::status;
-  } else if (what == "pilot" && w.size() == 3 && w[1] == "test" && (w[2] == "target" || w[2] == "exec")) {
-    r.fight = Fight::pilot;
-    r.pilot = w[2] == "target" ? PilotAsk::target : PilotAsk::exec;
   } else if (what == "pilot" && w.size() == 3 && w[1] == "test") {
     static const char *const kTests[] = {"freeze", "cmc", "drive", "replay"};
+    // No step of the drawn side: PilotAsk from target on.
+    static const char *const kAsks[] = {"target", "exec", "bstart", "phase", "finish", "summon"};
     const auto at = std::find(std::begin(kTests), std::end(kTests), w[2]);
-    if (at == std::end(kTests))
+    const auto ask = std::find(std::begin(kAsks), std::end(kAsks), w[2]);
+    if (at == std::end(kTests) && ask == std::end(kAsks))
       return Request();
     r.fight = Fight::pilot;
-    r.pilot = PilotAsk::test;
-    r.test = PilotTest(at - std::begin(kTests));
+    r.pilot = ask == std::end(kAsks) ? PilotAsk::test : PilotAsk(uint8_t(PilotAsk::target) + (ask - std::begin(kAsks)));
+    r.test = at == std::end(kTests) ? PilotTest::replay : PilotTest(at - std::begin(kTests));
   } else if (what == "test" && w.size() == 2 && w[1] == "kill") {
     r.fight = Fight::test;
     r.stat = -1;

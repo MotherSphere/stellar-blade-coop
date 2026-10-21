@@ -1856,7 +1856,9 @@ std::string fault_where(uint64_t rva) {
 // probe, record or replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the
 // pilot line, and the stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on;
 // test target: SB's force target once, on the first enemy this side owns (pilot.h's Taker::test); test exec: the first
-// frozen copy this side draws loses its balance at the job's next turn, so it can be taken down (Engine::exec_test).
+// frozen copy this side draws loses its balance at the job's next turn, so it can be taken down (Engine::exec_test);
+// test bstart|phase|finish|summon: stage 5's solo probes at the job's next turn, only while a replay runs
+// (Engine::boss_test).
 bool pilot_stats_now = false;
 std::string ask_pilot(const coop::Request &request) {
   switch (request.pilot) {
@@ -1873,6 +1875,10 @@ std::string ask_pilot(const coop::Request &request) {
   const char *what = request.pilot == PilotAsk::test     ? "pilot test"
                      : request.pilot == PilotAsk::target ? "pilot test target"
                      : request.pilot == PilotAsk::exec   ? "pilot test exec"
+                     : request.pilot == PilotAsk::bstart ? "pilot test bstart"
+                     : request.pilot == PilotAsk::phase  ? "pilot test phase"
+                     : request.pilot == PilotAsk::finish ? "pilot test finish"
+                     : request.pilot == PilotAsk::summon ? "pilot test summon"
                      : request.pilot == PilotAsk::on     ? "pilot on"
                                                          : "pilot probe";
   if (!pinned)
@@ -1898,6 +1904,27 @@ std::string ask_pilot(const coop::Request &request) {
     return "pilot test exec: at the job's next turn, the first frozen copy this side draws loses its balance; take it "
            "down while it is groggy. coop-link.log says what the job did (fight pilot test exec ...), then fight exec "
            "lines for the takedown and pilot released and converged lines for the copy";
+  }
+  if (request.pilot >= PilotAsk::bstart) {
+    static const char *const kSay[] = {
+        ("the frozen boss copy nearest our EVE gets the host's boss start (SetBattleMode, once a copy); coop-link.log "
+         "says its battle mode, first-time latch, on-battle flag, states 30 and 39 and AI task before, then each "
+         "change for 1 s (fight pilot test bstart ...). From now until coop fight on, boss copies get no "
+         "BattleMode_5s"),
+        ("the frozen boss copy nearest our EVE gets its first phase row it lacks, then 5 s later the dispel of its "
+         "floor, as the host's phase lines would bring them; coop-link.log says each line, stat 107 and the rows the "
+         "game took (fight pilot test phase ...)"),
+        ("the frozen boss copy nearest our EVE is held at 1 HP for 10 s, then gets the host's HP back; hit it once "
+         "meanwhile. coop-link.log says each change of its HP, DeathReady, FinishReady and states 27 and 3 (fight "
+         "pilot test finish ...)"),
+        ("a DollHead summon 3 m ahead of our EVE under key 4026531841:0, with its row's effects and our freeze; "
+         "coop-link.log says each change for 10 s (fight pilot test summon ...); it goes 3 s later, or at coop fight "
+         "off")};
+    if (!fight_worker.replaying())
+      return std::string(what) + " refused: only while coop fight replay runs";
+    fight_engine.boss_test(request.pilot);
+    return std::string(what) + ": at the job's next turn, " +
+           kSay[uint8_t(request.pilot) - uint8_t(PilotAsk::bstart)];
   }
   if (request.pilot == PilotAsk::test) {
     static const char *const kSay[] = {
@@ -2069,8 +2096,11 @@ void pilot_pass(uint64_t now_ms, bool linked, const std::vector<std::string> &li
 std::string ask_fight(const coop::Request &request, int marker) {
   if (request.fight == Fight::pilot)
     return ask_pilot(request);
-  if (request.fight == Fight::on && fight_worker.mode() == Fight::none) // A refused on leaves a running test as it is.
+  // A refused on leaves a running test as it is.
+  if (request.fight == Fight::on && fight_worker.mode() == Fight::none) {
     pilot_test = uint8_t(PilotTest::replay);
+    fight_engine.calm(false);
+  }
   FightIo io;
   return fight_worker.ask(request, [marker] { return fight_gate(marker); }, io);
 }
