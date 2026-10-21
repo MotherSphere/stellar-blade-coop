@@ -486,6 +486,17 @@ pose_at(6.93,{X=606,Y=0,Z=30})
 assert(root.teleport==false,'Back to small steps')
 pose_at(6.96,{X=100,Y=0,Z=30})
 assert(root.teleport==true,'Back where it was, 5 m away: a teleport')
+-- In loopback the side is kept while the ghost shows: her turn moves it neither around her nor by a teleport. The side
+-- is taken again when it shows again.
+box.RelativeRotation={Pitch=0,Yaw=90,Roll=0}
+pose_at(6.98,{X=100,Y=0,Z=30})
+assert(root.teleport==false and math.abs(root.at.X+100)<1e-6 and math.abs(root.at.Y)<1e-6,'Her turn: the same side')
+clock=clock+1
+ghost.place()
+assert(actor.hidden==true)
+pose_at(6.99,{X=100,Y=0,Z=30})
+assert(root.teleport==true and math.abs(root.at.X-100)<1e-6 and math.abs(root.at.Y+200)<1e-6,'Shown again: her right now')
+box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 
 -- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
 local displays_before=#displays

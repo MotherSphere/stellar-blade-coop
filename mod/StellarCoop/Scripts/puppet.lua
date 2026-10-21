@@ -29,7 +29,9 @@ local U=require('unreal')
 local T=require('ui_text')
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Puppet={}
-local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
+-- cm: in loopback the ghost is yours, so it walks 2 m to your right. The side is taken each time it shows and kept
+-- while it shows: taken at each pose, a turn would swing the ghost around her and throw its cloth sideways.
+local RIGHT=200
 local TAG_SIZE,TAG_HEIGHT=18,200 -- cm: the name tag's letters, and its height above the main mesh (her feet).
 local ABOVE=TAG_HEIGHT+20 -- cm: the UI marker's anchor above her feet, over the tag's place.
 -- cm in one pose: a longer step of the root is a teleport (a fast travel, a respawn). 60 m/s at 30 FPS, above any of
@@ -626,8 +628,8 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 g.seen={x=at.X,y=at.Y,z=at.Z,yaw=rotation.Yaw,at=os.clock()} -- For coop where: hers, before any offset.
                 local x,y=at.X,at.Y
                 if source=='loopback' then -- Her right: Unreal is left-handed.
-                    local yaw=math.rad(rotation.Yaw+capture.yaw_delta())
-                    x,y=x-math.sin(yaw)*RIGHT,y+math.cos(yaw)*RIGHT
+                    if g.hidden or not g.side then g.side=math.rad(rotation.Yaw+capture.yaw_delta()) end
+                    x,y=x-math.sin(g.side)*RIGHT,y+math.cos(g.side)*RIGHT
                 end
                 -- ponytail: one distance threshold, add a rotation threshold if a snap turn throws the tail.
                 local f=g.feet
