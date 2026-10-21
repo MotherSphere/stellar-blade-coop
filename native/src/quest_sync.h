@@ -1850,7 +1850,7 @@ public:
         since_[i] = now_ms ? now_ms : 1;
       m.type = Type::ahead;
       if (now_ms >= since_[i] + kAheadMs && send(m))
-        ahead_sent_.set(i);
+        ahead_sent_.set(i), this->ahead.push_back(r.id);
     }
     return step;
   }
@@ -1885,6 +1885,7 @@ public:
   const Zones &zones() const { return zones_; }
   std::vector<std::string> log;  // Lines for coop-*.log, taken by the glue.
   std::vector<uint16_t> behind; // Quests she is first found behind on this session, for the glue's notice.
+  std::vector<uint16_t> ahead;  // Quests her ahead line went out for (after kAheadMs), for the glue's notice.
 
 private:
   bool bad(const char *why) {

@@ -94,10 +94,11 @@ constexpr size_t kMaxReplay = 65536; // Lines a replay file may hold.
 constexpr uint64_t kReplayHost = 1;  // The replay's host ID in her record, which a replay never writes.
 constexpr uint64_t kAskAgainMs = 1000; // The guest's on again when the host's on brought no snapshot by then.
 
-// What the glue shows: Why::ahead (her quest holds a part the host's lacks; on the host's side, hers said so),
-// Why::behind (the host moved that quest without her), Why::zone (a step made with her waits in zone), Why::board
-// (a Request she hands in at her own board), and the other holds as they start; and the answer to coop quests force:
-// Why::go when the step went (warp: SB moves her), else why it did not.
+// What the glue shows: Why::ahead (her quest holds a part the host's lacks, once her ahead line went out; on the
+// host's side, hers said so), Why::behind (the host moved that quest without her), Why::zone (a step made with her
+// waits in zone), Why::board (a Request she hands in at her own board), and the other holds as they start; and the
+// answer to coop quests force: Why::go when the step went (warp: SB moves her), else why it did not (Why::done: no
+// step to force, or no side ran in the game).
 struct Note {
   Why why = Why::done;
   uint16_t id = 0;
@@ -172,6 +173,11 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     return latched_;
   }
+  // The glue's time for one tick, for the stats line's poll mean and max.
+  void cost(uint64_t us) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    poll_us_ += us, ++polls_, poll_max_ = std::max(poll_max_, us);
+  }
   // A side runs, or on() asked for one: false once off(), its gate (another save) or a fault ended it.
   bool active() const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -206,8 +212,10 @@ public:
     }
     base_ = base;
     std::vector<std::string> lines;
-    if (running_)
-      pass(g, slot, now_ms, inbox, force, lines);
+    if (!(running_ && pass(g, slot, now_ms, inbox, force, lines)) && force) { // The answer coop quests force promised.
+      log("quests: force " + std::to_string(force) + ": no step, the side waits for the game or has ended");
+      notes_.push_back(Note{Why::done, force, "", true, false});
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     out(lines, now_ms);
     if (status)
@@ -586,9 +594,9 @@ private:
     return true;
   }
 
-  // One pass on the game thread, outside the lock.
+  // One pass on the game thread, outside the lock: true when the side ran (past the gate and the walk).
   template <class Game>
-  void pass(Game &g, std::string_view slot, uint64_t now_ms, std::vector<std::string> &inbox, uint16_t force,
+  bool pass(Game &g, std::string_view slot, uint64_t now_ms, std::vector<std::string> &inbox, uint16_t force,
             std::vector<std::string> &lines) {
     // Kept until the side runs: her on may come before ours is armed. A recording, a probe and a replay have no
     // partner: a linked one's lines would mix with theirs.
@@ -596,11 +604,11 @@ private:
       if (held_in_.size() < kMaxInbox && (side_.mode == Mode::host || side_.mode == Mode::guest))
         held_in_.push_back(std::move(l));
     if (!gate(g, slot) || !running_)
-      return;
+      return false;
     bool armed = false;
     std::string here;
     if (!walk(g, unit_, armed) || !zone(g, here))
-      return;
+      return false;
     if (!start_ms_)
       start_ms_ = now_ms ? now_ms : 1;
     // A save load makes every quest object again: a known one at a new address.
@@ -625,6 +633,13 @@ private:
       for (size_t i = 0; i < kRowCount; ++i)
         live_[i] = tuple_of(kRows[i], views_[i]);
       lines = host_->pass(live_.data(), zone_, load && !first_, now_ms);
+      bool snap = false; // Each step sent outside a snapshot (one log line of its own), for the time to her apply.
+      for (const std::string &l : lines) {
+        const Type t = side_.mode == Mode::host ? parse(l.data(), l.size()).type : Type::invalid;
+        snap = t == Type::snap || (snap && t != Type::end);
+        if (!snap && t == Type::q)
+          log("quests: sent " + l);
+      }
       if (side_.mode == Mode::probe && (first_ || load))
         log(summary(g));
     } else if (guest_) {
@@ -662,6 +677,7 @@ private:
         lines.clear(); // Nobody to tell.
     }
     first_ = false;
+    return true;
   }
 
   // The guest's one step: the guards, the call, the log line with the events it starts. True when it was made.
@@ -706,26 +722,28 @@ private:
     n.why = Why::ahead, n.id = m.e.id;
     notes_.push_back(n);
   }
-  // The guest's holds as they start, for the glue's notices.
+  // The guest's holds as they start, each in the log and some for the glue's notices. Ahead only once her ahead line
+  // went out: a step made in both worlds can show on her side first, before the host's line arrives.
   void notes() {
-    for (uint16_t id : guest_->behind) {
-      Note n;
-      n.why = Why::behind, n.id = id;
-      notes_.push_back(n);
-    }
-    guest_->behind.clear();
+    for (uint16_t id : guest_->behind)
+      notes_.push_back(Note{Why::behind, id, "", false, false});
+    for (uint16_t id : guest_->ahead)
+      notes_.push_back(Note{Why::ahead, id, "", false, false});
+    guest_->behind.clear(), guest_->ahead.clear();
     for (size_t i = 0; i < kRowCount; ++i) {
       const Plan &p = guest_->planned(kRows[i].id);
       if (p.why == shown_[i].why && p.zone == shown_[i].zone)
         continue;
       shown_[i].why = p.why, shown_[i].zone = p.zone;
+      if (p.why != Why::go && p.why != Why::done && p.why != Why::behind && p.why != Why::blocked) // Those two log.
+        log("quests: " + std::string(kRows[i].alias) + " (" + std::to_string(kRows[i].id) + ") held: " +
+            why_name(p.why) + (p.zone.empty() ? "" : " " + p.zone));
       switch (p.why) {
       case Why::zone:
       case Why::board:
       case Why::locked:
       case Why::kill:
-      case Why::unseen:
-      case Why::ahead: notes_.push_back(Note{p.why, kRows[i].id, p.zone, false, false}); break;
+      case Why::unseen: notes_.push_back(Note{p.why, kRows[i].id, p.zone, false, false}); break;
       default: break;
       }
     }
@@ -810,7 +828,8 @@ private:
       const Note &n = shown_[i];
       if (n.why == Why::done || n.why == Why::go)
         continue;
-      s += std::string("\n  ") + kRows[i].alias + ": " + why_name(n.why) + (n.zone.empty() ? "" : " " + n.zone);
+      s += std::string("\n  ") + kRows[i].alias + " (" + std::to_string(kRows[i].id) + "): " + why_name(n.why) +
+           (n.zone.empty() ? "" : " " + n.zone);
     }
     return s;
   }
@@ -881,16 +900,37 @@ private:
     }
     if (armed_ && now_ms >= stats_ms_ + kStatsMs) {
       if (stats_ms_)
-        out_.log.push_back("quests: stats applied " + std::to_string(applied_) + ", refused " +
-                           std::to_string(refused_) + ", loads " + std::to_string(loads_));
-      stats_ms_ = now_ms;
+        out_.log.push_back(stats());
+      stats_ms_ = now_ms, poll_us_ = polls_ = poll_max_ = 0;
     }
+  }
+  // Under the lock: the minute's stats line. tracked: shared quests this game holds; held: the guest's holds by
+  // reason; ahead: hers (on the host's side, the quests her ahead named this generation); the poll's time since the
+  // last line.
+  std::string stats() const {
+    static constexpr const char *kKeys[] = {"go",     "zone",   "kill",   "deny",    "unseen",  "board", "locked",
+                                            "chain",  "ahead",  "behind", "failed",  "unarmed", "blocked", "done"};
+    static_assert(std::size(kKeys) == size_t(Why::done) + 1, "one key per Why");
+    size_t tracked = 0, held[std::size(kKeys)] = {};
+    for (size_t i = 0; i < kRowCount; ++i)
+      tracked += views_[i].state > 0, ++held[size_t(shown_[i].why)];
+    std::string s = "quests: stats tracked " + std::to_string(tracked) + ", applied " + std::to_string(applied_) +
+                    ", refused " + std::to_string(refused_) + ", loads " + std::to_string(loads_) + ", held";
+    const size_t before = s.size();
+    for (size_t w = 1; w < size_t(Why::done); ++w)
+      if (held[w] && w != size_t(Why::ahead))
+        s += std::string(" ") + kKeys[w] + " " + std::to_string(held[w]);
+    if (s.size() == before)
+      s += " none";
+    return s + ", ahead " + std::to_string(host_ ? heard_.count() : held[size_t(Why::ahead)]) + ", poll mean " +
+           std::to_string(polls_ ? poll_us_ / polls_ : 0) + " us, max " + std::to_string(poll_max_) + " us";
   }
 
   mutable std::mutex mutex_;
   // Under the lock: the worker's requests, the partner's lines, what the worker takes.
   Setup setup_;
   bool start_ = false, ask_status_ = false, latched_ = false;
+  uint64_t poll_us_ = 0, polls_ = 0, poll_max_ = 0; // cost() since the last stats line.
   std::string stop_;
   uint16_t force_ = 0;
   std::vector<std::string> inbox_;
@@ -927,8 +967,10 @@ constexpr size_t kMaxRecording = 65536; // Lines a recording keeps (kMaxReplay).
 // then runs the side the lobby gives (the owner hosts) with the record of that co-op slot; probe, record and replay
 // wait for a co-op save only. A side ends when it is asked off, when its friend leaves or another one links, or by
 // itself (another save, a fault); the next one starts once the engine took the end, so her off always goes before a
-// new on. Her SBQ lines go to the engine, the shared fight's stay on channel 2's list. The record file is written at
-// most once a second and only on a change; so is the recording.
+// new on. A record or a replay that another save ended is not asked again: the recording stays as it is, and the
+// recorded steps never go into a save nobody asked them for. Her SBQ lines go to the engine, the shared fight's stay on
+// channel 2's list. The record file is written at most once a second and only on a change, and at once before a new
+// side reads it; the recording at most once a second.
 // Io: bool send(const std::string &line) (channel 2, reliable; false when it cannot go); void say(const std::string
 // &line) (coop-link.log); void trace(const std::string &line) (coop-quests.log); bool load(int slot, std::string
 // &text, size_t max) (the record of co-op slot 0-4, "" when there is none; false when it cannot be read); bool
@@ -950,6 +992,8 @@ public:
     case Quests::force:
       if (!started_ || (mode_ != Mode::guest && mode_ != Mode::replay))
         return "quests force refused: only on the guest's side while shared quests run, or in a replay";
+      if (!row(r.quest))
+        return "quests force refused: " + std::to_string(r.quest) + " is not a shared quest";
       e_.force(r.quest);
       return "quests force " + std::to_string(r.quest) + ": asked, the answer follows on screen and in coop-quests.log";
     case Quests::none: return "quests: no such request";
@@ -995,6 +1039,7 @@ public:
                                  return true;
                                }),
                 lines.end());
+    take(now_ms, partner, io); // The last side's last record first: a new side reads the file it is written to.
     // The side this pass wants, or why it waits: no friend, or not a co-op save.
     Mode mode = ask_ == Quests::probe ? Mode::probe : ask_ == Quests::record ? Mode::record : Mode::replay;
     why_.clear();
@@ -1005,15 +1050,20 @@ public:
     else if (slot.rfind("slot=coop ", 0) != 0)
       why_ = "save";
     const bool linked_mode = mode == Mode::host || mode == Mode::guest;
-    if (started_ && !e_.active())
-      started_ = false; // Its own gate ended it (another save), or a fault.
+    if (started_ && !e_.active()) { // Its own gate ended it (another save), or a fault.
+      started_ = false;
+      if ((mode_ == Mode::record || mode_ == Mode::replay) && !e_.latched()) { // Never again on another save.
+        io.say(std::string("quests ") + ask_word(ask_) + ": ended by another save" +
+               (mode_ == Mode::record ? "; coop-quests-record.txt keeps the recording" : ""));
+        ask_ = Quests::none;
+      }
+    }
     if (started_ && (ask_ != asked_ || why_ == "friend" || mode != mode_ || (linked_mode && partner != partner_))) {
       e_.off(ask_ != asked_ ? "asked" : "link");
       started_ = false; // The next side waits until the engine took this end.
     }
     if (!started_ && !blocked_ && ask_ != Quests::none && why_.empty() && !e_.active() && !e_.latched())
       start(mode, partner, slot, io);
-    take(now_ms, io);
   }
 
   // coop-status.txt's lines: "quests=" and the state, the last notes as "quest_note=<n> <kind> <id> <alias> <zone>"
@@ -1079,8 +1129,10 @@ private:
     return was;
   }
   template <class Io> void start(Mode mode, uint64_t partner, const std::string &slot, Io &io) {
+    if (record_dirty_) // Still within its second: written now, so a side on the same slot reads it.
+      save_record(io);
     Setup s;
-    s.mode = mode, s.deny = deny_, keep_ = false;
+    s.mode = mode, s.deny = deny_, keep_ = unsent_said_ = false;
     if (mode == Mode::host || mode == Mode::guest) {
       s.partner = partner;
       const int n = slot_index(slot);
@@ -1104,12 +1156,18 @@ private:
     e_.on(std::move(s));
     started_ = true, asked_ = ask_, mode_ = mode, partner_ = partner, engine_ = "off";
   }
+  template <class Io> void save_record(Io &io) {
+    record_dirty_ = false;
+    if (!io.save(record_slot_, record_))
+      io.say("quests: the record of co-op slot " + std::to_string(record_slot_) + " could not be written");
+  }
   // The engine's out: lines to her, log lines, notes, the record file, the recording, a status answer, its state.
-  template <class Io> void take(uint64_t now_ms, Io &io) {
+  // A line that cannot go while nobody is linked (the off after she left) is not said.
+  template <class Io> void take(uint64_t now_ms, uint64_t partner, Io &io) {
     Out o = e_.take();
     for (const std::string &l : o.lines)
-      if (!io.send(l) && !unsent_said_)
-        unsent_said_ = true, io.say("quests: a line to the friend could not go (said once a run)");
+      if (!io.send(l) && partner && !unsent_said_)
+        unsent_said_ = true, io.say("quests: a line to the friend could not go (said once a side)");
     for (const std::string &l : o.log) {
       io.trace(l);
       if (l.rfind("quests: on ", 0) == 0 || l.rfind("quests: off", 0) == 0 || l.find("; off for this run") != l.npos)
@@ -1124,11 +1182,8 @@ private:
       }
     if (o.record_changed && o.slot >= 0 && !keep_)
       record_ = std::move(o.record), record_slot_ = o.slot, record_dirty_ = true;
-    if (record_dirty_ && now_ms >= record_at_ + kRecordMs) {
-      record_at_ = now_ms, record_dirty_ = false;
-      if (!io.save(record_slot_, record_))
-        io.say("quests: the record of co-op slot " + std::to_string(record_slot_) + " could not be written");
-    }
+    if (record_dirty_ && now_ms >= record_at_ + kRecordMs)
+      record_at_ = now_ms, save_record(io);
     for (const std::string &l : o.recorded) {
       if (recorded_ == kMaxRecording) {
         if (!std::exchange(full_said_, true))

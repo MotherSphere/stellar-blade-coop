@@ -526,7 +526,6 @@ void zone_names() {
   assert(bad->e.latched() && has(bad->log, "implausible zone name"));
 }
 
-
 // ---- The guards ----
 
 Plan plan(size_t i, Act act, int g = 0, int c = 0, int p = 0) {
@@ -760,6 +759,12 @@ void ahead_once() {
   s->hear(q("ahead 2 49")), s->hear(q("ahead 2 49"));
   s->tick(6250);
   assert(shown(49) == 2 && shown(41) == 1);
+  // The stats line each minute: her aheads this generation, and the glue's tick times since the last line.
+  s->tick(60000);
+  s->e.cost(100), s->e.cost(300);
+  s->tick(120000);
+  assert(has(s->log, "quests: stats tracked 0, applied 0, refused 0, loads 1, held none, ahead 1, poll mean 200 us, "
+                     "max 300 us"));
 }
 
 // The link drops between two of her steps: she keeps the step made, one SB transition short of the host, a state SB
@@ -858,6 +863,8 @@ void two_worlds() {
   h.play(s1), ++steps;
   k.steps(3);
   assert(k.g(s1).groups == 1 && k.noted(Why::zone, kRows[s1].id) && g.calls == steps - 1);
+  assert(has(k.guest->log, "quests: Quest_Sub_001 (41) held: waits for its zone Zone_WLA_30"));
+  assert(has(k.host->log, "quests: sent " + q("q 1 1 41 1 - - - .")));
   g.zone("Zone_WLA_30");
   k.steps(2);
   assert(k.g(s1).groups == 2 && g.calls == steps);
@@ -934,12 +941,13 @@ void two_worlds() {
   k.guest->e.on(setup(Mode::guest, kHostId));
   k.steps(6);
   assert(has(k.host->lines, q("snap 2 ")) && k.g(s2).groups == 0 && g.calls == steps);
+  assert(!has(k.host->log, "quests: sent " + q("q 2 "))); // A snapshot's lines: its one log line.
   // The next step of a quest both stand at again is shared: she plays group 0 herself, the host ends group 1.
   g.play(s2);
   k.steps(2);
   h.play(s2), ++steps;
   k.steps(3);
-  assert(k.g(s2) == k.h(s2) && g.calls == steps);
+  assert(k.g(s2) == k.h(s2) && g.calls == steps && has(k.host->log, "quests: sent " + q("q 2 ")));
   // Her own quest the host lacks (a quest giver of her own): ahead on both screens, nothing moves on the host.
   g.acquire(at("Quest_Sub_011"));
   k.steps(12);
@@ -948,8 +956,8 @@ void two_worlds() {
   k.guest->e.ask_status();
   k.step();
   assert(k.guest->status.find("on as guest") != std::string::npos);
-  assert(k.guest->status.find("Quest_Sub_017: behind the host, not shared") != std::string::npos);
-  assert(k.guest->status.find("Quest_Sub_011: ahead of the host") != std::string::npos);
+  assert(k.guest->status.find("Quest_Sub_017 (54): behind the host, not shared") != std::string::npos);
+  assert(k.guest->status.find("Quest_Sub_011 (49): ahead of the host") != std::string::npos);
   // The host only read; the guest never refused a step; each step was made once, each quest completed (and paid) once.
   assert(h.calls == 0 && !has(k.guest->log, "refused") && g.calls == g.acquires + g.accepts + g.completes);
   assert(std::all_of(g.w.rewards.begin(), g.w.rewards.end(), [](int n) { return n <= 1; }));
@@ -959,6 +967,25 @@ void two_worlds() {
   assert(k.host->record.find("h 76561198000000002 41 ") != std::string::npos);
   assert(k.guest->record.find("g 76561198000000001 42 ") != std::string::npos);
   assert(k.guest->record.find("g 76561198000000001 54 ") == std::string::npos);
+}
+
+// A step made in both worlds that shows on her side first (her own kill, or a trigger both walk into): her quest is
+// ahead only until the host's line comes, so neither screen says ahead.
+void both_worlds_first_hers() {
+  auto two = std::make_unique<Two>();
+  Two &k = *two;
+  const size_t s2 = at("Quest_Sub_002");
+  k.zone("Zone_WLB_30");
+  k.steps(4);
+  k.host->pc.acquire(s2);
+  k.steps(2);
+  assert(k.g(s2) == k.h(s2));
+  k.guest->pc.play(s2);
+  k.step();
+  k.host->pc.play(s2);
+  k.steps(12);
+  assert(k.g(s2) == k.h(s2) && k.guest->pc.calls == 1 && !k.noted(Why::ahead, kRows[s2].id));
+  assert(std::none_of(k.host->notes.begin(), k.host->notes.end(), [](const Note &n) { return n.why == Why::ahead; }));
 }
 
 // The host comes on after her: her first on found nothing running, so the host's on brings her on again, once.
@@ -1040,6 +1067,17 @@ void forced() {
   k.guest->e.force(53);
   k.steps(1);
   assert(has(k.guest->log, "force 53: no line of the host holds that quest"));
+  // Asked while her side waits through a load: answered all the same.
+  k.guest->slot = "slot=none index=2 marker=2 saves=coop";
+  k.guest->e.force(41);
+  k.steps(1);
+  assert(has(k.guest->log, "quests: force 41: no step, the side waits for the game or has ended"));
+  assert(std::any_of(k.guest->notes.begin(), k.guest->notes.end(),
+                     [](const Note &n) { return n.forced && n.why == Why::done && n.id == 41; }));
+  k.guest->slot = kSlot;
+  // Her stats line: the holds by reason.
+  k.now += 60000, k.step(), k.now += 60000, k.step();
+  assert(has(k.guest->log, ", held zone 1, ahead 0, poll mean 0 us, max 0 us"));
 }
 
 // The same with lost q lines and her moving around at random: whatever is lost, she never holds a part the host lacks
@@ -1154,9 +1192,9 @@ struct Desk {
   std::map<int, std::string> records;
   std::map<int, int> loads, saves;
   std::string recording;
-  bool has_recording = false, unreadable = false;
+  bool has_recording = false, unreadable = false, refuse = false; // refuse: channel 2 takes no line.
   int recording_saves = 0;
-  bool send(const std::string &l) { return sent.push_back(l), true; }
+  bool send(const std::string &l) { return !refuse && (sent.push_back(l), true); }
   void say(const std::string &l) { said.push_back(l); }
   void trace(const std::string &l) { traced.push_back(l); }
   bool load(int slot, std::string &text, size_t max) {
@@ -1290,6 +1328,7 @@ void workers() {
   assert(g.w.status().find("\nquests_status=1 quests: on as guest, zone Zone_Xion_10, applied ") != std::string::npos);
   // force: the guest's alone; a quest no host line holds is a not_forced note, numbered; the last kNotes stay.
   assert(h.w.ask(parse_request("quests force 54"), h.io).rfind("quests force refused", 0) == 0);
+  assert(g.w.ask(parse_request("quests force 9999"), g.io) == "quests force refused: 9999 is not a shared quest");
   for (int n = 0; n < 10; ++n) {
     assert(g.w.ask(parse_request("quests force 30"), g.io).rfind("quests force 30: asked", 0) == 0);
     step();
@@ -1347,6 +1386,57 @@ void workers() {
                               "written while this side runs"));
     assert(lock->io.records[2] == "h 76561198000000002 54 3 1 - - - .\n");
   }
+  // A side asked anew on the same slot within the record's second (another quest_deny): the record waiting for its
+  // second is written first, so the new side reads it and its own writes keep that step.
+  {
+    auto again = std::make_unique<Desktop>();
+    Desktop &a = *again;
+    a.hosting = true, a.partner = kGuestId;
+    a.w.ask(on, a.io);
+    auto run = [&](int n) {
+      while (n--)
+        a.pass(now), now += 250;
+    };
+    run(3);
+    a.in = {q("on 0")};
+    run(3);
+    a.pc.acquire(s17);
+    run(1);
+    a.pc.play(s17);
+    run(1);
+    assert(a.io.saves[2] == 1 && a.io.records[2].find(" 54 2 ") == std::string::npos);
+    a.w.ask(parse_request("quests on deny Quest_Sub_016"), a.io);
+    run(2);
+    const std::string kept = last(std::vector<std::string>{a.io.records[2]}, " 54 2 ");
+    assert(a.io.loads[2] == 2 && !kept.empty());
+    a.in = {q("on 0")};
+    run(3);
+    a.pc.acquire(at("Quest_Sub_001"));
+    run(8);
+    assert(a.io.records[2].find(" 41 1 ") != std::string::npos && a.io.records[2].find(" 54 2 ") != std::string::npos);
+  }
+  // A line that cannot go is said once a side, never for the off that follows a friend who left.
+  {
+    auto lone = std::make_unique<Desktop>();
+    Desktop &a = *lone;
+    a.partner = kHostId;
+    a.w.ask(on, a.io);
+    for (int n = 0; n < 3; ++n)
+      a.pass(now), now += 250;
+    a.io.refuse = true, a.partner = 0;
+    for (int n = 0; n < 3; ++n)
+      a.pass(now), now += 250;
+    assert(a.state() == "quests=waiting mode=on why=friend" && !has(a.io.said, "could not go"));
+    for (int round = 1; round <= 2; ++round) { // Linked again, twice: a new side each time.
+      a.partner = kHostId;
+      for (int n = 0; n < 6; ++n)
+        a.pass(now), now += 250;
+      assert(count(a.io.said, "quests: a line to the friend could not go (said once a side)") == size_t(round));
+      a.partner = 0;
+      for (int n = 0; n < 3; ++n)
+        a.pass(now), now += 250;
+    }
+  }
   // Another quest_deny asked while it runs: the side starts anew with it, her off first.
   said.clear();
   assert(swap->w.ask(parse_request("quests on deny 54"), swap->io).rfind("quests on: ", 0) == 0);
@@ -1383,6 +1473,16 @@ void workers() {
   for (int n = 0; n < 3; ++n)
     play->pass(now), now += 250;
   assert(count(play->io.traced, "quests: replay of ") == replays + 1);
+  // Another co-op save loaded ends both. The recording stays in its file for a replay asked on that save, and the
+  // replay never plays into a save it was not asked on.
+  rec->slot = play->slot = "slot=coop index=3 marker=3 saves=coop";
+  for (int n = 0; n < 8; ++n)
+    rec->pass(now), play->pass(now), now += 250;
+  assert(rec->state() == "quests=off" && !rec->e.active() && rec->io.recording_saves == 2);
+  assert(rec->io.recording.find(q("q 1 1 41 1 - - - .")) != std::string::npos);
+  assert(has(rec->io.said, "quests record: ended by another save; coop-quests-record.txt keeps the recording"));
+  assert(play->state() == "quests=off" && count(play->io.traced, "quests: replay of ") == replays + 1);
+  assert(has(play->io.said, "quests replay: ended by another save"));
 }
 } // namespace
 
@@ -1397,6 +1497,7 @@ int main() {
   fault();
   unlinked_modes();
   ahead_once();
+  both_worlds_first_hers();
   dropped();
   two_worlds();
   late_host();
