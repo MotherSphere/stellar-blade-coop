@@ -51,7 +51,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `nightop_waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
 | `nightop_run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
 | `nightop_shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
-| `challenges.lua` | The challenges' waves and rules, their check, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
+| `challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |

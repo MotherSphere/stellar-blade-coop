@@ -1,7 +1,7 @@
 -- coop challenge's list without a game call: the definitions nightop_waves.lua runs (the fields are listed above
--- W.NIGHT there), their check, the lookup by id or number, the console list line, and each one's best run in
--- coop-records.txt, one line best_<id>=<score> <whole seconds> read and rewritten through settings_file.lua. Starting
--- values, to tune after the first in-game runs. tests/challenges_test.lua covers it with lua5.4 alone.
+-- W.NIGHT there), the lookup by id or number, the console list line, and each one's best run in coop-records.txt, one
+-- line best_<id>=<score> <whole seconds> read and rewritten through settings_file.lua. Starting values, to tune after
+-- the first in-game runs. tests/challenges_test.lua covers it with lua5.4 alone, the definitions' rules included.
 local W=require('nightop_waves')
 local F=require('settings_file')
 local C={}
@@ -28,37 +28,6 @@ C.LIST={
         {at=0,ids={A,A,B,B}},{ids={A,A,B,B,DC,DC}},{ids={A,A,A,B,B,B,DC,DC}}},
         spots={{-45,12},{45,12},{-25,18},{25,18},{0,22},{-40,26},{40,26},{0,32}}},
 }
-local REACH=40 -- Metres: the start's census radius and the stuck rule's distance.
--- true, or nil and why.
-function C.check(def)
-    local id=def.id
-    if type(id)~='string' or not id:find('^%l+$') or id=='stop' then return nil,'id: '..tostring(id) end
-    for _,other in ipairs({W.NIGHT,table.unpack(C.LIST)}) do
-        if other~=def and other.id==id then return nil,id..': id used twice' end
-    end
-    local waves=def.waves
-    if #waves<1 or #waves>255 then return nil,id..': 1 to 255 waves' end
-    if waves[1].at~=0 then return nil,id..': wave 1 at 0' end
-    local most=0
-    for k,wave in ipairs(waves) do
-        if #wave.ids<1 or #wave.ids>W.CAP then return nil,id..': wave '..k..' has 1 to '..W.CAP..' IDs' end
-        for _,row in ipairs(wave.ids) do
-            if not W.POOL[row] then return nil,id..': '..tostring(row)..' is not a pool row' end
-        end
-        most=math.max(most,#wave.ids)
-    end
-    for _,field in ipairs({'limit','breather','bonus'}) do
-        if not (type(def[field])=='number' and def[field]>0) then return nil,id..': '..field..' not above 0' end
-    end
-    if math.type(def.moves)~='integer' or def.moves<0 then return nil,id..': moves' end
-    if def.spots then
-        if #def.spots<most then return nil,id..': fewer spots than the biggest wave' end
-        for i,spot in ipairs(def.spots) do
-            if not (spot[2]>0 and spot[2]<=REACH) then return nil,id..': spot '..i..' not within '..REACH..' m' end
-        end
-    end
-    return true
-end
 -- A definition by id or number ('1' to '4'); nil for any other word.
 function C.find(word)
     if type(word)~='string' then return nil end
