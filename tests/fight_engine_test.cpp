@@ -2195,7 +2195,11 @@ int main() {
   // keep coming; with no mate message for 3 s her state reads unknown and her last hit gives the pair back to her. Ours
   // down (life state 3 on our EVE): nothing goes to her while her state is unknown; with hers alive a common pair goes
   // to her with one log line, and the boss stays ours. Her claims on the boss are dropped while we are down, their
-  // numbers still acknowledged, logged once a down, and count again once we are up; the pair she took stays hers.
+  // numbers still acknowledged, logged once a down, and count again once we are up; the pair she took stays hers. Her
+  // claims on a common pair still count while we are down. A down EVE's hand-overs move a pair only within 30 m of the
+  // EVE that takes it (its force target makes that EVE the enemy's last player): 102, 60 m from both EVEs, stays hers
+  // while she is down until it comes within 30 m of ours, and ours while we are down until her ghost stands by it. A
+  // pair the down rule gave stays where it went at any distance: 101 ours while she is down, hers while we are.
   {
     Game g;
     auto e = engine(false, true);
@@ -2204,7 +2208,10 @@ int main() {
     e->bosses(100);
     e->set(true, true);
     g.spawn(101, 5001, 0);
+    g.spawn(102, 5002, 0);
+    g.place(102, 6000, 0);
     g.spawn(130, 30, 0, 35026001, 1600, kTypeBoss); // Marionette.
+    g.flags.her_ok = true; // Her ghost where our EVE stands.
     g.inbox.push_back(msg("SBF12 on"));
     uint64_t t = 0, last = 0;
     uint32_t claim = 0;
@@ -2232,22 +2239,29 @@ int main() {
           return true;
       return false;
     };
-    hers(101, 0);
+    hers(101, 0), hers(102, 0);
     frame(g, *e, t = 1008);
     assert(until(4100, "SBF12 own 1 101 G 1\n") && owner(101) == coop::pilot::kGuest);
-    assert(owner(130) == coop::pilot::kHost);
+    frame(g, *e, t += 16);
+    assert(owner(102) == coop::pilot::kGuest && owner(130) == coop::pilot::kHost);
     // Hers down.
     g.flags.skill[0] = 101, g.flags.skill_count = 1;
     life(coop::Life::down);
     frame(g, *e, t += 16);
     assert(has(lines(g), "SBF12 own 1 101 H 2\n") && count(g, "own", "back: her EVE is down") == 1);
     std::string sent;
+    g.place(101, 6000, 0);
     for (const uint64_t down = t; t < down + 20000; sent += lines(g)) {
       if ((t - down) % 1008 == 0)
         life(coop::Life::down), hers(101, 0);
       frame(g, *e, t += 16);
     }
     assert(!has(sent, "own") && owner(101) == coop::pilot::kHost && claim > 20);
+    g.place(101, 0, 0);
+    assert(owner(102) == coop::pilot::kGuest); // 60 m from our EVE: hers still.
+    g.place(102, 1000, 0);
+    frame(g, *e, t += 16);
+    assert(has(lines(g), "SBF12 own 1 102 H 2\n") && count(g, "own", "back: her EVE is down") == 2);
     // Her state unknown 3 s after the last mate message: her hits under 10 s old give it back.
     g.flags.skill_count = 0;
     uint64_t back = 0;
@@ -2258,11 +2272,12 @@ int main() {
       if (has(lines(g), "SBF12 own 1 101 G 3\n"))
         back = t;
     }
-    assert(back >= last + 3000 && back <= last + 3016 && count(g, "own", "to her") == 2);
+    assert(back >= last + 3000 && back <= last + 3016 && count(g, "own", "to her") == 3);
     // Ours down. Our hit takes it back first, once she held it 4 s.
     frame(g, *e, t += 16);
     g.hit(101, kShield, 5);
     assert(until(back + 4100, "SBF12 own 1 101 H 4\n"));
+    g.place(102, 6000, 0);
     g.mem.put<int32_t>(g.fsb(1) + kLife, 3);
     assert(!until(t + 10000, "own")); // Her state unknown: nothing.
     sent.clear();
@@ -2273,8 +2288,23 @@ int main() {
     }
     assert(has(sent, "SBF12 own 1 101 G 5\n") && !has(sent, "own 1 130 ") && owner(101) == coop::pilot::kGuest);
     assert(owner(130) == coop::pilot::kHost && count(g, "own", "to her: our EVE is down") == 1);
-    // Her claims on the boss while we are down: dropped, logged once, their numbers acknowledged.
+    assert(!has(sent, "own 1 102 ") && owner(102) == coop::pilot::kHost); // 60 m from her ghost: ours still.
+    g.flags.her[0] = 6000;
     life(coop::Life::alive);
+    assert(until(t + 2000, "SBF12 own 1 102 G 3\n") && count(g, "own", "to her: our EVE is down") == 2);
+    sent.clear();
+    for (const uint64_t end = t + 4000; t < end; sent += lines(g)) { // 101 by our EVE, her ghost 60 m away.
+      if (t % 1008 == 0)
+        life(coop::Life::alive);
+      frame(g, *e, t += 16);
+    }
+    assert(!has(sent, "own") && owner(101) == coop::pilot::kGuest);
+    g.flags.her[0] = 0;
+    // Her claims on the boss while we are down: dropped, logged once, their numbers acknowledged. Hers on a common
+    // pair count.
+    life(coop::Life::alive);
+    const int32_t common = g.hp(101);
+    hers(101, 100);
     hers(130, 100);
     hers(130, 100);
     frame(g, *e, t += 16);
@@ -2287,6 +2317,7 @@ int main() {
       g.sent.clear();
     }
     assert(acked && g.hp(130) == 1600 && count(g, "claim dropped") == 1 && e->host.counts.bad == 0);
+    assert(g.hp(101) == common - 100);
     // Up: her claims count, and the pair she took stays hers.
     g.mem.put<int32_t>(g.fsb(1) + kLife, 1);
     hers(130, 100);

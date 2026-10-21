@@ -2986,8 +2986,10 @@ private:
     const uint64_t eve_fsb = local_fsb(g);
     const bool eve_ok = plausible(eve_fsb) && g.read(eve_fsb + kLocation, eve_at, sizeof eve_at);
     const uint32_t *skills = flags_.skill, *skills_end = skills + std::min<size_t>(flags_.skill_count, kMaxPairs);
-    // A down EVE: hers (her vitals through the worker, unknown kMateMs after the last) brings every pair back to us at
-    // once and keeps it ours; ours (life state 3-5) with hers alive gives her the common pairs once the guards let it.
+    // A down EVE: hers (her vitals through the worker, unknown kMateMs after the last) brings each pair within kPartCm
+    // of our EVE back to us at once and keeps every pair of ours ours; ours (life state 3-5) with hers alive gives her
+    // the common pairs within kPartCm of her ghost once the guards let it, and keeps hers hers. A pair further from the
+    // side that would take it stays as the rule has it (see f.closer).
     const Life her = now - mate_ms_ < kMateMs ? mate_ : Life::unknown;
     const bool her_down = her == Life::down, give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
     for (size_t i = 0; i < count && !latched_; ++i) {
@@ -3007,22 +3009,25 @@ private:
       // in both games.
       f.host_exec = s->marked, f.guest_exec = host.executing(guids[i], now) && (m & kReady);
       float enemy[3];
+      const bool placed = g.read(fsbs_[at] + kLocation, enemy, sizeof enemy);
       // Nearer only within kPartCm of the side it would go to: the force target that follows marks that EVE as the
-      // enemy's last player (+0x638), which counts as taking part in its fight.
-      f.closer = eve_ok && flags_.her_ok && g.read(fsbs_[at] + kLocation, enemy, sizeof enemy) &&
-                 pilot::closer(o->owner, enemy, eve_at, flags_.her) &&
+      // enemy's last player (+0x638), which counts as taking part in its fight. So do a down EVE's hand-overs.
+      f.closer = eve_ok && flags_.her_ok && placed && pilot::closer(o->owner, enemy, eve_at, flags_.her) &&
                  within(enemy, o->owner == pilot::kHost ? flags_.her : eve_at, kPartCm);
+      const bool back = her_down && (o->owner == pilot::kHost || (eve_ok && placed && within(enemy, eve_at, kPartCm)));
+      const bool to_her = give && (o->owner == pilot::kGuest ||
+                                   (flags_.her_ok && placed && within(enemy, flags_.her, kPartCm)));
       const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_ || host.ignored();
       // A boss stays ours, as with aggro=host (stage 5: bosses attack the host first).
-      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || her_down, give))
+      if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || back, to_her))
         continue;
       Message own;
       own.type = Type::own;
       own.gen = host.gen(), own.guid = guids[i], own.to_guest = o->owner == pilot::kGuest, own.oe = o->oe;
       g.send(own);
       ++counts.owns;
-      const char *why = own.to_guest ? (give ? "to her: our EVE is down" : "to her")
-                                     : (her_down && !lost ? "back: her EVE is down" : "back");
+      const char *why = own.to_guest ? (to_her ? "to her: our EVE is down" : "to her")
+                                     : (back && !lost ? "back: her EVE is down" : "back");
       g.event(Event{"own", why, guids[i], s->spawn, s->index});
     }
   }
