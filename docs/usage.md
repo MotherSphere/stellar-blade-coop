@@ -146,7 +146,8 @@ friend, in teal:
   for 3 s; both grey the card out and keep their last values.
 - The marker over their ghost's head: their name, a row of HP dots, a shield line, and the distance once they are more
   than 15 m away. While the marker shows their name, the ghost's own name tag is hidden. With the marker off, or the
-  on-screen UI stopped, the name tag is back (`name_tag`).
+  on-screen UI stopped, the name tag is back (`name_tag`). The tag draws only Latin-1 letters: others show as `?`,
+  and a name that would lose more than half of them reads `Partner` (in your language when the tag can draw it).
 - The arrow at the edge of the screen, which points to them when they are out of view or behind you, with the distance
   and three HP pips.
 

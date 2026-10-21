@@ -19,13 +19,15 @@
 -- a scene component nothing moves; place() puts the root there after the native tick. A failed build is tried again
 -- 2 s later, up to 3 tries in all, then said on screen. The ghost stays hidden until the first pose and after a second
 -- without one, and is only built when she is on your map (a friend on another map is said on screen).
--- Above it, its name tag: whose ghost it is (her Steam name, or loopback, replay), turned to the camera at each pose.
+-- Above it, its name tag: whose ghost it is (her Steam name, or loopback, replay; Puppet.tag_text keeps it readable),
+-- turned to the camera at each pose.
 -- The same table again with a part hung elsewhere (a blade drawn) or shown or hidden is applied in place; a new
 -- generation (her outfit) is a new ghost. The ghost's path is kept in a file, so the next Lua load (a hot reload)
 -- finds and destroys one left standing; after a level change it comes back once EVE has been in the world 2 s.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local T=require('ui_text')
+local clean=require('chat').clean
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Puppet={}
 local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
@@ -94,6 +96,22 @@ local function transform(place)
     local v={}
     for number in place:gmatch('%S+') do v[#v+1]=tonumber(number) end
     return {Rotation={X=v[1],Y=v[2],Z=v[3],W=v[4]},Translation={X=v[5],Y=v[6],Z=v[7]},Scale3D={X=v[8],Y=v[9],Z=v[10]}}
+end
+-- The name tag's text. The tag sets no font, so the engine's default (RobotoDistanceField) draws it, Latin-1 only: a
+-- character past U+00FF shows as '?'. Of the names given (her Steam name, then the partner card's word for her in the
+-- player's language, then in English), the first that loses at most half its characters, or none for the words after
+-- her name; each cleaned as the card cleans her name. nil when none does.
+function Puppet.tag_text(...)
+    for i=1,select('#',...) do
+        local lost,count=0,0
+        local shown=clean(select(i,...) or ''):gsub(utf8.charpattern,function(c)
+            count=count+1
+            if utf8.codepoint(c)<=0xFF then return c end
+            lost=lost+1
+            return '?'
+        end)
+        if count>0 and (lost==0 or i==1 and lost*2<=count) then return shown end
+    end
 end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
@@ -319,7 +337,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     tag:K2_AttachToComponent(g.parts[0].target,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,KEEP_RELATIVE,
                         false)
                     tag:K2_SetRelativeLocation({X=0,Y=0,Z=TAG_HEIGHT},false,{},true)
-                    tag:K2_SetText(FText(whose()))
+                    tag:K2_SetText(FText(Puppet.tag_text(whose(),words().partner.partner,T.en.partner.partner)))
                 end)
                 if made then
                     g.tag=tag

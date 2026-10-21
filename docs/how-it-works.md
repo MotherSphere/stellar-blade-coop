@@ -356,8 +356,10 @@ the ghost from it:
   morphs (a neutral face) and, without the cloth look, the ponytail is rigid. The ghost always draws its highest
   detail level, so it never pops as it walks away.
 - The ghost stays hidden until the first pose and after a second without one, so it never stands frozen. Your friend's
-  Steam name (or `loopback`, `replay`) stands above it, turned to the camera at each pose. A name tag that fails is
-  left out and the ghost stays.
+  Steam name (or `loopback`, `replay`) stands above it, turned to the camera at each pose. The tag's font has only the
+  Latin-1 characters: any other shows as `?`, and a name that would lose more than half its characters shows the
+  partner card's word for them instead (`Partner`, in your language when the font has its letters). A name tag that
+  fails is left out and the ghost stays.
 - The same generation with a part hung elsewhere, shown or hidden is applied to the ghost in place. A new generation is
   a new ghost. The `Ghost ... built` log line gives the parts, the meshes loaded and their time, those on the base suit
   (with how many of its bones follow) and those left out.
