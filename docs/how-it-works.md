@@ -405,12 +405,14 @@ balance and death stay with the host's game whoever owns the pair.
   each pair every turn: the pair goes to whoever hit it last (a hit on the host's copy, or a claim of hers that
   lowered a stat), and after 10 s without a hit to the other player once that player's EVE has stood at least 3 m
   nearer for 2 s. Nothing changes hands within 4 s of the last change, while an AI task runs on the owner's copy,
-  during Down, Groggy, Airborne or a takedown, or while the enemy dies; the start of a takedown is the exception
-  (below). Each change moves the owner epoch one up and goes to her as `SBF11 own <gen> <hguid> <H|G> <oe>`; the host
-  freezes its copy as it sends own G and thaws it as it sends own H. With `aggro=host` the host keeps every pair
-  (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
+  during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the host draws a copy that the game
+  froze before the mod did (below: its AI would not run once the host owns it); the start of a takedown is the
+  exception (below). Each change moves the owner epoch one up and goes to her as
+  `SBF11 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H.
+  With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF11 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
-  side, and thaws her copy in that turn. Otherwise, and when she can no longer run a pair she owns, she answers
+  side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
+  except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
   `SBF11 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
@@ -432,11 +434,13 @@ balance and death stay with the host's game whoever owns the pair.
 - On the drawing side's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel
   2004400), only in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5
   times in any 10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the
-  BlockAI dispel effect (2000101) takes it off. That dispel also ends the game's own BlockAI, and the game freezes some
-  enemies at spawn until an event of its own, such as a boss before its cutscene. So a copy that already held BlockAI
-  when the mod first froze it keeps both (`thaw skipped` in the log); when the game's event dispels its BlockAI, the
-  mod's goes with it. Once the game has taken its own off and the mod froze the copy again, the dispel runs as for any
-  other copy.
+  BlockAI dispel effect (2000101) takes it off. That dispel would also end the game's own BlockAI, and the game
+  freezes some enemies from their spawn until an event of its own (a boss before its cutscene, the sitting LabMutants
+  of AYL_02). Timed rows hold the same state too, such as LV_Sequence_Warp_Effect (7000144, 1 s). A copy that already
+  holds state 39 when the mod first freezes it gets no effect from the mod and no dispel on the way out
+  (`thaw skipped` in the log). When the game's freeze ends, by its own dispel or by running out, the next census finds
+  state 39 gone and the mod freezes the copy as any other. A copy whose last dispel the game refused is the exception:
+  its state 39 is the mod's, so the mod freezes it and dispels it again (it keeps the last 16 such copies).
 - On the drawing side's game thread, each frame, each copy is found again by its GUID. Its movement component goes out
   of the game's parallel movement manager through the game's own function for that (only on the game's class with the
   game's function in that vtable slot), the speed override that the game's own MoveToLocation writes is set to the

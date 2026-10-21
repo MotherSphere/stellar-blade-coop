@@ -181,8 +181,8 @@ struct Facts {
   bool host_hit = false;  // A drop on the host's copy that no claim made: the host's EVE hit it.
   bool guest_hit = false; // A claim of hers with a drop in it, taken.
   bool closer = false;    // The EVE of the side that does not own it stands at least kNearCm closer (closer()).
-  bool busy = false;      // A guard: a skill on the owner's copy, Down, Groggy, Airborne, a takedown, dying, or the
-                          // host's copy not in life state 1.
+  bool busy = false;      // A guard: a skill on the owner's copy, Down, Groggy, Airborne, a takedown, dying, the
+                          // host's copy not in life state 1, or drawn while the game froze it before us.
   bool host_exec = false; // Stage 3c: a takedown runs on the host's copy (a marker on it): the host's EVE executes it.
   bool guest_exec = false; // Hers runs (her exec 1 taken, no exec 0 since: fight::Host::executing), and the host's copy
                            // is kReady, so the host's freeze can start at the hand-over.

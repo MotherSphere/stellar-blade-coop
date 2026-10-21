@@ -224,9 +224,12 @@ the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-pla
   copy stays an ordinary enemy in her game.
 - `fight freeze-lost <key> hguid=<n> state 39 gone too often` in the guest's `coop-link.log`: the game took the mod's
   freeze off a copy 5 times within 10 s. The copy stays an ordinary enemy until the pair ends.
-- `fight thaw skipped <key> the game froze it first` in `coop-link.log`: the game had frozen that enemy itself before
-  the mod froze it (a boss before its cutscene, an enemy that waits for a trigger). The mod leaves it frozen when it
-  lets the copy go, so it wakes at the game's own event.
+- `fight frozen <key> hguid=<n> the game froze it first`, and later `fight thaw skipped <key> the game froze it first`,
+  in `coop-link.log`: the game had frozen that enemy itself (a boss before its cutscene, an enemy that waits for a
+  trigger). The mod adds no freeze until the game's freeze ends and leaves it on when it lets the copy go, so the enemy
+  wakes at the game's own event. Until then the game with that frozen copy does not take the enemy over, except for
+  the guest's takedown: the guest answers a hand-over with `fight own-no hguid=<n> state`, and the host does not take
+  back an enemy that the guest runs.
 - `pilot take-over refused hguid=<n> oe=<n>: <why>` in `coop-link.log`: that game took an enemy over but could not
   point it at its EVE. The reason is `not net mode 0`, `a logic task in flight` or `copy not found` (each after 250 ms
   of waiting), `a game singleton not made yet`, `no EVE of ours` or `no AI on the copy`. As guest, the enemy goes back

@@ -4,10 +4,11 @@
 // moves the map), pooled reuse, the local EVE as a kill's cause and the floors; the state map and the NoDamage
 // counts; the effect list and the crowd control mirrored through SB's effect call; same-place enemies' logic side
 // (stage 3a): the guest's freeze on each copy it draws, put on again after SB's own dispel and lost after 5 tries, the
-// release flags and takedown markers, the dispel before a kill and on every way out (none on a copy the game froze
-// first), the pair table to the game thread and BattleMode_5s from its word; stage 3b's hand-overs on both sides (the
-// host's rule, its freeze before own G and its thaw with own H or her own-no, her answers and her give-backs, a
-// take-over her game thread refused, aggro=host, place 0, an undrawable copy) and in
+// release flags and takedown markers, the dispel before a kill and on every way out (no freeze of ours and no dispel
+// on a copy the game froze first), the pair table to the game thread and BattleMode_5s from its word; stage 3b's
+// hand-overs on both sides (the host's rule, its freeze before own G and its thaw with own H or her own-no, her
+// answers and her give-backs, a take-over her game thread refused, aggro=host, place 0, an undrawable copy, a copy
+// the game froze first) and in
 // two worlds through channel 2 (one AI copy an enemy but one hop of a hand-over, one owner at an epoch, no frozen copy
 // once the link goes); the job's guards, its arming and re-arming, the ring and the latch, a job that never runs, a
 // long pause, photo mode; a guest restarting mid-fight;
@@ -39,6 +40,8 @@ namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
 constexpr uint32_t kChar = 900;       // The allowlisted charId.
 constexpr int32_t kGetup = 3000310;   // Stands for Getup, which Down chains into (its ID is not in the export).
+constexpr int32_t kWarp = 7000144;    // LV_Sequence_Warp_Effect: state 39 for 1 s, not a BlockAI_Dispel target.
+constexpr int kWarpTurns = 60;
 const int kVtable = 0;                // Stands for the glue's vtable: never called here.
 uint64_t rebased(uint64_t address) { return kBase + (address - kImageBase); }
 
@@ -289,7 +292,8 @@ struct Game {
                                {3000301, 4, kGetup, 6},  {3000303, 4, kGetup, 6},  {kGetup, 3, 0, 0},
                                {3000401, 2, 3000402, 7}, {3000402, 6, 0, 7},
                                {kBlockAi, 1 << 30, 0, kBlockAiState}, {kSkillCancel, 6, 0, 0}, {kDispel, 6, 0, 0},
-                               {kBattleMode, 300, 0, kBattleState}, {5000039, 60, 0, 0}, {2006004, 60, 0, 0}};
+                               {kBattleMode, 300, 0, kBattleState}, {5000039, 60, 0, 0}, {2006004, 60, 0, 0},
+                               {kWarp, kWarpTurns, 0, kBlockAiState}};
     for (const Row &r : rows)
       if (r.id == id)
         return r;
@@ -1186,7 +1190,8 @@ int main() {
     assert(!g.table.on && g.casts.empty());
   }
   // The host's dead: our freeze off (BlockAI_Dispel), then the kill, in the same turn, so SB's death runs on a copy
-  // that is not frozen. A copy the game froze first dies holding the game's freeze, as it would without us.
+  // that is not frozen. A copy the game froze first got none of ours and dies holding the game's freeze, as it would
+  // without us.
   for (const bool first : {false, true}) {
     Game g;
     auto e = engine(false, false);
@@ -1199,16 +1204,17 @@ int main() {
       g.inbox.push_back(msg(line));
     frame(g, *e, 0);
     frame(g, *e, 16);
-    assert(Game::held(g.body(501), kBlockAiState) && g.casts.size() == 2);
+    assert(Game::held(g.body(501), kBlockAiState) && g.casts.size() == (first ? 0 : 2));
     g.inbox.push_back(msg("SBF11 dead 1 101"));
     frame(g, *e, 32);
-    const Game::Cast &d = g.casts.back();
     const Game::Call &k = g.calls.back();
     assert(k.type == 1 && k.delta == -1600 && k.cause == g.eve && g.body(501).deaths == 1 && g.table.count == 0);
-    if (first)
-      assert(g.casts.size() == 2 && e->counts.thawed == 0 && count(g, "thaw skipped") == 1);
-    else
-      assert(d.id == kDispel && d.la == g.by_guid[501] && d.caster == d.la && d.op < k.op && e->counts.thawed == 1);
+    if (first) {
+      assert(g.casts.empty() && e->counts.thawed == 0 && count(g, "thaw skipped") == 1);
+      continue;
+    }
+    const Game::Cast &d = g.casts.back();
+    assert(d.id == kDispel && d.la == g.by_guid[501] && d.caster == d.la && d.op < k.op && e->counts.thawed == 1);
   }
   // Through Mail: the job publishes its table after each turn, the game thread takes the newest each frame (try_lock
   // both ways) and gives back what the owner's stream says: while it says BattleMode for a drawn copy, the job starts
@@ -1312,13 +1318,15 @@ int main() {
   }
   // Every way out takes our freeze off with BlockAI_Dispel, the copy its own caster: same_place off, the host lost (its
   // off), coop fight off, a new session, a latch in the same turn, the glue's lift after a fault in our code, the game
-  // thread's pilot latch (none again this run), the pair's end (the host's down) and her take-over (own G, as for her
-  // takedown). A freeze a fault in the game's code left is counted for the log. A copy that held the game's own
-  // BlockAI_Infinite before our first freeze (its spawn effects: a boss before its cutscene, a sitting LabMutant) keeps
-  // both on every way out, said once, since that dispel would end the game's too and wake it before its own event; once
-  // the game took its own off (BlockAI_Dispel, ours with it) and we froze it again, ours comes off as for any copy.
-  for (int kind = 0; kind < 3; ++kind) // A copy of ours alone, the game's first, the game's first then taken off.
-    for (int way = 0; way < 10; ++way) {
+  // thread's pilot latch (none again this run), the pair's end (the host's down), her take-over (own G) and her
+  // takedown's (own G with a marker on her copy). A freeze a fault in the game's code left is counted for the log. A
+  // copy that held state 39 before our first freeze is the game's to free: a spawn effect's BlockAI_Infinite (a boss
+  // before its cutscene, a sitting LabMutant) or a timed row (LV_Sequence_Warp_Effect). It gets none of ours, so no
+  // dispel on any way out (said once), and she takes it over only for her takedown (else own-no state): that dispel
+  // would end the game's too and wake it before its own event. Once the game's is gone (BlockAI_Dispel, or the row ran
+  // out) the census freezes it again, and ours comes off as on any copy.
+  for (int kind = 0; kind < 4; ++kind) // Ours alone; the game's first, held; the game's first, dispelled; timed.
+    for (int way = 0; way < 11; ++way) {
       Game g;
       auto e = engine(false, false);
       e->same_place(true);
@@ -1326,21 +1334,25 @@ int main() {
       g.spawn(501, 5001, 0);
       const uint64_t la = g.by_guid[501];
       if (kind)
-        g.knock(501, kBlockAi); // The game's own, from its spawn effects.
+        g.knock(501, kind == 3 ? kWarp : kBlockAi); // The game's own: its spawn effects, or a level sequence's.
       for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
         g.inbox.push_back(msg(line));
       uint64_t t = 0;
       frame(g, *e, t);
       frame(g, *e, t += 16);
-      assert(Game::held(g.body(501), kBlockAiState) && g.casts.size() == 2);
-      if (kind == 2) {
-        g.dispel(501); // The game's event: both off, so ours goes on again at the next census.
-        for (uint32_t i = 0; i < kCensusTurns; ++i)
+      assert(Game::held(g.body(501), kBlockAiState) && g.casts.size() == (kind ? 0 : 2));
+      assert(count(g, "frozen", "the game froze it first") == (kind ? 1 : 0));
+      if (kind >= 2) {
+        if (kind == 2)
+          g.dispel(501); // The game's event.
+        for (uint32_t i = 0; i < (kind == 3 ? kWarpTurns : 0) + kCensusTurns; ++i)
           frame(g, *e, t += 16);
-        assert(e->counts.refrozen == 1 && g.casts.size() == 4 && Game::held(g.body(501), kBlockAiState));
+        assert(e->counts.refrozen == 1 && g.casts.size() == 2 && g.casts[0].id == kBlockAi);
+        assert(Game::held(g.body(501), kBlockAiState) && count(g, "frozen again", "state 39 gone") == 1);
       }
       const size_t before = g.casts.size();
       const bool kept = kind == 1;
+      lines(g);
       switch (way) {
       case 0: g.inbox.push_back(msg("SBF11 place 1 0")); break;
       case 1: g.inbox.push_back(msg("SBF11 off coop fight off")); break;
@@ -1353,14 +1365,24 @@ int main() {
         assert(e->forget() == 0);
         break;
       case 6:
-        e->latch("fault"); // In SB's code: nothing more called, the freeze counted for the log.
-        assert(e->forget() == 1 && e->forget() == 0 && g.casts.size() == before);
+        e->latch("fault"); // In SB's code: nothing more called, our freeze counted for the log.
+        assert(e->forget() == (kept ? 0 : 1) && e->forget() == 0 && g.casts.size() == before);
         continue;
       case 7: e->stop_pilot(); break;
       case 8: g.inbox.push_back(msg("SBF11 down 1 101")); break;
-      default: g.inbox.push_back(msg("SBF11 own 1 101 G 1")); break;
+      case 9: g.inbox.push_back(msg("SBF11 own 1 101 G 1")); break;
+      default:
+        g.knock(501, 5000039); // Her takedown: Check_LinkSkillHit_Skill on her copy.
+        g.inbox.push_back(msg("SBF11 own 1 101 G 1"));
+        break;
       }
       frame(g, *e, t += 16);
+      if (kept && way == 9) { // Not hers while the game's freeze holds it: still drawn, nothing cast.
+        assert(has(lines(g), "SBF11 own-no 1 101 1 state\n") && g.casts.empty() && count(g, "thaw skipped") == 0);
+        assert(g.table.pairs[0].owner == coop::pilot::kHost && (g.table.pairs[0].bits & kRowDrawn));
+        assert(Game::held(g.body(501), kBlockAiState));
+        continue;
+      }
       if (kept)
         assert(g.casts.size() == before && count(g, "thaw skipped", "the game froze it first") == 1);
       else
@@ -1372,10 +1394,13 @@ int main() {
       for (uint32_t i = 0; i < 2 * kCensusTurns; ++i)
         frame(g, *e, t += 16);
       const size_t after = before + (kept ? 0 : 1);
-      if (way == 0) { // The host's same_place on again: frozen again.
+      if (way == 0) { // The host's same_place on again: frozen again, ours only on a copy the game does not hold.
         g.inbox.push_back(msg("SBF11 place 1 1"));
         frame(g, *e, t += 16);
-        assert(g.casts.size() == after + 2 && g.casts[after].id == kBlockAi);
+        if (kept)
+          assert(g.casts.size() == after && count(g, "frozen", "the game froze it first") == 2);
+        else
+          assert(g.casts.size() == after + 2 && g.casts[after].id == kBlockAi);
       } else if (way == 7) { // The pilot latch holds for the run, a new session too.
         e->set(true, false);
         for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
@@ -1388,7 +1413,8 @@ int main() {
       }
     }
   // The game refuses our BlockAI_Dispel (effect init under NoDamageNoHit, an immunity): said once, never counted as
-  // taken off, and tried again each turn while the session lasts; at its end, said as left frozen.
+  // taken off, and tried again each turn while the session lasts; at its end, said as left frozen. Paired again later,
+  // that copy's state 39 is our leftover, not the game's: ours goes on again, and the next way out takes both off.
   for (const bool end : {false, true}) {
     Game g;
     auto e = engine(false, false);
@@ -1413,6 +1439,17 @@ int main() {
       frame(g, *e, t += 16);
       assert(dispels() == 1 && count(g, "thaw refused", "left frozen") == 1 && e->counts.thawed == 0);
       assert(e->counts.thaw_refused == 1 && e->forget() == 0 && Game::held(g.body(501), kBlockAiState));
+      g.body(501).refuses = 0;
+      e->set(true, false);
+      for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
+        g.inbox.push_back(msg(line));
+      frame(g, *e, t += 16);
+      frame(g, *e, t += 16);
+      assert(g.casts.size() == 5 && g.casts[3].id == kBlockAi && count(g, "frozen", "the game froze it first") == 0);
+      g.inbox.push_back(msg("SBF11 place 1 0"));
+      frame(g, *e, t += 16);
+      frame(g, *e, t += 16);
+      assert(dispels() == 2 && e->counts.thawed == 1 && !Game::held(g.body(501), kBlockAiState));
       continue;
     }
     g.inbox.push_back(msg("SBF11 place 1 0"));
@@ -1736,6 +1773,64 @@ int main() {
     assert(!g.table.on && row.owner == coop::pilot::kHost && row.oe == 0 && casts() == std::to_string(kDispel) + " ");
     frame(g, *e, t += 16);
     assert(!Game::held(g.body(101), kBlockAiState) && e->host.counts.bad == 0);
+  }
+  // Her lethal claim on a pair of hers that a floor keeps alive (Immortal): our freeze off before the kill, then on
+  // again from the next turn's marks, since this turn's state 39 was ours. Our copy the game froze first (its spawn
+  // effects): drawn with no call of ours once she takes it, and not ours again while the game's freeze holds it (the
+  // enemy would stand in both games), whoever hits it; once the game's own event dispels it, ours goes on, and our hit
+  // takes it back with the dispel.
+  for (const bool first : {false, true}) {
+    Game g;
+    auto e = engine(true, true);
+    e->same_place(true);
+    g.spawn(101, 5001, 0);
+    const uint64_t la = g.by_guid[101];
+    if (first)
+      g.knock(101, kBlockAi);
+    g.inbox.push_back(msg("SBF11 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    const PilotPair &row = g.table.pairs[0];
+    size_t seen = 0;
+    const auto casts = [&] {
+      std::string ids;
+      for (; seen < g.casts.size(); ++seen)
+        if (g.casts[seen].la == la && g.casts[seen].caster == la)
+          ids += std::to_string(g.casts[seen].id) + " ";
+      return ids;
+    };
+    const auto until = [&](uint64_t end, const std::string &line) {
+      for (std::string sent; t < end; frame(g, *e, t += 16))
+        if (has(sent = lines(g), line))
+          return true;
+      return false;
+    };
+    const std::string freeze = std::to_string(kBlockAi) + " " + std::to_string(kSkillCancel) + " ",
+                      thaw = std::to_string(kDispel) + " ";
+    g.inbox.push_back(msg("SBF11 hit 1 1 101 0 0 10 1590 0"));
+    frame(g, *e, t = 1008);
+    assert(until(4100, "SBF11 own 1 101 G 1\n") && casts() == (first ? "" : freeze));
+    frame(g, *e, t += 16);
+    assert(row.owner == coop::pilot::kGuest && row.bits == (kRowDrawn | kRowFrozen));
+    if (first) {
+      assert(count(g, "frozen", "the game froze it first") == 1);
+      g.hit(101, kShield, 5);
+      assert(!until(t + 6000, "own") && casts().empty() && row.owner == coop::pilot::kGuest);
+      g.dispel(101);
+      assert(until(t + 1000, "SBF11 own 1 101 H 2\n") && e->counts.refrozen == 1 && casts() == freeze + thaw);
+      frame(g, *e, t += 16);
+      assert(!Game::held(g.body(101), kBlockAiState) && count(g, "thaw skipped") == 0);
+      continue;
+    }
+    g.body(101).immortal = true;
+    g.inbox.push_back(msg("SBF11 hit 1 2 101 1600 0 0 1600 1"));
+    frame(g, *e, t += 16);
+    assert(e->host.counts.floored == 1 && g.hp(101) == 1 && casts() == thaw && row.owner == coop::pilot::kGuest);
+    frame(g, *e, t += 16);
+    assert(casts() == freeze && count(g, "frozen", "the game froze it first") == 0 && e->counts.frozen == 2);
+    e->same_place(false);
+    frame(g, *e, t += 16);
+    assert(casts() == thaw && e->counts.thawed == 2 && count(g, "thaw skipped") == 0);
   }
   // A pair whose copy the host cannot draw (its game thread refused it, or its freeze was lost) stays the host's: taken
   // back from her at once (her 4 s and her stream's AI task or not), never handed over again.

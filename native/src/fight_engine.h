@@ -738,7 +738,7 @@ public:
   size_t forget() {
     size_t n = std::exchange(lifting_, size_t(0));
     for (size_t i = 0; i < captures_; ++i)
-      n += caps_[i].delta != 0;
+      n += caps_[i].delta != 0 && !caps_[i].game_froze; // That one holds nothing of ours.
     captures_ = 0;
     return n;
   }
@@ -1192,12 +1192,15 @@ private:
     const uint64_t caster = eve(g, logic);
     if (!caster || latched_ || !g.effect(logic, la, caster, id))
       return false;
+    return noted(guid), true;
+  }
+  void noted(uint32_t guid) {
     if (casts_ < kMaxPairs)
       cast_[casts_] = guid;
     ++casts_;
-    return true;
   }
-  // A crowd control of ours started on this copy in this turn, or more than we could note.
+  // A crowd control or a kill of ours on this copy in this turn (this pass's marks are old for it), or more than we
+  // could note.
   bool cast_on(uint32_t guid) const {
     return casts_ > kMaxPairs || std::find(cast_, cast_ + casts_, guid) != cast_ + casts_;
   }
@@ -1215,12 +1218,16 @@ private:
     if (latched_)
       return false;
     // A kill: our floor off first (ApplyStat reads it in the HP call), and our freeze, so SB's death runs on a copy
-    // that is not frozen (or frozen by the game's own BlockAI only, as without us: lift()).
+    // that is not frozen (or frozen by the game's own BlockAI only, as without us: lift()). Noted as a crowd control
+    // is: when a floor keeps it alive, our freeze goes on again from the next pass's marks, not from this pass's
+    // state 39, which was ours.
     for (size_t i = 0; w.kill && i < captures_;)
       if (caps_[i].guid == w.guid && (caps_[i].type == kFloorStat || caps_[i].type == kFreeze))
         lift(g, logic, i);
       else
         ++i;
+    if (w.kill)
+      noted(w.guid);
     g.apply(la, kStatType[w.stat], float(w.delta), cause, w.notify);
     if (!stats(g, a))
       return false;
@@ -1242,8 +1249,9 @@ private:
     int type = 0; // ESBActorStatType, or kFreeze.
     int32_t delta = 0;
     bool raised = false; // Scaling: HP or Stamina raised in proportion too (set before that call): lowered at the lift.
-    // A freeze: state 39 held before our first one (SB's own BlockAI, as a spawn effect puts on a boss before its
-    // cutscene), and ours never put on again since. Cleared at a freeze again: SB's dispel then took its own off too.
+    // A freeze: state 39 held when we captured it and not ours (SB's own BlockAI, as a spawn effect puts on a boss
+    // before its cutscene), so none of ours was cast. Cleared at a freeze again, which casts ours once SB's is gone
+    // (dispelled or run out).
     bool game_froze = false;
     // A freeze: the turn of our last one, how many freezes again, the last kRefreezes of them (ms, by tries modulo
     // kRefreezes), the next BattleMode_5s (ms), and whether the game refused its BlockAI_Dispel (said once).
@@ -1255,6 +1263,14 @@ private:
     for (size_t i = 0; i < captures_; ++i)
       if (caps_[i].guid == guid && caps_[i].type == type)
         return true;
+    return false;
+  }
+  // A copy this side draws that SB froze before us (Capture::game_froze). Stage 3b gives it to this side only by a
+  // takedown: the thaw leaves SB's freeze on (lift()), so its AI would not run and the enemy would stand in both games.
+  bool game_frozen(uint32_t guid) const {
+    for (size_t i = 0; i < captures_; ++i)
+      if (caps_[i].guid == guid && caps_[i].type == kFreeze)
+        return caps_[i].game_froze;
     return false;
   }
   // We hold its MaxHP or MaxStamina scaled: the side must not take its maxes for the game's own (Seen::scaled).
@@ -1344,9 +1360,10 @@ private:
   // so scaling it again later heals it of nothing; a dying one keeps what it has, and so does one whose scaling
   // stopped before its raise (only the max comes back).
   // A freeze comes off a copy still fighting (a dying one's death and spawn init clear it). The game may refuse the
-  // dispel (effect init under NoDamageNoHit, an immunity): said once; with retry the capture stays at i, and true.
-  // One the game froze first stays on, said: BlockAI_Dispel would end the game's own too and wake the enemy before
-  // its own event, whose dispel then ends ours with it.
+  // dispel (effect init under NoDamageNoHit, an immunity): said once; with retry the capture stays at i, and true;
+  // without, the copy is noted, so its next capture does not take our leftover for SB's freeze. One the game froze
+  // first gets no dispel, said: none of ours is on it, and BlockAI_Dispel would end SB's and wake the enemy before
+  // its own event.
   template <class Game> bool lift(Game &g, uint64_t logic, size_t i, bool retry = false) {
     Capture c = caps_[i];
     caps_[i] = caps_[--captures_];
@@ -1366,6 +1383,8 @@ private:
         g.event(Event{"thaw refused", keep ? "trying again" : "left frozen", 0, a.seen.spawn, a.seen.index});
       else if (off && c.refused)
         g.event(Event{"thawed", "after a refusal", 0, a.seen.spawn, a.seen.index});
+      if (!off && !keep)
+        left_frozen_[left_at_++ % kMaxPairs] = c.guid;
       if (keep) {
         c.refused = true;
         caps_[captures_++] = caps_[i];
@@ -1457,7 +1476,7 @@ private:
     for (uint8_t r = 0; r < table_.count && !latched_; ++r)
       if (table_.pairs[r].bits & kRowDrawn)
         hold_freeze(g, logic, table_.pairs[r], *seen[r], census, now);
-    for (uint8_t r = 0; r < table_.count; ++r) { // Frozen: ours, and state 39 held since.
+    for (uint8_t r = 0; r < table_.count; ++r) { // Frozen: captured (ours on it, or SB's), and state 39 held since.
       PilotPair &p = table_.pairs[r];
       if (!(p.bits & kRowDrawn) || !captured(p.local, kFreeze))
         p.bits &= uint16_t(~kRowFrozen);
@@ -1485,10 +1504,11 @@ private:
   // crowd control of ours started this turn: effect init refuses some rows under NoDamageNoHit, and a crowd control or
   // a takedown is SB's to finish. While a takedown runs on the owner's copy (her exec 1, on the host's side, or the
   // owner's stream's kExec), the release flag does not count: ours then plays the takedown from the stream (3c).
-  // Captured before the calls, so every way out takes it off (unless the game froze it first: lift()). A census that
-  // finds state 39 gone, a turn after our last freeze at least, freezes it again, kRefreezes times in any kRefreezeMs
-  // at most, then loses it: dispelled, not drawn. While the owner's stream says BattleMode, BattleMode_5s on it each
-  // kBattleMs.
+  // Captured before the calls, so every way out takes it off. A copy that holds state 39 already is SB's to free (a
+  // spawn effect, a timed row such as LV_Sequence_Warp_Effect): captured with no call (Capture::game_froze), unless a
+  // dispel of ours was refused on it (left_frozen_). A census that finds state 39 gone, a turn after the capture or
+  // our last freeze at least, freezes it again, kRefreezes times in any kRefreezeMs at most, then loses it: dispelled,
+  // not drawn. While the owner's stream says BattleMode, BattleMode_5s on it each kBattleMs.
   template <class Game>
   void hold_freeze(Game &g, uint64_t logic, PilotPair &p, const Seen &s, bool census, uint64_t now) {
     const uint32_t *execs = flags_.exec, *execs_end = execs + std::min<size_t>(flags_.exec_count, kMaxPairs);
@@ -1502,10 +1522,16 @@ private:
     if (i == captures_) {
       if (!ready || captures_ == kMaxCaptures)
         return;
-      caps_[captures_++] = Capture{p.local, kFreeze, 1, false, (p.bits & kRowFrozen) != 0, turn_};
+      uint32_t *const end = left_frozen_ + kMaxPairs, *left = std::find(left_frozen_, end, p.local);
+      const bool game = (p.bits & kRowFrozen) && left == end;
+      if (left != end)
+        *left = 0;
+      caps_[captures_++] = Capture{p.local, kFreeze, 1, false, game, turn_};
       ++counts.frozen;
-      g.event(Event{"frozen", "", p.hguid, s.spawn, s.index});
-      return freeze(g, logic, p.local);
+      g.event(Event{"frozen", game ? "the game froze it first" : "", p.hguid, s.spawn, s.index});
+      if (!game)
+        freeze(g, logic, p.local);
+      return;
     }
     Capture &c = caps_[i];
     if (census && ready && c.turn != turn_ && !(p.bits & kRowFrozen)) {
@@ -1593,11 +1619,12 @@ private:
   // The host, while same-place enemies run: the rule on each pair it follows and found this pass (last hit, the nearer
   // EVE, the guards: an AI task on the owner's copy, ours as read or hers as her stream says; Down, Groggy, Airborne or
   // a takedown on ours, which the crowd-control mirror puts on both; dying; ours not in life state 1; a crowd control
-  // of ours started on it this turn). A takedown, a marker on ours or hers by her exec 1, goes to its executor through
-  // the guards (stage 3c). A change goes to her as an own line at once. No table, no change. A pair whose
-  // copy we cannot draw (freeze lost, or refused by the game thread) is ours at once, guards or not, and never hers:
-  // its AI already runs on our copy. So is every pair once her lines are ignored. After her own-no off or aggro, none
-  // goes to her for a while (refused()); after any other, not that pair (pilot.h's Own::no_until).
+  // of ours started on it this turn; ours drawn while SB froze it before us). A takedown, a marker on ours or hers by
+  // her exec 1, goes to its executor through the guards (stage 3c). A change goes to her as an own line at once. No
+  // table, no change. A pair whose copy we cannot draw (freeze lost, or refused by the game thread) is ours at once,
+  // guards or not, and never hers: its AI already runs on our copy. So is every pair once her lines are ignored. After
+  // her own-no off or aggro, none goes to her for a while (refused()); after any other, not that pair (pilot.h's
+  // Own::no_until).
   template <class Game> void hand_over(Game &g, const uint32_t *guids, size_t count, size_t n, uint64_t now) {
     owners_.keep(guids, count);
     for (size_t i = 0; i < count; ++i)
@@ -1619,7 +1646,8 @@ private:
       host.struck(guids[i], f.host_hit, f.guest_hit);
       const bool skill =
           o->owner == pilot::kHost ? (m & kRowSkill) != 0 : std::find(skills, skills_end, guids[i]) != skills_end;
-      f.busy = skill || !(m & kReady) || (m & (kRowRelease | kRowDying)) || dying(*s) || cast_on(guids[i]);
+      f.busy = skill || !(m & kReady) || (m & (kRowRelease | kRowDying)) || dying(*s) || cast_on(guids[i]) ||
+               game_frozen(guids[i]);
       // Stage 3c's takedowns. Hers hands the enemy over only once our freeze can start (kReady), so its AI never runs
       // in both games.
       f.host_exec = s->marked, f.guest_exec = host.executing(guids[i], now) && (m & kReady);
@@ -1653,7 +1681,9 @@ private:
       const size_t i = paired(m.guid);
       const Seen *s = i < count ? fight::find(seen_, n, local[i]) : nullptr;
       // A copy of hers in her takedown (a marker on it) may hold a state that takes no damage: hers all the same (3c).
-      const bool ready = s && !dying(*s) && ((marks_[s - seen_] & kReady) || s->marked);
+      // Else not one SB froze before us (game_frozen()).
+      const bool ready =
+          s && !dying(*s) && (((marks_[s - seen_] & kReady) && !game_frozen(local[i])) || s->marked);
       const pilot::Owners::Heard h = owners_.hear(m.guid, m.to_guest ? pilot::kGuest : pilot::kHost, m.oe,
                                                   table_.on && ready && !guest.host_only(), now);
       guest.counts.bad += h.skew;
@@ -1757,6 +1787,8 @@ private:
   StreamFlags flags_;         // The game thread's word, as of the last publish.
   uint32_t lost_[kMaxPairs] = {}; // Copies whose freeze was lost, while their pairs last.
   size_t lost_count_ = 0;
+  uint32_t left_frozen_[kMaxPairs] = {}; // The last copies whose final dispel the game refused (lift()), 0 once taken.
+  size_t left_at_ = 0;
   const char *pilot_why_ = "fight"; // Why same-place enemies do not run (pilot_turn), null while they do.
   pilot::Owners owners_;            // Stage 3b: each pair's owner and epoch on this side.
   Ring<Message, kMail> own_in_;     // The guest: the host's own lines, for answer() after the pass.
