@@ -1215,7 +1215,7 @@ private:
     if (latched_)
       return false;
     // A kill: our floor off first (ApplyStat reads it in the HP call), and our freeze, so SB's death runs on a copy
-    // that is not frozen.
+    // that is not frozen (or frozen by the game's own BlockAI only, as without us: lift()).
     for (size_t i = 0; w.kill && i < captures_;)
       if (caps_[i].guid == w.guid && (caps_[i].type == kFloorStat || caps_[i].type == kFreeze))
         lift(g, logic, i);
@@ -1242,6 +1242,9 @@ private:
     int type = 0; // ESBActorStatType, or kFreeze.
     int32_t delta = 0;
     bool raised = false; // Scaling: HP or Stamina raised in proportion too (set before that call): lowered at the lift.
+    // A freeze: state 39 held before our first one (SB's own BlockAI, as a spawn effect puts on a boss before its
+    // cutscene), and ours never put on again since. Cleared at a freeze again: SB's dispel then took its own off too.
+    bool game_froze = false;
     // A freeze: the turn of our last one, how many freezes again, the last kRefreezes of them (ms, by tries modulo
     // kRefreezes), the next BattleMode_5s (ms), and whether the game refused its BlockAI_Dispel (said once).
     uint32_t turn = 0, tries = 0;
@@ -1342,6 +1345,8 @@ private:
   // stopped before its raise (only the max comes back).
   // A freeze comes off a copy still fighting (a dying one's death and spawn init clear it). The game may refuse the
   // dispel (effect init under NoDamageNoHit, an immunity): said once; with retry the capture stays at i, and true.
+  // One the game froze first stays on, said: BlockAI_Dispel would end the game's own too and wake the enemy before
+  // its own event, whose dispel then ends ours with it.
   template <class Game> bool lift(Game &g, uint64_t logic, size_t i, bool retry = false) {
     Capture c = caps_[i];
     caps_[i] = caps_[--captures_];
@@ -1350,8 +1355,10 @@ private:
     ++lifting_;
     Actor a;
     const uint64_t la = g.find(logic, c.guid);
-    const bool found = la && live(g, la, c.guid, a);
-    if (found && c.type == kFreeze && fighting(a)) {
+    const bool found = la && live(g, la, c.guid, a), thaw = found && c.type == kFreeze && fighting(a);
+    if (thaw && c.game_froze) {
+      g.event(Event{"thaw skipped", "the game froze it first", 0, a.seen.spawn, a.seen.index});
+    } else if (thaw) {
       const bool off = g.effect(logic, la, la, kDispel), keep = !off && retry && !latched_;
       counts.thawed += off;
       counts.thaw_refused += !off && !c.refused;
@@ -1478,9 +1485,10 @@ private:
   // crowd control of ours started this turn: effect init refuses some rows under NoDamageNoHit, and a crowd control or
   // a takedown is SB's to finish. While a takedown runs on the owner's copy (her exec 1, on the host's side, or the
   // owner's stream's kExec), the release flag does not count: ours then plays the takedown from the stream (3c).
-  // Captured before the calls, so every way out takes it off. A census that finds state 39 gone, a turn after our last
-  // freeze at least, freezes it again, kRefreezes times in any kRefreezeMs at most, then loses it: dispelled, not
-  // drawn. While the owner's stream says BattleMode, BattleMode_5s on it each kBattleMs.
+  // Captured before the calls, so every way out takes it off (unless the game froze it first: lift()). A census that
+  // finds state 39 gone, a turn after our last freeze at least, freezes it again, kRefreezes times in any kRefreezeMs
+  // at most, then loses it: dispelled, not drawn. While the owner's stream says BattleMode, BattleMode_5s on it each
+  // kBattleMs.
   template <class Game>
   void hold_freeze(Game &g, uint64_t logic, PilotPair &p, const Seen &s, bool census, uint64_t now) {
     const uint32_t *execs = flags_.exec, *execs_end = execs + std::min<size_t>(flags_.exec_count, kMaxPairs);
@@ -1494,7 +1502,7 @@ private:
     if (i == captures_) {
       if (!ready || captures_ == kMaxCaptures)
         return;
-      caps_[captures_++] = Capture{p.local, kFreeze, 1, false, turn_};
+      caps_[captures_++] = Capture{p.local, kFreeze, 1, false, (p.bits & kRowFrozen) != 0, turn_};
       ++counts.frozen;
       g.event(Event{"frozen", "", p.hguid, s.spawn, s.index});
       return freeze(g, logic, p.local);
@@ -1514,6 +1522,7 @@ private:
       oldest = now;
       ++c.tries;
       c.turn = turn_;
+      c.game_froze = false;
       ++counts.refrozen;
       g.event(Event{"frozen again", "state 39 gone", p.hguid, s.spawn, s.index});
       return freeze(g, logic, p.local);
