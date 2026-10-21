@@ -576,8 +576,10 @@ private:
 // line.
 // ponytail: the first entry into a zone still spawns and then removes the keys the host lacks, since the guest learns
 // them only from the host's drops and from its dead lines for her paired copies; the table takes her later resets in
-// that host epoch (her deaths, her camp rests). Upgrade: the host sends its zone's absent keys with its epoch line,
-// which needs a walk of the EventSpawn table by zone (not reverse-engineered yet).
+// that host epoch (her deaths, her camp rests), but not one her fence also takes as a world change: every world line
+// empties her list (SpawnGuest::clear). Upgrades: the host sends its zone's absent keys with its epoch line, which
+// needs a walk of the EventSpawn table by zone (not reverse-engineered yet); her list kept through her own world line,
+// the host's answer to it and its epoch line, while that epoch is the one the list was built in.
 class BlockTable {
 public:
   std::atomic<bool> installed{false};       // The hook is in SB's spawn request vtable.

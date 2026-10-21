@@ -2992,6 +2992,31 @@ int main() {
     frame(G, *e, t += 16);
     assert(e->filtering() && !e->blocks().has(6, 0));
   }
+  // Her own world change empties her list and the table, as the host's world line does: here a census whose every
+  // keyed actor is new (as after a load or a camp travel). Her world line clears her side as it goes out (Io::send),
+  // so a reset of hers that her fence takes as a world change runs unfiltered.
+  {
+    Game G;
+    auto e = engine(true, false);
+    e->filter(true);
+    e->set(true, false);
+    G.spawns(), G.zone(0xB7, 40), G.enter(0xB7), G.spawn_row(6, 2, 0xB7), G.spawn_row(7, 2, 0xB7);
+    G.spawn(906, 6, 0), G.spawn(907, 7, 0);
+    G.flags.her_ok = true;
+    G.inbox.push_back(msg("SBF12 on"));
+    for (uint64_t t = 0; t <= 8000; t += 16) {
+      if (t == 1008)
+        G.inbox.push_back(msg("SBF12 world 1")), G.inbox.push_back(msg("SBF12 epoch 1 40 1"));
+      if (t == 4800)
+        G.inbox.push_back(msg("SBF12 drop 1 1 6 0"));
+      if (t == 6000) {
+        assert(e->blocks().has(6, 0) && count(G, "world") == 0);
+        G.unlink(907), G.spawn(917, 7, 0);
+      }
+      frame(G, *e, t);
+    }
+    assert(count(G, "world", "enemies replaced") == 1 && !e->blocks().has(6, 0));
+  }
   // The host's dead on her paired copy blocks its key, at her next census; her own lethal hit (guest_kills=at_once)
   // blocks nothing while the host decides, nor once it refuses it (desync guest-dead): its enemy lives there.
   {
