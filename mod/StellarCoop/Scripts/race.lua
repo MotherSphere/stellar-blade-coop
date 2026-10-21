@@ -116,10 +116,15 @@ function Race.new(o)
         if hud then pcall(function() for _,g in ipairs(GROUPS) do hud.kit.show(g,false) end end) end
         log(string.format('race %s closed (%s)',tostring(r.m.id or '-'),why))
     end
+    -- The race gone on an error: our quit line (an abort before GO, else our DNF) goes out first, so the other side
+    -- does not wait for a line that never comes.
     local function fail(e)
         failed=why_of(e)
         local r=race
-        if r then pcall(close,r,'error') end
+        if r then
+            pcall(function() for _,l in ipairs((R.tick(r.m,{dnf='quit'},clock()))) do link.race(l) end end)
+            pcall(close,r,'error')
+        end
         return false,'the race stopped on an error until the mod reloads: '..failed
     end
     local function mine(r) return r.role=='host' and 'host' or 'guest' end

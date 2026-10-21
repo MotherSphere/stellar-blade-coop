@@ -676,6 +676,21 @@ ok,message=H.race.command('start','quest')
 assert(not ok and message=='the race stopped on an error (the Doro could not be spawned); none until the mod reloads')
 H.race.receive('track 7 4 1 0 0 0 0 '..MAP)
 assert(not H.race.armed(),'Nor a guest\'s')
+-- Its quit line went out first: the race is cancelled on her PC too.
+assert(H.wire[#H.wire]:find('^abort %d+ quit$'),H.wire[#H.wire])
+frames({H,G},3)
+assert(not G.race.armed() and not G.look.on and G.told[#G.told]=='Race cancelled.')
+-- An error on her PC mid-race: her DNF goes out, the host's ghost of her is herself again, and he ranks alone.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+run({H,G},function() return G.go_at and clock-G.go_at>3 end)
+G.puppet.me=function() error('the ghost is gone',0) end
+run({H,G},function() return #G.errors>0 end,10)
+assert(G.errors[1]=='the race stopped on an error until the mod reloads: the ghost is gone' and not G.race.armed())
+assert(G.sent[#G.sent]:find('^dnf %d+ quit$') and not G.look.on) -- Sent at the next frame.
+run({H,G},function() return not H.race.armed() end)
+assert(not H.ghost.doro and has(H.told,'Kaanta left the race.') and find(H.logs,'^result .* rank=1$'))
 
 -- 15. Together only: race.lua, race_model.lua and doro.lua name no achievement, reward, item, quest, save or console
 -- command call, and spawn a plain /Script/Engine.Actor only (doro.lua's one SpawnActor).
