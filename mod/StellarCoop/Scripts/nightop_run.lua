@@ -206,7 +206,7 @@ end
 -- store(name) link.lua's one-line file, for the shop's wallet. records: {read() the text of coop-records.txt, nil when
 -- there is none (it raises when the file cannot be read), write(text) true once written}, or nil for no bests.
 function Run.new(o)
-    local log,status,paused,tell,records=o.log,o.status,o.paused or function() return false end,o.tell,o.records
+    local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.

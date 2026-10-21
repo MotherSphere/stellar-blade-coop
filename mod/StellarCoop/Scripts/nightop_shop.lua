@@ -35,7 +35,7 @@ end
 -- result).
 function Shop.new(o)
     local log,status,store=o.log,o.status,o.store or function() return nil end
-    local paused,busy=o.paused or function() return false end,o.busy or function() return false end
+    local paused,busy=o.paused,o.busy
     -- This player's wallet on this co-op save, or nil and why: no co-op save with its index, no SteamID (ours, on the
     -- status's first line), no file store, or a file that cannot be opened (nothing is written over it). A file that
     -- holds no whole number reads 0. With no file, its .tmp: the newest total when link.lua's put removed the file and
