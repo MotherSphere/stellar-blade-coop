@@ -120,8 +120,9 @@ local function columns(c)
     return 1
 end
 -- Rows of at most wide columns (WIDE unless said; the text is well-formed UTF-8), broken at the last space within
--- reach, else between two characters (Chinese and Japanese have no spaces). The co-op saves' question and the notice
--- line wrap their text with it too.
+-- reach, else between two characters (Chinese, Japanese and Thai put no space between words). The break falls before
+-- a character that takes a column, so a Thai or Arabic mark (no column) stays with the letter before it. The co-op
+-- saves' question and the notice line wrap their text with it too.
 local function wrap(text,wide)
     wide=wide or WIDE
     local rows={}
