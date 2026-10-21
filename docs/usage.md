@@ -565,9 +565,10 @@ A takedown moves the enemy at once. When either player starts a takedown on a gr
 the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
 the ghost. The host's game applies the guest's killing hit only once her takedown ends, or after 6 s. If the host kills
 the enemy during her takedown, her game gets that death only then too. An enemy that lives through a takedown stays
-with the player who did it until the other player hits it. With `aggro=host`, a takedown plays only on the screen of
-the player who does it. The host's game refuses the guest's takedown of a boss or an Alpha Naytiba named in
-`fight_chars`, so boss finishers stay with the host.
+with the player who did it for 10 s, or until the other player hits it. With `aggro=host`, the guest's takedown plays
+only on her screen, and the host's still shows on hers. The host's game refuses the guest's takedown of a boss or an
+Alpha Naytiba named in `fight_chars`. That does not stop the finisher on her copy or her killing hit on the host's
+boss: the guard for boss finishers is not built yet.
 
 In the game that draws an enemy, the mod puts the game's own BlockAI effect on the copy, takes its movement component
 out of the game's movement manager, writes its position every frame from the other game's stream and replays that
@@ -616,11 +617,11 @@ component back and points the enemy at its own EVE with the game's force target 
   these take-overs.
 - Takedowns are logged in `coop-link.log`. On the guest: `fight exec <key> hguid=<n> our takedown begins` and `our
   takedown ends` (without the key once the copy is gone). On the host: `fight exec <key> hguid=<n> her takedown begins`,
-  `her takedown ended` or `her takedown timed out` (no end within 6 s), `fight exec refused <key> hguid=<n> <why>`
-  (`within 2 s` of her last one for that enemy, or `no Groggy or takedown on our copy`), `fight kill held <key>
-  hguid=<n> her takedown` and `fight dead held <key> hguid=<n> her takedown` while the host waits, and `fight
-  held-expired <key> hguid=<n>` when 6 s passed first. The `fight stats:` lines count `takedowns of hers (<n> refused)`
-  on the host and `takedowns told` on the guest.
+  `her takedown ended` or `her takedown timed out` (no end within 6 s), `fight exec refused <key> hguid=<n> <why>` (`no
+  Groggy or takedown on our copy`, or `one runs already`; one within 2 s of her last one for that enemy is counted with
+  no line), `fight kill held <key> hguid=<n> her takedown` and `fight dead held <key> hguid=<n> her takedown` while the
+  host waits, and `fight held-expired <key> hguid=<n>` when 6 s passed first. The `fight stats:` lines count `takedowns
+  of hers (<n> refused)` on the host and `takedowns told` on the guest.
 - After an error in the game's own code, copies the mod already moved can keep their movement component out of the
   manager and stand still until they leave the map or you rest at a camp. The error's line in `coop-link.log` says
   so.

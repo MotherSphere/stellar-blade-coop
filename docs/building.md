@@ -114,14 +114,16 @@ build/host/pose_codec_test
     own lines, its freeze and thaw, her answers and give-backs with each own-no reason, `target` for a take-over her
     game thread refused, a pair kept from her for 30 s after her own-no about it, the table's taken mark only after a
     hand-over) and in two worlds, where an enemy has no AI copy or two for one hop at most; stage 3c's takedowns (her
-    exec lines from the markers, the host's hand-over past the guards and its freeze despite Groggy, the host's own
-    takedown, a BossMonster refused, her lethal claim held until her exec 0 or for 6 s, a copy frozen on its stream's
+    exec lines from the markers, exec 0 after 200 ms without one, the host's hand-over past the guards once its copy
+    is kReady and its freeze despite Groggy, the host's own takedown, a BossMonster refused, a balance emptied by her
+    claim in the turn of her exec 1, her lethal claim held until her exec 0 or for 6 s, a copy frozen on its stream's
     takedown, `coop fight pilot test exec`) and in two worlds, where her takedown holds the host's kill until her exec
     0 reaches it;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
-    and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead),
-    and two fake
+    and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
+    an exec 1 that never restarts a running takedown, a held claim's 6 s cap, a balance emptied by her claim in the
+    step of her exec 1, refusals within 2 s counted with no line), and two fake
     worlds linked through a delayed, lossy line;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
@@ -144,7 +146,8 @@ build/host/pose_codec_test
     back, once after a fault and nothing after it; `coop fight pilot test`'s steps, each copy put back once at a
     change and driven only from the next frame); stage 3b's owners (the host's rule, its guards and hold, random
     hand-overs over a delayed link, the 30 s pause after an own-no), stage 3c's takedowns (the rule giving a pair to its
-    executor at once, the guest's exec lines and their spacing, a drawn copy following the stream through a takedown)
+    executor at once, the guest's exec lines, their spacing and the 200 ms wait before exec 0, a drawn copy following
+    the stream through a takedown)
     and the take-over (the copy put back first, then
     the game's force target, only on a pair a hand-over brought; its net mode and logic task gates, a stale or missing
     copy, the refusals named for the job's own-no, the latch, `coop fight pilot test

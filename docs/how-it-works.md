@@ -444,19 +444,22 @@ balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF11 exec <gen> <hguid> 1`, and `SBF11 exec <gen> <hguid> 0` once her copy holds none
-  (the takedown over, the copy dying or gone). The host takes one exec 1 an enemy in 2 s, and only when its own copy
-  is a Monster (ActorType 3) in life state 1 holding Groggy or a marker. It then hands her the enemy in that turn,
-  without the 4 s hold or the guards, freezes its copy although Groggy releases it, and holds her lethal claim (its
-  copy at 1 HP, its hp lines at 0) and its own dead for that enemy until her exec 0, 6 s after her exec 1 at most
-  (`held-expired`). A marker on the host's copy of an enemy she owns gives it back to the host the same way. While a
-  takedown runs it counts as its executor's hit, so a living enemy stays with them after it. The guest takes an own G
-  for a copy in her takedown even under NoDamageNoHit.
+  with `aggro=game`, she sends `SBF11 exec <gen> <hguid> 1`, and `SBF11 exec <gen> <hguid> 0` once her copy has held
+  none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
+  one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
+  holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
+  without the 4 s hold or the guards, in that turn once its copy is out of NoDamageNoHit, freezes its copy although
+  Groggy releases it, and holds her lethal claim (its copy at 1 HP, its hp lines at 0) and its own dead for that enemy
+  until her exec 0: 6 s after her exec 1 at most, and her lethal claim 6 s after it came at most (`held-expired`). A
+  marker on the host's copy of an enemy she owns gives it back to the host the same way. While a takedown runs it counts
+  as its executor's hit, so a living enemy stays with them for 10 s after it unless the other player hits it. The guest
+  takes an own G for a copy in her takedown even under NoDamageNoHit.
 - The owner's SBE entry carries flag 8 (`kExec`) while its copy holds a marker. The drawing side then freezes its copy
   despite Groggy, follows the stream through Groggy and through the stream's dying flag, and goes back onto the stream
   at once instead of after 200 ms, so the takedown plays there with the executor's ghost. Its own copy's death still
   releases it. Nothing in the mod starts `Passive_FinishReady` (2001102), and the host refuses an exec line for a
-  BossMonster, so boss finishers stay with the host.
+  BossMonster. The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too, and her lethal
+  claim on a boss named in `fight_chars` is not held for its finisher: the finish guard is not built yet.
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
   in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
   its own SEH latch: the first fault stops it for the run, and after a fault in the mod's own reads every copy is put

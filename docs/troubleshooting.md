@@ -221,8 +221,11 @@ the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-pla
 - A takedown shows only on the screen of the player who does it: compare the `fight exec` lines of both
   `coop-link.log` files. No `fight exec` line on the guest's side: same place is off there, or the host's `aggro` is
   `host`. `fight exec refused <key> hguid=<n> no Groggy or takedown on our copy` on the host: its copy was no longer
-  groggy when her line came. `within 2 s`: two of her takedowns of one enemy started within 2 s. A takedown also does
-  not move an enemy that the guest refused or gave back in the last 30 s.
+  groggy when her line came. `one runs already`: her game started a takedown of that enemy again while the host still
+  ran the last one. A takedown that starts within 2 s of her last one on that enemy is refused with no line; the
+  `refused` count of `takedowns of hers` in the host's `fight stats:` lines shows it. A takedown also does not move an
+  enemy that the guest refused or gave back in the last 30 s, and it moves an enemy only once the host's copy is out
+  of the game's NoDamageNoHit state.
 - `fight held-expired` right after `fight kill held ... her takedown` or `fight dead held ... her takedown` on the
   host: the end of her takedown did not reach the host within 6 s of its start, and the host killed the enemy anyway.
 
