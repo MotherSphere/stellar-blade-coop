@@ -331,18 +331,27 @@ public:
   void clear() {
     zone_ = n_ = 0;
     queued_ = 0;
-    blocked_ = 0;
+    blocked_ = 0; // A kill not taken yet goes with the next epoch line.
     forget();
   }
   bool on() const { return n_ != 0; } // The host's same spawns: its epoch line came since its world.
   // The keys the host lacks as far as we know, n of them, for the spawn filter: each one we despawned on its drop, and
-  // each paired shared Monster of a key that takes part that died in our census (a paired copy dies only by the host's
-  // word). A key leaves when a spawn line of the host's epoch names it, before our spawn runs (the filter would refuse
-  // ours too); all leave at a new host epoch and at clear(). Our own epoch moves keep them: our resets respawn exactly
-  // these keys. kMaxKeys at most: one more is not blocked, so it spawns and the host's drop removes it.
+  // each key that takes part whose paired copy the host's dead killed (died()); never an extra's, which no spawn
+  // request names. Our own lethal hit blocks nothing until the host's dead confirms it: one the host refuses leaves
+  // its enemy alive there. A key leaves when a spawn line of the host's epoch names it, before our spawn runs (the
+  // filter would refuse ours too); all leave at a new host epoch and at clear(). Our own epoch moves keep them: our
+  // resets respawn exactly these keys. kMaxKeys at most: one more is not blocked, so it spawns and the host's drop
+  // removes it.
   const SpawnKey *blocked(size_t &n) const {
     n = blocked_;
     return blocked_at_;
+  }
+  // The key of a copy the host's dead killed (Guest::died, each turn): blocked at our next step when it takes part in
+  // the host's zone; one before the host's epoch line goes with it. kMaxKeys at most until that step, the rest not
+  // blocked.
+  void died(const SpawnKey &k) {
+    if (died_ < kMaxKeys)
+      died_at_[died_++] = k;
   }
   uint32_t zone() const { return zone_; }
   uint32_t epoch() const { return n_; }
@@ -357,7 +366,7 @@ public:
     if (m.type == Type::epoch) {
       zone_ = m.zone;
       if (m.epoch != n_)
-        n_ = m.epoch, queued_ = 0, blocked_ = 0, forget();
+        n_ = m.epoch, queued_ = 0, blocked_ = died_ = 0, forget();
       return;
     }
     if (queued_ == kMaxQueued) {
@@ -377,9 +386,10 @@ public:
       return;
     if (moved)
       forget();
-    for (size_t i = 0; i < n; ++i) // An extra's key has no row, so SB's spawn request never names it: none blocked.
-      if (mine[i].monster && mine[i].paired && mine[i].dying && !is_extra(mine[i].key.spawn) && !out(mine[i].key, io))
-        block(mine[i].key);
+    for (size_t i = 0; i < died_; ++i)
+      if (!out(died_at_[i], io))
+        block(died_at_[i]);
+    died_ = 0;
     const bool shared = zone && zone == zone_ && ep.settled(now) && close;
     for (size_t i = 0; i < made_; ++i)
       check(made_at_[i], mine, n, now, io);
@@ -402,8 +412,8 @@ private:
     made_ = gone_ = 0;
     again_ = true;
   }
-  void block(const SpawnKey &k) {
-    if (blocked_ < kMaxKeys && !listed(blocked_at_, blocked_, k))
+  void block(const SpawnKey &k) { // An extra's key has no row, so SB's spawn request never names it: never blocked.
+    if (!is_extra(k.spawn) && blocked_ < kMaxKeys && !listed(blocked_at_, blocked_, k))
       blocked_at_[blocked_++] = k;
   }
   bool rated(uint64_t now) {
@@ -551,6 +561,8 @@ private:
   size_t gone_ = 0;
   SpawnKey blocked_at_[kMaxKeys]; // The keys the host lacks (blocked()), kept through our own epoch moves.
   size_t blocked_ = 0;
+  SpawnKey died_at_[kMaxKeys]; // The host's kills since our last step (died()).
+  size_t died_ = 0;
   bool again_ = true; // A round is due at once (a new epoch, ours or the host's).
   uint64_t next_any_ = 0, next_have_ = 0, window_ = 0;
   uint32_t in_window_ = 0;
@@ -562,9 +574,9 @@ private:
 // one. A hook racing a publish may miss a key that moved down a slot: that spawn goes on and the host's drop removes
 // it, as with the filter off. installed, seen and refused are the hook's, for the stats line.
 // ponytail: the first entry into a zone still spawns and then removes the keys the host lacks, since the guest learns
-// them only from its drops and from paired deaths; the table takes her later resets in that host epoch (her deaths,
-// her camp rests). Upgrade: the host sends its zone's absent keys with its epoch line, which needs a walk of the
-// EventSpawn table by zone (not reverse-engineered yet).
+// them only from the host's drops and from its dead lines for her paired copies; the table takes her later resets in
+// that host epoch (her deaths, her camp rests). Upgrade: the host sends its zone's absent keys with its epoch line,
+// which needs a walk of the EventSpawn table by zone (not reverse-engineered yet).
 class BlockTable {
 public:
   std::atomic<bool> installed{false};       // The hook is in SB's spawn request vtable.

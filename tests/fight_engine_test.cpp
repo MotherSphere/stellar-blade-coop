@@ -2984,6 +2984,38 @@ int main() {
     frame(G, *e, t += 16);
     assert(!e->blocks().has(6, 0));
   }
+  // The host's dead on her paired copy blocks its key, at her next census; her own lethal hit (guest_kills=at_once)
+  // blocks nothing while the host decides, nor once it refuses it (desync guest-dead): its enemy lives there.
+  {
+    Game G;
+    auto e = engine(true, false);
+    e->filter(true);
+    e->set(true, false);
+    G.spawns(), G.zone(0xB7, 40), G.enter(0xB7), G.spawn_row(6, 2, 0xB7), G.spawn_row(7, 2, 0xB7);
+    G.spawn(906, 6, 0), G.spawn(907, 7, 0);
+    G.flags.her_ok = true;
+    G.inbox.push_back(msg("SBF12 on"));
+    bool early = false; // Either key blocked before the host's dead.
+    for (uint64_t t = 0; t <= 6000; t += 16) {
+      if (t == 1008)
+        for (const char *line : {"SBF12 world 1", "SBF12 epoch 1 40 1", "SBF12 up 1 106 6 0 900 1600",
+                                 "SBF12 up 1 107 7 0 900 1600"})
+          G.inbox.push_back(msg(line));
+      if (t == 2000)
+        G.hit(906, kHp, 100);
+      if (t == 2496)
+        G.hit(907, kHp, 1600);
+      if (t == 3504)
+        G.inbox.push_back(msg("SBF12 hp 1 1 2 106:1500:100:200 107:1500:100:200"));
+      if (t == 4000)
+        G.inbox.push_back(msg("SBF12 dead 1 106"));
+      frame(G, *e, t);
+      early = early || (t < 4000 && (e->blocks().has(6, 0) || e->blocks().has(7, 0)));
+    }
+    assert(has(lines(G), "SBF12 hit 1 2 107 1600 0 0 1600 1\n") && G.body(907).deaths == 1);
+    assert(count(G, "desync guest-dead") == 1 && count(G, "dead") == 1 && G.body(906).deaths == 1);
+    assert(!early && e->blocks().has(6, 0) && !e->blocks().has(7, 0));
+  }
 
   // ---- Bosses (stage 5), two worlds through channel 2 with same spawns on, the EVEs 20 m apart: boss A, which both
   // saves still hold, pairs and has the host's boss_hp_scale in both games (the common enemies enemy_hp_scale); boss B,

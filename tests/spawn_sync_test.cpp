@@ -722,8 +722,8 @@ int main() {
   }
 
   // ---- The guest's blocked keys, for the spawn filter: the keys the host lacks as far as she knows ----
-  // Added when she despawns a key on the host's drop, and when a paired shared Monster of a key that takes part dies in
-  // her census (a paired copy dies only by the host's word); removed when a spawn line of the host's epoch names the
+  // Added when she despawns a key on the host's drop, and when the host's dead killed her copy of a key that takes part
+  // (died); never an extra's key, which no spawn request names; removed when a spawn line of the host's epoch names the
   // key, before her spawn runs (it goes through the same filter); cleared at a new host epoch and at clear(); kept
   // through her own epoch moves (her resets respawn exactly these keys); never more than kMaxKeys.
   {
@@ -735,9 +735,11 @@ int main() {
       w.add(100 + id, id);
     w.add(120, 20);
     w.add(109, 9, 0, false); // An NPC.
+    w.add(150, extra_key(1, 1).spawn, 1); // An extra: no row.
     Epochs ep;
     SpawnGuest g;
     w.filter = &g;
+    g.died(SpawnKey{1, 0}); // Before the host's epoch: nothing.
     epoch(ep, w, 0xA1, 3, 0);
     g.heard(msg("SBF12 epoch 1 40 1"), 1);
     guest_step(g, ep, w, kGraceMs);
@@ -747,23 +749,25 @@ int main() {
         g.heard(msg(l), 1);
       guest_step(g, ep, w, now, moved);
     };
-    // A drop she despawns blocks its key; one refused (busy) does not, nor a stale one.
+    // A drop she despawns blocks its key; one refused (busy) does not, nor a stale one, nor an extra's she despawns.
     w.busy.push_back(106);
-    take({"SBF12 drop 1 1 5 0", "SBF12 drop 1 1 6 0", "SBF12 drop 1 2 7 0"}, kGraceMs + 100);
-    assert(w.despawned == std::vector<uint32_t>{105} && blocked(g) == 1 && blocks(g, SpawnKey{5, 0}));
+    take({"SBF12 drop 1 1 5 0", "SBF12 drop 1 1 6 0", "SBF12 drop 1 2 7 0", "SBF12 drop 1 1 3758096641 1"},
+         kGraceMs + 100);
+    assert((w.despawned == std::vector<uint32_t>{105, 150}) && blocked(g) == 1 && blocks(g, SpawnKey{5, 0}));
     w.busy.clear();
-    // A paired shared Monster of a key that takes part, dying in her census: blocked. Not one dying unpaired (her own
-    // fight), nor a paired one alive, nor a paired one of another zone's key, nor an NPC.
+    // The host's dead killed her copy (died): its key blocked at her next step when it takes part in the host's zone;
+    // not one of another zone's row, of no row, or an extra's. A copy dying in her census without the host's dead (her
+    // own fight, or her lethal hit the host may still refuse) blocks nothing, paired or not.
     epoch(ep, w, 0xA1, 3, kGraceMs + 200);
-    w.actor(SpawnKey{1, 0})->paired = true, w.actor(SpawnKey{1, 0})->dying = true;
-    w.actor(SpawnKey{2, 0})->dying = true;
-    w.actor(SpawnKey{3, 0})->paired = true;
-    w.actor(SpawnKey{20, 0})->paired = true, w.actor(SpawnKey{20, 0})->dying = true;
-    w.actor(SpawnKey{9, 0})->paired = true, w.actor(SpawnKey{9, 0})->dying = true;
+    w.actor(SpawnKey{2, 0})->paired = true, w.actor(SpawnKey{2, 0})->dying = true;
+    w.actor(SpawnKey{3, 0})->dying = true;
+    g.died(SpawnKey{1, 0}), g.died(SpawnKey{20, 0}), g.died(SpawnKey{30, 0}), g.died(extra_key(1, 1));
+    assert(blocked(g) == 1); // At her step only.
     take({}, kGraceMs + 200);
     assert(blocked(g) == 2 && blocks(g, SpawnKey{1, 0}) && !blocks(g, SpawnKey{2, 0}) && !blocks(g, SpawnKey{3, 0}) &&
-           !blocks(g, SpawnKey{20, 0}) && !blocks(g, SpawnKey{9, 0}));
-    take({}, kGraceMs + 250); // Still dying at the next census: listed once.
+           !blocks(g, SpawnKey{20, 0}) && !blocks(g, SpawnKey{30, 0}) && !blocks(g, extra_key(1, 1)));
+    g.died(SpawnKey{1, 0}); // Killed again: listed once.
+    take({}, kGraceMs + 250);
     assert(blocked(g) == 2);
     // Her own epoch moves (a death of hers, a camp rest): what she answered is void, but the keys stay blocked.
     epoch(ep, w, 0xA1, 1, 20000);
@@ -784,10 +788,11 @@ int main() {
     take({"SBF12 spawn 1 1 5 0 900 600 0 0 0", "SBF12 spawn 1 1 1 0 900 200000 0 0 0"}, 20000 + kGraceMs + 200);
     assert(w.created.size() == 1 && w.created[0].key == (SpawnKey{5, 0}) && w.blocked_at_create.empty());
     assert(blocked(g) == 0 && w.count("spawn refused", "too far") == 1);
-    // A new host epoch clears the list; so does clear().
+    // A new host epoch clears the list, and a kill of the old one not taken yet; so does clear().
     epoch(ep, w, 0xA1, 3, 20000 + kGraceMs + 300);
     take({"SBF12 drop 1 1 4 0"}, 20000 + kGraceMs + 300);
     assert(blocked(g) == 1 && blocks(g, SpawnKey{4, 0}));
+    g.died(SpawnKey{3, 0});
     g.heard(msg("SBF12 epoch 1 40 2"), 1);
     assert(blocked(g) == 0);
     g.heard(msg("SBF12 drop 1 2 6 0"), 1);
@@ -800,18 +805,19 @@ int main() {
   // The cap: kMaxKeys keys at most; one more is not blocked (no filter for it: spawned, then dropped, as today).
   {
     World w;
-    for (uint32_t id = 1; id <= kMaxKeys + 1; ++id) {
+    for (uint32_t id = 1; id <= kMaxKeys + 2; ++id)
       w.row(id, kReset);
-      Mine &m = w.add(1000 + id, id);
-      m.paired = m.dying = true;
-    }
     Epochs ep;
     SpawnGuest g;
     epoch(ep, w, 0xA1, 3, 0);
     g.heard(msg("SBF12 epoch 1 40 1"), 1);
+    for (uint32_t id = 1; id <= kMaxKeys + 1; ++id) // One more than a step takes.
+      g.died(SpawnKey{id, 0});
     guest_step(g, ep, w, kGraceMs);
+    g.died(SpawnKey{uint32_t(kMaxKeys) + 2, 0}); // One more than the list holds.
+    guest_step(g, ep, w, kGraceMs + 100);
     assert(blocked(g) == kMaxKeys && blocks(g, SpawnKey{1, 0}) && blocks(g, SpawnKey{uint32_t(kMaxKeys), 0}) &&
-           !blocks(g, SpawnKey{uint32_t(kMaxKeys) + 1, 0}));
+           !blocks(g, SpawnKey{uint32_t(kMaxKeys) + 1, 0}) && !blocks(g, SpawnKey{uint32_t(kMaxKeys) + 2, 0}));
   }
   // The table the hook reads: each key as spawnId << 8 | index, 0 for an empty slot; a publish replaces the whole
   // list. Empty slots never match, not even the key 0:0.

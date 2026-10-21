@@ -850,6 +850,9 @@ public:
                   host.bosses());
     } else if (!latched_) {
       guest.step(seen_, n, census, turn, now_ms, io);
+      SpawnKey died[kMaxTracked]; // The host's kills, for the spawn filter: each turn, as the step may take them.
+      for (size_t i = 0, k = guest.died(died); i < k; ++i)
+        spawn_guest_.died(died[i]);
       hold_floors(g, logic, followed, guest.floored(followed));
       hold_scales(g, logic, followed, guest.scaled(followed), guest.scale(kScaleHp), guest.scale(kScaleBalance),
                   guest.bosses());
