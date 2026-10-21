@@ -51,6 +51,9 @@
 // thread the save-slot line its gate reads, starts and stops the side, and writes coop-quests.log, the record beside
 // the co-op slot (through steam_link.cpp's save folder) and coop-quests-record.txt. A fault turns them off for the run;
 // the ghost, the link and the shared fight go on.
+//
+// The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
+// and our EVE's GUID, straight from two globals; status() puts them in the engine line for group.lua.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -852,6 +855,46 @@ void quest_tick() {
   quest_guarded(std::string_view(slot, size), now);
 }
 
+// ---- The revive's guard, the game thread's read: a respawn or a warp in flight, and our EVE's GUID ----
+// Read straight from the client game-flow singleton's and the world's globals, never through their getters (which
+// allocate when the pointer is null). Busy: a warp written at client +0xa20 (a camp on another map, a fast travel), the
+// death screen's camp request at +0xb60 and +0xb61 (a respawn on this map, waiting in the client tick), or the world's
+// respawn state at +0x1c4 (2 from the request on, then ResetZone and the respawn). Our GUID: client +0x58, the key the
+// world's player map holds for the local player. Every 250 ms, under its own latch: the first fault ends the reads for
+// the run, and the engine line then has no warp= (Lua's revive then waits forever).
+constexpr uint64_t kWarpBlock = 0xa20, kCampAsked = 0xb60, kCampWaits = 0xb61, kPlayerGuid = 0x58,
+                   kRespawnState = 0x1c4;
+std::atomic<bool> warp_pinned{false}, warp_faulted{false};
+std::atomic<int> warp_state{-1}; // -1: no read (no client or world yet, or the latch); 0 idle; 1 busy.
+std::atomic<uint32_t> warp_me{0};
+std::atomic<uint64_t> warp_fault_code{0}, warp_fault_rva{0}, warp_fault_address{0};
+uint64_t warp_next = 0; // The game thread's: its next read.
+__declspec(noinline) void warp_body() {
+  const uintptr_t client = at<uintptr_t>(base + (slot::kClient - nightop::kImageBase));
+  const uintptr_t world = at<uintptr_t>(base + (quest::kWorldGlobal - nightop::kImageBase));
+  if (!nightop::plausible(client) || !nightop::plausible(world)) {
+    warp_state = -1;
+    return;
+  }
+  const bool busy = at<uint8_t>(client + kWarpBlock) != 0 ||
+                    (at<uint8_t>(client + kCampAsked) != 0 && at<uint8_t>(client + kCampWaits) != 0) ||
+                    at<int32_t>(world + kRespawnState) != 0;
+  warp_me = at<uint32_t>(client + kPlayerGuid);
+  warp_state = busy ? 1 : 0;
+}
+void warp_tick() {
+  const uint64_t now = GetTickCount64();
+  if (now < warp_next)
+    return;
+  warp_next = now + 250;
+  __try {
+    warp_body();
+  } __except (fault_filter(GetExceptionInformation(), warp_fault_code, warp_fault_rva, warp_fault_address)) {
+    warp_faulted = true;
+    warp_state = -1;
+  }
+}
+
 // ---- Same-place enemies: the owner's capture (pilot.h's Capturer), the game thread's read half ----
 // SB's two read-only lookups by GUID (stage 3a's allowlist, PHASE11-STAGE3 3.4): FSBActorManager::FindActor, an
 // ActorGUID's FSBActor (it logs, and so allocates, only when its two maps disagree), and the registry's character of
@@ -1160,7 +1203,8 @@ namespace {
 // Worker thread only from here.
 std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
 std::wstring dir;                                                            // The mod folder.
-bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false;
+bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
+     warp_fault_logged = false;
 uint64_t next_poll = 0, next_counters = 0;
 uint64_t vitals_reads = 0, vitals_max_us = 0; // local_vitals()'s, for the 60 s line.
 bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
@@ -1547,6 +1591,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       fight_engine.init(base, &kJobVtable);
     freeze_pinned = pinned; // After base: the game thread's pause calls need it.
     quest_pinned = pinned;  // The same for the shared quests' pass.
+    warp_pinned = pinned;   // The same for the revive's guard.
     pilot_pinned = pinned;  // The same for the pilot's capture.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
@@ -1571,6 +1616,17 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(fx_fault_code.load()),
                   static_cast<unsigned long long>(fx_fault_rva.load()),
                   static_cast<unsigned long long>(fx_fault_address.load()), fx_fault_part.load());
+    event(text);
+  }
+  if (warp_faulted && !warp_fault_logged) {
+    warp_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "warp read off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; no revive by the friend "
+                  "until the game restarts",
+                  static_cast<unsigned long long>(warp_fault_code.load()),
+                  static_cast<unsigned long long>(warp_fault_rva.load()),
+                  static_cast<unsigned long long>(warp_fault_address.load()));
     event(text);
   }
   if (nightop_on)
@@ -2385,6 +2441,10 @@ std::string status() {
   if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.
     s += " remote=" + std::to_string(remote.generation) + " " + std::to_string(remote_count) + " " + remote_source;
   s += fight_worker.status();
+  // The revive's guard (group.lua): a respawn or a warp in flight, and our EVE's GUID, as of the game thread's last
+  // read; none before the first one, after coop off or after its fault.
+  if (const int warp = warp_state; warp >= 0 && !blocked)
+    s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)
@@ -2416,5 +2476,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (quest_pinned && !quest_faulted && !blocked)
     quest_tick();
+  // The revive's guard, its own latch: a read each 250 ms, none after coop off or its first fault.
+  if (warp_pinned && !warp_faulted && !blocked)
+    warp_tick();
   return 0;
 }

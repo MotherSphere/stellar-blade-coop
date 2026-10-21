@@ -51,6 +51,7 @@ M.OPTIONS={
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
+    toggle('revive','off'), -- Yours, at once: the friend's revive of your EVE (group.lua).
     later(toggle('rejoin','on')),
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.

@@ -508,6 +508,21 @@ for _,bad in ipairs({'Quest;Sub','a\tb','Quête',('1'):rep(201)}) do
         and s.quest_deny=='',notes[1])
 end
 
+-- revive (experimental, your own): on or off in any case, off by default and in a file written before it. A new file
+-- names it right after quest_deny, with its comment; a bad value keeps the default, with a line.
+assert(Link.DEFAULT:find('\nquest_deny=\n# Revive, experimental: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('\nrevive=off\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.revive==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.revive==false)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('revive='..case[1])
+    assert(#notes==0 and s.revive==case[2],case[1])
+end
+s,notes=Link.parse_settings('revive=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for revive (use on or off); revive stays off"
+    and s.revive==false,notes[1])
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
 -- written before them reads the defaults with no line. A bad value keeps the default, with a line.

@@ -13,7 +13,9 @@
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop],
 -- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
--- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
+-- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; the friend's revive
+-- (group.lua, revive in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at
+-- the death screen (a test tool, left out of the usage line); coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
@@ -149,6 +151,8 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell})
+-- The friend's revive (group.lua), with the Steam link only: built and ticked below.
+local group=nil
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
@@ -340,6 +344,12 @@ local commands={
             if not ok then return false,why end
         end
         return night.command(sub,a,b)
+    end,
+    -- test: the revive's solo probe at the death screen (group.lua says why not).
+    revive=function(sub,extra)
+        if sub~='test' or extra~=nil then return false,'Use: coop revive test' end
+        if not group then return false,'the Steam link needs the native part' end
+        return group.test()
     end,
     recruiter=function(sub,extra)
         local ok,why=coop_slot('coop recruiter')
@@ -656,6 +666,8 @@ if link then
         local name=require('chat').clean((link.friend()) or '')
         return name~='' and name or w.fight.friend
     end
+    group=require('group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
+        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end})
     local function fight_notices()
         if link.mode()=='none' then fight_told=nil end
         local line=link.fight()
@@ -829,6 +841,7 @@ if link then
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
         chat_clock=chat_clock+0.25
+        if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
         if off or chatting~=nil then chat.session(not off and chatting) end
         for _,line in ipairs(link.take_chat()) do

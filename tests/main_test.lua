@@ -3,7 +3,9 @@
 -- the keys only hand their action to the game thread, coop no reaches the Night Operation probe and coop recruiter the
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
 -- on any slot even when that raises), coop nightop reaches Night Operation's run on the co-op save slot only, its stop
--- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), coop look changes what the ghost shows and builds it again, coop fight (the
+-- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), the friend's revive (group.lua)
+-- is built with the link and ticked every 250 ms until coop off, coop revive test reaches its probe, coop look changes
+-- what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
 -- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
@@ -213,6 +215,14 @@ end}
 -- Night Operation's run: what nightop_run.new got (o), coop nightop's words, its ticks and stops, a stop that raises. A
 -- global: this chunk is at Lua's 200 locals.
 nr={o=nil,runs={},ticks=0,stops={},raise=nil}
+-- The friend's revive (group.lua): what group.new got (o), its ticks' clocks, and coop revive test's answer. A global
+-- too.
+gr={o=nil,ticks={},tests=0}
+package.loaded.group={new=function(o)
+    gr.o=o
+    return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,
+        test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end}
+end}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
     return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
@@ -367,6 +377,7 @@ local function load_main(with_native)
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     nr.o,nr.runs,nr.ticks,nr.stops=nil,{},0,{}
+    gr.o,gr.ticks,gr.tests=nil,{},0
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
@@ -687,6 +698,18 @@ for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'rese
 end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
 assert(notice_stops==0 and ui_stops==0)
+-- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
+-- clock; coop revive test is its probe, and anything else its usage line.
+assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui_text').en)=='Kaanta'
+    and type(gr.o.tell)=='function' and type(gr.o.log)=='function' and gr.o.puppet.her_map()=='/game/e04')
+gr.o.log('revive waits: friend far'); assert(last()=='[StellarCoop][GR] revive waits: friend far\n',last())
+gr.count=#gr.ticks
+loops[2].f(); assert(#gr.ticks==gr.count+1 and gr.ticks[#gr.ticks]-gr.ticks[#gr.ticks-1]==0.25)
+coop('revive','test'); assert(gr.tests==1 and last()=='[StellarCoop] OK: ServerRequest_ActorRespawn asked\n',last())
+for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
+    coop('revive',table.unpack(bad))
+    assert(gr.tests==1 and last()=='[StellarCoop] STOP: Use: coop revive test\n',last())
+end
 nr.ticked=nr.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
@@ -698,6 +721,7 @@ local written=#states
 takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
+assert(#gr.ticks==gr.count+2,'No revive tick after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
 chatting=true; loops[2].f(); chatting=false
@@ -2329,4 +2353,5 @@ loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native pa
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n','No native part needed')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
+coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
 io.stdout:write('main_test ok\n')

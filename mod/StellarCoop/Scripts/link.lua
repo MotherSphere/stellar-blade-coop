@@ -16,7 +16,8 @@
 -- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
 -- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
 -- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
--- quest_notes() here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- quest_notes() here; its revive group.lua's (the friend's revive). The co-op menu (menu.lua) changes the file, one
+-- line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -94,6 +95,10 @@ boss_hp_scale=2.0
 # never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
 shared_quests=off
 quest_deny=
+# Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
+# your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
+# recovery items refilled as at a camp. Never during a boss fight on your side.
+revive=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -128,10 +133,10 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny=''}
+    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true} -- On or off.
+    card_details=true,shared_quests=true,revive=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
