@@ -339,6 +339,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's solo run](night-operation.md#the-solo-run-coop-nightop) (untested in game, co-op save only; `stop` on any save) |
+| `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -448,9 +449,10 @@ STOP: coop no runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot
 
 (`now no slot status` without the native part.)
 
-`coop nightop`, Night Operation's solo run, runs only on a co-op save too, with the same `STOP:` line under its own
-name, except `coop nightop stop`, which works on any save. See
-[night-operation.md](night-operation.md#the-solo-run-coop-nightop).
+`coop nightop`, Night Operation's solo run, and `coop challenge`, the challenges, run only on a co-op save too, with
+the same `STOP:` line under their own names, except `coop nightop stop` and `coop challenge stop`, which work on any
+save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop) and
+[Challenges](night-operation.md#challenges-coop-challenge).
 
 The ghost, the link and every other command except `coop fight` (below) run on any save. `coop fight pilot` runs on
 any save too, since same place only moves enemies while shared enemies run.
@@ -977,10 +979,10 @@ reads: it logs what it finds of your quests in `coop-quests.log` and makes no st
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
 loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
-run (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared
-quests and the photo pause (released; the native tick keeps running for this alone). Afterwards only `coop status` and
-`coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
-menu, host and leave keys.
+run or a challenge (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in
+Xion), the shared quests and the photo pause (released; the native tick keeps running for this alone). Afterwards only
+`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
+and so do the menu, host and leave keys.
 
 ## coop-settings.txt
 
@@ -1304,6 +1306,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | --- | --- | --- |
 | `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
+| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [night-operation.md](night-operation.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
 | `coop-link.old.log` | native | The previous run's `coop-link.log`, moved there at start |

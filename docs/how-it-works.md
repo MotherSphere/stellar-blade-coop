@@ -46,7 +46,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
 | `nightop.lua` | The `coop no` probe, and the heal that the solo run fires |
 | `nightop_waves.lua` | The solo run's waves, keys, score, timers and states, with no engine call |
-| `nightop_run.lua` | The `coop nightop` solo run: start checks, spawns, the monsters it tracks, its card and result panel |
+| `nightop_run.lua` | The `coop nightop` solo run and the `coop challenge` runs: start checks, spawns, the monsters it tracks, its card and result panel |
+| `challenges.lua` | The challenges' waves and rules, their check, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `recruiter.lua` | The `coop recruiter` preview |
 | `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `unreal.lua` | Small helpers over UE4SS objects |
@@ -761,8 +762,9 @@ claim the host accepts):
   where the host's did and she stood in the host's zone when its line came. A kill task waits for her own copy to
   complete it, by her own kill or by a shared enemy that died in her world under the rule above. `coop quests force`
   never applies a step of a quest she is behind on.
-- Night Operation runs only without a Steam session: its start refuses one, and a session that starts ends the run. Its
-  kills are the player's own.
+- Night Operation and the challenges run only without a Steam session: a start refuses one, and a session that starts
+  ends the run. Their kills are the player's own. A best run goes into `coop-records.txt` only on the PC whose own run
+  ended in success, and never over the link.
 
 ## Safety design
 

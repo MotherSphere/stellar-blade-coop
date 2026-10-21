@@ -1,9 +1,9 @@
 # Night Operation
 
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
-Much of it is still in the game files. StellarCoop has a solo run of its waves, `coop nightop`, and two research
-previews that test parts of the cut mode. The previews are not playable modes, and the solo run has not been tested in
-game yet.
+Much of it is still in the game files. StellarCoop has a solo run of its waves, `coop nightop`, four solo challenges on
+the same code, `coop challenge`, and two research previews that test parts of the cut mode. The previews are not
+playable modes, and neither the solo run nor the challenges have been tested in game yet.
 
 ## What the game files contain
 
@@ -50,7 +50,7 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop start` | Start a run where EVE stands |
 | `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
-| `coop nightop stop` | End the run, on any save. `coop off` ends it too |
+| `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world, this run's included, each with its run number (8 at most are named) |
 
 ### Before your first run
@@ -128,9 +128,15 @@ A run ends in one of four ways:
   point for 10 s; a save that is no longer a co-op save; a Steam session that starts; or an error in the run, which
   `UE4SS.log` names.
 
-The log then has one line such as `result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4`.
+The log then has one line such as:
+
+```
+result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4 challenge=night best=731/328 new
+```
+
 `find_ms` is the mean and the longest time the mod took to list the game's characters, which it does once a second
-while monsters are tracked.
+while monsters are tracked. A success that beats the best run kept in `coop-records.txt` is written there, and `best=`
+gives the best after the run (see [Best runs](#best-runs-coop-recordstxt)).
 
 Monsters still alive when a run ends, written-off ones after a success included, stay in the world as ordinary enemies,
 and they no longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its
@@ -146,9 +152,10 @@ run time left and the score (`WAVE 2/5  6:12  SCORE 100`). After a wave is down,
 instead (`NEXT WAVE IN 9  6:12  SCORE 140`). The card hides while the game is paused or shows one of its own screens.
 
 When the run ends, a result panel takes the card's place for 10 s. Its heading is the game's own text for the mode,
-Operation Successful or Operation Failed in the game's language. The line under it says why a run did not succeed, and
-the rows give the waves cleared, the kills, the score and the time. The card and the panel follow the game's language,
-or English with `ui_language=english` (see [usage.md](usage.md#options)).
+Operation Successful or Operation Failed in the game's language. The line under it says why a run did not succeed, or
+reads `New personal best.` after a success that set one. The rows give the waves cleared, the kills, the score, the time
+and the best run kept on this PC (`-` when none is). The card and the panel follow the game's language, or English with
+`ui_language=english` (see [usage.md](usage.md#options)).
 
 With `coop ui off`, the same facts come as notices: the start, each wave, each wave cleared, and the result.
 
@@ -162,6 +169,169 @@ word typed after `start` reaches a game call: `noaggro` and `nomove` only turn o
 Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
 kills and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
 Restoring a backup does not take an unlocked achievement back.
+
+## Challenges (`coop challenge`)
+
+A challenge is a short solo fight picked from a fixed list. Three of them send waves of the game's monsters at EVE, as
+the solo run does, and Target Practice stands the game's target dummies in front of her. Each run ends on the result
+panel with the time, the score and the best run kept on this PC. The challenges run on the solo run's code, on a co-op
+save with no Steam session, and log `[StellarCoop][NR]` lines. They have not been tested in game yet.
+
+| Command | What it does |
+| --- | --- |
+| `coop challenge` | List the challenges and Night Operation with each one's best run, then the run that is on, if any |
+| `coop challenge <name>` | Start that challenge where EVE stands. Its number in the list works too: `coop challenge 4` is `coop challenge targets` |
+| `coop challenge stop` | End the run that is on, a challenge or Night Operation, on any save. `coop nightop stop` and `coop off` end a challenge too |
+
+With no best kept yet, the list reads:
+
+```
+1 swarm Antlion Swarm: 3 waves, 3:00, no best yet
+2 skulls Skull Squad: 3 waves, 6:00, no best yet
+3 gauntlet Gauntlet: 8 waves, 12:00, no best yet
+4 targets Target Practice: 3 waves, 1:30, no best yet
+night: Night Operation (coop nightop start), no best yet
+```
+
+A start runs the checks of `coop nightop start` and refuses for the same reasons, with one `STOP:` line (see
+[Starting a run](#starting-a-run)). The Steam session line names the challenge:
+`STOP: Target Practice is solo for now: leave the Steam session first (coop leave)`. One run exists at a time, so a
+start while a challenge or Night Operation is on gets `STOP: a run is on: coop challenge stop ends it`. A word that is
+neither a challenge's name nor its number gets `STOP: unknown challenge: coop challenge lists them`. On a save that is
+not a co-op save, every form except `coop challenge stop` gets the co-op save line (see
+[usage.md](usage.md#night-operation-previews)).
+
+A start answers `OK: Target Practice starts in 5 s (run 0x2A)`, and its `start:` line in `UE4SS.log` names the
+challenge after the map (`... map <map> challenge targets; census: ...`).
+
+### The challenges
+
+| # | Name | Waves | Time limit | Next wave | Full heal after wave | Score for all kills | Points per second left |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `swarm`, Antlion Swarm | 3 | 3:00 | 5 s after a clear | none | 180 | 1 |
+| 2 | `skulls`, Skull Squad | 3 | 6:00 | 5 s after a clear | 2 | 320 | 1 |
+| 3 | `gauntlet`, Gauntlet | 8 | 12:00 | 5 s after a clear | 3 and 6 | 900 | 1 |
+| 4 | `targets`, Target Practice | 3 | 1:30 | 3 s after a clear | none | 720 | 10 |
+
+| Challenge | Wave | Monsters |
+| --- | --- | --- |
+| Antlion Swarm | 1 | 4 `M_Antlion` |
+| Antlion Swarm | 2 | 6 `M_Antlion` |
+| Antlion Swarm | 3 | 8 `M_Antlion` |
+| Skull Squad | 1 | 1 `M_SkullSwordAlone`, 2 `M_SkullGunnerAlone` |
+| Skull Squad | 2 | 2 `M_SkullSpearAlone`, 1 `M_SkullGunnerAlone` |
+| Skull Squad | 3 | 1 `M_SkullHammerAlone`, 1 `M_SkullSwordAlone`, 1 `M_SkullSpearAlone` |
+| Gauntlet | 1 | 4 `M_Antlion` |
+| Gauntlet | 2 | 3 `M_LurkerA` |
+| Gauntlet | 3 | 2 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
+| Gauntlet | 4 | 3 `M_HedgeBoarA` |
+| Gauntlet | 5 | 2 `M_SkullSpearAlone`, 2 `M_SkullGunnerAlone` |
+| Gauntlet | 6 | 3 `M_LurkerA`, 3 `M_HedgeBoarA` |
+| Gauntlet | 7 | 1 `M_SkullHammerAlone`, 1 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
+| Gauntlet | 8 | 1 `M_SkullHammerAlone`, 1 `M_SkullSpearAlone`, 1 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
+| Target Practice | 1 | 2 `M_DummyA`, 2 `M_DummyB` |
+| Target Practice | 2 | 2 `M_DummyA`, 2 `M_DummyB`, 2 `M_DummyC` |
+| Target Practice | 3 | 3 `M_DummyA`, 3 `M_DummyB`, 2 `M_DummyC` |
+
+The 5 s countdown comes first, and wave 1 comes when it ends. Each later wave comes only once the wave before it is
+down: 5 s after, or 3 s in Target Practice. Meanwhile the card counts down to it (`NEXT WAVE IN 4`). Unlike Night
+Operation's waves, a challenge's waves have no set run time, so a fast clear brings the next wave sooner. As in the
+solo run, a wave is down once each of its monsters is dying, can be executed, is written off, is missing or is no
+longer tracked.
+
+In Antlion Swarm, Skull Squad and Gauntlet the monsters come as in the solo run: at the four points 14 m from where EVE
+started, sent at her, and moved back at most twice when they are stuck or fall (see [The waves](#the-waves)). The full
+heal is the solo run's too.
+
+### Target Practice
+
+Target Practice uses the game's three target dummy rows, `M_DummyA`, `M_DummyB` and `M_DummyC` (character IDs 40010,
+40020 and 40030). The shipped game places `M_DummyC` in two areas of its DLC. Like the monster rows, the dummy rows drop
+nothing and have no kill achievement of their own.
+
+The dummies stand on eight spots in front of the point where EVE started. Angles are from the way she faced:
+
+| Spots | Angle | Distance from the start point |
+| --- | --- | --- |
+| 1 and 2 | 45 degrees to each side | 12 m |
+| 3 and 4 | 25 degrees to each side | 18 m |
+| 5 | straight ahead | 22 m |
+| 6 and 7 | 40 degrees to each side | 26 m |
+| 8 | straight ahead | 32 m |
+
+Each wave draws its own order of the spots, so the dummies stand in other places each round. A dummy appears 1 m above
+the height of the start point and faces it. The mod neither sends it at EVE nor gives it an AI controller. How the
+dummies look, whether they stand still and how many shots each one takes are not known yet.
+
+Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. On a slope a spot can lie
+inside the ground or above it. A dummy more than 10 m below both the start point and EVE, or more than 40 m from both,
+is written off where it is at its first check (2.5 s after it is found, then every 3 s). It is never moved, its wave
+stops waiting for it, and shooting it later still scores. Dummies left after a run stay until the next map load.
+
+### Score
+
+Each kill scores by the monster's rank, as in the solo run: 10 for `M_Antlion`, 20 for `M_SkullGunnerAlone` and
+`M_LurkerA`, 40 for `M_SkullSwordAlone`, `M_SkullSpearAlone`, `M_HedgeBoarA` and each dummy, and 60 for
+`M_SkullHammerAlone`. A success adds a time bonus: 1 point for each whole second left, or in Target Practice 10 points
+per second left, counted to the tenth of a second. A Target Practice run that shoots all 18 dummies with 53 s left
+scores 720 for the kills and 530 for the time, 1250 in all.
+
+A challenge ends in the solo run's four ways (see [Score and the end of a run](#score-and-the-end-of-a-run)): success
+once every monster of its last wave is down, time up at its time limit, failed when EVE dies, and aborted, which
+includes `coop challenge stop`.
+
+### The card and the result panel
+
+The card shows the challenge's name in place of `NIGHT OPERATION`. The result panel is the solo run's (see
+[What you see](#what-you-see)), with a fifth row, Best: the best run kept for this challenge as score and time, for
+example `1250  0:37`, or `-` when none is kept. After a success that set a new best, the line under the heading reads
+`New personal best.` A challenge ended with `coop challenge stop`, `coop nightop stop` or `coop off` shows
+`Stopped with coop challenge stop.`
+
+The `result:` line in `UE4SS.log` ends with the challenge and its best:
+
+```
+result: success waves=3/3 kills=18 score=1250 time=0:37 find_ms=0.8/2.1 challenge=targets best=1250/37 new
+```
+
+`new` means this run wrote the best and `kept` that the stored best stays. `best=none` means no best is kept, or the
+file could not be read.
+
+With `coop ui off`, the notices name the challenge (`Target Practice: wave 2/3.`), and after the result a new best adds
+a `New personal best.` notice.
+
+### Best runs (`coop-records.txt`)
+
+Best runs are kept in `Mods/StellarCoop/coop-records.txt`, one line per challenge in the form
+`best_<name>=<score> <seconds>`. Night Operation's line is `best_night`. After a first Target Practice best, the file
+reads:
+
+```
+# StellarCoop: your best challenge runs on this PC (score and seconds).
+best_targets=1250 37
+```
+
+A run reads its best when it starts, for the Best row. The file is written only when a run ends in success and beats
+the stored best, if there is one: a higher score, or the same score in less time. Failed, time up and aborted runs
+never write it. A success keeps no best when a monster never came (its spawn failed), when nothing was killed, or when
+`coop nightop start` ran with `noaggro` or `nomove`. The log says why in a `record: not kept (...)` line.
+
+Before it writes, the mod reads the file again and changes only that challenge's line, so every other line, a note of
+yours included, stays. It writes `coop-records.txt.tmp` first and renames it over the file, so a write that fails
+leaves the file as it was. A file that cannot be read or written gives a `record: cannot read coop-records.txt (...)`
+or `record: cannot write coop-records.txt (...)` line, and nothing is written.
+
+The file stays on this PC and never goes over the Steam link. `tools/install.py` keeps it, as it keeps every
+`coop-*.txt` file, and `--uninstall` backs it up with the folder. When you update from the zip, copy it out and back
+with `coop-settings.txt` (see [INSTALL.md: Update](../INSTALL.md#update)).
+
+### What a challenge touches
+
+A challenge spawns only the solo run's monster rows and the three dummy rows, through the same game request and with
+wave keys in the same range, `0xD8000000` to `0xD8FFFFFF`. Like the solo run, it adds or edits no table row, starts no
+rule, writes no save, and fires no zone event other than the full heal. It gives no item or reward. Its kills count
+toward nothing but the game's general kill achievements, as the solo run's do (see
+[What a run touches](#what-a-run-touches)). The only file a challenge writes is `coop-records.txt`.
 
 ## The two previews
 
