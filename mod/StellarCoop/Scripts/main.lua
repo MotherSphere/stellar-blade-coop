@@ -141,7 +141,7 @@ local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay | '
-    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target'
+    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec'
 local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
 local function fight_line(sub,a,b,extra)
     if extra~=nil then return nil end
@@ -151,18 +151,16 @@ local function fight_line(sub,a,b,extra)
     local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
     if n and n~=0 and n>=-10000000 and n<=10000000 then return string.format('fight test %s %d',a,n) end
 end
--- coop fight pilot (same-place enemies, stages 3a and 3b): status (the pilot= line, after asking the native part,
+-- coop fight pilot (same-place enemies, stages 3a to 3c): status (the pilot= line, after asking the native part,
 -- which then logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test and
--- how far the drawn side goes, or test target (the game's force target once, on an enemy this side owns). exec is
--- T11d-solo's probe of stage 3c, not in this build.
+-- how far the drawn side goes, test target (the game's force target once, on an enemy this side owns) or test exec
+-- (T11d-solo's takedown probe: the first frozen copy this side draws loses its balance).
 local PILOT_ALONE={status=true,probe=true,on=true,off=true}
-local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true}
-local PILOT_LATER={exec='executions on the same enemy come with stage 3c'}
+local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=true}
 local function pilot(a,b,extra)
-    if extra~=nil or not (PILOT_ALONE[a] and b==nil or a=='test' and (PILOT_TESTS[b] or PILOT_LATER[b])) then
+    if extra~=nil or not (PILOT_ALONE[a] and b==nil or a=='test' and PILOT_TESTS[b]) then
         return false,FIGHT_USE
     end
-    if PILOT_LATER[b] then return false,'coop fight pilot test '..b..': '..PILOT_LATER[b]..', not in this build' end
     if a~='off' and a~='status' and not native_tick then return false,'the native tick is unavailable' end
     if a=='on' and not settings.same_place then
         return false,'same place is off in coop-settings.txt (same_place=off)'

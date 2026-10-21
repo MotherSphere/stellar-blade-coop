@@ -1801,12 +1801,13 @@ std::string fault_where(uint64_t rva) {
   return where;
 }
 
-// coop fight pilot probe|on|off|status|test <how far>|test target. probe: while on, same-place enemies' lines this side
-// sends go to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it), and a
-// pilot off lifted; off: the probe off and same-place enemies off on this side until the next coop fight on, probe,
-// record or replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the pilot
-// line, and the stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on;
-// test target: SB's force target once, on the first enemy this side owns (pilot.h's Taker::test).
+// coop fight pilot probe|on|off|status|test <how far>|test target|test exec. probe: while on, same-place enemies' lines
+// this side sends go to coop-fight.log; on: our same_place on now (the co-op menu's row; as host, the guest hears it),
+// and a pilot off lifted; off: the probe off and same-place enemies off on this side until the next coop fight on,
+// probe, record or replay, or pilot on (each drawn copy goes back to the game, and the host tells her); status: the
+// pilot line, and the stats lines at the next pass; test: how far the drawn side goes from now on, until coop fight on;
+// test target: SB's force target once, on the first enemy this side owns (pilot.h's Taker::test); test exec: the first
+// frozen copy this side draws loses its balance at the job's next turn, so it can be taken down (Engine::exec_test).
 bool pilot_stats_now = false;
 std::string ask_pilot(const coop::Request &request) {
   switch (request.pilot) {
@@ -1822,6 +1823,7 @@ std::string ask_pilot(const coop::Request &request) {
   }
   const char *what = request.pilot == PilotAsk::test     ? "pilot test"
                      : request.pilot == PilotAsk::target ? "pilot test target"
+                     : request.pilot == PilotAsk::exec   ? "pilot test exec"
                      : request.pilot == PilotAsk::on     ? "pilot on"
                                                          : "pilot probe";
   if (!pinned)
@@ -1841,6 +1843,12 @@ std::string ask_pilot(const coop::Request &request) {
     return "pilot test target: the game's force target on the first enemy this side owns, toward our EVE, at the next "
            "frame (only in net mode 0 with no logic task in flight); coop-link.log says what it did, then the enemy's "
            "target, aggro level and detect result each time they change for a second";
+  }
+  if (request.pilot == PilotAsk::exec) {
+    fight_engine.exec_test();
+    return "pilot test exec: at the job's next turn, the first frozen copy this side draws loses its balance; take it "
+           "down while it is groggy. coop-link.log says what the job did (fight pilot test exec ...), then fight exec "
+           "lines for the takedown and pilot released and converged lines for the copy";
   }
   if (request.pilot == PilotAsk::test) {
     static const char *const kSay[] = {

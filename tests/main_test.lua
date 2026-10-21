@@ -710,7 +710,7 @@ link_mode='none'
 
 -- coop fight (Phase 11, experimental). Strict arguments: anything else is the fight's usage line and asks nothing.
 local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | '
-    ..'record | replay | pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target\n'
+    ..'record | replay | pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec\n'
 local FIGHT_STOP='[StellarCoop] STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now '
 local COOP=with_slot('slot=coop index=4 marker=4\n')
 settings_text='shared_enemies=off\n'
@@ -765,13 +765,14 @@ for _,case in ipairs({{with_slot('slot=main index=0 marker=4\n'),'slot=main inde
 end
 status_text=with_slot('slot=coop index=2 marker=none saves=coop\n')
 coop('fight','probe'); assert(asked[#asked]=='fight probe','The co-op saves pass too')
--- coop fight pilot (same-place enemies, stages 3a and 3b), on any slot: status asks the native part (which logs its
--- stats lines at once) and answers with the pilot= line; probe, on, off and test (target too) go as typed. on needs
--- same_place=on, as on needs shared_enemies=on. exec is refused here: executions come with stage 3c.
+-- coop fight pilot (same-place enemies, stages 3a to 3c), on any slot: status asks the native part (which logs its
+-- stats lines at once) and answers with the pilot= line; probe, on, off and test (target and exec too) go as typed.
+-- on needs same_place=on, as on needs shared_enemies=on.
 status_text=with_slot('slot=main index=0 marker=4\n')
 for _,bad in ipairs({{'pilot'},{'pilot','start'},{'pilot','status','x'},{'pilot','probe','1'},{'pilot','off','now'},
         {'pilot','on','x'},{'pilot','test'},{'pilot','test','Freeze'},{'pilot','test','freeze','x'},
-        {'pilot','tests','drive'},{'pilot','test','kill'},{'pilot','test','hp','5'},{'pilot','Probe'}}) do
+        {'pilot','tests','drive'},{'pilot','test','kill'},{'pilot','test','hp','5'},{'pilot','Probe'},
+        {'pilot','test','exec','1'},{'pilot','test','Exec'}}) do
     local before=#asked
     coop('fight',table.unpack(bad))
     assert(last()==FIGHT_USE and #asked==before,table.concat(bad,' ')..': '..last())
@@ -779,7 +780,7 @@ end
 for _,case in ipairs({{{'probe'},'fight pilot probe'},{{'off'},'fight pilot off'},
         {{'test','freeze'},'fight pilot test freeze'},{{'test','cmc'},'fight pilot test cmc'},
         {{'test','drive'},'fight pilot test drive'},{{'test','replay'},'fight pilot test replay'},
-        {{'test','target'},'fight pilot test target'}}) do
+        {{'test','target'},'fight pilot test target'},{{'test','exec'},'fight pilot test exec'}}) do
     coop('fight','pilot',table.unpack(case[1]))
     assert(asked[#asked]==case[2] and last()=='[StellarCoop] OK: asked the native part: '..case[2]..'\n',last())
 end
@@ -787,9 +788,6 @@ local before_pilot=#asked
 coop('fight','pilot','on')
 assert(#asked==before_pilot and last()=='[StellarCoop] STOP: same place is off in coop-settings.txt (same_place=off)\n',
     last())
-coop('fight','pilot','test','exec')
-assert(#asked==before_pilot and last()=='[StellarCoop] STOP: coop fight pilot test exec: executions on the same enemy '
-    ..'come with stage 3c, not in this build\n',last())
 pilot_text='pilot=on piloted=3 owned=1 drawn=2 probe=on'
 coop('fight','pilot','status')
 assert(asked[#asked]=='fight pilot status'

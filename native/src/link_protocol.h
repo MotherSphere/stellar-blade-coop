@@ -328,7 +328,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // (pose_tick.cpp's) "fight pilot probe" (the lines this side sends, into coop-fight.log), "fight pilot on" (our
 // same_place on now, the co-op menu's row), "fight pilot off" (the probe off, and same-place enemies off until the next
 // fight on, probe, record or replay, or pilot on), "fight pilot status", "fight pilot test freeze|cmc|drive|replay"
-// (how far the drawn side goes) and "fight pilot test target" (SB's force target on one enemy this side owns, once);
+// (how far the drawn side goes), "fight pilot test target" (SB's force target on one enemy this side owns, once) and
+// "fight pilot test exec" (the first frozen copy this side draws loses its balance, for a takedown);
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
 // save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
@@ -339,7 +340,7 @@ enum class Command {
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
-enum class PilotAsk : uint8_t { probe, on, off, status, test, target }; // fight pilot ...
+enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec }; // fight pilot ...
 // fight pilot test: how far the drawn side goes, each adding to the one before: our freeze only; its movement component
 // out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
 // too (all of it, the default).
@@ -421,9 +422,9 @@ inline Request parse_fight(const std::string &text) {
               : w[1] == "on"  ? PilotAsk::on
               : w[1] == "off" ? PilotAsk::off
                               : PilotAsk::status;
-  } else if (what == "pilot" && w.size() == 3 && w[1] == "test" && w[2] == "target") {
+  } else if (what == "pilot" && w.size() == 3 && w[1] == "test" && (w[2] == "target" || w[2] == "exec")) {
     r.fight = Fight::pilot;
-    r.pilot = PilotAsk::target;
+    r.pilot = w[2] == "target" ? PilotAsk::target : PilotAsk::exec;
   } else if (what == "pilot" && w.size() == 3 && w[1] == "test") {
     static const char *const kTests[] = {"freeze", "cmc", "drive", "replay"};
     const auto at = std::find(std::begin(kTests), std::end(kTests), w[2]);
