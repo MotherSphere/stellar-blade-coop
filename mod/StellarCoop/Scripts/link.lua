@@ -544,6 +544,8 @@ function Link.new(folder,fs)
     end
     -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
+    -- Whether her photo mode pauses our game now: linked to her, and the photo line's frozen=1 with peer_photo=1.
+    function self.paused() return (friend and friend[2] and photo and photo.frozen and photo.peer=='1')==true end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a
     -- Lua reload never shows old ones again (changes() already logged them). Only a status that was read primes it.
     function self.notices()
@@ -594,7 +596,7 @@ function Link.new(folder,fs)
         elseif not linked then text=w.connecting:format(who or w.friend)
         elseif mode=='host' then text=w.hosting:format(who)
         else text=w.guest:format(who) end
-        if linked and photo and photo.frozen and photo.peer=='1' then text=text..w.paused:format(who) end
+        if self.paused() then text=text..w.paused:format(who) end
         return lost and text..w.lost or text
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.

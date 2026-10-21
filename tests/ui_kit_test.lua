@@ -763,6 +763,19 @@ k.move('tag',500,500); assert(placed(128,108),'Too small: its left and top edges
 special['WidgetLayoutLibrary.GetViewportScale']=function() return 0 end
 clock=clock+1
 k.move('tag',700,600); assert(placed(700,600) and k.ready(),'Unread: as asked')
+-- most: a group's largest scale (the status strip above the partner card): ui_scale past it draws it at most, at a
+-- build and on change, and only on a change of its own scale.
+reset()
+k=Ui.kit({store=store,scale=150,log=function(m) logs[#logs+1]=m end})
+k.add('strip',{x=96,y=8,w=744,h=84,most=1,shown=true},function() end)
+k.add('box',{x=0,y=0,w=10,h=10,shown=true},function() end)
+up(k)
+local strip,box=table.unpack(stores[stores[stores[viewport[1]].props.WidgetTree].props.RootWidget].children)
+assert(not stores[strip].last.SetRenderScale and stores[box].last.SetRenderScale[1].X==1.5,'Built at most 100 %')
+k.scale(120)
+assert(not stores[strip].last.SetRenderScale and stores[box].last.SetRenderScale[1].X==1.2,'Still past it: no call')
+k.scale(80); assert(stores[strip].last.SetRenderScale[1].X==0.8 and stores[box].last.SetRenderScale[1].X==0.8)
+k.scale(150); assert(stores[strip].last.SetRenderScale[1].X==1 and stores[box].last.SetRenderScale[1].Y==1.5)
 
 -- Hidden from the start (the title screen): nothing looked up or built, however long.
 reset()

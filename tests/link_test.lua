@@ -726,15 +726,18 @@ assert(summary('stopped=fault 0xc0000005\n')=='Co-op: the Steam link stopped; co
 assert(summary('missing=SteamAPI_ISteamMatchmaking_JoinLobby\n')=='Co-op: the Steam link stopped; coop status says why.')
 assert(summary(GUEST)=='Co-op: your friend is connecting.','Only as long as the status says so')
 -- Paused by her photo mode (the photo line's frozen=1 with peer_photo=1): said after the session part; not for a
--- coop freeze alone, nor from a line that does not start the status line.
+-- coop freeze alone, nor from a line that does not start the status line. paused() says it alone (the status strip).
 local PHOTO='photo=0 peer_photo=1 frozen=1 sync=both\n'
-assert(summary(GUEST..'friend=1 0 Kaanta\n'..PHOTO)=="Co-op: in Kaanta's game. Paused by Kaanta.")
+assert(summary(GUEST..'friend=1 0 Kaanta\n'..PHOTO)=="Co-op: in Kaanta's game. Paused by Kaanta." and fresh.paused())
+assert(summary(GUEST..'friend=0 0 Kaanta\n'..PHOTO)=='Co-op: Kaanta is connecting.' and fresh.paused()==false,
+    'Not linked: not hers')
 assert(summary(HEAD..'friend=1 0 Kaanta\n'..PHOTO)=='Co-op: hosting Kaanta. Paused by Kaanta.')
-assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=0 frozen=1 sync=both\n')=='Co-op: hosting Kaanta.')
+assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=0 frozen=1 sync=both\n')=='Co-op: hosting Kaanta.'
+    and fresh.paused()==false)
 assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=1 frozen=0 sync=both\n')=='Co-op: hosting Kaanta.')
 assert(summary(HEAD..'friend=1 0 photo=0 peer_photo=1 frozen=1 sync=both\n')=='Co-op: hosting photo=0 peer_photo=1 '
     ..'frozen=1 sync=both.','A name is no photo line')
-assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.','Gone with the line')
+assert(summary(HEAD..'friend=1 0 Kaanta\n')=='Co-op: hosting Kaanta.' and fresh.paused()==false,'Gone with the line')
 -- The same line in the menu's words (ui_text.lua's, French when the game is), every state; her name as it came, a '%'
 -- in it never read as a format; English without words.
 local Words=require('ui_text')

@@ -134,6 +134,7 @@ local fake_link={
     friend=function() return friend_name,friend_linked,false end,
     notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
+    paused=function() return false end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,
     join_code=Link.join_code,
     code=function() return link_code,link_refused end,
