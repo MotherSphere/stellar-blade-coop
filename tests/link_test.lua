@@ -948,3 +948,8 @@ do
     assert(s.kill_credit=='fought' and files[SETTINGS]==kept and #notes==0,'fought: the comment only, no line')
     files[SETTINGS],files[OLD_FILE]=nil,nil
 end
+-- The real read: no such file gives nil with errno 2 (coop-records.txt tells it from a file it cannot open).
+do
+    local text,e,code=require('link').files.read('tests/no such file.txt')
+    assert(text==nil and type(e)=='string' and code==2,tostring(code))
+end

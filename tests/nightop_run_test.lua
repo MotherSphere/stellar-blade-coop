@@ -605,8 +605,9 @@ assert(#violations==0,violations[1])
 -- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
 -- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro
 -- and no default controller, its dummies on its spots, a fallen one written off where it lies, the best written once;
--- a worse run keeps it; failed, time up and aborted runs write nothing; a read or a write that fails is logged; a Skull
--- Squad wave waits for the clear; coop challenge stop and coop nightop stop end any run.
+-- a worse run keeps it; failed, time up and aborted runs write nothing; a read or a write that fails is logged; so is a
+-- file too long; a success with a missing dummy, with no kill or with a test switch keeps no best; a Skull Squad wave
+-- waits for the clear; coop challenge stop and coop nightop stop end any run.
 do
     local C=require('challenges')
     local targets=C.find('targets')
@@ -700,6 +701,7 @@ do
     for i=1,3 do bodies[i].st=1 end
     tk()
     assert(logged(string.format('kill 0x%08X M_DummyB +40 = 120',W.key(run,1,2))),since(0))
+    file=file..'# added during the run\n' -- The file is read again before the write: this line stays.
     round(run,2,6)
     round(run,3,8)
     local rt=gt-t0
@@ -711,7 +713,7 @@ do
         and count('M:Event_ChangeBattleState')==0 and count('M:SpawnDefaultController')==0,'No aggro, no controller')
     assert(count('M:K2_TeleportTo')==0 and count('PC:ServerRequest_CreateActor')==18,'No move')
     -- Written once, every other line kept.
-    assert(writes==1 and file:find('# my notes\nbest_skulls=300 200\n',1,true)==1,file)
+    assert(writes==1 and file:find('# my notes\nbest_skulls=300 200\n# added during the run\n',1,true)==1,file)
     assert(select(1,C.best(file,'targets'))==score and select(2,C.best(file,'targets'))==math.floor(rt),file)
     ok,message=ch.challenge()
     assert(ok and message==LIST:format(string.format('best %d in 0:%02d',score,math.floor(rt))),message)
@@ -758,6 +760,39 @@ do
     win(run)
     assert(writes==2 and file==nil and last():find(' best=none$'),last())
     read_fails=nil
+    -- Read at the start but not at the end: the start's best is not shown as kept, nothing is written.
+    file=kept
+    run=start('targets','Target Practice')
+    read_fails='boom'
+    win(run)
+    read_fails=nil
+    assert(writes==2 and file==kept and last():find(' best=none$'),last())
+    -- A file too long for a best line to be read back: logged with that reason, nothing written.
+    file='#'..('x'):rep(8200)..'\n'
+    run=start('targets','Target Practice')
+    win(run)
+    assert(logged('record: cannot write coop-records.txt (the file is over 8192 bytes)'),since(0))
+    assert(writes==2 and last():find(' best=none$'),last())
+    -- Successes that keep no best: every dummy missing (no body with its key: the spawn failed), then every dummy
+    -- fallen and written off, so nothing is killed.
+    file=kept
+    fill_key=false
+    run=start('targets','Target Practice')
+    for _=1,400 do
+        tk()
+        if last():find('^result: ') then break end
+    end
+    fill_key=true
+    assert(last():find('^result: success waves=3/3 kills=0 .* challenge=targets best='..first..' kept$'),last())
+    assert(logged('record: not kept (a monster never came)') and writes==2,since(0))
+    run=start('targets','Target Practice')
+    for _=1,400 do
+        for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=-500} end
+        tk()
+        if last():find('^result: ') then break end
+    end
+    assert(last():find('^result: success waves=3/3 kills=0 .* challenge=targets best='..first..' kept$'),last())
+    assert(logged('record: not kept (no kill)') and since(0):find(' after 0 moves',1,true) and writes==2,since(0))
     -- Skull Squad: wave 2 has no run time, so it waits for wave 1 to be down, then comes 5 s after.
     spawn_ai,bodies,file=true,{},kept
     run,t0=start('skulls','Skull Squad')
@@ -783,6 +818,13 @@ do
     assert(not ok and message=='a run is on: coop challenge stop ends it',message)
     ok,message=ch.challenge('stop')
     assert(ok and message=='Night Operation stopped' and last():find(' challenge=night best=none$'),last())
+    -- Night Operation's test switches keep no best, even after a success.
+    bodies,lines={},{}
+    ok,message=ch.command('start','noaggro')
+    run=tonumber(message:match('%(run 0x(%x+)%)$'),16)
+    for k=1,#W.SCHEDULE do round(run,k,#W.SCHEDULE[k].ids) end
+    assert(last():find('^result: success waves=5/5 .* challenge=night best=none$'),last())
+    assert(logged('record: not kept (a test switch was on)'),since(0))
     assert(writes==2,'Nothing more written')
     assert(#violations==0,violations[1])
 end

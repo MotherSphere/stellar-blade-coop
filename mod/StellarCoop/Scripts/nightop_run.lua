@@ -179,7 +179,8 @@ end
 -- log(text) writes an [NR] line; status() is the native part's status text; paused() whether the game is paused or
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off. records:
--- {read() the text of coop-records.txt or nil, write(text) true once written}, or nil for no bests.
+-- {read() the text of coop-records.txt, nil when there is none (it raises when the file cannot be read), write(text)
+-- true once written}, or nil for no bests.
 function Run.new(o)
     local log,status,paused,tell,records=o.log,o.status,o.paused or function() return false end,o.tell,o.records
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
@@ -318,6 +319,7 @@ function Run.new(o)
                 local key=W.key(r.s.run,k,slot)
                 if r.seen[key] then n=n+1
                 elseif last then
+                    r.missing=true -- Its wave clears without it: no best for this run (finish).
                     r.input.done[#r.input.done+1]=key
                     log(string.format('missing %s %s',hex(key),W.POOL[ids[slot+1]].alias))
                 end
@@ -365,15 +367,17 @@ function Run.new(o)
         return false
     end
     -- After a success: the records file read again (every other line stays as it is) and, when this run beats its best,
-    -- rewritten. r.best is then the best the file holds and r.new says this run wrote it. A read or a write that fails
-    -- is logged and writes nothing.
+    -- rewritten. r.best is then the best the file holds (none when it cannot be read) and r.new says this run wrote
+    -- it. A read or a write that fails is logged and writes nothing.
     local function keep(s)
         local text=stored()
+        r.best=nil
         if text==false then return end
         local score,secs=C.best(text,s.def.id)
         r.best=score and {score=score,s=secs} or nil
         if not C.better(score,secs,s.score,s.time) then return end
-        local new,e=C.write(text,s.def.id,s.score,s.time)
+        -- settings_file.set refuses a best line only when it would land past the 8192 bytes the file is read to.
+        local new,e=C.write(text,s.def.id,s.score,s.time),'the file is over 8192 bytes'
         if new then
             local ok,wrote=pcall(records.write,new)
             e=not ok and wrote or wrote~=true and 'the write failed' or nil
@@ -382,11 +386,16 @@ function Run.new(o)
         r.best,r.new={score=math.floor(s.score),s=math.floor(s.time)},true
     end
     -- The end: every handle dropped without a read, nothing more spawned, a better success's best kept, the result
-    -- line.
+    -- line. A success keeps no best with a test switch on, with a monster that never came (its spawn failed, so its
+    -- wave cleared without a fight) or with no kill.
     local function finish()
         local s=r.s
         r.bodies,r.queue,r.timers,r.live,r.screen={},{},W.timers(),{},nil
-        if s.outcome=='success' and records then keep(s) end
+        if s.outcome=='success' and records then
+            local no=(r.noaggro or r.nomove) and 'a test switch was on' or r.missing and 'a monster never came'
+                or s.kills==0 and 'no kill'
+            if no then log('record: not kept ('..no..')') else keep(s) end
+        end
         local t=math.floor(s.time)
         log(string.format('result: %s%s waves=%d/%d kills=%d score=%d time=%d:%02d find_ms=%.1f/%.1f challenge=%s '
             ..'best=%s',s.outcome,s.reason and ' ('..s.reason..')' or '',s.clears,#s.def.waves,s.kills,s.score,t//60,

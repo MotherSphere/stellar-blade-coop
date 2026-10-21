@@ -149,11 +149,23 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
 -- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
 -- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell). commands.challenge starts
 -- the challenges on the same run. Their best runs go in coop-records.txt in the mod folder (none when it is unknown).
+-- No such file is no best yet; a file that cannot be opened raises, so nothing is written over it. It is written
+-- through a temporary file, so a write that fails leaves it as it was.
 local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,records=folder and {
-        read=function() return require('link').files.read(folder..'\\coop-records.txt') end,
-        write=function(text) return require('link').files.write(folder..'\\coop-records.txt',text) end} or nil})
+        read=function()
+            local text,e,code=require('link').files.read(folder..'\\coop-records.txt')
+            if text==nil and code~=2 then error(e) end -- 2: ENOENT, no such file.
+            return text
+        end,
+        write=function(text)
+            local fs,p=require('link').files,folder..'\\coop-records.txt'
+            if not fs.write(p..'.tmp',text) then return false end
+            fs.remove(p) -- rename never replaces on Windows.
+            -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
+            return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
+        end} or nil})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.

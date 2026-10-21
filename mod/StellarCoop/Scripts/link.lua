@@ -297,7 +297,12 @@ function Link.parse_settings(text)
     return settings,notes
 end
 Link.files={
-    read=function(path) local f=io.open(path,'rb'); if not f then return nil end; local text=f:read('a'); f:close(); return text end,
+    -- nil, then io.open's message and errno, when the file cannot be opened (errno 2: there is none).
+    read=function(path)
+        local f,e,code=io.open(path,'rb')
+        if not f then return nil,e,code end
+        local text=f:read('a'); f:close(); return text
+    end,
     -- A full disk fails at the write or only at the close's flush: either one is a failed write.
     write=function(path,text)
         local f=io.open(path,'wb'); if not f then return false end

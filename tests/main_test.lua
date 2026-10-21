@@ -197,10 +197,27 @@ package.loaded.puppet={new=function(link,capture,say,tag,looks)
         anchor=function() return her_anchor,her_anchor end,her_map=function() return her_map_v end,
         me=function() return {at={X=0,Y=0,Z=0},map='/game/e04'} end,marker=function(on) markers[#markers+1]=on end}
 end}
--- The real parser; files: the records file's read and write, which say the path they got (in nr).
+-- The real parser; files: the records file on an in-memory disk (disk.files), which say the paths they got (in nr).
+-- disk.fail[path]: 'open' (it cannot be opened), 'write' (emptied, then the write fails: a full disk) or 'rename'.
+disk={files={},fail={}}
 package.loaded.link={new=function() return fake_link end,parse_settings=Link.parse_settings,files={
-    read=function(path) nr.read=path; return 'best_targets=1250 37\n' end,
-    write=function(path,text) nr.wrote={path,text}; return true end}}
+    read=function(path)
+        nr.read=path
+        if disk.fail[path]=='open' then return nil,path..': Permission denied',13 end
+        if disk.files[path]==nil then return nil,path..': No such file or directory',2 end
+        return disk.files[path]
+    end,
+    write=function(path,text)
+        nr.wrote={path,text}
+        disk.files[path]=disk.fail[path]~='write' and text or ''
+        return disk.fail[path]~='write'
+    end,
+    remove=function(path) disk.files[path]=nil; return true end,
+    rename=function(from,to)
+        if disk.fail[from]=='rename' or disk.files[to]~=nil then return nil,'refused',13 end
+        disk.files[to],disk.files[from]=disk.files[from],nil
+        return true
+    end}}
 local said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
 package.loaded.notice={new=function()
     the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
@@ -530,8 +547,28 @@ assert(#nr.chs==1 and nr.chs[1][1]=='targets' and nr.chs[1][2]=='x' and #nr.runs
 assert(last()=='[StellarCoop] OK: challenge targets\n',last())
 coop('challenge'); coop('challenge','stop')
 assert(#nr.chs==3 and nr.chs[2][1]==nil and nr.chs[2][2]==nil and nr.chs[3][1]=='stop')
-assert(nr.o.records.read()=='best_targets=1250 37\n' and nr.read=='mod/StellarCoop\\coop-records.txt',nr.read)
-assert(nr.o.records.write('x')==true and nr.wrote[1]=='mod/StellarCoop\\coop-records.txt' and nr.wrote[2]=='x')
+-- No file: no best yet, nothing raised. Written through coop-records.txt.tmp, then read back.
+do
+    local P='mod/StellarCoop\\coop-records.txt'
+    assert(nr.o.records.read()==nil and nr.read==P,nr.read)
+    assert(nr.o.records.write('best_targets=1250 37\n')==true and nr.wrote[1]==P..'.tmp' and disk.files[P..'.tmp']==nil)
+    assert(nr.o.records.read()=='best_targets=1250 37\n')
+    -- A write that fails (a full disk) leaves the file as it was; so does a rename refused while the old file stays.
+    disk.fail[P..'.tmp']='write'
+    assert(nr.o.records.write('x')==false and disk.files[P]=='best_targets=1250 37\n')
+    disk.fail[P..'.tmp']='rename'
+    local remove=package.loaded.link.files.remove
+    package.loaded.link.files.remove=function() return nil,'in use',13 end
+    assert(nr.o.records.write('x')==false and disk.files[P]=='best_targets=1250 37\n')
+    package.loaded.link.files.remove=remove
+    -- The rename refused once the old file went: written in place.
+    assert(nr.o.records.write('y')==true and disk.files[P]=='y',tostring(disk.files[P]))
+    disk.fail[P..'.tmp']=nil
+    -- A file that cannot be opened raises: nothing is written over it.
+    disk.fail[P]='open'
+    assert(not pcall(nr.o.records.read),'It raises')
+    disk.fail[P]=nil
+end
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())
