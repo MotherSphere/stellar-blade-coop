@@ -17,11 +17,8 @@ namespace coop::pose {
 // faults, counters every 60 s) through event; while the Night Operation poller is on, samples it every 100 ms into
 // nightop-probe.txt (it stops on coop off).
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event);
-// Worker thread: whether Lua last said a save is loaded (coop-state.txt, read every 250 ms; the send rate comes with
-// it).
-bool world_loaded();
-// Worker thread: coop-state.txt as last read, the synced photo mode's fields with it (ours, photo_sync and
-// photo_freeze_max); its defaults until Lua wrote one.
+// Worker thread: coop-state.txt as last read (every 250 ms): whether a save is loaded, the send rate, the synced photo
+// mode's fields (ours, photo_sync and photo_freeze_max); its defaults until Lua wrote one.
 coop::State lua_state();
 // Worker thread, every pass after worker_poll: sends the newest encoded pose, hands what the loopback's delay line and
 // the replay have due to the receiving side, and stops a recording at its cap. True while the loopback, a recording, a

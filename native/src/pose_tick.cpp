@@ -1359,9 +1359,7 @@ uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
 uint64_t vitals_reads = 0, vitals_max_us = 0; // local_vitals()'s, for the 60 s line.
-bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
-uint32_t rate = 20;  // From coop-state.txt: poses sent a second.
-State lua;           // coop-state.txt as last read, the synced photo mode's fields with it.
+State lua; // coop-state.txt as last read: a save loaded, the send rate, the synced photo mode's fields.
 uint64_t freeze_until = 0; // When the running coop freeze ends (GetTickCount64 ms); 0: none.
 uint32_t freeze_tests = 0; // coop freeze holds asked this run: each one's number.
 uint64_t freeze_reapplied_seen = 0, freeze_dropped_seen = 0;
@@ -1862,13 +1860,11 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
   // so the worker can find none in between.
   if (State now; parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), now)) {
-    lua = now;
-    world = now.world;
-    if (now.rate != rate) {
-      rate = now.rate;
-      send_us = 1'000'000 / rate;
-      event("send rate " + std::to_string(rate) + " poses a second");
+    if (now.rate != lua.rate) {
+      send_us = 1'000'000 / now.rate;
+      event("send rate " + std::to_string(now.rate) + " poses a second");
     }
+    lua = now;
   }
   {
     std::vector<std::string> lines;
@@ -1953,7 +1949,6 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   }
 }
 
-bool world_loaded() { return world; }
 State lua_state() { return lua; }
 
 bool worker_stream() {
@@ -2183,7 +2178,7 @@ std::string fight_gate(int marker) {
     return engine_reason;
   if (blocked)
     return "coop off";
-  const std::string where = slot::line(loaded_slot(), marker, world, saves_now());
+  const std::string where = slot::line(loaded_slot(), marker, lua.world, saves_now());
   return where.rfind("slot=coop ", 0) == 0 ? std::string() : std::string(fight::kNoCoopSave) + " (" + where + ")";
 }
 
@@ -2685,7 +2680,8 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   static uint64_t next_photo = 0;
   if (now_ms >= next_photo)
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
-  fight_worker.pass(now_ms, linked, hosting, world, lines, [marker] { return fight_gate(marker); }, io, photo, mate);
+  fight_worker.pass(now_ms, linked, hosting, lua.world, lines, [marker] { return fight_gate(marker); }, io, photo,
+                    mate);
   filter_pass();
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();
@@ -2758,7 +2754,7 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
   // The gate's save-slot line, as the fight's reads it: every 100 ms, for the game thread's next pass too.
   if (now_ms >= quest_slot_at) {
     quest_slot_at = now_ms + 100;
-    quest_slot_line = pinned && !blocked ? slot::line(loaded_slot(), marker, world, saves_now()) : "slot=unknown ";
+    quest_slot_line = pinned && !blocked ? slot::line(loaded_slot(), marker, lua.world, saves_now()) : "slot=unknown ";
     std::lock_guard<std::mutex> lock(quest_m);
     quest_slot = quest_slot_line, quest_slot_ms = now_ms;
   }
