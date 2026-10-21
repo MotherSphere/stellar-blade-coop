@@ -145,7 +145,8 @@ local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay | '
-    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec | spawn probe'
+    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec | '
+    ..'pilot test bstart|phase|finish|summon | spawn probe'
 local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
 local function fight_line(sub,a,b,extra)
     if extra~=nil then return nil end
@@ -157,10 +158,12 @@ local function fight_line(sub,a,b,extra)
 end
 -- coop fight pilot (same-place enemies, stages 3a to 3c): status (the pilot= line, after asking the native part,
 -- which then logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test and
--- how far the drawn side goes, test target (the game's force target once, on an enemy this side owns) or test exec
--- (T11d-solo's takedown probe: the first frozen copy this side draws loses its balance).
+-- how far the drawn side goes, test target (the game's force target once, on an enemy this side owns), test exec
+-- (T11d-solo's takedown probe: the first frozen copy this side draws loses its balance) or test bstart, phase, finish
+-- and summon (stage 5's solo probes on the frozen boss copy of a replay; the native part answers why not otherwise).
 local PILOT_ALONE={status=true,probe=true,on=true,off=true}
-local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=true}
+local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=true,bstart=true,phase=true,
+    finish=true,summon=true}
 local function pilot(a,b,extra)
     if extra~=nil or not (PILOT_ALONE[a] and b==nil or a=='test' and PILOT_TESTS[b]) then
         return false,FIGHT_USE
