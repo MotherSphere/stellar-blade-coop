@@ -3,7 +3,8 @@
 // (R35), corrections and death rules; the crowd control told and mirrored both ways; the world fence and the clearing
 // on both sides; two fake worlds linked through a delayed, lossy line until every enemy died once on each side; and
 // record and replay. The pilot's show lines are only told apart here (pilot_test.cpp parses them); stage 3b's aggro,
-// own and own-no lines round-trip here, and only the right side takes each (the owners are fight_engine.h's).
+// own and own-no lines round-trip here, and only the right side takes each (the owners are fight_engine.h's). Stage 5:
+// the boss table, the bstart and phase lines and a summon's spawn line, and the guest's checks of them (R33).
 #include "fight_sync.h"
 
 #include <algorithm>
@@ -175,8 +176,13 @@ int main() {
           "SBF11 epoch 3 40 7", "SBF11 epoch 4294967295 4294967295 4294967295", "SBF11 have 3 7 1 1",
           "SBF11 have 3 7 1 2 50110:0 50111:2", "SBF11 have 4294967295 4294967295 10 10 4294967295:255",
           "SBF11 spawn 3 7 50110 0 15011001 -1200 340 0 90",
-          "SBF11 spawn 4294967295 4294967295 4294967295 255 4294967295 2147483647 -2147483647 0 359",
-          "SBF11 drop 3 7 50110 0", "SBF11 drop 4294967295 4294967295 4294967295 255"}) {
+          "SBF11 spawn 4294967295 4294967295 4026531839 255 4294967295 2147483647 -2147483647 0 359",
+          "SBF11 spawn 3 7 4026597377 0 35025002 -1200 340 0 90 77 5026003",
+          "SBF11 spawn 4294967295 4294967295 4294967295 255 4294967295 2147483647 -2147483647 0 359 4294967295 "
+          "2147483647",
+          "SBF11 drop 3 7 50110 0", "SBF11 drop 4294967295 4294967295 4294967295 255", "SBF11 bstart 3 77",
+          "SBF11 bstart 4294967295 4294967295", "SBF11 phase 3 77 0 -", "SBF11 phase 3 77 1 1001307,1001323,5005115",
+          "SBF11 phase 4294967295 4294967295 255 2147483647"}) {
       std::string why;
       Message m = parse(text, std::strlen(text), &why);
       assert(m.type != Type::invalid && format(m, why) == text);
@@ -221,6 +227,30 @@ int main() {
     Message drop = msg("SBF11 drop 3 7 50110 1");
     assert(drop.type == Type::drop && drop.gen == 3 && drop.epoch == 7 && drop.spawn == 50110 && drop.index == 1);
     assert(msg("SBF11 spawn 3 7 50110 0 1 -0 0 0 0").at[0] == 0); // Read as 0; we never write it.
+    assert(!spawn.guid && !spawn.effect);
+    // Bosses (stage 5): the host's boss start and its copy's phase rows; a summon's spawn names its owner and its
+    // SummonActor row.
+    Message bstart = msg("SBF11 bstart 3 77");
+    assert(bstart.type == Type::bstart && bstart.gen == 3 && bstart.guid == 77);
+    Message phase = msg("SBF11 phase 3 77 4 5005115,1001307");
+    assert(phase.type == Type::phase && phase.gen == 3 && phase.guid == 77 && phase.oe == 4 && phase.idn == 2 &&
+           phase.ids[0] == 5005115 && phase.ids[1] == 1001307); // In the host's order.
+    assert(msg("SBF11 phase 3 77 4 -").idn == 0);              // Its copy holds none of them.
+    Message summon = msg("SBF11 spawn 3 7 4026597377 0 35025002 -1200 340 -5 90 77 5026003"); // 0xF0010001.
+    assert(summon.type == Type::spawn && summon.spawn == 0xF0010001 && summon.index == 0 && summon.chr == 35025002 &&
+           summon.at[2] == -5 && summon.yaw == 90 && summon.guid == 77 && summon.effect == 5026003);
+    // The widest phase a host sends (kMaxPhaseIds IDs, every number at its widest) fits one line.
+    Message rows;
+    rows.type = Type::phase;
+    rows.gen = rows.guid = UINT32_MAX, rows.oe = 255;
+    for (int32_t &id : rows.ids)
+      id = INT32_MAX - rows.idn++;
+    const std::string widest_phase = format(rows);
+    assert(widest_phase.size() <= coop::kMaxMessage && msg(widest_phase).idn == kMaxPhaseIds);
+    std::string ids17 = "SBF11 phase 3 77 0 1"; // kMaxPhaseIds + 1 IDs: no.
+    for (size_t i = 2; i <= kMaxPhaseIds + 1; ++i)
+      ids17 += "," + std::to_string(i);
+    assert(!valid(ids17) && valid(ids17.substr(0, ids17.rfind(','))));
     // The widest have a guest sends (kHaveKeys keys, every number at its widest) fits one line.
     Message wide;
     wide.type = Type::have;
@@ -318,9 +348,26 @@ int main() {
           "SBF11 spawn 3 7 50110 0 1 0 0 0 360", "SBF11 spawn 3 7 50110 0 1 0 0 0 -1", "SBF11 spawn 3 7 50110 0 1 0.5 0 0 0",
           "SBF11 spawn 3 7 50110 0 1 - 0 0 0", "SBF11 spawn 3 7 50110 0 1 --1 0 0 0", "SBF11 spawn 3 7 50110 0 1 +1 0 0 0",
           "SBF11 spawn 3 0 50110 0 1 0 0 0 0", "SBF11 spawn 0 7 50110 0 1 0 0 0 0",
+          // A summon's spawn (a key at or above kSummonBase) and only one: its owner and its row, each set; the row an
+          // EffectTable ID (int32).
+          "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0", "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 77",
+          "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 77 5026003 1", "SBF11 spawn 3 7 50110 0 1 0 0 0 0 77 5026003",
+          "SBF11 spawn 3 7 4026531839 0 1 0 0 0 0 77 5026003", "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 0 5026003",
+          "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 77 0", "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 77 2147483648",
+          "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 77 -5026003", "SBF11 spawn 3 7 4026597377 0 1 0 0 0 0 77  5026003",
           // drop: a key.
           "SBF11 drop 3 7 50110", "SBF11 drop 3 7 50110 0 0", "SBF11 drop 3 7 0 0", "SBF11 drop 3 7 50110 256",
-          "SBF11 drop 3 0 50110 0", "SBF11 drop 0 7 50110 0"})
+          "SBF11 drop 3 0 50110 0", "SBF11 drop 0 7 50110 0",
+          // bstart: one enemy.
+          "SBF11 bstart 3", "SBF11 bstart 3 77 1", "SBF11 bstart 0 77", "SBF11 bstart 3 0", "SBF11 bstart 3 -77",
+          "SBF11 bstart  3 77", "SBF11 bstarts 3 77", "SBF11 bstart 3 77 ",
+          // phase: an owner epoch 0-255, then "-" or EffectTable IDs (1 to INT32_MAX), comma-separated, each once.
+          "SBF11 phase 3 77 0", "SBF11 phase 3 77 0 ", "SBF11 phase 3 77 -", "SBF11 phase 3 77 256 -",
+          "SBF11 phase 0 77 0 -", "SBF11 phase 3 0 0 -", "SBF11 phase 3 77 0 0", "SBF11 phase 3 77 0 -1",
+          "SBF11 phase 3 77 0 1,,2", "SBF11 phase 3 77 0 ,1", "SBF11 phase 3 77 0 1,", "SBF11 phase 3 77 0 1,1",
+          "SBF11 phase 3 77 0 2147483648", "SBF11 phase 3 77 0 1 2", "SBF11 phase 3 77 0 --", "SBF11 phase 3 77 0 -,1",
+          "SBF11 phase 3 77 0 1,-", "SBF11 phase 3 77 0 1;2", "SBF11 phase 3 77 0 +1", "SBF11 phase 3 77 0 1.5",
+          "SBF11 phase 3 77 0 - ", "SBF11 phases 3 77 0 -"})
       assert(!valid(bad));
     std::string have25 = "SBF11 have 3 7 1 1"; // kHaveKeys + 1 keys: no.
     for (uint32_t i = 1; i <= kHaveKeys + 1; ++i)
@@ -336,7 +383,8 @@ int main() {
                              "SBF11 show-stop 3 77 0 1 1000", "SBF11 show junk"})
       assert(pilot_line(line) && !valid(line));
     for (const char *line : {"SBF11 show", "SBF11 show-stop", "SBF11 shows 1", "SBF11 show_set 1", "SBF11  show 1",
-                             "SBF10 show-stop 3 77 0 1 1000", "SBC11 show 1", "SBF11 on", "SBF11 hp 3 1 0 77:1:2:3", ""})
+                             "SBF10 show-stop 3 77 0 1 1000", "SBC11 show 1", "SBF11 on", "SBF11 hp 3 1 0 77:1:2:3", "",
+                             "SBF11 bstart 3 77", "SBF11 phase 3 77 0 -"})
       assert(!pilot_line(line));
 
     // Fuzz: random bytes and mutated good lines never crash; whatever parses is in range and its text reads back the
@@ -348,7 +396,9 @@ int main() {
                                  "SBF11 scale 3 135 115", "SBF11 place 3 1", "SBF11 aggro 3 host",
                                  "SBF11 own 3 77 G 1", "SBF11 own-no 3 77 1 state", "SBF11 exec 3 77 1",
                                  "SBF11 epoch 3 40 7", "SBF11 have 3 7 1 2 50110:0 50111:2",
-                                 "SBF11 spawn 3 7 50110 0 15011001 -1200 340 0 90", "SBF11 drop 3 7 50110 0"};
+                                 "SBF11 spawn 3 7 50110 0 15011001 -1200 340 0 90", "SBF11 drop 3 7 50110 0",
+                                 "SBF11 spawn 3 7 4026597377 0 35025002 -1200 340 0 90 77 5026003",
+                                 "SBF11 bstart 3 77", "SBF11 phase 3 77 1 1001307,1001323,5005115"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -377,6 +427,10 @@ int main() {
         assert(pct >= coop::kMinScale && pct <= coop::kMaxScale);
       assert(m.why < kOwnNoCount);
       assert(m.keyed <= kHaveKeys && m.part <= m.parts && m.parts <= kHaveParts && m.yaw >= 0 && m.yaw < 360);
+      assert(m.idn <= kMaxPhaseIds && m.effect >= 0);
+      for (size_t i = 0; i < m.idn; ++i)
+        assert(m.ids[i] > 0 && std::count(m.ids, m.ids + m.idn, m.ids[i]) == 1);
+      assert(m.type != Type::spawn || is_summon(m.spawn) == (m.guid != 0 && m.effect != 0));
       std::string again = format(m, reason), reason2;
       Message n = parse(again.data(), again.size(), &reason2);
       assert(n.type == m.type && format(n, reason2) == again);
@@ -1793,6 +1847,152 @@ int main() {
     gu.clear();
     step(gu, g, 1, 900);
     assert(g.sent.empty() && g.count("world") == 1);
+  }
+
+  // ---- Bosses (stage 5): the table, and the guest's checks of the host's bstart, phase and summon spawn (R33) ----
+  {
+    // The table: one row a charId, its allowlist nonzero, each ID once, then zeros; every row's whole allowlist goes
+    // out in a phase line and comes back the same, and passes for that boss.
+    std::vector<uint32_t> chars;
+    for (const Boss &b : kBosses) {
+      assert(b.chr && b.dispel >= 0 && std::find(chars.begin(), chars.end(), b.chr) == chars.end());
+      chars.push_back(b.chr);
+      Message m;
+      m.type = Type::phase, m.gen = 3, m.guid = 77, m.oe = 1;
+      while (m.idn < kMaxPhaseIds && b.ids[m.idn]) {
+        assert(b.ids[m.idn] > 0 && std::count(b.ids, b.ids + kMaxPhaseIds, b.ids[m.idn]) == 1);
+        m.ids[m.idn] = b.ids[m.idn], ++m.idn;
+      }
+      assert(m.idn && std::all_of(b.ids + m.idn, b.ids + kMaxPhaseIds, [](int32_t id) { return id == 0; }));
+      const Message back = msg(format(m));
+      assert(back.idn == m.idn && std::equal(m.ids, m.ids + m.idn, back.ids) && !phase_out(back, b.chr));
+      for (size_t i = 0; i < m.idn; ++i)
+        assert(mirrored(b, m.ids[i]));
+      assert(!mirrored(b, 0) && !mirrored(b, 2001100)); // Passive_Immortal: the finish guard's, never the wire's.
+    }
+    assert(kBosses[0].chr == 15039001 && chars.size() == 19);
+    // As the game's tables have them: GorillaB and its broken-head form share the step that applies 5005115 and
+    // 5005117, and so do Opener (5039002) and OpenerWasteland (5039003), but each boss takes only its own row; the
+    // finish flag on the three story bosses with a Finish stance; the family dispel rows of Crawler and
+    // SkullJuggernaut; WeaponMasterA's phase FX; no row for a boss with nothing to mirror (WeaponMasterB).
+    const Boss *gorilla = boss_row(15005100), *broken = boss_row(45005101), *skull = boss_row(25015001);
+    assert(gorilla && broken && skull && gorilla->finish && !broken->finish && skull->finish &&
+           boss_row(25021001)->finish && !boss_row(15039001)->finish);
+    assert(mirrored(*gorilla, 5005115) && !mirrored(*gorilla, 5005117) && mirrored(*broken, 5005117) &&
+           !mirrored(*broken, 5005115));
+    assert(mirrored(*boss_row(15039001), 5039002) && !mirrored(*boss_row(15039001), 5039003) &&
+           mirrored(*boss_row(55039101), 5039003) && !mirrored(*boss_row(55039101), 5039002));
+    assert(!gorilla->dispel && boss_row(35022001)->dispel == 5022094 && skull->dispel == 5015002 &&
+           !mirrored(*skull, 5015002)); // SkullJuggernaut's comes from its own stance: never sent.
+    assert(mirrored(*boss_row(35031001), 5031200) && mirrored(*boss_row(75042001), 5042224));
+    assert(!boss_row(35031101) && !boss_row(900) && !boss_row(0));
+    // phase_out: every ID in that boss's allowlist, or none at all.
+    assert(!phase_out(msg("SBF11 phase 3 77 1 -"), 15005100));
+    assert(std::string(phase_out(msg("SBF11 phase 3 77 1 1001307,5005117"), 15005100)) == "not its row");
+    assert(!phase_out(msg("SBF11 phase 3 77 1 1001307,5005117"), 45005101));
+    assert(std::string(phase_out(msg("SBF11 phase 3 77 1 1001307"), 900)) == "not a boss");
+    assert(std::string(phase_out(msg("SBF11 phase 3 77 1 -"), 900)) == "not a boss");
+
+    // Summons: per SummonActor row, the charId it makes and the effects it applies, which NewActor does not.
+    for (const Summon &s : kSummons)
+      assert(s.effect > 0 && s.chr && s.list[0] > 0 && summon_row(s.effect) == &s);
+    const Summon *first = summon_row(5026000), *fourth = summon_row(5026003), *bag = summon_row(5036038);
+    assert(first && first->chr == 35025002 && first->list[0] == 5025007 && first->list[1] == 5025013);
+    assert(fourth && fourth->chr == 35025002 && fourth->list[0] == 5025010 && fourth->list[1] == 5025013);
+    assert(bag && bag->chr == 115041101 && bag->list[0] == 5041011 && !bag->list[1]);
+    assert(summon_row(5036002)->chr == 85041101 && std::size(kSummons) == 10);
+    // No such row (5026005), the Elder's dummy (the host's only), a reward dummy (it dies at once), none.
+    assert(!summon_row(5026005) && !summon_row(5056160) && !summon_row(5042299) && !summon_row(0));
+    // Their keys: kSummonBase | the owner's pair slot << 16 | n from 1, SpawnIndex 0. No EventSpawnId of this build
+    // comes near (its highest is 0xD42B5F51), and extras stay below.
+    assert(summon_key(0, 1) == (SpawnKey{0xF0000001, 0}) && summon_key(kMaxPairs - 1, kMaxSummons) ==
+                                                               (SpawnKey{0xF00FFFFF, 0}));
+    assert(summon_key_ok(summon_key(0, 1)) && summon_key_ok(summon_key(kMaxPairs - 1, kMaxSummons)));
+    assert(!summon_key_ok(SpawnKey{0xF0000000, 0}) && !summon_key_ok(SpawnKey{0xF0100001, 0}) &&
+           !summon_key_ok(SpawnKey{0xF0000001, 1}) && !summon_key_ok(SpawnKey{0xEFFFFFFF, 0}) &&
+           !summon_key_ok(SpawnKey{0xFFFFFFFF, 0}) && !summon_key_ok(SpawnKey{0xD42B5F51, 0}));
+    assert(is_summon(0xF0000000) && is_summon(0xFFFFFFFF) && !is_summon(0xEFFFFFFF));
+
+    // The guest's checks. GorillaB's copy (501) and Marionette's (502) pair, and a common enemy (503); 104 has no
+    // copy here.
+    World w;
+    w.add(501, 5001, 0, 15005100, 120000);
+    w.add(502, 5002, 0, 35026001, 90000);
+    w.add(503, 5003, 0);
+    Guest g;
+    uint32_t local = 0, owner = 0;
+    auto line = [&](const char *text) {
+      const char *why = g.boss_line(msg(text), local);
+      return std::string(why ? why : "");
+    };
+    auto summon = [&](const char *text) {
+      const char *why = g.summon_out(msg(text), owner);
+      return std::string(why ? why : "");
+    };
+    assert(line("SBF11 bstart 1 101") == "stale"); // Before the host's world.
+    g.receive(msg("SBF11 world 1"), w);
+    for (const char *up : {"SBF11 up 1 101 5001 0 15005100 120000", "SBF11 up 1 102 5002 0 35026001 90000",
+                           "SBF11 up 1 103 5003 0 900 1600", "SBF11 up 1 104 5004 0 15005100 120000"})
+      g.receive(msg(up), w);
+    step(g, w, 1, 0);
+    assert(g.linked() == 3);
+    // bstart: once a pair; another pair's is its own; for one not paired here, or of another generation, refused. Its
+    // ActorType is the engine's to check, so a common enemy's passes here.
+    assert(line("SBF11 bstart 1 101").empty() && local == 501);
+    assert(line("SBF11 bstart 1 101") == "again" && line("SBF11 bstart 1 101") == "again");
+    assert(line("SBF11 bstart 1 102").empty() && local == 502);
+    assert(line("SBF11 bstart 1 104") == "unpaired" && line("SBF11 bstart 1 105") == "unpaired");
+    assert(line("SBF11 bstart 2 103") == "stale");
+    // phase: that boss's rows only, at the host's generation, for a pair; any number of times.
+    local = 0;
+    assert(line("SBF11 phase 1 101 0 1001307,1001323,5005115").empty() && local == 501);
+    assert(line("SBF11 phase 1 101 3 -").empty() && line("SBF11 phase 1 101 3 5005115").empty());
+    assert(line("SBF11 phase 1 101 0 1001307,5005117") == "not its row");
+    assert(line("SBF11 phase 1 102 0 5005115") == "not its row" && line("SBF11 phase 1 102 0 5026013").empty());
+    assert(line("SBF11 phase 1 103 0 1001307") == "not a boss");
+    assert(line("SBF11 phase 1 104 0 1001307") == "unpaired" && line("SBF11 phase 2 101 0 1001307") == "stale");
+    // A summon's spawn: its key, a summon row of the table making the line's charId, an owner we pair (owner: its
+    // copy, whose ActorType the engine checks).
+    assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 102 5026003").empty() && owner == 502);
+    assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 102 5026005") == "not a summon");
+    assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 102 5056160") == "not a summon");
+    assert(summon("SBF11 spawn 1 7 4026597377 0 85041101 -1200 340 0 90 102 5026003") == "charId");
+    assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 104 5026003") == "owner");
+    assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 999 5026003") == "owner");
+    assert(summon("SBF11 spawn 1 7 4026597377 1 35025002 -1200 340 0 90 102 5026003") == "key");    // Index 1.
+    assert(summon("SBF11 spawn 1 7 4026597376 0 35025002 -1200 340 0 90 102 5026003") == "key");    // n 0.
+    assert(summon("SBF11 spawn 1 7 4027580417 0 35025002 -1200 340 0 90 102 5026003") == "key");    // Slot 16.
+    assert(summon("SBF11 spawn 1 7 50110 0 35025002 -1200 340 0 90") == "key");                     // No summon.
+    assert(summon("SBF11 spawn 2 7 4026597377 0 35025002 -1200 340 0 90 102 5026003") == "stale");
+    // The host's dead: its pair takes no line, nor its summons. Its down and a new up of that GUID are a new life,
+    // whose fight takes a bstart again. Its world drops them all.
+    g.receive(msg("SBF11 dead 1 102"), w);
+    assert(line("SBF11 phase 1 102 0 5026013") == "unpaired" &&
+           summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 102 5026003") == "owner");
+    g.receive(msg("SBF11 down 1 101"), w);
+    assert(line("SBF11 bstart 1 101") == "unpaired");
+    g.receive(msg("SBF11 up 1 101 5001 0 15005100 120000"), w);
+    step(g, w, 2, 20);
+    assert(line("SBF11 bstart 1 101").empty() && local == 501 && line("SBF11 bstart 1 101") == "again");
+    g.receive(msg("SBF11 world 2"), w);
+    assert(line("SBF11 phase 1 101 0 -") == "stale" && line("SBF11 phase 2 101 0 -") == "unpaired");
+
+    // The three are the host's and the engine's: from her they are lies, Guest takes none of them (the engine does,
+    // before Guest), and no recording keeps them.
+    World hw;
+    hw.add(101, 5001, 0, 15005100, 120000);
+    Host h;
+    h.receive(msg("SBF11 on"), 0, hw);
+    for (const char *lie : {"SBF11 bstart 1 101", "SBF11 phase 1 101 0 -",
+                            "SBF11 spawn 1 7 4026597377 0 35025002 0 0 0 0 101 5026003"})
+      h.receive(msg(lie), 10, hw);
+    assert(h.counts.bad == 3);
+    const uint64_t bad = g.counts.bad;
+    g.receive(msg("SBF11 bstart 2 101"), w);
+    g.receive(msg("SBF11 phase 2 101 0 -"), w);
+    assert(g.counts.bad == bad + 2);
+    Line kept;
+    assert(!parse_line("10 SBF11 bstart 1 101", kept) && !parse_line("10 SBF11 phase 1 101 0 -", kept));
   }
 
   // ---- Two worlds through a line: 90-150 ms each way, in order, 2 % of hp lines lost ----

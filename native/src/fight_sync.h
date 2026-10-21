@@ -41,14 +41,22 @@
 //   SBF11 have <gen> <n> <part> <parts> <spawnId>:<idx> ...        guest, reliable: her keys in that zone at epoch n,
 //                                                                  one round in parts lines of at most kHaveKeys
 //   SBF11 spawn <gen> <n> <spawnId> <idx> <charId> <x> <y> <z> <yaw> host, reliable: a key of ours she lacks, where
-//                                                                  ours stands (whole cm) and its yaw (0-359 degrees)
+//                                                                  ours stands (whole cm) and its yaw (0-359 degrees);
+//         [<owner> <effect>]                                       a summon's key (stage 5, is_summon) adds its
+//                                                                  owner's hguid and its SummonActor row, and only it
 //   SBF11 drop <gen> <n> <spawnId> <idx>                           host, reliable: a key of hers we lack, to despawn
+//   SBF11 bstart <gen> <hguid>                                     host, reliable: its boss entered battle mode
+//                                                                  (stage 5), once a fight
+//   SBF11 phase <gen> <hguid> <oe> <id,id,...|->                   host, reliable: the rows of that boss's allowlist
+//                                                                  its copy holds, in its order, after each change
+//                                                                  (stage 5, owner epoch oe; "-": none)
 // The host answers the guest's on and world with its whole list (world, its scale and place, then every up), and the
 // guest
 // answers the host's on with its own (hers may have come while the host was off), so either side may restart.
 // Same-place enemies (pilot.h) send their show, show-set and show-stop lines on this channel with the same tag, from
 // the side that owns an enemy; pilot_line() tells them apart, and pilot.h parses them. own and own-no are the
-// engine's (fight_engine.h keeps the owners), never Host's or Guest's; so are same spawns' four (spawn_sync.h).
+// engine's (fight_engine.h keeps the owners), never Host's or Guest's; so are same spawns' four (spawn_sync.h), and
+// bstart and phase (Guest::boss_line checks them for the engine).
 #pragma once
 
 #include <algorithm>
@@ -125,12 +133,128 @@ struct SpawnKey {
 inline bool operator==(const SpawnKey &a, const SpawnKey &b) { return a.spawn == b.spawn && a.index == b.index; }
 constexpr size_t kHaveKeys = 24, kHaveParts = 10;
 
+// ---- Bosses (stage 5) ----
+
+// A boss changes phase when its AI casts a phase skill: a step applies a phase row (EffectTable), whose stance and
+// dispels do the rest. The guest's copy is frozen and never casts, so the host's phase line names the rows its copy
+// holds from that boss's allowlist, and the guest applies those hers lacks through SB's effect call. The allowlist
+// holds the boss's own phase rows (with their FX rows) that a skill or a chain applies, and every MinimumHP row it
+// reaches (its floors and MinimumHP_Dispel 1001323); a row two bosses' shared step applies belongs only to the boss
+// whose Phase1 row it requires. dispel is the family's phase dispel row (0: none), for a phase row the host lost with
+// nothing to replace it. finish: a Finish stance (HP under 2) applies Passive_DeathReady 2001101.
+constexpr size_t kMaxPhaseIds = 16, kMaxSummonEffects = 2;
+struct Boss {
+  uint32_t chr = 0;
+  int32_t dispel = 0;
+  bool finish = false;
+  int32_t ids[kMaxPhaseIds] = {}; // The allowlist; a 0 ends it.
+};
+// A summon a boss's skill makes (ActorType 3): its SummonActor row, the charId that row makes, and the effects the row
+// applies to it (a 0 ends them), which SB's NewActor does not apply.
+struct Summon {
+  int32_t effect = 0;
+  uint32_t chr = 0;
+  int32_t list[kMaxSummonEffects] = {};
+};
+// ---- boss table: generated, begin ----
+// Built from build 24463856's CharacterTable, EffectTable, CharacterStanceTable and the skill rows they reach.
+// Another game build needs it built again from that build's tables.
+constexpr Boss kBosses[] = {
+    // DED_M_Opener_01
+    {15039001, 0, false, {1001307, 1001323, 5039002}},
+    // DED_M_GorillaB_01
+    {15005100, 0, true, {1001307, 1001323, 5005115}},
+    // WLA_M_HedgeBoarBrute_01
+    {45043001, 0, false, {1001307, 1001323, 5043001}},
+    // WLA_M_GorillaBBrokenHead_01
+    {45005101, 0, false, {1001307, 1001323, 5005117}},
+    // UME_M_Sawshark_01
+    {25013001, 0, false, {1001307, 1001323, 5013002}},
+    // UME_M_SkullJuggernaut_01
+    {25015001, 5015002, true, {1001305, 1001323, 5015001}},
+    // UME_M_Tachy_01
+    {25021001, 0, true, {1001304, 1001311, 1001323, 5021001, 5021002}},
+    // WLB_M_SawsharkWasteland_01
+    {55013101, 0, false, {1001307, 1001323, 5013003}},
+    // WLB_M_OpenerWasteland_01
+    {55039101, 0, false, {1001307, 1001323, 5039003}},
+    // WLB_M_Behemoth_01
+    {55046001, 0, false, {1001307, 1001323, 5046001}},
+    // SE_M_WeaponMasterA_01
+    {35031001, 0, false, {1001322, 1001323, 5031005, 5031006, 5031095, 5031096, 5031097, 5031098, 5031200}},
+    // SE_M_Marionette_01
+    {35026001, 0, false, {1001307, 1001323, 5026013, 5026021}},
+    // SE_M_Crawler_01
+    {35022001, 5022094, false, {1001303, 1001313, 1001323, 5022001, 5022002, 5022094}},
+    // XION_M_RavenBeast_01
+    {75042001, 0, false, {1001302, 1001312, 1001313, 1001322, 1001323, 5042001, 5042002, 5042003, 5042004, 5042005,
+        5042006, 5042223, 5042224}},
+    // NST_M_Raven_01
+    {95053001, 0, false, {1001307, 1001323}},
+    // NST_M_ExoSuit_01
+    {95054001, 0, false, {1001305, 1001315, 1001316, 1001323, 5054001}},
+    // NST_M_ElderPhase2_01
+    {95050560, 0, false, {1001307, 1001308, 1001322, 1001323, 5056001, 5056002, 5056003, 5056004, 5056005, 5056148}},
+    // CHAL_XION_M_Mann_01
+    {205901000, 0, false, {1001304, 1001323, 5901049}},
+    // M_Scarlet
+    {59610, 0, false, {1001307, 1001321, 1001323, 5961001}},
+};
+constexpr Summon kSummons[] = {
+    // M_Marionette_SummonDollHead1: SE_M_DollHead_02
+    {5026000, 35025002, {5025007, 5025013}},
+    // M_Marionette_SummonDollHead2: SE_M_DollHead_02
+    {5026001, 35025002, {5025010, 5025013}},
+    // M_Marionette_SummonDollHead3: SE_M_DollHead_02
+    {5026002, 35025002, {5025010, 5025013}},
+    // M_Marionette_SummonDollHead4: SE_M_DollHead_02
+    {5026003, 35025002, {5025010, 5025013}},
+    // M_Marionette_SummonDollHead5: SE_M_DollHead_02
+    {5026004, 35025002, {5025010, 5025013}},
+    // M_Marionette_SummonDollHead7: SE_M_DollHead_02
+    {5026006, 35025002, {5025010, 5025013}},
+    // M_Marionette_SummonDollHead8: SE_M_DollHead_02
+    {5026007, 35025002, {5025010, 5025013}},
+    // M_Marionette_SummonDollHead9: SE_M_DollHead_02
+    {5026008, 35025002, {5025010, 5025013}},
+    // M_Maelstrom_SummonProjectile_Summon: ATL_M_BodyBagSummonedByMaelstrom_01
+    {5036002, 85041101, {5041011}},
+    // M_Maelstrom_SummonProjectile2_Summon: AYL_M_BodyBagSummonedByMaelstrom_01
+    {5036038, 115041101, {5041011}},
+};
+// ---- boss table: generated, end ----
+inline const Boss *boss_row(uint32_t chr) {
+  for (const Boss &b : kBosses)
+    if (b.chr == chr)
+      return &b;
+  return nullptr;
+}
+inline bool mirrored(const Boss &b, int32_t id) {
+  return id && std::find(std::begin(b.ids), std::end(b.ids), id) != std::end(b.ids);
+}
+inline const Summon *summon_row(int32_t effect) {
+  for (const Summon &s : kSummons)
+    if (s.effect == effect)
+      return &s;
+  return nullptr;
+}
+// A summon's spawn key, the host's (no row keys a summon: SB's SummonActor passes EventSpawnId 0): kSummonBase | the
+// owner's pair slot << 16 | n, n counting that pair's summons from 1, and SpawnIndex 0. This build's highest
+// EventSpawnId is 0xD42B5F51, and extras (spawn_sync.h) stay below kSummonBase.
+constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = 0xFFFF;
+inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
+inline SpawnKey summon_key(size_t slot, uint32_t n) { return SpawnKey{kSummonBase | uint32_t(slot) << 16 | n, 0}; }
+inline bool summon_key_ok(const SpawnKey &k) {
+  return is_summon(k.spawn) && (k.spawn >> 16 & 0xFFF) < kMaxPairs && (k.spawn & kMaxSummons) && !k.index;
+}
+
 // ---- Channel 2 ----
 
-// world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn and drop:
-// the host's, never recorded.
+// world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
+// bstart and phase: the host's, never recorded.
 enum class Type : uint8_t {
-  invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn, drop, epoch
+  invalid, on, off, world, scale, place, aggro, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn, drop,
+  epoch, bstart, phase
 };
 // One enemy in an hp message.
 struct Values {
@@ -140,7 +264,8 @@ struct Values {
 struct Message {
   Type type = Type::invalid;
   uint32_t gen = 0;            // All but on and off.
-  uint32_t guid = 0;           // up, down, dead, hit: the host's ActorGUID.
+  uint32_t guid = 0;           // up, down, dead, hit, bstart, phase: the host's ActorGUID. A summon's spawn: its
+                               // owner's.
   uint32_t seq = 0;            // hit: the claim's number, from 1. hp: the ack, the last claim the host took.
   uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop: the EventSpawnId).
   uint8_t index = 0;           // up, spawn, drop: SpawnIndex.
@@ -149,12 +274,12 @@ struct Message {
   int32_t delta[kStats] = {};  // hit: the drops, each >= 0.
   int32_t pre_hp = 0;          // hit: the copy's HP before them.
   bool lethal = false;         // hit: the copy died of them.
-  int32_t effect = 0;          // cc: one of kCcEffects.
+  int32_t effect = 0;          // cc: one of kCcEffects. A summon's spawn: its SummonActor row.
   uint16_t scale[kScales] = {kMinScale, kMinScale}; // scale: MaxHP and MaxStamina in percent.
   bool place = false;                               // place: the host's same_place on.
   bool host_only = false;                           // aggro: aggro=host (game otherwise).
   bool to_guest = false;                            // own: G (H otherwise).
-  uint8_t oe = 0;                                   // own, own-no: the owner epoch.
+  uint8_t oe = 0;                                   // own, own-no, phase: the owner epoch.
   uint8_t why = kUnpaired;                          // own-no: one of OwnNo.
   bool exec = false;                                // exec: her takedown begins (1) or ends (0).
   uint32_t epoch = 0, zone = 0;   // have, spawn, drop, epoch: the host's epoch n; epoch: its zone's ZoneTable ID.
@@ -162,6 +287,8 @@ struct Message {
   SpawnKey keys[kHaveKeys];       // have: her keys, keyed of them.
   uint8_t keyed = 0;
   int32_t at[3] = {}, yaw = 0;    // spawn: where, whole cm, and the yaw in whole degrees, 0 to 359.
+  int32_t ids[kMaxPhaseIds] = {}; // phase: EffectTable IDs, idn of them, each once.
+  uint8_t idn = 0;
   Values entries[kHpPerMessage];
   uint8_t count = 0; // hp: entries used, 1..kHpPerMessage.
 };
@@ -211,9 +338,16 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::spawn: {
     auto z = [](int32_t v) { return " " + std::to_string(v); };
     return t + "spawn" + n(m.gen) + n(m.epoch) + n(m.spawn) + n(m.index) + n(m.chr) + z(m.at[0]) + z(m.at[1]) +
-           z(m.at[2]) + n(uint32_t(m.yaw));
+           z(m.at[2]) + n(uint32_t(m.yaw)) + (is_summon(m.spawn) ? n(m.guid) + n(uint32_t(m.effect)) : "");
   }
   case Type::drop: return t + "drop" + n(m.gen) + n(m.epoch) + n(m.spawn) + n(m.index);
+  case Type::bstart: return t + "bstart" + n(m.gen) + n(m.guid);
+  case Type::phase: {
+    std::string ids;
+    for (size_t i = 0; i < m.idn && i < kMaxPhaseIds; ++i)
+      ids += (i ? "," : "") + std::to_string(m.ids[i]);
+    return t + "phase" + n(m.gen) + n(m.guid) + n(m.oe) + " " + (ids.empty() ? "-" : ids);
+  }
   case Type::invalid: break;
   }
   return std::string();
@@ -261,6 +395,23 @@ inline bool keys(const std::string &tail, Message &m) {
     at = space + 1;
   }
 }
+// A phase line's IDs: "-" for none, else 1..INT32_MAX each once, comma-separated, at most kMaxPhaseIds.
+inline bool ids(const std::string &text, Message &m) {
+  if (text == "-")
+    return true;
+  for (size_t at = 0;;) {
+    const size_t comma = text.find(',', at);
+    uint64_t v = 0;
+    if (m.idn == kMaxPhaseIds ||
+        !number(std::string_view(text).substr(at, comma == std::string::npos ? std::string::npos : comma - at), v) ||
+        !v || v > uint64_t(INT32_MAX) || std::find(m.ids, m.ids + m.idn, int32_t(v)) != m.ids + m.idn)
+      return false;
+    m.ids[m.idn++] = int32_t(v);
+    if (comma == std::string::npos)
+      return true;
+    at = comma + 1;
+  }
+}
 } // namespace detail
 
 // Strict: exactly what format() writes (but leading zeros), within kMaxMessage, every number in range. Anything else
@@ -278,7 +429,7 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     m.type = Type::on;
     return m;
   }
-  std::string head[2], rest, f[9], tail;
+  std::string head[2], rest, f[11], tail;
   if (!split(text, head, 2, &rest) || head[0] != fight_tag())
     return Message();
   const std::string &kind = head[1];
@@ -336,18 +487,28 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
          (none || detail::keys(tail, m));
     m.part = static_cast<uint8_t>(v), m.parts = static_cast<uint8_t>(parts);
     type = Type::have;
-  } else if (kind == "spawn") {
-    uint64_t yaw = 0;
-    ok = split(rest, f, 9, nullptr) && id(f[0], m.gen) && id(f[1], m.epoch) && id(f[2], m.spawn) && number(f[3], v) &&
-         v <= 255 && id(f[4], m.chr) && detail::cm(f[5], m.at[0]) && detail::cm(f[6], m.at[1]) &&
-         detail::cm(f[7], m.at[2]) && number(f[8], yaw) && yaw < 360;
-    m.index = static_cast<uint8_t>(v), m.yaw = static_cast<int32_t>(yaw);
+  } else if (kind == "spawn") { // A summon's key, and only one, carries its owner and its row.
+    uint64_t yaw = 0, effect = 0;
+    const bool summon = split(rest, f, 11, nullptr);
+    ok = (summon || split(rest, f, 9, nullptr)) && id(f[0], m.gen) && id(f[1], m.epoch) && id(f[2], m.spawn) &&
+         number(f[3], v) && v <= 255 && id(f[4], m.chr) && detail::cm(f[5], m.at[0]) && detail::cm(f[6], m.at[1]) &&
+         detail::cm(f[7], m.at[2]) && number(f[8], yaw) && yaw < 360 && summon == is_summon(m.spawn) &&
+         (!summon || (id(f[9], m.guid) && number(f[10], effect) && effect && effect <= uint64_t(INT32_MAX)));
+    m.index = static_cast<uint8_t>(v), m.yaw = static_cast<int32_t>(yaw), m.effect = static_cast<int32_t>(effect);
     type = Type::spawn;
   } else if (kind == "drop") {
     ok = split(rest, f, 4, nullptr) && id(f[0], m.gen) && id(f[1], m.epoch) && id(f[2], m.spawn) && number(f[3], v) &&
          v <= 255;
     m.index = static_cast<uint8_t>(v);
     type = Type::drop;
+  } else if (kind == "bstart") {
+    ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
+    type = Type::bstart;
+  } else if (kind == "phase") {
+    ok = split(rest, f, 4, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && number(f[2], v) && v <= 255 &&
+         detail::ids(f[3], m);
+    m.oe = static_cast<uint8_t>(v);
+    type = Type::phase;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;
@@ -390,6 +551,17 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     return Message();
   m.type = type;
   return m;
+}
+
+// R33 on a phase line for an enemy of charId chr: every ID in that boss's allowlist. Null when it passes.
+inline const char *phase_out(const Message &m, uint32_t chr) {
+  const Boss *b = boss_row(chr);
+  if (!b)
+    return "not a boss";
+  for (size_t i = 0; i < m.idn; ++i)
+    if (!mirrored(*b, m.ids[i]))
+      return "not its row";
+  return nullptr;
 }
 
 // One of same-place enemies' lines (pilot.h's show, show-set or show-stop), by its tag and word only: the worker hands
@@ -1165,6 +1337,38 @@ public:
     return n;
   }
 
+  // Stage 5's lines (R33) for the engine, which acts on what passes: the host's bstart and phase for one of its
+  // enemies we pair, at its generation, not dead. A bstart counts once a pair (one life: its up to its down or the
+  // host's next world), a phase when phase_out() passes it for the charId of the host's up. Null when taken, local then
+  // the copy's GUID; else why not. The copy's ActorType and the phase's owner epoch are the engine's to check.
+  const char *boss_line(const Message &m, uint32_t &local) {
+    Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
+    const char *why = !known_gen_ || m.gen != known_gen_ ? "stale"
+                      : !p || !p->local || p->dead       ? "unpaired"
+                      : m.type == Type::bstart           ? (p->started ? "again" : nullptr)
+                      : m.type == Type::phase            ? phase_out(m, p->chr)
+                                                         : "not a boss line";
+    if (!why)
+      local = p->local, p->started = p->started || m.type == Type::bstart;
+    return why;
+  }
+  // A summon's spawn line (R33): at the host's generation, a key of summon_key_ok(), a SummonActor row of kSummons
+  // that makes the line's charId, and an owner we pair, not dead. Null when it passes, owner then the owner's copy's
+  // GUID (the engine checks that it is ActorType 4); else why not.
+  const char *summon_out(const Message &m, uint32_t &owner) {
+    const Summon *s = summon_row(m.effect);
+    Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
+    const char *why = !known_gen_ || m.gen != known_gen_        ? "stale"
+                      : !summon_key_ok(SpawnKey{m.spawn, m.index}) ? "key"
+                      : !s                                         ? "not a summon"
+                      : s->chr != m.chr                            ? "charId"
+                      : !p || !p->local || p->dead                 ? "owner"
+                                                                   : nullptr;
+    if (!why)
+      owner = p->local;
+    return why;
+  }
+
   // A line from the host. Deaths and pairing wait for the next step, which has the copies.
   template <class Io> void receive(const Message &m, Io &io) {
     switch (m.type) {
@@ -1313,6 +1517,7 @@ private:
     bool holding = false;        // That kill waits since hold_ms while our copy holds NoDamageNoHit.
     uint64_t hold_ms = 0;
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
+    bool started = false;        // Its bstart was taken (stage 5): one a life.
     bool logged = false;         // Its unpaired reason was logged.
     const char *why = nullptr;   // That reason, while it stays unpaired for it.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.

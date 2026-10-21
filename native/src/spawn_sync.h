@@ -32,7 +32,7 @@
 #include <cstring>
 #include <iterator>
 
-#include "fight_sync.h" // Message, Event, SpawnKey, kHaveKeys, kHaveParts, kMaxSeen, kMaxPairs
+#include "fight_sync.h" // Message, Event, SpawnKey, kHaveKeys, kHaveParts, kMaxSeen, kMaxPairs, is_summon
 
 namespace coop::fight {
 
@@ -132,10 +132,11 @@ inline bool listed(const SpawnKey *keys, size_t n, const SpawnKey &k) {
 // ---- Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7) ----
 // The host makes enemy_extra (0 to kMaxPer) more of each common enemy where both players stand, with SB's NewActor and
 // keys of a range no EventSpawnTable row of this build uses (RE12: its highest EventSpawnId is 0xD42B5F51): EventSpawnId
-// 0xE0000000 | n << 8 | slot and SpawnIndex slot, for the n-th enemy given extras this run and slots 1 to 3. Same
-// spawns then send each to her as a key of ours she lacks, she makes the same key, and stage 1 pairs them. A key no
-// row holds is never respawned or saved and never reaches zone scripts (SB's row == null gates, RE12).
-constexpr uint32_t kExtraBase = 0xE0000000, kMaxOrigins = ~kExtraBase >> 8;
+// 0xE0000000 | n << 8 | slot and SpawnIndex slot, for the n-th enemy given extras this run and slots 1 to 3, below the
+// summons' kSummonBase (fight_sync.h, stage 5). Same spawns then send each to her as a key of ours she lacks, she makes
+// the same key, and stage 1 pairs them. A key no row holds is never respawned or saved and never reaches zone scripts
+// (SB's row == null gates, RE12).
+constexpr uint32_t kExtraBase = 0xE0000000, kMaxOrigins = ((kSummonBase - kExtraBase) >> 8) - 1;
 constexpr uint8_t kMaxPer = 3;
 constexpr float kExtraRangeCm = 12000;                // An extra more than 120 m from both EVEs goes.
 constexpr float kOriginRangeCm = kExtraRangeCm - 400; // An enemy this near gets extras: the farthest stands 4 m from
@@ -145,7 +146,7 @@ constexpr size_t kMaxExtras = kMaxAnswer * kMaxPer;   // A side's extras at once
 // M_RoyalGuardFemale 50500, WLA_ and WLB_M_RoyalGuardFemale_01 45050001 and 55050001. They get no extras, as the
 // BossMonsters (the other bosses and the Alpha Naytibas) never do.
 constexpr uint32_t kNoExtras[] = {50330, 50500, 45050001, 55050001};
-inline bool is_extra(uint32_t id) { return id >= kExtraBase; }
+inline bool is_extra(uint32_t id) { return id >= kExtraBase && !is_summon(id); }
 inline SpawnKey extra_key(uint32_t n, uint8_t slot) { return SpawnKey{kExtraBase | n << 8 | slot, slot}; }
 // Where slot's extra of an enemy at at, of yaw yaw (degrees), stands: 2, 3 or 4 m from it, 120 degrees apart, at its
 // height (out of 3).

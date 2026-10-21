@@ -552,8 +552,10 @@ int main() {
   // ---- Extra enemies (stage 4b): their keys, in a range no row of this build uses, and their places ----
   {
     assert(extra_key(1, 1) == (SpawnKey{0xE0000101, 1}) && extra_key(2, 3) == (SpawnKey{0xE0000203, 3}));
-    assert(kMaxOrigins == 0x1FFFFF && extra_key(kMaxOrigins, 3) == (SpawnKey{0xFFFFFF03, 3}));
-    assert(is_extra(0xE0000000) && is_extra(0xFFFFFFFF) && !is_extra(0xDFFFFFFF));
+    // Below the summons' range (stage 5): the last origin's keys stay under kSummonBase.
+    assert(kMaxOrigins == 0xFFFFF && extra_key(kMaxOrigins, 3) == (SpawnKey{0xEFFFFF03, 3}));
+    assert(is_extra(0xE0000000) && is_extra(0xEFFFFFFF) && !is_extra(0xDFFFFFFF));
+    assert(!is_extra(kSummonBase) && !is_extra(0xFFFFFFFF) && !is_summon(extra_key(kMaxOrigins, 3).spawn));
     assert(!is_extra(0xD42B5F51)); // The build's highest EventSpawnId (RE12).
     const float o[3] = {1000, -500, 30};
     float at[4][3];
@@ -688,6 +690,19 @@ int main() {
     guest_step(sg, gep, g, kGraceMs + 2 * kHaveAgainMs);
     const std::string next = g.lines();
     assert(has(next, " 3758096643:3") && !has(next, " 3758097409:1") && has(next, " 3758097410:2"));
+  }
+
+  // ---- A summon's key (stage 5) is no extra: same spawns alone never create one, as no row of hers holds it ----
+  {
+    World g;
+    g.add(201, 1);
+    Epochs gep;
+    SpawnGuest sg;
+    epoch(gep, g, 0xA1, 3, 0);
+    sg.heard(msg("SBF11 epoch 1 40 1"), 1);
+    sg.heard(msg("SBF11 spawn 1 1 4026597377 0 900 258 -250 13 270 77 5026003"), 1); // 0xF0010001.
+    guest_step(sg, gep, g, kGraceMs);
+    assert(g.created.empty() && g.count("spawn refused", "no row") == 1 && sg.counts.spawned == 0);
   }
 
   // ---- Two worlds through a line, 90-150 ms each way: her set becomes the host's ----
