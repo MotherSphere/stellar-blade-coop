@@ -655,6 +655,32 @@ the balance of the first frozen copy, so the copy goes groggy; take it down befo
 groggy, `fight exec <key> hguid=<n> our takedown begins` and `our takedown ends` around the takedown, and
 `pilot converged hguid=<n>` (or `pilot snapped hguid=<n>`) once the copy lives on after it.
 
+### Same spawns (experimental)
+
+With `same_spawns=on` in the host's coop-settings.txt, the guest's game holds the same common enemies as the host's
+game wherever both players stand within 100 m of each other in one zone. The guest's game creates the enemies it lacks
+where the host's stand, and removes the ones the host's game lacks without killing them, so they give no rewards.
+Bosses, Alpha Naytibas, quest and event enemies, and the enemies a save records (Save rows, and rows kept through a
+zone reset) stay as they are in both games. Same spawns has not been tested in game yet, it is off by default, and it
+has no menu row.
+
+- It needs shared enemies running. Only the host's value counts, from the next `coop fight on`; record, replay and the
+  probe never use it.
+- A zone counts as shared from 3 s after either game entered it or reset its enemies (a camp rest, a death), so the
+  game's own spawns come in first.
+- The guest's game sends its list of enemies there at once, then every 5 s while the zone is shared. The host's game
+  answers with up to 16 enemies to create and 16 to remove each time.
+- `coop-link.log` names each change by spawn key. On the guest: `fight spawned <key>`, `fight despawned <key>`,
+  `fight spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from
+  your EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
+  manager`, `not a Monster` or `gone`; and `fight spawn undone <key> <why>` when an enemy it created turns out to be no
+  common enemy (`not a Monster`) or another character than the host's (`charId`). On the host: `fight spawn sent
+  <key>` and `fight drop sent <key>`. Both log `fight spawns epoch <why>` when their zone changes (`zone`), its enemies
+  reset (`reset`), or 3 or more of them come back at once (`guids`).
+- The `fight stats:` lines in `coop-fight.log` add `same spawns <on|off>, epoch <n> (ours moved <n> times), <n> rounds
+  <answered|sent>, <n> spawn and <n> drop lines, <n> spawned, <n> despawned (<n> undone), <n> refused, <n> stale, <n>
+  over the rates`.
+
 ### `coop off`
 
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
@@ -719,6 +745,11 @@ kill_credit=all
 # last, or else the nearer player) or host (enemies fight the host only).
 same_place=off
 aggro=game
+# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game. On, while
+# both players stand within 100 m of each other in one zone, the guest's game adds the common enemies the host's game
+# has there and removes those it lacks. Bosses, quest and event enemies, and the enemies a save records, stay as they
+# are.
+same_spawns=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.

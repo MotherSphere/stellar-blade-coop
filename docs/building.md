@@ -77,12 +77,12 @@ build/host/pose_codec_test
 - Lua tests (`capture`, `chat`, `join`, `keybind`, `link`, `main`, `nightop`, `notice`, `partner`, `puppet`,
   `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
   objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
-  also covers `coop fight pilot` (its `test target` included), the `same_place` and `aggro` settings and rows, and the
-  same place notices in both languages.
+  also covers `coop fight pilot` (its `test target` included), the `same_place` and `aggro` settings and rows, the
+  `same_spawns` setting, and the same place notices in both languages.
 - C++ tests cover the platform-free headers in `native/src`:
-  - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place` and
-    `aggro-host` words and its `pilot` requests, `test target` included), and the join codes (both real lobby ids, loose
-    typing, malformed codes, and the share of one-character typos the check turns away);
+  - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
+    `aggro-host` and `spawns` words and its `pilot` requests, `test target` included), and the join codes (both real
+    lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, joining with a code, and the host's
     approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting);
@@ -118,13 +118,22 @@ build/host/pose_codec_test
     is kReady and its freeze despite Groggy, the host's own takedown, a BossMonster refused, a balance emptied by her
     claim in the turn of her exec 1, her lethal claim held until her exec 0 or for 6 s, a copy frozen on its stream's
     takedown, `coop fight pilot test exec`) and in two worlds, where her takedown holds the host's kill until her exec
-    0 reaches it;
+    0 reaches it; same spawns in two worlds: nothing while the host's `same_spawns` is off or the players stand 200 m
+    apart, then her set becomes the host's (keys created where the host's stand and paired, keys the host lacks
+    despawned, save, keep, event and other-zone keys left, nothing killed), and a spawn line of an old epoch dropped
+    after the host's zone resets;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
     an exec 1 that never restarts a running takedown, a held claim's 6 s cap, a balance emptied by her claim in the
-    step of her exec 1, refusals within 2 s counted with no line), and two fake
-    worlds linked through a delayed, lossy line;
+    step of her exec 1, refusals within 2 s counted with no line; same spawns' epoch, have, spawn and drop lines
+    refused by Host and Guest, since the engine takes them, and never recorded), and two fake worlds linked through a
+    delayed, lossy line;
+  - `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
+    reset of the spawn manager, 3 or more keys with a new GUID) and its 3 s grace, the host's epoch line, her rounds
+    and its answers, the guest's rounds and her checks of each answer (the epoch, the shared zone, her own tables, 1 km,
+    the rates, a created key that is no Monster or another charId), and two fake worlds through a delayed line until
+    her set is the host's, with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,

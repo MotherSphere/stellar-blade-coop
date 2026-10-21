@@ -254,7 +254,7 @@ instead of misread:
 | 8 | The say and vit lines, for the chat and the partner card |
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
-| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2 (this version) |
+| 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines (this version) |
 
 ### Link health in the log
 
@@ -472,6 +472,39 @@ balance and death stay with the host's game whoever owns the pair.
   (a stamina drop, as a hit of its EVE), so the copy goes groggy and can be taken down.
 
 The commands, the notices and the solo test are in [usage.md](usage.md#same-place-experimental).
+
+## Same spawns
+
+Same spawns (`same_spawns`, experimental, off by default, not tested in game yet) has the guest's game hold the host's
+common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates pairs through its
+spawn key like any other.
+
+- Only EventSpawnTable rows that spawn on zone entry (SpawnType EnterZone), whose enemy is a Monster and whose
+  SaveType is None, ResetZone or ResetZoneWithTransform take part. Save and SaveWithTransform rows, rows that keep
+  their object through a zone reset (`bResetZoneKeepObject`), and ZoneEvent and quest rows are never touched. Each
+  game reads a row through the game's own lookup (`FUN_141a9db80`) and the row's zone through the ZoneTable lookup
+  (`FUN_141a9b8a0`), and keeps what it read for the session.
+- Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
+- Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
+  manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
+  its enemies come back under new GUIDs in one census. The host sends `SBF11 epoch <gen> <zone> <n>` at each change,
+  and each side drops a line of another epoch.
+- The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
+  spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
+  `SBF11 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF11 spawn <gen> <n> <spawnId> <idx>
+  <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks (never a dying one), where it stands in whole
+  centimetres, and `SBF11 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+- The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km
+  of her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's
+  spawn function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's
+  despawn job (`FUN_141b077f0`, as a ZoneEvent despawn does): never a kill, and never an enemy that shared enemies
+  pair. A created enemy that shows up as no Monster, or as another character than the host's, is removed again. A
+  key she refused counts as hers in her next list, so the host stops asking for it until the epoch moves.
+- Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the
+  table holder and the job sender are read from their globals and never made by the mod.
+
+The log lines are in [usage.md](usage.md#same-spawns-experimental).
 
 ## Safety design
 
