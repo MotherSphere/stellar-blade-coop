@@ -395,7 +395,9 @@ root moves without the engine's teleport flag: a teleport clears the cloth's ine
 without trailing. It teleports when the ghost shows again and when it moves more than 2 m in one pose (a fast travel,
 a respawn). The cloth simulates only while the ghost is drawn (`VisibilityBasedAnimTickOption` 3): hidden, off screen
 or behind a wall for more than 1 s, it costs nothing, and it starts again from the bones when the ghost is drawn
-again.
+again. The ponytail's cloth part is set up as SB sets up hers: the 18 body bones its collision bodies hang on
+(`AdditiveMasterBoneArray`), the outfit's `<body mesh>_PonytailPhysicsAsset` as `OverrideClothPhysicsAsset`, then its
+leader, then its mesh, which creates the cloth. The asset is loaded in a build step of its own, after the body's.
 
 ## Same-place enemies
 

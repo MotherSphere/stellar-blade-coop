@@ -8,7 +8,8 @@
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
 -- turned to the camera at each pose, left out alone when it fails), our photo mode hiding the ghost or its tag, the map
 -- notice on screen, a title round trip; with
--- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails;
+-- cloth on, the ponytail on a SkeletalMeshComponent with her outfit's collision (said when it cannot have it),
+-- simulated only while drawn, its reset as the ghost shows, and a plain part when that fails;
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
 -- them in place(), within their budget.
@@ -82,6 +83,12 @@ for _,path in ipairs({SKIN,TYPE_B,TYPE_C}) do
     meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.MaterialInterface' end
     meshes[path].GetFullName=function() return 'MaterialInstanceConstant '..path end
 end
+-- Her outfit's ponytail collision, a PhysicsAsset beside her body mesh; the base suit's is missing on this PC.
+local COLLISION='/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB_PonytailPhysicsAsset.'
+    ..'CH_P_EVE_52_TypeB_PonytailPhysicsAsset'
+meshes[COLLISION]=object(COLLISION,{path=COLLISION})
+meshes[COLLISION].IsA=function(_,class) return class.path=='/Script/Engine.PhysicsAsset' end
+meshes[COLLISION].GetFullName=function() return 'PhysicsAsset '..COLLISION end
 -- Clothing assets: the ponytail, a follower, and her hair, a leader.
 meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
 meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
@@ -124,12 +131,35 @@ local function poseable(actor)
     return p -- No SetMaterial unless dyeable: a call fails the build, so the test.
 end
 -- A cloth part: a SkeletalMeshComponent with the same calls, plus the cloth reset; never bound to its leader's cloth.
-local fail_cloth,fail_reset,skeletal_adds=nil,false,0 -- fail_cloth: 'add' or 'set'.
+-- order: its collision bones (the first written), its collision asset, its leader and its mesh, as they were set.
+local fail_cloth,fail_reset,fail_array,skeletal_adds=nil,false,false,0 -- fail_cloth: 'add' or 'set'.
 local function cloth_part(actor)
     local s=poseable(actor)
-    s.cloth=true
+    s.cloth,s.order=true,{}
+    local mt=getmetatable(s)
+    local set=mt.__newindex
+    mt.__newindex=function(t,k,v)
+        if k=='OverrideClothPhysicsAsset' then t.order[#t.order+1]='override' end
+        return set(t,k,v)
+    end
+    -- UE4SS's TArray: indexed from 1, resized when written past its end.
+    s.AdditiveMasterBoneArray=setmetatable({},{__newindex=function(t,k,v)
+        ue4ss()
+        if fail_array then error('no array write') end
+        assert(k==#t+1 and v:type()=='FName','Written in order, an FName each')
+        if k==1 then s.order[#s.order+1]='bones' end
+        rawset(t,k,v)
+    end})
     function s:IsA(class) return class.path=='/Script/Engine.SkeletalMeshComponent' end
-    function s:SetSkeletalMesh(m) if fail_cloth=='set' then error('no cloth mesh') end self.mesh,self.added_at=m,frame end
+    function s:SetMasterPoseComponent(lead)
+        self.calls.SetMasterPoseComponent=lead
+        self.order[#self.order+1]='master'
+    end
+    function s:SetSkeletalMesh(m)
+        if fail_cloth=='set' then error('no cloth mesh') end
+        self.mesh,self.added_at=m,frame
+        self.order[#self.order+1]='mesh'
+    end
     function s:ForceClothNextUpdateTeleportAndReset()
         if fail_reset then error('no reset') end
         self.resets=(self.resets or 0)+1
@@ -874,6 +904,24 @@ root,face,hair,pony,blade,scabbard=table.unpack(actor.parts)
 assert(pony.cloth and pony.mesh==meshes[PONY] and pony.calls.SetCollisionEnabled==0 and pony.bLocalSpaceSimulation==true)
 assert(pony.calls.SetMasterPoseComponent==hair and pony.bUseBoundsFromMasterPoseComponent==true,'It follows its leader')
 assert(pony.attached.parent==hair and pony.visible==false,'Hung and shown as the table says')
+-- Her outfit's collision, set up as SB does for her ponytail: the 18 body bones its collision bodies hang on, the
+-- outfit's asset (named from her body mesh, resolved in a step of its own before), then the leader, then the mesh,
+-- which creates the cloth. keep() names the leader again: the engine ignores the same one.
+assert(table.concat(pony.order,' ')=='bones override master mesh master',table.concat(pony.order,' '))
+assert(pony.OverrideClothPhysicsAsset==meshes[COLLISION] and pony.bLocalSpaceSimulation==true)
+local bones={}
+for k,name in ipairs(pony.AdditiveMasterBoneArray) do bones[k]=name:ToString() end
+assert(table.concat(bones,' ')=='Bip001-R-Thigh Bip001-L-Thigh Bip001-L-UpperArm Bip001-L-Forearm Bip001-R-UpperArm '
+    ..'Bip001-R-Forearm Bip001-Neck Bip001-L-Calf Bip001-R-Calf Bip001-L-Foot Bip001-R-Foot Bip001-Head Bip001-Pelvis '
+    ..'Bip001-Spine Bip001-Spine1 Bip001-Spine2 Ab-L-Thigh-Tw0 Ab-R-Thigh-Tw0',table.concat(bones,' '))
+assert(table.concat(loads,' ',#loads-4)==table.concat({COLLISION,FACE,HAIR,PONY,BLADE},' '),
+    'Loaded in the frame after her body\'s, before the ponytail\'s')
+-- The asset's name from her body mesh's path, as SB builds it.
+local Puppet=require('puppet')
+assert(Puppet.collision_path(BODY)==COLLISION)
+assert(Puppet.collision_path(BASE_BODY)=='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset.'
+    ..'CH_P_EVE_08_PonytailPhysicsAsset')
+assert(Puppet.collision_path('/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08')==nil,'Not dir/name.object: none')
 assert(not (root.cloth or face.cloth or hair.cloth or blade.cloth or scabbard.cloth),'The rest are Poseables')
 -- Its cloth simulates only while it is drawn (OnlyTickPoseWhenRendered); the Poseables keep their default.
 assert(pony.VisibilityBasedAnimTickOption==3)
@@ -933,6 +981,28 @@ assert(#actor.parts==7 and actor.parts[4].cloth and actor.parts[4].destroyed,'Ad
 assert(not actor.parts[5].cloth and actor.parts[5].mesh==meshes[PONY] and actor.parts[5].calls.SetMasterPoseComponent==actor.parts[3])
 assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*no cloth mesh%), drawn as a plain part %('),message)
 fail_cloth=nil
+-- Her body on the base suit (no path): the base suit's collision, missing on this PC, is said and the cloth stays,
+-- with its collision bones and the clothing asset's own collision. A clothed follower that is no ponytail (the
+-- scabbard on the ponytail's mesh here) has cloth and no collision of hers.
+local bare=her_parts({body='-'})
+send(701,bare)
+ok,message=build()
+actor=spawned[#spawned]
+pony,scabbard=actor.parts[4],actor.parts[6]
+assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and #pony.AdditiveMasterBoneArray==18,message)
+assert(table.concat(pony.order,' ')=='bones master mesh master')
+assert(table.concat(scabbard.order,' ')=='master mesh master')
+assert(message:find('; look: cloth parts 2; .*; SBPonytail: outfit collision not used %(/Game/Art/Character/PC/'
+    ..'CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset%.CH_P_EVE_08_PonytailPhysicsAsset missing%) %('),message)
+-- Its collision bones refused: said, and neither they nor the asset are used.
+fail_array=true
+send(702,her_parts())
+ok,message=build()
+pony=spawned[#spawned].parts[4]
+assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and table.concat(pony.order,' ')=='master mesh master')
+assert(message:find('; look: cloth parts 2; SBPonytail: outfit collision not used %(.*no array write%) %('),message)
+fail_array=false
+send(700,clothed)
 -- A rebuild tries a table given up again at once.
 ghost.rebuild('look')
 give_up()

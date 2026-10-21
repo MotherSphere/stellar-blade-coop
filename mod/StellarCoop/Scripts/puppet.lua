@@ -42,6 +42,18 @@ local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHa
 local EFFECTS=require('capture').EFFECTS -- What the wire's effect indexes name, for both players.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
+local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
+-- Her ponytail's AdditiveMasterBoneArray in her Blueprint: body bones its 22-bone mesh lacks and its cloth's collision
+-- bodies hang on. SB's UpdateMasterBoneMap maps each to the leader's bone of that name.
+local COLLISION_BONES={'Bip001-R-Thigh','Bip001-L-Thigh','Bip001-L-UpperArm','Bip001-L-Forearm','Bip001-R-UpperArm',
+    'Bip001-R-Forearm','Bip001-Neck','Bip001-L-Calf','Bip001-R-Calf','Bip001-L-Foot','Bip001-R-Foot','Bip001-Head',
+    'Bip001-Pelvis','Bip001-Spine','Bip001-Spine1','Bip001-Spine2','Ab-L-Thigh-Tw0','Ab-R-Thigh-Tw0'}
+-- Her outfit's ponytail collision, named from her body mesh's path as ASBCharacter::SetOverrideClothPhysicsAsset
+-- names it: <dir>/<mesh>_PonytailPhysicsAsset.<mesh>_PonytailPhysicsAsset. nil for a path that is not dir/name.object.
+function Puppet.collision_path(path)
+    local dir,name=tostring(path):match('^(/.+)/([^/.]+)%.[^/.]+$')
+    return dir and string.format('%s/%s_PonytailPhysicsAsset.%s_PonytailPhysicsAsset',dir,name,name) or nil
+end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
 -- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising) and a leader's names.
@@ -201,9 +213,25 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             local ok,n=pcall(function() local n=0; each(mesh.MeshClothingAssets,function() n=n+1 end); return n end)
             return ok and n>0
         end
+        -- Her outfit's collision on her ponytail's cloth, set up before its leader and its mesh as SB does: the body
+        -- bones its collision bodies hang on, mapped from the leader when it is set, then the outfit's asset, which
+        -- the cloth takes when SetSkeletalMesh creates it (RecreateClothingActors). A failure keeps the clothing
+        -- asset's own collision, said in the build line.
+        local function collide(target,part)
+            local ok,why=pcall(function()
+                for k,name in ipairs(COLLISION_BONES) do target.AdditiveMasterBoneArray[k]=FName(name) end
+                local asset=g.collision and resolve(g.collision,counts,PHYSICS_ASSET) -- Cached by its own step.
+                if not asset then error(tostring(g.collision or 'her body mesh\'s collision name')..' missing',0) end
+                target.OverrideClothPhysicsAsset=asset
+            end)
+            if not ok then
+                notes[#notes+1]=string.format('%s: outfit collision not used (%s)',part.name,tostring(why))
+            end
+        end
         local function add(mesh,part)
             -- A follower with cloth is a SkeletalMeshComponent: NvCloth reads its master's component-space bones
-            -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, below).
+            -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, set before
+            -- its mesh so the cloth is created on the leader's bones, as SB sets up its slots).
             -- Never BindClothToMasterPoseComponent: that binds to the leader's own cloth, and a Poseable has none.
             if look.cloth and part.lead and clothed(mesh) then
                 local target
@@ -216,8 +244,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     -- screen or behind a wall (up to 1 s after its last render), and resets the cloth to its bones
                     -- when it is drawn again. SB sets the same on her own ponytail during its Show sequences.
                     target.VisibilityBasedAnimTickOption=3
+                    target.bLocalSpaceSimulation=true -- As hers: the cloth's inertia comes from its frame's moves.
+                    if part.name:find('Ponytail',1,true) then collide(target,part) end
+                    target:SetMasterPoseComponent(g.parts[part.lead].target,false)
                     target:SetSkeletalMesh(mesh,true)
-                    target.bLocalSpaceSimulation=true -- Its own space: place() moves the root by teleports.
                 end)
                 if made then g.cloth[#g.cloth+1]=target; return target end
                 if target then pcall(function() target:K2_DestroyComponent(actor) end) end
@@ -242,6 +272,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         end
         -- A part drawn (based: on its fallback's mesh, remap: a leader's bones by name).
         local function keep(part,target,mesh,based,remap)
+            if part.i==0 and look.cloth then -- Her outfit's ponytail collision, from her body as drawn: its own step.
+                g.collision=Puppet.collision_path(mesh:GetFullName():match('^%S+ (.+)$'))
+                if g.collision then soon(function() resolve(g.collision,counts,PHYSICS_ASSET) end) end
+            end
             local lead=part.lead and g.parts[part.lead]
             if lead then
                 target:SetMasterPoseComponent(lead.target,false)

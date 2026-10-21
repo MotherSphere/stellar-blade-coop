@@ -1020,9 +1020,12 @@ The three looks have not been tested in game yet. Back up your saves before you 
   pinned at the scalp; the bones that the poses carry only anchor it. Without cloth, the ghost's ponytail follows those
   bones rigidly and looks like one long block. With cloth on, your game runs the same simulation on the ghost's
   ponytail: a follower part whose mesh has clothing assets is drawn as a SkeletalMeshComponent whose cloth simulates on
-  its leader's bones, only while the ghost is on screen. Nothing more goes over the network. Each PC simulates the ghost
-  it draws, so only the viewer's setting counts, and the strands follow the same rules as on her screen without being
-  the same strands. If the cloth part fails, the ponytail is a plain part, with a note in the log.
+  its leader's bones, only while the ghost is on screen. It collides with her outfit as in solo: it takes the outfit's
+  ponytail collision asset (`<body mesh>_PonytailPhysicsAsset`). If your PC lacks that asset, the build line says
+  `outfit collision not used` and the cloth keeps the clothing asset's own collision. Nothing more goes over the
+  network. Each PC simulates the ghost it draws, so only the viewer's setting counts, and the strands follow the same
+  rules as on her screen without being the same strands. If the cloth part fails, the ponytail is a plain part, with a
+  note in the log.
 - `dyes`: her hair colour and other material variants. Her capture also names each part's overridden materials (a
   material made at run time is sent as the asset it was made from), and the ghost puts on each one your PC has, by the
   same path rule as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours.
