@@ -31,7 +31,8 @@ local function int(s,lo,hi)
     if v and v>=lo and v<=hi then return v end
 end
 local function whole(v,lo,hi) return math.type(v)=='integer' and v>=lo and v<=hi end
-local function map_ok(s) return type(s)=='string' and #s>=1 and #s<=120 and not s:find('[^a-z0-9_/.]') end
+-- What unreal.lua's U.map_of gives: a-z, 0-9, _, / and -, 128 bytes at most (a dot is read too).
+local function map_ok(s) return type(s)=='string' and #s>=1 and #s<=128 and not s:find('[^a-z0-9_/.%-]') end
 local function point_ok(p)
     return type(p)=='table' and whole(p.x,-R.XY,R.XY) and whole(p.y,-R.XY,R.XY) and whole(p.z,-R.Z,R.Z)
 end

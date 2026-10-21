@@ -82,7 +82,7 @@ local function variant(from,to)
 end
 local bad={
     variant('SBR 1','SBR 2'),variant('SBR 1\n',''),variant('map '..MAP,'map /Game/Art'),variant('map '..MAP,'map '),
-    variant('map '..MAP,'map '..('a'):rep(121)),variant('map '..MAP,'map a b'),variant('laps 1','laps 0'),
+    variant('map '..MAP,'map '..('a'):rep(129)),variant('map '..MAP,'map a b'),variant('laps 1','laps 0'),
     variant('laps 1','laps 10'),variant('laps 1','laps 2'),variant('laps 1','laps  1'),variant('laps 1','laps\t1'),
     variant('grid 0 0 0 0','grid 0 0 0 181'),variant('grid 0 0 0 0','grid 0 0 0 -181'),
     variant('grid 0 0 0 0','grid 0 0 0'),variant('grid 0 0 0 0','grid 2000001 0 0 0'),
@@ -105,6 +105,10 @@ do
     bad[#bad+1]=table.concat(many,'\n')..'\n'
 end
 assert(R.parse_track(base))
+-- A map as U.map_of gives it: a hyphen, 128 bytes.
+local HYPHEN='/game/e-03/'..('a'):rep(117)
+assert(#HYPHEN==128 and R.parse_track(variant('map '..MAP,'map '..HYPHEN)).map==HYPHEN)
+assert(R.decode('track 4294967295 64 9 -2000000 2000000 -500000 -180 '..HYPHEN).map==HYPHEN)
 for i,b in ipairs(bad) do assert(not R.parse_track(b),'refused: '..i) end
 assert(not R.parse_track(nil) and not R.parse_track(42))
 
@@ -245,7 +249,7 @@ local good={
 for line in pairs(good) do assert(R.decode(line),line) end
 for _,line in ipairs({'track 4294967296 64 9 0 0 0 0 /x','track 7 65 9 0 0 0 0 /x','track 7 1 9 0 0 0 0 /x',
     'track 7 2 10 0 0 0 0 /x','track 7 2 1 0 0 0 181 /x','track 7 2 1 0 0 0 0 /X','track 7 2 1 0 0 0 0',
-    'track 7 2 1 2000001 0 0 0 /x','track 7 2 1 0 0 500001 0 /x','track 7 2 1 0 0 0 0 '..('a'):rep(121),
+    'track 7 2 1 2000001 0 0 0 /x','track 7 2 1 0 0 500001 0 /x','track 7 2 1 0 0 0 0 '..('a'):rep(129),
     'cps 7 0 0 0 0 300','cps 7 65 0 0 0 300','cps 7 1 0 0 0 299','cps 7 1 0 0 0 3001','cps 7 1 0 0 0',
     'cps 7 1'..(' 0 0 0 300'):rep(13),'cps 7 1 0 0 0 300 0','have 7 -1','have 7 4294967296','have 7 no','have 7 no x',
     'have 7 yes map','ready 7 2','ready 7','go 7 4001','go 7 -1','abort 7 teleport','abort 7 left','abort 7',
