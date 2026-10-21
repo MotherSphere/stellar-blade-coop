@@ -1,13 +1,16 @@
 -- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
--- fallback; the display file; hidden until the first pose and after a second without one; the loopback's offset; the
--- map gate; the same table re-dressed in place; level change, comeback, the remote table gone, basesuit, the sweep; a
+-- fallback; your EVE's render flags on each part; the display file; hidden until the first pose and after a second
+-- without one; the root teleported only as it shows or steps over 2 m, so a cloth part keeps its inertia; the
+-- loopback's offset; the map gate; the same table re-dressed in place; level change, comeback, the remote table gone,
+-- basesuit, the sweep; a
 -- mesh resolved and added in one frame, a cached mesh checked again, a failed table tried again (2 s apart, 3 times,
 -- then said on screen), the strict table read; every UE4SS call on UE4SS's own Lua state, never in a coroutine;
 -- a friend's ghost exactly at the mailbox, coop where's line, and whether a save is loaded; the name tag (whose ghost,
 -- turned to the camera at each pose, left out alone when it fails), our photo mode hiding the ghost or its tag, the map
 -- notice on screen, a title round trip; with
--- cloth on, the ponytail on a SkeletalMeshComponent, its reset as the ghost shows, and a plain part when that fails;
+-- cloth on, the ponytail on a SkeletalMeshComponent with her outfit's collision (said when it cannot have it),
+-- simulated only while drawn, its reset as the ghost shows, and a plain part when that fails;
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
 -- them in place(), within their budget.
@@ -81,6 +84,12 @@ for _,path in ipairs({SKIN,TYPE_B,TYPE_C}) do
     meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.MaterialInterface' end
     meshes[path].GetFullName=function() return 'MaterialInstanceConstant '..path end
 end
+-- Her outfit's ponytail collision, a PhysicsAsset beside her body mesh; the base suit's is missing on this PC.
+local COLLISION='/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB_PonytailPhysicsAsset.'
+    ..'CH_P_EVE_52_TypeB_PonytailPhysicsAsset'
+meshes[COLLISION]=object(COLLISION,{path=COLLISION})
+meshes[COLLISION].IsA=function(_,class) return class.path=='/Script/Engine.PhysicsAsset' end
+meshes[COLLISION].GetFullName=function() return 'PhysicsAsset '..COLLISION end
 -- Clothing assets: the ponytail, a follower, and her hair, a leader.
 meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
 meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
@@ -95,8 +104,12 @@ end
 
 local spawned={}
 local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
+local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
 local function poseable(actor)
     local p=object('Poseable',{calls={}},0xc2)
+    function p:SetLightingChannels(a,b,c) self.channels={a,b,c} end
+    function p:SetRenderCustomDepth(on) if fail_depth then error('no custom depth') end self.custom_depth=on end
+    function p:SetCustomDepthStencilValue(v) self.stencil=v end
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
         p[f]=function(self,a) self.calls[f]=a end
     end
@@ -104,7 +117,10 @@ local function poseable(actor)
     function p:GetNumBones() return #self.mesh.bones end
     function p:GetBoneName(j) return fname(self.mesh.bones[j+1]) end
     function p:SetVisibility(v) self.visible=v end
-    function p:K2_SetWorldLocationAndRotation(at,r) self.at,self.rot=at,r; self.moves=(self.moves or 0)+1 end
+    function p:K2_SetWorldLocationAndRotation(at,r,sweep,_,teleport)
+        assert(sweep==false,'Never a sweep')
+        self.at,self.rot,self.teleport=at,r,teleport; self.moves=(self.moves or 0)+1
+    end
     function p:K2_AttachToComponent(parent,socket,a,b,c) self.attached={parent=parent,socket=socket:ToString(),rules={a,b,c}} end
     function p:K2_SetRelativeTransform(t) self.relative=t end
     function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
@@ -120,12 +136,35 @@ local function poseable(actor)
     return p -- No SetMaterial unless dyeable: a call fails the build, so the test.
 end
 -- A cloth part: a SkeletalMeshComponent with the same calls, plus the cloth reset; never bound to its leader's cloth.
-local fail_cloth,fail_reset,skeletal_adds=nil,false,0 -- fail_cloth: 'add' or 'set'.
+-- order: its collision bones (the first written), its collision asset, its leader and its mesh, as they were set.
+local fail_cloth,fail_reset,fail_array,skeletal_adds=nil,false,false,0 -- fail_cloth: 'add' or 'set'.
 local function cloth_part(actor)
     local s=poseable(actor)
-    s.cloth=true
+    s.cloth,s.order=true,{}
+    local mt=getmetatable(s)
+    local set=mt.__newindex
+    mt.__newindex=function(t,k,v)
+        if k=='OverrideClothPhysicsAsset' then t.order[#t.order+1]='override' end
+        return set(t,k,v)
+    end
+    -- UE4SS's TArray: indexed from 1, resized when written past its end.
+    s.AdditiveMasterBoneArray=setmetatable({},{__newindex=function(t,k,v)
+        ue4ss()
+        if fail_array then error('no array write') end
+        assert(k==#t+1 and v:type()=='FName','Written in order, an FName each')
+        if k==1 then s.order[#s.order+1]='bones' end
+        rawset(t,k,v)
+    end})
     function s:IsA(class) return class.path=='/Script/Engine.SkeletalMeshComponent' end
-    function s:SetSkeletalMesh(m) if fail_cloth=='set' then error('no cloth mesh') end self.mesh,self.added_at=m,frame end
+    function s:SetMasterPoseComponent(lead)
+        self.calls.SetMasterPoseComponent=lead
+        self.order[#self.order+1]='master'
+    end
+    function s:SetSkeletalMesh(m)
+        if fail_cloth=='set' then error('no cloth mesh') end
+        self.mesh,self.added_at=m,frame
+        self.order[#self.order+1]='mesh'
+    end
     function s:ForceClothNextUpdateTeleportAndReset()
         if fail_reset then error('no reset') end
         self.resets=(self.resets or 0)+1
@@ -357,6 +396,11 @@ assert(r.Rotation.Z==0.707106769 and r.Translation.X==1.5 and r.Translation.Y==-
 assert(pony.calls.SetMasterPoseComponent==hair and pony.attached.parent==hair and pony.visible==false)
 assert(blade.attached.socket=='SC_SwordingPoint' and blade.relative.Translation.X==10.25 and scabbard.attached.parent==blade)
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_1','The path is kept for the next Lua load')
+-- Each part drawn with your EVE's render flags: lighting channels 0 and 1, custom depth with stencil 10 (the player's).
+for k,p in ipairs(actor.parts) do
+    assert(p.channels[1]==true and p.channels[2]==true and p.channels[3]==false and p.custom_depth==true
+        and p.stencil==10,'Render flags: part '..k)
+end
 -- The display file: each leader driven as it came.
 local d=displays[#displays]:gsub('0x%x+','0xX')
 assert(d=='display 500\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
@@ -381,7 +425,7 @@ box.RelativeScale3D.Z=5
 box.RelativeLocation={X=100,Y=0,Z=30}
 box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 ghost.place()
-assert(actor.hidden==false and root.moves==1,'Shown at the first stamp')
+assert(actor.hidden==false and root.moves==1 and root.teleport==true,'Shown at the first stamp, by a teleport')
 assert(math.abs(root.at.X-(100-200))<1e-6 and math.abs(root.at.Y)<1e-6 and root.at.Z==30,'Her right: mesh yaw 0 plus 90')
 -- The UI marker's anchor: 2.2 m over where the root was put (the tag's 2 m and 20 cm), and her feet there.
 local top,feet=ghost.anchor()
@@ -407,7 +451,7 @@ ghost.place()
 assert(actor.hidden==true and tag.visible==false and root.moves==2,'At once, no pose needed')
 box.RelativeScale3D.Z=6.5
 ghost.place()
-assert(actor.hidden==true and root.moves==3 and tag.shows==1,'Still placed, still hidden')
+assert(actor.hidden==true and root.moves==3 and root.teleport==true and tag.shows==1,'Still placed, still hidden')
 ghost.photo(false,true)
 box.RelativeScale3D.Z=6.6
 ghost.place()
@@ -429,6 +473,31 @@ assert(tag.visible==false and tag.shows==3,'Still veiled')
 ghost.photo(false,false)
 ghost.place()
 assert(tag.visible==true and tag.shows==4)
+-- Shown, the root moves without a teleport, which would clear a cloth part's inertia at each pose; the first pose after
+-- a hide (above) and a step over 2 m in one pose (a fast travel, a respawn) are teleports.
+assert(root.teleport==true,'Shown again after the photo: a teleport')
+local function pose_at(stamp,at) box.RelativeScale3D.Z,box.RelativeLocation=stamp,at; ghost.place() end
+pose_at(6.7,{X=105,Y=0,Z=30})
+assert(root.teleport==false and math.abs(root.at.X+95)<1e-6,'5 cm on: moved, no teleport')
+pose_at(6.8,{X=105,Y=0,Z=230})
+assert(root.teleport==false and root.at.Z==230,'2 m up: not over 2 m, no teleport')
+pose_at(6.9,{X=606,Y=0,Z=230})
+assert(root.teleport==true and math.abs(root.at.X-406)<1e-6,'5.01 m on: a teleport')
+pose_at(6.93,{X=606,Y=0,Z=30})
+assert(root.teleport==false,'Back to small steps')
+pose_at(6.96,{X=100,Y=0,Z=30})
+assert(root.teleport==true,'Back where it was, 5 m away: a teleport')
+-- In loopback the side is kept while the ghost shows: her turn moves it neither around her nor by a teleport. The side
+-- is taken again when it shows again.
+box.RelativeRotation={Pitch=0,Yaw=90,Roll=0}
+pose_at(6.98,{X=100,Y=0,Z=30})
+assert(root.teleport==false and math.abs(root.at.X+100)<1e-6 and math.abs(root.at.Y)<1e-6,'Her turn: the same side')
+clock=clock+1
+ghost.place()
+assert(actor.hidden==true)
+pose_at(6.99,{X=100,Y=0,Z=30})
+assert(root.teleport==true and math.abs(root.at.X-100)<1e-6 and math.abs(root.at.Y+200)<1e-6,'Shown again: her right now')
+box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
 
 -- The same generation with the blade sheathed and shown otherwise: applied in place, no rebuild.
 local displays_before=#displays
@@ -875,7 +944,28 @@ root,face,hair,pony,blade,scabbard=table.unpack(actor.parts)
 assert(pony.cloth and pony.mesh==meshes[PONY] and pony.calls.SetCollisionEnabled==0 and pony.bLocalSpaceSimulation==true)
 assert(pony.calls.SetMasterPoseComponent==hair and pony.bUseBoundsFromMasterPoseComponent==true,'It follows its leader')
 assert(pony.attached.parent==hair and pony.visible==false,'Hung and shown as the table says')
+-- Her outfit's collision, set up as SB does for her ponytail: the 18 body bones its collision bodies hang on, the
+-- outfit's asset (named from her body mesh, resolved in a step of its own before), then the leader, then the mesh,
+-- which creates the cloth. keep() names the leader again: the engine ignores the same one.
+assert(table.concat(pony.order,' ')=='bones override master mesh master',table.concat(pony.order,' '))
+assert(pony.OverrideClothPhysicsAsset==meshes[COLLISION] and pony.bLocalSpaceSimulation==true)
+local bones={}
+for k,name in ipairs(pony.AdditiveMasterBoneArray) do bones[k]=name:ToString() end
+assert(table.concat(bones,' ')=='Bip001-R-Thigh Bip001-L-Thigh Bip001-L-UpperArm Bip001-L-Forearm Bip001-R-UpperArm '
+    ..'Bip001-R-Forearm Bip001-Neck Bip001-L-Calf Bip001-R-Calf Bip001-L-Foot Bip001-R-Foot Bip001-Head Bip001-Pelvis '
+    ..'Bip001-Spine Bip001-Spine1 Bip001-Spine2 Ab-L-Thigh-Tw0 Ab-R-Thigh-Tw0',table.concat(bones,' '))
+assert(table.concat(loads,' ',#loads-4)==table.concat({COLLISION,FACE,HAIR,PONY,BLADE},' '),
+    'Loaded in the frame after her body\'s, before the ponytail\'s')
+-- The asset's name from her body mesh's path, as SB builds it.
+local Puppet=require('puppet')
+assert(Puppet.collision_path(BODY)==COLLISION)
+assert(Puppet.collision_path(BASE_BODY)=='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset.'
+    ..'CH_P_EVE_08_PonytailPhysicsAsset')
+assert(Puppet.collision_path('/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08')==nil,'Not dir/name.object: none')
 assert(not (root.cloth or face.cloth or hair.cloth or blade.cloth or scabbard.cloth),'The rest are Poseables')
+-- Its cloth simulates only while it is drawn (OnlyTickPoseWhenRendered); the Poseables keep their default.
+assert(pony.VisibilityBasedAnimTickOption==3)
+for _,p in ipairs({root,face,hair,blade,scabbard}) do assert(p.VisibilityBasedAnimTickOption==nil) end
 assert(hair.calls.SetForcedLOD==1 and face.calls.SetMasterPoseComponent==root)
 d=displays[#displays]:gsub('0x%x+','0xX')
 assert(d=='display 700\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 3\ndrive 2 0xX 0xX 0xX 2\ndrive 4 0xX 0xX 0xX 1\n',d)
@@ -931,6 +1021,36 @@ assert(#actor.parts==7 and actor.parts[4].cloth and actor.parts[4].destroyed,'Ad
 assert(not actor.parts[5].cloth and actor.parts[5].mesh==meshes[PONY] and actor.parts[5].calls.SetMasterPoseComponent==actor.parts[3])
 assert(message:find('; look: cloth parts 0; SBPonytail: cloth not used %(.*no cloth mesh%), drawn as a plain part %('),message)
 fail_cloth=nil
+-- Her body on the base suit (no path): the base suit's collision, missing on this PC, is said and the cloth stays,
+-- with its collision bones and the clothing asset's own collision. A clothed follower that is no ponytail (the
+-- scabbard on the ponytail's mesh here) has cloth and no collision of hers.
+local bare=her_parts({body='-'})
+send(701,bare)
+ok,message=build()
+actor=spawned[#spawned]
+pony,scabbard=actor.parts[4],actor.parts[6]
+assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and #pony.AdditiveMasterBoneArray==18,message)
+assert(table.concat(pony.order,' ')=='bones master mesh master')
+assert(table.concat(scabbard.order,' ')=='master mesh master')
+assert(message:find('; look: cloth parts 2; .*; SBPonytail: outfit collision not used %(/Game/Art/Character/PC/'
+    ..'CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset%.CH_P_EVE_08_PonytailPhysicsAsset missing%) %('),message)
+-- Its collision bones refused: said, and neither they nor the asset are used.
+fail_array=true
+send(702,her_parts())
+ok,message=build()
+pony=spawned[#spawned].parts[4]
+assert(ok and pony.cloth and pony.OverrideClothPhysicsAsset==nil and table.concat(pony.order,' ')=='master mesh master')
+assert(message:find('; look: cloth parts 2; SBPonytail: outfit collision not used %(.*no array write%) %('),message)
+fail_array=false
+-- A render flag refused: said once, the others still set, the ghost built.
+fail_depth=true
+ghost.rebuild('look')
+ok,message=build()
+assert(ok and message:find('; look: cloth parts 2; solo render flags not set %(.*no custom depth%) %(')
+    and not message:find('render flags.*render flags'),message)
+for _,p in ipairs(spawned[#spawned].parts) do assert(p.channels[2]==true and p.stencil==10 and p.custom_depth==nil) end
+fail_depth=false
+send(700,clothed)
 -- A rebuild tries a table given up again at once.
 ghost.rebuild('look')
 give_up()

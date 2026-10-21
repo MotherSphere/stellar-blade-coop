@@ -123,7 +123,7 @@ end
 local s=Link.parse_settings('')
 local values=M.read('')
 assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='60'
-    and values.name_tag=='on' and values.cloth=='off' and values.dyes=='off' and values.effects=='off'
+    and values.name_tag=='on' and values.cloth=='on' and values.dyes=='off' and values.effects=='off'
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
@@ -258,7 +258,7 @@ assert(M.read(file).ui_scale=='95')
 on('cloth')
 action,key,text=menu.change(NONE,M.read(Link.DEFAULT),1)
 file=assert(SF.set(Link.DEFAULT,key,text))
-assert(M.read(file).cloth=='on' and Link.parse_settings(file).cloth==true)
+assert(M.read(file).cloth=='off' and Link.parse_settings(file).cloth==false,'On by default: the first change is off')
 -- The main page has no values to change.
 menu=M.new()
 assert(menu.change(NONE,values,1)==nil)

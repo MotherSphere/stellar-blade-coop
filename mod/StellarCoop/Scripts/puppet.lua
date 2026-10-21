@@ -6,12 +6,13 @@
 -- outfit. A mesh this PC lacks (a DLC it does not own), one the path rule refused ('-'), or one with other bones than
 -- hers falls back to the base suit (body and hair), whose bones the native part drives by name (a remap); a part with
 -- no fallback is left out, with its followers. Parts hang as the table says (parent part, socket, placement) and
--- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (cloth=on in
--- coop-settings.txt, or coop look), a follower whose mesh has clothing assets (her ponytail) is a SkeletalMeshComponent
--- whose cloth swings on its leader's bones; else it is a rigid Poseable like the rest. With look.dyes, a part drawn on
--- its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path rule as
--- meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack and
--- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
+-- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (on unless
+-- coop-settings.txt says cloth=off, or coop look), a follower whose mesh has clothing assets (her ponytail) is a
+-- SkeletalMeshComponent whose cloth swings on its leader's bones, as hers does in solo: the bones only anchor the
+-- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. With look.dyes, a part
+-- drawn on its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path
+-- rule as meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack
+-- and skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
 -- The build resolves one mesh a frame (a step a tick, never a coroutine), then names what it built for the native part
@@ -30,9 +31,14 @@ local T=require('ui_text')
 local clean=require('chat').clean
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Puppet={}
-local RIGHT=200 -- cm: in loopback the ghost is yours, so it walks 2 m to your right.
+-- cm: in loopback the ghost is yours, so it walks 2 m to your right. The side is taken each time it shows and kept
+-- while it shows: taken at each pose, a turn would swing the ghost around her and throw its cloth sideways.
+local RIGHT=200
 local TAG_SIZE,TAG_HEIGHT=18,200 -- cm: the name tag's letters, and its height above the main mesh (her feet).
 local ABOVE=TAG_HEIGHT+20 -- cm: the UI marker's anchor above her feet, over the tag's place.
+-- cm in one pose: a longer step of the root is a teleport (a fast travel, a respawn). 60 m/s at 30 FPS, above any of
+-- her moves.
+local TELEPORT=200
 local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
@@ -40,6 +46,18 @@ local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHa
 local EFFECTS=require('capture').EFFECTS -- What the wire's effect indexes name, for both players.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
+local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
+-- Her ponytail's AdditiveMasterBoneArray in her Blueprint: body bones its 22-bone mesh lacks and its cloth's collision
+-- bodies hang on. SB's UpdateMasterBoneMap maps each to the leader's bone of that name.
+local COLLISION_BONES={'Bip001-R-Thigh','Bip001-L-Thigh','Bip001-L-UpperArm','Bip001-L-Forearm','Bip001-R-UpperArm',
+    'Bip001-R-Forearm','Bip001-Neck','Bip001-L-Calf','Bip001-R-Calf','Bip001-L-Foot','Bip001-R-Foot','Bip001-Head',
+    'Bip001-Pelvis','Bip001-Spine','Bip001-Spine1','Bip001-Spine2','Ab-L-Thigh-Tw0','Ab-R-Thigh-Tw0'}
+-- Her outfit's ponytail collision, named from her body mesh's path as ASBCharacter::SetOverrideClothPhysicsAsset
+-- names it: <dir>/<mesh>_PonytailPhysicsAsset.<mesh>_PonytailPhysicsAsset. nil for a path that is not dir/name.object.
+function Puppet.collision_path(path)
+    local dir,name=tostring(path):match('^(/.+)/([^/.]+)%.[^/.]+$')
+    return dir and string.format('%s/%s_PonytailPhysicsAsset.%s_PonytailPhysicsAsset',dir,name,name) or nil
+end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
 -- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising) and a leader's names.
@@ -215,9 +233,40 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             local ok,n=pcall(function() local n=0; each(mesh.MeshClothingAssets,function() n=n+1 end); return n end)
             return ok and n>0
         end
+        -- Her outfit's collision on her ponytail's cloth, set up before its leader and its mesh as SB does: the body
+        -- bones its collision bodies hang on, mapped from the leader when it is set, then the outfit's asset, which
+        -- the cloth takes when SetSkeletalMesh creates it (RecreateClothingActors). A failure keeps the clothing
+        -- asset's own collision, said in the build line.
+        local function collide(target,part)
+            local ok,why=pcall(function()
+                for k,name in ipairs(COLLISION_BONES) do target.AdditiveMasterBoneArray[k]=FName(name) end
+                local asset=g.collision and resolve(g.collision,counts,PHYSICS_ASSET) -- Cached by its own step.
+                if not asset then error(tostring(g.collision or 'her body mesh\'s collision name')..' missing',0) end
+                target.OverrideClothPhysicsAsset=asset
+            end)
+            if not ok then
+                notes[#notes+1]=string.format('%s: outfit collision not used (%s)',part.name,tostring(why))
+            end
+        end
+        -- Your EVE's render flags, as on every EVE part in her Blueprint: lighting channels 0 and 1 (SB's character
+        -- lights use 1) and custom depth with stencil 10 (ESBCustomDepthStencilValue::PC). Each its own pcall: one
+        -- refused leaves the others set, and is said once a build.
+        local function light(target)
+            for _,set in ipairs({function() target:SetLightingChannels(true,true,false) end,
+                function() target:SetRenderCustomDepth(true) end,
+                function() target:SetCustomDepthStencilValue(10) end}) do
+                local ok,why=pcall(set)
+                if not (ok or g.unlit) then
+                    g.unlit=true
+                    notes[#notes+1]='solo render flags not set ('..tostring(why)..')'
+                end
+            end
+            return target
+        end
         local function add(mesh,part)
             -- A follower with cloth is a SkeletalMeshComponent: NvCloth reads its master's component-space bones
-            -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, below).
+            -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, set before
+            -- its mesh so the cloth is created on the leader's bones, as SB sets up its slots).
             -- Never BindClothToMasterPoseComponent: that binds to the leader's own cloth, and a Poseable has none.
             if look.cloth and part.lead and clothed(mesh) then
                 local target
@@ -226,10 +275,16 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                         false))
                     assert(target,'a cloth part could not be added')
                     target:SetCollisionEnabled(0)
+                    -- OnlyTickPoseWhenRendered: the engine's cloth tick skips the solve while the ghost is hidden, off
+                    -- screen or behind a wall (up to 1 s after its last render), and resets the cloth to its bones
+                    -- when it is drawn again. SB sets the same on her own ponytail during its Show sequences.
+                    target.VisibilityBasedAnimTickOption=3
+                    target.bLocalSpaceSimulation=true -- As hers: the cloth's inertia comes from its frame's moves.
+                    if part.name:find('Ponytail',1,true) then collide(target,part) end
+                    target:SetMasterPoseComponent(g.parts[part.lead].target,false)
                     target:SetSkeletalMesh(mesh,true)
-                    target.bLocalSpaceSimulation=true -- Its own space: place() moves the root by teleports.
                 end)
-                if made then g.cloth[#g.cloth+1]=target; return target end
+                if made then g.cloth[#g.cloth+1]=target; return light(target) end
                 if target then pcall(function() target:K2_DestroyComponent(actor) end) end
                 notes[#notes+1]=string.format('%s: cloth not used (%s), drawn as a plain part',part.name,tostring(why))
             end
@@ -237,7 +292,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             assert(target,'a ghost part could not be added')
             target:SetCollisionEnabled(0)
             target:SetSkeletalMesh(mesh,true) -- Its own materials, unless dyed below.
-            return target
+            return light(target)
         end
         -- One of the table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): a step
         -- each, resolved and set in the same frame, as a mesh is.
@@ -252,6 +307,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         end
         -- A part drawn (based: on its fallback's mesh, remap: a leader's bones by name).
         local function keep(part,target,mesh,based,remap)
+            if part.i==0 and look.cloth then -- Her outfit's ponytail collision, from her body as drawn: its own step.
+                g.collision=Puppet.collision_path(mesh:GetFullName():match('^%S+ (.+)$'))
+                if g.collision then soon(function() resolve(g.collision,counts,PHYSICS_ASSET) end) end
+            end
             local lead=part.lead and g.parts[part.lead]
             if lead then
                 target:SetMasterPoseComponent(lead.target,false)
@@ -559,7 +618,9 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     -- After the native tick of the same frame: a new stamp in the mailbox is a pose just written, so the root takes its
     -- transform (2 m to the side in loopback) and the ghost shows; a second without one hides it (a stalled stream, or
     -- the native part refusing to draw), so it never stands frozen. The name tag turns to the camera at each new pose.
-    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was. A new
+    -- Each time it shows, its cloth starts again from the pose it shows in, never stretched from where it was. While it
+    -- shows, the root moves without the teleport flag: the flag reaches a cloth part through the attachment and clears
+    -- its inertia, so the strands would hang and never trail. Hidden, or a step over TELEPORT, it teleports. A new
     -- effects stamp in the mailbox is a slot box just written: only then are the boxes read. Our photo mode's veils
     -- (self.photo) keep the ghost or its tag out of the shot.
     function self.place()
@@ -585,11 +646,14 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 g.seen={x=at.X,y=at.Y,z=at.Z,yaw=rotation.Yaw,at=os.clock()} -- For coop where: hers, before any offset.
                 local x,y=at.X,at.Y
                 if source=='loopback' then -- Her right: Unreal is left-handed.
-                    local yaw=math.rad(rotation.Yaw+capture.yaw_delta())
-                    x,y=x-math.sin(yaw)*RIGHT,y+math.cos(yaw)*RIGHT
+                    if g.hidden or not g.side then g.side=math.rad(rotation.Yaw+capture.yaw_delta()) end
+                    x,y=x-math.sin(g.side)*RIGHT,y+math.cos(g.side)*RIGHT
                 end
+                -- ponytail: one distance threshold, add a rotation threshold if a snap turn throws the tail.
+                local f=g.feet
+                local jump=g.hidden or not f or (x-f.X)^2+(y-f.Y)^2+(at.Z-f.Z)^2>TELEPORT^2
                 g.parts[0].target:K2_SetWorldLocationAndRotation({X=x,Y=y,Z=at.Z},
-                    {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},true)
+                    {Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll},false,{},jump)
                 g.feet={X=x,Y=y,Z=at.Z}
                 if g.hidden and not veil_ghost then
                     g.actor:SetActorHiddenInGame(false)

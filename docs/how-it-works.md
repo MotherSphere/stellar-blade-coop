@@ -355,6 +355,8 @@ the ghost from it:
   materials (unless the dyes look is on), so the ghost wears the captured outfit.
 - Only meshes under `/Game/Art/Character/...` and `/Game/DLC_<n>/Art/Character/...` are loaded. This path rule means a
   friend's table cannot make your game load anything else.
+- Each part gets the render flags of every EVE part in the game's Blueprint: lighting channels 0 and 1, and custom
+  depth with stencil 10, the game's value for the player.
 - Parts hang as the table says (parent part, socket, placement), and followers follow their leader. There are no
   morphs (a neutral face) and, without the cloth look, the ponytail is rigid. The ghost always draws its highest
   detail level, so it never pops as it walks away.
@@ -393,6 +395,16 @@ The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material
 pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from which Lua
 starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the run and
 the ghost stays. See [usage.md](usage.md#looks).
+
+Cloth, on by default, adds nothing to the table or the poses: each PC runs NvCloth on the ghost's ponytail from the
+body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While the ghost is shown, its
+root moves without the engine's teleport flag: a teleport clears the cloth's inertia, and the strands would hang
+without trailing. It teleports when the ghost shows again and when it moves more than 2 m in one pose (a fast travel,
+a respawn). The cloth simulates only while the ghost is drawn (`VisibilityBasedAnimTickOption` 3): hidden, off screen
+or behind a wall for more than 1 s, it costs nothing, and it starts again from the bones when the ghost is drawn
+again. The ponytail's cloth part is set up as SB sets up hers: the 18 body bones its collision bodies hang on
+(`AdditiveMasterBoneArray`), the outfit's `<body mesh>_PonytailPhysicsAsset` as `OverrideClothPhysicsAsset`, then its
+leader, then its mesh, which creates the cloth. The asset is loaded in a build step of its own, after the body's.
 
 ## Same-place enemies
 
@@ -765,7 +777,8 @@ These solo tools run the whole pipeline on one PC, so most of the mod can be tes
   you give (Steam's relay splits a message the same way, and one lost segment loses the pose). The line keeps order,
   like a single relay route. What comes back is handled exactly like a friend's data: the table is checked and the ghost
   built from it, and the poses are decoded and drawn on the playback clock. Because the ghost is yours, it walks 2 m to
-  your right.
+  your right. The side is taken when the ghost shows and kept while it shows: taken at each pose, your turns would
+  swing the ghost around you and throw its cloth sideways.
 - A recording keeps what is sent (the table and the poses, as the exact wire bytes) in memory for up to 120 s or 25 MiB,
   and writes it to `coop-record.bin` when it stops. The file holds `SBR` and the protocol, then entries of a kind (`T` a
   table, `P` a keyframe, `D` a delta, `E` a same-place enemies' `SBE` or `S` a show line), a size and the bytes.

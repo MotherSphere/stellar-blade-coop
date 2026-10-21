@@ -18,9 +18,9 @@ assert(F.set(text,'fight_chars','')==Link.DEFAULT:gsub('\nfight_chars=auto\n','\
     'An empty value is a value')
 
 -- A commented example is a comment: the key goes at the end instead, and the comment stays.
-text=assert(F.set(Link.DEFAULT,'cloth','on'))
-assert(text==Link.DEFAULT..'cloth=on\n' and text:find('# For example: cloth=on\n',1,true))
-assert(Link.parse_settings(text).cloth==true)
+text=assert(F.set(Link.DEFAULT,'dyes','on'))
+assert(text==Link.DEFAULT..'dyes=on\n' and text:find('# For example: dyes=on\n',1,true))
+assert(Link.parse_settings(text).dyes==true)
 
 -- Comments, unknown lines, blank lines, spacing and case of the line's own name are kept; trailing spaces go.
 local mine='# mine\n\ncolour=red\n  SEND_RATE = 12  \n# send_rate=30\nname_tag=off\n'

@@ -19,8 +19,8 @@ client that the game already runs, so the mod needs no other program and no serv
   their save has loaded, even if Steam had to start their game. The menu also invites, joins, leaves and changes the
   settings. F6 shows the status and F8 leaves the session.
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
-  has your friend's Steam name above it. Three optional looks are off by default and untested in game: her ponytail as
-  cloth, her hair colour, and her attack and skill effects.
+  has your friend's Steam name above it. Her ponytail moves as cloth, as in solo (on by default). Her hair colour and
+  her attack and skill effects are optional looks, off by default. None of the three looks is tested in game yet.
 - Session notices show in a feed at the top left of the screen, for example when a friend joins or leaves, when the
   connection is lost or when the two versions do not match. If a guest loses the host's session, their game tries to
   rejoin it for 60 s.
