@@ -115,6 +115,8 @@ function Menu.new(o)
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
     function self.is_open() return open end
+    -- Whether a key row waits for a key (main.lua's pad leaves it alone then, but for back).
+    function self.capturing() return open and capturing~=nil end
     -- menu_key: open, or close; when it cannot open, false, why for the log, the same for the screen in the menu's
     -- words and in English (the kit off when it took the game's input: the menu would be open unseen).
     function self.toggle()

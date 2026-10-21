@@ -2,8 +2,9 @@
 -- game's Continue and Load Game presses, so the question comes when the title screen shows, before any press. With
 -- auto_coop_save=ask it shows once a visit of the title, while the game uses your own saves (the slot line's
 -- saves=main), the Steam ID is known and no copy pass runs, once the kit has its whole look: Convert and play co-op
--- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc, or 60 s
--- with no key: a controller alone cannot answer) and Don't ask again, which writes auto_coop_save=always as one line of
+-- (Play co-op once a co-op copy exists in this account's save folder), Play solo normally, Decide later (Esc or B on
+-- an XInput pad, or 60 s with no key: a pad that is not XInput cannot answer) and Don't ask again, which writes
+-- auto_coop_save=always as one line of
 -- coop-settings.txt, then plays co-op. Co-op asks the native part for "saves coop" (it makes or refreshes the copies,
 -- then switches the save name, at the title only) and shows the pass's steps until saves=coop; a pass that ends
 -- without the switch, or a request with no answer in 2 s, shows why, with only the solo choices left. An unread status
@@ -12,7 +13,8 @@
 -- question: "saves coop" once a visit, its result a notice. With off, nothing: the manual co-op slot that
 -- StellarCoopSlot.txt names is the only co-op save (main.lua's shared enemies notice says how to switch in a session on
 -- your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
--- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
+-- hand it up, down, select, back and a left click, and an XInput pad's D-pad, left stick, A and B through the native
+-- part), a shade over the whole screen takes the mouse so no click reaches
 -- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
 -- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On
 -- another game build (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at

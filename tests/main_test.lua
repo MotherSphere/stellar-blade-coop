@@ -354,13 +354,26 @@ local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | al
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
+-- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
+-- (q; 0 once empty), its event; calls: how often it was called; missing: an older DLL without it. A global: this chunk
+-- is at Lua's 200 locals.
+pd={q={},calls=0,missing=false}
 local function load_main(with_native)
     native_ok=with_native
     package.loadlib=function(_,name)
         if not native_ok then return nil,'no dll' end
         if name=='coop_tick' then return function() ticks=ticks+1; return 0 end end
+        if name=='coop_pad' then
+            if pd.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==7,'Seven arguments: the most the native part hands back')
+                pd.calls=pd.calls+1
+                return table.unpack({...},1,table.remove(pd.q,1) or 0)
+            end
+        end
         return true
     end
+    pd.q,pd.calls={},0
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
@@ -2221,6 +2234,94 @@ coop('ui','off'); kit_off=true
 quarter(); assert(asked[#asked]=='saves coop','coop ui off: always still asks')
 kit_off,settings_text=false,''
 saves_info,at_title,chatting,chat_active={},false,false,false
+
+-- An XInput pad (the native part reads it; pad_test tests its events): each frame up to 8 events, routed as the keys
+-- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
+-- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
+-- select and back. Nothing while the chat box, the code box or the host's question is open, while the menu waits for a
+-- key (B still stops the wait), at the title with nothing open, or after coop off. An older DLL: one log line, no pad.
+-- A function of its own: this chunk is at Lua's 200 locals.
+;(function()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
+    load_main(true)
+    assert(not logged('Native pad unavailable'),'The export found')
+    pad(7); assert(#pd.q==0 and not kit_shown.menu and not logged('pad: menu'),'No world: nothing')
+    in_world,kit_ready,kit_paused=true,true,true; quarter()
+    pad(7)
+    assert(logged('pad: menu') and last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused '
+        ..'or shows a menu\n' and fed()=='The co-op menu does not open while the game is paused or shows a menu.',last())
+    kit_paused=false
+    pad(7); assert(kit_shown.menu and kit_input and focus()=='Host a session' and kit_sounds[#kit_sounds]=='open')
+    pad(2); assert(focus()=='Join a friend' and kit_sounds[#kit_sounds]=='move')
+    pad(1); assert(focus()=='Host a session')
+    pad(7); assert(not kit_shown.menu,'View held again closes it')
+    pad(7); pad(6); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','B on the main page closes it')
+    -- At most 8 a frame: the rest the next frame, where a 0 ends the taking.
+    pad(7); assert(kit_shown.menu)
+    local calls=pd.calls
+    for _=1,10 do pd.q[#pd.q+1]=2 end
+    loops[1].f(); assert(pd.calls==calls+8 and #pd.q==2,pd.calls-calls)
+    loops[1].f(); assert(pd.calls==calls+11 and #pd.q==0,pd.calls-calls)
+    -- A selects; left and right change a value row; a key row waiting for a key takes no pad event but B.
+    to('Options'); pad(5)
+    assert(focus()=='Open this menu')
+    pad(5); assert(select(2,focus())=='Press a key')
+    pad(2,1,3,4,5,7); assert(kit_shown.menu and focus()=='Open this menu' and select(2,focus())=='Press a key',
+        'Waiting: the pad does nothing')
+    pad(6); assert(select(2,focus())=='F5' and kit_shown.menu,'B: not waiting')
+    to('Photo sync'); assert(select(2,focus())=='Both')
+    pad(4); assert(select(2,focus())=='Notice only' and settings_text:find('photo_sync=notice',1,true))
+    pad(3); assert(select(2,focus())=='Both')
+    pad(6); assert(focus()=='Options' and kit_shown.menu,'B: back to the main page')
+    pad(6); assert(not kit_shown.menu)
+    -- The code box (Join with a code): typing, the pad does nothing; Esc cancels.
+    key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code and not kit_shown.menu)
+    pad(6,5,7); assert(kit_shown.code and not kit_shown.menu,'The code box: nothing')
+    key('ESCAPE'); assert(not kit_shown.code)
+    -- The chat's box, in a session: the same.
+    link_mode,chat_active='host',true
+    key('RETURN'); clock=clock+0.25; loops[1].f(); assert(kit_shown.chat) -- Quarters: the frame time test below.
+    pad(6,7); assert(kit_shown.chat and not kit_shown.menu,'The chat box: nothing')
+    key('ESCAPE'); assert(not kit_shown.chat)
+    -- The host's question: never answered with the pad (its buttons are the game's in a fight).
+    link_pending={id='76561198000000008',name='Two'}
+    quarter(); assert(kit_shown.ask)
+    local n=#asked
+    clock=clock+2
+    pad(5,6,1,2,7); assert(kit_shown.ask and #asked==n and not kit_shown.menu,'The host\'s question: nothing')
+    coop('ui','reset'); assert(not kit_shown.ask and asked[#asked]=='deny 76561198000000008')
+    link_mode,chat_active,link_pending='none',false,nil
+    -- coop off: no event taken.
+    coop('off'); calls=pd.calls
+    pad(7); assert(pd.calls==calls and not kit_shown.menu,'Off: the pad is not read')
+    pd.q={}
+    -- The co-op saves' question at the title: up, down, select and back; View held, left and right do nothing.
+    in_world,at_title=false,true
+    saves_info={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
+    load_main(true)
+    local saves_view=kit_views.saves
+    kit_ready=true; quarter(); quarter()
+    assert(kit_shown.saves and saves_view.rows[1].st=='focus')
+    pad(7,3,4); assert(kit_shown.saves and saves_view.rows[1].st=='focus' and not kit_shown.menu
+        and not logged('pad: menu'))
+    pad(2); assert(saves_view.rows[2].st=='focus')
+    pad(1); pad(5); clock=clock+0.25; loops[1].f()
+    assert(asked[#asked]=='saves coop' and kit_holder=='saves','A chose')
+    pad(6); assert(asked[#asked]=='saves main' and not kit_shown.saves,'B: withdrawn, closed')
+    pad(7); assert(not kit_shown.menu and not logged('pad: menu'),'The title, nothing open: View held does nothing')
+    saves_info,at_title,kit_ready={},false,false
+    -- An older DLL without coop_pad: one log line, the rest as before.
+    pd.missing=true
+    load_main(true)
+    local lines=0
+    for _,line in ipairs(printed) do if line:find('Native pad unavailable',1,true) then lines=lines+1 end end
+    assert(lines==1 and logged('Native pad unavailable (no controller in the co-op menu): not exported'),
+        table.concat(printed,'|'))
+    in_world,kit_ready=true,true; quarter()
+    loops[1].f(); key('F5'); assert(kit_shown.menu and pd.calls==0,'The keys still work')
+    pd.missing,in_world,kit_ready=false,false,false
+end)()
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true

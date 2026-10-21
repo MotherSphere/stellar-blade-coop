@@ -32,7 +32,8 @@
 -- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
 -- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
 -- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
--- of the usage line). coop off stops everything until the game restarts.
+-- of the usage line). coop off stops everything until the game restarts. An XInput pad, read by the native part,
+-- drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -48,6 +49,16 @@ if loaded then
     local f,tick_why=package.loadlib(folder..'\\StellarCoop.dll','coop_tick')
     if type(f)=='function' then native_tick=f else log('Native tick unavailable: '..tostring(tick_why)) end
 end
+-- The XInput pad, read by the native part: UE4SS binds keyboard keys only, and while the menu or a question holds the
+-- game's input the game ignores the pad. An older DLL without it: said once, no pad.
+local native_pad=nil
+if loaded then
+    local f,pad_why=package.loadlib(folder..'\\StellarCoop.dll','coop_pad')
+    if type(f)=='function' then native_pad=f
+    else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
+end
+-- The DLL links no Lua: its event (0 for none) is how many of these seven arguments it hands back.
+local function pad() return select('#',native_pad(0,0,0,0,0,0,0)) end
 local link=loaded and require('link').new(folder) or nil
 local settings=nil
 if link then
@@ -567,6 +578,28 @@ local hud_shown=false -- Our HUD may show (a world, out of our photos): the chat
 -- once a minute with the UI up. os.clock steps by whole ms under the game's C runtime: over a minute's frames the sum
 -- averages out.
 local timed={ghost=0,ui=0,frames=0,since=nil}
+-- A pad event, routed as the keys route theirs (the key block below): the menu open takes the six navigation words, and
+-- menu (View held 1 s) closes it; the co-op saves' question takes up, down, select and back; with nothing open, in a
+-- world with our HUD shown, menu opens the co-op menu as menu_key does, its refusals said the same way. Nothing while
+-- the chat's box, the code box or the host's question is open (A is Jump and the D-pad uses items: a press meant for
+-- the game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav).
+local PAD={'up','down','left','right','select','back','menu'}
+local function pad_event(what)
+    if box.is_open() or code_box.is_open() or approval.is_open() then return end
+    if menu.is_open() then
+        if what~='menu' then return menu.nav(what) end
+        if menu.capturing() then return end
+        log('pad: menu')
+        return menu.toggle()
+    end
+    if saves_ui.is_open() then
+        if what=='up' or what=='down' or what=='select' or what=='back' then saves_ui.nav(what) end
+    elseif what=='menu' and hud_shown then
+        log('pad: menu')
+        local ok,why,shown,en=menu.toggle()
+        if why then report(ok,why); say(shown or why,en) end
+    end
+end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
     local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
@@ -600,6 +633,13 @@ LoopInGameThreadWithDelay(1,function()
         approval.tick(now)
         saves_ui.tick(now)
         hud.tick(now)
+        if native_pad then -- At most 8 pad events a frame, the native part's whole ring.
+            for _=1,8 do
+                local what=PAD[pad()]
+                if not what then break end
+                pad_event(what)
+            end
+        end
         if chat_asked and now>=chat_asked+0.1 then
             local asked=chat_asked
             chat_asked=nil
@@ -909,7 +949,10 @@ end
 -- key callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
 -- off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
 -- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
--- in the log in English and on screen in the menu's words; coop status keeps the full status.
+-- in the log in English and on screen in the menu's words; coop status keeps the full status. An XInput pad, which
+-- no bind can take, comes through the native part (pad_event above, each frame): View held 1 s does what menu_key
+-- does, the D-pad or the left stick, A and B navigate the menu and the co-op saves' question; never the host's
+-- question, the chat's box or the code box.
 if settings then
     local K=require('keybind')
     local ACTIONS={'menu','host','status','leave'}
