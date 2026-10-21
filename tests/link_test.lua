@@ -378,6 +378,21 @@ end
 s,notes=Link.parse_settings('aggro=guest')
 assert(#notes==1 and notes[1]=="settings: line 1: 'guest' is not allowed for aggro (use game or host); aggro stays "
     .."game" and s.aggro=='game',notes[1])
+-- same_spawns (stage 4, experimental, the host's): on or off in any case, off by default and in a file written before
+-- it; a new file names it right after aggro, with its comment; a bad value keeps off, with a line.
+assert(Link.DEFAULT:find('\naggro=game\n# Same spawns, experimental, ',1,true)
+    and Link.DEFAULT:find('\nsame_spawns=off\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.same_spawns==false)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.same_spawns==false)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('same_spawns='..case[1])
+    assert(#notes==0 and s.same_spawns==case[2],case[1])
+end
+s,notes=Link.parse_settings('same_spawns=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for same_spawns (use on or off); "
+    .."same_spawns stays off" and s.same_spawns==false,notes[1])
 
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one

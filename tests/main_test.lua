@@ -867,6 +867,19 @@ settings_text='shared_enemies=on\naggro=HOST\n'
 load_main(true)
 status_text=COOP
 coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 aggro-host',asked[#asked])
+-- same_spawns=on (the host's) goes with on only, as "spawns" after aggro-host, before the ids: the other modes have no
+-- guest to answer.
+settings_text='shared_enemies=on\nsame_place=on\naggro=host\nsame_spawns=on\nfight_chars=15011001\n'
+load_main(true)
+status_text=COOP
+for _,case in ipairs({{'on','fight on scale 135 115 place aggro-host spawns 15011001'},{'record','fight record scale '
+        ..'135 115 place aggro-host 15011001'},{'replay','fight replay 15011001'},{'probe','fight probe 15011001'}}) do
+    coop('fight',case[1]); assert(asked[#asked]==case[2],asked[#asked])
+end
+settings_text='shared_enemies=on\nsame_spawns=on\n'
+load_main(true)
+status_text=COOP
+coop('fight','on'); assert(asked[#asked]=='fight on scale 135 115 spawns',asked[#asked])
 settings_text='shared_enemies=on\nfight_chars=15011001 2\n'
 -- coop fight off cancels the start to come; coop off too.
 load_main(true)

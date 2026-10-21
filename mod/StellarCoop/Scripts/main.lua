@@ -268,8 +268,9 @@ local commands={
     -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). Before
     -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
-    -- (the modes that can host), and same_place=on as "place" and aggro=host as "aggro-host" after them. status
-    -- answers with the fight= line; pilot is same-place enemies' own (pilot above).
+    -- (the modes that can host), and same_place=on as "place" and aggro=host as "aggro-host" after them, then with on
+    -- only same_spawns=on as "spawns". status answers with the fight= line; pilot is same-place enemies' own (pilot
+    -- above).
     fight=function(sub,a,b,extra)
         if sub=='pilot' then return pilot(a,b,extra) end
         local line=fight_line(sub,a,b,extra)
@@ -290,6 +291,7 @@ local commands={
                 line=line..string.format(' scale %d %d',math.floor(settings.enemy_hp_scale*100+0.5),
                     math.floor(settings.enemy_balance_scale*100+0.5))..(settings.same_place and ' place' or '')
                     ..(settings.aggro=='host' and ' aggro-host' or '')
+                    ..(sub=='on' and settings.same_spawns and ' spawns' or '')
             end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end

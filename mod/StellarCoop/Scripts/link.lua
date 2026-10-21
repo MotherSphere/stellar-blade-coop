@@ -10,11 +10,11 @@
 -- at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (join.lua asks the host),
 -- and keeps who waited in this lobby (the menu's Remove row).
--- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit and
--- same_place (Phase 11, experimental) are main.lua's coop fight; its photo_sync, photo_freeze_max, photo_ghost and
--- photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt); its auto_coop_save
--- the co-op saves' (saves.lua), which also read saves() here. The co-op menu (menu.lua) changes the file, one line at
--- a time (D-UI4).
+-- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
+-- same_place, aggro and same_spawns (Phase 11, experimental) are main.lua's coop fight; its photo_sync,
+-- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
+-- coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op menu
+-- (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -68,6 +68,11 @@ kill_credit=all
 # last, or else the nearer player) or host (enemies fight the host only).
 same_place=off
 aggro=game
+# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game. On, while
+# both players stand within 100 m of each other in one zone, the guest's game adds the common enemies the host's game
+# has there and removes those it lacks. Bosses, quest and event enemies, and the enemies a save records, stay as they
+# are.
+same_spawns=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
@@ -95,11 +100,12 @@ card_details=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',photo_sync='both',photo_freeze_max='600',
-    photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',chat='on',partner_bar='on',
-    partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',auto_coop_save='ask'}
-local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,photo_ghost=true,photo_name_tag=true,ui_sounds=true,
-    chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true} -- On or off.
+    enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',same_spawns='off',photo_sync='both',
+    photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',ui_language='game',
+    chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',who_can_join='friends',
+    auto_coop_save='ask'}
+local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,photo_ghost=true,photo_name_tag=true,
+    ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,card_details=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
