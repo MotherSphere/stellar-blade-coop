@@ -39,9 +39,9 @@ int main() {
   std::string other = "SBC" + std::to_string(kProtocol + 1) + " ping 1 2";
   assert(parse_text(other).kind == Kind::invalid);
 
-  // The synced photo mode's line: each state with each mode round-trips; another protocol's, or any other word, is
-  // dropped.
-  for (char state : {'0', '1', 's'})
+  // The synced photo mode's line: each state with each mode round-trips, c (the host's cutscene) too; another
+  // protocol's, or any other word, is dropped.
+  for (char state : {'0', '1', 's', 'c'})
     for (bool both : {false, true}) {
       m = parse_text(photo_line(state, both));
       assert(m.kind == Kind::photo && m.a == static_cast<uint64_t>(state) && m.b == both);
@@ -49,6 +49,9 @@ int main() {
   assert(photo_line('1', true) == "SBC" + std::to_string(kProtocol) + " photo 1 both");
   assert(photo_line('s', false) == "SBC" + std::to_string(kProtocol) + " photo s notice");
   assert(parse_text("SBC" + std::to_string(kProtocol + 1) + " photo 1 both").kind == Kind::invalid);
+  assert(photo_line('c', false) == "SBC" + std::to_string(kProtocol) + " photo c notice");
+  for (const char *bad : {" photo x both", " photo C both", " photo cc notice", " photo c", " photo c off"})
+    assert(parse_text("SBC" + std::to_string(kProtocol) + bad).kind == Kind::invalid);
 
   // Chat (UI-DESIGN 4.2, 5.1): the line both players see, cleaned as chat.lua's Chat.clean cleans it. Well-formed
   // UTF-8 only; C0, DEL, C1, the bidi and zero-width controls dropped (a ZWJ too); ASCII spaces trimmed; 200 bytes at
@@ -216,7 +219,7 @@ int main() {
     }
     Message f = parse(text.data(), text.size());
     if (f.kind == Kind::photo) // Only a state and a mode, whatever the bytes.
-      assert((f.a == '0' || f.a == '1' || f.a == 's') && f.b <= 1 && text == photo_line(char(f.a), f.b));
+      assert((f.a == '0' || f.a == '1' || f.a == 's' || f.a == 'c') && f.b <= 1 && text == photo_line(char(f.a), f.b));
     if (f.kind == Kind::say) // Cleaned, never empty.
       assert(!f.text.empty() && f.text == chat_clean(f.text));
     if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
@@ -563,6 +566,12 @@ int main() {
          s.sync == Sync::off && s.max == 30);
   assert(parse_state("world=1 rate=20 photo=0 sync=both max=3600", s) && s.max == 3600);
   assert(parse_state("world=1 rate=60 photo=0 sync=both max=3600", s) && s.rate == 60); // Protocol 9: up to 60.
+  // The host's cutscene (photo=c, the host's Lua alone writes it) and the guest's cutscene_wait on her map (cut=1, the
+  // sixth field; without it, 0).
+  assert(parse_state("world=1 rate=60 photo=c sync=both max=600", s) && s.photo == 'c' && !s.cut);
+  assert(parse_state("world=1 rate=60 photo=0 sync=off max=600 cut=1\n", s) && s.photo == '0' && s.cut);
+  assert(parse_state("world=1 rate=60 photo=1 sync=both max=600 cut=0", s) && s.photo == '1' && !s.cut);
+  assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1\r\n").size() <= kMaxState);
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :
        {std::string(), "world=2 rate=20" + tail, "world=1 rate=9" + tail, "world=1 rate=61" + tail,
@@ -579,16 +588,20 @@ int main() {
         std::string("world=1 rate=20 photo=1 sync=both max="),
         std::string("world=1 rate=20 photo=1 sync=both max=-1"),
         std::string("world=1 rate=20 sync=both photo=1 max=600"), std::string("world=1 rate=20 photo=1 sync=both"),
+        std::string("world=1 rate=20 photo=x sync=both max=600"),
+        std::string("world=1 rate=20 photo=C sync=both max=600"),
+        "world=1 rate=20" + tail + " cut=2", "world=1 rate=20" + tail + " cut=", "world=1 rate=20" + tail + " cut=1 x",
+        "world=1 rate=20" + tail + " cut=01", "world=1 rate=20" + tail + "  cut=1", "world=1 rate=20" + tail + " Cut=1",
         "world=1 rate=25" + tail + "\n" + std::string(64 - 41, '\n')}) { // The last is 65 bytes.
     State keep;
-    keep.world = true, keep.rate = 7, keep.photo = 's', keep.sync = Sync::notice, keep.max = 99;
+    keep.world = true, keep.rate = 7, keep.photo = 's', keep.sync = Sync::notice, keep.max = 99, keep.cut = true;
     State out = keep;
     assert(!parse_state(bad, out) && out.world && out.rate == 7 && out.photo == 's' && out.sync == Sync::notice &&
-           out.max == 99);
+           out.max == 99 && out.cut);
   }
   State fresh; // Before Lua writes one: photo sync off, the default cap.
   assert(!fresh.world && !fresh.title && fresh.rate == 20 && fresh.photo == '0' && fresh.sync == Sync::off &&
-         fresh.max == 600);
+         fresh.max == 600 && !fresh.cut);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
   assert(connect_lobby(L"SB-Win64-Shipping.exe -DistributionPlatform=Steam +connect_lobby 109775241234567890") ==

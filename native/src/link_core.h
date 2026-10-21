@@ -441,16 +441,20 @@ public:
   }
 
   // The synced photo mode (FEATURE-PARITY.md 6.3), from Lua's coop-state.txt, before each tick(): ours ('0', '1' or
-  // 's'), our photo_sync as she gets it (both only while this game can pause, so she never counts on a pause it cannot
-  // make), and photo_freeze_max in s (0: no cap). No photo line goes before the first call.
-  void photo(char mine, Sync sync, uint32_t max_s) {
+  // 's'; 'c' while the host's cutscene plays, which its Lua writes only), our photo_sync as she gets it (both only
+  // while this game can pause, so she never counts on a pause it cannot make), photo_freeze_max in s (0: no cap), and
+  // cut: our Lua asks for the pause during the host's cutscene (the guest's cutscene_wait=on, the host on her map). No
+  // photo line goes before the first call.
+  void photo(char mine, Sync sync, uint32_t max_s, bool cut = false) {
     photo_on_ = true;
     photo_ = mine;
     sync_ = sync;
     photo_max_ = max_s;
+    cut_ = cut;
   }
   // As of the last tick(): our game holds its pause, as the friend past the handshake, heard within 10 s, is in photo
-  // mode (not a selfie), photo_sync=both on both PCs, and photo_freeze_max has not run out since she entered it.
+  // mode (not a selfie), photo_sync=both on both PCs, and photo_freeze_max has not run out since she entered it; or, as
+  // the guest with cut, the host's cutscene plays and photo_freeze_max has not run out since it began.
   bool photo_freeze() const { return freeze_; }
   // coop-status.txt's photo line; frozen: our pause tag is held (pose_tick.cpp), which coop freeze holds too.
   std::string photo_status(bool frozen) const {
@@ -1367,6 +1371,7 @@ private:
 
   // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
   // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
+  // Our cutscene ('c') goes whatever photo_sync says: the guest's own setting decides whether it pauses her.
   void send_paks() {
     if (!paks_on_)
       return;
@@ -1379,7 +1384,7 @@ private:
   void send_photo() {
     if (!photo_on_)
       return;
-    const std::string line = photo_line(sync_ == Sync::off ? '0' : photo_, sync_ == Sync::both);
+    const std::string line = photo_line(photo_ == 'c' || sync_ != Sync::off ? photo_ : '0', sync_ == Sync::both);
     for (auto &p : peers_)
       if (p.compatible && p.accepted && p.photo_sent != line &&
           send(p, line.data(), line.size(), kReliable) == kResultOk)
@@ -1388,7 +1393,9 @@ private:
 
   // Each pass, after channel 0 and the liveness check: whether our game holds its pause for the friend's photo mode,
   // its cap, and the notices on both screens. Hers counts only while she is past the handshake and not lost (it comes
-  // back with her); a friend who leaves takes it along. photo_sync=off shows nothing.
+  // back with her); a friend who leaves takes it along. photo_sync=off shows nothing. The host's cutscene ('c') holds
+  // the same pause on a guest whose Lua asked for it (cut), with the same cap, a log line each way and no notice: Lua
+  // says it in the player's language.
   void photo_pass() {
     Peer *p = nullptr;
     for (auto &peer : peers_)
@@ -1397,13 +1404,14 @@ private:
         break;
       }
     const char theirs = p && !p->lost ? p->photo : '0';
-    const bool asked = sync_ == Sync::both && theirs == '1' && p->photo_both;
+    const bool cut = theirs == 'c';
+    const bool asked = cut ? cut_ && !host_ : sync_ == Sync::both && theirs == '1' && p->photo_both;
     if (theirs == '0')
       capped_ = false; // The next photo session of hers pauses us again (a selfie within one is no new one).
     const bool cap = asked && freeze_ && photo_max_ && now_ - freeze_since_ >= uint64_t(photo_max_) * 1000;
     capped_ = capped_ || cap;
     const bool want = asked && !capped_;
-    if (sync_ != Sync::off && theirs != '0' && theirs != theirs_) {
+    if (sync_ != Sync::off && theirs != '0' && !cut && theirs != theirs_) {
       const std::string &name = p->name;
       notice(theirs == 's'                ? name + " is taking a selfie."
              : want                       ? name + " is taking photos: game paused. Esc > Photo Mode to join in."
@@ -1421,12 +1429,15 @@ private:
     }
     if (want && !freeze_) {
       freeze_since_ = now_;
-      event("photo pause on: " + p->name + " is taking photos");
+      event(cut ? "cutscene pause on: " + p->name + " watches a cutscene"
+                : "photo pause on: " + p->name + " is taking photos");
     } else if (freeze_ && !want) {
       const std::string cap_text = photo_max_ % 60 ? std::to_string(photo_max_) + " s"
                                                    : std::to_string(photo_max_ / 60) + " min";
-      event(cap ? "photo pause off: photo_freeze_max (" + cap_text + ") reached" : "photo pause off");
-      notice(cap ? "Paused for " + cap_text + ": game resumed." : "Game resumed.");
+      const std::string what = theirs_ == 'c' ? "cutscene" : "photo";
+      event(cap ? what + " pause off: photo_freeze_max (" + cap_text + ") reached" : what + " pause off");
+      if (theirs_ != 'c')
+        notice(cap ? "Paused for " + cap_text + ": game resumed." : "Game resumed.");
     }
     freeze_ = want;
     theirs_ = theirs;
@@ -1552,16 +1563,16 @@ private:
   std::vector<std::pair<std::string, bool>> fight_out_;
   bool fight_linked_ = false;
   bool fight_waiting_ = false; // fight_out_'s first line was refused at an earlier pass.
-  // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s; as of the last pass, hers
-  // ('0' with no friend or a lost one) and ours, whether our game holds its pause and since when, whether the cap ended
-  // this photo session of hers.
+  // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s, whether our Lua asks for
+  // the host's cutscene pause; as of the last pass, hers ('0' with no friend or a lost one) and ours, whether our game
+  // holds its pause and since when, whether the cap ended this photo session of hers.
   bool photo_on_ = false;
   bool paks_on_ = false; // paks() said ours.
   uint64_t paks_count_ = 0, paks_hash_ = 0;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;
   uint32_t photo_max_ = 0;
-  bool freeze_ = false, capped_ = false;
+  bool freeze_ = false, capped_ = false, cut_ = false;
   uint64_t freeze_since_ = 0;
   // Chat and vitals: coop loopback runs; a session held at the last pass; the lines for Lua and this session's counts;
   // our rate window; ours as last sent and when; hers as last heard and when.

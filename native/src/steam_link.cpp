@@ -577,10 +577,12 @@ bool step() {
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.
       link->world(coop::pose::world_loaded());
-      // Ours as Lua last wrote it; photo_sync=both is sent as notice while this game cannot pause.
+      // Ours as Lua last wrote it; photo_sync=both is sent as notice while this game cannot pause. cut: the guest's Lua
+      // asks for the pause during the host's cutscene.
       const coop::State lua = coop::pose::lua_state();
       link->photo(lua.photo,
-                  lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max);
+                  lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max,
+                  lua.cut);
       link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;

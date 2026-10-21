@@ -16,8 +16,8 @@
 -- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
 -- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
 -- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
--- quest_notes() here; its revive group.lua's (the friend's revive). The co-op menu (menu.lua) changes the file, one
--- line at a time (D-UI4).
+-- quest_notes() here; its revive and cutscene_wait group.lua's (the friend's revive, the wait during the host's
+-- cutscene). The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -110,6 +110,9 @@ photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
 photo_pause=full
+# Cutscene wait: on or off. Yours, as the guest: on, your game pauses while a cutscene plays in the host's game and you
+# are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
+cutscene_wait=on
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
@@ -133,10 +136,10 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off'}
+    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',cutscene_wait='on'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true,revive=true} -- On or off.
+    card_details=true,shared_quests=true,revive=true,cutscene_wait=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -378,12 +381,13 @@ function Link.new(folder,fs)
     function self.session(token) return put('coop-session.txt',token..'\n') end
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
-    -- photo mode's: ours ('0', '1' or 's'), photo_sync and photo_freeze_max. Written when its text changes, and
-    -- remembered only once written, so a failed write is tried again; returns the line it wrote.
+    -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, group.lua's), photo_sync and
+    -- photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut). Written when
+    -- its text changes, and remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate,photo_now,sync,max,title)
-        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d',world and '1' or title and 'title' or '0',
-            rate,photo_now,sync,max)
+    function self.state(world,rate,photo_now,sync,max,title,cut)
+        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s',
+            world and '1' or title and 'title' or '0',rate,photo_now,sync,max,cut and ' cut=1' or '')
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line
@@ -517,6 +521,8 @@ function Link.new(folder,fs)
     -- Our life state (1 Spawn, 6 Spawning; 3-5 dying or dead) and HP from our last vitals read ({state=, hp=}), or nil:
     -- no session, or no read for 3 s.
     function self.life() return life end
+    -- The photo line ({mine=, peer=, frozen=}: ours, hers, our pause held), or nil without one.
+    function self.photo() return photo end
     -- The friend's round trip in ms, or nil before the first pong.
     function self.ping() return ping or nil end
     -- A chat session holds once Steam is ready: a friend linked (lost or not), a rejoin under way (until she is linked

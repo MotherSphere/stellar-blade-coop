@@ -1866,6 +1866,87 @@ int main() {
     assert(fresh_notices(t.b, mb) == Texts({"Session ended: Me left.", "Game resumed."}));
   }
 
+  // The host's cutscene ('c' on the photo line, which only the host's Lua writes): it pauses the guest whose Lua wrote
+  // cut=1 (her cutscene_wait=on with the host on her map), with a log line each way and no notice; never the host, and
+  // never a guest with cut=0. photo_freeze_max caps it as it caps photos, until the host's next cutscene. photo_sync
+  // takes no part: the host sends it with photo_sync=off, and the guest pauses for it with hers off.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    for (int round = 0; round < 6 && !(t.a.linked() && t.b.linked()); ++round) {
+      t.tick(t.a, 600);
+      t.tick(t.b, 600);
+    }
+    assert(t.a.linked() && t.b.linked() && t.a.host() && !t.b.host());
+    Side sa, sb;
+    bool cut_a = false, cut_b = true;
+    auto pass = [&](uint64_t ms = 50) {
+      t.a.photo(sa.photo, sa.sync, sa.max, cut_a);
+      t.tick(t.a, ms);
+      t.b.photo(sb.photo, sb.sync, sb.max, cut_b);
+      t.tick(t.b, 0);
+    };
+    const auto since = [](size_t from, const std::string &text) {
+      for (size_t i = from; i < events.size(); ++i)
+        if (events[i] == text)
+          return true;
+      return false;
+    };
+    uint64_t ma = 0, mb = 0;
+    fresh_notices(t.a, ma), fresh_notices(t.b, mb);
+    pass();
+    pass();
+    size_t from = events.size();
+    sa.photo = 'c';
+    pass();
+    assert(t.b.photo_freeze() && last_photo(kMe, kFriend) == photo_line('c', true));
+    assert(t.b.photo_status(true) == "photo=0 peer_photo=c frozen=1 sync=both");
+    assert(t.a.photo_status(false) == "photo=c peer_photo=0 frozen=0 sync=both");
+    assert(since(from, "B: Me photo=c both") && since(from, "B: cutscene pause on: Me watches a cutscene"));
+    assert(fresh_notices(t.b, mb).empty() && fresh_notices(t.a, ma).empty());
+    sa.photo = '0';
+    from = events.size();
+    pass();
+    assert(!t.b.photo_freeze() && since(from, "B: cutscene pause off") && fresh_notices(t.b, mb).empty());
+    cut_b = false; // Her cutscene_wait=off, or the host on another map.
+    sa.photo = 'c';
+    pass();
+    assert(!t.b.photo_freeze() && fresh_notices(t.b, mb).empty());
+    sa.photo = '0', cut_a = true, sb.photo = 'c'; // A 'c' from the guest reaches the host: never a pause there.
+    pass();
+    pass();
+    assert(!t.a.photo_freeze() && fresh_notices(t.a, ma).empty() && fresh_notices(t.b, mb).empty());
+    sb.photo = '0', cut_a = false, cut_b = true, sb.max = 60; // The cap.
+    sa.photo = 'c';
+    pass();
+    for (int i = 0; i < 59; ++i)
+      pass(1000);
+    assert(t.b.photo_freeze());
+    from = events.size();
+    pass(1000);
+    assert(!t.b.photo_freeze() && since(from, "B: cutscene pause off: photo_freeze_max (1 min) reached"));
+    assert(fresh_notices(t.b, mb).empty());
+    pass(1000);
+    assert(!t.b.photo_freeze());
+    sa.photo = '0';
+    pass();
+    sa.photo = 'c'; // The host's next cutscene pauses her again.
+    pass();
+    assert(t.b.photo_freeze());
+    sa.photo = '0';
+    pass();
+    sa.sync = Sync::off, sb.sync = Sync::off, sa.photo = 'c';
+    pass();
+    assert(t.b.photo_freeze() && last_photo(kMe, kFriend) == photo_line('c', false) && fresh_notices(t.b, mb).empty());
+  }
+
   // The settings differ: B on photo_sync=notice gets a notice and no pause, and A hears once a session that B's game
   // does not pause for photos; A on notice pauses nobody, and B says why; B on off sends "0 notice", shows nothing and
   // pauses for nobody, and turning it off releases a friend B's photo mode paused. Her hello gets our line again (a

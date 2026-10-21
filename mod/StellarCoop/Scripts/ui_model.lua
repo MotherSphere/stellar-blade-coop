@@ -52,6 +52,7 @@ M.OPTIONS={
     {head='session'},
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
     toggle('revive','off'), -- Yours, at once: the friend's revive of your EVE (group.lua).
+    toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     later(toggle('rejoin','on')),
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.

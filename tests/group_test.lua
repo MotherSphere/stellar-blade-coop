@@ -7,6 +7,9 @@
 -- missing. The notices on both sides: the wait once per death, the revived line after a revive, her down once per death
 -- of hers on our map outside a boss fight while we are up, and our revive of her only while our EVE stands within 3 m
 -- of her ghost. coop revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines.
+-- The host's cutscene: SB's theater observers read once a second while linked, a cutscene while one has a valid player
+-- that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
+-- with cutscene_wait=on and the host on her map; the notice once a pause for it, from the photo line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local W -- The world of one case.
@@ -51,8 +54,19 @@ end
 FindAllOf=function(name)
     W.finds[name]=(W.finds[name] or 0)+1
     if name=='WB_MainHUD_Master_C' then return W.huds end
+    if name=='SBTheaterLevelSequenceObserver' then
+        if W.theater_error then error(W.theater_error,0) end
+        return W.observers
+    end
     error('FindAllOf '..name)
 end
+-- A theater observer: its sequence's name, and its player as UE4SS gives a TWeakObjectPtr.
+local function observer(name,player)
+    return uobject('SBTheaterLevelSequenceObserver /Engine/Transient.SBTheaterLevelSequenceObserver_0',
+        {SequenceName=name,Player={type=function() return 'TWeakObjectPtr' end,Get=function() return player end}})
+end
+local scene=uobject('LevelSequencePlayer /Engine/Transient.LevelSequencePlayer_0',
+    {IsPlaying=function() return W.scene end})
 package.loaded.nightop={her=function() return W.eve end,controller=function() return pc end}
 local G=require('group')
 
@@ -63,15 +77,16 @@ local clock=0
 local function world(change)
     W={life={state=3,hp=0},mate={life=1,hp=900,max_hp=1600},fight=GUEST..'0',engine=ENGINE..' warp=idle me=4242',
         mode='guest',linked=true,at={X=1000,Y=2000,Z=300},ghost={X=1150,Y=2000,Z=300},shown=true,map='/game/e04',
-        her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,settings={revive=true},calls={},
-        said={},logs={},sets={},finds={}}
+        her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,
+        settings={revive=true,cutscene_wait=true},calls={},said={},logs={},sets={},finds={},observers={}}
     if change then change(W) end
     clock=0
     local link={life=function() return W.life end,mate=function() return W.mate end,fight=function() return W.fight end,
         status=function()
             return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..W.engine..'\nlast=#1 x\n'
         end,
-        mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end}
+        mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
+        photo=function() return W.photo end}
     local puppet={her_map=function() return W.her_map end,me=function() return {at=W.at,map=W.map} end,
         anchor=function()
             if W.shown then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end
@@ -263,4 +278,54 @@ for _,state in ipairs({3,4,5}) do
     assert(#W.calls==2 and W.calls[2]==REVIVAL and logged('revive result (coop revive test): life '..state..'/'..state))
     assert(#W.said==0,'The probe says nothing on screen')
 end
+
+-- The host's cutscene, read once a second while linked: 'c' in place of its own '0' only; a guest's game reads it too
+-- (for its own guards) and sends nothing; off with no valid playing player, or not linked.
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},true
+    w.observers={observer('Theater_Idle',nil),observer('Mann_Entrance',scene)}
+end)
+run(g,0.25)
+assert(g.cutscene_playing() and g.photo('0')=='c' and g.photo('1')=='1' and g.photo('s')=='s')
+assert(logged('cutscene on: Mann_Entrance'),table.concat(W.logs,'|'))
+run(g,2)
+assert(W.finds.SBTheaterLevelSequenceObserver==3,'Once a second: '..W.finds.SBTheaterLevelSequenceObserver)
+W.scene=false
+run(g,1)
+assert(not g.cutscene_playing() and g.photo('0')=='0' and logged('cutscene off'))
+W.scene,W.mode=true,'guest'
+run(g,1)
+assert(g.cutscene_playing() and g.photo('0')=='0','A guest sends no cutscene')
+W.linked=false
+run(g,1)
+assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==5,'Not linked')
+-- A read that fails: one line, and no cutscene for the run.
+g=world(function(w) w.mode,w.life,w.theater_error='host',{state=1,hp=1600},'no such property' end)
+run(g,3)
+assert(not g.cutscene_playing() and logged('cutscene off for this run: no such property')
+    and W.finds.SBTheaterLevelSequenceObserver==1)
+-- The guest's ask for the pause: cutscene_wait=on and the host on her map, as the guest only.
+g=world(function(w) w.life={state=1,hp=1600} end)
+assert(g.cut()==true)
+W.settings.cutscene_wait=false
+assert(g.cut()==false)
+W.settings.cutscene_wait,W.her_map=true,'/game/f02'
+assert(g.cut()==false)
+W.her_map,W.mode=W.map,'host'
+assert(g.cut()==false)
+W.mode,W.her_map='guest',nil
+assert(g.cut()==false)
+-- Her notice: once each time the photo line says her game holds the pause for the host's cutscene.
+local CUT='Kaanta is watching a cutscene. Your game waits until it ends.'
+g=world(function(w) w.life,w.photo={state=1,hp=1600},{mine='0',peer='c',frozen=false} end)
+run(g,1)
+assert(#W.said==0,'Not before the pause holds')
+W.photo.frozen=true
+run(g,3)
+assert(#W.said==1 and W.said[1]==CUT)
+W.photo={mine='0',peer='0',frozen=false}
+run(g,0.25)
+W.photo={mine='0',peer='c',frozen=true}
+run(g,0.25)
+assert(#W.said==2 and W.said[2]==CUT)
 print('group_test ok')

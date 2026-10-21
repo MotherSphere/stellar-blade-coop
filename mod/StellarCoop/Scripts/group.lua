@@ -1,5 +1,5 @@
--- The friend's revive, on the game thread: main.lua ticks it every 250 ms with the Steam link. Nothing here goes on the
--- wire: each side reads its own game and the friend's vitals and ghost.
+-- The friend's revive and the wait during the host's cutscene, on the game thread: main.lua ticks it every 250 ms with
+-- the Steam link. The revive sends nothing: each side reads its own game and the friend's vitals and ghost.
 -- The downed side (us): our EVE is revived where she lies once all of these held for 3 s with no gap: our life state in
 -- G.DOWN (the death screen's), the death screen's animation playing (unreal.lua's death_screen()), the engine line's
 -- warp=idle (no respawn or warp in flight, read by the native part), the friend linked with her vitals alive (life 1 or
@@ -19,6 +19,11 @@
 -- ghost. Her revive setting reaches no line, so the down notice shows whatever it says.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines.
+-- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
+-- plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
+-- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
+-- photo line pauses the guest; the guest asks for that pause with cut=1 while her cutscene_wait is on and the host's
+-- ghost is on her map (cut()). Her notice comes once each time her photo line says the pause holds for it.
 local U=require('unreal')
 local N=require('nightop')
 local G={}
@@ -30,6 +35,13 @@ local HIDDEN=2 -- ESlateVisibility Hidden.
 local function alive(m) return m~=nil and (m.life==1 or m.life==6) and m.hp>0 end
 local function down(m) return m~=nil and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+-- A TWeakObjectPtr property's object (UE4SS gives the pointer, whose Get() reads it), or nil.
+local function weak(v)
+    v=U.value_of(v)
+    local kind=U.kind(v)
+    if kind and kind:find('Weak',1,true) then v=v:Get() end
+    return U.valid(v)
+end
 -- Our EVE's mesh location (her ghost's place is the friend's mesh), or nil.
 local function feet()
     local eve=N.her()
@@ -46,6 +58,7 @@ function G.new(o)
     local screen,look_at,hidden=nil,-math.huge,nil -- hidden: {widget=, was=} while we hide the death screen.
     local d=nil -- This death of ours: {since=, waited=, said=, call=, before=, fallback=, probe=}.
     local hers=nil -- Her death as we saw it: {said=}.
+    local scene={playing=false,next=0,told=false} -- A cutscene: as of the last read, the next read, our notice.
     local function engine() return ('\n'..(link.status() or '')):match('\nengine=([^\r\n]*)') or '' end
     local function death_screen()
         if not U.valid(screen) then
@@ -192,6 +205,30 @@ function G.new(o)
             end
         end
     end
+    -- The cutscene's name while one plays, else nil.
+    local function theater()
+        local name=nil
+        U.each(FindAllOf('SBTheaterLevelSequenceObserver') or {},function(_,ob)
+            ob=not name and U.valid(ob)
+            local player=ob and weak(ob.Player)
+            if player and player:IsPlaying()==true then name=U.text(ob.SequenceName) end
+        end)
+        return name
+    end
+    local function watch()
+        if now>=scene.next then
+            scene.next=now+1
+            local name=theater()
+            if (name~=nil)~=scene.playing then log(name and 'cutscene on: '..name or 'cutscene off') end
+            scene.playing=name~=nil
+        end
+        local photo=link.photo()
+        if not (photo and photo.peer=='c') then scene.told=false
+        elseif photo.frozen and not scene.told then
+            scene.told=true
+            tell('cutscene')
+        end
+    end
     -- One part's first Lua error turns it off for the run, with one line.
     local function guard(name,f,...)
         if off[name] then return end
@@ -209,7 +246,19 @@ function G.new(o)
         local linked=(mode=='host' or mode=='guest') and with==true
         guard('revive',downed,linked)
         if linked then guard('friend',friend) else hers=nil end
+        if linked then guard('cutscene',watch) end
+        if not linked or off.cutscene then scene.playing,scene.told=false,false end
     end
+    -- A cutscene plays in our game (read once a second while linked): the travel's guards read it too.
+    function self.cutscene_playing() return scene.playing end
+    -- Our photo state for coop-state.txt: own ('0', '1' or 's'), or 'c' on the host while its cutscene plays and own is
+    -- '0'. Our own photo veils keep reading own.
+    function self.photo(own)
+        if own=='0' and scene.playing and link.mode()=='host' then return 'c' end
+        return own
+    end
+    -- The guest's ask for the pause during the host's cutscene: cutscene_wait=on and the host's ghost on her map.
+    function self.cut() return settings.cutscene_wait==true and link.mode()=='guest' and same_map() end
     -- coop revive test (the console): true and what was asked, or false and why not.
     function self.test()
         if off.revive then return false,'the revive is off for this run (see the log)' end

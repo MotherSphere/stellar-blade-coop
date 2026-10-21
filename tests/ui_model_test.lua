@@ -171,7 +171,8 @@ menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects send_rate head:session who_can_join revive head:saves auto_coop_save shared_quests head:combat '
+    ..'effects send_rate head:session who_can_join revive cutscene_wait head:saves auto_coop_save shared_quests '
+    ..'head:combat '
     ..'shared_enemies '
     ..'same_place '
     ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
@@ -216,6 +217,9 @@ assert(M.read('shared_quests=ON\n').shared_quests=='on' and M.read('shared_quest
 on('revive')
 assert(values.revive=='off' and select(3,menu.change(NONE,values,1))=='on' and not menu.current(NONE).reload)
 assert(M.read('revive=ON\n').revive=='on' and M.read('revive=x\n').revive=='off')
+-- The wait during the host's cutscene: on by default, a toggle in effect at once.
+on('cutscene_wait')
+assert(values.cutscene_wait=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
 on('send_rate')
 assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='55','60 by default, the top')
 -- 5 a step: an older file's 20 is 8 presses from 60. A value set in the file between steps moves by 5 too.

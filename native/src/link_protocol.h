@@ -5,7 +5,8 @@
 //   SBC hello <protocol> <mod version> <game build>, then SBC accept, or SBC reject <reason>.
 // Every other message carries the protocol number and is dropped by a peer that runs another one:
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
-//   SBC<protocol> photo <0|1|s> <both|notice> (the synced photo mode: ours, and whether she may pause our game for it),
+//   SBC<protocol> photo <0|1|s|c> <both|notice> (the synced photo mode: ours, and whether she may pause our game for
+//   it; c: the host's cutscene plays),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
 //   SBC<protocol> paks <count> <hash> (pak_list.h: the .pak mods her game loads, for a warning when they differ).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
@@ -38,8 +39,9 @@ constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (
                               // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
                               // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
-                              // 2. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1) is told why: the lobby tag, then the hello's reject, name both.
+                              // 2 and the photo line's c (the host's cutscene). An older peer (6: v0.1.1, 7: v0.2.0,
+                              // 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1) is told why: the lobby tag, then
+                              // the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -153,8 +155,8 @@ inline Life life_of(const Vitals &v) {
 enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks };
 struct Message {
   Kind kind = Kind::invalid;
-  uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1' or
-                         // 's', then 1 for both. paks: the count of .pak mods, their hash.
+  uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
+                         // 's' or 'c', then 1 for both. paks: the count of .pak mods, their hash.
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
 };
@@ -174,7 +176,8 @@ inline std::string ping(uint64_t seq, uint64_t ms) { return versioned("ping", se
 inline std::string pong(uint64_t seq, uint64_t ms) { return versioned("pong", seq, ms); }
 // The synced photo mode (FEATURE-PARITY.md 6.3), reliable: our player in SB's photo mode ('1'), in its selfie mode
 // ('s') or neither ('0'), and whether the friend's photo mode may pause our game ("both": photo_sync=both here and this
-// game can pause) or not ("notice").
+// game can pause) or not ("notice"). 'c': the host's cutscene plays (sent by the host only, while it is in neither);
+// the guest's game holds the same pause for it if she asked for it (link_core.h).
 inline std::string photo_line(char state, bool both) {
   return "SBC" + std::to_string(kProtocol) + " photo " + state + (both ? " both" : " notice");
 }
@@ -267,7 +270,7 @@ inline Message parse(const char *data, size_t size) {
     if (number(f[2], m.a) && m.a <= kMaxPaks && number(f[3], m.b))
       m.kind = Kind::paks;
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "photo" &&
-             (f[2] == "0" || f[2] == "1" || f[2] == "s") && (f[3] == "both" || f[3] == "notice")) {
+             (f[2] == "0" || f[2] == "1" || f[2] == "s" || f[2] == "c") && (f[3] == "both" || f[3] == "notice")) {
     m.kind = Kind::photo;
     m.a = static_cast<uint8_t>(f[2][0]);
     m.b = f[3] == "both";
@@ -587,14 +590,17 @@ inline Request parse_request(std::string text) {
 // PCs), a notice only, or nothing.
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
-// coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s> sync=<both|notice|off> max=<0|30..3600>".
+// coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s|c> sync=<both|notice|off> max=<0|30..3600>",
+// then " cut=<0|1>" or nothing (0).
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
   uint32_t rate = 20;    // Poses sent a second.
-  char photo = '0';      // Our player in SB's photo mode ('1'), its selfie mode ('s') or neither.
+  char photo = '0';      // Our player in SB's photo mode ('1'), its selfie mode ('s') or neither; 'c': the host's
+                         // cutscene plays.
   Sync sync = Sync::off; // photo_sync, off until Lua says.
   uint32_t max = 600;    // photo_freeze_max: the longest pause the friend's photo mode holds us in, in s; 0: no cap.
+  bool cut = false;      // The guest's cutscene_wait=on with the host's ghost on her map: the host's 'c' pauses us.
 };
 // One trailing \n or \r\n, at most 64 bytes; anything else is refused and changes nothing.
 constexpr size_t kMaxState = 64;
@@ -606,11 +612,13 @@ inline bool parse_state(const std::string &text, State &out) {
     line.resize(line.size() - 2);
   else if (!line.empty() && line.back() == '\n')
     line.pop_back();
-  std::string f[5];
+  std::string f[6];
   uint64_t rate = 0, max = 0;
-  if (!split(line, f, 5, nullptr) || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
+  const bool six = split(line, f, 6, nullptr);
+  if ((six ? f[5] != "cut=0" && f[5] != "cut=1" : !split(line, f, 5, nullptr)) ||
+      (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
       f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 60 ||
-      (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s") ||
+      (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s" && f[2] != "photo=c") ||
       (f[3] != "sync=both" && f[3] != "sync=notice" && f[3] != "sync=off") || f[4].rfind("max=", 0) != 0 ||
       !number(std::string_view(f[4]).substr(4), max) || (max && (max < 30 || max > 3600)))
     return false;
@@ -620,6 +628,7 @@ inline bool parse_state(const std::string &text, State &out) {
   out.photo = f[2][6];
   out.sync = f[3] == "sync=both" ? Sync::both : f[3] == "sync=notice" ? Sync::notice : Sync::off;
   out.max = static_cast<uint32_t>(max);
+  out.cut = six && f[5] == "cut=1";
   return true;
 }
 

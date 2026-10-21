@@ -4,7 +4,8 @@
 -- recruiter preview on the co-op save slot only (both ticked every frame until coop off, which despawns the recruiter
 -- on any slot even when that raises), coop nightop reaches Night Operation's run on the co-op save slot only, its stop
 -- on any slot (ticked every 250 ms until coop off, which ends it even when that raises), the friend's revive (group.lua)
--- is built with the link and ticked every 250 ms until coop off, coop revive test reaches its probe, coop look changes
+-- is built with the link and ticked every 250 ms until coop off (its photo state and cut go into the state), coop
+-- revive test reaches its probe, coop look changes
 -- what the ghost shows and builds it again, coop fight (the
 -- shared enemies, experimental) checks its arguments, the co-op slot and its settings, starts once a load with
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
@@ -155,8 +156,9 @@ local fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title)
+    state=function(world,rate,photo,sync,max,title,cut)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
+        gr.cuts[#gr.cuts+1]=cut
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -215,13 +217,15 @@ end}
 -- Night Operation's run: what nightop_run.new got (o), coop nightop's words, its ticks and stops, a stop that raises. A
 -- global: this chunk is at Lua's 200 locals.
 nr={o=nil,runs={},ticks=0,stops={},raise=nil}
--- The friend's revive (group.lua): what group.new got (o), its ticks' clocks, and coop revive test's answer. A global
--- too.
-gr={o=nil,ticks={},tests=0}
+-- The friend's revive and the cutscene wait (group.lua): what group.new got (o), its ticks' clocks, coop revive test's
+-- answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its cut, and the cut
+-- each state write got (cuts). A global too.
+gr={o=nil,ticks={},tests=0,owns={},cuts={}}
 package.loaded.group={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,
-        test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end}
+        test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
+        photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end}
 end}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
@@ -377,7 +381,7 @@ local function load_main(with_native)
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
     nr.o,nr.runs,nr.ticks,nr.stops=nil,{},0,{}
-    gr.o,gr.ticks,gr.tests=nil,{},0
+    gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
@@ -679,6 +683,16 @@ photo_error,photo_mode,reads=nil,true,photo_reads
 loops[2].f(); loops[2].f()
 assert(photo_reads==reads and photos[#photos]=='0 both 600' and veils[#veils]==false,'Off for this load')
 photo_mode=false
+-- The host's cutscene and the guest's ask for its pause (group.lua decides both): our own photo state goes to
+-- group.lua, what it gives back to the state with its cut, and our veils keep our own.
+gr.wire,gr.cut=nil,false
+loops[2].f()
+assert(gr.owns[#gr.owns]=='0' and photos[#photos]=='0 both 600' and gr.cuts[#gr.cuts]==false)
+gr.wire,gr.cut='c',true
+loops[2].f()
+assert(gr.owns[#gr.owns]=='0' and photos[#photos]=='c both 600' and gr.cuts[#gr.cuts]==true and veils[#veils]==false
+    and photo_veils[#photo_veils][2]==false,'Our veils read our own state')
+gr.wire,gr.cut=nil,false
 -- coop freeze: 1 to 3600 whole seconds, or off; anything else is its usage line and asks nothing.
 coop('freeze','10')
 assert(asked[#asked]=='freeze 10' and last()=='[StellarCoop] OK: asked the native part: freeze 10\n',last())

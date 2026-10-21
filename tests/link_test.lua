@@ -523,6 +523,16 @@ end
 s,notes=Link.parse_settings('revive=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for revive (use on or off); revive stays off"
     and s.revive==false,notes[1])
+-- cutscene_wait (yours, as the guest): on or off in any case, on by default and in a file written before it, named
+-- right after photo_pause with its comment (it takes photo sync's pause and its cap).
+assert(Link.DEFAULT:find('\nphoto_pause=full\n# Cutscene wait: on or off.',1,true)
+    and Link.DEFAULT:find('\ncutscene_wait=on\n',1,true))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.cutscene_wait==true)
+s,notes=Link.parse_settings('CUTSCENE_WAIT=Off')
+assert(#notes==0 and s.cutscene_wait==false)
+s,notes=Link.parse_settings('cutscene_wait=2')
+assert(#notes==1 and s.cutscene_wait==true and notes[1]:find("'2' is not allowed for cutscene_wait",1,true))
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
 -- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
 -- written before them reads the defaults with no line. A bad value keeps the default, with a line.
@@ -661,6 +671,12 @@ assert(link.state(true,30,'1','off',0)=='world=1 rate=30 photo=1 sync=off max=0'
 assert(link.state(false,30,'0','notice',3600,true)=='world=title rate=30 photo=0 sync=notice max=3600'
     and state_writes==6 and #files[STATE_FILE]<=64)
 assert(link.state(true,30,'0','notice',3600,true)=='world=1 rate=30 photo=0 sync=notice max=3600','A save wins')
+-- The host's cutscene (photo=c) and the guest's ask for its pause (cut=1, after the rest; none while it is not asked),
+-- the longest line still within the 64 bytes.
+assert(link.state(false,60,'c','notice',3600,true,true)=='world=title rate=60 photo=c sync=notice max=3600 cut=1'
+    and #files[STATE_FILE]<=64)
+assert(link.state(true,60,'0','both',600,nil,false)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(true,60,'0','both',600,nil,true)=='world=1 rate=60 photo=0 sync=both max=600 cut=1')
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
@@ -766,6 +782,17 @@ summary(HEAD..'friend=1 0 Kaanta\n') -- Back to the status the photo line's test
 files[STATUS]=HEAD..'friend=1 0 Kaanta\n'..PHOTO
 lines=fresh.changes()
 assert(#lines==1 and lines[1]=='photo=0 peer_photo=1 frozen=1 sync=both','A changed photo line is logged')
+-- The photo line as read (group.lua's cutscene notice): ours, hers and our pause; nil without the line.
+local seen=fresh.photo()
+assert(seen.mine=='0' and seen.peer=='1' and seen.frozen==true)
+files[STATUS]=HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=c frozen=1 sync=both\n'
+fresh.changes()
+assert(fresh.photo().peer=='c' and fresh.photo().frozen==true)
+assert(summary(HEAD..'friend=1 0 Kaanta\nphoto=0 peer_photo=c frozen=1 sync=both\n')=='Co-op: hosting Kaanta.',
+    'A cutscene pause is no photo pause')
+files[STATUS]=HEAD..'friend=1 0 Kaanta\n'
+fresh.changes()
+assert(fresh.photo()==nil)
 files[STATUS]=nil
 
 -- Chat (UI-DESIGN 4.2, 5.2): coop-say.txt, a typed line, is written only while the last one is gone, whole (beside,

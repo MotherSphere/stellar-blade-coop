@@ -15,7 +15,8 @@
 -- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
 -- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; the friend's revive
 -- (group.lua, revive in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at
--- the death screen (a test tool, left out of the usage line); coop fight
+-- the death screen (a test tool, left out of the usage line), and the guest's wait while the host watches a cutscene
+-- (group.lua and the native part's photo pause, cutscene_wait in coop-settings.txt or the co-op menu); coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
@@ -913,7 +914,9 @@ if link then
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             notice.veil(own)
             puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
-            local line=link.state(world,settings.send_rate,photo,settings.photo_sync,settings.photo_freeze_max,title)
+            -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (group.lua).
+            local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
+                settings.photo_freeze_max,title,group.cut())
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown
