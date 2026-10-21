@@ -496,10 +496,15 @@ default, you took part when your EVE hit it, when it targeted your EVE, or when 
 dies. With `fought`, the distance does not count. Whether it targeted you or your hit landed comes from the game's
 record of the last player an enemy fought, the record the game itself uses to credit a kill. An enemy that your own hit
 kills always gives you the kill. When the other player kills a shared enemy you took no part in, your copy does not die:
-it stops being shared and stays alive in your game, so its kill rewards, drops, quest kills and achievements never reach
-your save. The guest's `coop-link.log` then says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
-`fight kill-unshared <key> hguid=<n> not taken part`, and the host's game does not share that enemy again in this
+it stops being shared and stays alive in your game, back at full HP, so its kill rewards, drops, quest kills and
+achievements never reach your save, and one hit of yours later does not finish what the other player's hits did. A boss
+copy goes back to full HP the same way. Whether you can then beat that boss alone before the area reloads has not been
+tested in game. The guest's `coop-link.log` then says `fight dead-unshared <key> hguid=<n> not taken part`, the host's
+says `fight kill-unshared <key> hguid=<n> not taken part`, and the host's game does not share that enemy again in this
 session. Damage dealt before an enemy became shared does not count as yours, since the other player may have dealt it.
+When a knockdown the other player started, mirrored on your copy, makes the game record your EVE as that enemy's last
+player, the log says `fight last player <key> set by a mirrored crowd control` and that record no longer counts for
+this enemy: your hit or the 30 m still do.
 `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone (see
 [coop-settings.txt](#coop-settingstxt)).
 
@@ -583,11 +588,14 @@ copies follow them back to full health. A respawn on another map leaves your cop
   the lowest HP share. `coop fight record` keeps the host's side in `coop-fight-record.txt` until `coop fight off`;
   `coop fight replay` plays that file into the guest's side. Both change enemies (record through the host's scaling,
   when it is above 1.0), so the mod refuses them until the log says `fight writes=armed`.
-- The test tools are typed on purpose. `coop fight test kill` kills an enemy by command, outside the together-only
-  rule: its kill rewards and achievements count in your save as if your EVE had killed it. A `test hp` drop larger than
-  the enemy's HP kills it too, with no killer: your game skips its kill rewards, but its drops and the game's other
-  death events still happen. A replay kills your copies on the recorded deaths with the `kill_credit` rule of a live
-  fight, so with `together` one within 30 m of your EVE dies with your EVE as its killer.
+- The test tools are typed on purpose. `coop fight test kill` kills only an enemy your EVE took part in, as for a
+  shared kill (you hit it, it targeted you, or it stands within 30 m of your EVE); its kill rewards and achievements
+  then count in your save as if your EVE had killed it. Any other enemy is refused with
+  `fight test <key> refused: not taken part`. A `test hp` drop larger than the enemy's HP kills it too, with no killer:
+  your game skips its kill rewards, but its drops and the game's other death events still happen, and the kill still
+  counts toward the kill achievements when your EVE hit it or it targeted your EVE. A replay kills your copies on the
+  recorded deaths with the `kill_credit` rule of a live fight, so with `together` one within 30 m of your EVE dies with
+  your EVE as its killer.
 - The solo test tools stop on another slot with
   `STOP: coop fight runs only on a co-op save (INSTALL.md: Co-op saves); now <the slot line>`.
 
@@ -601,9 +609,10 @@ game.
 
 The host's `aggro` setting decides which game runs an enemy's AI. With `aggro=game`, the default, an enemy goes to the
 player who hit it last. After 10 s without a hit, it goes to the other player once that player's EVE has stood at least
-3 m nearer to it for 2 s. An enemy changes hands at most once in 4 s, and never during one of its attacks, while it is
-down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
-the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place is on by default and has not been tested in game yet.
+3 m nearer to it, and within 30 m of it, for 2 s. An enemy changes hands at most once in 4 s, and never during one of
+its attacks, while it is down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses
+or gives back stays with the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never
+attacks the guest. Same place is on by default and has not been tested in game yet.
 
 A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
 the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
