@@ -90,6 +90,17 @@ assert(sv.slot==nil and sv.saves==nil and sv.convert==nil and sv.steamid=='7','N
 files[STATUS]=nil
 link.changes()
 assert(next(link.saves())==nil,'Nothing read: nothing known')
+-- Another game build (a game update): the pose path's line says why the engine is off, so the title can say why the
+-- co-op saves are off. coop off and a fault are not another build; a peer's line never counts.
+for status,build in pairs({['engine=off reason=build stamp 6512abcd size 0a1b2c3d\nslot=none index=? marker=none saves=off\n']=true,
+        ['engine=off reason=code bytes differ\nslot=none index=? marker=none saves=off\n']=true,
+        ['engine=off reason=coop_off\nslot=none index=? marker=none saves=off\n']=false,
+        ['engine=off reason=engine off: fault 0x1 at StellarCoop.dll+0x2 reading 0x3\n']=false,
+        ['peer=2 name=x engine=off reason=build stamp 1 size 2\nengine=on\n']=false}) do
+    files[STATUS]='mod=v proto=8 steam=ready\n'..status
+    link.changes()
+    assert(link.saves().build==(build or nil),status)
+end
 -- A peer's Steam name is hers to choose: only the pose path's line is read.
 files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=on 0 0 0 remote=1799 5 loopback\n'
 link.changes()

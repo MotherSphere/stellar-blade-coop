@@ -344,6 +344,10 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
+        -- The engine off on another game build (check_build's reasons): a game update, said at the title (saves.lua).
+        if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
+            saves.build=true
+        end
         lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
         listed={}
@@ -449,7 +453,8 @@ function Link.new(folder,fs)
     end
     -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
     -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
-    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits)}; a field unread is nil.
+    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits), build=true when the engine is off
+    -- on another game build}; a field unread is nil.
     function self.saves() return saves end
     -- The status key's line, in words (ui_text.lua's T.en or T.fr; English when not given). Her name is an argument
     -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer

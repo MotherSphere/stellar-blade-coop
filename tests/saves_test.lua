@@ -404,6 +404,35 @@ for _=1,3 do quarter(false,true) end
 assert(#calls==0 and #asked==0 and #said==0 and #logs==0)
 settings.auto_coop_save='ask'
 
+-- Another game build (a game update: link.saves()'s build): the co-op saves are off; with ask or always, said once a Lua
+-- load at the title, nothing asked; with off, nothing. saves=off for another reason (coop off) says nothing.
+for _,want in ipairs({'ask','always'}) do
+    settings.auto_coop_save=want
+    saves=new()
+    info=at({saves='off',build=true})
+    quarter(true,false); assert(#said==0,'Not in a world')
+    quarter(false,true)
+    assert(#said==1 and said[1]=='Co-op saves are off: StellarCoop does not support this version of the game. You play '
+        ..'your own saves until StellarCoop is updated.' and #asked==0 and #calls==0 and not saves.is_open(),said[1])
+    assert(logs[1]=='co-op saves: off on this game build (coop-link.log: engine off): your own saves',logs[1])
+    quarter(true,false); quarter(false,true); assert(#said==1,'Once a Lua load')
+end
+saves=new()
+info=at({saves='off'})
+quarter(false,true); assert(#said==0 and #logs==0,'Not another build')
+settings.auto_coop_save='off'
+saves=new()
+info=at({saves='off',build=true})
+quarter(false,true); assert(#said==0 and #logs==0,'off: nothing')
+settings.auto_coop_save='ask'
+state.language='fr-FR'
+saves=new()
+info=at({saves='off',build=true})
+quarter(false,true)
+assert(said[1]=="Sauvegardes co-op coupées : StellarCoop ne prend pas en charge cette version du jeu. Vous jouez sur "
+    .."vos propres sauvegardes jusqu'à une mise à jour de StellarCoop.",said[1])
+state.language=nil
+
 -- In a session on your own save with shared enemies on, nothing from here: main.lua's shared enemies notice says how to
 -- switch, once.
 settings.shared_enemies=true

@@ -155,6 +155,9 @@ reason:
   the title screen. They stay on until the game restarts.
 - `saves=off` or `saves=?`: the mod cannot use the save file name on this game build, or a check failed. The
   `save name: saves=...` line of `coop-link.log` says why. The mod makes no copies, and the game uses your own saves.
+  After a game update, the engine line reads `engine=off reason=build stamp ...` or `reason=code bytes differ`, and
+  the title screen says once `Co-op saves are off: StellarCoop does not support this version of the game.` Wait for a
+  StellarCoop update for the new game version.
 - `steam=waiting`: Steam is not ready yet, and the mod needs your Steam ID to find your save folder.
 - `convert=busy ...`: a copy pass runs. The question waits for its end.
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI

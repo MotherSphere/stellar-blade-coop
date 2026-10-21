@@ -858,6 +858,7 @@ it stays off until the next Lua load (`Screen notices off: <why>; notices stay i
 | The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
 | Co-op saves switched on | `Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.` |
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
+| Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 

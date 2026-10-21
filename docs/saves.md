@@ -123,7 +123,7 @@ To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.lo
 | `slot=coop index=2 marker=none saves=coop` | A co-op copy is loaded (here `StellarBladeCoop02.sav`) |
 | `slot=main index=0 marker=none saves=main` | One of your own saves is loaded (here file 00) |
 | `slot=none ... saves=coop` | No save is loaded yet (the title screen); the game uses the copies |
-| `saves=off` | The mod cannot read the save file name (another game build, or a check failed): no copies, no question |
+| `saves=off` | The mod cannot read the save file name (another game build, or a check failed): no copies, no question. On another game build, the title screen says so once |
 | `slot=unknown`, `index=?` or `saves=?` | Not read yet, another game build, or after `coop off` |
 
 The `convert=` line gives the last copy pass: `idle`, `busy <done>/<jobs>`, `done` or `error:<why>`.

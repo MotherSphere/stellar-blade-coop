@@ -53,7 +53,9 @@ T.en={
         failed='The co-op saves could not be switched on. Your own saves were not changed.',
         see_log='coop-link.log says why',
         on='Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.',
-        off='Co-op saves off for this load: %s. You play your own saves.'},
+        off='Co-op saves off for this load: %s. You play your own saves.',
+        build='Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves '
+            ..'until StellarCoop is updated.'},
     -- The status line (link.lua's summary(): under the menu, and the status key's notice); %s: her Steam name, or
     -- friend.
     summary={stopped='Co-op: the Steam link stopped; coop status says why.',waiting='Co-op: waiting for Steam.',
@@ -143,7 +145,9 @@ T.fr={
         see_log='coop-link.log dit pourquoi',
         on='Sauvegardes co-op actives : vous jouez sur des copies co-op de vos sauvegardes. Vos propres sauvegardes '
             ..'ne changent pas.',
-        off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.'},
+        off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.',
+        build='Sauvegardes co-op coupées : StellarCoop ne prend pas en charge cette version du jeu. Vous jouez sur vos '
+            .."propres sauvegardes jusqu'à une mise à jour de StellarCoop."},
     summary={stopped="Co-op : le lien Steam s'est arrêté ; coop status dit pourquoi.",
         waiting='Co-op : en attente de Steam.',held='Co-op : invitation en attente du chargement de votre sauvegarde.',
         rejoin='Co-op : reconnexion à la partie de votre partenaire (essai %s/3).',

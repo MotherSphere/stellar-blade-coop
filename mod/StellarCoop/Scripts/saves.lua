@@ -14,8 +14,9 @@
 -- your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
 -- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
 -- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
--- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. No
--- engine call here: the kit makes them.
+-- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On
+-- another game build (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at
+-- the title. No engine call here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
@@ -43,6 +44,7 @@ function Saves.new(o)
     local queued,stopped=nil,false -- queued: a notice to say once the kit is up or a world loads.
     local lang=T.en
     local badged=false -- The badge is shown.
+    local told=false -- Another game build said (once a Lua load).
     -- At the top right, scaled from that corner; wide enough for the French title. Added first: the question draws over.
     kit.add('badge',{x=3024,y=96,w=720,h=96,pivot={X=1,Y=0}},function(b)
         b.panel(0,0,720,96)
@@ -193,6 +195,10 @@ function Saves.new(o)
             end
         end
         if title and not world then
+            if info.build and info.saves=='off' and want~='off' and not told then
+                told,queued=true,{'build'}
+                log('co-op saves: off on this game build (coop-link.log: engine off): your own saves')
+            end
             if not visit and not phase and want~='off' and info.saves=='main' and info.steamid
                 and not (info.convert or ''):find('^busy') then
                 if want=='always' then switch(info)
