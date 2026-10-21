@@ -278,6 +278,7 @@ public:
 
   bool busy() const { return next_ < jobs_.size(); }
   bool ready() const { return ready_ && !busy(); }
+  bool whole() const { return only_ < 0; } // Every slot, not a refresh's one.
   const std::string &error() const { return error_; }
   // "idle" before any pass, "busy <done>/<jobs>", "done" (ready) or "error:<why>".
   std::string status() const {
@@ -438,12 +439,12 @@ private:
 //   std::string swap(bool coop) (save_slot.h's Names::swap, empty once switched).
 // saves convert makes the copies; saves coop makes them, then switches the name at the pass's end; saves main switches
 // back, or withdraws the switch a running saves coop pass would make; saves refresh N replaces slot N's copy (Convert's
-// refresh), while the game uses the player's saves; all at the title only. The title's slot list is
-// the game's, rebuilt from the files only at its own load points (0x141cd4ef0, at StartClient and at each return to the
-// title). The mod never calls that rebuild: it reads and loads every slot on the game thread, and the game follows it
-// with its own UI updates. So once a co-op save was loaded, the title lists the copies, and a switch back would load
-// the player's saves through that list: refused until the game restarts. coop off and a fault never switch back: the
-// name stays until the game exits.
+// refresh), while the game uses the player's saves, and saves coop is refused until its end; all at the title only.
+// The title's slot list is the game's, rebuilt from the files only at its own load points (0x141cd4ef0, at StartClient
+// and at each return to the title). The mod never calls that rebuild: it reads and loads every slot on the game thread,
+// and the game follows it with its own UI updates. So once a co-op save was loaded, the title lists the copies, and a
+// switch back would load the player's saves through that list: refused until the game restarts. coop off and a fault
+// never switch back: the name stays until the game exits.
 class Switch {
 public:
   template <class Fs, class Game> std::string ask(SavesAsk what, Fs *fs, Game &game, int slot = -1) {
@@ -475,6 +476,8 @@ public:
       return "co-op saves refused: the Steam account is not known yet";
     if (what == SavesAsk::refresh && convert_.busy())
       return "co-op saves refused: a conversion is under way";
+    if (what == SavesAsk::coop && convert_.busy() && !convert_.whole()) // Its end vouches for one slot's copy only.
+      return "co-op saves refused: a refresh is under way: ask again after it";
     if (convert_.busy()) {
       asked_ = asked_ || what == SavesAsk::coop;
       return asked_ ? "co-op saves: a conversion is under way; the switch follows it"
