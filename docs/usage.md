@@ -381,13 +381,17 @@ another map, or more than 150 m from you on yours, one notice offers it:
 camps nearest their EVE, and your game travels to the first of them that it can use (`Travelling to <host>.`). Nothing
 changes in the host's game. This has not been tested in game yet.
 
+In this version the travel is off. The game's fast travel does not check whether your save has activated a camp, and
+activating a camp counts toward the game's camp trophies. Until the mod can read which camps your save has activated,
+no offer shows and F7 shows `The travel did not start. UE4SS.log says why.` The rest of this section describes the
+travel as built.
+
 - `follow_host=ask` (the default) shows that notice. With `always`, it reads
   `Following <host> in 5 s. Press F7 to stay.` and the travel starts 5 s later unless you press F7. With `off`, nothing
   shows and F7 does nothing.
 - With `follow_key=none`, no notice shows and `always` starts nothing. `coop travel host` still travels.
-- The travel is meant to reach only camps your save has activated, as the game's camp menu does, because activating a
-  camp counts toward the game's camp trophies. The mod relies on the game's fast travel to refuse any other camp, and
-  then tries the next camp of the list, 3 calls at most. That refusal has not been checked in game yet.
+- The travel reaches only camps your save has activated, as the game's camp menu does. If the game refuses a camp, the
+  mod tries the next camp of the list, 3 calls at most.
 - Only the 120 camps, phone booths and tetrapods of the game's camp table that lead to one story map can be used.
   Autosave points and the camps of the developer test maps are never sent or taken.
 - The travel waits while your EVE is down, while a respawn or another travel is under way, while the game is paused,

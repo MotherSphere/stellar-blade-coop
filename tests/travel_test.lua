@@ -3,8 +3,9 @@
 -- only: such a camp is never sent by the host's game nor accepted by the guest's). The host's answer: its cache of the
 -- map's spawn points named after a camp of its world, built once a map and never during a load, the 8 nearest its EVE
 -- first, and none with why (title, loading, nocamp, busy). The guest's choice: the first camp of the answer in her
--- table under the host's world that this game knows as a name (FNAME_Find, never a new name; UE's trailing number
--- split off), the next one after SB's refusal, 3 calls at most, then the notices. The offer: once per host map change
+-- table under the host's world that her save has activated and that this game knows as a name (FNAME_Find, never a new
+-- name; UE's trailing number split off), the next one after SB's refusal, 3 calls at most, then the notices. Without a
+-- read of her activated camps: no offer, and every travel refused. The offer: once per host map change
 -- or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself 5 s later with
 -- follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place the travel
 -- brought her to, and his next move offered again after it. The guards, each refusing on its own (silent, busy or
@@ -45,7 +46,7 @@ local function world(change)
     W={mode='guest',linked=true,slot='slot=coop index=1 marker=1 saves=coop',travel='idle',calls=0,
         warp='idle',life={state=1,hp=1600},fight=FIGHT,me={at={X=0,Y=0,Z=0},map=DEDA},her_map=XION,ghost=nil,
         settings={follow_host='ask',follow_key={key='F7',name='F7'}},names={},fnames={},spawns={},finds=0,
-        requests={},said={},logs={},paused=false,night=false,cutscene=false}
+        requests={},said={},logs={},paused=false,night=false,cutscene=false,activated=function() return true end}
     if change then change(W) end
     clock=0
     local link={mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
@@ -63,7 +64,7 @@ local function world(change)
         tell=function(build) W.said[#W.said+1]=build(T.en) end,
         name=function() return 'Kaanta' end,log=function(m) W.logs[#W.logs+1]=m end,
         paused=function() return W.paused end,night=function() return W.night end,
-        cutscene=function() return W.cutscene end})
+        cutscene=function() return W.cutscene end,activated=W.activated})
 end
 local function run(t,seconds) -- Ticks of 250 ms, as main.lua's loop gives them.
     for _=1,math.floor(seconds/0.25+0.5) do
@@ -236,6 +237,31 @@ for _,case in ipairs({{'nocamp',NONE},{'busy',BUSY},{'loading',BUSY},{'title',FA
     W.answer=asked_id()..' none '..case[1]
     run(t,0.25)
     assert(last(W.said)==case[2] and #W.requests==1,case[1])
+end
+-- A camp her save has not activated is never asked of the native part: SB's fast travel does not check it, and a
+-- travel that activated it would count toward the camp achievements. None activated: none.
+t=world(function(w)
+    w.names={Xion_Camp_10=1,Xion_Camp_10_01=2}
+    w.activated=function(alias) return alias=='Xion_Camp_10_01' end
+end)
+assert(t.press())
+W.answer=asked_id()..' Xion Xion_Camp_10:1 Xion_Camp_10_01:2'
+run(t,0.25)
+assert(last(W.requests)=='travel Xion_Camp_10_01 2 0' and logged('Xion_Camp_10 is not activated in this save'))
+for _,name in ipairs(W.fnames) do assert(name~='Xion_Camp_10','An unactivated camp never reaches FName') end
+t=world(function(w) w.names={Xion_Camp_10=1}; w.activated=function() return false end end)
+assert(t.press())
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+assert(#W.requests==1 and last(W.said)==NONE)
+-- No read of her activated camps (main.lua passes none yet): no offer with ask or always, and F7 or coop travel host
+-- is refused with the failed notice before anything is asked.
+for _,mode in ipairs({'ask','always'}) do
+    t=world(function(w) w.settings.follow_host=mode; w.activated=nil; w.names={Xion_Camp_10=1} end)
+    run(t,10)
+    assert(#W.said==0 and #W.requests==0,mode)
+    local ok,why=t.press()
+    assert(not ok and why:find('no read of the camps',1,true) and #W.requests==0 and last(W.said)==FAILED,mode)
 end
 -- One camps? each 2.5 s (the host's game takes one each 2 s; the margin is for the network): a press sooner is
 -- refused in the log only.
@@ -459,9 +485,9 @@ run(t,0.25)
 assert(#W.said==2 and W.said[2]==W_.offer:format('Kaanta','b07','F7'))
 
 -- coop travel probe: solo only, on a co-op save only (slot 04 of her own saves is refused: StellarCoopSlot.txt makes it
--- one), one of the 120 camps, a name this game knows; it skips her activation check and the host's answer: the camp is
--- asked of the native part as it is. Its result is logged.
-t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55} end)
+-- one), one of the 120 camps, a name this game knows; it skips the activation read and the host's answer: the camp is
+-- asked of the native part as it is, also with no read of the activated camps. Its result is logged.
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; w.activated=nil end)
 local ok,why=t.probe('DED10_Camp_07')
 assert(ok and last(W.requests)=='travel DED10_Camp_07 55 0',why)
 W.travel,W.calls='pending',1

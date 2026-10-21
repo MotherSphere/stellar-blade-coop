@@ -961,6 +961,7 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 The guest's travel to the host (`travel.lua`, the camps lines, `travel.h` and the native call) moves only the guest's
 EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in game yet.
+In this version it never travels: the mod cannot yet read which camps the guest's save has activated (see below).
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
@@ -970,16 +971,19 @@ EVE, through the game's own fast travel, and changes nothing in the host's game.
 - The travel camps are the 120 ZoneCampTable rows of type FullCamp, SimplyCamp, PhoneBooth or Tetrapod that lead to
   exactly one story world in build 24463856. Autosave volumes, camps that lead to several worlds or none, and the camps
   of the developer test worlds are left out. The guest's game uses a camp of the answer only if it is in her own table
-  under the host's world and already exists as a name in her game (`FName` with `FNAME_Find`, which never makes one).
+  under the host's world, her save has activated it, and it already exists as a name in her game (`FName` with
+  `FNAME_Find`, which never makes one).
 - Her Lua checks its guards again, then hands the camp's name to the native part. On the game thread, the native part
   builds the game's 0x60-byte camp request as the game's ReturnToCamp job does and calls the game's fast travel
   (`0x141cdd7b0`), out of line under its own SEH latch. Before the call it reads the globals that the call's getters
   reach, the client's flow and phase, any warp or respawn in flight, and whether the local player's EVE is in the
   world. It makes at most 3 calls in 10 s and none for 10 s after an accepted one.
-- A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer. The mod relies on that
-  refusal for a camp her save has not activated. Activating a camp counts toward the game's camp achievements
-  (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable), so a travel must not activate one for her. Whether
-  the game refuses such a camp has not been checked in game yet.
+- A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer.
+- The game's fast travel does not check whether her save has activated the camp (`travel.h`), and activating a camp
+  counts toward the game's camp achievements (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable). Her Lua
+  therefore takes only a camp that a read of her save's activated camps confirms. That read does not exist yet, so
+  every travel is refused before `camps?` is sent (`travel refused: no read of the camps this save has activated` in
+  `UE4SS.log`, and the failed notice), and no offer shows.
 - After an accepted call, the native part reads the game's warp block every 250 ms: `pending`, `warping`, `arrived`,
   or `refused:stuck` when the warp has not started 10 s after the call. `coop status` shows it as `travel=` on the
   engine line, and `coop-link.log` has one line per call and per state.
@@ -1223,10 +1227,10 @@ claim the host accepts):
 - The challenges run only without a Steam session: a start refuses one, and a session that starts ends the run. Their
   kills are the player's own, and they give no shop points. A best run goes into `coop-records.txt` only on the PC
   whose own solo run ended in success, never from a co-op run and never over the link.
-- The travel to the host is meant to reach only camps the guest's save has activated, and never to activate one, since
-  activating a camp counts toward achievements ([Following the host](#following-the-host)). A revive changes only the
-  downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills too. The cutscene wait
-  is a pause, and the solid partner changes no game state.
+- The travel to the host takes only camps that a read of the guest's save confirms as activated, because activating a
+  camp counts toward achievements ([Following the host](#following-the-host)). That read does not exist yet, so the
+  travel makes no call at all. A revive changes only the downed player's own EVE: her life, her HP and the recovery
+  items that a camp respawn refills too. The cutscene wait is a pause, and the solid partner changes no game state.
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 
