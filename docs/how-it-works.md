@@ -419,14 +419,15 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
   again, while shared enemies wait or run (`coop fight pilot off` and `on`).
 - Every pair starts as the host's. With `aggro=game` (the host's setting, the default) the host's job runs a rule on
-  each pair every turn: the pair goes to whoever hit it last (a hit on the host's copy, or a claim of hers that
-  lowered a stat), and after 10 s without a hit to the other player once that player's EVE has stood at least 3 m
-  nearer for 2 s. Nothing changes hands within 4 s of the last change, while an AI task runs on the owner's copy,
-  during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the host draws a copy that the game
-  froze before the mod did (below: its AI would not run once the host owns it); the start of a takedown is the
-  exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF12 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H.
-  With `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF12 aggro <gen> <game|host>`.
+  each pair every turn: the pair goes to whoever hit it last (a hit on the host's copy, or a claim of hers that lowered
+  a stat), and after 10 s without a hit to the other player once that player's EVE has stood at least 3 m nearer, and
+  within 30 m of it, for 2 s (the force target that follows makes that EVE the enemy's last player, which counts as
+  taking part in its fight: [Achievements](#achievements)). Nothing changes hands within 4 s of the last change, while
+  an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
+  host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
+  start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
+  `SBF12 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF12 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
@@ -624,7 +625,8 @@ applies them to her copy:
   then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
   `EventFirstTimeOnBattle` once. Called from the logic thread, the game queues it for its game thread. She calls it only
   for a copy her game draws as a BossMonster in life state 1, with the job sender and the reg already made (the call
-  reads both through getters that would make them). A refused bstart is taken at the host's next repeat. Her game takes
+  reads both through getters that would make them), and only while her EVE is within 30 m of her copy or its last
+  player ([Achievements](#achievements)). A refused bstart is taken at the host's next repeat. Her game takes
   the copy out of battle mode through the same wrapper with off, then `0, 0, 1, 1`, the arguments of the game's own
   battle-off calls: when the host's lines bring no bstart for 10 s (the host's boss left battle mode; a gap of over 2 s
   with no line from the host, as while the host's game is paused, is not counted), when her game stops drawing the copy
@@ -666,10 +668,11 @@ applies them to her copy:
   no finisher starts on her side. On the host's side, her claim that would kill a boss whose copy holds either row takes
   it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). So a boss in its Finish stance
   ends only by the host's finisher; a boss without one dies of her killing hit, unless its own thresholds or Immortal
-  hold it. When the host's `dead` comes for a boss, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel` to her
-  copy before the kill, so neither a threshold nor Immortal holds it. When the pair ends any other way (the host's
-  `down` or world line, the link, `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded
-  copy still under 2 HP, so the Immortal it put back goes and her own hit ends that boss in her game.
+  hold it. When the host's `dead` comes for a boss whose fight she took part in, her game applies `MinimumHP_Dispel`
+  and `FinishReady_Dispel` to her copy before the kill, so neither a threshold nor Immortal holds it. When the pair
+  ends any other way (the host's `dead` for a fight she was not in, the host's `down` or world line, the link,
+  `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded copy still under 2 HP, so the
+  Immortal it put back goes and her own hit ends that boss in her game.
 - Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
 
@@ -723,6 +726,37 @@ The record beside each co-op slot (`StellarCoopQuests0N.txt` in the account's sa
 host's marks (`h` lines) and the host lines the guest's game took (`g` lines). The worker writes it through the same
 name check as the co-op copies, at most once a second and only on a change, as a temporary file renamed over the old
 one. A bad line only loses that quest's marks; her live quests always decide what is made.
+
+## Achievements
+
+The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
+and a boss's story events from a death in its own world, with the death's cause as the killer. Shared enemies keep one
+rule there: a fight done together counts for both players, and nothing done without a player reaches that player's
+save. The rule applies where the mod makes a death, the other game's kill (the host's `dead`, or the guest's lethal
+claim the host accepts):
+
+- That kill kills our copy, with our EVE as the cause, only when our EVE took part in its fight: a drop on our copy
+  that no write of ours made (her own hit), our EVE as the game's last player on the copy, or, with
+  `kill_credit=together` (the default), our EVE within 30 m of the copy (FSBActor `+0x4cc`) at the kill. The last
+  player is the GUID at logic actor `+0x638`, which the game stores (`FUN_141ba8190`) when an enemy targets a player or
+  a player's hit lands, and which its death handler (`FUN_141bae5d0`) takes as the killer of a death with no player
+  cause. No EVE of ours found counts as no part. Damage from before the enemy was shared or paired does not count as
+  our hit: the other player's claims before a pause hurt it too.
+- Our mirrored crowd controls go through the game's effect call (`FUN_141ad08b0`) with our EVE as the caster. Whether
+  that call can reach `FUN_141ba8190` is not ruled out, so the engine reads `+0x638` before and after each such call:
+  a copy on which it turned into our EVE is noted for the session (`last player ... set by a mirrored crowd control`),
+  and its `+0x638` no longer counts as our part.
+- Without part, our copy does not die, since a death with no cause still drops loot, records the death in the zone and
+  runs the enemy's death events. It goes back to its full HP, with no cause and no damage number, so one hit later
+  does not finish what the other player's hits did. The guest ends the pair (`dead-unshared`), so her copy lives on as
+  her own enemy, its floor, scaling, freeze and finish guard taken off. A boss copy is back above 1 HP before the
+  guard is taken off, so the guard keeps the boss's Immortal. The host keeps its copy alive, leaves it out of its later
+  censuses and of same spawns (`kill-unshared`), and sends `dead`, so her copy dies on her side's own test.
+- A boss's `bstart` runs SetBattleMode on her copy only while her EVE is within 30 m of it or its last player, so its
+  battle-start events never run in her world for a fight she is not in.
+- `coop fight test kill` (the solo probe) kills only an enemy our EVE took part in, by the same test with the 30 m.
+- The mod's kills pass no skill to ApplyStat, so they never count toward the skill-kill achievements. The mirrored
+  crowd controls and the HP corrections never kill, and the game's AchievementTable has no row for a hit.
 
 ## Safety design
 

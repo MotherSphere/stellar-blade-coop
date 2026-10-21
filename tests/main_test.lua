@@ -1868,9 +1868,9 @@ key('RIGHT_ARROW')
 assert(settings_text:find('\nenemy_hp_scale=1.4\n',1,true) and select(2,focus())=='140 %' and #asked==fight_asks+3)
 to("Enemy balance (host's)"); key('LEFT_ARROW')
 assert(settings_text:find('\nenemy_balance_scale=1.1\n',1,true) and select(2,focus())=='110 %')
-to('My kill rewards'); assert(select(2,focus())=='Every shared enemy')
+to('My kill rewards'); assert(select(2,focus())=='Fought or within 30 m')
 key('RETURN')
-assert(settings_text:find('\nkill_credit=fought\n',1,true) and select(2,focus())=='Enemies I hit'
+assert(settings_text:find('\nkill_credit=fought\n',1,true) and select(2,focus())=='Only enemies I fought'
     and #asked==fight_asks+3)
 quarter(); assert(#asked==fight_asks+3)
 -- Same place, the host's for both games: On by default. While a mode that pairs (on, record, replay) waits or runs,

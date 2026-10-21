@@ -60,11 +60,12 @@ fight_chars=auto
 # stays at 1 HP until the host's game agrees, about one ping later, so it never dies on your screen alone).
 guest_kills=at_once
 # Two-player scaling, the host's values for both games (the guest's are not used): enemy_hp_scale multiplies a shared
-# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit: all (every
-# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).
+# enemy's maximum HP, enemy_balance_scale its balance gauge, each from 1.0 (no change) to 4.0. kill_credit is yours:
+# a shared enemy dies in your game, with its rewards, drops and achievements, only if you took part in its fight.
+# together: you hit it, it targeted you, or you stood within 30 m when it died. fought: you hit it or it targeted you.
 enemy_hp_scale=1.35
 enemy_balance_scale=1.15
-kill_credit=all
+kill_credit=together
 # Same place, experimental, the host's for both games: on or off. As guest, yours decides nothing at a start; the
 # co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
 # shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
@@ -123,7 +124,7 @@ card_details=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='on',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='all',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
+    enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
     bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
@@ -134,7 +135,7 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
-    kill_credit={'all','fought'},who_can_join={'friends','code','private'},
+    kill_credit={'together','fought'},who_can_join={'friends','code','private'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
@@ -230,6 +231,23 @@ function Link.migrate_on(text)
         end
     end
     return new
+end
+-- 0.4.0-beta.1 wrote kill_credit=all, under a comment that names all: the other player's kill killed your copy too,
+-- wherever you stood. all is gone. A file with that comment: its text with the comment as Link.DEFAULT has it and an
+-- all set to together, so it is changed once (fought stays). nil for any other file, where a hand-written all is
+-- refused when read, and nil, why when the line cannot be set.
+local OLD_CREDIT_NOTE={'(no change) to 4.0. kill_credit: all (every',
+    '# shared enemy that dies gives you the kill rewards in your game) or fought (only those your EVE hit).'}
+local CREDIT_NOTE={'(no change) to 4.0. kill_credit is yours:',
+    '# a shared enemy dies in your game, with its rewards, drops and achievements, only if you took part in its fight.',
+    '# together: you hit it, it targeted you, or you stood within 30 m when it died. fought: you hit it or it targeted you.'}
+function Link.migrate_credit(text)
+    local nl=text:find('\r\n',1,true) and '\r\n' or '\n'
+    local at,stop=text:find(table.concat(OLD_CREDIT_NOTE,nl),1,true)
+    if not at then return nil end
+    local new=text:sub(1,at-1)..table.concat(CREDIT_NOTE,nl)..text:sub(stop+1)
+    if (SF.get(new,'kill_credit') or ''):lower()~='all' then return new end
+    return SF.set(new,'kill_credit','together')
 end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
@@ -578,7 +596,7 @@ function Link.new(folder,fs)
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
     function self.settings()
-        local text,wrote,turned=fs.read(path('coop-settings.txt')),nil,nil
+        local text,wrote,turned,credited=fs.read(path('coop-settings.txt')),nil,nil,nil
         if not text then
             text=Link.DEFAULT
             local ok,why=put('coop-settings.txt',text,true)
@@ -607,8 +625,22 @@ function Link.new(folder,fs)
             elseif why_on then
                 turned='settings: same_place, same_spawns and bosses kept as they are: '..why_on
             end
+            local all=(SF.get(text,'kill_credit') or ''):lower()=='all'
+            local credit,why_credit=Link.migrate_credit(text) -- 0.4.0-beta.1's kill_credit=all, read as together.
+            if credit then
+                local ok
+                ok,why_credit=self.write_settings(credit)
+                text=credit
+                credited=all and (ok and 'settings: kill_credit=all is gone: coop-settings.txt now says '
+                    ..'kill_credit=together (a shared enemy dies in your game only if you took part in its fight)'
+                    or 'settings: kill_credit=all is gone, read as together (coop-settings.txt not rewritten: '
+                        ..tostring(why_credit)..')') or nil
+            elseif why_credit then
+                credited='settings: kill_credit=all is gone, read as together: '..why_credit
+            end
         end
         local settings,notes=Link.parse_settings(text)
+        if credited then table.insert(notes,1,credited) end
         if turned then table.insert(notes,1,turned) end
         if wrote then table.insert(notes,1,wrote) end
         return settings,notes

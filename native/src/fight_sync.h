@@ -676,7 +676,8 @@ struct Write {
   int stat = kHp;
   int32_t delta = 0;   // Whole units, never 0.
   bool kill = false;   // It takes all the HP: the engine lifts our floor first, in the same turn.
-  bool eve = false;    // Kills only: the cause gives this world's EVE the kill rewards; null skips them (kill_credit).
+  bool eve = false;    // Kills only, so every kill: our EVE as the cause (F3). A kill goes only to a copy she took
+                       // part in (together only), so it always names her.
   bool notify = false; // A drop shows the enemy's bar and a number; rises go without.
 };
 
@@ -707,7 +708,26 @@ inline std::string line(const Event &e) {
 //   bool effect(uint32_t guid, int32_t id): re-finds the actor by GUID, and when it is alive starts that effect on it
 //     through SB's own call, as a hit of our EVE's would; false when it is gone or the game refused;
 //   void send(const Message &m): channel 2 (on/off are the caller's, but for the guest's answer to the host's on);
-//   void event(const Event &e): a log line.
+//   void event(const Event &e): a log line;
+//   bool took_part(uint32_t guid): our EVE took part in the fight of our copy guid by the game's own record or where
+//     she stands (the engine's tests; a drop of our EVE's on the copy, Host's and Guest's fought, is the side's own);
+//   void unshare(uint32_t guid): the host's, our copy guid of an enemy whose kill was hers alone: the engine leaves it
+//     out of its censuses and of same spawns from now on, so it is never shared again, and leaves it as it stands.
+// Together only (the user's rule): an objective done together gives both players its progress, rewards and
+// achievements, and nothing done without a player reaches that player's save. The mod never calls an achievement
+// function; the game raises its Kill achievement, rewards, drops, quest kill tasks and a boss's story beat from a
+// death in its own world. So the other side's kill kills our copy only when our EVE took part in its fight (fought,
+// or took_part); else our copy never dies by the mod, and lives on as an enemy of ours alone, at its full HP
+// (heal()).
+
+// A copy whose kill was the other side's alone back to its full HP, with no cause and no number: the HP the other
+// side's hits took off it (her claims, or the host's values) is not ours to finish with one hit. A boss copy of the
+// guest's then keeps its Immortal: the finish guard's lift (fight_engine.h) dispels it only at 1 HP.
+template <class Io> void heal(uint32_t guid, const float *max, const int32_t *value, Io &io) {
+  int32_t after = value[kHp];
+  if (whole(max[kHp]) > value[kHp])
+    io.apply(Write{guid, kHp, whole(max[kHp]) - value[kHp], false, false, false}, after);
+}
 
 // A host enemy the guest could not pair, for coop fight status: its key and why ("charId", "maxhp", "duplicate").
 struct Unshared {
@@ -722,7 +742,7 @@ struct Counts {
   uint64_t claims = 0;               // Guest: claims sent. Host: claims applied.
   uint64_t corrections = 0;          // Guest: writes toward the host's values.
   uint64_t kills = 0;                // Kills we applied: the host's on a claim, the guest's on dead.
-  uint64_t uncredited = 0;           // Such kills with no cause: kill_credit=fought, and our EVE never hit it.
+  uint64_t unshared = 0;             // Kills we did not apply: the other side's alone, our EVE took no part in it.
   uint64_t floored = 0;              // dead-floored: such a kill left HP above 0 (Immortal or MinimumHP).
   uint64_t refused = 0;              // Host: lethal claims refused.
   uint64_t held = 0, expired = 0;    // Kills that waited for NoDamageNoHit to end or her takedown (a dead of ours too,
@@ -827,9 +847,8 @@ public:
   Counts counts;
 
   // Before the first step: our enemy_hp_scale and enemy_balance_scale in percent (the guest takes them from our scale
-  // line), and kill_credit (all: every kill we apply gives our EVE the rewards; else only one of an enemy she hit).
+  // line).
   void set_scale(uint16_t hp, uint16_t balance) { scale_[kScaleHp] = hp, scale_[kScaleBalance] = balance; }
-  void credit(bool all) { credit_all_ = all; }
   uint16_t scale(int which) const { return scale_[which]; }
   // Each turn, before step(): our same_place as it stands (on, not turned off by coop fight pilot off or the pilot's
   // latch). The guest hears it with our list and at each change.
@@ -1006,10 +1025,7 @@ public:
       e.max_hp = std::max(1, whole(std::round(seen[i].max[kHp])));
       e.take(seen[i]);
       e.scaled = peer_on_, e.due = peer_on_ && scaling(scale_, boss_);
-      // Hurt before it was shared (by our EVE, or by her claims before a pause or a restart): fought. HP only, as for
-      // a fight above: whether Shield and balance always start full is not known.
-      e.fought = hurt;
-      e.cc.start(seen[i]);
+      e.cc.start(seen[i]); // Hurt before it was shared is not fought: her claims before a pause hurt it too.
       if (each)
         io.send(up(e));
     }
@@ -1071,7 +1087,7 @@ private:
     int32_t value[kStats] = {}, sent[kStats] = {};
     bool claimed = false; // A claim was taken since the last hp: its ack must travel with these values.
     bool hit = false;     // A claim was ever applied to it: it keeps its place.
-    bool fought = false;  // Hurt when it came, or a drop between two passes: our EVE hit it (kill_credit=fought).
+    bool fought = false;  // A drop between two passes that no claim of hers made: our EVE hit it (together only).
     bool scaled = false;  // Followed while her on held: the engine scales it.
     bool holding = false; // Her claim's kill waits since hold_ms while it holds NoDamageNoHit or her takedown runs;
                           // our hp lines say 0.
@@ -1190,13 +1206,13 @@ private:
   }
 
   template <class Io> bool write(Enemy &e, int stat, int32_t delta, bool kill, Io &io) {
-    return io.apply(Write{e.guid, stat, delta, kill, kill && (credit_all_ || e.fought), true}, e.value[stat]);
+    return io.apply(Write{e.guid, stat, delta, kill, kill, true}, e.value[stat]);
   }
 
   // A claim: Shield and Stamina, then HP, where the claim may kill. A kill passes our EVE as the cause, so this world
-  // gives her the kill rewards (F3), unless kill_credit=fought and she never hit it; a plain change passes none, so
-  // effects aimed at the attacker never hit our EVE for the guest's hits. While our copy holds NoDamageNoHit, the kill
-  // waits (kHoldMs at most) with the copy at 1 HP, and our hp lines say 0 so she never reads a refusal into it.
+  // gives her the kill rewards (F3), and goes only to an enemy she took part in (kill()); a plain change passes none,
+  // so effects aimed at the attacker never hit our EVE for the guest's hits. While our copy holds NoDamageNoHit, the
+  // kill waits (kHoldMs at most) with the copy at 1 HP, and our hp lines say 0 so she never reads a refusal into it.
   template <class Io> void apply(const Claim &k, uint64_t now, Io &io) {
     if (k.exec >= 0)
       return exec(k, now, io);
@@ -1281,7 +1297,9 @@ private:
       write(e, kHp, 1 - e.value[kHp], false, io);
   }
   // The kill of a claim, now: true when e left our list (its dead sent). A kill that a floor holds keeps it, and one on
-  // a boss in its Finish stance never goes.
+  // a boss in its Finish stance never goes. Together only: when our EVE took no part in its fight, her kill is hers
+  // alone. Our copy lives on at its full HP (heal()), never shared again (Io::unshare), and she hears our dead, so her
+  // copy, which her hit killed or holds at the floor, dies on her side's own test.
   template <class Io> bool kill(Enemy &e, Io &io) {
     if (e.finish)
       return finish_held(e, io), false;
@@ -1290,10 +1308,18 @@ private:
       io.event(Event{"held-expired", "", e.guid, e.spawn, e.index});
     }
     e.holding = false, e.exec_ms = 0;
+    if (!e.fought && !io.took_part(e.guid)) {
+      ++counts.unshared;
+      io.event(Event{"kill-unshared", "not taken part", e.guid, e.spawn, e.index});
+      heal(e.guid, e.max, e.value, io);
+      io.unshare(e.guid);
+      io.send(note(Type::dead, e.guid));
+      e = enemies_[--count_];
+      return true;
+    }
     if (e.value[kHp] <= 0 || !write(e, kHp, -e.value[kHp], true, io))
       return false;
     ++counts.kills;
-    counts.uncredited += !credit_all_ && !e.fought;
     if (e.value[kHp] > 0) { // Immortal or MinimumHP held: it lives on, and so does the guest's copy.
       ++counts.floored;
       io.event(Event{"dead-floored", "", e.guid, e.spawn, e.index});
@@ -1354,7 +1380,6 @@ private:
   uint32_t gen_ = 1, last_seq_ = 0, in_window_ = 0, batch_ = 0;
   uint64_t window_ = 0, next_hp_ = 0, next_refresh_ = 0;
   uint16_t scale_[kScales] = {kMinScale, kMinScale};
-  bool credit_all_ = true;
   bool place_ = false, told_place_ = false; // Our same_place, and as the guest last heard it.
   bool host_only_ = false, told_aggro_ = false; // Our aggro=host, and as the guest last heard it.
   uint16_t boss_ = 0;                            // Our boss_hp_scale with bosses=on; 0: off.
@@ -1380,10 +1405,8 @@ public:
     drop();
     fence_.clear();
   }
-  // guest_kills=confirmed (F4's fallback) and kill_credit (all, or only the enemies our EVE hit) for this side, before
-  // its first step.
+  // guest_kills=confirmed (F4's fallback) for this side, before its first step.
   void confirm(bool on) { confirm_ = on; }
-  void credit(bool all) { credit_all_ = all; }
   // The host's scaling from its scale line (kMinScale: none), until its next world, on or off.
   uint16_t scale(int which) const { return scale_[which]; }
   // The host's same_place from its place line, until its next world, on or off: false before one.
@@ -1622,8 +1645,10 @@ public:
     }
     pair(seen, n, io);
     // The host's deaths, after the pairing so an enemy killed right after its up dies here too: each kills our copy
-    // with our EVE as the cause, so this world gives her the kill (F3). An unpaired one waits for a census, the only
-    // pass that can pair it. A copy in NoDamageNoHit waits for it to end, kHoldMs at most (as on the host).
+    // with our EVE as the cause, so this world gives her the kill (F3), when she took part in its fight (together
+    // only); else the pair ends (dead-unshared) and our copy lives on as an enemy of ours alone, at its full HP
+    // (heal()), its floor, scaling, freeze and finish guard let go. An unpaired one waits for a census, the only pass
+    // that can pair it. A copy in NoDamageNoHit waits for it to end, kHoldMs at most (as on the host).
     for (size_t i = 0; i < count_;) {
       Pair &p = pairs_[i];
       if (!p.dead || (!p.local && !census)) {
@@ -1644,12 +1669,17 @@ public:
         ++counts.expired;
         io.event(Event{"held-expired", "", p.hguid, p.spawn, p.index});
       }
+      if (s && !dying(*s) && !p.fought && !io.took_part(p.local)) {
+        ++counts.unshared;
+        io.event(Event{"dead-unshared", "not taken part", p.hguid, p.spawn, p.index});
+        heal(p.local, s->max, s->value, io);
+        p = pairs_[--count_];
+        continue;
+      }
       if (s && !dying(*s)) {
         int32_t after = s->value[kHp];
-        const bool eve = credit_all_ || p.fought; // kill_credit=fought: no rewards for one our EVE never hit.
-        if (io.apply(Write{p.local, kHp, -s->value[kHp], true, eve, true}, after)) {
+        if (io.apply(Write{p.local, kHp, -s->value[kHp], true, true, true}, after)) {
           ++counts.kills;
-          counts.uncredited += !eve;
           if (after > 0) {
             ++counts.floored;
             io.event(Event{"dead-floored", "", p.hguid, p.spawn, p.index});
@@ -1674,7 +1704,8 @@ private:
     bool dead = false;           // The host's dead came: the next step kills the copy.
     bool holding = false;        // That kill waits since hold_ms while our copy holds NoDamageNoHit.
     uint64_t hold_ms = 0;
-    bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
+    bool fought = false;         // A drop we claimed since it paired: our EVE hit it (together only). Hurt when it
+                                 // paired is not: the host's values before a pause or a re-pair hurt it too.
     bool started = false;        // Its bstart was taken (stage 5): one a copy while in battle mode.
     bool phased = false;         // A phase line was applied to the copy (stage 5): phase, phases its set.
     bool retry = false;          // The game refused a row of its last one: the next plans from the copy's list.
@@ -1868,9 +1899,6 @@ private:
       }
       p.local = match->guid;
       p.quiet = true;
-      // Hurt when it pairs: fought (our EVE's hits, or the host's values before a pause or a re-pair: then it pays
-      // as with kill_credit=all). HP only, as on the host.
-      p.fought = match->value[kHp] < whole(match->max[kHp]);
       p.cc.start(*match);
       std::copy(match->value, match->value + kStats, p.seen);
       std::fill(p.stuck, p.stuck + kStats, -1);
@@ -1901,7 +1929,7 @@ private:
   bool place_ = false;     // The host's same_place (its place line).
   bool host_only_ = false; // The host's aggro=host (its aggro line).
   uint16_t boss_ = 0;      // The host's boss_hp_scale (its bosses line); 0: bosses off.
-  bool confirm_ = false, credit_all_ = true;
+  bool confirm_ = false;
   struct Key {
     uint32_t spawn = 0;
     uint8_t index = 0;

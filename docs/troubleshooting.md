@@ -324,6 +324,19 @@ With same place on, the guest's copy of a boss follows the host's through the li
 - The `fight stats:` lines in `coop-fight.log` add `bosses: <n> summons made, <n> bstart, <n> phase rows (<n>
   refused), <n> finish guards` on the guest's side and `bosses: <n> summons sent` on the host's.
 
+### A kill or an achievement did not count
+
+A shared enemy dies in your game only if you took part in its fight
+([usage.md: Shared enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit,
+that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy
+stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it yourself to get them.
+The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
+`fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count them as
+`not taken part`. With `kill_credit=fought` the 30 m do not count. A `kill_credit=all` line from 0.4.0-beta.1 reads
+as `together`. A `fight last player <key> set by a mirrored crowd control` line means that a knockdown the other
+player started made the game record your EVE as that enemy's last player. The mod then stops counting that record for
+this enemy, so only your hit or the 30 m make its kill yours.
+
 ### Same spawns do not start, or enemies appear and vanish
 
 Same spawns (`same_spawns`) is experimental, on by default and not tested in game yet. With it on in the host's game,
