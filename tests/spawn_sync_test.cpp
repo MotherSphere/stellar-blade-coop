@@ -132,10 +132,11 @@ const char *epoch(Epochs &ep, World &w, uint64_t alias, uint32_t state, uint64_t
   w.census();
   return ep.step(alias, state, w.mine.data(), w.mine.size(), now);
 }
-void host_step(SpawnHost &h, Epochs &ep, World &w, uint64_t now, bool close = true, uint32_t zone = kZone) {
-  h.step(1, zone, ep, close, w.mine.data(), w.mine.size(), now, w);
+const float kEve[3] = {500, 0, 0}; // Her EVE, and where the host's game draws it.
+void host_step(SpawnHost &h, Epochs &ep, World &w, uint64_t now, bool close = true, uint32_t zone = kZone,
+               const float *her = kEve) {
+  h.step(1, zone, ep, close, her, w.mine.data(), w.mine.size(), now, w);
 }
-const float kEve[3] = {500, 0, 0};
 void guest_step(SpawnGuest &g, Epochs &ep, World &w, uint64_t now, bool moved = false, bool close = true,
                 uint32_t zone = kZone) {
   g.step(1, zone, ep, moved, close, kEve, true, w.mine.data(), w.mine.size(), now, w);
@@ -263,6 +264,22 @@ int main() {
     assert(size_t(std::count(capped.begin(), capped.end(), '\n')) == 1 + 2 * kMaxAnswer &&
            bh.counts.spawn_lines == kMaxAnswer &&
            bh.counts.drop_lines == kMaxAnswer);
+    // A Monster more than 1 km from her EVE, as its ghost stands here, waits, since she would refuse it; it goes in a
+    // round that comes once she is nearer.
+    World far;
+    Epochs fep;
+    SpawnHost fh;
+    far.row(1, kReset), far.row(2, kReset);
+    far.add(1, 1).at[0] = 150000;
+    far.add(2, 2);
+    epoch(fep, far, 0xA1, 3, 0);
+    fh.have(msg("SBF11 have 1 1 1 1"), 1, kGraceMs);
+    host_step(fh, fep, far, kGraceMs);
+    assert(far.lines() == "SBF11 epoch 1 40 1\nSBF11 spawn 1 1 2 0 900 2 -250 13 270\n");
+    const float nearer[3] = {60000, 0, 0};
+    fh.have(msg("SBF11 have 1 1 1 1 2:0"), 1, kGraceMs + kRoundMs);
+    host_step(fh, fep, far, kGraceMs + kRoundMs, true, kZone, nearer);
+    assert(far.lines() == "SBF11 spawn 1 1 1 0 900 150000 -250 13 270\n");
   }
 
   // ---- The guest: nothing before the host's epoch line; her rounds in the host's zone ----
@@ -348,13 +365,17 @@ int main() {
            w.count("spawn refused", "no row") == 1 && w.count("spawn refused", "save-row") == 1 &&
            w.count("spawn refused", "keep-row") == 1 && w.count("spawn refused", "event-row") == 1 &&
            w.count("spawn refused", "another zone") == 1);
-    // Her next round names what she created and what she refused, so the host stops asking.
+    // Her next round names what she created and what she refused, so the host stops asking; but not the one too far,
+    // which the host may send again once she is nearer.
     take({}, kGraceMs + kHaveAgainMs);
     std::string round = w.lines();
-    for (const char *k : {" 7010:0", " 7011:0", " 7012:0", " 7080:0", " 7077:0", " 7071:0", " 7072:0", " 7078:0"})
+    for (const char *k : {" 7010:0", " 7011:0", " 7080:0", " 7077:0", " 7071:0", " 7072:0", " 7078:0"})
       assert(has(round, k));
+    assert(!has(round, " 7012:0"));
     assert(!has(round, " 7070:0") && !has(round, " 7073:0")); // Hers, but out of the set: a save row, another zone.
     assert(!has(round, " 7013:0") && !has(round, " 7014:0"));
+    take({"SBF11 spawn 1 1 7012 0 900 600 0 0 0"}, kGraceMs + kHaveAgainMs + 50);
+    assert(w.created.size() == 3 && w.created[2].key == (SpawnKey{7012, 0}) && g.counts.spawned == 3);
     // Drops: her live Monster of a key that takes part, despawned (never killed); never a paired one (stage 1's), a
     // dying one, an NPC, a save row's or another zone's, nor one she lacks or despawned already.
     take({"SBF11 drop 1 1 7002 0", "SBF11 drop 1 1 7002 0", "SBF11 drop 1 1 7003 0", "SBF11 drop 1 1 7004 0",

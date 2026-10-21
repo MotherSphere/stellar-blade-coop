@@ -182,10 +182,12 @@ public:
   }
   // Each census while same spawns run here, her side on: our epoch line when our zone or epoch changed (none while our
   // zone is unknown), then her round if it came at our epoch while she stands within 100 m and our zone is settled:
-  // spawn for each Monster of ours there she lacks (a dying one never), drop for each key of hers there we lack.
+  // spawn for each Monster of ours there she lacks within 1 km of her EVE (her: as her ghost stands here; a farther one
+  // waits for a round when she is nearer, since she would refuse it), a dying one never; drop for each key of hers
+  // there we lack.
   template <class Io>
-  void step(uint32_t gen, uint32_t zone, const Epochs &ep, bool close, const Mine *mine, size_t n, uint64_t now,
-            Io &io) {
+  void step(uint32_t gen, uint32_t zone, const Epochs &ep, bool close, const float *her, const Mine *mine, size_t n,
+            uint64_t now, Io &io) {
     if (!zone || !ep.n())
       return;
     if (zone != told_zone_ || ep.n() != told_n_) {
@@ -206,8 +208,8 @@ public:
     size_t lines = 0;
     for (size_t i = 0; i < n && lines < kMaxAnswer; ++i) {
       const Mine &m = mine[i];
-      if (!m.monster || m.dying || listed(round_.keys, round_.n, m.key) || !io.row(m.key.spawn, row) ||
-          row_out(row) || row.zone != zone || !std::isfinite(m.yaw) || !fits(m.at))
+      if (!m.monster || m.dying || listed(round_.keys, round_.n, m.key) || !within(m.at, her, kSpawnRangeCm) ||
+          !io.row(m.key.spawn, row) || row_out(row) || row.zone != zone || !std::isfinite(m.yaw) || !fits(m.at))
         continue;
       Message s = note(Type::spawn, gen, ep.n());
       s.spawn = m.key.spawn, s.index = m.key.index, s.chr = m.chr;
@@ -368,7 +370,7 @@ private:
   // our tables in the host's zone that takes part, which we hold no actor of and did not answer in this epoch, within
   // 1 km of our EVE, of a charId we share. A drop: our live shared Monster of a key that takes part in that zone, not
   // followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our rounds name it and
-  // the host stops asking.
+  // the host stops asking; one too far does not, so the host asks again once we are nearer.
   template <class Io>
   void take(const Message &m, bool shared, const float *eve, bool eve_ok, const Mine *mine, size_t n, uint64_t now,
             Io &io) {
@@ -385,13 +387,15 @@ private:
       if (rated(now))
         return;
       const float at[3] = {float(m.at[0]), float(m.at[1]), float(m.at[2])};
-      const char *why = !eve_ok || !within(at, eve, kSpawnRangeCm) ? "too far"
-                        : made_ == kMaxKeys                        ? "full"
-                        : !io.shares(m.chr)                        ? "not shared"
-                                                                   : out(k, io);
+      const bool distant = !eve_ok || !within(at, eve, kSpawnRangeCm);
+      const char *why = distant             ? "too far"
+                        : made_ == kMaxKeys ? "full"
+                        : !io.shares(m.chr) ? "not shared"
+                                            : out(k, io);
       if (!why && !io.create(k, at, float(m.yaw)))
         why = "no spawn manager";
-      made(k, m.chr, !why);
+      if (!distant)
+        made(k, m.chr, !why);
       ++(why ? counts.refused : counts.spawned);
       io.event(Event{why ? "spawn refused" : "spawned", why ? why : "", 0, k.spawn, k.index});
       return;

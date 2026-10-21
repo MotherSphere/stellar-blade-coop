@@ -1671,7 +1671,7 @@ private:
       return;
     SpawnIo<Game> io{*this, g, logic};
     if (hosting)
-      spawn_host_.step(host.gen(), zone, epochs_, close, mine_, mines_, now, io);
+      spawn_host_.step(host.gen(), zone, epochs_, close, flags_.her, mine_, mines_, now, io);
     else
       spawn_guest_.step(guest.gen(), zone, epochs_, why != nullptr, close, eve, eve_ok, mine_, mines_, now, io);
   }
