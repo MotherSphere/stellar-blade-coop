@@ -447,6 +447,11 @@ function Race.new(o)
         if not rec then return false,'no track is being recorded: coop race record <name> starts one' end
         local e=eve()
         if not e then return false,'no EVE in the world' end
+        local map=U.map_of(e) -- A recording that left its map keeps what it had: saved, it is a track of that map.
+        if map~=rec.track.map then
+            tell(function(w) return w.race.other_map end)
+            return false,'this track is on '..rec.track.map..'; you are on '..map
+        end
         local ok,why=R.drop(rec.track,feet(e))
         if not ok then
             tell(function(w) return why=='full' and w.race.full or w.race.too_close end)

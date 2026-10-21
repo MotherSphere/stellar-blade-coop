@@ -255,6 +255,12 @@ for i,c in ipairs(CPS) do
     assert(ok and message==('checkpoint %d at %d %d %d'):format(i,c.x,c.y,c.z),message)
     assert(A.told[#A.told]==('Checkpoint %d set.'):format(i))
 end
+-- On another map (a fast travel while recording): no checkpoint, and said.
+A.eve.map='/game/e04'
+ok,message=A.race.key()
+assert(not ok and message=='this track is on '..MAP..'; you are on /game/e04',message) -- The saved file below has 4.
+assert(A.told[#A.told]=='This track is on another map.')
+A.eve.map=MAP
 ok,message=A.race.command('save','2')
 assert(not ok and message=='laps above 1 need the last checkpoint within 30 m of the start',message)
 for _,bad in ipairs({'0','10','x'}) do

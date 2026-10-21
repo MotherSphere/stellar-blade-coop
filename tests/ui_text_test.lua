@@ -80,7 +80,7 @@ local function notices(w)
         for _,text in pairs(r[group]) do lines[#lines+1]=fill(text) end
     end
     for _,k in ipairs({'armed','armed_guest','false_start','cancelled','out','recording','dropped','too_close','full',
-        'saved','go','wrong_way','missed','finished','dnf'}) do
+        'other_map','saved','go','wrong_way','missed','finished','dnf'}) do
         lines[#lines+1]=fill(r[k])
     end
     local s=w.summary

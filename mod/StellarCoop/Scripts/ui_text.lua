@@ -158,6 +158,7 @@ T.en={
         track="%s's track could not be read.",save='%s started a race. Races need a co-op save.'},
         recording='Recording %s: press %s at each checkpoint.',dropped='Checkpoint %d set.',
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
+        other_map='This track is on another map.',
         saved='Track %s saved, %d checkpoints.'},
 }
 T.fr={
@@ -307,6 +308,7 @@ T.fr={
         recording='Enregistrement de %s : appuyez sur %s à chaque point de contrôle.',
         dropped='Point de contrôle %d posé.',too_close='Trop près : 15 m au moins entre deux points de contrôle.',
         full='Déjà 64 points de contrôle : enregistrez le circuit.',
+        other_map='Ce circuit est sur une autre carte.',
         saved='Circuit %s enregistré, %d points de contrôle.'},
 }
 T.ar={
@@ -439,7 +441,8 @@ T.ar={
         silent='لم يرد %s. تسابق وحدك.'},declined={map='بدأ %s سباقًا على خريطة أخرى.',track='تعذّرت قراءة مسار %s.',
         save='بدأ %s سباقًا. يتطلب السباق حفظًا تعاونيًا.'},recording='يجري تسجيل %s: اضغط %s عند كل نقطة تفتيش.',
         dropped='وُضعت نقطة التفتيش %d.',too_close='قريبة جدًا: 15 م على الأقل بين نقاط التفتيش.',
-        full='توجد 64 نقطة تفتيش بالفعل: احفظ المسار.',saved='حُفظ المسار %s، وفيه %d من نقاط التفتيش.'},
+        full='توجد 64 نقطة تفتيش بالفعل: احفظ المسار.',
+        other_map='هذا المسار على خريطة أخرى.',saved='حُفظ المسار %s، وفيه %d من نقاط التفتيش.'},
 }
 T.da={
     title='CO-OP',
@@ -578,6 +581,7 @@ T.da={
         track='Ruten fra %s kunne ikke læses.',save='%s startede et løb. Løb kræver et co-op-spil.'},
         recording='Optager %s: tryk på %s ved hvert checkpoint.',dropped='Checkpoint %d sat.',
         too_close='For tæt: mindst 15 m mellem checkpoints.',full='Allerede 64 checkpoints: gem ruten.',
+        other_map='Ruten er på et andet kort.',
         saved='Ruten %s er gemt, %d checkpoints.'},
 }
 T.de={
@@ -731,6 +735,7 @@ T.de={
         save='%s startet ein Rennen. Rennen brauchen einen Koop-Speicherstand.'},
         recording='%s wird aufgezeichnet: Drück %s an jedem Checkpoint.',dropped='Checkpoint %d gesetzt.',
         too_close='Zu nah: mindestens 15 m zwischen Checkpoints.',full='Schon 64 Checkpoints: Speichere die Strecke.',
+        other_map='Diese Strecke liegt auf einer anderen Karte.',
         saved='Strecke %s gespeichert, %d Checkpoints.'},
 }
 T.es={
@@ -878,7 +883,8 @@ T.es={
         save='%s inició una carrera. Las carreras necesitan una partida co-op.'},
         recording='Grabando %s: pulsa %s en cada punto de control.',dropped='Punto de control %d colocado.',
         too_close='Demasiado cerca: al menos 15 m entre puntos de control.',
-        full='Ya hay 64 puntos de control: guarda el circuito.',saved='Circuito %s guardado, %d puntos de control.'},
+        full='Ya hay 64 puntos de control: guarda el circuito.',
+        other_map='Este circuito está en otro mapa.',saved='Circuito %s guardado, %d puntos de control.'},
 }
 T['es-MX']={
     title='CO-OP',
@@ -1024,7 +1030,8 @@ T['es-MX']={
         save='%s inició una carrera. Las carreras necesitan una partida co-op.'},
         recording='Grabando %s: presiona %s en cada punto de control.',dropped='Punto de control %d colocado.',
         too_close='Demasiado cerca: al menos 15 m entre puntos de control.',
-        full='Ya hay 64 puntos de control: guarda el circuito.',saved='Circuito %s guardado, %d puntos de control.'},
+        full='Ya hay 64 puntos de control: guarda el circuito.',
+        other_map='Este circuito está en otro mapa.',saved='Circuito %s guardado, %d puntos de control.'},
 }
 T.fi={
     title='CO-OP',
@@ -1172,6 +1179,7 @@ T.fi={
         save='%s aloitti kilvan. Kilpa vaatii co-op-tallennuksen.'},
         recording='Tallennetaan rataa %s: paina %s jokaisella rastipisteellä.',dropped='Rastipiste %d asetettu.',
         too_close='Liian lähellä: rastipisteiden väli vähintään 15 m.',full='Jo 64 rastipistettä: tallenna rata.',
+        other_map='Tämä rata on toisella kartalla.',
         saved='Rata %s tallennettu, %d rastipistettä.'},
 }
 T.it={
@@ -1317,6 +1325,7 @@ T.it={
         save='%s ha avviato una gara. Le gare richiedono un salvataggio co-op.'},
         recording='Registrazione di %s: premi %s a ogni checkpoint.',dropped='Checkpoint %d piazzato.',
         too_close='Troppo vicino: almeno 15 m tra due checkpoint.',full='Già 64 checkpoint: salva il percorso.',
+        other_map="Questo percorso è su un'altra mappa.",
         saved='Percorso %s salvato, %d checkpoint.'},
 }
 T.ja={
@@ -1444,7 +1453,8 @@ T.ja={
         track='%sはコースを読み込めなかった。ソロで走る。',save='%sは協力プレイ用セーブではない。ソロで走る。',silent='%sから応答がない。ソロで走る。'},
         declined={map='%sが別のマップでレースを開始した。',track='%sのコースを読み込めなかった。',save='%sがレースを開始した。レースには協力プレイ用セーブが必要。'},
         recording='%sを記録中：各チェックポイントで%sを押す。',dropped='チェックポイント%dを設置。',too_close='近すぎる：チェックポイントの間隔は15 m以上。',
-        full='チェックポイントは64個まで：コースを保存。',saved='コース%sを保存、チェックポイント%d個。'},
+        full='チェックポイントは64個まで：コースを保存。',
+        other_map='このコースは別のマップにある。',saved='コース%sを保存、チェックポイント%d個。'},
 }
 T.ko={
     title='코옵',
@@ -1570,6 +1580,7 @@ T.ko={
         declined={map='%s 님이 다른 맵에서 레이스를 시작했습니다.',track='%s 님의 코스를 읽을 수 없습니다.',
         save='%s 님이 레이스를 시작했습니다. 레이스에는 코옵 세이브가 필요합니다.'},recording='%s 기록 중: 체크포인트마다 %s 키를 누르세요.',
         dropped='체크포인트 %d 설치.',too_close='너무 가깝습니다: 체크포인트 간격은 15 m 이상.',full='체크포인트가 이미 64개입니다: 코스를 저장하세요.',
+        other_map='이 코스는 다른 맵에 있습니다.',
         saved='코스 %s 저장, 체크포인트 %d개.'},
 }
 T.nl={
@@ -1715,6 +1726,7 @@ T.nl={
         track='De route van %s kon niet worden gelezen.',save='%s startte een race. Races vragen een co-opgame.'},
         recording='%s wordt opgenomen: druk bij elk checkpoint op %s.',dropped='Checkpoint %d geplaatst.',
         too_close='Te dichtbij: minstens 15 m tussen checkpoints.',full='Al 64 checkpoints: sla de route op.',
+        other_map='Deze route ligt op een andere kaart.',
         saved='Route %s opgeslagen, %d checkpoints.'},
 }
 T.no={
@@ -1855,6 +1867,7 @@ T.no={
         track='Løypa til %s kunne ikke leses.',save='%s startet et løp. Løp krever en co-op-lagring.'},
         recording='Tar opp %s: trykk %s ved hvert sjekkpunkt.',dropped='Sjekkpunkt %d satt.',
         too_close='For nært: minst 15 m mellom sjekkpunktene.',full='Allerede 64 sjekkpunkter: lagre løypa.',
+        other_map='Denne løypa er på et annet kart.',
         saved='Løypa %s er lagret, %d sjekkpunkter.'},
 }
 T.pl={
@@ -1996,7 +2009,8 @@ T.pl={
         track='Nie udało się odczytać trasy od: %s.',save='%s rozpoczyna wyścig. Wyścig wymaga zapisu co-op.'},
         recording='Nagrywanie trasy %s: naciśnij %s na każdym punkcie kontrolnym.',
         dropped='Punkt kontrolny %d ustawiony.',too_close='Za blisko: co najmniej 15 m między punktami kontrolnymi.',
-        full='Już 64 punkty kontrolne: zapisz trasę.',saved='Trasa %s zapisana, punkty kontrolne: %d.'},
+        full='Już 64 punkty kontrolne: zapisz trasę.',
+        other_map='Ta trasa jest na innej mapie.',saved='Trasa %s zapisana, punkty kontrolne: %d.'},
 }
 T.pt={
     title='CO-OP',
@@ -2140,7 +2154,8 @@ T.pt={
         save='%s iniciou uma corrida. As corridas precisam de dados guardados co-op.'},
         recording='A gravar %s: prime %s em cada ponto de controlo.',dropped='Ponto de controlo %d colocado.',
         too_close='Demasiado perto: pelo menos 15 m entre pontos de controlo.',
-        full='Já há 64 pontos de controlo: guarda o percurso.',saved='Percurso %s guardado, %d pontos de controlo.'},
+        full='Já há 64 pontos de controlo: guarda o percurso.',
+        other_map='Este percurso está noutro mapa.',saved='Percurso %s guardado, %d pontos de controlo.'},
 }
 T['pt-BR']={
     title='CO-OP',
@@ -2284,6 +2299,7 @@ T['pt-BR']={
         save='%s começou uma corrida. Corridas exigem um jogo salvo co-op.'},
         recording='Gravando %s: aperte %s em cada checkpoint.',dropped='Checkpoint %d colocado.',
         too_close='Perto demais: pelo menos 15 m entre checkpoints.',full='Já são 64 checkpoints: salve o percurso.',
+        other_map='Este percurso está em outro mapa.',
         saved='Percurso %s salvo, %d checkpoints.'},
 }
 T.ru={
@@ -2425,7 +2441,8 @@ T.ru={
         recording='Запись трассы %s: нажимайте %s на каждой контрольной точке.',
         dropped='Контрольная точка %d установлена.',
         too_close='Слишком близко: между контрольными точками не меньше 15 м.',
-        full='Уже 64 контрольные точки: сохраните трассу.',saved='Трасса %s сохранена, контрольных точек: %d.'},
+        full='Уже 64 контрольные точки: сохраните трассу.',
+        other_map='Эта трасса на другой карте.',saved='Трасса %s сохранена, контрольных точек: %d.'},
 }
 T.sv={
     title='CO-OP',
@@ -2563,6 +2580,7 @@ T.sv={
         save='%s startade ett lopp. Lopp kräver en co-op-sparfil.'},
         recording='Spelar in %s: tryck på %s vid varje checkpoint.',dropped='Checkpoint %d satt.',
         too_close='För nära: minst 15 m mellan checkpoints.',full='Redan 64 checkpoints: spara banan.',
+        other_map='Banan ligger på en annan karta.',
         saved='Banan %s sparad, %d checkpoints.'},
 }
 T.th={
@@ -2687,6 +2705,7 @@ T.th={
         track='อ่านเส้นทางของ %s ไม่ได้',save='%s เริ่มการแข่ง การแข่งต้องใช้เซฟ co-op'},
         recording='กำลังบันทึก %s: กด %s ที่แต่ละเช็กพอยต์',dropped='วางเช็กพอยต์ %d แล้ว',
         too_close='ใกล้เกินไป: เช็กพอยต์ต้องห่างกันอย่างน้อย 15 ม.',full='มีเช็กพอยต์ครบ 64 จุดแล้ว: บันทึกเส้นทาง',
+        other_map='เส้นทางนี้อยู่บนแผนที่อื่น',
         saved='บันทึกเส้นทาง %s แล้ว เช็กพอยต์ %d จุด'},
 }
 T.tr={
@@ -2830,7 +2849,8 @@ T.tr={
         save='%s bir yarış başlattı. Yarışlar co-op kaydı gerektirir.'},
         recording='%s kaydediliyor: her kontrol noktasında %s tuşuna bas.',dropped='Kontrol noktası %d kondu.',
         too_close='Çok yakın: kontrol noktaları arasında en az 15 m olmalı.',
-        full='Zaten 64 kontrol noktası var: parkuru kaydet.',saved='%s parkuru kaydedildi, %d kontrol noktası.'},
+        full='Zaten 64 kontrol noktası var: parkuru kaydet.',
+        other_map='Bu parkur başka bir haritada.',saved='%s parkuru kaydedildi, %d kontrol noktası.'},
 }
 T['zh-Hans']={
     title='合作模式',
@@ -2944,7 +2964,8 @@ T['zh-Hans']={
         armed='比赛就绪：请前往你的起点。',armed_guest='%s发起了比赛：请前往你的起点。',false_start='抢跑：请回到起点。',cancelled='比赛已取消。',out='%s退出了比赛。',
         refused={map='%s在其他地图。你将独自比赛。',track='%s无法读取赛道。你将独自比赛。',save='%s未使用合作存档。你将独自比赛。',silent='%s没有回应。你将独自比赛。'},
         declined={map='%s在其他地图发起了比赛。',track='无法读取%s的赛道。',save='%s发起了比赛。比赛需要合作存档。'},recording='正在录制%s：在每个检查点按%s。',
-        dropped='已设置检查点%d。',too_close='太近了：检查点间距至少15米。',full='已有64个检查点：请保存赛道。',saved='赛道%s已保存，共%d个检查点。'},
+        dropped='已设置检查点%d。',too_close='太近了：检查点间距至少15米。',full='已有64个检查点：请保存赛道。',
+        other_map='此赛道在另一张地图上。',saved='赛道%s已保存，共%d个检查点。'},
 }
 T['zh-Hant']={
     title='合作模式',
@@ -3057,7 +3078,8 @@ T['zh-Hant']={
         armed='比賽就緒：請前往你的起點。',armed_guest='%s發起了比賽：請前往你的起點。',false_start='偷跑：請回到起點。',cancelled='比賽已取消。',out='%s退出了比賽。',
         refused={map='%s在其他地圖。你將獨自比賽。',track='%s無法讀取賽道。你將獨自比賽。',save='%s未使用合作存檔。你將獨自比賽。',silent='%s沒有回應。你將獨自比賽。'},
         declined={map='%s在其他地圖發起了比賽。',track='無法讀取%s的賽道。',save='%s發起了比賽。比賽需要合作存檔。'},recording='正在錄製%s：在每個檢查點按%s。',
-        dropped='已設置檢查點%d。',too_close='太近了：檢查點間距至少15公尺。',full='已有64個檢查點：請儲存賽道。',saved='賽道%s已儲存，共%d個檢查點。'},
+        dropped='已設置檢查點%d。',too_close='太近了：檢查點間距至少15公尺。',full='已有64個檢查點：請儲存賽道。',
+        other_map='此賽道在另一張地圖上。',saved='賽道%s已儲存，共%d個檢查點。'},
 }
 local culture=require('recruiter_text').culture
 -- A table and the tables in it read T.en's word for a key they lack.
