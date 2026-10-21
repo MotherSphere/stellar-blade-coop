@@ -601,6 +601,20 @@ assert(G.wire[1]:find('^have %d+ no save$') and G.told[1]=='Host started a race.
 assert(has(H.told,'Kaanta is not on a co-op save. You race alone.') and not G.race.armed())
 H.race.command('quit')
 step({H,G})
+-- During her Night Operation run she does not answer: no line, no look; the host races alone after 10 s.
+H,G=pair()
+G.night=true
+player=H.eve
+H.race.command('start','quest')
+frames({H,G},4)
+assert(#G.wire==0 and not G.race.armed() and not G.look.on and #G.told==0)
+assert(find(G.logs,'^race %d+ from the host not answered: Night Operation is running$'))
+run({H,G},function() return has(H.told,'Kaanta did not answer. You race alone.') end,400)
+H.race.command('quit')
+step({H,G})
+-- The session's host never arms as a guest, whatever line comes.
+H.race.receive('track 7 4 1 0 0 0 0 '..MAP)
+assert(not H.race.armed() and #H.sent==0)
 
 -- The host quits before GO: the race is cancelled for her, her look off again.
 H,G=pair()

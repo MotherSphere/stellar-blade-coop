@@ -498,14 +498,17 @@ function Race.new(o)
         if rec then return drop() end
     end
     -- A race line of hers (link.take_chat's {race=}): to the race armed here (the loopback guest's while it runs), or,
-    -- with none, a track line arms the guest's side. Off a co-op save the guest answers "no save" and stays out.
+    -- with none, a track line arms the guest's side. Never on the session's host (only a host sends a track). During
+    -- a Night Operation run the guest does not answer (the host races alone after 10 s); off a co-op save she answers
+    -- "no save" and stays out.
     function self.receive(text)
         if failed then return end
         local r=race
         if r and r.loop then r.loop_in[#r.loop_in+1]=text return end
         if r then r.inbox[#r.inbox+1]=text return end
         local l=R.decode(text)
-        if not (l and l.what=='track' and link) then return end -- A line of a race that ended here.
+        if not (l and l.what=='track' and link) or link.mode()=='host' then return end -- A line of a race that ended here.
+        if o.night() then return log('race '..l.id..' from the host not answered: Night Operation is running') end
         if not o.slot() then
             link.race(('have %d no save'):format(l.id))
             log('race '..l.id..' from the host refused: not a co-op save')
