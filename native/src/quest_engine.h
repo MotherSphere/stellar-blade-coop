@@ -9,7 +9,8 @@
 // tests/quest_engine_test.cpp), so nothing here is Windows-specific. The worker hands the partner's lines in and takes
 // lines, log lines, notices and the record out under a lock; tick() takes that lock only around those hand-overs, never
 // while it reads the game or calls it, so a fault there leaves nothing locked. The glue's SEH filter then calls fault(),
-// and the feature stays off for the run.
+// and the feature stays off for the run. The Worker below is the worker thread's side: the requests, the gates that
+// start and stop a side, channel 2's SBQ lines both ways, the record file, the recording and coop-status.txt's lines.
 // Offsets and functions are for Stellar Blade's Steam build 24463856; the glue runs it only on the pinned build.
 //
 // The Game the engine takes, every call on the game thread:
@@ -44,6 +45,14 @@ namespace coop::quest {
 
 using nightop::kImageBase;
 using nightop::plausible;
+
+// The save-slot line's co-op slot index (its " index=" digit), or -1.
+inline int slot_index(std::string_view slot) {
+  const size_t at = slot.find(" index=");
+  return at != std::string_view::npos && at + 7 < slot.size() && slot[at + 7] >= '0' && slot[at + 7] <= '4'
+             ? slot[at + 7] - '0'
+             : -1;
+}
 
 // SB's globals: the logic singleton (its +0x598 is the current zone's FName), the game world, the quest manager, and
 // the logic worker's thread ID while it ticks (else 0). The world and the manager are read, never made: their getters
@@ -96,11 +105,13 @@ struct Note {
   bool forced = false, warp = false;
 };
 // What the worker takes each time: lines for channel 2, coop-quests.log lines, notices, the record file's text when
-// it changed (StellarCoopQuests0N.txt, N the slot), the record mode's lines with their times, and the status asked.
+// it changed (StellarCoopQuests0N.txt, N the slot), the record mode's lines with their times, the status asked, and
+// the side's state as of the last pass ("off", "stopped" after a fault, "waiting role=<r>" until the game's quest unit
+// is found, "on role=<r>" with " partner=<on|off>" when linked; r: host, guest, recorder, probe or replay).
 struct Out {
   std::vector<std::string> lines, log, recorded;
   std::vector<Note> notes;
-  std::string record, status;
+  std::string record, status, state;
   bool record_changed = false;
   int slot = -1; // The co-op slot index the record belongs to.
 };
@@ -161,6 +172,11 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     return latched_;
   }
+  // A side runs, or on() asked for one: false once off(), its gate (another save) or a fault ended it.
+  bool active() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return start_ || running_;
+  }
 
   // ---- The game thread ----
   // One pass, every 250 ms. base: the game's image base; slot: the save-slot line (slot::line), whose "slot=coop "
@@ -174,6 +190,7 @@ public:
       if (latched_) {
         if (std::exchange(ask_status_, false))
           out_.status = status_text();
+        out_.state = "stopped";
         return;
       }
       if (!stop_.empty())
@@ -345,10 +362,7 @@ private:
     if (!armed_) {
       slot_ = std::string(slot), world_ = world, mgr_ = mgr, unit_ = unit, owner_ = owner, armed_ = true;
       first_ = true;
-      const size_t at = slot.find(" index=");
-      slot_index_ = at != std::string_view::npos && at + 7 < slot.size() && slot[at + 7] >= '0' && slot[at + 7] <= '9'
-                        ? slot[at + 7] - '0'
-                        : -1;
+      slot_index_ = slot_index(slot);
       begin();
     }
     logic_ = logic;
@@ -630,8 +644,10 @@ private:
       }
       if (side_.mode == Mode::replay)
         feed();
-      if (force && !guest_->force(force))
+      if (force && !guest_->force(force)) {
         log("quests: force " + std::to_string(force) + ": no line of the host holds that quest");
+        notes_.push_back(Note{Why::done, force, "", true, false});
+      }
       const Plan p = guest_->pass(views_.data(), zone_, arm_, now_ms, lines);
       fed_ready_ = p.ready();
       const Plan &f = guest_->forced();
@@ -821,8 +837,22 @@ private:
     std::lock_guard<std::mutex> lock(mutex_);
     out_.log.push_back(line);
   }
+  // Under the lock: Out::state.
+  std::string state_word() const {
+    if (latched_)
+      return "stopped";
+    if (!running_)
+      return "off";
+    std::string s = std::string(armed_ ? "on" : "waiting") + " role=" + mode_name(side_.mode);
+    if (armed_ && host_ && side_.mode == Mode::host)
+      s += std::string(" partner=") + (host_->guest_on() ? "on" : "off");
+    else if (armed_ && guest_ && side_.mode == Mode::guest) // A snapshot came from a host that is on.
+      s += std::string(" partner=") + (guest_->host_on() || guest_->generation() ? "on" : "off");
+    return s;
+  }
   // Under the lock: the pass's lines and the sides' log, notes and record into out_.
   void out(std::vector<std::string> &lines, uint64_t now_ms) {
+    out_.state = state_word();
     std::vector<std::string> *side_log = host_ ? &host_->log : guest_ ? &guest_->log : nullptr;
     if (side_log) {
       out_.log.insert(out_.log.end(), side_log->begin(), side_log->end());
@@ -884,6 +914,253 @@ private:
   std::vector<Tuple> live_ = std::vector<Tuple>(kRowCount);
   std::vector<Note> notes_, shown_ = std::vector<Note>(kRowCount);
   uint64_t applied_ = 0, refused_ = 0, loads_ = 0;
+};
+
+// ---- The worker's side ----
+
+constexpr size_t kNotes = 8;            // coop-status.txt keeps the last notes.
+constexpr uint64_t kRecordMs = 1000;    // The record file and the recording are written at most once a second.
+constexpr size_t kMaxRecording = 65536; // Lines a recording keeps (kMaxReplay).
+
+// The worker thread's side of the shared quests, between Lua's requests, the link's channel 2, the account's save
+// folder and the Engine. coop quests on waits for a friend linked past the handshake and a co-op save (slot=coop),
+// then runs the side the lobby gives (the owner hosts) with the record of that co-op slot; probe, record and replay
+// wait for a co-op save only. A side ends when it is asked off, when its friend leaves or another one links, or by
+// itself (another save, a fault); the next one starts once the engine took the end, so her off always goes before a
+// new on. Her SBQ lines go to the engine, the shared fight's stay on channel 2's list. The record file is written at
+// most once a second and only on a change; so is the recording.
+// Io: bool send(const std::string &line) (channel 2, reliable; false when it cannot go); void say(const std::string
+// &line) (coop-link.log); void trace(const std::string &line) (coop-quests.log); bool load(int slot, std::string
+// &text, size_t max) (the record of co-op slot 0-4, "" when there is none; false when it cannot be read); bool
+// save(int slot, const std::string &text); bool load_recording(std::string &text) (false when there is none); bool
+// save_recording(const std::string &text).
+class Worker {
+public:
+  explicit Worker(Engine &e) : e_(e) {}
+
+  // A quests request (link_protocol.h's parse_request). The line for the log.
+  template <class Io> std::string ask(const Request &r, Io &io) {
+    const char *word = ask_word(r.quests);
+    switch (r.quests) {
+    case Quests::status:
+      e_.ask_status();
+      return "quests status: " + state() + " (the full status follows as quests_status lines)";
+    case Quests::off:
+      return stop("asked") ? "quests off" : "quests off: they were not on";
+    case Quests::force:
+      if (!started_ || (mode_ != Mode::guest && mode_ != Mode::replay))
+        return "quests force refused: only on the guest's side while shared quests run, or in a replay";
+      e_.force(r.quest);
+      return "quests force " + std::to_string(r.quest) + ": asked, the answer follows on screen and in coop-quests.log";
+    case Quests::none: return "quests: no such request";
+    default: break;
+    }
+    if (blocked_)
+      return std::string("quests ") + word + " refused: coop off";
+    if (e_.latched())
+      return std::string("quests ") + word + " refused: shared quests stopped for this run after a fault";
+    std::string unknown, replay;
+    const Deny deny = parse_deny(r.deny, &unknown);
+    if (r.quests == Quests::replay && !io.load_recording(replay))
+      return "quests replay refused: no recording yet (coop quests record makes one)";
+    if (ask_ == r.quests && deny == deny_ && r.quests != Quests::replay)
+      return std::string("quests ") + word + ": already asked, " + state();
+    ask_ = r.quests, deny_ = deny, replay_ = std::move(replay);
+    if (!unknown.empty())
+      io.say("quests: quest_deny names no shared quest: " + unknown);
+    return std::string("quests ") + word + ": " +
+           (r.quests == Quests::on ? "shared once a friend is linked and both play a co-op save"
+                                   : "runs once a co-op save is loaded");
+  }
+
+  // coop off: the side ends, and nothing more is asked of the engine until the game restarts.
+  void block() {
+    stop("coop off");
+    blocked_ = true;
+  }
+
+  // Every worker pass, after the link's tick. lines: channel 2's lines from her (her SBQ ones are taken out here);
+  // partner: her SteamID while she is linked, else 0; hosting: we own the lobby; slot: the save-slot line (slot::line).
+  template <class Io>
+  void pass(uint64_t now_ms, bool hosting, uint64_t partner, const std::string &slot, std::vector<std::string> &lines,
+            Io &io) {
+    const std::string tag = quest_tag() + " ";
+    lines.erase(std::remove_if(lines.begin(), lines.end(),
+                               [&](const std::string &l) {
+                                 if (l.compare(0, tag.size(), tag) != 0)
+                                   return false;
+                                 e_.line(l.data(), l.size());
+                                 return true;
+                               }),
+                lines.end());
+    // The side this pass wants, or why it waits: no friend, or not a co-op save.
+    Mode mode = ask_ == Quests::probe ? Mode::probe : ask_ == Quests::record ? Mode::record : Mode::replay;
+    why_.clear();
+    if (ask_ == Quests::on)
+      mode = hosting ? Mode::host : Mode::guest;
+    if (ask_ == Quests::on && !partner)
+      why_ = "friend";
+    else if (slot.rfind("slot=coop ", 0) != 0)
+      why_ = "save";
+    const bool linked_mode = mode == Mode::host || mode == Mode::guest;
+    if (started_ && !e_.active())
+      started_ = false; // Its own gate ended it (another save), or a fault.
+    if (started_ && (ask_ != asked_ || why_ == "friend" || mode != mode_ || (linked_mode && partner != partner_))) {
+      e_.off(ask_ != asked_ ? "asked" : "link");
+      started_ = false; // The next side waits until the engine took this end.
+    }
+    if (!started_ && !blocked_ && ask_ != Quests::none && why_.empty() && !e_.active() && !e_.latched())
+      start(mode, partner, slot, io);
+    take(now_ms, io);
+  }
+
+  // coop-status.txt's lines: "quests=" and the state, the last notes as "quest_note=<n> <kind> <id> <alias> <zone>"
+  // (kind: ahead, behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; zone "-" but for zone),
+  // and the last coop quests status answer as "quests_status=<n> <line>" lines.
+  //   quests=off | stopped | waiting mode=<m> why=<friend|save|game> | on mode=<m> role=<r>[ partner=<on|off>]
+  // m: on, probe, record or replay as asked; why game: the game world or quest unit is not there yet (a load); r and
+  // partner as Out::state.
+  std::string status() const {
+    std::string s = "quests=" + state() + "\n";
+    for (const std::string &n : notes_)
+      s += n + "\n";
+    for (const std::string &l : answer_)
+      s += l + "\n";
+    return s;
+  }
+  std::string state() const {
+    if (e_.latched())
+      return "stopped";
+    if (ask_ == Quests::none)
+      return "off";
+    const std::string m = std::string(" mode=") + ask_word(ask_);
+    if (started_ && engine_.rfind("on ", 0) == 0)
+      return "on" + m + engine_.substr(2);
+    return "waiting" + m + " why=" + (why_.empty() ? "game" : why_);
+  }
+
+private:
+  static const char *ask_word(Quests q) {
+    switch (q) {
+    case Quests::on: return "on";
+    case Quests::off: return "off";
+    case Quests::status: return "status";
+    case Quests::probe: return "probe";
+    case Quests::record: return "record";
+    case Quests::replay: return "replay";
+    case Quests::force: return "force";
+    case Quests::none: break;
+    }
+    return "none";
+  }
+  static const char *note_kind(const Note &n) {
+    if (n.forced)
+      return n.why == Why::go ? (n.warp ? "forced_warp" : "forced") : "not_forced";
+    switch (n.why) {
+    case Why::ahead: return "ahead";
+    case Why::behind: return "behind";
+    case Why::zone: return "zone";
+    case Why::board: return "board";
+    case Why::locked: return "locked";
+    case Why::kill: return "kill";
+    case Why::unseen: return "unseen";
+    default: return nullptr;
+    }
+  }
+  // Asked off: true when something was asked.
+  bool stop(const std::string &why) {
+    const bool was = ask_ != Quests::none;
+    ask_ = Quests::none;
+    if (started_)
+      e_.off(why);
+    started_ = false;
+    return was;
+  }
+  template <class Io> void start(Mode mode, uint64_t partner, const std::string &slot, Io &io) {
+    Setup s;
+    s.mode = mode, s.deny = deny_;
+    if (mode == Mode::host || mode == Mode::guest) {
+      s.partner = partner;
+      const int n = slot_index(slot);
+      std::string text;
+      size_t bad = 0;
+      if (n < 0 || !io.load(n, text, kMaxRecord))
+        io.say("quests: the record of co-op slot " + std::to_string(n) + " could not be read: steps start anew"),
+            text.clear();
+      s.record = parse_record(text, &bad);
+      if (bad)
+        io.say("quests: " + std::to_string(bad) + " bad lines skipped in the record of co-op slot " +
+               std::to_string(n));
+    }
+    if (mode == Mode::replay)
+      s.replay = replay_;
+    if (mode == Mode::record)
+      recording_ = "# StellarCoop shared quests recording: <ms> <line>, the host's lines\n", recorded_ = 0,
+      recording_dirty_ = true, full_said_ = false;
+    e_.on(std::move(s));
+    started_ = true, asked_ = ask_, mode_ = mode, partner_ = partner, engine_ = "off";
+  }
+  // The engine's out: lines to her, log lines, notes, the record file, the recording, a status answer, its state.
+  template <class Io> void take(uint64_t now_ms, Io &io) {
+    Out o = e_.take();
+    for (const std::string &l : o.lines)
+      if (!io.send(l) && !unsent_said_)
+        unsent_said_ = true, io.say("quests: a line to the friend could not go (said once a run)");
+    for (const std::string &l : o.log) {
+      io.trace(l);
+      if (l.rfind("quests: on ", 0) == 0 || l.rfind("quests: off", 0) == 0 || l.find("; off for this run") != l.npos)
+        io.say(l);
+    }
+    for (const Note &n : o.notes)
+      if (const char *kind = note_kind(n); kind && row(n.id)) {
+        notes_.push_back("quest_note=" + std::to_string(++note_n_) + " " + kind + " " + std::to_string(n.id) + " " +
+                         row(n.id)->alias + " " + (n.zone.empty() ? "-" : n.zone));
+        if (notes_.size() > kNotes)
+          notes_.erase(notes_.begin());
+      }
+    if (o.record_changed && o.slot >= 0)
+      record_ = std::move(o.record), record_slot_ = o.slot, record_dirty_ = true;
+    if (record_dirty_ && now_ms >= record_at_ + kRecordMs) {
+      record_at_ = now_ms, record_dirty_ = false;
+      if (!io.save(record_slot_, record_))
+        io.say("quests: the record of co-op slot " + std::to_string(record_slot_) + " could not be written");
+    }
+    for (const std::string &l : o.recorded) {
+      if (recorded_ == kMaxRecording) {
+        if (!std::exchange(full_said_, true))
+          io.say("quests record: " + std::to_string(kMaxRecording) + " lines, the rest is not kept");
+        break;
+      }
+      recording_ += l + "\n", ++recorded_, recording_dirty_ = true;
+    }
+    if (recording_dirty_ && now_ms >= recording_at_ + kRecordMs) {
+      recording_at_ = now_ms, recording_dirty_ = false;
+      if (!io.save_recording(recording_))
+        io.say("quests record: the recording could not be written");
+    }
+    if (!o.status.empty()) {
+      answer_.clear(), ++answer_n_;
+      for (size_t at = 0; at < o.status.size();) {
+        const size_t end = std::min(o.status.find('\n', at), o.status.size());
+        answer_.push_back("quests_status=" + std::to_string(answer_n_) + " " + o.status.substr(at, end - at));
+        at = end + 1;
+      }
+    }
+    if (!o.state.empty())
+      engine_ = std::move(o.state);
+  }
+
+  Engine &e_;
+  Quests ask_ = Quests::none, asked_ = Quests::none;
+  Deny deny_;
+  std::string replay_, why_, engine_ = "off", record_, recording_;
+  Mode mode_ = Mode::guest;
+  uint64_t partner_ = 0, note_n_ = 0, answer_n_ = 0, record_at_ = 0, recording_at_ = 0;
+  size_t recorded_ = 0;
+  int record_slot_ = -1;
+  bool started_ = false, blocked_ = false, record_dirty_ = false, recording_dirty_ = false, unsent_said_ = false,
+       full_said_ = false;
+  std::vector<std::string> notes_, answer_;
 };
 
 } // namespace coop::quest

@@ -9,7 +9,9 @@
 // acting in another zone waiting for her there, a kill step waiting for her own kill, a denied quest never moving, her
 // Request handed in at her own board, a guest away or behind getting nothing of that quest, her own quest shown as
 // ahead on both sides, a re-join snapshot, a host that comes on after her, coop quests force and status, and lost
-// lines, loading screens and reloads on both sides; and a recording replayed into another save.
+// lines, loading screens and reloads on both sides; a recording replayed into another save; and the worker's side as
+// the glue drives it (the gates that start and end a side, channel 2's SBQ lines beside the fight's, the record file,
+// the recording, coop-status.txt's lines).
 #include "quest_engine.h"
 
 #include <array>
@@ -23,7 +25,10 @@
 #include <vector>
 
 using namespace coop::quest;
+using coop::fight_tag;
+using coop::parse_request;
 using coop::quest_tag;
+using coop::Request;
 
 namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
@@ -1139,6 +1144,211 @@ void record_replay() {
   run(*play, 12);
   assert(b.calls == 5);
 }
+
+// ---- The worker's side ----
+
+// The worker's files and channel 2, as pose_tick.cpp's QuestIo gives them: the records of the account's co-op slots,
+// the recording, the lines sent, coop-link.log and coop-quests.log.
+struct Desk {
+  std::vector<std::string> sent, said, traced;
+  std::map<int, std::string> records;
+  std::map<int, int> loads, saves;
+  std::string recording;
+  bool has_recording = false, unreadable = false;
+  int recording_saves = 0;
+  bool send(const std::string &l) { return sent.push_back(l), true; }
+  void say(const std::string &l) { said.push_back(l); }
+  void trace(const std::string &l) { traced.push_back(l); }
+  bool load(int slot, std::string &text, size_t max) {
+    assert(max == kMaxRecord);
+    ++loads[slot];
+    const auto it = records.find(slot);
+    text = it == records.end() ? std::string() : it->second;
+    return !unreadable;
+  }
+  bool save(int slot, const std::string &text) { return records[slot] = text, ++saves[slot], true; }
+  bool load_recording(std::string &text) { return text = recording, has_recording; }
+  bool save_recording(const std::string &text) {
+    return recording = text, has_recording = true, ++recording_saves, true;
+  }
+};
+// One PC as the glue runs it: the game thread's pass, then the worker's, every 250 ms. partner: her SteamID while she
+// is linked, else 0.
+struct Desktop {
+  Pc pc;
+  Engine e;
+  Worker w{e};
+  Desk io;
+  std::string slot = kSlot;
+  bool hosting = false;
+  uint64_t partner = 0;
+  std::vector<std::string> in; // Channel 2's lines from her since the last pass.
+  std::vector<std::string> pass(uint64_t now) {
+    e.tick(pc, kBase, slot, now);
+    const size_t from = io.sent.size();
+    w.pass(now, hosting, partner, slot, in, io);
+    std::vector<std::string> fight = std::move(in);
+    in.clear();
+    io.sent.erase(io.sent.begin(), io.sent.begin() + std::ptrdiff_t(from)); // Only this pass's go out.
+    return fight;
+  }
+  std::string state() const { return w.status().substr(0, w.status().find('\n')); }
+};
+
+// coop quests on as steam_link.cpp drives it: it waits for a friend, then for a co-op save; it runs the side the lobby
+// gives with that co-op slot's record, and ends when she leaves, when another save is loaded or when asked; the next
+// one starts once the engine took the end (her off first). Channel 2's fight lines stay for the shared fight. The
+// record file is written on a change, at most once a second; a notice goes into coop-status.txt as a numbered
+// quest_note line, a status answer as quests_status lines; force, record, replay, a fault and coop off.
+void workers() {
+  auto host = std::make_unique<Desktop>(), guest = std::make_unique<Desktop>();
+  Desktop &h = *host, &g = *guest;
+  h.hosting = true;
+  const size_t s17 = at("Quest_Sub_017");
+  const Request on = parse_request("quests on");
+  assert(g.w.ask(on, g.io) == "quests on: shared once a friend is linked and both play a co-op save");
+  assert(h.w.ask(parse_request("quests on deny Quest_Sub_016 Quest_Nope 9999"), h.io).rfind("quests on: ", 0) == 0);
+  assert(h.io.said == std::vector<std::string>{"quests: quest_deny names no shared quest: Quest_Nope 9999"});
+  uint64_t now = 1000;
+  // Both pass; each hears what the other sent at its pass. fight: her channel-2 lines for the shared fight.
+  auto step = [&](int n = 1) {
+    while (n--) {
+      const std::vector<std::string> to_g = h.io.sent, to_h = g.io.sent;
+      h.io.sent.clear(), g.io.sent.clear();
+      if (g.partner)
+        g.in.insert(g.in.end(), to_g.begin(), to_g.end());
+      if (h.partner)
+        h.in.insert(h.in.end(), to_h.begin(), to_h.end());
+      h.pass(now), g.pass(now);
+      now += 250;
+    }
+  };
+  // No friend: nothing runs. Her save not a co-op one: nothing runs.
+  step(2);
+  assert(g.state() == "quests=waiting mode=on why=friend" && !g.e.active() && g.io.loads.empty());
+  assert(g.w.ask(on, g.io) == "quests on: already asked, waiting mode=on why=friend");
+  g.partner = kHostId, g.slot = "slot=main index=1 marker=2 saves=main";
+  step();
+  assert(g.state() == "quests=waiting mode=on why=save" && !g.e.active());
+  // A co-op save: the guest's side with the record of slot 2, her on at its arm.
+  g.slot = kSlot, g.io.records[2] = "g 76561198000000001 54 3 1 - - - .\n";
+  step();
+  assert(g.io.loads[2] == 1 && g.e.active() && g.state() == "quests=waiting mode=on why=game");
+  step();
+  assert(g.state() == "quests=on mode=on role=guest partner=off" && h.state() == "quests=waiting mode=on why=friend");
+  // The host links: its side, its own on, a snapshot for hers; both see the other on.
+  h.partner = kGuestId;
+  step(4);
+  assert(h.state() == "quests=on mode=on role=host partner=on" &&
+         g.state() == "quests=on mode=on role=guest partner=on");
+  assert(h.io.loads[2] == 1 && has(h.io.said, "quests: on as host") && has(g.io.said, "quests: on as guest"));
+  // Channel 2: her SBQ lines go to the engine, the shared fight's stay, in order.
+  h.in = {fight_tag() + " world 3", q("at 1 Zone_Xion_10"), fight_tag() + " up 1"};
+  assert(h.pass(now) == (std::vector<std::string>{fight_tag() + " world 3", fight_tag() + " up 1"}));
+  now += 250;
+  // The host makes a step with her there: she makes it too, and the host's record goes to its file once, then at
+  // most once a second.
+  h.pc.acquire(s17);
+  step();
+  assert(h.io.saves[2] == 1 && h.io.records[2].find("\nh 76561198000000002 54 1 1 - - - .\n") != std::string::npos);
+  h.pc.play(s17);
+  step();
+  h.pc.play(s17);
+  step();
+  assert(h.io.saves[2] == 1); // Within the second: it waits.
+  step(2);
+  assert(h.io.saves[2] == 2 &&
+         h.io.records[2].find("\nh 76561198000000002 54 3 3 - 0:t.0:t - t\n") != std::string::npos);
+  step(4);
+  assert(g.pc.w.tuple(s17) == h.pc.w.tuple(s17) && g.io.saves[2] >= 1 &&
+         g.io.records[2].find("\ng 76561198000000001 54 3 3 - 0:t.0:t - t\n") != std::string::npos);
+  // She leaves: her side ends (its off cannot reach the host any more) and waits for a friend; she links again: a new
+  // side, her on, a new snapshot.
+  g.partner = 0;
+  step(2);
+  assert(g.state() == "quests=waiting mode=on why=friend" && !g.e.active());
+  h.partner = 0;
+  step(2);
+  assert(h.state() == "quests=waiting mode=on why=friend");
+  g.partner = kHostId, h.partner = kGuestId;
+  step(5);
+  assert(g.state() == "quests=on mode=on role=guest partner=on" && h.io.loads[2] == 2 && g.io.loads[2] == 2);
+  // Another save: her engine says off slot and the side waits for a co-op save; back on hers, a new side, whose on
+  // gets a snapshot once 5 s passed since the last.
+  g.slot = "slot=main index=1 marker=2 saves=main";
+  step(2);
+  assert(g.state() == "quests=waiting mode=on why=save" && !g.e.active() && has(g.io.said, "quests: off (slot)"));
+  g.slot = kSlot;
+  step(2);
+  assert(g.state() == "quests=on mode=on role=guest partner=off" && g.io.loads[2] == 3);
+  step(20);
+  assert(g.state() == "quests=on mode=on role=guest partner=on" && has(h.io.traced, "quests: snapshot 2, 1 quests"));
+  // A status answer: quests_status lines, numbered, kept until the next one.
+  assert(g.w.ask(parse_request("quests status"), g.io).rfind("quests status: on mode=on role=guest partner=on", 0) ==
+         0);
+  step();
+  assert(g.w.status().find("\nquests_status=1 quests: on as guest, zone Zone_Xion_10, applied ") != std::string::npos);
+  // force: the guest's alone; a quest no host line holds is a not_forced note, numbered; the last kNotes stay.
+  assert(h.w.ask(parse_request("quests force 54"), h.io).rfind("quests force refused", 0) == 0);
+  for (int n = 0; n < 10; ++n) {
+    assert(g.w.ask(parse_request("quests force 30"), g.io).rfind("quests force 30: asked", 0) == 0);
+    step();
+  }
+  const std::string st = g.w.status();
+  assert(st.find("quest_note=3 not_forced 30 Quest_Epic_Hidden -\n") != std::string::npos &&
+         st.find("quest_note=10 not_forced 30 Quest_Epic_Hidden -\n") != std::string::npos &&
+         st.find("quest_note=2 ") == std::string::npos);
+  // Asked off: her off goes to the host, which shows her off.
+  assert(g.w.ask(parse_request("quests off"), g.io) == "quests off" && g.state() == "quests=off");
+  step(3);
+  assert(!g.e.active() && h.state() == "quests=on mode=on role=host partner=off");
+  assert(g.w.ask(parse_request("quests off"), g.io) == "quests off: they were not on");
+  // A fault: stopped for the run, a new on refused.
+  h.e.fault("the game at 0x141c6eb10");
+  step();
+  assert(h.state() == "quests=stopped" &&
+         h.w.ask(on, h.io).find("refused: shared quests stopped for this run") != std::string::npos);
+  // coop off: nothing more starts.
+  g.w.block();
+  assert(g.w.ask(on, g.io) == "quests on refused: coop off");
+
+  // Another friend in her place within one pass: the side's off goes before the new side's on.
+  auto swap = std::make_unique<Desktop>();
+  swap->partner = kHostId;
+  swap->w.ask(on, swap->io);
+  for (int n = 0; n < 3; ++n)
+    swap->pass(now), now += 250;
+  assert(swap->state() == "quests=on mode=on role=guest partner=off" && swap->io.loads[2] == 1);
+  std::vector<std::string> said;
+  swap->partner = kGuestId;
+  for (int n = 0; n < 3; ++n) {
+    swap->pass(now), now += 250;
+    said.insert(said.end(), swap->io.sent.begin(), swap->io.sent.end());
+  }
+  assert(said == (std::vector<std::string>{q("off link"), q("on 0")}) && swap->io.loads[2] == 2);
+
+  // record, then replay: the recording written at most once a second, read at replay's ask.
+  auto rec = std::make_unique<Desktop>(), play = std::make_unique<Desktop>();
+  assert(play->w.ask(parse_request("quests replay"), play->io).rfind("quests replay refused: no recording", 0) == 0);
+  assert(rec->w.ask(parse_request("quests record"), rec->io) == "quests record: runs once a co-op save is loaded");
+  for (int n = 0; n < 3; ++n)
+    rec->pass(now), now += 250;
+  assert(rec->state() == "quests=on mode=record role=recorder" && rec->io.recording_saves == 1);
+  rec->pc.zone("Zone_WLA_30");
+  rec->pc.acquire(at("Quest_Sub_001"));
+  rec->pass(now), now += 250;
+  assert(rec->io.recording_saves == 1);
+  for (int n = 0; n < 4; ++n)
+    rec->pass(now), now += 250;
+  assert(rec->io.recording_saves == 2 && rec->io.recording.find(q("q 1 1 41 1 - - - .")) != std::string::npos);
+  assert(rec->io.recording.rfind("# StellarCoop shared quests recording", 0) == 0 && rec->io.sent.empty());
+  play->io.recording = rec->io.recording, play->io.has_recording = true;
+  assert(play->w.ask(parse_request("quests replay"), play->io) == "quests replay: runs once a co-op save is loaded");
+  play->pc.zone("Zone_WLA_30");
+  for (int n = 0; n < 6; ++n)
+    play->pass(now), now += 250;
+  assert(play->state() == "quests=on mode=replay role=replay" && play->pc.w.v[at("Quest_Sub_001")].state == 1);
+}
 } // namespace
 
 int main() {
@@ -1159,5 +1369,6 @@ int main() {
   forced();
   lossy();
   record_replay();
+  workers();
   std::printf("quest_engine_test: ok\n");
 }

@@ -14,8 +14,9 @@
 // before any copy is written; the manifest is written as soon as that backup is whole, so a pass stopped after it
 // never backs up again. A folder with no save of the player's gets no pass at all, so nothing is written there.
 //
-// Every write goes through one name check: in the account's folder only the copies, their temporary files and the
-// manifest; in the backup folder only StellarBlade*.sav names. The player's saves are only ever read.
+// Every write goes through one name check: in the account's folder only the copies, their temporary files, the
+// manifest and the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest_engine.h's Worker); in the
+// backup folder only StellarBlade*.sav names. The player's saves are only ever read.
 //
 // Switch drives a conversion one job per worker pass and switches the name at its end, at the title only. No Windows
 // types: the file functions (Fs) come from the caller, Windows in steam_link.cpp, a temporary folder in
@@ -53,13 +54,35 @@ inline bool same(const Stat &a, const Stat &b) { return a.exists && b.exists && 
 
 inline std::string main_name(int n) { return "StellarBladeSave0" + std::to_string(n) + ".sav"; }
 inline std::string twin_name(int n) { return "StellarBladeCoop0" + std::to_string(n) + ".sav"; }
+// The shared quests' record beside co-op slot n: a .txt, which Steam Cloud never syncs.
+inline std::string quests_name(int n) { return "StellarCoopQuests0" + std::to_string(n) + ".txt"; }
 
 // The only names written, renamed onto or removed in the account's folder.
 inline bool writable(const std::string &name) {
   for (int n = 0; n < kSlots; ++n)
-    if (name == twin_name(n) || name == twin_name(n) + kTemp)
+    if (name == twin_name(n) || name == twin_name(n) + kTemp || name == quests_name(n) ||
+        name == quests_name(n) + kTemp)
       return true;
   return name == kManifest || name == std::string(kManifest) + kTemp;
+}
+// The only calls that write, rename or remove in the account's folder, each behind the name check.
+template <class Fs> bool write(Fs &fs, const std::string &name, const std::string &bytes) {
+  return writable(name) && fs.write(name, bytes);
+}
+template <class Fs> bool rename(Fs &fs, const std::string &from, const std::string &to) {
+  return writable(from) && writable(to) && fs.rename(from, to);
+}
+template <class Fs> void remove(Fs &fs, const std::string &name) {
+  if (writable(name))
+    fs.remove(name);
+}
+// A whole file: written beside, then renamed over it; the temporary file goes on a failure.
+template <class Fs> bool put(Fs &fs, const std::string &name, const std::string &bytes) {
+  const std::string temp = name + kTemp;
+  if (write(fs, temp, bytes) && rename(fs, temp, name))
+    return true;
+  remove(fs, temp);
+  return false;
 }
 // The only names written in a backup folder: a StellarBlade*.sav file of the account (ASCII case ignored, as Windows
 // names files), no folder in it.
@@ -316,26 +339,6 @@ private:
     if (only >= 0)
       return "co-op saves: replacing slot " + std::to_string(only) + "'s co-op copy" + backed;
     return "co-op saves: converting" + backed + describe(plan_).substr(describe(plan_).find(';'));
-  }
-
-  // The only calls that write, rename or remove in the account's folder, each behind the name check.
-  template <class Fs> static bool write(Fs &fs, const std::string &name, const std::string &bytes) {
-    return writable(name) && fs.write(name, bytes);
-  }
-  template <class Fs> static bool rename(Fs &fs, const std::string &from, const std::string &to) {
-    return writable(from) && writable(to) && fs.rename(from, to);
-  }
-  template <class Fs> static void remove(Fs &fs, const std::string &name) {
-    if (writable(name))
-      fs.remove(name);
-  }
-  // A whole file: written beside, then renamed over it; the temporary file goes on a failure.
-  template <class Fs> static bool put(Fs &fs, const std::string &name, const std::string &bytes) {
-    const std::string temp = name + kTemp;
-    if (write(fs, temp, bytes) && rename(fs, temp, name))
-      return true;
-    remove(fs, temp);
-    return false;
   }
 
   template <class Fs> std::string backup(Fs &fs, const std::string &name) {

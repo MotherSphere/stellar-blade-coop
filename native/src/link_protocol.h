@@ -11,7 +11,8 @@
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose_table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose_codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (pilot.h). Channel 2 carries the shared enemies' text lines and the
-// pilot's show lines, which start with fight_tag() (fight_sync.h and pilot.h parse them).
+// pilot's show lines, which start with fight_tag() (fight_sync.h and pilot.h parse them), and the shared quests' lines,
+// which start with quest_tag() (quest_sync.h parses them).
 #pragma once
 
 #include <algorithm>
@@ -26,7 +27,7 @@
 #include <vector>
 
 namespace coop {
-constexpr int kProtocol = 11; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -36,8 +37,9 @@ constexpr int kProtocol = 11; // Bump on any wire change. 1 was the first link (
                               // its copies at their own maxes while the host's grow, and the paks line (a protocol-9
                               // peer would count it invalid); 11 adds same-place enemies, SBE on channel 1 and the
                               // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
-                              // copies where its own game puts them. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
-                              // 10: stage 2's builds) is told why: the lobby tag, then the hello's reject, name both.
+                              // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
+                              // 2. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
+                              // v0.4.0-beta.1) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -179,8 +181,9 @@ inline std::string vit_line(const Vitals &v) {
 // The .pak mods our game loads beyond the base game's (pak_list.h), reliable, once to each friend past the handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
-// Channel 2's tag, versioned like channel 0's: "SBF11".
+// Channel 2's tags, versioned like channel 0's: "SBF12" for the shared fight, "SBQ12" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
+inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
 inline bool number(std::string_view text, uint64_t &out) {
@@ -337,10 +340,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
 // save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
-// slot's copy replaced by a new copy of the player's save, the old one backed up first).
+// slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
+// (quest_engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
+// spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>".
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy
+  remove, copy, quests
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
@@ -351,11 +356,13 @@ enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bsta
 // too (all of it, the default).
 enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
 enum class SavesAsk { none, probe, convert, coop, main, refresh };
+enum class Quests { none, on, off, status, probe, record, replay, force };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
 constexpr uint16_t kMinScale = 100, kMaxScale = 400; // Two-player scaling in percent: none, four times.
 constexpr uint64_t kMaxExtra = 3;                     // enemy_extra: extra enemies a common enemy, at most.
+constexpr size_t kMaxDeny = 200;                      // quests ... deny: the list's bytes, at most.
 struct Request {
   Command command = Command::none;
   uint64_t lobby = 0;
@@ -382,6 +389,9 @@ struct Request {
   PilotTest test = PilotTest::replay;    // fight pilot test: how far.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight_sync.h's Stat), or -1: a kill.
   int32_t change = 0;          // fight test: never 0.
+  Quests quests = Quests::none; // quests: what.
+  uint16_t quest = 0;           // quests force: the QuestTable ID.
+  std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -473,11 +483,39 @@ inline Request parse_fight(const std::string &text) {
   r.command = Command::fight;
   return r;
 }
+// What follows "quests ". Command::none when anything is off.
+inline Request parse_quests(const std::string &text) {
+  Request r;
+  const size_t at = text.find(" deny ");
+  const std::string what = text.substr(0, at), deny = at == std::string::npos ? std::string() : text.substr(at + 6);
+  std::string f[2];
+  uint64_t id = 0;
+  const char *const word = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_, ";
+  if (at != std::string::npos && ((what != "on" && what != "probe" && what != "record") || deny.empty() ||
+                                  deny.size() > kMaxDeny || deny.find_first_not_of(word) != std::string::npos))
+    return r;
+  if (what == "on" || what == "off" || what == "status" || what == "probe" || what == "record" || what == "replay")
+    r.quests = what == "on"       ? Quests::on
+               : what == "off"    ? Quests::off
+               : what == "status" ? Quests::status
+               : what == "probe"  ? Quests::probe
+               : what == "record" ? Quests::record
+                                  : Quests::replay;
+  else if (split(what, f, 2, nullptr) && f[0] == "force" && number(f[1], id) && id && id <= UINT16_MAX)
+    r.quests = Quests::force, r.quest = static_cast<uint16_t>(id);
+  else
+    return r;
+  r.command = Command::quests;
+  r.deny = deny;
+  return r;
+}
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
     text.pop_back();
   if (text.rfind("fight ", 0) == 0)
     return parse_fight(text.substr(6));
+  if (text.rfind("quests ", 0) == 0)
+    return parse_quests(text.substr(7));
   Request r;
   std::string f[4];
   if (text == "host" || text == "host code" || text == "host private") {

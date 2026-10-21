@@ -4,8 +4,8 @@
 // played copies never replaced, a missing or bad manifest keeping everything, a torn read retried once, a failed write,
 // rename or read-back leaving no half copy, a pass stopped half way keeping its copies untouched, and the requests'
 // refusals (off the title included, before and during a pass), the switch at the end of a pass, its withdrawal and its
-// release, against a fake game. The player's own saves are compared byte for byte, with their write times, after every
-// pass.
+// release, against a fake game; and the shared quests' record beside each co-op slot, written whole through the same
+// name check. The player's own saves are compared byte for byte, with their write times, after every pass.
 #include "save_twins.h"
 
 #include <cassert>
@@ -206,16 +206,20 @@ int main() {
   gvas[8] = 'X';
   assert(!game_save(gvas));
 
-  // The one name check: only the co-op copies, their temporary files and the manifest; never the player's saves, the
-  // settings, a sixth slot, another case, another folder or another account.
+  // The one name check: only the co-op copies, their temporary files, the manifest and the shared quests' records;
+  // never the player's saves, the settings, a sixth slot, another case, another folder or another account.
   for (int n = 0; n < kSlots; ++n)
-    assert(writable(twin_name(n)) && writable(twin_name(n) + ".coop-tmp"));
+    assert(writable(twin_name(n)) && writable(twin_name(n) + ".coop-tmp") && writable(quests_name(n)) &&
+           writable(quests_name(n) + ".coop-tmp"));
+  assert(quests_name(0) == "StellarCoopQuests00.txt" && quests_name(4) == "StellarCoopQuests04.txt");
   assert(writable("StellarCoopSaves.txt") && writable("StellarCoopSaves.txt.coop-tmp"));
   for (const char *name :
        {"StellarBladeSave00.sav", "StellarBladeSave04.sav", "StellarBladeSetting.sav", "StellarBladeCoop05.sav",
         "StellarBladeCoop0.sav", "stellarbladecoop00.sav", "StellarBladeCoop00.sav ", "StellarBladeCoop00.sav.old",
         "..\\StellarBladeCoop00.sav", "76561198000000000\\StellarBladeCoop00.sav", "Backup/StellarBladeCoop00.sav",
-        "StellarBladeSaveCoop.sav", "StellarCoopSlot.txt", "", ".coop-tmp"})
+        "StellarBladeSaveCoop.sav", "StellarCoopSlot.txt", "", ".coop-tmp", "StellarCoopQuests05.txt",
+        "StellarCoopQuests0.txt", "stellarcoopquests00.txt", "StellarCoopQuests00.txt.tmp", "StellarCoopQuests00.sav",
+        "StellarCoopQuests00.txt ", "..\\StellarCoopQuests00.txt", "StellarCoopQuests.txt", "StellarBladeQuests00.txt"})
     assert(!writable(name));
   // A backup takes the account's StellarBlade*.sav files as they are named, and nothing else.
   for (const char *name :
@@ -492,6 +496,31 @@ int main() {
   spill(empty.dir / "StellarBladeSave02.sav", save("two"));
   said = run(e, empty);
   assert(e.ready() && backups(empty) == 1 && logged(said, "a backup of 2 files first"));
+
+  // The shared quests' record (quest_engine.h's Worker) beside a co-op slot: written beside as .coop-tmp, then renamed
+  // over the old one; a failed rename leaves the old record and no temporary file. put() takes no other name, so a
+  // record can never land on a save. A conversion never copies, backs up or removes a record.
+  HostFs q;
+  q.dir = root / "SaveGames" / "76561198000000003";
+  q.backups = root / "StellarCoopBackups4";
+  fs::create_directories(q.dir);
+  spill(q.dir / "StellarBladeSave02.sav", save("two"));
+  assert(put(q, quests_name(2), "h 1 54 1 1 - - - .\n") && slurp(q.dir / quests_name(2)) == "h 1 54 1 1 - - - .\n");
+  assert(q.ops == (std::vector<std::string>{"write StellarCoopQuests02.txt.coop-tmp",
+                                            "rename StellarCoopQuests02.txt.coop-tmp StellarCoopQuests02.txt"}));
+  q.fail_rename = quests_name(2);
+  assert(!put(q, quests_name(2), "h 1 54 2 1 - - - .\n") && slurp(q.dir / quests_name(2)) == "h 1 54 1 1 - - - .\n");
+  assert(q.ops.back() == "remove StellarCoopQuests02.txt.coop-tmp" &&
+         !fs::exists(q.dir / "StellarCoopQuests02.txt.coop-tmp"));
+  q.fail_rename.clear(), q.ops.clear();
+  for (const std::string &name : {std::string("StellarBladeSave02.sav"), twin_name(2) + "x", std::string("x.txt")})
+    assert(!put(q, name, "h 1 54 1 1 - - - .\n"));
+  assert(q.ops.empty() && slurp(q.dir / "StellarBladeSave02.sav") == save("two"));
+  Convert qc;
+  said = run(qc, q);
+  assert(qc.ready() && slurp(q.dir / quests_name(2)) == "h 1 54 1 1 - - - .\n");
+  for (const std::string &op : q.ops)
+    assert(op.find("Quests") == std::string::npos);
 
   // The requests and the switch (AUTO-COOP-SAVE §4.3, §4.5), on the first folder, against a fake game.
   Switch sw;

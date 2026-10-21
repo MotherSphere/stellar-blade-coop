@@ -52,12 +52,7 @@
 #include <utility>
 #include <vector>
 
-#include "link_protocol.h" // split, number, clean, kMaxMessage, kMaxReason, kProtocol
-
-namespace coop {
-// Channel 2's tag for shared quests, versioned like fight_tag(): "SBQ12".
-inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
-} // namespace coop
+#include "link_protocol.h" // split, number, clean, kMaxMessage, kMaxReason, quest_tag
 
 namespace coop::quest {
 
