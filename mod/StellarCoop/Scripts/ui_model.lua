@@ -67,7 +67,7 @@ M.OPTIONS={
     -- 5): bosses and Alpha Naytibas shared too, their maximum HP times boss_hp_scale.
     toggle('same_spawns','on'),range('enemy_extra',0,3,1,0),toggle('bosses','on'),
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),range('boss_hp_scale',1,4,0.05,2),
-    {key='kill_credit',values={'all','fought'},default='all'},
+    {key='kill_credit',values={'together','fought'},default='together'},
     {head='display'},
     later(toggle('notices','on')),later(toggle('chat_feed','on')),
     later({key='status_overlay',values={'off','compact','detailed'},default='off'}),

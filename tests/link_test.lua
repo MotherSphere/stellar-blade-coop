@@ -355,13 +355,14 @@ s,notes=Link.parse_settings('guest_kills=later')
 assert(#notes==1 and notes[1]=="settings: line 1: 'later' is not allowed for guest_kills (use at_once or confirmed); "
     .."guest_kills stays at_once" and s.guest_kills=='at_once',notes[1])
 -- Two-player scaling, the host's for both games: enemy_hp_scale and enemy_balance_scale from 1.0 to 4.0, whole or with
--- decimals (1.35 and 1.15 by default); kill_credit all (the default) or fought, in any case. A new file names all
--- three; a file written before them reads the defaults with no line; a bad value keeps the default, with a line.
+-- decimals (1.35 and 1.15 by default); kill_credit together (the default) or fought, in any case. A new file names
+-- all three; a file written before them reads the defaults with no line; a bad value keeps the default, with a line,
+-- and so does all, which is gone (a shared enemy dies in your game only if you took part in its fight).
 assert(Link.DEFAULT:find('\nenemy_hp_scale=1.35\nenemy_balance_scale=1.15\n',1,true),'Written in a new file')
-assert(Link.DEFAULT:find('\nkill_credit=all\n',1,true))
+assert(Link.DEFAULT:find('\nkill_credit=together\n',1,true))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.enemy_hp_scale==1.35 and s.enemy_balance_scale==1.15 and s.kill_credit=='all')
-for _,case in ipairs({{'1','4','FOUGHT'},{'2.0','1.5','all'},{'1.05','1.00','Fought'},{'1.','3.999','ALL'}}) do
+assert(#notes==0 and s.enemy_hp_scale==1.35 and s.enemy_balance_scale==1.15 and s.kill_credit=='together')
+for _,case in ipairs({{'1','4','FOUGHT'},{'2.0','1.5','together'},{'1.05','1.00','Fought'},{'1.','3.999','TOGETHER'}}) do
     s,notes=Link.parse_settings('enemy_hp_scale='..case[1]..'\nenemy_balance_scale='..case[2]..'\nkill_credit='
         ..case[3])
     assert(#notes==0 and s.enemy_hp_scale==tonumber(case[1]) and s.enemy_balance_scale==tonumber(case[2])
@@ -372,12 +373,14 @@ for _,bad in ipairs({'0.99','4.01','1,35','x','-1.2','1e0','0x1','','1.2.3','.5'
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_balance_scale (use 1.0 to "
         .."4.0); enemy_balance_scale stays 1.15" and s.enemy_balance_scale==1.15,bad..': '..tostring(notes[1]))
 end
-s,notes=Link.parse_settings('kill_credit=mine')
-assert(#notes==1 and notes[1]=="settings: line 1: 'mine' is not allowed for kill_credit (use all or fought); "
-    .."kill_credit stays all" and s.kill_credit=='all',notes[1])
+for _,bad in ipairs({'mine','all','ALL'}) do
+    s,notes=Link.parse_settings('kill_credit='..bad)
+    assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for kill_credit (use together or "
+        .."fought); kill_credit stays together" and s.kill_credit=='together',notes[1])
+end
 -- same_place (stage 3a, experimental): on or off in any case, on by default and in a file written before it; a new
 -- file names it after kill_credit, with its comment; a bad value keeps on, with a line.
-assert(Link.DEFAULT:find('\nkill_credit=all\n# Same place, experimental, ',1,true)
+assert(Link.DEFAULT:find('\nkill_credit=together\n# Same place, experimental, ',1,true)
     and Link.DEFAULT:find('\nsame_place=on\n',1,true))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.same_place==true)
@@ -857,4 +860,38 @@ do
     assert(Link.migrate_on(new)==nil,'once')
     assert(Link.migrate_on('same_place=off\nsame_spawns=off\nbosses=off\n')==nil,'an off picked by hand stays')
     assert(Link.migrate_on(Link.DEFAULT)==nil)
+end
+
+-- A file written by 0.4.0-beta.1 or later (its kill_credit comment still names all) gets kill_credit=all set to
+-- together once, and its comment as Link.DEFAULT has it, with a log line; fought stays, with the new comment. Any
+-- other file is left alone, so a hand-written all is refused when read (together, with a line).
+do
+    local OLD_NOTE="(no change) to 4.0. kill_credit: all (every\n# shared enemy that dies gives you the kill rewards in your "
+        .."game) or fought (only those your EVE hit)."
+    local from=assert(Link.DEFAULT:find('(no change) to 4.0. kill_credit',1,true))
+    local to=assert(Link.DEFAULT:find('\nenemy_hp_scale=',1,true))
+    local old=(Link.DEFAULT:sub(1,from-1)..OLD_NOTE..Link.DEFAULT:sub(to))
+        :gsub('\nkill_credit=together\n','\nkill_credit=all\n')
+    assert(old~=Link.DEFAULT and old:find(OLD_NOTE,1,true) and old:find('\nkill_credit=all\n',1,true))
+    assert(Link.migrate_credit(old)==Link.DEFAULT,'The new defaults, comment and value')
+    assert(Link.migrate_credit(Link.DEFAULT)==nil,'once')
+    assert(Link.migrate_credit('kill_credit=all\n')==nil,'no old comment: left alone')
+    local fought=old:gsub('\nkill_credit=all\n','\nkill_credit=Fought\n')
+    local kept=assert(Link.migrate_credit(fought))
+    assert(kept==Link.DEFAULT:gsub('\nkill_credit=together\n','\nkill_credit=Fought\n'),'fought kept')
+    local crlf=old:gsub('\n','\r\n')
+    assert(Link.migrate_credit(crlf)==Link.DEFAULT:gsub('\n','\r\n'),'CRLF kept')
+    -- Through settings(): the file rewritten once, the old one kept, one log line.
+    local OLD_FILE='C:\\Mod\\coop-settings.old.txt'
+    files[SETTINGS]=old
+    s,notes=require('link').new('C:\\Mod',fs).settings()
+    assert(s.kill_credit=='together' and files[SETTINGS]==Link.DEFAULT and files[OLD_FILE]==old)
+    assert(#notes==1 and notes[1]=='settings: kill_credit=all is gone: coop-settings.txt now says kill_credit=together '
+        ..'(a shared enemy dies in your game only if you took part in its fight)',notes[1])
+    s,notes=require('link').new('C:\\Mod',fs).settings()
+    assert(s.kill_credit=='together' and #notes==0,'Once only')
+    files[SETTINGS]=fought
+    s,notes=require('link').new('C:\\Mod',fs).settings()
+    assert(s.kill_credit=='fought' and files[SETTINGS]==kept and #notes==0,'fought: the comment only, no line')
+    files[SETTINGS],files[OLD_FILE]=nil,nil
 end

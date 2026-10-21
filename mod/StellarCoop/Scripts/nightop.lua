@@ -12,8 +12,8 @@ local NightOp={}
 local HEAL,RULE,ACTOR='SE_10_E_ActorEff_011','CoopProbeRule',50110
 local FAR,NEAR=60,20 -- metres: 6x M_Antlion's 10 m detection; a new character closer than NEAR stops the test.
 local TABLE='/Game/Local/Data/MultiPlayRuleTable.MultiPlayRuleTable'
--- N11: M_Antlion only (no Kill achievement row, no reward group), never 005 (an EnterZone row). Key = EventSpawnTable
--- row = SpawnPointName.
+-- N11: M_Antlion only (no Kill achievement row of its own and no reward group, but her kills of it still count toward
+-- the rows for any kill), never 005 (an EnterZone row). Key = EventSpawnTable row = SpawnPointName.
 NightOp.SAFE={}
 for _,n in ipairs({1,2,3,4,6,7,8,9,10,11,12}) do NightOp.SAFE[string.format('DLC02_20_E_CharS_%03d',n)]=true end
 -- The only zone events this mod may fire: the heal (2, AttachActorEffect) or a safe spawn row (0, Spawn).

@@ -127,7 +127,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
-    and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='on'
+    and values.enemy_balance_scale=='1.15' and values.kill_credit=='together' and values.same_place=='on'
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
     and values.boss_hp_scale=='2.0')
 
@@ -225,7 +225,7 @@ end
 on('ui_language')
 assert(select(3,menu.change(NONE,values,1))=='english')
 -- The host's scaling: 1.0 to 4.0 in steps of 0.05, as the file holds it (no float residue: 1.35 then 1.4); kill credit
--- all or fought.
+-- together or fought.
 on('enemy_hp_scale')
 assert(select(3,menu.change(NONE,values,1))=='1.4' and select(3,menu.change(NONE,values,-1))=='1.3')
 assert(menu.change(NONE,{enemy_hp_scale='4'},1)==nil and menu.change(NONE,{enemy_hp_scale='1'},-1)==nil)
