@@ -653,6 +653,32 @@ void holds() {
   assert(!p.ready() && !k.guest.forced().forced && k.guest.forced().why == Why::zone && k.gw.v[s6].active == 5);
 }
 
+// Together only, for a kill task too: one the host's kill completed while she stood elsewhere is not hers. Nothing
+// of that quest is planned, and coop quests force does not apply it either: the target stays alive in her world
+// until her own play gets there.
+void kill_elsewhere() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  k.step();
+  const size_t s6 = at("Quest_Sub_006");
+  k.host_zone = k.guest_zone = "Zone_WLA_10";
+  k.hw.acquire(s6);
+  k.step();
+  for (int n = 0; n < 3; ++n) // Groups 0 to 2, made together.
+    k.hw.play(s6);
+  k.steps(4);
+  assert(k.gw.v[s6].active == 3 && k.gw.v[s6].task[3][0][0] == 1);
+  k.guest_zone = "Zone_DED20"; // The host's kill, group 3's first task, while she stands elsewhere.
+  k.hw.play(s6);
+  k.step();
+  assert(k.guest.planned(45).why == Why::behind);
+  k.guest_zone = "Zone_WLA_10";
+  assert(k.guest.force(45));
+  const Plan p = k.step();
+  assert(!p.ready() && !k.guest.forced().forced && k.guest.forced().why == Why::behind);
+  assert(k.gw.v[s6].active == 3 && k.gw.v[s6].task[3][0][0] == 1 && k.applied == 4);
+}
+
 void requests() {
   auto link = std::make_unique<Link>();
   Link &k = *link;
@@ -1279,6 +1305,7 @@ int main() {
   snapshot_from_live();
   session();
   holds();
+  kill_elsewhere();
   requests();
   marks_from_the_host();
   before_the_session();
