@@ -733,11 +733,11 @@ if link then
         pilot_was=state
     end
     -- The shared quests' notices (Phase 12), in the menu's language: from the quests= line, on with her each time both
-    -- sides come on, her side off while ours runs, a wait for a co-op save (coop quests on, a friend linked) and
-    -- stopped for the run, each once as it starts; and each quest note once (link.quest_notes): her quest ahead (in the
-    -- host's words or hers, by our role), behind the host, a step waiting for its zone, a Request to hand in at her
-    -- board, a kill step, and coop quests force's answers. A Request not on her board yet and a step no zone can place
-    -- show in coop quests status only.
+    -- sides come on, her side off while ours runs, a wait for a co-op save (coop quests on, a friend linked and a main
+    -- save loaded, so not at the title or during a load) and stopped for the run, each once as it starts; and each
+    -- quest note once (link.quest_notes): her quest ahead (in the host's words or hers, by our role), behind the host,
+    -- a step waiting for its zone, a Request to hand in at her board, a kill step, and coop quests force's answers. A
+    -- Request not on her board yet and a step no zone can place show in coop quests status only.
     local QUEST_NOTES={ahead=true,behind=true,zone=true,board=true,kill=true,forced=true,forced_warp=true,
         not_forced=true}
     local quests_was,quests_with,quests_role=nil,false,nil
@@ -751,8 +751,8 @@ if link then
             elseif quests_with and state=='on' and partner=='off' then
                 tell(function(w) return w.quests.partner_off:format(her_name(w)) end)
             end
-            local now=state..(why and ' '..why or '')
-            if now=='waiting save' and quests_was~=now and line:find(' mode=on ') then
+            local now=state..(why and ' '..why or '')..((slot_line() or ''):find('^slot=main ') and ' main' or '')
+            if now=='waiting save main' and quests_was~=now and line:find(' mode=on ') then
                 tell(function(w) return w.quests.save end)
             elseif state=='stopped' and quests_was and quests_was~='stopped' then
                 tell(function(w) return w.quests.stopped end)

@@ -1321,10 +1321,15 @@ local function step(line,notes)
 end
 local function note(kind,id,alias,zone) return {kind=kind,id=id,alias=alias,zone=zone} end
 local ON='quests=on mode=on role=guest partner=on'
+-- The co-op save one only once a main save is loaded: not at the title or during a load (case[4]: the status).
 for _,case in ipairs({{nil,''},{'quests=waiting mode=on why=friend',''},
+        {'quests=waiting mode=on why=save','',nil,with_slot('slot=none index=? marker=none\n')},
+        {'quests=waiting mode=on why=save','',nil,with_slot('slot=unknown index=? marker=?\n')},
         {'quests=waiting mode=on why=save',
-            'Shared quests need a co-op save, not your own. They start once you load one.'},
-        {'quests=waiting mode=on why=save',''},{'quests=waiting mode=on why=game',''},
+            'Shared quests need a co-op save, not your own. They start once you load one.',nil,
+            with_slot('slot=main index=1 marker=2\n')},
+        {'quests=waiting mode=on why=save','',nil,with_slot('slot=main index=1 marker=2\n')},
+        {'quests=waiting mode=on why=game',''},
         {'quests=on mode=on role=guest partner=off',''},{ON,'Shared quests on with Kaanta.'},{ON,''},
         {ON,"Kaanta's step on Quest_Sub_001 waits until you reach Zone_WLA_30.",
             {note('zone','41','Quest_Sub_001','Zone_WLA_30')}},
@@ -1347,6 +1352,7 @@ for _,case in ipairs({{nil,''},{'quests=waiting mode=on why=friend',''},
         {'quests=on mode=on role=host partner=on','Kaanta is ahead of you on Quest_Sub_017. Nothing is undone; the '
             ..'step stays in their save.',{note('ahead','54','Quest_Sub_017')}},
         {'quests=waiting mode=on why=friend',''},{'quests=waiting mode=probe why=save',''}}) do
+    status_text=case[4] or COOP
     local got=step(case[1],case[3])
     assert(got==case[2],tostring(case[1])..': '..got)
 end
