@@ -18,14 +18,15 @@
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
 -- pilot status|probe|on|off|test freeze|cmc|drive|replay|target, same-place enemies (stages 3a and 3b, same_place and
 -- aggro in coop-settings.txt or the co-op menu, the host's for both games: each shared enemy stands in the same place
--- on both screens, moved by the game that runs its AI), with notices for how many it moves and why it went off; the
--- synced
--- photo mode (photo_sync in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during
--- your own, the notices, and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off
--- to test the pause alone; coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off
--- (the co-op UI gone until the mod reloads); coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen
--- for 5 s and its checks in the log; a test tool, left out of the usage line). coop off stops everything until the
--- game restarts.
+-- on both screens, moved by the game that runs its AI), with notices for how many it moves and why it went off; same
+-- spawns (stage 4, same_spawns in coop-settings.txt or the co-op menu, the host's for both games: where both players
+-- stand within 100 m in one zone, the guest's game holds the host's common enemies), with notices for on, stopped and
+-- enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; the synced photo mode (photo_sync
+-- in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during your own, the notices,
+-- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone;
+-- coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off (the co-op UI gone until
+-- the mod reloads); coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in
+-- the log; a test tool, left out of the usage line). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -63,7 +64,8 @@ if settings then
     log(looks())
     log('shared enemies: '..(settings.shared_enemies and 'on' or 'off')..' (experimental), fight_chars '
         ..(#settings.fight_chars>0 and table.concat(settings.fight_chars,' ') or 'auto')..', same place '
-        ..(settings.same_place and 'on' or 'off')..' (experimental)')
+        ..(settings.same_place and 'on' or 'off')..' (experimental), same spawns '
+        ..(settings.same_spawns and 'on' or 'off')..' (experimental)')
     log(string.format('photo sync: %s, longest pause %s, ghost in your photos %s, its name tag %s',settings.photo_sync,
         settings.photo_freeze_max>0 and settings.photo_freeze_max..' s' or 'no limit',
         settings.photo_ghost and 'on' or 'off',settings.photo_name_tag and 'on' or 'off'))
@@ -95,7 +97,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -141,7 +143,7 @@ local chat,chat_clock=require('chat').new(nil,settings and settings.chat),0
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
 local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay | '
-    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec'
+    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec | spawn probe'
 local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
 local function fight_line(sub,a,b,extra)
     if extra~=nil then return nil end
@@ -270,9 +272,15 @@ local commands={
     -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
     -- (the modes that can host), and same_place=on as "place" and aggro=host as "aggro-host" after them, then with on
     -- only same_spawns=on as "spawns". status answers with the fight= line; pilot is same-place enemies' own (pilot
-    -- above).
+    -- above). spawn probe is the probe with "spawns" before the ids: same spawns' reads alone (stage 4), whatever
+    -- same_spawns says; its state is the fight= line's spawns=.
     fight=function(sub,a,b,extra)
         if sub=='pilot' then return pilot(a,b,extra) end
+        local spawn_probe=sub=='spawn'
+        if spawn_probe then
+            if a~='probe' or b~=nil or extra~=nil then return false,FIGHT_USE end
+            sub,a=a,nil
+        end
         local line=fight_line(sub,a,b,extra)
         if not line then return false,FIGHT_USE end
         if sub=='off' then fight_auto=false end
@@ -293,6 +301,7 @@ local commands={
                     ..(settings.aggro=='host' and ' aggro-host' or '')
                     ..(sub=='on' and settings.same_spawns and ' spawns' or '')
             end
+            if spawn_probe then line=line..' spawns' end
             local chars=settings.fight_chars
             if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
         end
@@ -484,6 +493,11 @@ if link then
     local FIGHT_HOLD=5
     local fight_was,fight_count,fight_told,fight_hold=nil,0,nil,0
     local fight_maxhp,host_down=false,false
+    -- Same spawns' notices (stage 4), from the same line while coop fight on runs: on once a session when its spawns=
+    -- first reads on (the host's words or the guest's), stopped once when it reads stopped (the same-place error that
+    -- stops same spawns too), and as guest once a session when its spawns_differ= first counts an enemy. Forgotten
+    -- with fight_maxhp.
+    local spawns_on,spawns_stopped,spawns_differ=false,false,false
     local function fight_words() return words().fight end
     local function her_name(words) -- '' (a stranger's unknown name) as your friend.
         local name=require('chat').clean((link.friend()) or '')
@@ -515,14 +529,29 @@ if link then
             local down=m and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) or false
             if down and not host_down and count>0 then say(fight_words().host_down:format(her_name(fight_words()))) end
             host_down=down
+            local spawns=line:match(' spawns=(%a+)')
+            if spawns=='on' and not spawns_on then
+                spawns_on=true
+                local w=words().spawns
+                say((line:find(' role=host ') and w.host or w.guest):format(her_name(fight_words())))
+            elseif spawns=='stopped' and not spawns_stopped then
+                spawns_stopped=true
+                say(words().spawns.stopped)
+            end
+            if not spawns_differ and (tonumber(line:match(' spawns_differ=(%d+)')) or 0)>0 then
+                spawns_differ=true
+                say(words().spawns.differ:format(her_name(fight_words())))
+            end
         elseif state=='off' or state=='stopped' then
             if fight_was and (fight_was:find('^on ') or fight_was=='waiting') and why~='coop fight off'
                 and why~='coop off' then
                 say(fight_words()[state])
             end
             fight_count,fight_maxhp,host_down=0,false,false
+            spawns_on,spawns_stopped,spawns_differ=false,false,false
         elseif why=='no friend linked' then -- The friend left: the next one hears about MaxHP again.
             fight_maxhp,host_down=false,false
+            spawns_on,spawns_stopped,spawns_differ=false,false,false
         end
         fight_was=now
         if mode~='on' or (state~='on' and state~='waiting') then return end

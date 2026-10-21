@@ -128,7 +128,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='off'
-    and values.aggro=='game')
+    and values.aggro=='game' and values.same_spawns=='off')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -171,7 +171,7 @@ menu.select(NONE,0)
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
     ..'photo_name_tag head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
     ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies same_place '
-    ..'aggro enemy_hp_scale enemy_balance_scale kill_credit head:display ui_scale ui_sounds '
+    ..'aggro same_spawns enemy_hp_scale enemy_balance_scale kill_credit head:display ui_scale ui_sounds '
     ..'ui_language head:chat chat',
     ids(menu,NONE))
 -- The one the mod takes at its next load only: the name tag is part of the ghost's build. The shared enemies apply at

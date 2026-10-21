@@ -1,8 +1,8 @@
 -- The co-op menu's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared enemies', same
--- place's, the status line's and the notices' words that the Lua side writes (D-UI8): English and French. The game's
--- language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other language
--- reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's (on, both, game...),
--- or <setting>_<id> where one setting's value needs other words (aggro_game).
+-- place's, same spawns', the status line's and the notices' words that the Lua side writes (D-UI8): English and French.
+-- The game's language picks them (GetCurrentLanguage, as the recruiter reads it) unless ui_language=english; any other
+-- language reads English until translated. Row ids and setting names are ui_model.lua's; a value's word is its id's
+-- (on, both, game...), or <setting>_<id> where one setting's value needs other words (aggro_game).
 local T={}
 T.en={
     title='CO-OP',
@@ -19,7 +19,8 @@ T.en={
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
         who_can_join='Who can join',auto_coop_save='Co-op saves',enemy_hp_scale="Enemy HP (host's)",
         enemy_balance_scale="Enemy balance (host's)",kill_credit='My kill rewards',
-        same_place='Same place (experimental)',aggro="Enemies attack (host's)"},
+        same_place='Same place (experimental)',aggro="Enemies attack (host's)",
+        same_spawns='Same spawns (experimental)'},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',friends='Friends',
         code='With a code',private='Invited only',ask='Ask',always='Always',all='Every shared enemy',
         fought='Enemies I hit',aggro_game='Both players',aggro_host='The host only'},
@@ -90,6 +91,15 @@ T.en={
     -- in host: her name, or fight.friend).
     pilot={on='Same place: %d enemies piloted.',one='Same place: 1 enemy piloted.',off='Same place off: %s',
         host="%s's game turned it off.",stopped='stopped by an error until the game restarts. coop-link.log says why.'},
+    -- Same spawns' notices (main.lua): on, in the host's words or the guest's, stopped by same place's error, and
+    -- enemies that differ between the two games (%s: her name, or fight.friend).
+    spawns={host='Same spawns on: where you and %s stand within 100 m of each other in one zone, their game holds '
+            ..'the same common enemies as yours.',
+        guest='Same spawns on: where you and %s stand within 100 m of each other in one zone, your game holds the '
+            ..'same common enemies as theirs.',
+        stopped='Same spawns stopped by an error until the game restarts. coop-link.log says why.',
+        differ="Same spawns: some enemies differ between your game and %s's (other .pak mods or fight_chars) and "
+            ..'stay as they are. coop-link.log names them.'},
 }
 T.fr={
     title='CO-OP',
@@ -107,7 +117,8 @@ T.fr={
         partner_arrow='Flèche hors écran',partner_card='Fiche du partenaire',card_details='Ping et zone sur la fiche',
         who_can_join='Qui peut rejoindre',auto_coop_save='Sauvegardes co-op',enemy_hp_scale='PV des ennemis (hôte)',
         enemy_balance_scale='Équilibre des ennemis (hôte)',kill_credit='Mes récompenses',
-        same_place='Même position (expérimental)',aggro='Les ennemis attaquent (hôte)'},
+        same_place='Même position (expérimental)',aggro='Les ennemis attaquent (hôte)',
+        same_spawns='Mêmes apparitions (expérimental)'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',friends='Amis',
         code='Avec un code',private='Sur invitation',ask='Demander',always='Toujours',all='Tous les ennemis partagés',
         fought='Ceux que je frappe',aggro_game='Les deux joueurs',aggro_host="L'hôte seulement"},
@@ -177,6 +188,13 @@ T.fr={
     pilot={on='Même position : %d ennemis pilotés.',one='Même position : 1 ennemi piloté.',
         off='Même position coupée : %s',host="la partie de %s l'a désactivée.",
         stopped="arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi."},
+    spawns={host="Mêmes apparitions actives : là où vous et %s êtes à moins de 100 m l'un de l'autre dans une même "
+            ..'zone, sa partie a les mêmes ennemis communs que la vôtre.',
+        guest="Mêmes apparitions actives : là où vous et %s êtes à moins de 100 m l'un de l'autre dans une même "
+            ..'zone, votre partie a les mêmes ennemis communs que la sienne.',
+        stopped="Mêmes apparitions arrêtées par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi.",
+        differ='Mêmes apparitions : certains ennemis diffèrent entre votre partie et celle de %s (autres mods .pak ou '
+            ..'fight_chars) et restent tels quels. coop-link.log les nomme.'},
 }
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(culture,setting)
