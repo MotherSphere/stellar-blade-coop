@@ -17,8 +17,9 @@
 //         worlds); a forced step leaves the target alive
 //   #     never applied: a Request her board cannot accept, or a quest the host lists in quest_deny
 //   ?     the tables cannot place it and the host did not see it happen, or its group read no complete container
-// A step that waits holds the later steps of its quest only. The guest never follows the host backwards, never
-// touches a failed quest, and never sends quest state: her lines are for display.
+// A step that waits holds the later steps of its quest, and the acquire of a quest SB gives inside it (kChains), only.
+// The guest never follows the host backwards, never touches a failed quest, and never sends quest state: her lines
+// are for display.
 //
 // Channel 2 (link_core.h), plain text after quest_tag(), at most kMaxMessage bytes:
 //   SBQn on <gen>, SBQn off <reason>         both, reliable: the feature's state; a guest's on asks for a snapshot
@@ -82,6 +83,12 @@ struct Row {
 struct Kill {
   uint16_t id;
   uint8_t group, container, position;
+};
+// A shared quest that SB acquires inside a step of another one (a NextQuest, or an AcquireQuest event): her acquire
+// waits until her parent quest made that step, so her quests move in the order SB gives them.
+struct Chain {
+  uint16_t id, parent;
+  uint8_t step; // the parent's step: 0 its acquire, 1 + g the end of group g
 };
 
 // The shared quests: Epic, Sub and Request rows, without the test, tutorial, collectible and helper rows (LV_, TQ_,
@@ -700,6 +707,18 @@ constexpr Kill kKills[] = {
     {116, 1, 0, 0}, // Quest_Sub_041_M02_T01
     {117, 1, 0, 0}, // Quest_Sub_042_M02_T01
 };
+constexpr Chain kChains[] = {
+    {15, 14, 1}, // Quest_Epic_02: Quest_Epic_01 step 1
+    {16, 15, 8}, // Quest_Epic_03: Quest_Epic_02 step 8
+    {17, 16, 5}, // Quest_Epic_04: Quest_Epic_03 step 5
+    {18, 17, 3}, // Quest_Epic_05: Quest_Epic_04 step 3
+    {19, 18, 4}, // Quest_Epic_06: Quest_Epic_05 step 4
+    {20, 19, 3}, // Quest_Epic_07: Quest_Epic_06 step 3
+    {22, 21, 2}, // Quest_Epic_09: Quest_Epic_08 step 2
+    {24, 23, 3}, // Quest_Epic_11: Quest_Epic_10 step 3
+    {26, 25, 5}, // Quest_Epic_13: Quest_Epic_12 step 5
+    {144, 104, 0}, // Quest_Request_022_hidden: Quest_Request_022 step 0
+};
 // ---- quest table: generated, end ----
 constexpr size_t kRowCount = sizeof kRows / sizeof kRows[0];
 
@@ -740,6 +759,10 @@ inline size_t tasks(const Row &r, size_t g, size_t c) {
 inline bool kill_task(uint32_t id, size_t g, size_t c, size_t p) {
   return std::any_of(std::begin(kKills), std::end(kKills),
                      [&](const Kill &k) { return k.id == id && k.group == g && k.container == c && k.position == p; });
+}
+inline const Chain *chain(uint32_t id) {
+  const Chain *k = std::find_if(std::begin(kChains), std::end(kChains), [&](const Chain &x) { return x.id == id; });
+  return k == std::end(kChains) ? nullptr : k;
 }
 // Whether zone is one of a space-separated list.
 inline bool in_list(std::string_view list, std::string_view zone) {
@@ -821,7 +844,8 @@ inline bool operator!=(const Tuple &a, const Tuple &b) { return !(a == b); }
 
 // One quest object as quest_engine.h reads it: state, active group index, and every group's containers and task
 // states (ESBQuestTaskState: 0 not started, 1 in progress, 2 complete, 3 failed, 4 inactive). Groups after the active
-// one have no containers yet; a Request's last group is its report group.
+// one have no containers yet; a Request's last group is its report group. The engine refuses a quest with more groups,
+// containers or tasks than the arrays hold; the counts below clamp all the same.
 struct View {
   int8_t state = 0; // 0 when no object holds it (an Epic or Sub quest); a Request with no object reads -1
   int8_t active = -1;
@@ -830,6 +854,13 @@ struct View {
   uint8_t tasks[kMaxGroups][kMaxContainers] = {};
   int8_t task[kMaxGroups][kMaxContainers][kMaxTasks] = {};
 };
+// Containers of a view's group g and tasks of its container c, within the arrays.
+inline size_t containers(const View &v, size_t g) {
+  return g < kMaxGroups ? std::min<size_t>(v.containers[g], kMaxContainers) : 0;
+}
+inline size_t tasks(const View &v, size_t g, size_t c) {
+  return c < containers(v, g) ? std::min<size_t>(v.tasks[g][c], kMaxTasks) : 0;
+}
 
 // The tuple of a live quest. Only table groups count: every one once the state is 2 or more (after a load a Request's
 // active index points at its report group), else those before the active index. A finished group's container is the
@@ -844,8 +875,8 @@ inline Tuple tuple_of(const Row &r, const View &v) {
   t.groups = uint8_t(done ? r.groups : std::clamp<int>(v.active, 0, r.groups));
   for (size_t g = 0; g < t.groups; ++g) {
     bool found = false;
-    for (size_t c = 0; !found && g < v.groups && c < v.containers[g]; ++c) {
-      const size_t n = v.tasks[g][c];
+    for (size_t c = 0; !found && g < v.groups && c < containers(v, g); ++c) {
+      const size_t n = tasks(v, g, c);
       found = n && std::all_of(v.task[g][c], v.task[g][c] + n, [](int8_t s) { return s == 2; });
       t.cont[g] = found ? uint8_t(c) : 0;
     }
@@ -854,8 +885,8 @@ inline Tuple tuple_of(const Row &r, const View &v) {
   }
   const size_t a = t.groups;
   if (v.state == 1 && a < r.groups && a < v.groups)
-    for (size_t c = 0; c < v.containers[a]; ++c)
-      for (size_t p = 0; p < v.tasks[a][c] && t.tasks < kMaxTasks; ++p)
+    for (size_t c = 0; c < containers(v, a); ++c)
+      for (size_t p = 0; p < tasks(v, a, c) && t.tasks < kMaxTasks; ++p)
         if (v.task[a][c][p] == 2)
           t.task[t.tasks++] = Pos{uint8_t(c), uint8_t(p)};
   return t;
@@ -1245,25 +1276,34 @@ constexpr uint32_t kGuestLinesPerSecond = 10; // What the guest sends at most, w
 // "Ahead" holds this long before it is sent: a kill that completes in both worlds shows on her side before the host's
 // line can arrive.
 constexpr uint64_t kAheadMs = 2000;
+constexpr uint64_t kSnapshotMs = 5000; // The host answers a guest's on with a snapshot at most this often.
 
 // The host's side: reads its own quests each pass, keeps its marks per partner in the record, and sends the
-// snapshot and each change while the guest is on. It applies nothing it receives.
+// snapshot and each change while the guest is on. It applies nothing it receives. Not thread-safe, like Guest: the
+// glue locks each object or keeps it on one thread.
 class Host {
 public:
   Host(Record record, uint64_t partner, Deny deny) : record_(std::move(record)), partner_(partner), deny_(deny) {}
 
   // A line from the guest; true when it is good and current (the glue shows have, wait and ahead). A guest's on
-  // makes the next pass send a snapshot.
+  // makes a pass send a snapshot; on and off count even from an ignored guest. Lines over kHostLinesPerSecond are
+  // dropped without counting as bad: a stalled link can deliver a burst.
   bool receive(const Message &m, uint64_t now_ms) {
+    if (m.type == Type::on || m.type == Type::off) {
+      guest_on_ = m.type == Type::on;
+      snapshot_ = snapshot_ || guest_on_;
+      return true;
+    }
     if (ignored_)
       return false;
     if (now_ms >= window_ + 1000)
       window_ = now_ms, lines_ = 0;
-    if (++lines_ > kHostLinesPerSecond)
-      return bad("rate");
+    if (++lines_ > kHostLinesPerSecond) {
+      if (!std::exchange(rate_logged_, true))
+        log.push_back("quests: guest lines over the rate dropped");
+      return false;
+    }
     switch (m.type) {
-    case Type::on: guest_on_ = snapshot_ = true; return true;
-    case Type::off: guest_on_ = false; return true;
     case Type::at:
     case Type::have:
     case Type::wait:
@@ -1280,21 +1320,29 @@ public:
 
   // One pass: live[i] is kRows[i]'s tuple (state 0 when the walk does not find it). zone: the host's zone alias, ""
   // when unknown. load: its quest objects were made again (a save load). Returns the lines to send, in order.
-  std::vector<std::string> pass(const Tuple *live, std::string_view zone, bool load) {
+  std::vector<std::string> pass(const Tuple *live, std::string_view zone, bool load, uint64_t now_ms) {
     std::vector<std::string> out;
     bool back = false;
     for (size_t i = 0; i < kRowCount && seen_; ++i)
       back |= !covers(live[i], last_[i]);
-    if (guest_on_ && (snapshot_ || load || back)) {
+    const bool asked = snapshot_ && now_ms >= next_snapshot_;
+    const bool snap = guest_on_ && (asked || load || back);
+    if (snap) {
       snapshot(live, out);
-    } else if (guest_on_ && seen_) {
-      for (size_t i = 0; i < kRowCount; ++i)
-        if (live[i] != last_[i]) {
-          Record::Line *l = record_.find('h', partner_, kRows[i].id);
-          const Entry e = merge(i, l ? &l->e : nullptr, live[i], zone);
-          changed_ |= send(e, l ? &l->e : nullptr, out);
-        }
+      if (asked)
+        next_snapshot_ = now_ms + kSnapshotMs;
     }
+    // Changes the snapshot did not send: every one, or those of quests outside the record in a pass that answers her
+    // on. A load's changes are not the host's steps. Parts the last pass already had keep the marks they would have
+    // had then ('?' for an 'h' step this poll never saw happen); only new parts get the host's zone.
+    if (guest_on_ && seen_ && !load && !back)
+      for (size_t i = 0; i < kRowCount; ++i) {
+        const Record::Line *l = record_.find('h', partner_, kRows[i].id);
+        if (live[i] == last_[i] || (snap && l))
+          continue;
+        const Entry base = l ? l->e : merge(i, nullptr, last_[i], "");
+        changed_ |= send(merge(i, &base, live[i], zone), l ? &base : nullptr, out);
+      }
     std::copy(live, live + kRowCount, last_);
     seen_ = true;
     return out;
@@ -1317,41 +1365,52 @@ private:
     }
     return false;
   }
-  // A new part's mark: the table's, an 'h' step's the host's zone (added to the record's zones) when its pass saw it
-  // happen, else '?'.
-  Mark mark(size_t i, size_t s, std::string_view zone) {
-    if (deny_[i])
-      return Mark{'#', 0};
+  // A new part's mark: K on a kill task, else the table's; an 'h' step's is the host's zone (added to the record's
+  // zones) when its pass saw it happen, else '?'.
+  Mark mark(size_t i, size_t s, std::string_view zone, bool kill = false) {
     const char c = step(kRows[i], s).mark;
-    const int z = c == 'h' && !zone.empty() ? record_.zones.add(zone) : -1;
-    return c != 'h' ? Mark{c, 0} : z >= 0 ? Mark{'z', uint8_t(z)} : Mark{'?', 0};
+    const int z = !kill && c == 'h' && !zone.empty() ? record_.zones.add(zone) : -1;
+    return kill ? Mark{'K', 0} : c != 'h' ? Mark{c, 0} : z >= 0 ? Mark{'z', uint8_t(z)} : Mark{'?', 0};
   }
-  // The entry for a live tuple, keeping old's marks for the parts it already had; new parts get mark() with zone
-  // ("" when the host's pass did not see them happen).
+  // The entry for a live tuple. A part old holds keeps its mark ('?' stays '?') and, when its group now reads unsure,
+  // its container; a '#' an earlier quest_deny left is marked again with zone "" (an 'h' step gets '?'). A new part
+  // gets mark() with zone ("" when the host's pass did not see it happen), or '?' for a group that reads unsure.
+  // Every part of a quest in quest_deny is '#'.
   Entry merge(size_t i, const Entry *old, const Tuple &t, std::string_view zone) {
     const Row &r = kRows[i];
-    Entry e;
-    e.id = r.id, e.t = t;
-    if (old)
-      e.seq = old->seq;
     const Tuple *o = old ? &old->t : nullptr;
-    e.acq = o && o->state >= 1 && t.state >= 1 ? old->acq : mark(i, 0, zone);
-    for (size_t g = 0; g < t.groups; ++g)
-      e.group[g] = t.unsure >> g & 1                          ? Mark{'?', 0}
-                   : o && g < o->groups && !(o->unsure >> g & 1) ? old->group[g]
-                                                                 : mark(i, 1 + g, zone);
+    Entry e;
+    e.id = r.id, e.t = t, e.seq = old ? old->seq : 0;
+    auto kept = [&](Mark m, size_t s, bool kill) { return m.kind == '#' ? mark(i, s, "", kill) : m; };
+    e.acq = o && o->state >= 1 && t.state >= 1 ? kept(old->acq, 0, false) : mark(i, 0, zone);
+    for (size_t g = 0; g < t.groups; ++g) {
+      const bool unsure = t.unsure >> g & 1;
+      if (o && g < o->groups) {
+        e.group[g] = kept(old->group[g], 1 + g, false);
+        if (unsure)
+          e.t.cont[g] = o->cont[g];
+      } else {
+        e.group[g] = unsure ? Mark{'?', 0} : mark(i, 1 + g, zone);
+      }
+    }
     const size_t a = t.groups;
     for (size_t j = 0; j < t.tasks; ++j) {
       const Pos p = t.task[j];
-      e.task[j] = deny_[i] ? Mark{'#', 0} : kill_task(r.id, a, p.c, p.p) ? Mark{'K', 0} : mark(i, 1 + a, zone);
+      const bool kill = kill_task(r.id, a, p.c, p.p);
+      const Mark *had = nullptr;
       for (size_t k = 0; o && o->state == 1 && o->groups == a && k < o->tasks; ++k)
         if (o->task[k].c == p.c && o->task[k].p == p.p)
-          e.task[j] = old->task[k];
+          had = &old->task[k];
+      e.task[j] = had ? kept(*had, 1 + a, kill) : mark(i, 1 + a, zone, kill);
     }
-    e.done = !complete(t.state)             ? Mark{'.', 0}
-             : deny_[i]                     ? Mark{'#', 0}
-             : r.type != 'R' && t.groups > 0 ? e.group[t.groups - 1]
-                                            : Mark{'-', 0};
+    e.done = !complete(t.state) ? Mark{'.', 0} : r.type != 'R' && t.groups ? e.group[t.groups - 1] : Mark{'-', 0};
+    if (deny_[i]) {
+      e.acq = Mark{'#', 0};
+      std::fill(e.group, e.group + t.groups, Mark{'#', 0});
+      std::fill(e.task, e.task + t.tasks, Mark{'#', 0});
+      if (complete(t.state))
+        e.done = Mark{'#', 0};
+    }
     return e;
   }
   // Records e when it differs from old (its next sequence) and adds its line, after a zone line for each zone index
@@ -1420,9 +1479,9 @@ private:
   Deny deny_;
   uint32_t gen_ = 0;
   Tuple last_[kRowCount];
-  bool seen_ = false, guest_on_ = false, snapshot_ = false, changed_ = false, ignored_ = false;
+  bool seen_ = false, guest_on_ = false, snapshot_ = false, changed_ = false, ignored_ = false, rate_logged_ = false;
   std::bitset<kMaxZones> named_;
-  uint64_t bad_ = 0, window_ = 0;
+  uint64_t bad_ = 0, window_ = 0, next_snapshot_ = 0;
   uint32_t lines_ = 0;
 };
 
@@ -1437,6 +1496,7 @@ enum class Why : uint8_t {
   unseen,  // the host did not see where it happened
   board,   // a Request ready to hand in at her own board
   locked,  // a Request not on her board yet
+  chain,   // SB acquires it inside a step of her parent quest (kChains), which she has not made yet
   ahead,   // her quest holds a part the host's lacks: nothing is applied
   failed,  // a failure, hers or the host's: never touched
   unarmed, // acquire waits until this load's check passed
@@ -1470,7 +1530,10 @@ struct Where {
   bool armed = false;                  // acquire by ID passed this load's check
   bool force = false;                  // apply a kill or unseen hold, once
   const Zones *zones = nullptr;        // this generation's zone indices
+  bool ordered = true;                 // kChains: her parent quest made the step that acquires this one
 };
+// Whether her quest t made step s: 0 its acquire, 1 + g the end of group g.
+inline bool made(const Tuple &t, size_t s) { return t.state >= 1 && t.groups >= s; }
 
 // The next step toward the host's entry h for her quest (view v, tuple g), and why it waits.
 inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, const Where &w) {
@@ -1506,15 +1569,18 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
   if (H.state <= 0 || covers(g, H))
     return p;
   if (g.state <= 0) {
+    p.act = r.type == 'R' ? Act::accept : Act::acquire;
+    if (!w.ordered) {
+      p.why = Why::chain;
+      return p;
+    }
     if (r.type != 'R') {
-      p.act = Act::acquire;
       if (!w.armed) {
         p.why = Why::unarmed;
         return p;
       }
       return gate(h.acq);
     }
-    p.act = Act::accept;
     p.why = !r.normal || h.acq.kind == '#' ? Why::deny : g.state < 0 ? Why::locked : Why::go;
     return p.why == Why::go ? gate(h.acq) : p;
   }
@@ -1527,20 +1593,20 @@ inline Plan plan(const Row &r, const Entry &h, const View &v, const Tuple &g, co
   if (a >= r.groups || a >= v.groups)
     return p;
   p.act = Act::complete, p.group = uint8_t(a), p.step = r.step + 1 + a;
-  auto task = [&](size_t c, size_t q, Mark m) {
+  auto task = [&](size_t c, size_t q, Mark m) { // K on a kill task, but '#' stays '#'.
     p.container = uint8_t(c), p.position = uint8_t(q);
-    return gate(kill_task(r.id, a, c, q) ? Mark{'K', 0} : m);
+    return gate(m.kind != '#' && kill_task(r.id, a, c, q) ? Mark{'K', 0} : m);
   };
   if (a < H.groups) { // The host finished it: her next task in progress in the host's container.
     const size_t c = H.cont[a];
-    for (size_t q = 0; c < v.containers[a] && q < v.tasks[a][c]; ++q)
+    for (size_t q = 0; q < tasks(v, a, c); ++q)
       if (v.task[a][c][q] == 1)
         return task(c, q, h.group[a]);
     return p;
   }
   for (size_t j = 0; j < H.tasks; ++j) { // The same active group: the host's done tasks still in progress for her.
     const Pos t = H.task[j];
-    if (t.c >= v.containers[a] || t.p >= v.tasks[a][t.c])
+    if (t.p >= tasks(v, a, t.c))
       return p;
     if (v.task[a][t.c][t.p] == 1)
       return task(t.c, t.p, h.task[j]);
@@ -1565,7 +1631,9 @@ public:
       return false;
     switch (m.type) {
     case Type::on: host_on_ = true; return true;
-    case Type::off: host_on_ = false; return true;
+    case Type::off: // Its next snapshot may come from a new Host, whose generations start at 1 again.
+      host_on_ = false, gen_ = 0;
+      return true;
     case Type::snap:
       if (m.gen <= gen_)
         return bad("generation");
@@ -1604,15 +1672,22 @@ public:
     if (in_snap_)
       digest_ = fnv(digest_, line), ++got_;
     const int i = row_index(m.e.id);
-    if (i < 0) {
-      if (std::find(unknown_.begin(), unknown_.end(), m.e.id) == unknown_.end())
-        unknown_.push_back(m.e.id), log.push_back("quests: " + std::to_string(m.e.id) + " is no shared quest here");
-      return false;
+    if (i < 0) { // Under the build pin only a bad host names one: each new ID is logged and counts as a bad line.
+      if (std::find(unknown_.begin(), unknown_.end(), m.e.id) != unknown_.end())
+        return false;
+      unknown_.push_back(m.e.id), log.push_back("quests: " + std::to_string(m.e.id) + " is no shared quest here");
+      return bad("quest");
     }
     if (unsynced_[size_t(i)] || (held_[size_t(i)] && m.e.seq <= h_[i].seq))
       return false; // Unsynced for the session, or an older line.
-    if (!fits(kRows[i], m.e) || !defined(m.e))
+    if (!fits(kRows[i], m.e))
       return unsync(size_t(i), "line does not fit its quest");
+    if (!defined(m.e)) { // Its zone line was lost: dropped, the next snapshot names the zones again.
+      if (!undefined_[size_t(i)])
+        undefined_.set(size_t(i)), log.push_back("quests: " + std::string(kRows[i].alias) +
+                                                 " line dropped: a zone index this snapshot did not name");
+      return false;
+    }
     h_[i] = m.e, held_.set(size_t(i));
     Entry g = m.e;
     auto alias = [&](Mark &k) {
@@ -1635,8 +1710,8 @@ public:
   Plan pass(const View *views, std::string_view zone, bool armed, uint64_t now_ms, std::vector<std::string> &out) {
     if (now_ms >= window_ + 1000)
       window_ = now_ms, sent_ = 0;
-    auto send = [&](const Message &m) {
-      if (sent_ == kGuestLinesPerSecond)
+    auto send = [&](const Message &m) { // Nothing between the host's off and its next snapshot.
+      if (!gen_ || sent_ == kGuestLinesPerSecond)
         return false;
       ++sent_;
       out.push_back(format(m));
@@ -1666,10 +1741,16 @@ public:
       if (held_[i]) {
         const Entry &h = h_[i];
         m.e.seq = h.seq;
-        Plan p = plan(r, h, views[i], g, Where{zone, armed, force == r.id, &zones_});
+        const Chain *k = chain(r.id);
+        const size_t up = k ? size_t(row_index(k->parent)) : 0;
+        const bool ordered = !k || made(tuple_of(kRows[up], views[up]), k->step);
+        Plan p = plan(r, h, views[i], g, Where{zone, armed, force == r.id, &zones_, ordered});
         if (force == r.id)
           forced_ = p;
         plans_[i] = p;
+        if (p.why == Why::blocked && !blocked_[i]) // Re-planned each pass: a later line can clear it.
+          blocked_.set(i), log.push_back("quests: " + std::string(r.alias) + " blocked: the host's line names no task "
+                                                                             "her quest has in progress");
         if (p.ready() && (step.act == Act::none || p.forced))
           step = p;
         ahead = p.why == Why::ahead;
@@ -1759,7 +1840,7 @@ private:
   uint32_t gen_ = 0;
   Zones zones_;
   Entry h_[kRowCount];
-  std::bitset<kRowCount> held_, unsynced_, had_, based_, ahead_sent_;
+  std::bitset<kRowCount> held_, unsynced_, had_, based_, ahead_sent_, undefined_, blocked_;
   Tuple prev_[kRowCount], base_[kRowCount];
   uint32_t have_[kRowCount] = {}, wait_seq_[kRowCount] = {};
   std::string wait_[kRowCount];

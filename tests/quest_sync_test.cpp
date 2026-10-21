@@ -2,9 +2,9 @@
 // acquire folded in, a Request's hand-in events left out), quest_deny, tuples from live quests, the lines and their
 // strict parser (bounds, the largest legal line, fuzzed junk), the record file, and a host and a guest over the
 // parser with fake quest objects: snapshot and diffs, one step a pass, every hold and what clears it, forced steps,
-// her own progress shown as ahead, a host that goes back to an older save, repeated and stale lines, and every check
-// each side makes on the other's lines. Nothing here completes a quest by itself: the fake does it inside the last
-// task, as the game does.
+// chained quests in SB's order, her own progress shown as ahead, a host that goes back to an older save, repeated and
+// stale lines, counts past the arrays, and every check each side makes on the other's lines. Nothing here completes
+// a quest by itself: the fake does it inside the last task, as the game does.
 #include "quest_sync.h"
 
 #include <cassert>
@@ -35,7 +35,8 @@ bool has(const char *list, const char *what) { return std::strstr(list, what) !=
 // One player's quests as SB keeps them, enough for the planner: an acquire starts group 0 with its tasks in progress;
 // a task complete ends its group when every task of one non-empty container is complete, which starts the next group
 // in the same call (the finished group's other tasks go inactive); the last group completes an Epic or Sub quest and
-// brings a Request to state 2, its report group active, until her hand-in. A save load pre-creates every Request at -1.
+// brings a Request to state 2, its report group active, until her hand-in. A step that acquires a chained quest does it
+// in the same call. A save load pre-creates every Request at -1.
 struct World {
   std::vector<View> v = std::vector<View>(kRowCount);
   int completes = 0, acquires = 0;
@@ -60,6 +61,12 @@ struct World {
     if (r.groups)
       start(i, 0);
     ++acquires;
+    chained(i, 0);
+  }
+  void chained(size_t i, size_t s) {
+    for (const Chain &k : kChains)
+      if (k.parent == kRows[i].id && k.step == s && v[size_t(row_index(k.id))].state == 0)
+        acquire(size_t(row_index(k.id)));
   }
   void complete(size_t i, size_t c, size_t p) {
     const Row &r = kRows[i];
@@ -82,6 +89,7 @@ struct World {
       start(i, a + 1);
     else
       x.state = r.type == 'R' ? 2 : 3;
+    chained(i, a + 1);
   }
   void hand_in(size_t i) { // Her board's turn-in.
     assert(v[i].state == 2);
@@ -152,7 +160,7 @@ struct Link {
   Plan step(bool apply = true) {
     Tuple live[kRowCount];
     hw.tuples(live);
-    sent = host.pass(live, host_zone, std::exchange(load, false));
+    sent = host.pass(live, host_zone, std::exchange(load, false), now);
     for (const std::string &l : sent)
       guest.receive(wire(l));
     said.clear();
@@ -239,6 +247,14 @@ void table() {
   const Row &e6 = R("Quest_Epic_06"), &e7 = R("Quest_Epic_07");
   assert(*step(e7, 0).events && has(step(e6, e6.groups).events, step(e7, 0).events));
   assert(step(e6, e6.groups).mark == 't' && std::string(step(e6, e6.groups).zones) == step(e7, 0).zones);
+  // The chains: the nine NextQuest pairs and Quest_Request_022's accept, which acquires Quest_Request_022_hidden.
+  assert(sizeof kChains / sizeof kChains[0] == 10 && !chain(14) && chain(20)->parent == 19 && chain(20)->step == 3);
+  assert(chain(144)->parent == R("Quest_Request_022").id && chain(144)->step == 0);
+  for (const Chain &c : kChains) {
+    const Row *r = row(c.id), *up = row(c.parent);
+    assert(r && up && chain(c.id) == &c && c.step <= up->groups && r->type != 'R');
+    assert(has(step(*up, c.step).events, step(*r, 0).events));
+  }
   // A Request's own complete events (the item it takes) run at her hand-in, not at its last group's end.
   assert(!has(step(R("Quest_Request_006"), 1).events, "ItemA"));
   for (size_t s = 0; s <= R("Quest_Request_023").groups; ++s)
@@ -536,7 +552,8 @@ void session() {
 }
 
 // The host's marks on its own lines: K on a kill task, the group's mark on its other done tasks, and '?' for a
-// finished group whose tasks no longer read complete.
+// finished group that reads no complete container when it first shows; a known group keeps its container and mark
+// through such a read, and a '?' stays '?'.
 void host_marks() {
   auto link = std::make_unique<Link>();
   Link &k = *link;
@@ -553,23 +570,35 @@ void host_marks() {
   assert(count(k.sent, "q 1 ") == 0);
   k.hw.play(s17);
   k.step();
-  assert(k.sent.back() == q("q 1 2 54 3 - 0:?.0:t - t"));
+  assert(k.sent.back() == q("q 1 2 54 3 - 0:t.0:t - t"));
+  const size_t s1 = at("Quest_Sub_001");
+  k.hw.acquire(s1), k.hw.play(s1);
+  k.hw.v[s1].task[0][0][0] = 4;
+  k.step();
+  assert(k.sent.back() == q("q 1 1 41 1 - 0:? - ."));
+  k.hw.v[s1].task[0][0][0] = 2, k.hw.play(s1);
+  k.step();
+  assert(k.sent.back() == q("q 1 2 41 1 - 0:?.0:t - ."));
 }
 
 void holds() {
   auto link = std::make_unique<Link>();
   Link &k = *link;
   k.step();
-  const size_t e2 = at("Quest_Epic_02"), s6 = at("Quest_Sub_006"), s17 = at("Quest_Sub_017");
+  const size_t e1 = at("Quest_Epic_01"), e2 = at("Quest_Epic_02"), s6 = at("Quest_Sub_006"), s17 = at("Quest_Sub_017");
   // Acquire waits until this load's check passed (unarmed: no wait line, it is hers).
   k.armed = false;
-  k.hw.acquire(e2);
+  k.hw.acquire(e1);
   k.step();
-  Plan p = k.guest.planned(15);
-  assert(p.act == Act::acquire && p.why == Why::unarmed && k.gw.v[e2].state == 0 && k.said.empty());
+  Plan p = k.guest.planned(14);
+  assert(p.act == Act::acquire && p.why == Why::unarmed && k.gw.v[e1].state == 0 && k.said.empty());
   k.armed = true;
   k.step();
-  assert(k.gw.v[e2].state == 1);
+  assert(k.gw.v[e1].state == 1);
+  // Its only group's end acquires Quest_Epic_02 in the same call, in both worlds: never by our acquire.
+  k.hw.play(e1);
+  k.steps(2);
+  assert(k.gw.v[e1].state == 3 && k.gw.v[e2].state == 1 && k.gw.acquires == 2 && k.applied == 2);
   // Quest_Epic_02 up to its kill in group 6, done by the host: held for her own kill, and only that quest waits.
   for (int g = 0; g < 7; ++g)
     k.hw.play(e2);
@@ -682,6 +711,7 @@ void marks_from_the_host() {
   k.hw.play(r12);
   k.step();
   assert(k.sent.empty());
+  k.now += kSnapshotMs;
   k.on();
   p = k.step();
   assert(starts(k.sent[0], "snap 2 2") && std::count(k.sent.begin(), k.sent.end(), q("q 2 2 80 2 - 0:? - .")) == 1);
@@ -723,6 +753,8 @@ void marks_from_the_host() {
   // The kill task: K whatever the line's mark; forced, it goes.
   h6.t.task[0] = Pos{0, 0}, h6.task[0] = Mark{'-', 0};
   assert(gate("Zone_WLA_10").why == Why::kill && gate("Zone_DED20", true).ready());
+  h6.task[0] = Mark{'#', 0}; // But a denied kill task stays denied, forced or not.
+  assert(gate("Zone_WLA_10", true).why == Why::deny && !gate("Zone_WLA_10", true).forced);
   // A position her group does not have: blocked, nothing applied.
   h6.t.task[0] = Pos{1, 0};
   assert(gate("Zone_WLA_10").why == Why::blocked && !gate("Zone_WLA_10").ready());
@@ -743,9 +775,91 @@ void marks_from_the_host() {
   denied->hw.acquire(at("Quest_Sub_017"));
   denied->step();
   assert(denied->sent.back() == q("q 1 1 54 1 # - - .") && denied->guest.planned(54).why == Why::deny);
-  denied->hw.play(at("Quest_Sub_017")), denied->hw.play(at("Quest_Sub_017"));
+  denied->hw.play(at("Quest_Sub_017")), denied->hw.v[at("Quest_Sub_017")].task[0][0][0] = 4; // '#' before '?'.
   denied->step();
-  assert(denied->sent.back() == q("q 1 2 54 3 # 0:#.0:# - #") && denied->gw.v[at("Quest_Sub_017")].state == 0);
+  assert(denied->sent.back() == q("q 1 2 54 1 # 0:# - ."));
+  denied->hw.play(at("Quest_Sub_017"));
+  denied->step();
+  assert(denied->sent.back() == q("q 1 3 54 3 # 0:#.0:# - #") && denied->gw.v[at("Quest_Sub_017")].state == 0);
+  // quest_deny also covers what the record already holds, and once lifted the table marks those parts again.
+  const size_t s17 = at("Quest_Sub_017");
+  auto later = std::make_unique<Link>(parse_record("h 76561198000000002 54 7 1 - 0:t - .\n"), Record(),
+                                      parse_deny("54"));
+  later->hw.acquire(s17), later->hw.play(s17);
+  later->step();
+  assert(later->sent[1] == q("q 1 8 54 1 # 0:# - .") && later->host.take_changed());
+  auto lifted = std::make_unique<Link>(parse_record("h 76561198000000002 54 8 1 # 0:# - .\n"));
+  lifted->hw.acquire(s17), lifted->hw.play(s17);
+  lifted->step();
+  assert(lifted->sent[1] == q("q 1 9 54 1 - 0:t - ."));
+}
+
+// A quest the host played before the session, then once more while linked: the parts the last pass already had keep
+// the marks they would have had then (an 'h' step '?', the host never saw it happen); only the new step gets its zone.
+void before_the_session() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  const size_t s28 = at("Quest_Sub_028");
+  k.hw.acquire(s28), k.hw.play(s28); // Group 0 ends with a cutscene the tables cannot place.
+  k.step();
+  assert(count(k.sent, "q ") == 0); // Not in the record, so not in the snapshot.
+  k.host_zone = "Zone_WLA_10";
+  k.hw.play(s28);
+  k.step();
+  assert(k.sent == std::vector<std::string>{q("q 1 1 71 1 - 0:?.0:- - .")});
+  k.step();
+  assert(k.gw.v[s28].state == 1 && k.guest.planned(71).why == Why::unseen);
+}
+
+// A quest SB acquires inside another's step waits for her copy of that step: Quest_Epic_06's last group, a kill,
+// acquires Quest_Epic_07, so hers never comes before her kill, even where its acquire acts.
+void chains() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  const size_t e5 = at("Quest_Epic_05"), e6 = at("Quest_Epic_06"), e7 = at("Quest_Epic_07");
+  for (World *w : {&k.hw, &k.gw}) { // Both ended Quest_Epic_05 before the session, which acquired Quest_Epic_06.
+    w->acquire(e5);
+    for (int g = 0; g < 4; ++g)
+      w->play(e5);
+    assert(w->v[e6].state == 1);
+  }
+  k.step();
+  for (int g = 0; g < 3; ++g)
+    k.hw.play(e6);
+  assert(k.hw.v[e6].state == 3 && k.hw.v[e7].state == 1);
+  k.guest_zone = "Zone_WLB_40"; // Where group 0 ends.
+  k.steps(3);
+  assert(k.gw.v[e6].active == 2 && k.guest.planned(19).why == Why::kill && k.applied == 2);
+  const Plan p = k.guest.planned(20);
+  assert(p.act == Act::acquire && p.why == Why::chain && k.guest.force(20));
+  k.guest_zone = "Zone_Xion_10"; // Where Quest_Epic_07's acquire acts; a chain hold is never forced.
+  k.steps(3);
+  assert(k.gw.v[e7].state == 0 && k.guest.planned(20).why == Why::chain && k.applied == 2);
+  assert(k.guest.forced().why == Why::chain && !k.guest.forced().forced);
+  // Her kill: SB completes Quest_Epic_06 and acquires Quest_Epic_07 inside that call.
+  k.gw.play(e6);
+  k.steps(2);
+  assert(k.gw.v[e6].state == 3 && k.gw.v[e7].state == 1 && k.guest.planned(20).why == Why::done && k.applied == 2);
+}
+
+// Counts past the arrays, which the engine refuses to read, are clamped: nothing reads outside a view.
+void bounds() {
+  const Row &r = R("Quest_Sub_006");
+  View v;
+  v.state = 1, v.active = 1, v.groups = 255, v.containers[0] = v.containers[1] = 255;
+  for (size_t c = 0; c < kMaxContainers; ++c) {
+    v.tasks[0][c] = v.tasks[1][c] = 255;
+    for (size_t p = 0; p < kMaxTasks; ++p)
+      v.task[0][c][p] = 1, v.task[1][c][p] = 1;
+  }
+  std::fill(v.task[0][15], v.task[0][15] + kMaxTasks, int8_t(2));
+  v.task[1][15][15] = 2;
+  const Tuple t = tuple_of(r, v);
+  assert(t.groups == 1 && t.cont[0] == 15 && !t.unsure && t.tasks == 1 && t.task[0].c == 15 && t.task[0].p == 15);
+  Entry h;
+  h.id = r.id, h.seq = 1, h.t = t, h.t.groups = 2, h.t.tasks = 0, h.t.cont[1] = 15;
+  const Plan p = plan(r, h, v, t, Where{"Zone_WLA_10", true, false, nullptr});
+  assert(p.act == Act::complete && p.group == 1 && p.container == 15 && p.position == 0);
 }
 
 void ahead_and_back() {
@@ -865,21 +979,47 @@ void checks() {
   assert(!in("q 2 9 41 1 - - - ."));                    // Stays unsynced for the session.
   assert(!in("q 2 1 45 1 - - 0.0:t .") && !in("q 2 1 45 1 - - - ."));  // 't' on a kill task: unsynced.
   assert(!in("q 2 1 77 1 - - - ."));                    // '-' on a 't' step.
-  assert(!in("q 2 1 80 2 - 0:z5 - ."));                 // A zone index not defined in this generation.
+  assert(!in("q 2 1 80 2 - 0:z5 - .") && !in("q 2 1 80 2 - 0:z5 - ."));  // An index not named: dropped, logged once,
+  assert(in("zone 2 5 Zone_E") && in("q 2 1 80 2 - 0:z5 - ."));           // and taken once it is.
   assert(!in("q 2 1 139 2 - 0:z1 - .") && in("q 2 1 134 3 - 0:z2 - z2") && in("q 2 1 82 1 # - - ."));
   assert(*g.zones().name(2) == "Zone_C" && !g.zones().name(1));
   assert(!in("have 2 54 1") && !in("at 2 Zone_A"));     // Guest lines from the host.
   for (int i = 0; i < 20; ++i)
     in("snap 1 0");
   assert(!in("snap 9 0")); // Ignored after too many bad lines.
-  assert(!g.log.empty());
+  assert(std::count_if(g.log.begin(), g.log.end(), [](const std::string &l) {
+           return l.find("Quest_Request_012 line dropped") != std::string::npos;
+         }) == 1);
+  // Each new unknown quest ID counts as a bad line, so a host naming many is soon ignored.
+  auto u = std::make_unique<Guest>(Record(), kHostId);
+  u->receive(wire(q("snap 1 0")));
+  for (int id = 9000; id < 9015; ++id)
+    assert(!u->receive(wire(q("q 1 1 " + std::to_string(id) + " 1 - - - ."))));
+  assert(!u->receive(wire(q("q 1 1 9000 1 - - - ."))) && u->receive(wire(q("q 1 1 54 1 - - - ."))));
+  assert(!u->receive(wire(q("q 1 1 9015 1 - - - ."))) && !u->receive(wire(q("q 1 2 54 1 - 0:t - ."))));
+  // The host's off: its next snapshot may start again at generation 1, and she sends nothing until then.
+  auto o = std::make_unique<Guest>(Record(), kHostId);
+  World ow;
+  std::vector<std::string> out;
+  o->receive(wire(q("snap 4 1"))), o->receive(wire(q("q 4 1 54 1 - - - .")));
+  assert(o->receive(wire(q("off setting"))) && o->generation() == 0 && !o->host_on());
+  ow.acquire(at("Quest_Sub_017")); // She holds the line's state: a have would be due.
+  o->pass(ow.v.data(), "Zone_Xion_10", true, 9000, out);
+  assert(out.empty() && o->receive(wire(q("snap 1 0"))) && o->generation() == 1);
+  // A step the game refused: that quest stays unsynced for the session.
+  o->receive(wire(q("q 1 2 54 1 - - - .")));
+  o->refused(54);
+  assert(!o->pass(ow.v.data(), "Zone_Xion_10", true, 9250, out).ready() && o->planned(54).why == Why::blocked);
+  assert(!o->receive(wire(q("q 1 3 54 1 - 0:t - ."))));
+  assert(!o->pass(ow.v.data(), "Zone_Xion_10", true, 9500, out).ready() && ow.v[at("Quest_Sub_017")].active == 0);
+  assert(o->log.back().find("refused") != std::string::npos);
 
   Host h(parse_record("h 76561198000000002 54 7 1 - 0:t - .\n"), kGuestId, Deny());
   uint64_t now = 1000;
   auto from = [&](const std::string &l) { return h.receive(wire(q(l)), now); };
   assert(from("on 0"));
   Tuple live[kRowCount] = {};
-  h.pass(live, "", false);
+  h.pass(live, "", false, now);
   assert(h.generation() == 1);
   // The snapshot sent quest 54 at sequence 8 (its live state, not acquired); a later sequence was never sent.
   assert(!from("have 1 54 9"));
@@ -896,7 +1036,35 @@ void checks() {
   for (int i = 0; i < 20; ++i)
     from("snap 1 0");
   now += 1000;
-  assert(!from("at 1 Zone_A")); // Ignored for the session.
+  assert(!from("at 1 Zone_A")); // Ignored for the session,
+  assert(from("off title") && !h.guest_on() && from("on 1") && h.guest_on()); // but her off and on still count.
+}
+
+// The host's side of her lines: a burst over the rate is dropped without counting as bad, a repeated on gets one
+// snapshot every kSnapshotMs, and a change made in the pass that answers her on still goes out.
+void host_lines() {
+  auto h = std::make_unique<Host>(Record(), kGuestId, Deny());
+  World w;
+  uint64_t now = 1000;
+  Tuple live[kRowCount];
+  auto from = [&](const std::string &l) { return h->receive(wire(q(l)), now); };
+  auto pass = [&] {
+    w.tuples(live);
+    return h->pass(live, "Zone_Xion_10", false, now);
+  };
+  assert(from("on 0") && count(pass(), "snap") == 1);
+  int taken = 0;
+  for (int i = 0; i < 40; ++i)
+    taken += from("at 1 Zone_A");
+  now += 1000;
+  assert(taken == 20 && from("at 1 Zone_A") && h->log.size() == 2); // The snapshot's line and one rate line.
+  assert(from("on 1") && count(pass(), "snap") == 0);
+  now = 1000 + kSnapshotMs;
+  w.acquire(at("Quest_Sub_017"));
+  const std::vector<std::string> out = pass();
+  assert(out.size() == 3 && starts(out[0], "snap 2 0") && starts(out[1], "end 2 0"));
+  assert(out[2] == q("q 2 1 54 1 - - - ."));
+  assert(count(pass(), "snap") == 0);
 }
 
 } // namespace
@@ -913,10 +1081,14 @@ int main() {
   holds();
   requests();
   marks_from_the_host();
+  before_the_session();
+  chains();
+  bounds();
   host_marks();
   ahead_and_back();
   applied_set();
   idempotence();
   checks();
+  host_lines();
   std::printf("quest_sync_test: ok\n");
 }
