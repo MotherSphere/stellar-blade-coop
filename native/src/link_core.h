@@ -1406,8 +1406,10 @@ private:
     const char theirs = p && !p->lost ? p->photo : '0';
     const bool cut = theirs == 'c';
     const bool asked = cut ? cut_ && !host_ : sync_ == Sync::both && theirs == '1' && p->photo_both;
-    if (theirs == '0')
-      capped_ = false; // The next photo session of hers pauses us again (a selfie within one is no new one).
+    // The next photo session or cutscene of hers pauses us again (a selfie within a photo session is no new one), even
+    // straight from one into the other.
+    if (theirs == '0' || cut != (theirs_ == 'c'))
+      capped_ = false;
     const bool cap = asked && freeze_ && photo_max_ && now_ - freeze_since_ >= uint64_t(photo_max_) * 1000;
     capped_ = capped_ || cap;
     const bool want = asked && !capped_;

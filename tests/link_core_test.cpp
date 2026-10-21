@@ -1935,8 +1935,12 @@ int main() {
     assert(fresh_notices(t.b, mb).empty());
     pass(1000);
     assert(!t.b.photo_freeze());
+    sa.photo = '1'; // Straight from the capped cutscene into photo mode: a new pause, with its own cap.
+    pass();
+    assert(t.b.photo_freeze());
     sa.photo = '0';
     pass();
+    fresh_notices(t.b, mb);
     sa.photo = 'c'; // The host's next cutscene pauses her again.
     pass();
     assert(t.b.photo_freeze());

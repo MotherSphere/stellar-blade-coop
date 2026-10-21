@@ -869,6 +869,12 @@ std::atomic<int> warp_state{-1}; // -1: no read (no client or world yet, or the 
 std::atomic<uint32_t> warp_me{0};
 std::atomic<uint64_t> warp_fault_code{0}, warp_fault_rva{0}, warp_fault_address{0};
 uint64_t warp_next = 0; // The game thread's: its next read.
+constexpr bool warp_busy(uint8_t warp, uint8_t asked, uint8_t waits, int32_t respawn) {
+  return warp != 0 || (asked != 0 && waits != 0) || respawn != 0;
+}
+static_assert(!warp_busy(0, 0, 0, 0) && warp_busy(1, 0, 0, 0) && !warp_busy(0, 1, 0, 0) && !warp_busy(0, 0, 1, 0) &&
+                  warp_busy(0, 1, 1, 0) && warp_busy(0, 0, 0, 2),
+              "busy: a warp, the camp request with its wait, or the world's respawn");
 __declspec(noinline) void warp_body() {
   const uintptr_t client = at<uintptr_t>(base + (slot::kClient - nightop::kImageBase));
   const uintptr_t world = at<uintptr_t>(base + (quest::kWorldGlobal - nightop::kImageBase));
@@ -876,9 +882,8 @@ __declspec(noinline) void warp_body() {
     warp_state = -1;
     return;
   }
-  const bool busy = at<uint8_t>(client + kWarpBlock) != 0 ||
-                    (at<uint8_t>(client + kCampAsked) != 0 && at<uint8_t>(client + kCampWaits) != 0) ||
-                    at<int32_t>(world + kRespawnState) != 0;
+  const bool busy = warp_busy(at<uint8_t>(client + kWarpBlock), at<uint8_t>(client + kCampAsked),
+                              at<uint8_t>(client + kCampWaits), at<int32_t>(world + kRespawnState));
   warp_me = at<uint32_t>(client + kPlayerGuid);
   warp_state = busy ? 1 : 0;
 }
