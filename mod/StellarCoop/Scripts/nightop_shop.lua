@@ -37,7 +37,8 @@ function Shop.new(o)
     local log,status,store=o.log,o.status,o.store or function() return nil end
     local paused,busy=o.paused or function() return false end,o.busy or function() return false end
     -- This player's wallet on this co-op save, or nil and why: no co-op save with its index, no SteamID (ours, on the
-    -- status's first line), or no file store. A file that holds no whole number reads 0.
+    -- status's first line), or no file store. A file that holds no whole number reads 0. With no file, its .tmp: the
+    -- newest total when link.lua's put removed the file and then failed to rename the .tmp over it.
     local function wallet()
         local raw='\n'..(status() or '')
         local index=raw:match('\nslot=coop index=(%d+)')
@@ -47,7 +48,8 @@ function Shop.new(o)
         local name='coop-night-'..id..'-'..index..'.txt'
         local file=store(name)
         if not file then return nil,'the mod cannot write its files' end
-        local points=math.tointeger(tonumber((file.load() or ''):match('^%d+$') or '0')) or 0
+        local text=file.load() or store(name..'.tmp').load()
+        local points=math.tointeger(tonumber((text or ''):match('^%d+$') or '0')) or 0
         return {name=name,points=points,save=function(n) return file.save(tostring(n)) end}
     end
     local self={}
@@ -69,13 +71,13 @@ function Shop.new(o)
         return true,string.format('Night Operation shop, %d points: %s. coop nightop buy <n> [count] buys up to %d.',
             w.points,table.concat(rows,', '),Shop.MOST)
     end
-    -- n and count as the console gives them (count 1 when absent). The points go once the call returned: a call that
-    -- raises keeps them; a refusal inside the game that raises nothing still costs them.
-    function self.buy(n,count)
+    -- n and count as the console gives them (count 1 when absent; a word after them refuses). The points go once the
+    -- call returned: a call that raises keeps them; a refusal inside the game that raises nothing still costs them.
+    function self.buy(n,count,more)
         local w,e=wallet()
         if not w then return false,e end
         local item,c=Shop.ITEMS[whole(n) or 0],count==nil and 1 or whole(count)
-        if not item or not c or c<1 or c>Shop.MOST then return false,BUY end
+        if more~=nil or not item or not c or c<1 or c>Shop.MOST then return false,BUY end
         if busy() then return false,'a Night Operation run is on: buy once it ends' end
         if paused() then return false,'the game is paused or shows one of its screens: buy once it plays' end
         local eve,pc=N.her(),N.controller()
@@ -86,7 +88,7 @@ function Shop.new(o)
         if not guid or guid==0 then return false,"EVE's ActorGuid reads 0: nothing bought" end
         local price=item.price*c
         if w.points<price then
-            return false,string.format('%d %s cost %d points; you have %d',c,item.alias,price,w.points)
+            return false,string.format('%s x%d needs %d points; you have %d',item.alias,c,price,w.points)
         end
         local called,ge=pcall(Shop.grant,pc,guid,item.alias,c)
         if not called then

@@ -2,8 +2,8 @@
 -- controller (nightop.lua's her and controller), and the controller's grant call, recorded or raising. Covered: only
 -- the four catalogue aliases, a GUID and a count of 1-10 reach the grant call, with its nine arguments; the list; each
 -- refusal of a buy, in order, with no call and no point taken; points taken and written only after a call that
--- returned, and kept when the call raises; a signed GUID read; one wallet per SteamID and co-op slot; the credit and
--- its cap.
+-- returned, and kept when the call raises; a signed GUID read; one wallet per SteamID and co-op slot, read from its .tmp
+-- when a failed rename left only that; the credit and its cap.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -102,6 +102,11 @@ assert(ok and text=='Night Operation shop, 113 points: 1 HP_Potion 15, 2 HP_Poti
     ..'4 ConcussionGrenade 8. coop nightop buy <n> [count] buys up to 10.',text)
 files[FILE]='junk\n'
 ok,text=shop.list(); assert(ok and text:find('^Night Operation shop, 0 points:'),'Junk reads 0')
+-- No wallet file but its .tmp: link.lua's put removed the file, then its rename failed. The .tmp holds the newest total.
+files[FILE],files[FILE..'.tmp']=nil,'37\n'
+ok,text=shop.list(); assert(ok and text:find('^Night Operation shop, 37 points:'),text)
+got,total=shop.credit(50); assert(got==2 and total==39 and files[FILE]=='39\n','The .tmp total carries on')
+files[FILE..'.tmp']=nil
 files[FILE]='113\n'
 
 -- 3. A buy's refusals, in order: each with no call and no point taken. Every check fails at first; each fix moves the
@@ -124,6 +129,8 @@ for _,args in ipairs({{'9'},{'0'},{'5'},{'x'},{'1.5'},{'-1'},{nil},{'1','0'},{'1
         {'1',' 2'},{'99999999999999999999'}}) do
     refused(args[1],args[2],BUY)
 end
+ok,text=shop.buy('1','2','3') -- A word after the count.
+assert(not ok and text==BUY and #calls==0 and files[FILE]=='113\n',text)
 refused('1','2','a Night Operation run is on: buy once it ends')
 busy=false
 refused('1','2','the game is paused or shows one of its screens: buy once it plays')
@@ -134,7 +141,7 @@ refused('1','2','no SB player controller')
 controller=pc
 refused('1','2',"EVE's ActorGuid reads 0: nothing bought")
 eve.BroadcastSpawnInfo.ActorGuid=guid
-refused('1','8','8 HP_Potion cost 120 points; you have 113')
+refused('1','8','HP_Potion x8 needs 120 points; you have 113')
 assert(#calls==0)
 
 -- 4. A buy: the call first, then the points taken and written, and one log line.
@@ -169,5 +176,5 @@ write_fails=nil
 -- Another player's wallet on the same PC pays for nothing here.
 status_with('slot=coop index=4 marker=4',B)
 ok,text=shop.buy('1')
-assert(not ok and text=='1 HP_Potion cost 15 points; you have 2',text)
+assert(not ok and text=='HP_Potion x1 needs 15 points; you have 2',text)
 print('nightop_shop_test ok')

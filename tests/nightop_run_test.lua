@@ -27,9 +27,10 @@
 -- kills or writes off goes back to her stuck rule, so a copy stuck in both worlds still closes the wave; a death in
 -- both worlds at once scores once, a key killed in her world alone scores once however many lines carry it, a copy
 -- alive in her world keeps the wave open, and no other field of her line moves the score. Points: coop nightop shop and
--- buy reach the shop (a buy refused during a run); a solo success and a time up credit the final score to the wallet
--- of this SteamID and slot, capped, an abort or a death none; for two players, each game credits its own wallet after
--- a success with a notice, none after her death, and none for her run when no line of his countdown reached her.
+-- buy reach the shop (a buy refused during a run, sold in the result's 10 s); a solo success and a time up credit the
+-- final score to the wallet of this SteamID and slot, capped, an abort or a death none; for two players, each game
+-- credits its own wallet after a success with a notice, none after her death, and none for her run when no line of his
+-- countdown reached her; a credit refused or raising is a notice, and his end line still goes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local T=1760000000
@@ -133,7 +134,8 @@ local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.S
     IsA=function(_,c) return c==SBPC end,
     ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
         monster(id,at,fill_key and key or 0,spawn_ai)
-    end})
+    end,
+    ServerRequest_ItemBucketItemAdd=function() end})
 local player,controller=eve,pc
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return controller end}
 local clock_fails=nil
@@ -177,9 +179,16 @@ local function status()
     return 'mod=v proto=9 steam=ready steamid='..steam_id..'\n'..link_line..'\n'..engine..'\n'..slot_line
         ..'\nlast=#1 ready\n'
 end
-local files={} -- What link.store wrote, by file name: the shop's wallets.
+-- What link.store wrote, by file name: the shop's wallets. faults: a wallet's save that raises ('raise') or fails (the
+-- reason it gives).
+local files,faults={},{}
 local function store(name)
-    return {save=function(text) files[name]=text..'\n'; return true end,
+    return {save=function(text)
+            if faults[name]=='raise' then error('wallet on fire') end
+            if faults[name] then return false,faults[name] end
+            files[name]=text..'\n'
+            return true
+        end,
         load=function() local t=files[name]; return t and t:match('^[^\r\n]+') end}
 end
 local WALLET='coop-night-76561198000000009-4.txt'
@@ -207,8 +216,10 @@ ok,message=run.command('shop')
 assert(ok and message:find('^Night Operation shop, 0 points: 1 HP_Potion 15, '),message)
 ok,message=run.command('buy','1','x')
 assert(not ok and message=='Use: coop nightop buy <item 1-4> [count 1-10]',message)
+ok,message=run.command('buy','1','2','3')
+assert(not ok and message=='Use: coop nightop buy <item 1-4> [count 1-10]',message)
 ok,message=run.command('buy','4')
-assert(not ok and message=='1 ConcussionGrenade cost 8 points; you have 0',message)
+assert(not ok and message=='ConcussionGrenade x1 needs 8 points; you have 0',message)
 assert(count('PC:ServerRequest_ItemBucketItemAdd')==0)
 calls={}
 local function refused(text)
@@ -384,6 +395,11 @@ assert(last()==string.format('credit +%d = %d (score %d, %s)',paid,paid,580+bonu
 assert(files[WALLET]==paid..'\n')
 ok,message=run.command('shop')
 assert(ok and message:find(string.format('^Night Operation shop, %d points:',paid)),message)
+-- The result's 10 s: the run is over, so the shop sells.
+ok,message=run.command('buy','3')
+assert(ok and message==string.format('bought 1 PulseGrenade for 6 points; %d left',paid-6),message)
+assert(count('PC:ServerRequest_ItemBucketItemAdd')==1)
+paid=paid-6
 assert(#violations==0,violations[1])
 -- No body read after the end; 10 s later the run is idle and the bare command gives the census alone.
 local after=#calls
@@ -760,7 +776,8 @@ byte=tonumber(message:match('run 0x(%x+)'),16)
 for k=1,5 do play(k) end
 assert(kit.shown.night_result and res.head.text=='Réussite (jeu)' and res.sub.text=='' and res.head.c=='teal',
     res.head.text)
-assert(#told==0,'The kit is up: no notice')
+assert(#told==1 and told[1]==Tx.en.night.unpaid,'The kit is up: only the points notice (no wallet store here)')
+told={}
 -- ui_language=english: English words, no game text read.
 settings.ui_language='english'
 local stl=count('STL:IsRegisteredTableEntry')
@@ -831,15 +848,17 @@ assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
 night.command('stop')
 assert(told[4]:find('^Operation Failed: 1/5 waves cleared, 4 kills, score 40, time %d:%d%d%.$'),told[4])
 assert(told[5]=='Stopped with coop nightop stop.' and #told==5,tostring(told[5]))
--- A success: its result alone, with no line after it.
+-- A success: its result alone, with no line after it; then the points notice (no wallet store here: unpaid).
 bodies,lines,told={},{},{}
 begin2()
 byte=tonumber(message:match('run 0x(%x+)'),16)
 for k=1,5 do play(k) end
-assert(told[#told-1]=='Night Operation: wave 5 cleared.',tostring(told[#told-1]))
-assert(told[#told]:find('^Operation Successful: 5/5 waves cleared, 20 kills, score %d+, time %d:%d%d%.$'),told[#told])
+assert(told[#told-2]=='Night Operation: wave 5 cleared.',tostring(told[#told-2]))
+assert(told[#told-1]:find('^Operation Successful: 5/5 waves cleared, 20 kills, score %d+, time %d:%d%d%.$'),
+    told[#told-1])
+assert(told[#told]==Tx.en.night.unpaid,told[#told])
 tick(2)
-assert(told[#told]:find('^Operation Successful'),'One end notice')
+assert(told[#told]==Tx.en.night.unpaid and told[#told-1]:find('^Operation Successful'),'One end notice')
 assert(kit.shows==0,'Nothing drawn with the kit off')
 kit.is_off=false
 -- A HUD error: one STOP line, both groups hidden, then notices; the run goes on.
@@ -1164,21 +1183,24 @@ assert(Hs.told[#Hs.told]=='Your partner left the run.' and #Hs.bodies==0,tostrin
 -- says so; no run before this one (deaths, stops, travels, lost links, refusals) credited any.
 assert(not files['coop-night-76561198000000001-4.txt'] and not files['coop-night-76561198000000002-4.txt'],
     'Nothing for an end that is not a success or a time up')
-pair()
-Gs.rtt=2000
-host_start()
-for k=1,5 do
-    local found_k,n=string.format('^wave %d find %%+2%%.5 s',k),0
-    while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
-        round()
-        n=n+1
-        assert(n<400,'Wave '..k..' on both')
+local function both_succeed()
+    pair()
+    Gs.rtt=2000
+    host_start()
+    for k=1,5 do
+        local found_k,n=string.format('^wave %d find %%+2%%.5 s',k),0
+        while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
+            round()
+            n=n+1
+            assert(n<400,'Wave '..k..' on both')
+        end
+        kill_all(Hs,k)
+        kill_all(Gs,k)
+        round(3)
     end
-    kill_all(Hs,k)
-    kill_all(Gs,k)
-    round(3)
+    round(2)
 end
-round(2)
+both_succeed()
 local hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
 assert(hr and hr:find('^result: success waves=5/5 kills=20 score=%d+ time='),hr)
 assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),gr)
@@ -1191,6 +1213,18 @@ for _,w in ipairs({Hs,Gs}) do
     assert(files[w.wallet]==points..'\n',w.wallet)
     assert(has(w.lines,string.format('credit +%d = %d (score %d, %s)',points,points,score,w.wallet)))
     assert(w.told[#w.told]==string.format('Night Operation: +%d points, %d in all.',points,points),w.told[#w.told])
+end
+assert(#violations==0,violations[1])
+-- A credit that fails is a notice, and his end line still goes: his wallet's save raises, hers is not written.
+faults[Hs.wallet],faults[Gs.wallet]='raise','disk full'
+both_succeed()
+faults[Hs.wallet],faults[Gs.wallet]=nil,nil
+assert(find(Hs.lines,'^result: success ') and find(Gs.lines,'^result: success '))
+assert(has(Hs.lines,'STOP: points: wallet on fire') and Hs.sent[#Hs.sent]:find('^h %d+ %d+ %d+ end '),Hs.sent[#Hs.sent])
+assert(has(Gs.lines,'no points: points not written: disk full'),Gs.lines[#Gs.lines])
+for _,w in ipairs({Hs,Gs}) do
+    assert(w.told[#w.told]=='Night Operation: the points could not be saved. UE4SS.log says why.',w.told[#w.told])
+    assert(files[w.wallet]==points..'\n','Its wallet unchanged')
 end
 assert(#violations==0,violations[1])
 -- Her run hears no line of his countdown (all lost on the way), then his first wave and his success: it follows them

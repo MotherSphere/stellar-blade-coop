@@ -218,7 +218,7 @@ end}
 nr={o=nil,runs={},ticks=0,stops={},raise=nil}
 package.loaded.nightop_run={new=function(o)
     nr.o=o
-    return {command=function(sub,a,b) nr.runs[#nr.runs+1]={sub,a,b}; return true,'nightop '..tostring(sub) end,
+    return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
@@ -526,8 +526,9 @@ do -- In a block: this chunk is at Lua's 200 locals.
     fake_link.store=real_store
 end
 -- Its shop words reach it, on the co-op save.
-coop('nightop','buy','2','3')
-assert(nr.runs[#nr.runs][1]=='buy' and nr.runs[#nr.runs][2]=='2' and nr.runs[#nr.runs][3]=='3')
+coop('nightop','buy','2','3','4')
+assert(nr.runs[#nr.runs][1]=='buy' and nr.runs[#nr.runs][2]=='2' and nr.runs[#nr.runs][3]=='3'
+    and nr.runs[#nr.runs][4]=='4','A fourth word reaches it too')
 -- coop recruiter: its arguments and an [RC] logger, with the co-op slot loaded.
 coop('recruiter','off'); assert(#rc_runs==1 and rc_runs[1][1]=='off' and rc_runs[1][2]==nil,'off reaches it')
 assert(last()=='[StellarCoop] OK: recruiter off\n',last())

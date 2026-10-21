@@ -13,8 +13,9 @@
 -- them (nightop_shop.lua, which holds the one grant call). Never called here:
 -- a table row added, a rule or remain-time request, EndRule, ResetZone, a zone event other than nightop.lua's heal,
 -- EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call, RegisterHook,
--- NotifyOnNewObject. No console word reaches a game call: start's words only set flags. Beyond the kit (ui.lua), the
--- HUD calls the game for one thing only: its own result words (StringTable_UI).
+-- NotifyOnNewObject. No console word reaches a game call here: start's words only set flags; buy's words go through
+-- nightop_shop.lua's checked grant. Beyond the kit (ui.lua), the HUD calls the game for one thing only: its own result
+-- words (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local U=require('unreal')
@@ -398,13 +399,18 @@ function Run.new(o)
     end
     -- Together only: points for a success or a time up of a run of ours that went through its countdown (a guest's
     -- run whose first line from the host was past it gets none), credited by this game to its own wallet. No line
-    -- carries points; the shop caps what a score gives.
+    -- carries points; the shop caps what a score gives. A credit that fails (no SteamID yet, a wallet not written, an
+    -- error) is a notice too; the log says why.
+    local function unpaid(text)
+        log(text)
+        if tell then tell(function(w) return w.night.unpaid end) end
+    end
     local function earn()
         local s=r.s
         if s.outcome~='success' and s.outcome~='time' then return end
         if not r.counted then return log('no points: this run did not go through its countdown') end
         local got,total=shop.credit(s.score)
-        if not got then return log('no points: '..total) end
+        if not got then return unpaid('no points: '..total) end
         if tell then tell(function(w) return w.night.earned:format(got,total) end) end
     end
     -- One tick of the run's states: the host's (solo or with her line as input.mate), or the guest's following his
@@ -444,7 +450,7 @@ function Run.new(o)
                 finish()
                 if shown() then panel={s=r.s,left=W.RESULT/TICK} else notify_end(r.s) end
                 local paid,pe=pcall(earn) -- Its error must not keep the end from the partner.
-                if not paid then log('STOP: points: '..why(pe)) end
+                if not paid then pcall(unpaid,'STOP: points: '..why(pe)) end
             end
         end
     end
@@ -719,8 +725,8 @@ function Run.new(o)
     end
     local self={}
     -- start [noaggro|nomove], stop, shop, buy <n> [count], or nothing: the run's state, if any, and the census.
-    function self.command(sub,flag,extra)
-        if sub=='buy' then return shop.buy(flag,extra) end
+    function self.command(sub,flag,extra,more)
+        if sub=='buy' then return shop.buy(flag,extra,more) end
         if extra~=nil then return false,USE end
         if sub=='start' and (flag==nil or flag=='noaggro' or flag=='nomove') then return start(flag) end
         if flag~=nil then return false,USE end

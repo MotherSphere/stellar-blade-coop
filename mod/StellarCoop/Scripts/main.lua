@@ -337,12 +337,12 @@ local commands={
         if not ok then return false,why end
         return nightop.run(sub,extra)
     end,
-    nightop=function(sub,a,b)
+    nightop=function(sub,a,b,c)
         if sub~='stop' then
             local ok,why=coop_slot('coop nightop')
             if not ok then return false,why end
         end
-        return night.command(sub,a,b)
+        return night.command(sub,a,b,c)
     end,
     recruiter=function(sub,extra)
         local ok,why=coop_slot('coop recruiter')
