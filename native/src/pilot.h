@@ -349,26 +349,34 @@ private:
 // ---- Stage 3c: her takedowns (PHASE11-STAGE3 3.9) ----
 
 // The guest tells the host each takedown she makes on her copy of a same-place enemy (a takedown marker on it, while
-// same-place enemies run on her side with aggro=game): exec 1 when the marker shows, exec 0 once her copy holds none
-// (the marker gone, the copy dying, gone or unpaired). The host then hands her the enemy for the takedown and holds her
-// lethal claim until exec 0. One exec 1 a pair in kExecSpaceMs at most: the host takes one in fight::kExecMs, and the
-// margin covers the link's jitter. Fixed memory: the logic thread.
-constexpr uint64_t kExecSpaceMs = fight::kExecMs + 250;
+// same-place enemies run on her side with aggro=game): exec 1 when the marker shows, exec 0 once her copy has held none
+// for kExecCalmMs, or at once when the copy dies, goes or is unpaired. The wait covers a turn between the two markers
+// or a failed read of the effect list: the host takes no second exec 1 within 2 s, so an early exec 0 would end its
+// hold for the rest of the takedown. The host then hands her the enemy for the takedown and holds her lethal claim
+// until exec 0. One exec 1 a pair in kExecSpaceMs at most: the host takes one in fight::kExecMs, and the margin covers
+// the link's jitter. Fixed memory: the logic thread.
+constexpr uint64_t kExecSpaceMs = fight::kExecMs + 250, kExecCalmMs = 200;
 class Execs {
 public:
   static constexpr size_t kSlots = fight::kMaxTracked;
   void clear() { std::fill(x_, x_ + kSlots, Exec()); }
-  // Her copy of hguid this turn (marked: a takedown marker on it, while same-place enemies run here with aggro=game):
-  // the line to send, 1 (exec 1) or 0 (exec 0), or -1 for none. A full table sends nothing for one more pair.
-  int step(uint32_t hguid, bool marked, uint64_t now) {
+  // Her copy of hguid this turn (alive: seen, not dying, while same-place enemies run here with aggro=game; marked: a
+  // takedown marker on it as well): the line to send, 1 (exec 1) or 0 (exec 0), or -1 for none. A full table sends
+  // nothing for one more pair.
+  int step(uint32_t hguid, bool marked, bool alive, uint64_t now) {
     Exec *x = nullptr, *free = nullptr;
     for (Exec &each : x_)
       x = each.hguid == hguid ? &each : x, free = !free && !each.hguid ? &each : free;
-    if (x && x->on && !marked)
-      return x->on = false, 0;
-    if (!marked || (x && (x->on || now < x->sent + kExecSpaceMs)) || !(x = x ? x : free))
+    if (x && x->on) {
+      if (marked)
+        x->marked = now;
+      else if (!alive || now - x->marked >= kExecCalmMs)
+        return x->on = false, 0;
       return -1;
-    *x = Exec{hguid, true, now};
+    }
+    if (!marked || (x && now < x->sent + kExecSpaceMs) || !(x = x ? x : free))
+      return -1;
+    *x = Exec{hguid, true, now, now};
     return 1;
   }
   // The pairs not among the n of her list go, each one still on with exec 0 (ended(hguid)).
@@ -386,6 +394,7 @@ private:
     uint32_t hguid = 0; // 0: free.
     bool on = false;    // exec 1 sent, exec 0 not yet.
     uint64_t sent = 0;  // The last exec 1 (ms).
+    uint64_t marked = 0; // While on: the last turn its marker showed (ms).
   };
   Exec x_[kSlots];
 };

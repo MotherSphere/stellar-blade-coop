@@ -2209,9 +2209,9 @@ int main() {
     assert(e->host.counts.execs == 5 && e->host.counts.bad == 0 && !e->latched());
   }
   // Her side. A takedown marker on her copy, while same-place enemies run here with aggro=game: exec 1 in that turn,
-  // exec 0 in the turn it holds none or same place stops here; none with the host's aggro=host. The host's own G for
-  // that pair is hers even while her copy holds NoDamageNoHit (her takedown may). A pair that leaves her list
-  // mid-takedown ends it with exec 0.
+  // exec 0 once it has held none for 200 ms (a turn between the two markers ends nothing), or in the turn same place
+  // stops here; none with the host's aggro=host. The host's own G for that pair is hers even while her copy holds
+  // NoDamageNoHit (her takedown may). A pair that leaves her list mid-takedown ends it with exec 0.
   {
     Game g;
     auto e = engine(false, false);
@@ -2239,6 +2239,13 @@ int main() {
     assert(turn("SBF11 own 1 101 G 1").empty() && g.table.pairs[0].owner == coop::pilot::kGuest);
     assert(turn().empty());
     g.end(501, 5000039);
+    assert(turn().empty());
+    g.knock(501, 2006004);
+    assert(turn().empty());
+    g.end(501, 2006004);
+    const uint64_t last = t; // Its last marked turn.
+    while (t + 16 < last + coop::pilot::kExecCalmMs)
+      assert(turn().empty());
     assert(turn() == "SBF11 exec 1 101 0\n" && count(g, "exec", "our takedown ends") == 1);
     g.knock(502, 2006004);
     assert(turn("SBF11 aggro 1 host").empty());
@@ -2255,6 +2262,11 @@ int main() {
     assert(turn() == "SBF11 exec 1 102 1\n");
     g.unlink(502); // Gone from her map: unpaired, so her takedown ends.
     assert(turn() == "SBF11 exec 1 102 0\n" && e->guest.counts.execs == 3 && e->guest.counts.bad == 0);
+    g.knock(501, 5000039);
+    assert(turn() == "SBF11 exec 1 101 1\n");
+    g.state(501, kNoDamageNoHit, 0);
+    g.hit(501, kHp, 1600); // Her lethal hit kills her copy (guest_kills=at_once): exec 0 in that turn.
+    assert(has(turn(), "SBF11 exec 1 101 0\n") && e->guest.counts.execs == 4);
   }
   // Her copy, groggy, is never frozen while it is released, unless her game thread's word says the owner's stream holds
   // a takedown (kExec): then it is, to play the takedown from the stream (stage 3c), and the word's end leaves it so.

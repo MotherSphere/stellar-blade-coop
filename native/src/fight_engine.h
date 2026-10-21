@@ -1670,7 +1670,8 @@ private:
     });
   }
   // The guest: her takedowns told the host (stage 3c, pilot.h's Execs): exec 1 when a marker shows on her copy of a
-  // pair while same-place enemies run here with aggro=game, exec 0 once the copy holds none or its pair ends. Logged.
+  // pair while same-place enemies run here with aggro=game, exec 0 once the copy has held none for 200 ms, or at once
+  // when it dies or goes, same place stops here or its pair ends. Logged.
   template <class Game>
   void takedowns(Game &g, const uint32_t *local, const uint32_t *hguids, size_t count, size_t n, uint64_t now) {
     const bool on = table_.on && !guest.host_only();
@@ -1686,7 +1687,8 @@ private:
     };
     for (size_t i = 0; i < count; ++i) {
       const Seen *s = fight::find(seen_, n, local[i]);
-      if (const int x = execs_.step(hguids[i], on && s && s->marked, now); x >= 0)
+      const bool alive = on && s && !dying(*s);
+      if (const int x = execs_.step(hguids[i], alive && s->marked, alive, now); x >= 0)
         tell(hguids[i], x == 1, s);
     }
     execs_.keep(hguids, count, [&](uint32_t h) { tell(h, false, nullptr); });

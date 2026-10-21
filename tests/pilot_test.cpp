@@ -856,28 +856,33 @@ int main() {
     assert(moves > 1000 && refusals > 100 && gives > 100 && stale > 10 && agreed > 1000 && homes > 20);
   }
 
-  // Her takedowns (stage 3c, Execs): exec 1 when the marker shows on her copy, exec 0 once it holds none; at most one
-  // exec 1 a pair in kExecSpaceMs (the host takes one in 2 s; the margin covers the link's jitter). A pair that leaves
-  // her list ends with exec 0. clear() forgets them all without a word. A full table sends nothing for one more.
+  // Her takedowns (stage 3c, Execs): exec 1 when the marker shows on her copy, exec 0 once it has held none for
+  // kExecCalmMs (a turn without it, between two markers or on a failed read, ends nothing), at once when the copy is
+  // not alive (dying, gone, same place off); at most one exec 1 a pair in kExecSpaceMs (the host takes one in 2 s; the
+  // margin covers the link's jitter). A pair that leaves her list ends with exec 0. clear() forgets them all without a
+  // word. A full table sends nothing for one more.
   {
-    assert(kExecSpaceMs == coop::fight::kExecMs + 250);
+    assert(kExecSpaceMs == coop::fight::kExecMs + 250 && kExecCalmMs == 200);
     Execs x;
-    assert(x.step(4100, false, 0) == -1);
-    assert(x.step(4100, true, 100) == 1 && x.step(4100, true, 116) == -1);
-    assert(x.step(4100, false, 900) == 0 && x.step(4100, false, 916) == -1);
-    assert(x.step(4100, true, 1000) == -1 && x.step(4100, true, 100 + kExecSpaceMs - 1) == -1);
-    assert(x.step(4100, true, 100 + kExecSpaceMs) == 1);
-    assert(x.step(4200, true, 3000) == 1 && x.step(4300, false, 3000) == -1);
+    assert(x.step(4100, false, true, 0) == -1);
+    assert(x.step(4100, true, true, 100) == 1 && x.step(4100, true, true, 116) == -1);
+    assert(x.step(4100, false, true, 132) == -1 && x.step(4100, false, true, 116 + kExecCalmMs - 1) == -1);
+    assert(x.step(4100, true, true, 400) == -1 && x.step(4100, false, true, 416) == -1);
+    assert(x.step(4100, false, true, 400 + kExecCalmMs) == 0 && x.step(4100, false, true, 916) == -1);
+    assert(x.step(4100, true, true, 1000) == -1 && x.step(4100, true, true, 100 + kExecSpaceMs - 1) == -1);
+    assert(x.step(4100, true, true, 100 + kExecSpaceMs) == 1);
+    assert(x.step(4100, false, false, 100 + kExecSpaceMs + 16) == 0);
+    assert(x.step(4200, true, true, 3000) == 1 && x.step(4300, false, true, 3000) == -1);
     std::vector<uint32_t> ended;
     const uint32_t kept[] = {4100, 4300};
     for (int k = 0; k < 2; ++k)
       x.keep(kept, 2, [&](uint32_t h) { ended.push_back(h); });
     assert(ended == std::vector<uint32_t>{4200});
     x.clear();
-    assert(x.step(4100, false, 9000) == -1 && x.step(4100, true, 9000) == 1);
+    assert(x.step(4100, false, true, 9000) == -1 && x.step(4100, true, true, 9000) == 1);
     for (uint32_t k = 1; k < Execs::kSlots; ++k)
-      assert(x.step(5000 + k, true, 20000) == 1);
-    assert(x.step(77, true, 20000) == -1);
+      assert(x.step(5000 + k, true, true, 20000) == 1);
+    assert(x.step(77, true, true, 20000) == -1);
   }
 
   // ---- The short rotator, as UE's FRotator <-> FQuat and CompressAxisToShort ----
