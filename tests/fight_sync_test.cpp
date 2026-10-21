@@ -1886,6 +1886,8 @@ int main() {
            !mirrored(*skull, 5015002)); // SkullJuggernaut's comes from its own stance: never sent.
     assert(mirrored(*boss_row(35031001), 5031200) && mirrored(*boss_row(75042001), 5042224));
     assert(!boss_row(35031101) && !boss_row(900) && !boss_row(0));
+    // Scarlet by the row her zone spawns (CHAL_M_Scarlet_01), not M_Scarlet, which no spawn row makes.
+    assert(boss_row(205961000) && mirrored(*boss_row(205961000), 5961001) && !boss_row(59610));
     // phase_out: every ID in that boss's allowlist, or none at all.
     assert(!phase_out(msg("SBF11 phase 3 77 1 -"), 15005100));
     assert(std::string(phase_out(msg("SBF11 phase 3 77 1 1001307,5005117"), 15005100)) == "not its row");
@@ -1903,14 +1905,15 @@ int main() {
     assert(summon_row(5036002)->chr == 85041101 && std::size(kSummons) == 10);
     // No such row (5026005), the Elder's dummy (the host's only), a reward dummy (it dies at once), none.
     assert(!summon_row(5026005) && !summon_row(5056160) && !summon_row(5042299) && !summon_row(0));
-    // Their keys: kSummonBase | the owner's pair slot << 16 | n from 1, SpawnIndex 0. No EventSpawnId of this build
-    // comes near (its highest is 0xD42B5F51), and extras stay below.
-    assert(summon_key(0, 1) == (SpawnKey{0xF0000001, 0}) && summon_key(kMaxPairs - 1, kMaxSummons) ==
-                                                               (SpawnKey{0xF00FFFFF, 0}));
-    assert(summon_key_ok(summon_key(0, 1)) && summon_key_ok(summon_key(kMaxPairs - 1, kMaxSummons)));
-    assert(!summon_key_ok(SpawnKey{0xF0000000, 0}) && !summon_key_ok(SpawnKey{0xF0100001, 0}) &&
-           !summon_key_ok(SpawnKey{0xF0000001, 1}) && !summon_key_ok(SpawnKey{0xEFFFFFFF, 0}) &&
-           !summon_key_ok(SpawnKey{0xFFFFFFFF, 0}) && !summon_key_ok(SpawnKey{0xD42B5F51, 0}));
+    // Their keys: kSummonBase | n, n from the host's counter for the run (1 to kMaxSummons), SpawnIndex 0; no slot in
+    // them. No EventSpawnId of this build comes near (its highest is 0xD42B5F51), and extras stay below.
+    assert(summon_key(1) == (SpawnKey{0xF0000001, 0}) && summon_key(0x10001) == (SpawnKey{0xF0010001, 0}) &&
+           summon_key(kMaxSummons) == (SpawnKey{0xFFFFFFFF, 0}) && kMaxSummons == 0x0FFFFFFF);
+    assert(summon_key_ok(summon_key(1)) && summon_key_ok(summon_key(0x100001)) &&
+           summon_key_ok(summon_key(kMaxSummons)));
+    assert(!summon_key_ok(SpawnKey{0xF0000000, 0}) && !summon_key_ok(SpawnKey{0xF0000001, 1}) &&
+           !summon_key_ok(SpawnKey{0xEFFFFFFF, 0}) && !summon_key_ok(SpawnKey{0xD42B5F51, 0}) &&
+           !summon_key_ok(SpawnKey{0, 0}));
     assert(is_summon(0xF0000000) && is_summon(0xFFFFFFFF) && !is_summon(0xEFFFFFFF));
 
     // The guest's checks. GorillaB's copy (501) and Marionette's (502) pair, and a common enemy (503); 104 has no
@@ -1960,8 +1963,9 @@ int main() {
     assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 104 5026003") == "owner");
     assert(summon("SBF11 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 999 5026003") == "owner");
     assert(summon("SBF11 spawn 1 7 4026597377 1 35025002 -1200 340 0 90 102 5026003") == "key");    // Index 1.
-    assert(summon("SBF11 spawn 1 7 4026597376 0 35025002 -1200 340 0 90 102 5026003") == "key");    // n 0.
-    assert(summon("SBF11 spawn 1 7 4027580417 0 35025002 -1200 340 0 90 102 5026003") == "key");    // Slot 16.
+    assert(summon("SBF11 spawn 1 7 4026531840 0 35025002 -1200 340 0 90 102 5026003") == "key");    // n 0.
+    assert(summon("SBF11 spawn 1 7 4026597376 0 35025002 -1200 340 0 90 102 5026003").empty()); // n 0x10000.
+    assert(summon("SBF11 spawn 1 7 4294967295 0 35025002 -1200 340 0 90 102 5026003").empty()); // The last n.
     assert(summon("SBF11 spawn 1 7 50110 0 35025002 -1200 340 0 90") == "key");                     // No summon.
     assert(summon("SBF11 spawn 2 7 4026597377 0 35025002 -1200 340 0 90 102 5026003") == "stale");
     // The host's dead: its pair takes no line, nor its summons. Its down and a new up of that GUID are a new life,
@@ -1974,6 +1978,19 @@ int main() {
     g.receive(msg("SBF11 up 1 101 5001 0 15005100 120000"), w);
     step(g, w, 2, 20);
     assert(line("SBF11 bstart 1 101").empty() && local == 501 && line("SBF11 bstart 1 101") == "again");
+    // Her copy changes GUID under the same key in that life (pooled, respawned): unpaired as gone, paired again, and
+    // the new copy takes the host's next bstart, which repeats while its boss is in battle mode.
+    w.remove(501);
+    w.add(511, 5001, 0, 15005100, 120000);
+    step(g, w, 3, 40);
+    assert(w.count("unpaired", "gone") == 1);
+    assert(line("SBF11 bstart 1 101").empty() && local == 511 && line("SBF11 bstart 1 101") == "again");
+    // A bstart refused before the pair forms (her up came, her step has not run yet) is taken on the repeat.
+    g.receive(msg("SBF11 up 1 106 5006 0 15005100 120000"), w);
+    w.add(506, 5006, 0, 15005100, 120000);
+    assert(line("SBF11 bstart 1 106") == "unpaired");
+    step(g, w, 4, 60);
+    assert(line("SBF11 bstart 1 106").empty() && local == 506);
     g.receive(msg("SBF11 world 2"), w);
     assert(line("SBF11 phase 1 101 0 -") == "stale" && line("SBF11 phase 2 101 0 -") == "unpaired");
 

@@ -146,8 +146,9 @@ build/host/pose_codec_test
     refused by Host and Guest, since the engine takes them, and never recorded), the boss table of stage 5 (one row a
     boss, each row's allowlist sent in a phase line and read back the same, the rows two bosses' shared step applies
     kept apart, the summon rows), the bstart, phase and summon spawn lines with a fuzz, the guest's checks of them (one
-    bstart a pair, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner), and two fake
-    worlds linked through a delayed, lossy line;
+    bstart a copy, taken again by a new copy under the same key or on a repeat after the pair forms, phase IDs from that
+    boss's allowlist only, a summon's key, row, charId and owner), and two fake worlds linked through a delayed, lossy
+    line;
   - `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
     reset of the spawn manager, 3 or more keys with a new GUID, two actors of one key no change) and its 3 s grace, the
     host's epoch line (at each change and every 5 s), her rounds and its answers (a key more than 1 km from her held

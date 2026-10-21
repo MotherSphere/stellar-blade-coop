@@ -45,11 +45,15 @@
 //         [<owner> <effect>]                                       a summon's key (stage 5, is_summon) adds its
 //                                                                  owner's hguid and its SummonActor row, and only it
 //   SBF11 drop <gen> <n> <spawnId> <idx>                           host, reliable: a key of hers we lack, to despawn
-//   SBF11 bstart <gen> <hguid>                                     host, reliable: its boss entered battle mode
-//                                                                  (stage 5), once a fight
+//   SBF11 bstart <gen> <hguid>                                     host, reliable: its boss is in battle mode (stage
+//                                                                  5), at the edge and every kRefreshMs while it lasts
 //   SBF11 phase <gen> <hguid> <oe> <id,id,...|->                   host, reliable: the rows of that boss's allowlist
-//                                                                  its copy holds, in its order, after each change
-//                                                                  (stage 5, owner epoch oe; "-": none)
+//                                                                  its copy holds, in its order, at each change and
+//                                                                  every kRefreshMs in battle mode (stage 5, owner
+//                                                                  epoch oe; "-": none). She applies a row as it
+//                                                                  comes into the set, and on her first line for a
+//                                                                  copy each one it lacks, so a repeat changes nothing
+//                                                                  and brings back a line refused before she paired
 // The host answers the guest's on and world with its whole list (world, its scale and place, then every up), and the
 // guest
 // answers the host's on with its own (hers may have come while the host was off), so either side may restart.
@@ -197,8 +201,8 @@ constexpr Boss kBosses[] = {
     {95050560, 0, false, {1001307, 1001308, 1001322, 1001323, 5056001, 5056002, 5056003, 5056004, 5056005, 5056148}},
     // CHAL_XION_M_Mann_01
     {205901000, 0, false, {1001304, 1001323, 5901049}},
-    // M_Scarlet
-    {59610, 0, false, {1001307, 1001321, 1001323, 5961001}},
+    // CHAL_M_Scarlet_01
+    {205961000, 0, false, {1001307, 1001321, 1001323, 5961001}},
 };
 constexpr Summon kSummons[] = {
     // M_Marionette_SummonDollHead1: SE_M_DollHead_02
@@ -238,15 +242,15 @@ inline const Summon *summon_row(int32_t effect) {
       return &s;
   return nullptr;
 }
-// A summon's spawn key, the host's (no row keys a summon: SB's SummonActor passes EventSpawnId 0): kSummonBase | the
-// owner's pair slot << 16 | n, n counting that pair's summons from 1, and SpawnIndex 0. This build's highest
-// EventSpawnId is 0xD42B5F51, and extras (spawn_sync.h) stay below kSummonBase.
-constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = 0xFFFF;
+// A summon's spawn key, the host's (no row keys a summon: SB's SummonActor passes EventSpawnId 0): kSummonBase | n,
+// SpawnIndex 0, n from a counter the host keeps for the run, 1 to kMaxSummons, one per summon GUID. Pair slots move
+// (a list is compacted when an enemy goes) and summons outlive their owner, so neither the owner's slot nor a count
+// per owner keys one: the owner goes in the line. This build's highest EventSpawnId is 0xD42B5F51, and extras
+// (spawn_sync.h) stay below kSummonBase.
+constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = ~kSummonBase;
 inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
-inline SpawnKey summon_key(size_t slot, uint32_t n) { return SpawnKey{kSummonBase | uint32_t(slot) << 16 | n, 0}; }
-inline bool summon_key_ok(const SpawnKey &k) {
-  return is_summon(k.spawn) && (k.spawn >> 16 & 0xFFF) < kMaxPairs && (k.spawn & kMaxSummons) && !k.index;
-}
+inline SpawnKey summon_key(uint32_t n) { return SpawnKey{kSummonBase | n, 0}; }
+inline bool summon_key_ok(const SpawnKey &k) { return is_summon(k.spawn) && (k.spawn & kMaxSummons) && !k.index; }
 
 // ---- Channel 2 ----
 
@@ -1338,9 +1342,10 @@ public:
   }
 
   // Stage 5's lines (R33) for the engine, which acts on what passes: the host's bstart and phase for one of its
-  // enemies we pair, at its generation, not dead. A bstart counts once a pair (one life: its up to its down or the
-  // host's next world), a phase when phase_out() passes it for the charId of the host's up. Null when taken, local then
-  // the copy's GUID; else why not. The copy's ActorType and the phase's owner epoch are the engine's to check.
+  // enemies we pair, at its generation, not dead. A bstart counts once a copy (from its pairing to its unpairing, the
+  // host's down or the host's next world; the host's repeats then come back as "again", no fault), a phase when
+  // phase_out() passes it for the charId of the host's up. Null when taken, local then the copy's GUID; else why not.
+  // The copy's ActorType and the phase's owner epoch are the engine's to check.
   const char *boss_line(const Message &m, uint32_t &local) {
     Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
     const char *why = !known_gen_ || m.gen != known_gen_ ? "stale"
@@ -1517,7 +1522,7 @@ private:
     bool holding = false;        // That kill waits since hold_ms while our copy holds NoDamageNoHit.
     uint64_t hold_ms = 0;
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
-    bool started = false;        // Its bstart was taken (stage 5): one a life.
+    bool started = false;        // Its bstart was taken (stage 5): one a copy.
     bool logged = false;         // Its unpaired reason was logged.
     const char *why = nullptr;   // That reason, while it stays unpaired for it.
     uint32_t local = 0;          // The copy's GUID; 0 while unpaired.
@@ -1556,7 +1561,7 @@ private:
   }
   static void unpair(Pair &p) {
     p.local = p.lethal = 0;
-    p.held = p.fought = false;
+    p.held = p.fought = p.started = false;
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.logged = false;
