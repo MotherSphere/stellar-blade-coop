@@ -3,10 +3,11 @@
 StellarCoop is a co-op mod for Stellar Blade on PC. Two players link their games over Steam, and each one sees the
 other's EVE in their own world.
 
-Status: v0.1.1, an experimental pre-release. It runs on Stellar Blade's Steam build 24463856 only. The ghost co-op was
-first played between two PCs on 2026-10-17, one on Linux with Proton and one on Windows, between Belgium and Brazil at
-about 240 ms ping. Longer sessions, level changes and the optional looks have not been tested between two PCs. The
-co-op menu, the chat and the partner HUD have not been tested in game yet.
+Status: v0.3.0-beta.1, an experimental pre-release. It runs on Stellar Blade's Steam build 24463856 only. The ghost
+co-op was first played between two PCs on 2026-10-17 with v0.1.1, one on Linux with Proton and one on Windows, between
+Belgium and Brazil at about 240 ms ping. The co-op menu has since been seen working in game. Join codes, shared enemies,
+the automatic co-op saves, 60 poses a second, synced photo mode, the chat, the partner HUD and the optional looks have
+not been tested in game yet, and neither have longer sessions or level changes between two PCs.
 
 StellarCoop is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through the Steam
 client that the game already runs, so the mod needs no other program and no server of its own.
