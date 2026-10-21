@@ -78,7 +78,8 @@ build/host/pose_codec_test
   `recruiter`, `recruiter_text`, `saves`, `settings_file`, `ui`, `ui_kit`, `ui_model`) run the scripts, with fake UE4SS
   objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. `main_test`
   also covers `coop fight pilot` (its `test target` included), the `same_place` and `aggro` settings and rows, the
-  `same_spawns` setting, and the same place notices in both languages.
+  `same_spawns` setting and row, `coop fight spawn probe`, and the same place and same spawns notices in both
+  languages.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host` and `spawns` words and its `pilot` requests, `test target` included), and the join codes (both real
@@ -123,7 +124,11 @@ build/host/pose_codec_test
     despawned, save, keep, event and other-zone keys left, a Monster outside `fight_chars` never sent, nothing
     killed), a spawn line of an old epoch dropped after the host's zone resets, a drop line ignored for a key paired on
     her side, nothing done while a census's list of keys is partial, and a Save row logged once, with keys that have no
-    row kept out of the 512-row cache and rows past it never logged;
+    row kept out of the 512-row cache and rows past it never logged; the two game calls on fake memory (the spawn with
+    the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn
+    and the GUID), none with no spawn manager made or after a latch on an unreadable row, and a host enemy of a
+    SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told once an epoch, nothing
+    sent or called); the `fight=` line's `spawns=` field;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
@@ -135,7 +140,8 @@ build/host/pose_codec_test
     reset of the spawn manager, 3 or more keys with a new GUID) and its 3 s grace, the host's epoch line, her rounds
     and its answers (a key more than 1 km from her held back until she is nearer), the guest's rounds and her checks
     of each answer (the epoch, the shared zone, her own tables, 1 km, the rates, a created key that is no Monster or
-    another charId, removed again within the rates), a key refused as too far asked again, a created key that died
+    another charId, removed again within the rates, the refusals that show the two games differ counted apart), a key
+    refused as too far asked again, a created key that died
     leaving her rounds, and two fake worlds through a delayed line until her set is the host's, with an epoch that
     moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch

@@ -484,7 +484,9 @@ spawn key like any other.
   ResetZone or ResetZoneWithTransform take part. Save and SaveWithTransform rows, rows that keep
   their object through a zone reset (`bResetZoneKeepObject`), and ZoneEvent and quest rows are never touched. Each
   game reads a row through the game's own lookup (`FUN_141a9db80`) and the row's zone through the ZoneTable lookup
-  (`FUN_141a9b8a0`), and keeps what it read for the session.
+  (`FUN_141a9b8a0`), and keeps what it read for the session. The game runs a row's lazy init (vtable slot `+0x20`)
+  before its first use; in this build that slot is an empty function for both row types, so reading the rows without
+  it skips nothing.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
@@ -506,9 +508,22 @@ spawn key like any other.
   it until the epoch moves. A key refused as too far is left out of the list, so the host asks again once she is
   nearer, and an enemy she created leaves the list once it has died or left her game.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the
-  table holder and the job sender are read from their globals and never made by the mod. A census whose list of
-  enemies came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing, since an
-  enemy missing from it would read as one the game lacks.
+  table holder and the job sender are read from their globals and never made by the mod: their getters
+  (`FUN_141adc3d0`, `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing. The spawn call gets the spawn
+  manager, the EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no extra request data and flag
+  0, so the key spawns at once. It reads the table holder through its getter, so the guest calls it only while the
+  holder and its tables exist; with no spawn manager made she refuses the key and calls nothing. The despawn call
+  gets the job sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID with that key and
+  still fighting. A census whose list of enemies came out partial (a read that failed, or more than 256 enemies with
+  spawn keys) does nothing, since an enemy missing from it would read as one the game lacks.
+- The `fight=` line of `coop-status.txt` carries `spawns=off`, `on` or `stopped` (the pilot's latch stops same spawns,
+  since the ghost's position no longer reaches the job), and on the guest's side `spawned=`, `despawned=` and
+  `spawns_differ=`: the refusals and undone spawns whose reason shows that the two games' tables or `fight_chars`
+  differ (`no row`, `save-row`, `keep-row`, `event-row`, `another zone`, `not shared`, `charId`), not those of the
+  moment (`too far`, `full`, `no spawn manager`, `gone`). Lua's notices read it.
+- `coop fight spawn probe` (`fight probe spawns`) runs the same census, epoch and row reads in the probe's job on one
+  game, and logs the outcome for each shared Monster once an epoch. It sends no line and calls neither the spawn nor
+  the despawn function.
 
 The log lines are in [usage.md](usage.md#same-spawns-experimental).
 

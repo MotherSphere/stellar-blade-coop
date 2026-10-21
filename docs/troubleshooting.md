@@ -234,6 +234,38 @@ the copies moved, the Shows replayed, late and missing, and the drift (how far t
 mod's writes, in cm/s and degrees a second). Drift above a few cm/s on a copy at rest means something in the game still
 moves it.
 
+### Same spawns do not start, or enemies appear and vanish
+
+Same spawns (`same_spawns`) is experimental, off by default and not tested in game yet. With it on in the host's game,
+the guest's game creates the common enemies it lacks where the host's stand and removes those the host's game lacks,
+through the game's own spawn function and despawn job. On her screen an enemy can therefore appear out of nowhere, or
+vanish without dying and without rewards. Both happen only where the two players stand within 100 m of each other in
+one zone, and only to enemies of rows the zone resets anyway (bosses, quest and event enemies and the enemies a save
+records are never touched). To go back, turn off Options > Combat > Same spawns (experimental) in the host's menu, then
+turn Shared enemies off and on again or restart the game: the setting counts from the next start of shared enemies.
+[usage.md](usage.md#same-spawns-experimental) has the details.
+
+Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
+
+- `spawns=off` on the host: its `same_spawns` is off, or the guest's shared enemies are not on (the line's `her=`
+  says so). After turning the row on, turn Shared enemies off and on again.
+- `spawns=off` on the guest: the host's game has not sent its zone yet. It does so once its zone is known, and again
+  after each map load.
+- `spawns=on` but nothing changes: both players must be in the same zone, within 100 m of each other, and 3 s past
+  either game's last zone entry or reset (a camp rest, a death). The guest may also hold the host's set already.
+- `spawns=stopped`: the same-place error stopped same spawns too, until the game restarts. `coop-link.log` has the
+  `same-place enemies fault` line.
+- `spawns_differ=` above 0 on the guest: her game refused, or removed again, enemies whose spawn rows or character
+  differ from the host's, or that her `fight_chars` leaves out. Her `coop-link.log` names each one in `fight spawn
+  refused <key> <why>`, `fight drop refused <key> <why>` or `fight spawn undone <key> <why>`. The same .pak mods and
+  the same `fight_chars` on both PCs avoid it.
+- `fight spawn refused <key> no spawn manager` on the guest: her game had not made its spawn manager yet. The host asks
+  for that enemy again after either game's next zone change or reset.
+
+`coop fight spawn probe` checks the reads on one PC: each shared enemy in your zone gets a `fight spawns probe <key>`
+line in `coop-link.log` saying whether same spawns would handle it. For a report, keep `coop-link.log` and
+`coop-fight.log` from both PCs.
+
 ### `Co-op saves off for this load: <why>`
 
 The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:

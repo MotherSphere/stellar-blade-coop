@@ -68,27 +68,27 @@ or shows the mouse cursor for one of its own screens.
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies, same place, who same-place enemies attack, the host's enemy scaling and your kill
-rewards), Display (the size, sounds
+title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, the host's enemy scaling and
+your kill rewards), Display (the size, sounds
 and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
-it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says
-`Saved. It takes effect when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, scaling and kill reward
-rows, which count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart
-the game). The Same place row applies at once while shared enemies wait or run, and otherwise from their next start
-(as guest, only while they wait or run, and only on your screen).
+it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
+when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, scaling and kill reward rows, which
+count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
+Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
+while they wait or run, and only on your screen).
 
 To change a key, select its row, then press the new key: `F1` to `F12` except `F10`, alone or with Shift, Ctrl or Alt.
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
 The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, and the
-shared enemies' and same place notices use the game's language when it is French, and English otherwise. So do the
-status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English. The
-notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the error
-messages from the coop commands, shown in the menu or the code box.
+shared enemies', same place and same spawns notices use the game's language when it is French, and English otherwise. So
+do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in English.
+The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the
+error messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -311,6 +311,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, off by default) and its solo test steps |
+| `coop fight spawn probe` | Solo probe of [same spawns](#same-spawns-experimental) (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD and the co-op saves' question until the mod reloads |
@@ -661,11 +662,16 @@ With `same_spawns=on` in the host's coop-settings.txt, the guest's game holds th
 game wherever both players stand within 100 m of each other in one zone. The guest's game creates the enemies it lacks
 where the host's stand, and removes the ones the host's game lacks without killing them, so they give no rewards.
 Bosses, Alpha Naytibas, quest and event enemies, and the enemies a save records (Save rows, and rows kept through a
-zone reset) stay as they are in both games. Same spawns has not been tested in game yet, it is off by default, and it
-has no menu row.
+zone reset) stay as they are in both games. Same spawns has not been tested in game yet, and it is off by default.
 
-- It needs shared enemies running. Only the host's value counts, from the next `coop fight on`; record, replay and the
-  probe never use it.
+The guest's game calls its own spawn function for each enemy it lacks (the one the game calls when a zone's enemies
+spawn) and its own despawn job for each enemy the host's game lacks (the one zone events send). No code of the game is
+changed. When she enters a zone, her game spawns its own enemies first, so an enemy can appear there and vanish again
+a few seconds later.
+
+- It needs shared enemies running. Only the host's value counts, from the next `coop fight on`: Options > Combat >
+  Same spawns (experimental) in the host's co-op menu, or `same_spawns=on` in its
+  [coop-settings.txt](#coop-settingstxt). Record, replay and the probe never use it.
 - A zone counts as shared from 3 s after either game entered it or reset its enemies (a camp rest, a death), so the
   game's own spawns come in first. Where the other player stands comes from the same-place code, so after its error
   (`pilot=stopped`) same spawns stop too, on that side, until the game restarts.
@@ -683,9 +689,26 @@ has no menu row.
   back at once (`guids`). `fight spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for a row of
   a shared enemy that same spawns leave as it is. A game keeps the first 512 rows it reads, and rows past those are
   not logged.
+- The `fight=` line of `coop status` (and `coop fight status`) says `spawns=off`, `spawns=on` or `spawns=stopped` (the
+  error of same place stopped them too), and on the guest's side `spawned=<n> despawned=<n> spawns_differ=<n>`: the
+  enemies her game created and removed, and the refusals that show the two games differ (`no row`, `save-row`,
+  `keep-row`, `event-row`, `another zone` and `not shared`, and enemies undone).
+- Notices, in the menu's language, once a session each: `Same spawns on: where you and <name> stand within 100 m of
+  each other in one zone, their game holds the same common enemies as yours.` (on the guest's screen: `your game
+  holds the same common enemies as theirs.`), `Same spawns stopped by an error until the game restarts.
+  coop-link.log says why.`, and on the guest's screen `Same spawns: some enemies differ between your game and
+  <name>'s (other .pak mods or fight_chars) and stay as they are. coop-link.log names them.`
 - The `fight stats:` lines in `coop-fight.log` add `same spawns <on|off>, epoch <n> (ours moved <n> times), <n> rounds
-  <answered|sent>, <n> spawn and <n> drop lines, <n> spawned, <n> despawned (<n> undone), <n> refused, <n> stale, <n>
-  over the rates`.
+  <answered|sent>, <n> spawn and <n> drop lines, <n> spawned, <n> despawned (<n> undone), <n> refused (<n> differ),
+  <n> stale, <n> over the rates`.
+
+`coop fight spawn probe` checks the reads of same spawns on one PC, with no friend: it runs on a co-op save, as
+`coop fight probe` does, whatever `same_spawns` says. At each probe census, `coop-link.log` gets `fight spawns epoch
+<why>` when the zone changes or its enemies reset (rest at a camp to see `reset`), and once an epoch for each shared
+enemy `fight spawns probe <key> <how>`: `takes part` (same spawns would create or remove it), `save-row`, `keep-row`,
+`event-row`, `another zone` or `no row`. `fight spawns probe no zone` means the current zone has no ZoneTable ID. The
+probe reads two game tables and calls neither the spawn function nor the despawn job. The `fight=` line says
+`spawns=probe` while it runs; `coop fight off` ends it.
 
 ### `coop off`
 
@@ -800,6 +823,7 @@ card_details=on
 | `kill_credit` | `all` or `fought`: whether every shared enemy that dies gives you the kill rewards, or only those your EVE hit | `all` |
 | `same_place` | `on` or `off`: [same place](#same-place-experimental), experimental; the host's value counts for both games | `off` |
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
+| `same_spawns` | `on` or `off`: [same spawns](#same-spawns-experimental), experimental; the host's value counts for both games | `off` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
