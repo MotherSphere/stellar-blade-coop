@@ -2578,6 +2578,44 @@ int main() {
     assert(count(G, "spawns leave") == 2 && count(H, "spawns leave") == 0);
   }
 
+  // ---- Same spawns: a Save row the host meets is logged once a session, also once the row room is full ----
+  // Her rounds name 720 keys with no row in the host's tables, then twice 720 keys of Save rows there (both kinds are
+  // kept as they are): the keys with no row take no room, the first kMaxRows Save rows are kept and logged once, and
+  // the rest are looked up again each time but never logged.
+  {
+    Game H;
+    auto eh = engine(true, true);
+    eh->same_spawns(true);
+    H.spawns();
+    H.zone(0xA1, 40);
+    H.enter(0xA1);
+    for (uint32_t id = 1000; id < 1000 + 3 * kMaxKeys; ++id)
+      H.spawn_row(id, 1, 0xA1);
+    H.flags.her_ok = true;
+    H.inbox.push_back(msg("SBF11 on"));
+    uint32_t next = 5000, rounds = 0; // Keys with no row first.
+    for (uint64_t t = 0, round_at = 4000; t <= 13000; t += 16) {
+      if (t >= round_at && rounds < 9) { // One round of kMaxKeys keys a second, from 4 s.
+        round_at += 1000;
+        if (rounds == 3 || rounds == 6) // Then the Save rows, twice.
+          next = 1000;
+        ++rounds;
+        const std::string head = "SBF11 have " + std::to_string(eh->host.gen()) + " 1 ";
+        for (size_t part = 1; part <= kHaveParts; ++part) {
+          std::string line = head + std::to_string(part) + " " + std::to_string(kHaveParts);
+          for (size_t k = 0; k < kHaveKeys; ++k)
+            line += " " + std::to_string(next++) + ":0";
+          H.inbox.push_back(msg(line));
+        }
+      }
+      frame(H, *eh, t);
+      H.sent.clear();
+    }
+    const Snapshot sh = eh->snapshot();
+    assert(sh.epoch == 1 && sh.spawns.answered == 9 && sh.spawns.drop_lines == 0 && !eh->latched());
+    assert(count(H, "spawns leave", "save-row") == kMaxRows && count(H, "spawns leave") == kMaxRows);
+  }
+
   // ---- Same spawns stop after the pilot's latch: where the other EVE stands is no longer told ----
   {
     Game H, G;

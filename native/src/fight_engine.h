@@ -1692,15 +1692,15 @@ private:
                ? tables
                : 0;
   }
-  // An EventSpawnTable row of our tables by EventSpawnId, with its zone's ZoneTable ID; kept for the session once read
-  // (kMaxRows of them). None while the tables are not made (not kept), or when the lookup finds none. Only shared
-  // Monsters' keys are looked up, so a Save or keep row met is logged (once a session while it stays kept): it stays as
-  // it is in both games.
+  // An EventSpawnTable row of our tables by EventSpawnId, with its zone's ZoneTable ID; kept for the session once found
+  // (kMaxRows of them, so keys with no row, which her rounds may carry, never fill the room). None while the tables are
+  // not made, or when the lookup finds none. Only shared Monsters' keys are looked up, so a Save or keep row met is
+  // logged as it is kept (once a session; none once the room is full): it stays as it is in both games.
   template <class Game> bool spawn_row(Game &g, uint32_t id, SpawnRow &out) {
     for (size_t i = 0; i < rows_; ++i)
       if (row_ids_[i] == id) {
         out = row_at_[i];
-        return row_ok_[i];
+        return true;
       }
     const uint64_t tables = tables_at(g);
     if (!tables || latched_)
@@ -1716,10 +1716,11 @@ private:
       return false;
     row.keep = keep != 0;
     row.zone = ok ? zone_id(g, tables, alias) : 0;
-    if (const char *why = ok ? row_out(row) : nullptr; why && std::strcmp(why, "event-row") != 0)
-      g.event(Event{"spawns leave", why, 0, id});
-    if (rows_ < kMaxRows)
-      row_ids_[rows_] = id, row_at_[rows_] = row, row_ok_[rows_++] = ok;
+    if (ok && rows_ < kMaxRows) {
+      row_ids_[rows_] = id, row_at_[rows_++] = row;
+      if (const char *why = row_out(row); why && std::strcmp(why, "event-row") != 0)
+        g.event(Event{"spawns leave", why, 0, id});
+    }
     out = row;
     return ok;
   }
@@ -1995,7 +1996,6 @@ private:
   bool keys_whole_ = true; // This census's keyed actors all in mine_.
   uint32_t row_ids_[kMaxRows] = {};
   SpawnRow row_at_[kMaxRows];
-  bool row_ok_[kMaxRows] = {};
   size_t rows_ = 0;
   uint64_t zone_alias_[kMaxZones] = {};
   uint32_t zone_ids_[kMaxZones] = {};
