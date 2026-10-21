@@ -121,8 +121,9 @@ build/host/pose_codec_test
     0 reaches it; same spawns in two worlds: nothing while the host's `same_spawns` is off or the players stand 200 m
     apart, then her set becomes the host's (keys created where the host's stand and paired, keys the host lacks
     despawned, save, keep, event and other-zone keys left, a Monster outside `fight_chars` never sent, nothing
-    killed), a spawn line of an old epoch dropped after the host's zone resets, and nothing done while a census's list
-    of keys is partial;
+    killed), a spawn line of an old epoch dropped after the host's zone resets, a drop line ignored for a key paired on
+    her side, nothing done while a census's list of keys is partial, and a Save row logged once, with keys that have no
+    row kept out of the 512-row cache and rows past it never logged;
   - `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
     line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
@@ -132,9 +133,11 @@ build/host/pose_codec_test
     delayed, lossy line;
   - `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
     reset of the spawn manager, 3 or more keys with a new GUID) and its 3 s grace, the host's epoch line, her rounds
-    and its answers, the guest's rounds and her checks of each answer (the epoch, the shared zone, her own tables, 1 km,
-    the rates, a created key that is no Monster or another charId), and two fake worlds through a delayed line until
-    her set is the host's, with an epoch that moves while a round is on the way;
+    and its answers (a key more than 1 km from her held back until she is nearer), the guest's rounds and her checks
+    of each answer (the epoch, the shared zone, her own tables, 1 km, the rates, a created key that is no Monster or
+    another charId, removed again within the rates), a key refused as too far asked again, a created key that died
+    leaving her rounds, and two fake worlds through a delayed line until her set is the host's, with an epoch that
+    moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,

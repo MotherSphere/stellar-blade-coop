@@ -494,14 +494,17 @@ spawn key like any other.
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
   `SBF11 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
   epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF11 spawn <gen> <n> <spawnId> <idx>
-  <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks (never a dying one), where it stands in whole
+  <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
+  the host's world; never a dying one), where it stands in whole
   centimetres, and `SBF11 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km
   of her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's
   spawn function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's
   despawn job (`FUN_141b077f0`, as a ZoneEvent despawn does): never a kill, and never an enemy that shared enemies
-  pair. A created enemy that shows up as no Monster, or as another character than the host's, is removed again. A
-  key she refused counts as hers in her next list, so the host stops asking for it until the epoch moves.
+  pair. A created enemy that shows up as no Monster, or as another character than the host's, is removed again,
+  within the same 32 calls a second. A key she refused counts as hers in her next list, so the host stops asking for
+  it until the epoch moves. A key refused as too far is left out of the list, so the host asks again once she is
+  nearer, and an enemy she created leaves the list once it has died or left her game.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the
   table holder and the job sender are read from their globals and never made by the mod. A census whose list of
   enemies came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing, since an

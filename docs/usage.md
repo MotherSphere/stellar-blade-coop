@@ -670,16 +670,19 @@ has no menu row.
   game's own spawns come in first. Where the other player stands comes from the same-place code, so after its error
   (`pilot=stopped`) same spawns stop too, on that side, until the game restarts.
 - The guest's game sends its list of enemies there at once, then every 5 s while the zone is shared. The host's game
-  answers with up to 16 enemies to create and 16 to remove each time.
+  answers with up to 16 enemies to create and 16 to remove each time. It asks for an enemy more than 1 km from the
+  guest only once she comes nearer.
 - `coop-link.log` names each change by spawn key. On the guest: `fight spawned <key>`, `fight despawned <key>`,
   `fight spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from
   your EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
-  manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name) or
-  `gone`; and `fight spawn undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out
-  (`not shared`) or another character than the host's (`charId`). On the host: `fight spawn sent
-  <key>` and `fight drop sent <key>`. Both log `fight spawns epoch <why>` when their zone changes (`zone`), its enemies
-  reset (`reset`), or 3 or more of them come back at once (`guids`). `fight spawns leave <spawnId>:0 save-row` (or
-  `keep-row`) comes once a session for a row of a shared enemy that same spawns leave as it is.
+  manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name),
+  `full` (240 enemies already handled since either game's last `fight spawns epoch`) or `gone`; and `fight spawn
+  undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out (`not shared`) or another
+  character than the host's (`charId`). On the host: `fight spawn sent <key>` and `fight drop sent <key>`. Both log
+  `fight spawns epoch <why>` when their zone changes (`zone`), its enemies reset (`reset`), or 3 or more of them come
+  back at once (`guids`). `fight spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for a row of
+  a shared enemy that same spawns leave as it is. A game keeps the first 512 rows it reads, and rows past those are
+  not logged.
 - The `fight stats:` lines in `coop-fight.log` add `same spawns <on|off>, epoch <n> (ours moved <n> times), <n> rounds
   <answered|sent>, <n> spawn and <n> drop lines, <n> spawned, <n> despawned (<n> undone), <n> refused, <n> stale, <n>
   over the rates`.
