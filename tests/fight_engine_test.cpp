@@ -164,6 +164,7 @@ struct Game {
   std::vector<Actor> probes;
   const Engine *watch = nullptr; // Once set: lines and events this game takes after that engine latched.
   size_t after_latch = 0;
+  Engine *latch_in_publish = nullptr; // Once set: the next publish latches that engine (the game thread's fault).
   Mail *mail = nullptr;
   PilotTable table;  // The pair table the job published last, without a Mail.
   StreamFlags flags; // What the game thread says of the owner's stream, without a Mail.
@@ -601,6 +602,8 @@ struct Game {
       mail->probe(a);
   }
   bool publish(const PilotTable &t, StreamFlags &f) {
+    if (Engine *e = latch_in_publish)
+      latch_in_publish = nullptr, e->latch("fault");
     if (mail)
       return mail->publish(t, f);
     table = t;
@@ -1159,6 +1162,22 @@ int main() {
     e2->lift(f);
     assert(e2->snapshot().floors == 0 && f.mem.get<float>(f.fsb(501) + kMinimumHp) == 0 && f.calls.size() == calls + 1);
     assert(e2->forget() == 0);
+    // A fault on the game thread while a turn hands its table over, after that turn's last look at the latch: the job
+    // is pushed once more, and that last run takes the floors off.
+    Game p;
+    auto e5 = engine(false, false);
+    e5->confirm(true);
+    e5->set(true, false);
+    p.spawn(501, 5001, 0);
+    for (const char *line : {"SBF12 world 1", "SBF12 up 1 101 5001 0 900 1600"})
+      p.inbox.push_back(msg(line));
+    frame(p, *e5, 0);
+    assert(e5->snapshot().floors == 1);
+    p.latch_in_publish = e5.get();
+    frame(p, *e5, 16);
+    assert(e5->latched() && p.queue.size() == 1);
+    frame(p, *e5, 32);
+    assert(e5->snapshot().floors == 0 && p.mem.get<float>(p.fsb(501) + kMinimumHp) == 0 && p.queue.empty());
     // A fault in our read of one torn actor while the floors come off: the glue's lift() after it takes the others
     // off, and forget() still counts that one for the log.
     Game w;

@@ -879,10 +879,12 @@ public:
       pilot_turn(g, logic, n, census, now_ms);
     if (!latched_)
       bosses(g, logic, n, census, now_ms);
-    if (latched_) // Stopped in this turn: no other run comes, so our overrides come off now.
+    // Read once: a latch from the game thread after this read still gets the push, and that last run lifts.
+    const bool stop = latched_;
+    if (stop) // Stopped in this turn: no other run comes, so our overrides come off now.
       lift_all(g, logic), blocks_.publish(nullptr, 0);
     publish(g, turn, now_ms);
-    if (!latched_)
+    if (!stop)
       g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
   }
   // The glue's, on the logic thread after a fault in our own code: the floors off once, from outside Simulate.
