@@ -58,14 +58,14 @@ M.OPTIONS={
     toggle('shared_enemies','on'), -- At once: main.lua asks coop fight on or off.
     -- The host's for both games: at once while shared enemies wait or run (main.lua asks coop fight pilot off or on),
     -- else from their next start.
-    toggle('same_place','off'),
+    toggle('same_place','on'),
     -- The host's values for both games, and our own kill credit: each from the next start of shared enemies. aggro:
     -- who a same-place enemy fights (game: whoever hit it last, or else the nearer player; host: the host only).
     {key='aggro',values={'game','host'},default='game'},
     -- Same spawns (stage 4): where both players stand within 100 m in one zone, the guest's game holds the host's
     -- common enemies there. enemy_extra (stage 4b): that many more of each, used with same spawns only. bosses (stage
     -- 5): bosses and Alpha Naytibas shared too, their maximum HP times boss_hp_scale.
-    toggle('same_spawns','off'),range('enemy_extra',0,3,1,0),toggle('bosses','off'),
+    toggle('same_spawns','on'),range('enemy_extra',0,3,1,0),toggle('bosses','on'),
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),range('boss_hp_scale',1,4,0.05,2),
     {key='kill_credit',values={'all','fought'},default='all'},
     {head='display'},

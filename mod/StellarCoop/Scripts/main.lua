@@ -248,8 +248,8 @@ if settings and not settings.shared_enemies and not off
     log((ok and 'OK: ' or 'STOP: ')..'shared_enemies=off: '..tostring(why))
 end
 -- same_place=off too, on the side that hosts: a same place an earlier load asked for ends here, running or waiting
--- (coop fight pilot off, until the next coop fight on). Only there: a guest's own value decides nothing at a start and
--- is off by default, so a reload never stops what the host's game shows her.
+-- (coop fight pilot off, until the next coop fight on). Only there: a guest's own value decides nothing at a start,
+-- so a reload never stops what the host's game shows her.
 if settings and not settings.same_place and not off then
     local raw='\n'..(link.status() or '')
     if raw:find('\nfight=%a+ mode=record ') or (raw:find('\nfight=%a+ mode=on ') and raw:find('\nlink=host ')) then

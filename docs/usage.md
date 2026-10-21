@@ -334,7 +334,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
-| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, off by default) and its solo test steps |
+| `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, on by default) and its solo test steps |
 | `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](#shared-bosses-experimental) on the boss copy of a replay (experimental) |
 | `coop fight spawn probe` | Solo probe of [same spawns](#same-spawns-experimental) (experimental, co-op save only) |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
@@ -587,7 +587,7 @@ The host's `aggro` setting decides which game runs an enemy's AI. With `aggro=ga
 player who hit it last. After 10 s without a hit, it goes to the other player once that player's EVE has stood at least
 3 m nearer to it for 2 s. An enemy changes hands at most once in 4 s, and never during one of its attacks, while it is
 down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses or gives back stays with
-the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place has not been tested in game yet, and it is off by default.
+the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never attacks the guest. Same place is on by default and has not been tested in game yet.
 
 A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
 the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as
@@ -691,7 +691,7 @@ With `same_spawns=on` in the host's coop-settings.txt, the guest's game holds th
 game wherever both players stand within 100 m of each other in one zone. The guest's game creates the enemies it lacks
 where the host's stand, and removes the ones the host's game lacks without killing them, so they give no rewards.
 Bosses, Alpha Naytibas, quest and event enemies, and the enemies a save records (Save rows, and rows kept through a
-zone reset) stay as they are in both games. Same spawns has not been tested in game yet, and it is off by default.
+zone reset) stay as they are in both games. Same spawns is on by default and has not been tested in game yet.
 
 The guest's game calls its own spawn function for each enemy it lacks (the one the game calls when a zone's enemies
 spawn) and its own despawn job for each enemy the host's game lacks (the one zone events send). No code of the game is
@@ -770,8 +770,8 @@ not been tested in game yet, and the default is 0.
 ### Shared bosses (experimental)
 
 With `bosses=on` in the host's coop-settings.txt, shared enemies also share the bosses and Alpha Naytibas (the game's
-BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses have
-not been tested in game yet, and they are off by default. With same place on, the guest's copy is frozen like any
+BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses are on
+by default and have not been tested in game yet. With same place on, the guest's copy is frozen like any
 copy her game draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode,
 which phase effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events,
 the phase changes and the summoned enemies, which are shared like any other. Without same place, each game runs these
@@ -907,23 +907,22 @@ kill_credit=all
 # co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
 # shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
 # last, or else the nearer player) or host (enemies fight the host only).
-same_place=off
+same_place=on
 aggro=game
-# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game. On, while
-# both players stand within 100 m of each other in one zone, the guest's game adds the common enemies the host's game
-# has there and removes those it lacks. Bosses, quest and event enemies, and the enemies a save records, stay as they
-# are.
-same_spawns=off
+# Same spawns, experimental, the host's for both games: on or off. On, while both players stand within 100 m of each
+# other in one zone, the guest's game adds the common enemies the host's game has there and removes those it lacks.
+# Bosses, quest and event enemies, and the enemies a save records, stay as they are.
+same_spawns=on
 # Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
 # of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
-# Shared bosses, experimental, the host's for both games: on or off, off until it has been tested in game. On, a boss
-# or an Alpha Naytiba that both games hold shares one HP bar and one death, as a common enemy does. With
-# same_place=on it fights the host only. boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place
-# of enemy_hp_scale, from 1.0 (no change) to 4.0.
-bosses=off
+# Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
+# hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
+# boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
+# to 4.0.
+bosses=on
 boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no

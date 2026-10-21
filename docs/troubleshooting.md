@@ -207,7 +207,7 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 
 ### Same place does not start, or stops
 
-Same place is experimental and off by default, and only the host's setting counts. `coop fight pilot status` prints
+Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
 the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-place-experimental)):
 
 - `pilot=refused why=...`: another game build, or `coop off`.
@@ -291,7 +291,7 @@ guest's copy of a boss follows the host's through the lines in
 
 ### Same spawns do not start, or enemies appear and vanish
 
-Same spawns (`same_spawns`) is experimental, off by default and not tested in game yet. With it on in the host's game,
+Same spawns (`same_spawns`) is experimental, on by default and not tested in game yet. With it on in the host's game,
 the guest's game creates the common enemies it lacks where the host's stand and removes those the host's game lacks,
 through the game's own spawn function and despawn job. On her screen an enemy can therefore appear out of nowhere, or
 vanish without dying and without rewards. Both happen only where the two players stand within 100 m of each other in

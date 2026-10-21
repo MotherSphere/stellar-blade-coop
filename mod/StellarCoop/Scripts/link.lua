@@ -67,23 +67,22 @@ kill_credit=all
 # co-op menu's row can still stop it on your screen, and start it again, while shared enemies wait or run. On, each
 # shared enemy stands in the same place on both screens. aggro, the host's too: game (an enemy fights whoever hit it
 # last, or else the nearer player) or host (enemies fight the host only).
-same_place=off
+same_place=on
 aggro=game
-# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game. On, while
-# both players stand within 100 m of each other in one zone, the guest's game adds the common enemies the host's game
-# has there and removes those it lacks. Bosses, quest and event enemies, and the enemies a save records, stay as they
-# are.
-same_spawns=off
+# Same spawns, experimental, the host's for both games: on or off. On, while both players stand within 100 m of each
+# other in one zone, the guest's game adds the common enemies the host's game has there and removes those it lacks.
+# Bosses, quest and event enemies, and the enemies a save records, stay as they are.
+same_spawns=on
 # Extra enemies, experimental, the host's for both games, used only with same_spawns=on: enemy_extra adds 0 to 3 more
 # of each common enemy where both players stand within 100 m of each other in one zone, in both games. Each one stands
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
-# Shared bosses, experimental, the host's for both games: on or off, off until it has been tested in game. On, a boss
-# or an Alpha Naytiba that both games hold shares one HP bar and one death, as a common enemy does. With
-# same_place=on it fights the host only. boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place
-# of enemy_hp_scale, from 1.0 (no change) to 4.0.
-bosses=off
+# Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
+# hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
+# boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
+# to 4.0.
+bosses=on
 boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
@@ -115,8 +114,8 @@ card_details=on
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',name_tag='on',send_rate='60',cloth='off',
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
-    enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',same_spawns='off',enemy_extra='0',
-    bosses='off',boss_hp_scale='2.0',
+    enemy_balance_scale='1.15',kill_credit='all',same_place='on',aggro='game',same_spawns='on',enemy_extra='0',
+    bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     who_can_join='friends',auto_coop_save='ask'}
@@ -198,6 +197,25 @@ function Link.migrate_rate(text)
     if at then return new:sub(1,at-1)..RATE_NOTE..new:sub(stop+1) end
     local nl=new:find('\r\n',1,true) and '\r\n' or '\n'
     return new..((new=='' or new:sub(-1)=='\n') and '' or nl)..RATE_NOTE..nl
+end
+-- 0.4.0-beta.1 wrote same_place, same_spawns and bosses as off, with "off until it has been tested in game" in the
+-- same spawns comment. A file with that comment: its text with each of the three that says off set to on and the
+-- comment's first sentence as Link.DEFAULT has it, so it is changed once and an off picked later stays. nil for any
+-- other file, and nil, why when a line cannot be set.
+local OLD_ON_NOTE="# Same spawns, experimental, the host's for both games: on or off, off until it has been tested in game."
+local ON_NOTE="# Same spawns, experimental, the host's for both games: on or off."
+function Link.migrate_on(text)
+    local at,stop=text:find(OLD_ON_NOTE,1,true)
+    if not at then return nil end
+    local new=text:sub(1,at-1)..ON_NOTE..text:sub(stop+1)
+    for _,key in ipairs({'same_place','same_spawns','bosses'}) do
+        if (SF.get(new,key) or ''):lower()=='off' then
+            local set,why=SF.set(new,key,'on')
+            if not set then return nil,why end
+            new=set
+        end
+    end
+    return new
 end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
@@ -508,7 +526,7 @@ function Link.new(folder,fs)
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
     function self.settings()
-        local text,wrote=fs.read(path('coop-settings.txt')),nil
+        local text,wrote,turned=fs.read(path('coop-settings.txt')),nil,nil
         if not text then
             text=Link.DEFAULT
             local ok,why=put('coop-settings.txt',text,true)
@@ -526,8 +544,20 @@ function Link.new(folder,fs)
             elseif why then
                 wrote='settings: send_rate=20, the old default, kept: '..why
             end
+            local on,why_on=Link.migrate_on(text) -- 0.4.0-beta.1's three off lines, read as on.
+            if on then
+                local ok
+                ok,why_on=self.write_settings(on)
+                text=on
+                turned=ok and 'settings: same_place, same_spawns and bosses are now on in coop-settings.txt'
+                    or 'settings: same_place, same_spawns and bosses read as on (coop-settings.txt not rewritten: '
+                        ..tostring(why_on)..')'
+            elseif why_on then
+                turned='settings: same_place, same_spawns and bosses kept as they are: '..why_on
+            end
         end
         local settings,notes=Link.parse_settings(text)
+        if turned then table.insert(notes,1,turned) end
         if wrote then table.insert(notes,1,wrote) end
         return settings,notes
     end

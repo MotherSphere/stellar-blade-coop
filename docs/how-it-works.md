@@ -391,7 +391,7 @@ the ghost stays. See [usage.md](usage.md#looks).
 
 ## Same-place enemies
 
-Same place (`same_place`, experimental, off by default, not tested in game yet) builds on shared enemies: the same
+Same place (`same_place`, experimental, on by default, not tested in game yet) builds on shared enemies: the same
 pairs, the same host and the same Steam channel 2. Each pair has an owner, the game whose copy runs the enemy's AI and
 moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner. HP, Shield,
 balance and death stay with the host's game whoever owns the pair.
@@ -483,7 +483,7 @@ The commands, the notices and the solo test are in [usage.md](usage.md#same-plac
 
 ## Same spawns
 
-Same spawns (`same_spawns`, experimental, off by default, not tested in game yet) has the guest's game hold the host's
+Same spawns (`same_spawns`, experimental, on by default, not tested in game yet) has the guest's game hold the host's
 common enemies in a zone where both players stand. It builds on shared enemies: an enemy it creates pairs through its
 spawn key like any other.
 
@@ -592,7 +592,7 @@ The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 
 ## Shared bosses
 
-Shared bosses (`bosses`, experimental, the host's value, off by default, not tested in game yet) add the bosses and
+Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
 game. The host sends `SBF11 bosses <gen> <percent>` with its list.
@@ -686,7 +686,7 @@ drops the input.
   game's memory, on the pinned build only, read back every 250 ms; an entry that moves or changes stops it for the run.
 - Except for those copies, the mod never reads or writes a save, the inventory, unlocks or equipment. Apart from enemy
   stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), and their positions and
-  animations with the experimental same place (off by default), nothing is copied between the two players' games. Beside
+  animations with the experimental same place (on by default), nothing is copied between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
   only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,

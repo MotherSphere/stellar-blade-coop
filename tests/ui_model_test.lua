@@ -127,8 +127,8 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
-    and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='off'
-    and values.aggro=='game' and values.same_spawns=='off' and values.enemy_extra=='0' and values.bosses=='off'
+    and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='on'
+    and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
     and values.boss_hp_scale=='2.0')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
@@ -241,7 +241,7 @@ assert(select(3,menu.change(NONE,values,1))=='2.05' and select(3,menu.change(NON
 file=assert(SF.set(Link.DEFAULT,'boss_hp_scale',select(3,menu.change(NONE,values,1))))
 assert(M.read(file).boss_hp_scale=='2.05' and Link.parse_settings(file).boss_hp_scale==2.05)
 on('bosses')
-assert(select(3,menu.change(NONE,values,1))=='on')
+assert(select(3,menu.change(NONE,values,1))=='off')
 on('kill_credit')
 assert(select(3,menu.change(NONE,values,1))=='fought' and select(3,menu.change(NONE,values,-1))=='fought')
 on('ui_scale')

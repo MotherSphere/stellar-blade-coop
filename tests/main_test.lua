@@ -50,6 +50,16 @@ end
 local clock=0
 os.clock=function() return clock end
 local settings_text=''
+-- Same place, same spawns and shared bosses are on by default (link_test, ui_model_test). This file reads them as off
+-- unless a case's own text names them, so each case names the one it tests: the missing ones go after its lines.
+local function pinned(text)
+    for _,key in ipairs({'same_place','same_spawns','bosses'}) do
+        if not ('\n'..text):find('\n%s*'..key..'%s*=') then
+            text=text..((text=='' or text:sub(-1)=='\n') and '' or '\n')..key..'=off\n'
+        end
+    end
+    return text
+end
 -- SB's photo-mode getters on the library's default object (main.lua's photo poll), as UE4SS calls them.
 local photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
 -- The engine's library default object (main.lua's photo pause): SB.PhotoMode.PauseMethod (cv.value) read and set
@@ -130,14 +140,15 @@ local fake_link={
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     paks=function() return paks_v end,
-    -- coop-settings.txt for the menu: the same text the settings were read from at load.
+    -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
+    -- shows the real defaults, On for the three that pinned() reads as off).
     settings_text=function() return settings_text end,
     write_settings=function(text)
         if write_refusal then return false,write_refusal end
         settings_text=text
         return true
     end,
-    settings=function() return Link.parse_settings(settings_text) end,
+    settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
     state=function(world,rate,photo,sync,max,title)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
@@ -1649,10 +1660,13 @@ key('RETURN')
 assert(settings_text:find('\nkill_credit=fought\n',1,true) and select(2,focus())=='Enemies I hit'
     and #asked==fight_asks+3)
 quarter(); assert(#asked==fight_asks+3)
--- Same place, the host's for both games: Off by default. While a mode that pairs (on, record, replay) waits or runs,
+-- Same place, the host's for both games: On by default. While a mode that pairs (on, record, replay) waits or runs,
 -- off asks coop fight pilot off at once and on asks coop fight pilot on; with none, or a probe, nothing (the next
 -- coop fight on carries it).
-to('Same place (experimental)'); assert(select(2,focus())=='Off')
+to('Same place (experimental)'); assert(select(2,focus())=='On')
+key('RETURN')
+assert(settings_text:find('\nsame_place=off\n',1,true) and select(2,focus())=='Off')
+quarter(); assert(#asked==fight_asks+3,'No mode asked: the next coop fight on carries it')
 key('RETURN')
 assert(settings_text:find('\nsame_place=on\n',1,true) and select(2,focus())=='On')
 quarter(); assert(#asked==fight_asks+3,'No mode asked: the next coop fight on carries it')
@@ -1675,22 +1689,22 @@ to("Enemies attack (host's)"); assert(select(2,focus())=='Both players')
 key('RETURN')
 assert(settings_text:find('\naggro=host\n',1,true) and select(2,focus())=='The host only')
 quarter(); assert(#asked==fight_asks+5,'The next start carries it')
--- Same spawns, the host's for both games: Off by default; the next start of shared enemies carries it, so the row asks
+-- Same spawns, the host's for both games: On by default; the next start of shared enemies carries it, so the row asks
 -- nothing either.
-to('Same spawns (experimental)'); assert(select(2,focus())=='Off')
+to('Same spawns (experimental)'); assert(select(2,focus())=='On')
 key('RETURN')
-assert(settings_text:find('\nsame_spawns=on\n',1,true) and select(2,focus())=='On')
+assert(settings_text:find('\nsame_spawns=off\n',1,true) and select(2,focus())=='Off')
 loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it') -- The clock left as it is for the frame time.
 -- Extra enemies, the host's: 0 by default, 0 to 3, also from the next start.
 to("Extra enemies (host's)"); assert(select(2,focus())=='0')
 key('RIGHT_ARROW')
 assert(settings_text:find('\nenemy_extra=1\n',1,true) and select(2,focus())=='1')
 loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it')
--- Shared bosses, the host's for both games: Off by default; Boss HP (host's) 200 % by default, 5 % a step. Both count
+-- Shared bosses, the host's for both games: On by default; Boss HP (host's) 200 % by default, 5 % a step. Both count
 -- from the next start of shared enemies, so neither row asks anything.
-to('Shared bosses (experimental)'); assert(select(2,focus())=='Off')
+to('Shared bosses (experimental)'); assert(select(2,focus())=='On')
 key('RETURN')
-assert(settings_text:find('\nbosses=on\n',1,true) and select(2,focus())=='On')
+assert(settings_text:find('\nbosses=off\n',1,true) and select(2,focus())=='Off')
 to("Boss HP (host's)"); assert(select(2,focus())=='200 %')
 key('RIGHT_ARROW')
 assert(settings_text:find('\nboss_hp_scale=2.05\n',1,true) and select(2,focus())=='205 %')
