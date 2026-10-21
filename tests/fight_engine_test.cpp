@@ -1587,7 +1587,8 @@ int main() {
   // epoch, of another world, or twice changes nothing. Our own hit takes it back once she held it 4 s: own H and the
   // dispel in one turn. Never while an AI task runs on the owner's copy (ours as read at +0x744, which our SBE carries
   // as kSkill; hers as her stream says), and the nearer rule once nobody hit it for 10 s. aggro=host keeps it ours;
-  // place 0 gives it back with its epoch kept; her off starts the epochs over.
+  // place 0 gives it back with its epoch kept; her off starts the epochs over. Only a pair ours by a hand-over is
+  // marked taken (our game thread forces its target): never one back by her own-no or by place 0.
   {
     Game g;
     auto e = engine(true, true);
@@ -1631,7 +1632,7 @@ int main() {
     frame(g, *e, t = 4496);
     assert(casts() == std::to_string(kDispel) + " " && row.owner == coop::pilot::kHost && row.oe == 1 &&
            !(row.bits & kRowDrawn) && e->counts.own_nos == 1 && count(g, "own-no", "state") == 1);
-    assert(owned(g.table, o) == 1 && o[0].hguid == 101 && o[0].oe == 1);
+    assert(owned(g.table, o) == 1 && o[0].hguid == 101 && o[0].oe == 1 && !o[0].taken && !(row.bits & kRowTaken));
     const uint64_t stale = e->host.counts.stale;
     for (const char *late : {"SBF11 own-no 1 101 1 state", "SBF11 own-no 1 101 0 off", "SBF11 own-no 1 101 7 off",
                              "SBF11 own-no 2 101 1 off", "SBF11 own-no 1 102 1 off"})
@@ -1651,6 +1652,7 @@ int main() {
     g.flags.skill_count = 0;
     assert(until(13100, "SBF11 own 1 101 H 3\n") && casts() == std::to_string(kDispel) + " ");
     assert(row.owner == coop::pilot::kHost && row.oe == 3 && !(row.bits & kRowDrawn) && count(g, "own", "back") == 1);
+    assert(owned(g.table, o) == 1 && o[0].oe == 3 && o[0].taken);
     // An AI task on our copy: no hand-over while it runs (and our SBE says kSkill).
     g.mem.put<int32_t>(g.fsb(101) + kAiTask, 3);
     hers(t + 96);
@@ -1687,6 +1689,8 @@ int main() {
     assert(has(lines(g), "SBF11 place 1 0\n") && row.owner == coop::pilot::kHost && row.oe == 6 && !g.table.on);
     assert(casts() == std::to_string(kDispel) + " ");
     e->same_place(true);
+    frame(g, *e, t += 16);
+    assert(g.table.on && owned(g.table, o) == 1 && o[0].oe == 6 && !o[0].taken);
     hers(t + 5000);
     assert(until(t + 100, "SBF11 own 1 101 G 7\n") &&
            casts() == std::to_string(kBlockAi) + " " + std::to_string(kSkillCancel) + " ");
@@ -1856,7 +1860,7 @@ int main() {
     coop::pilot::Owned o[kMaxPairs];
     assert(own("SBF11 own 1 101 G 1").empty() && casts() == std::to_string(kDispel) + " ");
     assert(row.owner == coop::pilot::kGuest && row.oe == 1 && !(row.bits & kRowDrawn) && e->counts.owns == 1);
-    assert(owned(g.table, o) == 1 && o[0].hguid == 101 && o[0].local == 501 && o[0].oe == 1);
+    assert(owned(g.table, o) == 1 && o[0].hguid == 101 && o[0].local == 501 && o[0].oe == 1 && o[0].taken);
     assert(count(g, "own", "taken") == 1);
     frame(g, *e, t += 16);
     assert(!Game::held(g.body(501), kBlockAiState));

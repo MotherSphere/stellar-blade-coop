@@ -604,16 +604,18 @@ int main() {
 
   // ---- Stage 3b: whose AI runs a pair (the host's rule) ----
   // Last hit: her claim gives her the enemy once the host held it 4 s; the host's own hit takes it back once she held
-  // it 4 s. Each change moves the epoch one up (and wraps). Both hitting in one turn leaves it with its owner.
+  // it 4 s. Each change moves the epoch one up (and wraps) and marks it taken (its new owner forces the target). Both
+  // hitting in one turn leaves it with its owner.
   {
     Owners own;
     Own &o = *own.add(4100, 1000);
     assert(o.owner == kHost && o.oe == 0 && o.since == 1000 && own.owner(4100) == kHost && own.oe(4100) == 0);
+    assert(!o.taken);
     Facts hers, ours, calm;
     hers.guest_hit = true, ours.host_hit = true;
     assert(!rule(o, hers, 2000, false) && o.owner == kHost && o.hitter == kGuest); // Held 1 s only.
     assert(!rule(o, calm, 4999, false));
-    assert(rule(o, calm, 5000, false) && o.owner == kGuest && o.oe == 1 && o.since == 5000);
+    assert(rule(o, calm, 5000, false) && o.owner == kGuest && o.oe == 1 && o.since == 5000 && o.taken);
     assert(!rule(o, calm, 9000, false)); // Hers by the last hit: nothing to do.
     assert(!rule(o, ours, 6000, false) && o.owner == kGuest && o.hitter == kHost); // She held it 1 s.
     assert(rule(o, calm, 9000, false) && o.owner == kHost && o.oe == 2 && own.owner(4100) == kHost);
@@ -696,10 +698,11 @@ int main() {
     const uint32_t kept[] = {3, 7};
     own.keep(kept, 2);
     size_t n = 0;
-    own.each([&](Own &o) { ++n, o.owner = kGuest, o.oe = 4; });
+    own.each([&](Own &o) { ++n, o.owner = kGuest, o.oe = 4, o.taken = true; });
     assert(n == 2 && own.owner(7) == kGuest && own.oe(3) == 4 && !own.find(1));
     own.home();
     assert(own.owner(7) == kHost && own.oe(7) == 4 && own.owner(3) == kHost && own.oe(3) == 4);
+    assert(!own.find(7)->taken && !own.find(3)->taken); // Back with no hand-over: no force target.
     own.drop(3);
     assert(!own.find(3) && own.find(7));
     own.clear();
@@ -710,9 +713,9 @@ int main() {
   {
     Owners own;
     Own &o = *own.add(4100, 0);
-    o.owner = kGuest, o.oe = 6;
-    assert(!own.refused(4100, 5, 900) && !own.refused(4100, 7, 900) && o.owner == kGuest);
-    assert(own.refused(4100, 6, 900) && o.owner == kHost && o.oe == 6 && o.since == 900);
+    o.owner = kGuest, o.oe = 6, o.taken = true;
+    assert(!own.refused(4100, 5, 900) && !own.refused(4100, 7, 900) && o.owner == kGuest && o.taken);
+    assert(own.refused(4100, 6, 900) && o.owner == kHost && o.oe == 6 && o.since == 900 && !o.taken);
     assert(!own.refused(4100, 6, 950) && o.since == 900 && !own.refused(4200, 0, 950) && !own.refused(4200, 1, 950));
     o.owner = kGuest, o.oe = 0; // Wrapped.
     assert(!own.refused(4100, 255, 990) && own.refused(4100, 0, 990));
@@ -723,11 +726,11 @@ int main() {
   {
     Owners own;
     Owners::Heard h = own.hear(4100, kGuest, 1, true, 0);
-    assert(h.ours && !h.no && !h.skew && own.owner(4100) == kGuest && own.oe(4100) == 1);
+    assert(h.ours && !h.no && !h.skew && own.owner(4100) == kGuest && own.oe(4100) == 1 && own.find(4100)->taken);
     h = own.hear(4100, kHost, 2, true, 0);
-    assert(!h.ours && !h.no && own.owner(4100) == kHost && own.oe(4100) == 2);
+    assert(!h.ours && !h.no && own.owner(4100) == kHost && own.oe(4100) == 2 && !own.find(4100)->taken);
     h = own.hear(4100, kGuest, 3, false, 0);
-    assert(!h.ours && h.no && !h.skew && own.owner(4100) == kHost && own.oe(4100) == 3);
+    assert(!h.ours && h.no && !h.skew && own.owner(4100) == kHost && own.oe(4100) == 3 && !own.find(4100)->taken);
     h = own.hear(4100, kGuest, 5, true, 0); // Skipped one: refused, at the host's epoch.
     assert(!h.ours && h.no && h.skew && own.owner(4100) == kHost && own.oe(4100) == 5);
     h = own.hear(4100, kHost, 9, true, 0); // The host takes it whatever: counted, no answer.
@@ -2240,8 +2243,8 @@ int main() {
   // ---- Stage 3b, a take-over on the game thread (Taker). In the frame the table makes a pair ours at a new epoch the
   // Driver puts the copy back (its replay stopped, Velocity zeroed, its movement component back in SB's manager, the
   // speed override's byte), and then SB's force target points its AI at our EVE: FUN_141a36010(fsb + 0x710, our EVE,
-  // 0, 100.0f). Epoch 0 is never a take-over, nor a pair still ours at the same epoch; a table that is stale or off
-  // changes nothing the Taker knows ----
+  // 0, 100.0f). Only a pair a hand-over brought (Owned::taken): never epoch 0, nor a pair back after an own-no or place
+  // 0, nor one still ours at the same epoch; a table that is stale or off changes nothing the Taker knows ----
   {
     Takeover s;
     Stage::Game g = s.game();
@@ -2262,7 +2265,7 @@ int main() {
     t.step(g, kBase, 7, nullptr, 0, true, 5000);
     assert(d.counts.shows == 1 && d.counts.cmc_out == 1 && t.counts.targeted == 0);
     size_t seen = s.calls.size();
-    const Owned mine{4100, 501, 1, 0};
+    const Owned mine{4100, 501, 1, 0, true};
     d.rows(g, kBase, 7, kGuest, nullptr, 0); // The table: hers now, at epoch 1.
     t.step(g, kBase, 7, &mine, 1, true, 5016);
     assert(s.since(seen) == "stop 1 write12 cmc on write1 target");
@@ -2278,6 +2281,18 @@ int main() {
     assert(s.since(seen).empty() && t.counts.taken == 1 && notes(t).empty());
     t.step(g, kBase, 8, &mine, 1, true, 5112); // A new generation: everything known goes, so epoch 1 is new.
     assert(s.since(seen) == "target" && t.counts.taken == 2);
+    // The host's view: its own G at 2 (hers, drawn here), then her own-no gives it back at 2, or place 0 then 1 at 2:
+    // ours again with no hand-over, so no call. Its hit takes it back at 3: the call. Past 255 the epoch wraps to 0,
+    // still a hand-over.
+    t.step(g, kBase, 8, &mine, 0, true, 5128);
+    const Owned refused{4100, 501, 2, 0, false}, back{4100, 501, 3, 0, true}, wrapped{4100, 501, 0, 0, true};
+    t.step(g, kBase, 8, &refused, 1, true, 5144);
+    t.step(g, kBase, 8, &refused, 0, false, 5160);
+    t.step(g, kBase, 8, &refused, 1, true, 5176);
+    assert(s.since(seen).empty() && t.counts.taken == 2 && notes(t) == "taken hguid=4100 oe=1: target our EVE\n");
+    t.step(g, kBase, 8, &back, 1, true, 5192);
+    t.step(g, kBase, 8, &wrapped, 1, true, 5208);
+    assert(s.since(seen) == "target target" && t.counts.taken == 4);
     uint32_t hg[kMaxEnemies];
     uint8_t oe[kMaxEnemies], nr = 9;
     t.refused(hg, oe, nr);
@@ -2293,7 +2308,7 @@ int main() {
     uint32_t hg[kMaxEnemies];
     uint8_t oe[kMaxEnemies], nr = 0;
     size_t seen = s.calls.size();
-    const Owned one{4100, 501, 1, 0};
+    const Owned one{4100, 501, 1, 0, true};
     s.put<int32_t>(s.net + kNetMode, 3);
     t.step(g, kBase, 7, &one, 1, true, 1000);
     t.refused(hg, oe, nr);
@@ -2307,7 +2322,7 @@ int main() {
     t.step(g, kBase, 7, &one, 0, true, 1048); // Fresh and on, no longer ours: forgotten.
     t.refused(hg, oe, nr);
     assert(nr == 0);
-    const Owned three{4100, 501, 3, 0};
+    const Owned three{4100, 501, 3, 0, true};
     s.put<uint64_t>(s.logic + kLogicTask, 0x7000);
     t.step(g, kBase, 7, &three, 1, true, 2000);
     t.step(g, kBase, 7, &three, 1, true, 2200);
@@ -2315,7 +2330,7 @@ int main() {
     s.put<uint64_t>(s.logic + kLogicTask, 0);
     t.step(g, kBase, 7, &three, 1, true, 2249);
     assert(s.since(seen) == "target" && t.counts.targeted == 1);
-    const Owned five{4100, 501, 5, 0};
+    const Owned five{4100, 501, 5, 0, true};
     s.put<uint64_t>(s.logic + kLogicTask, 0x7000);
     for (uint64_t ms = 3000; ms <= 3250; ms += 50)
       t.step(g, kBase, 7, &five, 1, true, ms);
@@ -2328,14 +2343,14 @@ int main() {
     // missing for 250 ms, dropped without an own-no (the job gives an unpaired copy back by itself).
     const auto key = s.characters.begin()->first;
     s.characters.erase(key);
-    const Owned seven{4100, 501, 7, 0};
+    const Owned seven{4100, 501, 7, 0, true};
     t.step(g, kBase, 7, &seven, 1, true, 4000);
     assert(s.since(seen).empty());
     s.characters[key] = s.ch;
     t.step(g, kBase, 7, &seven, 1, true, 4016);
     assert(s.since(seen) == "target");
     s.characters.erase(key);
-    const Owned nine{4100, 501, 9, 0};
+    const Owned nine{4100, 501, 9, 0, true};
     t.step(g, kBase, 7, &nine, 1, true, 5000);
     t.step(g, kBase, 7, &nine, 1, true, 5250);
     t.refused(hg, oe, nr);
@@ -2343,11 +2358,11 @@ int main() {
     s.characters[key] = s.ch;
     // No EVE of ours, or a copy whose AI has no owner: refused.
     s.put<int32_t>(s.manager + kLocalIndex, 2);
-    const Owned eleven{4100, 501, 11, 0};
+    const Owned eleven{4100, 501, 11, 0, true};
     t.step(g, kBase, 7, &eleven, 1, true, 6000);
     s.put<int32_t>(s.manager + kLocalIndex, 1);
     s.put<uint64_t>(s.fsb + kAiOwner, 0);
-    const Owned thirteen{4100, 501, 13, 0};
+    const Owned thirteen{4100, 501, 13, 0, true};
     t.step(g, kBase, 7, &thirteen, 1, true, 6016);
     assert(s.since(seen).empty() && t.counts.refused == 4);
     assert(notes(t) == "taken hguid=4100 oe=7: target our EVE\n"
@@ -2358,7 +2373,7 @@ int main() {
     s.put<uint64_t>(s.fsb + kAiOwner, 0x5e000000);
     for (uint64_t at : kTargetSingletonsAt) {
       s.put<uint64_t>(at, 0);
-      const Owned more{4100, 501, uint8_t(at == kTargetSingletonsAt[0] ? 17 : 19), 0};
+      const Owned more{4100, 501, uint8_t(at == kTargetSingletonsAt[0] ? 17 : 19), 0, true};
       t.step(g, kBase, 7, &more, 1, true, 6100);
       s.put<uint64_t>(at, s.alloc(0x20));
     }
@@ -2367,7 +2382,7 @@ int main() {
                        "take-over refused hguid=4100 oe=19: a game singleton not made yet\n");
     // After the pilot's latch: nothing, whatever comes.
     t.fault();
-    const Owned fifteen{4100, 501, 15, 0};
+    const Owned fifteen{4100, 501, 15, 0, true};
     t.test();
     t.step(g, kBase, 7, &fifteen, 1, true, 7000);
     assert(s.since(seen).empty() && notes(t).empty());

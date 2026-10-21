@@ -167,9 +167,10 @@ constexpr uint64_t kBattleMs = 2000;
 // A pair table row's bits: pilot.h's SBE flags (BattleMode held; dying: HP 0, a pending death, Dead or DelayDeath),
 // then frozen (our freeze on it and state 39 held), release (Down, Groggy, Airborne or a takedown marker: SB moves the
 // copy, and pilot.h's Copy lets it), drawn (this side draws it: same_place on, the other side owns the pair, its
-// freeze not lost) and skill (an AI task in flight on it, kAiTask: pilot.h's kSkill when this side owns it).
+// freeze not lost), skill (an AI task in flight on it, kAiTask: pilot.h's kSkill when this side owns it) and taken
+// (this side owns it and took it by a hand-over: pilot.h's Own::taken).
 constexpr uint8_t kRowBattle = pilot::kBattle, kRowDying = pilot::kDying, kRowFrozen = 4, kRowRelease = 8,
-                  kRowDrawn = 16, kRowSkill = 32;
+                  kRowDrawn = 16, kRowSkill = 32, kRowTaken = 64;
 // FSBActor +0x744: the AI task in flight (RunAITask's; 0 none), a skill running [L]: stage 3b hands no enemy over
 // meanwhile. FSBActor +0x4cc: its location, which its actor tick copies from the capsule (GetLocation's).
 constexpr size_t kAiTask = 0x744, kLocation = 0x4cc;
@@ -214,14 +215,16 @@ struct StreamFlags {
   bool her_ok = false; // her holds where her ghost was drawn this frame.
 };
 // The rows the game thread captures (pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns and
-// does not draw, with their SBE flags. Never a drawn copy, so a replayed Show is never sent back (R35).
+// does not draw, with their SBE flags and kRowTaken (the Taker's). Never a drawn copy, so a replayed Show is never sent
+// back (R35).
 inline size_t owned(const PilotTable &t, pilot::Owned *out) {
   size_t n = 0;
   for (uint8_t r = 0; r < t.count && r < kMaxPairs; ++r) {
     const PilotPair &p = t.pairs[r];
     if (p.owner == t.side && !(p.bits & kRowDrawn) && p.local)
       out[n++] = pilot::Owned{p.hguid, p.local, p.oe,
-                              uint8_t((p.bits & (kRowBattle | kRowDying)) | (p.bits & kRowSkill ? pilot::kSkill : 0))};
+                              uint8_t((p.bits & (kRowBattle | kRowDying)) | (p.bits & kRowSkill ? pilot::kSkill : 0)),
+                              (p.bits & kRowTaken) != 0};
   }
   return n;
 }
@@ -1412,6 +1415,8 @@ private:
       p.owner = owners_.owner(p.hguid), p.oe = owners_.oe(p.hguid);
       const Seen *s = seen[r] = fight::find(seen_, n, p.local);
       p.bits = s ? uint8_t(marks_[s - seen_] | (dying(*s) ? kRowDying : 0)) : 0;
+      if (const pilot::Own *o = owners_.find(p.hguid); o && o->owner == side && o->taken)
+        p.bits |= kRowTaken;
       bool gone = std::find(lost_, lost_ + lost_count_, p.local) != lost_ + lost_count_;
       if (!gone && s && std::find(refused, refused_end, p.hguid) != refused_end) {
         gone = true; // The game thread would not drive it: lost the same way.

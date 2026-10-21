@@ -192,6 +192,10 @@ struct Own {
   uint64_t hit_ms = 0;
   bool nearer = false; // The host's: Facts::closer since nearer_ms.
   uint64_t nearer_ms = 0;
+  // The owner took it at this epoch by a hand-over (the rule's change, or an own G she took), so its game thread forces
+  // the target (Taker). Never after an own-no, place 0 or a start over: the pair comes back to the host's copy as it
+  // was, with no hand-over (PHASE11-STAGE3 3.8: the host thaws its copy and stays owner).
+  bool taken = false;
 };
 
 // One turn of the host's rule for o at now (host_only: aggro=host). True when the pair changes hands: the other side
@@ -213,7 +217,7 @@ inline bool rule(Own &o, const Facts &f, uint64_t now, bool host_only, bool forc
                                                                : o.owner;
   if (want == o.owner || (!force && (f.busy || now - o.since < kOwnMs)))
     return false;
-  o.owner = want, ++o.oe, o.since = now, o.nearer = false;
+  o.owner = want, ++o.oe, o.since = now, o.nearer = false, o.taken = true;
   return true;
 }
 
@@ -245,7 +249,7 @@ public:
   // Every pair the host's, its epoch kept: a line sent before this never matches one sent after.
   void home() {
     for (Own &o : own_)
-      o.owner = kHost;
+      o.owner = kHost, o.taken = false;
   }
   const Own *find(uint32_t hguid) const {
     for (const Own &o : own_)
@@ -293,7 +297,7 @@ public:
     Own *o = find(hguid);
     if (!o || o->owner != kGuest || o->oe != oe)
       return false;
-    o->owner = kHost, o->since = now;
+    o->owner = kHost, o->since = now, o->taken = false;
     return true;
   }
   // The guest's: the host's own line about hguid (owner side, epoch oe). The pair ends at the host's word, but hers
@@ -312,7 +316,7 @@ public:
     h.skew = oe != uint8_t(o->oe + 1);
     h.ours = side == kGuest && can && !h.skew;
     h.no = side == kGuest && !h.ours;
-    o->owner = h.ours ? kGuest : kHost, o->oe = oe;
+    o->owner = h.ours ? kGuest : kHost, o->oe = oe, o->taken = h.ours;
     return h;
   }
   // The guest's: a pair she owns and can no longer run goes back to the host at its epoch. True when she owned it:
@@ -1272,10 +1276,11 @@ private:
 };
 
 // One pair the capture reads, from the pair table: the host's GUID (on the wire), our copy's (for the lookups), its
-// owner epoch and its SBE flags (kBattle, kDying).
+// owner epoch and its SBE flags (kBattle, kDying); and taken, Own::taken (the Taker's).
 struct Owned {
   uint32_t hguid = 0, local = 0;
   uint8_t oe = 0, flags = 0;
+  bool taken = false;
 };
 
 // The owner's side of stage 3a on the game thread: each owned pair found by its GUID through SB's two read-only lookups
@@ -2125,7 +2130,8 @@ constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads i
 // singleton the call would make (kTargetSingletonsAt), no EVE of ours or a copy without AI refuse it: the pair stays in refused() while the table says it is ours at that
 // epoch, and the job gives it back with own-no target. A copy still missing after kTakeMs is dropped (the job gives an
 // unpaired copy back by itself). A take-over is a pair this side owns at an epoch it did not own it at in the last
-// fresh table with same-place enemies on; never at epoch 0, every pair's first, the host's. coop fight pilot test
+// fresh table with same-place enemies on, and that came to it by a hand-over (Owned::taken): never a pair back after
+// an own-no, place 0 or a start over, nor one the host has held since its start (epoch 0). coop fight pilot test
 // target (test()) forces the target on the first pair this side owns, however it came to own it, and notes its target,
 // aggro level and detect result whenever they change for kTargetTestMs. Nothing after fault(). Fixed memory, no
 // pointer kept.
@@ -2177,7 +2183,7 @@ public:
         Pair *p = in[i].hguid && !find(in[i].hguid) ? free_slot() : nullptr;
         if (!p)
           continue;
-        *p = Pair{in[i].hguid, in[i].local, in[i].oe, in[i].oe ? kWaiting : kDone, now};
+        *p = Pair{in[i].hguid, in[i].local, in[i].oe, in[i].taken ? kWaiting : kDone, now};
         counts.taken += p->state == kWaiting;
       }
       for (Pair &p : pairs_)
