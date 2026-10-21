@@ -11,7 +11,6 @@
 -- thread, never in a coroutine; the first error in a build or an update turns the kit off for this Lua load (off(): the
 -- callers go back to the notice line above EVE and the name tag), said once by the next slow or tick. A look that
 -- cannot be had (a font, a texture, a text colour) only degrades, with one log line a build.
-local UE=require('UEHelpers')
 local U=require('unreal')
 local valid,value_of=U.valid,U.value_of
 local Ui={}
@@ -106,12 +105,7 @@ local function put(canvas,w,x,y,width,height) -- Layout units: the HUD's 3840x21
     return w
 end
 local function hide(w) w.v=COLLAPSED; w.o:SetVisibility(COLLAPSED) end
--- The player controller while it is one: UEHelpers keeps its last one while that address is valid, and after a map
--- change the address may hold another object (an input mode set on that one is a native fault).
-local function controller()
-    local pc=valid(UE.GetPlayerController())
-    return pc and pc:IsA(U.find('/Script/Engine.PlayerController')) and pc or nil
-end
+local controller=U.controller
 -- opts: {log=function(line), store={save,load,clear} (link.store('coop-ui.txt')), azerty=true or false for the AZERTY
 -- move keys (unset: AZERTY when the game's language is French, read at each build), scale=ui_scale (75 to 150 %),
 -- sounds=false for ui_sounds=off}.

@@ -55,8 +55,11 @@ function Notice.new()
             label:K2_SetText(FText(wrap(queue[1])))
             since=os.clock()
         end
+        local pc=U.controller()
+        local manager=pc and valid(pc.PlayerCameraManager)
+        if not manager then return end -- A stale controller (a map change): this frame skipped.
         if not visible then actor:SetActorHiddenInGame(false); visible=true end
-        local camera=value_of(UE.GetPlayerController().PlayerCameraManager:GetCameraLocation())
+        local camera=value_of(manager:GetCameraLocation())
         label:K2_SetWorldLocationAndRotation(at,{Pitch=0,Yaw=U.yaw_to(at,camera),Roll=0},false,{},true)
     end
     -- coop off: a line on screen goes now, as the 1 ms loop that would hide it stops; no engine call after this one.

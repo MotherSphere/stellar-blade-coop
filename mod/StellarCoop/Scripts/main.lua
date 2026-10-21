@@ -284,7 +284,6 @@ end
 -- untouched game changes nothing. SB reads it as each photo mode opens, so a change applies from the next. The first
 -- engine error, or a set that does not take (another game build), stops it for this Lua load. coop off sets 0 again
 -- unless 0 was the last value matched, and logs a line when no player controller lets it.
-local UE=require('UEHelpers')
 local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
 local pause={synced=nil,failed=false} -- The method last matched (read or set); off for this load.
 local function photo_pause(want,why)
@@ -292,9 +291,7 @@ local function photo_pause(want,why)
     local ok,result=pcall(function()
         local library=U.find('/Script/Engine.Default__KismetSystemLibrary')
         if library:GetConsoleVariableIntValue(PAUSE_METHOD)==want then return true end
-        local pc=U.valid(UE.GetPlayerController())
-        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
-        if pc and not pc:IsA(U.find('/Script/Engine.PlayerController')) then pc=nil end
+        local pc=U.controller()
         if not pc then return false end -- Not yet: tried again in 250 ms.
         library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
         local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
