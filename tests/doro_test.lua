@@ -202,6 +202,30 @@ c=ghost(1,500)
 assert(c.asset=='evade' and c.at==0,'Up past 400: a take-off')
 assert(ghost(2,-800).rate==0,'Falling: held')
 assert(ghost(3,0).at==0.5,'Landed')
+-- A whole jump as the ghost's feet give it (the mean vertical speed over each 50 ms): the hop, then held through its
+-- top, where the speed passes 0, until her feet are down, then one landing. Also a jump whose top comes after the hop's
+-- 0.5 s.
+for _,v0 in ipairs({800,1200}) do
+    state={}
+    local function z(t) return math.max(0,v0*t-980*t*t) end
+    local down,landed=v0/980,nil -- When her feet are down again; when the Doro landed.
+    for k=1,40 do
+        local t=k*0.05
+        c=Doro.pick(state,{speed=0,vz=(z(t)-z(t-0.05))/0.05,now=t})
+        if c.asset=='evade' and c.at==0.5 and c.rate==1 then
+            assert(not landed and t>down,v0..': landed in the air at '..t)
+            landed=t
+        elseif t<down then
+            assert(c.asset=='evade' and c.rate==(t-0.05<0.5 and 1 or 0),v0..' at '..t..': '..c.asset..' '..c.rate)
+        end
+    end
+    assert(landed and landed<=down+0.1,v0..': landed at '..tostring(landed))
+end
+-- Onto a ledge (up, never down): held, then landed 1 s after take-off.
+state={}
+assert(ghost(0,600).at==0 and ghost(0.6,0).rate==0)
+c=ghost(1,0)
+assert(c.rate==1 and c.at==0.5,'Landed on the ledge')
 -- Emotes: only while standing (under 50 cm/s); a moving racer keeps the speed mapping.
 c=pick(0,false); assert(c.asset=='two')
 c=Doro.pick({},{speed=20,vz=0,falling=false,sprint=false,emote='win',now=0})

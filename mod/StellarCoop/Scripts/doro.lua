@@ -30,7 +30,10 @@ local SMOOTH=0.1 -- s: the speed's time constant.
 local SPRINT_HOLD=0.3 -- s on all fours after her sprint ends.
 -- cm/s with no sprint flag (the ghost): all fours above the first, two legs again below the second.
 local GHOST_FOUR,GHOST_BACK=560,520
-local AIR=400 -- cm/s with no falling flag: in the air while the vertical speed is past this (a starting value).
+local AIR=400 -- cm/s with no falling flag: in the air from a vertical speed past this (a starting value).
+-- With no falling flag, landed once she stops going down (a vertical speed above -100 cm/s after one below it), or 1 s
+-- after take-off when she never went down (onto a ledge): a jump's top, where the speed passes 0, is no landing.
+local LANDED,LEDGE=100,1
 local TAKE_OFF,EVADE_END=0.5,1.07 -- s into N_Dororong_Evade: the game's own split (held during a fall), its end.
 local STAND=50 -- cm/s: an emote plays below this only.
 
@@ -45,7 +48,13 @@ function Doro.pick(state,s)
     elseif now>state.now then state.v=state.v+(s.speed-state.v)*(1-math.exp((state.now-now)/SMOOTH)) end
     state.now=now
     local falling=s.falling
-    if falling==nil then falling=math.abs(s.vz)>AIR end
+    if falling==nil then
+        if not state.air then falling=math.abs(s.vz)>AIR
+        else
+            state.down=state.down or s.vz<-LANDED
+            falling=s.vz<=-LANDED or not (state.down or now-state.air_at>=LEDGE)
+        end
+    end
     if falling then
         if not state.air then
             state.air,state.air_at=s.vz>0 and 'up' or 'fall',now
@@ -56,7 +65,7 @@ function Doro.pick(state,s)
         return {asset='evade',loop=false,rate=0,at=TAKE_OFF}
     end
     if state.air then
-        state.air,state.land_at=nil,now
+        state.air,state.down,state.land_at=nil,nil,now
         return {asset='evade',loop=false,rate=1,at=TAKE_OFF}
     end
     if state.land_at and now-state.land_at<EVADE_END-TAKE_OFF then return {asset='evade',loop=false,rate=1} end
