@@ -188,7 +188,8 @@ end
 -- The race lines, without the link's "SBC12 race " (id: the host's race number):
 --   track <id> <n> <laps> <grid x y z yaw> <map>   host: a race is armed, n checkpoints follow
 --   cps <id> <first> <x y z r>...                  host: 1 to 12 checkpoints, from the first'th
---   have <id> <sum> | have <id> no map|track       guest: the track received and checked (R.sum), or refused
+--   have <id> <sum> | have <id> no map|track|save  guest: the track received and checked (R.sum), or refused (save:
+--                                                  hers is not a co-op save, race.lua's check)
 --   ready <id> 0|1                                 both: out of or in the slot
 --   go <id> <ms> | abort <id> <why>                host: the countdown | the race cancelled (false_start: the ready
 --                                                  check again; quit, map; track: her have line was wrong or late)
@@ -211,7 +212,7 @@ function R.track_lines(t,id)
     return lines
 end
 local REASONS={dnf={teleport=true,map=true,quit=true,left=true,late=true,time=true},
-    abort={false_start=true,quit=true,map=true,track=true},have={map=true,track=true}}
+    abort={false_start=true,quit=true,map=true,track=true},have={map=true,track=true,save=true}}
 local function ms_or_dash(s) if s=='-' then return false end return int(s,0,R.MS) end
 -- One line as a table ({what=, id=, ...}), within every bound; nil for anything else.
 function R.decode(text)
@@ -434,7 +435,7 @@ end
 -- One frame of either side. input: pos (our EVE's feet {x,y,z}; nil: not read this frame), lines (the race texts that
 -- came, oldest first), rtt (ms, for the guest's start), map (ours, for the guest's check), flags (the fin flags seen
 -- this frame: 1 fast, 2 pause), dnf ('quit' or 'map', ours) and left (the session ended). Returns the lines to send, in
--- order, and the events: joined, refused (why: map, track, silent), armed, out, cancelled (why), count (n: 3, 2, 1),
+-- order, and the events: joined, refused (why: map, track, save, silent), armed, out, cancelled (why), count (n: 3, 2, 1),
 -- go, false_start, the runner's (cp, missed, wrong_way, right_way), fin (ms, flags), dnf (why), results (list: {who,
 -- ms, pos} in host, guest order) and over.
 function R.tick(m,input,now)
@@ -491,7 +492,9 @@ function R.tick(m,input,now)
         m.prev=pos or m.prev
         local wait=m.role=='host' and R.GRACE or 2*R.GRACE
         local settled=(me.ms or me.why) and (her.out or her.ms or her.why)
-        if m.role=='host' and settled or m.first and now-m.first>=R.LATE+wait or ms>=R.LIMIT+wait then
+        -- A host who quit or left the map closed the race on his PC (race.lua): no rank line comes from him.
+        local closed=her.why=='quit' or her.why=='map'
+        if (m.role=='host' or closed) and settled or m.first and now-m.first>=R.LATE+wait or ms>=R.LIMIT+wait then
             results(m,now)
         end
     elseif m.phase=='results' and now-m.shown>=R.SHOW then

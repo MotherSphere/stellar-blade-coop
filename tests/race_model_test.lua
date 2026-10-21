@@ -236,7 +236,7 @@ assert(list[1].pos==nil and list[2].pos==nil)
 local good={
     ['track 4294967295 64 9 -2000000 2000000 -500000 -180 '..MAP]=true,['cps 7 1 0 0 0 300']=true,
     ['cps 7 53'..(' -2000000 -2000000 -500000 3000'):rep(12)]=true,['have 7 4294967295']=true,['have 0 0']=true,
-    ['have 7 no map']=true,['have 7 no track']=true,['ready 7 0']=true,['ready 7 1']=true,['go 7 4000']=true,
+    ['have 7 no map']=true,['have 7 no track']=true,['have 7 no save']=true,['ready 7 0']=true,['ready 7 1']=true,['go 7 4000']=true,
     ['abort 7 false_start']=true,['abort 7 quit']=true,['abort 7 map']=true,['abort 7 track']=true,['cp 7 9 64 0']=true,
     ['fin 7 3600000 3']=true,['fin 7 0 0']=true,['dnf 7 teleport']=true,['dnf 7 map']=true,['dnf 7 quit']=true,
     ['dnf 7 left']=true,['dnf 7 late']=true,['dnf 7 time']=true,['rank 7 - -']=true,['rank 7 61000 -']=true,
@@ -468,6 +468,33 @@ host,guest=sim({dnf=function(side,m,now)
     return side=='guest' and m.phase=='race' and now-m.t_go>3000 and 'map' or nil
 end})
 assert(guest.me.why=='map' and host.her.why=='map' and result(host):find('^host=%d+#1 guest=nil#nil$'))
+-- race.lua closes the race on the PC that quits or leaves the map: a host who did sends no rank, so the guest ranks
+-- herself once she is done, with no 70 s wait. A host who DNFs any other way still owes it.
+do
+    local g=R.guest()
+    R.tick(g,{lines=R.track_lines(LINE,7),map=MAP},0)
+    R.tick(g,{lines={'go 7 4000'},pos=R.slot(LINE,1)},100)
+    R.tick(g,{pos=R.slot(LINE,1)},4100)
+    local _,ev=R.tick(g,{lines={'dnf 7 quit'},pos=R.slot(LINE,1)},5000)
+    assert(g.phase=='race' and not find(ev,'results'),'Not done herself yet')
+    local path=centres(LINE)
+    path[1]=R.slot(LINE,1)
+    for s=0,17000,500 do R.tick(g,{pos=at_distance(path,s)},5000+s) end
+    assert(g.me.ms and g.phase=='results' and result(g)==('host=nil#nil guest=%d#1'):format(g.me.ms),result(g))
+    g=R.guest()
+    R.tick(g,{lines=R.track_lines(LINE,7),map=MAP},0)
+    R.tick(g,{lines={'go 7 4000'},pos=R.slot(LINE,1)},100)
+    R.tick(g,{pos=R.slot(LINE,1)},4100)
+    R.tick(g,{lines={'dnf 7 teleport'},pos=R.slot(LINE,1)},5000)
+    for s=0,17000,500 do R.tick(g,{pos=at_distance(path,s)},5000+s) end
+    assert(g.me.ms and g.phase=='race','A teleport DNF: the host still sends the rank')
+end
+-- Her save is not a co-op one (race.lua answers for her): the host races alone and says why.
+do
+    local m=R.host(LINE,7,0)
+    local _,ev=R.tick(m,{lines={'have 7 no save'},pos=R.slot(LINE,0)},100)
+    assert(find(ev,'refused').why=='save' and m.her.out)
+end
 -- Before GO: the host's quit cancels the race for both; the guest's leaves the host racing alone.
 host,guest,log,said=sim({dnf=function(side,m) return side=='host' and m.phase=='countdown' and 'quit' or nil end})
 assert(said.host[#said.host]=='abort 7 quit' and find(log.guest,'cancelled').why=='quit' and not host.results)
