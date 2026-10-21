@@ -3,6 +3,7 @@
 -- the race lines that came; tests/race_model_test.lua covers it with lua5.4 alone. Centimetres, milliseconds and
 -- degrees, as the game's; every number in a track file or on a line is a whole one. A race gives nothing and writes
 -- nothing but its own track file: no reward, no achievement, no save.
+local Dm=require('drive_model')
 local R={}
 -- Bounds: |x| and |y|, |z|, a time in ms, a race id; checkpoints in a track, laps; a checkpoint's radius and its
 -- default; a track file's and a line's bytes (the link's 512 less "SBC12 race "). 12 checkpoints on one cps line make
@@ -106,10 +107,10 @@ function R.drop(t,pos,r)
     t.cps[#t.cps+1]=c
     return true
 end
--- The guest's have line: every number of the track added, mod 2^32.
+-- The guest's have line: every number of the track and of its driving values added, mod 2^32.
 function R.sum(t)
     local g=t.grid
-    local s=#t.cps+t.laps+g.x+g.y+g.z+g.yaw
+    local s=#t.cps+t.laps+g.x+g.y+g.z+g.yaw+Dm.sum(t.drive or Dm.DEFAULTS)
     for _,c in ipairs(t.cps) do s=s+c.x+c.y+c.z+c.r end
     return s&0xFFFFFFFF
 end
@@ -189,6 +190,9 @@ end
 -- The race lines, without the link's "SBC12 race " (id: the host's race number):
 --   track <id> <n> <laps> <grid x y z yaw> <map>   host: a race is armed, n checkpoints follow
 --   cps <id> <first> <x y z r>...                  host: 1 to 12 checkpoints, from the first'th
+--   drive <id> <top> <accel> <brake> <coast> <grip> <drift_grip> <turn_slow> <turn_fast> <drift_angle>
+--                                                  host, after the cps lines: the driving values both players race
+--                                                  with (drive_model.lua's), clamped on receipt
 --   have <id> <sum> | have <id> no map|track|save  guest: the track received and checked (R.sum), or refused (save:
 --                                                  hers is not a co-op save, race.lua's check)
 --   ready <id> 0|1                                 both: out of or in the slot
@@ -210,6 +214,7 @@ function R.track_lines(t,id)
         end
         lines[#lines+1]=table.concat(line,' ')
     end
+    lines[#lines+1]=Dm.line(id,t.drive or Dm.DEFAULTS)
     return lines
 end
 local REASONS={dnf={teleport=true,map=true,quit=true,left=true,late=true,time=true},
@@ -240,6 +245,9 @@ function R.decode(text)
             l.cps[#l.cps+1]=c
         end
         ok=l.first
+    elseif what=='drive' then
+        l.drive=Dm.parse(w,3)
+        ok=l.drive
     elseif what=='have' and n==3 then
         l.sum=int(w[3],0,R.ID)
         ok=l.sum
@@ -290,8 +298,10 @@ local function send(m,line)
     if not m.gone and not (m.role=='host' and m.her.out) then m.out[#m.out+1]=line end
 end
 local function emit(m,e) m.ev[#m.ev+1]=e end
--- A host's race on track t (race.lua checks the track and the maps). solo: no friend, no line.
-function R.host(t,id,now,solo)
+-- A host's race on track t (race.lua checks the track and the maps) with the driving values drive (drive_model.lua's
+-- defaults when nil). solo: no friend, no line.
+function R.host(t,id,now,solo,drive)
+    t.drive=Dm.clamp(drive or Dm.DEFAULTS)
     local m={role='host',id=id,track=t,phase='ready',since=now,me=racer(),her=racer(),out={},ev={},dropped=0}
     m.her.out=solo or nil
     for _,line in ipairs(R.track_lines(t,id)) do send(m,line) end
@@ -375,12 +385,15 @@ local function receive(m,text,input,now)
     local w,her=l.what,m.her
     if m.role=='guest' and w=='track' then -- A new race replaces any other.
         m.id,m.phase,m.me,m.her,m.t_go,m.runner,m.first,m.results=l.id,'have',racer(),racer(),nil,nil,nil,nil
-        m.her.joined,m.track,m.gone=true,nil,nil
+        m.her.joined,m.track,m.gone=true,nil,input.left or nil -- A session that ended this frame sends nothing.
         m.want={map=l.map,laps=l.laps,grid=l.grid,cps={},n=l.n}
         if l.map~=input.map then refuse(m,'map') end
         return
     end
     if l.id~=m.id then m.dropped=m.dropped+1 return end
+    -- The guest's track came whole: the drive line comes next, or the race is refused (a host with no driving).
+    local whole=m.phase=='have' and m.want and #m.want.cps==m.want.n
+    if whole and w~='drive' and w~='abort' then return refuse(m,'track') end
     if (w=='cp' or w=='fin' or w=='dnf') and (m.phase=='race' or w=='dnf' and before_go(m)) then
         local t=m.track or m.want
         if w=='cp' then her.passed=(l.lap-1)*#t.cps+l.i
@@ -415,8 +428,10 @@ local function receive(m,text,input,now)
         local t=m.want
         if l.first~=#t.cps+1 or #t.cps+#l.cps>t.n then return refuse(m,'track') end
         for _,c in ipairs(l.cps) do t.cps[#t.cps+1]=c end
-        if #t.cps<t.n then return end
-        t.n=nil
+    elseif w=='drive' and m.phase=='have' then
+        local t=m.want
+        if not whole then return refuse(m,'track') end
+        t.n,t.drive=nil,l.drive
         if not R.check(t) then return refuse(m,'track') end
         m.track,m.want,m.phase=t,nil,'ready'
         send(m,('have %d %d'):format(m.id,R.sum(t)))
