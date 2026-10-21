@@ -91,11 +91,14 @@ function Race.new(o)
         if (utf8.len(name) or 0)>NAME then name=name:sub(1,utf8.offset(name,NAME+1)-1)..'…' end
         return name
     end
+    -- A command closes the race here (coop race quit, coop off): its reply says it, so no notice. A map change does
+    -- not: its DNF or the cancel is told, as the HUD goes with the race that frame.
+    local function quiet(r) return r.ending=='quit' or r.ending=='coop off' end
     -- A banner on the HUD (build(words) its text) for seconds, or until replaced; a notice instead while the kit is
-    -- off, unless notice is false or the race is closing here (its reply says it).
+    -- off, unless notice is false or a command closes the race.
     local function banner(r,build,seconds,color,notice)
         r.banner,r.wrong={build=build,color=color,til=seconds and os.clock()+seconds},nil
-        if notice~=false and not r.ending and not shown() then tell(build) end
+        if notice~=false and not quiet(r) and not shown() then tell(build) end
     end
     -- The race gone on this PC: its Doros, the look and her ghost's Doro mode if it turned them on, the HUD.
     local function close(r,why)
@@ -155,7 +158,7 @@ function Race.new(o)
             end
             tell(function(t) return t.race.out:format(her_name(t)) end)
         elseif w=='cancelled' then
-            if not r.ending then tell(function(t) return t.race.cancelled end) end
+            if not quiet(r) then tell(function(t) return t.race.cancelled end) end
         elseif w=='count' then -- 3, 2, 1: on the HUD only, as notices they would come late.
             banner(r,function() return tostring(e.n) end,nil,'beta',false)
             sound('move')
@@ -186,7 +189,7 @@ function Race.new(o)
             else
                 r.stop_ms=m.t_go and clock()-m.t_go or 0
                 banner(r,function(t) return t.race.dnf end,nil,'error')
-                if not r.ending then tell(function(t) return t.race.why[e.why] end) end
+                if not quiet(r) then tell(function(t) return t.race.why[e.why] end) end
             end
             log(string.format('race %d %s %s',m.id,w,w=='fin' and Race.clock(e.ms) or e.why))
         elseif w=='results' then

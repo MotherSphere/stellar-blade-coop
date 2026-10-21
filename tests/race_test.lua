@@ -567,6 +567,7 @@ run({H,G},function() return G.go_at and clock-G.go_at>3 end)
 G.me={map='/game/e04'}
 run({H,G},function() return not G.race.armed() end,10)
 assert(G.wire[#G.wire]:find('^dnf %d+ map$') and not G.look.on and G.look.why=='race map')
+assert(G.told[#G.told]=='Left the map.','Said, as the HUD goes with the race')
 run({H,G},function() return not H.race.armed() end)
 assert(find(H.logs,'^result .* rank=1$'))
 -- EVE gone 2 s (a load): the same.
@@ -576,7 +577,18 @@ H.race.command('start','quest')
 run({H,G},function() return G.go_at end)
 G.me=nil
 run({H,G},function() return not G.race.armed() end,80)
-assert(G.wire[#G.wire]:find('^dnf %d+ map$'))
+assert(G.wire[#G.wire]:find('^dnf %d+ map$') and G.told[#G.told]=='Left the map.')
+G.me={map=MAP}
+H.race.command('quit')
+step({H,G})
+-- Before GO: the race is cancelled on her PC, and said; the host races alone.
+H,G=pair()
+player=H.eve
+H.race.command('start','quest')
+frames({H,G},6)
+G.me={map='/game/e04'}
+run({H,G},function() return not G.race.armed() end,10)
+assert(G.wire[#G.wire]:find('^dnf %d+ map$') and G.told[#G.told]=='Race cancelled.')
 G.me={map=MAP}
 H.race.command('quit')
 step({H,G})
