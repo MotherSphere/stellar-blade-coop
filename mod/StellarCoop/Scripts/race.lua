@@ -21,10 +21,11 @@ local clean=require('chat').clean
 local valid,value_of,find=U.valid,U.value_of,U.find
 local Race={}
 local ABOVE=220 -- cm over a checkpoint's centre (EVE's feet there) for its marker: about her head.
--- A skeletal mesh faces its +Y, so a Doro turned to face a yaw gets this much less (as EVE's own mesh) [G until P1].
+-- A skeletal mesh faces its +Y, so a Doro turned to face a yaw gets this much less, as EVE's own mesh does (a starting
+-- value until the game shows it).
 local MESH_YAW=-90
 -- Fin flag 1: over this horizontal speed in cm/s for FAST_FOR s, not sprinting and not falling (Tachy mode has no
--- reader in the SDK) [G]. Flag 2: the game paused or on one of its screens for PAUSE_FOR s.
+-- reader in the SDK; a starting value). Flag 2: the game paused or on one of its screens for PAUSE_FOR s.
 local FAST,FAST_FOR,PAUSE_FOR=550,1,2
 local GONE_FOR=2 -- s with no EVE (a load, the title): she left the map.
 local GO_SHOW,MISSED_SHOW=1,2 -- s a banner stays: GO, a missed checkpoint.
