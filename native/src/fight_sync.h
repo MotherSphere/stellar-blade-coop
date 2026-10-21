@@ -409,7 +409,8 @@ struct Counts {
   uint64_t cc_told = 0;              // Crowd controls that started on our copy, told to the other side.
   uint64_t cc_mirrored = 0;          // The other side's, started on our copy.
   uint64_t cc_skipped = 0;           // The other side's not started: our copy in a crowd control, or the game refused.
-  uint64_t execs = 0, exec_refused = 0; // Host: her exec 1 taken; refused (no Groggy or marker on ours, or too soon).
+  uint64_t execs = 0;                // Host: her exec 1 taken. Guest: our exec 1 sent (stage 3c, the engine's).
+  uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, or too soon).
 };
 
 // A copy's crowd control (kCcEffects and the stunned states) as our last pass saw it, and the other side's to start.

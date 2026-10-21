@@ -1069,7 +1069,8 @@ int main() {
   }
   // Not frozen while it holds NoDamageNoHit, a crowd control or a takedown marker (Check_LinkSkillHit_Skill 5000039,
   // LinkState_MonsterHit 2006004) or is not in life state 1; frozen once they end. The release flags (Down, Groggy,
-  // Airborne, a marker), BattleMode (30) and DelayDeath (32) go into the table as read; a dying copy is dying there.
+  // Airborne, a marker), the marker alone (kRowExec), BattleMode (30) and DelayDeath (32) go into the table as read; a
+  // dying copy is dying there.
   {
     Game g;
     auto e = engine(false, false);
@@ -1099,7 +1100,8 @@ int main() {
         n += c.la == g.by_guid[guid] && c.id == kBlockAi;
       return n;
     };
-    assert(g.table.count == 5 && bits(501) == kRowDrawn + kRowRelease && bits(502) == kRowDrawn + kRowRelease);
+    assert(g.table.count == 5 && bits(501) == kRowDrawn + kRowRelease &&
+           bits(502) == kRowDrawn + kRowRelease + kRowExec);
     assert(bits(503) == kRowDrawn && bits(504) == kRowDrawn && bits(505) == kRowDrawn);
     assert(g.casts.size() == 2 && frozen(505) == 1);
     g.end(502, 5000039);
@@ -1118,12 +1120,13 @@ int main() {
     g.state(503, kBattleState, 1);
     g.state(504, kDelayDeath, 1);
     frame(g, *e, t += 16);
-    assert(bits(501) == kRowDrawn + kRowFrozen + kRowRelease && bits(502) == kRowDrawn + kRowFrozen + kRowRelease);
+    assert(bits(501) == kRowDrawn + kRowFrozen + kRowRelease + kRowExec &&
+           bits(502) == kRowDrawn + kRowFrozen + kRowRelease);
     assert(bits(503) == kRowDrawn + kRowFrozen + kRowBattle && bits(504) == kRowDrawn + kRowFrozen + kRowDying);
     g.dispel(501); // Its marker lasts past the next census: no freeze again while it holds.
     for (uint32_t i = 0; i < kCensusTurns; ++i)
       frame(g, *e, t += 16);
-    assert(g.casts.size() == casts && bits(501) == kRowDrawn + kRowRelease);
+    assert(g.casts.size() == casts && bits(501) == kRowDrawn + kRowRelease + kRowExec);
     // Our EVE's lethal hit: the copy dies by itself (no floor), so it leaves the table with no call on it.
     g.hit(505, kHp, 1600);
     frame(g, *e, t += 16);
@@ -1296,7 +1299,7 @@ int main() {
     frame(g, *e, t += 16);
     assert(dispels(502) == 1 && dispels(501) == 0 && count(g, "pilot refused") == 1 && e->counts.thawed == 1);
     assert(drawn(g.table, rows) == 1 && rows[0].hguid == 101 && g.table.count == 2 &&
-           g.table.pairs[1].bits == kRowRelease);
+           g.table.pairs[1].bits == kRowRelease + kRowExec);
     g.flags.refused_count = 0;
     for (uint32_t i = 0; i < 2 * kCensusTurns; ++i)
       frame(g, *e, t += 16);
@@ -1759,7 +1762,8 @@ int main() {
     assert(until(no + 30100, "SBF11 own 1 101 G 2\n") && t == no + 30000 && e->counts.owns == 2);
   }
   // The guards of the host's, read on its copy, hold a hand-over back while they last: a takedown marker
-  // (Check_LinkSkillHit_Skill 5000039), Groggy, DelayDeath, NoDamageNoHit; own G in the turn after each ends. Her
+  // (Check_LinkSkillHit_Skill 5000039), Groggy, DelayDeath, NoDamageNoHit; own G in the turn after each ends, but after
+  // the marker, which is the host's own takedown and its last hit (stage 3c), only at her next hit. Her
   // own-no off (her side does not run same-place enemies) pauses hand-overs for 30 s, her claims or not, then one goes
   // again; her world ends the pause at once. Her lethal claim on a pair the host held over 4 s kills it with no own
   // line: the enemy leaves the host's list in that step.
@@ -1796,6 +1800,10 @@ int main() {
       guard(which, true); // The marker's 60 turns outlast what follows.
       assert(!until(held + 4600, "own"));
       guard(which, false);
+      if (which == 0) {
+        assert(!until(t + 2000, "own"));
+        hers(t + 16);
+      }
       assert(until(t + 100, "SBF11 own 1 101 G 1\n"));
       g.inbox.push_back(msg("SBF11 world 1")); // The epochs start over.
       frame(g, *e, t += 16);
@@ -2088,6 +2096,270 @@ int main() {
     for (uint32_t i = 0; i < 3; ++i)
       assert(!Game::held(H.body(100 + i), kBlockAiState) && !Game::held(G.body(900 + i), kBlockAiState));
     assert(!H.table.on && !G.table.on);
+  }
+
+  // ---- Same-place enemies, stage 3c (PHASE11-STAGE3 3.9): takedowns, the host's side ----
+  // 101: her exec 1 for a pair the host owns, its copy groggy: own G in that turn, past the 4 s hold and the Groggy
+  // guard, and the host's copy frozen in that turn although Groggy releases it (it plays her takedown from her stream).
+  // Her lethal claim then waits at 1 HP until her exec 0, which lets the kill go in that turn, our freeze off first.
+  // 102: a hit of the host's during her takedown changes nothing, so the pair stays hers after it. 103: the host's own
+  // takedown (a marker on its copy) takes back a pair she took 0.5 s before, and its capture says kExec while the
+  // marker holds; her next exec 1 hands it to her again, and with no exec 0 her lethal claim goes 6 s after her exec 1
+  // (held-expired). Her exec 1 for a copy of ours with no Groggy or marker is refused, and so is one for a BossMonster
+  // (104, shared here by its charId): boss finishers stay the host's.
+  {
+    Game g;
+    auto e = engine(true, true);
+    e->same_place(true);
+    for (uint32_t i = 0; i < 3; ++i)
+      g.spawn(101 + i, 5001 + i, 0);
+    g.spawn(104, 5004, 0, kChar, 1600, 4);
+    g.state(104, 7, 1);
+    g.inbox.push_back(msg("SBF11 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    lines(g);
+    const auto row = [&](uint32_t h) {
+      for (uint8_t r = 0; r < g.table.count; ++r)
+        if (g.table.pairs[r].hguid == h)
+          return g.table.pairs[r];
+      assert(!"no such row");
+      return PilotPair();
+    };
+    std::map<uint32_t, size_t> looked;
+    const auto casts = [&](uint32_t h) { // The effect IDs cast on h by itself since the last look.
+      std::string ids;
+      for (size_t &k = looked[h]; k < g.casts.size(); ++k)
+        if (g.casts[k].la == g.by_guid[h] && g.casts[k].caster == g.casts[k].la)
+          ids += std::to_string(g.casts[k].id) + " ";
+      return ids;
+    };
+    const auto turn = [&](const std::string &line = std::string()) {
+      if (!line.empty())
+        g.inbox.push_back(msg(line));
+      frame(g, *e, t += 16);
+      return lines(g);
+    };
+    const std::string freeze = std::to_string(kBlockAi) + " " + std::to_string(kSkillCancel) + " ",
+                      thaw = std::to_string(kDispel) + " ";
+    g.state(101, 7, 1);
+    turn();
+    assert(has(turn("SBF11 exec 1 101 1"), "SBF11 own 1 101 G 1\n") && casts(101) == freeze);
+    assert(row(101).owner == coop::pilot::kGuest && (row(101).bits & kRowDrawn) && (row(101).bits & kRowRelease));
+    assert(e->host.executing(101, t) && count(g, "exec", "her takedown begins") == 1 && e->counts.owns == 1);
+    turn("SBF11 hit 1 1 101 1600 0 0 1600 1");
+    assert(g.hp(101) == 1 && !g.dying(101) && count(g, "kill held", "her takedown") == 1);
+    for (int i = 0; i < 30; ++i)
+      assert(!has(turn(), "dead"));
+    assert(has(turn("SBF11 exec 1 101 0"), "SBF11 dead 1 101\n") && casts(101) == thaw);
+    assert(g.body(101).deaths == 1 && g.body(101).killer == g.eve && e->host.counts.expired == 0);
+    // 102.
+    g.state(102, 7, 1);
+    turn();
+    assert(has(turn("SBF11 exec 1 102 1"), "SBF11 own 1 102 G 1\n"));
+    const uint64_t taken = t;
+    g.hit(102, kShield, 5);
+    turn();
+    turn("SBF11 exec 1 102 0");
+    g.state(102, 7, 0);
+    while (t < taken + 6000)
+      assert(!has(turn(), "own"));
+    assert(row(102).owner == coop::pilot::kGuest);
+    // 103.
+    g.state(103, 7, 1);
+    turn();
+    assert(has(turn("SBF11 exec 1 103 1"), "SBF11 own 1 103 G 1\n"));
+    const uint64_t first = t;
+    turn("SBF11 exec 1 103 0");
+    while (t < first + 500)
+      turn();
+    casts(103);
+    g.knock(103, 5000039);
+    assert(has(turn(), "SBF11 own 1 103 H 2\n") && casts(103) == thaw && row(103).owner == coop::pilot::kHost);
+    coop::pilot::Owned o[kMaxPairs];
+    const auto flags = [&](uint32_t h) {
+      const size_t n = owned(g.table, o);
+      for (size_t k = 0; k < n; ++k)
+        if (o[k].hguid == h)
+          return int(o[k].flags);
+      return -1;
+    };
+    assert(flags(103) == coop::pilot::kExec && (row(103).bits & kRowExec));
+    g.end(103, 5000039);
+    turn();
+    assert(flags(103) == 0);
+    while (t < first + 2100)
+      assert(!has(turn(), "own")); // The host's takedown was its last hit.
+    const uint64_t asked = t + 16;
+    assert(has(turn("SBF11 exec 1 103 1"), "SBF11 own 1 103 G 3\n"));
+    turn("SBF11 hit 1 2 103 1600 0 0 1600 1");
+    assert(g.hp(103) == 1);
+    while (t + 16 < asked + kHoldMs)
+      assert(!has(turn(), "dead"));
+    assert(has(turn(), "SBF11 dead 1 103\n") && e->host.counts.expired == 1 && count(g, "held-expired") == 1);
+    // 102 again, its Groggy over, and the boss: refused.
+    assert(!has(turn("SBF11 exec 1 102 1"), "own") && !e->host.executing(102, t));
+    assert(!has(turn("SBF11 exec 1 104 1"), "own") && !e->host.executing(104, t));
+    assert(e->host.counts.exec_refused == 2 && count(g, "exec refused", "no Groggy or takedown on our copy") == 2);
+    assert(e->host.counts.execs == 4 && e->host.counts.bad == 0 && !e->latched());
+  }
+  // Her side. A takedown marker on her copy, while same-place enemies run here with aggro=game: exec 1 in that turn,
+  // exec 0 in the turn it holds none or same place stops here; none with the host's aggro=host. The host's own G for
+  // that pair is hers even while her copy holds NoDamageNoHit (her takedown may). A pair that leaves her list
+  // mid-takedown ends it with exec 0.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    g.spawn(502, 5002, 0);
+    for (const char *line :
+         {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600", "SBF11 up 1 102 5002 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    frame(g, *e, t += 16);
+    lines(g);
+    const auto turn = [&](const std::string &line = std::string()) {
+      if (!line.empty())
+        g.inbox.push_back(msg(line));
+      frame(g, *e, t += 16);
+      return lines(g);
+    };
+    g.state(501, 7, 1);
+    g.knock(501, 5000039);
+    g.state(501, kNoDamageNoHit, 1);
+    assert(turn() == "SBF11 exec 1 101 1\n" && count(g, "exec", "our takedown begins") == 1);
+    assert(turn("SBF11 own 1 101 G 1").empty() && g.table.pairs[0].owner == coop::pilot::kGuest);
+    assert(turn().empty());
+    g.end(501, 5000039);
+    assert(turn() == "SBF11 exec 1 101 0\n" && count(g, "exec", "our takedown ends") == 1);
+    g.knock(502, 2006004);
+    assert(turn("SBF11 aggro 1 host").empty());
+    assert(turn("SBF11 aggro 1 game") == "SBF11 exec 1 102 1\n");
+    const uint64_t told = t;
+    e->pilot_off(true);
+    assert(turn() == "SBF11 own-no 1 101 1 off\nSBF11 exec 1 102 0\n");
+    e->pilot_off(false);
+    for (int k = 0; t + 16 < told + coop::pilot::kExecSpaceMs; ++k) { // Marked all along: told again 2.25 s after.
+      if (k % 40 == 0)
+        g.knock(502, 2006004);
+      assert(turn().empty());
+    }
+    assert(turn() == "SBF11 exec 1 102 1\n");
+    g.unlink(502); // Gone from her map: unpaired, so her takedown ends.
+    assert(turn() == "SBF11 exec 1 102 0\n" && e->guest.counts.execs == 3 && e->guest.counts.bad == 0);
+  }
+  // Her copy, groggy, is never frozen while it is released, unless her game thread's word says the owner's stream holds
+  // a takedown (kExec): then it is, to play the takedown from the stream (stage 3c), and the word's end leaves it so.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    g.state(501, 7, 1);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    for (; t < 160; t += 16)
+      frame(g, *e, t);
+    assert(g.casts.empty() && (g.table.pairs[0].bits & kRowDrawn) && (g.table.pairs[0].bits & kRowRelease));
+    g.flags.exec[0] = 101, g.flags.exec_count = 1;
+    frame(g, *e, t += 16); // The word reaches the job at this turn's end,
+    assert(g.casts.empty());
+    frame(g, *e, t += 16); // and its freeze comes at the next.
+    assert(g.casts.size() == 2 && g.casts[0].id == kBlockAi && g.casts[1].id == kSkillCancel);
+    g.flags.exec_count = 0;
+    for (int i = 0; i < 20; ++i)
+      frame(g, *e, t += 16);
+    assert(g.casts.size() == 2 && Game::held(g.body(501), kBlockAiState) && (g.table.pairs[0].bits & kRowFrozen));
+  }
+  // coop fight pilot test exec (T11d-solo's probe of 3c): at the next turn the first copy this side draws and holds
+  // frozen has its balance emptied, a drop with a number and no cause, which her side then claims as her hit. None
+  // drawn and frozen: refused; an empty balance: said so.
+  {
+    Game g;
+    auto e = engine(false, false);
+    e->same_place(true);
+    e->set(true, false);
+    g.spawn(501, 5001, 0);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 up 1 101 5001 0 900 1600"})
+      g.inbox.push_back(msg(line));
+    e->exec_test();
+    frame(g, *e, 0);
+    assert(count(g, "pilot test exec", "refused: no frozen copy drawn") == 1);
+    frame(g, *e, 16);
+    e->exec_test();
+    frame(g, *e, 32);
+    const Game::Call &c = g.calls.back();
+    assert(count(g, "pilot test exec", "balance emptied: take it down") == 1);
+    assert(c.la == g.by_guid[501] && c.type == kStatType[kStamina] && c.delta == -200 && c.notify && !c.cause);
+    lines(g);
+    frame(g, *e, 48);
+    assert(lines(g) == "SBF11 hit 1 1 101 0 0 200 1600 0\n");
+    e->exec_test();
+    frame(g, *e, 64);
+    assert(count(g, "pilot test exec", "its balance is empty already") == 1 && !e->latched());
+  }
+  // ---- Stage 3c, two worlds through channel 2: her takedown holds the host's kill ----
+  // One paired enemy, the host's, both copies groggy from 1.5 s (the shared balance). At 2 s her EVE starts a takedown
+  // on her copy (its marker lasts 60 turns, about 1 s), whose lethal hit at 2.5 s leaves her copy at 1 HP
+  // (guest_kills=confirmed). Her exec 1 hands her the enemy, with 0 AI copies for one hop at most and the host's copy
+  // frozen from then on. The host holds her lethal claim at 1 HP until her exec 0, sent as the marker ends, reaches it,
+  // and kills its copy in that turn; its dead then kills hers. One death in each world, no held-expired.
+  {
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(false, false);
+    eh->same_place(true);
+    eg->confirm(true);
+    eg->set(true, false);
+    H.spawn(100, 7000, 0);
+    G.spawn(900, 7000, 0);
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(9);
+    uint64_t exec0 = 0, lethal = 0, dead = 0, bad_since = 0, worst = 0, windows = 0;
+    for (uint64_t t = 0; t <= 6000; t += 16) {
+      for (const auto &[at, text] : to_host.queue) {
+        exec0 = !exec0 && at <= t && text == "SBF11 exec 1 100 0" ? t : exec0;
+        lethal = !lethal && at <= t && has(text, "SBF11 hit 1 ") && has(text, " 100 1599 ") ? t : lethal;
+      }
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 1504)
+        H.state(100, 7, 1), G.state(900, 7, 1);
+      if (t == 2000)
+        G.knock(900, 5000039);
+      if (t == 2496)
+        G.hit(900, kHp, 1600);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      if (!dead && H.body(100).deaths)
+        dead = t;
+      if (t >= 1000 && !dead) {
+        const int ai = !Game::held(H.body(100), kBlockAiState) + !Game::held(G.body(900), kBlockAiState);
+        if (ai != 1 && !bad_since)
+          bad_since = t;
+        if (ai == 1 && bad_since)
+          worst = std::max(worst, t - bad_since), ++windows, bad_since = 0;
+        if (lethal && t > lethal)
+          assert(H.hp(100) == 1); // Held while her takedown runs.
+      }
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    std::printf("fight_engine_test: stage 3c two worlds: her lethal claim in at %llu ms, exec 0 at %llu ms, the host's "
+                "kill at %llu ms; 0 AI copies for %llu ms\n",
+                static_cast<unsigned long long>(lethal), static_cast<unsigned long long>(exec0),
+                static_cast<unsigned long long>(dead), static_cast<unsigned long long>(worst));
+    assert(lethal && exec0 > lethal + 300 && dead == exec0 && windows == 1 && worst <= 150 + 16);
+    assert(eh->counts.owns == 1 && eg->counts.owns == 1 && eh->host.counts.execs == 1 && eg->guest.counts.execs == 1);
+    assert(eh->host.counts.held == 1 && eh->host.counts.expired == 0 && eh->host.counts.kills == 1);
+    assert(H.body(100).deaths == 1 && G.body(900).deaths == 1 && eg->guest.counts.kills == 1);
+    assert(eh->host.counts.bad == 0 && eg->guest.counts.bad == 0 && !eh->latched() && !eg->latched());
   }
 
   // ---- Two-player scaling (PHASE11-STAGE2-RE 4): on each enemy the side names, MaxHPValue (stat 3, which MaxHP
