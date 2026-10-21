@@ -54,6 +54,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
+#include <xinput.h>
 
 #include <array>
 #include <atomic>
@@ -69,6 +70,7 @@
 #include "fight_engine.h"
 #include "link_protocol.h"
 #include "nightop_probe.h"
+#include "pad.h"
 #include "photo_freeze.h"
 #include "pose_codec.h"
 #include "pose_engine.h"
@@ -90,6 +92,13 @@ std::atomic<int> current_part{-1}; // The part being read or written, for the fa
 std::atomic<bool> effects_on{true};
 std::atomic<uint64_t> fx_fault_code{0}, fx_fault_rva{0}, fx_fault_address{0};
 std::atomic<int> fx_fault_part{-1};
+// The XInput pads (coop_pad): the worker loads XInputGetState once, the game thread polls it. pad_seen is the game
+// thread's last read for the worker's log: the slots connected as bits, kPadUnread before the first poll, kPadMissing
+// when System32 has no XInput.
+using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
+std::atomic<XInputGetStateFn> xinput_get{nullptr};
+constexpr int kPadUnread = -1, kPadMissing = -2;
+std::atomic<int> pad_seen{kPadUnread};
 
 // What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings), while a
 // recording is made or while a friend is linked.
@@ -1161,6 +1170,7 @@ namespace {
 std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false;
+int pad_logged = kPadUnread; // pad_seen as last logged.
 uint64_t next_poll = 0, next_counters = 0;
 uint64_t vitals_reads = 0, vitals_max_us = 0; // local_vitals()'s, for the 60 s line.
 bool world = false; // From coop-state.txt: a save is loaded (the link's held invites wait for one).
@@ -1549,6 +1559,28 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     quest_pinned = pinned;  // The same for the shared quests' pass.
     pilot_pinned = pinned;  // The same for the pilot's capture.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
+    // XInput for coop_pad, from System32 only: the game's folder holds another tool's xinput1_3.dll proxy.
+    HMODULE xinput = LoadLibraryExW(L"xinput1_4.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!xinput)
+      xinput = LoadLibraryExW(L"xinput9_1_0.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (const FARPROC get = xinput ? GetProcAddress(xinput, "XInputGetState") : nullptr)
+      xinput_get = reinterpret_cast<XInputGetStateFn>(reinterpret_cast<void *>(get));
+    else
+      pad_seen = kPadMissing;
+  }
+  // Each change of the pads coop_pad sees, so a test's log says whether the pad is read.
+  if (const int seen = pad_seen; seen != pad_logged) {
+    pad_logged = seen;
+    std::string line = "pad: no XInput pad";
+    if (seen == kPadMissing)
+      line = "pad: no XInput in System32: no controller in the co-op menu";
+    else if (seen > 0) {
+      line = "pad: XInput pads connected:";
+      for (int slot = 0; slot < 4; ++slot)
+        if (seen & (1 << slot))
+          line += " " + std::to_string(slot);
+    }
+    event(line);
   }
   if (faulted && !fault_logged) {
     fault_logged = true;
@@ -2392,7 +2424,59 @@ std::string status() {
       c = ' ';
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
+
+namespace {
+// The pads, the game thread's (coop_pad). Slots 0 to 3, buttons ORed, the first connected left stick. A slot that did
+// not answer is asked again only every 2 s: asking an empty slot is known to cost milliseconds.
+constexpr uint64_t kPadPollMs = 8, kPadRetryMs = 2000;
+coop::Pad pad;
+uint64_t pad_next_poll = 0;
+std::array<uint64_t, 4> pad_retry{}; // When each slot that did not answer is asked again.
+int pad_slots = 0;                   // The slots that answered at their last ask, as bits.
+
+void poll_pad(uint64_t now) {
+  const XInputGetStateFn get = xinput_get;
+  if (!get)
+    return; // Not loaded yet (the worker's first pass), or no XInput.
+  coop::PadState s;
+  for (DWORD slot = 0; slot < 4; ++slot) {
+    const int bit = 1 << slot;
+    if (!(pad_slots & bit) && now < pad_retry[slot])
+      continue;
+    XINPUT_STATE x{};
+    if (get(slot, &x) != ERROR_SUCCESS) { // ERROR_DEVICE_NOT_CONNECTED, or any other failure the same way.
+      pad_slots &= ~bit;
+      pad_retry[slot] = now + kPadRetryMs;
+      continue;
+    }
+    pad_slots |= bit;
+    s.buttons |= x.Gamepad.wButtons;
+    if (!s.connected) {
+      s.lx = x.Gamepad.sThumbLX;
+      s.ly = x.Gamepad.sThumbLY;
+      s.connected = true;
+    }
+  }
+  pad_seen = pad_slots;
+  pad.step(s, now);
+}
+} // namespace
 } // namespace coop::pose
+
+// Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 7 arguments and gets that many of them
+// back, 0 for none or pad.h's event 1 to 7, so this never returns more than 7. Polls the pads at most once per 8 ms, so
+// Lua can take several events in one frame. Never throws, never waits.
+extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
+  using namespace coop::pose;
+  const uint64_t now = GetTickCount64();
+  if (now >= pad_next_poll) {
+    pad_next_poll = now + kPadPollMs;
+    poll_pad(now);
+  }
+  const int event = pad.next();
+  return event >= 0 && event <= 7 ? event : 0;
+}
 
 // Called by Lua once per frame (package.loadlib(dll, "coop_tick")), in lua_CFunction's shape: the Lua state is
 // ignored and nothing is returned to Lua. Never throws, never waits.
