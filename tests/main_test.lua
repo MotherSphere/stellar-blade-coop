@@ -14,23 +14,21 @@
 -- shared_enemies=on and says on and off on screen, coop fight pilot (same-place enemies) checks its own and same_place
 -- goes with coop fight on and the menu's row and says on and off on screen, the photo mode is read every 250 ms with a save loaded and goes into
 -- the state with its settings while our own veils the notices, the ghost and its tag as set, coop freeze checks its
--- arguments, coop ui test reaches the UI spike (ticked every frame until coop off, which stops it), coop race look and
--- coop race probe doro reach the Doro look (restored and ticked every frame, ended by coop off), coop race reaches the
--- Doro race (race.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on the kit,
--- race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop-chat.txt is
--- taken every 250 ms (session or not, coop off included; each frame instead while a race is armed, her race lines to
--- the race) and its text never logged, the co-op menu (menu.lua on a fake
--- kit) opens, moves, runs its rows, changes and applies settings, rebinds keys and migrates an old file, the session
--- chat (chat.lua's view on the fake kit) opens on Enter, sends, cancels on Esc, hands its lines to the native part and
--- takes the notices into its feed while the UI is up, join codes (join.lua on the fake kit: who_can_join=code, the
--- menu's Copy my code, Join with a code and Remove rows, the code box and the host's question taking the keys), the
--- co-op saves' question (saves.lua on the fake kit) shows on
--- the title screen and takes the menu's keys while open, the co-op line opens at a camp phone booth (booth.lua on a
--- fake FindAllOf) and its hint shows there, coop saves reaches the native part, coop no, coop recruiter and
--- coop fight accept the co-op saves (slot=coop saves=coop), coop quests (the shared quests, experimental) checks its
--- arguments, the co-op slot and its settings, carries quest_deny, asks force only when typed twice, starts once a load
--- with shared_quests=on, ends at a reload with shared_quests=off, follows the menu's row and says its notices on
--- screen, and the link is optional (no native part, no Steam link, no keys, no menu).
+-- arguments, coop race look and coop race probe doro reach the Doro look (restored and ticked every frame, ended by
+-- coop off), coop race reaches the Doro race (race.lua: its start on the co-op save slot only; ticked every frame and
+-- every 250 ms, its HUD on the kit, race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it
+-- is armed), coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is
+-- armed, her race lines to the race) and its text never logged, the co-op menu (menu.lua on a fake kit) opens, moves,
+-- runs its rows, changes and applies settings, rebinds keys and migrates an old file, the session chat (chat.lua's view
+-- on the fake kit) opens on Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into
+-- its feed while the UI is up, join codes (join.lua on the fake kit: who_can_join=code, the menu's Copy my code, Join
+-- with a code and Remove rows, the code box and the host's question taking the keys), the co-op saves' question
+-- (saves.lua on the fake kit) shows on the title screen and takes the menu's keys while open, the co-op line opens at a
+-- camp phone booth (booth.lua on a fake FindAllOf) and its hint shows there, coop saves reaches the native part, coop
+-- no, coop recruiter and coop fight accept the co-op saves (slot=coop saves=coop), coop quests (the shared quests,
+-- experimental) checks its arguments, the co-op slot and its settings, carries quest_deny, asks force only when typed
+-- twice, starts once a load with shared_quests=on, ends at a reload with shared_quests=off, follows the menu's row and
+-- says its notices on screen, and the link is optional (no native part, no Steam link, no keys, no menu).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -333,7 +331,6 @@ package.loaded.recruiter={new=function(log)
         stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
         tick=function() rc_ticks=rc_ticks+1 end}
 end}
-local ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0 -- ui.new's logger, coop ui test's arguments, its ticks and stops.
 -- The kit (ui.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes the
 -- engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
 -- row was last set to. kit_ready: its root is up; kit_off: it turned off; kit_language: the game's culture, read only
@@ -381,11 +378,7 @@ local function builder(group)
     return b
 end
 local function said_kit(word) return function(...) kit_calls[#kit_calls+1]=table.concat({word,tostring((...))},' ') end end
-package.loaded.ui={new=function(log)
-    ui_log=log
-    return {test=function(game) ui_tests[#ui_tests+1]=game; return true,'UI test on screen' end,
-        tick=function() ui_ticks=ui_ticks+1 end,stop=function() ui_stops=ui_stops+1 end}
-end,kit=function(opts)
+package.loaded.ui={kit=function(opts)
     kit_opts=opts
     return {add=function(name,place,build)
             kit_order[#kit_order+1]=name
@@ -491,7 +484,6 @@ local function load_main(with_native,no_folder)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
-    ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
     kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out,code_text={},nil,'',0,{},nil,{},''
@@ -624,8 +616,8 @@ asked={'host','invite','leave','report','join','join 109775241234567890'}
 coop('status'); assert(last():find('OK: mod=v proto=3 steam=ready | link=none lobby=0 | last=#1 ready | ghost=off',1,true),last())
 assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load')
 loops[1].f(); loops[1].f()
-assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ui_ticks==2 and ra.ticks==2,
-    'The native tick, the notices, the probe, the recruiter, the UI spike and the race run every frame')
+assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ra.ticks==2,
+    'The native tick, the notices, the probe, the recruiter and the race run every frame')
 -- coop race: its words to race.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot only;
 -- race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot check
 -- and the kit's pause.
@@ -939,14 +931,12 @@ for _,bad in ipairs({{},{'0'},{'3601'},{'-1'},{'1.5'},{'on'},{'10','x'},{'off','
     coop('freeze',table.unpack(bad))
     assert(last()=='[StellarCoop] STOP: Use: coop freeze <1-3600 seconds> | off\n' and #asked==before,last())
 end
--- coop ui test [game]: the spike gets whether the game root goes alone; anything else is its usage line.
-coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n',last())
-coop('ui','test','game'); assert(ui_tests[2]==true and #ui_tests==2)
-for _,bad in ipairs({{},{'OFF'},{'TEST'},{'test','x'},{'test','game','x'},{'reset','x'}}) do
+-- coop ui: reset or off; anything else is its usage line. The kit logs [UI] lines.
+for _,bad in ipairs({{},{'OFF'},{'test'},{'test','game'},{'reset','x'}}) do
     coop('ui',table.unpack(bad))
-    assert(last()=='[StellarCoop] STOP: Use: coop ui test [game] | reset | off\n' and #ui_tests==2,last())
+    assert(last()=='[StellarCoop] STOP: Use: coop ui reset | off\n',last())
 end
-ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
+kit_opts.log('UI built'); assert(last()=='[StellarCoop][UI] UI built\n',last())
 -- coop race look on|off and coop race probe doro: test tools, out of the usage line (USAGE above). The look and the
 -- ghost's Doro mode go on together, the ghost's refusal said after; off ends both, the look on or not, on any save.
 -- The look and the probe start on a co-op save only.
@@ -988,7 +978,7 @@ loops[1].f()
 assert(dr.restores==dr.r+1 and dr.ticks==dr.t+1,'Both each frame')
 assert(last()=='[StellarCoop] STOP: Doro look stopped until the mod reloads: x\n',last())
 dr.says=nil
-assert(notice_stops==0 and ui_stops==0)
+assert(notice_stops==0)
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
 -- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
 assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui_text').en)=='Kaanta'
@@ -1029,7 +1019,6 @@ nr.ticked=nr.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
-assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 assert(gr.stops==1,'off gives back a death screen the revive hid')
@@ -1058,13 +1047,12 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
     and printed[lines+2]=='[StellarCoop] STOP: coop off is active until the game restarts\n'
     and printed[lines+4]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
-local drawn,probed,recruited,ui_ticked=notice_ticks,probe_ticks,rc_ticks,ui_ticks
+local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t=dr.ticks,ra.ticks
 loops[1].f(); assert(ticks==7 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(ra.ticks==ra.t,'No race tick after coop off')
-assert(ui_ticks==ui_ticked,'No UI spike tick after coop off')
-coop('ui','test'); assert(#ui_tests==2 and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
+coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
 assert(ticks==8 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
@@ -2136,7 +2124,8 @@ local function kit_said(word) for i=#kit_calls,1,-1 do if kit_calls[i]==word the
 local function quarter() clock=clock+0.25; loops[2].f() end
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
 load_main(true)
-assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store' and kit_opts.log==ui_log,
+assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store'
+    and type(kit_opts.log)=='function',
     'The kit gets the settings, the UI log and its own path store')
 assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')
 local top=menu_place.y+menu_place.h*menu_place.pivot.Y*(1-1.5)
@@ -3057,7 +3046,6 @@ local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
-coop('ui','test'); assert(ui_tests[1]==false and last()=='[StellarCoop] OK: UI test on screen\n','No native part needed')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
 io.stdout:write('main_test ok\n')
