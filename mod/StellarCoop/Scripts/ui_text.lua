@@ -112,6 +112,10 @@ T.en={
         stopped='Same spawns stopped by an error until the game restarts. coop-link.log says why.',
         differ="Same spawns: some enemies differ between your game and %s's (other .pak mods or fight_chars) and "
             ..'stay as they are. coop-link.log names them.'},
+    -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
+    -- reset our own only (%s: her name, or fight.friend).
+    group={rest="Enemies are back: the area reset in %s's game.",
+        rest_guest="Shared area: only %s's camp rest brings its enemies back."},
     -- Night Operation's run (nightop_run.lua): its card at the top centre (the title, then the countdown, the wave or
     -- the next wave's countdown, each with the time left and the score), its result panel (the heading, the line under
     -- it, the rows) and its notices while the UI is off. success, fail and died are the game's own words, its
@@ -247,6 +251,8 @@ T.fr={
         stopped="Mêmes apparitions arrêtées par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi.",
         differ='Mêmes apparitions : certains ennemis diffèrent entre votre partie et celle de %s (autres mods .pak ou '
             ..'fight_chars) et restent tels quels. coop-link.log les nomme.'},
+    group={rest='Les ennemis sont revenus : la zone a été réinitialisée dans la partie de %s.',
+        rest_guest='Zone partagée : seul le repos de %s au camp fait revenir ses ennemis.'},
     night={title='OPÉRATION NOCTURNE',starts='DÉBUT DANS %d',wave='VAGUE %d/%d',next='VAGUE SUIVANTE DANS %d',
         score='SCORE %d',success='Opération réussie',fail="Échec de l'opération",died='Tous les joueurs sont morts.',
         time_up='Temps écoulé.',
@@ -369,6 +375,8 @@ T.ar={
         stopped='أوقف خطأ تطابق الظهور حتى إعادة تشغيل اللعبة. يذكر coop-link.log السبب.',
         differ='تطابق الظهور: بعض أعداء %s مختلفون (تعديلات .pak أو fight_chars) فيبقون كما هم. يسميهم '
             ..'coop-link.log.'},
+    group={rest='عاد الأعداء: أُعيد ضبط المنطقة في لعبة %s.',
+        rest_guest='منطقة مشتركة: لا تعيد أعداءها إلا استراحة %s في المخيم.'},
     night={title='التشغيل الليلي',starts='يبدأ خلال %d',wave='الموجة %d/%d',next='الموجة التالية خلال %d',
         score='النقاط %d',success='تم التشغيل بنجاح',fail='فشل التشغيل',died='لقد مات كل اللاعبون.',
         time_up='انتهى الوقت.',
@@ -494,6 +502,8 @@ T.da={
         stopped='Samme spawns stoppet af en fejl, indtil spillet genstartes. coop-link.log forklarer hvorfor.',
         differ='Samme spawns: nogle fjender er forskellige i dit spil og hos %s (andre .pak-mods eller fight_chars) '
             ..'og forbliver, som de er. coop-link.log nævner dem.'},
+    group={rest='Fjenderne er tilbage: området blev nulstillet i spillet hos %s.',
+        rest_guest='Delt område: fjenderne her kommer kun tilbage, når %s hviler ved en lejr.'},
     night={title='NATMISSION',starts='STARTER OM %d',wave='BØLGE %d/%d',next='NÆSTE BØLGE OM %d',score='POINT %d',
         success='Missionen er fuldført',fail='Mission mislykkedes',died='Alle spillere døde.',time_up='Tiden er gået.',
         why={stop='Stoppet med coop nightop stop.',map='Afsluttet af et kortskift eller en indlæsning.',
@@ -625,6 +635,8 @@ T.de={
             ..'coop-link.log.',
         differ='Gleiche Spawns: Du und %s habt teils andere Gegner (andere .pak-Mods oder fight_chars). Sie bleiben, '
             ..'wie sie sind; coop-link.log nennt sie.'},
+    group={rest='Die Gegner sind zurück: Das Gebiet wurde im Spiel von %s zurückgesetzt.',
+        rest_guest='Gemeinsames Gebiet: Die Gegner hier kehren nur zurück, wenn %s an einem Lager rastet.'},
     night={title='NÄCHTLICHER EINSATZ',starts='START IN %d',wave='WELLE %d/%d',next='NÄCHSTE WELLE IN %d',
         score='PUNKTE %d',success='Einsatz erfolgreich',fail='Einsatz gescheitert',died='Alle Spieler sind gestorben.',
         time_up='Die Zeit ist abgelaufen.',
@@ -758,6 +770,8 @@ T.es={
             ..'motivo.',
         differ='Mismas apariciones: algunos enemigos difieren entre tu partida y la de %s (otros mods .pak o '
             ..'fight_chars) y se quedan como están. coop-link.log los enumera.'},
+    group={rest='Los enemigos han vuelto: la zona se ha reiniciado en la partida de %s.',
+        rest_guest='Zona compartida: los enemigos de esta zona solo vuelven si %s descansa en un campamento.'},
     night={title='OPERACIÓN NOCTURNA',starts='EMPIEZA EN %d',wave='OLEADA %d/%d',next='SIGUIENTE OLEADA EN %d',
         score='PUNTOS %d',success='Operación exitosa',fail='Operación fallida',died='Todos los jugadores han muerto.',
         time_up='Se acabó el tiempo.',
@@ -888,6 +902,8 @@ T['es-MX']={
         stopped='Mismas apariciones detenidas por un error hasta que reinicies el juego. coop-link.log dice por qué.',
         differ='Mismas apariciones: algunos enemigos difieren entre tu partida y la de %s (otros mods .pak o '
             ..'fight_chars) y se quedan como están. coop-link.log los nombra.'},
+    group={rest='Los enemigos volvieron: la zona se reinició en la partida de %s.',
+        rest_guest='Zona compartida: los enemigos de esta zona solo regresan si %s descansa en un campamento.'},
     night={title='OPERACIÓN NOCTURNA',starts='EMPIEZA EN %d',wave='OLEADA %d/%d',next='SIGUIENTE OLEADA EN %d',
         score='PUNTOS %d',success='Operación exitosa',fail='Operación fallida',died='Todos los jugadores han muerto.',
         time_up='Se acabó el tiempo.',
@@ -1020,6 +1036,8 @@ T.fi={
             ..'coop-link.log-tiedostossa.',
         differ='Samat viholliset: %s pelaa peliä, jossa osa vihollisista eroaa pelistäsi (muut .pak-modit tai '
             ..'fight_chars). Ne jäävät ennalleen. coop-link.log nimeää ne.'},
+    group={rest='Viholliset palasivat: alue nollautui pelaajan %s pelissä.',
+        rest_guest='Jaettu alue: alueen viholliset palaavat vain, kun %s lepää leirissä.'},
     night={title='YÖOPERAATIO',starts='ALKUUN %d',wave='AALTO %d/%d',next='SEURAAVAAN AALTOON %d',score='PISTEET %d',
         success='Operaatio onnistui',fail='Operaatio epäonnistui',died='Kaikki pelaajat kuolivat.',
         time_up='Aika loppui.',
@@ -1148,6 +1166,8 @@ T.it={
         stopped='Stessi spawn fermati da un errore fino al riavvio del gioco. Il motivo è in coop-link.log.',
         differ='Stessi spawn: alcuni nemici sono diversi tra te e %s (altre mod .pak o fight_chars) e restano come '
             ..'sono. coop-link.log li elenca.'},
+    group={rest='I nemici sono tornati: la zona è stata ripristinata nella partita di %s.',
+        rest_guest='Zona condivisa: i nemici della zona tornano solo se %s riposa a un accampamento.'},
     night={title='OPERAZIONE NOTTURNA',starts='INIZIO TRA %d',wave='ONDATA %d/%d',next='PROSSIMA ONDATA TRA %d',
         score='PUNTI %d',success='Operazione riuscita',fail='Operazione non riuscita',
         died='Tutti i giocatori hanno perso la vita.',time_up='Tempo scaduto.',
@@ -1270,6 +1290,8 @@ T.ja={
         stopped='敵配置の同期：エラーのためゲームを再起動するまで停止。理由はcoop-link.logにあります。',
         differ='敵配置の同期：%sのゲームと違う敵がいます（.pak MODやfight_charsの違い）。その敵はそのままです。'
             ..'詳細はcoop-link.log。'},
+    group={rest='敵が復活：%sのゲームでエリアがリセットされました。',
+        rest_guest='共有エリア：このエリアの敵は%sがキャンプで休息したときだけ復活します。'},
     night={title='夜間オペレーション',starts='開始まで %d',wave='ウェーブ %d/%d',next='次のウェーブまで %d',score='スコア %d',success='オペレーション成功',
         fail='オペレーション失敗',died='全プレイヤーが死亡した。',time_up='時間切れ。',
         why={stop='coop nightop stopで中止。',map='マップ移動かロードで終了。',left='開始地点から80 m以上離れて10秒経過。',slot='このセーブは協力プレイ用ではなくなった。',
@@ -1384,6 +1406,8 @@ T.ko={
         stopped='오류로 게임을 다시 시작할 때까지 스폰 동기화가 중지됩니다. 이유는 coop-link.log 참고.',
         differ='스폰 동기화: 일부 적이 %s의 게임과 달라(다른 .pak 모드 또는 fight_chars) 그대로 둡니다. 목록은 '
             ..'coop-link.log에 있습니다.'},
+    group={rest='적이 돌아왔습니다: %s의 게임에서 구역이 초기화되었습니다.',
+        rest_guest='공유 구역: 이 구역의 적은 %s 쪽이 캠프에서 휴식할 때만 돌아옵니다.'},
     night={title='야간 작전',starts='시작까지 %d',wave='웨이브 %d/%d',next='다음 웨이브까지 %d',score='점수 %d',success='작전 성공',
         fail='작전 실패',died='모든 플레이어가 사망했습니다.',time_up='시간 종료.',
         why={stop='coop nightop stop으로 중지됨.',map='맵 이동이나 로드로 종료됨.',left='시작 지점에서 80 m 넘게 10초 동안 벗어남.',
@@ -1507,6 +1531,8 @@ T.nl={
         stopped='Zelfde spawns gestopt door een fout tot de game opnieuw start. coop-link.log zegt waarom.',
         differ='Zelfde spawns: sommige vijanden verschillen tussen jouw game en die van %s (andere .pak-mods of '
             ..'fight_chars) en blijven zoals ze zijn. coop-link.log noemt ze.'},
+    group={rest='De vijanden zijn terug: het gebied is gereset in de game van %s.',
+        rest_guest='Gedeeld gebied: de vijanden hier komen alleen terug als %s bij een kamp rust.'},
     night={title='NACHTELIJKE MISSIE',starts='START OVER %d',wave='GOLF %d/%d',next='VOLGENDE GOLF OVER %d',
         score='SCORE %d',success='Missie geslaagd',fail='Missie mislukt',died='Alle spelers zijn dood.',
         time_up='De tijd is om.',
@@ -1636,6 +1662,8 @@ T.no={
         stopped='Samme spawns stoppet av en feil til spillet startes på nytt. coop-link.log sier hvorfor.',
         differ='Samme spawns: noen fiender er ulike i ditt spill og spillet til %s (andre .pak-modder eller '
             ..'fight_chars) og blir som de er. coop-link.log viser hvilke.'},
+    group={rest='Fiendene er tilbake: området ble tilbakestilt i spillet til %s.',
+        rest_guest='Delt område: fiendene her kommer bare tilbake når %s hviler ved en leir.'},
     night={title='NATTOPERASJON',starts='STARTER OM %d',wave='BØLGE %d/%d',next='NESTE BØLGE OM %d',score='POENG %d',
         success='Operasjon vellykket',fail='Operasjon mislyktes',died='Alle spillerne er døde.',time_up='Tiden er ute.',
         why={stop='Stoppet med coop nightop stop.',map='Avsluttet av et kartbytte eller en innlasting.',
@@ -1761,6 +1789,8 @@ T.pl={
         stopped='Te same spawny: zatrzymano przez błąd do restartu gry. coop-link.log podaje powód.',
         differ='Te same spawny: część wrogów różni się od tych, które ma %s (inne mody .pak lub '
             ..'fight_chars), i zostaje bez zmian. Lista jest w coop-link.log.'},
+    group={rest='Wrogowie wrócili: strefa zresetowała się w grze po drugiej stronie (%s).',
+        rest_guest='Wspólna strefa: wrogowie wracają tu tylko po odpoczynku w obozie po drugiej stronie (%s).'},
     night={title='NOCNA OPERACJA',starts='START ZA %d',wave='FALA %d/%d',next='NASTĘPNA FALA ZA %d',score='PUNKTY %d',
         success='Operacja udana',fail='Operacja nieudana',died='Wszyscy gracze zginęli.',time_up='Czas minął.',
         why={stop='Zatrzymana przez coop nightop stop.',map='Zakończona przez zmianę mapy lub wczytanie.',
@@ -1889,6 +1919,8 @@ T.pt={
         stopped='Mesmas aparições paradas por um erro até o jogo reiniciar. O coop-link.log diz porquê.',
         differ='Mesmas aparições: tu e %s têm alguns inimigos diferentes (outros mods .pak ou fight_chars), que '
             ..'ficam como estão. O coop-link.log indica quais.'},
+    group={rest='Os inimigos voltaram: a zona foi reiniciada no jogo de %s.',
+        rest_guest='Zona partilhada: os inimigos desta zona só voltam quando %s descansa num acampamento.'},
     night={title='OPERAÇÃO NOTURNA',starts='INÍCIO EM %d',wave='VAGA %d/%d',next='PRÓXIMA VAGA EM %d',score='PONTOS %d',
         success='Operação concluída',fail='Operação falhada',died='Todos os jogadores morreram.',
         time_up='O tempo acabou.',
@@ -2016,6 +2048,8 @@ T['pt-BR']={
         stopped='Mesmos spawns parados por um erro até o jogo reiniciar. O coop-link.log diz o motivo.',
         differ='Mesmos spawns: alguns inimigos diferem entre o seu jogo e o de %s (outros mods .pak ou fight_chars) '
             ..'e ficam como estão. O coop-link.log mostra quais.'},
+    group={rest='Os inimigos voltaram: a área foi reiniciada no jogo de %s.',
+        rest_guest='Área compartilhada: os inimigos daqui só voltam quando %s descansa em um acampamento.'},
     night={title='OPERAÇÃO NOTURNA',starts='COMEÇA EM %d',wave='ONDA %d/%d',next='PRÓXIMA ONDA EM %d',score='PONTOS %d',
         success='Operação Bem-sucedida',fail='Operação Fracassada',died='Todos os jogadores morreram.',
         time_up='O tempo acabou.',
@@ -2139,6 +2173,8 @@ T.ru={
         stopped='Общие появления остановлены ошибкой до перезапуска игры. Причина в coop-link.log.',
         differ='Общие появления: часть врагов у партнера (%s) другая (моды .pak, fight_chars) и не меняется. '
             ..'См. coop-link.log.'},
+    group={rest='Враги вернулись: зона сброшена в игре партнера (%s).',
+        rest_guest='Общая зона: враги здесь возвращаются, только когда партнер (%s) отдыхает в лагере.'},
     night={title='НОЧНАЯ ОПЕРАЦИЯ',starts='СТАРТ ЧЕРЕЗ %d',wave='ВОЛНА %d/%d',next='СЛЕДУЮЩАЯ ВОЛНА ЧЕРЕЗ %d',
         score='ОЧКИ %d',success='Операция успешна',fail='Операция завершилась неудачей',died='Все игроки погибли.',
         time_up='Время вышло.',
@@ -2260,6 +2296,8 @@ T.sv={
         stopped='Samma spawns: ett fel stoppade funktionen tills spelet startas om. coop-link.log säger varför.',
         differ='Samma spawns: vissa fiender skiljer sig mellan ditt spel och spelet hos %s (andra .pak-moddar eller '
             ..'fight_chars) och lämnas orörda. coop-link.log namnger dem.'},
+    group={rest='Fienderna är tillbaka: området återställdes i spelet hos %s.',
+        rest_guest='Delat område: fienderna här kommer bara tillbaka när %s vilar vid ett läger.'},
     night={title='NATTINSATS',starts='STARTAR OM %d',wave='VÅG %d/%d',next='NÄSTA VÅG OM %d',score='POÄNG %d',
         success='Insatsen lyckades',fail='Insatsen misslyckades',died='Alla spelare har dött.',time_up='Tiden är ute.',
         why={stop='Stoppad med coop nightop stop.',map='Avslutad av ett kartbyte eller en laddning.',
@@ -2373,6 +2411,8 @@ T.th={
         guest='จุดเกิดเดียวกัน: ห่าง %s ไม่เกิน 100 ม. เกมคุณมีศัตรูแบบเกมเขา',
         stopped='จุดเกิดเดียวกันหยุดเพราะข้อผิดพลาดจนกว่าจะรีสตาร์ตเกม ดูใน coop-link.log',
         differ='จุดเกิดเดียวกัน: ศัตรูบางตัวต่างจากเกม %s จึงคงเดิม ดูใน coop-link.log'},
+    group={rest='ศัตรูกลับมาแล้ว: พื้นที่ถูกรีเซ็ตในเกมของ %s',
+        rest_guest='พื้นที่ร่วม: ศัตรูจะกลับมาเมื่อ %s พักที่แคมป์เท่านั้น'},
     night={title='ปฏิบัติการกลางคืน',starts='เริ่มใน %d',wave='คลื่น %d/%d',next='คลื่นถัดไปใน %d',score='คะแนน %d',
         success='ปฏิบัติการสำเร็จ',fail='ปฏิบัติการล้มเหลว',died='ผู้เล่นทุกคนตายหมดแล้ว',time_up='หมดเวลา',
         why={stop='หยุดด้วย coop nightop stop',map='จบเพราะเปลี่ยนแผนที่หรือโหลดเกม',
@@ -2497,6 +2537,8 @@ T.tr={
             ..'dosyasında.',
         differ='Aynı doğma noktaları: bazı düşmanlar seninle %s arasında farklı (başka .pak modları ya da fight_chars) '
             ..'ve değişmez. Listesi coop-link.log dosyasında.'},
+    group={rest='Düşmanlar geri döndü: bölge karşı oyunda (%s) sıfırlandı.',
+        rest_guest='Ortak bölge: buradaki düşmanlar yalnızca %s bir kampta dinlenince geri gelir.'},
     night={title='GECE OPERASYONU',starts='BAŞLAMAYA %d',wave='DALGA %d/%d',next='SONRAKİ DALGAYA %d',score='PUAN %d',
         success='Operasyon Başarılı',fail='Operasyon Başarısız',died='Tüm oyuncular öldü.',time_up='Süre doldu.',
         why={stop='coop nightop stop ile durduruldu.',map='Harita değişimi ya da yükleme ile sona erdi.',
@@ -2607,6 +2649,8 @@ T['zh-Hans']={
         stopped='同步刷怪因错误停止，重启游戏前不会恢复。原因见coop-link.log。',
         differ='同步刷怪：部分敌人在你和%s的游戏中不同（其他.pak模组或fight_chars），将保持原样。'
             ..'coop-link.log列出了这些敌人。'},
+    group={rest='敌人已复活：%s的游戏中该区域已重置。',
+        rest_guest='共享区域：只有%s在营地休息，这里的敌人才会复活。'},
     night={title='暗夜行动',starts='开始倒计时 %d',wave='波次 %d/%d',next='下一波倒计时 %d',score='得分 %d',success='行动成功',fail='行动失败',
         died='全部玩家均已死亡。',time_up='时间到。',
         why={stop='已通过coop nightop stop停止。',map='因切换地图或读取而结束。',left='离开起点超过80米达10秒。',slot='此存档已不再是合作存档。',
@@ -2712,6 +2756,8 @@ T['zh-Hant']={
         stopped='敵人生成同步因錯誤而停止，重新啟動遊戲前不會恢復。原因請見coop-link.log。',
         differ='敵人生成同步：部分敵人在你與%s的遊戲中不同（其他.pak模組或fight_chars），維持原樣。'
             ..'coop-link.log列有這些敵人。'},
+    group={rest='敵人已復活：%s的遊戲中該區域已重置。',
+        rest_guest='共享區域：只有%s在營地休息，這裡的敵人才會復活。'},
     night={title='夜間行動',starts='開始倒數 %d',wave='波次 %d/%d',next='下一波倒數 %d',score='得分 %d',success='行動成功',fail='行動失敗',
         died='玩家已全數死亡。',time_up='時間到。',
         why={stop='已透過coop nightop stop停止。',map='因切換地圖或讀取而結束。',left='離開起點超過80公尺達10秒。',slot='此存檔已不再是合作存檔。',

@@ -645,6 +645,13 @@ if link then
     -- stops same spawns too), and as guest once a session when its spawns_differ= first counts an enemy. Forgotten
     -- with fight_maxhp.
     local spawns_on,spawns_stopped,spawns_differ=false,false,false
+    -- Camp rests in a shared area, as the guest, from the same line's epoch=<zone>/<n>/<resets>: in a shared area only
+    -- the host's rest brings its enemies back for both. Said when the host's epoch n moves in the same zone while their
+    -- vitals read alive and they were not down in the last REST_CALM seconds (a respawn of theirs has host_down), and
+    -- when our own resets move while spawns= reads on and our life= read alive for the REST_CALM seconds before (our
+    -- own respawn says nothing). rest: the line's last zone, n and resets, when the host last read down, and since when
+    -- ours reads alive. Forgotten with fight_maxhp.
+    local REST_CALM,rest=10,{}
     local function her_name(w) -- '' (a stranger's unknown name) as your friend, in w's words.
         local name=require('chat').clean((link.friend()) or '')
         return name~='' and name or w.fight.friend
@@ -671,12 +678,29 @@ if link then
                 fight_maxhp=true
                 tell(function(w) return w.fight.maxhp:format(her_name(w)) end)
             end
-            local m=line:find(' role=guest ') and link.mate()
+            local guest=line:find(' role=guest ')~=nil
+            local m=guest and link.mate()
             local down=m and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) or false
             if down and not host_down and count>0 then
                 tell(function(w) return w.fight.host_down:format(her_name(w)) end)
             end
             host_down=down
+            if down then rest.down_at=chat_clock end
+            local life=link.life()
+            local alive=life and (life.state==1 or life.state==6) and life.hp>0
+            rest.alive_since=alive and (rest.alive_since or chat_clock) or nil
+            local zone,n,resets=line:match(' epoch=(%d+)/(%d+)/(%d+)')
+            if zone and guest then
+                if rest.zone==zone and rest.n~=n and m and (m.life==1 or m.life==6) and not down
+                    and (not rest.down_at or chat_clock-rest.down_at>=REST_CALM) then
+                    tell(function(w) return w.group.rest:format(her_name(w)) end)
+                end
+                if rest.resets and resets~=rest.resets and line:find(' spawns=on ') and rest.alive_since
+                    and chat_clock-rest.alive_since>=REST_CALM then
+                    tell(function(w) return w.group.rest_guest:format(her_name(w)) end)
+                end
+                rest.zone,rest.n,rest.resets=zone,n,resets
+            end
             local spawns=line:match(' spawns=(%a+)')
             if spawns=='on' and not spawns_on then
                 spawns_on=true
@@ -696,10 +720,10 @@ if link then
                 tell(function(w) return w.fight[state] end)
             end
             fight_count,fight_maxhp,host_down=0,false,false
-            spawns_on,spawns_stopped,spawns_differ=false,false,false
+            spawns_on,spawns_stopped,spawns_differ,rest=false,false,false,{}
         elseif why=='no friend linked' then -- The friend left: the next one hears about MaxHP again.
             fight_maxhp,host_down=false,false
-            spawns_on,spawns_stopped,spawns_differ=false,false,false
+            spawns_on,spawns_stopped,spawns_differ,rest=false,false,false,{}
         end
         fight_was=now
         if mode~='on' or (state~='on' and state~='waiting') then return end

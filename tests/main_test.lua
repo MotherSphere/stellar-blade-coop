@@ -164,6 +164,7 @@ local fake_link={
 fake_link.Q={notes={}}
 fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
+fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
 local native_ok
 local captured,remoted={},nil
 local fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
@@ -1441,6 +1442,56 @@ assert(fight_step(GUEST_ON..'1 maxhp=1')=='Ennemis partagés : Kaanta est à ter
     ..'ennemis partagés reviennent à pleine santé.')
 mate_v=nil
 fight_step('fight=off why=coop fight off')
+-- Camp rests in a shared area, as the guest, from the line's epoch=<zone>/<n>/<resets>: the host's n moving in the same
+-- zone while their vitals read alive and they were not down in the last 10 s says their game reset the area; our own
+-- resets moving with spawns=on and our life alive for the 10 s before says only their rest brings the enemies back.
+-- Nothing for the first epoch line, another zone, a respawn of either player, no life read, spawns off, or as the host.
+do
+    local REST,MINE="Enemies are back: the area reset in Kaanta's game.",
+        "Shared area: only Kaanta's camp rest brings its enemies back."
+    local function guest(zone,n,resets,spawns)
+        return 'fight=on mode=on role=guest pairs=2 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 '
+            ..'maxhp=0'..(spawns=='off' and ' spawns=off' or ' spawns=on spawned=0 despawned=0 spawns_differ=0')
+            ..' scale=100/100 sim_us=5/9 threads=1/1/2 bosses=off boss=0 battle=0 epoch='..zone..'/'..n..'/'..resets
+    end
+    local function rest_tick(text,ticks) -- The rest notices said in ticks of 250 ms (one by default).
+        fight_text=text
+        local n,out=#said,{}
+        for _=1,ticks or 1 do loops[2].f() end
+        for i=n+1,#said do
+            if said[i]:find('^Enemies are back') or said[i]:find('^Shared area') or said[i]:find('^Les ennemis')
+                or said[i]:find('^Zone partagée') then out[#out+1]=said[i] end
+        end
+        return table.concat(out,'|')
+    end
+    local up,down,language={state=1,hp=500},{state=3,hp=0},kit_language
+    mate_v,fake_link.Q.life,kit_language=vitals(1000,1),up,nil
+    for _,step in ipairs({{guest(40,1,0),'',41},{guest(40,2,0),REST},{guest(40,2,0),''},{guest(41,3,0),''},
+            {guest(41,3,1),MINE},{guest(41,4,2),REST..'|'..MINE},
+            {guest(41,4,2),'',2,vitals(0,4)},{guest(41,5,2),'',36},{guest(41,6,2),''}, -- Their respawn: nothing.
+            {guest(41,6,2),'',3},{guest(41,7,2),REST},
+            {guest(41,7,2),'',4,nil,down},{guest(41,7,3),'',36},{guest(41,7,4),''}, -- Our respawn: nothing.
+            {guest(41,7,4),'',3},{guest(41,7,5),MINE},
+            {guest(41,7,6),'',1,nil,false},{guest(41,7,6),'',41},{guest(41,7,7),MINE}, -- No read, then 10 s up.
+            {guest(41,7,8,'off'),''},
+            {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 '
+                ..'bosses=off boss=0 battle=0 epoch=41/8/9',''},
+            {'fight=on mode=on role=host enemies=2 claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 '
+                ..'bosses=off boss=0 battle=0 epoch=41/9/10',''}}) do
+        if step[4] then mate_v=step[4] end
+        if step[5]~=nil then fake_link.Q.life=step[5] or nil end
+        local got=rest_tick(step[1],step[3])
+        assert(got==step[2],step[1]..': '..got)
+        mate_v,fake_link.Q.life=vitals(1000,1),up
+    end
+    fight_step('fight=off why=coop fight off')
+    kit_language='fr-FR'
+    assert(rest_tick(guest(40,1,0),41)=='' and rest_tick(guest(40,2,1))=='Les ennemis sont revenus : la zone a été '
+        ..'réinitialisée dans la partie de Kaanta.|Zone partagée : seul le repos de Kaanta au camp fait revenir ses '
+        ..'ennemis.')
+    mate_v,fake_link.Q.life,kit_language=nil,nil,language
+    fight_step('fight=off why=coop fight off')
+end
 -- The same notices in the game's language (French: 0 and 1 singular), each with its English for the line above EVE.
 local HOST_N='fight=on mode=on role=host claims=0 refused=0 kills=0 floored=0 sim_us=9/20 threads=1/1/2 enemies='
 for _,step in ipairs({{'fight=off why=coop fight off',''},{HOST_N..'0',''},

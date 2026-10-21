@@ -56,7 +56,7 @@ end
 -- The lines that go to the feed, as main.lua, puppet.lua, saves.lua, link.lua and join.lua put them together.
 local function notices(w)
     local lines={}
-    for _,group in ipairs({'fight','spawns','ghost','refused','quests'}) do
+    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
