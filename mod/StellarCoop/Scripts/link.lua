@@ -315,7 +315,22 @@ function Link.new(folder,fs)
         if not ok then return false,'cannot write '..name..': '..tostring(why) end
         return true
     end
+    -- The native part takes one coop-request.txt a pass, and a write before it took the last one replaced it: two
+    -- requests in one Lua tick (coop fight on and saves coop at a game start) lost the first. So a request waits here,
+    -- in order, while one is on disk, and changes() writes the next once the native part took it.
+    -- ponytail: 8 at most, the newest kept, for a native part that never takes them (a fault, another build).
+    local queue={}
+    local function send()
+        if queue[1] and not fs.read(path('coop-request.txt')) and put('coop-request.txt',queue[1]..'\n') then
+            table.remove(queue,1)
+        end
+    end
     function self.request(line)
+        if queue[1] or fs.read(path('coop-request.txt')) then
+            if #queue>=8 then table.remove(queue,1) end
+            queue[#queue+1]=line
+            return true,'asked the native part: '..line
+        end
         local ok,why=put('coop-request.txt',line..'\n')
         if not ok then return false,why end
         return true,'asked the native part: '..line
@@ -382,6 +397,7 @@ function Link.new(folder,fs)
         return lines
     end
     function self.changes()
+        send()
         local text,now,new=fs.read(status_path),{},{}
         -- From the pose path's line only: a peer line before it carries a Steam name the other player chooses.
         local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''

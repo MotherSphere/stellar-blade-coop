@@ -15,8 +15,12 @@ local REQUEST,STATUS='C:\\Mod\\coop-request.txt','C:\\Mod\\coop-status.txt'
 
 local ok,message=link.request('host')
 assert(ok and files[REQUEST]=='host\n' and not files[REQUEST..'.tmp'] and renames==1,message)
-ok,message=link.request('join 42') -- The native part has not taken the previous request: the newest wins.
-assert(ok and files[REQUEST]=='join 42\n',message)
+ok,message=link.request('join 42') -- The native part has not taken the previous request: this one waits for it.
+assert(ok and files[REQUEST]=='host\n',message)
+link.changes(); assert(files[REQUEST]=='host\n','Still not taken')
+files[REQUEST]=nil -- The native part took it.
+link.changes(); assert(files[REQUEST]=='join 42\n','The next goes once the last was taken')
+files[REQUEST]=nil
 local write=fs.write
 fs.write=function() return false end
 ok,message=link.request('leave')
