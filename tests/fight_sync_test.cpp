@@ -2158,11 +2158,12 @@ int main() {
 
   // ---- Bosses (stage 5): the rows the guest applies for a phase line, and the finish guard on the host ----
   {
-    // phase_plan: the rows that came into the host's set since her last line for that copy, in the host's order; on
-    // her first line each one her copy lacks. A floor that left with none coming: MinimumHP_Dispel first. A phase row
-    // that left with none coming: the boss's dispel row first (none: nothing). A dispel leaving brings nothing, a row
-    // goes once, and a repeat brings nothing, so a 0.1 s dispel seen in two lines is applied once.
-    const Boss &tachy = *boss_row(25021001), &crawler = *boss_row(35022001);
+    // phase_plan: the rows that came into the host's set since her last line for that copy, in the host's order (a
+    // dispel row first); on her first line each one her copy lacks, and each row of the boss's allowlist it holds that
+    // the set lacks has left. A floor that left with none coming: MinimumHP_Dispel first. A phase row that left with
+    // none coming: the boss's dispel row first (none: nothing). A dispel leaving brings nothing, a row goes once, and a
+    // repeat brings nothing, so a 0.1 s dispel seen in two lines is applied once.
+    const Boss &tachy = *boss_row(25021001), &crawler = *boss_row(35022001), &gorilla = *boss_row(15005100);
     auto plan = [](const Boss &b, std::vector<int32_t> was, bool first, const char *ids, std::vector<int32_t> held) {
       const Message m = msg(std::string("SBF11 phase 1 77 0 ") + ids);
       int32_t out[kMaxPhaseIds + 2];
@@ -2173,6 +2174,11 @@ int main() {
     assert(plan(tachy, {}, true, "1001304", {1001304, 2001100}).empty()); // Her copy holds it already.
     assert((plan(tachy, {}, true, "1001304,5021001", {1001304}) == V{5021001}));
     assert((plan(tachy, {}, true, "5021002,1001311", {}) == V{5021002, 1001311})); // The host's order.
+    // A copy paired again while the host's boss is past its first phase: the floor it still runs goes.
+    assert((plan(gorilla, {}, true, "5005115", {1001307, 5005114}) == V{1001323, 5005115}));
+    assert((plan(tachy, {}, true, "5021002", {1001304}) == V{1001323, 5021002}));
+    assert((plan(crawler, {}, true, "1001303", {1001303, 5022001}) == V{5022094}));
+    assert(plan(crawler, {}, true, "1001303,5022001", {1001303, 5022001, 2001100}).empty()); // Not its row: kept.
     assert((plan(tachy, {1001304}, false, "1001311,5021001", {1001304}) == V{1001311, 5021001})); // Floor replaced.
     assert((plan(tachy, {1001311, 5021001}, false, "5021001", {}) == V{1001323}));             // Floor gone.
     assert((plan(tachy, {1001311, 5021001}, false, "1001323,5021001", {}) == V{1001323}));     // The host's own.
@@ -2186,6 +2192,9 @@ int main() {
     assert(plan(crawler, {5022094}, false, "-", {}).empty());
     assert((plan(crawler, {1001303, 5022001}, false, "-", {}) == V{1001323, 5022094})); // Both gone: both dispels.
     assert((plan(crawler, {1001303, 5022001}, false, "1001323", {}) == V{1001323, 5022094})); // A dispel is no phase.
+    // The host's copy holds a row next to the dispel that would end it: that row started after it, so here too.
+    assert((plan(tachy, {5021001}, false, "1001311,1001323,5021001", {}) == V{1001323, 1001311}));
+    assert((plan(crawler, {5022001}, false, "5022002,5022094", {}) == V{5022094, 5022002}));
     // The widest line: every row of RavenBeast's allowlist on a copy that holds none.
     const Boss &raven = *boss_row(75042001);
     Message wide;
@@ -2193,10 +2202,13 @@ int main() {
     while (wide.idn < kMaxPhaseIds && raven.ids[wide.idn])
       wide.ids[wide.idn] = raven.ids[wide.idn], ++wide.idn;
     int32_t out[kMaxPhaseIds + 2];
-    assert(phase_plan(raven, nullptr, 0, true, wide, nullptr, 0, out) == wide.idn && out[0] == raven.ids[0]);
+    assert(phase_plan(raven, nullptr, 0, true, wide, nullptr, 0, out) == wide.idn && out[0] == kFloorDispel &&
+           out[1] == raven.ids[0]);
 
     // The guest keeps each copy's last set: GorillaB's copy 501. Its first line brings what it lacks, the next ones
-    // what came in; a new copy (unpaired, paired again) starts over.
+    // what came in; a new copy (unpaired, paired again) starts over. A line the game refused a row of (phase_done) is
+    // followed by one planned from the copy's list again: the row refused comes again, and so does the dispel of a
+    // floor it still runs. Logged once until a line is taken whole.
     World w;
     w.add(501, 5001, 0, 15005100, 120000);
     Guest g;
@@ -2213,8 +2225,17 @@ int main() {
     };
     assert(take("SBF11 phase 1 101 0 1001307", {1001307}).empty());
     assert((take("SBF11 phase 1 101 0 1001307,5005115", {1001307}) == V{5005115}));
+    assert(g.phase_done(101, false));
+    assert((take("SBF11 phase 1 101 0 1001307,5005115", {1001307}) == V{5005115}));
+    assert(!g.phase_done(101, false));
+    assert(take("SBF11 phase 1 101 0 1001307,5005115", {1001307, 5005115}).empty());
+    assert(!g.phase_done(101, true));
     assert(take("SBF11 phase 1 101 0 1001307,5005115", {}).empty());
     assert((take("SBF11 phase 1 101 0 5005115", {}) == V{1001323}));
+    assert(g.phase_done(101, false));
+    assert((take("SBF11 phase 1 101 0 5005115", {1001307, 5005115}) == V{1001323}));
+    assert(!g.phase_done(101, true) && !g.phase_done(102, false));
+    assert(take("SBF11 phase 1 101 0 5005115", {1001307}).empty()); // Not first again: the list is not read.
     int32_t none[kMaxPhaseIds + 2];
     assert(g.phase(msg("SBF11 phase 1 102 0 5005115"), nullptr, 0, none) == 0); // No such pair: nothing.
     w.remove(501);

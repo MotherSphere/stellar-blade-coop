@@ -675,9 +675,11 @@ struct Game {
     body(guid).gone_at = turn() + 3;
   }
   // Extras (stage 4b): NewActor (FUN_141ad1290) of charId chr with an extra's key, from inside the job, makes an actor
-  // in the map at once in Spawn state, a Monster; 0 with refuse_make set.
+  // in the map at once in Spawn state, a Monster; 0 with refuse_make set. make_refuses: the effect row SB's effect call
+  // refuses on what it makes.
   std::vector<Made> extras;
   bool refuse_make = false, unread_make = false; // unread_make: an actor whose GUID cannot be read.
+  int32_t make_refuses = 0;
   uint64_t make(uint64_t lg, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index) {
     assert(lg == logic && processing &&
            ((is_extra(id) && index >= 1 && index <= kMaxPer && (id & 0xff) == index) || (summon_key_ok({id, index}))));
@@ -686,6 +688,7 @@ struct Game {
     if (unread_make)
       return 0x7fff00000000; // Plausible, never mapped.
     const uint64_t la = spawn(next_guid, id, index, chr);
+    bodies[la].refuses = make_refuses;
     place(next_guid, at[0], at[1], rot[1]);
     extras.push_back(Made{id, index, {at[0], at[1], at[2]}, {rot[0], rot[1], rot[2]}, next_guid++});
     return la;
@@ -2880,9 +2883,10 @@ int main() {
   // the edge of its battle mode (FSBActor +0xb58) and every second while it lasts, and a phase line with the rows of
   // that boss's allowlist its copy runs, in its effect list's order, at each change and every second in battle mode.
   // An Alpha Naytiba (a BossMonster with no table row) gets bstart lines only. A summon of the boss gets the run's
-  // first key, then its up and its spawn line (owner, SummonActor row); one whose effect is not on its owner, and one a
-  // common enemy made, stay unshared. Her world line brings the phase, up and spawn lines again. Her lethal claim on a
-  // boss in its Finish stance (FinishReady in its effect list) leaves it at 1 HP, also 7 s later ----
+  // first key, then its up and its spawn line (owner, SummonActor row), which comes again each second while the host
+  // follows it; one whose effect is not on its owner, and one a common enemy made, stay unshared. Her world line brings
+  // the phase, up and spawn lines again. Her lethal claim on a boss in its Finish stance (FinishReady in its effect
+  // list) leaves it at 1 HP, also 7 s later ----
   {
     Game H;
     auto eh = engine(false, true);
@@ -2945,6 +2949,11 @@ int main() {
     run(6112, 13500);
     assert(H.hp(130) == 1 && !H.dying(130) && eh->host.counts.finish_held == 1 && count(H, "finish-held") == 1);
     assert(eh->host.counts.kills == 0 && eh->host.counts.expired == 0 && eh->host.linked() == 4 && !eh->latched());
+    std::vector<uint64_t> each = {summon_lines[0]}; // Each second from her world line on, logged and counted once.
+    for (uint64_t at = 5008; at <= 13500; at += 1008)
+      each.push_back(at);
+    assert(lines_of("SBF11 spawn 1 1 4026531841 0 35025002") == each);
+    assert(count(H, "summon sent") == 2 && eh->counts.summons == 2);
   }
 
   // ---- Bosses (stage 5), the guest's side, the host's lines fed in: her copies of Marionette (930) and GorillaB (931)
@@ -2989,11 +2998,20 @@ int main() {
     G.inbox.push_back(msg("SBF11 bstart 1 130"));
     run(700);
     assert(G.battles.size() == 1);
-    // phase.
+    // phase. Her copy refuses 5026021 at first: the host's next line brings it again (logged once), until taken.
     uint64_t op = G.ops;
+    G.body(930).refuses = 5026021;
+    G.inbox.push_back(msg("SBF11 phase 1 130 0 1001307,5026013,5026021"));
+    run(750);
+    assert((G.cast_ids(930, op) == std::vector<int32_t>{5026013, 5026021}) && eg->counts.phase_rows == 1);
+    G.inbox.push_back(msg("SBF11 phase 1 130 0 1001307,5026013,5026021"));
+    run(775);
+    G.body(930).refuses = 0;
     G.inbox.push_back(msg("SBF11 phase 1 130 0 1001307,5026013,5026021"));
     run(800);
-    assert((G.cast_ids(930, op) == std::vector<int32_t>{5026013, 5026021}) && eg->counts.phase_rows == 2);
+    assert((G.cast_ids(930, op) == std::vector<int32_t>{5026013, 5026021, 5026021, 5026021}));
+    assert(eg->counts.phase_rows == 2 && eg->counts.phase_refused == 2);
+    assert(count(G, "phase", "the game refused a row") == 1 && count(G, "phase") == 2); // Then taken.
     for (const Game::Cast &c : G.casts)
       assert(c.op <= op || c.la != la930 || c.caster == la930);
     op = G.ops;
@@ -3022,19 +3040,22 @@ int main() {
     G.hit(931, kHp, 500);
     run(t + 100);
     assert(G.hp(931) == 1 && !G.dying(931) && G.body(931).immortal);
-    // The host's dead: both dispels before the kill, which Immortal no longer holds.
+    // The host's dead: both dispels before the kill, which neither its floor nor Immortal holds then.
+    G.knock(931, 1001307);
+    run(t);
     op = G.ops;
     G.inbox.push_back(msg("SBF11 dead 1 131"));
     run(t + 100);
-    const std::vector<int32_t> before = G.cast_ids(931, op);
-    assert(std::find(before.begin(), before.end(), kFloorDispel) != before.end() &&
-           std::find(before.begin(), before.end(), kFinishDispel) != before.end());
-    uint64_t kill_op = 0, dispel_op = 0;
+    uint64_t kill_op = 0, floor_op = 0, dispel_op = 0;
     for (const Game::Call &c : G.calls)
-      kill_op = c.la == G.by_guid[931] && c.type == 1 && c.op > op ? c.op : kill_op;
+      kill_op = !kill_op && c.la == G.by_guid[931] && c.type == 1 && c.op > op ? c.op : kill_op;
     for (const Game::Cast &c : G.casts)
-      dispel_op = c.la == G.by_guid[931] && c.id == kFinishDispel && c.op > op ? c.op : dispel_op;
-    assert(kill_op > dispel_op && dispel_op && G.dying(931) && G.body(931).deaths == 1);
+      if (c.la == G.by_guid[931] && c.op > op) {
+        floor_op = !floor_op && c.id == kFloorDispel ? c.op : floor_op;
+        dispel_op = !dispel_op && c.id == kFinishDispel ? c.op : dispel_op;
+      }
+    assert(floor_op && dispel_op && kill_op > floor_op && kill_op > dispel_op);
+    assert(G.dying(931) && G.body(931).deaths == 1);
     // Summons. 0xF0000001 of Marionette's row 5026001: made, its two effects, never paired (no up): gone after 3 s.
     G.inbox.push_back(msg("SBF11 spawn 1 1 4026531841 0 35025002 300 400 0 90 130 5026001"));
     run(t);
@@ -3050,10 +3071,30 @@ int main() {
       G.inbox.push_back(msg(line));
     run(t + 100);
     assert(G.extras.size() == 1 && count(G, "summon refused") == 3);
+    for (const char *line : {"SBF11 spawn 1 1 4026531843 0 35025002 300 400 0 90 132 5026001", // The host's repeats:
+                             "SBF11 spawn 1 1 4026531844 0 35025002 300 400 0 90 131 5026001", // logged once a key
+                             "SBF11 spawn 1 1 4026531845 0 35025002 9000000 0 0 0 130 5026001"}) // and reason.
+      G.inbox.push_back(msg(line));
+    run(t + 100);
+    assert(G.extras.size() == 1 && count(G, "summon refused") == 3);
     run(made + 2800);
     assert(!G.despawned.size());
     run(made + 3300);
     assert((G.despawned == std::vector<uint32_t>{first}) && count(G, "summon despawned", "unpaired") == 1);
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531841 0 35025002 300 400 0 90 130 5026001")); // Never made again.
+    run(t + 100);
+    assert(G.extras.size() == 1 && count(G, "summon refused") == 3);
+    // 0xF0000006, whose row's effects the game refuses on what NewActor made: despawned at once, uncounted, its key
+    // never made again.
+    G.make_refuses = 5025013;
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531846 0 35025002 300 400 0 90 130 5026001"));
+    run(t + 100);
+    assert(G.extras.size() == 2 && G.despawned.back() == G.extras.back().guid && eg->counts.summons == 1);
+    assert(count(G, "summon despawned", "its row's effects refused") == 1 && count(G, "summon refused") == 3);
+    G.make_refuses = 0;
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531846 0 35025002 300 400 0 90 130 5026001"));
+    run(t + 100);
+    assert(G.extras.size() == 2 && G.despawned.size() == 2);
     // 0xF0000002 of row 5026000, which the host's up pairs: its effects, then the freeze (the game's own, its Start
     // row's BlockAI, then ours once that ends).
     G.inbox.push_back(msg("SBF11 up 1 140 4026531842 0 35025002 1600"));
@@ -3064,11 +3105,86 @@ int main() {
     assert(casts.size() >= 3 && casts[0] == 5025007 && casts[1] == 5025013 && casts[2] == kBlockAi);
     assert(eg->guest.linked() == 3 && count(G, "frozen", "the game froze it first") == 1);
     assert(Game::held(G.body(second), kBlockAiState));
-    // The session ends: the summon despawned, every freeze off.
+    // 0xF0000007, paired too, dies in her world 4 s after it was made and stays in the map a while: still hers, so
+    // the host's line for its key, which comes each second, makes no other.
+    G.inbox.push_back(msg("SBF11 up 1 141 4026531847 0 35025002 1600"));
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531847 0 35025002 300 0 0 0 130 5026000"));
+    run(t + 4000);
+    const uint32_t third = G.extras.back().guid;
+    assert(eg->guest.linked() == 4 && G.extras.size() == 4);
+    G.hit(third, kHp, 5000);
+    run(t + 20);
+    G.body(third).gone_at = G.turn() + 600;
+    run(t + 1000);
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531847 0 35025002 300 0 0 0 130 5026000"));
+    run(t + 100);
+    assert(G.dying(third) && G.extras.size() == 4 && count(G, "summon despawned", "unpaired") == 1);
+    // The session ends: the summon despawned (the dying one left to its death), every freeze off.
     eg->set(false, false);
     run(t + 100);
     assert(G.despawned.back() == second && count(G, "summon despawned", "end") == 1);
     assert(!Game::held(G.body(930), kBlockAiState) && !eg->latched() && eg->guest.counts.bad == 2);
+    // A new session: the host's world line forgets the keys refused for good, so 0xF0000001 is made again.
+    eg->set(true, false);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100",
+                             "SBF11 up 1 130 30 0 35026001 1600"})
+      G.inbox.push_back(msg(line));
+    run(t + 500);
+    G.inbox.push_back(msg("SBF11 spawn 1 1 4026531841 0 35025002 300 400 0 90 130 5026001"));
+    run(t + 100);
+    assert(G.extras.size() == 5 && G.extras.back().id == 0xF0000001 && !eg->latched());
+  }
+
+  // ---- Bosses (stage 5), the guest's side: the finish guard undone when its pair goes another way than the host's
+  // dead. Her GorillaB copies 931 and 933 at 1 HP in their Finish stance hold our Passive_Immortal, 935 at full HP its
+  // own (outside the stance it is native). The host's down for 133 takes that pair, the session's end the others: each
+  // copy at 1 HP gets FinishReady_Dispel once, so her own hit then ends it in her world; 935 keeps its Immortal ----
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    for (const char *line : {"SBF11 world 1", "SBF11 place 1 1", "SBF11 bosses 1 100"})
+      G.inbox.push_back(msg(line));
+    for (uint32_t i = 0; i < 3; ++i) {
+      G.spawn(931 + 2 * i, 31 + 2 * i, 0, 15005100, 1600, kTypeBoss);
+      G.knock(931 + 2 * i, kImmortalRow);
+      G.inbox.push_back(msg("SBF11 up 1 " + std::to_string(131 + 2 * i) + " " + std::to_string(31 + 2 * i) +
+                            " 0 15005100 1600"));
+    }
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(G, *eg, t);
+    };
+    run(500);
+    assert(eg->guest.linked() == 3);
+    for (const uint32_t guid : {931u, 933u, 935u}) {
+      if (guid != 935)
+        G.mem.put(G.stat_at(guid, kHp), 1.f);
+      G.knock(guid, kDeathReady);
+    }
+    run(t + 600); // DeathReady runs out into FinishReady, which the guard ends too.
+    assert(count(G, "finish guard") == 3 && G.body(931).immortal && G.body(933).immortal && G.body(935).immortal);
+    const auto dispels = [&](uint32_t guid, uint64_t from) { // FinishReady_Dispel casts; the thaw casts its own.
+      const std::vector<int32_t> c = G.cast_ids(guid, from);
+      return std::count(c.begin(), c.end(), kFinishDispel);
+    };
+    uint64_t op = G.ops;
+    G.inbox.push_back(msg("SBF11 down 1 133"));
+    run(t + 100);
+    assert(dispels(933, op) == 1 && !G.body(933).immortal && !Game::held(G.body(933), kBlockAiState));
+    assert(count(G, "finish guard ended", "Immortal off") == 1 && G.body(931).immortal);
+    op = G.ops;
+    eg->set(false, false);
+    run(t + 100);
+    assert(dispels(931, op) == 1 && !G.body(931).immortal);
+    assert(dispels(935, op) == 0 && G.body(935).immortal && count(G, "finish guard ended") == 2);
+    for (const uint32_t guid : {931u, 933u, 935u})
+      G.hit(guid, kHp, 500);
+    run(t + 100);
+    assert(G.dying(931) && G.dying(933) && !G.dying(935) && !eg->latched());
   }
 
   // ---- Bosses (stage 5), two worlds through channel 2, a scripted fight: Marionette in both games, same place on.

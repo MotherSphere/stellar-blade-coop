@@ -588,24 +588,29 @@ inline const char *phase_out(const Message &m, uint32_t chr) {
 // The rows the guest applies for phase line m on her copy of boss b, into out (kMaxPhaseIds + 2 at most), in this
 // order: MinimumHP_Dispel when a floor left the host's set and no floor came into it; b's dispel row when a phase row
 // left it and no phase row came into it (a new phase row's own dispels end the old one; no dispel row: nothing); then
-// each row that came into the set, in the host's order. was: the set of the last line she applied for that copy;
-// first: none yet, and then each row of m her copy does not hold (held, hn) counts as come. A dispel leaving the set
-// brings nothing, and no row goes twice.
+// each dispel row that came into the set, then each other row that came, in the host's order. A row the host's copy
+// holds next to a dispel that ends it started after that dispel, so the dispel goes first. was: the set of the last
+// line she applied for that copy; first: none yet, and then her copy's list (held, hn) stands for it: each row of m
+// it does not hold counts as come, and each row of b's allowlist it holds and m lacks as left (a copy paired again
+// while the host's boss is in a later phase still runs the first one's floor). A dispel leaving the set brings
+// nothing, and no row goes twice.
 inline size_t phase_plan(const Boss &b, const int32_t *was, size_t wn, bool first, const Message &m,
                          const int32_t *held, size_t hn, int32_t *out) {
   const auto in = [](const int32_t *set, size_t n, int32_t id) { return n && std::find(set, set + n, id) != set + n; };
   const auto dispel = [&](int32_t id) { return id == kFloorDispel || id == b.dispel; };
+  const int32_t *before = first ? held : was;
+  const size_t bn = first ? hn : wn;
   int32_t came[kMaxPhaseIds];
   size_t cn = 0, n = 0;
   bool floor_left = false, phase_left = false, floor_came = false, phase_came = false;
   for (size_t i = 0; i < m.idn && i < kMaxPhaseIds; ++i)
-    if (first ? !in(held, hn, m.ids[i]) : !in(was, wn, m.ids[i])) {
+    if (!in(before, bn, m.ids[i])) {
       came[cn++] = m.ids[i];
       (floor_row(m.ids[i]) ? floor_came : phase_came) |= !dispel(m.ids[i]);
     }
-  for (size_t i = 0; !first && i < wn; ++i)
-    if (!in(m.ids, m.idn, was[i]) && !dispel(was[i]))
-      (floor_row(was[i]) ? floor_left : phase_left) = true;
+  for (size_t i = 0; i < bn; ++i)
+    if (mirrored(b, before[i]) && !in(m.ids, m.idn, before[i]) && !dispel(before[i]))
+      (floor_row(before[i]) ? floor_left : phase_left) = true;
   const auto add = [&](int32_t id) {
     if (id && !in(out, n, id))
       out[n++] = id;
@@ -614,8 +619,10 @@ inline size_t phase_plan(const Boss &b, const int32_t *was, size_t wn, bool firs
     add(kFloorDispel);
   if (phase_left && !phase_came)
     add(b.dispel);
-  for (size_t i = 0; i < cn; ++i)
-    add(came[i]);
+  for (const bool dispels : {true, false})
+    for (size_t i = 0; i < cn; ++i)
+      if (dispel(came[i]) == dispels)
+        add(came[i]);
   return n;
 }
 
@@ -1459,8 +1466,8 @@ public:
       p->started = true;
   }
   // A phase line boss_line() took, once the engine's checks passed: the rows to apply on the copy (phase_plan(); held,
-  // hn: the rows the copy runs, read on its first line), and the line's set kept as the copy's last. None for a pair
-  // that is gone or a charId with no table row.
+  // hn: the rows the copy runs, read on its first line and after a refusal), and the line's set kept as the copy's
+  // last. None for a pair that is gone or a charId with no table row.
   size_t phase(const Message &m, const int32_t *held, size_t hn, int32_t *out) {
     Pair *p = find(m.guid);
     const Boss *b = p && p->local ? boss_row(p->chr) : nullptr;
@@ -1470,6 +1477,18 @@ public:
     std::copy(m.ids, m.ids + std::min<size_t>(m.idn, kMaxPhaseIds), p->phase);
     p->phases = std::min<uint8_t>(m.idn, kMaxPhaseIds), p->phased = true;
     return n;
+  }
+  // The engine's casts of phase()'s rows for the host's enemy hguid: all taken or not. After a refusal the copy's next
+  // line plans from its effect list again, as a first one does, so a row the game refused comes again and a row whose
+  // dispel it refused leaves again. True for a refusal to log: the first since a line taken whole.
+  bool phase_done(uint32_t hguid, bool all) {
+    Pair *p = find(hguid);
+    if (!p)
+      return false;
+    const bool say = !all && !p->retry;
+    p->retry = !all;
+    p->phased = p->phased && all;
+    return say;
   }
   // A summon's spawn line (R33): at the host's generation, a key of summon_key_ok(), a SummonActor row of kSummons
   // that makes the line's charId, and an owner we pair, not dead. Null when it passes, owner then the owner's copy's
@@ -1641,6 +1660,7 @@ private:
     bool fought = false;         // Hurt when it paired, or a drop we claimed since: kill_credit=fought.
     bool started = false;        // Its bstart was taken (stage 5): one a copy.
     bool phased = false;         // A phase line was applied to the copy (stage 5): phase, phases its set.
+    bool retry = false;          // The game refused a row of its last one: the next plans from the copy's list.
     int32_t phase[kMaxPhaseIds] = {};
     uint8_t phases = 0;
     bool logged = false;         // Its unpaired reason was logged.
@@ -1682,7 +1702,7 @@ private:
   }
   static void unpair(Pair &p) {
     p.local = p.lethal = 0;
-    p.held = p.fought = p.started = p.phased = false;
+    p.held = p.fought = p.started = p.phased = p.retry = false;
     p.phases = 0;
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);

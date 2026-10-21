@@ -352,8 +352,9 @@ constexpr size_t kMaxChars = kMaxFightChars; // fight_chars, the stage's allowli
 constexpr uint64_t kProbeMs = 1000;          // A probe's census each second.
 constexpr int kNoTest = -2;                  // No test write asked (Request::stat: 0-2 a stat, -1 a kill).
 // Overrides held at once: on each enemy the side follows, a floor (the guest's), its MaxHP and MaxStamina scaled, and
-// same-place enemies' freeze; and the extra enemies and bosses' summons made on this side.
-constexpr size_t kMaxCaptures = 4 * kMaxTracked + kMaxExtras + kMaxSummoned;
+// same-place enemies' freeze; the finish guard on the guest's boss pairs; and the extra enemies and bosses' summons
+// made on this side.
+constexpr size_t kMaxCaptures = 4 * kMaxTracked + kMaxPairs + kMaxExtras + kMaxSummoned;
 
 // What the engine did, for the stats line. The glue copies them where it exchanges data with the worker.
 struct JobCounts {
@@ -1452,6 +1453,10 @@ private:
   static constexpr int kFreeze = -1; // Not a stat: BlockAI_Infinite and SkillCancel on a copy this side draws.
   static constexpr int kExtra = -2;  // Not a stat: an extra enemy this side made (stage 4b), despawned at the end.
   static constexpr int kSummon = -3; // Not a stat: a boss's summon the guest made (stage 5), despawned at the end.
+  // Not a stat: the finish guard ran on this boss copy of the guest's (stage 5), so it may hold our Passive_Immortal at
+  // 1 HP with its FinishReady ended. Undone when its pair goes without the host's dead: FinishReady_Dispel.
+  static constexpr int kGuard = -4;
+  static constexpr const char *kUnlisted = "its row's effects refused"; // A summon's (make_extra()).
   struct Capture {
     uint32_t guid = 0;
     int type = 0; // ESBActorStatType, or kFreeze.
@@ -1592,6 +1597,15 @@ private:
     if (c.type == kExtra || c.type == kSummon) { // A dying one is left to its death.
       if (found && fighting(a))
         unmake(g, logic, a, "end", c.type == kSummon);
+    } else if (c.type == kGuard) {
+      // Still at 1 HP in its Finish stance, with our Immortal: that goes, so her own hit ends the boss in her world
+      // and its death events run there. Above 1 HP its Immortal is its own. Through the game's call even after the
+      // latch, as the thaw.
+      if (found && fighting(a) && stats(g, a) && a.seen.value[kHp] < 2) {
+        const bool off = g.effect(logic, la, la, kFinishDispel) != 0;
+        g.event(Event{"finish guard ended", off ? "Immortal off" : "the game refused its dispel", 0, a.seen.spawn,
+                      a.seen.index});
+      }
     } else if (thaw && c.game_froze) {
       g.event(Event{"thaw skipped", "the game froze it first", 0, a.seen.spawn, a.seen.index});
     } else if (thaw) {
@@ -2012,12 +2026,21 @@ private:
       return nullptr;
     }
     c.key = k.spawn, c.turn = turn_;
-    ++counts.summons;
     bool all = true;
     for (const int32_t id : summon->list)
       all = (!id || self_cast(g, logic, guid, id)) && all;
-    if (!latched_)
-      g.event(Event{"summon made", all ? "" : "the game refused an effect of its row", 0, k.spawn, k.index});
+    if (latched_) // The latch's lift_all despawns it.
+      return nullptr;
+    if (!all) { // Without them her hits would take far more than the host's copy loses: never shared, gone at once.
+      Actor a;
+      if (live(g, la, guid, a) && fighting(a)) {
+        --captures_; // Ours, the last one: nothing captured since. Else it stays, for the session's end.
+        unmake(g, logic, a, kUnlisted, true);
+      }
+      return kUnlisted;
+    }
+    ++counts.summons;
+    g.event(Event{"summon made", "", 0, k.spawn, k.index});
     return nullptr;
   }
   size_t extras() const {
@@ -2148,11 +2171,19 @@ private:
     size_t guards = 0;
     // The finish guard: a boss copy of hers in its Finish stance gets FinishReady_Dispel, then its own Passive_Immortal
     // back, in that turn, each turn the stance shows, until the host's dead. So her hits stop at 1 HP, and the
-    // finisher prompt never stays on her side: the boss ends only by the host's finisher, then its dead.
+    // finisher prompt never stays on her side: the boss ends only by the host's finisher, then its dead. Captured
+    // before its first calls (kGuard) and held while its pair lasts: a pair that goes another way (the host's down or
+    // world, the link, coop fight off, a latch) takes our Immortal off with it.
+    let_go(g, logic, kGuard, local, count);
     for (size_t i = 0; i < count && !latched_; ++i) {
       const Seen *s = fight::find(seen_, n, local[i]);
       if (!s || !s->finish || dying(*s))
         continue;
+      if (!captured(local[i], kGuard)) {
+        if (captures_ == kMaxCaptures)
+          continue;
+        caps_[captures_++] = Capture{local[i], kGuard, 1};
+      }
       const bool off = self_cast(g, logic, local[i], kFinishDispel) != 0;
       const bool back = self_cast(g, logic, local[i], kImmortalRow) != 0;
       ++counts.finish_guards;
@@ -2163,8 +2194,9 @@ private:
     }
     std::copy(guarded, guarded + guards, guarded_);
     guards_ = guards;
-    // Her summons: one that left the map is forgotten, and at a census one no pair holds kSummonWaitTurns after it was
-    // made goes (the host's is not shared, or gone).
+    // Her summons: one that left the map is forgotten (a dying one stays until then, so the host's next line for its
+    // key is "again"), and at a census one no pair holds kSummonWaitTurns after it was made goes (the host's is not
+    // shared, or gone), its key refused for good.
     for (size_t i = 0; census && i < captures_ && !latched_;) {
       Actor a;
       const Capture c = caps_[i];
@@ -2173,10 +2205,10 @@ private:
         ++i;
       } else if (!la || !live(g, la, c.guid, a)) {
         caps_[i] = caps_[--captures_];
-      } else if (turn_ - c.turn >= kSummonWaitTurns) {
+      } else if (turn_ - c.turn >= kSummonWaitTurns && fighting(a)) {
         caps_[i] = caps_[--captures_];
-        if (fighting(a))
-          unmake(g, logic, a, "unpaired", true);
+        refuse(g, c.key, nullptr, true);
+        unmake(g, logic, a, "unpaired", true);
       } else {
         ++i;
       }
@@ -2185,8 +2217,9 @@ private:
   // The host, while same place runs with her: for each boss pair, bstart at the edge of its battle mode (FSBActor
   // +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy runs in its list's
   // order, whenever they change (the first time too) and every kRefreshMs in battle mode; then each summon we keyed and
-  // follow, once (again after her on, off or world), after its up. A boss with no table row (an Alpha Naytiba, a
-  // family's other row) gets bstart only.
+  // follow, after its up and every kRefreshMs while we follow it (her side takes a repeat as "again", and one she
+  // refused for a passing reason, her boss copy not paired yet, comes again). A boss with no table row (an Alpha
+  // Naytiba, a family's other row) gets bstart only.
   template <class Game> void boss_lines(Game &g, uint64_t logic, size_t n, uint64_t now) {
     for (BossOut &o : boss_out_) {
       bool kept = false;
@@ -2246,7 +2279,7 @@ private:
       const Seen *s = std::find(followed, followed + count, x.guid) != followed + count
                           ? fight::find(seen_, n, x.guid) : nullptr;
       float at[3], rot[3];
-      if (x.sent || !s || dying(*s) || !g.read(fsbs_[s - seen_] + kLocation, at, sizeof at) ||
+      if (now < x.next || !s || dying(*s) || !g.read(fsbs_[s - seen_] + kLocation, at, sizeof at) ||
           !g.read(fsbs_[s - seen_] + kFsbRotation, rot, sizeof rot) || !std::isfinite(rot[1]))
         continue;
       Message m;
@@ -2262,6 +2295,9 @@ private:
       m.yaw = int32_t(std::lround(rot[1])) % 360;
       m.yaw += m.yaw < 0 ? 360 : 0;
       g.send(m);
+      x.next = now + kRefreshMs;
+      if (x.sent) // Logged and counted once (again after her on, off or world).
+        continue;
       x.sent = true;
       ++counts.summons;
       g.event(Event{"summon sent", "", x.owner, s->spawn, s->index});
@@ -2277,8 +2313,8 @@ private:
       }
     return nullptr;
   }
-  // The guest: the host's bstart (R33: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and the
-  // reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy. The
+  // The guest: the host's bstart (checked: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and
+  // the reg made, which SetBattleMode's body reads through their getters): SetBattleMode on our copy, once a copy. The
   // host's repeats while its boss is in battle mode bring back one refused before (no pair yet, not drawn yet).
   template <class Game> void bstart_in(Game &g, uint64_t logic, const Message &m, size_t n) {
     uint32_t local = 0;
@@ -2301,9 +2337,9 @@ private:
     ++counts.bstarts;
     g.event(Event{"bstart", "", m.guid});
   }
-  // The guest: the host's phase line (R33: Guest::boss_line, the pair's owner epoch, a copy we draw as a BossMonster):
-  // the rows Guest::phase picks, through SB's effect call, the copy its own caster, as its own skill's step applies
-  // them. A row of another boss, or a line for an enemy with no table row, is a lie (a bad line).
+  // The guest: the host's phase line (checked: Guest::boss_line, the pair's owner epoch, a copy we draw as a
+  // BossMonster): the rows Guest::phase picks, through SB's effect call, the copy its own caster, as its own skill's
+  // step applies them. A row of another boss, or a line for an enemy with no table row, is a lie (a bad line).
   template <class Game> void phase_in(Game &g, uint64_t logic, const Message &m, size_t n) {
     uint32_t local = 0;
     const char *why = guest.boss_line(m, local);
@@ -2324,10 +2360,11 @@ private:
     for (size_t i = 0; i < k; ++i)
       refused += !self_cast(g, logic, local, rows[i]);
     counts.phase_rows += k - refused, counts.phase_refused += refused;
-    if (k && !latched_)
+    const bool say = guest.phase_done(m.guid, !refused); // A refused row comes again at the host's next line.
+    if (k && !latched_ && (!refused || say))
       g.event(Event{"phase", refused ? "the game refused a row" : "", m.guid});
   }
-  // The guest: the host's summon (R33: Guest::summon_out, then an owner copy we pair as a BossMonster, same place
+  // The guest: the host's summon (checked: Guest::summon_out, then an owner copy we pair as a BossMonster, same place
   // running here, no summon of ours of that key, within 1 km of our EVE): made through NewActor with its key, then its
   // row's effects (make_extra); the pair table freezes it once stage 1 pairs it, as any copy the host owns.
   template <class Game> void summon_in(Game &g, uint64_t logic, const Message &m, size_t n) {
@@ -2338,7 +2375,9 @@ private:
     float eve[3] = {};
     const uint64_t fsb = why ? 0 : local_fsb(g);
     const bool again = std::any_of(caps_, caps_ + captures_,
-                                   [&](const Capture &c) { return c.type == kSummon && c.key == m.spawn; });
+                                   [&](const Capture &c) { return c.type == kSummon && c.key == m.spawn; }) ||
+                       std::any_of(std::begin(refused_), std::end(refused_),
+                                   [&](const Refused &r) { return r.key == m.spawn && r.final; });
     if (!why)
       why = !table_.on       ? "off"
             : !o || !o->boss ? "owner"
@@ -2350,7 +2389,20 @@ private:
       why = make_extra(g, logic, SpawnKey{m.spawn, m.index}, m.chr, at, float(m.yaw), summon_row(m.effect));
     if (latched_ || !why || !std::strcmp(why, "again"))
       return;
-    g.event(Event{"summon refused", why, 0, m.spawn, m.index});
+    const bool unlisted = why == kUnlisted; // Logged as despawned.
+    refuse(g, m.spawn, unlisted ? nullptr : why, unlisted);
+  }
+  // The guest: the host's summon key refused, logged when its reason (why, when given) changes: the host's line comes
+  // again each kRefreshMs. final: never made again, its row's effects refused or made and never paired, where a
+  // NewActor again would do the same. Forgotten at the host's on, off and world lines.
+  template <class Game> void refuse(Game &g, uint32_t key, const char *why, bool final) {
+    Refused *r = std::find_if(std::begin(refused_), std::end(refused_), [&](const Refused &x) { return x.key == key; });
+    if (r == std::end(refused_))
+      r = &refused_[refused_at_++ % kMaxSummoned], *r = Refused{key};
+    if (why && (!r->why || std::strcmp(r->why, why)))
+      g.event(Event{"summon refused", why, 0, key, 0});
+    r->why = why ? why : r->why;
+    r->final = r->final || final;
   }
   // ---- Stage 3b: whose AI runs a pair (PHASE11-STAGE3 3.8) ----
   // Where both sides count epochs again (pilot.h's Owners), seen in the lines as they go out (Io::send) and come in,
@@ -2365,7 +2417,8 @@ private:
       spawn_host_.clear(), spawn_guest_.clear(); // Same spawns: the epoch line again, the host's epoch forgotten.
       std::fill(std::begin(boss_out_), std::end(boss_out_), BossOut()); // Bosses: their lines and summons again.
       for (size_t i = 0; i < summoned_count_; ++i)
-        summoned_[i].sent = false;
+        summoned_[i].sent = false, summoned_[i].next = 0;
+      std::fill(std::begin(refused_), std::end(refused_), Refused());
       return owners_.clear(), own_in_.clear(), execs_.clear();
     case Type::place:
       if (!m.place)
@@ -2627,11 +2680,20 @@ private:
   struct Summoned {
     uint32_t guid = 0, n = 0, owner = 0;
     int32_t row = 0;
-    bool sent = false, seen = false;
+    bool sent = false, seen = false; // sent: its line went (logged) since her last on, off or world.
+    uint64_t next = 0;               // Its next line, kRefreshMs after the last.
   };
   Summoned summoned_[kMaxSummoned];
   size_t summoned_count_ = 0;
   uint32_t summon_n_ = 0; // For the run, as the extras' n.
+  // The guest: the host's summon keys refused (refuse()), the last kMaxSummoned.
+  struct Refused {
+    uint32_t key = 0;
+    const char *why = nullptr; // The last reason logged.
+    bool final = false;
+  };
+  Refused refused_[kMaxSummoned];
+  size_t refused_at_ = 0;
 };
 
 // ---- Between the job and the worker ----
