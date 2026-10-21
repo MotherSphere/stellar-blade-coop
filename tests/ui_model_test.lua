@@ -1,5 +1,6 @@
 -- The co-op menu's model: the main page's rows by session state (the join code and the player let in who is not a
--- Steam friend included), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of
+-- Steam friend included), the co-op line's (a camp phone booth's page: the same session rows, Co-op menu and
+-- Hang up), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of
 -- that same row within 3 s, the Options tree (every co-op setting as a toggle, a choice, a range or a key),
 -- its values read as the mod reads coop-settings.txt, each change as the one line to rewrite, and key rebinds checked
 -- against the other keys.
@@ -262,6 +263,38 @@ assert(M.read(file).cloth=='off' and Link.parse_settings(file).cloth==false,'On 
 -- The main page has no values to change.
 menu=M.new()
 assert(menu.change(NONE,values,1)==nil)
+
+-- The co-op line (a camp phone booth): the main page's own session rows (the same tables) in the line's order, then
+-- Co-op menu and Hang up; Leave still asks for a second Select; Co-op menu turns to the main page; Hang up and Back
+-- close.
+assert(M.new().page()=='main' and M.new('line').page()=='line' and M.LINE[1].head=='line')
+for _,row in ipairs(M.LINE) do
+    if row.id and row.id~='menu' and row.id~='hangup' then
+        local mine=false
+        for _,r in ipairs(M.MAIN) do mine=mine or r==row end
+        assert(mine,row.id..': not the main page\'s own row')
+    end
+end
+local line=M.new('line')
+assert(ids(line,NONE)=='head:line host join join_code menu hangup',ids(line,NONE))
+assert(ids(line,{mode='host'})=='head:line invite leave menu hangup','Hosting alone')
+assert(ids(line,CODE)=='head:line invite copy remove leave menu hangup','A code and a player let in; no chat row')
+assert(ids(line,GUEST)=='head:line leave menu hangup')
+assert(ids(line,{})=='head:line menu hangup','Before Steam: the line\'s own rows only')
+assert(line.current(NONE).id=='host' and line.select(NONE,0)=='host')
+line=M.new('line')
+assert(line.current(GUEST).id=='leave' and line.select(GUEST,70)=='confirm_leave' and line.select(GUEST,71)=='leave')
+assert(line.select(GUEST,72)=='confirm_leave' and line.back()=='close' and line.select(GUEST,73)=='confirm_leave',
+    'Back closes the line and forgets the first Select')
+line.move(GUEST,1)
+assert(line.current(GUEST).id=='menu' and line.select(GUEST,74)=='main' and line.page()=='main')
+assert(ids(line,NONE)==ids(M.new(),NONE) and line.current(NONE).id=='host','The main page, as the menu key opens it')
+assert(line.back()=='close','Back closes the main page reached from the line')
+line=M.new('line')
+line.move(GUEST,-1)
+assert(line.current(GUEST).id=='hangup' and line.select(GUEST,80)=='close' and line.page()=='line')
+line.move(NONE,-1)
+assert(line.current(NONE).id=='menu' and line.change(NONE,values,1)==nil,'No values to change on the line')
 
 -- Rebind: the pressed key, checked against every other key setting (host_key too, though not on the page).
 values=M.read('')

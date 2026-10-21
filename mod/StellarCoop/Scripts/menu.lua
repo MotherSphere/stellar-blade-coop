@@ -11,14 +11,17 @@
 -- the rows of the session's state and, unless a row said something, the newest notice (the feed hides under the
 -- menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit off, it closes. The
 -- game's input comes back 150 ms after a close, so the key that closed it (Esc would open the pause menu) never
--- reaches the game, and is asked again each 250 ms while closed until the kit has given it. No engine call here: the
--- kit makes them.
+-- reaches the game, and is asked again each 250 ms while closed until the kit has given it. Within 3 m of a camp phone
+-- booth (booth.lua) a hint shows the menu key, which opens the co-op line instead: the main page's session rows, Co-op
+-- menu (the main page) and Hang up, over a sentence that says whether the line is free, open or linked. No engine call
+-- here: the kit makes them.
 local M=require('ui_model')
 local Link=require('link')
 local T=require('ui_text')
 local Join=require('join')
 local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
+local HINT_W,HINT_Y=700,1830 -- The booth hint's width and top, in the kit's 3840 by 2160 units.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
 local ROW={} -- Options rows by setting name.
@@ -42,11 +45,27 @@ function Menu.new(o)
         v.hints=b.hints(48,1400,320,{{'move',''},{'enter',''},{'escape',''}})
         return v
     end)
+    -- The booth hint, at the bottom centre and scaled from there: '<menu key>  Co-op line' in the item style (Bold 40,
+    -- about 23 units a column): Shift+F12 and the longest word today (17 columns) take about 640 units.
+    kit.add('line_hint',{x=(3840-HINT_W)/2,y=HINT_Y,w=HINT_W,h=90,pivot={X=0.5,Y=0.5}},function(b)
+        b.panel(0,0,HINT_W,90)
+        return {text=b.text(HINT_W/2,45,'','item',nil,{X=0.5,Y=0.5})}
+    end)
     local function context()
         local code=link.code()
         return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger()}
     end
     local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
+    -- The co-op line's state: free (no session), open (hosting, no friend linked), linked (her name), else nothing
+    -- (before Steam, connecting).
+    local function line(ctx)
+        local name,linked=link.friend()
+        if ctx.mode=='none' then return words.line.free end
+        if linked and (ctx.mode=='host' or ctx.mode=='guest') then
+            return words.line.linked:format(Join.name(name) or words.ask.someone)
+        end
+        if ctx.mode=='host' then return words.line.open end
+    end
     local function value(row)
         local v=values[row.key]
         if row.bind then return capturing==row.key and words.press or v end
@@ -84,7 +103,7 @@ function Menu.new(o)
         local ping,_,linked=link.ping(),link.friend()
         v.title.set(words.title)
         v.status.set(link.summary(words)..(linked and ping and ' · '..ping..' ms' or ''))
-        v.note.set(note or (o.chat and o.chat.notice()) or '')
+        v.note.set(note or (o.chat and o.chat.notice()) or (page=='line' and line(ctx)) or '')
         for i,hint in ipairs({'move','select','back'}) do v.hints[i].set(words.hint[hint]) end
     end
     -- A change in effect, from the file now written: every key (the file may hold another clash), else the one setting.
@@ -116,8 +135,9 @@ function Menu.new(o)
     end
     function self.is_open() return open end
     -- menu_key: open, or close; when it cannot open, false, why for the log, the same for the screen in the menu's
-    -- words and in English (the kit off when it took the game's input: the menu would be open unseen).
-    function self.toggle()
+    -- words and in English (the kit off when it took the game's input: the menu would be open unseen). at: the camp
+    -- phone booth within reach (booth.near's {id, class, d}), which opens the co-op line; nil, the main page.
+    function self.toggle(at)
         if open then return self.close() end
         words=T.pick(kit.language(),settings.ui_language)
         if kit.off() then return false,OFF,words.refused.off,T.en.refused.off end
@@ -128,11 +148,13 @@ function Menu.new(o)
             return false,'the co-op menu does not open while the game is paused or shows a menu',words.refused.paused,
                 T.en.refused.paused
         end
-        model,open,capturing,note,page,back_at=M.new(),true,nil,nil,nil,nil
+        model,open,capturing,note,page,back_at=M.new(at and 'line' or nil),true,nil,nil,nil,nil
         values=M.read(link.settings_text() or '')
         kit.show('menu',true,os.clock())
         kit.input(true)
         if kit.off() then self.close(); return false,OFF,words.refused.off,T.en.refused.off end
+        kit.show('line_hint',false)
+        if at then o.log(string.format('line: booth %s (%s) at %.1f m',at.id,at.class,at.d)) end
         kit.sound('open')
         draw()
     end
@@ -207,9 +229,14 @@ function Menu.new(o)
     end
     -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not, or when the game pauses or
     -- shows the mouse cursor. Closed, the game's input is given back again while still due (no player controller at the
-    -- close: a map change).
-    function self.slow(shown)
+    -- close: a map change). at: the booth within reach (nil while a box or a question is open): its hint shows while
+    -- the menu is closed, the HUD may show and the game is not paused.
+    function self.slow(shown,at)
         world=shown==true
+        local hint=world and at~=nil and not open and not kit.off() and not kit.paused()
+        kit.show('line_hint',hint)
+        local h=hint and kit.view('line_hint')
+        if h then h.text.set(settings.menu_key.name..'  '..T.pick(kit.language(),settings.ui_language).line.prompt) end
         if open and (not world or kit.off() or kit.paused()) then return self.close() end
         if not (open or back_at) then kit.input(false) end
         draw()
@@ -221,8 +248,11 @@ function Menu.new(o)
             kit.input(false)
         end
     end
-    -- coop off: closed (kit.stop gives the game its input back).
-    function self.stop() open,capturing,back_at=false,nil,nil end
+    -- coop off: closed (kit.stop gives the game its input back), the hint hidden.
+    function self.stop()
+        open,capturing,back_at=false,nil,nil
+        kit.show('line_hint',false)
+    end
     return self
 end
 return Menu
