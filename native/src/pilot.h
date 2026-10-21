@@ -738,44 +738,33 @@ private:
 // What the game thread changed on one drawn copy, to put back as it was (R31). The BlockAI is Simulate's (it dispels
 // 2000101 itself); BattleMode_5s expires by itself.
 struct Capture {
-  bool cmc = false, cmc_was = false; // Its CMC taken out of SB's manager; whether it was in it before (cmc+0x10cd).
-  bool vel = false;                  // Its CMC's Velocity written by us.
-  bool speed = false;                // char+0xC68 set by us...
-  uint8_t speed_was = 0;             // ... and its value before.
-  // A later take (SB turned the CMC back on, a second write) keeps the value from before our first one.
-  void took_cmc(bool was) {
-    if (!cmc)
-      cmc = true, cmc_was = was;
-  }
+  bool cmc = false;      // Its CMC taken out of SB's manager, where it was (cmc+0x10cd).
+  bool vel = false;      // Its CMC's Velocity written by us.
+  bool speed = false;    // char+0xC68 set by us...
+  uint8_t speed_was = 0; // ... and its value before.
+  // A later write keeps the value from before our first one.
   void took_speed(uint8_t was) {
     if (!speed)
       speed = true, speed_was = was;
   }
 };
-// u.still() zeroes the CMC's Velocity, so neither SB's movement nor the AnimBP's IsMoving starts from the stream's;
-// u.cmc_on() returns the CMC to SB's manager (slot 0x350, true), only if it was in it; u.speed(old) writes char+0xC68.
-template <class Undo> void give_cmc(Capture &c, Undo &&u) {
-  if (c.vel)
-    u.still();
-  if (c.cmc && c.cmc_was)
-    u.cmc_on();
-  c.cmc = c.vel = false;
-}
-template <class Undo> void give_speed(Capture &c, Undo &&u) {
-  if (c.speed)
-    u.speed(c.speed_was);
-  c.speed = false;
-}
 // Puts one copy back, once (a second call does nothing): each live replay stopped (u.stop(live)), then the CMC (its
 // Velocity first), then char+0xC68. Session end, unpair, host loss, fight off, same_place off and the first fault.
+// u.still() zeroes the CMC's Velocity, so neither SB's movement nor the AnimBP's IsMoving starts from the stream's;
+// u.cmc_on() returns the CMC to SB's manager (slot 0x350, true); u.speed(old) writes char+0xC68.
 template <class Undo> void restore(Capture &c, Lines &lines, Undo &&u) {
   lines.each([&](const Live &l) {
     if (!l.skipped)
       u.stop(l);
   });
   lines.clear();
-  give_cmc(c, u);
-  give_speed(c, u);
+  if (c.vel)
+    u.still();
+  if (c.cmc)
+    u.cmc_on();
+  if (c.speed)
+    u.speed(c.speed_was);
+  c = Capture();
 }
 
 // The owner's side of one pair's lines. diff() takes this frame's player[0] of each of the pair's stages, keyed by
@@ -1984,7 +1973,7 @@ private:
     }
     if (parallel) {
       ++(p.cap.cmc ? counts.cmc_reenabled : counts.cmc_out);
-      p.cap.took_cmc(true);
+      p.cap.cmc = true;
       g.cmc(f.cmc, false);
     }
     if (limit_ == PilotTest::cmc) { // Nothing written: the drift probe reads where the game leaves the copy at rest.

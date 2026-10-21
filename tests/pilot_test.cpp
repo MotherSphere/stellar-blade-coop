@@ -1184,10 +1184,9 @@ int main() {
     Undo u;
     restore(cap, lines, u);
     assert(u.log.empty()); // Nothing taken, nothing given back.
-    cap.took_cmc(true);
-    cap.took_cmc(false); // A later take (SB turned it back on) keeps the value from before our first call.
+    cap.cmc = true;
     cap.took_speed(0);
-    cap.took_speed(1);
+    cap.took_speed(1); // A later write keeps the value from before our first one.
     Live &a = lines.start(4, u), &b = lines.start(5, u);
     a.slot = 0, b.slot = 1;
     lines.start(6, u).skipped = true; // Deduped: nothing of ours plays.
@@ -1196,22 +1195,14 @@ int main() {
     assert(u.log == "stop4 stop5 cmc speed0 ");
     restore(cap, lines, u); // Once.
     assert(u.log == "stop4 stop5 cmc speed0 ");
-    cap.took_cmc(false); // It was out of SB's manager before: it stays out.
-    give_cmc(cap, u);
-    assert(u.log == "stop4 stop5 cmc speed0 " && !cap.cmc);
-    cap.took_cmc(true);
+    cap.vel = true; // Our Velocity on it: zeroed before the component goes back.
+    cap.cmc = true;
     cap.took_speed(2);
-    give_cmc(cap, u);
-    give_speed(cap, u); // A release gives both back, the replays stay.
-    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 " && !cap.cmc && !cap.speed);
-    cap.vel = true; // Our Velocity on it: zeroed before the component goes back, even one that stays out.
-    cap.took_cmc(true);
     restore(cap, lines, u);
-    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 still cmc " && !cap.vel);
-    cap.vel = true;
-    cap.took_cmc(false);
-    give_cmc(cap, u);
-    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 still cmc still " && !cap.vel && !cap.cmc);
+    assert(u.log == "stop4 stop5 cmc speed0 still cmc speed2 " && !cap.vel && !cap.cmc && !cap.speed);
+    cap.vel = true; // A CMC that was out of SB's manager stays out; its Velocity is still zeroed.
+    restore(cap, lines, u);
+    assert(u.log == "stop4 stop5 cmc speed0 still cmc speed2 still " && !cap.vel);
   }
 
   // ---- The show lines ----
@@ -2803,7 +2794,7 @@ int main() {
         const State st = c.copy.step(cue, own, has ? &d : nullptr, g / 1000.0, out, snapped);
         if (root_stream(st)) {
           if (c.cmc) // The CMC out of SB's manager, taken once (slot 0x350, false).
-            c.cap.took_cmc(c.cmc), c.cmc = false;
+            c.cap.cmc = true, c.cmc = false;
           c.cap.took_speed(c.speed), c.speed = 1;
           std::copy(out.loc, out.loc + 3, c.loc);
           std::copy(out.quat, out.quat + 4, c.quat);
