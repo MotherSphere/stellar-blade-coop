@@ -100,12 +100,12 @@ inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + k
 // kMinScale, none, to kMaxScale), the host's for both worlds and fixed for its session.
 enum Scale : int { kScaleHp, kScaleBalance, kScales };
 inline bool scaling(const uint16_t *pct) { return pct[kScaleHp] > kMinScale || pct[kScaleBalance] > kMinScale; }
-// Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
-// side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair, or her game thread refused
-// the take-over (SB's force target needs net mode 0 and no logic task in flight: pilot.h's Taker).
 // Stage 3c (PHASE11-STAGE3 3.9): her takedowns. The host takes one exec 1 an enemy in kExecMs (R33). While hers runs,
 // it holds her lethal claim and its own dead for that enemy until her exec 0, kHoldMs at most from her exec 1.
 constexpr uint64_t kExecMs = 2000;
+// Why the guest answers own-no: no paired copy, her copy not in life state 1, same-place enemies not running on her
+// side, an epoch that was not hers plus one, the host's aggro=host, no room for the pair, or her game thread refused
+// the take-over (SB's force target needs net mode 0 and no logic task in flight: pilot.h's Taker).
 constexpr const char *kOwnNo[] = {"unpaired", "state", "off", "epoch", "aggro", "full", "target"};
 enum OwnNo : uint8_t { kUnpaired, kState, kOff, kEpoch, kAggro, kFull, kTarget, kOwnNoCount };
 
