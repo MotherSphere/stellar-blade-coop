@@ -4,21 +4,24 @@
 -- G.DOWN (the death screen's), the death screen's animation playing (unreal.lua's death_screen()), the engine line's
 -- warp=idle (no respawn or warp in flight, read by the native part), the friend linked with her vitals alive (life 1 or
 -- 6, HP above 0), her ghost shown on our map within 2 m across and 1 m up or down of our EVE, the fight= line's boss=0
--- (no boss of ours in battle), the game standalone (KismetSystemLibrary IsStandalone, as nightop.lua reads it: in net
--- mode 3 the call would go to a server instead), no nightop=rule on the engine line (with a rule row the respawn spends
--- a life count and may not respawn at all), and revive=on. Then pc:ServerRequest_ActorRespawn(me, false), SB's own
+-- (the shared fight runs, which the native part allows on a co-op save only, and no boss of ours is in battle), the
+-- game standalone (KismetSystemLibrary IsStandalone, as nightop.lua reads it: in net mode 3 the call would go to a
+-- server instead), no nightop=rule on the engine line (with a rule row the respawn spends a life count and may not
+-- respawn at all), and revive=on. Then pc:ServerRequest_ActorRespawn(me, false), SB's own
 -- in-place respawn (no camp warp, no zone reset, full health and the recovery items refilled as at a camp), once per
--- death; pc:ServerRequest_ActorRevival(me, false) only if our life state did not move 2 s later. me is our EVE's GUID
--- from the engine line. 2 s after the last call, one line: life, HP and the death screen before and after, and whether
--- the EVE pawn is the same. A death screen that still plays once our life state reads 1 is hidden (visibility Hidden,
--- as Survival Protocol hides its parts) and shown again as it was at the next death. A Lua error turns the revive off
--- for the run. Notices: the wait (the friend can revive us) once per death, once everything but the distance holds;
--- the revived line after a revive.
+-- death; pc:ServerRequest_ActorRevival(me, false) only if our life state did not move 2 s later (no read of 1 or 6 in
+-- between either) and every condition but the 3 s holds again. me is our EVE's GUID from the engine line. 2 s after the
+-- last call, one line: life, HP and the death screen before and after, and whether the EVE pawn is the same. A death
+-- screen that still plays once our life state reads 1 or 6 is hidden (visibility Hidden, as Survival Protocol hides its
+-- parts) and shown again as it was at the next death, once our life is no longer read (no session), once the revive is
+-- off for the run, or at coop off (stop()). A Lua error turns the revive off for the run. Notices: the wait (the friend
+-- can revive us) once per death, once everything but the distance holds; the revived line after a revive. A link that
+-- drops starts the 3 s again.
 -- The friend's side: her down notice once per death of hers, while our EVE is not down, she is on our map and no boss
 -- of ours is in battle; our revive of her when her vitals go from down to alive while our EVE stands within 3 m of her
 -- ghost. Her revive setting reaches no line, so the down notice shows whatever it says.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
--- with the same lines.
+-- with the same lines (main.lua runs it on a co-op save only).
 -- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
 -- plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
@@ -77,6 +80,13 @@ function G.new(o)
         return me~=nil and me.map~=nil and puppet.her_map()==me.map
     end
     local function boss_free() return (link.fight() or ''):find(' boss=0',1,true)~=nil end
+    -- The screen we hid comes back as it was.
+    local function show(reason)
+        local h=hidden
+        hidden=nil
+        if U.valid(h.widget) then h.widget:SetVisibility(h.was) end
+        log('revive: death screen shown again ('..reason..')')
+    end
     -- Why the revive waits, or nil when every condition holds now; 'friend far' when only the distance fails. probe:
     -- coop revive test's (life 3 to 5, and nothing of the friend's or of the shared fight's).
     local function blocker(probe)
@@ -91,7 +101,9 @@ function G.new(o)
             if not linked then return 'no friend linked' end
             if not alive(link.mate()) then return 'friend not alive' end
             if not same_map() then return 'friend on another map' end
-            if not boss_free() then return 'boss fight' end
+            if not boss_free() then
+                return (link.fight() or ''):find(' boss=',1,true) and 'boss fight' or 'no shared fight'
+            end
         end
         local line=engine()
         local warp,me=line:match(' warp=(%a+) me=(%d+)')
@@ -126,54 +138,56 @@ function G.new(o)
             me,who(),where and string.format(' %.1f m away',where) or '',b.life,b.hp,b.screen))
         pc:ServerRequest_ActorRespawn(me,false)
     end
-    -- 2 s after a call: the fallback once if our life state did not move, else the result line, the screen hidden if it
-    -- still plays over a living EVE, and the revived notice.
+    -- 2 s after a call: the fallback once if our life state did not move and every condition holds again (a respawn she
+    -- pressed meanwhile reads warp=busy), else the result line, the screen hidden if it still plays over a living EVE,
+    -- and the revived notice. Up in between and down again: a new death, from the next tick.
     local function after()
         local life=link.life()
-        if not d.fallback and life and life.state==d.before.life then
-            d.fallback,d.call=true,now
-            log(string.format('revive: life still %d 2 s after the respawn: ServerRequest_ActorRevival(%d, false) '
-                ..'asked',life.state,d.me))
-            local pc=assert(N.controller(),'no SB player controller')
-            pc:ServerRequest_ActorRevival(d.me,false)
-            return
+        if not d.fallback and not d.moved and life and life.state==d.before.life then
+            local reason=blocker(d.probe)
+            if not reason then
+                d.fallback,d.call=true,now
+                log(string.format('revive: life still %d 2 s after the respawn: ServerRequest_ActorRevival(%d, false) '
+                    ..'asked',life.state,d.me))
+                local pc=assert(N.controller(),'no SB player controller')
+                pc:ServerRequest_ActorRevival(d.me,false)
+                return
+            end
+            log('revive: life still '..life.state..' 2 s after the respawn, no fallback call: '..reason)
         end
         local a,b=snapshot(),d.before
+        local up=a.life==1 or a.life==6
         local screen_now=a.screen
-        if a.life==1 and a.screen=='up' then
+        if up and a.screen=='up' then
             local s=death_screen()
             hidden={widget=s,was=s:GetVisibility()}
             s:SetVisibility(HIDDEN)
             screen_now='hidden'
         end
-        log(string.format('revive result (%s): life %s/%s, hp %s/%s, death screen %s/%s, recovery items not read, '
-            ..'EVE pawn %s',who(),b.life,a.life,b.hp,a.hp,b.screen,screen_now,
-            not a.pawn and 'gone' or a.pawn==b.pawn and 'same' or 'new'))
+        log(string.format('revive result (%s): life %s/%s%s, hp %s/%s, death screen %s/%s, recovery items not read, '
+            ..'EVE pawn %s',who(),b.life,a.life,d.moved and not up and ' (up in between)' or '',b.hp,a.hp,b.screen,
+            screen_now,not a.pawn and 'gone' or a.pawn==b.pawn and 'same' or 'new'))
         d.call=nil
         d.done=true
-        if not d.probe and (a.life==1 or a.life==6) then tell('revived') end
+        if not d.probe and (up or d.moved) then tell('revived') end
+        if d.moved and not up then d=nil end
     end
     local function downed(linked)
         local life=link.life()
         if life and life.state>=3 and life.state<=5 then
             if not d then
                 d={}
-                if hidden then -- The screen we hid comes back as it was, for this death.
-                    local h=hidden
-                    hidden=nil
-                    if U.valid(h.widget) then h.widget:SetVisibility(h.was) end
-                    log('revive: death screen shown again (a new death)')
-                end
+                if hidden then show('a new death') end
             end
-        elseif life and (life.state==1 or life.state==6) and d and not d.call then
-            d=nil
+        elseif life and (life.state==1 or life.state==6) and d then
+            if d.call then d.moved=true else d=nil end
         end
         if not d then return end
         if d.call then
             if now-d.call>=AFTER then after() end
             return
         end
-        if d.done or not linked then return end
+        if d.done or not linked then d.since=nil; return end
         local reason,me,pc,where=blocker(false)
         if reason~=d.said then
             d.said=reason
@@ -245,6 +259,9 @@ function G.new(o)
         local _,with=link.friend()
         local linked=(mode=='host' or mode=='guest') and with==true
         guard('revive',downed,linked)
+        if hidden and (off.revive or not link.life()) then
+            guard('screen',show,off.revive and 'the revive is off' or 'no session')
+        end
         if linked then guard('friend',friend) else hers=nil end
         if linked then guard('cutscene',watch) end
         if not linked or off.cutscene then scene.playing,scene.told=false,false end
@@ -257,8 +274,13 @@ function G.new(o)
         if own=='0' and scene.playing and link.mode()=='host' then return 'c' end
         return own
     end
-    -- The guest's ask for the pause during the host's cutscene: cutscene_wait=on and the host's ghost on her map.
-    function self.cut() return settings.cutscene_wait==true and link.mode()=='guest' and same_map() end
+    -- The guest's ask for the pause during the host's cutscene: cutscene_wait=on, the host's ghost on her map, and our
+    -- read of cutscenes not off for the run (the pause would come with no notice).
+    function self.cut()
+        return not off.cutscene and settings.cutscene_wait==true and link.mode()=='guest' and same_map()
+    end
+    -- coop off: the death screen we hid comes back.
+    function self.stop() if hidden then show('coop off') end end
     -- coop revive test (the console): true and what was asked, or false and why not.
     function self.test()
         if off.revive then return false,'the revive is off for this run (see the log)' end

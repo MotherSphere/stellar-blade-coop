@@ -15,7 +15,7 @@
 -- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
 -- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; the friend's revive
 -- (group.lua, revive in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at
--- the death screen (a test tool, left out of the usage line), and the guest's wait while the host watches a cutscene
+-- the death screen (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene
 -- (group.lua and the native part's photo pause, cutscene_wait in coop-settings.txt or the co-op menu); coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
@@ -134,9 +134,9 @@ local function answer(verb)
 end
 -- Host by who_can_join: code (an invisible lobby with a join code), private (invited only), friends.
 local HOSTS={code='host code',private='host private'}
--- coop no, coop recruiter and coop fight run only on a co-op save (D2, N9): the native part's slot=coop, from the start
--- of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
--- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight and coop revive test run only on a co-op save (D2, N9): the native part's
+-- slot=coop, from the start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual
+-- co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -346,10 +346,12 @@ local commands={
         end
         return night.command(sub,a,b)
     end,
-    -- test: the revive's solo probe at the death screen (group.lua says why not).
+    -- test: the revive's solo probe at the death screen, on a co-op save only (group.lua says why not).
     revive=function(sub,extra)
         if sub~='test' or extra~=nil then return false,'Use: coop revive test' end
         if not group then return false,'the Steam link needs the native part' end
+        local ok,why=coop_slot('coop revive test')
+        if not ok then return false,why end
         return group.test()
     end,
     recruiter=function(sub,extra)
@@ -516,6 +518,10 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(night.stop,'coop off')
         if not stopped then log('nightop: '..tostring(e)) end
+        if group then -- A death screen the revive hid comes back.
+            stopped,e=pcall(group.stop)
+            if not stopped then log('revive: '..tostring(e)) end
+        end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,

@@ -220,10 +220,10 @@ nr={o=nil,runs={},ticks=0,stops={},raise=nil}
 -- The friend's revive and the cutscene wait (group.lua): what group.new got (o), its ticks' clocks, coop revive test's
 -- answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its cut, and the cut
 -- each state write got (cuts). A global too.
-gr={o=nil,ticks={},tests=0,owns={},cuts={}}
+gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
 package.loaded.group={new=function(o)
     gr.o=o
-    return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,
+    return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end}
 end}
@@ -713,13 +713,18 @@ end
 ui_log('check 1/10 classes: ok'); assert(last()=='[StellarCoop][UI] check 1/10 classes: ok\n',last())
 assert(notice_stops==0 and ui_stops==0)
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
--- clock; coop revive test is its probe, and anything else its usage line.
+-- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
 assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui_text').en)=='Kaanta'
     and type(gr.o.tell)=='function' and type(gr.o.log)=='function' and gr.o.puppet.her_map()=='/game/e04')
 gr.o.log('revive waits: friend far'); assert(last()=='[StellarCoop][GR] revive waits: friend far\n',last())
 gr.count=#gr.ticks
 loops[2].f(); assert(#gr.ticks==gr.count+1 and gr.ticks[#gr.ticks]-gr.ticks[#gr.ticks-1]==0.25)
+coop('revive','test')
+assert(gr.tests==0 and last()=='[StellarCoop] STOP: coop revive test runs only on a co-op save (INSTALL.md: Co-op '
+    ..'saves); now no slot status\n',last())
+gr.status,status_text=status_text,with_slot('slot=coop index=4 marker=4\n')
 coop('revive','test'); assert(gr.tests==1 and last()=='[StellarCoop] OK: ServerRequest_ActorRespawn asked\n',last())
+status_text=gr.status
 for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
     coop('revive',table.unpack(bad))
     assert(gr.tests==1 and last()=='[StellarCoop] STOP: Use: coop revive test\n',last())
@@ -731,6 +736,7 @@ assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
 assert(ui_stops==1,'off takes a UI test off the screen')
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
+assert(gr.stops==1,'off gives back a death screen the revive hid')
 local written=#states
 takes=chat_takes
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')

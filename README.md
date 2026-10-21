@@ -94,7 +94,7 @@ runs on your own copy of the game.
 
 ## Credits
 
-Night Operation's solo run (`coop nightop`) adapts code from
+Night Operation's solo run (`coop nightop`) and the friend's revive adapt code from
 [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus Mods, Stellar Blade
 mod 4009), used with the author's permission and distributed here under GPL-3.0-or-later. The adapted parts are:
 
@@ -107,8 +107,9 @@ mod 4009), used with the author's permission and distributed here under GPL-3.0-
 - telling a dying monster from one that can be executed;
 - watching for EVE's death screen, a map load, and EVE leaving the start point.
 
-`mod/StellarCoop/Scripts/nightop_run.lua` and `nightop_waves.lua` mark each adapted function. StellarCoop contains no
-file from Survival Protocol.
+`mod/StellarCoop/Scripts/nightop_run.lua`, `nightop_waves.lua` and `unreal.lua` mark each adapted function. The death
+screen lookup is `U.death_screen()` in `unreal.lua`, used by the solo run and by the revive in `group.lua`. StellarCoop
+contains no file from Survival Protocol.
 
 ## License
 

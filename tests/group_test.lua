@@ -1,15 +1,18 @@
 -- group.lua over fakes of the game and of link.lua and puppet.lua. The revive on the downed side: the call only once
 -- every condition held for 3 s with no gap (our life state 3, the death screen's animation, warp=idle, the friend
 -- alive on our map with her ghost shown within 2 m across and 1 m up or down, boss=0, standalone, no nightop=rule,
--- revive=on), once per death, ServerRequest_ActorRevival only when our life state did not move 2 s after the respawn,
--- the result line, the death screen hidden when it stays up after a revive and shown again at the next death, a Lua
--- error turning the revive off for the run. Together only: no call while the friend is farther than 2 m, down or
--- missing. The notices on both sides: the wait once per death, the revived line after a revive, her down once per death
--- of hers on our map outside a boss fight while we are up, and our revive of her only while our EVE stands within 3 m
--- of her ghost. coop revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines.
+-- revive=on), once per death, ServerRequest_ActorRevival only when our life state did not move 2 s after the respawn
+-- and every condition holds again, the result line, the death screen hidden when it stays up after a revive and shown
+-- again at the next death, with no session, at coop off and once the revive is off, a Lua error turning the revive off
+-- for the run. Together only: no call while the friend is farther than 2 m, down or missing, a dropped link starting
+-- the 3 s again, and no fallback call for a death that came after the revive took. The notices on both sides: the
+-- wait once per death, the revived line after a revive, her down once per death of hers on our map outside a boss
+-- fight while we are up, and our revive of her only while our EVE stands within 3 m of her ghost. coop revive test:
+-- solo only, at the death screen with life 3 to 5, the same call and the same lines.
 -- The host's cutscene: SB's theater observers read once a second while linked, a cutscene while one has a valid player
 -- that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
--- with cutscene_wait=on and the host on her map; the notice once a pause for it, from the photo line.
+-- with cutscene_wait=on, the host on her map and our read not off for the run; the notice once a pause for it, from the
+-- photo line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local W -- The world of one case.
@@ -210,6 +213,76 @@ assert(#W.calls==0,'The hold starts again')
 run(g,0.25)
 assert(#W.calls==1)
 
+-- A link that drops starts the 3 s again: 2 s held, 5 s unlinked, then 3 s from the reconnect.
+g=world()
+run(g,2)
+W.linked=false
+run(g,5)
+W.linked=true
+run(g,3)
+assert(#W.calls==0,'The hold starts again at the reconnect')
+run(g,0.25)
+assert(#W.calls==1)
+
+-- Up after the respawn and down again before the 2 s read, the friend still beside her: no ServerRequest_ActorRevival,
+-- the revived notice for the revive that took, and the new death waits for its own 3 s.
+g=world(function(w) w.respawn=function() w.life={state=1,hp=1600} end end)
+run(g,3.25)
+assert(#W.calls==1)
+run(g,1)
+W.life={state=3,hp=0}
+run(g,1)
+assert(#W.calls==1,'No fallback for a new death')
+assert(logged('revive result (Kaanta): life 3/3 (up in between), hp 0/0, death screen up/up'),table.concat(W.logs,'|'))
+assert(#W.said==2 and W.said[2]==REVIVED and #W.sets==0,table.concat(W.said,'|'))
+run(g,3)
+assert(#W.calls==1 and W.said[3]==WAIT,'A new death: its own 3 s')
+run(g,0.25)
+assert(#W.calls==2 and W.calls[2]==RESPAWN)
+
+-- The fallback asks every condition again: a respawn she pressed (warp=busy), the friend gone far or down, or
+-- revive=off by then: no fallback call (ServerRequest_ActorRevival), one line why, then the result.
+for _,case in ipairs({
+    {'a respawn or a warp is under way',function(w) w.engine=ENGINE..' warp=busy me=4242' end},
+    {'friend far',function(w) w.ghost={X=5000,Y=2000,Z=300} end},
+    {'friend not alive',function(w) w.mate={life=3,hp=0,max_hp=1600} end},
+    {'revive=off',function(w) w.settings.revive=false end},
+}) do
+    g=world()
+    run(g,3.25)
+    case[2](W)
+    run(g,2)
+    assert(#W.calls==1 and logged('revive: life still 3 2 s after the respawn, no fallback call: '
+        ..case[1]),case[1]..': '..table.concat(W.logs,'|'))
+    assert(logged('revive result (Kaanta): life 3/3, hp 0/0'),case[1])
+end
+
+-- A respawn that leaves life 6 under a death screen that still plays: hidden too.
+g=world(function(w) w.respawn=function() w.life={state=6,hp=1600} end end)
+run(g,5.25)
+assert(#W.calls==1 and W.vis==2 and logged('death screen up/hidden'),table.concat(W.logs,'|'))
+-- The screen we hid comes back as it was with no session (no life read), at coop off and once the revive is off.
+for _,case in ipairs({
+    {'no session',function() W.life=nil end},
+    {'coop off',function(group) group.stop() end},
+    {'the revive is off',function() W.life=setmetatable({},{__index=function() error('bad read',0) end}) end},
+}) do
+    g=world(function(w) w.respawn=function() w.life={state=1,hp=1600} end end)
+    run(g,5.25)
+    assert(W.vis==2,case[1])
+    case[2](g)
+    run(g,0.25)
+    assert(W.vis==4 and logged('revive: death screen shown again ('..case[1]..')'),case[1]..': '
+        ..table.concat(W.logs,'|'))
+end
+
+-- Why it waits, in the log: a boss of ours in battle, or no shared fight at all (no boss= on the fight line).
+for _,case in ipairs({{GUEST..'1','boss fight'},{nil,'no shared fight'},{'fight=waiting why=x','no shared fight'}}) do
+    g=world(function(w) w.fight=case[1] end)
+    run(g,1)
+    assert(logged('revive waits: '..case[2]) and #W.logs==1,table.concat(W.logs,'|'))
+end
+
 -- A Lua error in the call: one line, and the revive off for the run, the next death included.
 g=world(function(w) w.respawn=function() error('no such function',0) end end)
 run(g,3.25)
@@ -240,7 +313,7 @@ W.mate={life=1,hp=1600,max_hp=1600}
 run(g,1)
 assert(#W.said==3,'Farther than 3 m: not ours')
 for _,change in ipairs({function(w) w.her_map='/game/f02' end,function(w) w.fight=GUEST..'1' end,
-    function(w) w.fight=nil end,function(w) w.linked=false end}) do
+    function(w) w.fight=nil end,function(w) w.linked=false end,function(w) w.life={state=3,hp=0} end}) do
     g=world(function(w) w.mode,w.life,w.mate='host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600}; change(w) end)
     run(g,2)
     assert(#W.said==0)
@@ -304,7 +377,8 @@ g=world(function(w) w.mode,w.life,w.theater_error='host',{state=1,hp=1600},'no s
 run(g,3)
 assert(not g.cutscene_playing() and logged('cutscene off for this run: no such property')
     and W.finds.SBTheaterLevelSequenceObserver==1)
--- The guest's ask for the pause: cutscene_wait=on and the host on her map, as the guest only.
+-- The guest's ask for the pause: cutscene_wait=on and the host on her map, as the guest only, and never once our
+-- cutscene read is off for the run (her notice would not come).
 g=world(function(w) w.life={state=1,hp=1600} end)
 assert(g.cut()==true)
 W.settings.cutscene_wait=false
@@ -315,6 +389,10 @@ W.her_map,W.mode=W.map,'host'
 assert(g.cut()==false)
 W.mode,W.her_map='guest',nil
 assert(g.cut()==false)
+g=world(function(w) w.life,w.theater_error={state=1,hp=1600},'no such property' end)
+assert(g.cut()==true)
+run(g,1)
+assert(g.cut()==false and logged('cutscene off for this run'))
 -- Her notice: once each time the photo line says her game holds the pause for the host's cutscene.
 local CUT='Kaanta is watching a cutscene. Your game waits until it ends.'
 g=world(function(w) w.life,w.photo={state=1,hp=1600},{mine='0',peer='c',frozen=false} end)
