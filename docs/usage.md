@@ -70,7 +70,7 @@ Each row of the Options page is a setting of [coop-settings.txt](#coop-settingst
 looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the title
 and [shared quests](#shared-quests-experimental)), Combat (shared enemies, same place, who same-place enemies attack,
 same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards), Display (the
-[status line](#status-line-above-the-card) above the partner card, and the size, sounds and language of the menu, the
+[status strip](#status-strip-above-the-card) above the partner card, and the size, sounds and language of the menu, the
 chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
@@ -164,25 +164,24 @@ Partner turns each part on or off at once: `partner_bar` (the marker), `partner_
 `card_details`. The card, the marker and the arrow hide while the game is paused or shows one of its own screens (a
 shop, a dialogue choice). Your own photo mode hides them too, like the rest of the mod's screen.
 
-### Status line above the card
+### Status strip above the card
 
-Options > Display > Status line (`status_overlay`) adds a strip above the card: Off (the default), Compact or
+Options > Display > Status line (`status_overlay`) adds a status strip above the card: Off (the default), Compact or
 Detailed. Each player's setting is their own, and a change shows at once. The strip shows whenever the
 [status line](#the-status-key-f6) says something other than `not in a session` or `waiting for Steam`: while you host
 (alone too), while a friend connects or you play in their game, while an invite is held or you rejoin, and after the
 Steam link stopped.
 
 - Compact: the status line without its `Co-op:` start, and the ping at the right end, for example `hosting Alex.` and
-  `118 ms`. `connection lost` (in red) and `paused` (while your friend's photo mode pauses your game) come first, and
-  a lost link shows no ping.
+  `118 ms`. While the link is lost, the row starts with `connection lost`, turns red and shows no ping.
 - Detailed: the same, and a second row with what is shared now: `Enemies <n>` while shared enemies run (the `enemies=`
-  count of `coop fight status` as host, `pairs=` as guest), `Same place <n>` while same place moves enemies
-  (`piloted=`), `Quests on` while shared quests run, and the poses you send a second. For example
+  count of `coop fight status` as host, `pairs=` as guest), `Same place <n>` while same place runs (`piloted=`),
+  `Quests on` while shared quests run, and the poses you send a second. For example
   `Enemies 3 · Same place 2 · Quests on · 60/s`.
 
 A row too long for the strip ends with `…`. The strip uses the menu's language. It grows with `ui_scale` up to 100 %
-only, so it never covers the card, and it hides when the card does: while the game is paused or shows one of its own
-screens, and in your own photo mode.
+only, so it never covers the card, and it hides when the card does: while the game is paused (your friend's photo mode
+included) or shows one of its own screens, and in your own photo mode.
 
 ## Playing with a friend
 
@@ -211,7 +210,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (11) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
+- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
@@ -1185,7 +1184,7 @@ status_overlay=off
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
-| `status_overlay` | `off`, `compact` or `detailed`: the [status line](#status-line-above-the-card) above the card | `off` |
+| `status_overlay` | `off`, `compact` or `detailed`: the [status strip](#status-strip-above-the-card) above the card | `off` |
 
 Rules:
 
@@ -1314,7 +1313,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=8 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=12 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite
   held and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the
