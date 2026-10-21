@@ -31,8 +31,8 @@ function Menu.new(o)
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
     local values,words={},T.en
     -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150. As
-    -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so the longest
-    -- value (26 columns of Bold 40) and the longest label (34) fit side by side (ui_text_test.lua checks every word).
+    -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so a value of up
+    -- to 26 columns of Bold 40 and a label of up to 34 fit side by side (ui_text_test.lua checks every word).
     kit.add('menu',{x=180,y=330,w=1500,h=1500,hit=true,pivot={X=0,Y=0.5}},function(b)
         b.panel(0,0,1500,1500)
         local v={title=b.text(48,36,'','title'),rows={}}
