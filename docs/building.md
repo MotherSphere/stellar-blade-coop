@@ -144,7 +144,8 @@ build/host/pose_codec_test
     refused by Host and Guest, since the engine takes them, and never recorded), and two fake worlds linked through a
     delayed, lossy line;
   - `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
-    reset of the spawn manager, 3 or more keys with a new GUID) and its 3 s grace, the host's epoch line, her rounds
+    reset of the spawn manager, 3 or more keys with a new GUID, two actors of one key no change) and its 3 s grace,
+    the host's epoch line (at each change and every 5 s), her rounds
     and its answers (a key more than 1 km from her held back until she is nearer), the guest's rounds and her checks
     of each answer (the epoch, the shared zone, her own tables, 1 km, the rates, a created key that is no Monster or
     another charId, removed again within the rates or kept and logged when it cannot be found again, the refusals

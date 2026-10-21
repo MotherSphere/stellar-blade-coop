@@ -267,6 +267,11 @@ int main() {
     h.have(msg("SBF11 have 2 2 1 1"), 1, 9500);         // Another generation.
     host_step(h, ep, w, 9600);
     assert(w.lines().empty() && h.counts.stale == 6);
+    // The epoch line again every 5 s, the same: one lost on the way stalls nothing for long.
+    host_step(h, ep, w, 7100 + kHaveAgainMs - 1);
+    assert(w.lines().empty());
+    host_step(h, ep, w, 7100 + kHaveAgainMs);
+    assert(w.lines() == "SBF11 epoch 1 40 2\n");
     // At most kMaxAnswer lines of each kind a round; the rest goes with the next.
     World big;
     Epochs bep;
@@ -332,6 +337,8 @@ int main() {
            has(round, " 7030:0\n") && !has(round, "704") && !has(round, "7099") && !has(round, "7001:1"));
     assert(g.counts.haves == 1 && w.created.empty());
     guest_step(g, ep, w, 5500);
+    g.heard(msg("SBF11 epoch 1 40 1"), 1); // The host's epoch line again (every 5 s), the same epoch: no round at once.
+    guest_step(g, ep, w, 5000 + kHaveMs);
     guest_step(g, ep, w, 5000 + kHaveAgainMs - 1);
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000 + kHaveAgainMs);

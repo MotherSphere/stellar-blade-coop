@@ -218,7 +218,8 @@ public:
     r.done = true;
   }
   // Each census while same spawns run here, her side on: our epoch line when our zone or epoch changed (none while our
-  // zone is unknown), then her round if it came at our epoch while she stands within 100 m and our zone is settled:
+  // zone is unknown), and again every kHaveAgainMs (one lost on the way, her inbox full, would stall both sides until
+  // the next epoch move), then her round if it came at our epoch while she stands within 100 m and our zone is settled:
   // spawn for each Monster of ours there she lacks within 1 km of her EVE (her: as her ghost stands here; a farther one
   // waits for a round when she is nearer, since she would refuse it), a dying one never; drop for each key of hers
   // there we lack.
@@ -227,8 +228,8 @@ public:
             uint64_t now, Io &io) {
     if (!zone || !ep.n())
       return;
-    if (zone != told_zone_ || ep.n() != told_n_) {
-      told_zone_ = zone, told_n_ = ep.n();
+    if (zone != told_zone_ || ep.n() != told_n_ || now >= told_at_ + kHaveAgainMs) {
+      told_zone_ = zone, told_n_ = ep.n(), told_at_ = now;
       Message e = note(Type::epoch, gen, ep.n());
       e.zone = zone;
       io.send(e);
@@ -296,7 +297,7 @@ private:
   }
   Round round_;
   uint32_t told_zone_ = 0, told_n_ = 0;
-  uint64_t last_ = 0; // Her last round complete.
+  uint64_t told_at_ = 0, last_ = 0; // Our last epoch line, her last round complete.
 };
 
 // The guest's side: the host's zone and epoch, our rounds, the host's answers.

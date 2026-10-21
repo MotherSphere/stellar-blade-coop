@@ -250,7 +250,7 @@ Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
 - `spawns=off` on the host: its `same_spawns` is off, or the guest's shared enemies are not on (the line's `her=`
   says so). After turning the row on, turn Shared enemies off and on again.
 - `spawns=off` on the guest: the host's `same_spawns` is off (only the host's value counts), or the host's game has
-  not sent its zone yet. It sends it once its zone is known, and again after each map load.
+  not sent its zone yet. It sends it once its zone is known, again after each map load, and every 5 s.
 - `spawns=on` but nothing changes: both players must be in the same zone, within 100 m of each other, and 3 s past
   either game's last zone entry or reset (a camp rest, a death). The guest may also hold the host's set already. If
   the other PC's line says `spawns=stopped`, its error stopped same spawns in both games.
