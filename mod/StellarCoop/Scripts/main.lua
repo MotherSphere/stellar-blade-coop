@@ -950,7 +950,9 @@ end
 -- key capture, then selects; the navigation keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z;
 -- down arrow or S; left arrow, A or Q; right arrow or D; Enter or Space; Esc), and to the co-op saves' question while
 -- it is open. The code box takes Enter (join) and Esc (cancel). With all closed, Enter opens the chat's box, then
--- sends, and Esc cancels; while the question or a box is open our F-keys do nothing. A
+-- sends, and Esc cancels; while the question or a box is open our F-keys do nothing. The mouse buttons are the menu's
+-- while it is open (a left click selects the row under the mouse, a right click goes back), then the left one the
+-- co-op saves' question's (the choice under the mouse); closed, they are the game's. A
 -- key callback runs on UE4SS's key thread: it only hands the press to the game thread, where the console's checks (coop
 -- off included) apply. A modified F-key is bound before the plain one, so if UE4SS also calls the plain bind for a
 -- Shift+F5, the plain press that follows at once is the same press, dropped. The status key gives a one-line summary,
@@ -1036,10 +1038,15 @@ if settings then
         elseif code_box.is_open() then ExecuteInGameThread(code_box.cancel)
         elseif box.is_open() then ExecuteInGameThread(box.cancel) end
     end)
-    -- A left click answers the co-op saves' question with the choice under the mouse (the kit's input leaves Slate the
-    -- mouse, and UE4SS calls the bind whatever has it); no gamepad button can be bound.
+    -- A left click selects the co-op menu's row under the mouse, or answers the co-op saves' question with the choice
+    -- under it; a right click goes back in the menu (the kit's input leaves Slate the mouse, and UE4SS calls the binds
+    -- whatever has it). No gamepad button can be bound: the pad comes through the native part.
     bind('LEFT_MOUSE_BUTTON',nil,function()
-        if saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('click') end) end
+        if menu.is_open() then ExecuteInGameThread(function() menu.nav('click') end)
+        elseif saves_ui.is_open() then ExecuteInGameThread(function() saves_ui.nav('click') end) end
+    end)
+    bind('RIGHT_MOUSE_BUTTON',nil,function()
+        if menu.is_open() then ExecuteInGameThread(function() menu.nav('back') end) end
     end)
 end
 log('Loaded version '..VERSION..'. '..USAGE)

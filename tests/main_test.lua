@@ -417,13 +417,15 @@ assert(capture_look==look,'The capture holds the same table: dyes and effects of
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 -- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
--- and the twelve navigation keys, then the left mouse button (the co-op saves' question).
-assert(#binds==44+2+12+1,#binds)
+-- and the twelve navigation keys, then the left mouse button (the co-op menu, the co-op saves' question) and the right
+-- one (the co-op menu).
+assert(#binds==44+2+12+2,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
 assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
-    and not binds[46].modifiers and binds[58].key=='Key.ESCAPE' and binds[59].key=='Key.LEFT_MOUSE_BUTTON')
+    and not binds[46].modifiers and binds[58].key=='Key.ESCAPE' and binds[59].key=='Key.LEFT_MOUSE_BUTTON'
+    and binds[60].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[59].modifiers and not binds[60].modifiers)
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
@@ -2326,6 +2328,56 @@ saves_info,at_title,chatting,chat_active={},false,false,false
     in_world,kit_ready=true,true; quarter()
     loops[1].f(); key('F5'); assert(kit_shown.menu and pd.calls==0,'The keys still work')
     pd.missing,in_world,kit_ready=false,false,false
+end)()
+
+-- The mouse in the co-op menu (menu.lua for real; the fake kit's rows say whether the mouse is over them). Each 100 ms
+-- the row the mouse moved onto takes the focus (the move sound, drawn); the row under it as the menu opens, or a mouse
+-- resting while the keys move, never takes it; a header or an empty slot, nothing. A left click selects the row under
+-- the mouse as Enter does (Leave still asks twice), on a header or no row nothing; a right click goes back, closing it
+-- on the main page. Closed, both buttons are the game's: nothing queued (the left one is the saves' question's).
+;(function()
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    -- Clock steps in binary fractions: the frame time test below needs sums it can take back exactly.
+    local rows=menu_view.rows -- Drawn: SESSION, Host, Join a friend, Join with a code, SETTINGS, Options, HELP,
+    local function hover(i) -- report, Close. The mouse over slot i (nil: none), then a frame.
+        for j,r in ipairs(rows) do r.hover=j==i or nil end
+        loops[1].f()
+    end
+    local queued_at=executes
+    press('LEFT_MOUSE_BUTTON'); press('RIGHT_MOUSE_BUTTON'); assert(executes==queued_at,'Closed: not queued')
+    rows[3].hover=true
+    key('F5'); hover(3); assert(focus()=='Host a session','Under the mouse as it opens: not taken')
+    local sounds=#kit_sounds
+    clock=clock+0.125; hover(4)
+    assert(focus()=='Join with a code' and #kit_sounds==sounds+1 and kit_sounds[#kit_sounds]=='move','Moved onto')
+    key('DOWN_ARROW'); assert(focus()=='Options')
+    for _=1,3 do clock=clock+0.125; hover(4) end
+    assert(focus()=='Options','A resting mouse leaves the keys alone')
+    clock=clock+0.125; hover(2); assert(focus()=='Host a session')
+    clock=clock+0.0625; hover(3); assert(focus()=='Host a session','Every 100 ms only')
+    clock=clock+0.0625; hover(3); assert(focus()=='Join a friend')
+    sounds=#kit_sounds
+    for _,i in ipairs({5,12,false}) do clock=clock+0.125; hover(i or nil) end
+    assert(focus()=='Join a friend' and #kit_sounds==sounds,'A header, an empty slot, no row: nothing')
+    -- Clicks: on a header or no row nothing; on a row, that row selected (Options opens its page), wherever the keys
+    -- left the focus.
+    hover(5); key('LEFT_MOUSE_BUTTON'); hover(nil); key('LEFT_MOUSE_BUTTON')
+    assert(kit_shown.menu and focus()=='Join a friend' and #kit_sounds==sounds,'A click on no row: nothing')
+    hover(6); key('LEFT_MOUSE_BUTTON')
+    assert(focus()=='Open this menu' and kit_sounds[#kit_sounds]=='select','A click selects the row under the mouse')
+    key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
+    key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')
+    -- Hosting: Leave on two clicks within 3 s, as with Enter.
+    link_mode='host'
+    key('F5'); hover(2)
+    local n=#asked
+    key('LEFT_MOUSE_BUTTON'); assert(#asked==n and menu_view.note.s=='Select again within 3 s to leave.')
+    clock=clock+1; key('LEFT_MOUSE_BUTTON'); assert(asked[#asked]=='leave','The second click leaves')
+    for i,r in ipairs(rows) do if r.l=='Close' then hover(i) end end
+    key('LEFT_MOUSE_BUTTON'); assert(not kit_shown.menu,'Close')
+    link_mode,in_world,kit_ready='none',false,false
 end)()
 
 -- Without the native tick export, the pose path's commands say so.

@@ -150,6 +150,19 @@ function M.new()
         repeat index=(index-1+dir)%#rows+1 until not rows[index].head
         id,asked=name(rows[index]),nil
     end
+    -- The mouse on a row (one of rows(ctx)): the cursor on it, true when it moved there; a header or a row not shown,
+    -- nothing. A first Select on Leave or Remove stays only when it is the same row.
+    function self.point(ctx,row)
+        self.current(ctx)
+        for i,r in ipairs(self.rows(ctx)) do
+            if r==row and not r.head then
+                if name(r)==id then return false end
+                index,id,asked=i,name(r),nil
+                return true
+            end
+        end
+        return false
+    end
     -- A setting row's next value: 'set', key, text; nil on a key row (rebind), a non-setting row or at a range's end.
     function self.change(ctx,values,dir)
         local row=self.current(ctx)

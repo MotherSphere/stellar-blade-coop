@@ -902,14 +902,16 @@ assert(k.off() and count(LIB..'SetInputMode_GameOnly')==1)
 pc=real
 k.input(false); k.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==2,'Still given back once the kit is off')
--- Ctrl+R with the menu open: the old load's input mode stays in the game's viewport, so its path says so and the new
--- load gives the input back as it sweeps the root (or later, with no player controller yet).
+-- Ctrl+R with the menu open: the old load's input mode and mouse cursor stay in the game, so its path says so and the
+-- new load gives the input back and hides the cursor as it sweeps the root (or later, with no player controller yet).
+-- A record from before the cursor: the input only.
 reset()
 k=kit()
 up(k)
 local root_path=saved
+pc.bShowMouseCursor=false
 k.input(true)
-assert(saved==root_path..' input','The input marked with the path')
+assert(saved==root_path..' input cursor','The input and the cursor marked with the path')
 k.input(false)
 assert(saved==root_path)
 k.input(true)
@@ -917,16 +919,25 @@ registry[root_path]=viewport[1]
 local reloaded=kit()
 reloaded.slow(true)
 assert(#viewport==0 and count(LIB..'SetInputMode_GameOnly')==2 and saved==nil,'Swept, the input given back')
+assert(pc.bShowMouseCursor==false,'The cursor hidden again')
 reloaded.stop()
 assert(count(LIB..'SetInputMode_GameOnly')==2,'Once')
-saved=root_path..' input'
+saved=root_path..' input cursor'
 pc=nil
 reloaded=kit()
 reloaded.slow(true)
 pc=real
+pc.bShowMouseCursor=true
 assert(count(LIB..'SetInputMode_GameOnly')==2)
 reloaded.input(false)
-assert(count(LIB..'SetInputMode_GameOnly')==3,'Still due: given back once there is a player controller')
+assert(count(LIB..'SetInputMode_GameOnly')==3 and pc.bShowMouseCursor==false,
+    'Still due: given back, the cursor hidden, once there is a player controller')
+saved=root_path..' input'
+reloaded=kit()
+reloaded.slow(true)
+pc.bShowMouseCursor=true
+reloaded.input(false)
+assert(count(LIB..'SetInputMode_GameOnly')==4 and pc.bShowMouseCursor==true,'An older record: the cursor untouched')
 -- At the title (the co-op saves' question), given back as GameAndUIEx with no widget, no mouse lock and the cursor
 -- kept, so the title menu keeps its mouse; GameOnly when the engine refuses it (the kit stays on); in a world GameOnly.
 reset()
@@ -946,6 +957,33 @@ assert(count(LIB..'SetInputMode_GameAndUIEx')==2 and count(LIB..'SetInputMode_Ga
 k.slow(true,true)
 k.input(true); k.reset()
 assert(count(LIB..'SetInputMode_GameAndUIEx')==3,'coop ui reset at the title too')
+-- The menu's mouse cursor: shown while the menu holds the game's input (set after its input mode), never for a group's
+-- field; the value found put back when it gives the input back, when a field takes it, at coop ui reset and when the
+-- kit stops. paused() never reads our own cursor as a game screen.
+reset()
+k=kit()
+up(k)
+pc.bShowMouseCursor=false
+n=#calls
+k.input(true)
+assert(pc.bShowMouseCursor==true and at('set PC.bShowMouseCursor',n)>at(LIB..'SetInputMode_UIOnlyEx',n),
+    'Shown after the input mode')
+assert(k.paused()==false,'Our own cursor is no game screen')
+special['GameplayStatics.IsGamePaused']=function() return true end
+assert(k.paused()==true,'The game paused still reads')
+special['GameplayStatics.IsGamePaused']=nil
+k.input(false)
+assert(pc.bShowMouseCursor==false and k.paused()==false,'Hidden again')
+k.input(true,'chat'); assert(pc.bShowMouseCursor==false,"Not for the chat's box")
+k.input(true); assert(pc.bShowMouseCursor==true,'The menu over a closing chat')
+k.input(true,'chat'); assert(pc.bShowMouseCursor==false,'The chat took it from the menu: hidden')
+k.input(false,'chat')
+pc.bShowMouseCursor=true
+k.input(true); k.input(false); assert(pc.bShowMouseCursor==true,'The value found: shown stays shown')
+assert(k.paused()==true,'Not ours: a game screen')
+pc.bShowMouseCursor=false
+k.input(true); k.reset(); assert(pc.bShowMouseCursor==false,'coop ui reset')
+k.input(true); k.stop(); assert(pc.bShowMouseCursor==false,'coop off')
 -- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
 -- (nil when unread); nothing once off, where the language is the last one read (the fallback notices keep it), and
 -- the pause only when asked always.

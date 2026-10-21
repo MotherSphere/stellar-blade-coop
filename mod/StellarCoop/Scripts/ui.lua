@@ -376,6 +376,7 @@ function Ui.kit(opts)
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
     local titled=false -- The title screen shows (slow's title): the input given back there is the title menu's.
+    local cursor=nil -- While the menu shows the mouse cursor: whether the game showed it before (put back after).
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
@@ -383,17 +384,23 @@ function Ui.kit(opts)
         local x=w and valid(w.o)
         return x and U.text(x:GetFullName())==w.name and x or nil
     end
-    -- The root's path for the next Lua load's sweep (Ctrl+R), with ' input' while the game's input is ours: that load
-    -- gives it back (the ignore-input flag lives in the game's viewport, which a Lua reload keeps).
+    -- The root's path for the next Lua load's sweep (Ctrl+R), with ' input' while the game's input is ours and ' cursor'
+    -- while the menu shows the mouse cursor: that load gives the input back and hides the cursor (the ignore-input flag
+    -- lives in the game's viewport and the cursor in its player controller, which a Lua reload keeps).
     local function keep()
-        if built then store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')) end
+        if built then
+            store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')..(cursor~=nil and ' cursor'
+                or ''))
+        end
     end
     -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx with our root
     -- focused, the menu's keys being UE4SS binds, which read the keyboard whatever has focus; or with a text box and
     -- its keyboard focus, the chat's); off, the game's again: GameOnly in a world; at the title GameAndUIEx with no
-    -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). With no player
-    -- controller (a map loads) or no root: nothing, and the change still due (input tries again). inputting changes
-    -- before the engine call: a refused call is not tried again by the fault it raises.
+    -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). The menu (holder
+    -- nil) also shows the mouse cursor, after its input mode; the value found goes back once a field takes the input or
+    -- it is given back. With no player controller (a map loads) or no root: nothing, and the change still due (input
+    -- tries again). inputting changes before the engine call: a refused call is not tried again by the fault it
+    -- raises.
     local function input_mode(on,field)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
@@ -407,6 +414,13 @@ function Ui.kit(opts)
             if not (titled and pcall(function() lib:SetInputMode_GameAndUIEx(pc,nil,0,false) end)) then
                 lib:SetInputMode_GameOnly(pc)
             end
+        end
+        if on and holder==nil then
+            if cursor==nil then cursor=pc.bShowMouseCursor==true end
+            pc.bShowMouseCursor=true
+        elseif cursor~=nil then
+            pc.bShowMouseCursor=cursor
+            cursor=nil
         end
         keep()
     end
@@ -748,12 +762,14 @@ function Ui.kit(opts)
         return false
     end
     -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up. That load's menu open, the game's
-    -- input is given back first (or once there is a player controller: input(false) tries again).
+    -- input is given back first and the mouse cursor hidden (or once there is a player controller: input(false) tries
+    -- again).
     local function sweep()
         local left=store.load()
         store.clear()
         if not left then return false end
-        if left:find(' input$') then inputting=true; input_mode(false) end
+        if left:find(' cursor',1,true) then cursor=false end
+        if left:find(' input',1,true) then inputting=true; input_mode(false) end
         local x=valid(StaticFindObject(left:match('^%S+')))
         if x and U.text(x:GetFullName()):find('^UserWidget ') and x:IsInViewport() then
             x:RemoveFromParent()
@@ -972,13 +988,13 @@ function Ui.kit(opts)
         end
     end
     -- Whether the game is paused (its own menu, a cutscene) or shows the mouse cursor (one of its screens that does
-    -- not pause: a shop, a dialogue choice): the menu does not open then. false when unread. Off, false too, unless
-    -- always (Night Operation's run reads no body under a game screen, kit or not).
+    -- not pause: a shop, a dialogue choice; never the cursor our menu shows): the menu does not open then. false when
+    -- unread. Off, false too, unless always (Night Operation's run reads no body under a game screen, kit or not).
     function self.paused(always)
         if off and not always then return false end
         local ok,paused=pcall(function()
             local pc=controller()
-            return pc and (U.find(STATICS):IsGamePaused(pc) or pc.bShowMouseCursor)
+            return pc and (U.find(STATICS):IsGamePaused(pc) or cursor==nil and pc.bShowMouseCursor)
         end)
         return ok and paused==true
     end
@@ -992,7 +1008,8 @@ function Ui.kit(opts)
         return ok and culture or nil
     end
     -- coop ui reset, the escape hatch (UI-DESIGN 7.5): the game's input given back now whoever holds it, even when this
-    -- load thinks the game has it (a later input(false) tries again while there is no player controller).
+    -- load thinks the game has it, and the menu's mouse cursor put back (a later input(false) tries again while there
+    -- is no player controller).
     function self.reset()
         inputting,holder=true,nil
         if off then pcall(input_mode,false) else run(input_mode,false) end
