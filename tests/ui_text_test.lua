@@ -4,7 +4,7 @@
 -- Turkish puts it first); T.pick's choice (the game's culture through culture(), English with ui_language=english,
 -- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
 -- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, and the co-op
--- saves' question within its 5 rows (Chat.wrap).
+-- saves' question, with its invite line, within its 5 rows (Chat.wrap).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
@@ -63,7 +63,8 @@ local function notices(w)
     for _,text in ipairs({p.on:format(16),p.one,p.off:format(p.stopped),p.off:format(fill(p.host))}) do
         lines[#lines+1]=text
     end
-    for _,text in ipairs({w.saves.on,fill(w.saves.off),w.saves.off:format(w.saves.see_log),w.chat.no_session,
+    for _,text in ipairs({w.saves.on,fill(w.saves.off),w.saves.off:format(w.saves.see_log),w.saves.build,
+        w.saves.manual:format('4','4'),w.chat.no_session,
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
     local s=w.summary
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
@@ -100,11 +101,13 @@ for name in pairs(R.TEXT) do
         fits(name..' value',text,VALUE)
     end
     for k,text in pairs(w.hint) do fits(name..'.hint.'..k,text,HINT) end
-    -- The co-op saves' question (saves.lua): its text within 5 body rows of 78 columns, as each phase shows it.
+    -- The co-op saves' question (saves.lua): its text within 5 body rows of 78 columns, as each phase shows it, the
+    -- question with the invite line a held invite adds.
     local s=w.saves
-    for _,pair in ipairs({{s.new,s.new_about},{s.old,s.old_about},{s.failed,s.see_log..'.'}}) do
-        local rows=#Chat.wrap(pair[1],78)+#Chat.wrap(pair[2],78)
-        assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..pair[1])
+    for _,texts in ipairs({{s.new,s.new_about,s.invite},{s.old,s.old_about,s.invite},{s.failed,s.see_log..'.'}}) do
+        local rows=0
+        for _,text in ipairs(texts) do rows=rows+#Chat.wrap(text,78) end
+        assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..texts[1])
     end
 end
 print('ui_text_test ok')

@@ -516,13 +516,13 @@ bool step() {
       break;
     }
     case coop::Command::saves:
-      if (const coop::SavesAsk ask = coop::parse_request(request).saves; ask == coop::SavesAsk::probe) {
+      if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
         if (account) // The plan, from stats and the manifest only.
           event(coop::twins::describe(coop::twins::plan(*account)));
       } else {
         GameView game;
-        event(coop_saves.ask(ask, account.get(), game));
+        event(coop_saves.ask(ask.saves, account.get(), game, ask.slot));
       }
       request.clear();
       break;

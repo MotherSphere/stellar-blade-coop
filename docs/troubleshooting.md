@@ -146,6 +146,15 @@ while the on-screen UI is up.
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).
 
+### Photo mode still freezes everything with Scenery live
+
+- `UE4SS.log` has `[StellarCoop] photo pause: off until the mod reloads: <why>`: the game refused the console variable
+  `SB.PhotoMode.PauseMethod` (`reads 0 after the set` on another game build), and photo mode keeps the game's full
+  pause until the mod reloads.
+- The change applies from the next photo mode: leave photo mode and press P again.
+- To go back to the game's own pause, choose Full in Options, or type `SB.PhotoMode.PauseMethod 0` in the console
+  (F10).
+
 ### The co-op saves question does not show
 
 It shows only with `auto_coop_save=ask`, on the title screen, once the on-screen UI has loaded. `coop status` gives the
@@ -155,6 +164,9 @@ reason:
   the title screen. They stay on until the game restarts.
 - `saves=off` or `saves=?`: the mod cannot use the save file name on this game build, or a check failed. The
   `save name: saves=...` line of `coop-link.log` says why. The mod makes no copies, and the game uses your own saves.
+  After a game update, the engine line reads `engine=off reason=build stamp ...` or `reason=code bytes differ`, and
+  the title screen says once `Co-op saves are off: StellarCoop does not support this version of the game.` Wait for a
+  StellarCoop update for the new game version.
 - `steam=waiting`: Steam is not ready yet, and the mod needs your Steam ID to find your save folder.
 - `convert=busy ...`: a copy pass runs. The question waits for its end.
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI

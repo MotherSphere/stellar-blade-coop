@@ -52,7 +52,30 @@ os.clock=function() return clock end
 local settings_text=''
 -- SB's photo-mode getters on the library's default object (main.lua's photo poll), as UE4SS calls them.
 local photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
+-- The engine's library default object (main.lua's photo pause): SB.PhotoMode.PauseMethod (cv.value) read and set
+-- through it, as UE4SS calls them; cv.set: what the console command leaves (nil: the value asked); cv.pc: UEHelpers'
+-- player controller (nil: none yet; cv.stale: one whose address now holds another object).
+local cv={value=0,reads=0,runs={},class={type=function() return 'UObject' end,IsValid=function() return true end}}
+cv.PC={type=function() return 'UObject' end,IsValid=function() return true end,
+    IsA=function(_,class) return class==cv.class end}
+cv.stale={type=function() return 'UObject' end,IsValid=function() return true end,IsA=function() return false end}
+cv.pc=cv.PC
+cv.kismet={type=function() return 'UObject' end,IsValid=function() return true end,
+    GetConsoleVariableIntValue=function(_,name)
+        assert(name=='SB.PhotoMode.PauseMethod',name)
+        cv.reads=cv.reads+1
+        if cv.error then error(cv.error,0) end
+        return cv.value
+    end,
+    ExecuteConsoleCommand=function(_,world,command,pc)
+        assert(world==cv.PC and pc==cv.PC,'The player controller as the world and the player')
+        cv.runs[#cv.runs+1]=command
+        cv.value=cv.set or tonumber(command:match('^SB%.PhotoMode%.PauseMethod (%d)$'))
+    end}
+package.loaded.UEHelpers={GetPlayerController=function() return cv.pc end}
 StaticFindObject=function(path)
+    if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
+    if path=='/Script/Engine.PlayerController' then return cv.class end
     assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
     local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
     return {type=function() return 'UObject' end,IsValid=function() return true end,
@@ -297,7 +320,7 @@ local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | al
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | '
-    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -389,9 +412,26 @@ for _,sub in ipairs({'probe','convert','coop','main'}) do
     coop('saves',sub)
     assert(asked[#asked]=='saves '..sub and last()=='[StellarCoop] OK: asked the native part: saves '..sub..'\n',last())
 end
-for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh','2'},{'off'}}) do
+for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh'},{'refresh','5'},{'refresh','02'},{'refresh','2','now'},
+        {'off'}}) do
     coop('saves',table.unpack(bad))
-    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main\n',last())
+    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main | refresh <0-4>\n',
+        last())
+end
+-- coop saves refresh <0-4>: asked of the native part only when typed twice for the same slot within 10 s; the first
+-- says what it replaces.
+do
+local REFRESH='[StellarCoop] STOP: coop saves refresh 2 replaces the co-op copy StellarBladeCoop02.sav, played in co-op '
+    ..'or not, with a new copy of your save StellarBladeSave02.sav (the old copy goes to StellarCoopBackups first): type '
+    ..'it again within 10 s to go on\n'
+coop('saves','refresh','2'); assert(#asked==10 and last()==REFRESH,last())
+clock=clock+11
+coop('saves','refresh','2'); assert(#asked==10 and last()==REFRESH,'Over 10 s: asked again')
+coop('saves','refresh','3'); assert(#asked==10,'Another slot: asked again')
+clock=clock+5
+coop('saves','refresh','3')
+assert(asked[11]=='saves refresh 3' and last()=='[StellarCoop] OK: asked the native part: saves refresh 3\n',last())
+coop('saves','refresh','3'); assert(#asked==11,'Each refresh asks again')
 end
 -- Join codes and the host's answers: coop join <code> in either case, with or without the dash, as the native part
 -- takes it; coop copy; coop allow, deny and remove with a SteamID only.
@@ -688,6 +728,66 @@ assert(logged("settings: line 2: '29' is not allowed for photo_freeze_max (use 0
     .."photo_freeze_max stays 600"),table.concat(printed,'|'))
 loops[2].f(); assert(photos[#photos]=='1 both 600')
 in_world,photo_mode,settings_text=false,false,''
+
+-- photo_pause (experimental): SB.PhotoMode.PauseMethod made to match it each 250 ms, a save loaded or the title shown:
+-- read, set only when it differs (full on an untouched game sets nothing), read back, then no further call. No player
+-- controller yet, or a stale one: it waits. A set that does not take (another game build) or an engine error: one log
+-- line, off for this load. coop off puts the game's own method back unless 0 was the last value matched; with no
+-- player controller then, one log line.
+do
+    cv.value,cv.runs=0,{}
+    load_main(true)
+    local cr=cv.reads
+    in_world,at_title=false,false; loops[2].f(); assert(cv.reads==cr,'No save, no title: not read')
+    in_world=true; loops[2].f(); assert(cv.reads==cr+1 and #cv.runs==0,'full on an untouched game: read only')
+    loops[2].f(); assert(cv.reads==cr+1,'Matched: no further call')
+    settings_text='photo_pause=scenery\n'
+    load_main(true)
+    in_world,at_title,cv.pc=false,true,nil
+    cr=cv.reads
+    loops[2].f(); assert(cv.reads==cr+1 and #cv.runs==0,'No player controller yet: waits')
+    cv.pc=cv.PC
+    loops[2].f()
+    assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 1' and cv.value==1 and cv.reads==cr+3
+        and logged('photo pause: SB.PhotoMode.PauseMethod 1 (scenery)'),table.concat(cv.runs,'|'))
+    loops[2].f(); assert(cv.reads==cr+3 and #cv.runs==1)
+    coop('off')
+    assert(cv.runs[2]=='SB.PhotoMode.PauseMethod 0' and cv.value==0
+        and logged('photo pause: SB.PhotoMode.PauseMethod 0 (coop off)'),table.concat(printed,'|'))
+    cv.runs,settings_text={},''
+    load_main(true); loops[2].f(); coop('off'); assert(#cv.runs==0,'Never set: coop off sets nothing')
+    settings_text='photo_pause=scenery\n'
+    cv.set=0 -- The console variable is unknown on this build.
+    load_main(true)
+    loops[2].f()
+    assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 1' and logged('photo pause: off until the mod reloads: '
+        ..'SB.PhotoMode.PauseMethod reads 0 after the set'),table.concat(printed,'|'))
+    cr=cv.reads
+    loops[2].f(); assert(cv.reads==cr and #cv.runs==1,'Off for this load')
+    cv.set,cv.error=nil,'GetConsoleVariableIntValue: no such function'
+    load_main(true)
+    loops[2].f()
+    assert(logged('photo pause: off until the mod reloads: GetConsoleVariableIntValue: no such function'))
+    cr=cv.reads
+    loops[2].f(); assert(cv.reads==cr)
+    -- A reload (Ctrl+R) after scenery was set: already 1, nothing set, and coop off still puts 0 back.
+    cv.error,cv.value,cv.runs,settings_text=nil,1,{},'photo_pause=scenery\n'
+    load_main(true); loops[2].f(); assert(#cv.runs==0)
+    coop('off'); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 0' and cv.value==0)
+    -- coop off before the reload's first 250 ms: read there, 0 put back all the same.
+    cv.value,cv.runs=1,{}
+    load_main(true); coop('off'); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 0' and cv.value==0)
+    -- A stale player controller (UEHelpers' last one, after a map change): never used, it waits as with none.
+    cv.value,cv.runs,cv.pc=0,{},cv.stale
+    load_main(true); loops[2].f(); assert(#cv.runs==0 and not table.concat(printed):find('photo pause: off',1,true),
+        'Not a player controller')
+    cv.pc=cv.PC; loops[2].f(); assert(cv.runs[1]=='SB.PhotoMode.PauseMethod 1' and cv.value==1)
+    -- None at coop off (a load under way): said in the log, the value left.
+    cv.pc=cv.stale; coop('off')
+    assert(#cv.runs==1 and cv.value==1 and logged('photo pause: no player controller at coop off: '
+        ..'SB.PhotoMode.PauseMethod stays as it is until the game exits'),table.concat(printed,'|'))
+    cv.error,cv.value,cv.runs,cv.pc,at_title,settings_text=nil,0,{},cv.PC,false,''
+end
 
 -- The ghost turns on when the link goes from none to a session (D5.1): once per session, so a manual off holds until
 -- the next one; a status read that gave no mode is no leave; never after coop off.
@@ -1366,6 +1466,11 @@ for _,lang in ipairs({'en','fr'}) do
     end
     local scaled=Words[lang].fight.on:format(16)..' '..Words[lang].fight.scale:format(200,200) -- The longest on.
     assert(Chat.clean(scaled)==scaled,lang..': '..#scaled..' bytes')
+    -- The co-op saves notices (saves.lua's o.say), with their own words or a slot digit.
+    for k,args in pairs({on={},off={Words[lang].saves.see_log},build={},manual={'4','4'}}) do
+        local full=Words[lang].saves[k]:format(table.unpack(args))
+        assert(Chat.clean(full)==full,lang..'.saves.'..k..': '..#full..' bytes')
+    end
 end
 
 -- The co-op menu (menu.lua, ui_model.lua and ui_text.lua for real; the kit faked). menu_key opens it in a world only,
@@ -1496,6 +1601,11 @@ key('LEFT_ARROW'); assert(look.cloth==false and settings_text=='# mine\nname_tag
 to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
+-- No clock step: the frame-time test below counts whole seconds.
+to('Photo mode pause (experimental)'); key('D'); loops[2].f()
+assert(cv.value==1 and select(2,focus())=='Scenery live' and settings_text:find('\nphoto_pause=scenery\n',1,true),
+    'At once: the next photo mode has it')
+key('A'); loops[2].f(); assert(cv.value==0 and select(2,focus())=='Full')
 to('Poses sent a second'); key('LEFT_ARROW'); quarter(); assert(states[#states]=='world=1 rate=55')
 to('Who can join'); key('RETURN')
 assert(settings_text:find('\nwho_can_join=code\n',1,true) and select(2,focus())=='With a code')
@@ -1598,10 +1708,12 @@ assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu
 assert(menu_view.status.s:find('^Co%-op : aucune session en cours%.'),menu_view.status.s)
 -- A write that fails: said, nothing changed.
 write_refusal='cannot write coop-settings.txt: busy'
-local before_text=settings_text
-key('LEFT_ARROW')
-assert(settings_text==before_text and menu_view.note.s=='Non enregistré : cannot write coop-settings.txt: busy'
-    and logged('menu: ui_language=english not saved: cannot write coop-settings.txt: busy'))
+do -- In a block: the main chunk is at Lua's 200 locals.
+    local before_text=settings_text
+    key('LEFT_ARROW')
+    assert(settings_text==before_text and menu_view.note.s=='Non enregistré : cannot write coop-settings.txt: busy'
+        and logged('menu: ui_language=english not saved: cannot write coop-settings.txt: busy'))
+end
 write_refusal,kit_language=nil,nil
 key('ESCAPE'); assert(focus()=='Options','Esc: back to the main page, on Options')
 key('ESCAPE'); assert(kit_calls[#kit_calls]=='show false')
@@ -1628,12 +1740,14 @@ key('F7','SHIFT'); assert(kit_calls[#kit_calls]=='show false' and logged('key Sh
 key('F7','SHIFT'); to('Options'); key('RETURN'); key('DOWN_ARROW'); key('RETURN'); clock=clock+1; key('F7')
 assert(settings_text:find('\nstatus_key=F7\n',1,true) and select(2,focus())=='F7')
 key('ESCAPE'); key('ESCAPE')
-local lines_before=#printed
-clock=clock+1
-n=#kit_calls
-key('F7','SHIFT'); key('F7')
-assert((kit_said('show true') or 0)>n and (kit_said('show false') or 0)<=n
-    and not table.concat(printed,'',lines_before+1):find('key F7: status'),'One press: the menu')
+do
+    local lines_before=#printed
+    clock=clock+1
+    n=#kit_calls
+    key('F7','SHIFT'); key('F7')
+    assert((kit_said('show true') or 0)>n and (kit_said('show false') or 0)<=n
+        and not table.concat(printed,'',lines_before+1):find('key F7: status'),'One press: the menu')
+end
 clock=clock+1
 key('F7'); assert(logged('key F7: status'))
 -- coop off: closed, the kit stopped (it gives the game its input back), no key opens it again.

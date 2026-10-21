@@ -336,7 +336,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save_slot.h,
 // save_twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
-// them, then switch to them) and "saves main" (switch back to the player's own saves).
+// them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
+// slot's copy replaced by a new copy of the player's save, the old one backed up first).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy
@@ -349,7 +350,7 @@ enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bsta
 // out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
 // too (all of it, the default).
 enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
-enum class SavesAsk { none, probe, convert, coop, main };
+enum class SavesAsk { none, probe, convert, coop, main, refresh };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // fight_sync.h's kMaxStat.
@@ -367,6 +368,7 @@ struct Request {
   uint64_t player = 0;                   // allow, deny, remove: her SteamID.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
+  int slot = -1;                    // saves refresh: the slot, 0 to 4.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
   bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
@@ -507,7 +509,10 @@ inline Request parse_request(std::string text) {
     r.off = text.size() > 6;
   } else if (text.rfind("saves ", 0) == 0) {
     const std::string word = text.substr(6);
-    r.saves = word == "probe"     ? SavesAsk::probe
+    if (word.size() == 9 && !word.compare(0, 8, "refresh ") && word[8] >= '0' && word[8] <= '4')
+      r.slot = word[8] - '0';
+    r.saves = r.slot >= 0         ? SavesAsk::refresh
+              : word == "probe"   ? SavesAsk::probe
               : word == "convert" ? SavesAsk::convert
               : word == "coop"    ? SavesAsk::coop
               : word == "main"    ? SavesAsk::main

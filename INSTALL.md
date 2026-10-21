@@ -162,7 +162,7 @@ play with a controller only, set `auto_coop_save` to `always` or `off`.
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`. Then use Load Game (see below).
 - Play solo normally, or Decide later: the game uses your own saves. The question comes back the next time the title
-  screen shows.
+  screen shows, or once more on the same title screen if you then accept a friend's invite.
 - Don't ask again: sets `auto_coop_save=always` in `coop-settings.txt`, then plays co-op. From then on the mod switches
   to the copies at every title screen without asking.
 
@@ -182,7 +182,9 @@ More about the copies:
 - `auto_coop_save` (in Options, Saves > Co-op saves, or in `coop-settings.txt`) is `ask` (the question, the default),
   `always` or `off` (no copies; see "Manual co-op slot" below).
 - A copy you have not played in co-op follows your own save: the next conversion copies your save again if it changed.
-  A copy you played in co-op is never replaced.
+  A copy you played in co-op is never replaced by itself. To start it over from your own save, type
+  `coop saves refresh N` twice at the title (N is the slot, 0 to 4) while the game uses your own saves (with
+  `always`, type `coop saves main` first); the old copy goes to `StellarCoopBackups` first.
 - While the game uses the copies, `CO-OP SAVES` shows at the top right of the title screen, and the question does
   not show.
 - Steam Cloud syncs the copies like your own saves, so they take up to the same space again.

@@ -9,7 +9,7 @@
 -- notices in the chat's feed (or, with the UI off, on a line above your EVE), your friend's card, marker and off-screen
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
--- copies and save name by hand; and
+-- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
@@ -23,10 +23,11 @@
 -- stand within 100 m in one zone, the guest's game holds the host's common enemies), with notices for on, stopped and
 -- enemies that differ, and coop fight spawn probe, its reads alone on a co-op save; the synced photo mode (photo_sync
 -- in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during your own, the notices,
--- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone;
--- coop ui reset (the menu and the chat's box closed, the game's input back) and coop ui off (the co-op UI gone until
--- the mod reloads); coop ui test [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in
--- the log; a test tool, left out of the usage line). coop off stops everything until the game restarts.
+-- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone,
+-- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
+-- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
+-- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
+-- of the usage line). coop off stops everything until the game restarts.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -102,7 +103,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -196,6 +197,37 @@ local function photo_state()
     log('photo sync: photo mode unreadable, off until the mod reloads: '..tostring(state))
     return '0'
 end
+-- photo_pause (experimental): scenery is SB's own SB.PhotoMode.PauseMethod 1, the method its help calls experimental.
+-- The world stops only while photo mode opens; then animations, physics, cloth and effects go on moving (the ghost
+-- too, unless photo sync paused the friend's game) while SB's logic stays stopped (enemies, combat, our shared
+-- fight). full is 0, the game's default. Each 250 ms with a save loaded or the title shown, the console variable is
+-- read and set only when it differs from the setting (with the player controller), then read back: full on an
+-- untouched game changes nothing. SB reads it as each photo mode opens, so a change applies from the next. The first
+-- engine error, or a set that does not take (another game build), stops it for this Lua load. coop off sets 0 again
+-- unless 0 was the last value matched, and logs a line when no player controller lets it.
+local UE=require('UEHelpers')
+local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
+local pause={synced=nil,failed=false} -- The method last matched (read or set); off for this load.
+local function photo_pause(want,why)
+    if pause.failed or pause.synced==want then return end
+    local ok,result=pcall(function()
+        local library=U.find('/Script/Engine.Default__KismetSystemLibrary')
+        if library:GetConsoleVariableIntValue(PAUSE_METHOD)==want then return true end
+        local pc=U.valid(UE.GetPlayerController())
+        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
+        if pc and not pc:IsA(U.find('/Script/Engine.PlayerController')) then pc=nil end
+        if not pc then return false end -- Not yet: tried again in 250 ms.
+        library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
+        local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
+        if now~=want then error(PAUSE_METHOD..' reads '..tostring(now)..' after the set',0) end
+        log('photo pause: '..PAUSE_METHOD..' '..want..' ('..why..')')
+        return true
+    end)
+    if not ok then
+        pause.failed=true
+        log('photo pause: off until the mod reloads: '..tostring(result))
+    elseif result then pause.synced=want end
+end
 -- shared_enemies=on: coop fight on asked once a load, as soon as the native part judged the slot (coop, main, or none
 -- at the title: its build is pinned then); it then waits there for a friend, a co-op save and a loaded save. coop
 -- fight off before then cancels the ask. The co-op menu's row changes shared_enemies while the mod runs: on asks again
@@ -225,6 +257,7 @@ if settings and not settings.same_place and not off then
         log((ok and 'OK: ' or 'STOP: ')..'same_place=off: '..tostring(why))
     end
 end
+local refresh_asked=nil -- coop saves refresh: the slot typed and when ({slot=, at=}), until typed again.
 local commands={
     puppet=puppet.toggle, invite=ask('invite'),
     host=function() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end,
@@ -333,11 +366,24 @@ local commands={
         return ask(seconds and 'freeze '..seconds or 'freeze off')()
     end,
     -- The co-op saves by hand (the question at the title asks for them): probe logs what the native part reads and the
-    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back.
-    -- The native part refuses all but probe off the title screen, and says why in coop-link.log.
-    saves=function(sub,extra)
+    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back;
+    -- refresh <0-4> replaces that slot's co-op copy, played or not, with a new copy of the player's save (the native
+    -- part backs the old one up first), once typed twice for the same slot within 10 s. The native part refuses all but
+    -- probe off the title screen, and says why in coop-link.log.
+    saves=function(sub,extra,more)
+        if sub=='refresh' and more==nil and type(extra)=='string' and extra:match('^[0-4]$') then
+            local now=os.clock()
+            if not (refresh_asked and refresh_asked.slot==extra and now-refresh_asked.at<=10) then
+                refresh_asked={slot=extra,at=now}
+                return false,'coop saves refresh '..extra..' replaces the co-op copy StellarBladeCoop0'..extra..'.sav, '
+                    ..'played in co-op or not, with a new copy of your save StellarBladeSave0'..extra..'.sav (the old '
+                    ..'copy goes to StellarCoopBackups first): type it again within 10 s to go on'
+            end
+            refresh_asked=nil
+            return ask('saves refresh '..extra)()
+        end
         if extra~=nil or not ({probe=true,convert=true,coop=true,main=true})[sub or ''] then
-            return false,'Use: coop saves probe | convert | coop | main'
+            return false,'Use: coop saves probe | convert | coop | main | refresh <0-4>'
         end
         return ask('saves '..sub)()
     end,
@@ -370,6 +416,13 @@ local commands={
         if code_box then code_box.stop(); approval.stop() end
         if kit then kit.stop() end -- The game's input back, the menu's root gone.
         chat.clear()
+        if pause.synced~=0 then -- The game's own photo pause back (a reload may not have read it yet).
+            photo_pause(0,'coop off')
+            if pause.synced~=0 and not pause.failed then
+                log('photo pause: no player controller at coop off: '..PAUSE_METHOD..' stays as it is until the game '
+                    ..'exits')
+            end
+        end
         -- A failing despawn is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
@@ -698,6 +751,7 @@ if link then
             hud.slow()
             saves_ui.slow(world==true,title==true)
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
+            if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
         if message then report(ok,message) end

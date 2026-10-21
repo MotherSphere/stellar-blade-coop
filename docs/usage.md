@@ -253,6 +253,10 @@ after 60 s with no key, it closes as Decide later, and `auto_coop_save=always` o
 Load Game before the question shows loads your own save; the question comes back at the next title screen.
 `coop ui reset` closes it as Decide later.
 
+A friend's invite accepted on the title screen waits until a save loads (`Invite held: joining once your save has
+loaded.`). The question then starts with `Your friend's invite waits until your save loads.` If you already answered
+Play solo normally or Decide later on that title screen, it asks once more when the invite comes.
+
 `auto_coop_save=always` makes the copies and switches to them at each title screen without asking; `off` turns the
 question and the automatic copies off. Options > Saves > Co-op saves changes it at once. The result shows as a notice in the
 feed (see [Notices](#notices)). While the game uses the co-op copies, the title screen shows `CO-OP SAVES` at the
@@ -278,6 +282,25 @@ the game's own pause, held in memory only, and nothing is saved. This has not be
   photo sync gives notices only.
 - `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, so you can test it without a friend.
   `coop freeze off` ends it, and so does a load.
+
+### Photo mode pause (experimental)
+
+Options > Photo mode > Photo mode pause (experimental), or `photo_pause` in `coop-settings.txt`, changes how your own
+photo mode stops your game:
+
+- Full (`full`, the default): the game's own pause. Nothing moves while you take photos, as without the mod.
+- Scenery live (`scenery`): the game's own experimental photo method, which the game ships but does not use. The world
+  stops only while photo mode opens. Then animations, physics, cloth, hair, effects and sounds go on moving, while
+  enemies, combat, events and shared enemies stay stopped. Your friend's ghost moves only while their game runs: with
+  `photo_sync=both` on both PCs, your photo mode pauses their game, so the ghost holds its pose. Moving things may
+  smear a little, and enemies may slide when photo mode ends. This has not been tested in game yet.
+
+The mod sets the game's console variable `SB.PhotoMode.PauseMethod` (0 for Full, 1 for Scenery live), and only when it
+differs from the setting. The game reads it each time photo mode opens, so a change applies from your next photo mode.
+`coop off` sets it back to 0 when it can: during a load there is no player controller to set it with, and the log then
+says `photo pause: no player controller at coop off`. Whether the game keeps the value after it exits has not been
+checked, so choose Full before you remove the mod. The setting does not change your friend's game, and the synced photo
+pause above works the same with both values.
 
 ## Console commands
 
@@ -320,6 +343,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
+| `coop saves refresh <0-4>` | At the title, while the game uses your own saves: replace that slot's co-op copy, even one played in co-op, with a new copy of your save. Type it twice within 10 s; the old copy goes to `StellarCoopBackups` first |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -903,11 +927,15 @@ bosses=off
 boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
-# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
+# experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
+# method: enemies, combat and shared enemies stay stopped while animations, cloth and effects go on moving), from your
+# next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
+photo_pause=full
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
@@ -1044,6 +1072,8 @@ a Steam name or a chat line shows as `?`.
 | The photo pause failed | `Photo sync can no longer pause this game: notices only until the game restarts.` |
 | Co-op saves switched on | `Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.` |
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
+| Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
+| Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 

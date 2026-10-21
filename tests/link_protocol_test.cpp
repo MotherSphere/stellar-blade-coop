@@ -275,8 +275,14 @@ int main() {
   assert(parse_request("saves convert").saves == SavesAsk::convert);
   assert(parse_request("saves coop\n").saves == SavesAsk::coop);
   assert(parse_request("saves main").saves == SavesAsk::main && parse_request("saves main").command == Command::saves);
-  for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh 0",
-                          "saves coop now", "saves Coop", "saves co", "saves mains", "saves convert 1"})
+  // saves refresh <slot>: one slot's copy replaced, slots 0 to 4.
+  assert(parse_request("saves refresh 0").saves == SavesAsk::refresh && parse_request("saves refresh 0").slot == 0);
+  assert(parse_request("saves refresh 4\r\n").command == Command::saves && parse_request("saves refresh 4").slot == 4);
+  assert(parse_request("saves coop").slot == -1);
+  for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh",
+                          "saves refresh 5", "saves refresh 01", "saves refresh -1", "saves refresh x",
+                          "saves refresh 1 2", "saves refresh  1", "saves coop now", "saves Coop", "saves co",
+                          "saves mains", "saves convert 1"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).saves == SavesAsk::none);
   // The shared fight's: each mode with fight_chars (none for the probe too), off, status, and the probe's tests (a
   // whole change with or without its sign, or a kill); anything else, a typo included, is no request.

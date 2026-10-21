@@ -76,12 +76,14 @@ files[STATUS]='mod=v proto=8 steam=ready steamid=76561198000000001 appid=3489700
 link.changes()
 local sv=link.saves()
 assert(sv.slot=='coop' and sv.saves=='coop' and sv.convert=='busy 2/6' and sv.steamid=='76561198000000001')
+assert(sv.marker==nil,'marker=none: no manual co-op slot')
 files[STATUS]='mod=v proto=8 steam=waiting\nfriend=1 0 x\nslot=main index=0 marker=4 saves=main\n'
     ..'convert=error:the manifest could not be written\n'
 link.changes()
 sv=link.saves()
 assert(sv.slot=='main' and sv.saves=='main' and sv.convert=='error:the manifest could not be written'
     and sv.steamid==nil,'No Steam ID before Steam')
+assert(sv.marker=='4','The manual co-op slot StellarCoopSlot.txt names')
 files[STATUS]='mod=v proto=8 steam=ready steamid=7 appid=1\nfriend=1 0 x slot=coop index=1 marker=1 saves=coop\n'
     ..'peer=2 name=y convert=done\n'
 link.changes()
@@ -90,6 +92,24 @@ assert(sv.slot==nil and sv.saves==nil and sv.convert==nil and sv.steamid=='7','N
 files[STATUS]=nil
 link.changes()
 assert(next(link.saves())==nil,'Nothing read: nothing known')
+-- A friend's invite held until a save loads (the link line's held=): the question at the title says so.
+files[STATUS]='mod=v proto=8 steam=ready\nlink=none lobby=0 held=7000\nslot=none index=? marker=none saves=main\n'
+link.changes()
+assert(link.saves().held==true and link.saves().saves=='main')
+files[STATUS]='mod=v proto=8 steam=ready\nlink=none lobby=0\nfriend=1 0 x held=7\nlast=held=7\n'
+link.changes()
+assert(link.saves().held==nil,'Only the link line says so')
+-- Another game build (a game update): the pose path's line says why the engine is off, so the title can say why the
+-- co-op saves are off. coop off and a fault are not another build; a peer's line never counts.
+for status,build in pairs({['engine=off reason=build stamp 6512abcd size 0a1b2c3d\nslot=none index=? marker=none saves=off\n']=true,
+        ['engine=off reason=code bytes differ\nslot=none index=? marker=none saves=off\n']=true,
+        ['engine=off reason=coop_off\nslot=none index=? marker=none saves=off\n']=false,
+        ['engine=off reason=engine off: fault 0x1 at StellarCoop.dll+0x2 reading 0x3\n']=false,
+        ['peer=2 name=x engine=off reason=build stamp 1 size 2\nengine=on\n']=false}) do
+    files[STATUS]='mod=v proto=8 steam=ready\n'..status
+    link.changes()
+    assert(link.saves().build==(build or nil),status)
+end
 -- A peer's Steam name is hers to choose: only the pose path's line is read.
 files[STATUS]='mod=v\npeer=2 name=x remote=1 1 replay hello=1\nengine=on loopback=on 0 0 0 remote=1799 5 loopback\n'
 link.changes()
@@ -458,6 +478,16 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for pho
 assert(Link.DEFAULT:find('\nphoto_sync=both\nphoto_freeze_max=600\nphoto_ghost=on\nphoto_name_tag=off\n',1,true))
 s,notes=Link.parse_settings(Link.DEFAULT)
 assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost and not s.photo_name_tag)
+-- photo_pause, experimental: full (the game's whole pause, the default) or scenery (SB's own PauseMethod 1), any case.
+-- A new file names it after the other photo settings.
+s,notes=Link.parse_settings('')
+assert(s.photo_pause=='full')
+s,notes=Link.parse_settings('photo_pause=Scenery\n')
+assert(#notes==0 and s.photo_pause=='scenery')
+s,notes=Link.parse_settings('photo_pause=off\n')
+assert(#notes==1 and notes[1]=="settings: line 1: 'off' is not allowed for photo_pause (use full or scenery); "
+    .."photo_pause stays full" and s.photo_pause=='full',notes[1])
+assert(Link.DEFAULT:find('\nphoto_name_tag=off\nphoto_pause=full\n',1,true))
 local before_photo=Link.DEFAULT:gsub('# Synced photo mode.*$','')
 assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
 s,notes=Link.parse_settings(before_photo)

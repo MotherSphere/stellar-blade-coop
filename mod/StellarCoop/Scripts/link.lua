@@ -14,8 +14,8 @@
 -- same_place, aggro, same_spawns, enemy_extra, bosses and boss_hp_scale (Phase 11, experimental) are main.lua's coop
 -- fight; its photo_sync,
 -- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
--- coop-state.txt); its auto_coop_save the co-op saves' (saves.lua), which also read saves() here. The co-op menu
--- (menu.lua) changes the file, one line at a time (D-UI4).
+-- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
+-- here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -87,11 +87,15 @@ bosses=off
 boss_hp_scale=2.0
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
-# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them.
+# limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
+# experimental: full (photo mode stops your whole game, as without the mod) or scenery (the game's own experimental
+# method: enemies, combat and shared enemies stay stopped while animations, cloth and effects go on moving), from your
+# next photo mode.
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
 photo_name_tag=off
+photo_pause=full
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
@@ -113,8 +117,8 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',enemy_hp_scale='1.35',
     enemy_balance_scale='1.15',kill_credit='all',same_place='off',aggro='game',same_spawns='off',enemy_extra='0',
     bosses='off',boss_hp_scale='2.0',
-    photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',ui_scale='100',ui_sounds='on',
-    ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
+    photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
+    ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     who_can_join='friends',auto_coop_save='ask'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
@@ -123,7 +127,7 @@ local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'all','fought'},who_can_join={'friends','code','private'},
-    auto_coop_save={'ask','always','off'},aggro={'game','host'}}
+    auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'}}
 -- The mate= line's twelve numbers, in the native part's order (link_protocol.h's vital).
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
     'life'}
@@ -132,8 +136,8 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16, each
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
 -- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of percent; the scales a
--- number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole percents).
+-- auto_coop_save, aggro, photo_pause) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of
+-- percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole percents).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -367,6 +371,10 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
+        -- The engine off on another game build (check_build's reasons): a game update, said at the title (saves.lua).
+        if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
+            saves.build=true
+        end
         lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
         listed={}
@@ -408,10 +416,11 @@ function Link.new(folder,fs)
             local n,notice=line:match('^notice=(%d+) (.*)$')
             if n then listed[#listed+1]={tonumber(n),notice} end
             local verdict,names=line:match('^slot=(%a+) .* saves=(%S+)$')
-            if verdict then saves.slot,saves.saves=verdict,names end
+            if verdict then saves.slot,saves.saves,saves.marker=verdict,names,line:match(' marker=(%d) ') end
             saves.convert=saves.convert or line:match('^convert=(.+)$')
             if line:find('^mod=') then saves.steamid=line:match(' steamid=(%d+) ') end
         end
+        if held then saves.held=true end -- The question at the title says an invite waits (saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
         if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
@@ -472,7 +481,9 @@ function Link.new(folder,fs)
     end
     -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
     -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
-    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits)}; a field unread is nil.
+    -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits), build=true when the engine is off
+    -- on another game build, held=true while an invite waits for a save (the link line's held=), marker=the slot digit
+    -- StellarCoopSlot.txt names (the manual co-op slot)}; a field unread is nil.
     function self.saves() return saves end
     -- The status key's line, in words (ui_text.lua's T.en or T.fr; English when not given). Her name is an argument
     -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer

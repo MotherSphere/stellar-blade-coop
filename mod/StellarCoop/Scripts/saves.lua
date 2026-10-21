@@ -14,8 +14,12 @@
 -- your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
 -- hand it up, down, select, back and a left click), a shade over the whole screen takes the mouse so no click reaches
 -- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
--- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. No
--- engine call here: the kit makes them.
+-- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On
+-- another game build (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at
+-- the title. A friend's invite accepted at the title waits for a save (the link's held invite): the question's first
+-- line says so, and once a visit it asks again when such an invite comes after an answer without co-op. With a manual
+-- co-op slot (StellarCoopSlot.txt) once the game uses the co-op copies, a notice says once a Lua load which files co-op
+-- no longer needs; nothing is moved. No engine call here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
@@ -43,6 +47,9 @@ function Saves.new(o)
     local queued,stopped=nil,false -- queued: a notice to say once the kit is up or a world loads.
     local lang=T.en
     local badged=false -- The badge is shown.
+    local told=false -- Another game build said (once a Lua load).
+    local invited,reasked=false,false -- An invite waits for a save; the question shown with one this visit.
+    local manual=nil -- The manual co-op slot's digit to say, then false once said (once a Lua load).
     -- At the top right, scaled from that corner; wide enough for the French title. Added first: the question draws over.
     kit.add('badge',{x=3024,y=96,w=720,h=96,pivot={X=1,Y=0}},function(b)
         b.panel(0,0,720,96)
@@ -65,6 +72,7 @@ function Saves.new(o)
         local w,lines=lang.saves,{}
         local function add(text) for _,row in ipairs(Chat.wrap(text,WIDE)) do lines[#lines+1]=row end end
         if phase=='ask' then
+            if invited then add(w.invite) end
             add(copies and w.old or w.new)
             add(copies and w.old_about or w.new_about)
         elseif phase=='wait' then add(progress and w.copying:format(progress[1],progress[2]) or w.switching)
@@ -168,6 +176,8 @@ function Saves.new(o)
         if stopped then return end
         local info=link.saves() or {}
         local want=settings.auto_coop_save
+        invited=info.held==true
+        if open and invited then reasked=true end -- Its line drawn in the open question: seen, no second ask.
         -- The badge: shown or hidden on change; its word set at each slow (the kit sets it on change only, and a root
         -- built again shows it).
         local badge=(title and not world and info.saves=='coop')==true
@@ -194,14 +204,19 @@ function Saves.new(o)
             end
         end
         if title and not world then
-            if not visit and not phase and want~='off' and info.saves=='main' and info.steamid
+            if info.build and info.saves=='off' and want~='off' and not told then
+                told,queued=true,{'build'}
+                log('co-op saves: off on this game build (coop-link.log: engine off): your own saves')
+            end
+            local again=invited and visit and not reasked and want=='ask' -- An invite after an answer without co-op.
+            if (not visit or again) and not phase and want~='off' and info.saves=='main' and info.steamid
                 and not (info.convert or ''):find('^busy') then
                 if want=='always' then switch(info)
                 elseif kit.off() then
-                    visit=true
+                    visit,reasked=true,reasked or invited
                     log('co-op saves: the question cannot show (the co-op UI is off): your own saves')
                 elseif kit.whole() then
-                    visit,copies,phase,cursor,back_at,idle=true,any_copy(info),'ask',1,nil,0
+                    visit,reasked,copies,phase,cursor,back_at,idle=true,reasked or invited,any_copy(info),'ask',1,nil,0
                     pick()
                     open=true
                     kit.show('saves',true,os.clock())
@@ -215,13 +230,19 @@ function Saves.new(o)
                 if phase~='wait' then phase=nil end
                 close()
             end
-            visit=false
+            visit,reasked=false,false
         end
         if queued and (world or kit.ready()) then
             pick()
             local function line(w) return w.saves[queued[1]]:format(queued[2] or w.saves.see_log) end
             o.say(line(lang),line(T.en))
             queued=nil
+        end
+        if manual==nil and info.saves=='coop' and info.marker then manual=info.marker end
+        if manual and (world or kit.ready()) then
+            pick()
+            o.say(lang.saves.manual:format(manual,manual))
+            manual=false
         end
         draw() -- The kit may have built its root again meanwhile: on change only.
     end

@@ -15,7 +15,8 @@ T.en={
         chat='Chat',options='Options',report='Write a bug report',close='Close',
         menu_key='Open this menu',host_key='Host at once',status_key='Show the status',leave_key='Leave the session',
         photo_sync='Photo sync',photo_freeze_max='Longest pause',photo_ghost='Ghost in my photos',
-        photo_name_tag='Name tag in my photos',name_tag='Name tag',cloth='Ponytail cloth',dyes='Outfit colours',
+        photo_name_tag='Name tag in my photos',photo_pause='Photo mode pause (experimental)',name_tag='Name tag',
+        cloth='Ponytail cloth',dyes='Outfit colours',
         effects='Attack effects',send_rate='Poses sent a second',shared_enemies='Shared enemies (experimental)',
         ui_scale='Menu size',ui_sounds='Menu sounds',ui_language='Menu language',partner_bar='HP marker',
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
@@ -26,7 +27,8 @@ T.en={
         bosses='Shared bosses (experimental)',boss_hp_scale="Boss HP (host's)"},
     value={on='On',off='Off',both='Both',notice='Notice only',game='Game language',english='English',friends='Friends',
         code='With a code',private='Invited only',ask='Ask',always='Always',all='Every shared enemy',
-        fought='Enemies I hit',aggro_game='Both players',aggro_host='The host only'},
+        fought='Enemies I hit',aggro_game='Both players',aggro_host='The host only',photo_pause_full='Full',
+        photo_pause_scenery='Scenery live'},
     no_limit='No limit',minutes='%d min',seconds='%d s',percent='%d %%',press='Press a key',
     hint={move='Move',select='Select',back='Back'},
     confirm_leave='Select again within 3 s to leave.',confirm_remove='Select again within 3 s to remove %s.',
@@ -49,6 +51,7 @@ T.en={
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
             ..'copies. Your own saves are not changed.',
+        invite="Your friend's invite waits until your save loads.",
         old='Play co-op on your co-op saves?',
         old_about='Continue and Load Game then use your co-op copies. Your own saves are not changed.',
         convert='Convert and play co-op',play='Play co-op',solo='Play solo normally',later='Decide later',
@@ -57,7 +60,12 @@ T.en={
         failed='The co-op saves could not be switched on. Your own saves were not changed.',
         see_log='coop-link.log says why',
         on='Co-op saves on: you play co-op copies of your saves. Your own saves are not changed.',
-        off='Co-op saves off for this load: %s. You play your own saves.'},
+        off='Co-op saves off for this load: %s. You play your own saves.',
+        build='Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves '
+            ..'until StellarCoop is updated.',
+        -- The manual co-op slot's digit, twice.
+        manual='Co-op now plays StellarBladeCoop0%s.sav. With the game closed, you can move StellarCoopSlot.txt out of '
+            ..'the save folder, and StellarBladeSave0%s.sav unless you played it after that copy was made.'},
     -- The status line (link.lua's summary(): under the menu, and the status key's notice); %s: her Steam name, or
     -- friend.
     summary={stopped='Co-op: the Steam link stopped; coop status says why.',waiting='Co-op: waiting for Steam.',
@@ -113,7 +121,8 @@ T.fr={
         chat='Discussion',options='Options',report='Écrire un rapport de bug',close='Fermer',
         menu_key='Ouvrir ce menu',host_key='Héberger directement',status_key="Afficher l'état",
         leave_key='Quitter la session',photo_sync='Photo synchronisée',photo_freeze_max='Pause la plus longue',
-        photo_ghost='Fantôme sur mes photos',photo_name_tag='Nom sur mes photos',name_tag='Nom au-dessus',
+        photo_ghost='Fantôme sur mes photos',photo_name_tag='Nom sur mes photos',photo_pause='Pause photo (expérimental)',
+        name_tag='Nom au-dessus',
         cloth='Queue de cheval',dyes='Couleurs de tenue',effects="Effets d'attaque",
         send_rate='Poses envoyées par seconde',shared_enemies='Ennemis partagés (expérimental)',
         ui_scale='Taille du menu',ui_sounds='Sons du menu',ui_language='Langue du menu',partner_bar='Marqueur de vie',
@@ -125,7 +134,8 @@ T.fr={
         bosses='Boss partagés (expérimental)',boss_hp_scale='PV des boss (hôte)'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',friends='Amis',
         code='Avec un code',private='Sur invitation',ask='Demander',always='Toujours',all='Tous les ennemis partagés',
-        fought='Ceux que je frappe',aggro_game='Les deux joueurs',aggro_host="L'hôte seulement"},
+        fought='Ceux que je frappe',aggro_game='Les deux joueurs',aggro_host="L'hôte seulement",
+        photo_pause_full='Complète',photo_pause_scenery='Décor animé'},
     no_limit='Sans limite',minutes='%d min',seconds='%d s',percent='%d %%',press='Appuyez sur une touche',
     hint={move='Déplacer',select='Choisir',back='Retour'},
     confirm_leave='Choisissez encore dans les 3 s pour quitter.',
@@ -148,6 +158,7 @@ T.fr={
     saves={title='SAUVEGARDES CO-OP',new='Jouer en co-op sur des copies de vos sauvegardes ?',
         new_about='StellarCoop copie vos sauvegardes dans des fichiers co-op séparés, et la partie que vous chargez '
             ..'ensuite est une de ces copies. Vos propres sauvegardes ne changent pas.',
+        invite="L'invitation de votre partenaire attend le chargement de votre sauvegarde.",
         old='Jouer en co-op sur vos sauvegardes co-op ?',
         old_about='La partie que vous chargez ensuite est une de vos copies co-op. Vos propres sauvegardes ne changent '
             ..'pas.',
@@ -158,7 +169,11 @@ T.fr={
         see_log='coop-link.log dit pourquoi',
         on='Sauvegardes co-op actives : vous jouez sur des copies co-op de vos sauvegardes. Vos propres sauvegardes '
             ..'ne changent pas.',
-        off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.'},
+        off='Sauvegardes co-op inactives pour ce chargement : %s. Vous jouez sur vos propres sauvegardes.',
+        build='Sauvegardes co-op coupées : StellarCoop ne prend pas en charge cette version du jeu. Vous jouez sur vos '
+            .."propres sauvegardes jusqu'à une mise à jour de StellarCoop.",
+        manual='Le co-op utilise désormais StellarBladeCoop0%s.sav. Jeu fermé, vous pouvez sortir StellarCoopSlot.txt du '
+            ..'dossier, et StellarBladeSave0%s.sav sauf si vous y avez joué après cette copie.'},
     summary={stopped="Co-op : le lien Steam s'est arrêté ; coop status dit pourquoi.",
         waiting='Co-op : en attente de Steam.',held='Co-op : invitation en attente du chargement de votre sauvegarde.',
         rejoin='Co-op : reconnexion à la partie de votre partenaire (essai %s/3).',
