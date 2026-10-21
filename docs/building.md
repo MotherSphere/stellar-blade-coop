@@ -143,8 +143,11 @@ build/host/pose_codec_test
     and own-no lines taken from the right side only; the exec line's checks, rate and holds of a kill and of a dead,
     an exec 1 that never restarts a running takedown, a held claim's 6 s cap, a balance emptied by her claim in the
     step of her exec 1, refusals within 2 s counted with no line; same spawns' epoch, have, spawn and drop lines
-    refused by Host and Guest, since the engine takes them, and never recorded), and two fake worlds linked through a
-    delayed, lossy line;
+    refused by Host and Guest, since the engine takes them, and never recorded), the boss table of stage 5 (one row a
+    boss, each row's allowlist sent in a phase line and read back the same, the rows two bosses' shared step applies
+    kept apart, the summon rows), the bstart, phase and summon spawn lines with a fuzz, the guest's checks of them (one
+    bstart a pair, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner), and two fake
+    worlds linked through a delayed, lossy line;
   - `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
     reset of the spawn manager, 3 or more keys with a new GUID, two actors of one key no change) and its 3 s grace, the
     host's epoch line (at each change and every 5 s), her rounds and its answers (a key more than 1 km from her held
@@ -155,8 +158,9 @@ build/host/pose_codec_test
     died leaving her rounds, extra enemies (their keys and places, which enemies get them, none for a Save or keep
     row, an Elite or an enemy past 116 m, once a life, the room left and stage 1's 16 pairs, n going on after a new
     session, the host's answers and her checks for extra keys, `row taken`, a charId none of her Monsters has yet or a
-    `full` refusal asked again, `not made` counted as no difference), and two fake
-    worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on the way;
+    `full` refusal asked again, `not made` counted as no difference; their keys below the summons' range, and a
+    summon's key never made by same spawns), and two fake worlds through a delayed line until her set is the host's,
+    with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
     filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
     drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
