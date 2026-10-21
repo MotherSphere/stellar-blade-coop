@@ -1839,15 +1839,17 @@ private:
       zone_alias_[zones_] = alias, zone_ids_[zones_++] = id;
     return id;
   }
-  // The guest: SB's spawn of a key where the host's stands, on SB's spawn manager, never made here: not while it or the
-  // tables (which the call reads through their getter) are not made. An extra's key, of charId chr, goes through
-  // NewActor (make_extra). Null when made, else why not.
+  // The guest: SB's spawn of a key where the host's stands, on SB's spawn manager, never made here: not while it, the
+  // tables (which the call reads through their getter) or the job sender are not made (for a row with EventOnSpawning
+  // events, the spawn sends them through FUN_141a97b90, the job sender's getter). An extra's key, of charId chr, goes
+  // through NewActor (make_extra). Null when made, else why not.
   template <class Game>
   const char *create(Game &g, uint64_t logic, const SpawnKey &k, uint32_t chr, const float *at, float yaw) {
     if (is_extra(k.spawn))
       return make_extra(g, logic, k, chr, at, yaw);
-    uint64_t manager = 0;
-    if (!get(g, base_ + (kSpawnManager - kImageBase), manager) || !plausible(manager) || !tables_at(g) || latched_)
+    uint64_t manager = 0, sender = 0;
+    if (!get(g, base_ + (kSpawnManager - kImageBase), manager) || !plausible(manager) || !tables_at(g) ||
+        !get(g, base_ + (kJobSender - kImageBase), sender) || !plausible(sender) || latched_)
       return "no spawn manager";
     const float rot[3] = {0, yaw, 0};
     g.create(manager, k.spawn, k.index, at, rot);

@@ -126,7 +126,7 @@ build/host/pose_codec_test
     her side, nothing done while a census's list of keys is partial, and a Save row logged once, with keys that have no
     row kept out of the 512-row cache and rows past it never logged; the two game calls on fake memory (the spawn with
     the spawn manager, the key, where the host's enemy stands and its yaw; the despawn with the job sender, the turn
-    and the GUID), none with no spawn manager made, and no call, line or log line after a latch on an unreadable row,
+    and the GUID), none with no spawn manager or no job sender made, and no call, line or log line after a latch on an unreadable row,
     and a host enemy of a SaveWithTransform row never sent; the read-only spawn probe (each shared Monster's row told
     once an epoch, 32 a census at most, nothing sent or called); the `fight=` line's `spawns=` field; extra enemies in
     two worlds with `enemy_extra=2` (two `NewActor` calls for each of the host's four enemies, 2 and 3 m from it, the

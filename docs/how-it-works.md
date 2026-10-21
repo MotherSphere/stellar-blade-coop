@@ -513,8 +513,9 @@ spawn key like any other.
   `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing. The spawn call gets the spawn manager, the
   EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no extra request data and flag 0 (what the flag
   does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to `FUN_141c1ca40`, so the key spawns at once. It
-  reads the table holder through its getter, so the guest calls it only while the holder and its tables exist; with no
-  spawn manager made she refuses the key and calls nothing. The despawn call gets the job sender, the logic turn and the
+  reads the table holder through its getter, and for a row with EventOnSpawning events it sends them through the job
+  sender's getter, so the guest calls it only while the holder, its tables and the job sender exist; with no spawn
+  manager or job sender made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job sender, the logic turn and the
   enemy's GUID, after the enemy is found again by GUID with that key and still fighting. A census whose list of enemies
   came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing, since an enemy missing
   from it would read as one the game lacks.

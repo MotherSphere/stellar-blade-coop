@@ -260,8 +260,8 @@ Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
   differ from the host's, or that her `fight_chars` leaves out. Her `coop-link.log` names each one in `fight spawn
   refused <key> <why>`, `fight drop refused <key> <why>`, `fight spawn undone <key> <why>` or `fight spawn kept <key>
   <why>`. The same .pak mods and the same `fight_chars` on both PCs avoid it.
-- `fight spawn refused <key> no spawn manager` on the guest: her game had not made its spawn manager yet. The host asks
-  for that enemy again after either game's next zone change or reset.
+- `fight spawn refused <key> no spawn manager` on the guest: her game had not made its spawn manager or its job
+  sender yet. The host asks for that enemy again after either game's next zone change or reset.
 
 `coop fight spawn probe` checks the reads on one PC: each shared enemy in your zone gets a `fight spawns probe <key>`
 line in `coop-link.log` saying whether same spawns would handle it. For a report, keep `coop-link.log` and

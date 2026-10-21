@@ -2920,9 +2920,10 @@ int main() {
   // manager as the global holds it, the key's EventSpawnId and SpawnIndex, where and (0, yaw, 0); FUN_141b077f0 the job
   // sender as its global holds it, this logic turn and the actor's GUID (the fakes check both on the logic thread,
   // inside the job). With the spawn manager's global still null her game refuses each spawn and calls nothing (the
-  // drops go on: they need the job sender only). An unreadable spawn row latches her side: no call after it (the
-  // spawn before it went), and her side stops sending.
-  for (const int run : {0, 1, 2}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row.
+  // drops go on: they need the job sender only). With the job sender's global null she calls neither: the spawn of a
+  // row with EventOnSpawning events would make SB's getter allocate one. An unreadable spawn row latches her side: no
+  // call after it (the spawn before it went), and her side stops sending.
+  for (const int run : {0, 1, 2, 3}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row; 3: no job sender.
     Game H, G;
     auto eh = engine(true, true), eg = engine(true, false);
     eh->same_spawns(true);
@@ -2941,6 +2942,8 @@ int main() {
       G.mem.put<uint64_t>(rebased(kSpawnManager), 0);
     if (run == 2)
       G.spawn_rows[5] = 0x7fff00000000; // Plausible, never mapped.
+    if (run == 3)
+      G.mem.put<uint64_t>(rebased(kJobSender), 0);
     Wire to_host, to_guest;
     to_host.queue.emplace_back(120, "SBF11 on");
     to_guest.queue.emplace_back(120, "SBF11 on");
@@ -2968,6 +2971,10 @@ int main() {
     } else if (run == 1) {
       assert(G.made.empty() && G.despawned.size() == 2 && !eg->latched());
       assert(count(G, "spawn refused", "no spawn manager") == 2 && eg->snapshot().spawns.differ == 0);
+    } else if (run == 3) {
+      assert(G.made.empty() && G.despawned.empty() && !eg->latched());
+      assert(count(G, "spawn refused", "no spawn manager") == 2 && count(G, "drop refused", "gone") == 2 &&
+             eg->snapshot().spawns.differ == 0);
     } else { // Key 1's spawn comes before key 5's row is read; nothing after it, the two drops neither.
       assert(eg->latched() && std::string(eg->why()) == "unreadable" && G.made.size() == 1 && G.made[0].id == 1);
       assert(G.despawned.empty());
