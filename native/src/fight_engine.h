@@ -442,8 +442,9 @@ struct Snapshot {
   uint32_t epoch = 0;
   uint8_t extra = 0;
   // The revive's and the travel's guards, at the last census: a boss of this side in battle mode (the guest's: or the
-  // host's bstart taken in the last kBattleEndMs), the enemies in BattleMode within kPartCm of our EVE; the zone of
-  // epoch (the guest's: the host's last epoch line), and our own epoch moves for a reset (a rest, a respawn) this run.
+  // host's bstart for a pair of hers in the last kBattleEndMs, taken or not), the enemies in BattleMode within kPartCm
+  // of our EVE; the zone of epoch (the guest's: the host's last epoch line), and our own epoch moves for a reset (a
+  // rest, a respawn) this run (the guest's: only in the zone she shares with the host).
   bool boss = false;
   uint32_t battle = 0, zone = 0, resets = 0;
 };
@@ -2003,7 +2004,6 @@ private:
     const char *why = epochs_.step(alias, state, mine_, mines_, now);
     if (why) {
       ++(hosting ? spawn_host_.counts : spawn_guest_.counts).epochs;
-      resets_ += !std::strcmp(why, "reset");
       g.event(Event{"spawns epoch", why});
     }
     const uint64_t tables = tables_at(g);
@@ -2014,6 +2014,9 @@ private:
     const bool eve_ok = plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve) && std::isfinite(eve[0]) &&
                         std::isfinite(eve[1]) && std::isfinite(eve[2]);
     const bool close = eve_ok && flags_.her_ok && !pilot_stopped_ && within(eve, flags_.her, kNearCm);
+    // The fight= line's resets: on the guest's side only a reset in the zone she shares with the host (his epoch
+    // line's, within kNearCm of his ghost), where same spawns bring the host's set back after it.
+    resets_ += why && !std::strcmp(why, "reset") && (hosting || (zone && zone == spawn_guest_.zone() && close));
     if (latched_)
       return;
     SpawnIo<Game> io{*this, g, logic};

@@ -2978,6 +2978,25 @@ int main() {
     assert(count(G, "spawns leave", "save-row") == 1 && count(G, "spawns leave", "keep-row") == 1); // Once each.
     assert(count(G, "spawns leave") == 2 && count(H, "spawns leave", "save-row") == 1 && count(H, "spawns leave") == 1);
     assert(std::none_of(G.made.begin(), G.made.end(), [](const Game::Made &m) { return m.id == 24; }));
+    // Her own zone resets count in the fight= line's resets only where she shares the host's zone, within 100 m of his
+    // ghost: one 20 m from it counts, one 200 m away does not.
+    for (uint64_t t = 20016; t <= 26000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      if (t == 20512 || t == 23504)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 1);
+      if (t == 21008 || t == 24000)
+        G.mem.put<uint32_t>(G.spawn_manager + kSpawnState, 3);
+      if (t == 22000) {
+        assert(eg->snapshot().resets == 1);
+        G.flags.her[1] = -18000;
+      }
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    assert(eg->snapshot().resets == 1 && count(G, "spawns epoch", "reset") == 2 && eh->snapshot().resets == 1);
   }
 
   // ---- Bosses (stage 5), two worlds through channel 2 with same spawns on, the EVEs 20 m apart: boss A, which both
