@@ -1,5 +1,5 @@
 -- Notices on screen with fake UE4SS objects and clock: 4 s each, in order, at most 4 queued; dropped with no EVE; the
--- line 120 cm above her, turned to the camera, wrapped at 40 characters (the shared fight's longest on two lines);
+-- line 120 cm above her, turned to the camera, wrapped at 40 columns (the shared fight's longest on two lines);
 -- hidden during our own photo mode, the queue kept;
 -- spawned again once invalid; the first engine error turns it off with one line, and no engine call follows; so does
 -- coop off, which hides it first.
@@ -124,12 +124,15 @@ n.say('shown'); n.tick(); assert(actor.hidden==false and label.text=='shown')
 player=nil; n.tick(); assert(actor.hidden==true)
 player=eve; n.tick(); assert(actor.hidden==true and label.text=='shown','Its queue went with it')
 
--- Wrapped at 40 characters, on spaces; a longer word keeps a line of its own.
+-- Wrapped at 40 columns, on spaces; a longer word is cut between characters, and so is text with no spaces (a
+-- Chinese or Japanese character takes two columns).
 n.say('Hosting: invite a friend from the Steam overlay (Shift+Tab).'); n.tick()
 assert(label.text=='Hosting: invite a friend from the Steam\noverlay (Shift+Tab).',label.text)
-local a,c,e=string.rep('a',38),string.rep('c',39),string.rep('e',45)
-clock=clock+4; n.say(a..' b '..c..' d '..e..' f'); n.tick()
-assert(label.text==a..' b\n'..c..'\nd\n'..e..'\nf',label.text) -- 40 fits, 41 does not.
+local a,c,e=string.rep('a',38),string.rep('c',39),string.rep('e',40)
+clock=clock+4; n.say(a..' b '..c..' d '..e..'eeeee f'); n.tick()
+assert(label.text==a..' b\n'..c..'\nd\n'..e..'\neeeee f',label.text) -- 40 fits, 41 does not.
+clock=clock+4; n.say(string.rep('敵',25)); n.tick()
+assert(label.text==string.rep('敵',20)..'\n'..string.rep('敵',5),label.text)
 -- The shared fight's notices (main.lua): the short ones on one line, the longest reason (the slot line) on two.
 clock=clock+4; n.say('Shared fight on: 12 enemies linked'); n.tick()
 assert(label.text=='Shared fight on: 12 enemies linked',label.text)

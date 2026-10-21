@@ -96,7 +96,7 @@ end
 -- The feed and the chat box (UI-DESIGN 3.2, 4.2, 4.4) on the Uplink kit (ui.lua). The feed sits under the partner
 -- card and holds chat lines and notices, newest at the bottom: while the box is closed, the last 6 rows of the lines
 -- under 8 s old; while open, the last 12 on the panel's glass, the box under them. Her lines are teal (the partner
--- colour), ours white, notices grey, a line not sent red; lines wrap at a space, 70 characters a row. Enter (main.lua's
+-- colour), ours white, notices grey, a line not sent red; lines wrap at a space, 70 columns a row. Enter (main.lua's
 -- bind) opens the box in a world during a session (or coop loopback) with chat on, never while the game is paused or
 -- shows the mouse cursor; outside a session it says so, once per 10 s. While open the game ignores its keys and the box
 -- has the keyboard (kit.input with the chat's field, focused again 50 ms later): Slate types the characters, so any
@@ -107,16 +107,31 @@ end
 -- photo pause too), our HUD hides or the kit turns off. While the co-op menu covers the feed, the menu shows the newest
 -- notice (notice()). No engine call here, and nothing to log with: the text goes to the model and the screen only.
 local T=require('ui_text')
-local ROWS,SHOWN,FADE,WIDE,HIGH=12,6,8,70,44 -- Rows open, rows closed, seconds shown closed, characters a row, units.
+local ROWS,SHOWN,FADE,WIDE,HIGH=12,6,8,70,44 -- Rows open, rows closed, seconds shown closed, columns a row, units.
 local BACK,REFOCUS,QUIET=0.15,0.05,10 -- Seconds: the game's input back; the box focused again; "needs a session" again.
 local COUNT=160 -- Bytes typed from which the box shows how many, of the MAX a line keeps (red past it: cut).
--- Rows of at most wide characters (WIDE unless said; the text is well-formed UTF-8), broken at the last space within
--- reach, else between two characters. The co-op saves' question wraps its text with it too.
+-- Columns a character takes: an East Asian wide one (Chinese, Japanese, Korean) two, a combining mark none, any other
+-- one, as ui_text_test.lua counts them.
+local function columns(c)
+    if c>=0x1100 and c<=0x115F or c>=0x2E80 and c<=0xA4CF or c>=0xAC00 and c<=0xD7A3 or c>=0xF900 and c<=0xFAFF
+        or c>=0xFE30 and c<=0xFE4F or c>=0xFF00 and c<=0xFF60 or c>=0xFFE0 and c<=0xFFE6 then return 2 end
+    if c>=0x300 and c<=0x36F or c>=0x64B and c<=0x65F or c==0x670 or c==0xE31 or c>=0xE34 and c<=0xE3A
+        or c>=0xE47 and c<=0xE4E then return 0 end
+    return 1
+end
+-- Rows of at most wide columns (WIDE unless said; the text is well-formed UTF-8), broken at the last space within
+-- reach, else between two characters (Chinese and Japanese have no spaces). The co-op saves' question and the notice
+-- line wrap their text with it too.
 local function wrap(text,wide)
     wide=wide or WIDE
     local rows={}
-    while utf8.len(text)>wide do
-        local cut=utf8.offset(text,wide+1)
+    while true do
+        local n,cut=0,nil -- cut: the first byte of the first character past wide columns.
+        for at,c in utf8.codes(text) do
+            n=n+columns(c)
+            if n>wide then cut=at; break end
+        end
+        if not cut then break end
         local space=text:sub(1,cut):match('.*() ')
         if space and space>1 then rows[#rows+1],text=text:sub(1,space-1),text:sub(space+1)
         else rows[#rows+1],text=text:sub(1,cut-1),text:sub(cut) end

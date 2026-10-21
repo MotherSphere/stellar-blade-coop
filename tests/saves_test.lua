@@ -431,6 +431,14 @@ settings.ui_language='english'
 quarter(true,false); quarter(false,true)
 assert(screen():find('^CO%-OP SAVES\n'),'ui_language=english')
 settings.ui_language='game'
+-- Japanese: the line under the failure ends with 。, as the failure's own line does.
+state.language='ja-JP'
+saves=new()
+info=at()
+quarter(false,true); saves.nav('select')
+info=at({convert='done'}); quarter(false,true)
+assert(screen():find('\n理由：coop-link.log。\n',1,true),screen())
+saves.nav('back')
 state.language=nil
 -- Both languages complete.
 for k in pairs(T.en.saves) do assert(T.fr.saves[k],k) end

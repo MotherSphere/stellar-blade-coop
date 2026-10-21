@@ -1,10 +1,10 @@
 -- ui_text.lua, pure (no fakes): a language's table only under one of the 23 culture names recruiter_text.lua's
 -- culture() gives, and either empty or with exactly T.en's keys at every level, each word with T.en's format
 -- placeholders in T.en's order (Lua's format has no positional arguments; a percent sign, %%, may stand anywhere, as
--- Turkish puts it first); T.pick's choice (the game's culture through
--- culture(), English with ui_language=english, for a culture with no table and for a word a table lacks); in every
--- language, every notice within the feed's 200 bytes a line (Chat.clean) with a 32-byte name, and every menu row,
--- value and key hint within its column.
+-- Turkish puts it first); T.pick's choice (the game's culture through culture(), English with ui_language=english,
+-- for a culture with no table and for a word a table lacks); in every language, every notice within the feed's 200
+-- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, and the co-op
+-- saves' question within its 5 rows (Chat.wrap).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('recruiter_text')
@@ -99,5 +99,11 @@ for name in pairs(R.TEXT) do
         fits(name..' value',text,VALUE)
     end
     for k,text in pairs(w.hint) do fits(name..'.hint.'..k,text,HINT) end
+    -- The co-op saves' question (saves.lua): its text within 5 body rows of 78 columns, as each phase shows it.
+    local s=w.saves
+    for _,pair in ipairs({{s.new,s.new_about},{s.old,s.old_about},{s.failed,s.see_log..'.'}}) do
+        local rows=#Chat.wrap(pair[1],78)+#Chat.wrap(pair[2],78)
+        assert(rows<=5,name..'.saves: '..rows..' rows, at most 5: '..pair[1])
+    end
 end
 print('ui_text_test ok')

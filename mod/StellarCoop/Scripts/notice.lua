@@ -5,17 +5,12 @@
 local UE=require('UEHelpers')
 local U=require('unreal')
 local valid,value_of,find=U.valid,U.value_of,U.find
+local Chat=require('chat')
 local Notice={}
-local KEEP,SECONDS,WIDTH,SIZE,RISE=4,4,40,10,120 -- Notices queued, seconds each, characters a line, cm high, cm above EVE.
--- Lines of at most WIDTH characters, broken on spaces; a longer word keeps a line of its own.
-local function wrap(text)
-    local lines,line={},nil
-    for word in text:gmatch('[^ ]+') do -- Not %S: 0xA0, the end of 'à', is a space in some code pages.
-        if line and #line+1+#word<=WIDTH then line=line..' '..word else lines[#lines+1]=line; line=word end
-    end
-    lines[#lines+1]=line
-    return table.concat(lines,'\n')
-end
+local KEEP,SECONDS,WIDTH,SIZE,RISE=4,4,40,10,120 -- Notices queued, seconds each, columns a line, cm high, cm above EVE.
+-- Lines of at most WIDTH columns (a Chinese, Japanese or Korean character two), broken at a space, else between two
+-- characters: the feed's wrap.
+local function wrap(text) return table.concat(Chat.wrap(text,WIDTH),'\n') end
 function Notice.new()
     local self,queue={},{}
     local actor,label,since,visible,off=nil,nil,nil,false,false -- since: when the head notice went up, nil before.
