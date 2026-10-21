@@ -17,7 +17,7 @@
 -- load.
 -- Only the 120 camps of this table are ever sent or taken: no autosave volume, no camp of a developer test world, none
 -- that leads to several worlds. The travel moves her EVE only; nothing changes in the host's game.
--- coop travel probe <camp> (a test tool): solo, on a co-op save or slot 04, any camp of the table, without the host's
+-- coop travel probe <camp> (a test tool): solo, on a co-op save only, any camp of the table, without the host's
 -- answer; it does not check that this save found the camp. A Lua error turns the follow off for the run.
 local U=require('unreal')
 local Travel={}
@@ -394,8 +394,8 @@ function Travel.new(o)
             if mode==nil then return false,'the Steam link is not ready yet: try again in a moment' end
             if mode~='none' then return false,'coop travel probe is solo only: leave the session first (coop leave)' end
             local slot=line('slot')
-            if not (slot:find('^slot=coop ') or slot:find(' index=4 ',1,true)) then
-                return false,'coop travel probe runs on a co-op save or slot 04 only; now '
+            if not slot:find('^slot=coop ') then
+                return false,'coop travel probe runs on a co-op save only (name slot 04 in StellarCoopSlot.txt); now '
                     ..(slot~='' and slot or 'no slot status')
             end
             if type(alias)~='string' or not CAMP[alias] then

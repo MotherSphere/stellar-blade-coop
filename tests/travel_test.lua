@@ -8,8 +8,8 @@
 -- or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself 5 s later with
 -- follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place the travel
 -- brought her to, and his next move offered again after it. The guards, each refusing on its own (silent, busy or
--- failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save or slot 04, any
--- of the 120 camps.
+-- failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save only, any of the
+-- 120 camps.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local W -- The world of one case.
@@ -458,8 +458,9 @@ W.her_map='/game/art/bg/worldmap/level_p/b07'
 run(t,0.25)
 assert(#W.said==2 and W.said[2]==W_.offer:format('Kaanta','b07','F7'))
 
--- coop travel probe: solo only, on a co-op save or slot 04, one of the 120 camps, a name this game knows; it skips her
--- activation check and the host's answer: the camp is asked of the native part as it is. Its result is logged.
+-- coop travel probe: solo only, on a co-op save only (slot 04 of her own saves is refused: StellarCoopSlot.txt makes it
+-- one), one of the 120 camps, a name this game knows; it skips her activation check and the host's answer: the camp is
+-- asked of the native part as it is. Its result is logged.
 t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55} end)
 local ok,why=t.probe('DED10_Camp_07')
 assert(ok and last(W.requests)=='travel DED10_Camp_07 55 0',why)
@@ -468,7 +469,8 @@ run(t,0.25)
 assert(logged('travel accepted: DED10_Camp_07') and #W.said==0,'The probe logs, no notice')
 for _,case in ipairs({{function(w) w.mode='guest' end,'solo only'},{function(w) w.mode='host' end,'solo only'},
     {function(w) w.mode=nil end,'not ready'},
-    {function(w) w.slot='slot=main index=1 marker=4 saves=main' end,'slot 04'},
+    {function(w) w.slot='slot=main index=1 marker=4 saves=main' end,'co-op save only'},
+    {function(w) w.slot='slot=main index=4 marker=1 saves=main' end,'co-op save only'},
     {function(w) w.names={} end,'not a name'}}) do
     t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; case[1](w) end)
     ok,why=t.probe('DED10_Camp_07')
@@ -479,9 +481,6 @@ for _,alias in ipairs({'SysTest_Camp_01','ATL_Camp_01_05_SV','SE02_Camp_02','x'}
     ok,why=t.probe(alias)
     assert(not ok and why:find('120 travel camps',1,true) and #W.requests==0,alias)
 end
-t=world(function(w) w.mode='none'; w.linked=false; w.slot='slot=main index=4 marker=1 saves=main'
-    w.names={DED10_Camp_07=55} end)
-assert(t.probe('DED10_Camp_07'),'Slot 04, the free slot, is allowed')
 -- A Lua error turns the follow off for the run, with one line.
 t=world(function(w) w.names={Xion_Camp_10=1} end)
 FName=nil

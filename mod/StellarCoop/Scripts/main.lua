@@ -18,8 +18,8 @@
 -- the death screen (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene
 -- (group.lua and the native part's photo pause, cutscene_wait in coop-settings.txt or the co-op menu); the guest's
 -- travel to the camp nearest the host (travel.lua, follow_host and follow_key in coop-settings.txt or the co-op menu:
--- F7 unless set), with coop travel host (as follow_key) and coop travel probe <camp>, its solo test on a co-op save or
--- slot 04 (not in the usage line); coop fight
+-- F7 unless set), with coop travel host (as follow_key) and coop travel probe <camp>, its solo test on a co-op save
+-- (not in the usage line); coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
