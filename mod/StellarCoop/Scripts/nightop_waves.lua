@@ -8,6 +8,7 @@ local MASK=0xFFFFFFFF
 W.COUNTDOWN,W.LIMIT,W.BREATHER,W.RESULT=5,480,10,10 -- Seconds of game time.
 W.CAP=8 -- A wave starts only while the bodies still up plus its own size stay at or under this.
 W.HEALS={[2]=true,[4]=true} -- A full heal once these waves are down.
+W.REFRESH=1 -- Seconds between two refreshes of the live list while bodies are tracked; 2 if the log shows slow ones.
 -- The base monster rows with no reward group and no kill achievement of their own. The Skull rows are the Alone ones:
 -- the base rows summon Skullings the run would not track.
 W.POOL={

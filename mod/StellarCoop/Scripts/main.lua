@@ -11,8 +11,9 @@
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
 -- copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and
 -- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
--- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop recruiter [off], the cut Night
--- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
+-- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop nightop [start [noaggro|nomove]|stop],
+-- Night Operation's solo run (nightop_run.lua), on a co-op save only (stop anywhere); coop recruiter [off], the cut
+-- Night Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
 -- in coop-settings.txt or the co-op menu, which also asks it by itself; the native part shares only on a co-op save,
 -- and the probe, test, record and replay run on one only), with notices for what keeps it from sharing; coop fight
@@ -103,7 +104,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | fight on|off|status|probe|test|record|replay|pilot|spawn | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -136,6 +137,10 @@ end
 -- Its one entry, commands.no, runs only on a co-op save (coop_slot).
 local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
+-- Night Operation's solo run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
+-- ticks every 250 ms and logs [NR] lines.
+local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
+    status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused() end})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
@@ -301,6 +306,13 @@ local commands={
         if not ok then return false,why end
         return nightop.run(sub,extra)
     end,
+    nightop=function(sub,a,b)
+        if sub~='stop' then
+            local ok,why=coop_slot('coop nightop')
+            if not ok then return false,why end
+        end
+        return night.command(sub,a,b)
+    end,
     recruiter=function(sub,extra)
         local ok,why=coop_slot('coop recruiter')
         if not ok then return false,why end
@@ -423,9 +435,11 @@ local commands={
                     ..'exits')
             end
         end
-        -- A failing despawn is logged and never stops the rest of coop off.
+        -- A failing despawn or run end is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
+        stopped,e=pcall(night.stop,'coop off')
+        if not stopped then log('nightop: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -682,6 +696,7 @@ if link then
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
+        if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
         chat_clock=chat_clock+0.25
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
         if off or chatting~=nil then chat.session(not off and chatting) end

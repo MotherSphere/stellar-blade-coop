@@ -455,4 +455,14 @@ for kind=0,255 do
         assert(NightOp.allowed(kind,name)==want,kind..' '..name)
     end
 end
+-- 9. Night Operation's run takes the heal alone: the same guarded zone event, with no poller and no request; false and
+-- no call while the heal row is not a name. EVE and the controller are the probe's own.
+poller(nil)
+known[HEAL]=nil
+reset(); assert(NightOp.heal()==false and effects()=='',effects())
+known[HEAL]=h
+reset(); assert(NightOp.heal()==true and effects()=='BPL:CreateSBZoneEvent',effects())
+_,call=at('BPL:CreateSBZoneEvent')
+assert(call.args[1]==2 and call.args[2]:ToString()==HEAL and #lines==0)
+assert(NightOp.her()==eve and NightOp.controller()==pc)
 print('nightop_test ok')
