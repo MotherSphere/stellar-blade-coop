@@ -404,6 +404,54 @@ for _=1,3 do quarter(false,true) end
 assert(#calls==0 and #asked==0 and #said==0 and #logs==0)
 settings.auto_coop_save='ask'
 
+-- A friend's invite held at the title (link.saves()'s held, joined from the title): the question's first line says so.
+-- Answered without co-op in this visit, it asks once more when an invite is held, on its first choice; once a visit.
+settings.auto_coop_save='ask'
+saves=new()
+info=at({held=true})
+quarter(false,true)
+assert(screen()=="CO-OP SAVES\nYour friend's invite waits until your save loads.\nPlay co-op on copies of your saves?\n"
+    ..'StellarCoop copies your saves to separate co-op files, and Continue and Load\n'
+    ..'Game then use those copies. Your own saves are not changed.\n'
+    ..'Convert and play co-op||focus\nPlay solo normally||normal\nDecide later||normal\n'
+    ..'Don\'t ask again|Always co-op|normal',screen())
+saves.nav('back')
+quarter(false,true); assert(not saves.is_open(),'Asked with the invite already: not again')
+saves=new()
+info=at()
+quarter(false,true); saves.nav('down'); saves.nav('select')
+quarter(false,true); assert(not saves.is_open() and not screen():find('invite',1,true))
+info=at({held=true}); quarter(false,true)
+assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite waits until your save loads%.\n")
+    and screen():find('Convert and play co-op||focus',1,true),screen())
+saves.nav('back'); quarter(false,true); assert(not saves.is_open(),'Once a visit')
+quarter(true,false); quarter(false,true); assert(saves.is_open(),'A new visit')
+saves.nav('back')
+-- Co-op chosen: nothing more (the game then uses the copies). always: no question at all.
+saves=new()
+info=at()
+quarter(false,true); saves.nav('select')
+info=at({held=true,convert='busy 1/6'}); quarter(false,true)
+assert(screen()=='CO-OP SAVES\nMaking the co-op copies: step 1 of 6.',screen())
+settings.auto_coop_save='always'
+saves=new()
+info=at({held=true})
+quarter(false,true); quarter(false,true)
+assert(not saves.is_open() and #asked==1,'always: the switch, no question')
+settings.auto_coop_save='ask'
+state.language='fr-FR'
+saves=new()
+info=at({held=true})
+quarter(false,true)
+assert(screen()=="SAUVEGARDES CO-OP\nL'invitation de votre partenaire attend le chargement de votre sauvegarde.\n"
+    ..'Jouer en co-op sur des copies de vos sauvegardes ?\n'
+    ..'StellarCoop copie vos sauvegardes dans des fichiers co-op séparés, et la\n'
+    ..'partie que vous chargez ensuite est une de ces copies. Vos propres sauvegardes\nne changent pas.\n'
+    ..'Convertir et jouer en co-op||focus\nJouer en solo normalement||normal\nDécider plus tard||normal\n'
+    ..'Ne plus demander|Toujours co-op|normal',screen())
+saves.nav('back')
+state.language=nil
+
 -- Another game build (a game update: link.saves()'s build): the co-op saves are off; with ask or always, said once a Lua
 -- load at the title, nothing asked; with off, nothing. saves=off for another reason (coop off) says nothing.
 for _,want in ipairs({'ask','always'}) do

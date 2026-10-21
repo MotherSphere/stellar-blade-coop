@@ -45,6 +45,7 @@ T.en={
     saves={title='CO-OP SAVES',new='Play co-op on copies of your saves?',
         new_about='StellarCoop copies your saves to separate co-op files, and Continue and Load Game then use those '
             ..'copies. Your own saves are not changed.',
+        invite="Your friend's invite waits until your save loads.",
         old='Play co-op on your co-op saves?',
         old_about='Continue and Load Game then use your co-op copies. Your own saves are not changed.',
         convert='Convert and play co-op',play='Play co-op',solo='Play solo normally',later='Decide later',
@@ -135,6 +136,7 @@ T.fr={
     saves={title='SAUVEGARDES CO-OP',new='Jouer en co-op sur des copies de vos sauvegardes ?',
         new_about='StellarCoop copie vos sauvegardes dans des fichiers co-op séparés, et la partie que vous chargez '
             ..'ensuite est une de ces copies. Vos propres sauvegardes ne changent pas.',
+        invite="L'invitation de votre partenaire attend le chargement de votre sauvegarde.",
         old='Jouer en co-op sur vos sauvegardes co-op ?',
         old_about='La partie que vous chargez ensuite est une de vos copies co-op. Vos propres sauvegardes ne changent '
             ..'pas.',

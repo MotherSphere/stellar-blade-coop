@@ -16,7 +16,9 @@
 -- the title menu under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op
 -- copies (saves=coop), a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On
 -- another game build (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at
--- the title. No engine call here: the kit makes them.
+-- the title. A friend's invite accepted at the title waits for a save (the link's held invite): the question's first
+-- line says so, and once a visit it asks again when such an invite comes after an answer without co-op. No engine call
+-- here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
@@ -45,6 +47,7 @@ function Saves.new(o)
     local lang=T.en
     local badged=false -- The badge is shown.
     local told=false -- Another game build said (once a Lua load).
+    local invited,reasked=false,false -- An invite waits for a save; the question shown with one this visit.
     -- At the top right, scaled from that corner; wide enough for the French title. Added first: the question draws over.
     kit.add('badge',{x=3024,y=96,w=720,h=96,pivot={X=1,Y=0}},function(b)
         b.panel(0,0,720,96)
@@ -67,6 +70,7 @@ function Saves.new(o)
         local w,lines=lang.saves,{}
         local function add(text) for _,row in ipairs(Chat.wrap(text,WIDE)) do lines[#lines+1]=row end end
         if phase=='ask' then
+            if invited then add(w.invite) end
             add(copies and w.old or w.new)
             add(copies and w.old_about or w.new_about)
         elseif phase=='wait' then add(progress and w.copying:format(progress[1],progress[2]) or w.switching)
@@ -169,6 +173,7 @@ function Saves.new(o)
         if stopped then return end
         local info=link.saves() or {}
         local want=settings.auto_coop_save
+        invited=info.held==true
         -- The badge: shown or hidden on change; its word set at each slow (the kit sets it on change only, and a root
         -- built again shows it).
         local badge=(title and not world and info.saves=='coop')==true
@@ -199,8 +204,10 @@ function Saves.new(o)
                 told,queued=true,{'build'}
                 log('co-op saves: off on this game build (coop-link.log: engine off): your own saves')
             end
-            if not visit and not phase and want~='off' and info.saves=='main' and info.steamid
+            local again=invited and visit and not reasked and want=='ask' -- An invite after an answer without co-op.
+            if (not visit or again) and not phase and want~='off' and info.saves=='main' and info.steamid
                 and not (info.convert or ''):find('^busy') then
+                reasked=reasked or invited
                 if want=='always' then switch(info)
                 elseif kit.off() then
                     visit=true
@@ -220,7 +227,7 @@ function Saves.new(o)
                 if phase~='wait' then phase=nil end
                 close()
             end
-            visit=false
+            visit,reasked=false,false
         end
         if queued and (world or kit.ready()) then
             pick()

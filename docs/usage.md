@@ -252,6 +252,10 @@ after 60 s with no key, it closes as Decide later, and `auto_coop_save=always` o
 Load Game before the question shows loads your own save; the question comes back at the next title screen.
 `coop ui reset` closes it as Decide later.
 
+A friend's invite accepted on the title screen waits until a save loads (`Invite held: joining once your save has
+loaded.`). The question then starts with `Your friend's invite waits until your save loads.` If you already answered
+Play solo normally or Decide later on that title screen, it asks once more when the invite comes.
+
 `auto_coop_save=always` makes the copies and switches to them at each title screen without asking; `off` turns the
 question and the automatic copies off. Options > Saves > Co-op saves changes it at once. The result shows as a notice in the
 feed (see [Notices](#notices)). While the game uses the co-op copies, the title screen shows `CO-OP SAVES` at the

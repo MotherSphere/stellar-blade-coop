@@ -162,7 +162,7 @@ play with a controller only, set `auto_coop_save` to `always` or `off`.
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`. Then use Load Game (see below).
 - Play solo normally, or Decide later: the game uses your own saves. The question comes back the next time the title
-  screen shows.
+  screen shows, or once more on the same title screen if you then accept a friend's invite.
 - Don't ask again: sets `auto_coop_save=always` in `coop-settings.txt`, then plays co-op. From then on the mod switches
   to the copies at every title screen without asking.
 

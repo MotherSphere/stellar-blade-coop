@@ -90,6 +90,13 @@ assert(sv.slot==nil and sv.saves==nil and sv.convert==nil and sv.steamid=='7','N
 files[STATUS]=nil
 link.changes()
 assert(next(link.saves())==nil,'Nothing read: nothing known')
+-- A friend's invite held until a save loads (the link line's held=): the question at the title says so.
+files[STATUS]='mod=v proto=8 steam=ready\nlink=none lobby=0 held=7000\nslot=none index=? marker=none saves=main\n'
+link.changes()
+assert(link.saves().held==true and link.saves().saves=='main')
+files[STATUS]='mod=v proto=8 steam=ready\nlink=none lobby=0\nfriend=1 0 x held=7\nlast=held=7\n'
+link.changes()
+assert(link.saves().held==nil,'Only the link line says so')
 -- Another game build (a game update): the pose path's line says why the engine is off, so the title can say why the
 -- co-op saves are off. coop off and a fault are not another build; a peer's line never counts.
 for status,build in pairs({['engine=off reason=build stamp 6512abcd size 0a1b2c3d\nslot=none index=? marker=none saves=off\n']=true,

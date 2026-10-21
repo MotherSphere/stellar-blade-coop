@@ -393,6 +393,7 @@ function Link.new(folder,fs)
             saves.convert=saves.convert or line:match('^convert=(.+)$')
             if line:find('^mod=') then saves.steamid=line:match(' steamid=(%d+) ') end
         end
+        if held then saves.held=true end -- The question at the title says an invite waits (saves.lua).
         -- Back in her lobby, the native part drops rejoin= before the handshake: the rejoin holds until she is linked.
         if rejoin then rejoined=true elseif mode~='guest' or (friend and friend[2]) then rejoined=false end
         if lobby and lobby~=strangers_in then strangers,strangers_in={},lobby end
@@ -454,7 +455,7 @@ function Link.new(folder,fs)
     -- The co-op saves' state as of the last changes(), each from its own line: {slot=the verdict ('coop', 'main',
     -- 'none', 'unknown'), saves=the save files the game uses ('main', 'coop', 'off', '?'), convert=the last copy pass
     -- ('idle', 'busy <done>/<jobs>', 'done', 'error:<why>'), steamid=ours (digits), build=true when the engine is off
-    -- on another game build}; a field unread is nil.
+    -- on another game build, held=true while an invite waits for a save (the link line's held=)}; a field unread is nil.
     function self.saves() return saves end
     -- The status key's line, in words (ui_text.lua's T.en or T.fr; English when not given). Her name is an argument
     -- to the words' formats, never one itself, and cleaned as a chat line: a stranger waiting for the host's answer

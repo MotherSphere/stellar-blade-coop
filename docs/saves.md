@@ -94,7 +94,7 @@ Options) says when:
 
 | Value | At the title |
 | --- | --- |
-| `ask` (default) | A question: Convert and play co-op (Play co-op once a copy exists), Play solo normally, Decide later, Don't ask again (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)) |
+| `ask` (default) | A question: Convert and play co-op (Play co-op once a copy exists), Play solo normally, Decide later, Don't ask again (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)). It asks once more on the same title screen when a friend's invite is accepted after an answer without co-op |
 | `always` | The copies and the switch, without a question, each time the title screen shows while the game uses your own saves |
 | `off` | Nothing: your own saves, and the manual co-op slot as the only co-op save |
 
