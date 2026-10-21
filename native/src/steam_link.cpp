@@ -4,7 +4,8 @@
 // Lua asks through coop-request.txt; this part answers in coop-status.txt, appends numbered UTC events to
 // coop-link.log (the previous run's is coop-link.old.log) and writes coop-report.txt on 'coop report', all in the mod
 // folder. One worker thread makes every Steam call; the game's Steam callback thread only stores atomics. The worker
-// also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), and the
+// also carries the shared fight's channel 2 (Phase 11) between the link and the job's mailbox (pose_tick.cpp), the
+// shared quests' lines on the same channel (Phase 12, pose_tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (pose_tick.cpp),
 // and the chat and vitals lines between the link, our EVE (pose_tick.cpp) and Lua's two short-lived chat files. It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save_twins.h), and
@@ -408,6 +409,16 @@ std::string written;
 // passes, against the game as pose_tick.cpp reads it.
 std::unique_ptr<WinFs> account;
 coop::twins::Switch coop_saves;
+// The shared quests' record beside co-op slot n (StellarCoopQuests0N.txt), through save_twins.h's name check and put.
+const coop::pose::QuestFiles quest_files{
+    [](int slot, std::string &text, size_t max) {
+      text.clear();
+      const std::string name = coop::twins::quests_name(slot);
+      return account && (!account->stat(name).exists || account->read(name, text, max));
+    },
+    [](int slot, const std::string &text) {
+      return account && coop::twins::put(*account, coop::twins::quests_name(slot), text);
+    }};
 struct GameView {
   coop::slot::Saves saves() { return saves_state; }
   std::string why() { return coop::pose::saves_why(); }
@@ -428,7 +439,8 @@ std::string status_text() {
   return head + coop::pose::status() + "\n" +
          coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded(), saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
-         (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) + "last=" + journal.last() + "\n";
+         coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
+         "last=" + journal.last() + "\n";
 }
 
 void write_report() {
@@ -507,6 +519,10 @@ bool step() {
       break;
     case coop::Command::fight:
       event(coop::pose::ask_fight(coop::parse_request(request), coop_marker));
+      request.clear();
+      break;
+    case coop::Command::quests:
+      event(coop::pose::ask_quests(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::freeze: {
@@ -635,11 +651,14 @@ bool step() {
         loaded && !switched_off && link->photo_freeze() && coop::pose::world_loaded(), GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
-    // Channel 2 both ways between the link and the shared fight's job; the lobby owner hosts it. Ours is queued for
-    // the next tick.
+    // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the
+    // lobby owner hosts both. Ours are queued for the next tick.
+    std::vector<std::string> channel2 = loaded ? link->take_fight() : std::vector<std::string>();
+    coop::pose::quest_pass(
+        GetTickCount64(), linked && link->host(), linked ? link->partner() : 0, coop_marker, channel2,
+        [](const std::string &line) { return link && link->send_fight(line, true); }, quest_files);
     bool fighting = coop::pose::fight_pass(
-        GetTickCount64(), linked, linked && link->host(), coop_marker,
-        loaded ? link->take_fight() : std::vector<std::string>(),
+        GetTickCount64(), linked, linked && link->host(), coop_marker, channel2,
         [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); });
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
@@ -672,6 +691,8 @@ DWORD WINAPI worker(void *) {
   MoveFileExW((folder + L"nightop-probe.txt").c_str(), (folder + L"nightop-probe.old.txt").c_str(),
               MOVEFILE_REPLACE_EXISTING); // A relaunch before the files were sent keeps the last T6 probe.
   MoveFileExW((folder + L"coop-fight.log").c_str(), (folder + L"coop-fight.old.log").c_str(),
+              MOVEFILE_REPLACE_EXISTING);
+  MoveFileExW((folder + L"coop-quests.log").c_str(), (folder + L"coop-quests.old.log").c_str(),
               MOVEFILE_REPLACE_EXISTING);
   DeleteFileW((folder + L"coop-request.txt").c_str()); // A request or report left from a previous run is stale.
   delete_chat();                                       // And chat lines nobody took.

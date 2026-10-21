@@ -67,10 +67,10 @@ or shows the mouse cursor for one of its own screens.
 
 Each row of the Options page is a setting of [coop-settings.txt](#coop-settingstxt). The rows are in groups: Controls
 (the menu, status and leave keys), Photo mode, Partner (the name tag and the [partner HUD](#partner-hud)), Ghost (the
-looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the
-title), Combat (shared enemies, same place, who same-place enemies attack, same spawns, extra enemies, shared bosses,
-the host's enemy and boss scaling and your kill rewards), Display (the size, sounds
-and language of the menu, the chat and the partner HUD) and Chat.
+looks and the send rate), Session (who can join a session you host), Saves (the [co-op saves](#co-op-saves) at the title
+and [shared quests](#shared-quests-experimental)), Combat (shared enemies, same place, who same-place enemies attack,
+same spawns, extra enemies, shared bosses, the host's enemy and boss scaling and your kill rewards), Display (the size,
+sounds and language of the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
@@ -86,11 +86,11 @@ A key that another action already holds is refused, and the menu names that acti
 works at once.
 
 The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, the
-shared enemies', same place and same spawns notices, and Night Operation's card, result panel and notices use the
-game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6) and the
-ghost's notices. `ui_language=english` keeps them all in English.
-The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so do the
-error messages from the coop commands, shown in the menu or the code box.
+shared enemies', same place, same spawns and shared quests notices, and Night Operation's card, result panel and notices
+use the game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6) and
+the ghost's notices. `ui_language=english` keeps them all in English. The notices of the Steam link (a friend joined or
+left, your join code) and `UE4SS.log` stay in English, and so do the error messages from the coop commands, shown in the
+menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -340,6 +340,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, on by default) and its solo test steps |
 | `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](#shared-bosses-experimental) on the boss copy of a replay (experimental) |
 | `coop fight spawn probe` | Solo probe of [same spawns](#same-spawns-experimental) (experimental, co-op save only) |
+| `coop quests on\|off\|status` | [Shared quests](#shared-quests-experimental) (experimental, off by default, co-op save only) |
+| `coop quests probe\|record\|replay` | Shared quests' solo test tools (experimental, co-op save only) |
+| `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
 | `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads |
@@ -413,7 +416,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 11). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 12). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -857,15 +860,98 @@ copy goes. A test asked while another one runs is refused (`another test runs`).
   removes it (`fight summon despawned 4026531841:0 unpaired`), or at `coop fight off`. `refused: same place off`
   means same place does not run on this side.
 
+### Shared quests (experimental)
+
+Shared quests carry the quest steps that the host and the guest make together into the guest's co-op save. They are
+off by default and have not been tested in game yet. Back up your saves before you turn them on (see
+[saves.md](saves.md)), and keep Steam Cloud off.
+
+They run while a friend is linked, both players play a co-op save and both have them on: Options > Saves > Shared
+quests (experimental) in the co-op menu, or `shared_quests=on` in [coop-settings.txt](#coop-settingstxt). The row asks
+`coop quests on` or `coop quests off` at once, and with the setting on the mod asks `coop quests on` by itself once a
+load. Only the host's steps count. Four times a second the host's game reads its own quests, and when an Epic, Sub or
+Request quest moves (the quest starts, one of its tasks is done, or a group of its tasks ends), it sends that quest's
+state to the guest. Her game makes the same step through the game's own quest functions, at most one step every
+250 ms, when both of these hold:
+
+- she stood in the same zone as the host when the step came;
+- her copy of the quest stood where the host's stood before the step.
+
+Her game then runs the step itself: its scenes and events, the next group of tasks, the quest's completion with its
+reward, and the next quest, as in solo play. Each player gets a quest's reward once, in their own game. Through shared
+quests, the game can unlock a quest trophy on the guest's account only for a step made together, or for one she
+forces.
+
+A step the host makes without her (she stood in another zone, or her quest stood at another point) is never given to
+her. She gets one notice, `You are behind <name> on <quest>. Finish it in your own game to share it again.`, and plays
+that quest herself; once her quest stands where the host's stands, the next step made together is shared again. The
+host's game never takes a step from the guest's. When her quest moves past the host's (she talked to a quest giver
+alone, for example), both players see a notice, nothing is undone, and the step stays in her save. Quest givers and
+the request board still work for the guest, and so do vendors.
+
+Some steps wait in her game:
+
+- A step whose scenes or events act in another zone waits until she stands in one of the zones they act in:
+  `<name>'s step on <quest> waits until you reach <zone>.`
+- A kill step waits until her own copy of the task is done: she kills the target, or a shared enemy dies in both games
+  (`<quest> waits until you kill its target yourself. coop quests force <number> skips that step.`). A forced kill
+  step leaves the target alive in her world.
+- A Request the host accepted is accepted on her board too once her board offers it. Its tasks follow the host's, then
+  it waits until she hands it in at her own request board, where her game gives her the reward and takes the
+  delivered items (`<quest> is ready: hand it in at your request board.`).
+- A step that the game's tables cannot place in a zone, and that the host's game did not see happen, waits too. She
+  plays it herself or forces it.
+
+`coop quests force <number>` makes, where she stands, the step that quest holds for a kill or for a place the tables
+cannot give. The number is the one in the kill notice and in `coop quests status`. The command is sent only when typed
+twice for the same quest within 10 s, because the game may then unlock that quest's trophies. A step that waits for its
+zone, a Request at her board and a quest the host moved without her cannot be forced.
+
+What is shared: the 103 quests of the game's Epic, Sub and Request types, the hidden ones included. Not shared: the
+test, tutorial, collectible and helper quests (names starting with `LV_`, `TQ_`, `SQ_` and `CQ_`), the game's one
+Instant quest, and failed quests. The host's `quest_deny` adds quests that are never shared, by name or number, for
+example `quest_deny=Quest_Epic_14_1, Quest_Epic_14_2`. Notices and logs name a quest by its table name, such as
+`Quest_Sub_017`.
+
+When her side comes on, the host sends the state of every quest it moved while linked with her, and only those: steps
+from the host's solo play are not sent. Nothing is undone in either game when the session ends; the steps her game made
+stay in her co-op save once the game saves. Each player's saved world (opened doors, supply boxes, enemies killed for
+good) stays their own, so an enemy the host killed out of her sight is still alive in her world. Both saves should be
+on the same New Game Plus cycle: other cycles have not been tested.
+
+Each co-op slot keeps a record beside it in your save folder, `StellarCoopQuests0N.txt` (N the slot), which notes the
+steps shared with each friend, as host and as guest. It is a text file, which Steam Cloud does not sync. Without it,
+sharing goes on from where both games stand.
+
+`coop quests status` answers with the `quests=` line and writes the whole status into `UE4SS.log` as
+`quests_status=<n> ...` lines: the role, the zone, how many steps her game made and how many the game refused, and for
+each quest that waits, why (`waits for its zone <zone>`, `waits for your own kill`, `hand it in at your board`, `not on
+your board yet`, `unseen by the host`, `behind the host, not shared`, `ahead of the host`), with the quest's number.
+`coop-quests.log` in the mod folder logs each step the host sends, each step her game made, held or refused with the
+events it starts, and each snapshot. Its stats line each minute counts the quests tracked, the steps made and refused,
+the holds by reason and the quests ahead, with the mean and longest time of a pass in microseconds.
+
+- `quests=off`: not asked, or `coop quests off`.
+- `quests=waiting mode=on why=friend`: no friend linked. `why=save`: this game does not play a co-op save (a notice
+  says so once one of your own saves is loaded). `why=game`: the game's world or quest data is not loaded yet.
+- `quests=on mode=on role=<host|guest> partner=<on|off>`: running; `partner=off` while your friend's side is off.
+- `quests=stopped`: stopped for this run after an error; the ghost, the link and shared enemies go on.
+
+To test alone on a co-op save, `coop quests record` writes the host's side of your play to `coop-quests-record.txt` in
+the mod folder, at most once a second. Load another co-op save whose quests stand before those steps (the load ends the
+recording, and the file keeps it), then `coop quests replay` plays the recording into it as the guest's side: each step
+goes once you stand in the zone where it was recorded. Loading another save ends a replay too. `coop quests probe` only
+reads: it logs what it finds of your quests in `coop-quests.log` and makes no step. `coop quests off` ends any of them.
+
 ### `coop off`
 
 `coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
 loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
-run (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in Xion) and the
-photo pause (released; the native tick keeps running for this alone). Afterwards only `coop status` and `coop report`
-answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the menu, host and
-leave keys.
+run (it ends as aborted), the Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared
+quests and the photo pause (released; the native tick keeps running for this alone). Afterwards only `coop status` and
+`coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
+menu, host and leave keys.
 
 ## coop-settings.txt
 
@@ -937,6 +1023,13 @@ enemy_extra=0
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
+# Shared quests, experimental: on or off, off by default. On, while you and your friend both play a co-op save, a
+# quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
+# in your game too (Epic, Sub and Request quests). A step made without you is never given to you; a kill step waits
+# for your own kill, and a Request waits until you hand it in at your own request board. quest_deny, the host's: quests
+# never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
+shared_quests=off
+quest_deny=
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -988,6 +1081,8 @@ card_details=on
 | `enemy_extra` | `0` to `3`: [extra enemies](#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
 | `bosses` | `on` or `off`: [shared bosses](#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
+| `shared_quests` | `on` or `off`: [shared quests](#shared-quests-experimental), experimental; both players need it on | `off` |
+| `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
@@ -1094,6 +1189,7 @@ a Steam name or a chat line shows as `?`.
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
+| Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](#shared-quests-experimental) |
 
 ## Status lines
 
@@ -1140,6 +1236,10 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   [Shared enemies](#shared-enemies-experimental)).
 - Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
   [Same place](#same-place-experimental)).
+- Shared quests: `quests=off`, `quests=waiting mode=<mode> why=<friend|save|game>`, `quests=on mode=<mode>
+  role=<role> partner=<on|off>` or `quests=stopped` (see [Shared quests](#shared-quests-experimental)), then the last 8
+  quest notices as `quest_note=<n> <kind> <number> <name> <zone or ->` and the last `coop quests status` answer as
+  `quests_status=<n> <line>` lines.
 - Photo mode: `photo=<0|1|s> peer_photo=<0|1|s> frozen=<0|1> sync=<both|notice|off>`: yours and your friend's
   (`s` for selfie mode), whether your game holds the photo pause (`coop freeze` holds it too), and the `photo_sync`
   your friend gets (`notice` when your game cannot pause).
@@ -1153,7 +1253,8 @@ as `[StellarCoop] link: ...`. Each load logs the save slot as `link: slot=...`.
 
 ## Files in the mod folder
 
-Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes these files, and
+Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save folder files listed in
+[saves.md](saves.md#what-the-mod-reads-and-writes). An install never removes these files, and
 `tools/install.py --uninstall` backs them up before it removes the folder.
 
 | File | Written by | What it is |
@@ -1170,6 +1271,9 @@ Everything the mod writes stays in `Mods/StellarCoop/`. An install never removes
 | `coop-fight.log` | native | The shared enemies' probe actors and stats lines, capped at 4 MB |
 | `coop-fight.old.log` | native | The previous run's `coop-fight.log` |
 | `coop-fight-record.txt` | native | The last shared-enemies recording (`coop fight record`) |
+| `coop-quests.log` | native | The shared quests' steps made, held and refused, snapshots and stats lines, capped at 4 MB |
+| `coop-quests.old.log` | native | The previous run's `coop-quests.log` |
+| `coop-quests-record.txt` | native | The last shared quests recording (`coop quests record`) |
 | `coop-request.txt` | Lua | A console request for the native part |
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |

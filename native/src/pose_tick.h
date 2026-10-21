@@ -83,6 +83,26 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
                 bool (*send)(const std::string &, bool));
 // Worker: coop-status.txt's fight line (fight_engine.h's Worker::detail).
 std::string fight_status();
+// The shared quests' record beside each co-op slot, in this account's save folder (steam_link.cpp's, through
+// save_twins.h's name check and put): load gives "" when there is none and false when it cannot be read; save writes
+// the whole file.
+struct QuestFiles {
+  std::function<bool(int slot, std::string &text, size_t max)> load;
+  std::function<bool(int slot, const std::string &text)> save;
+};
+// Worker thread, the shared quests (Phase 12, quest_engine.h's Worker): a coop quests request (Command::quests),
+// refused off the pinned build and after coop off. Returns the line for the log.
+std::string ask_quests(const coop::Request &request);
+// Worker, every pass after the link's tick and before fight_pass: takes her SBQ lines out of lines (the rest are the
+// shared fight's), hands the game thread the save-slot line its gate reads, starts and stops the side for the asks and
+// the gates, and sends, logs and writes what the game thread's passes made (coop-quests.log, the record beside the
+// co-op slot through files, coop-quests-record.txt in the mod folder). hosting: we own the lobby; partner: her SteamID
+// while she is linked, else 0; send: a line to her on channel 2, reliable (false when it cannot go); marker: the slot
+// StellarCoopSlot.txt names.
+void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
+                bool (*send)(const std::string &), const QuestFiles &files);
+// Worker: coop-status.txt's shared quests lines (quest_engine.h's Worker::status), each ending in a line break.
+std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",
 // "pilot=off why=<word>", "pilot=stopped" or "pilot=refused why=<why>", with " probe=on" and " test=<how far>" before
 // the why.

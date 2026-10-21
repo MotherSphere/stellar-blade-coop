@@ -16,8 +16,10 @@
 -- menu's Copy my code, Join with a code and Remove rows, the code box and the host's question taking the keys), the
 -- co-op saves' question (saves.lua on the fake kit) shows on
 -- the title screen and takes the menu's keys while open, coop saves reaches the native part, coop no, coop recruiter and
--- coop fight accept the co-op saves (slot=coop saves=coop), and the link is optional (no native part, no Steam link, no
--- keys, no menu).
+-- coop fight accept the co-op saves (slot=coop saves=coop), coop quests (the shared quests, experimental) checks its
+-- arguments, the co-op slot and its settings, carries quest_deny, asks force only when typed twice, starts once a load
+-- with shared_quests=on, ends at a reload with shared_quests=off, follows the menu's row and says its notices on
+-- screen, and the link is optional (no native part, no Steam link, no keys, no menu).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local printed,handler,loops={},nil,{}
 print=function(text) printed[#printed+1]=text end
@@ -157,6 +159,11 @@ local fake_link={
         return states[#states]
     end,
 }
+-- link.quests() says Q.line (the quests= line) and link.quest_notes() hands out Q.notes once; in fake_link.Q, as the
+-- main chunk is at Lua's 200 locals.
+fake_link.Q={notes={}}
+fake_link.quests=function() return fake_link.Q.line end
+fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
 local native_ok
 local captured,remoted={},nil
 local fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
@@ -344,7 +351,7 @@ local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | al
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop] | recruiter [off] | '
     ..'fight on|off|status|probe|test|record|replay|pilot|'
-    ..'spawn | '
+    ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 
 local function load_main(with_native)
@@ -364,6 +371,7 @@ local function load_main(with_native)
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
     kit_views,kit_holder,box_text,box_focuses,said_lines,say_refusal,chat_out,code_text={},nil,'',0,{},nil,{},''
     kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
+    fake_link.Q={notes={}}
     local chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua'))
     chunk()
 end
@@ -1258,6 +1266,146 @@ link_mode,kit_language='guest','fr-FR'
 assert(paks_tick({same=false,ours=0,hers=3})=="Kaanta n'a pas les mêmes mods .pak que vous (3 en face, 0 ici). Les "
     ..'ennemis qui diffèrent ne sont pas partagés.')
 link_mode,kit_language='none',nil
+
+-- coop quests (the shared quests, experimental). Strict arguments: anything else is its usage line and asks nothing.
+do
+local Q=fake_link
+local USE='[StellarCoop] STOP: Use: coop quests on | off | status | probe | record | replay | force <quest number>\n'
+settings_text,status_text='shared_quests=off\nshared_enemies=off\n',COOP
+load_main(true)
+assert(logged('shared quests: off (experimental)'),table.concat(printed,'|'))
+for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','now'},{'status','1'},{'probe','x'},{'force'},
+        {'force','0'},{'force','65536'},{'force','x'},{'force','-1'},{'force','5','6'},{'force',' 5'},
+        {'record','1'},{'replay','off'}}) do
+    coop('quests',table.unpack(bad))
+    assert(last()==USE and #asked==0,table.concat(bad,' ')..': '..last())
+end
+-- shared_quests=off: on refuses; probe, record and replay run on a co-op save; off and status on any.
+coop('quests','on')
+assert(last()=='[StellarCoop] STOP: shared quests are off in coop-settings.txt (shared_quests=off)\n' and #asked==0)
+for _,sub in ipairs({'probe','record','replay','off'}) do
+    coop('quests',sub)
+    assert(asked[#asked]=='quests '..sub and last()=='[StellarCoop] OK: asked the native part: quests '..sub..'\n',
+        last())
+end
+-- status asks the native part, whose whole answer follows in the log, and answers with the quests= line.
+Q.Q.line='quests=on mode=probe role=probe'
+coop('quests','status')
+assert(asked[#asked]=='quests status' and last()=='[StellarCoop] OK: quests=on mode=probe role=probe (the whole '
+    ..'status follows in this log as quests_status lines)\n',last())
+Q.Q.line=nil
+coop('quests','status')
+assert(last():find('OK: no shared quests status yet',1,true),last())
+-- Off a co-op save the solo tools say the slot line and ask nothing; off and status still go.
+status_text=with_slot('slot=main index=0 marker=4\n')
+local before=#asked
+for _,sub in ipairs({'probe','record','replay'}) do
+    coop('quests',sub)
+    assert(#asked==before and last()=='[StellarCoop] STOP: coop quests runs only on a co-op save (INSTALL.md: Co-op '
+        ..'saves); now slot=main index=0 marker=4\n',last())
+end
+coop('quests','off'); assert(asked[#asked]=='quests off')
+-- force <number>: asked of the native part only when typed twice for the same quest within 10 s; the first says what
+-- it does, its trophies included. On any save: the native part refuses it off the guest's side.
+local FORCE='[StellarCoop] STOP: coop quests force 54 makes the step that quest 54 holds for your own kill, or for a '
+    .."place the host's game could not read, where you stand now; the game may then unlock that quest's trophies: "
+    ..'type it again within 10 s to go on\n'
+before=#asked
+coop('quests','force','54'); assert(#asked==before and last()==FORCE,last())
+clock=clock+11
+coop('quests','force','54'); assert(#asked==before and last()==FORCE,'Over 10 s: asked again')
+coop('quests','force','55'); assert(#asked==before,'Another quest: asked again')
+clock=clock+5
+coop('quests','force','55')
+assert(asked[#asked]=='quests force 55' and last()=='[StellarCoop] OK: asked the native part: quests force 55\n')
+coop('quests','force','55'); assert(#asked==before+1,'Each force asks again')
+-- quest_deny goes with on, probe and record, never with replay; shared_quests=on asks on once a load as soon as the
+-- native part judged the slot (coop, main, or none at the title), not before; coop quests off before then cancels it.
+settings_text='shared_quests=on\nquest_deny=Quest_Sub_016, 54\nshared_enemies=off\n'
+status_text=plain
+load_main(true)
+assert(logged('shared quests: on (experimental), quest_deny Quest_Sub_016, 54'),table.concat(printed,'|'))
+loops[2].f(); assert(#asked==0,'No save judged yet: it waits')
+status_text=with_slot('slot=main index=0 marker=4\n')
+loops[2].f()
+assert(#asked==1 and asked[1]=='quests on deny Quest_Sub_016, 54'
+    and logged('OK: shared_quests=on: asked the native part: quests on deny Quest_Sub_016, 54'),table.concat(asked,'|'))
+loops[2].f(); status_text=COOP; loops[2].f(); assert(#asked==1,'Once a load')
+for _,sub in ipairs({'probe','record','replay'}) do
+    coop('quests',sub); assert(asked[#asked]=='quests '..sub..(sub~='replay' and ' deny Quest_Sub_016, 54' or ''))
+end
+load_main(true)
+status_text=plain; coop('quests','off'); status_text=COOP; loops[2].f()
+assert(#asked==1 and asked[1]=='quests off','Only the off')
+settings_text='shared_quests=off\nshared_enemies=off\n'
+load_main(true)
+loops[2].f(); assert(#asked==0,'Never with shared_quests=off')
+-- shared_quests=off at a reload (Ctrl+R) ends a coop quests on an earlier load asked, waiting or running, from the
+-- quests= line at a line start only; a probe, record or replay goes on.
+for _,case in ipairs({{'quests=on mode=on role=host partner=on\n',true},{'quests=waiting mode=on why=friend\n',true},
+        {'quests=on mode=record role=recorder\n',false},{'quests=waiting mode=replay why=save\n',false},
+        {'quests=off\n',false},{'quests=stopped\n',false},{'peer=2 name=x quests=on mode=on role=host\n',false}}) do
+    status_text=with_slot(case[1])
+    load_main(true)
+    assert(#asked==(case[2] and 1 or 0) and (not case[2] or asked[1]=='quests off'),case[1])
+    assert(not case[2] or logged('OK: shared_quests=off: asked the native part: quests off'),table.concat(printed,'|'))
+end
+-- The notices, every 250 ms: on with her each time both sides come on, her side off, a wait for a co-op save (coop
+-- quests on, a friend linked) and stopped for the run, each once as it starts; each note once, in the menu's words.
+-- A Request not on her board yet and a step no zone can place say nothing.
+settings_text,status_text,fight_text,pilot_text,paks_v='shared_enemies=off\n',COOP,nil,nil,nil
+load_main(true)
+local function step(line,notes)
+    Q.Q.line,Q.Q.notes=line,notes or {}
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do
+        if said[i]~='Kaanta joined.' and said[i]~='Kaanta: connection lost.' then out[#out+1]=said[i] end
+    end
+    return table.concat(out,'|')
+end
+local function note(kind,id,alias,zone) return {kind=kind,id=id,alias=alias,zone=zone} end
+local ON='quests=on mode=on role=guest partner=on'
+-- The co-op save one only once a main save is loaded: not at the title or during a load (case[4]: the status).
+for _,case in ipairs({{nil,''},{'quests=waiting mode=on why=friend',''},
+        {'quests=waiting mode=on why=save','',nil,with_slot('slot=none index=? marker=none\n')},
+        {'quests=waiting mode=on why=save','',nil,with_slot('slot=unknown index=? marker=?\n')},
+        {'quests=waiting mode=on why=save',
+            'Shared quests need a co-op save, not your own. They start once you load one.',nil,
+            with_slot('slot=main index=1 marker=2\n')},
+        {'quests=waiting mode=on why=save','',nil,with_slot('slot=main index=1 marker=2\n')},
+        {'quests=waiting mode=on why=game',''},
+        {'quests=on mode=on role=guest partner=off',''},{ON,'Shared quests on with Kaanta.'},{ON,''},
+        {ON,"Kaanta's step on Quest_Sub_001 waits until you reach Zone_WLA_30.",
+            {note('zone','41','Quest_Sub_001','Zone_WLA_30')}},
+        {ON,'Quest_Sub_017 waits until you kill its target yourself. coop quests force 54 skips that step.',
+            {note('kill','54','Quest_Sub_017')}},
+        {ON,'You are ahead of Kaanta on Quest_Sub_017. Nothing is undone; the step stays in your save.|You are behind '
+            ..'Kaanta on Quest_Sub_002. Finish it in your own game to share it again.',
+            {note('ahead','54','Quest_Sub_017'),note('behind','42','Quest_Sub_002')}},
+        {ON,'Quest_Request_023 is ready: hand it in at your request board.',{note('board','80','Quest_Request_023')}},
+        {ON,'',{note('locked','81','Quest_Request_024'),note('unseen','45','Quest_Sub_006')}},
+        {ON,'Quest_Sub_017: the held step was applied.|Quest_WALN10_001: the held step was applied, and the game moves '
+            ..'you for it.|Quest_Sub_002: nothing to force. coop quests status lists what each quest waits for.',
+            {note('forced','54','Quest_Sub_017'),note('forced_warp','66','Quest_WALN10_001'),
+                note('not_forced','42','Quest_Sub_002')}},
+        {'quests=on mode=on role=guest partner=off','Kaanta stopped sharing quests.'},
+        {'quests=on mode=on role=guest partner=off',''},
+        {'quests=stopped','Shared quests stopped until the game restarts. coop-quests.log says why.'},
+        {'quests=stopped',''},{'quests=off',''},
+        {'quests=on mode=on role=host partner=on','Shared quests on with Kaanta.'},
+        {'quests=on mode=on role=host partner=on','Kaanta is ahead of you on Quest_Sub_017. Nothing is undone; the '
+            ..'step stays in their save.',{note('ahead','54','Quest_Sub_017')}},
+        {'quests=waiting mode=on why=friend',''},{'quests=waiting mode=probe why=save',''}}) do
+    status_text=case[4] or COOP
+    local got=step(case[1],case[3])
+    assert(got==case[2],tostring(case[1])..': '..got)
+end
+kit_language='fr-FR'
+assert(step('quests=on mode=on role=guest partner=on',{note('board','80','Quest_Request_023')})=='Quêtes partagées '
+    ..'actives avec Kaanta.|Quest_Request_023 est prête : rendez-la à votre tableau des requêtes.')
+kit_language=nil
+end
 paks_tick(nil)
 -- Sharing as the guest: once when the host has enemies we cannot pair for their MaxHP (until it stops or the friend
 -- leaves); each time the host goes down while enemies are linked (her vitals: HP 0, or a life state 3-5).
@@ -1693,6 +1841,25 @@ fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=ar
 key('RETURN'); quarter(); assert(#asked==fight_asks+3 and asked[#asked]=='fight on scale 135 115')
 key('RETURN'); quarter(); assert(#asked==fight_asks+3 and select(2,focus())=='Off','The probe goes on')
 fight_text=nil
+-- Shared quests at once: off by default; on asks coop quests on (the native part judged the save above), off asks
+-- coop quests off while coop quests on waits or runs.
+do
+    local asks=#asked
+    to('Shared quests (experimental)'); assert(select(2,focus())=='Off')
+    key('RETURN')
+    assert(settings_text:find('\nshared_quests=on\n',1,true) and select(2,focus())=='On')
+    quarter()
+    assert(#asked==asks+1 and asked[#asked]=='quests on'
+        and logged('OK: shared_quests=on: asked the native part: quests on'))
+    quarter(); assert(#asked==asks+1,'Once')
+    fake_link.Q.line='quests=waiting mode=on why=friend'
+    key('RETURN'); quarter()
+    assert(#asked==asks+2 and asked[#asked]=='quests off' and select(2,focus())=='Off'
+        and logged('OK: shared_quests=off: asked the native part: quests off'))
+    quarter(); assert(#asked==asks+2,'Once')
+    fake_link.Q.line=nil
+    fight_asks=fight_asks+2 -- The counts below go on from these two asks.
+end
 -- The host's scaling in percent, 5 a step, written as the file holds it; kill credit a choice. Neither asks anything:
 -- each counts from the next start of shared enemies.
 to("Enemy HP (host's)"); assert(select(2,focus())=='135 %')

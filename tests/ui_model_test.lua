@@ -129,7 +129,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='all' and values.same_place=='on'
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
-    and values.boss_hp_scale=='2.0')
+    and values.boss_hp_scale=='2.0' and values.shared_quests=='off')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -171,7 +171,8 @@ menu.select(NONE,0)
 -- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key head:photo photo_sync photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects send_rate head:session who_can_join head:saves auto_coop_save head:combat shared_enemies same_place '
+    ..'effects send_rate head:session who_can_join head:saves auto_coop_save shared_quests head:combat shared_enemies '
+    ..'same_place '
     ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
     ..'ui_scale ui_sounds ui_language head:chat chat',
     ids(menu,NONE))
@@ -206,6 +207,10 @@ on('auto_coop_save')
 assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='always'
     and select(3,menu.change(NONE,values,-1))=='off' and not menu.current(NONE).reload)
 assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coop_save=x\n').auto_coop_save=='ask')
+-- Shared quests: off by default, a toggle in effect at once (main.lua asks coop quests on or off).
+on('shared_quests')
+assert(values.shared_quests=='off' and select(3,menu.change(NONE,values,1))=='on' and not menu.current(NONE).reload)
+assert(M.read('shared_quests=ON\n').shared_quests=='on' and M.read('shared_quests=x\n').shared_quests=='off')
 on('send_rate')
 assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='55','60 by default, the top')
 -- 5 a step: an older file's 20 is 8 presses from 60. A value set in the file between steps moves by 5 too.

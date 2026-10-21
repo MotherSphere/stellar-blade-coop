@@ -12,10 +12,15 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   exist yet, a backup of every `StellarBlade*.sav` of the account in
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`, before the first copy. The rules are in
   [how-it-works.md](how-it-works.md#safety-design).
+- With the experimental shared quests on (off by default), the native part also writes `StellarCoopQuests00.txt` to
+  `04.txt` beside the co-op copies: the record of the quest steps shared on that co-op slot, through the same name
+  check. On the guest's side, her game makes the host's quest steps through its own quest functions, in the co-op save
+  it plays.
 - When the question shows, Lua checks whether a co-op copy exists, to name its first choice: it opens each
   `StellarBladeCoop0N.sav` and closes it at once, without reading it.
-- Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), nothing
-  is copied between the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI
+- Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only) and the
+  quest steps of the experimental shared quests (`coop quests`, off by default, co-op saves only), nothing is copied
+  between the two players' games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI
   and saves skip it, and nothing of it is written to a save. The meshes it loads are only loaded into memory; nothing is
   worn or unlocked.
 - In the save folder, the mod also reads the co-op marker `StellarCoopSlot.txt` (every 5 s), which names the
@@ -75,16 +80,18 @@ cloud. Then restore your backup.
 
 Keep Steam Cloud off during Night Operation runs and previews and while you test new features.
 
-Steam Cloud syncs the co-op copies (`StellarBladeCoop0N.sav`), but not `StellarCoopSaves.txt`, the backups in
-`StellarCoopBackups` or the `.coop-tmp` files. On another PC every copy then counts as played in co-op, so the mod never
-replaces one there. Steam Cloud also syncs a manual co-op slot's `.sav` copy but not `StellarCoopSlot.txt`: on another
-PC that copy counts as an ordinary save, and the previews and Night Operation's run refuse to run there.
+Steam Cloud syncs the co-op copies (`StellarBladeCoop0N.sav`), but not `StellarCoopSaves.txt`, the shared quests'
+records `StellarCoopQuests0N.txt`, the backups in `StellarCoopBackups` or the `.coop-tmp` files. On another PC every
+copy then counts as played in co-op, so the mod never replaces one there. Steam Cloud also syncs a manual co-op slot's
+`.sav` copy but not `StellarCoopSlot.txt`: on another PC that copy counts as an ordinary save, and the previews and
+Night Operation's run refuse to run there.
 
 ## Co-op saves
 
 Some features run only on a co-op save and never on your own saves: Night Operation's solo run (`coop nightop`), the two
-Night Operation previews (`coop no` and `coop recruiter`) and the experimental shared enemies (`coop fight`). The ghost,
-the keys and the Steam link work on any save. Nothing is copied back from a co-op save to your own saves.
+Night Operation previews (`coop no` and `coop recruiter`), the experimental shared enemies (`coop fight`) and the
+experimental shared quests (`coop quests`). The ghost, the keys and the Steam link work on any save. Nothing is copied
+back from a co-op save to your own saves.
 
 A co-op save is either a co-op copy, which the mod makes, or the manual co-op slot of `StellarCoopSlot.txt` (below).
 

@@ -15,7 +15,8 @@
 -- fight; its photo_sync,
 -- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
 -- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (saves.lua), which also read saves()
--- here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
+-- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
+-- quest_notes() here. The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -84,6 +85,13 @@ enemy_extra=0
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
+# Shared quests, experimental: on or off, off by default. On, while you and your friend both play a co-op save, a
+# quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
+# in your game too (Epic, Sub and Request quests). A step made without you is never given to you; a kill step waits
+# for your own kill, and a Request waits until you hand it in at your own request board. quest_deny, the host's: quests
+# never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
+shared_quests=off
+quest_deny=
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -118,10 +126,10 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',nam
     bosses='on',boss_hp_scale='2.0',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    who_can_join='friends',auto_coop_save='ask'}
+    who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny=''}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,bosses=true,photo_ghost=true,
     photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true} -- On or off.
+    card_details=true,shared_quests=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -136,7 +144,9 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a file
 -- written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
 -- auto_coop_save, aggro, photo_pause) one of its words; photo_freeze_max a whole number of seconds; ui_scale one of
--- percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole percents).
+-- percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua sends them in whole
+-- percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes (the native part's
+-- request limit; it names the entries that are no shared quest).
 local function setting(name,text)
     if name=='fight_chars' then
         local ids={}
@@ -174,6 +184,9 @@ local function setting(name,text)
         local n=text:match('^%d$') and tonumber(text)
         if n and n<=3 then return n end
         return nil,'use 0 to 3'
+    elseif name=='quest_deny' then
+        if #text<=200 and text:match('^[%w_, ]*$') then return text end
+        return nil,'use quest names or numbers separated by spaces or commas, at most 200 characters'
     elseif name=='ui_scale' then
         local pct=text:match('^%d+$') and tonumber(text)
         if pct and pct>=75 and pct<=150 then return pct end
@@ -295,9 +308,11 @@ function Link.new(folder,fs)
     -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
     -- peer=,frozen=}; mate: her vitals; ping: the first peer's RTT in ms; loopback: coop loopback runs; rejoined: a
     -- rejoin got her lobby back and waits for the handshake (kept across changes() until she is linked or we are no
-    -- longer a guest); saves: the co-op saves' state (saves()); paks: her .pak mods against ours (paks()).
+    -- longer a guest); saves: the co-op saves' state (saves()); paks: her .pak mods against ours (paks()); quests: the
+    -- shared quests' line; noted: their notes listed; noted_shown: the last note number handed out.
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,ping,loopback,rejoined,saves,paks=nil,nil,false,false,{},nil
+    local quests,noted,noted_shown=nil,nil,nil
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
     -- lobby members' SteamIDs (peer lines). strangers: each joiner seen waiting in the lobby strangers_in names
@@ -405,13 +420,14 @@ function Link.new(folder,fs)
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,ping,loopback,saves,paks=nil,nil,engine:find(' loopback=')~=nil,{},nil
+        quests,noted=nil,nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title (saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
         lobby,code,refused,pending,members=nil,nil,nil,nil,{}
         if not text then return new end
-        listed={}
+        listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
             if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=') then
@@ -441,6 +457,9 @@ function Link.new(folder,fs)
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
             if line:find('^pilot=') then pilot=line end
+            if line:find('^quests=') then quests=line end
+            local qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$')
+            if qn then noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil} end
             local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
             if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
@@ -485,6 +504,22 @@ function Link.new(folder,fs)
     -- Her .pak mods against ours, once her game said them: {same=, ours=, hers=} (the counts beyond the base game's
     -- paks), or nil.
     function self.paks() return paks end
+    -- The shared quests' line ("quests=on mode=on role=guest partner=on", "quests=waiting mode=on why=save",
+    -- "quests=off", "quests=stopped"; native quest_engine.h's Worker::status()), from the start of its own line; nil
+    -- without one.
+    function self.quests() return quests end
+    -- Their notes numbered above the last one handed out, oldest first, each {kind=, id=, alias=, zone=} (kind: ahead,
+    -- behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; id the quest's number as text;
+    -- alias its row name; zone for kind zone only). The first call only primes the count, as notices() does.
+    function self.quest_notes()
+        if not noted then return {} end
+        local out,top={},noted[#noted]
+        for _,item in ipairs(noted) do
+            if noted_shown and item.n>noted_shown then out[#out+1]=item end
+        end
+        noted_shown=math.max(noted_shown or 0,top and top.n or 0)
+        return out
+    end
     -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a

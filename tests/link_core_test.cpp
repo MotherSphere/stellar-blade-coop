@@ -1502,7 +1502,8 @@ int main() {
   // whether a friend is linked, whether we own the lobby and her lines from take_fight(); its lines go out through
   // send_fight(). The lobby owner hosts, both on lines cross, what one job hands over reaches the other's in order (hp
   // unreliable), her photo mode pauses her side and stops the host's sharing until her new session, and her leaving
-  // pauses both sides with nothing more sent.
+  // pauses both sides with nothing more sent. partner() names her while she is linked (the shared quests' record is
+  // kept per partner), and the shared quests' SBQ lines ride channel 2 as they are, reliable, beside the fight's.
   reset();
   {
     Two t;
@@ -1518,6 +1519,17 @@ int main() {
       t.tick(t.b, 600);
     }
     assert(t.a.linked() && t.b.linked() && t.a.host() && !t.b.host());
+    assert(t.a.partner() == kFriend && t.b.partner() == kMe);
+    {
+      const size_t from = F.sent.size();
+      assert(t.b.send_fight(quest_tag() + " on 0", true));
+      t.tick(t.b, 1);
+      t.tick(t.a, 1);
+      assert(t.a.take_fight() == std::vector<std::string>{quest_tag() + " on 0"});
+      assert(std::count_if(F.sent.begin() + std::ptrdiff_t(from), F.sent.end(), [](const Sent &x) {
+               return x.text == quest_tag() + " on 0" && x.channel == kFightChannel && x.flags == kReliable;
+             }) == 1);
+    }
     struct Desk { // pose_tick.cpp's FightIo, with the Link as fight_pass's send.
       Link *link;
       std::vector<std::string> said;
@@ -1619,6 +1631,7 @@ int main() {
     pass(b);
     assert(a.io.said.back() == "shared fight paused: no friend linked" && a.worker.status() == " fight=waiting");
     assert(b.io.said.back() == "shared fight paused: no friend linked" && b.worker.status() == " fight=waiting");
+    assert(t.a.partner() == 0 && t.b.partner() == 0);
     a.mail->send(line(hp));
     taken(a);
     sends = F.sent.size();

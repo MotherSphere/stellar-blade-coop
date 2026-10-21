@@ -205,6 +205,35 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   host's game, whose copy had more HP left. If it happens often, the guest can set `guest_kills=confirmed` in
   `coop-settings.txt`: the guest's copies then keep 1 HP until the host's game kills its own.
 
+### Quests are not shared
+
+Shared quests are experimental and off by default, and both players need Options > Saves > Shared quests
+(experimental) set to On. The `quests=` line of `coop status` says what is missing (see
+[usage.md: Shared quests](usage.md#shared-quests-experimental)):
+
+- `quests=off`, and `shared quests: off (experimental)` in `UE4SS.log` at load: shared quests are off in your game.
+- `quests=waiting mode=on why=friend`: no friend is linked. `why=save`: you play your own save; quit to the title
+  screen and load a co-op save. `why=game`: the game's world or quest data is not loaded yet.
+- `partner=off`: your friend's side is off. Their setting is off, they play their own save, or theirs stopped.
+- The notice `You are behind <name> on <quest>`: the host moved that quest while you stood in another zone, or while
+  your copy of it stood at another point. Play it in your own game until it stands where the host's stands; the next
+  step made together is then shared.
+- `coop quests status` lists what each quest that waits waits for. In `coop-quests.log`:
+  - `<quest> ... refused: <why>`, then `<quest> unsynced for the session: the game refused its step`: a check before
+    the game's call found that quest other than the host's line said, and the mod leaves it alone until the next
+    session.
+  - `acquire off until the next load`: after a load, a complete or failed quest was missing from the game's quest map,
+    so the guest's game starts no quest until its next load.
+  - `blocked: the host's line names no task her quest has in progress`: the two games built that quest's tasks
+    differently.
+  - `bad host line (...)` or `bad guest line (...)`, and after 16 of them `ignored until the session ends`: lines that
+    did not parse or did not fit the quest table.
+  - `<number> is no shared quest here`: the two games do not use the same quest table (another build of the mod or of
+    the game).
+- `quests=stopped`: stopped for this run. `coop-link.log` has `shared quests fault ... in <where>` or a
+  `quests: ...; off for this run` line. A reason that starts with `implausible` means a value in the game's memory did
+  not look as expected on this game build; `tick on SB's logic thread` means the pass ran on the game's logic thread.
+
 ### Same place does not start, or stops
 
 Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
@@ -379,6 +408,7 @@ that do.
 - `Mods/StellarCoop/coop-link.old.log`
 - `ue4ss/UE4SS.log`
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
+- `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
 which may include your Windows user name. They contain no passwords. You can read them before you send them.

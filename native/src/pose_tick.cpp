@@ -44,6 +44,13 @@
 // net mode 0 with no logic task in flight; a refusal goes back to the job, which gives the pair back. The first fault
 // stops all of it for the run and, when it was in this DLL, puts every copy back once. coop fight pilot off turns it
 // off on this side until the next start.
+//
+// The shared quests (Phase 12, quest_engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
+// SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
+// through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands the game
+// thread the save-slot line its gate reads, starts and stops the side, and writes coop-quests.log, the record beside
+// the co-op slot (through steam_link.cpp's save folder) and coop-quests-record.txt. A fault turns them off for the run;
+// the ghost, the link and the shared fight go on.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX // std::min and std::max in pose_stream.h.
 #include <windows.h>
@@ -68,6 +75,7 @@
 #include "pose_record.h"
 #include "pose_stream.h"
 #include "pose_tick.h"
+#include "quest_engine.h"
 #include "save_slot.h"
 
 namespace coop::pose {
@@ -775,6 +783,75 @@ void guarded_freeze() {
   freeze_held = false;
 }
 
+// ---- The shared quests (quest_engine.h), the game thread's pass ----
+// SB's on the pinned build: the local player's quest unit (FUN_141c5e880) and the acquire by ID that a quest zone event
+// makes (FUN_141c5cf20, false when SB refused it); the engine's other two calls, the Request vtable's +0x10 and a task
+// vtable's +0x60, go to the addresses quest_engine.h names, and QuestGame::call refuses any other.
+constexpr uint64_t kQuestUnit = 0x141c5e880, kQuestAcquire = 0x141c5cf20;
+using QuestUnit = void *(*)(void *manager);
+using QuestAcquire = bool (*)(void *manager, uint32_t owner, uint32_t quest);
+using QuestCall = void (*)(void *object);
+quest::Engine quest_engine;
+std::atomic<bool> quest_pinned{false}, quest_faulted{false};
+std::atomic<uint64_t> quest_fault_code{0}, quest_fault_rva{0}, quest_fault_address{0};
+std::mutex quest_m;                       // The save-slot line, from the worker, and when it was read.
+std::string quest_slot = "slot=unknown "; // Its gate pauses on it until the worker's first line.
+uint64_t quest_slot_ms = 0;
+uint64_t quest_next = 0; // The game thread's: its next pass.
+// quest_engine.h's Game: plain reads (a fault is the SEH guard's, and latches), this thread's ID and SB's functions.
+struct QuestGame {
+  bool read(uint64_t address, void *out, size_t n) {
+    std::memcpy(out, reinterpret_cast<const void *>(address), n);
+    return true;
+  }
+  uint32_t thread() { return GetCurrentThreadId(); }
+  uint64_t unit(uint64_t manager) {
+    return reinterpret_cast<uintptr_t>(game_function<QuestUnit>(kQuestUnit)(reinterpret_cast<void *>(manager)));
+  }
+  bool acquire(uint64_t manager, uint32_t owner, uint32_t quest) {
+    return game_function<QuestAcquire>(kQuestAcquire)(reinterpret_cast<void *>(manager), owner, quest);
+  }
+  void call(uint64_t function, uint64_t object) {
+    if (function == quest::kAccept || function == quest::kComplete || function == quest::kCompleteParent)
+      game_function<QuestCall>(function)(reinterpret_cast<void *>(object));
+  }
+};
+__declspec(noinline) void quest_body(std::string_view slot, uint64_t now_ms) {
+  try { // coop_tick never throws: out of memory turns the shared quests off for the run, as a fault does.
+    QuestGame g;
+    const uint64_t from = clock_us();
+    quest_engine.tick(g, base, slot, now_ms);
+    quest_engine.cost(clock_us() - from); // The stats line's poll time.
+  } catch (...) {
+    quest_faulted = true;
+  }
+}
+// The first fault turns the shared quests off for the run: the worker latches the engine and tells her.
+void quest_guarded(std::string_view slot, uint64_t now_ms) {
+  __try {
+    quest_body(slot, now_ms);
+  } __except (fault_filter(GetExceptionInformation(), quest_fault_code, quest_fault_rva, quest_fault_address)) {
+    quest_faulted = true;
+  }
+}
+// Each frame: a pass every 250 ms, with the worker's last save-slot line, copied with no allocation (coop_tick never
+// throws). A line over a second old (the worker stuck in a Steam or file call) may name a save no longer loaded, and a
+// step made then would go into that other save: the gate gets unknown, so it only pauses.
+void quest_tick() {
+  const uint64_t now = GetTickCount64();
+  if (now < quest_next)
+    return;
+  quest_next = now + 250;
+  char slot[128] = "slot=unknown ";
+  size_t size = std::strlen(slot);
+  {
+    std::lock_guard<std::mutex> lock(quest_m);
+    if (now < quest_slot_ms + 1000 && quest_slot.size() <= sizeof slot)
+      size = quest_slot.copy(slot, sizeof slot);
+  }
+  quest_guarded(std::string_view(slot, size), now);
+}
+
 // ---- Same-place enemies: the owner's capture (pilot.h's Capturer), the game thread's read half ----
 // SB's two read-only lookups by GUID (stage 3a's allowlist, PHASE11-STAGE3 3.4): FSBActorManager::FindActor, an
 // ActorGUID's FSBActor (it logs, and so allocates, only when its two maps disagree), and the registry's character of
@@ -1162,12 +1239,20 @@ void append_probe(const std::string &line) {
   append_file(L"nightop-probe.txt", text);
 }
 
-// coop-fight.log (the Worker's trace): the shared fight's probe actors and stats lines, stamped in UTC like
-// coop-link.log, whose 1 MB they would fill. Past 4 MB a last line says so and the run's later ones go nowhere.
-size_t fight_log_bytes = 0;
-constexpr size_t kFightLogCap = 4 << 20; // About 2 h of stats lines each second, or a T11a probe's half hour.
-void trace_fight(const std::string &line) {
-  if (fight_log_bytes >= kFightLogCap)
+// A line onto one of the mod folder's own logs, stamped in UTC like coop-link.log, whose 1 MB it would fill:
+// coop-fight.log (the shared fight Worker's trace: its probe actors and stats lines) and coop-quests.log (the shared
+// quests'). Past 4 MB a last line says what goes on (tail) and the run's later ones go nowhere.
+constexpr size_t kTraceCap = 4 << 20; // About 2 h of the fight's stats lines each second, or a probe's half hour.
+struct Trace {
+  const wchar_t *file;
+  const char *who, *name, *tail;
+  size_t bytes = 0;
+};
+Trace fight_trace{L"coop-fight.log", "fight", "coop-fight.log", "the shared fight's events go on in coop-link.log"};
+Trace quest_trace{L"coop-quests.log", "quests", "coop-quests.log",
+                  "the shared quests' on and off lines go on in coop-link.log"};
+void trace(Trace &log, const std::string &line) {
+  if (log.bytes >= kTraceCap)
     return;
   SYSTEMTIME t;
   GetSystemTime(&t);
@@ -1175,15 +1260,16 @@ void trace_fight(const std::string &line) {
   wsprintfA(stamp, "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ ", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
             t.wMilliseconds);
   std::string text = stamp + line + "\r\n";
-  if (fight_log_bytes + text.size() > kFightLogCap) {
-    text = std::string(stamp) + "capped at 4 MB: the shared fight's events go on in coop-link.log\r\n";
-    fight_log_bytes = kFightLogCap;
-    say("fight: coop-fight.log capped at 4 MB for this run");
+  if (log.bytes + text.size() > kTraceCap) {
+    text = std::string(stamp) + "capped at 4 MB: " + log.tail + "\r\n";
+    log.bytes = kTraceCap;
+    say(std::string(log.who) + ": " + log.name + " capped at 4 MB for this run");
   } else {
-    fight_log_bytes += text.size();
+    log.bytes += text.size();
   }
-  append_file(L"coop-fight.log", text);
+  append_file(log.file, text);
 }
+void trace_fight(const std::string &line) { trace(fight_trace, line); }
 
 // Every worker pass while on: a sample each 100 ms, its lines into the file, the verdict into the log as well.
 void poll_nightop(uint64_t now_ms) {
@@ -1460,6 +1546,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     if (pinned) // Before any fight on: SB's image base and our jobs' vtable.
       fight_engine.init(base, &kJobVtable);
     freeze_pinned = pinned; // After base: the game thread's pause calls need it.
+    quest_pinned = pinned;  // The same for the shared quests' pass.
     pilot_pinned = pinned;  // The same for the pilot's capture.
     event(std::string("engine ") + (engine_on ? "on: " : "off: ") + engine_reason);
   }
@@ -2161,6 +2248,65 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   return fight_engine.on();
 }
 
+namespace {
+// The shared quests' worker side (quest_engine.h's Worker), with channel 2 and the record files as the last
+// quest_pass gave them.
+quest::Worker quest_worker{quest_engine};
+bool quest_fault_logged = false;
+uint64_t quest_slot_at = 0; // When the save-slot line was last read for the game thread.
+std::string quest_slot_line = "slot=unknown ";
+constexpr size_t kMaxQuestRecording = size_t(16) << 20; // quest::kMaxRecording lines of about 100 bytes, and more.
+struct QuestIo {
+  bool (*out)(const std::string &) = nullptr;
+  const QuestFiles *files = nullptr;
+  bool send(const std::string &line) { return out && out(line); }
+  void say(const std::string &line) { pose::say(line); }
+  void trace(const std::string &line) { pose::trace(quest_trace, line); }
+  bool load(int slot, std::string &text, size_t max) { return files && files->load && files->load(slot, text, max); }
+  bool save(int slot, const std::string &text) { return files && files->save && files->save(slot, text); }
+  bool load_recording(std::string &text) {
+    bool exists = false;
+    text = read_file(dir + L"coop-quests-record.txt", exists, kMaxQuestRecording);
+    return exists;
+  }
+  bool save_recording(const std::string &text) { return write_text(dir + L"coop-quests-record.txt", text); }
+};
+} // namespace
+
+std::string ask_quests(const coop::Request &request) {
+  if (!pinned || blocked)
+    return "quests refused: " + (blocked ? std::string("coop off") : engine_reason);
+  QuestIo io;
+  return quest_worker.ask(request, io);
+}
+
+void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
+                bool (*send)(const std::string &), const QuestFiles &files) {
+  QuestIo io{send, &files};
+  if (quest_faulted && !quest_fault_logged) { // Latched: off to her at this pass, nothing more this run.
+    quest_fault_logged = true;
+    const std::string where = quest_fault_code ? fault_where(quest_fault_rva) : std::string("out of memory");
+    quest_engine.fault(where);
+    char text[300];
+    std::snprintf(text, sizeof text,
+                  "shared quests fault 0x%08llx in %s reading 0x%llx: off for this run; the ghost, the link and the "
+                  "shared fight go on",
+                  static_cast<unsigned long long>(quest_fault_code.load()), where.c_str(),
+                  static_cast<unsigned long long>(quest_fault_address.load()));
+    say(text);
+  }
+  // The gate's save-slot line, as the fight's reads it: every 100 ms, for the game thread's next pass too.
+  if (now_ms >= quest_slot_at) {
+    quest_slot_at = now_ms + 100;
+    quest_slot_line = pinned && !blocked ? slot::line(loaded_slot(), marker, world, saves_now()) : "slot=unknown ";
+    std::lock_guard<std::mutex> lock(quest_m);
+    quest_slot = quest_slot_line, quest_slot_ms = now_ms;
+  }
+  quest_worker.pass(now_ms, hosting, partner, quest_slot_line, lines, io);
+}
+
+std::string quest_status() { return quest_worker.status(); }
+
 bool can_freeze() { return pinned && !blocked && !freeze_faulted; }
 bool frozen() { return freeze_held; }
 
@@ -2216,6 +2362,7 @@ std::string freeze_pass(bool sync, uint64_t now_ms) {
 void block() {
   blocked = true;
   engine_on = false;
+  quest_worker.block(); // Its side ends; the game thread's passes stop with it.
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
@@ -2266,5 +2413,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // back.
   if (pilot_pinned && !pilot_faulted && (!blocked || driver.holding()))
     guarded_pilot();
+  // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
+  if (quest_pinned && !quest_faulted && !blocked)
+    quest_tick();
   return 0;
 }

@@ -387,11 +387,13 @@ public:
   }
 
   // A friend passed the handshake both ways.
-  bool linked() const {
+  bool linked() const { return partner() != 0; }
+  // The friend past the handshake both ways (her SteamID), or 0: the shared quests keep their record per partner.
+  uint64_t partner() const {
     for (auto &p : peers_)
       if (p.compatible && p.accepted)
-        return true;
-    return false;
+        return p.id;
+    return 0;
   }
 
   // This account's SteamID: 0 until Steam is ready.
@@ -820,7 +822,8 @@ private:
         notice("No join code to copy.");
       }
       break;
-    case Command::off: // The pose path's, the shared fight's, the photo pause's and the saves': the caller handles them.
+    // The pose path's, the shared fight's, the photo pause's, the saves' and the shared quests': the caller's.
+    case Command::off:
     case Command::loopback:
     case Command::record:
     case Command::replay:
@@ -828,6 +831,7 @@ private:
     case Command::fight:
     case Command::freeze:
     case Command::saves:
+    case Command::quests:
       break;
     case Command::none:
       event("unknown request");

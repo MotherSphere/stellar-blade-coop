@@ -148,18 +148,23 @@ int main() {
   // their own maxes while the host's are scaled, so the two HP bars would disagree. Protocol 10 refuses the link.
   // A stage 2 peer runs protocol 10: it would count the pilot's show lines as malformed and its SBE as junk, so its
   // copies would stay where its own game puts them. Protocol 11 refuses the link.
-  static_assert(kProtocol == 11, "11 adds SBE and the show lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 "
-                                 "say and vit; 7 is v0.2.0's");
+  // A v0.4.0-beta.1 peer runs protocol 11: its channel 2 knows no shared quests' line, so a host's steps would never
+  // reach that guest. Protocol 12 refuses the link.
+  static_assert(kProtocol == 12, "12 adds the shared quests' lines; 11 SBE and the show lines; 10 the fight's scale "
+                                 "line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
-         lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856");
+         lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
+         lobby_tag(24463856) != "11:24463856");
+  assert(parse_text("SBC11 ping 1 2").kind == Kind::invalid && parse_text("SBC11 photo 1 both").kind == Kind::invalid);
   assert(parse_text("SBC9 ping 1 2").kind == Kind::invalid && parse_text("SBC9 vit 1").kind == Kind::invalid);
   assert(parse_text("SBC10 ping 1 2").kind == Kind::invalid && parse_text("SBC10 paks 1 5").kind == Kind::invalid);
   m = parse_text("SBC hello 10 v0.4.0 24463856"); // Still answered: the link rejects it by its number.
   assert(m.kind == Kind::hello && m.a == 10);
   assert(parse_text("SBC7 say hi").kind == Kind::invalid && parse_text("SBC7 photo 1 both").kind == Kind::invalid);
   assert(parse_text("SBC8 say hi").kind == Kind::invalid && parse_text("SBC8 vit 1").kind == Kind::invalid);
-  assert(fight_tag() == "SBF" + std::to_string(kProtocol));
-  for (const std::string &line : {fight_tag() + " on", fight_tag() + " world 3", fight_tag() + " ping 1 2"})
+  assert(fight_tag() == "SBF" + std::to_string(kProtocol) && quest_tag() == "SBQ" + std::to_string(kProtocol));
+  for (const std::string &line : {fight_tag() + " on", fight_tag() + " world 3", fight_tag() + " ping 1 2",
+                                  quest_tag() + " on 0", quest_tag() + " q 1 1 54 1 - - - ."})
     assert(parse_text(line).kind == Kind::invalid);
 
   // A peer's text can never inject lines into our status file, and stays short.
@@ -284,6 +289,32 @@ int main() {
                           "saves refresh 1 2", "saves refresh  1", "saves coop now", "saves Coop", "saves co",
                           "saves mains", "saves convert 1"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).saves == SavesAsk::none);
+  // The shared quests': on, probe and record with quest_deny's list or none, off, status, replay, and force with a
+  // quest ID from 1 to 65535; anything else, a typo included, is no request.
+  for (const char *word : {"on", "off", "status", "probe", "record", "replay"}) {
+    const Request q = parse_request(std::string("quests ") + word + "\r\n");
+    assert(q.command == Command::quests && q.quests != Quests::none && q.quests != Quests::force && q.deny.empty());
+  }
+  assert(parse_request("quests on").quests == Quests::on && parse_request("quests off").quests == Quests::off &&
+         parse_request("quests status").quests == Quests::status &&
+         parse_request("quests probe").quests == Quests::probe &&
+         parse_request("quests record").quests == Quests::record &&
+         parse_request("quests replay").quests == Quests::replay);
+  Request q = parse_request("quests on deny Quest_Sub_017, 54 Quest_Epic_14_3\n");
+  assert(q.command == Command::quests && q.quests == Quests::on && q.deny == "Quest_Sub_017, 54 Quest_Epic_14_3");
+  assert(parse_request("quests probe deny 54").deny == "54" && parse_request("quests record deny 1,2").deny == "1,2");
+  q = parse_request("quests force 54");
+  assert(q.command == Command::quests && q.quests == Quests::force && q.quest == 54 && q.deny.empty());
+  assert(parse_request("quests force 65535").quest == 65535);
+  const std::string longest = "quests on deny " + std::string(kMaxDeny, '1');
+  assert(parse_request(longest).deny.size() == kMaxDeny && parse_request(longest + "1").command == Command::none);
+  for (const char *bad : {"quests", "quests ", "quests  on", "quests ON", "quests start", "quests on now",
+                          "quests off now", "quests status 1", "quests force", "quests force 0", "quests force 65536",
+                          "quests force x", "quests force -1", "quests force 5 6", "quests force  5", "quests on deny",
+                          "quests on deny ", "quests on deny a;b", "quests on deny a\tb", "quests on deny \xc3\xa9",
+                          "quests replay deny 54", "quests off deny 54", "quests force 5 deny 6", "quests deny 54",
+                          "questson", "quest on"})
+    assert(parse_request(bad).command == Command::none && parse_request(bad).quests == Quests::none);
   // The shared fight's: each mode with fight_chars (none for the probe too), off, status, and the probe's tests (a
   // whole change with or without its sign, or a kill); anything else, a typo included, is no request.
   Request f = parse_request("fight on 15011001 15011002\n");

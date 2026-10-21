@@ -79,7 +79,8 @@ build/host/pose_codec_test
   run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake
   EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss tests included), the
   `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings
-  and rows, `coop fight spawn probe`, and the same place and same spawns notices in both languages.
+  and rows, `coop fight spawn probe`, the same place and same spawns notices in both languages, and `coop quests` with
+  the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns` and `extra <n>` words and its `pilot` requests, `test target` and the boss
@@ -210,7 +211,14 @@ build/host/pose_codec_test
     30, 2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
-  - `photo_freeze_test`: the synced photo mode's pause against a fake pause set.
+  - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
+  - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
+    rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
+    reloads;
+  - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
+    gate, a fault, two PCs through channel 2's text with delay and loss, a recording replayed into another save, and
+    the worker's side (the gates that start and end a side, channel 2's lines beside the fight's, the record file and
+    the status lines).
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
   - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
@@ -286,6 +294,8 @@ Platform-free headers, tested on the build machine:
 | `save_twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
 | `fight_sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight_engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
+| `quest_sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
+| `quest_engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
 | `pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
 | `photo_freeze.h` | The synced photo mode's pause |
 
