@@ -151,6 +151,17 @@ function Doro.spawn(world,at,rotation)
     d.actor=actor
     return d
 end
+-- A Doro an earlier Lua load spawned (Ctrl+R), by its actor's path: gone, and true, only while that actor's root still
+-- shows Doro's mesh, so never another object found at that path.
+function Doro.sweep(p)
+    local doro=p and valid(StaticFindObject(p))
+    local root=doro and valid(doro:K2_GetRootComponent())
+    local mesh=root and root:IsA(find('/Script/Engine.SkeletalMeshComponent')) and valid(root.SkeletalMesh)
+    if mesh and path_of(mesh)==Doro.ASSETS.mesh then
+        doro:K2_DestroyActor()
+        return true
+    end
+end
 -- A Doro of spawn()'s gone, if its actor is still the one spawn() made: never a call on another object.
 function Doro.remove(d)
     local a=same(d.actor,d.path)
@@ -204,10 +215,7 @@ function Doro.new(o)
         for field in (line..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
         local shown=0
         local ok,why=pcall(function()
-            local doro=f[3] and valid(StaticFindObject(f[3]))
-            local root=doro and valid(doro:K2_GetRootComponent())
-            local mesh=root and root:IsA(find('/Script/Engine.SkeletalMeshComponent')) and valid(root.SkeletalMesh)
-            if mesh and path_of(mesh)==Doro.ASSETS.mesh then doro:K2_DestroyActor() end -- Only one showing Doro.
+            Doro.sweep(f[3]) -- Only one showing Doro.
             local eve=her(valid(StaticFindObject(f[1])))
             if not eve then return end
             local listed={}

@@ -537,6 +537,7 @@ coop('race','start','quest')
 assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs only on a co-op save (INSTALL.md: Co-op '
     ..'saves); now no slot status\n',last())
 assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
+assert(ra.o.store=='store','coop-race-doros.txt through the link')
 assert(select(2,ra.o.slot())=='coop race runs only on a co-op save (INSTALL.md: Co-op saves); now no slot status')
 assert(ra.o.night()==false and ra.o.paused()==false)
 nr.active=true; assert(ra.o.night()==true); nr.active=nil

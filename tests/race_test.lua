@@ -4,9 +4,10 @@
 -- sounds, a wrong way and a missed checkpoint, the result line, the emote, everything off at the end); two laps of a
 -- circuit; the HUD groups shown and hidden (paused, the panel's line, the marker and the edge arrow, the results), and
 -- notices in their place with the UI off, with the fin flags; a host and a guest joined by a fake link (a whole race,
--- a false start, a teleport DNF, the host's quit during the race and before GO, the session's end, a map change, the
--- guest's map and co-op save refusals); the loopback guest instance; F9 while recording and not; coop off; a first
--- error ends the race until the mod reloads; and the together-only scan.
+-- a false start, a teleport DNF, the host's quit during the race, after his finish and before GO, the session's end, a
+-- map change, the guest's map and co-op save refusals, her Night Operation run); the loopback guest instance; F9 while
+-- recording and not, and on another map; coop off; a first error ends the race until the mod reloads, its quit line
+-- out first; the Doros an earlier Lua load left; and the together-only scan.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('race_model')
@@ -40,15 +41,17 @@ local function make_eve()
 end
 local player=nil
 package.loaded.UEHelpers={GetPlayer=function() return player end}
--- The display Doros (doro.lua's spawn, apply and remove): each spawned one, its asset and whether it is gone.
-local doros,spawn_error={},nil
+-- The display Doros (doro.lua's spawn, apply, remove and sweep): each spawned one with its path, its asset and whether
+-- it is gone; the paths swept (a Doro: those under /Doro/).
+local doros,spawn_error,swept={},nil,{}
 package.loaded.doro={spawn=function(w,at,rot)
         if spawn_error then error(spawn_error,0) end
-        local d={world=w,at=at,rot=rot}
+        local d={world=w,at=at,rot=rot,path='/Doro/'..(#doros+1)}
         doros[#doros+1]=d
         return d
     end,apply=function(d,c) d.asset,d.loop=c.asset,c.loop end,
-    remove=function(d) assert(not d.removed,'removed twice'); d.removed=true end}
+    remove=function(d) assert(not d.removed,'removed twice'); d.removed=true end,
+    sweep=function(p) swept[#swept+1]=p; return p:find('^/Doro/')~=nil end}
 local function alive()
     local list={}
     for _,d in ipairs(doros) do if not d.removed then list[#list+1]=d end end
@@ -132,7 +135,10 @@ local function side(o)
         end,
         emote=function(e) s.ghost.emote=e end}
     s.settings={race_key={key='F9',name='F9'},ui_language='game'}
-    s.race=Race.new({log=function(m) s.logs[#s.logs+1]=m end,link=s.link,puppet=s.puppet,look=s.look_api,
+    s.stored=o.stored -- coop-race-doros.txt's line.
+    s.store={save=function(line) s.stored=line; return true end,load=function() return s.stored end,
+        clear=function() s.stored=nil end}
+    s.race=Race.new({log=function(m) s.logs[#s.logs+1]=m end,link=s.link,puppet=s.puppet,look=s.look_api,store=s.store,
         tell=function(build) s.told[#s.told+1]=build(T.en) end,night=function() return s.night end,
         slot=function() if s.slot_ok then return true end return false,'not a co-op save' end,
         paused=function() return s.paused end,settings=s.settings})
@@ -339,6 +345,7 @@ assert(not ok and message=='a race is on: coop race quit leaves it')
 step({A})
 -- Before GO: one Doro at the start line's centre, facing down the track; the marker over her slot with its distance.
 assert(#alive()==1 and alive()[1].at.X==0 and alive()[1].rot.Yaw==-90 and alive()[1].asset=='idle')
+assert(A.stored==alive()[1].path,'Its path kept for the next Lua load')
 assert(kit.shown.race_panel and kit.groups.race_panel.view.title.text=='DORO RACE')
 assert(kit.groups.race_panel.view.line.text=='0:00.00  CP 0/4  LAP 1/1  POS 1/1',kit.groups.race_panel.view.line.text)
 local slot0=R.slot(TRACK,0)
@@ -366,6 +373,7 @@ step({A})
 local list=alive()
 table.sort(list,function(a,b) return a.at.X<b.at.X end)
 assert(#list==2 and list[1].at.X==4000 and list[1].rot.Yaw==90 and list[2].at.X==8000,#list)
+assert(A.stored==list[1].path..'\t'..list[2].path or A.stored==list[2].path..'\t'..list[1].path,A.stored)
 assert(math.abs(list[2].rot.Yaw-(math.deg(math.atan(-2000,-4000))-90))<1e-9 and list[2].asset=='idle')
 assert(kit.projected.X==4000 and mk.label.text=='' and kit.groups.race_panel.view.line.text:find('^0:00%.%d%d  CP 0/4'))
 frames({A},32)
@@ -394,7 +402,7 @@ assert(res.head.text=='RESULTS' and res.sub.text=='' and res.rows[1].label.text=
     and res.rows[1].value.text==Race.clock(ms) and res.rows[2].label.text=='' and res.rows[2].value.text=='')
 assert(#alive()==0,'No Doro once she finished')
 run({A},function() return not A.race.armed() end,400)
-assert(not A.look.on and A.look.why=='race over' and #alive()==0)
+assert(not A.look.on and A.look.why=='race over' and #alive()==0 and A.stored==nil)
 for _,g in ipairs({'race_panel','race_results','race_banner','race_marker','race_arrow'}) do
     assert(not kit.shown[g],g)
 end
@@ -516,6 +524,7 @@ ok,message=H.race.command('quit')
 assert(ok and message=='You left the race.')
 step({H,G})
 assert(not H.race.armed() and not H.look.on and H.look.why=='race quit' and H.wire[#H.wire]:find('^dnf %d+ quit$'))
+assert(H.stored==nil,'Its Doros gone, their file too')
 assert(not has(H.told,'Quit the race.'),'Its own reply says it')
 step({H,G})
 assert(not G.ghost.doro and G.told[#G.told]=='Host left the race.','His ghost is himself again')
@@ -709,6 +718,17 @@ assert(G.errors[1]=='the race stopped on an error until the mod reloads: the gho
 assert(G.sent[#G.sent]:find('^dnf %d+ quit$') and not G.look.on) -- Sent at the next frame.
 run({H,G},function() return not H.race.armed() end)
 assert(not H.ghost.doro and has(H.told,'Kaanta left the race.') and find(H.logs,'^result .* rank=1$'))
+
+-- 14b. Display Doros an earlier Lua load left (Ctrl+R mid-race): swept at the first tick, once, the file cleared.
+do
+    local S=side({stored='/Doro/old1\t/Game/Other'})
+    S.race.tick()
+    assert(#swept==2 and swept[1]=='/Doro/old1' and swept[2]=='/Game/Other' and S.stored==nil)
+    assert(S.logs[#S.logs]=='race: 1 display Doros an earlier Lua load left destroyed',S.logs[#S.logs])
+    S.stored='/Doro/later'
+    S.race.tick()
+    assert(#swept==2 and S.stored=='/Doro/later','Once a Lua load')
+end
 
 -- 15. Together only: race.lua, race_model.lua and doro.lua name no achievement, reward, item, quest, save or console
 -- command call, and spawn a plain /Script/Engine.Actor only (doro.lua's one SpawnActor).

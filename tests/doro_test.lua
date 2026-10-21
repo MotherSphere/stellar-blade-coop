@@ -475,6 +475,11 @@ by_path['/Game/Map.Map:PersistentLevel.Actor_77']=stranger
 stored='/Game/Map.Map:PersistentLevel.EVE_9\t3\t/Game/Map.Map:PersistentLevel.Actor_77\tCharacterMesh0'
 Doro.new({log=log,store=store}).restore()
 assert(not stranger.destroyed and stored==nil)
+-- Doro.sweep alone (race.lua's display Doros after a reload): true only for a Doro it destroyed.
+local shown=Doro.spawn(world,{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0})
+by_path[shown.path]=shown.actor
+assert(Doro.sweep(shown.path)==true and shown.actor.destroyed)
+assert(not Doro.sweep('/Game/Map.Map:PersistentLevel.Actor_77') and not stranger.destroyed and not Doro.sweep(nil))
 
 -- The probe: a Doro 3 m ahead of her, facing her; each step logged as it starts, the held frames read back, one line
 -- at the end with both clocks; its Doro gone after.

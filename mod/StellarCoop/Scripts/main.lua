@@ -165,7 +165,7 @@ local doro=require('doro').new({log=function(m) print('[StellarCoop][DR] '..tost
 -- and the guest's answer need a co-op save; it never arms during a Night Operation run.
 local race=require('race').new({log=doro.log,link=link,puppet=puppet,look=doro,tell=tell,night=night.active,
     slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
-    settings=settings})
+    settings=settings,store=link and link.store('coop-race-doros.txt')})
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
 -- 250 ms so the file never stays on disk, session or not, and each frame while a race is armed (her race lines come in
 -- it too); ours leave through coop-say.txt in the 250 ms loop. Its clock counts that loop's ticks: os.clock is CPU

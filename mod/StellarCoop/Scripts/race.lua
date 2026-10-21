@@ -10,7 +10,8 @@
 -- What a race changes in the game: its own display Doros (doro.lua's plain actors, collision off: one at the next
 -- checkpoint and one at the one after it, or one at the start line before GO) and the look's two flags on EVE. Never a
 -- pawn, a reward, an achievement, an item, a quest or a save: a race gives nothing and writes nothing but its track
--- file. Its first Lua error ends the race and its look for this Lua load.
+-- file. Its first Lua error ends the race and its look for this Lua load. The display Doros' paths stay in
+-- coop-race-doros.txt while they stand, so the next Lua load (Ctrl+R mid-race) destroys them at its first tick.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local R=require('race_model')
@@ -64,9 +65,12 @@ local function why_of(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Withou
 -- o: log (the [DR] lines), link (nil without the native part: no race), puppet (anchor, her_map, me, doro, emote), look
 -- (doro.lua's Doro.new: on, off, emote, log), tell(build) (main.lua's notices: build(words) puts one together), night()
 -- (a Night Operation run is on), slot() (true on a co-op save, else false and why), paused() (the game paused or on one
--- of its screens, read every 250 ms) and settings (main.lua's: race_key, ui_language).
+-- of its screens, read every 250 ms), settings (main.lua's: race_key, ui_language) and store (coop-race-doros.txt
+-- through link.store; nil without the native part).
 function Race.new(o)
     local log,link,puppet,look,tell=o.log,o.link,o.puppet,o.look,o.tell
+    local store=o.store or {save=function() end,load=function() end,clear=function() end}
+    local swept=false -- The Doros an earlier Lua load left: destroyed at the first tick.
     local self={}
     local rec=nil -- The track being recorded: {name, track, at (os.clock), last (her feet), path (cm)}.
     -- The race, while one is armed on this PC: role ('host' or 'guest'), m (race_model's), name (the host's track),
@@ -107,6 +111,7 @@ function Race.new(o)
             r.doros[key]=nil
             pcall(Doro.remove,d)
         end
+        pcall(store.clear)
         if r.ghost then
             pcall(puppet.emote,nil)
             pcall(puppet.doro,false)
@@ -232,22 +237,28 @@ function Race.new(o)
         if run.next<n then add(run.next+1,run.lap) elseif run.lap<laps then add(1,run.lap+1) end
         return list
     end
+    -- The Doros' actor paths on one line, tab-separated, for the next Lua load; the file cleared once none stands.
+    local function keep(r)
+        local paths={}
+        for _,d in pairs(r.doros) do paths[#paths+1]=d.path end
+        if paths[1] then store.save(table.concat(paths,'\t')) else store.clear() end
+    end
     local function place_doros(r,e)
-        local want=wanted(r)
+        local want,changed=wanted(r),false
         for key,d in pairs(r.doros) do
             if not want[key] then
-                r.doros[key]=nil
+                r.doros[key],changed=nil,true
                 Doro.remove(d)
             end
         end
-        if not e then return end
-        for key,s in pairs(want) do
+        for key,s in pairs(e and want or {}) do
             if not r.doros[key] then
                 local d=Doro.spawn(e:GetWorld(),{X=s.at.x,Y=s.at.y,Z=s.at.z},{Pitch=0,Yaw=s.yaw+MESH_YAW,Roll=0})
-                r.doros[key]=d
+                r.doros[key],changed=d,true
                 Doro.apply(d,{asset=s.asset,loop=true,rate=1})
             end
         end
+        if changed then keep(r) end
     end
     -- The HUD each frame: the panel (the time, CP, LAP and POS, or the wait for her) or the results in its place, the
     -- banner, and the marker on our start before GO, then on the next checkpoint (the edge arrow when it is off screen
@@ -533,8 +544,24 @@ function Race.new(o)
     end
     -- Whether a race is armed here: main.lua reads the inbox each frame meanwhile, and coop nightop start refuses.
     function self.armed() return race~=nil end
+    -- The Doros an earlier Lua load left standing (coop-race-doros.txt): each destroyed if it still is one.
+    local function sweep()
+        local line=store.load()
+        if not line then return end
+        local n=0
+        for p in line:gmatch('[^\t]+') do
+            local ok,gone=pcall(Doro.sweep,p)
+            if ok and gone then n=n+1 end
+        end
+        store.clear()
+        log(('race: %d display Doros an earlier Lua load left destroyed'):format(n))
+    end
     -- Each frame, after the ghost and the look are placed. A first error ends the race: false, why.
     function self.tick()
+        if not swept then
+            swept=true
+            pcall(sweep)
+        end
         local r=race
         if not r then return end
         local ok,e=pcall(frame,r)
