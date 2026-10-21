@@ -375,8 +375,11 @@ state.off=false
 -- later in a world.
 settings.auto_coop_save='always'
 saves=new()
-info=at()
+info=at({slot='unknown'}) -- At a game start Lua sees the title before the native part read coop-state.txt.
 state.ready=false
+quarter(false,true)
+assert(#asked==0 and not saves.is_open(),'Not before the native part judged the title: it would refuse for the run')
+info=at()
 quarter(false,true)
 assert(asked[1]=='saves coop' and #calls==0 and not saves.is_open(),'No question, no kit needed')
 quarter(false,true); assert(#asked==1,'Once a visit')

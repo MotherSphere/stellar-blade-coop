@@ -211,7 +211,9 @@ function Saves.new(o)
             local again=invited and visit and not reasked and want=='ask' -- An invite after an answer without co-op.
             if (not visit or again) and not phase and want~='off' and info.saves=='main' and info.steamid
                 and not (info.convert or ''):find('^busy') then
-                if want=='always' then switch(info)
+                -- always asks at once, so it waits for the native part to judge the title too (slot=none): it reads
+                -- coop-state.txt's world=title on its own pass, and a request that comes first is refused for the run.
+                if want=='always' then if info.slot=='none' then switch(info) end
                 elseif kit.off() then
                     visit,reasked=true,reasked or invited
                     log('co-op saves: the question cannot show (the co-op UI is off): your own saves')
