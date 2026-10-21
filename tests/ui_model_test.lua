@@ -134,17 +134,16 @@ for _,row in ipairs(M.OPTIONS) do
             local steps=tonumber(d)/row.step
             assert(row.min<=tonumber(d) and tonumber(d)<=row.max and math.abs(steps-math.floor(steps+0.5))<1e-9,row.key)
         end
-        -- A row the mod reads today: its values are the mod's (link.parse_settings), its default too.
-        local s=Link.parse_settings('')
-        if not row.later then assert(s[row.key]~=nil,row.key..': shown, so the mod must read it') end
+        -- Every row is one the mod reads (link.parse_settings): a setting comes with its feature.
+        assert(Link.parse_settings('')[row.key]~=nil,row.key..': shown, so the mod must read it')
     end
 end
--- The settings the mod reads keep its defaults; the rest (not on this branch yet) the model's.
+-- The mod's defaults.
 local s=Link.parse_settings('')
 local values=M.read('')
 assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='60'
     and values.name_tag=='on' and values.cloth=='on' and values.dyes=='off' and values.effects=='off'
-    and values.shared_enemies=='on' and values.menu_key=='F5' and values.chat_key=='Enter' and values.host_key=='none'
+    and values.shared_enemies=='on' and values.menu_key=='F5' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='together' and values.same_place=='on'
@@ -154,9 +153,9 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
-    ..'menu_key=F7\nhost_key=F5\nchat_lines=x\nphoto_freeze_max=0\n')
+    ..'menu_key=F7\nhost_key=F5\nphoto_freeze_max=0\n')
 assert(values.send_rate=='25' and values.name_tag=='off' and values.photo_sync=='notice' and values.menu_key=='F7'
-    and values.status_key=='Shift+F7' and values.ui_scale=='100' and values.host_key=='F5' and values.chat_lines=='50'
+    and values.status_key=='Shift+F7' and values.ui_scale=='100' and values.host_key=='F5'
     and values.photo_freeze_max=='0')
 assert(M.read(Link.DEFAULT).menu_key=='F5' and M.read(Link.DEFAULT).host_key=='none'
     and M.read(Link.DEFAULT).send_rate=='60')
@@ -190,7 +189,7 @@ assert(menu.select(NONE,0)=='options' and menu.page()=='options')
 assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls')
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
--- Only the settings whose feature is on this branch show (the others wait, marked later), and no header without one.
+-- Every setting shows, under its header.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key head:photo photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
@@ -355,8 +354,6 @@ action,why,other=M.rebind(values,'status_key','F5')
 assert(action==nil and why=='clash' and other=='menu_key')
 action,why=M.rebind(values,'status_key',K.text('F10'))
 assert(action==nil and why=='F10 opens the console')
-action,key,text=M.rebind(values,'chat_key','Enter')
-assert(action=='set' and key=='chat_key' and text=='Enter')
 action,why,other=M.rebind(M.read('menu_key=F5\nhost_key=F7\n'),'menu_key','F7')
 assert(action==nil and why=='clash' and other=='host_key')
 action,why,other=M.rebind(values,'status_key','F7') -- The follow key's F7.

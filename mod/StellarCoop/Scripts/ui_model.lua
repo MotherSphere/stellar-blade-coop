@@ -1,9 +1,9 @@
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
 -- the co-op line's (a camp phone booth's page: the main page's session rows, Co-op menu and Hang up),
--- the Options tree (every co-op setting as a toggle, a choice, a range or a key; those whose feature is not built yet
--- wait, hidden), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of that row
--- within 3 s, values read as the mod reads coop-settings.txt (link.parse_settings), and each change as the one value
--- to write there (settings_file.set). Rows and values are ids; ui_text gives their words.
+-- the Options tree (every co-op setting as a toggle, a choice, a range or a key), a cursor that skips section headers
+-- and wraps, Leave and Remove only on a second Select of that row within 3 s, values read as the mod reads
+-- coop-settings.txt (link.parse_settings), and each change as the one value to write there (settings_file.set). Rows
+-- and values are ids; ui_text gives their words.
 local SF=require('settings_file')
 local K=require('keybind')
 local Link=require('link')
@@ -36,14 +36,11 @@ M.LINE={{head='line'},main_row('host'),main_row('invite'),main_row('copy'),main_
 local function toggle(key,default) return {key=key,values={'on','off'},default=default} end
 local function range(key,min,max,step,default) return {key=key,min=min,max=max,step=step,default=tostring(default)} end
 local function bind(key,default) return {key=key,bind=true,default=default} end
-local function later(row) row.later=true; return row end -- Its feature is not on this branch yet: hidden.
 local function reload(row) row.reload=true; return row end -- The mod takes it at its next load only.
--- Defaults as the file writes them. Keys the mod does not read yet are named here first (the milestone that brings
--- each is in UI-DESIGN's Options table); each waits as later() until its feature is built, then the mod reads it.
+-- Defaults as the file writes them. A setting gets its row with its feature: every row is one the mod reads.
 M.OPTIONS={
     {head='controls'},
     bind('menu_key','F5'),bind('status_key','F6'),bind('leave_key','F8'),bind('follow_key','F7'),bind('race_key','F9'),
-    later(bind('chat_key','Enter')),
     {head='photo'},
     {key='photo_sync',values={'both','notice','off'},default='both'},
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
@@ -56,7 +53,6 @@ M.OPTIONS={
     {head='ghost'},
     toggle('cloth','on'),toggle('dyes','off'),toggle('effects','off'),
     toggle('collide','off'), -- Yours, at once: the solid partner (puppet.lua).
-    later(toggle('basesuit','off')),
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
@@ -65,7 +61,6 @@ M.OPTIONS={
     -- Yours as the guest, at once: the travel to the camp nearest the host (travel.lua), offered (ask), started by
     -- itself (always) or neither (off).
     {key='follow_host',values={'ask','always','off'},default='ask'},
-    later(toggle('rejoin','on')),
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
     toggle('shared_quests','off'), -- At once: main.lua asks coop quests on or off.
@@ -84,12 +79,11 @@ M.OPTIONS={
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),range('boss_hp_scale',1,4,0.05,2),
     {key='kill_credit',values={'together','fought'},default='together'},
     {head='display'},
-    later(toggle('notices','on')),later(toggle('chat_feed','on')),
     {key='status_overlay',values={'off','compact','detailed'},default='off'}, -- At once: the HUD reads it each 250 ms.
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
     {head='chat'},
-    toggle('chat','on'),later(range('chat_lines',20,50,5,50)),
+    toggle('chat','on'),
 }
 -- Every key setting a rebind is checked against: the page's, and host_key, off once the menu holds Host (D-UI2).
 local KEYS={bind('host_key','none')}
@@ -144,7 +138,7 @@ function M.new(start)
         local rows={}
         for _,row in ipairs(page=='main' and M.MAIN or page=='line' and M.LINE or M.OPTIONS) do
             if row.head and rows[#rows] and rows[#rows].head then rows[#rows]=nil end
-            if not row.later and (not row.show or row.show(ctx)) then rows[#rows+1]=row end
+            if not row.show or row.show(ctx) then rows[#rows+1]=row end
         end
         if rows[#rows].head then rows[#rows]=nil end
         return rows
