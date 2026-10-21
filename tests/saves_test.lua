@@ -427,6 +427,21 @@ assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite wa
 saves.nav('back'); quarter(false,true); assert(not saves.is_open(),'Once a visit')
 quarter(true,false); quarter(false,true); assert(saves.is_open(),'A new visit')
 saves.nav('back')
+-- An invite that comes while the question is open adds its line there: answered without co-op, not asked again.
+saves=new()
+info=at()
+quarter(false,true); info=at({held=true}); quarter(false,true)
+assert(saves.is_open() and screen():find("^CO%-OP SAVES\nYour friend's invite waits until your save loads%.\n"),
+    screen())
+saves.nav('down'); saves.nav('select')
+quarter(false,true); quarter(false,true); assert(not saves.is_open(),'The invite line seen: no second ask')
+-- The kit not whole on the tick the invite comes: the second ask waits for it.
+saves=new()
+info=at()
+quarter(false,true); saves.nav('back')
+info=at({held=true}); state.whole=false; quarter(false,true); assert(not saves.is_open())
+state.whole=true; quarter(false,true); assert(saves.is_open(),'Asked once the kit is whole')
+saves.nav('back')
 -- Co-op chosen: nothing more (the game then uses the copies). always: no question at all.
 saves=new()
 info=at()

@@ -176,6 +176,7 @@ function Saves.new(o)
         local info=link.saves() or {}
         local want=settings.auto_coop_save
         invited=info.held==true
+        if open and invited then reasked=true end -- Its line drawn in the open question: seen, no second ask.
         -- The badge: shown or hidden on change; its word set at each slow (the kit sets it on change only, and a root
         -- built again shows it).
         local badge=(title and not world and info.saves=='coop')==true
@@ -209,13 +210,12 @@ function Saves.new(o)
             local again=invited and visit and not reasked and want=='ask' -- An invite after an answer without co-op.
             if (not visit or again) and not phase and want~='off' and info.saves=='main' and info.steamid
                 and not (info.convert or ''):find('^busy') then
-                reasked=reasked or invited
                 if want=='always' then switch(info)
                 elseif kit.off() then
-                    visit=true
+                    visit,reasked=true,reasked or invited
                     log('co-op saves: the question cannot show (the co-op UI is off): your own saves')
                 elseif kit.whole() then
-                    visit,copies,phase,cursor,back_at,idle=true,any_copy(info),'ask',1,nil,0
+                    visit,reasked,copies,phase,cursor,back_at,idle=true,reasked or invited,any_copy(info),'ask',1,nil,0
                     pick()
                     open=true
                     kit.show('saves',true,os.clock())
