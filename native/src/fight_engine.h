@@ -918,11 +918,11 @@ private:
     a.seen.stunned = a.states & kStunned;
     a.seen.immortal = held(27);
     // Stage 3c: a takedown marker on it, and whether R33 lets her take one down (a Monster in life state 1 holding
-    // Groggy or a marker; its type read only then, a failed read: no).
+    // Groggy or a marker, or with its balance at 0; its type read in life state 1 only, a failed read: no).
     uint8_t type = 0;
     a.seen.marked = marker;
-    a.seen.takedown = a.life == 1 && !a.pending && (held(7) || marker) && g.read(a.fsb + kActorType, &type, 1) &&
-                      type == kTypeMonster;
+    a.seen.monster = a.life == 1 && !a.pending && g.read(a.fsb + kActorType, &type, 1) && type == kTypeMonster;
+    a.seen.takedown = a.seen.monster && (held(7) || marker);
     int32_t task = 0;
     const bool skill = fighting(a) && g.read(a.fsb + kAiTask, &task, sizeof task) && task;
     a.pilot = uint8_t((held(kBattleState) ? kRowBattle : 0) | (held(kDelayDeath) ? kRowDying : 0) |

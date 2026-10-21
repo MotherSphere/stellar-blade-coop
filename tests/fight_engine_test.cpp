@@ -2115,6 +2115,7 @@ int main() {
       g.spawn(101 + i, 5001 + i, 0);
     g.spawn(104, 5004, 0, kChar, 1600, 4);
     g.state(104, 7, 1);
+    g.spawn(105, 5005, 0);
     g.inbox.push_back(msg("SBF11 on"));
     uint64_t t = 0;
     frame(g, *e, t);
@@ -2197,11 +2198,15 @@ int main() {
     while (t + 16 < asked + kHoldMs)
       assert(!has(turn(), "dead"));
     assert(has(turn(), "SBF11 dead 1 103\n") && e->host.counts.expired == 1 && count(g, "held-expired") == 1);
-    // 102 again, its Groggy over, and the boss: refused.
+    // 102 again, its Groggy over, and the boss, its balance emptied by her claim in that turn: refused.
     assert(!has(turn("SBF11 exec 1 102 1"), "own") && !e->host.executing(102, t));
+    g.inbox.push_back(msg("SBF11 hit 1 3 104 0 0 200 1600 0"));
     assert(!has(turn("SBF11 exec 1 104 1"), "own") && !e->host.executing(104, t));
     assert(e->host.counts.exec_refused == 2 && count(g, "exec refused", "no Groggy or takedown on our copy") == 2);
-    assert(e->host.counts.execs == 4 && e->host.counts.bad == 0 && !e->latched());
+    // 105, a Monster with no Groggy: her claim emptying its balance and her exec 1 in one turn hand it to her.
+    g.inbox.push_back(msg("SBF11 hit 1 4 105 0 0 200 1600 0"));
+    assert(has(turn("SBF11 exec 1 105 1"), "SBF11 own 1 105 G 1\n") && e->host.executing(105, t));
+    assert(e->host.counts.execs == 5 && e->host.counts.bad == 0 && !e->latched());
   }
   // Her side. A takedown marker on her copy, while same-place enemies run here with aggro=game: exec 1 in that turn,
   // exec 0 in the turn it holds none or same place stops here; none with the host's aggro=host. The host's own G for

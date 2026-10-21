@@ -881,6 +881,28 @@ int main() {
     assert(h.executing(102, 9050 + kHoldMs - 1) && !h.executing(102, 9050 + kHoldMs));
   }
 
+  // Her claim that empties our copy's balance and her exec 1 in one step (a link that held the claim back): R33 takes
+  // the exec 1 for a Monster in life state 1 (Seen::monster) whose balance is then 0, not for another type of enemy, and
+  // not for one with no balance at all.
+  {
+    World w;
+    w.add(101, 5101, 0).s.monster = true;
+    w.add(102, 5102, 0); // A BossMonster.
+    World::Actor &none = w.add(103, 5103, 0);
+    none.s.monster = true, none.s.max[kStamina] = 0, none.s.value[kStamina] = 0;
+    Host h;
+    h.set_place(true);
+    h.receive(msg("SBF11 on"), 0, w);
+    step(h, w, 1, 0);
+    for (const char *line : {"SBF11 hit 1 1 101 0 0 200 1600 0", "SBF11 exec 1 101 1", "SBF11 hit 1 2 102 0 0 200 1600 0",
+                             "SBF11 exec 1 102 1", "SBF11 exec 1 103 1"})
+      h.receive(msg(line), 100, w);
+    step(h, w, 2, 100);
+    assert(w.actor(101)->s.value[kStamina] == 0 && w.actor(102)->s.value[kStamina] == 0);
+    assert(h.executing(101, 100) && !h.executing(102, 100) && !h.executing(103, 100));
+    assert(h.counts.execs == 1 && h.counts.exec_refused == 2 && h.counts.bad == 0);
+  }
+
   // ---- Host: crowd control told and mirrored (PHASE11-STAGE2-RE 2) ----
   {
     World w;

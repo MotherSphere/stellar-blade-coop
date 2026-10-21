@@ -334,6 +334,7 @@ struct Seen {
   bool scaled = false;                   // The engine holds our two-player scaling on it: its maxes are not its own.
   bool marked = false; // A takedown runs on it: Check_LinkSkillHit_Skill (5000039) or LinkState_MonsterHit (2006004).
   bool takedown = false; // A Monster in life state 1 holding Groggy (7) or a takedown marker: R33's test of an exec 1.
+  bool monster = false;  // A Monster in life state 1: R33 also takes an exec 1 for it once its balance is 0.
   float max[kStats] = {};                // MaxHP, MaxShield, MaxStamina.
   int32_t value[kStats] = {};            // HP, Shield, Stamina, whole units.
 };
@@ -739,7 +740,7 @@ private:
     bool holding = false; // Her claim's kill waits since hold_ms while it holds NoDamageNoHit or her takedown runs;
                           // our hp lines say 0.
     bool died = false;    // Dead in our world while her takedown runs (stage 3c): our dead waits; hp lines say 0.
-    bool takedown = false; // Seen::takedown at the last pass.
+    bool takedown = false, monster = false; // Seen::takedown and Seen::monster at the last pass.
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
     bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
@@ -755,7 +756,7 @@ private:
       for (int k = 0; k < kStats; ++k)
         struck_ours = struck_ours || s.value[k] < value[k];
       fought = fought || struck_ours;
-      spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage, takedown = s.takedown;
+      spawn = s.spawn, chr = s.chr, index = s.index, nodamage = s.nodamage, takedown = s.takedown, monster = s.monster;
       std::copy(s.max, s.max + kStats, max);
       std::copy(s.value, s.value + kStats, value);
     }
@@ -889,7 +890,8 @@ private:
     kill(*e, io);
   }
   // Her exec line (R33). exec 1 counts while same place runs on our side with aggro=game, for an enemy we follow whose
-  // copy is a Monster in life state 1 holding Groggy or a takedown marker, and once an enemy in kExecMs, refused ones
+  // copy is a Monster in life state 1 holding Groggy or a takedown marker, or with its balance at 0 (a claim of hers in
+  // this step may have emptied it before the game put Groggy on our copy), and once an enemy in kExecMs, refused ones
   // included. Else it is refused (counted; logged, at most once an enemy in kExecMs: a Groggy ended, lines crossed, or
   // one of hers runs already, which an exec 1 never restarts) or stale (another setting, an enemy gone), never a bad
   // line. exec 0 ends hers.
@@ -907,8 +909,9 @@ private:
       return;
     }
     const bool soon = e->exec_last && now - e->exec_last < kExecMs, runs = running(*e, now);
+    const bool broken = e->monster && whole(e->max[kStamina]) > 0 && e->value[kStamina] <= 0;
     e->exec_last = now;
-    if (soon || runs || !e->takedown) {
+    if (soon || runs || !(e->takedown || broken)) {
       ++counts.exec_refused;
       if (soon) // Not logged: a flood of them would fill the log.
         return;
