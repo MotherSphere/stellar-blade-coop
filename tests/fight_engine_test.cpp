@@ -2499,7 +2499,7 @@ int main() {
       for (uint32_t id = 1; id <= 12; ++id)
         w->spawn_row(id, 2, here);
       w->spawn_row(20, 1, here), w->spawn_row(21, 2, here, 0, true), w->spawn_row(22, 2, here, 1);
-      w->spawn_row(23, 2, there), w->spawn_row(13, 2, here);
+      w->spawn_row(23, 2, there), w->spawn_row(13, 2, here), w->spawn_row(24, 3, here);
       w->place(1, 0, w == &H ? 0.f : 2000.f);
       w->flags.her_ok = true;
       w->flags.her[1] = w == &H ? 20000.f : -18000.f; // The other EVE's ghost, 200 m away.
@@ -2510,6 +2510,8 @@ int main() {
     }
     H.spawn(130, 13, 0, 50330, 100000); // A Monster the shared fight does not share (not in fight_chars): never sent.
     H.place(130, 900, 500);
+    H.spawn(124, 24, 0); // A SaveWithTransform row's Monster she lacks: per-player content, never sent.
+    H.place(124, 1200, 500);
     for (uint32_t id = 5; id <= 12; ++id)
       G.spawn(900 + id, id, 0);
     for (uint32_t id = 20; id <= 23; ++id)
@@ -2582,7 +2584,8 @@ int main() {
     assert(count(G, "spawned") == 4 && count(G, "despawned") == 4 && count(H, "spawns epoch", "reset") == 1);
     assert(count(H, "spawn sent") == 4 && count(G, "spawn refused") == 0); // Never key 13's.
     assert(count(G, "spawns leave", "save-row") == 1 && count(G, "spawns leave", "keep-row") == 1); // Once each.
-    assert(count(G, "spawns leave") == 2 && count(H, "spawns leave") == 0);
+    assert(count(G, "spawns leave") == 2 && count(H, "spawns leave", "save-row") == 1 && count(H, "spawns leave") == 1);
+    assert(std::none_of(G.made.begin(), G.made.end(), [](const Game::Made &m) { return m.id == 24; }));
   }
 
   // ---- Same spawns: a Save row the host meets is logged once a session, also once the row room is full ----
@@ -2687,6 +2690,68 @@ int main() {
     }
     assert(G.made.empty() && G.despawned.empty() && eg->snapshot().spawns.haves == 0 && eg->counts.cut > 0);
     assert(eh->snapshot().spawns.answered == 0 && eg->snapshot().epoch == 1 && !eh->latched() && !eg->latched());
+  }
+
+  // ---- Same spawns' two game calls on fake memory: their arguments; none with no spawn manager or after a latch ----
+  // The host holds keys 1 and 5:2 (where it stands, at its yaw), she holds 3 and 4. FUN_141c1c9a0 gets SB's spawn
+  // manager as the global holds it, the key's EventSpawnId and SpawnIndex, where and (0, yaw, 0); FUN_141b077f0 the job
+  // sender as its global holds it, this logic turn and the actor's GUID (the fakes check both on the logic thread,
+  // inside the job). With the spawn manager's global still null her game refuses each spawn and calls nothing (the
+  // drops go on: they need the job sender only). An unreadable spawn row latches her side: no call after it (the
+  // spawn before it went), and her side stops sending.
+  for (const int run : {0, 1, 2}) { // 0: both calls; 1: no spawn manager; 2: an unreadable row.
+    Game H, G;
+    auto eh = engine(true, true), eg = engine(true, false);
+    eh->same_spawns(true);
+    for (Game *w : {&H, &G}) {
+      w->spawns();
+      w->zone(0xA1, 40);
+      w->enter(0xA1);
+      for (uint32_t id = 1; id <= 5; ++id)
+        w->spawn_row(id, 2, 0xA1);
+      w->flags.her_ok = true;
+    }
+    H.spawn(101, 1, 0), H.spawn(105, 5, 2);
+    H.place(101, 100, 200, 30), H.place(105, 700, 800, 90);
+    G.spawn(903, 3, 0), G.spawn(904, 4, 0);
+    if (run == 1)
+      G.mem.put<uint64_t>(rebased(kSpawnManager), 0);
+    if (run == 2)
+      G.spawn_rows[5] = 0x7fff00000000; // Plausible, never mapped.
+    Wire to_host, to_guest;
+    to_host.queue.emplace_back(120, "SBF11 on");
+    to_guest.queue.emplace_back(120, "SBF11 on");
+    std::mt19937 rng(14);
+    size_t sent_at_latch = 0;
+    for (uint64_t t = 0; t <= 8000; t += 16) {
+      to_host.deliver(t, H);
+      to_guest.deliver(t, G);
+      frame(H, *eh, t);
+      frame(G, *eg, t);
+      if (eg->latched() && !sent_at_latch)
+        sent_at_latch = G.sent.size() + 1;
+      to_guest.send(H, t, rng);
+      to_host.send(G, t, rng);
+    }
+    for (const auto &[la, b] : G.bodies)
+      assert(b.deaths == 0);
+    if (run == 0) {
+      assert(G.made.size() == 2 && G.despawned.size() == 2 && !eg->latched());
+      for (const Game::Made &m : G.made) {
+        const bool five = m.id == 5;
+        assert(m.index == (five ? 2 : 0) && m.at[0] == (five ? 700 : 100) && m.at[1] == (five ? 800 : 200));
+        assert(m.at[2] == 0 && m.rot[0] == 0 && m.rot[1] == (five ? 90 : 30) && m.rot[2] == 0);
+      }
+      assert(std::count(G.despawned.begin(), G.despawned.end(), 903u) == 1 &&
+             std::count(G.despawned.begin(), G.despawned.end(), 904u) == 1);
+    } else if (run == 1) {
+      assert(G.made.empty() && G.despawned.size() == 2 && !eg->latched());
+      assert(count(G, "spawn refused", "no spawn manager") == 2 && eg->snapshot().spawns.differ == 0);
+    } else { // Key 1's spawn comes before key 5's row is read; nothing after it, the two drops neither.
+      assert(eg->latched() && std::string(eg->why()) == "unreadable" && G.made.size() == 1 && G.made[0].id == 1);
+      assert(G.despawned.empty());
+      assert(sent_at_latch && G.sent.size() + 1 == sent_at_latch); // Nothing sent after it.
+    }
   }
 
   // ---- Two-player scaling (PHASE11-STAGE2-RE 4): on each enemy the side names, MaxHPValue (stat 3, which MaxHP

@@ -279,8 +279,9 @@ struct Told {
 // sender (FUN_141a97b90's): read, never made here (each getter allocates when null). Logic +0x598: the current zone's
 // alias, an FName (0 at a level's start). The spawn manager's +0x1c: 1 entering a zone, then 3; 2 resetting it, then 4.
 // An EventSpawnTable row (FSBZoneEventSpawnTableProperty): SpawnType +0x30, Zone +0x34 (an FName), SaveType +0x44,
-// bResetZoneKeepObject +0x46, read without SB's lazy init of the row [L]; a ZoneTable row: its ID +0x10. FSBActor
-// +0x4e4: its rotation (pitch, yaw, roll), which its actor tick copies with +0x4cc [L].
+// bResetZoneKeepObject +0x46; a ZoneTable row: its ID +0x10. Both are read without SB's lazy init (row->vtbl[0x20] once
+// while row +8 is 0), which skips nothing: that slot of both row vtables (0x145d4ac30, 0x145e1eda8) is the empty
+// FUN_140e32fa0. FSBActor +0x4e4: its rotation (pitch, yaw, roll), which its actor tick copies with +0x4cc [L].
 constexpr uint64_t kTables = 0x147032510, kSpawnManager = 0x147032590, kJobSender = 0x147032560;
 constexpr size_t kTablesAt = 0x20, kZoneAlias = 0x598, kSpawnState = 0x1c;
 constexpr size_t kRowSpawnType = 0x30, kRowZone = 0x34, kRowSaveType = 0x44, kRowKeep = 0x46, kZoneId = 0x10;
