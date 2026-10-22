@@ -36,11 +36,11 @@
 #include <string_view>
 #include <utility>
 
-#include "fight/sync.h"    // kMaxPairs, detail::id, and link/protocol.h's fight_tag, split, number, kMaxMessage
-#include "nightop/probe.h" // kImageBase, plausible
-#include "pose/codec.h"    // codec::put/get, kMaxWorld
-#include "pose/engine.h"   // UE's object array, UObject and transform offsets
-#include "pose/stream.h"   // blend_transform
+#include "fight/sync.h"  // kMaxPairs, detail::id, and link/protocol.h's fight_tag, split, number, kMaxMessage
+#include "game/memory.h" // kImageBase, plausible
+#include "pose/codec.h"  // codec::put/get, kMaxWorld
+#include "pose/engine.h" // UE's object array, UObject and transform offsets
+#include "pose/stream.h" // blend_transform
 
 namespace coop::pilot {
 
@@ -1186,7 +1186,7 @@ template <class Read>
 bool live(Read &&read, uint64_t objects, uint64_t object, int32_t *index = nullptr, int32_t *serial = nullptr) {
   int32_t i = 0;
   uint8_t item[pose::kItemBytes];
-  const bool indexed = nightop::plausible(object) && read(object + pose::kInternalIndex, &i, sizeof i);
+  const bool indexed = game::plausible(object) && read(object + pose::kInternalIndex, &i, sizeof i);
   const uint64_t at = indexed ? object_item(read, objects, i) : 0;
   if (!at || !read(at, item, sizeof item) || detail::field<uint64_t>(item, 0) != object ||
       (detail::field<int32_t>(item, pose::kItemFlags) & (pose::kPendingKill | pose::kUnreachable)))
@@ -1201,9 +1201,9 @@ bool live(Read &&read, uint64_t objects, uint64_t object, int32_t *index = nullp
 template <class Read> bool is_a(Read &&read, uint64_t object, uint64_t cls) {
   uint64_t own = 0, chain = 0, link = 0;
   int32_t want = 0, depth = 0;
-  return nightop::plausible(cls) && read(object + pose::kClass, &own, sizeof own) && nightop::plausible(own) &&
+  return game::plausible(cls) && read(object + pose::kClass, &own, sizeof own) && game::plausible(own) &&
          read(cls + kBaseDepth, &want, sizeof want) && read(own + kBaseDepth, &depth, sizeof depth) && want >= 0 &&
-         want <= depth && depth < 64 && read(own + kBaseChain, &chain, sizeof chain) && nightop::plausible(chain) &&
+         want <= depth && depth < 64 && read(own + kBaseChain, &chain, sizeof chain) && game::plausible(chain) &&
          read(chain + 8 * uint64_t(want), &link, sizeof link) && link == cls + kBaseChain;
 }
 // The anim speed (cm/s) from the kSpeedBytes at char+0xC64, in GetSBSpeedForAnimGraph's order: the override's speed
@@ -1227,16 +1227,16 @@ struct Globals {
 };
 template <class Read> bool globals(Read &&read, uint64_t base, Globals &s) {
   auto global = [&](uint64_t address, uint64_t &out) {
-    return read(base + (address - nightop::kImageBase), &out, sizeof out) && nightop::plausible(out);
+    return read(base + (address - game::kImageBase), &out, sizeof out) && game::plausible(out);
   };
   s = Globals();
   uint64_t world = 0;
   if (!global(kWorldAt, world) || !read(world + kActorManager, &s.manager, sizeof s.manager) ||
-      !nightop::plausible(s.manager))
+      !game::plausible(s.manager))
     s.manager = 0;
   if (!global(kRegistryAt, s.reg))
     s.reg = 0;
-  else if (!read(s.reg + kCharacterMap, &s.map, sizeof s.map) || !nightop::plausible(s.map))
+  else if (!read(s.reg + kCharacterMap, &s.map, sizeof s.map) || !game::plausible(s.map))
     s.map = 0;
   if (!global(kCharacterClassAt, s.character_class))
     s.character_class = 0;
@@ -1253,7 +1253,7 @@ uint64_t find_character(Game &g, Read &read, uint64_t objects, const Globals &s,
   int32_t fguid[4] = {};
   fsb = g.fsb(s.manager, guid);
   root = 0;
-  const uint64_t ch = nightop::plausible(fsb) && read(fsb + kFsbGuid, fguid, sizeof fguid) ? g.character(s.map, fguid)
+  const uint64_t ch = game::plausible(fsb) && read(fsb + kFsbGuid, fguid, sizeof fguid) ? g.character(s.map, fguid)
                                                                                           : 0;
   if (!ch || !live(read, objects, ch, index, serial) || !is_a(read, ch, s.character_class) ||
       !read(ch + kRootComponent, &root, sizeof root) || !live(read, objects, root))
@@ -1393,7 +1393,7 @@ public:
     for (Pair &p : pairs_) // A pair no longer asked is forgotten: under its GUID again, it is a new pair.
       if (p.hguid && std::none_of(pairs, pairs + n, [&](const Owned &o) { return o.hguid == p.hguid; }))
         p = Pair();
-    const uint64_t objects = base + pose::kObjectsRva, pool = base + (kNamePool - nightop::kImageBase);
+    const uint64_t objects = base + pose::kObjectsRva, pool = base + (kNamePool - game::kImageBase);
     uint64_t data_class = 0;
     Globals gl;
     if (!globals(read, base, gl)) {
@@ -1442,10 +1442,10 @@ public:
     int32_t stages = -1;
     uint64_t list = 0;
     const uint64_t shows = gl.shows;
-    bool walked = k && read(base + (kShowDataClassAt - nightop::kImageBase), &data_class, sizeof data_class) &&
-                  nightop::plausible(data_class) && shows && read(shows + kStageCount, &stages, sizeof stages) &&
+    bool walked = k && read(base + (kShowDataClassAt - game::kImageBase), &data_class, sizeof data_class) &&
+                  game::plausible(data_class) && shows && read(shows + kStageCount, &stages, sizeof stages) &&
                   stages >= 0 && stages <= 65536 &&
-                  (!stages || (read(shows + kStageList, &list, sizeof list) && nightop::plausible(list)));
+                  (!stages || (read(shows + kStageList, &list, sizeof list) && game::plausible(list)));
     const size_t walk = walked ? std::min<size_t>(size_t(stages), kMaxStages) : 0;
     counts.cut += walked ? size_t(stages) - walk : 0;
     for (size_t at = 0; walked && at < walk;) {
@@ -1455,7 +1455,7 @@ public:
       at += m;
       for (size_t s = 0; walked && s < m; ++s) {
         uint8_t st[kStageBytes];
-        if (!nightop::plausible(chunk[s]) || !read(chunk[s], st, sizeof st))
+        if (!game::plausible(chunk[s]) || !read(chunk[s], st, sizeof st))
           continue;
         const int32_t weak_index = field<int32_t>(st, kStageMainWeak),
                       weak_serial = field<int32_t>(st, kStageMainWeak + 4);
@@ -1470,8 +1470,8 @@ public:
         const int32_t count = field<int32_t>(st, kStagePlayerCount);
         uint64_t player = 0;
         uint8_t pl[kPlayerBytes];
-        if (!f || count <= 0 || count > 4096 || !nightop::plausible(players) ||
-            !read(players, &player, sizeof player) || !nightop::plausible(player) || !read(player, pl, sizeof pl))
+        if (!f || count <= 0 || count > 4096 || !game::plausible(players) ||
+            !read(players, &player, sizeof player) || !game::plausible(player) || !read(player, pl, sizeof pl))
           continue;
         uint8_t form = 0;
         const char *path = nullptr;
@@ -1613,8 +1613,8 @@ constexpr size_t kMoveSlot = 0x4a0;
 // is called on or a Velocity written to.
 template <class Read> bool sb_cmc(Read &read, uint64_t base, uint64_t cmc) {
   uint64_t vt = 0, tick = 0;
-  return read(cmc, &vt, sizeof vt) && vt == base + (kCmcVtable - nightop::kImageBase) &&
-         read(vt + kCmcTickSlot, &tick, sizeof tick) && tick == base + (kCmcTick - nightop::kImageBase);
+  return read(cmc, &vt, sizeof vt) && vt == base + (kCmcVtable - game::kImageBase) &&
+         read(vt + kCmcTickSlot, &tick, sizeof tick) && tick == base + (kCmcTick - game::kImageBase);
 }
 
 // The angle between two unit quaternions, in degrees.
@@ -2079,16 +2079,16 @@ private:
     using detail::field;
     uint64_t data_class = 0, list = 0;
     int32_t stages = 0;
-    if (!s.shows || !read(base_ + (kShowDataClassAt - nightop::kImageBase), &data_class, sizeof data_class) ||
-        !nightop::plausible(data_class) || !read(s.shows + kStageCount, &stages, sizeof stages) || stages <= 0 ||
-        stages > 65536 || !read(s.shows + kStageList, &list, sizeof list) || !nightop::plausible(list))
+    if (!s.shows || !read(base_ + (kShowDataClassAt - game::kImageBase), &data_class, sizeof data_class) ||
+        !game::plausible(data_class) || !read(s.shows + kStageCount, &stages, sizeof stages) || stages <= 0 ||
+        stages > 65536 || !read(s.shows + kStageList, &list, sizeof list) || !game::plausible(list))
       return false;
-    const uint64_t objects = base_ + pose::kObjectsRva, pool = base_ + (kNamePool - nightop::kImageBase);
+    const uint64_t objects = base_ + pose::kObjectsRva, pool = base_ + (kNamePool - game::kImageBase);
     const int32_t last = std::max(0, stages - int32_t(Capturer::kMaxStages));
     for (int32_t k = stages - 1; k >= last; --k) {
       uint64_t stage = 0, players = 0, player = 0;
       uint8_t st[kStageBytes], h[16], pl[kPlayerBytes];
-      if (!read(list + 8 * uint64_t(k), &stage, sizeof stage) || !nightop::plausible(stage) ||
+      if (!read(list + 8 * uint64_t(k), &stage, sizeof stage) || !game::plausible(stage) ||
           !read(stage, st, sizeof st))
         continue;
       const int32_t weak_index = field<int32_t>(st, kStageMainWeak),
@@ -2102,8 +2102,8 @@ private:
       });
       const int32_t count = field<int32_t>(st, kStagePlayerCount);
       players = field<uint64_t>(st, kStagePlayers);
-      if (ours || count <= 0 || count > 4096 || !nightop::plausible(players) ||
-          !read(players, &player, sizeof player) || !nightop::plausible(player) || !read(player, pl, sizeof pl))
+      if (ours || count <= 0 || count > 4096 || !game::plausible(players) ||
+          !read(players, &player, sizeof player) || !game::plausible(player) || !read(player, pl, sizeof pl))
         continue;
       const float time = field<float>(pl, kPlayerTime);
       uint8_t form = 0;
@@ -2130,18 +2130,18 @@ private:
     uint64_t list = 0, stage = 0, players = 0, player = 0;
     const auto mine = [&](int32_t k) { // Stage k of the list, into stage: ours?
       uint8_t h[16];
-      return read(list + 8 * uint64_t(k), &stage, sizeof stage) && nightop::plausible(stage) &&
+      return read(list + 8 * uint64_t(k), &stage, sizeof stage) && game::plausible(stage) &&
              read(stage + kStageHandle, h, sizeof h) && !std::memcmp(h, live.handle, sizeof h);
     };
     const bool listed = ctx_near(l, p.loc) && read(s.shows + kStageCount, &stages, sizeof stages) && stages > 0 &&
-                        stages <= 65536 && read(s.shows + kStageList, &list, sizeof list) && nightop::plausible(list);
+                        stages <= 65536 && read(s.shows + kStageList, &list, sizeof list) && game::plausible(list);
     const int32_t last = std::max(0, stages - kNewest);
     int32_t k = stages - 1;
     while (listed && k >= last && !mine(k))
       --k;
-    if (!listed || k < last || !read(stage + kStagePlayers, &players, sizeof players) || !nightop::plausible(players) ||
+    if (!listed || k < last || !read(stage + kStagePlayers, &players, sizeof players) || !game::plausible(players) ||
         !read(stage + kStagePlayerCount, &players_n, sizeof players_n) || live.slot >= players_n ||
-        !read(players + 8 * uint64_t(live.slot), &player, sizeof player) || !nightop::plausible(player)) {
+        !read(players + 8 * uint64_t(live.slot), &player, sizeof player) || !game::plausible(player)) {
       ++counts.no_context;
       return;
     }
@@ -2181,7 +2181,7 @@ private:
 
 // ---- Stage 3b: a pair this side takes over (game thread) ----
 
-// SB's globals block (nightop::kGlobals), read one word at a time: the net-mode cache, whose cached net mode is at
+// SB's globals block (game::kGlobals), read one word at a time: the net-mode cache, whose cached net mode is at
 // +0x14 (0 standalone), and the logic singleton, whose +0x5c0 is the logic task in flight (0: none).
 constexpr uint64_t kNetCacheAt = 0x147032528, kLogicSingletonAt = 0x147032568;
 constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
@@ -2325,8 +2325,8 @@ private:
     return manager && read(manager + kActorArray, &array, sizeof array) &&
                    read(manager + kActorCount, &count, sizeof count) &&
                    read(manager + kLocalIndex, &index, sizeof index) && index >= 0 && index < count &&
-                   nightop::plausible(array) && read(array + 8 * uint64_t(index), &eve, sizeof eve) &&
-                   nightop::plausible(eve) && read(eve + kFsbPlayer, &player, sizeof player) && player
+                   game::plausible(array) && read(array + 8 * uint64_t(index), &eve, sizeof eve) &&
+                   game::plausible(eve) && read(eve + kFsbPlayer, &player, sizeof player) && player
                ? eve
                : 0;
   }
@@ -2336,16 +2336,16 @@ private:
     uint64_t net = 0, logic = 0, task = 0, root = 0, owner = 0;
     int32_t mode = -1;
     fsb = 0;
-    if (!read(base + (kNetCacheAt - nightop::kImageBase), &net, sizeof net) || !nightop::plausible(net) ||
+    if (!read(base + (kNetCacheAt - game::kImageBase), &net, sizeof net) || !game::plausible(net) ||
         !read(net + kNetMode, &mode, sizeof mode) || mode != 0 ||
-        !read(base + (kLogicSingletonAt - nightop::kImageBase), &logic, sizeof logic) ||
-        !nightop::plausible(logic) || !read(logic + kLogicTask, &task, sizeof task))
+        !read(base + (kLogicSingletonAt - game::kImageBase), &logic, sizeof logic) ||
+        !game::plausible(logic) || !read(logic + kLogicTask, &task, sizeof task))
       return kShut;
     if (task)
       return kBusy;
     for (uint64_t at : kTargetSingletonsAt) {
       uint64_t made = 0;
-      if (!read(base + (at - nightop::kImageBase), &made, sizeof made) || !nightop::plausible(made))
+      if (!read(base + (at - game::kImageBase), &made, sizeof made) || !game::plausible(made))
         return kUnmade;
     }
     Globals s;

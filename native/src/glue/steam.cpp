@@ -23,10 +23,10 @@
 #include <string>
 #include <vector>
 
-#include "glue/clipboard.h"
-#include "link/core.h"
 #include "game/pak_list.h"
+#include "glue/clipboard.h"
 #include "glue/tick.h"
+#include "link/core.h"
 #include "save/slot.h"
 #include "save/twins.h"
 #include "save/watch.h"

@@ -61,17 +61,17 @@
 #include <string>
 #include <vector>
 
-#include "fight/sync.h"       // Host, Guest, Seen, Write, Message, Event, kStatType
-#include "nightop/probe.h"    // kImageBase, kGlobals, plausible, get
 #include "fight/pilot.h"      // Side, kBattle, kDying: same-place enemies' pair table
 #include "fight/spawn_sync.h" // Epochs, SpawnHost, SpawnGuest, Mine, SpawnRow, BlockTable: same spawns
+#include "fight/sync.h"       // Host, Guest, Seen, Write, Message, Event, kStatType
+#include "game/memory.h"      // kImageBase, kGlobals, plausible, get
 
 namespace coop::fight {
 
-using nightop::kImageBase;
-using nightop::plausible;
+using game::kImageBase;
+using game::plausible;
 
-// SB's globals block (nightop/probe.h's kGlobals, 0x50 bytes): +0 the net-mode cache, whose +0x14 is the cached mode (4
+// SB's globals block (game/memory.h's kGlobals, 0x50 bytes): +0 the net-mode cache, whose +0x14 is the cached mode (4
 // until resolved, 0 standalone); +0x40 the logic singleton; +0x48 the world.
 constexpr size_t kNetAt = 0, kLogicAt = 0x40, kWorldAt = 0x48, kNetMode = 0x14;
 // Logic: the turn, then the actor map, a TMap<u32 GUID, logic actor *> held as a TSparseArray: elements of 0x18 bytes
@@ -132,9 +132,9 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint64_t &held
   uint8_t m[0x50];
   if (!read(fsb + kStateMap, m, sizeof m))
     return false;
-  const uint64_t data = nightop::get<uint64_t>(m, 0), heap = nightop::get<uint64_t>(m, 0x40);
-  const int32_t num = nightop::get<int32_t>(m, 0x08), gaps = nightop::get<int32_t>(m, 0x34),
-                size = nightop::get<int32_t>(m, 0x48);
+  const uint64_t data = game::get<uint64_t>(m, 0), heap = game::get<uint64_t>(m, 0x40);
+  const int32_t num = game::get<int32_t>(m, 0x08), gaps = game::get<int32_t>(m, 0x34),
+                size = game::get<int32_t>(m, 0x48);
   if (num == gaps) // Empty: SB's own early out.
     return true;
   if (num < 0 || num > 4096 || size <= 0 || (size & (size - 1)) || !plausible(data) || (heap && !plausible(heap)))
@@ -146,7 +146,7 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint64_t &held
     if (heap ? !read(heap + 4 * uint64_t(slot), &at, sizeof at) : slot != 0)
       return false;
     if (!heap)
-      at = nightop::get<int32_t>(m, 0x38);
+      at = game::get<int32_t>(m, 0x38);
     for (int32_t steps = 0; at != -1; ++steps) {
       int32_t e[3];
       if (at < 0 || at >= num || steps > num || !read(data + 16 * uint64_t(at), e, sizeof e))
@@ -491,13 +491,13 @@ template <class Read> bool vitals(uint64_t base, Read &&read, Vitals &out) {
   uint8_t slot[kLocalIndex + 4 - kActorArray], player = 0; // The actor array, its count and the local index.
   float stats[23];
   int32_t life = 0;
-  if (!read(base + (nightop::kGlobals + kWorldAt - kImageBase), &world, sizeof world) || !plausible(world) ||
+  if (!read(base + (game::kGlobals + kWorldAt - kImageBase), &world, sizeof world) || !plausible(world) ||
       !read(world + kManager, &manager, sizeof manager) || !plausible(manager) ||
       !read(manager + kActorArray, slot, sizeof slot))
     return false;
-  const uint64_t array = nightop::get<uint64_t>(slot, 0);
-  const int32_t count = nightop::get<int32_t>(slot, kActorCount - kActorArray),
-                index = nightop::get<int32_t>(slot, kLocalIndex - kActorArray);
+  const uint64_t array = game::get<uint64_t>(slot, 0);
+  const int32_t count = game::get<int32_t>(slot, kActorCount - kActorArray),
+                index = game::get<int32_t>(slot, kLocalIndex - kActorArray);
   const uint64_t at = array + 8 * uint64_t(index);
   if (index < 0 || index >= count || !plausible(array) || !read(at, &fsb, sizeof fsb) || !plausible(fsb) ||
       !read(fsb + kPlayer, &player, sizeof player) || !player || !read(fsb + kStatBase + 4, stats, sizeof stats) ||
@@ -1058,13 +1058,13 @@ private:
   }
   template <class Game> bool globals(Game &g, uint64_t &net, uint64_t &logic, uint64_t &world) {
     uint8_t b[0x50];
-    if (!g.read(base_ + (nightop::kGlobals - kImageBase), b, sizeof b)) {
+    if (!g.read(base_ + (game::kGlobals - kImageBase), b, sizeof b)) {
       latch("unreadable");
       return false;
     }
-    net = nightop::get<uint64_t>(b, kNetAt);
-    logic = nightop::get<uint64_t>(b, kLogicAt);
-    world = nightop::get<uint64_t>(b, kWorldAt);
+    net = game::get<uint64_t>(b, kNetAt);
+    logic = game::get<uint64_t>(b, kLogicAt);
+    world = game::get<uint64_t>(b, kWorldAt);
     return true;
   }
 
@@ -1072,7 +1072,7 @@ private:
   template <class Game> bool paused(Game &g) {
     uint64_t tags = 0;
     int32_t count = 0, gaps = 0;
-    if (!get(g, base_ + (nightop::kGlobals + kPauseAt - kImageBase), tags))
+    if (!get(g, base_ + (game::kGlobals + kPauseAt - kImageBase), tags))
       return true;
     if (!tags)
       return false;
@@ -1149,8 +1149,8 @@ private:
     uint64_t list[kMaxEffects];
     if (!g.read(la + kEffects, h, sizeof h))
       return false;
-    const uint64_t data = nightop::get<uint64_t>(h, 0);
-    const int32_t num = nightop::get<int32_t>(h, kEffectCount - kEffects);
+    const uint64_t data = game::get<uint64_t>(h, 0);
+    const int32_t num = game::get<int32_t>(h, kEffectCount - kEffects);
     if (num < 0 || num > kMaxEffects || (num && (!plausible(data) || !g.read(data, list, 8 * size_t(num)))))
       return false;
     for (int32_t i = 0; i < num; ++i) {
@@ -1240,9 +1240,9 @@ private:
       latch("unreadable");
       return false;
     }
-    const uint64_t data = nightop::get<uint64_t>(h, 0), heap = nightop::get<uint64_t>(h, kMapBitsHeap - kMapData);
-    const int32_t num = nightop::get<int32_t>(h, kMapNum - kMapData);
-    const int32_t bits = nightop::get<int32_t>(h, kMapNumBits - kMapData);
+    const uint64_t data = game::get<uint64_t>(h, 0), heap = game::get<uint64_t>(h, kMapBitsHeap - kMapData);
+    const int32_t num = game::get<int32_t>(h, kMapNum - kMapData);
+    const int32_t bits = game::get<int32_t>(h, kMapNumBits - kMapData);
     const int32_t slots = std::min(num, bits);
     if (num < 0 || bits < 0 || num > kMaxSlots || bits > kMaxSlots || (slots && !plausible(data)) ||
         (heap ? !plausible(heap) : bits > kInlineBits)) {

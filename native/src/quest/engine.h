@@ -38,13 +38,13 @@
 #include <utility>
 #include <vector>
 
-#include "nightop/probe.h" // kImageBase, plausible, get
+#include "game/memory.h" // kImageBase, plausible, get
 #include "quest/sync.h"
 
 namespace coop::quest {
 
-using nightop::kImageBase;
-using nightop::plausible;
+using game::kImageBase;
+using game::plausible;
 
 // The save-slot line's co-op slot index (its " index=" digit), or -1.
 inline int slot_index(std::string_view slot) {
@@ -433,8 +433,8 @@ private:
       return false;
     size_t total = 0;
     for (size_t k = 0; k < 3; ++k) {
-      const uint64_t data = nightop::get<uint64_t>(u, kLists + 0x10 * k);
-      const int32_t n = nightop::get<int32_t>(u, kLists + 0x10 * k + 8);
+      const uint64_t data = game::get<uint64_t>(u, kLists + 0x10 * k);
+      const int32_t n = game::get<int32_t>(u, kLists + 0x10 * k + 8);
       if (n < 0 || total + size_t(n) > kMaxQuests || (n && !plausible(data)))
         return implausible("quest arrays");
       list_[k].resize(size_t(n));
@@ -442,8 +442,8 @@ private:
         return false;
       total += size_t(n);
     }
-    const uint64_t data = nightop::get<uint64_t>(u, kMapData), heap = nightop::get<uint64_t>(u, kMapBitsHeap);
-    const int32_t num = nightop::get<int32_t>(u, kMapNum), bits = nightop::get<int32_t>(u, kMapNumBits);
+    const uint64_t data = game::get<uint64_t>(u, kMapData), heap = game::get<uint64_t>(u, kMapBitsHeap);
+    const int32_t num = game::get<int32_t>(u, kMapNum), bits = game::get<int32_t>(u, kMapNumBits);
     const int32_t slots = std::min(num, bits);
     if (num < 0 || bits < 0 || num > kMaxSlots || bits > kMaxSlots || (slots > 0 && !plausible(data)) ||
         (heap ? !plausible(heap) : bits > kInlineBits))
@@ -462,8 +462,8 @@ private:
     for (int32_t s = 0; s < slots; ++s) {
       if (!(words[s / 32] >> (s % 32) & 1))
         continue;
-      const int32_t key = nightop::get<int32_t>(elements_.data(), kElement * size_t(s));
-      const uint64_t value = nightop::get<uint64_t>(elements_.data(), kElement * size_t(s) + 8);
+      const int32_t key = game::get<int32_t>(elements_.data(), kElement * size_t(s));
+      const uint64_t value = game::get<uint64_t>(elements_.data(), kElement * size_t(s) + 8);
       if (!plausible(value))
         return implausible("quest map entry");
       values_.push_back(value);
@@ -494,9 +494,9 @@ private:
     uint8_t q[kQuestRead];
     if (!read(g, quest, q, sizeof q))
       return false;
-    const uint64_t vtable = nightop::get<uint64_t>(q, 0), groups = nightop::get<uint64_t>(q, kQuestGroups);
-    const int32_t state = nightop::get<int32_t>(q, kQuestState), count = nightop::get<int32_t>(q, kQuestGroupCount),
-                  active = nightop::get<int32_t>(q, kQuestActive);
+    const uint64_t vtable = game::get<uint64_t>(q, 0), groups = game::get<uint64_t>(q, kQuestGroups);
+    const int32_t state = game::get<int32_t>(q, kQuestState), count = game::get<int32_t>(q, kQuestGroupCount),
+                  active = game::get<int32_t>(q, kQuestActive);
     if (vtable != rebased(r.type == 'R' ? kRequestVtable : kQuestVtable) || state < -1 || state > kFailed)
       return implausible("quest object");
     const bool listed = std::binary_search(listed_.begin(), listed_.end(), quest);
@@ -519,8 +519,8 @@ private:
         return implausible("quest group");
       if (!read(g, group[k], b, sizeof b))
         return false;
-      const uint64_t gv = nightop::get<uint64_t>(b, 0), cs = nightop::get<uint64_t>(b, kContainers);
-      const int32_t cn = nightop::get<int32_t>(b, kContainerCount);
+      const uint64_t gv = game::get<uint64_t>(b, 0), cs = game::get<uint64_t>(b, kContainers);
+      const int32_t cn = game::get<int32_t>(b, kContainerCount);
       const bool report = r.type == 'R' && k == count - 1 && gv == rebased(kReportVtable);
       if ((gv != rebased(kGroupVtable) && !report) || cn < 0 || size_t(cn) > kMaxContainers || (cn && !plausible(cs)))
         return implausible("quest group");
@@ -529,8 +529,8 @@ private:
       if (cn && !read(g, cs, c, kContainer * size_t(cn)))
         return false;
       for (int32_t j = 0; j < cn; ++j) {
-        const uint64_t ts = nightop::get<uint64_t>(c, kContainer * size_t(j));
-        const int32_t tn = nightop::get<int32_t>(c, kContainer * size_t(j) + 8);
+        const uint64_t ts = game::get<uint64_t>(c, kContainer * size_t(j));
+        const int32_t tn = game::get<int32_t>(c, kContainer * size_t(j) + 8);
         if (tn < 0 || size_t(tn) > kMaxTasks || (tn && !plausible(ts)))
           return implausible("quest container");
         v.tasks[k][j] = uint8_t(tn);

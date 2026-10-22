@@ -81,18 +81,19 @@
 #include <vector>
 
 #include "fight/engine.h"
-#include "link/protocol.h"
-#include "nightop/probe.h"
+#include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
+#include "game/travel.h"
+#include "glue/tick.h"
+#include "link/protocol.h"
+#include "nightop/probe.h"
 #include "pose/codec.h"
 #include "pose/engine.h"
 #include "pose/record.h"
 #include "pose/stream.h"
-#include "glue/tick.h"
 #include "quest/engine.h"
 #include "save/slot.h"
-#include "game/travel.h"
 
 namespace coop::pose {
 namespace {
@@ -583,7 +584,7 @@ using NewActor = void *(*)(void *logic, int32_t chr, const float *at, const floa
 // Called on the logic thread, it queues its functor for the game thread.
 using SetBattleMode = void (*)(void *fsb, uint8_t on, uint8_t, uint8_t, uint8_t, uint8_t);
 template <class F> F game_function(uint64_t address) {
-  return reinterpret_cast<F>(base + (address - nightop::kImageBase));
+  return reinterpret_cast<F>(base + (address - game::kImageBase));
 }
 
 fight::Engine fight_engine; // Its ring of 8 jobs is never freed: SB's queue may hold one, and the DLL is pinned.
@@ -647,7 +648,7 @@ fight::Snapshot fight_snapshot() {
   fight::Snapshot s = fight_engine.snapshot();
   s.runs = sim_runs, s.us = sim_us, s.max_us = sim_max_us;
   s.thread = GetCurrentThreadId();
-  s.sb_thread = at<uint32_t>(base + (kLogicThreadId - nightop::kImageBase));
+  s.sb_thread = at<uint32_t>(base + (kLogicThreadId - game::kImageBase));
   return s;
 }
 // One run: hers in and ours out around the engine's Simulate, never waiting (Mail's try_lock).
@@ -750,7 +751,7 @@ uint32_t freeze_unsure_seen = 0;
 struct FreezeGame {
   uintptr_t controller() { return game_function<Controller>(kController)(); }
   bool ready() {
-    return at<uint64_t>(base + (nightop::kGlobals + fight::kPauseAt - nightop::kImageBase)) && controller();
+    return at<uint64_t>(base + (game::kGlobals + fight::kPauseAt - game::kImageBase)) && controller();
   }
   void tag(bool add) { game_function<PauseTag>(kPauseTag)(add, &freeze_name, true); }
   bool paused() {
@@ -898,9 +899,9 @@ static_assert(!warp_busy(0, 0, 0, 0) && warp_busy(1, 0, 0, 0) && !warp_busy(0, 1
                   warp_busy(0, 1, 1, 0) && warp_busy(0, 0, 0, 2),
               "busy: a warp, the camp request with its wait, or the world's respawn");
 __declspec(noinline) void warp_body() {
-  const uintptr_t client = at<uintptr_t>(base + (slot::kClient - nightop::kImageBase));
-  const uintptr_t world = at<uintptr_t>(base + (quest::kWorldGlobal - nightop::kImageBase));
-  if (!nightop::plausible(client) || !nightop::plausible(world)) {
+  const uintptr_t client = at<uintptr_t>(base + (slot::kClient - game::kImageBase));
+  const uintptr_t world = at<uintptr_t>(base + (quest::kWorldGlobal - game::kImageBase));
+  if (!game::plausible(client) || !game::plausible(world)) {
     warp_state = -1;
     return;
   }
@@ -1050,7 +1051,7 @@ __declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, ui
                                              uint8_t &other) {
   if (const travel::Why why = travel_calls.check(now); why != travel::Why::none)
     return why;
-  const auto global = [](uint64_t where) { return at<uintptr_t>(base + (where - nightop::kImageBase)); };
+  const auto global = [](uint64_t where) { return at<uintptr_t>(base + (where - game::kImageBase)); };
   travel::Reads r;
   r.index = index;
   r.client = global(travel::kClientAt);
@@ -1071,14 +1072,14 @@ __declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, ui
   if (travel::plausible(r.client) && travel::plausible(r.world)) {
     r.respawn = at<int32_t>(r.world + travel::kRespawn);
     const uintptr_t actors = at<uintptr_t>(r.world + travel::kActors);
-    const auto find = reinterpret_cast<FindFsb>(base + (kFindFsb - nightop::kImageBase));
+    const auto find = reinterpret_cast<FindFsb>(base + (kFindFsb - game::kImageBase));
     r.player = travel::plausible(actors) && find(reinterpret_cast<void *>(actors), static_cast<int32_t>(guid));
   }
   if (const travel::Why why = travel::refuse(r); why != travel::Why::none)
     return why;
   uint8_t location[12], rotation[12];
-  std::memcpy(location, reinterpret_cast<const void *>(base + (travel::kLocationAt - nightop::kImageBase)), 12);
-  std::memcpy(rotation, reinterpret_cast<const void *>(base + (travel::kRotationAt - nightop::kImageBase)), 12);
+  std::memcpy(location, reinterpret_cast<const void *>(base + (travel::kLocationAt - game::kImageBase)), 12);
+  std::memcpy(rotation, reinterpret_cast<const void *>(base + (travel::kRotationAt - game::kImageBase)), 12);
   if (!travel_globals_read) {
     uint64_t words[3];
     std::memcpy(words, location, 12);
@@ -1088,7 +1089,7 @@ __declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, ui
     travel_globals_read = true;
   }
   const travel::Request req = travel::request(guid, index, number, location, rotation);
-  const auto call = reinterpret_cast<CampTravel>(base + (kCampTravel - nightop::kImageBase));
+  const auto call = reinterpret_cast<CampTravel>(base + (kCampTravel - game::kImageBase));
   ret = call(reinterpret_cast<void *>(r.client), req.data());
   other = at<uint8_t>(r.client + travel::kOtherWorld);
   return travel::Why::none;
@@ -1096,7 +1097,7 @@ __declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, ui
 __declspec(noinline) void travel_watch_body(uint64_t now) {
   if (travel_watch.state != travel::State::pending && travel_watch.state != travel::State::warping)
     return;
-  const uintptr_t client = at<uintptr_t>(base + (travel::kClientAt - nightop::kImageBase));
+  const uintptr_t client = at<uintptr_t>(base + (travel::kClientAt - game::kImageBase));
   if (travel::plausible(client))
     travel_watch.step(now, at<uint8_t>(client + travel::kWarp), at<uint8_t>(client + travel::kStarted));
 }
@@ -2190,7 +2191,7 @@ std::string fault_where(uint64_t rva) {
   char where[64];
   if (at_address - base < kSizeOfImage)
     std::snprintf(where, sizeof where, "the game at 0x%llx",
-                  static_cast<unsigned long long>(at_address - base + nightop::kImageBase));
+                  static_cast<unsigned long long>(at_address - base + game::kImageBase));
   else if (fault_in_dll(rva))
     std::snprintf(where, sizeof where, "StellarCoop.dll+0x%llx", static_cast<unsigned long long>(rva));
   else
@@ -2516,7 +2517,7 @@ std::vector<uint64_t> filter_named;
 // The request's key as Execute finds it (spawnId << 8 | index), or 0 when its row is not found. Out of line, since
 // clang-cl catches a fault only in a function the __try calls.
 __declspec(noinline) uint64_t filter_key_body(const uint8_t *request) {
-  void *const holder = *reinterpret_cast<void *const *>(base + (fight::kTables - nightop::kImageBase));
+  void *const holder = *reinterpret_cast<void *const *>(base + (fight::kTables - game::kImageBase));
   const auto *row = holder ? static_cast<const uint8_t *>(
                                  game_function<RowByName>(kRowByName)(holder, 0, request + kRequestName))
                            : nullptr;
@@ -2561,7 +2562,7 @@ std::string slot_value(uint64_t value) {
   char text[64];
   if (value - base < kSizeOfImage)
     std::snprintf(text, sizeof text, "0x%llx in the game",
-                  static_cast<unsigned long long>(value - base + nightop::kImageBase));
+                  static_cast<unsigned long long>(value - base + game::kImageBase));
   else
     std::snprintf(text, sizeof text, "0x%llx outside the game", static_cast<unsigned long long>(value));
   return text;
@@ -2569,7 +2570,7 @@ std::string slot_value(uint64_t value) {
 // The slot's compare-and-swap from from to to, its page writable for the store only: what the slot held (from when
 // the swap was made), or false when the page's protection would not change.
 bool swap_slot(uint64_t from, uint64_t to, uint64_t &held) {
-  void *const slot = reinterpret_cast<void *>(base + (kSpawnSlot - nightop::kImageBase));
+  void *const slot = reinterpret_cast<void *>(base + (kSpawnSlot - game::kImageBase));
   DWORD old = 0;
   if (!VirtualProtect(slot, sizeof(uint64_t), PAGE_READWRITE, &old))
     return false;
@@ -2578,14 +2579,14 @@ bool swap_slot(uint64_t from, uint64_t to, uint64_t &held) {
   VirtualProtect(slot, sizeof(uint64_t), old, &old);
   return true;
 }
-uint64_t execute_address() { return base + (kExecute - nightop::kImageBase); }
+uint64_t execute_address() { return base + (kExecute - game::kImageBase); }
 uint64_t hook_address() { return reinterpret_cast<uintptr_t>(&filter_execute); }
 // Once a run, on the worker thread, when the gate first opens on the pinned build before coop off and before a fault
 // of the hook: the slot swapped from Execute to the hook. A slot that holds anything else (another mod's hook) is
 // refused and never written.
 void filter_install() {
   const uint64_t execute = execute_address();
-  uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (kSpawnSlot - nightop::kImageBase));
+  uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (kSpawnSlot - game::kImageBase));
   const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(execute, hook_address(), held);
   const bool on = page_ok && held == execute;
   filter_state = on ? Filter::on : Filter::refused;

@@ -18,12 +18,12 @@
 #include <cstring>
 #include <string>
 
-#include "nightop/probe.h" // plausible(), kImageBase
+#include "game/memory.h" // plausible(), kImageBase
 
 namespace coop::slot {
 
 constexpr uint64_t kClient = 0x147032520; // The client game-flow singleton's pointer (getter 0x141a978c0), 8 bytes
-                                          // before nightop::kGlobals. Its +0x54 is the slot the game entered (stored
+                                          // before game::kGlobals. Its +0x54 is the slot the game entered (stored
                                           // by 0x141cd5e10) and names every in-game save's file (0x141ce5c30).
 constexpr int kSlots = 5;                 // SaveSlotMaxCount: files 00-04 (WB_LoadGame has five); 05-09 are never listed.
 constexpr size_t kMaxMarker = 4096;
@@ -41,7 +41,7 @@ constexpr uint64_t kEntered = 0x54, kLoadSlot = 0x868, kLoadMode = 0x86c, kCache
 template <class Read> int field(uint64_t base, Read &&read, uint64_t offset) {
   uint64_t client = 0;
   int32_t value = 0;
-  if (!read(base + (kClient - nightop::kImageBase), &client, 8) || !nightop::plausible(client) ||
+  if (!read(base + (kClient - game::kImageBase), &client, 8) || !game::plausible(client) ||
       !read(client + offset, &value, 4))
     return kUnread;
   return value;
@@ -86,14 +86,14 @@ template <class Read> Name find(uint64_t base, Read &&read) {
     n.why = why;
     return n;
   };
-  if (!read(base + (kNames - nightop::kImageBase), &n.table, 8))
+  if (!read(base + (kNames - game::kImageBase), &n.table, 8))
     return off("the table pointer is unreadable");
   if (!n.table) {
     n.saves = Saves::unread;
     n.why = "no table yet";
     return n;
   }
-  if (!nightop::plausible(n.table))
+  if (!game::plausible(n.table))
     return off("the table pointer is implausible");
   uint8_t h[0x50]; // +0xf8 to +0x148.
   if (!read(n.table + 0xf8, h, sizeof h))
@@ -105,9 +105,9 @@ template <class Read> Name find(uint64_t base, Read &&read) {
   std::memcpy(&free, h + 0x34, 4);
   std::memcpy(&hash, h + 0x40, 8);
   std::memcpy(&size, h + 0x48, 4);
-  if (free < 0 || count <= free || count > int32_t(kMaxNames) || !nightop::plausible(elements))
+  if (free < 0 || count <= free || count > int32_t(kMaxNames) || !game::plausible(elements))
     return off("the table is empty or implausible");
-  if (size < 1 || size > 65536 || (size & (size - 1)) || (!hash && size != 1) || (hash && !nightop::plausible(hash)))
+  if (size < 1 || size > 65536 || (size & (size - 1)) || (!hash && size != 1) || (hash && !game::plausible(hash)))
     return off("the table's buckets are implausible");
   uint32_t at = 0;
   if (!read((hash ? hash : n.table + 0x130) + 4 * (kNameKey & uint32_t(size - 1)), &at, 4))
@@ -127,7 +127,7 @@ template <class Read> Name find(uint64_t base, Read &&read) {
     n.entry = elements + uint64_t(at) * 0x20;
     std::memcpy(&n.data, e + 8, 8);
     std::memcpy(&n.num, e + 0x10, 4);
-    if (n.num != kNameChars || !nightop::plausible(n.data))
+    if (n.num != kNameChars || !game::plausible(n.data))
       return off("the name is not 17 aligned characters");
     char16_t chars[kNameChars];
     if (!read(n.data, chars, sizeof chars))
@@ -228,7 +228,7 @@ template <class Read> std::string probe(uint64_t base, Read &&read) {
   auto number = [](int value) { return value == kUnread ? std::string("?") : std::to_string(value); };
   std::string s = "saves probe: client ";
   uint64_t client = 0;
-  if (!read(base + (kClient - nightop::kImageBase), &client, 8))
+  if (!read(base + (kClient - game::kImageBase), &client, 8))
     s += "?";
   else
     s += hex(client);
@@ -244,7 +244,7 @@ template <class Read> std::string probe(uint64_t base, Read &&read) {
   }
   s += std::string("; saves=") + saves_name(n.saves) + (*n.why ? std::string(" (") + n.why + ")" : std::string());
   uint32_t key = 0;
-  if (read(base + (kKeyCache - nightop::kImageBase), &key, 4)) {
+  if (read(base + (kKeyCache - game::kImageBase), &key, 4)) {
     std::snprintf(text, sizeof text, "%08x", key);
     s += std::string("; key cache ") + text;
   } else {

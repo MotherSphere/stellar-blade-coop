@@ -14,15 +14,16 @@
 #include <string>
 #include <vector>
 
+#include "game/memory.h" // kImageBase, kGlobals, plausible, get
+
 namespace coop::nightop {
 
-constexpr uint64_t kImageBase = 0x140000000;
-constexpr uint64_t kGlobals = 0x147032528; // 0x50 bytes in one read: +0 net-mode cache, +0x28 rule manager
-                                           // (0x147032550), +0x30 spawn singleton, +0x40 logic, +0x48 world.
-constexpr uint64_t kSampleMs = 100, kLineMs = 1000, kVerdictMs = 60000;
+using game::get;
+using game::kGlobals;
+using game::kImageBase;
+using game::plausible;
 
-// A user-space, 8-aligned address, as every game object is. Nothing else reaches the reader.
-inline bool plausible(uint64_t p) { return p >= 0x10000 && p < 0x7fffffff0000 && !(p & 7); }
+constexpr uint64_t kSampleMs = 100, kLineMs = 1000, kVerdictMs = 60000;
 
 // One poll. A global of 0 prints its group as none; a non-zero one whose *_ok is false was implausible or unreadable
 // and prints ?. No strings: sampling formats nothing.
@@ -50,12 +51,6 @@ struct Sample {
   int32_t net_mode = 0;
   int64_t spawnreg = 0; // Registered spawn points: r+0x60 minus r+0x8c.
 };
-
-template <class T> T get(const uint8_t *block, size_t offset) {
-  T value;
-  std::memcpy(&value, block + offset, sizeof value);
-  return value;
-}
 
 // At most 11 reads: globals, manager, element 0, timers, world, actor manager, logic, net, and the spawn chain's three.
 // read(address, out, n) returns false when the memory is unreadable.

@@ -170,7 +170,7 @@ struct Game {
   StreamFlags flags; // What the game thread says of the owner's stream, without a Mail.
 
   explicit Game(int32_t slots = 64) {
-    const uint64_t globals = rebased(coop::nightop::kGlobals);
+    const uint64_t globals = rebased(coop::game::kGlobals);
     mem.regions[globals].assign(0x50, 0);
     net = mem.alloc(0x18);
     logic = mem.alloc(0x5c8);
@@ -640,7 +640,7 @@ struct Game {
     mem.put(holder + kTablesAt, tables);
     mem.put(rebased(kSpawnManager), spawn_manager);
     mem.put(rebased(kJobSender), sender);
-    mem.put(rebased(coop::nightop::kGlobals) + kPauseAt, mem.alloc(0x220)); // The reg: no pause tag.
+    mem.put(rebased(coop::game::kGlobals) + kPauseAt, mem.alloc(0x220)); // The reg: no pause tag.
     mem.put<uint32_t>(spawn_manager + kSpawnState, 3);
   }
   void zone(uint64_t alias, uint32_t id) {
@@ -4307,7 +4307,7 @@ int main() {
     eh->same_spawns(true), eh->enemy_extra(3);
     H.spawns(), H.zone(0xA1, 40), H.enter(0xA1);
     if (run == 4)
-      H.mem.put<uint64_t>(rebased(coop::nightop::kGlobals) + kPauseAt, 0);
+      H.mem.put<uint64_t>(rebased(coop::game::kGlobals) + kPauseAt, 0);
     for (uint32_t id = 1; id <= 6; ++id)
       H.spawn_row(id, 2, 0xA1, id == 4 ? 1 : id == 5 ? 2 : 0);
     if (run == 1)
@@ -4574,7 +4574,7 @@ int main() {
     if (run == 3)
       G.mem.put<uint64_t>(rebased(kJobSender), 0);
     if (run == 5)
-      G.mem.put<uint64_t>(rebased(coop::nightop::kGlobals) + kPauseAt, 0);
+      G.mem.put<uint64_t>(rebased(coop::game::kGlobals) + kPauseAt, 0);
     if (run == 4) {
       G.state(903, kBattleState, 1);
       G.knock(904, 5000039), G.body(904).effects.back().left = 1 << 30;
@@ -5307,7 +5307,7 @@ int main() {
     g.mem.put<int32_t>(g.net + kNetMode, 4); // Not resolved yet.
     assert(!e->arm(g, t) && g.queue.empty());
     g.mem.put<int32_t>(g.net + kNetMode, 0);
-    const uint64_t world_at = rebased(coop::nightop::kGlobals) + kWorldAt;
+    const uint64_t world_at = rebased(coop::game::kGlobals) + kWorldAt;
     g.mem.put<uint64_t>(world_at, 0); // No world loaded.
     assert(!e->arm(g, t) && g.queue.empty());
     g.mem.put(world_at, g.world);
@@ -5442,7 +5442,7 @@ int main() {
   {
     Game g;
     auto e = engine(true, true);
-    const uint64_t tags = g.mem.alloc(0x220), pauser = rebased(coop::nightop::kGlobals) + kPauseAt;
+    const uint64_t tags = g.mem.alloc(0x220), pauser = rebased(coop::game::kGlobals) + kPauseAt;
     g.mem.put(pauser, tags);
     g.spawn(101, 5001, 0);
     g.inbox.push_back(msg("SBF12 on"));
@@ -5478,7 +5478,7 @@ int main() {
     Game g;
     auto e = engine(true, true);
     const uint64_t tags = g.mem.alloc(0x220);
-    g.mem.put(rebased(coop::nightop::kGlobals) + kPauseAt, tags);
+    g.mem.put(rebased(coop::game::kGlobals) + kPauseAt, tags);
     g.mem.put<uint64_t>(g.logic + kTask, 0x51ca);
     assert(!e->arm(g, 0) && e->counts.deferred == 1);
     g.mem.put<int32_t>(tags + kTagsNum, 1);
@@ -5566,7 +5566,7 @@ int main() {
     }
     g.mem.put<int32_t>(f + kLife, 255);
     assert(sample(v) && v[coop::vital::life] == 255);
-    g.mem.put<uint64_t>(rebased(coop::nightop::kGlobals) + kWorldAt, 0); // The title screen.
+    g.mem.put<uint64_t>(rebased(coop::game::kGlobals) + kWorldAt, 0); // The title screen.
     assert(!sample(v) && reads == 1);
   }
 

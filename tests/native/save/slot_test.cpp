@@ -15,7 +15,7 @@
 using namespace coop::slot;
 
 namespace {
-constexpr uint64_t kBase = 0x7ff600000000, kAt = kBase + (kClient - coop::nightop::kImageBase);
+constexpr uint64_t kBase = 0x7ff600000000, kAt = kBase + (kClient - coop::game::kImageBase);
 // Above 4 GB, like the heap the game allocates the client on: a read of only the pointer's low half misses it.
 constexpr uint64_t kObject = 0x1f2a4c30000;
 
@@ -78,7 +78,7 @@ struct Bytes {
   }
 };
 
-constexpr uint64_t kNamesAt = kBase + (kNames - coop::nightop::kImageBase);
+constexpr uint64_t kNamesAt = kBase + (kNames - coop::game::kImageBase);
 constexpr uint64_t kTable = 0x1f2a5000000, kElements = 0x1f2a5100000, kHash = 0x1f2a5200000, kData = 0x1f2a5300010;
 constexpr uint32_t kOther = 0x12345672; // Another constant's key in the name's bucket (the low 6 bits match).
 static_assert((kOther & 63) == (kNameKey & 63));
@@ -396,7 +396,7 @@ int main() {
   m.put(kObject + 0x868, int32_t(2));
   m.put(kObject + 0x86c, int32_t(0));
   m.put(kObject + 0x54, int32_t(-1));
-  m.put(kBase + (kKeyCache - coop::nightop::kImageBase), kNameKey);
+  m.put(kBase + (kKeyCache - coop::game::kImageBase), kNameKey);
   const std::string probed = m.probe(), expected = "saves probe: client 0x1f2a4c30000 cache=5 load_slot=2 load_mode=0 "
                                                    "entered=-1; table 0x1f2a5000000 entry 0x1f2a5100040 data "
                                                    "0x1f2a5300010 num 17 text StellarBladeSave; saves=main; key cache "
