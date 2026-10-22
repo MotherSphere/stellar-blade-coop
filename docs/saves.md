@@ -140,6 +140,8 @@ native part. That pass:
 - replaces nothing if the backup fails, and refuses a slot with no save of yours.
 
 The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N's co-op copy replaced` or why not.
+`coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
+ended, `coop saves coop` runs its own pass over every slot first.
 
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 

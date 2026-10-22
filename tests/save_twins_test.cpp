@@ -664,7 +664,8 @@ int main() {
   // player's save, at the title only and while the game uses the player's saves. The old copy goes into a new backup
   // folder first and is never deleted; every other slot keeps its copy (a played one loses its line, as at any pass);
   // nothing switches. With no manifest, the first conversion's whole backup comes first. A slot with no save of the
-  // player's, a slot out of 0-4 and a pass under way are refused; a backup that cannot be made replaces nothing.
+  // player's, a slot out of 0-4 and a pass under way are refused; a backup that cannot be made replaces nothing. saves
+  // coop is refused while a refresh runs: that pass leaves the other slots' copies as they are.
   HostFs r;
   r.dir = root / "SaveGames" / "76561198000000005";
   r.backups = root / "StellarCoopBackups7";
@@ -696,6 +697,7 @@ int main() {
   assert(rs.ask(SavesAsk::refresh, &r, rg, 0) ==
          "co-op saves: replacing slot 0's co-op copy (the old one is backed up first)");
   assert(rs.ask(SavesAsk::refresh, &r, rg, 1) == "co-op saves refused: a conversion is under way");
+  assert(rs.ask(SavesAsk::coop, &r, rg) == "co-op saves refused: a refresh is under way: ask again after it");
   said = passes(rs, r, rg);
   assert(rs.status() == "convert=done" && rg.swaps == 0 && backups(r) == 2);
   assert(r.ops.size() > 2 && r.ops[0] == "backup " + twin_name(0) && r.ops[1].rfind("write StellarCoopSaves", 0) == 0);
