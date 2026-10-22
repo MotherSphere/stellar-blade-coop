@@ -2735,6 +2735,9 @@ int main() {
     uint64_t handles = 0, host_frames = 0, next_host = 1000, next_guest = 6000; // The pose clock is never 0.
     double worst_moving = 0, worst_rest = 0, worst_turn = 0, worst_after = 0, worst_60 = 0;
     size_t moving = 0, rest = 0, snaps = 0, late = 0, unknown = 0, not_drawn = 0, refused = 0, extrapolated = 0;
+    // Shows due in one of her frames and in one second as Driver::draw counts it (its AddShow caps), at most.
+    size_t frame_shows = 0, second_shows = 0, most_frame = 0, most_second = 0;
+    double second = -1e9; // Her clock, ms.
     for (uint64_t t = 1000; t <= kEnd; t += 1000) {
       if (t >= next_host) { // The host's frame: a pose every frame, SBE and the Shows every other one.
         next_host += kFrame;
@@ -2863,6 +2866,9 @@ int main() {
         snaps += snapped || d.snap;
         extrapolated += d.extrapolated;
       }
+      if (g / 1000.0 >= second + 1000)
+        second = g / 1000.0, second_shows = 0;
+      frame_shows = 0;
       for (const Timeline::Due *due; (due = timeline.front(at));) {
         const ShowLine l = due->line;
         timeline.pop();
@@ -2872,6 +2878,8 @@ int main() {
         worst_after = std::max(worst_after, at - double(l.t_ms));
         assert(at >= double(l.t_ms)); // Never before the copy is drawn at that host time.
         applied.push_back({int(l.guid - 4100), l.kind, l.id, l.t_ms});
+        if (l.kind == Kind::show)
+          most_frame = std::max(most_frame, ++frame_shows), most_second = std::max(most_second, ++second_shows);
         if (!root_stream(c.copy.state())) {
           ++not_drawn;
         } else if (l.kind == Kind::show) {
@@ -2909,12 +2917,14 @@ int main() {
     }
     std::printf("pilot_test: two worlds, 50 s: copy within %.2f cm of the host moving (%zu frames), %.3f cm at rest "
                 "(%zu), %.2f deg, %.1f cm against the host 60 ms earlier; %zu snaps, %zu extrapolated; %zu of %zu "
-                "lines applied in order, at most %.1f ms after their stamp, %zu late, %zu in flight\n",
+                "lines applied in order, at most %.1f ms after their stamp, %zu late, %zu in flight; Shows due at most "
+                "%zu in a frame, %zu in a second\n",
                 worst_moving, moving, worst_rest, rest, worst_turn, worst_60, snaps, extrapolated, applied.size(),
-                sent.size(), worst_after, late, in_flight);
+                sent.size(), worst_after, late, in_flight, most_frame, most_second);
     assert(worst_moving < 30 && worst_rest < 5 && moving > 4000 && rest > 2000 && worst_turn < 5 && snaps == 0);
     assert(worst_60 > 30);
     assert(late == 0 && unknown == 0 && not_drawn == 0 && refused == 0 && worst_after < 34 && applied.size() > 500);
+    assert(most_frame <= Driver::kAddsPerFrame && most_second <= Driver::kAddsPerSecond); // The caps hold none back.
     // The host is lost: each copy put back once, every live replay stopped, then local, its mode no longer asking for
     // the AI hold (Simulate dispels 2000101; fight_engine_test covers that).
     size_t live = 0;

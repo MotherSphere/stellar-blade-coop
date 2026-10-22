@@ -1755,7 +1755,9 @@ public:
   // behind keep their order for a later frame (Timeline::kLines bounds them). A Show held back more than kLateMs past
   // its stamp counts as late.
   // ponytail: one budget for all her lines; a budget per pair if one enemy's flood should not delay the others'.
-  static constexpr uint64_t kAddsPerFrame = 4, kAddsPerSecond = 60;
+  // ponytail: calls are counted, not timed: past about 8 ms a load (the log's "AddShow up to"), the per-frame cap is
+  // the only bound. A budget in AddShow's measured time if real loads are that slow.
+  static constexpr uint64_t kAddsPerFrame = 2, kAddsPerSecond = 60;
   // One frame at now (our clock, ms), drawing at at (the owner's clock, ms: the ghost's draw time; NaN without one).
   template <class Game> void draw(Game &g, uint64_t base, double now, double at) {
     if (latched_ || !holding()) // Nothing held: no line either (forget() drops a pair's), and nothing to read.
