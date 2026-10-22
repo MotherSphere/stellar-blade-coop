@@ -4,14 +4,16 @@
 -- die, so nothing of it reaches a quest, an achievement or a save; its Blueprint classes are looked up, never spawned.
 -- list only reads: which assets resolve, each mesh's and clip's skeleton, each class's super class, and the
 -- CharacterTable rows that name it. show puts one mesh ahead of EVE, facing her (by default at 1.6 times its bounding
--- sphere radius, 6 m at least), and plays each clip of its skeleton twice in turn; play holds one; move places it again
--- from where EVE stands; skin sets every material slot to one material. off removes it, and so do coop off, a map
--- change, its first error and the next Lua load (coop-leviathan.txt, read at the first tick).
+-- sphere radius, 6 m at least, and lifted so its lowest point is 5 m above her feet), and plays each clip of its
+-- skeleton twice in turn; play holds one; move places it again from where EVE stands; skin sets every material slot to
+-- one material. off removes it, and so do coop off, a map change, its first error and the next Lua load
+-- (coop-leviathan.txt, read at the first tick).
 -- The free camera, for filming it: show and play turn it on, cam toggles it. A plain actor with one CameraComponent is
 -- the view target, placed where the game's camera was, and flies from the keys each frame (none read while the co-op
 -- menu or one of its boxes is open); the player controller ignores move and look input meanwhile, so EVE stays where
--- she is. Off (cam, off, coop off, a map change, its first error, the next Lua load): the view back on EVE, both
--- ignore flags back as they were, the actor gone.
+-- she is. Off (cam, off, coop off, a map change, its first error, the next Lua load): the view back on what it showed
+-- before (EVE, or a camera of the game's) unless the game took it meanwhile, both ignore flags back as they were, the
+-- actor gone.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Doro=require('race.doro')
@@ -26,6 +28,9 @@ local FIELDS={'Type','Flag','DeadAlias','DespawnShow','DefaultStanceAlias','Beha
     'NarrowDetectAIAlias','RefAppearance'}
 local AHEAD=600 -- cm in front of EVE: the least of the automatic distance, and all of it when the bounds are unread.
 local AUTO=1.6 -- The automatic distance in bounding sphere radii.
+-- cm: the automatic height puts the mesh's lowest point this far above EVE's feet (its root, when the bounds are
+-- unread). A starting value, tuned in game.
+local LIFT=500
 local FAR=5000 -- m: the farthest distance and height show and move take.
 local BLEND=0.3 -- s: the view's blend into and out of the free camera.
 local SPEED,FAST=1000,4 -- cm/s: the free camera's speed (coop leviathan cam <m/s> sets it), times FAST with Shift.
@@ -37,8 +42,9 @@ local PC,MATERIAL='/Script/Engine.PlayerController','/Script/Engine.MaterialInte
 -- The free camera's keys, Unreal key names (QWERTY and AZERTY both), read with IsInputKeyDown.
 local KEYS={forward={'W','Z'},back={'S'},left={'A','Q'},right={'D'},up={'SpaceBar','E'},down={'LeftControl','C'},
     fast={'LeftShift'},turn_left={'Left'},turn_right={'Right'},look_up={'Up'},look_down={'Down'}}
-local USE='Use: coop leviathan [list] | show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>] [<scale>] | '
-    ..'move <distance m>|auto [<height m>] | skin statue|hydra|default | cam [<m/s>] | play [<clip>] | off'
+local USE='Use: coop leviathan [list] | show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>|auto] '
+    ..'[<scale>] | move <distance m>|auto [<height m>|auto] | skin statue|hydra|default | cam [<m/s>] | '
+    ..'play [<clip>] | off'
 -- What list reads, in order: {kind, object path}. A class's path is its Blueprint's with _C.
 Leviathan.LIST={}
 local function add(kind,dir,names)
@@ -90,18 +96,24 @@ local function spot(eve,dist,up)
     return {X=at.X+math.cos(yaw)*dist,Y=at.Y+math.sin(yaw)*dist,Z=at.Z+up},
         {Pitch=0,Yaw=value_of(body:K2_GetComponentRotation()).Yaw+180,Roll=0}
 end
--- The controller as before the free camera: its pawn the view target again, move and look input ignored once less,
--- and not at all when they were not before (the game reset the stacked flag meanwhile). was: {move=, look=}. Returns
--- the flags read after, for the log.
-local function give_back(pc,was)
-    local pawn=valid(pc:K2_GetPawn())
-    if pawn then pc:SetViewTargetWithBlend(pawn,BLEND,0,0,false) end
+-- The controller as before the free camera. Its view target again, unless the game took the view from the camera
+-- (camera: its actor's path) meanwhile, for a cutscene or a camera volume: left to the game then. EVE's pawn when that
+-- target is gone or there was none. Move and look input ignored once less, and not at all when they were not before
+-- (the game reset the stacked flag meanwhile), even when the view could not be set. was: {move=, look=, view=<the
+-- view target's path, '' for none>}. Returns the flags read after, for the log.
+local function give_back(pc,was,camera)
+    local viewed,why=pcall(function()
+        local view=valid(pc:GetViewTarget())
+        if view and path_of(view)~=camera then return end
+        local to=was.view~='' and valid(StaticFindObject(was.view)) or valid(pc:K2_GetPawn())
+        if to then pc:SetViewTargetWithBlend(to,BLEND,0,0,false) end
+    end)
     pc:SetIgnoreMoveInput(false)
     if not was.move and pc:IsMoveInputIgnored()==true then pc:ResetIgnoreMoveInput() end
     pc:SetIgnoreLookInput(false)
     if not was.look and pc:IsLookInputIgnored()==true then pc:ResetIgnoreLookInput() end
-    return string.format('move ignored %d, look ignored %d',pc:IsMoveInputIgnored()==true and 1 or 0,
-        pc:IsLookInputIgnored()==true and 1 or 0)
+    return string.format('move ignored %d, look ignored %d%s',pc:IsMoveInputIgnored()==true and 1 or 0,
+        pc:IsLookInputIgnored()==true and 1 or 0,viewed and '' or '; view not set: '..tostring(why))
 end
 -- An entry's object (Doro.resolve: in memory, else LoadAsset); a class not found by itself is looked up again once its
 -- Blueprint's package is loaded.
@@ -133,20 +145,30 @@ local function clips_of(mesh)
     end
     return out,skeleton
 end
+-- A mesh's bounds at a scale, from its asset's ExtendedBounds, in the mesh's own space (a component's Bounds is not
+-- reflected in this build), in cm: {r=<sphere radius>, z=<centre above its root>, low=<lowest point above its root>}.
+-- Raises when they cannot be read.
+local function bounds_of(e,scale)
+    local b=value_of(assert(resolve(e),'no mesh').ExtendedBounds)
+    local o,x=value_of(b.Origin),value_of(b.BoxExtent)
+    local r=assert(tonumber(value_of(b.SphereRadius)),'no SphereRadius')
+    return {r=r*scale,z=o.Z*scale,low=(o.Z-x.Z)*scale}
+end
 
 -- o: log (the [LV] lines), store (coop-leviathan.txt through link.store; nil without the native part: no sweep at the
 -- next Lua load), blocked (true while the co-op menu or one of its boxes takes the keys: the free camera reads none).
 -- coop-leviathan.txt: the display (its actor's path, its mesh's) and the free camera (its actor's path, the
--- controller's, and whether move and look input were ignored before it, 1 or 0), tab-separated; a part that is off is
--- empty, and the file goes once both are.
+-- controller's, whether move and look input were ignored before it, 1 or 0, and the view target's path before it),
+-- tab-separated; a part that is off is empty, and the file goes once both are.
 function Leviathan.new(o)
     local log=o.log
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local blocked=o.blocked or function() return false end
     local self={}
     local shown -- {d=<Doro.spawn's>, name=, map=, clips=, k=<cycle step>, next=<os.clock of the next>, held=<clip>,
-    -- radius=<cm, nil when unread>, own=<its slots' materials before the first skin>}
-    local cam -- {d=<Doro.spawn's>, pc=, pc_path=, map=, was={move=, look=}, at=, yaw=, pitch=, t=, since=, said=}
+    -- radius=, low=<bounds_of's r and low, nil when unread>, own=<its slots' materials before the first skin>}
+    local cam -- {d=<Doro.spawn's>, pc=, pc_path=, map=, was={move=, look=, view=}, at=, yaw=, pitch=, t=, since=,
+    -- said=}
     local skin='default' -- The last skin set: a new show keeps it.
     local speed=SPEED
     local restored,mouse_failed=false,false
@@ -154,22 +176,26 @@ function Leviathan.new(o)
     local function fields()
         local f={}
         for x in ((store.load() or '')..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=x end
-        for k=1,6 do f[k]=f[k] or '' end
+        for k=1,7 do f[k]=f[k] or '' end
         return f
     end
-    -- The file's fields from first on set to the values given ('' for none), the others kept.
+    -- The file's fields from first on set to the values given ('' for none), the others kept. Returns the store's
+    -- answer: false and why when the line could not be written.
     local function keep(first,...)
         local f=fields()
         for k=1,select('#',...) do f[first+k-1]=select(k,...) end
-        local line=table.concat(f,'\t',1,6):gsub('\t+$','')
-        if line=='' then store.clear() else store.save(line) end
+        local line=table.concat(f,'\t',1,7):gsub('\t+$','')
+        if line=='' then return store.clear() end
+        return store.save(line)
     end
-    -- The free camera a file names: its actor swept, its controller given back. Raises on a failing call.
+    -- The free camera a file names: its controller given back (while the view is still on it), then its actor swept.
+    -- Raises on a failing call.
     local function undo(f)
-        if f[3]~='' then Doro.sweep(f[3],'camera') end
         local pc=f[4]~='' and valid(StaticFindObject(f[4]))
-        if not (pc and pc:IsA(find(PC))) then return 'its controller is gone' end
-        return give_back(pc,{move=f[5]=='1',look=f[6]=='1'})
+        local back='its controller is gone'
+        if pc and pc:IsA(find(PC)) then back=give_back(pc,{move=f[5]=='1',look=f[6]=='1',view=f[7]},f[3]) end
+        if f[3]~='' then Doro.sweep(f[3],'camera') end
+        return back
     end
     -- What an earlier Lua load left (its display, its free camera), then the file cleared. Once, on the game thread
     -- (the first tick, show or cam).
@@ -206,16 +232,16 @@ function Leviathan.new(o)
         cam=nil
         local back_ok,back=pcall(function()
             local pc=Doro.same(c.pc,c.pc_path)
-            return pc and give_back(pc,c.was) or 'its controller is gone'
+            return pc and give_back(pc,c.was,c.d.path) or 'its controller is gone'
         end)
         -- ponytail: the actor goes at once, so the engine may cut to EVE's view instead of blending; remove it 0.3 s
         -- later if the cut shows in a video.
         local gone_ok,gone=pcall(Doro.remove,c.d)
         local ok=back_ok and gone_ok
-        if ok then keep(3,'','','','') end
+        if ok then keep(3,'','','','','') end
         local line=string.format('cam off (%s): %s%s',why,tostring(back),gone_ok and '' or '; '..tostring(gone))
         log(line)
-        return ok,ok and 'Free camera off: the view is back on EVE.' or 'Free camera off with an error: '..line
+        return ok,ok and "Free camera off: the game's camera is back." or 'Free camera off with an error: '..line
     end
     -- The free camera on where the game's camera is now, as the view target; move and look input ignored. True, or
     -- false and why.
@@ -229,16 +255,23 @@ function Leviathan.new(o)
         local manager=valid(pc.PlayerCameraManager)
         if not manager then return false,'no camera manager' end
         local at,r=value_of(manager:GetCameraLocation()),value_of(manager:GetCameraRotation())
-        -- A camera this Lua load could not give back holds the flags from before it: never replaced by its own.
+        -- A camera this Lua load could not give back holds the flags and the view from before it: never replaced by
+        -- its own.
         local f,pc_path=fields(),path_of(pc)
         if f[3]~='' then pcall(Doro.sweep,f[3],'camera') end
-        local was=f[4]==pc_path and {move=f[5]=='1',look=f[6]=='1'}
-            or {move=pc:IsMoveInputIgnored()==true,look=pc:IsLookInputIgnored()==true}
+        local view=valid(pc:GetViewTarget())
+        local was=f[4]==pc_path and {move=f[5]=='1',look=f[6]=='1',view=f[7]}
+            or {move=pc:IsMoveInputIgnored()==true,look=pc:IsLookInputIgnored()==true,view=view and path_of(view) or ''}
         local d=Doro.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=r.Pitch,Yaw=r.Yaw,Roll=0},{camera=true})
+        -- The file before the controller changes: a camera the next Lua load could not give back never turns on.
+        local saved,save_why=keep(3,d.path,pc_path,was.move and '1' or '0',was.look and '1' or '0',was.view)
+        if saved==false then
+            pcall(Doro.remove,d)
+            return false,'coop-leviathan.txt not written ('..tostring(save_why)..')'
+        end
         local now=os.clock()
         cam={d=d,pc=pc,pc_path=pc_path,map=U.map_of(eve),was=was,at={X=at.X,Y=at.Y,Z=at.Z},yaw=r.Yaw,pitch=r.Pitch,
             t=now,since=now,said=false}
-        keep(3,d.path,pc_path,was.move and '1' or '0',was.look and '1' or '0') -- Before the controller changes.
         pcall(function() d.mesh:SetFieldOfView(value_of(manager:GetFOVAngle())) end) -- The same framing.
         local ok,why=pcall(function()
             pc:SetViewTargetWithBlend(d.actor,BLEND,0,0,false)
@@ -250,7 +283,8 @@ function Leviathan.new(o)
             return false,tostring(why)..'; '..message
         end
         log(string.format('cam on at %.0f %.0f %.0f yaw %.1f pitch %.1f, %s m/s; before: move ignored %d, look '
-            ..'ignored %d',at.X,at.Y,at.Z,r.Yaw,r.Pitch,m(speed),was.move and 1 or 0,was.look and 1 or 0))
+            ..'ignored %d, view %s',at.X,at.Y,at.Z,r.Yaw,r.Pitch,m(speed),was.move and 1 or 0,was.look and 1 or 0,
+            was.view~='' and was.view or 'none'))
         return true
     end
     -- Any of the keys held.
@@ -371,8 +405,22 @@ function Leviathan.new(o)
         log(string.format('skin %s: %d slots, %s',name,n,material and name_of(Leviathan.SKINS[name]) or 'its own'))
         return n
     end
-    local function auto(s) return s.radius and math.max(AHEAD,AUTO*s.radius) or AHEAD end
-    -- A second show replaces the first. dist: m, or 'auto'; up: m. The last skin set and the free camera on.
+    -- s placed dist m ahead of where EVE stands and up m above her feet, facing her; each 'auto' for its default.
+    -- Returns both in cm.
+    local function place(s,eve,dist,up)
+        local cm=dist=='auto' and (s.radius and math.max(AHEAD,AUTO*s.radius) or AHEAD) or dist*100
+        local up_cm=up=='auto' and LIFT-(s.low or 0) or up*100
+        local at,rot=spot(eve,cm,up_cm)
+        s.d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},true)
+        return cm,up_cm
+    end
+    -- The shown display while its actor is still the one spawned; else none, removed as a tick would, with no call on
+    -- it.
+    local function current()
+        if shown and not Doro.same(shown.d.actor,shown.d.path) then remove('its actor is gone') end
+        return shown
+    end
+    -- A second show replaces the first. dist: m, or 'auto'; up: m, or 'auto'. The last skin set and the free camera on.
     local function show(which,dist,up,scale)
         self.restore()
         local eve=her(valid(UE.GetPlayer()))
@@ -387,27 +435,23 @@ function Leviathan.new(o)
             keep(1,'','')
         end
         local e=Leviathan.LIST[Leviathan.MESHES[which]]
-        local at,rot=spot(eve,AHEAD,up*100)
+        local at,rot=spot(eve,AHEAD,0)
         local d=Doro.spawn(eve:GetWorld(),at,rot,{path=e.path,static=which=='statue'})
         local s={d=d,name=which,map=U.map_of(eve),clips={},k=0,next=0}
         shown=s
         keep(1,d.path,e.path)
         d.mesh:SetRelativeScale3D({X=scale,Y=scale,Z=scale})
-        -- Its bounds once its mesh and scale are set: the automatic distance, and its centre's height for the log.
-        local read,b=pcall(function()
-            local bounds=value_of(d.mesh.Bounds)
-            local r=assert(tonumber(value_of(bounds.SphereRadius)),'no SphereRadius')
-            return {r=r,z=value_of(bounds.Origin).Z-at.Z}
-        end)
+        -- Its bounds at its scale: the automatic distance and height.
+        local read,b=pcall(bounds_of,e,scale)
         if read and b.r>0 then
-            s.radius=b.r
-            log(string.format('show %s: bounding sphere radius %s m, centre %s m above its root',which,m(b.r),m(b.z)))
+            s.radius,s.low=b.r,b.low
+            log(string.format('show %s: bounding sphere radius %s m, centre %s m and lowest point %s m above its root',
+                which,m(b.r),m(b.z),m(b.low)))
         else
-            log('show '..which..': bounds unread ('..(read and 'radius 0' or tostring(b))..'), '..m(AHEAD)..' m ahead')
+            log(string.format('show %s: bounds unread (%s), %s m ahead, its root %s m up',which,
+                read and 'radius 0' or tostring(b),m(AHEAD),m(LIFT)))
         end
-        local cm=dist=='auto' and auto(s) or dist*100
-        at,rot=spot(eve,cm,up*100)
-        d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},true)
+        local cm,up_cm=place(s,eve,dist,up)
         if skin~='default' then
             local ok,why=pcall(paint,s,skin)
             if not ok then log('skin '..skin..' not set: '..tostring(why)) end
@@ -415,24 +459,22 @@ function Leviathan.new(o)
         local clips,skeleton=clips_of(e)
         s.clips=clips
         log(string.format('show %s: %s, %d clips on skeleton %s, %s m ahead, %s m up, scale %g',which,name_of(e.path),
-            #clips,name_of(skeleton or '-'),m(cm),m(up*100),scale))
+            #clips,name_of(skeleton or '-'),m(cm),m(up_cm),scale))
         return true,string.format('Leviathan %s shown %s m ahead, %s m up, scale %g, %d clips in turn%s; [LV] lines in '
-            ..'this log.',which,m(cm),m(up*100),scale,#clips,with_cam())
+            ..'this log.',which,m(cm),m(up_cm),scale,#clips,with_cam())
     end
-    -- The shown display placed again from where EVE stands now: dist m (or 'auto') ahead, up m up.
+    -- The shown display placed again from where EVE stands now: dist m (or 'auto') ahead, up m (or 'auto') up.
     local function move(dist,up)
-        local s=shown
+        local s=current()
         if not s then return false,'no Leviathan is shown: coop leviathan show first' end
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
-        local cm=dist=='auto' and auto(s) or dist*100
-        local at,rot=spot(eve,cm,up*100)
-        s.d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},true)
-        log(string.format('move %s: %s m ahead, %s m up',s.name,m(cm),m(up*100)))
-        return true,string.format('Leviathan %s moved %s m ahead of EVE, %s m up.',s.name,m(cm),m(up*100))
+        local cm,up_cm=place(s,eve,dist,up)
+        log(string.format('move %s: %s m ahead, %s m up',s.name,m(cm),m(up_cm)))
+        return true,string.format('Leviathan %s moved %s m ahead of EVE, %s m up.',s.name,m(cm),m(up_cm))
     end
     local function set_skin(name)
-        local s=shown
+        local s=current()
         if not s then
             skin=name
             return true,'Leviathan skin '..name..' for the next show.'
@@ -470,20 +512,23 @@ function Leviathan.new(o)
         local ok,why=cam_on()
         if not ok then return false,'no free camera: '..tostring(why) end
         return true,'Free camera on: W or Z, S, A or Q, D move it, Space or E up, LeftControl or C down, Shift '..FAST
-            ..' times faster, the mouse or the arrow keys turn it; coop leviathan cam again goes back to EVE.'
+            .." times faster, the mouse or the arrow keys turn it; coop leviathan cam again gives the game's camera "
+            ..'back.'
     end
-    -- show's words: [mesh] [distance m|auto] [height m] [scale]; nil when they are not that.
-    local function show_words(a,b,c,d)
+    -- A distance or a height word: 'auto' when none or auto, else m within lo..hi; nil when it is not that.
+    local function where(x,lo,hi) return (x==nil or x=='auto') and 'auto' or num(x,lo,hi) end
+    -- show's words: [mesh] [distance m|auto] [height m|auto] [scale]; nil when they are not that.
+    local function show_words(a,b,c,d,e)
         local which='body'
-        if Leviathan.MESHES[a] then which,a,b,c,d=a,b,c,d,nil end
-        local dist=(a==nil or a=='auto') and 'auto' or num(a,0,FAR)
-        local up=b==nil and 0 or num(b,-FAR,FAR)
-        local scale=c==nil and 1 or num(c,0.01,100)
+        if Leviathan.MESHES[a] then which,a,b,c,d=a,b,c,d,e end
+        local dist,up,scale=where(a,0,FAR),where(b,-FAR,FAR),c==nil and 1 or num(c,0.01,100)
         if d==nil and dist and up and scale then return which,dist,up,scale end
     end
-    function self.command(sub,a,b,c,d)
+    -- Is the free camera on (commands/cut.lua: turning it off is never refused).
+    function self.filming() return cam~=nil end
+    function self.command(sub,a,b,c,d,e)
         if sub=='show' then
-            local which,dist,up,scale=show_words(a,b,c,d)
+            local which,dist,up,scale=show_words(a,b,c,d,e)
             if which then return show(which,dist,up,scale) end
         elseif c==nil and d==nil then
             if b==nil then
@@ -502,8 +547,7 @@ function Leviathan.new(o)
                     return true,table.concat(said,' ')
                 end
             end
-            local dist=a=='auto' and 'auto' or num(a,0,FAR)
-            local up=b==nil and 0 or num(b,-FAR,FAR)
+            local dist,up=a~=nil and where(a,0,FAR),where(b,-FAR,FAR)
             if sub=='move' and dist and up then return move(dist,up) end
         end
         return false,USE

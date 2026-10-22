@@ -2,7 +2,8 @@
 -- Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into its feed while the UI is
 -- up; join codes (session/join.lua: who_can_join=code, the menu's Copy my code, Join with a code and Remove rows, the
 -- code box and the host's question taking the keys); the partner HUD (partner/hud.lua); and the co-op saves' question
--- (session/saves.lua), which shows on the title screen and takes the menu's keys while open.
+-- (session/saves.lua), which shows on the title screen and takes the menu's keys while open. While the chat box, the
+-- code box, the host's question or the saves' question is open, coop leviathan's free camera reads no key.
 dofile('tests/lua/main/fixture.lua')
 local n
 -- The session chat (session/chat.lua's view for real on the fake kit; its model a spy). Enter, queued to the game
@@ -50,6 +51,7 @@ key('RETURN'); clock=clock+0.09; loops[1].f()
 assert(not kit_said('show chat true'),'Not before 0.1 s')
 clock=clock+0.02; loops[1].f()
 assert(kit_said('show chat true') and kit_said('input true chat') and box_text=='')
+assert(lv.o.blocked()==true,'The chat box open: the free camera reads no key')
 clock=clock+0.1; loops[1].f(); assert(box_focuses==1,'The box focused again 50 ms after')
 box_text='Bonjour é'
 key('RETURN')
@@ -60,6 +62,7 @@ assert(#printed==n and #asked==0 and not kit_said('show true'),'Our F-keys do no
 box_text='brouillon'
 key('ESCAPE')
 assert(kit_calls[#kit_calls]=='show chat false' and box_text=='','Esc: closed, the draft gone')
+assert(lv.o.blocked()==false)
 clock=clock+0.1; loops[1].f(); assert(not kit_said('input false chat'))
 clock=clock+0.1; loops[1].f(); assert(kit_calls[#kit_calls]=='input false chat','The game gets its keys 150 ms after')
 chat_out={'bonjour'}; quarter()
@@ -110,6 +113,7 @@ coop('host'); assert(asked[#asked]=='host code' and logged('OK: asked the native
 in_world,kit_ready=true,true; quarter()
 key('F5'); to('Join with a code'); key('RETURN')
 assert(not kit_shown.menu and kit_shown.code and kit_holder=='code' and kit_views.code.title.s=='JOIN WITH A CODE')
+assert(lv.o.blocked()==true,'The code box open')
 n=#asked
 key('S'); key('SPACE'); key('F6'); key('F5')
 assert(kit_shown.code and not kit_shown.menu and #asked==n and not logged('key F6: status'),'Typing: our keys rest')
@@ -128,6 +132,7 @@ key('RETURN'); assert(asked[#asked]=='remove 76561198000000009')
 link_pending={id='76561198000000008',name='Two'}
 quarter()
 assert(not kit_shown.menu and kit_shown.ask and kit_holder=='ask' and kit_views.ask.title.s=='Two wants to join')
+assert(lv.o.blocked()==true,"The host's question open")
 n=#asked
 key('F5'); key('F6'); assert(not kit_shown.menu and #asked==n and not logged('key F6: status'),'Our keys rest')
 -- It opened on its own: a walk forward and a jump, then any key for 1 s, answer nothing; later W, S and Space still
@@ -198,6 +203,7 @@ quarter()
 assert(kit_said('slow true title') and not kit_shown.saves,'The title: the root up, its look warming')
 kit_ready=true; quarter()
 assert(kit_shown.saves and kit_input and kit_holder=='saves' and saves_view.rows[1].st=='focus')
+assert(lv.o.blocked()==true,"The saves' question open")
 key('DOWN_ARROW'); assert(saves_view.rows[2].st=='focus' and not kit_shown.menu)
 clock=clock+1 -- It takes a choice 1 s after it shows.
 key('UP_ARROW'); key('RETURN')

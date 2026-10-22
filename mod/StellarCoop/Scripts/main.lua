@@ -47,12 +47,13 @@
 -- checkpoint while you record; start on a co-op save only), driven as a car from GO (race/drive.lua), with coop race
 -- drive [probe|off|feed impulse|struct|<name> <value>] to probe and tune the driving (a test tool, left out of the
 -- usage line; the probe on a co-op save only); coop leviathan [list]|show [body|a|b|tentacle|statue]
--- [<distance m>|auto] [<height m>] [<scale>]|move <distance m>|auto [<height m>]|skin statue|hydra|default|cam
--- [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing its clips and a free camera
--- to film it (cut/leviathan.lua; a test tool, left out of the usage line; show and cam on a co-op save only). coop
--- off stops everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the
--- co-op saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in
--- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
+-- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
+-- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
+-- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
+-- turning the camera on, on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
+-- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
+-- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui
+-- and coop off, which stay here.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -155,10 +156,10 @@ local function ask(line)
         return link.request(line)
     end
 end
--- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe and coop leviathan show run only on a
--- co-op save (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts one),
--- for a co-op copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link
--- and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop leviathan show and coop
+-- leviathan cam turning its free camera on run only on a co-op save (D2, N9): the native part's slot=coop, from the
+-- start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
+-- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -381,14 +382,14 @@ end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
-local function run(name,a,b,c,d,e)
+local function run(name,a,b,c,d,e,f)
     local command=commands[name or '']
     if not command then log(USAGE); return false,USAGE end
     if off and command~=commands.status and command~=commands.report then
         report(false,OFF)
         return false,OFF
     end
-    local ran,ok,message=pcall(command,a,b,c,d,e)
+    local ran,ok,message=pcall(command,a,b,c,d,e,f)
     if not ran then ok,message=false,ok end
     report(ok,message)
     return ok,message
@@ -469,9 +470,11 @@ local function pad_event(what)
 end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
-    local name,a,b,c,d,e=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5],parameters[6]
+    -- A seventh word too, so a command that takes six (coop leviathan show) refuses one more.
+    local name,a,b,c,d,e,f=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5],parameters[6],
+        parameters[7]
     if name=='mark' then a=table.concat(parameters,' ',2) end -- Its text, whatever the number of words.
-    ExecuteInGameThread(function() run(name,a,b,c,d,e) end)
+    ExecuteInGameThread(function() run(name,a,b,c,d,e,f) end)
     return true
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
