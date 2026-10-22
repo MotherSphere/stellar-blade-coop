@@ -279,9 +279,11 @@ wave starts, the timer and the score are still shared.
 
 A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final
 score, at most 42 a run. A full run with a score of about 730 gives 29. Your game adds them to your own points and shows
-`Night Operation: +29 points, 41 in all.` A solo run counts too; a challenge gives none. A failed or aborted run gives
-nothing, and a guest whose game missed the countdown gets nothing either. Each game credits only its own player: no line
-between the two games carries points. If the points cannot be written, a notice says so and `UE4SS.log` says why.
+`Night Operation: +29 points, 41 in all.` A success where a monster never came (its spawn failed) or nothing was killed
+pays for its kills only, without the bonus for the time left. A solo run counts too; a challenge gives none. A failed or
+aborted run gives nothing, and a guest whose game missed the countdown gets nothing either. Each game credits only its
+own player: no line between the two games carries points. If the points cannot be written, a notice says so and
+`UE4SS.log` says why.
 
 `coop nightop shop` lists your points and the four items:
 
@@ -318,7 +320,9 @@ guide for it, as a buy at a camp does. In the game's tables, none of the four it
 Your points are kept per Steam ID and co-op slot, in `coop-night-<steamid>-<index>.txt` in the mod folder, one line
 with the number. The game never reads that file, so restoring a save backup does not give points back or take them
 away. `coop off` leaves the file as it is, an install never removes it, and `tools/install.py --uninstall` backs it up
-with the mod's other files.
+with the mod's other files. While the file cannot be opened (another program holds it, or access is denied), a run's
+points are not credited and `coop nightop shop` and `buy` refuse with `wallet not read:`, so the total in the file stays
+as it is.
 
 ## Challenges (`coop challenge`)
 

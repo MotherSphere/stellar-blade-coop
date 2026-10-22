@@ -206,7 +206,7 @@ end
 -- store(name) link.lua's one-line file, for the shop's wallet. records: {read() the text of coop-records.txt, nil when
 -- there is none (it raises when the file cannot be read), write(text) true once written}, or nil for no bests.
 function Run.new(o)
-    local log,status,paused,tell,records=o.log,o.status,o.paused or function() return false end,o.tell,o.records
+    local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
@@ -459,7 +459,15 @@ function Run.new(o)
         if s.outcome~='success' and s.outcome~='time' then return end
         if s.def~=W.NIGHT then return end -- A challenge gives none.
         if not r.counted then return log('no points: this run did not go through its countdown') end
-        local got,total=shop.credit(s.score)
+        -- A success whose waves cleared without a fight pays its kills only: the time bonus nightop_waves.lua's finish
+        -- added goes.
+        local score,no=s.score,s.outcome=='success'
+            and (r.missing and 'a monster never came' or s.kills==0 and 'no kill')
+        if no then
+            score=math.max(0,score-math.floor((s.def.limit-s.time)*s.def.bonus))
+            log('points: no time bonus ('..no..')')
+        end
+        local got,total=shop.credit(score)
         if not got then return unpaid('no points: '..total) end
         if tell then tell(function(w) return w.night.earned:format(got,total) end) end
     end
@@ -948,7 +956,6 @@ function Run.new(o)
     -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
     -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end
-    self.active=self.running
     return self
 end
 return Run

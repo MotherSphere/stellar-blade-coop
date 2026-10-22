@@ -30,9 +30,10 @@
 -- both worlds at once scores once, a key killed in her world alone scores once however many lines carry it, a copy
 -- alive in her world keeps the wave open, and no other field of her line moves the score. Points: coop nightop shop and
 -- buy reach the shop (a buy refused during a run, sold in the result's 10 s); a solo success and a time up credit the
--- final score to the wallet of this SteamID and slot, capped, an abort or a death none; for two players, each game
--- credits its own wallet after a success with a notice, none after her death, and none for her run when no line of his
--- countdown reached her; a credit refused or raising is a notice, and his end line still goes. The panel's fifth row,
+-- final score to the wallet of this SteamID and slot, capped, an abort or a death none, a success with every monster
+-- missing its kills only (no time bonus); for two players, each game credits its own wallet after a success with a
+-- notice, none after her death, and none for her run when no line of his countdown reached her; a credit refused or
+-- raising is a notice, and his end line still goes. The panel's fifth row,
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
 -- notice.
@@ -280,7 +281,7 @@ assert(ok and message==string.format('census: 0 living within 40 m (nearest none
 assert(count('PC:ServerRequest_CreateActor')==0 and #lines==0)
 ok,message=run.command('stop'); assert(not ok and message=='no Night Operation run to stop')
 assert(not run.stop('coop off'))
-assert(not run.active(),'No run: a Doro race may arm')
+assert(not run.running(),'No run: a Doro race may arm')
 
 -- 2. The spawn choke point: pool rows and wave keys only, never a signed form; the ten arguments.
 for _,bad in ipairs({{50160,W.key(1,1,0)},{15011001,W.key(1,1,0)},{50110,0xE0000104},{50110,0},{50110,0xD42B5F51},
@@ -311,7 +312,7 @@ ok,message=run.command('start')
 assert(not ok and message=='a run is on: coop nightop stop ends it')
 ok,message=run.command('buy','1')
 assert(not ok and message=='a Night Operation run is on: buy once it ends',message)
-assert(run.active(),'A run on: a Doro race waits')
+assert(run.running(),'A run on: a Doro race waits')
 local s=W.new{run=byte,seed=W.seed(T,byte),now=g0} -- The same draws, for the spots.
 tick(19)
 assert(count('PC:ServerRequest_CreateActor')==0 and #lines==1,'Countdown: nothing')
@@ -470,7 +471,7 @@ tick(32)
 assert(logged(string.format('wave 2/5 at run time %.1f s: 3 monsters',clear+10)),since(0))
 run.stop('stop')
 assert(result_line():find('^result: aborted %(stop%) waves=1/5 kills=0 score=0 '),result_line())
-assert(not run.active(),'Its result alone: a Doro race may arm')
+assert(not run.running(),'Its result alone: a Doro race may arm')
 
 -- 5. A body found with no controller gets its default one 0.5 s after, before the aggro: the new one gets the focus and
 -- the move. Missing bodies count for the wave.
@@ -672,6 +673,42 @@ assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
 tick(8)
 assert(count('PC:ServerRequest_CreateActor')==spawned and #bodies==7)
 assert(#violations==0,violations[1])
+-- A success whose waves cleared with no fight: every spawn failed (no body carries its key), so every monster is
+-- missing. Its time bonus pays no points.
+bodies,calls,lines={},{},{}
+fill_key=false
+ok,message=run.command('start')
+for _=1,2000 do
+    tick()
+    if result_line() then break end
+end
+fill_key=true
+local bonus_only=tonumber(result_line():match('^result: success waves=5/5 kills=0 score=(%d+) '))
+assert(bonus_only and bonus_only>=25,result_line())
+assert(logged('points: no time bonus (a monster never came)'),since(0))
+assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
+-- Wave 1 missing, waves 2 to 5 fought: its kills still pay, only the time bonus goes.
+bodies,calls,lines={},{},{}
+fill_key=false
+ok,message=run.command('start')
+byte=tonumber(message:match('run 0x(%x+)'),16)
+for _=1,400 do tick(); if logged('wave 1 find +2.5 s: tracked 0/4') then break end end
+fill_key=true
+for k=2,5 do play(k) end
+assert(logged('points: no time bonus (a monster never came)'),since(0))
+assert(last()==string.format('credit +21 = %d (score 540, %s)',paid+21,WALLET),last())
+paid=paid+21
+-- Every monster fallen and written off: no kill, no time bonus.
+bodies,calls,lines={},{},{}
+ok,message=run.command('start')
+for _=1,4000 do
+    for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=-500} end
+    tick()
+    if result_line() then break end
+end
+assert(result_line():find('^result: success waves=5/5 kills=0 '),result_line())
+assert(logged('points: no time bonus (no kill)'),since(0))
+assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
 
 -- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
 -- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro

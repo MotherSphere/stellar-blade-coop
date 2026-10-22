@@ -35,10 +35,11 @@ end
 -- result).
 function Shop.new(o)
     local log,status,store=o.log,o.status,o.store or function() return nil end
-    local paused,busy=o.paused or function() return false end,o.busy or function() return false end
+    local paused,busy=o.paused,o.busy
     -- This player's wallet on this co-op save, or nil and why: no co-op save with its index, no SteamID (ours, on the
-    -- status's first line), or no file store. A file that holds no whole number reads 0. With no file, its .tmp: the
-    -- newest total when link.lua's put removed the file and then failed to rename the .tmp over it.
+    -- status's first line), no file store, or a file that cannot be opened (nothing is written over it). A file that
+    -- holds no whole number reads 0. With no file, its .tmp: the newest total when link.lua's put removed the file and
+    -- then failed to rename the .tmp over it.
     local function wallet()
         local raw='\n'..(status() or '')
         local index=raw:match('\nslot=coop index=(%d+)')
@@ -48,7 +49,10 @@ function Shop.new(o)
         local name='coop-night-'..id..'-'..index..'.txt'
         local file=store(name)
         if not file then return nil,'the mod cannot write its files' end
-        local text=file.load() or store(name..'.tmp').load()
+        -- errno 2, or none (a file with no line), is no wallet there.
+        local text,e,code=file.load()
+        if not text and (code or 2)==2 then text,e,code=store(name..'.tmp').load() end
+        if not text and (code or 2)~=2 then return nil,'wallet not read: '..tostring(e) end
         local points=math.tointeger(tonumber((text or ''):match('^%d+$') or '0')) or 0
         return {name=name,points=points,save=function(n) return file.save(tostring(n)) end}
     end

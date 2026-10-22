@@ -1133,6 +1133,12 @@ assert(ghost.save('/Game/Maps/E04.Actor_1') and ui.save('/Engine/Transient.UserW
 assert(files['C:\\Mod\\coop-puppet.txt']=='/Game/Maps/E04.Actor_1\n' and ui.load()=='/Engine/Transient.UserWidget_7')
 ui.clear()
 assert(ui.load()==nil and ghost.load()=='/Game/Maps/E04.Actor_1')
+-- A file that cannot be opened: io.open's message and errno, so a caller tells it from no file.
+local plain=fs.read
+fs.read=function(path) return nil,path..': Permission denied',13 end
+local text,e,code=ghost.load()
+assert(text==nil and e=='C:\\Mod\\coop-puppet.txt: Permission denied' and code==13,tostring(e))
+fs.read=plain
 ghost.clear()
 -- The real file helper: a write the disk refused (/dev/full takes the open, then fails the flush) is false, so put()
 -- never swaps a cut .tmp over the good file and its backup.
