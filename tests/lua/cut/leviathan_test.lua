@@ -757,6 +757,33 @@ assert(ok==false and why=='Free camera off on an error: no input' and back() and
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)..'\t'..path('CH_M_NA_10'),stored)
 keys_broken=nil
 assert(fly(7000.4)==nil and lv.command('off'))
+-- The mouse turns the controller's yaw but not its pitch in this game: the pitch follows the source that moved most,
+-- here EVE's own camera component, and a probe line each second for 6 s says what each source read.
+local eve_cam={pitch=-5,desired=-6}
+local sbcam=object({K2_GetComponentRotation=function() return {Pitch=eve_cam.pitch,Yaw=0,Roll=0} end})
+function eve:GetComponentByClass(k)
+    assert(k.path=='/Script/SB.SBCameraComponent',k.path)
+    sbcam.DesiredViewRotFromLegacy={Pitch=eve_cam.desired,Yaw=0,Roll=0}
+    return sbcam
+end
+logs={}
+lv.command('cam')
+lens=newest().components[1]
+local t0=clock
+fly(t0+0.05)
+assert(close(lens.rot.Pitch,-10) and close(lens.rot.Yaw,50),'Nothing moved: the pitch it started with')
+eve_cam.pitch,eve_cam.desired=340,-6 -- 20 degrees down, 0 to 360 as the engine keeps it.
+fly(t0+0.1)
+assert(close(lens.rot.Pitch,-25) and close(lens.rot.Yaw,50),lens.rot.Pitch)
+fly(t0+1.2)
+assert(logged('cam pitch probe 1: control -20.0, camera -20.0, desired -6.0; used camera -15.0'),logs[#logs])
+for i=2,8 do fly(t0+i+0.2) end
+local probes=0
+for _,line in ipairs(logs) do if line:find('^cam pitch probe') then probes=probes+1 end end
+assert(probes==6,'6 probe lines: '..probes)
+lv.command('cam')
+eve.GetComponentByClass=nil
+clock=t0 -- The clock the next test counts from.
 -- The controller's rotation unread: said once, the arrows alone turn it, 90 degrees a second.
 pc.GetControlRotation=function() error('no rotation',0) end
 lv.command('cam')

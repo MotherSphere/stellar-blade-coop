@@ -303,6 +303,28 @@ function Leviathan.new(o)
             ..'); the arrow keys turn the camera')
         return nil
     end
+    -- The pitch the mouse gives, from three places: the controller's rotation, EVE's own camera component and the view
+    -- rotation it wants (DesiredViewRotFromLegacy). In this game the mouse turns the controller's yaw but not its
+    -- pitch (2026-10-22), so the camera's pitch follows whichever source moved most since the camera turned on.
+    -- Each source's pitch, -180 to 180, or nil when it cannot be read.
+    local function pitches(c,pawn,r)
+        local function norm(p) p=tonumber(p); if not p then return nil end p=p%360; return p>180 and p-360 or p end
+        if c.lens==nil then
+            local ok,lens=pcall(function()
+                return valid(pawn:GetComponentByClass(find('/Script/SB.SBCameraComponent')))
+            end)
+            c.lens=ok and lens or false
+        end
+        local out={control=r and norm(r.Pitch)}
+        if c.lens then
+            local ok,v=pcall(function() return norm(value_of(c.lens:K2_GetComponentRotation()).Pitch) end)
+            out.camera=ok and v or nil
+            ok,v=pcall(function() return norm(value_of(c.lens.DesiredViewRotFromLegacy).Pitch) end)
+            out.desired=ok and v or nil
+        end
+        return out
+    end
+    local SOURCES={'control','camera','desired'}
     -- Each frame while the free camera is on: EVE on another map, another controller or its actor gone ends it, with no
     -- call on it. Else the mouse and the arrows turn it and the keys move it along its view. Once, 1 s in, the view
     -- target is logged.
@@ -323,12 +345,27 @@ function Leviathan.new(o)
         local turn_yaw=axis(KEYS.turn_right,KEYS.turn_left)*TURN*dt
         local turn_pitch=axis(KEYS.look_up,KEYS.look_down)*TURN*dt
         local r=control(pc)
+        local now_p=pitches(c,pawn,r)
+        if not c.base then c.base,c.pitch0,c.probes=now_p,c.pitch,0 end
+        -- The source that moved most since the camera turned on gives the pitch's change.
+        local best,used=0,'none'
+        for _,k in ipairs(SOURCES) do
+            local v,b=now_p[k],c.base[k]
+            if v and b then
+                local d=(v-b+180)%360-180
+                if math.abs(d)>math.abs(best)+0.01 then best,used=d,k end
+            end
+        end
+        if c.probes<6 and now>=c.since+c.probes+1 then
+            c.probes=c.probes+1
+            local function f(k) return now_p[k] and string.format('%.1f',now_p[k]) or '-' end
+            log(string.format('cam pitch probe %d: control %s, camera %s, desired %s; used %s %.1f',c.probes,
+                f('control'),f('camera'),f('desired'),used,best))
+        end
         if r then
             c.add_yaw,c.add_pitch=(c.add_yaw or 0)+turn_yaw,(c.add_pitch or 0)+turn_pitch
-            local p=tonumber(r.Pitch)
-            if p>180 then p=p-360 end -- The engine keeps pitch from 0 to 360: 350 is 10 degrees down.
             c.yaw=(tonumber(r.Yaw)+c.add_yaw)%360
-            c.pitch=math.max(-89,math.min(89,p+c.add_pitch))
+            c.pitch=math.max(-89,math.min(89,c.pitch0+best+c.add_pitch))
         else
             c.yaw=(c.yaw+turn_yaw)%360
             c.pitch=math.max(-89,math.min(89,c.pitch+turn_pitch))
