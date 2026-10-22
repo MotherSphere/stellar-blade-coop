@@ -4,6 +4,7 @@
 -- reload asks of shared_enemies=off and same_place=off; coop fight pilot (same-place enemies) and coop fight spawn
 -- probe; the shared enemies' on, off and stopped notices; and the notice when her .pak mods differ from ours.
 dofile('tests/lua/main/fixture.lua')
+in_world=true -- In a world, as the settings tests left it when all of this was one file.
 -- coop fight (Phase 11, experimental). Strict arguments: anything else is the fight's usage line and asks nothing.
 local FIGHT_USE='[StellarCoop] STOP: Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | '
     ..'record | replay | pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec | '

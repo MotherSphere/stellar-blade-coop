@@ -3,6 +3,7 @@
 -- above EVE; same place's (stage 3a) and same spawns' (stage 4) notices; what keeps coop fight on from sharing; and
 -- every notice in both languages within the feed's 200 bytes a line.
 dofile('tests/lua/main/fixture.lua')
+in_world=true -- In a world, as the settings tests left it when all of this was one file.
 -- A co-op save loaded with shared_enemies=off, as for quests_test.lua's notices.
 settings_text,status_text,fight_text,pilot_text,paks_v='shared_enemies=off\n',COOP,nil,nil,nil
 load_main(true)

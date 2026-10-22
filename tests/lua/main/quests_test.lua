@@ -2,6 +2,7 @@
 -- settings, quest_deny carried, force asked of the native part only when typed twice, its start once a load with
 -- shared_quests=on, its end at a reload with shared_quests=off, and its notices on screen in the menu's words.
 dofile('tests/lua/main/fixture.lua')
+in_world=true -- In a world, as the settings tests left it when all of this was one file.
 -- coop quests (the shared quests, experimental). Strict arguments: anything else is its usage line and asks nothing.
 do
 local Q=fake_link
