@@ -295,14 +295,16 @@ function Leviathan.new(o)
         end
         return false
     end
-    -- The mouse's delta this frame (GetInputMouseDelta's out values, through tables); 0, 0 once it cannot be read,
-    -- said once: the arrow keys turn the camera then.
+    -- The mouse's move this frame: the MouseX and MouseY axes, which GetInputAxisKeyValue returns as plain numbers
+    -- (UE4SS gave GetInputMouseDelta's first out value but not its second in game, 2026-10-22). 0, 0 once it cannot be
+    -- read, said once: the arrow keys turn the camera then.
     local function mouse(pc)
         if mouse_failed then return 0,0 end
         local ok,dx,dy=pcall(function()
-            local x,y={},{}
-            pc:GetInputMouseDelta(x,y)
-            return assert(tonumber(value_of(x.DeltaX)),'no DeltaX'),assert(tonumber(value_of(y.DeltaY)),'no DeltaY')
+            fkeys.MouseX=fkeys.MouseX or {KeyName=FName('MouseX')}
+            fkeys.MouseY=fkeys.MouseY or {KeyName=FName('MouseY')}
+            return assert(tonumber(pc:GetInputAxisKeyValue(fkeys.MouseX)),'no MouseX'),
+                assert(tonumber(pc:GetInputAxisKeyValue(fkeys.MouseY)),'no MouseY')
         end)
         if ok then return dx,dy end
         mouse_failed=true

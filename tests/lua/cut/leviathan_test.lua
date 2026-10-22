@@ -573,9 +573,11 @@ function pc:IsInputKeyDown(k)
     if keys_broken then error(keys_broken,0) end
     return down[k.KeyName:ToString()]==true
 end
-function pc:GetInputMouseDelta(x,y)
-    self.mouse_reads=self.mouse_reads+1
-    x.DeltaX,y.DeltaY=mouse.x,mouse.y
+function pc:GetInputAxisKeyValue(key)
+    local name=key.KeyName:ToString()
+    assert(name=='MouseX' or name=='MouseY','an axis key: '..name)
+    if name=='MouseX' then self.mouse_reads=self.mouse_reads+1 end
+    return name=='MouseX' and mouse.x or mouse.y
 end
 controller=pc
 local function back(why)
@@ -749,7 +751,7 @@ assert(stored=='/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)..'\t'..path(
 keys_broken=nil
 assert(fly(7000.4)==nil and lv.command('off'))
 -- The mouse unread: said once, the arrows turn it, 90 degrees a second.
-pc.GetInputMouseDelta=function() error('no out values',0) end
+pc.GetInputAxisKeyValue=function() error('no out values',0) end
 lv.command('cam')
 lens=newest().components[1]
 down={Right=true,Up=true}
