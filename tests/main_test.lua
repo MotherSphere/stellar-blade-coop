@@ -242,6 +242,9 @@ package.loaded.doro={new=function(o)
         restore=function() dr.restores=dr.restores+1 end,
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
 end}
+-- The races' driving (drive.lua; drive_test tests it): what drive.new got. A global, as nr.
+dv={}
+package.loaded.drive={new=function(o) dv.o=o; return {name='drive'} end}
 -- The Doro race (race.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks, slows,
 -- stops and keys, whether it is armed, what a tick or the key answers, a stop that raises, its HUD. A global, as nr.
 ra={}
@@ -538,6 +541,15 @@ assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs onl
     ..'saves); now no slot status\n',last())
 assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
 assert(ra.o.store=='store','coop-race-doros.txt through the link')
+assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store' and dv.o.settings.drift_keys[1]
+    =='Gamepad_RightTrigger','The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
+-- coop race drive reaches race.lua on any slot; its probe on a co-op save only.
+coop('race','drive','top','2600')
+assert(ra.cmds[#ra.cmds][1]=='drive' and ra.cmds[#ra.cmds][2]=='top' and ra.cmds[#ra.cmds][3]=='2600')
+raced=#ra.cmds
+coop('race','drive','probe')
+assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race drive runs only on a co-op save (INSTALL.md: '
+    ..'Co-op saves); now no slot status\n',last())
 assert(select(2,ra.o.slot())=='coop race runs only on a co-op save (INSTALL.md: Co-op saves); now no slot status')
 assert(ra.o.night()==false and ra.o.paused()==false)
 nr.active=true; assert(ra.o.night()==true); nr.active=nil
@@ -806,6 +818,9 @@ coop('race','look','on')
 assert(dr.ghost==false and last()=='[StellarCoop] STOP: no EVE in the world\n','No EVE: the ghost stays her')
 dr.no_eve=nil
 coop('race','probe','doro'); assert(dr.calls[#dr.calls]=='probe' and last()=='[StellarCoop] OK: probe on\n',last())
+coop('race','drive','probe')
+assert(ra.cmds[#ra.cmds][1]=='drive' and ra.cmds[#ra.cmds][2]=='probe' and last()=='[StellarCoop] OK: race drive\n',
+    'On a co-op save: the drive probe')
 dr.n=#dr.calls
 for _,bad in ipairs({{'look'},{'look','ON'},{'look','on','x'},{'probe'},{'probe','fx'},{'probe','doro','x'}}) do
     coop('race',table.unpack(bad))

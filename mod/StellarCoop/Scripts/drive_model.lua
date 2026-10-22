@@ -9,8 +9,9 @@
 local D={}
 -- The host's values, whole numbers as the drive line carries them: top speed (cm/s), acceleration from standing
 -- (cm/s2), braking (cm/s2, the stick pulled back), coasting loss (cm/s2, no stick), grip and drift grip (tenths a
--- second: how fast the speed across the heading goes), the turn rate standing and at top speed (degrees a second), and
--- the stick's angle off the heading past which a fast Doro drifts with no key (degrees). Starting values, tuned in game.
+-- second: how fast the speed across the heading goes), the turn rate standing and at top speed (degrees a second),
+-- and the stick's angle off the heading past which a fast Doro drifts with no key (degrees). Starting values, tuned
+-- in game.
 D.NAMES={'top','accel','brake','coast','grip','drift_grip','turn_slow','turn_fast','drift_angle'}
 D.DEFAULTS={top=2200,accel=950,brake=2400,coast=250,grip=80,drift_grip=15,turn_slow=220,turn_fast=75,drift_angle=45}
 -- What a received or typed value is clamped to.
@@ -18,9 +19,9 @@ D.BOUNDS={top={600,5000},accel={100,10000},brake={100,10000},coast={0,5000},grip
     turn_slow={10,720},turn_fast={10,720},drift_angle={10,90}}
 -- Not on the line: the stick's dead zone; turn rate times while drifting, in the air and stumbling; the drift key
 -- works from 400 cm/s, hard steering from 55% of the top; a drift ends once the slide is under 150 cm/s. The brake
--- holds from 120 degrees off the heading down to 300 cm/s, with no turn meanwhile. A wall: the speed asked over 900 cm/s and 40% of it lost in
--- a frame on the ground, then 0.6 s of stumble. A crest: over 900 cm/s, a climb held two frames that drops by more
--- than 250 cm/s. Starting values.
+-- holds from 120 degrees off the heading down to 300 cm/s, with no turn meanwhile. A wall: the speed asked over 900
+-- cm/s and 40% of it lost in a frame on the ground, then 0.6 s of stumble. A crest: over 900 cm/s, a climb held two
+-- frames that drops by more than 250 cm/s. Starting values.
 local DEAD,DRIFT_TURN,AIR_TURN,STUMBLE_TURN=0.1,1.4,0.3,0.5
 local KEY_FROM,HARD_FROM,SLIDE_END=400,0.55,150
 local BRAKE_ANGLE,BRAKE_DOWN_TO=math.rad(120),300
