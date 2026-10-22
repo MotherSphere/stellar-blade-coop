@@ -36,8 +36,8 @@ function Chat.clean(text)
     end
     return text
 end
--- lines: how many the feed keeps (the chat_lines setting, 50 unless said); on: false or 'off' for chat=off (nothing
--- sent, nothing received shown; notices still are). Both as numbers and booleans or as ui_model.read's text.
+-- lines: how many the feed keeps (50 unless said); on: false or 'off' for chat=off (nothing sent, nothing received
+-- shown; notices still are). Both as numbers and booleans or as ui_model.read's text.
 function Chat.new(lines,on)
     lines,on=tonumber(lines) or 50,on~=false and on~='off'
     local self,feed,outbox,session,last,taken={},{},{},false,nil,nil

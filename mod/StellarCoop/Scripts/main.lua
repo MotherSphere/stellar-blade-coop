@@ -116,7 +116,7 @@ local notice=require('notice').new()
 local kit,menu,box,hud,saves_ui,code_box,approval
 -- coop ui reset and the focus watchdog: the menu, the chat's box and the code box closed, an open host's question
 -- denied, the co-op saves' question closed as Decide later, the game's input given back now and the menu's mouse
--- cursor put back; why (the watchdog's), when given, logged, and a co-op saves pass under way kept.
+-- cursor put back. With why (the watchdog's): it is logged, and a co-op saves pass under way is kept.
 local function ui_reset(why)
     menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil); kit.reset()
     if why then log(why) end
