@@ -17,7 +17,7 @@
 // through the worker; a recording made by one PC's host replayed into another's guest, and a recording at its cap;
 // then two PCs linked through channel 2's text at 120 +/- 30 ms with 2 % of hp lines lost, knocking enemies down, until
 // every enemy died once in each world: the stage's exit criteria.
-#include "fight/engine.h"
+#include "fight/worker.h"
 
 #include <algorithm>
 #include <cassert>

@@ -135,9 +135,9 @@ The adapted parts are:
 - telling a dying monster from one that can be executed;
 - watching for EVE's death screen, a map load, and EVE leaving the start point.
 
-`mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The death
-screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in `session/group.lua`. StellarCoop
-contains no file from Survival Protocol.
+`mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
+death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
+`session/group.lua`. StellarCoop contains no file from Survival Protocol.
 
 ## License
 

@@ -80,7 +80,7 @@
 #include <string>
 #include <vector>
 
-#include "fight/engine.h"
+#include "fight/worker.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"

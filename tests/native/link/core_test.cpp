@@ -4,7 +4,7 @@
 // the handshake both ways, channel 1 with its checks, channel 2 with its checks and its session-long queues, channel 2
 // wired to the shared fight's worker on each side as glue/steam.cpp wires it, join and leave cycles, the host leaving,
 // a rejoin the host never saw, and the synced photo mode's line, pause, cap and notices on both sides.
-#include "fight/engine.h"
+#include "fight/worker.h"
 #include "link/core.h"
 #include "pose/table.h"
 

@@ -77,15 +77,16 @@ build/host/pose_codec_test
 - Lua tests (`main`; `core/`: `keybind`, `link`, `settings_file`; `nightop/`: `challenges`, `probe`, `recruiter`,
   `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`,
   `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`: `kit`,
-  `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to
-  the fake EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss tests included),
-  the `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale`
-  settings and rows, `coop fight spawn probe`, the same place and same spawns notices in both languages, and
-  `coop quests` with the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices. It
-  also covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the two
-  boxes, never to the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu, the focus
+  `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture
+  test, any write to the fake EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss
+  tests included), the `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and
+  `boss_hp_scale` settings and rows, `coop fight spawn probe`, the same place and same spawns notices in both languages,
+  and `coop quests` with the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices.
+  It also covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the
+  two boxes, never to the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu, the focus
   watchdog's reset, and the `spawn_filter` setting with the `filter` word it adds. `ui/kit_test` covers the menu's mouse
-  cursor, the focus put back after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at a row's end.
+  cursor, the focus put back after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at a
+  row's end.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
@@ -327,13 +328,18 @@ Platform-free headers, tested on the build machine:
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
 | `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
-| `fight/engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
+| `fight/engine.h` | The shared enemies' side inside the game (`Engine`), and the vitals read for the partner card. The class holds the declarations; the bodies are in `fight/engine_run.h` (settings, arming, the turn), `engine_read.h` (reads of the game), `engine_write.h` (stat writes, crowd controls, captures), `engine_pilot.h` (same-place enemies), `engine_spawns.h` (same spawns, extra enemies), `engine_bosses.h` (shared bosses), `engine_trial.h` (the solo boss trial) and `engine_lines.h` (her lines) |
+| `fight/types.h` | The types around `Engine`: the pair table, the job, its counts and snapshot, the logic actors, the ring queues |
+| `fight/worker.h` | `Mail` between the logic thread, the game thread and the worker, and the worker's side of the shared fight |
 | `quest/sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
 | `quest/engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
 | `fight/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
 | `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `game/photo_freeze.h` | The synced photo mode's pause |
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
+| `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
+| `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
+| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash |
 
 The Windows side:
 

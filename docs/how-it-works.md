@@ -70,9 +70,9 @@ the chat's feed, your friend's card, the capture and the remote table.
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
-`session/booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4 s, and
-only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps each
-booth's `EnvActorName` and position, and no booth is read between scans. Each scan is timed: `UE4SS.log` gets
+`session/booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4
+s, and only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps
+each booth's `EnvActorName` and position, and no booth is read between scans. Each scan is timed: `UE4SS.log` gets
 `booths: <n> on <map> (<ms> ms)` when the count or the map changes, and `booths: slow scan <ms> ms (<n> found)` for a
 scan of 5 ms or more. The menu key opens the line when the nearest booth is within 3 m of EVE. Nothing in the game
 changes: the mod edits no table row, spawns nothing and fires no zone event, and the booth's travel and save stay the
@@ -127,8 +127,8 @@ through XInput, a polling API that takes nothing from the game.
   first connected controller's left stick. A slot with no controller is asked again only after 2 s, and only one such
   slot per read, since asking an empty slot can cost milliseconds. While another process's window is in front nothing
   is read, and the held state counts as released: XInput answers whatever window has the focus.
-- `game/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
-  its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
+- `game/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 %
+  of its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
   when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near
   45 degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for
   back, and View held 1000 ms for the menu, once a hold. A ring of 8 holds them; a full ring drops the newest.
@@ -166,11 +166,11 @@ watchdog (not tested in game yet). The game, another mod, or a middle or side mo
 
 ### Line breaks
 
-Every text the mod wraps goes through `session/chat.lua`'s `wrap`: the chat feed and history, the notice line above EVE and the
-co-op saves' question. The kit's UMG texts never wrap on their own. A row breaks at the last space within reach, else
-between two characters (Chinese, Japanese and Thai put no space between words), and a mark that takes no column (Thai
-and Arabic vowel and tone marks) stays with the letter before it. Thai writes the vowels U+0E40 to U+0E44 (เ แ โ ใ ไ)
-before the consonant they follow in speech, so a row never ends on one: between two characters the cut moves back
+Every text the mod wraps goes through `session/chat.lua`'s `wrap`: the chat feed and history, the notice line above EVE
+and the co-op saves' question. The kit's UMG texts never wrap on their own. A row breaks at the last space within reach,
+else between two characters (Chinese, Japanese and Thai put no space between words), and a mark that takes no column
+(Thai and Arabic vowel and tone marks) stays with the letter before it. Thai writes the vowels U+0E40 to U+0E44 (เ แ โ ใ
+ไ) before the consonant they follow in speech, so a row never ends on one: between two characters the cut moves back
 before such a vowel, unless the row would be left empty.
 
 ## The Steam link
@@ -230,9 +230,9 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
 
-On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks each
-player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a key
-press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
+On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks
+each player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a
+key press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
 `core/link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
 forgets them.
 
@@ -488,8 +488,8 @@ Poses that belong to no table, or to a table the ghost is not built on yet, are 
 
 ### 5. The ghost, built from the table
 
-When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`. `partner/puppet.lua` builds
-the ghost from it:
+When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`. `partner/puppet.lua`
+builds the ghost from it:
 
 - The ghost is a plain actor with one PoseableMeshComponent per part and no collision (the
   [solid partner](#solid-partner) adds one capsule when it is on). It is not a Pawn, so lock-on, AI and saves leave it
@@ -552,16 +552,17 @@ leader, then its mesh, which creates the cloth. The asset is loaded in a build s
 
 ### Solid partner
 
-With `collide=on` (experimental, off by default, not tested in game yet), `partner/puppet.lua` adds one CapsuleComponent to the
-ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius and half height (40 and
-95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the ghost's main mesh with an
-absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in this
-build), and it blocks that channel and ignores every other. Your EVE's capsule blocks channel 24, the game's monster
-capsules ignore it and NPC capsules have another type, so only your EVE meets the ghost. If your capsule does not block
-its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. Monster capsules block
-WorldDynamic too, so in that case the enemies whose AI runs on your PC stop at the ghost as well; the build line then
-says `ours type 1`. The capsule has no overlap events and cannot be stepped on. The ghost's parts, its name tag and any
-effect started on it have no collision. A Pawn profile would do nothing, since EVE's capsule ignores the Pawn channel.
+With `collide=on` (experimental, off by default, not tested in game yet), `partner/puppet.lua` adds one CapsuleComponent
+to the ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius and half height
+(40 and 95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the ghost's main mesh
+with an absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in
+this build), and it blocks that channel and ignores every other. Your EVE's capsule blocks channel 24, the game's
+monster capsules ignore it and NPC capsules have another type, so only your EVE meets the ghost. If your capsule does
+not block its own type, the ghost's capsule takes WorldDynamic instead, which your capsule blocks. Monster capsules
+block WorldDynamic too, so in that case the enemies whose AI runs on your PC stop at the ghost as well; the build line
+then says `ours type 1`. The capsule has no overlap events and cannot be stepped on. The ghost's parts, its name tag and
+any effect started on it have no collision. A Pawn profile would do nothing, since EVE's capsule ignores the Pawn
+channel.
 
 The capsule is QueryOnly while solid, and solid only while no rule opens it. `place()` checks the rules every frame,
 right after it moves the root, and calls `SetCollisionEnabled` only when the answer changes:
@@ -749,9 +750,9 @@ off by default, not tested in game) has her game refuse those spawns instead. Lu
 fight on` request (and to the spawn probe's); it is a word of that request, never a line on the wire, so the protocol
 stays 12.
 
-- The keys (`SpawnGuest` in `fight/spawn_sync.h`): a key she despawned on the host's drop, a key she answered with no enemy
-  of hers left (refused, or killed while not paired) that the host's drop names, and the key of each paired copy of
-  hers that died on the host's `dead` line, when its row takes part in the host's zone. A copy whose fight she took
+- The keys (`SpawnGuest` in `fight/spawn_sync.h`): a key she despawned on the host's drop, a key she answered with no
+  enemy of hers left (refused, or killed while not paired) that the host's drop names, and the key of each paired copy
+  of hers that died on the host's `dead` line, when its row takes part in the host's zone. A copy whose fight she took
   no part in does not die there ([Achievements](#achievements)) and is not listed; the host's next drop removes it
   and lists it then. Her own lethal hit adds nothing until the host's `dead` comes, since the host may refuse it. An
   extra enemy's key has no row, so no spawn request names it, and it is never listed. A spawn line of the host's epoch
@@ -963,9 +964,10 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 ## Following the host
 
-The guest's travel to the host (`session/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only the guest's
-EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in game yet.
-In this version it never travels: the mod cannot yet read which camps the guest's save has activated (see below).
+The guest's travel to the host (`session/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only
+the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in
+game yet. In this version it never travels: the mod cannot yet read which camps the guest's save has activated (see
+below).
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
@@ -1018,12 +1020,12 @@ It never goes on the wire.
 
 ### Revive
 
-The revive runs on the downed player's side (`session/group.lua`, every 250 ms) and sends nothing: her game reads its own state,
-the friend's vitals and the friend's ghost. The friend's game calls nothing.
+The revive runs on the downed player's side (`session/group.lua`, every 250 ms) and sends nothing: her game reads its
+own state, the friend's vitals and the friend's ghost. The friend's game calls nothing.
 
 - These conditions must hold for 3 s with no gap: the downed player's `revive=on`; her life state 3 and the death
-  screen's animation playing (the lookup Night Operation's solo run uses, in `core/unreal.lua`); `warp=idle` on the engine
-  line (no respawn or warp in flight, read by the native part on the game thread); the friend linked, with vitals
+  screen's animation playing (the lookup Night Operation's solo run uses, in `core/unreal.lua`); `warp=idle` on the
+  engine line (no respawn or warp in flight, read by the native part on the game thread); the friend linked, with vitals
   alive; the friend's ghost on her map within 2 m across and 1 m up or down of her EVE's mesh; `boss=0` on the
   `fight=` line (shared enemies running and no boss fight on her side, the 10 s after a host's `bstart` included); a
   standalone game (`KismetSystemLibrary::IsStandalone`, since in net mode 3 the call would go to a server); and no
@@ -1077,10 +1079,10 @@ Whether every story scene, dialogue and boss intro runs through a theater observ
 
 ## Doro races
 
-A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines, `race/doro.lua`
-for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two reads on EVE, `IsSprint`
-and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part only carries the race
-lines. The commands and rules are in [usage.md](usage.md#doro-races).
+A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines,
+`race/doro.lua` for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two
+reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part
+only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
 
 ### The display Doro
 
@@ -1146,23 +1148,23 @@ Your friend's ghost is drawn as a Doro while their game takes part in the race: 
 `have` line, on the guest's PC once the host's track has arrived and passed the checks, until the race closes. A guest
 whose game answers `have <id> no <why>` stays EVE on both screens.
 
-In Doro mode, `partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's mesh,
-on the ghost's main mesh, where her feet are. The ghost is the mod's own actor, so nothing of the game's is touched. The
-Doro's speed and vertical speed come from the ghost's feet between poses, measured over 50 ms at least. The pose stream
-has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520 cm/s, and a
-vertical speed over 400 cm/s, up or down, counts as being in the air. The ghost's own hiding (no pose for 1 s, another
-map) covers the Doro too. A Doro that cannot be made leaves the ghost drawn as EVE, with the reason in the log. The pose
-stream is the same during a race: the bones still arrive and are written into the hidden parts. While the race
-drives, the ghost's Doro follows the same driving rules as yours, with the turn rate taken from the ghost's yaw in the
-pose stream, and its lean and nose set as a relative rotation on the ghost's main mesh.
+In Doro mode, `partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's
+mesh, on the ghost's main mesh, where her feet are. The ghost is the mod's own actor, so nothing of the game's is
+touched. The Doro's speed and vertical speed come from the ghost's feet between poses, measured over 50 ms at least. The
+pose stream has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520
+cm/s, and a vertical speed over 400 cm/s, up or down, counts as being in the air. The ghost's own hiding (no pose for 1
+s, another map) covers the Doro too. A Doro that cannot be made leaves the ghost drawn as EVE, with the reason in the
+log. The pose stream is the same during a race: the bones still arrive and are written into the hidden parts. While the
+race drives, the ghost's Doro follows the same driving rules as yours, with the turn rate taken from the ghost's yaw in
+the pose stream, and its lean and nose set as a relative rotation on the ghost's main mesh.
 
 ### Driving
 
-From GO until our own result, `race/drive.lua` drives EVE with `race/drive_model.lua`'s car model. The model holds a heading and
-a horizontal velocity. Each frame it turns the heading toward the stick's world direction (`GetLastMovementInputVector`)
-at a rate that falls with speed, adds speed along the heading with a throttle that fades near the top speed, and
-decays the speed across the heading by a grip, which drops during a drift (the drift keys, read with the player
-controller's `IsInputKeyDown`, or hard steering at speed).
+From GO until our own result, `race/drive.lua` drives EVE with `race/drive_model.lua`'s car model. The model holds a
+heading and a horizontal velocity. Each frame it turns the heading toward the stick's world direction
+(`GetLastMovementInputVector`) at a rate that falls with speed, adds speed along the heading with a throttle that fades
+near the top speed, and decays the speed across the heading by a grip, which drops during a drift (the drift keys, read
+with the player controller's `IsInputKeyDown`, or hard steering at speed).
 
 In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in `CalcVelocity`,
 with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint scales) only set the
@@ -1225,8 +1227,8 @@ Each PC logs a `[StellarCoop][DR] result` line per race that reaches its results
 PC.
 
 A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
-is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/doro.lua`, `race/model.lua`, `race/run.lua`, `race/drive.lua`
-and `race/drive_model.lua`.
+is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/doro.lua`, `race/model.lua`,
+`race/run.lua`, `race/drive.lua` and `race/drive_model.lua`.
 
 ## Achievements
 
