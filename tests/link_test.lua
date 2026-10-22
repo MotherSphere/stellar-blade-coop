@@ -26,6 +26,19 @@ fs.write=function() return false end
 ok,message=link.request('leave')
 assert(not ok and message:find('cannot write'),message)
 fs.write=write
+-- The native part holds the last request open while it reads it: Lua cannot read or remove it, and the rename fails.
+-- The new one waits in the queue, and the file being read is never removed (it could be the next one, deleted unread).
+local read,remove,removed=fs.read,fs.remove,false
+files[REQUEST]='saves coop\n'
+fs.read=function(path) if path==REQUEST then return nil end return read(path) end
+fs.remove=function(path) if path==REQUEST then removed=true; return nil,'busy' end return remove(path) end
+ok,message=link.request('saves main')
+assert(ok and files[REQUEST]=='saves coop\n' and not removed,message)
+fs.read=read
+files[REQUEST]=nil -- The native part took it.
+link.changes(); assert(files[REQUEST]=='saves main\n' and not removed,'Sent once the last was taken')
+fs.remove=remove
+files[REQUEST]=nil
 
 assert(#link.changes()==0,'No status yet')
 assert(link.status()==nil)

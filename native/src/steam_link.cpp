@@ -122,15 +122,17 @@ std::string utc_stamp() {
 // The whole file (its first max bytes), then deleted; empty when there is none, or when it cannot be deleted (Lua's
 // busy check holds it open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is
 // complete. 512 by default: a request, a chat line or a night line (link_protocol.h's kMaxNight) and its line end.
+// Deleted on close, not by path after it: a request Lua renames in once the handle is closed is never deleted unread.
 std::string take_text(const std::wstring &path, DWORD max = 512) {
-  HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  HANDLE f = CreateFileW(path.c_str(), GENERIC_READ | DELETE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE,
+                         nullptr);
   if (f == INVALID_HANDLE_VALUE)
     return {};
   std::string text(max, '\0');
   DWORD n = 0;
   bool ok = ReadFile(f, text.data(), max, &n, nullptr);
   CloseHandle(f);
-  if (!DeleteFileW(path.c_str()) || !ok)
+  if (!ok)
     return {};
   text.resize(n);
   return text;

@@ -408,27 +408,29 @@ function Link.new(folder,fs)
         if not fs.write(temp,text) then return false,'cannot write '..temp end
         if not keep then fs.remove(final) end -- An untaken file: the newest wins (rename never replaces on Windows).
         local ok,why=fs.rename(temp,final)
-        if not ok then return false,'cannot write '..name..': '..tostring(why) end
+        if not ok then return false,'cannot write '..name..': '..tostring(why),true end -- true: written beside it.
         return true
     end
     -- The native part takes one coop-request.txt a pass, and a write before it took the last one replaced it: two
     -- requests in one Lua tick (coop fight on and saves coop at a game start) lost the first. So a request waits here,
-    -- in order, while one is on disk, and changes() writes the next once the native part took it.
+    -- in order, while one is on disk, and changes() writes the next once the native part took it. While the native
+    -- part reads the last one, Lua cannot read it either: the rename fails and the request waits the same way. The
+    -- file on disk is never removed, since it may be a request the native part has not read yet.
     -- ponytail: 8 at most, the newest kept, for a native part that never takes them (a fault, another build).
     local queue={}
     local function send()
-        if queue[1] and not fs.read(path('coop-request.txt')) and put('coop-request.txt',queue[1]..'\n') then
+        if queue[1] and not fs.read(path('coop-request.txt')) and put('coop-request.txt',queue[1]..'\n',true) then
             table.remove(queue,1)
         end
     end
     function self.request(line)
-        if queue[1] or fs.read(path('coop-request.txt')) then
-            if #queue>=8 then table.remove(queue,1) end
-            queue[#queue+1]=line
-            return true,'asked the native part: '..line
+        if not queue[1] and not fs.read(path('coop-request.txt')) then
+            local ok,why,beside=put('coop-request.txt',line..'\n',true)
+            if ok then return true,'asked the native part: '..line end
+            if not beside then return false,why end
         end
-        local ok,why=put('coop-request.txt',line..'\n')
-        if not ok then return false,why end
+        if #queue>=8 then table.remove(queue,1) end
+        queue[#queue+1]=line
         return true,'asked the native part: '..line
     end
     function self.session(token) return put('coop-session.txt',token..'\n') end
