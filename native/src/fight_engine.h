@@ -219,7 +219,7 @@ struct PilotTable {
   bool on = false; // same_place on, no pilot latch, and on the host her on: owners capture, drawn copies follow.
   pilot::Side side = pilot::kHost; // This side.
   uint32_t gen = 0;                // The host's generation: the host's own, or as its world line said (the guest).
-  uint32_t session = 0, turn = 0;  // The session and SB's logic turn it comes from.
+  uint32_t session = 0;            // The session it comes from.
   // Our clock then: a table that stops coming is the game thread's to time out. Once the engine is latched, the table
   // is off whatever it says: a fault's lift publishes nothing.
   uint64_t ms = 0;
@@ -754,13 +754,13 @@ public:
       if (zero)
         lift_all(g, logic);
       blocks_.publish(nullptr, 0);
-      return publish(g, turn, now_ms);
+      return publish(g, now_ms);
     }
     if (!zero) { // No call in this mode: our freezes stay, and the game thread drives none.
       ++counts.mode;
       table_ = PilotTable();
       pilot_why_ = "fight";
-      return publish(g, turn, now_ms);
+      return publish(g, now_ms);
     }
     job.last_turn = turn;
     heartbeat_ms_ = now_ms;
@@ -812,7 +812,7 @@ public:
       probe(g, logic, turn, now_ms);
       table_ = PilotTable(); // No pairs: not the last session's either.
       pilot_why_ = "fight";
-      publish(g, turn, now_ms);
+      publish(g, now_ms);
       if (!latched_)
         g.push(&job);
       return;
@@ -879,10 +879,12 @@ public:
       pilot_turn(g, logic, n, census, now_ms);
     if (!latched_)
       bosses(g, logic, n, census, now_ms);
-    if (latched_) // Stopped in this turn: no other run comes, so our overrides come off now.
+    // Read once: a latch from the game thread after this read still gets the push, and that last run lifts.
+    const bool stop = latched_;
+    if (stop) // Stopped in this turn: no other run comes, so our overrides come off now.
       lift_all(g, logic), blocks_.publish(nullptr, 0);
-    publish(g, turn, now_ms);
-    if (!latched_)
+    publish(g, now_ms);
+    if (!stop)
       g.push(&job); // Pushed from inside a drain: it lands on turn + 1.
   }
   // The glue's, on the logic thread after a fault in our own code: the floors off once, from outside Simulate.
@@ -3143,12 +3145,12 @@ private:
   }
 
   // The pair table to the game thread (none once off or latched), and what it says back, for the next turn.
-  template <class Game> void publish(Game &g, uint32_t turn, uint64_t now) {
+  template <class Game> void publish(Game &g, uint64_t now) {
     if (!on_ || latched_)
       table_ = PilotTable(), pilot_why_ = "fight";
     if (!table_.on)
       piloted_ = 0;
-    table_.session = session_seen_, table_.turn = turn, table_.ms = now;
+    table_.session = session_seen_, table_.ms = now;
     g.publish(table_, flags_);
   }
 
@@ -3361,9 +3363,6 @@ public:
   // The worker: the job's lines (to on_line), events (to on_event) and probe census (to on_probe) handed over so far,
   // oldest first, then the snapshot. Under the lock: the logic thread's try_lock meanwhile waits for its next
   // hand-over.
-  template <class L, class E> Snapshot take(L &&on_line, E &&on_event) {
-    return take(on_line, on_event, [](const Actor &) {});
-  }
   template <class L, class E, class P> Snapshot take(L &&on_line, E &&on_event, P &&on_probe) {
     Snapshot s;
     {

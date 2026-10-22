@@ -467,6 +467,30 @@ int main() {
     round = w.lines();
     assert(!has(round, " 7010:0") && has(round, " 7011:0") && has(round, " 7012:0") && has(round, " 7075:0") &&
            has(round, " 7076:0") && has(round, " 7080:0"));
+    // Her own kill of a Monster stage 1 does not follow (7001, unpaired: another difficulty, or past the 16 pairs)
+    // leaves the host's enemy alive: her rounds keep naming the key once it left the map, so the host does not send it
+    // back, and a spawn line for it is stale. Her lethal hit on a paired one (7003) shows it dying and no longer
+    // followed until the host's dead, which blocks the key: the host lacks it, so it leaves her rounds.
+    w.actor(SpawnKey{7001, 0})->dying = true;
+    w.actor(SpawnKey{7003, 0})->dying = true, w.actor(SpawnKey{7003, 0})->paired = false;
+    take({}, kGraceMs + 3 * kHaveAgainMs + 100);
+    g.died(SpawnKey{7003, 0});
+    take({}, kGraceMs + 3 * kHaveAgainMs + 200);
+    w.mine.erase(std::remove_if(w.mine.begin(), w.mine.end(),
+                                [](const Mine &m) { return m.key == SpawnKey{7001, 0} || m.key == SpawnKey{7003, 0}; }),
+                 w.mine.end());
+    take({}, kGraceMs + 4 * kHaveAgainMs);
+    round = w.lines();
+    assert(has(round, " 7001:0") && !has(round, " 7003:0"));
+    const size_t spawned = w.created.size(), stale = g.counts.stale;
+    take({"SBF12 spawn 1 1 7001 0 900 600 0 0 0"}, kGraceMs + 4 * kHaveAgainMs + 100);
+    assert(w.created.size() == spawned && g.counts.stale == stale + 1);
+    // Once the host's enemy is gone too, its drop line blocks the key, and her next round leaves it out.
+    take({"SBF12 drop 1 1 7001 0"}, kGraceMs + 4 * kHaveAgainMs + 200);
+    w.lines();
+    take({}, kGraceMs + 5 * kHaveAgainMs + 300);
+    round = w.lines();
+    assert(has(round, "SBF12 have 1 1 ") && !has(round, " 7001:0") && blocks(g, SpawnKey{7001, 0}));
     // Her own epoch moves (a camp rest of hers): what she answered is void (7080, refused, leaves her rounds), and a
     // round goes once she is settled again; 7011, created, is one of her enemies now.
     epoch(ep, w, 0xA1, 1, 30000);

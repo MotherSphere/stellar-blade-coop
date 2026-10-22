@@ -150,12 +150,11 @@ constexpr size_t kHaveKeys = 24, kHaveParts = 10;
 // holds the boss's own phase rows (with their FX rows) that a skill or a chain applies, and every MinimumHP row it
 // reaches (its floors and MinimumHP_Dispel 1001323); a row two bosses' shared step applies belongs only to the boss
 // whose Phase1 row it requires. dispel is the family's phase dispel row (0: none), for a phase row the host lost with
-// nothing to replace it. finish: a Finish stance (HP under 2) applies Passive_DeathReady 2001101.
+// nothing to replace it.
 constexpr size_t kMaxPhaseIds = 16, kMaxSummonEffects = 2;
 struct Boss {
   uint32_t chr = 0;
   int32_t dispel = 0;
-  bool finish = false;
   int32_t ids[kMaxPhaseIds] = {}; // The allowlist; a 0 ends it.
 };
 // A summon a boss's skill makes (ActorType 3): its SummonActor row, the charId that row makes, and the effects the row
@@ -170,44 +169,44 @@ struct Summon {
 // Another game build needs it built again from that build's tables.
 constexpr Boss kBosses[] = {
     // DED_M_Opener_01
-    {15039001, 0, false, {1001307, 1001323, 5039002}},
+    {15039001, 0, {1001307, 1001323, 5039002}},
     // DED_M_GorillaB_01
-    {15005100, 0, true, {1001307, 1001323, 5005115}},
+    {15005100, 0, {1001307, 1001323, 5005115}},
     // WLA_M_HedgeBoarBrute_01
-    {45043001, 0, false, {1001307, 1001323, 5043001}},
+    {45043001, 0, {1001307, 1001323, 5043001}},
     // WLA_M_GorillaBBrokenHead_01
-    {45005101, 0, false, {1001307, 1001323, 5005117}},
+    {45005101, 0, {1001307, 1001323, 5005117}},
     // UME_M_Sawshark_01
-    {25013001, 0, false, {1001307, 1001323, 5013002}},
+    {25013001, 0, {1001307, 1001323, 5013002}},
     // UME_M_SkullJuggernaut_01
-    {25015001, 5015002, true, {1001305, 1001323, 5015001}},
+    {25015001, 5015002, {1001305, 1001323, 5015001}},
     // UME_M_Tachy_01
-    {25021001, 0, true, {1001304, 1001311, 1001323, 5021001, 5021002}},
+    {25021001, 0, {1001304, 1001311, 1001323, 5021001, 5021002}},
     // WLB_M_SawsharkWasteland_01
-    {55013101, 0, false, {1001307, 1001323, 5013003}},
+    {55013101, 0, {1001307, 1001323, 5013003}},
     // WLB_M_OpenerWasteland_01
-    {55039101, 0, false, {1001307, 1001323, 5039003}},
+    {55039101, 0, {1001307, 1001323, 5039003}},
     // WLB_M_Behemoth_01
-    {55046001, 0, false, {1001307, 1001323, 5046001}},
+    {55046001, 0, {1001307, 1001323, 5046001}},
     // SE_M_WeaponMasterA_01
-    {35031001, 0, false, {1001322, 1001323, 5031005, 5031006, 5031095, 5031096, 5031097, 5031098, 5031200}},
+    {35031001, 0, {1001322, 1001323, 5031005, 5031006, 5031095, 5031096, 5031097, 5031098, 5031200}},
     // SE_M_Marionette_01
-    {35026001, 0, false, {1001307, 1001323, 5026013, 5026021}},
+    {35026001, 0, {1001307, 1001323, 5026013, 5026021}},
     // SE_M_Crawler_01
-    {35022001, 5022094, false, {1001303, 1001313, 1001323, 5022001, 5022002, 5022094}},
+    {35022001, 5022094, {1001303, 1001313, 1001323, 5022001, 5022002, 5022094}},
     // XION_M_RavenBeast_01
-    {75042001, 0, false, {1001302, 1001312, 1001313, 1001322, 1001323, 5042001, 5042002, 5042003, 5042004, 5042005,
+    {75042001, 0, {1001302, 1001312, 1001313, 1001322, 1001323, 5042001, 5042002, 5042003, 5042004, 5042005,
         5042006, 5042223, 5042224}},
     // NST_M_Raven_01
-    {95053001, 0, false, {1001307, 1001323}},
+    {95053001, 0, {1001307, 1001323}},
     // NST_M_ExoSuit_01
-    {95054001, 0, false, {1001305, 1001315, 1001316, 1001323, 5054001}},
+    {95054001, 0, {1001305, 1001315, 1001316, 1001323, 5054001}},
     // NST_M_ElderPhase2_01
-    {95050560, 0, false, {1001307, 1001308, 1001322, 1001323, 5056001, 5056002, 5056003, 5056004, 5056005, 5056148}},
+    {95050560, 0, {1001307, 1001308, 1001322, 1001323, 5056001, 5056002, 5056003, 5056004, 5056005, 5056148}},
     // CHAL_XION_M_Mann_01
-    {205901000, 0, false, {1001304, 1001323, 5901049}},
+    {205901000, 0, {1001304, 1001323, 5901049}},
     // CHAL_M_Scarlet_01
-    {205961000, 0, false, {1001307, 1001321, 1001323, 5961001}},
+    {205961000, 0, {1001307, 1001321, 1001323, 5961001}},
 };
 constexpr Summon kSummons[] = {
     // M_Marionette_SummonDollHead1: SE_M_DollHead_02
