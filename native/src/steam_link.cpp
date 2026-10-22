@@ -432,7 +432,7 @@ const coop::pose::QuestFiles quest_files{
 struct GameView {
   coop::slot::Saves saves() { return saves_state; }
   std::string why() { return coop::pose::saves_why(); }
-  bool world() { return coop::pose::world_loaded(); }
+  bool world() { return coop::pose::lua_state().world; }
   bool title() { return coop::pose::lua_state().title; }
   int load_mode() { return coop::pose::load_mode(); }
   std::string swap(bool coop) {
@@ -447,7 +447,7 @@ std::string status_text() {
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   return head + coop::pose::status() + "\n" +
-         coop::slot::line(slot_index, coop_marker, coop::pose::world_loaded(), saves_state) + "\n" +
+         coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
@@ -595,7 +595,7 @@ bool step() {
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.
-      link->world(coop::pose::world_loaded());
+      link->world(coop::pose::lua_state().world);
       // Ours as Lua last wrote it; photo_sync=both is sent as notice while this game cannot pause. cut: the guest's Lua
       // asks for the pause during the host's cutscene.
       const coop::State lua = coop::pose::lua_state();
@@ -675,7 +675,7 @@ bool step() {
     // The friend's photo mode holds our pause while the link says so and a save is loaded (the title screen has nothing
     // to pause); a fault's line goes on screen.
     std::string said = coop::pose::freeze_pass(
-        loaded && !switched_off && link->photo_freeze() && coop::pose::world_loaded(), GetTickCount64());
+        loaded && !switched_off && link->photo_freeze() && coop::pose::lua_state().world, GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
     // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the
