@@ -46,10 +46,12 @@
 -- <name>|cp|save [laps]|cancel|start <name>|quit, Doro races on a track you record (race/run.lua; race_key drops a
 -- checkpoint while you record; start on a co-op save only), driven as a car from GO (race/drive.lua), with coop race
 -- drive [probe|off|feed impulse|struct|<name> <value>] to probe and tune the driving (a test tool, left out of the
--- usage line; the probe on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
--- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
--- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race and fight), all but coop ui and
--- coop off, which stay here.
+-- usage line; the probe on a co-op save only); coop leviathan [list]|show [body|a|b|tentacle|statue]|play [<clip>]|off,
+-- a read of the cut Naytiba 10's assets and a display of it playing its clips (cut/leviathan.lua; a test tool, left
+-- out of the usage line; show on a co-op save only). coop off stops everything until the game restarts. An XInput pad,
+-- read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the
+-- menu. The console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all
+-- but coop ui and coop off, which stay here.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -152,10 +154,10 @@ local function ask(line)
         return link.request(line)
     end
 end
--- coop no, coop recruiter, coop fight, coop revive test and the Doro look and probe run only on a co-op save (D2, N9):
--- the native part's slot=coop, from the start of its own line (a Steam name never starts one), for a co-op copy
--- (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other
--- command are never locked to it.
+-- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe and coop leviathan show run only on a
+-- co-op save (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts one),
+-- for a co-op copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link
+-- and every other command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -199,6 +201,10 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
+-- coop leviathan's read and display (cut/leviathan.lua), logging [LV] lines. coop-leviathan.txt lets the next Lua load
+-- remove a display this one left.
+local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
+    store=link and link.store('coop-leviathan.txt')})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
@@ -303,7 +309,7 @@ end
 -- What the console commands in Scripts/commands/ take from here. group and travel are built later, with the Steam link
 -- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
 local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
-    coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,
+    coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
     group=function() return group end,travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
@@ -353,12 +359,14 @@ local commands={
         if not stopped then log('race: '..tostring(e)) end
         stopped,e=pcall(doro.stop)
         if not stopped then log('doro: '..tostring(e)) end
+        stopped,e=pcall(leviathan.stop)
+        if not stopped then log('leviathan: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -463,6 +471,7 @@ end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
     doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
+    leviathan.restore() -- Likewise for a Leviathan display an earlier load left.
     pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
@@ -478,6 +487,8 @@ LoopInGameThreadWithDelay(1,function()
     placed=os.clock()-placed
     local looked=os.clock()
     ok,message=doro.tick() -- After the native tick: EVE's mesh is where this frame draws her.
+    if message then report(ok,message) end
+    ok,message=leviathan.tick()
     if message then report(ok,message) end
     looked=os.clock()-looked
     local raced=os.clock()

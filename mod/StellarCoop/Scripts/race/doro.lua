@@ -8,6 +8,7 @@
 -- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
 -- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
 -- The probe (coop race probe doro): a Doro 3 m ahead of EVE plays each clip in turn, with a log line a step.
+-- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/leviathan.lua's coop leviathan).
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of,each,text,find,address=U.valid,U.value_of,U.each,U.text,U.find,U.address
@@ -23,7 +24,8 @@ Doro.ASSETS={mesh=asset('CH_NPC_Dororong'),
     idle=asset('Animation/N_Dororong_Idle'),turn=asset('Animation/N_Dororong_Turn_90L'),
     meet1=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_01'),
     meet3=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_03')}
-local MESH,ANIM='/Script/Engine.SkeletalMesh','/Script/Engine.AnimationAsset'
+local MESH,ANIM,STATIC='/Script/Engine.SkeletalMesh','/Script/Engine.AnimationAsset','/Script/Engine.StaticMesh'
+local SKINNED,SOLID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.StaticMeshComponent'
 local SCALE=1.5 -- The game's own: CharacterTable N_Dororong, MeshScale. About 59 cm tall.
 local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local RUN,MAX_RATE=500,1.8 -- cm/s: the blend spaces' full-run sample, which is EVE's run; the fastest play rate.
@@ -142,6 +144,7 @@ local function same(o,path)
     o=valid(o)
     return o and path_of(o)==path and o or nil
 end
+Doro.same=same
 -- Assets found or loaded again after the engine collected them (a clip nothing played for a while): their count and
 -- ms, for the look's minute line.
 Doro.reloads={n=0,ms=0}
@@ -162,21 +165,25 @@ function Doro.resolve(path,class)
     return a
 end
 -- A Doro component on actor, hung on parent when given (KeepRelative: where the parent is), else the actor's root.
--- Returns the display {mesh=<component>}; raises, with no component left, when it cannot be made.
-function Doro.attach(actor,parent)
-    local mesh=assert(Doro.resolve(Doro.ASSETS.mesh,MESH),'the Doro mesh is missing on this PC')
+-- look: another mesh, {path=<its object path>, static=true for a StaticMesh}, at scale 1, a static one with no
+-- animation mode. Returns the display {mesh=<component>}; raises, with no component left, when it cannot be made.
+function Doro.attach(actor,parent,look)
+    local static,name=look and look.static,look and look.path:match('[^.]+$') or 'the Doro'
+    local mesh=assert(Doro.resolve(look and look.path or Doro.ASSETS.mesh,static and STATIC or MESH),
+        (look and name or 'the Doro mesh')..' is missing on this PC')
     local identity=find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform({X=0,Y=0,Z=0},
         {Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
-    local c=valid(actor:AddComponentByClass(find('/Script/Engine.SkeletalMeshComponent'),false,identity,false))
-    assert(c,'the Doro could not be added')
+    local c=valid(actor:AddComponentByClass(find(static and SOLID or SKINNED),false,identity,false))
+    assert(c,name..' could not be added')
     local ok,why=pcall(function()
         if parent then
             c:K2_AttachToComponent(parent,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,KEEP_RELATIVE,false)
         end
-        c:SetSkeletalMesh(mesh,true)
-        c:SetRelativeScale3D({X=SCALE,Y=SCALE,Z=SCALE})
+        if static then c:SetStaticMesh(mesh) else c:SetSkeletalMesh(mesh,true) end
+        local scale=look and 1 or SCALE
+        c:SetRelativeScale3D({X=scale,Y=scale,Z=scale})
         c:SetCollisionEnabled(0)
-        c:SetAnimationMode(1) -- AnimationSingleNode
+        if not static then c:SetAnimationMode(1) end -- AnimationSingleNode
     end)
     if not ok then
         pcall(function() c:K2_DestroyComponent(actor) end)
@@ -184,14 +191,14 @@ function Doro.attach(actor,parent)
     end
     return {mesh=c}
 end
--- A Doro of its own in world, at and turned as given: {actor=, path=<the actor's>, mesh=}. Raises, with nothing left,
--- when it fails.
-function Doro.spawn(world,at,rotation)
+-- A Doro of its own in world, at and turned as given (look: attach's): {actor=, path=<the actor's>, mesh=}. Raises,
+-- with nothing left, when it fails.
+function Doro.spawn(world,at,rotation,look)
     local actor=valid(world:SpawnActor(find('/Script/Engine.Actor'),at,rotation))
-    assert(actor,'the Doro could not be spawned')
+    assert(actor,(look and look.path:match('[^.]+$') or 'the Doro')..' could not be spawned')
     local ok,d=pcall(function()
         actor:SetActorEnableCollision(false,false)
-        local d=Doro.attach(actor)
+        local d=Doro.attach(actor,nil,look)
         d.mesh:K2_SetWorldLocationAndRotation(at,rotation,false,{},true) -- The root was added at the origin.
         d.path=path_of(actor)
         return d
@@ -204,12 +211,13 @@ function Doro.spawn(world,at,rotation)
     return d
 end
 -- A Doro an earlier Lua load spawned (Ctrl+R), by its actor's path: gone, and true, only while that actor's root still
--- shows Doro's mesh, so never another object found at that path.
-function Doro.sweep(p)
+-- shows Doro's mesh (mesh: that other mesh's object path), so never another object found at that path.
+function Doro.sweep(p,mesh)
     local doro=p and valid(StaticFindObject(p))
     local root=doro and valid(doro:K2_GetRootComponent())
-    local mesh=root and root:IsA(find('/Script/Engine.SkeletalMeshComponent')) and valid(root.SkeletalMesh)
-    if mesh and path_of(mesh)==Doro.ASSETS.mesh then
+    local shows=root and (root:IsA(find(SKINNED)) and valid(root.SkeletalMesh)
+        or root:IsA(find(SOLID)) and valid(root.StaticMesh))
+    if shows and path_of(shows)==(mesh or Doro.ASSETS.mesh) then
         doro:K2_DestroyActor()
         return true
     end
@@ -220,11 +228,11 @@ function Doro.remove(d)
     if a then a:K2_DestroyActor() end
 end
 -- One choice of pick() on a display: PlayAnimation only when the clip or its looping changes, then the blend space
--- input, the play rate and the position (without notifies) as given.
+-- input, the play rate and the position (without notifies) as given. c.asset: a key of ASSETS, or an object path.
 function Doro.apply(d,c)
     local m=d.mesh
     if c.asset~=d.asset or c.loop~=d.loop then
-        m:PlayAnimation(assert(Doro.resolve(Doro.ASSETS[c.asset]),c.asset..' is missing on this PC'),c.loop)
+        m:PlayAnimation(assert(Doro.resolve(Doro.ASSETS[c.asset] or c.asset),c.asset..' is missing on this PC'),c.loop)
         d.asset,d.loop=c.asset,c.loop
     end
     if c.input then m:GetAnimInstance():SetBlendSpaceInput({X=c.input,Y=0,Z=0}) end

@@ -165,9 +165,9 @@ with tempfile.TemporaryDirectory() as tmp:
     files = install.package('v', dll)
     shipped = {'enabled.txt', 'StellarCoop.dll', 'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt',
                *(f'Scripts/{name}.lua'
-                 for name in ('commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
+                 for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
                               'commands/session', 'core/keybind', 'core/link', 'core/settings_file', 'core/unreal',
-                              'main', 'nightop/challenges', 'nightop/probe', 'nightop/recruiter',
+                              'cut/leviathan', 'main', 'nightop/challenges', 'nightop/probe', 'nightop/recruiter',
                               'nightop/recruiter_text', 'nightop/run', 'nightop/shop', 'nightop/waves',
                               'partner/capture', 'partner/hud', 'partner/puppet', 'race/doro', 'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',

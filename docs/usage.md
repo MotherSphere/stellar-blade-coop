@@ -932,9 +932,33 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
   10 of item n into the co-op save. Your points are in `coop-night-<steamid>-<index>.txt` in the mod folder, one file
   per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 
-The ghost, the link and every other command except `coop fight` (below), and `coop race start`, `coop race look on`,
-`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), run on any save.
-`coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
+The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
+`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), and `coop leviathan show` (below),
+run on any save. `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies
+run.
+
+### Cut enemy preview: `coop leviathan`
+
+The game's files hold an enemy that has not been seen in the game: Naytiba 10, the Leviathan, in
+`/Game/Art/Character/Monster/CH_M_NA_10/`. `coop leviathan` is a test command for it, left out of the usage line. It
+never spawns an enemy or a character. What it shows is a plain actor with one mesh and collision off, like the Doros
+of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4SS.log` as `[StellarCoop][LV]`.
+
+- `coop leviathan` or `coop leviathan list` only reads. It logs one line for each mesh, skeleton, animation, blend
+  space and Blueprint class it looks for: `missing`, or the object's class, with the skeleton of a mesh or an
+  animation and the parent class of a Blueprint class. Then it logs each CharacterTable row whose name, or one of its
+  name fields such as `Type` or `RefAppearance`, contains `NA_10` or `eviathan` (Leviathan, and Reviathan as the
+  statue spells it), with the row's character ID and `MeshScale`, and the number of rows it read.
+- `coop leviathan show [body|a|b|tentacle|statue]` puts one mesh 6 m in front of EVE, facing her. `body` (the
+  default) is `CH_M_NA_10`, `a` and `b` are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and
+  `statue` is `C_Reviathan`, a static mesh from the game's secret room assets. The mesh plays each animation made for
+  its skeleton twice, one after another, and starts over after the last, with a log line for each. A blend space plays
+  at input 0, 3 s twice. A second `show` replaces the first. It runs only on a [co-op save](#co-op-saves).
+- `coop leviathan play <name>` holds one animation of the shown mesh in a loop, for screenshots. The name is matched
+  in any case against the end of the animation names, then anywhere in them: `coop leviathan play lightningball` plays
+  `M_Leviathan_LightningBall1_1`. `coop leviathan play` alone goes back to the cycle.
+- `coop leviathan off` removes the mesh. `coop off`, a map change and its first error remove it too. While it is
+  shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if this one could not.
 
 ### Shared enemies (experimental)
 
@@ -1515,10 +1539,11 @@ loopback, a recording (which is written), a replay, engine reads, the Steam link
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
 run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay as they are), the
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
-(released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with
-EVE's movement values put back), the drive probe, a race track being recorded (dropped, nothing written) and the Doro
-look (EVE drawn again). Afterwards only `coop status` and `coop report` answer. Every other command answers
-`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
+(released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
+movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
+drawn again) and the Leviathan display (`coop leviathan`). Afterwards only `coop status` and `coop report` answer. Every
+other command answers `STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The
+race key does nothing.
 
 ## coop-settings.txt
 
