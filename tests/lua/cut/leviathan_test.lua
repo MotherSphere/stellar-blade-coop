@@ -549,7 +549,7 @@ lv.command('off')
 
 -- The free camera. The player controller: stacked move and look ignore counts, its view target, the keys held (down),
 -- the mouse's delta, each key and mouse read counted.
-local down,mouse,keys_broken={},{x=0,y=0},nil
+local down,keys_broken={},nil
 local PC_PATH='/Game/Map.Map:PersistentLevel.SBPlayerController_0'
 local pc=object({move_n=0,look_n=0,reads=0,mouse_reads=0})
 function pc:GetFullName() return 'SBPlayerController '..PC_PATH end
@@ -573,11 +573,11 @@ function pc:IsInputKeyDown(k)
     if keys_broken then error(keys_broken,0) end
     return down[k.KeyName:ToString()]==true
 end
-function pc:GetInputAxisKeyValue(key)
-    local name=key.KeyName:ToString()
-    assert(name=='MouseX' or name=='MouseY','an axis key: '..name)
-    if name=='MouseX' then self.mouse_reads=self.mouse_reads+1 end
-    return name=='MouseX' and mouse.x or mouse.y
+-- The controller's rotation, which the game turns from the mouse: the camera manager's at first.
+local ctrl={Pitch=-10,Yaw=45,Roll=0}
+function pc:GetControlRotation()
+    self.mouse_reads=self.mouse_reads+1
+    return {Pitch=ctrl.Pitch,Yaw=ctrl.Yaw,Roll=ctrl.Roll}
 end
 controller=pc
 local function back(why)
@@ -596,11 +596,11 @@ local lens=camera.components[1]
 assert(lens.kind=='/Script/Engine.CameraComponent' and #camera.components==1 and camera.collision==false)
 assert(camera.spawned_at.X==100 and camera.spawned_at.Y==200 and camera.spawned_at.Z==300
     and camera.spawned_rot.Yaw==45 and camera.spawned_rot.Pitch==-10 and table.concat(lens.calls,'|')=='fov 80')
-assert(pc.view==camera and pc.blend==0.3 and pc.move_n==1 and pc.look_n==1)
+assert(pc.view==camera and pc.blend==0.3 and pc.move_n==1 and pc.look_n==0,'Move input ignored, look input left on')
 assert(stored==display_path..'\t'..path('CH_M_NA_10')..'\t'..camera_path..'\t'..PC_PATH..'\t0\t0',stored)
 assert(logged('cam on at 100 200 300 yaw 45.0 pitch -10.0, 10 m/s; before: move ignored 0, look ignored 0, view none'))
 -- The keys move it along its view at 10 m/s: W (or Z) forward, Space (or E) up, Shift 4 times as fast; the mouse turns
--- it, 2.5 degrees a unit; a hitch counts as 0.1 s.
+-- it through the controller's rotation (pitch kept by the engine from 0 to 360); a hitch counts as 0.1 s.
 local function fly(t) clock=t; return lv.tick() end
 local function near(x,y,z) return close(lens.at.X,x) and close(lens.at.Y,y) and close(lens.at.Z,z) end
 local p,y=math.rad(-10),math.rad(45)
@@ -616,10 +616,17 @@ down={E=true}
 fly(6005)
 assert(near(x0,y0,z0+100),'A hitch: 0.1 s')
 z0=z0+100
-down,mouse={},{x=2,y=-4}
+down,ctrl={},{Pitch=340,Yaw=50,Roll=0}
 fly(6005.05)
 assert(near(x0,y0,z0) and close(lens.rot.Yaw,50) and close(lens.rot.Pitch,-20),lens.rot.Pitch)
-mouse={x=0,y=0}
+-- The arrows add their turn to the controller's: 90 degrees a second.
+down={Right=true,Up=true}
+fly(6005.1)
+assert(close(lens.rot.Yaw,54.5) and close(lens.rot.Pitch,-15.5),lens.rot.Yaw)
+down={Left=true,Down=true}
+fly(6005.15)
+assert(close(lens.rot.Yaw,50) and close(lens.rot.Pitch,-20),'The arrows turned back')
+down={}
 -- Nothing reads a key or the mouse while the co-op menu is open; the camera stays.
 menu_open,down=true,{W=true}
 local reads,mouse_reads=pc.reads,pc.mouse_reads
@@ -662,12 +669,12 @@ lv.command('cam')
 -- The flags as they were: move input ignored by the game before stays ignored; one the game added meanwhile goes.
 pc.move_n,pc.look_n=1,1
 lv.command('cam')
-assert(pc.move_n==2 and pc.look_n==2 and stored:sub(-#EVE_PATH-5)=='\t1\t1\t'..EVE_PATH,stored)
+assert(pc.move_n==2 and pc.look_n==1 and stored:sub(-#EVE_PATH-5)=='\t1\t1\t'..EVE_PATH,stored)
 lv.command('cam')
 assert(pc.move_n==1 and pc.look_n==1,'Ignored before, ignored after')
 pc.move_n,pc.look_n=0,0
 lv.command('cam')
-pc.move_n,pc.look_n=2,2
+pc.move_n=2
 lv.command('cam')
 assert(back(),'Not ignored before: not after')
 -- off: the display and the camera.
@@ -750,14 +757,14 @@ assert(ok==false and why=='Free camera off on an error: no input' and back() and
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)..'\t'..path('CH_M_NA_10'),stored)
 keys_broken=nil
 assert(fly(7000.4)==nil and lv.command('off'))
--- The mouse unread: said once, the arrows turn it, 90 degrees a second.
-pc.GetInputAxisKeyValue=function() error('no out values',0) end
+-- The controller's rotation unread: said once, the arrows alone turn it, 90 degrees a second.
+pc.GetControlRotation=function() error('no rotation',0) end
 lv.command('cam')
 lens=newest().components[1]
 down={Right=true,Up=true}
 fly(7000.5)
 assert(close(lens.rot.Yaw,54) and close(lens.rot.Pitch,-1),lens.rot.Yaw)
-assert(logged('cam: the mouse cannot be read (no out values); the arrow keys turn the camera'))
+assert(logged('cam: the view cannot follow the mouse (no rotation); the arrow keys turn the camera'))
 mouse_reads=#logs
 fly(7000.6)
 assert(#logs==mouse_reads,'Said once')

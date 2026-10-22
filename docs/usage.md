@@ -984,8 +984,9 @@ of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4
 
 The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off.
 Turning it on needs a co-op save, like `show`; turning it off works on any save. It starts where the game's camera is
-and blends there in 0.3 s. EVE keeps standing where she was: while the camera is on, the game ignores the move and look
-input of her controller. The camera stays off when `coop-leviathan.txt` cannot be written, since the next Lua load
+and blends there in 0.3 s. EVE keeps standing where she was: while the camera is on, the game ignores the move input
+of her controller. Its look input stays on, and the free camera turns with the controller, so the mouse and a
+controller's right stick turn it as they turn the game's own camera, with your sensitivity settings. The camera stays off when `coop-leviathan.txt` cannot be written, since the next Lua load
 could not give the controller back without it.
 
 | Key | Free camera |
@@ -997,14 +998,16 @@ could not give the controller back without it.
 | Space or E | Up |
 | Left Ctrl or C | Down |
 | Left Shift, held | 4 times as fast |
-| Mouse, or the arrow keys | Turn |
+| Mouse or right stick, and the arrow keys | Turn |
 
 The keys cover QWERTY and AZERTY. The speed is 10 m/s; `coop leviathan cam <m/s>` sets another one, from 0.1 to 500,
-until the next Lua load. If the mouse cannot be read, the log says so once and only the arrow keys turn the camera.
+until the next Lua load. The arrow keys add 90 degrees a second to the turn. If the controller's rotation cannot be
+read, the log says so once and only the arrow keys turn the camera.
 No key moves the camera while the co-op menu, the chat box or another co-op box is open.
 
-The game's HUD stays on screen: hide it in the game's own settings before you film. Only walking and the game's camera
-turn are blocked, so a key the game binds to another action still reaches EVE where she stands.
+The game's HUD stays on screen: hide it in the game's own settings before you film. Only walking is blocked, so a key
+the game binds to another action (an attack on the left mouse button, for example) still reaches EVE where she stands,
+and the game's camera turns behind the free one: back on EVE, it looks where you last looked.
 
 `coop leviathan cam` again, `coop leviathan off`, `coop off`, a map change and the camera's first error turn it off.
 The view goes back to what it showed before the camera turned on: EVE, or a fixed camera of the game's, and EVE when

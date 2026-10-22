@@ -34,9 +34,8 @@ local LIFT=500
 local FAR=5000 -- m: the farthest distance and height show and move take.
 local BLEND=0.3 -- s: the view's blend into and out of the free camera.
 local SPEED,FAST=1000,4 -- cm/s: the free camera's speed (coop leviathan cam <m/s> sets it), times FAST with Shift.
--- Degrees: a turn per unit of the mouse's delta (the engine's default InputYawScale), and per second of an arrow key.
--- Starting values, tuned in game.
-local MOUSE,TURN=2.5,90
+-- Degrees a second of an arrow key: a starting value, tuned in game.
+local TURN=90
 local MAX_DT=0.1 -- s: a longer frame (a hitch) moves the camera this much.
 local PC,MATERIAL='/Script/Engine.PlayerController','/Script/Engine.MaterialInterface'
 -- The free camera's keys, Unreal key names (QWERTY and AZERTY both), read with IsInputKeyDown.
@@ -110,8 +109,6 @@ local function give_back(pc,was,camera)
     end)
     pc:SetIgnoreMoveInput(false)
     if not was.move and pc:IsMoveInputIgnored()==true then pc:ResetIgnoreMoveInput() end
-    pc:SetIgnoreLookInput(false)
-    if not was.look and pc:IsLookInputIgnored()==true then pc:ResetIgnoreLookInput() end
     return string.format('move ignored %d, look ignored %d%s',pc:IsMoveInputIgnored()==true and 1 or 0,
         pc:IsLookInputIgnored()==true and 1 or 0,viewed and '' or '; view not set: '..tostring(why))
 end
@@ -171,7 +168,7 @@ function Leviathan.new(o)
     -- said=}
     local skin='default' -- The last skin set: a new show keeps it.
     local speed=SPEED
-    local restored,mouse_failed=false,false
+    local restored,look_failed=false,false
     local fkeys={}
     local function fields()
         local f={}
@@ -275,8 +272,7 @@ function Leviathan.new(o)
         pcall(function() d.mesh:SetFieldOfView(value_of(manager:GetFOVAngle())) end) -- The same framing.
         local ok,why=pcall(function()
             pc:SetViewTargetWithBlend(d.actor,BLEND,0,0,false)
-            pc:SetIgnoreMoveInput(true)
-            pc:SetIgnoreLookInput(true)
+            pc:SetIgnoreMoveInput(true) -- Look input stays on: the game turns the controller from the mouse (fly()).
         end)
         if not ok then
             local _,message=cam_off('error')
@@ -295,21 +291,17 @@ function Leviathan.new(o)
         end
         return false
     end
-    -- The mouse's move this frame: the MouseX and MouseY axes, which GetInputAxisKeyValue returns as plain numbers
-    -- (UE4SS gave GetInputMouseDelta's first out value but not its second in game, 2026-10-22). 0, 0 once it cannot be
-    -- read, said once: the arrow keys turn the camera then.
-    local function mouse(pc)
-        if mouse_failed then return 0,0 end
-        local ok,dx,dy=pcall(function()
-            fkeys.MouseX=fkeys.MouseX or {KeyName=FName('MouseX')}
-            fkeys.MouseY=fkeys.MouseY or {KeyName=FName('MouseY')}
-            return assert(tonumber(pc:GetInputAxisKeyValue(fkeys.MouseX)),'no MouseX'),
-                assert(tonumber(pc:GetInputAxisKeyValue(fkeys.MouseY)),'no MouseY')
-        end)
-        if ok then return dx,dy end
-        mouse_failed=true
-        log('cam: the mouse cannot be read ('..tostring(dx)..'); the arrow keys turn the camera')
-        return 0,0
+    -- The controller's rotation, which the game turns from the mouse or a controller's stick as it does for EVE's own
+    -- camera (look input stays on). In this game GetInputMouseDelta and the MouseX and MouseY axis values read 0
+    -- (2026-10-22). nil once it cannot be read, said once: the arrow keys alone turn the camera then.
+    local function control(pc)
+        if look_failed then return nil end
+        local ok,r=pcall(function() return value_of(pc:GetControlRotation()) end)
+        if ok and type(r)=='table' and tonumber(r.Yaw) and tonumber(r.Pitch) then return r end
+        look_failed=true
+        log('cam: the view cannot follow the mouse ('..tostring(ok and 'no rotation' or r)
+            ..'); the arrow keys turn the camera')
+        return nil
     end
     -- Each frame while the free camera is on: EVE on another map, another controller or its actor gone ends it, with no
     -- call on it. Else the mouse and the arrows turn it and the keys move it along its view. Once, 1 s in, the view
@@ -327,9 +319,20 @@ function Leviathan.new(o)
         end
         if blocked() then return end
         local function axis(plus,minus) return (held(pc,plus) and 1 or 0)-(held(pc,minus) and 1 or 0) end
-        local dx,dy=mouse(pc)
-        c.yaw=(c.yaw+dx*MOUSE+axis(KEYS.turn_right,KEYS.turn_left)*TURN*dt)%360
-        c.pitch=math.max(-89,math.min(89,c.pitch+dy*MOUSE+axis(KEYS.look_up,KEYS.look_down)*TURN*dt))
+        -- The arrows add their turn to the controller's, or turn the camera alone when it cannot be read.
+        local turn_yaw=axis(KEYS.turn_right,KEYS.turn_left)*TURN*dt
+        local turn_pitch=axis(KEYS.look_up,KEYS.look_down)*TURN*dt
+        local r=control(pc)
+        if r then
+            c.add_yaw,c.add_pitch=(c.add_yaw or 0)+turn_yaw,(c.add_pitch or 0)+turn_pitch
+            local p=tonumber(r.Pitch)
+            if p>180 then p=p-360 end -- The engine keeps pitch from 0 to 360: 350 is 10 degrees down.
+            c.yaw=(tonumber(r.Yaw)+c.add_yaw)%360
+            c.pitch=math.max(-89,math.min(89,p+c.add_pitch))
+        else
+            c.yaw=(c.yaw+turn_yaw)%360
+            c.pitch=math.max(-89,math.min(89,c.pitch+turn_pitch))
+        end
         local f,r,u=axis(KEYS.forward,KEYS.back),axis(KEYS.right,KEYS.left),axis(KEYS.up,KEYS.down)
         local v=speed*(held(pc,KEYS.fast) and FAST or 1)*dt
         local y,p,at=math.rad(c.yaw),math.rad(c.pitch),c.at
