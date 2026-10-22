@@ -687,6 +687,28 @@ local bonus_only=tonumber(result_line():match('^result: success waves=5/5 kills=
 assert(bonus_only and bonus_only>=25,result_line())
 assert(logged('points: no time bonus (a monster never came)'),since(0))
 assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
+-- Wave 1 missing, waves 2 to 5 fought: its kills still pay, only the time bonus goes.
+bodies,calls,lines={},{},{}
+fill_key=false
+ok,message=run.command('start')
+byte=tonumber(message:match('run 0x(%x+)'),16)
+for _=1,400 do tick(); if logged('wave 1 find +2.5 s: tracked 0/4') then break end end
+fill_key=true
+for k=2,5 do play(k) end
+assert(logged('points: no time bonus (a monster never came)'),since(0))
+assert(last()==string.format('credit +21 = %d (score 540, %s)',paid+21,WALLET),last())
+paid=paid+21
+-- Every monster fallen and written off: no kill, no time bonus.
+bodies,calls,lines={},{},{}
+ok,message=run.command('start')
+for _=1,4000 do
+    for _,m in ipairs(bodies) do m.at={X=m.at.X,Y=m.at.Y,Z=-500} end
+    tick()
+    if result_line() then break end
+end
+assert(result_line():find('^result: success waves=5/5 kills=0 '),result_line())
+assert(logged('points: no time bonus (no kill)'),since(0))
+assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
 
 -- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
 -- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro
