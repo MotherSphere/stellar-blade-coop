@@ -2188,7 +2188,7 @@ int main() {
   }
   // AddShow loads a Show synchronously the first time: at most Driver::kAddsPerFrame calls a frame and kAddsPerSecond a
   // second, whatever her stamps say. The lines behind wait in order (a show-set behind a waiting show waits with it);
-  // past the queue's 32 they are refused.
+  // past the queue's 32 they are refused. A Show held back more than 34 ms past its stamp is late.
   {
     Stage s;
     s.copy(501, 100, 200, 20);
@@ -2201,28 +2201,30 @@ int main() {
     Entry e = entry(4100, 100, 200, 20);
     uint8_t bytes[kMaxSbe];
     d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
-    d.draw(g, kBase, 5000, 1000);
+    double at = 1000;
+    d.draw(g, kBase, 5000, at);
     uint8_t id = 0;
-    auto line = [&](Kind kind, uint8_t at_id) {
+    auto line = [&](Kind kind, uint8_t at_id, uint64_t t_ms) {
       ShowLine l;
-      l.kind = kind, l.gen = 7, l.guid = 4100, l.id = at_id, l.t_ms = 0, l.rate = 1000; // Stamped 0: due at once.
+      l.kind = kind, l.gen = 7, l.guid = 4100, l.id = at_id, l.t_ms = t_ms, l.rate = 1000;
       assert(set_path(l, 0, "Flood/Show"));
-      d.line(l, 1000);
+      d.line(l, at);
     };
-    for (uint64_t k = 0; k <= Driver::kAddsPerFrame; ++k)
-      line(Kind::show, ++id);
-    line(Kind::set, id);
-    d.draw(g, kBase, 5016, 1000);
-    assert(d.counts.shows == Driver::kAddsPerFrame && d.counts.sets == 0);
-    d.draw(g, kBase, 5032, 1000);
+    for (uint64_t k = 0; k <= Driver::kAddsPerFrame; ++k) // Stamped now: on time.
+      line(Kind::show, ++id, 1000);
+    line(Kind::set, id, 1000);
+    d.draw(g, kBase, 5016, at);
+    assert(d.counts.shows == Driver::kAddsPerFrame && d.counts.sets == 0 && d.counts.late == 0);
+    d.draw(g, kBase, 5032, at = 1050);
     assert(d.counts.shows == Driver::kAddsPerFrame + 1 && d.counts.sets == 1 && d.counts.unknown == 0);
+    assert(d.counts.late == 1);
     for (double now = 5048; now < 6000; now += 16) {
       for (uint64_t k = 0; k < Driver::kAddsPerFrame; ++k)
-        line(Kind::show, ++id);
-      d.draw(g, kBase, now, 1000);
+        line(Kind::show, ++id, 0); // Stamped 0: due at once.
+      d.draw(g, kBase, now, at);
     }
     assert(d.counts.shows == Driver::kAddsPerSecond && d.counts.lines_refused > 0);
-    d.draw(g, kBase, 6000, 1000); // The next second.
+    d.draw(g, kBase, 6000, at); // The next second.
     assert(d.counts.shows == Driver::kAddsPerSecond + Driver::kAddsPerFrame);
   }
   // The log's event lines: one per copy released, converged onto the stream again or snapped (a convergence that

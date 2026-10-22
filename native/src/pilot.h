@@ -1752,7 +1752,8 @@ public:
   }
   // AddShow loads a Show it has not loaded yet synchronously, on the game thread, and her stamps can make any number of
   // lines due at once: draw() makes at most kAddsPerFrame calls a frame and kAddsPerSecond a second, and the lines
-  // behind keep their order for a later frame (Timeline::kLines bounds them).
+  // behind keep their order for a later frame (Timeline::kLines bounds them). A Show held back more than kLateMs past
+  // its stamp counts as late.
   // ponytail: one budget for all her lines; a budget per pair if one enemy's flood should not delay the others'.
   static constexpr uint64_t kAddsPerFrame = 4, kAddsPerSecond = 60;
   // One frame at now (our clock, ms), drawing at at (the owner's clock, ms: the ghost's draw time; NaN without one).
@@ -1789,7 +1790,8 @@ public:
     for (const Timeline::Due *due; (due = timeline_.front(at));) {
       if (due->line.kind == Kind::show && (adds_ - frame >= kAddsPerFrame || adds_ - second_adds_ >= kAddsPerSecond))
         break;
-      const Timeline::Due d = *due;
+      Timeline::Due d = *due;
+      d.late = d.late || at - double(d.line.t_ms) > Timeline::kLateMs;
       timeline_.pop();
       Pair *p = pair(d.line.guid);
       const size_t i = p ? size_t(p - pairs_) : 0;
