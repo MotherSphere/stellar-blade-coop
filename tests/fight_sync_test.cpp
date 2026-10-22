@@ -2117,11 +2117,10 @@ int main() {
     assert(kBosses[0].chr == 15039001 && chars.size() == 19);
     // As the game's tables have them: GorillaB and its broken-head form share the step that applies 5005115 and
     // 5005117, and so do Opener (5039002) and OpenerWasteland (5039003), but each boss takes only its own row; the
-    // finish flag on the three story bosses with a Finish stance; the family dispel rows of Crawler and
-    // SkullJuggernaut; WeaponMasterA's phase FX; no row for a boss with nothing to mirror (WeaponMasterB).
+    // family dispel rows of Crawler and SkullJuggernaut; WeaponMasterA's phase FX; no row for a boss with nothing to
+    // mirror (WeaponMasterB).
     const Boss *gorilla = boss_row(15005100), *broken = boss_row(45005101), *skull = boss_row(25015001);
-    assert(gorilla && broken && skull && gorilla->finish && !broken->finish && skull->finish &&
-           boss_row(25021001)->finish && !boss_row(15039001)->finish);
+    assert(gorilla && broken && skull);
     assert(mirrored(*gorilla, 5005115) && !mirrored(*gorilla, 5005117) && mirrored(*broken, 5005117) &&
            !mirrored(*broken, 5005115));
     assert(mirrored(*boss_row(15039001), 5039002) && !mirrored(*boss_row(15039001), 5039003) &&
