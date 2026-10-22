@@ -195,9 +195,11 @@ build/host/pose_codec_test
     spawn, cleared at a new host epoch and by `clear()`, kept through her own epoch moves, 240 at most), and two fake
     worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on the way;
   - `pilot_test`: the core of same-place enemies (stages 3a to 3c): the SBE message with a fuzz, the gen and owner epoch
-    filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps), the
-    drawn copy's states with the 2 m convergence snap, the capture list's restore order, the show lines with a fuzz,
-    their timeline and line ids, the FNamePool decode and compact id over fake blocks, the
+    filters, an enemy's samples drawn on the ghost's own clock (150 ms extrapolation cap, warp, hole and 3 m snaps, a
+    velocity of 100 m/s at most), the drawn copy's states with the 2 m convergence snap, the capture list's restore
+    order, the show lines with a fuzz and the Show paths they refuse (outside the roots, over 200 characters, a
+    character outside `A-Za-z0-9_./`, `..` or an empty segment), their timeline and
+    line ids, the FNamePool decode and compact id over fake blocks, the
     owner's capture against fake memory (each enemy found through the game's two lookups by GUID, its root, flags and
     animation speed into SBE; the show manager's stages matched by their main actor's weak pointer, a stale one refused,
     an empty one matched by the actor's show interface; only the first player of a stage, a finished one never told;
@@ -208,7 +210,9 @@ build/host/pose_codec_test
     the game's own function in slot 0x350, and again when something put it back; the speed override, the root moved
     through its vtable and Velocity; the drift probe; the Show replayed through the handle API with its hit context
     (each field at its offset), only on a copy driven that frame, show-set and show-stop (also while the copy is not
-    found), a missing asset, a context too far away, the oldest replay giving way when eight are held; a Show the copy
+    found), a missing asset, a context too far away, the oldest replay giving way when eight are held, at most 2 AddShow
+    calls a frame and 60 a second, the lines behind waiting in order (late once more than 34 ms past their stamp); a
+    Show the copy
     started itself less than 1 s before not replayed again, unlike another enemy's, an older one, a finished one or
     one of its own replays; a release; a log line per release, convergence and snap;
     restore's order on every way back, with Velocity zeroed and the class checked again before the component goes
@@ -222,11 +226,13 @@ build/host/pose_codec_test
     copy, the refusals named for the job's own-no, the latch, `coop fight pilot test
     target`), and two worlds through a delayed, lossy line (120 ms, plus or minus
     30, 2 % lost), where the guest's copies stay within 30 cm of the host's enemies at the same host time while they
-    move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order, and
+    move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order with no
+    Show held back by those two caps, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
   - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
-    diagonal read as up or down and the stick along its main axis, the stick's thresholds, View held 1 s, a disconnect,
+    diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
+    stick's thresholds, View held 1 s, a disconnect,
     the event queue) and which XInput slots each poll asks;
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
