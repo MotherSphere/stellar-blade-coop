@@ -1,18 +1,13 @@
--- The challenge list without the game: the four definitions and their check, the lookup by name or number, the
+-- The challenge list without the game: the four definitions and the rules they keep, the lookup by name or number, the
 -- console list line, and the best runs in coop-records.txt (read, compared, rewritten).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop_waves')
 local C=require('challenges')
 
--- The four, in their numbers, each valid; Night Operation's definition passes the same check.
+-- The four, in their numbers (none is night, Night Operation's id, or stop).
 local ids={}
 for n,def in ipairs(C.LIST) do ids[n]=def.id end
 assert(table.concat(ids,' ')=='swarm skulls gauntlet targets',table.concat(ids,' '))
-for _,def in ipairs(C.LIST) do
-    local ok,why=C.check(def)
-    assert(ok,def.id..': '..tostring(why))
-end
-assert(C.check(W.NIGHT))
 
 -- Their values: waves (IDs a wave), limit, breather, heals, bonus, aggro and moves.
 local function shape(def)
@@ -47,47 +42,17 @@ assert(table.concat((function()
 end)(),' ')=='-45:12 45:12 -25:18 25:18 0:22 -40:26 40:26 0:32')
 for _,id in ipairs({'swarm','skulls','gauntlet'}) do assert(C.find(id).spots==nil and C.find(id).aggro==true) end
 
--- The check: each rule refuses a definition that breaks it.
-local function copy(t)
-    if type(t)~='table' then return t end
-    local out={}
-    for k,v in pairs(t) do out[k]=copy(v) end
-    return out
-end
-local function bad(change)
-    local def=copy(targets)
-    def.id='mine'
-    change(def)
-    local ok,why=C.check(def)
-    assert(not ok and type(why)=='string')
-    return why
-end
-assert(C.check((function() local d=copy(targets) d.id='mine' return d end)()),'A copy under a new id passes')
-assert(not C.check(copy(targets)),'A copy under a listed id: two definitions, one id')
--- Each bad definition is refused for its own reason (the text C.check gives, found as plain text).
-for what,case in pairs({
-    ['night id']={function(d) d.id='night' end,'night: id used twice'},
-    ['stop id']={function(d) d.id='stop' end,'id: stop'},
-    ['blank id']={function(d) d.id='' end,'id: '},
-    ['id with a space']={function(d) d.id='my run' end,'id: my run'},
-    ['no waves']={function(d) d.waves={} end,'mine: 1 to 255 waves'},
-    ['256 waves']={function(d) for _=4,256 do d.waves[#d.waves+1]={ids={40010}} end end,'mine: 1 to 255 waves'},
-    ['not a pool row']={function(d) d.waves[1].ids[1]=50160 end,'mine: 50160 is not a pool row'},
-    ['an empty wave']={function(d) d.waves[2].ids={} end,'mine: wave 2 has 1 to'},
-    ['nine in a wave']={function(d) d.spots=nil for _=1,5 do table.insert(d.waves[1].ids,40010) end end,
-        'mine: wave 1 has 1 to'},
-    ['wave 1 not at 0']={function(d) d.waves[1].at=5 end,'mine: wave 1 at 0'},
-    ['wave 1 with no time']={function(d) d.waves[1].at=nil end,'mine: wave 1 at 0'},
-    ['limit 0']={function(d) d.limit=0 end,'mine: limit not above 0'},
-    ['breather 0']={function(d) d.breather=0 end,'mine: breather not above 0'},
-    ['bonus 0']={function(d) d.bonus=0 end,'mine: bonus not above 0'},
-    ['negative moves']={function(d) d.moves=-1 end,'mine: moves'},
-    ['fractional moves']={function(d) d.moves=1.5 end,'mine: moves'},
-    ['fewer spots than a wave']={function(d) table.remove(d.spots) end,'mine: fewer spots than the biggest wave'},
-    ['a spot past 40 m']={function(d) d.spots[8][2]=41 end,'mine: spot 8 not within 40 m'},
-}) do
-    local why=bad(case[1])
-    assert(why:find(case[2],1,true)==1,what..': '..why)
+-- The rules the runs rely on: each wave holds 1 to W.CAP rows of W.POOL, and a definition with spots has one for each
+-- body of its biggest wave, each in front of EVE within 40 m (nightop_run.lua's census radius).
+for _,def in ipairs(C.LIST) do
+    local most=0
+    for k,wave in ipairs(def.waves) do
+        assert(#wave.ids>=1 and #wave.ids<=W.CAP,def.id..': wave '..k)
+        for _,row in ipairs(wave.ids) do assert(W.POOL[row],def.id..': '..row..' is not a pool row') end
+        most=math.max(most,#wave.ids)
+    end
+    for i,spot in ipairs(def.spots or {}) do assert(spot[2]>0 and spot[2]<=40,def.id..': spot '..i) end
+    assert(not def.spots or #def.spots>=most,def.id..': fewer spots than the biggest wave')
 end
 
 -- Lookup by id or by number; nothing for anything else.

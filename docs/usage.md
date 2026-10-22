@@ -14,7 +14,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session. Within 3 m of a camp phone booth, open the [co-op line](#co-op-line) instead | (none) |
 | View held 1 s, on a [controller](#controller) | Open or close the co-op menu, or the co-op line at a booth | (none) |
 | F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
-| F7 | As the guest, travel to the camp nearest the host ([Following the host](#following-the-host)), or cancel the travel that `follow_host=always` is about to start | `coop travel host` |
+| F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) | `coop travel host` |
 | F8 | Leave the session | `coop leave` |
 | F9 | While you record a [Doro race](#doro-races) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
 | Enter | During a session, open the [chat](#session-chat) box, then send a line; Esc closes the box | (none) |
@@ -383,13 +383,17 @@ another map, or more than 150 m from you on yours, one notice offers it:
 camps nearest their EVE, and your game travels to the first of them that it can use (`Travelling to <host>.`). Nothing
 changes in the host's game. This has not been tested in game yet.
 
+In this version the travel is off. The game's fast travel does not check whether your save has activated a camp, and
+activating a camp counts toward the game's camp trophies. Until the mod can read which camps your save has activated,
+no offer shows and F7 shows `The travel did not start. UE4SS.log says why.` The rest of this section describes the
+travel as built.
+
 - `follow_host=ask` (the default) shows that notice. With `always`, it reads
   `Following <host> in 5 s. Press F7 to stay.` and the travel starts 5 s later unless you press F7. With `off`, nothing
   shows and F7 does nothing.
 - With `follow_key=none`, no notice shows and `always` starts nothing. `coop travel host` still travels.
-- The travel is meant to reach only camps your save has activated, as the game's camp menu does, because activating a
-  camp counts toward the game's camp trophies. The mod relies on the game's fast travel to refuse any other camp, and
-  then tries the next camp of the list, 3 calls at most. That refusal has not been checked in game yet.
+- The travel reaches only camps your save has activated, as the game's camp menu does. If the game refuses a camp, the
+  mod tries the next camp of the list, 3 calls at most.
 - Only the 120 camps, phone booths and tetrapods of the game's camp table that lead to one story map can be used.
   Autosave points and the camps of the developer test maps are never sent or taken.
 - The travel waits while your EVE is down, while a respawn or another travel is under way, while the game is paused,
@@ -710,7 +714,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
-| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](#following-the-host)) |
+| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |

@@ -34,8 +34,9 @@ client that the game already runs, so the mod needs no other program and no serv
   marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
 - Group play, not tested in game yet:
-  - as the guest, F7 takes you to the camp nearest the host through the game's own fast travel when the host is on
-    another map or more than 150 m away;
+  - as the guest, F7 is meant to take you to the camp nearest the host through the game's own fast travel when the
+    host is on another map or more than 150 m away. It stays off until the mod can read which camps your save has
+    activated, because the game's fast travel does not check that;
   - when one EVE is down, the shared enemies near the other one fight it, and a down EVE gets no kill by standing near
     one; with the experimental revive (off by default), a friend who stands next to the downed EVE for 3 s revives it
     where it fell;

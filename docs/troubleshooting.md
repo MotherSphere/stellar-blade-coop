@@ -415,6 +415,11 @@ The mod then stops counting that record for this enemy, so only your hit or the 
 
 ### Travel to the host does not start
 
+In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: no read
+of the camps this save has activated` in `UE4SS.log`. The mod cannot yet read which camps your save has activated, and
+the game's fast travel does not check it ([Following the host](usage.md#following-the-host)). The rest of this section
+applies once that read exists.
+
 Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
 `[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in
 `coop-link.log` as `travel refused <camp>: <why>`.
@@ -424,8 +429,8 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
   cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
   last travel. The log line names which.
 - `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
-  the camps it sent could be used, or the game refused each one (`travel: SB refused <camp>`), for example a camp your
-  save has not activated.
+  the camps it sent could be used (`travel: <camp> is not activated in this save` for a camp you have not found), or
+  the game refused each one (`travel: SB refused <camp>`).
 - `The travel did not start. UE4SS.log says why.`: the host's game is on the title screen (`none title`), no answer
   came from the host's game in 10 s, the native part gave no result in 5 s or refused the call
   (`the native part refused: <why>`), or the warp never started 10 s after the game took the call (`refused:stuck`).

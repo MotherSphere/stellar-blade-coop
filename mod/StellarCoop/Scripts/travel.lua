@@ -6,11 +6,14 @@
 -- follow_key=none neither ask nor always shows or starts anything (a log line only): coop travel host still travels.
 -- No offer comes for the place a travel brought her to. The travel: the guards (check), then camps? <id> to
 -- the host's game, whose answer names his world and up to 8 camps nearest his EVE. She takes the first that is in this
--- table under that world and that this game knows as a name (FName with FNAME_Find, which never makes one), checks the
--- guards again, and asks the native part to call SB's own fast travel with it; after SB's refusal (a return of 0) the
--- next one, 3 calls at most. Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a
--- guard of the moment, or the host's game busy or loading), failed (the native part refused, no answer came or the
--- warp never started; UE4SS.log says why).
+-- table under that world, that her save has activated (o.activated) and that this game knows as a name (FName with
+-- FNAME_Find, which never makes one), checks the guards again, and asks the native part to call SB's own fast travel
+-- with it; after SB's refusal (a return of 0) the next one, 3 calls at most. SB's fast travel does not check activation
+-- (travel.h), and a travel that activated a camp would count toward its achievements: without o.activated, which
+-- main.lua does not pass yet (no read of the activated camps exists), a guard refuses every travel and no offer shows.
+-- Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a guard of the moment, or the
+-- host's game busy or loading), failed (the native part refused, no answer came, the warp never started, or no read of
+-- the activated camps; UE4SS.log says why).
 -- The host. Its game answers each new camps? from the link's status: its world and the 8 camps of this table under it
 -- nearest its EVE, in whole metres, or none and why (title, loading, nocamp, busy). The camps are the map's
 -- SBSpawnPoint actors named after a camp of its world, read once a map (FindAllOf walks every object), never during a
@@ -119,7 +122,7 @@ end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 -- o: {link=, puppet=, settings= (follow_host, follow_key), tell(build), name(words) (her name, or the words' friend),
 -- log(text), paused() (the game paused, photo mode or a menu), night() (a Night Operation run), cutscene() (one plays
--- in our game)}.
+-- in our game), activated(alias) (true when her save has activated that camp; nil: no read, no travel)}.
 function Travel.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
     local self,now,off={},0,false
@@ -158,6 +161,7 @@ function Travel.new(o)
     local function check(calling)
         if not guest() then return 'not a guest in a session' end
         if settings.follow_host=='off' then return 'follow_host=off' end
+        if not o.activated then return 'no read of the camps this save has activated','failed' end
         if not line('slot'):find('^slot=coop ') then return 'not on a co-op save' end
         local state=native()
         if not state then return 'no travel in the native part (engine off, or coop off)' end
@@ -222,6 +226,8 @@ function Travel.new(o)
         for alias in (tail or ''):gmatch('([%w_]+):%d+') do
             if not (CAMP[alias] and CAMP[alias].world==world) then
                 log('travel: '..alias..' is no travel camp of '..world)
+            elseif not o.activated(alias) then
+                log('travel: '..alias..' is not activated in this save')
             else
                 local c=name_of(alias)
                 if c then list[#list+1]=c else log('travel: '..alias..' is not a name in this game yet') end
