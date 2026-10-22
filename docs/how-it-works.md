@@ -33,6 +33,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | Script | Role |
 | --- | --- |
 | `main.lua` | Entry point: loads the DLL, reads the settings, registers the `coop` command and the keys, runs the loops |
+| `commands/session.lua` | The session's `coop` commands: `host`, `invite`, `join`, `leave`, `status`, `report`, `copy`, `mark`, `allow`, `deny`, `remove`, `revive test`, `travel` and `saves` |
+| `commands/partner.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `look`, `loopback`, `record`, `replay` and `freeze` |
+| `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
+| `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
+| `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |

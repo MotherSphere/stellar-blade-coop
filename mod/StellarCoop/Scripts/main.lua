@@ -47,7 +47,9 @@
 -- checkpoint while you record; start on a co-op save only), driven as a car from GO (race/drive.lua), with coop race
 -- drive [probe|off|feed impulse|struct|<name> <value>] to probe and tune the driving (a test tool, left out of the
 -- usage line; the probe on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
--- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu.
+-- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
+-- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race and fight), all but coop ui and
+-- coop off, which stay here.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -144,26 +146,12 @@ local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
 local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
-local function whole(text,max) -- A whole number from 0 to max, or nil.
-    local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
-    return n and n<=max and n or nil
-end
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
         return link.request(line)
     end
 end
--- The host's answers about a player (allow, deny: one who is not her Steam friend and waits; remove: anyone in the
--- lobby), by SteamID only.
-local function answer(verb)
-    return function(id)
-        if type(id)~='string' or not id:match('^%d+$') or #id>20 then return false,'Use: coop '..verb..' <SteamID>' end
-        return ask(verb..' '..id)()
-    end
-end
--- Host by who_can_join: code (an invisible lobby with a join code), private (invited only), friends.
-local HOSTS={code='host code',private='host private'}
 -- coop no, coop recruiter, coop fight, coop revive test and the Doro look and probe run only on a co-op save (D2, N9):
 -- the native part's slot=coop, from the start of its own line (a Steam name never starts one), for a co-op copy
 -- (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other
@@ -226,48 +214,6 @@ local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=do
 -- CPU time under some C runtimes, os.time whole seconds. session/chat.lua's view shows and sends the lines (box,
 -- below).
 local chat,chat_clock=require('session.chat').new(nil,settings and settings.chat),0
--- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
--- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
-local FIGHT_USE='Use: coop fight on | off | status | probe | test hp|sh|st <change> | test kill | record | replay | '
-    ..'pilot status|probe|on|off | pilot test freeze|cmc|drive|replay|target|exec | '
-    ..'pilot test bstart|phase|finish|summon | spawn probe'
-local FIGHT_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
-local function fight_line(sub,a,b,extra)
-    if extra~=nil then return nil end
-    if FIGHT_ALONE[sub] and a==nil then return 'fight '..sub end
-    if sub~='test' then return nil end
-    if a=='kill' and b==nil then return 'fight test kill' end
-    local n=(a=='hp' or a=='sh' or a=='st') and type(b)=='string' and b:match('^[+-]?%d+$') and tonumber(b)
-    if n and n~=0 and n>=-10000000 and n<=10000000 then return string.format('fight test %s %d',a,n) end
-end
--- coop fight pilot (same-place enemies, stages 3a to 3c): status (the pilot= line, after asking the native part,
--- which then logs its stats lines), probe, on (needs same_place=on), off (a kill switch: no other check), or test and
--- how far the drawn side goes, test target (the game's force target once, on an enemy this side owns), test exec
--- (T11d-solo's takedown probe: the first frozen copy this side draws loses its balance) or test bstart, phase, finish
--- and summon (stage 5's solo probes on the frozen boss copy of a replay; the native part answers why not otherwise).
-local PILOT_ALONE={status=true,probe=true,on=true,off=true}
-local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=true,bstart=true,phase=true,
-    finish=true,summon=true}
-local function pilot(a,b,extra)
-    if extra~=nil or not (PILOT_ALONE[a] and b==nil or a=='test' and PILOT_TESTS[b]) then
-        return false,FIGHT_USE
-    end
-    if a~='off' and a~='status' and not native_tick then return false,'the native tick is unavailable' end
-    if a=='on' and not settings.same_place then
-        return false,'same place is off in coop-settings.txt (same_place=off)'
-    end
-    local ok,why=ask(b and 'fight pilot test '..b or 'fight pilot '..a)()
-    if not ok or a~='status' then return ok,why end
-    return true,link.pilot() or 'no same-place status yet'
-end
--- coop quests (Phase 12, experimental): on (needs shared_quests=on; the native part waits for a friend and a co-op
--- save), off, status (the quests= line, while the native part's whole answer follows in the log as quests_status
--- lines), probe, record and replay (the solo tools, on a co-op save only), and force <number>: the step that quest
--- holds for your own kill, or for a place the host's game could not read, made where you stand, once typed twice for
--- the same quest within 10 s (it can unlock that quest's trophies). on, probe and record carry quest_deny.
-local QUESTS_USE='Use: coop quests on | off | status | probe | record | replay | force <quest number>'
-local QUESTS_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
-local force_asked=nil -- coop quests force: the number typed and when ({id=, at=}), until typed again.
 -- The synced photo mode: our player in SB's photo mode ('1'), its selfie mode ('s') or neither ('0'), from SB's
 -- reflected getters (the library's default object, found once). The first failure turns it off for this Lua load
 -- ('0' from then on) with one log line.
@@ -354,214 +300,14 @@ if settings and not settings.shared_quests and not off
     local ok,why=ask('quests off')()
     log((ok and 'OK: ' or 'STOP: ')..'shared_quests=off: '..tostring(why))
 end
-local refresh_asked=nil -- coop saves refresh: the slot typed and when ({slot=, at=}), until typed again.
+-- What the console commands in Scripts/commands/ take from here. group and travel are built later, with the Steam link
+-- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
+local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
+    coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,
+    group=function() return group end,travel=function() return travel end,
+    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
+-- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
-    puppet=puppet.toggle, invite=ask('invite'),
-    host=function() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end,
-    leave=ask('leave'), report=ask('report'), copy=ask('copy'),
-    -- Every word typed after mark (the console handler joins them), cleaned like a chat line; the native part numbers
-    -- the mark, logs it and sends it to the friend. A console tool: no key, no text on screen.
-    mark=function(text)
-        if not link then return false,'coop mark needs the Steam link' end
-        text=require('session.chat').clean(text or '')
-        return link.request(text~='' and 'mark '..text or 'mark')
-    end,
-    allow=answer('allow'), deny=answer('deny'), remove=answer('remove'),
-    -- A lobby id, or a join code as the native part takes it.
-    join=function(lobby)
-        if lobby and link then
-            lobby=link.valid_lobby(lobby) and lobby or link.join_code(lobby)
-            if not lobby then return false,'a lobby id is digits only, a join code 7 letters and digits' end
-        end
-        return ask(lobby and 'join '..lobby or 'join')()
-    end,
-    loopback=function(delay,jitter,loss)
-        if not native_tick then return false,'the native tick is unavailable' end
-        if delay=='off' then return ask('loopback off')() end
-        delay,jitter,loss=whole(delay,1000),whole(jitter,500),whole(loss,100)
-        if not (delay and jitter and loss) then
-            return false,'Use: coop loopback <delay 0-1000 ms> <jitter 0-500 ms> <segment loss 0-100 %> | off'
-        end
-        if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
-        return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
-    end,
-    basesuit=puppet.basesuit, where=puppet.where,
-    look=function(feature,state)
-        if feature==nil then
-            return true,looks()..' (coop look <cloth|dyes|effects> <on|off> changes one until the mod reloads: game '
-                ..'start or Ctrl+R)'
-        end
-        local named=({cloth='Cloth',dyes='Dyes',effects='Effects'})[feature]
-        if not named or (state~='on' and state~='off') then
-            return false,'Use: coop look [cloth|dyes|effects on|off]'
-        end
-        look[feature]=state=='on'
-        puppet.rebuild('look')
-        return true,named..' '..state..' until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
-            ..'the ghost is built again.'
-    end,
-    no=function(sub,extra)
-        local ok,why=coop_slot('coop no')
-        if not ok then return false,why end
-        return nightop.run(sub,extra)
-    end,
-    nightop=function(sub,a,b,c)
-        if sub=='start' and race.armed() then return false,'a Doro race is armed: coop race quit leaves it' end
-        if sub~='stop' then
-            local ok,why=coop_slot('coop nightop')
-            if not ok then return false,why end
-        end
-        return night.command(sub,a,b,c)
-    end,
-    -- test: the revive's solo probe at the death screen, on a co-op save only (session/group.lua says why not).
-    revive=function(sub,extra)
-        if sub~='test' or extra~=nil then return false,'Use: coop revive test' end
-        if not group then return false,'the Steam link needs the native part' end
-        local ok,why=coop_slot('coop revive test')
-        if not ok then return false,why end
-        return group.test()
-    end,
-    -- host: as follow_key (the travel to the camp nearest the host, or always's start cancelled); probe <camp>: its
-    -- solo test, the native call alone (session/travel.lua says why not).
-    travel=function(sub,arg,extra)
-        if not travel then return false,'the Steam link needs the native part' end
-        if sub=='host' and arg==nil then return travel.press() end
-        if sub=='probe' and arg~=nil and extra==nil then return travel.probe(arg) end
-        return false,'Use: coop travel host'
-    end,
-    challenge=function(sub,extra)
-        if sub~='stop' then
-            if sub~=nil and race.armed() then return false,'a Doro race is armed: coop race quit leaves it' end
-            local ok,why=coop_slot('coop challenge')
-            if not ok then return false,why end
-        end
-        return night.challenge(sub,extra)
-    end,
-    recruiter=function(sub,extra)
-        local ok,why=coop_slot('coop recruiter')
-        if not ok then return false,why end
-        return recruiter.run(sub,extra)
-    end,
-    -- on needs shared_enemies=on, on any save: the native part waits for a co-op save. probe, test, record and replay
-    -- are the solo T11a tools, on a co-op save only (the native part checks again, and says in the log why it
-    -- refuses). All but test carry fight_chars, none for auto (the native part's rule: every common enemy). Before
-    -- them, in this order: guest_kills=confirmed and kill_credit=fought as one word each with on and replay (the modes
-    -- that kill on the other side's word), and the host's scaling as "scale" and two whole percents with on and record
-    -- (the modes that can host), and same_place=on as "place", aggro=host as "aggro-host" and bosses=on as "bosses" and
-    -- boss_hp_scale in whole percents after them, then with on only same_spawns=on as "spawns", and with it an
-    -- enemy_extra above 0 as "extra" and its number, then with on and spawn probe the guest's own spawn_filter=on as
-    -- "filter". status answers
-    -- with the fight= line; pilot is same-place enemies' own (pilot above). spawn probe is the probe with "spawns"
-    -- before the ids: same spawns' reads alone (stage 4), whatever same_spawns says; its state is the fight= line's
-    -- spawns=.
-    fight=function(sub,a,b,extra)
-        if sub=='pilot' then return pilot(a,b,extra) end
-        local spawn_probe=sub=='spawn'
-        if spawn_probe then
-            if a~='probe' or b~=nil or extra~=nil then return false,FIGHT_USE end
-            sub,a=a,nil
-        end
-        local line=fight_line(sub,a,b,extra)
-        if not line then return false,FIGHT_USE end
-        if sub=='off' then fight_auto=false end
-        if sub~='off' and sub~='status' then
-            if not native_tick then return false,'the native tick is unavailable' end
-            if sub=='on' and not settings.shared_enemies then
-                return false,'shared enemies are off in coop-settings.txt (shared_enemies=off)'
-            end
-            if sub~='on' then
-                local ok,why=coop_slot('coop fight')
-                if not ok then return false,why end
-            end
-            if (sub=='on' or sub=='replay') and settings.guest_kills=='confirmed' then line=line..' confirmed' end
-            if (sub=='on' or sub=='replay') and settings.kill_credit=='fought' then line=line..' fought' end
-            if sub=='on' or sub=='record' then
-                line=line..string.format(' scale %d %d',math.floor(settings.enemy_hp_scale*100+0.5),
-                    math.floor(settings.enemy_balance_scale*100+0.5))..(settings.same_place and ' place' or '')
-                    ..(settings.aggro=='host' and ' aggro-host' or '')
-                    ..(settings.bosses and string.format(' bosses %d',math.floor(settings.boss_hp_scale*100+0.5)) or '')
-                    ..(sub=='on' and settings.same_spawns and ' spawns' or '')
-                    ..(sub=='on' and settings.same_spawns and settings.enemy_extra>0
-                        and ' extra '..settings.enemy_extra or '')
-            end
-            if spawn_probe then line=line..' spawns' end
-            if (sub=='on' or spawn_probe) and settings.spawn_filter then line=line..' filter' end
-            local chars=settings.fight_chars
-            if sub~='test' and #chars>0 then line=line..' '..table.concat(chars,' ') end
-        end
-        local ok,why=ask(line)()
-        if not ok or sub~='status' then return ok,why end
-        return true,link.fight() or 'no shared fight status yet'
-    end,
-    quests=function(sub,a,extra)
-        if extra~=nil or not (QUESTS_ALONE[sub or ''] and a==nil or sub=='force' and a~=nil) then
-            return false,QUESTS_USE
-        end
-        if sub=='force' then
-            local id=a:match('^%d+$') and tonumber(a)
-            if not id or id<1 or id>65535 then return false,QUESTS_USE end
-            local now=os.clock()
-            if not (force_asked and force_asked.id==id and now-force_asked.at<=10) then
-                force_asked={id=id,at=now}
-                return false,'coop quests force '..id..' makes the step that quest '..id..' holds for your own kill, '
-                    ..'or for a place the host\'s game could not read, where you stand now; the game may then unlock '
-                    ..'that quest\'s trophies: type it again within 10 s to go on'
-            end
-            force_asked=nil
-            return ask('quests force '..id)()
-        end
-        if sub=='off' then quests_auto=false end
-        if sub~='off' and sub~='status' then
-            if not native_tick then return false,'the native tick is unavailable' end
-            if sub=='on' and not settings.shared_quests then
-                return false,'shared quests are off in coop-settings.txt (shared_quests=off)'
-            end
-            if sub~='on' then
-                local ok,why=coop_slot('coop quests')
-                if not ok then return false,why end
-            end
-        end
-        local line='quests '..sub
-        if (sub=='on' or sub=='probe' or sub=='record') and settings.quest_deny~='' then
-            line=line..' deny '..settings.quest_deny
-        end
-        local ok,why=ask(line)()
-        if not ok or sub~='status' then return ok,why end
-        return true,(link.quests() or 'no shared quests status yet')
-            ..' (the whole status follows in this log as quests_status lines)'
-    end,
-    -- The photo pause alone (the solo tests): our pause tag held for 1 to 3600 s, or until off; the native part refuses
-    -- it off the pinned build and says why in the log.
-    freeze=function(arg,extra)
-        local seconds=arg~='off' and whole(arg,3600)
-        if extra~=nil or not (arg=='off' or seconds and seconds>0) then
-            return false,'Use: coop freeze <1-3600 seconds> | off'
-        end
-        if not native_tick then return false,'the native tick is unavailable' end
-        return ask(seconds and 'freeze '..seconds or 'freeze off')()
-    end,
-    -- The co-op saves by hand (the question at the title asks for them): probe logs what the native part reads and the
-    -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back;
-    -- refresh <0-4> replaces that slot's co-op copy, played or not, with a new copy of the player's save (the native
-    -- part backs the old one up first), once typed twice for the same slot within 10 s. The native part refuses all but
-    -- probe off the title screen, and says why in coop-link.log.
-    saves=function(sub,extra,more)
-        if sub=='refresh' and more==nil and type(extra)=='string' and extra:match('^[0-4]$') then
-            local now=os.clock()
-            if not (refresh_asked and refresh_asked.slot==extra and now-refresh_asked.at<=10) then
-                refresh_asked={slot=extra,at=now}
-                return false,'coop saves refresh '..extra..' replaces the co-op copy StellarBladeCoop0'..extra..'.sav, '
-                    ..'played in co-op or not, with a new copy of your save StellarBladeSave0'..extra..'.sav (the old '
-                    ..'copy goes to StellarCoopBackups first): type it again within 10 s to go on'
-            end
-            refresh_asked=nil
-            return ask('saves refresh '..extra)()
-        end
-        if extra~=nil or not ({probe=true,convert=true,coop=true,main=true})[sub or ''] then
-            return false,'Use: coop saves probe | convert | coop | main | refresh <0-4>'
-        end
-        return ask('saves '..sub)()
-    end,
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
     -- (7.6): the co-op UI gone until the mod reloads, the notice line above EVE and the ghost's name tag back (the
     -- co-op saves' question with it; auto_coop_save=always still asks at the title).
@@ -576,33 +322,6 @@ local commands={
             return true,'co-op UI reset: menu and chat closed, the game has its input back'
         end
         return false,'Use: coop ui reset | off'
-    end,
-    -- The look and the ghost's Doro mode go on together; off ends both, whether the look is on or not, on any save.
-    -- The look and the probe start on a co-op save only: the look writes to the player actor.
-    race=function(sub,a,extra)
-        if sub=='look' and (a=='on' or a=='off') and extra==nil then
-            if a=='off' then
-                puppet.doro(false)
-                return doro.off('coop race look off')
-            end
-            local ok,why=coop_slot('coop race look')
-            if not ok then return false,why end
-            ok,why=doro.on()
-            if not ok then return false,why end
-            local _,ghost_why=puppet.doro(true,doro.log)
-            return true,why..(ghost_why and ' '..ghost_why or '')
-        end
-        if sub=='probe' and a=='doro' and extra==nil then
-            local ok,why=coop_slot('coop race probe')
-            if not ok then return false,why end
-            return doro.probe()
-        end
-        if sub=='look' or sub=='probe' then return false,'Use: coop race look on|off | probe doro' end
-        if sub=='start' and a~=nil and extra==nil or sub=='drive' and a=='probe' and extra==nil then
-            local ok,why=coop_slot('coop race '..sub)
-            if not ok then return false,why end
-        end
-        return race.command(sub,a,extra)
     end,
     off=function()
         off=true
@@ -637,20 +356,12 @@ local commands={
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
-    status=function()
-        local text=link and link.status()
-        if not text then return false,'no Steam link status yet; '..puppet.status() end
-        return true,text:gsub('[\r\n]+',' | ')..puppet.status()
-    end,
 }
--- coop record and coop replay: on (with the ghost on, which publishes her capture) or off.
-for _,name in ipairs({'record','replay'}) do
-    commands[name]=function(arg)
-        if not native_tick then return false,'the native tick is unavailable' end
-        if arg=='off' then return ask(name..' off')() end
-        if arg~=nil then return false,'Use: coop '..name..' [off]' end
-        if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
-        return ask(name)()
+-- The other commands, from Scripts/commands/.
+for _,file in ipairs({'session','partner','nightop','race','fight'}) do
+    for name,handler in pairs(require('commands.'..file).new(o)) do
+        assert(commands[name]==nil,'coop '..name..' is defined twice')
+        commands[name]=handler
     end
 end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end

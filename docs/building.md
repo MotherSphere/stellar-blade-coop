@@ -286,6 +286,7 @@ mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
   Scripts/                  the Lua side (see how-it-works.md)
     main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
+    commands/               the coop console commands' handlers, by feature, merged into main.lua's command table
     core/                   the files shared with the native part, settings, keys, UE4SS helpers
     partner/                the friend's EVE: capture, the drawn model, its HUD marker
     session/                hosting and joining, co-op saves, chat, revive, follow, the camp booths
