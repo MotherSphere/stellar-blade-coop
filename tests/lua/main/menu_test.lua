@@ -121,7 +121,6 @@ key('LEFT_ARROW'); assert(look.cloth==true and settings_text=='# mine\nname_tag=
 to('Photo sync'); key('D'); quarter()
 assert(photos[#photos]:find(' notice 600$') and select(2,focus())=='Notice only','At once: the state line has it')
 to('Longest pause'); key('A'); quarter(); assert(photos[#photos]:find(' 540$') and select(2,focus())=='9 min')
--- No clock step: the frame-time test in input_test.lua counts whole seconds.
 to('Photo mode pause (experimental)'); key('D'); loops[2].f()
 assert(cv.value==1 and select(2,focus())=='Scenery live' and settings_text:find('\nphoto_pause=scenery\n',1,true),
     'At once: the next photo mode has it')
@@ -222,7 +221,7 @@ quarter(); assert(#asked==fight_asks+5,'The next start carries it')
 to('Same spawns (experimental)'); assert(select(2,focus())=='On')
 key('RETURN')
 assert(settings_text:find('\nsame_spawns=off\n',1,true) and select(2,focus())=='Off')
-loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it') -- No clock step (input_test.lua's frame time).
+loops[2].f(); assert(#asked==fight_asks+5,'The next start carries it')
 -- Extra enemies, the host's: 0 by default, 0 to 3, also from the next start.
 to("Extra enemies (host's)"); assert(select(2,focus())=='0')
 key('RIGHT_ARROW')
@@ -328,7 +327,6 @@ settings_text,in_world,kit_ready='',false,false
 -- turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the same commands and
 -- close as from the main page. The hint shows at a booth with nothing open, and hides with the menu, a box or a
 -- question open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off.
--- The clock moves by quarters only (the frame time test in input_test.lua).
 (function()
     local CAMP='Env_Camp_TeleportMachine_C'
     local function lines_with(text)

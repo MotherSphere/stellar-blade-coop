@@ -188,8 +188,7 @@ chatting,in_world,kit_ready,link_mode,settings_text=false,false,false,'none',''
 -- The co-op saves' question (session/saves.lua for real on the fake kit; saves_test tests it). On the title screen the
 -- kit's root comes up too (the kit told it is the title); once the question shows, the navigation keys, Enter, Esc and
 -- a left click on a choice are its own (not the chat's, not the menu's); coop ui reset closes it as Decide later, coop
--- off stops it; coop ui off leaves auto_coop_save=always asking. The clock moves by quarters only: the frame time test
--- in input_test.lua needs a sum it can take back exactly.
+-- off stops it; coop ui off leaves auto_coop_save=always asking.
 settings_text,status_text,link_mode,in_world,at_title,chatting,chat_active='',plain,'none',false,true,true,true
 saves_info={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
 load_main(true)
