@@ -61,11 +61,12 @@ together. Two games with different protocols cannot link, and the player who tri
 
 1. Close the game.
 2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed a setting,
-   by hand or in the menu's Options, `coop-records.txt` for your best challenge runs, and any log you still want to
-   send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
+   by hand or in the menu's Options, `coop-records.txt` for your best challenge runs, every `coop-night-*.txt` (your
+   Night Operation shop points, which no save holds), every `coop-track-*.txt` (your Doro race tracks), and any log you
+   still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
-4. Install the new zip with install steps 2 to 4, and put `coop-settings.txt` and `coop-records.txt` back into the new
-   folder. A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
+4. Install the new zip with install steps 2 to 4, and put the `coop-*.txt` files from step 2 back into the new folder.
+   A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
    Options > Combat.
 5. Do install step 5, with your status key if you changed it.
 
@@ -278,8 +279,9 @@ Protection history. Without the DLL the Steam link does not start, and `UE4SS.lo
 Close the game first.
 
 - Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs,
-  `coop-settings.txt` and `coop-records.txt`, so first copy out what you want to keep. If you added a `StellarCoop` line
-  to `Mods/mods.txt`, remove that line.
+  `coop-settings.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`) and the Doro race
+  tracks (`coop-track-*.txt`), so first copy out what you want to keep. If you added a `StellarCoop` line to
+  `Mods/mods.txt`, remove that line.
 - Installed with `tools/install.py` (Linux), from the StellarCoop repository: `python3 tools/install.py --uninstall`
   (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is not in the
   script's default folder). It backs up the whole folder into `~/StellarCoop-install-backups`, then removes it. It
