@@ -6,12 +6,16 @@
 -- linked; coop race quit leaves it. With a friend linked, her game answers the host's lines as the guest. In coop
 -- loopback with no friend our own lines come back as hers: a second, guest model, run by the loopback ghost's feet,
 -- answers them, and its lines go straight to ours. Each player is drawn as a Doro (doro.lua's look on EVE, puppet.lua's
--- Doro mode on the ghost) from the time that side is in the race until it ends.
+-- Doro mode on the ghost) from the time that side is in the race until it ends. From GO until our own result EVE
+-- drives as a car (drive.lua: the model's velocity and yaw fed to her movement each frame), with the host's driving
+-- values, which travel on the drive line (race_model.lua), so both players race with the same.
 -- What a race changes in the game: its own display Doros (doro.lua's plain actors, collision off: one at the next
--- checkpoint and one at the one after it, or one at the start line before GO) and the look's two flags on EVE. Never a
--- pawn, a reward, an achievement, an item, a quest or a save: a race gives nothing and writes nothing but its track
--- file. Its first Lua error ends the race and its look for this Lua load. The display Doros' paths stay in
--- coop-race-doros.txt while they stand, so the next Lua load (Ctrl+R mid-race) destroys them at its first tick.
+-- checkpoint and one at the one after it, or one at the start line before GO), the look's two flags on EVE and, while
+-- it drives, four values of her movement component, her velocity and her yaw. Never a pawn, a reward, an achievement,
+-- an item, a quest or a save: a race gives nothing and writes nothing but its track file. Its first Lua error ends the
+-- race and its look for this Lua load. The display Doros' paths stay in coop-race-doros.txt while they stand, so the
+-- next Lua load (Ctrl+R mid-race) destroys them at its first tick; the four values stay in coop-drive.txt while it
+-- drives, for the same.
 local UE=require('UEHelpers')
 local U=require('unreal')
 local R=require('race_model')
@@ -26,7 +30,8 @@ local ABOVE=220 -- cm over a checkpoint's centre (EVE's feet there) for its mark
 -- value until the game shows it).
 local MESH_YAW=-90
 -- Fin flag 1: over this horizontal speed in cm/s for FAST_FOR s, not sprinting and not falling (Tachy mode has no
--- reader in the SDK; a starting value). Flag 2: the game paused or on one of its screens for PAUSE_FOR s.
+-- reader in the SDK; a starting value), only while the race does not drive her. Flag 2: the game paused or on one of
+-- its screens for PAUSE_FOR s.
 local FAST,FAST_FOR,PAUSE_FOR=550,1,2
 local GONE_FOR=2 -- s with no EVE (a load, the title): she left the map.
 local GO_SHOW,MISSED_SHOW=1,2 -- s a banner stays: GO, a missed checkpoint.
@@ -40,6 +45,7 @@ local MW,MH,AW,AH,AC=320,120,160,180,80
 local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
 local GROUPS={'race_panel','race_results','race_banner','race_marker','race_arrow'}
 local USE='Use: coop race record <name> | cp | save [laps] | cancel | start <name> | quit'
+-- coop race drive is a test and tuning tool, left out of USE (drive.lua's command).
 local NAMES='a track name is 1 to 24 of a-z, 0-9, _ and -'
 
 -- A race time as the panel shows it: 1:23.45.
@@ -62,13 +68,14 @@ local function feet(e)
 end
 local function why_of(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 
--- o: log (the [DR] lines), link (nil without the native part: no race), puppet (anchor, her_map, me, doro, emote), look
--- (doro.lua's Doro.new: on, off, emote, log), tell(build) (main.lua's notices: build(words) puts one together), night()
+-- o: log (the [DR] lines), link (nil without the native part: no race), puppet (anchor, her_map, me, doro, emote,
+-- drive), look (doro.lua's Doro.new: on, off, emote, drive, log), drive (drive.lua's Drive.new), tell(build)
+-- (main.lua's notices: build(words) puts one together), night()
 -- (a Night Operation run is on), slot() (true on a co-op save, else false and why), paused() (the game paused or on one
 -- of its screens, read every 250 ms), settings (main.lua's: race_key, ui_language) and store (coop-race-doros.txt
 -- through link.store; nil without the native part).
 function Race.new(o)
-    local log,link,puppet,look,tell=o.log,o.link,o.puppet,o.look,o.tell
+    local log,link,puppet,look,tell,drive=o.log,o.link,o.puppet,o.look,o.tell,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local swept=false -- The Doros an earlier Lua load left: destroyed at the first tick.
     local self={}
@@ -77,7 +84,8 @@ function Race.new(o)
     -- map (the track's, or ours when a guest's track came), with (a friend's: the session's end is a DNF), loop (the
     -- loopback guest's model) and loop_in (our lines echoed for it), inbox (her lines for m), doros (key to display),
     -- banner ({build, color, til}), looked and ghost (what it turned on), the flags for the next tick and their
-    -- counters, dnf and ending (quit, map or coop off: the line goes out, then the race closes here), pos (our feet),
+    -- counters, dnf and ending (quit, map or coop off: the line goes out, then the race closes here), drove (the
+    -- driving went on in this start: not again until a false start), pos (our feet),
     -- stop_ms (our time frozen at a DNF), go_clock, go_time, end_clock, end_time (os.clock and os.time at GO and at
     -- our end, for the result line).
     local race=nil
@@ -114,6 +122,12 @@ function Race.new(o)
     -- the look and her ghost's Doro mode if it turned them on, the HUD.
     local function close(r,why)
         if race==r then race=nil end
+        if drive.racing() then
+            local ok,message=pcall(drive.off,'race '..why)
+            log(ok and message or 'drive: '..tostring(message))
+        end
+        pcall(look.drive,nil)
+        pcall(puppet.drive,nil)
         for key,d in pairs(r.doros) do
             if pcall(Doro.remove,d) then r.doros[key]=nil end
         end
@@ -179,7 +193,7 @@ function Race.new(o)
             sound('select')
             log('race '..m.id..' go')
         elseif w=='false_start' then
-            r.banner=nil
+            r.banner,r.drove=nil,nil
             tell(function(t) return t.race.false_start end)
             sound('alert')
         elseif w=='cp' then sound('select')
@@ -351,8 +365,26 @@ function Race.new(o)
             kit.show('race_arrow',true)
         end
     end
+    -- The driving: on at GO with the race's values (the host's, from his drive line), off once our own result is in or
+    -- the race left the race phase (a false start); self.steer drives each frame meanwhile. Once it went off by itself
+    -- (her EVE gone), not again in this start.
+    local function sync_drive(r)
+        local m=r.m
+        if m.phase=='race' and not (m.me.ms or m.me.why) then
+            if not r.drove then
+                r.drove=true
+                local ok,why=drive.on(m.track.drive,'race')
+                if not ok then error('no driving: '..why,0) end
+                puppet.drive(m.track.drive.top)
+            end
+        elseif drive.racing() then
+            log(drive.off('race '..(m.me.ms and 'fin' or m.me.why or m.phase)))
+            look.drive(nil)
+        end
+    end
     -- One frame of the race: the model from EVE's feet and her lines (and the loopback guest's), our lines to the
-    -- native part, the events, the Doros, the HUD. A race that ends here (quit, map, coop off) sends its line first.
+    -- native part, the events, the driving on or off, the Doros, the HUD. A race that ends here (quit, map, coop off)
+    -- sends its line first.
     local function frame(r)
         local now=clock()
         local e=eve()
@@ -375,6 +407,7 @@ function Race.new(o)
         link.race_flush()
         if race~=r then return end
         if r.ending or r.m.phase=='over' then return close(r,r.ending or 'over') end
+        sync_drive(r)
         place_doros(r,e)
         draw(r)
     end
@@ -392,8 +425,9 @@ function Race.new(o)
         if m.phase~='race' or m.me.ms or m.me.why then return end
         r.paused_for=paused and r.paused_for+0.25 or 0
         if r.paused_for>=PAUSE_FOR then r.flags=r.flags|2 end
+        drive.slow()
         local e=eve()
-        if not e then return end
+        if not e or r.drove then return end
         local v=value_of(e:GetVelocity())
         local fast=math.sqrt(v.X*v.X+v.Y*v.Y)>FAST and e:IsSprint()~=true
             and valid(e.CharacterMovement):IsFalling()~=true
@@ -413,6 +447,7 @@ function Race.new(o)
         if rec then return false,'a track is being recorded: coop race save or coop race cancel first' end
         if link.mode()=='guest' then return false,'the host starts a race; yours comes when the host starts one' end
         if o.night() then return false,'Night Operation is running: coop nightop stop ends it' end
+        if drive.active() then return false,'the drive probe runs: coop race drive off ends it' end
         local e=eve()
         if not e then return false,'no EVE in the world' end
         local file=R.file(name)
@@ -432,7 +467,8 @@ function Race.new(o)
         if not ok then return false,look_why end
         last_id=math.max(os.time(),last_id+1)
         local solo=not (with or loop)
-        local r=new_race('host',R.host(t,last_id,clock(),solo),{name=name,map=t.map,with=with,looked=true})
+        local r=new_race('host',R.host(t,last_id,clock(),solo,drive.values()),{name=name,map=t.map,with=with,
+            looked=true})
         if loop then r.loop,r.loop_in=R.guest(),{} end
         tell(function(w) return w.race.armed end)
         log(string.format('race %d armed on %s: %d checkpoints, %d laps, %s',last_id,file,#t.cps,t.laps,
@@ -495,10 +531,16 @@ function Race.new(o)
         tell(function(w) return w.race.saved:format(name,#t.cps) end)
         return true,'Track saved as '..file..' beside coop-settings.txt: coop race start '..name..' races it.'
     end
-    -- record <name>, cp, save [laps], cancel, start <name>, quit.
+    -- record <name>, cp, save [laps], cancel, start <name>, quit; drive (drive.lua's).
     function self.command(sub,a,extra)
-        if extra~=nil then return false,USE end
         if not link then return false,'the race needs the native part' end
+        if sub=='drive' then
+            if a=='probe' and race then return false,'a race is armed: coop race quit leaves it' end
+            local ok,why=drive.command(a,extra)
+            if not drive.active() then pcall(look.drive,nil) end -- The probe off: the look walks again.
+            return ok,why
+        end
+        if extra~=nil then return false,USE end
         if sub=='record' and a then return record(a) end
         if sub=='start' and a then return start(a) end
         if sub=='save' then return save(a) end
@@ -538,6 +580,10 @@ function Race.new(o)
             log('race '..l.id..' from the host refused: not a co-op save')
             return tell(function(w) return w.race.declined.save:format(her_name(w)) end)
         end
+        if drive.active() then -- Her movement whole until GO, and the look out of the probe's driving.
+            log(drive.off('the host started a race'))
+            pcall(look.drive,nil)
+        end
         local me=puppet.me()
         r=new_race('guest',R.guest(),{map=me and me.map,with=true})
         r.inbox[1]=text
@@ -555,6 +601,18 @@ function Race.new(o)
         end
         store.clear()
         log(('race: %d display Doros an earlier Lua load left destroyed'):format(n))
+    end
+    -- Each frame before the native tick, so that the pose it captures and the look have the yaw the driving writes
+    -- this frame: the race's driving from GO to our result, or the drive probe's. Its first error ends the race (as a
+    -- frame's) or the probe: false, why.
+    function self.steer()
+        if not drive.active() then return end
+        local ok,e=pcall(function() look.drive(drive.tick()) end)
+        if ok then return end
+        if race then return fail(e) end
+        local message=drive.off('error')
+        pcall(look.drive,nil)
+        return false,'the drive probe stopped on an error: '..why_of(e)..'; '..message
     end
     -- Each frame, after the ghost and the look are placed. A first error ends the race: false, why.
     function self.tick()
@@ -578,15 +636,25 @@ function Race.new(o)
             end)
         end
         local r=race
-        if not r then return end
+        if not r then
+            local ok,e=pcall(drive.slow)
+            if ok then return end
+            local message=drive.off('error')
+            pcall(look.drive,nil)
+            return false,'the drive probe stopped on an error: '..why_of(e)..'; '..message
+        end
         local ok,e=pcall(slow,r)
         if not ok then return fail(e) end
     end
-    -- coop off: a recording dropped, a race left (its DNF or abort line out first) and closed.
+    -- coop off: a recording dropped, a race left (its DNF or abort line out first) and closed, the drive probe off.
     function self.stop()
         rec=nil
         local r=race
-        if not r then return end
+        if not r then
+            if drive.active() then log(drive.off('coop off')) end
+            pcall(look.drive,nil)
+            return
+        end
         r.dnf,r.ending=r.dnf or 'quit','coop off'
         if not failed then pcall(frame,r) end
         if race==r then pcall(close,r,'coop off') end

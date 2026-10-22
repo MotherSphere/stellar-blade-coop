@@ -19,6 +19,7 @@ Doro.ASSETS={mesh=asset('CH_NPC_Dororong'),
     two=asset('BlendSpace/IdleRun_BS_Peaceful_2'), -- Idle at 0, Move_Bipedal at 500.
     four=asset('BlendSpace/IdleRun_BS_Peaceful_1'), -- Idle at 0, Move_Quadrupedal at 500.
     evade=asset('Animation/N_Dororong_Evade'),exhaust=asset('Animation/N_Dororong_Exhaust'),
+    stumble=asset('Animation/N_Dororong_Exhaust_Evade'), -- A tired hop, 1.2 s: a wall hit in a race.
     idle=asset('Animation/N_Dororong_Idle'),turn=asset('Animation/N_Dororong_Turn_90L'),
     meet1=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_01'),
     meet3=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_03')}
@@ -36,13 +37,26 @@ local AIR=400 -- cm/s with no falling flag: in the air from a vertical speed pas
 local LANDED,LEDGE=100,1
 local TAKE_OFF,EVADE_END=0.5,1.07 -- s into N_Dororong_Evade: the game's own split (held during a fall), its end.
 local STAND=50 -- cm/s: an emote plays below this only.
+-- While a race drives (s.drive): all fours from 60% of the top speed, two legs again under 55%; the play rate up to 3;
+-- the stumble's 1.2 s played in the model's 0.6 s. The lean into a bend: 25 degrees at 1 g of the speed times the
+-- turn rate, at most 25, smoothed over 0.15 s. A landing pitches the nose by the landing speed (a degree each 50 cm/s,
+-- at most 15) on a 6 Hz spring damped at 0.35. Starting values, tuned in game.
+local FOUR_AT,FOUR_BACK,DRIVE_RATE,STUMBLE_RATE=0.6,0.55,3,2
+local LEAN,LEAN_MAX,LEAN_SMOOTH,G=25,25,0.15,981
+local KICK_PER,KICK_MAX,LAND_HZ,LAND_DAMP=50,15,6,0.35
+-- A Doro's mesh faces its +Y: a lean (about its forward axis) is its rotator's Pitch, the nose's pitch (about its side
+-- axis) its Roll. The signs are a guess until the drive probe shows them: a right turn (the yaw growing) leans right,
+-- a landing dips the nose.
+local LEAN_SIGN,NOSE_SIGN=1,1
 
 -- The animation for one frame, from s: speed (horizontal, cm/s), vz (vertical, cm/s), falling (nil: read from vz),
--- sprint (nil for the ghost, which has none: read from speed), emote ('win', 'lose' or nil), now (s). state is the
--- caller's table, kept between frames. Returns {asset=<key of ASSETS>, loop=, input=<blend space input or nil>, rate=,
--- at=<position to set or nil>}. Take-off plays Evade's hop from 0 to 0.5 s, a longer fall holds 0.5 s (no sound
--- notify is active there), landing plays the rest; on the ground the blend space, past 500 cm/s played faster.
-function Doro.pick(state,s)
+-- sprint (nil for the ghost, which has none: read from speed), emote ('win', 'lose' or nil), now (s), and drive while
+-- a race drives ({top (cm/s), yaw (the Doro's, degrees), stumble}). state is the caller's table, kept between frames.
+-- Returns {asset=<key of ASSETS>, loop=, input=<blend space input or nil>, rate=, at=<position to set or nil>, and
+-- while driving tilt={lean, pitch} in degrees}. Take-off plays Evade's hop from 0 to 0.5 s, a longer fall holds 0.5 s
+-- (no sound notify is active there), landing plays the rest; on the ground the blend space, past 500 cm/s played
+-- faster.
+local function pick(state,s)
     local now=s.now
     if not state.now then state.v=s.speed
     elseif now>state.now then state.v=state.v+(s.speed-state.v)*(1-math.exp((state.now-now)/SMOOTH)) end
@@ -56,6 +70,7 @@ function Doro.pick(state,s)
         end
     end
     if falling then
+        state.low=math.min(state.low or 0,s.vz)
         if not state.air then
             state.air,state.air_at=s.vz>0 and 'up' or 'fall',now
             if state.air=='up' then return {asset='evade',loop=false,rate=1,at=0} end
@@ -66,21 +81,58 @@ function Doro.pick(state,s)
     end
     if state.air then
         state.air,state.down,state.land_at=nil,nil,now
+        state.kick,state.low=math.min(KICK_MAX,-(state.low or 0)/KICK_PER),nil
         return {asset='evade',loop=false,rate=1,at=TAKE_OFF}
     end
     if state.land_at and now-state.land_at<EVADE_END-TAKE_OFF then return {asset='evade',loop=false,rate=1} end
     state.land_at=nil
+    if s.drive and s.drive.stumble then
+        local first=not state.stumble
+        state.stumble=true
+        return {asset='stumble',loop=false,rate=STUMBLE_RATE,at=first and 0 or nil}
+    end
+    state.stumble=nil
     local v=state.v
     if s.emote and v<STAND then return {asset=s.emote=='win' and 'evade' or 'exhaust',loop=true,rate=1} end
     local four
-    if s.sprint==nil then
+    if s.drive then
+        four=v>s.drive.top*(state.four and FOUR_BACK or FOUR_AT)
+    elseif s.sprint==nil then
         four=v>(state.four and GHOST_BACK or GHOST_FOUR)
     else
         if s.sprint then state.sprint_at=now end
         four=state.sprint_at~=nil and now-state.sprint_at<SPRINT_HOLD
     end
     state.four=four
-    return {asset=four and 'four' or 'two',loop=true,input=math.min(v,RUN),rate=v>RUN and math.min(v/RUN,MAX_RATE) or 1}
+    return {asset=four and 'four' or 'two',loop=true,input=math.min(v,RUN),
+        rate=v>RUN and math.min(v/RUN,s.drive and DRIVE_RATE or MAX_RATE) or 1}
+end
+-- The lean from the speed and the yaw's turn rate since the last frame; the landing's pitch from its kick.
+local function tilt(state,s)
+    local now,yaw=s.now,s.drive.yaw
+    if state.yaw and now>state.yaw_at then
+        local dt=now-state.yaw_at
+        local rate=math.rad((yaw-state.yaw+180)%360-180)/dt
+        local want=math.max(-LEAN_MAX,math.min(LEAN_MAX,LEAN*state.v*rate/G))
+        state.lean=state.lean+(want-state.lean)*(1-math.exp(-dt/LEAN_SMOOTH))
+    end
+    if not state.yaw or now>state.yaw_at then state.yaw,state.yaw_at,state.lean=yaw,now,state.lean or 0 end
+    local pitch=0
+    if state.land_at and state.kick then
+        local t,w=now-state.land_at,2*math.pi*LAND_HZ
+        pitch=state.kick*math.exp(-LAND_DAMP*w*t)*math.cos(w*math.sqrt(1-LAND_DAMP^2)*t)
+    end
+    return {lean=state.lean,pitch=pitch}
+end
+function Doro.pick(state,s)
+    local c=pick(state,s)
+    if s.drive then c.tilt=tilt(state,s) else state.yaw,state.lean=nil,nil end
+    return c
+end
+-- A rotator r with a pick()'s tilt added (none: r as it is).
+function Doro.tilted(r,t)
+    if not t then return r end
+    return {Pitch=r.Pitch+LEAN_SIGN*t.lean,Yaw=r.Yaw,Roll=r.Roll+NOSE_SIGN*t.pitch}
 end
 
 local function path_of(o) return o:GetFullName():match('^%S+ (.+)$') end
@@ -235,6 +287,8 @@ function Doro.new(o)
     function self.active() return look~=nil end
     -- The race's results: 'win' or 'lose' while she stands (Doro.pick), nil for none; the look forgets it when it goes.
     function self.emote(e) if look then look.emote=e end end
+    -- While a race drives (drive.lua's tick): {top, stumble}; nil after.
+    function self.drive(d) if look then look.drive=d end end
     -- Each step its own pcall: one failing leaves the others done, and is said, and keeps the file for the next Lua
     -- load. Only the parts the look hid (p.flags set) are shown again, and only what is still the object it met (after
     -- a map change, nothing is).
@@ -344,18 +398,20 @@ function Doro.new(o)
             l.minute_at,l.rehid,l.retick,r.n,r.ms=now+60,0,0,0,0
         end
     end
-    -- Each frame: the Doro where her main mesh is (her feet), animated from her speed, fall and sprint. Her main mesh
-    -- and movement live as long as she does.
+    -- Each frame: the Doro where her main mesh is (her feet), animated from her speed, fall and sprint, and while a
+    -- race drives leaned and pitched as pick() says. Her main mesh and movement live as long as she does.
     local function frame(l,now)
         if not same(l.eve,l.path) then return 'map change' end
         if not same(l.doro.actor,l.doro.path) then return 'its Doro is gone' end -- Never a call on a destroyed actor.
         local at,rot=value_of(l.body:K2_GetComponentLocation()),value_of(l.body:K2_GetComponentRotation())
-        l.doro.mesh:K2_SetWorldLocationAndRotation({X=at.X,Y=at.Y,Z=at.Z},{Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},
-            false,{},false)
         local v=value_of(l.eve:GetVelocity())
         local speed,sprint=math.sqrt(v.X*v.X+v.Y*v.Y),l.eve:IsSprint()==true
-        Doro.apply(l.doro,Doro.pick(l.state,{speed=speed,vz=v.Z,falling=l.move:IsFalling()==true,sprint=sprint,
-            emote=l.emote,now=now}))
+        local d=l.drive
+        local c=Doro.pick(l.state,{speed=speed,vz=v.Z,falling=l.move:IsFalling()==true,sprint=sprint,emote=l.emote,
+            now=now,drive=d and {top=d.top,yaw=rot.Yaw,stumble=d.stumble}})
+        l.doro.mesh:K2_SetWorldLocationAndRotation({X=at.X,Y=at.Y,Z=at.Z},
+            Doro.tilted({Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},c.tilt),false,{},false)
+        Doro.apply(l.doro,c)
         if now>=l.speed_at then
             l.speed_at=now+1
             local read,sb=pcall(function() return string.format('%.0f',l.eve:GetSBSpeedForAnimGraph()) end)

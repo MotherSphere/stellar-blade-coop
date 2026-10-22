@@ -543,8 +543,8 @@ boss intro counts as a cutscene there has not been checked in game yet.
 ## Doro races
 
 A Doro race is a run along a track of checkpoints that you record, for one player or two. Each racer is drawn as a
-Doro (Dororong): your EVE on your screen, and your ghost on your friend's. EVE still does the running, with her own
-moves, jumps, dodges and camera. Doro races have not been tested in game yet.
+Doro (Dororong): your EVE on your screen, and your ghost on your friend's. From GO, EVE drives like a rally car (see
+[Driving](#driving)); her jumps, dodges and camera stay the game's. Doro races have not been tested in game yet.
 
 ### Recording a track
 
@@ -593,6 +593,56 @@ Leaving your slot before the countdown holds the start. Leaving it during the co
 countdown stops on both screens with `False start: back to your start.`, and the 1 s check starts again. A false
 start has no penalty.
 
+### Driving
+
+From GO until your own result (your finish or a DNF), EVE drives like a rally car:
+
+- The left stick points where you want to go, relative to the camera, as outside a race. Doro turns toward it at 220
+  degrees a second when it stands, and slower as it gets faster, down to 75 degrees a second at top speed. It speeds
+  up along the way it faces, quickly at first and slowly near its top speed of 22 m/s. EVE runs at 5 m/s and sprints
+  at 7. A stick pushed halfway gives half the throttle.
+- Pulling the stick back, more than 120 degrees from where Doro faces, brakes down to 3 m/s without turning. With the
+  stick released, Doro coasts and loses 2.5 m/s each second.
+- To drift, hold R2 on a pad or B on the keyboard above 4 m/s, or steer more than 45 degrees off the way Doro faces
+  above 12 m/s. Doro then keeps its speed and slides sideways while it turns, at 1.4 times the turn rate, until the
+  slide is under 1.5 m/s.
+- Over a crest faster than 9 m/s, Doro leaves the ground. In the air it keeps its speed and turns at 0.3 times the
+  rate.
+- A wall hit faster than 9 m/s that takes 40% of the speed at once makes Doro stumble for 0.6 s: no throttle, half
+  the steering.
+- While a dodge or another of the game's root-motion moves carries EVE, the driving waits.
+
+Both players race with the host's driving values: the host's game sends them after the track, and a guest's game that
+gets a track without them stays out of the race. They are starting values, not yet tuned in game.
+
+`drift_keys` in `coop-settings.txt` names the drift keys: Unreal key names, at most 4, or `none` to drift by steering
+alone. R2 still picks up items within reach during a race, as it does outside one.
+
+To drive EVE, the race sets four values of her movement component to 0 (`MaxAcceleration`, `GroundFriction`,
+`BrakingDecelerationWalking` and `BrakingFrictionFactor`), so her movement keeps the velocity the race gives it each
+frame, and turns her to Doro's heading. Floors, walls, slopes and gravity stay the game's. Your result, `coop race
+quit`, a DNF, `coop off`, a map change and the race's first Lua error put the four values back. While it drives,
+`coop-drive.txt` holds them, so the next Lua load (Ctrl+R) puts them back when this one could not. If EVE no longer
+speeds up or stops after a race, press Ctrl+R.
+
+Test and tuning commands, left out of the usage line:
+
+- `coop race drive` shows the host's driving values and how the velocity reaches EVE's movement.
+- `coop race drive probe`, on a co-op save with no race armed: EVE goes straight ahead at 15 m/s for 3 s through
+  impulses, then 3 s through writes of her velocity, then drives with your stick as in a race until
+  `coop race drive off`.
+- `coop race drive <name> <value>` changes one driving value for your next races, until the mod reloads. The names are
+  `top` (cm/s), `accel`, `brake` and `coast` (cm/s per second), `grip` and `drift_grip` (tenths a second: how fast a
+  slide fades), `turn_slow` and `turn_fast` (degrees a second, standing and at top speed) and `drift_angle` (degrees).
+  Each value is a whole number, kept within its range.
+- `coop race drive feed impulse|struct` picks how the velocity reaches her movement: an impulse each frame (the
+  default) or a write of its velocity.
+
+During a drive, `UE4SS.log` has a line once a second, `[StellarCoop][DR] drive v=<cm/s> vz=<cm/s> asked=<cm/s>
+yaw=<degrees> heading=<degrees> air=0|1 root=0|1 drift=0|1 stumble=0|1`, and a line for each drift key pressed or
+released, each wall hit and each crest. `asked` is the speed the car gave the last frame, `yaw` EVE's facing as read
+one frame after the car turned her.
+
 ### Rules
 
 - Checkpoints count only in order. A checkpoint counts when EVE's path from one frame to the next comes within its
@@ -635,7 +685,8 @@ its Doros go, and EVE and the ghost are drawn as themselves again.
 Two flags can show under `RESULTS` for your own run. Neither changes the ranking.
 
 - `fast run`: for 1 s or more, EVE moved faster than 5.5 m/s horizontally while she was not sprinting and not in the
-  air. The flag is there for Tachy mode, which runs faster; the mod cannot read whether Tachy mode is on.
+  air. The flag was there for Tachy mode, which runs faster. A driven run's speed no longer depends on Tachy mode, and
+  the flag does not show while the race drives EVE.
 - `paused`: the game was paused, or showed one of its own screens, for 2 s or more.
 
 Each PC logs one line per race that reaches its results there: `[StellarCoop][DR] result id=<id> track=<name> ms=<ms>
@@ -652,6 +703,10 @@ come as notices on the line above EVE.
 From the start of a race on your PC until it closes, your EVE is drawn as a Doro. The Doro stands at EVE's feet, walks
 and runs on two legs, runs on all fours while she sprints, and hops when she jumps. Your friend's ghost is drawn as a
 Doro from the moment their game joins the race. If it does not join, it stays EVE on both screens.
+
+While the race drives EVE, her Doro runs on all fours from 60% of the top speed, plays its run up to 3 times faster,
+faces where it is heading (so it shows its side in a drift), leans into bends, dips its nose when it lands and plays a
+tired hop when it hits a wall. Your friend's Doro does the same from their ghost's movement, except the tired hop.
 
 To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. The
 race's end, `coop race quit`, `coop off`, a map change and the look's first error undo both changes. While the look is
@@ -877,8 +932,8 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
   10 of item n into the co-op save. Your points are in `coop-night-<steamid>-<index>.txt` in the mod folder, one file
   per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 
-The ghost, the link and every other command except `coop fight` (below), and `coop race start`, `coop race look on`
-and `coop race probe doro` (see [Doro races](#doro-races)), run on any save.
+The ghost, the link and every other command except `coop fight` (below), and `coop race start`, `coop race look on`,
+`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Shared enemies (experimental)
@@ -1460,10 +1515,10 @@ loopback, a recording (which is written), a replay, engine reads, the Steam link
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
 run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay as they are), the
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
-(released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO), a race
-track being recorded (dropped, nothing written) and the Doro look (EVE drawn again). Afterwards only `coop status` and
-`coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
-menu, host and leave keys. The race key does nothing.
+(released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with
+EVE's movement values put back), the drive probe, a race track being recorded (dropped, nothing written) and the Doro
+look (EVE drawn again). Afterwards only `coop status` and `coop report` answer. Every other command answers
+`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 
@@ -1487,6 +1542,10 @@ status_key=F6
 leave_key=F8
 follow_key=F7
 race_key=F9
+# The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
+# at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
+# and B on the keyboard, which Stellar Blade leaves free.
+drift_keys=Gamepad_RightTrigger B
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -1607,6 +1666,7 @@ status_overlay=off
 | `leave_key` | same as `menu_key` | `F8` |
 | `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](#following-the-host)) | `F7` |
 | `race_key` | same, or `none`: a key that sets a [Doro race](#doro-races) checkpoint while you record a track | `F9` |
+| `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](#driving) in a race | `Gamepad_RightTrigger B` |
 | `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](#join-codes); `private`: only the friends you invite) | `friends` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
@@ -1898,6 +1958,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path and the names of the parts the look hid, so the next Lua load (Ctrl+R) can show her again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
+| `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
 it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,

@@ -1,6 +1,7 @@
 -- doro.lua with fake UE4SS objects: Doro.pick's mapping (blend space input and play rate from the speed, all fours
 -- while sprinting with its hold, the ghost's speed threshold with its hysteresis, take-off, a held fall and landing,
--- emotes only while standing, the smoothing), Doro.apply's calls, Doro.remove (only the actor spawn made); the look
+-- emotes only while standing, the smoothing; while a race drives, all fours by the top speed, the faster play rate,
+-- the stumble, the lean and the landing pitch), Doro.apply's calls, Doro.remove (only the actor spawn made); the look
 -- (only parts not already hidden are hidden, listed and written to coop-look.txt before EVE changes; the Doro placed at
 -- her main mesh each frame; the 250 ms check hides again and counts, and logs the flags the game changed; off clears
 -- only those parts and restores the tick option, and keeps the file when a step fails; a map change turns it off, with
@@ -243,6 +244,57 @@ assert(c.asset=='two' and c.input==300,'Moving: no emote')
 c=Doro.pick({},{speed=0,vz=500,falling=true,sprint=false,emote='win',now=0})
 assert(c.asset=='evade' and c.loop==false and c.at==0,'In the air: no emote')
 
+-- While a race drives: all fours from 60% of the top speed (1320 of 2200), two legs again under 55% (1210); the play
+-- rate up to 3; the stumble's tired hop at twice its speed, from its start; a lean into the bend from the speed and the
+-- turn rate, smoothed; a landing's pitch from its speed, settling; none of it without a drive.
+local DRIVE={top=2200,yaw=0}
+local function driven(t,speed,extra)
+    local p={speed=speed,vz=0,falling=false,sprint=false,now=t,drive=DRIVE}
+    for k,v in pairs(extra or {}) do p[k]=v end
+    return Doro.pick(state,p)
+end
+state={}
+c=driven(0,1300)
+assert(c.asset=='two' and close(c.rate,1300/500) and c.input==500 and c.tilt.lean==0 and c.tilt.pitch==0)
+assert(driven(10,1400).asset=='four','All fours past 1320')
+assert(driven(20,1220).asset=='four' and driven(30,1200).asset=='two','Kept down to 1210')
+c=driven(40,2200)
+assert(c.asset=='four' and close(c.rate,3),'The play rate stops at 3')
+assert(close(Doro.pick({},{speed=2200,vz=0,falling=false,sprint=false,now=0}).rate,1.8),'1.8 outside a race')
+assert(Doro.pick({},{speed=2200,vz=0,falling=false,sprint=false,now=0}).tilt==nil,'No tilt outside a race')
+-- The stumble.
+c=driven(41,500,{drive={top=2200,yaw=0,stumble=true}})
+assert(c.asset=='stumble' and c.loop==false and c.rate==2 and c.at==0)
+c=driven(41.1,500,{drive={top=2200,yaw=0,stumble=true}})
+assert(c.asset=='stumble' and c.at==nil,'Played on')
+assert(driven(41.2,500).asset=='two','Over: the blend space again')
+-- The lean: 1000 cm/s turning right at 30 deg/s is 0.53 g: 13.3 degrees once settled.
+state={}
+for k=0,200 do c=driven(k/100,1000,{drive={top=2200,yaw=k*0.3}}) end
+local g=1000*math.rad(30)/981
+assert(math.abs(c.tilt.lean-25*g)<1e-3,c.tilt.lean)
+for k=201,400 do c=driven(k/100,1000,{drive={top=2200,yaw=60-(k-200)*0.3}}) end
+assert(math.abs(c.tilt.lean+25*g)<1e-3,'Left: the other way')
+for k=401,600 do c=driven(k/100,2200,{drive={top=2200,yaw=(k-400)*3}}) end
+assert(math.abs(c.tilt.lean-25)<1e-3,'At most 25 degrees')
+-- A landing at 600 cm/s down: the nose 12 degrees at once, then it settles.
+state={}
+driven(0,1000)
+driven(0.1,1000,{falling=true,vz=-600})
+c=driven(0.2,1000,{falling=false,vz=0})
+assert(c.asset=='evade' and close(c.tilt.pitch,12),c.tilt.pitch)
+c=driven(0.5,1000)
+assert(math.abs(c.tilt.pitch)<0.2,c.tilt.pitch)
+state={}
+driven(0,1000)
+driven(0.1,1000,{falling=true,vz=-2000})
+assert(close(driven(0.2,1000).tilt.pitch,15),'At most 15')
+-- Doro.tilted: the lean on Pitch, the nose on Roll; none: the rotator as it is.
+local r=Doro.tilted({Pitch=1,Yaw=90,Roll=2},{lean=10,pitch=-3})
+assert(r.Pitch==11 and r.Yaw==90 and r.Roll==-1)
+r={Pitch=0,Yaw=0,Roll=0}
+assert(Doro.tilted(r,nil)==r)
+
 -- Doro.apply: PlayAnimation only when the clip or its looping changes; the input on a blend space only; the position
 -- without notifies.
 local actor=world:SpawnActor(class('/Script/Engine.Actor'),{},{})
@@ -369,6 +421,31 @@ clock=161.1
 root.calls={}
 look.tick()
 assert(root.calls[1]=='play two true',table.concat(root.calls,'|'))
+-- While a race drives: at 2200 cm/s all fours at a play rate of 3; a stumble; her yaw turning leans the Doro; off
+-- again with the drive gone.
+look.drive({top=2200,stumble=false})
+eve.velocity={X=2200,Y=0,Z=0}
+local yaw=0
+eve.Mesh.K2_GetComponentRotation=function() return {Pitch=0,Yaw=yaw,Roll=0} end
+clock=162
+root.calls={}
+look.tick()
+assert(table.concat(root.calls,'|')=='play four true|input 500|rate 3',table.concat(root.calls,'|'))
+assert(root.rot.Pitch==0 and root.rot.Roll==0)
+yaw,clock=3,162.1
+look.tick()
+assert(root.rot.Yaw==3 and root.rot.Pitch>0 and root.rot.Roll==0,'Leaned right')
+look.drive({top=2200,stumble=true})
+clock=162.2
+root.calls={}
+look.tick()
+assert(root.calls[1]=='play stumble false',table.concat(root.calls,'|'))
+look.drive(nil)
+eve.velocity={X=0,Y=0,Z=0}
+clock=162.3
+look.tick()
+assert(root.rot.Pitch==0 and root.rot.Roll==0,'No tilt once the drive is gone')
+eve.Mesh.K2_GetComponentRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
 -- Off: only the listed parts are shown again, the tick option is back, the file and the Doro are gone.
 ok,why=look.off('coop race look off')
 assert(ok and why=='Doro look off (coop race look off): 4 parts shown again, tick option 3 back.',why)

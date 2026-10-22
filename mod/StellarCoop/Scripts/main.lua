@@ -43,8 +43,10 @@
 -- on|off, your EVE drawn as a Doro and the ghost too, and coop race probe doro, a Doro playing each of its clips
 -- (doro.lua; test tools, left out of the usage line; both start on a co-op save only); coop race record <name>|cp|save
 -- [laps]|cancel|start <name>|quit, Doro races on a track you record (race.lua; race_key drops a checkpoint while you
--- record; start on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read by the
--- native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu.
+-- record; start on a co-op save only), driven as a car from GO (drive.lua), with coop race drive [probe|off|feed
+-- impulse|struct|<name> <value>] to probe and tune the driving (a test tool, left out of the usage line; the probe on a
+-- co-op save only). coop off stops everything until the game restarts. An XInput pad, read by the native part, drives
+-- the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -207,9 +209,12 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- Doro races (race.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs. Its start
--- and the guest's answer need a co-op save; it never arms during a Night Operation run.
-local race=require('race').new({log=doro.log,link=link,puppet=puppet,look=doro,tell=tell,night=night.running,
+-- The races' driving (drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement back.
+local drive=require('drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
+-- Doro races (race.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and the
+-- driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
+local race=require('race').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
+    night=night.running,
     slot=function() return coop_slot('coop race') end,paused=function() return kit~=nil and kit.paused(true) end,
     settings=settings,store=link and link.store('coop-race-doros.txt')})
 -- The session chat's model (chat.lua, memory only, never logged): her lines come from coop-chat.txt, taken every
@@ -589,8 +594,8 @@ local commands={
             return doro.probe()
         end
         if sub=='look' or sub=='probe' then return false,'Use: coop race look on|off | probe doro' end
-        if sub=='start' and a~=nil and extra==nil then
-            local ok,why=coop_slot('coop race start')
+        if sub=='start' and a~=nil and extra==nil or sub=='drive' and a=='probe' and extra==nil then
+            local ok,why=coop_slot('coop race '..sub)
             if not ok then return false,why end
         end
         return race.command(sub,a,extra)
@@ -742,9 +747,14 @@ end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
     doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
+    pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
+    local steered=os.clock()
+    ok,message=race.steer() -- Before the native tick: the pose it captures has the yaw the driving writes.
+    if message then report(ok,message) end
+    steered=os.clock()-steered
     if native_tick then native_tick() end
     local placed=os.clock()
     ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
@@ -758,7 +768,7 @@ LoopInGameThreadWithDelay(1,function()
     if link and race.armed() then inbox() end
     ok,message=race.tick() -- After the look: its Doros and HUD from where EVE is drawn this frame.
     if message then report(ok,message) end
-    raced=os.clock()-raced
+    raced=os.clock()-raced+steered
     ok,message=notice.tick()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.

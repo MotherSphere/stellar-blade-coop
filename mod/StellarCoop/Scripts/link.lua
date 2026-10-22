@@ -19,8 +19,8 @@
 -- here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests() and
 -- quest_notes() here; its revive and cutscene_wait group.lua's (the friend's revive, the wait during the host's
 -- cutscene); its follow_host and follow_key travel.lua's and main.lua's (the guest's travel to the camp nearest the
--- host), which reads camps() here; its collide puppet.lua's (the solid partner). The co-op menu (menu.lua) changes
--- the file, one line at a time (D-UI4).
+-- host), which reads camps() here; its collide puppet.lua's (the solid partner); its drift_keys the Doro races'
+-- driving (drive.lua). The co-op menu (menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('keybind')
 local SF=require('settings_file')
 local T=require('ui_text')
@@ -41,6 +41,10 @@ status_key=F6
 leave_key=F8
 follow_key=F7
 race_key=F9
+# The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
+# at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
+# and B on the keyboard, which Stellar Blade leaves free.
+drift_keys=Gamepad_RightTrigger B
 # Who can join a session you host: friends (your Steam friends can join from their friends list), code (anyone you
 # give your join code to; the co-op menu shows and copies it) or private (only the friends you invite). A player who
 # is not your Steam friend waits until you accept or deny them.
@@ -155,7 +159,8 @@ status_overlay=off
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
-local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',name_tag='on',
+local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',
+    drift_keys='Gamepad_RightTrigger B',name_tag='on',
     send_rate='60',cloth='on',dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
     same_spawns='on',enemy_extra='0',spawn_filter='off',bosses='on',boss_hp_scale='2.0',
@@ -183,9 +188,19 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
 -- seconds; ui_scale one of percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua
 -- sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes
--- (the native part's request limit; it names the entries that are no shared quest).
+-- (the native part's request limit; it names the entries that are no shared quest); drift_keys a list of Unreal key
+-- names (drive.lua reads them with IsInputKeyDown), at most 4, empty for none.
 local function setting(name,text)
-    if name=='fight_chars' then
+    if name=='drift_keys' then
+        local keys,why={},'use none, or at most 4 Unreal key names separated by spaces, such as Gamepad_RightTrigger B'
+        if text:lower()=='none' then return keys end
+        for word in text:gmatch('%S+') do
+            if #keys==4 or #word>40 or not word:find('^%a[%w_]*$') then return nil,why end
+            keys[#keys+1]=word
+        end
+        if not keys[1] then return nil,why end
+        return keys
+    elseif name=='fight_chars' then
         local ids={}
         if text:lower()=='auto' then return ids end
         for word in text:gmatch('%S+') do

@@ -1078,9 +1078,9 @@ Whether every story scene, dialogue and boss intro runs through a theater observ
 ## Doro races
 
 A Doro race runs in Lua: `race.lua` on the game side, `race_model.lua` for the rules and the race lines, `doro.lua`
-for the Doros. Its only SB calls are two reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the
-rest are engine functions. The native part only carries the race lines. The commands and rules are in
-[usage.md](usage.md#doro-races).
+for the Doros, `drive.lua` and `drive_model.lua` for the driving. Its only SB calls are two reads on EVE, `IsSprint`
+and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part only carries the race
+lines. The commands and rules are in [usage.md](usage.md#doro-races).
 
 ### The display Doro
 
@@ -1097,6 +1097,12 @@ component runs the engine's single-node animation (`SetAnimationMode(1)`), and e
   rate 0, the position set without firing notifies), and the rest, from 0.5 to 1.07 s, at landing.
 - At the results, while the racer stands (under 50 cm/s): `N_Dororong_Evade` in a loop for the winner and
   `N_Dororong_Exhaust` for the other racer.
+- While the race drives (see [Driving](#driving)): on all fours from 60% of the top speed and back on two legs under
+  55%, played up to 3 times faster, and `N_Dororong_Exhaust_Evade` at twice its speed for the 0.6 s of a stumble. The
+  Doro also leans into a bend by the speed times the turn rate of its yaw (25 degrees at 1 g, at most 25, smoothed
+  over 0.15 s) and dips its nose at a landing by a degree for each 50 cm/s of landing speed (at most 15), on a 6 Hz
+  spring. The lean is the rotator's `Pitch` and the nose its `Roll`, since the mesh faces its +Y; both signs are
+  unchecked in game.
 
 The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). A race shows at most two
 Doros of its own: before GO one at the start line's centre, and during the race one at the next checkpoint and one at
@@ -1106,8 +1112,8 @@ so a Lua reload (Ctrl+R) in a race destroys them at its first tick.
 ### The Doro look
 
 The look draws your EVE as a Doro. Its Doro is placed each frame, after the native tick, at the world location and
-rotation of EVE's main mesh (her feet); it is not attached to her. The look is the one feature that writes to the
-player actor, and it writes two things:
+rotation of EVE's main mesh (her feet); it is not attached to her. The look and the race's driving (below) are the
+features that write to the player actor. The look writes two things:
 
 - `bHiddenInGame` on each of EVE's mesh components that did not have it, through `SetHiddenInGame`. The game shows and
   hides her parts (a drawn blade) with `SetVisibility`, which sets the separate `bVisible` flag, so the look neither
@@ -1146,7 +1152,45 @@ Doro's speed and vertical speed come from the ghost's feet between poses, measur
 has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520 cm/s, and a
 vertical speed over 400 cm/s, up or down, counts as being in the air. The ghost's own hiding (no pose for 1 s, another
 map) covers the Doro too. A Doro that cannot be made leaves the ghost drawn as EVE, with the reason in the log. The pose
-stream is the same during a race: the bones still arrive and are written into the hidden parts.
+stream is the same during a race: the bones still arrive and are written into the hidden parts. While the race
+drives, the ghost's Doro follows the same driving rules as yours, with the turn rate taken from the ghost's yaw in the
+pose stream, and its lean and nose set as a relative rotation on the ghost's main mesh.
+
+### Driving
+
+From GO until our own result, `drive.lua` drives EVE with `drive_model.lua`'s car model. The model holds a heading and
+a horizontal velocity. Each frame it turns the heading toward the stick's world direction (`GetLastMovementInputVector`)
+at a rate that falls with speed, adds speed along the heading with a throttle that fades near the top speed, and
+decays the speed across the heading by a grip, which drops during a drift (the drift keys, read with the player
+controller's `IsInputKeyDown`, or hard steering at speed).
+
+In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in `CalcVelocity`,
+with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint scales) only set the
+top speed. With `MaxAcceleration`, `GroundFriction`, `BrakingDecelerationWalking` and `BrakingFrictionFactor` at 0,
+`CalcVelocity` neither accelerates, brakes nor turns the velocity, and the component moves EVE with the velocity it has.
+Each frame the race gives it the model's velocity: by default through `AddImpulse` with the difference from
+`GetVelocity()` and a vertical part of 0, or through a write of its `Velocity`. Before each impulse,
+`ClearAccumulatedForces` drops any impulse an earlier frame left unused. In photo mode with `photo_pause=scenery` the
+world's time runs while SB's logic stands still; if her movement stands still with it, the impulses would otherwise add
+up. The next frame starts from the velocity the component made of it, so walls, slopes and landings act on the model.
+The yaw goes to EVE with `K2_SetActorRotation`, and the pose stream carries it to your friend. The driving runs each
+frame before the native tick, so the pose it captures and the Doro look both have the yaw written that frame.
+
+On the ground SB's walking step ends by setting `Velocity.Z` to 0 (the engine's `MaintainHorizontalGroundVelocity`), so
+the model takes EVE's vertical speed from her height between frames. Over a crest (on the ground at over 900 cm/s, a
+climb held two frames that drops by more than 250 cm/s in one), the race calls `LaunchCharacter` with the climb's
+vertical speed instead of giving a velocity.
+
+The model steps by EVE's world time (`GetGameTimeSinceCreation`): when it has not moved since the last frame (the
+pause menu), nothing is written, since impulses would pile up. Under root motion (`IsPlayingRootMotion`: a dodge) the
+model holds and writes nothing, and starts again from her yaw and velocity. Every 250 ms the race sets back to 0 any of
+the four values the game wrote (a stance change).
+
+Before the four values change, `coop-drive.txt` gets EVE's object path and their old values. Our result, a quit, a DNF,
+`coop off`, a map change and the race's first error write them back, on that EVE only while she is still the object they
+came from, and delete the file. A Lua load that finds the file writes the values back at its first tick, even with
+`coop off` still in force. No SB code found writes `MaxAcceleration` or `GroundFriction`, so the values from before the
+race are the ones to put back; the 250 ms check catches a write the search missed.
 
 ### Race lines
 
@@ -1159,7 +1203,8 @@ with whole numbers only, in centimetres and milliseconds. `<id>` is the host's r
 | --- | --- | --- |
 | `track <id> <n> <laps> <x> <y> <z> <yaw> <map>` | host | A race is armed on that start line and map; `n` checkpoints follow |
 | `cps <id> <first> <x> <y> <z> <r> ...` | host | Up to 12 checkpoints from the `first`th one, so a line stays under 512 bytes |
-| `have <id> <sum>` or `have <id> no map\|track\|save` | guest | The track arrived and passed the checks (`sum`: all its numbers added, modulo 2^32), or why the guest stays out |
+| `drive <id> <top> <accel> <brake> <coast> <grip> <drift_grip> <turn_slow> <turn_fast> <drift_angle>` | host | The driving values both players race with, after the `cps` lines; the guest clamps each to its range |
+| `have <id> <sum>` or `have <id> no map\|track\|save` | guest | The track and the driving values arrived and passed the checks (`sum`: all their numbers added, modulo 2^32), or why the guest stays out |
 | `ready <id> 0\|1` | both | Out of or in the start slot |
 | `go <id> <ms>` or `abort <id> <why>` | host | The countdown's length (4000), or the race cancelled (`false_start`: the ready check again) |
 | `cp <id> <lap> <i> <ms>` | both | A checkpoint passed, with the race time |
@@ -1169,8 +1214,8 @@ with whole numbers only, in centimetres and milliseconds. `<id>` is the host's r
 
 The guest's game refuses a track with fewer than 2 or more than 64 checkpoints, `|x|` or `|y|` over 2,000,000,
 `|z|` over 500,000, a radius outside 300 to 3000, a time over 3,600,000 ms, or another map than its own. A line that
-fails a check is dropped and counted. The guest's countdown starts when `go` arrives, less half the round trip of the
-link's pings. A host that gets no `have` line within 10 s sends `abort <id> track` and races alone.
+fails a check is dropped and counted. A track whose `drive` line does not follow its last `cps` line is refused with
+`have <id> no track`. The guest's countdown starts when `go` arrives, less half the round trip of the link's pings. A host that gets no `have` line within 10 s sends `abort <id> track` and races alone.
 
 In `coop loopback` with no friend linked, the host's lines come back as the friend's. A second, guest instance of the
 race model answers them, run on the loopback ghost's feet, and its lines go straight to the host's.
@@ -1180,7 +1225,8 @@ Each PC logs a `[StellarCoop][DR] result` line per race that reaches its results
 PC.
 
 A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
-is `/Script/Engine.Actor`. `tests/race_test.lua` checks both in `doro.lua`, `race_model.lua` and `race.lua`.
+is `/Script/Engine.Actor`. `tests/race_test.lua` checks both in `doro.lua`, `race_model.lua`, `race.lua`, `drive.lua`
+and `drive_model.lua`.
 
 ## Achievements
 
@@ -1261,10 +1307,12 @@ drops the input.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
   tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, and race lines
   (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race lines](#race-lines)).
-- The [Doro look](#the-doro-look) is the only write to the player actor: `bHiddenInGame` on EVE's mesh parts and
-  `VisibilityBasedAnimTickOption` on her main mesh. It writes `coop-look.txt` before it changes either, and undoes both
-  at the race's end, on `coop race look off` and `coop off`, after a map change and at its first error. The next Lua
-  load undoes them from that file when this one could not.
+- The [Doro look](#the-doro-look) and a race's [driving](#driving) are the only writes to the player actor. The look
+  writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
+  `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
+  after a map change and at its first error. The driving sets four values of her movement component to 0 and gives it a
+  velocity and her a yaw each frame. It writes `coop-drive.txt` before it changes the values, and puts them back on the
+  same exits. The next Lua load undoes either from its file when this one could not.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game

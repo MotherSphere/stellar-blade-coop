@@ -242,6 +242,18 @@ assert(#notes==1 and notes[1]=='settings: F9 is set for two actions: default key
     and s.leave_key.name=='F8' and s.race_key.name=='F9',notes[1])
 s,notes=Link.parse_settings('race_key=F6\n')
 assert(#notes==1 and s.status_key.name=='F6' and s.race_key.name=='F9',notes[1])
+-- drift_keys: the Unreal key names held for a drift in a Doro race, at most 4, or none; R2 and B unless set.
+s,notes=Link.parse_settings('')
+assert(#s.drift_keys==2 and s.drift_keys[1]=='Gamepad_RightTrigger' and s.drift_keys[2]=='B')
+s,notes=Link.parse_settings('drift_keys=RightShift  Gamepad_LeftShoulder\n')
+assert(#notes==0 and #s.drift_keys==2 and s.drift_keys[1]=='RightShift' and s.drift_keys[2]=='Gamepad_LeftShoulder')
+s,notes=Link.parse_settings('drift_keys=None\n')
+assert(#notes==0 and #s.drift_keys==0,'none: steering alone')
+for _,bad in ipairs({'B;','1B','A B C D E','',('K'):rep(41)}) do
+    s,notes=Link.parse_settings('drift_keys='..bad..'\n')
+    assert(#s.drift_keys==2 and #notes==1
+        and notes[1]:find("is not allowed for drift_keys (use none, or at most 4 Unreal",1,true),bad..': '..tostring(notes[1]))
+end
 assert(s.name_tag==true and s.send_rate==60,'Empty text: the defaults')
 s,notes=Link.parse_settings('status_key=Shift+F7\n menu_key = f6 \n')
 assert(s.status_key.key=='F7' and s.status_key.mod=='SHIFT' and s.status_key.name=='Shift+F7' and #notes==0)
@@ -307,6 +319,7 @@ s,notes=Link.parse_settings(Link.DEFAULT)
 assert(keys==6 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
     and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9')
 assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n',1,true),'A new file names the race key')
+assert(Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n',1,true),'A new file names the drift keys')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
 -- The menu's own: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game or english; a new file names them.
 assert(s.ui_scale==100 and math.type(s.ui_scale)=='integer' and s.ui_sounds==true and s.ui_language=='game')

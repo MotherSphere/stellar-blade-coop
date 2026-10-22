@@ -1,7 +1,8 @@
 -- The Doro race without the game: the track file (round trip, every refusal), names, recording and the 15 m rule, the
 -- runner's rules (crossings at speed and at the radius edge, the teleport DNF, missed checkpoints, wrong way, two
 -- laps), slots, ranking, the line codec and its sizes, and the host and guest machines joined by a fake link that
--- delays each line 30 to 300 ms in order: whole races, the have sum, the guest's checks on the host's real lines, the
+-- delays each line 30 to 300 ms in order: whole races, the have sum, the host's driving values on their drive line
+-- (clamped on receipt, in the sum, refused when missing), the guest's checks on the host's real lines, the
 -- countdown's half round trip, false starts, DNFs, the 60 s and 15 min limits, the session ending after any line, and
 -- the loopback arrangement (the host's lines echoed to a guest instance, whose lines go straight back).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -244,7 +245,8 @@ local good={
     ['abort 7 false_start']=true,['abort 7 quit']=true,['abort 7 map']=true,['abort 7 track']=true,['cp 7 9 64 0']=true,
     ['fin 7 3600000 3']=true,['fin 7 0 0']=true,['dnf 7 teleport']=true,['dnf 7 map']=true,['dnf 7 quit']=true,
     ['dnf 7 left']=true,['dnf 7 late']=true,['dnf 7 time']=true,['rank 7 - -']=true,['rank 7 61000 -']=true,
-    ['rank 7 - 3600000']=true,['end 7']=true,
+    ['rank 7 - 3600000']=true,['end 7']=true,['drive 7 2200 950 2400 250 80 15 220 75 45']=true,
+    ['drive 7 999999 -5 0 0 0 0 0 0 0']=true,
 }
 for line in pairs(good) do assert(R.decode(line),line) end
 for _,line in ipairs({'track 4294967296 64 9 0 0 0 0 /x','track 7 65 9 0 0 0 0 /x','track 7 1 9 0 0 0 0 /x',
@@ -256,9 +258,14 @@ for _,line in ipairs({'track 4294967296 64 9 0 0 0 0 /x','track 7 65 9 0 0 0 0 /
     'cp 7 0 1 0',
     'cp 7 10 1 0','cp 7 1 65 0','cp 7 1 0 0','cp 7 1 1 3600001','fin 7 0 4','fin 7 0','dnf 7 false_start',
     'dnf 7 ','rank 7 - x','rank 7 -1 -','rank 7 -','end 7 now','end','end x','end 7.0','end 07x',' end 7',
-    'end  7','END 7','win 7','end 7\t',('x'):rep(R.MAX_LINE+1)}) do
+    'end  7','END 7','win 7','end 7\t',('x'):rep(R.MAX_LINE+1),'drive 7','drive 7 1 2 3 4 5 6 7 8',
+    'drive 7 1 2 3 4 5 6 7 8 9 10','drive 7 1 2 3 4 5 6 7 8 x','drive 7 1 2 3 4 5 6 7 8 1.5',
+    'drive 7 1 2 3 4 5 6 7 8 9999999','drive x 1 2 3 4 5 6 7 8 9'}) do
     assert(not R.decode(line),line)
 end
+-- The driving values come clamped to their bounds.
+local dl=R.decode('drive 7 999999 -5 2400 250 80 15 220 75 45').drive
+assert(dl.top==5000 and dl.accel==100 and dl.brake==2400 and dl.drift_angle==45)
 local l=R.decode('track 7 4 1 -1 2 -3 90 '..MAP)
 assert(same(l,{what='track',id=7,n=4,laps=1,grid={x=-1,y=2,z=-3,yaw=90},map=MAP}))
 l=R.decode('rank 7 - 61000')
@@ -268,7 +275,8 @@ local huge={map=MAP,laps=9,grid={x=-2000000,y=-2000000,z=-500000,yaw=-180},cps={
 for i=1,64 do huge.cps[i]={x=-2000000,y=-2000000,z=-500000,r=3000} end
 huge.map=('/a'):rep(60)
 local lines=R.track_lines(huge,0xFFFFFFFF)
-assert(#lines==7 and lines[1]:find('^track ') and lines[7]:find('^cps 4294967295 61 '),'One track line, 6 cps')
+assert(#lines==8 and lines[1]:find('^track ') and lines[7]:find('^cps 4294967295 61 '),'One track line, 6 cps')
+assert(lines[8]=='drive 4294967295 2200 950 2400 250 80 15 220 75 45','The driving values last')
 for _,line in ipairs(lines) do
     assert(#('SBC12 race '..line)<=512 and #line<=R.MAX_LINE,#line)
     assert(R.decode(line),line)
@@ -380,6 +388,30 @@ for _,side in ipairs({'host','guest'}) do
     end
 end
 for _,what in ipairs({'missed','wrong_way','dnf','false_start','refused'}) do assert(not find(log.host,what),what) end
+-- The host's own driving values go out after the cps lines; the guest races with them, and they are in the have sum.
+do
+    local mine={top=2600,accel=1200,brake=2000,coast=300,grip=70,drift_grip=20,turn_slow=200,turn_fast=90,
+        drift_angle=40}
+    local h=R.host(copy(LINE),7,0,false,mine)
+    local lines=R.tick(h,{pos=R.slot(LINE,0)},0)
+    assert(lines[3]=='drive 7 2600 1200 2000 300 70 20 200 90 40' and lines[4]=='ready 7 1',lines[3])
+    local g=R.guest()
+    local out=R.tick(g,{lines={lines[1],lines[2],lines[3]},map=MAP},0)
+    assert(g.phase=='ready' and same(g.track.drive,mine) and out[1]=='have 7 '..R.sum(h.track))
+    assert(R.sum(h.track)~=R.sum(LINE),'The values are in the sum')
+    -- A host with no driving (its track and cps lines, then its ready line): refused, with no have sum.
+    g=R.guest()
+    out=R.tick(g,{lines={lines[1],lines[2],lines[4]},map=MAP},0)
+    assert(out[1]=='have 7 no track' and g.phase=='over',tostring(out[1]))
+    -- The drive line before the track is whole: refused.
+    g=R.guest()
+    out=R.tick(g,{lines={lines[1],lines[3]},map=MAP},0)
+    assert(out[1]=='have 7 no track')
+    -- The host's abort while the guest waits for it: cancelled, not refused.
+    g=R.guest()
+    local _,ev=R.tick(g,{lines={lines[1],lines[2],'abort 7 quit'},map=MAP},0)
+    assert(g.phase=='over' and find(ev,'cancelled').why=='quit')
+end
 -- The fin line carries the flags seen during the race.
 host,guest,log,said=sim({flags=function(side,m,now) return side=='guest' and m.t_go and now-m.t_go>5000 and 1 or 0 end})
 local fin=find(log.guest,'fin')
@@ -398,12 +430,13 @@ do
     tick(700,{'ready 7 1'})
     assert(tick(1600)=='' and tick(1700)=='go 7 4000')
 end
--- The have sum: every number added, mod 2^32, so a track in negative ground still gives a have line in bounds.
+-- The have sum: every number added, the driving values too, mod 2^32, so a track in negative ground still gives a have line in bounds.
 do
     local south={map=MAP,laps=1,grid={x=-1990000,y=-1990000,z=-400000,yaw=-90},cps={{x=-1980000,y=-1990000,z=-400000,
         r=1200},{x=-1970000,y=-1990000,z=-400000,r=1200}}}
     assert(R.check(south))
     local raw=2+1-1990000-1990000-400000-90+(-1980000-1990000-400000+1200)+(-1970000-1990000-400000+1200)
+        +2200+950+2400+250+80+15+220+75+45 -- The driving values (drive_model.lua's defaults).
     assert(raw<0 and R.sum(south)==raw+2^32 and R.decode('have 7 '..R.sum(south)))
 end
 -- The countdown: the host's from its go line, the guest's from receipt less half the round trip. With 60 ms each way
@@ -569,15 +602,22 @@ end
 -- The guest's checks on the host's real lines: another map, a line out of bounds, a changed number (the have sum).
 host,guest,log,said=sim({map='/game/other'})
 assert(said.guest[1]=='have 7 no map' and find(log.host,'refused').why=='map' and find(log.guest,'refused').why=='map')
-assert(#said.host==3 and result(host):find('^host=%d+#1$'),'No more line to her once she said no; the host races alone')
+assert(#said.host==4 and result(host):find('^host=%d+#1$'),'No more line to her once she said no; the host races alone')
 assert(host.shown==host.first,'Alone: the results at his finish')
 local function bend(match,to)
     return function(where,text) if where=='guest' then return (text:gsub(match,to,1)) end return text end
 end
 host,guest,log,said=sim({tamper=bend(' 1200 8000',' 100 8000')}) -- Radius 100: the cps line is dropped.
-assert(guest.dropped==1 and #said.guest==0,'Dropped and counted; no have line')
-assert(find(log.host,'refused').why=='silent' and result(host):find('^host=%d+#1$'),'10 s later the host races alone')
-assert(said.host[4]=='abort 7 track' and find(log.guest,'cancelled').why=='track' and guest.phase=='over')
+-- Dropped and counted; the drive line then finds the track short: refused at once, and the host races alone.
+assert(guest.dropped==1 and said.guest[1]=='have 7 no track' and guest.phase=='over',tostring(said.guest[1]))
+assert(find(log.host,'refused').why=='track' and result(host):find('^host=%d+#1$'))
+-- With the drive line lost too, no have line: 10 s later the host races alone and tells her.
+host,guest,log,said=sim({tamper=function(where,text)
+    if where=='guest' and (text:find('^cps ') or text:find('^drive ')) then return nil end
+    return text
+end})
+assert(#said.guest==0 and find(log.host,'refused').why=='silent' and result(host):find('^host=%d+#1$'))
+assert(said.host[5]=='abort 7 track' and find(log.guest,'cancelled').why=='track' and guest.phase=='over')
 host,guest,log,said=sim({tamper=bend(' 1200 8000',' 1300 8000')}) -- In bounds, but not the host's track.
 assert(said.guest[1]=='have 7 '..(R.sum(LINE)+100) and find(log.host,'refused').why=='track')
 assert(find(log.guest,'armed') and find(log.guest,'cancelled').why=='track' and guest.phase=='over','Told she is out')
@@ -611,7 +651,7 @@ do
     local _,_,_,all=sim({})
     total=#all.host+#all.guest
 end
-assert(total==16,total) -- Host: track, cps, ready, go, 3 cp, fin, rank, end. Guest: have, ready, 3 cp, fin.
+assert(total==17,total) -- Host: track, cps, drive, ready, go, 3 cp, fin, rank, end. Guest: have, ready, 3 cp, fin.
 for cut=0,total do
     host,guest,log,said=sim({cut=cut})
     assert(host.phase=='over' and (guest.phase=='over' or guest.phase=='idle'),cut)
@@ -655,14 +695,15 @@ do
     assert(R.place(m,{x=1000,y=1000,z=0})==1)
 end
 
--- Together only: the model reads and writes nothing outside its tables (no io, os, require or game call).
-do
-    local f=assert(io.open('mod/StellarCoop/Scripts/race_model.lua','rb'))
-    local src=f:read('a')
+-- Together only: the model and the driving model read and write nothing outside their tables (no io, os, require but
+-- the driving model's, or game call).
+for _,name in ipairs({'race_model','drive_model'}) do
+    local f=assert(io.open('mod/StellarCoop/Scripts/'..name..'.lua','rb'))
+    local src=f:read('a'):gsub("local Dm=require%('drive_model'%)\n",'',1)
     f:close()
     for _,word in ipairs({'%f[%w_]io%.','%f[%w_]os%.','require','StaticFindObject','FindFirstOf','ExecuteInGameThread',
         'Achiev','Reward','Item','Quest','Save'}) do
-        assert(not src:find(word),word)
+        assert(not src:find(word),name..': '..word)
     end
 end
 print('race_model_test ok')

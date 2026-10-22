@@ -7,7 +7,8 @@
 -- a false start, a teleport DNF, the host's quit during the race, after his finish and before GO, the session's end, a
 -- map change, the guest's map and co-op save refusals, her Night Operation run); the loopback guest instance; F9 while
 -- recording and not, and on another map; coop off; a first error ends the race until the mod reloads, its quit line
--- out first; the Doros an earlier Lua load left; and the together-only scan.
+-- out first; the driving (on at GO with the host's values, off at each way out, no fast flag meanwhile, its errors,
+-- the drive probe with no race); the Doros an earlier Lua load left; and the together-only scan.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui_text')
 local R=require('race_model')
@@ -116,7 +117,36 @@ local function side(o)
         friend=function() if s.friend then return s.friend,s.linked,false end end,mode=function() return s.mode end,
         loopback=function() return s.loopback end,ping=function() return s.ping end,
         chatting=function() return s.chatting end}
+    -- The driving (drive.lua's): on and off with why and the values, its frames, its 250 ms checks, the look it gives;
+    -- refuse makes on fail, error makes a frame raise.
+    s.drive={on=false,ons=0,ticks=0,slows=0,values={top=2600,accel=1200,brake=2000,coast=300,grip=70,drift_grip=20,
+        turn_slow=200,turn_fast=90,drift_angle=40}}
+    local function copy(t) local c={} for k,v in pairs(t) do c[k]=v end return c end
+    s.drive_api={values=function() return copy(s.drive.values) end,
+        on=function(P,why)
+            if s.drive.refuse then return false,s.drive.refuse end
+            s.drive.on,s.drive.P,s.drive.ons=why,copy(P),s.drive.ons+1
+            return true
+        end,
+        off=function(why)
+            local was=s.drive.on
+            s.drive.on,s.drive.why=false,why
+            return was and 'drive off ('..why..')' or 'drive off already'
+        end,
+        racing=function() return s.drive.on=='race' end,active=function() return s.drive.on~=false end,
+        tick=function()
+            s.drive.ticks=s.drive.ticks+1
+            if s.drive.error then error(s.drive.error,0) end
+            return {top=s.drive.P.top,stumble=false}
+        end,
+        slow=function() s.drive.slows=s.drive.slows+1 end,
+        command=function(a,b)
+            s.drive.said={a,b}
+            if a=='off' then s.drive.on=false end
+            return true,'drive '..tostring(a)
+        end}
     s.look_api={log=function(m) s.logs[#s.logs+1]='look: '..m end,
+        drive=function(d) if s.look.on then s.look.drive=d end end,
         on=function()
             if s.look_refuses then return false,s.look_refuses end
             s.look.on,s.look.ons=true,s.look.ons+1
@@ -124,7 +154,7 @@ local function side(o)
         end,
         off=function(why)
             local was=s.look.on
-            s.look.on,s.look.emote,s.look.offs,s.look.why=false,nil,s.look.offs+1,why
+            s.look.on,s.look.emote,s.look.drive,s.look.offs,s.look.why=false,nil,nil,s.look.offs+1,why
             return true,was and 'Doro look off ('..why..')' or 'The Doro look is off already.'
         end,
         emote=function(e) if s.look.on then s.look.emote=e end end}
@@ -137,12 +167,13 @@ local function side(o)
             assert(not on or log==s.look_api.log,'Its lines in the look\'s log')
             s.ghost.doro=on==true
         end,
-        emote=function(e) s.ghost.emote=e end}
+        emote=function(e) s.ghost.emote=e end,drive=function(top) s.ghost.top=top end}
     s.settings={race_key={key='F9',name='F9'},ui_language='game'}
     s.stored=o.stored -- coop-race-doros.txt's line.
     s.store={save=function(line) s.stored=line; return true end,load=function() return s.stored end,
         clear=function() s.stored=nil end}
     s.race=Race.new({log=function(m) s.logs[#s.logs+1]=m end,link=s.link,puppet=s.puppet,look=s.look_api,store=s.store,
+        drive=s.drive_api,
         tell=function(build) s.told[#s.told+1]=build(T.en) end,night=function() return s.night end,
         slot=function() if s.slot_ok then return true end return false,'not a co-op save' end,
         paused=function() return s.paused end,settings=s.settings})
@@ -165,18 +196,22 @@ local function at_distance(points,d)
     return points[#points]
 end
 local function put(s,p) s.eve.at={X=p.x,Y=p.y,Z=p.z} end
--- The frames: each side gets the lines the other sent the frame before (her inbox, as main.lua reads coop-chat.txt),
--- moves (s.move), ticks; every 250 ms each side's slow. A side with echo gets its own lines back (the loopback).
+-- The frames: each side steers (main.lua's order: the driving before the native tick), gets the lines the other sent
+-- the frame before (her inbox, as main.lua reads coop-chat.txt), moves (s.move), ticks; every 250 ms each side's slow.
+-- A side with echo gets its own lines back (the loopback).
 local FRAME=1/30
 local function step(list)
     clock=clock+FRAME
     for _,s in ipairs(list) do
+        player=s.eve
+        local _,why=s.race.steer()
+        if why then s.errors[#s.errors+1]=why end
         local lines=s.inbox
         s.inbox={}
         for _,line in ipairs(lines) do s.race.receive(line) end
         if s.move then s.move(s) end
         player=s.eve
-        local _,why=s.race.tick()
+        _,why=s.race.tick()
         if why then s.errors[#s.errors+1]=why end
         for k=s.read+1,#s.logs do -- Its GO, as its own clock had it.
             if s.logs[k]:find('^race %d+ go$') then s.go_at=clock end
@@ -370,6 +405,9 @@ assert(kit.shown.race_panel)
 A.move=racer(0,{CPS[1],{x=500,y=0,z=0},CPS[2],{x=12000,y=6000,z=0},CPS[4],CPS[3],CPS[4]})
 run({A},function() return A.go_at end)
 assert(table.concat(kit.sounds,' ')=='move move move select',table.concat(kit.sounds,' '))
+assert(A.drive.on=='race' and A.drive.P.top==2600 and A.drive.ticks==0,'Driving from GO, alone too')
+step({A}) -- Its first frame: the next one's steer, before the native tick.
+assert(A.drive.ticks==1 and A.look.drive.top==2600)
 assert(kit.shown.race_banner and kit.groups.race_banner.view.text.text=='GO!')
 assert(#A.sent==0,'Alone: no line')
 step({A})
@@ -400,6 +438,7 @@ assert(result==('result id=1760000000 track=quest ms=%d clock=%.3f time=0 flags=
 assert(math.abs(tonumber(result:match(' clock=([%d.]+) '))*1000-ms)<=40,'The os.clock span is the race time')
 assert(find(A.logs,'^race 1760000000 fin %d:%d%d%.%d%d$'))
 assert(A.look.emote=='win' and A.ghost.emote==nil,'Alone: the winner')
+assert(not A.drive.on and A.drive.why=='race fin' and A.look.drive==nil,'Off at her result')
 assert(kit.shown.race_results and not kit.shown.race_panel and not kit.shown.race_banner and not kit.shown.race_marker)
 local res=kit.groups.race_results.view
 assert(res.head.text=='RESULTS' and res.sub.text=='' and res.rows[1].label.text=='1  You'
@@ -444,8 +483,8 @@ do
     assert(next_lap and lap_one_idle and finish and find(C.logs,'^result .* rank=1$'))
 end
 
--- 4. With the UI off, the banners come as notices: GO, a DNF and why (a teleport). Also the fin flags: 1 s over
--- 550 cm/s with no sprint, and 2 s paused.
+-- 4. With the UI off, the banners come as notices: GO, a DNF and why (a teleport). Also the fin flags: 2 s paused
+-- sets flag 2; 1 s over 550 cm/s with no sprint sets no flag 1 while the race drives her.
 kit.is_off=true
 A.told,A.go_at,A.move={},nil,racer(0)
 A.race.command('start','quest')
@@ -462,8 +501,9 @@ step({A})
 A.move=nil
 assert(A.told[1]=='Race ready: walk to your start.' and A.told[2]=='GO!' and A.told[3]=='DNF'
     and A.told[4]=='Moved more than 20 m at once.',table.concat(A.told,'|'))
+assert(not A.drive.on and A.drive.why=='race teleport')
 run({A},function() return find(A.logs,'^result id=1760000001') end)
-assert(find(A.logs,'^result id=1760000001 track=quest ms=%- clock=[%d.]+ time=0 flags=3 rank=%-$'),A.logs[#A.logs])
+assert(find(A.logs,'^result id=1760000001 track=quest ms=%- clock=[%d.]+ time=0 flags=2 rank=%-$'),A.logs[#A.logs])
 assert(A.look.emote=='lose')
 run({A},function() return not A.race.armed() end,400)
 kit.is_off=false
@@ -484,12 +524,28 @@ ok,message=H.race.command('start','quest')
 assert(ok and H.logs[#H.logs]:find('with a friend$'))
 step({H,G})
 assert(H.wire[1]=='track '..wall..' 4 1 0 0 0 0 '..MAP and H.wire[2]:find('^cps '..wall..' 1 4000 0 0 1200 '))
+assert(H.wire[3]=='drive '..wall..' 2600 1200 2000 300 70 20 200 90 40','The host\'s driving values',H.wire[3])
 step({H,G})
 assert(G.race.armed() and G.look.on and G.ghost.doro and G.told[1]=='Host starts a race: walk to your start.')
-assert(G.wire[1]=='have '..wall..' '..R.sum(TRACK))
+local driven=assert(R.parse_track(TEXT))
+driven.drive=H.drive.values
+assert(G.wire[1]=='have '..wall..' '..R.sum(driven),'Her sum with his values')
 step({H,G})
 assert(H.ghost.doro,'Her have: her ghost runs as a Doro')
+assert(not H.drive.on and not G.drive.on,'No driving before GO')
+-- From GO both drive with the host's values, each frame; their ghosts' Doros by its top speed; the looks get it.
+run({H,G},function() return H.go_at and G.go_at end)
+step({H,G})
+for _,s in ipairs({H,G}) do
+    assert(s.drive.on=='race' and s.drive.ons==1 and s.drive.P.top==2600 and s.drive.P.drift_angle==40)
+    assert(s.ghost.top==2600 and s.look.drive.top==2600 and s.drive.ticks>0)
+end
+-- Each side's driving ends at its own result; all of it gone once the race closes.
+run({H,G},function() return find(H.logs,'^race %d+ fin ') end)
+assert(not H.drive.on and H.drive.why=='race fin' and has(H.logs,'drive off (race fin)') and H.look.drive==nil)
+assert(H.ghost.top==2600,'Her Doro keeps the race\'s speed while she races')
 run({H,G},function() return not H.race.armed() and not G.race.armed() end)
+assert(not G.drive.on and G.drive.why=='race fin' and H.ghost.top==nil and G.ghost.top==nil)
 local hr,gr=find(H.logs,'^result '),find(G.logs,'^result ')
 assert(hr:find(' track=quest ') and hr:find(' rank=1$') and gr:find(' track=%- ') and gr:find(' rank=2$'),hr..' / '..gr)
 assert(H.wire[#H.wire]=='end '..wall and find(H.wire,'^rank '..wall..' %d+ %d+$'))
@@ -521,13 +577,16 @@ run({H,G},function() return left and count(H.wire,'^abort %d+ false_start$')==1 
 frames({H,G},3)
 assert(has(H.told,'False start: back to your start.') and has(G.told,'False start: back to your start.'))
 run({H,G},function() return count(H.wire,'^go ')==2 end)
+assert(not G.drive.on and G.drive.ons<=1,'No driving while back at the start')
 -- 7. The host quits mid-race: his DNF goes out, his race closes at once; she finishes and ranks herself.
 run({H,G},function() return H.go_at end) -- The first countdown never reached GO.
 frames({H,G},90)
+assert(H.drive.on=='race' and G.drive.on=='race','Driving after the second GO')
 ok,message=H.race.command('quit')
 assert(ok and message=='You left the race.')
 step({H,G})
 assert(not H.race.armed() and not H.look.on and H.look.why=='race quit' and H.wire[#H.wire]:find('^dnf %d+ quit$'))
+assert(not H.drive.on and H.drive.why=='race quit' and H.ghost.top==nil)
 assert(H.stored==nil,'Its Doros gone, their file too')
 assert(not has(H.told,'Quit the race.'),'Its own reply says it')
 step({H,G})
@@ -574,6 +633,7 @@ run({H,G},function() return G.go_at and clock-G.go_at>3 end)
 G.chatting,G.peer,H.peer=false,nil,nil
 run({G},function() return find(G.logs,'^result ') end,20)
 assert(find(G.logs,'^race %d+ dnf left$') and has(G.told,'The session ended.'))
+assert(not G.drive.on and G.drive.why=='race left')
 run({G},function() return not G.race.armed() end,400)
 H.race.command('quit')
 step({H})
@@ -586,6 +646,7 @@ run({H,G},function() return G.go_at and clock-G.go_at>3 end)
 G.me={map='/game/e04'}
 run({H,G},function() return not G.race.armed() end,10)
 assert(G.wire[#G.wire]:find('^dnf %d+ map$') and not G.look.on and G.look.why=='race map')
+assert(not G.drive.on and G.drive.why=='race map')
 assert(G.told[#G.told]=='Left the map.','Said, as the HUD goes with the race')
 run({H,G},function() return not H.race.armed() end)
 assert(find(H.logs,'^result .* rank=1$'))
@@ -643,6 +704,18 @@ assert(find(G.logs,'^race %d+ from the host not answered: Night Operation is run
 run({H,G},function() return has(H.told,'Kaanta did not answer. You race alone.') end,400)
 H.race.command('quit')
 step({H,G})
+-- Her drive probe ends when the host's race comes: her movement is hers until GO, her look out of its driving.
+H,G=pair()
+G.drive_api.on({top=2200},'probe')
+G.look.on=true
+step({G})
+assert(G.look.drive.top==2200)
+player=H.eve
+H.race.command('start','quest')
+frames({H,G},4)
+assert(G.race.armed() and not G.drive.on and G.drive.why=='the host started a race' and G.look.drive==nil)
+H.race.command('quit')
+step({H,G})
 -- The session's host never arms as a guest, whatever line comes.
 H.race.receive('track 7 4 1 0 0 0 0 '..MAP)
 assert(not H.race.armed() and #H.sent==0)
@@ -686,6 +759,7 @@ frames({H,G},10)
 player=H.eve
 H.race.stop()
 assert(not H.race.armed() and not H.look.on and H.look.why=='race coop off' and H.sent[#H.sent]:find('^dnf %d+ quit$'))
+assert(not H.drive.on and H.drive.why=='race coop off')
 frames({H,G},3)
 G.race.stop()
 assert(not G.race.armed() and #alive()==0)
@@ -723,7 +797,69 @@ assert(G.sent[#G.sent]:find('^dnf %d+ quit$') and not G.look.on) -- Sent at the 
 run({H,G},function() return not H.race.armed() end)
 assert(not H.ghost.doro and has(H.told,'Kaanta left the race.') and find(H.logs,'^result .* rank=1$'))
 
--- 14b. Display Doros an earlier Lua load left (Ctrl+R mid-race): swept at the first tick, once, the file cleared.
+-- 14a. The driving's errors: a drive that cannot go on at GO ends the race; so does a frame of it that raises, the
+-- driving off.
+do
+    local S=side()
+    S.files[FILE],S.move=TEXT,racer(0)
+    player=S.eve
+    S.drive.refuse='EVE has no movement component'
+    assert(S.race.command('start','quest'))
+    run({S},function() return #S.errors>0 end)
+    assert(S.errors[1]=='the race stopped on an error until the mod reloads: no driving: EVE has no movement component',
+        S.errors[1])
+    assert(not S.race.armed() and not S.look.on and not S.drive.on)
+    S=side()
+    S.files[FILE],S.move=TEXT,racer(0)
+    player=S.eve
+    assert(S.race.command('start','quest'))
+    run({S},function() return S.drive.on end)
+    S.drive.error='no velocity'
+    step({S})
+    assert(S.errors[1]=='the race stopped on an error until the mod reloads: no velocity',S.errors[1])
+    assert(not S.drive.on and S.drive.why=='race error' and S.ghost.top==nil)
+end
+-- 14b. The drive probe, with no race: coop race drive reaches drive.lua; no race starts while it runs; each frame's
+-- steer drives it and gives the look its values, every 250 ms its check; its error ends it, and so do coop race drive
+-- off (the look out of its driving) and coop off.
+do
+    local S=side()
+    S.files[FILE]=TEXT
+    player=S.eve
+    ok,message=S.race.command('drive','top','2600')
+    assert(ok and S.drive.said[1]=='top' and S.drive.said[2]=='2600')
+    S.move=racer(0)
+    assert(S.race.command('start','quest'))
+    ok,message=S.race.command('drive','probe')
+    assert(not ok and message=='a race is armed: coop race quit leaves it' and S.drive.said[1]=='top')
+    S.race.command('quit')
+    step({S})
+    assert(not S.race.armed())
+    S.drive_api.on({top=2200},'probe') -- What drive.lua's coop race drive probe does.
+    ok,message=S.race.command('start','quest')
+    assert(not ok and message=='the drive probe runs: coop race drive off ends it')
+    S.look.on=true
+    S.race.tick()
+    assert(S.drive.ticks==0,'Not in the race\'s tick')
+    S.race.steer()
+    assert(S.drive.ticks==1 and S.look.drive.top==2200)
+    S.race.slow()
+    assert(S.drive.slows==1)
+    ok,message=S.race.command('drive','off')
+    assert(ok and not S.drive.on and S.look.drive==nil,'The look walks again')
+    S.drive_api.on({top=2200},'probe')
+    S.race.steer()
+    assert(S.look.drive.top==2200)
+    S.drive.error='no stick'
+    local _,why=S.race.steer()
+    assert(why=='the drive probe stopped on an error: no stick; drive off (error)' and not S.drive.on,tostring(why))
+    assert(S.look.drive==nil)
+    S.drive.error=nil
+    S.drive_api.on({top=2200},'probe')
+    S.race.stop()
+    assert(not S.drive.on and S.drive.why=='coop off')
+end
+-- 14c. Display Doros an earlier Lua load left (Ctrl+R mid-race): swept at the first tick, once, the file cleared.
 do
     local S=side({stored='/Doro/old1\t/Game/Other'})
     S.race.tick()
@@ -750,9 +886,10 @@ do
     d.removed=true
 end
 
--- 15. Together only: race.lua, race_model.lua and doro.lua name no achievement, reward, item, quest, save or console
--- command call, and spawn a plain /Script/Engine.Actor only (doro.lua's one SpawnActor).
-for _,name in ipairs({'race','race_model','doro'}) do
+-- 15. Together only: race.lua, race_model.lua, doro.lua, drive.lua and drive_model.lua name no achievement, reward,
+-- item, quest, save, possession or console command call, and spawn a plain /Script/Engine.Actor only (doro.lua's one
+-- SpawnActor).
+for _,name in ipairs({'race','race_model','doro','drive','drive_model'}) do
     local f=assert(io.open('mod/StellarCoop/Scripts/'..name..'.lua','rb'))
     local src=f:read('a')
     f:close()
