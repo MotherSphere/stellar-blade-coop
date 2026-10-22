@@ -579,6 +579,7 @@ function Race.new(o)
             log('race '..l.id..' from the host refused: not a co-op save')
             return tell(function(w) return w.race.declined.save:format(her_name(w)) end)
         end
+        if drive.active() then log(drive.off('the host started a race')) end -- Her movement whole until GO.
         local me=puppet.me()
         r=new_race('guest',R.guest(),{map=me and me.map,with=true})
         r.inbox[1]=text

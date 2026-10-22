@@ -695,6 +695,15 @@ assert(find(G.logs,'^race %d+ from the host not answered: Night Operation is run
 run({H,G},function() return has(H.told,'Kaanta did not answer. You race alone.') end,400)
 H.race.command('quit')
 step({H,G})
+-- Her drive probe ends when the host's race comes: her movement is hers until GO.
+H,G=pair()
+G.drive_api.on({top=2200},'probe')
+player=H.eve
+H.race.command('start','quest')
+frames({H,G},4)
+assert(G.race.armed() and not G.drive.on and G.drive.why=='the host started a race')
+H.race.command('quit')
+step({H,G})
 -- The session's host never arms as a guest, whatever line comes.
 H.race.receive('track 7 4 1 0 0 0 0 '..MAP)
 assert(not H.race.armed() and #H.sent==0)
