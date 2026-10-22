@@ -390,6 +390,17 @@ public:
       if (!out(died_at_[i], io))
         block(died_at_[i]);
     died_ = 0;
+    // A Monster of ours dying while stage 1 does not follow it (unpaired, or our lethal claim waits for the host's
+    // answer): answered as a refused key, so our rounds keep naming it once it left the map, and the host, whose enemy
+    // may live on, does not send it back. One the host's dead killed is blocked, and round() leaves it out. Never an
+    // extra's key, which no block holds. ponytail: one the host kills later on its own side stays named, and draws a
+    // stale drop each round until the epoch moves.
+    for (size_t i = 0; i < n; ++i) {
+      const Mine &m = mine[i];
+      if (m.dying && m.monster && !m.paired && !is_extra(m.key.spawn) && !was_made(m.key) &&
+          !listed(blocked_at_, blocked_, m.key) && !out(m.key, io))
+        made(m.key, m.chr, false);
+    }
     const bool shared = zone && zone == zone_ && ep.settled(now) && close;
     for (size_t i = 0; i < made_; ++i)
       check(made_at_[i], mine, n, now, io);
@@ -527,8 +538,9 @@ private:
     io.event(Event{why ? "drop refused" : "despawned", why ? why : "", 0, k.spawn, k.index});
   }
   // Our keys in the host's zone, as kHaveKeys a line: our Monsters of keys that take part there (dying ones too), less
-  // those we despawned, plus those we answered for in this epoch but a created one that showed right: our census names
-  // it while it lives, and once it died (the host's kill, through stage 1) the host lacks it too, so no drop comes.
+  // those we despawned, plus those we answered for in this epoch but a created one that showed right and a blocked
+  // one: our census names the first while it lives, and once it died (the host's kill, through stage 1) the host lacks
+  // it too, as it lacks a blocked key, so no drop comes.
   template <class Io> void round(uint32_t gen, const Mine *mine, size_t n, uint64_t now, Io &io) {
     SpawnKey keys[kMaxKeys];
     size_t count = 0;
@@ -537,7 +549,8 @@ private:
           !out(mine[i].key, io))
         keys[count++] = mine[i].key;
     for (size_t i = 0; i < made_ && count < kMaxKeys; ++i)
-      if ((!made_at_[i].created || !made_at_[i].checked) && !listed(keys, count, made_at_[i].key))
+      if ((!made_at_[i].created || !made_at_[i].checked) && !listed(keys, count, made_at_[i].key) &&
+          !listed(blocked_at_, blocked_, made_at_[i].key))
         keys[count++] = made_at_[i].key;
     Message m;
     m.type = Type::have, m.gen = gen, m.epoch = n_;

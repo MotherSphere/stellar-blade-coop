@@ -709,9 +709,10 @@ pairs through its spawn key like any other.
   job (`FUN_141b077f0`, as a ZoneEvent despawn does): never a kill, and never an enemy that shared enemies pair. A
   created enemy that shows up as no Monster, or as another character than the host's, is removed again, within the same
   32 calls a second. One the despawn cannot find again (a dying one, for example) stays and is logged as kept. A key she
-  refused counts as hers in her next list, so the host stops asking for it until the epoch moves. A key refused as too
-  far or for room (`full`) is left out of the list, so the host asks again once she is nearer or has room, and an enemy
-  she created leaves the list once it has died or left her game.
+  refused counts as hers in her next list, so the host stops asking for it until the epoch moves. So does an enemy she
+  killed that shared enemies did not pair (another difficulty, or past 16 pairs), since the host's enemy may still be
+  alive. A key refused as too far or for room (`full`) is left out of the list, so the host asks again once she is
+  nearer or has room, and an enemy she created leaves the list once it has died or left her game.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the table
   holder and the job sender are read from their globals and never made by the mod: their getters (`FUN_141adc3d0`,
   `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing. The spawn call gets the spawn manager, the
