@@ -708,10 +708,17 @@ While the race drives EVE, her Doro runs on all fours from 60% of the top speed,
 faces where it is heading (so it shows its side in a drift), leans into bends, dips its nose when it lands and plays a
 tired hop when it hits a wall. Your friend's Doro does the same from their ghost's movement, except the tired hop.
 
-To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. The
-race's end, `coop race quit`, `coop off`, a map change and the look's first error undo both changes. While the look is
-on, `coop-look.txt` holds what it changed, so the next Lua load (Ctrl+R) undoes them when this one could not. If EVE
-stays hidden, see [troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. It
+also hides the drone that follows EVE, within 30 m of her, while the game shows it. The race's end, `coop race quit`,
+`coop off`, a map change and the look's first error undo these changes. While the look is on, `coop-look.txt` holds
+what it changed, so the next Lua load (Ctrl+R) undoes them when this one could not. If EVE or the drone stays hidden,
+see [troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+
+Each Doro keeps its animations loaded while it stands. The first Doro of a race loads them all at once, so it can take
+a moment to appear, and none loads during the race. While the look is on, `UE4SS.log` has a line once a minute,
+`[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>`. `reload`
+counts the Doro animations loaded again, which froze the Doro for a moment when EVE sprinted in 0.5.0-beta.1. It should
+read 0.
 
 While the look is on, your friend's game receives your EVE's parts as hidden. In a race their game joined, they see
 your ghost as a Doro. Otherwise your ghost on their screen shows its name and marker but no body until the look ends.

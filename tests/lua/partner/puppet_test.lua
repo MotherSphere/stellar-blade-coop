@@ -14,8 +14,8 @@
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
 -- them in place(), within their budget; with collide on, the solid partner's capsule and the rules that open it.
--- them in place(), within their budget; Doro mode, its Doro on part 0 and every part hidden until it goes off, and the
--- race's emote on it.
+-- them in place(), within their budget; Doro mode, its Doro on part 0 with its keepers (gone with it) and every part
+-- hidden until it goes off, and the race's emote on it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -176,6 +176,8 @@ local function cloth_part(actor)
     -- A Doro (race/doro.lua) is one too: its scale, the single-node mode and its animation calls.
     function s:SetRelativeScale3D(v) self.scale=v end
     function s:SetAnimationMode(n) self.mode=n end
+    function s:SetAnimation(a) self.anim=a end -- A Doro's keeper: the clip it holds.
+    function s:SetComponentTickEnabled(on) self.ticks=on end
     function s:PlayAnimation(a,loop) self.playing={asset=a,loop=loop} end
     function s:GetAnimInstance() return {SetBlendSpaceInput=function(_,v) s.input=v.X end} end
     function s:SetPlayRate(r) self.rate=r end
@@ -273,6 +275,10 @@ local world=object('World',{SpawnActor=function(_,class,at)
             if fail_label then return nil end
             added=text_render(self)
             self.label=added
+        elseif c.path=='/Script/Engine.SkeletalMeshComponent' and manual==true then -- A Doro's keeper, unattached.
+            added=cloth_part(self)
+            self.keepers=self.keepers or {}
+            self.keepers[#self.keepers+1]=added
         elseif c.path=='/Script/Engine.SkeletalMeshComponent' then
             assert(manual==false)
             skeletal_adds=skeletal_adds+1
@@ -1343,6 +1349,18 @@ local doro=actor.parts[7]
 assert(#actor.parts==7 and doro.mesh==meshes[DORO.mesh] and doro.attached.parent==actor.parts[1]
     and doro.attached.socket=='None' and doro.scale.X==1.5 and doro.mode==1 and doro.calls.SetCollisionEnabled==0,
     'One Doro, on part 0')
+-- Its keepers (race/doro.lua): one a clip on the ghost's actor, hidden, not ticking, collision off, holding the clip.
+local function keepers(list)
+    local held={}
+    for _,k in ipairs(list) do
+        assert(k.visible==false and k.ticks==false and k.VisibilityBasedAnimTickOption==3 and k.mode==1
+            and k.calls.SetCollisionEnabled==0 and k.mesh==meshes[DORO.mesh] and not k.attached,'A keeper')
+        held[k.anim.path]=true
+    end
+    for key,path in pairs(DORO) do assert(held[path]==(key~='mesh' or nil),key) end
+end
+assert(#actor.keepers==9)
+keepers(actor.keepers)
 for k=1,6 do assert(actor.parts[k].visible==false,'Every part hidden: '..k) end
 assert(not displays[#displays]:find(string.format('0x%x',doro.GetAddress()),1,true),'The native part never drives it')
 -- At each pose: standing at the first (a teleport), then her speed from her feet over 50 ms at least, smoothed.
@@ -1395,8 +1413,9 @@ doro.turned=nil
 run(36)
 assert(doro.turned==nil,'Once')
 box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
--- Off: the Doro gone, each part shown as the table says (her ponytail hidden there).
+-- Off: the Doro and its keepers gone, each part shown as the table says (her ponytail hidden there).
 assert(ghost.doro(false)==nil and doro.destroyed)
+for _,k in ipairs(actor.keepers) do assert(k.destroyed,'Its keepers gone') end
 for k=1,6 do assert(actor.parts[k].visible==(k~=4),'As the table says: '..k) end
 -- A Doro call that fails at a pose: Doro mode off, its Doro gone, the parts as the table says, the ghost kept.
 assert(ghost.doro(true)==nil and actor.parts[1].visible==false)

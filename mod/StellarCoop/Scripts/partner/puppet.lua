@@ -262,7 +262,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         elseif not doro_on and g.doro then
             local d=g.doro
             g.doro=nil
-            d.mesh:K2_DestroyComponent(g.actor)
+            Doro.detach(d,g.actor) -- Its keepers too: the ghost's actor stays.
         end
         for _,part in ipairs(remote.parts) do
             local built=g.parts[part.i]
@@ -438,9 +438,14 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if base then on_base(part,base,why) else left_out(part) end
         end
         for _,part in ipairs(t.parts) do g.steps[#g.steps+1]=function() dress(part) end end
-        -- Doro mode: its mesh found or loaded in a step of its own, never with another one.
+        -- Doro mode: its mesh and each clip its keepers hold found or loaded in a step of its own, never with another
+        -- one (while the look is on, its own Doro's keepers hold them already).
         if doro_on then
-            g.steps[#g.steps+1]=function() Doro.resolve(Doro.ASSETS.mesh,'/Script/Engine.SkeletalMesh') end
+            for key,path in pairs(Doro.ASSETS) do
+                g.steps[#g.steps+1]=function()
+                    Doro.resolve(path,key=='mesh' and '/Script/Engine.SkeletalMesh' or nil)
+                end
+            end
         end
         -- Her effects: the listed systems, a step each. One failing ends the build there, without effects.
         local fx_loaded,fx_why=0,nil

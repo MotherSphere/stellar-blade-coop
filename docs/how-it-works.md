@@ -1088,8 +1088,9 @@ Whether every story scene, dialogue and boss intro runs through a theater observ
 
 A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines,
 `race/doro.lua` for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two
-reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part
-only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
+reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line), and it reads one SB property,
+`bCustomFlyMoveDroneMode`, to find the drone (see [The Doro look](#the-doro-look)); the rest are engine functions. The
+native part only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
 
 ### The display Doro
 
@@ -1113,16 +1114,26 @@ component runs the engine's single-node animation (`SetAnimationMode(1)`), and e
   spring. The lean is the rotator's `Pitch` and the nose its `Roll`, since the mesh faces its +Y; both signs are
   unchecked in game.
 
-The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). A race shows at most two
-Doros of its own: before GO one at the start line's centre, and during the race one at the next checkpoint and one at
-the one after it, facing the checkpoint before them. Their object paths stay in `coop-race-doros.txt` while they stand,
-so a Lua reload (Ctrl+R) in a race destroys them at its first tick.
+The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). The engine's garbage
+collector unloads an asset that nothing in the engine references, and a reference held in Lua does not count. In
+0.5.0-beta.1, a clip that no Doro had played for a while was unloaded, and the next `PlayAnimation` loaded it again
+synchronously: 5 loads a minute taking 185 ms in all while EVE sprinted, each one a short freeze in game. Each Doro
+now carries one keeper per clip: a second `SkeletalMeshComponent` with Doro's mesh, in single-node mode, given the clip
+with `SetAnimation`. Its animation instance holds the clip through `CurrentAsset`, which the collector follows, so every
+clip stays loaded while any Doro stands. The keepers are not attached and never move. They have `bVisible` off, so the
+renderer never gets them, component tick off, `VisibilityBasedAnimTickOption` 3 (pose only while drawn) and collision
+off. They go with their Doro's actor; on the ghost, whose actor stays, they go when Doro mode ends. A clip that is not
+in memory is loaded when a Doro is made, not during the race.
+
+A race shows at most two Doros of its own: before GO one at the start line's centre, and during the race one at the next
+checkpoint and one at the one after it, facing the checkpoint before them. Their object paths stay in
+`coop-race-doros.txt` while they stand, so a Lua reload (Ctrl+R) in a race destroys them at its first tick.
 
 ### The Doro look
 
 The look draws your EVE as a Doro. Its Doro is placed each frame, after the native tick, at the world location and
 rotation of EVE's main mesh (her feet); it is not attached to her. The look and the race's driving (below) are the
-features that write to the player actor. The look writes two things:
+features that write to the player actor. The look writes two things on her, and hides the drone:
 
 - `bHiddenInGame` on each of EVE's mesh components that did not have it, through `SetHiddenInGame`. The game shows and
   hides her parts (a drawn blade) with `SetVisibility`, which sets the separate `bVisible` flag, so the look neither
@@ -1130,20 +1141,38 @@ features that write to the player actor. The look writes two things:
 - `VisibilityBasedAnimTickOption` on her main mesh, set to 0 (always tick the pose). EVE's Blueprint ticks her pose
   only while she is drawn, so a hidden EVE would stop her pose, her animation notifies and the root-motion moves of
   dodges and ledges.
+- The drone that follows EVE is an SB character of its own, so hiding EVE's parts left it flying beside the Doro. The
+  look hides it with `SetActorHiddenInGame(true)`, only when the game shows it, and writes nothing else on it. It finds
+  the drone with one `FindAllOf('SBCharacter')`: the nearest character other than EVE whose movement component has
+  `bCustomFlyMoveDroneMode` set, within 30 m of her. It looks at look on and then once a second while it holds no
+  drone, since one can spawn or stream in later; once it holds one, it only checks that one's `bHidden`. A drone the
+  game hid is left alone until the game shows it. The log says `[StellarCoop][DR] look drone hid <name> at <m> m`, or
+  once per look `[StellarCoop][DR] look drone none: <n> characters within 30 m, none a shown drone`.
 
 Before it changes anything, the look writes `coop-look.txt`: EVE's object path, the old tick option, its Doro's path
-and the names of the parts it hides. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns
-off), hides again any listed part the game showed, and sets the tick option back to 0. The log counts both once a
-minute (`[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min ...`) and names each flag change the
-game made (`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`).
+and the names of the parts it hides. Before it hides the drone, it writes the file again with the drone's object path
+added at the end. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns off), hides again any
+listed part the game showed, and sets the tick option back to 0. Once a second it hides the drone again if the game
+showed it. The log names each flag change the game made (`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`)
+and gives the counts once a minute:
 
-Turning the look off destroys its Doro, clears `bHiddenInGame` on the listed parts only, puts the tick option back and
-deletes the file. That runs at the race's end, on `coop race look off` and `coop off`, after a map change and at the
-look's first error, after which the look stays off until the mod reloads. If one of those steps fails, the file stays.
-A Lua load that finds `coop-look.txt` (after Ctrl+R, or a Lua state that stopped) uses it at its first game-thread
-tick: it destroys the Doro named there if that actor still shows Doro's mesh, clears `bHiddenInGame` on the listed
-parts that still have it, puts the tick option back and deletes the file. The log says
-`[StellarCoop][DR] look restored <n> parts from coop-look.txt`.
+```
+[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>
+```
+
+`rehid` counts the parts and the drone hidden again, `retick` the tick option set back, and `reload` the Doro assets
+loaded again after the collector unloaded them, with the time it took in `reload_ms`. With the keepers (see
+[The display Doro](#the-display-doro)), `reload` reads 0 once the first Doro is made.
+
+Turning the look off destroys its Doro, clears `bHiddenInGame` on the listed parts only, puts the tick option back,
+shows the drone it hid if that actor is still there and hidden, and deletes the file. That runs at the race's end, on
+`coop race look off` and `coop off`, after a map change and at the look's first error, after which the look stays off
+until the mod reloads. If one of those steps fails, the file stays. A Lua load that finds `coop-look.txt` (after
+Ctrl+R, or a Lua state that stopped) uses it at its first game-thread tick: it destroys the Doro named there if that
+actor still shows Doro's mesh, clears `bHiddenInGame` on the listed parts that still have it, puts the tick option
+back, shows the drone named there if the object at that path is still a hidden SB character, and deletes the file.
+The log says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with `and the drone` after `parts` when it
+showed the drone.
 
 The capture is unchanged, and it counts a part with `bHiddenInGame` as hidden. While the look is on, your friend's game
 therefore receives every part of your EVE as hidden, and draws your ghost with no body unless its Doro mode is on.
@@ -1156,14 +1185,16 @@ Your friend's ghost is drawn as a Doro while their game takes part in the race: 
 whose game answers `have <id> no <why>` stays EVE on both screens.
 
 In Doro mode, `partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's
-mesh, on the ghost's main mesh, where her feet are. The ghost is the mod's own actor, so nothing of the game's is
-touched. The Doro's speed and vertical speed come from the ghost's feet between poses, measured over 50 ms at least. The
-pose stream has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520
-cm/s, and a vertical speed over 400 cm/s, up or down, counts as being in the air. The ghost's own hiding (no pose for 1
-s, another map) covers the Doro too. A Doro that cannot be made leaves the ghost drawn as EVE, with the reason in the
-log. The pose stream is the same during a race: the bones still arrive and are written into the hidden parts. While the
-race drives, the ghost's Doro follows the same driving rules as yours, with the turn rate taken from the ghost's yaw in
-the pose stream, and its lean and nose set as a relative rotation on the ghost's main mesh.
+mesh, on the ghost's main mesh, where her feet are, and adds the Doro's keepers to the ghost's actor. A ghost built in
+Doro mode resolves Doro's mesh and each clip in a build step of its own, so no frame loads more than one. The ghost is
+the mod's own actor, so nothing of the game's is touched. The Doro's speed and vertical speed come from the ghost's feet
+between poses, measured over 50 ms at least. The pose stream has no sprint or falling flag, so the Doro goes on all
+fours above 560 cm/s and back on two legs below 520 cm/s, and a vertical speed over 400 cm/s, up or down, counts as
+being in the air. The ghost's own hiding (no pose for 1 s, another map) covers the Doro too. A Doro that cannot be made
+leaves the ghost drawn as EVE, with the reason in the log. The pose stream is the same during a race: the bones still
+arrive and are written into the hidden parts. While the race drives, the ghost's Doro follows the same driving rules as
+yours, with the turn rate taken from the ghost's yaw in the pose stream, and its lean and nose set as a relative
+rotation on the ghost's main mesh.
 
 ### Driving
 
@@ -1319,9 +1350,10 @@ drops the input.
 - The [Doro look](#the-doro-look) and a race's [driving](#driving) are the only writes to the player actor. The look
   writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
   `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
-  after a map change and at its first error. The driving sets four values of her movement component to 0 and gives it a
-  velocity and her a yaw each frame. It writes `coop-drive.txt` before it changes the values, and puts them back on the
-  same exits. The next Lua load undoes either from its file when this one could not.
+  after a map change and at its first error. It also hides the drone that follows EVE with `SetActorHiddenInGame`,
+  records it in the same file first, and shows it again on the same exits. The driving sets four values of her movement
+  component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it changes the
+  values, and puts them back on the same exits. The next Lua load undoes either from its file when this one could not.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game

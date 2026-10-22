@@ -128,15 +128,17 @@ effects off until the game restarts; the ghost stays, without effects.
 
 ### EVE is invisible, or only a Doro shows
 
-During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and draws a
-Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show her again. If she stays hidden:
+During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and the drone
+that follows her, and draws a Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show both
+again. If EVE or the drone stays hidden:
 
 - Type `coop race look off`. While the look is still on, it answers `OK: Doro look off (coop race look off): <n> parts
-  shown again, tick option <t> back.` If it answers `The Doro look is off already.`, go on to Ctrl+R.
-- Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE again at its
-  first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`. This covers a look
-  stopped by a Lua error, and an off that failed (`Doro look off (...): ...; <error>` in the log keeps the file for
-  this).
+  shown again, tick option <t> back.`, with `and the drone` after `parts` when it hid the drone. If it answers
+  `The Doro look is off already.`, go on to Ctrl+R.
+- Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE and the
+  drone again at its first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with
+  `and the drone` after `parts` when it showed the drone. This covers a look stopped by a Lua error, and an off that
+  failed (`Doro look off (...): ...; <error>` in the log keeps the file for this).
 - Restart the game if neither works. The look's changes are in memory only, and no save holds them.
 
 A Doro left standing alone where a race was (at a checkpoint or the start line) goes at the next Lua load too:

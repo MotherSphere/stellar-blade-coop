@@ -7,6 +7,9 @@
 -- VisibilityBasedAnimTickOption is 0, so her pose, notifies and root-motion moves still run while she is not drawn.
 -- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
 -- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
+-- The look also hides the drone that follows EVE (an SB character of the game's, through SetActorHiddenInGame, only
+-- when it is shown) and shows it again on the same ways out; it writes nothing else on it.
+-- Each Doro carries hidden keepers that hold its clips, so the engine never unloads one in the middle of a race.
 -- The probe (coop race probe doro): a Doro 3 m ahead of EVE plays each clip in turn, with a log line a step.
 -- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/leviathan.lua's coop leviathan);
 -- attach, spawn, sweep and remove also make and remove its free camera, a plain actor with one CameraComponent.
@@ -147,8 +150,9 @@ local function same(o,path)
     return o and path_of(o)==path and o or nil
 end
 Doro.same=same
--- Doro's own assets (under DIR) found or loaded again after the engine collected them (a clip nothing played for a
--- while): their count and ms, for the look's minute line. Another mesh's (coop leviathan's) are not counted.
+-- Doro's own assets (under DIR) found or loaded again after the engine collected them: their count and ms, for the
+-- look's minute line. Another mesh's (coop leviathan's) are not counted. Each Doro's keepers (attach) hold every clip
+-- while it stands, so this stays 0 then; a Doro made after none stood for a while loads them again, at its making.
 Doro.reloads={n=0,ms=0}
 local cache={}
 -- An asset by its object path: in memory already, else loaded (LoadAsset, synchronous); nil when neither gives one of
@@ -173,10 +177,34 @@ end
 local function name_of(look)
     return look and (look.camera and 'the camera' or look.path:match('[^.]+$')) or 'the Doro'
 end
+-- The engine's collector unloads an asset nothing of the engine's references (a Lua reference is none), and the next
+-- PlayAnimation then loaded it again, synchronously (in game: 5 loads a minute, 185 ms in all, while she sprinted). A
+-- Doro carries one keeper per clip of ASSETS, added to keepers: a SkeletalMeshComponent with Doro's mesh whose
+-- single-node instance holds the clip (its CurrentAsset, a UPROPERTY, through SetAnimation). Never drawn (bVisible
+-- off, so no render proxy), never ticking, its pose never ticked (VisibilityBasedAnimTickOption 3: only while drawn),
+-- collision off, unattached (never moved). A clip not in memory is loaded here, when a Doro is made, never in the
+-- middle of a race. A clip missing on this PC gets none: apply says so if it is played.
+local function keep(actor,mesh,identity,keepers)
+    for key,path in pairs(Doro.ASSETS) do
+        local clip=key~='mesh' and Doro.resolve(path)
+        if clip then
+            local k=assert(valid(actor:AddComponentByClass(find(SKINNED),true,identity,false)),
+                'a keeper could not be added')
+            keepers[#keepers+1]=k
+            k:SetVisibility(false,false)
+            k:SetComponentTickEnabled(false)
+            k.VisibilityBasedAnimTickOption=3 -- OnlyTickPoseWhenRendered
+            k:SetCollisionEnabled(0)
+            k:SetSkeletalMesh(mesh,true)
+            k:SetAnimationMode(1) -- AnimationSingleNode
+            k:SetAnimation(clip)
+        end
+    end
+end
 -- A Doro component on actor, hung on parent when given (KeepRelative: where the parent is), else the actor's root.
 -- look: another mesh, {path=<its object path>, static=true for a StaticMesh}, at scale 1, a static one with no
--- animation mode; or {camera=true}, a CameraComponent alone. Returns the display {mesh=<component>}; raises, with no
--- component left, when it cannot be made.
+-- animation mode; or {camera=true}, a CameraComponent alone. Returns the display {mesh=<component>, keepers=<a Doro's
+-- keepers, one a clip>}; raises, with no component left, when it cannot be made.
 function Doro.attach(actor,parent,look)
     local identity=find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform({X=0,Y=0,Z=0},
         {Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
@@ -189,6 +217,7 @@ function Doro.attach(actor,parent,look)
         (look and name or 'the Doro mesh')..' is missing on this PC')
     local c=valid(actor:AddComponentByClass(find(static and SOLID or SKINNED),false,identity,false))
     assert(c,name..' could not be added')
+    local d={mesh=c,keepers={}}
     local ok,why=pcall(function()
         if parent then
             c:K2_AttachToComponent(parent,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,KEEP_RELATIVE,false)
@@ -198,12 +227,19 @@ function Doro.attach(actor,parent,look)
         c:SetRelativeScale3D({X=scale,Y=scale,Z=scale})
         c:SetCollisionEnabled(0)
         if not static then c:SetAnimationMode(1) end -- AnimationSingleNode
+        if not look then keep(actor,mesh,identity,d.keepers) end
     end)
     if not ok then
-        pcall(function() c:K2_DestroyComponent(actor) end)
+        pcall(Doro.detach,d,actor)
         error(why,0)
     end
-    return {mesh=c}
+    return d
+end
+-- A display of attach()'s taken off actor while the actor stays (the ghost's Doro mode): its keepers destroyed, each
+-- in its own pcall, then its component, which raises when it fails.
+function Doro.detach(d,actor)
+    for _,k in ipairs(d.keepers or {}) do pcall(function() k:K2_DestroyComponent(actor) end) end
+    d.mesh:K2_DestroyComponent(actor)
 end
 -- A Doro of its own in world, at and turned as given (look: attach's): {actor=, path=<the actor's>, mesh=}. Raises,
 -- with nothing left, when it fails.
@@ -264,6 +300,28 @@ local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')
 local function flags(c)
     return string.format('visible=%d hidden=%d',c.bVisible==true and 1 or 0,c.bHiddenInGame==true and 1 or 0)
 end
+local DRONE_NEAR=3000 -- cm from EVE: the drone flies a few metres from her.
+-- The drone that follows EVE: one FindAllOf (it walks every object: once a second at most, only while no drone is
+-- held). The nearest SB character but her whose movement is in drone mode (USBCharacterMovementComponent's
+-- bCustomFlyMoveDroneMode), within DRONE_NEAR, shown or not. Returns it and its distance (nil when none), and how many
+-- characters but her stand that near, for the log.
+local function drone_near(eve)
+    local at,me=value_of(eve:K2_GetActorLocation()),address(eve)
+    local best,best_d,near=nil,nil,0
+    each(FindAllOf('SBCharacter') or {},function(_,c)
+        c=valid(c)
+        if not c or address(c)==me then return end
+        local ok,d,flying=pcall(function()
+            local p=value_of(c:K2_GetActorLocation())
+            return math.sqrt((p.X-at.X)^2+(p.Y-at.Y)^2+(p.Z-at.Z)^2),
+                valid(c.CharacterMovement).bCustomFlyMoveDroneMode==true
+        end)
+        if not ok or d>DRONE_NEAR then return end
+        near=near+1
+        if flying and (not best_d or d<best_d) then best,best_d=c,d end
+    end)
+    return best,best_d,near
+end
 -- The probe's steps: 3 s each unless said. Clips with no notify first, then sound states, footsteps, held frames.
 local PROBE={{name='turn_90l',asset='turn',loop=true,rate=1},{name='meet_01',asset='meet1',loop=true,rate=1},
     {name='idle',asset='idle',loop=true,rate=1},{name='two_legs_0',asset='two',loop=true,input=0,rate=1},
@@ -283,23 +341,32 @@ function Doro.new(o)
     local failed -- Why the look stopped on an error: off for this Lua load.
     local restored,yaw_said=false,false
     local probe -- While the probe runs.
+    -- coop-look.txt's line: EVE's path, the old tick option, the Doro's path, the hidden parts' names, then the drone's
+    -- path once it is hidden (the one field that starts with '/'), tab-separated.
+    local function line(l)
+        local f={l.path,tostring(l.tick),l.doro.path}
+        for _,p in ipairs(l.parts) do f[#f+1]=p.name end
+        f[#f+1]=l.drone_path
+        return table.concat(f,'\t')
+    end
     -- The file an earlier Lua load left (its look was on): its Doro destroyed, EVE's listed parts shown and her tick
-    -- option back, then the file cleared. On the game thread (the first tick, or look on), never while the Lua state
-    -- loads. One line: EVE's path, the old tick option, the Doro's path, the parts' names, tab-separated.
+    -- option back, the drone it hid shown if it still is an SB character there and hidden, then the file cleared. On
+    -- the game thread (the first tick, or look on), never while the Lua state loads.
     function self.restore()
         if restored then return end
         restored=true
-        local line=store.load()
-        if not line then return end
-        local f={}
-        for field in (line..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
-        local shown=0
+        local saved=store.load()
+        if not saved then return end
+        local f,listed,drone={},{},nil
+        for field in (saved..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
+        for k=4,#f do
+            if f[k]:sub(1,1)=='/' then drone=f[k] else listed[f[k]]=true end
+        end
+        local shown,also,errors=0,'',{}
         local ok,why=pcall(function()
             Doro.sweep(f[3]) -- Only one showing Doro.
             local eve=her(valid(StaticFindObject(f[1])))
             if not eve then return end
-            local listed={}
-            for k=4,#f do listed[f[k]]=true end
             each(eve:K2_GetComponentsByClass(find('/Script/Engine.MeshComponent')),function(_,c)
                 c=valid(c)
                 if c and listed[text(c:GetFName())] and c.bHiddenInGame==true then
@@ -309,8 +376,18 @@ function Doro.new(o)
             end)
             if tonumber(f[2]) then valid(eve.Mesh).VisibilityBasedAnimTickOption=tonumber(f[2]) end
         end)
+        if not ok then errors[#errors+1]=tostring(why) end
+        ok,why=pcall(function()
+            local d=drone and her(valid(StaticFindObject(drone)))
+            if d and d.bHidden==true then
+                d:SetActorHiddenInGame(false)
+                also=' and the drone'
+            end
+        end)
+        if not ok then errors[#errors+1]=tostring(why) end
         store.clear()
-        log(string.format('look restored %d parts from coop-look.txt%s',shown,ok and '' or ' ('..tostring(why)..')'))
+        log(string.format('look restored %d parts%s from coop-look.txt%s',shown,also,
+            #errors>0 and ' ('..table.concat(errors,'; ')..')' or ''))
     end
     function self.active() return look~=nil end
     -- The race's results: 'win' or 'lose' while she stands (Doro.pick), nil for none; the look forgets it when it goes.
@@ -340,9 +417,47 @@ function Doro.new(o)
             local body=l.tick and same(l.body,l.body_path)
             if body then body.VisibilityBasedAnimTickOption=l.tick end
         end)
+        local also=''
+        try(function()
+            local d=l.drone and same(l.drone,l.drone_path)
+            if d and d.bHidden==true then
+                d:SetActorHiddenInGame(false)
+                also=' and the drone'
+            end
+        end)
         if #errors==0 then store.clear() end
-        return #errors==0,string.format('Doro look off (%s): %d parts shown again, tick option %s back%s.',why,shown,
-            l.tick,#errors>0 and '; '..table.concat(errors,'; ') or '')
+        return #errors==0,string.format('Doro look off (%s): %d parts%s shown again, tick option %s back%s.',why,shown,
+            also,l.tick,#errors>0 and '; '..table.concat(errors,'; ') or '')
+    end
+    -- The drone that follows EVE hidden while the look is on: at look on, then every second. One the game shows again
+    -- is hidden again (counted with the parts); while none is held (none yet, or the one held is gone), drone_near
+    -- looks for one, which can spawn or stream in later. Its path goes into coop-look.txt before it is hidden, and it
+    -- is hidden only when shown: one the game hides is left alone until the game shows it. No shown drone found is
+    -- said once a look.
+    local function drone(l)
+        local held=l.drone and same(l.drone,l.drone_path)
+        if held then
+            if held.bHidden~=true then
+                held:SetActorHiddenInGame(true)
+                l.rehid=l.rehid+1
+            end
+            return
+        end
+        local d,cm,near=drone_near(l.eve)
+        if not d or d.bHidden==true then
+            if not l.drone_said then
+                l.drone_said=true
+                log(string.format('look drone none: %d characters within %d m, none a shown drone',near,
+                    DRONE_NEAR//100))
+            end
+            return
+        end
+        l.drone_path=path_of(d)
+        local saved,save_why=store.save(line(l))
+        if saved==false then error(save_why,0) end
+        l.drone=d
+        d:SetActorHiddenInGame(true)
+        log(string.format('look drone hid %s at %.1f m',text(d:GetFName()),cm/100))
     end
     function self.on()
         self.restore()
@@ -358,29 +473,27 @@ function Doro.new(o)
         local d=Doro.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll})
         local now=os.clock()
         look={eve=eve,body=body,doro=d,state={},parts={},rehid=0,retick=0,check_at=now+0.25,speed_at=now,
-            minute_at=now+60}
+            minute_at=now+60,drone_at=now+1}
         local l=look
         local ok,why=pcall(function()
             l.at,l.path,l.body_path=address(eve),path_of(eve),path_of(body)
             l.map,l.move=U.map_of(eve),valid(eve.CharacterMovement)
             l.tick=assert(tonumber(value_of(body.VisibilityBasedAnimTickOption)),'her tick option is unreadable')
-            local names={}
             each(eve:K2_GetComponentsByClass(find('/Script/Engine.MeshComponent')),function(_,c)
                 c=valid(c)
                 if c and c.bHiddenInGame~=true then
                     l.parts[#l.parts+1]={c=c,name=text(c:GetFName()),path=path_of(c)}
-                    names[#names+1]=l.parts[#l.parts].name
                 end
             end)
             -- The file before EVE changes: whatever happens next, the next Lua load can undo it.
-            local saved,save_why=store.save(table.concat({l.path,tostring(l.tick),d.path,table.concat(names,'\t')},
-                '\t'))
+            local saved,save_why=store.save(line(l))
             if saved==false then error(save_why,0) end
             for _,p in ipairs(l.parts) do
                 p.c:SetHiddenInGame(true,false)
                 p.flags=flags(p.c)
             end
             body.VisibilityBasedAnimTickOption=0
+            drone(l)
         end)
         if not ok then
             failed=tostring(why)
@@ -397,7 +510,8 @@ function Doro.new(o)
         return true,string.format('Doro look on: %d parts of EVE hidden; coop race look off shows her again.',#l.parts)
     end
     -- Every 250 ms: the same EVE on the same map (else the look goes off), each listed part the game showed hidden
-    -- again, the tick option set back; each flag change the game made logged, and both counts once a minute.
+    -- again, the tick option set back; each flag change the game made logged, and both counts once a minute, with the
+    -- clips loaded again meanwhile (0 while the keepers hold them). Every second, the drone.
     local function check(l,now)
         l.check_at=now+0.25
         local pawn=valid(UE.GetPlayer())
@@ -418,6 +532,10 @@ function Doro.new(o)
         if value_of(l.body.VisibilityBasedAnimTickOption)~=0 then
             l.body.VisibilityBasedAnimTickOption=0
             l.retick=l.retick+1
+        end
+        if now>=l.drone_at then
+            l.drone_at=now+1
+            drone(l)
         end
         if now>=l.minute_at then
             local r=Doro.reloads
