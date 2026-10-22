@@ -90,7 +90,7 @@ constexpr size_t kTaskState = 0x08, kTaskGroup = 0x40;
 constexpr size_t kMaxQuests = 256;   // In the three arrays together.
 constexpr uint64_t kStatsMs = 60000; // A stats line each minute.
 constexpr size_t kMaxInbox = 1024;   // Partner lines waiting for the game thread.
-constexpr size_t kMaxReplay = 65536; // Lines a replay file may hold.
+constexpr size_t kMaxRecording = 65536; // Lines a recording keeps and a replay file may hold.
 constexpr uint64_t kReplayHost = 1;  // The replay's host ID in her record, which a replay never writes.
 constexpr uint64_t kAskAgainMs = 1000; // The guest's on again when the host's on brought no snapshot by then.
 
@@ -689,7 +689,7 @@ private:
                                               : "task " + std::to_string(p.group) + "." + std::to_string(p.container) +
                                                     "." + std::to_string(p.position);
     if (const char *why = apply(g, p)) {
-      if (latched_now())
+      if (latched())
         return false;
       ++refused_;
       guest_->refused(p.id);
@@ -701,10 +701,6 @@ private:
         std::string(1, s.mark) + (*s.events ? std::string(", events ") + s.events : std::string()) +
         (s.warp ? ", it moves the player" : ""));
     return true;
-  }
-  bool latched_now() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return latched_;
   }
 
   // The host's side of her lines: the good ones that show something, her ahead once a quest and generation as she
@@ -752,7 +748,7 @@ private:
   // A replay: "<ms> <line>" per line, the host's lines of a recording. Lines that are no SBQ line are skipped.
   void load_replay(const std::string &text) {
     size_t bad = 0;
-    for (size_t at = 0; at < text.size() && feed_.size() < kMaxReplay;) {
+    for (size_t at = 0; at < text.size() && feed_.size() < kMaxRecording;) {
       const size_t end = std::min(text.find('\n', at), text.size());
       std::string l = text.substr(at, end - at);
       at = end + 1;
@@ -958,9 +954,8 @@ private:
 
 // ---- The worker's side ----
 
-constexpr size_t kNotes = 8;            // coop-status.txt keeps the last notes.
-constexpr uint64_t kRecordMs = 1000;    // The record file and the recording are written at most once a second.
-constexpr size_t kMaxRecording = 65536; // Lines a recording keeps (kMaxReplay).
+constexpr size_t kNotes = 8;         // coop-status.txt keeps the last notes.
+constexpr uint64_t kRecordMs = 1000; // The record file and the recording are written at most once a second.
 
 // The worker thread's side of the shared quests, between Lua's requests, the link's channel 2, the account's save
 // folder and the Engine. coop quests on waits for a friend linked past the handshake and a co-op save (slot=coop),

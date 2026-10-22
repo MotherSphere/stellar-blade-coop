@@ -810,7 +810,6 @@ struct Mark {
   uint8_t zone = 0; // 'z': a zone index
 };
 inline bool operator==(Mark a, Mark b) { return a.kind == b.kind && (a.kind != 'z' || a.zone == b.zone); }
-inline bool operator!=(Mark a, Mark b) { return !(a == b); }
 
 struct Pos {
   uint8_t c = 0, p = 0;
