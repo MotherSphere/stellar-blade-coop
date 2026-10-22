@@ -39,8 +39,8 @@ Except with `--zip`, the game's UE4SS `Mods` folder must exist.
 
 A run does these steps in order:
 
-1. runs the Lua tests (`tests/*_test.lua`), the Python tests (`tests/*_test.py`) and the native tests
-   (`tests/*_test.cpp`, built and run on this machine);
+1. runs the Lua tests (`tests/lua/**/*_test.lua`), the Python tests (`tests/tools/*_test.py`) and the native tests
+   (`tests/native/**/*_test.cpp`, built and run on this machine as `build/host/<folder>_<name>_test`);
 2. configures and builds the DLL in `build/windows` with the clang-cl toolchain, and writes the version
    (`git describe`) into it;
 3. installs, writes a dry-run report, or writes the zip.
@@ -67,25 +67,25 @@ The tests run on the build machine, without the game. `tools/install.py` runs th
 by hand, from the repository root:
 
 ```
-lua5.4 tests/puppet_test.lua
-python3 tests/save_guard_test.py
+lua5.4 tests/lua/partner/puppet_test.lua
+python3 tests/tools/save_guard_test.py
 mkdir -p build/host
-c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/pose_codec_test.cpp -o build/host/pose_codec_test
+c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.cpp -o build/host/pose_codec_test
 build/host/pose_codec_test
 ```
 
-- Lua tests (`booth`, `capture`, `challenges`, `chat`, `doro`, `drive`, `drive_model`, `group`, `join`, `keybind`,
-  `link`, `main`, `nightop`, `nightop_run`, `nightop_shop`, `nightop_waves`, `notice`, `partner`, `puppet`, `race`,
-  `race_model`, `recruiter`, `recruiter_text`, `saves`, `settings_file`, `travel`, `ui`, `ui_kit`, `ui_model`,
-  `ui_text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to
+- Lua tests (`main`; `core/`: `keybind`, `link`, `settings_file`; `nightop/`: `challenges`, `probe`, `recruiter`,
+  `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`,
+  `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`: `kit`,
+  `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to
   the fake EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss tests included),
   the `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale`
   settings and rows, `coop fight spawn probe`, the same place and same spawns notices in both languages, and
   `coop quests` with the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices. It
   also covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the two
   boxes, never to the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu, the focus
-  watchdog's reset, and the `spawn_filter` setting with the `filter` word it adds. `ui_kit_test` covers the menu's mouse
-  cursor, the focus put back after a click and the focus watchdog; `chat_test` the Thai leading vowels at a row's end.
+  watchdog's reset, and the `spawn_filter` setting with the `filter` word it adds. `ui/kit_test` covers the menu's mouse
+  cursor, the focus put back after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at a row's end.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
@@ -284,10 +284,21 @@ sorted order. Anyone with the repository can rebuild a release and compare its `
 mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
   Scripts/                  the Lua side (see how-it-works.md)
+    main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
+    core/                   the files shared with the native part, settings, keys, UE4SS helpers
+    partner/                the friend's EVE: capture, the drawn model, its HUD marker
+    session/                hosting and joining, co-op saves, chat, revive, follow, the camp booths
+    ui/                     the on-screen kit, the co-op menu and its model, notices, the 23 languages' text
+    nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
+    race/                   Doro races: the run, the track model, the Doro look, the driving
 native/                     the DLL (CMake)
   CMakeLists.txt
-  src/                      platform-free headers, tested on the build machine, and the Windows side
-tests/                      Lua, C++ and Python tests; wine/smoke.cpp for the Wine smoke test
+  src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
+tests/
+  lua/                      Lua tests, in the scripts' folders
+  native/                   C++ tests of the platform-free headers, in their folders
+  tools/                    Python tests of tools/
+  wine/smoke.cpp            the Wine smoke test's program
 tools/
   install.py                checks, build, install, uninstall, release zip
   save_guard.py             save backups and the manual co-op slot
@@ -303,31 +314,31 @@ Platform-free headers, tested on the build machine:
 
 | File | Contents |
 | --- | --- |
-| `link_core.h` | The Steam link's logic: lobby, invites, join codes, members, the host's approval, handshake, liveness, status, channels 1 and 2, chat and vitals |
-| `link_protocol.h` | The link's text protocol, the join code's encoding and the requests Lua sends |
-| `pose_core.h` | The pose path's limits, one part, one effect slot, hex addresses |
-| `pose_table.h` | The component table, the mesh path rule and the display file |
-| `pose_engine.h` | Engine memory reads and writes, and the build pin |
-| `pose_codec.h` | The pose's wire format: keyframes and deltas |
-| `pose_stream.h` | The loopback's delay line, the receiving clock and interpolation |
-| `pose_record.h` | The recording, its check and its replay |
-| `nightop_probe.h` | The `coop no` poller's reads, lines and verdict |
-| `save_watch.h` | The save watcher |
-| `save_slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
-| `save_twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
-| `fight_sync.h` | The shared enemies' host and guest rules, and channel 2's text |
-| `fight_engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
-| `quest_sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
-| `quest_engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
-| `pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
-| `spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
-| `photo_freeze.h` | The synced photo mode's pause |
-| `pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
+| `link/core.h` | The Steam link's logic: lobby, invites, join codes, members, the host's approval, handshake, liveness, status, channels 1 and 2, chat and vitals |
+| `link/protocol.h` | The link's text protocol, the join code's encoding and the requests Lua sends |
+| `pose/core.h` | The pose path's limits, one part, one effect slot, hex addresses |
+| `pose/table.h` | The component table, the mesh path rule and the display file |
+| `pose/engine.h` | Engine memory reads and writes, and the build pin |
+| `pose/codec.h` | The pose's wire format: keyframes and deltas |
+| `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
+| `pose/record.h` | The recording, its check and its replay |
+| `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
+| `save/watch.h` | The save watcher |
+| `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
+| `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
+| `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
+| `fight/engine.h` | The shared enemies' side inside the game, and the vitals read for the partner card |
+| `quest/sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
+| `quest/engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
+| `fight/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
+| `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
+| `game/photo_freeze.h` | The synced photo mode's pause |
+| `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 
 The Windows side:
 
 | File | Contents |
 | --- | --- |
-| `steam_link.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `pose_tick.cpp`, `pose_tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook |
-| `clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |
+| `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook |
+| `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

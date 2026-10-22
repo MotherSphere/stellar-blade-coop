@@ -33,31 +33,31 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | Script | Role |
 | --- | --- |
 | `main.lua` | Entry point: loads the DLL, reads the settings, registers the `coop` command and the keys, runs the loops |
-| `link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
-| `capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
-| `puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
-| `notice.lua` | The line of notices above your EVE, used while the on-screen UI is not up |
-| `chat.lua` | The session chat: its history (memory only), the feed of chat lines and notices, and the text box |
-| `join.lua` | The code box and the host's question about a player who is not her Steam friend |
-| `partner.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
-| `booth.lua` | The camp phone booths near EVE, for the co-op line |
-| `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
-| `ui_model.lua` | The menu's rows and settings, with no engine call |
-| `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
-| `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
-| `keybind.lua` | The key settings' grammar and their clash check |
-| `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
-| `nightop.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
-| `nightop_waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
-| `nightop_run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
-| `nightop_shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
-| `challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
-| `recruiter.lua` | The `coop recruiter` preview |
-| `recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
-| `doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
-| `race_model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
-| `race.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
-| `unreal.lua` | Small helpers over UE4SS objects |
+| `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
+| `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
+| `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
+| `ui/notice.lua` | The line of notices above your EVE, used while the on-screen UI is not up |
+| `session/chat.lua` | The session chat: its history (memory only), the feed of chat lines and notices, and the text box |
+| `session/join.lua` | The code box and the host's question about a player who is not her Steam friend |
+| `partner/hud.lua` | Your friend's card, marker and off-screen arrow, and the maths that places them |
+| `session/booth.lua` | The camp phone booths near EVE, for the co-op line |
+| `ui/menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
+| `ui/model.lua` | The menu's rows and settings, with no engine call |
+| `ui/text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
+| `ui/kit.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
+| `core/keybind.lua` | The key settings' grammar and their clash check |
+| `core/settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
+| `nightop/probe.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
+| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
+| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
+| `nightop/shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
+| `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
+| `nightop/recruiter.lua` | The `coop recruiter` preview |
+| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
+| `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
+| `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
+| `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
+| `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
 Doro look, a Doro race (with the incoming lines while one is armed), the notice line, the previews' follow-ups, the UI's
@@ -70,7 +70,7 @@ the chat's feed, your friend's card, the capture and the remote table.
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
-`booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4 s, and
+`session/booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4 s, and
 only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps each
 booth's `EnvActorName` and position, and no booth is read between scans. Each scan is timed: `UE4SS.log` gets
 `booths: <n> on <map> (<ms> ms)` when the count or the map changes, and `booths: slow scan <ms> ms (<n> found)` for a
@@ -106,7 +106,7 @@ The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 ## The co-op UI's input
 
 The co-op menu, the co-op saves' question, the host's question, the chat box and the code box take the game's input
-while they are open. The kit (`ui.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's text
+while they are open. The kit (`ui/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's text
 field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
 stands still. The menu's keys are UE4SS key binds, which read the keyboard and the mouse buttons whatever has the focus.
 When the UI closes, the kit gives the input back 150 ms later, so the key that closed it never reaches the game (Esc
@@ -127,7 +127,7 @@ through XInput, a polling API that takes nothing from the game.
   first connected controller's left stick. A slot with no controller is asked again only after 2 s, and only one such
   slot per read, since asking an empty slot can cost milliseconds. While another process's window is in front nothing
   is read, and the held state counts as released: XInput answers whatever window has the focus.
-- `pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
+- `game/pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
   its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
   when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near
   45 degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for
@@ -166,7 +166,7 @@ watchdog (not tested in game yet). The game, another mod, or a middle or side mo
 
 ### Line breaks
 
-Every text the mod wraps goes through `chat.lua`'s `wrap`: the chat feed and history, the notice line above EVE and the
+Every text the mod wraps goes through `session/chat.lua`'s `wrap`: the chat feed and history, the notice line above EVE and the
 co-op saves' question. The kit's UMG texts never wrap on their own. A row breaks at the last space within reach, else
 between two characters (Chinese, Japanese and Thai put no space between words), and a mark that takes no column (Thai
 and Arabic vowel and tone marks) stays with the letter before it. Thai writes the vowels U+0E40 to U+0E44 (เ แ โ ใ ไ)
@@ -230,10 +230,10 @@ answers with native requests, which Lua writes to `coop-request.txt` like the ot
 - Answers go by SteamID, so an answer meant for a player who left never reaches the next one. A guest's answers, and
   an answer for a player who is not waiting, are ignored with a line in `coop-link.log`.
 
-On the host, `join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks each
+On the host, `session/join.lua` turns the first `pending=` line into a question on screen and writes the answer. It asks each
 player once a lobby; with no answer, the native part refuses the player after 60 s. The question opens without a key
 press, so it ignores every key for 1 s after it shows, and `main.lua` gives it the arrow keys but not W, S or Space.
-`link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
+`core/link.lua` keeps in memory which lobby members waited for an answer, for the menu's Remove row, so a Lua reload
 forgets them.
 
 None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject.
@@ -415,7 +415,7 @@ The ghost goes through the same pipeline whatever its source: a linked friend, t
 
 ### 1. Capture
 
-When the ghost is on, `capture.lua` describes your EVE once she has been in the world for 2 s (never on a menu
+When the ghost is on, `partner/capture.lua` describes your EVE once she has been in the world for 2 s (never on a menu
 pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path, the
 part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names,
 and the map she is on (the package path of her world, lowercased). With the dyes look on, it adds each part's
@@ -488,7 +488,7 @@ Poses that belong to no table, or to a table the ghost is not built on yet, are 
 
 ### 5. The ghost, built from the table
 
-When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`. `puppet.lua` builds
+When a remote table arrives, the native part checks it and hands it to Lua as `coop-remote.txt`. `partner/puppet.lua` builds
 the ghost from it:
 
 - The ghost is a plain actor with one PoseableMeshComponent per part and no collision (the
@@ -552,7 +552,7 @@ leader, then its mesh, which creates the cloth. The asset is loaded in a build s
 
 ### Solid partner
 
-With `collide=on` (experimental, off by default, not tested in game yet), `puppet.lua` adds one CapsuleComponent to the
+With `collide=on` (experimental, off by default, not tested in game yet), `partner/puppet.lua` adds one CapsuleComponent to the
 ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius and half height (40 and
 95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the ghost's main mesh with an
 absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in this
@@ -749,7 +749,7 @@ off by default, not tested in game) has her game refuse those spawns instead. Lu
 fight on` request (and to the spawn probe's); it is a word of that request, never a line on the wire, so the protocol
 stays 12.
 
-- The keys (`SpawnGuest` in `spawn_sync.h`): a key she despawned on the host's drop, a key she answered with no enemy
+- The keys (`SpawnGuest` in `fight/spawn_sync.h`): a key she despawned on the host's drop, a key she answered with no enemy
   of hers left (refused, or killed while not paired) that the host's drop names, and the key of each paired copy of
   hers that died on the host's `dead` line, when its row takes part in the host's zone. A copy whose fight she took
   no part in does not die there ([Achievements](#achievements)) and is not listed; the host's next drop removes it
@@ -916,7 +916,7 @@ The log lines are in [troubleshooting.md](troubleshooting.md#a-shared-boss-diffe
 
 Shared quests (`shared_quests`, experimental, off by default, not tested in game yet) move the guest's quests to the
 host's state through the game's own quest functions, one step at a time, for the steps the two players make together.
-`quest_sync.h` holds the line format, the quest table and each side's rules; `quest_engine.h` holds the reads and calls
+`quest/sync.h` holds the line format, the quest table and each side's rules; `quest/engine.h` holds the reads and calls
 on the game's quest data and the worker's side.
 
 The game's quest manager runs on the game thread, so the mod's pass does too: every 250 ms `coop_tick` reads the local
@@ -935,7 +935,7 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   hint events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
   `z<n>` in the zone where the host stood when its pass saw the step (for the 38 steps the tables cannot place), `?`
   for such a step the host's pass did not see, `K` for a kill task and `#` for a quest the host denies. The table that
-  gives each step's class, zones and events is built into `quest_sync.h` from the tables of build 24463856; another
+  gives each step's class, zones and events is built into `quest/sync.h` from the tables of build 24463856; another
   game build needs it built again.
 - The guest's pass compares each host line with her own quest and plans the next forward step: an Epic or Sub quest
   she lacks is acquired by ID (`FUN_141c5cf20`, the call a quest zone event makes), a Request on her board is accepted
@@ -963,7 +963,7 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 ## Following the host
 
-The guest's travel to the host (`travel.lua`, the camps lines, `travel.h` and the native call) moves only the guest's
+The guest's travel to the host (`session/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only the guest's
 EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in game yet.
 In this version it never travels: the mod cannot yet read which camps the guest's save has activated (see below).
 
@@ -983,7 +983,7 @@ In this version it never travels: the mod cannot yet read which camps the guest'
   reach, the client's flow and phase, any warp or respawn in flight, and whether the local player's EVE is in the
   world. It makes at most 3 calls in 10 s and none for 10 s after an accepted one.
 - A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer.
-- The game's fast travel does not check whether her save has activated the camp (`travel.h`), and activating a camp
+- The game's fast travel does not check whether her save has activated the camp (`game/travel.h`), and activating a camp
   counts toward the game's camp achievements (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable). Her Lua
   therefore takes only a camp that a read of her save's activated camps confirms. That read does not exist yet, so
   every travel is refused before `camps?` is sent (`travel refused: no read of the camps this save has activated` in
@@ -1018,11 +1018,11 @@ It never goes on the wire.
 
 ### Revive
 
-The revive runs on the downed player's side (`group.lua`, every 250 ms) and sends nothing: her game reads its own state,
+The revive runs on the downed player's side (`session/group.lua`, every 250 ms) and sends nothing: her game reads its own state,
 the friend's vitals and the friend's ghost. The friend's game calls nothing.
 
 - These conditions must hold for 3 s with no gap: the downed player's `revive=on`; her life state 3 and the death
-  screen's animation playing (the lookup Night Operation's solo run uses, in `unreal.lua`); `warp=idle` on the engine
+  screen's animation playing (the lookup Night Operation's solo run uses, in `core/unreal.lua`); `warp=idle` on the engine
   line (no respawn or warp in flight, read by the native part on the game thread); the friend linked, with vitals
   alive; the friend's ghost on her map within 2 m across and 1 m up or down of her EVE's mesh; `boss=0` on the
   `fight=` line (shared enemies running and no boss fight on her side, the 10 s after a host's `bstart` included); a
@@ -1077,8 +1077,8 @@ Whether every story scene, dialogue and boss intro runs through a theater observ
 
 ## Doro races
 
-A Doro race runs in Lua: `race.lua` on the game side, `race_model.lua` for the rules and the race lines, `doro.lua`
-for the Doros, `drive.lua` and `drive_model.lua` for the driving. Its only SB calls are two reads on EVE, `IsSprint`
+A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines, `race/doro.lua`
+for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two reads on EVE, `IsSprint`
 and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part only carries the race
 lines. The commands and rules are in [usage.md](usage.md#doro-races).
 
@@ -1146,7 +1146,7 @@ Your friend's ghost is drawn as a Doro while their game takes part in the race: 
 `have` line, on the guest's PC once the host's track has arrived and passed the checks, until the race closes. A guest
 whose game answers `have <id> no <why>` stays EVE on both screens.
 
-In Doro mode, `puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's mesh,
+In Doro mode, `partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's mesh,
 on the ghost's main mesh, where her feet are. The ghost is the mod's own actor, so nothing of the game's is touched. The
 Doro's speed and vertical speed come from the ghost's feet between poses, measured over 50 ms at least. The pose stream
 has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520 cm/s, and a
@@ -1158,7 +1158,7 @@ pose stream, and its lean and nose set as a relative rotation on the ghost's mai
 
 ### Driving
 
-From GO until our own result, `drive.lua` drives EVE with `drive_model.lua`'s car model. The model holds a heading and
+From GO until our own result, `race/drive.lua` drives EVE with `race/drive_model.lua`'s car model. The model holds a heading and
 a horizontal velocity. Each frame it turns the heading toward the stick's world direction (`GetLastMovementInputVector`)
 at a rate that falls with speed, adds speed along the heading with a throttle that fades near the top speed, and
 decays the speed across the heading by a grip, which drops during a drift (the drift keys, read with the player
@@ -1225,8 +1225,8 @@ Each PC logs a `[StellarCoop][DR] result` line per race that reaches its results
 PC.
 
 A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
-is `/Script/Engine.Actor`. `tests/race_test.lua` checks both in `doro.lua`, `race_model.lua`, `race.lua`, `drive.lua`
-and `drive_model.lua`.
+is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/doro.lua`, `race/model.lua`, `race/run.lua`, `race/drive.lua`
+and `race/drive_model.lua`.
 
 ## Achievements
 

@@ -13,7 +13,7 @@
 // twice, and runs once when it can be (coop report before Steam). It also checks ReadProcessMemory on its own process,
 // as the Night Operation poller uses it: equal bytes from the stack, false at 0x1000, no crash on a PAGE_NOACCESS page
 // (whose result Wine may differ on, so it is only printed), and the cost of one read; and that the copy request's
-// clipboard call (clipboard.h) puts a join code there for any program to read. Exit code 0 on success.
+// clipboard call (glue/clipboard.h) puts a join code there for any program to read. Exit code 0 on success.
 // Usage: smoke.exe <folder holding StellarCoop.dll>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -23,7 +23,7 @@
 #include <cstring>
 #include <string>
 
-#include "clipboard.h"
+#include "glue/clipboard.h"
 
 namespace {
 // The first 8 KB of a file (coop-link.log in game soon passes 1 KB), or empty. The DLL replaces the status file by

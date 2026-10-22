@@ -631,7 +631,7 @@ game in these ways:
 - Each preview fires zone events through one guarded function that accepts only its own short list: the heal event and
   eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. A run,
   solo or co-op, fires only the heal, through the probe's function. No console argument reaches that function.
-- `tests/matchmaking_scan_test.py` scans every script and native source of the mod and fails if any of them could reach
+- `tests/tools/matchmaking_scan_test.py` scans every script and native source of the mod and fails if any of them could reach
   the matchmaking path. The Join row may appear only as the recruiter's constant, which the recruiter neutralizes and
   never fires. The test also sets how many calls each file may make that fire zone events, add table rows or make game
   requests: the run has one spawn request and the shop one item request. The only console call it allows is main.lua's
