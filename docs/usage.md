@@ -112,7 +112,8 @@ tested in game yet.
 | View held 1 s | Close |
 
 - A D-pad diagonal counts as up or down. The stick counts along the axis it is pushed further on (up or down when both
-  are equal), as pressed past half of its range and as released under 30 %.
+  are equal), as pressed past half of its range and as released under 30 %. Once an axis counts, it keeps counting
+  until the other one is pushed more than 10 % further.
 - The mod reads the controller only while the game's window is in front.
 - While a key row waits for a key, only B acts: it stops the wait. A new key has to come from the keyboard.
 - B closes the [chat](#session-chat) box and the [code box](#join-codes) as Esc does: nothing is typed or sent. A

@@ -1039,6 +1039,14 @@ int main() {
     Drawn d;
     assert(t.push(1000 * 1000, entry(1, -1e7f)) && t.push(1101 * 1000, entry(1, 1e7f)));
     assert(t.sample(1250, d) && !d.held && d.loc[0] == coop::pose::kMaxWorld);
+    // Nor does its velocity pass Track::kMaxSpeed, along the samples' direction.
+    assert(d.vel[0] == Track::kMaxSpeed && d.vel[1] == 0 && d.vel[2] == 0);
+    // 3 m in 1 µs (no warp: a peer's stamps): the velocity stays bounded too.
+    Track u;
+    Entry e = entry(1, 180, 240);
+    assert(u.push(1'000'000, entry(1, 0)) && u.push(1'000'001, e));
+    assert(u.sample(1000.1, d) && !d.held);
+    assert(near(d.vel[0], Track::kMaxSpeed * 0.6f, 0.1) && near(d.vel[1], Track::kMaxSpeed * 0.8f, 0.1));
   }
   // 3.5 m in 150 ms is no warp (it is past 100 ms): blended.
   {
@@ -1082,15 +1090,8 @@ int main() {
 
   // ---- The drawn copy ----
   {
-    auto mode_is = [](State s, bool ai, bool cmc, bool root, bool shows, bool speed) {
-      Mode m = mode(s);
-      return m.ai_held == ai && m.cmc_on == cmc && m.root_stream == root && m.owner_shows == shows &&
-             m.speed_override == speed;
-    };
-    assert(mode_is(State::local, false, true, false, false, false));
-    assert(mode_is(State::piloted, true, false, true, true, true));
-    assert(mode_is(State::released, true, true, false, false, false));
-    assert(mode_is(State::converging, true, false, true, true, true));
+    assert(!root_stream(State::local) && root_stream(State::piloted) && !root_stream(State::released) &&
+           root_stream(State::converging));
 
     Copy c;
     Cues cue;
@@ -1183,10 +1184,9 @@ int main() {
     Undo u;
     restore(cap, lines, u);
     assert(u.log.empty()); // Nothing taken, nothing given back.
-    cap.took_cmc(true);
-    cap.took_cmc(false); // A later take (SB turned it back on) keeps the value from before our first call.
+    cap.cmc = true;
     cap.took_speed(0);
-    cap.took_speed(1);
+    cap.took_speed(1); // A later write keeps the value from before our first one.
     Live &a = lines.start(4, u), &b = lines.start(5, u);
     a.slot = 0, b.slot = 1;
     lines.start(6, u).skipped = true; // Deduped: nothing of ours plays.
@@ -1195,22 +1195,14 @@ int main() {
     assert(u.log == "stop4 stop5 cmc speed0 ");
     restore(cap, lines, u); // Once.
     assert(u.log == "stop4 stop5 cmc speed0 ");
-    cap.took_cmc(false); // It was out of SB's manager before: it stays out.
-    give_cmc(cap, u);
-    assert(u.log == "stop4 stop5 cmc speed0 " && !cap.cmc);
-    cap.took_cmc(true);
+    cap.vel = true; // Our Velocity on it: zeroed before the component goes back.
+    cap.cmc = true;
     cap.took_speed(2);
-    give_cmc(cap, u);
-    give_speed(cap, u); // A release gives both back, the replays stay.
-    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 " && !cap.cmc && !cap.speed);
-    cap.vel = true; // Our Velocity on it: zeroed before the component goes back, even one that stays out.
-    cap.took_cmc(true);
     restore(cap, lines, u);
-    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 still cmc " && !cap.vel);
-    cap.vel = true;
-    cap.took_cmc(false);
-    give_cmc(cap, u);
-    assert(u.log == "stop4 stop5 cmc speed0 cmc speed2 still cmc still " && !cap.vel && !cap.cmc);
+    assert(u.log == "stop4 stop5 cmc speed0 still cmc speed2 " && !cap.vel && !cap.cmc && !cap.speed);
+    cap.vel = true; // A CMC that was out of SB's manager stays out; its Velocity is still zeroed.
+    restore(cap, lines, u);
+    assert(u.log == "stop4 stop5 cmc speed0 still cmc speed2 still " && !cap.vel);
   }
 
   // ---- The show lines ----
@@ -1270,9 +1262,9 @@ int main() {
         // The hit levels (the first two) are bytes.
         {13, "256" + ctx.substr(1)}, {13, "-1" + ctx.substr(1)}, {13, "1,256" + ctx.substr(3)},
         {13, "1,-1" + ctx.substr(3)}, {13, "2147483647" + ctx.substr(1)},
-        // Form 0: no leading '/', no '..', only [A-Za-z0-9_/.], at most 200 characters.
+        // Form 0: no leading '/' or '.', no '..', no empty segment, only [A-Za-z0-9_/.], at most 200 characters.
         {14, "/Game/Art/Show/A"}, {14, "A/../B"}, {14, "A\\B"}, {14, "A:B"}, {14, "\xc3\x84"},
-        {14, std::string(201, 'a')}};
+        {14, std::string(201, 'a')}, {14, "A//B"}, {14, "A/"}, {14, "A/.B"}, {14, ".A"}};
     for (auto &[field, value] : bad)
       assert(parsed(with(field, value)).kind == Kind::invalid);
     assert(parsed(with(14, std::string(200, 'a'))).kind == Kind::show);
@@ -1281,7 +1273,8 @@ int main() {
     assert(parsed(with(13, "255,255" + ctx.substr(3))).ctx[kHitLevel60] == 255);
     // Form 1 must start with a Show root and hold more than it.
     for (const char *path : {"/Game/Art/Show/", "/Game/Art/X/A", "/Game/Art/Show/../../Maps/A", "Game/Art/Show/A",
-                             "/Game/Art/Show/A:B"}) {
+                             "/Game/Art/Show/A:B", "/Game/Art/Show//A", "/Game/Art/Show/A/", "/Game/Art/Show/.A",
+                             "/Game/Art/Show/A/.B"}) {
       ShowLine f = show_line();
       assert(!set_path(f, 1, path) && !path_ok(1, path) && f.form == 0); // Refused, the line left as it was.
       f.form = 1, f.path_len = uint8_t(std::strlen(path));
@@ -2193,6 +2186,47 @@ int main() {
     assert(s.since(seen) == "write1 write4 move write12 handle 4 main 4 add 4 CH_M/Hit/M_Hit_F 0 1.000 0 0");
     assert(d.counts.deduped == 1 && d.counts.shows == 4);
   }
+  // AddShow loads a Show synchronously the first time: at most Driver::kAddsPerFrame calls a frame and kAddsPerSecond a
+  // second, whatever her stamps say. The lines behind wait in order (a show-set behind a waiting show waits with it);
+  // past the queue's 32 they are refused. A Show held back more than 34 ms past its stamp is late.
+  {
+    Stage s;
+    s.copy(501, 100, 200, 20);
+    Stage::Game g = s.game();
+    Driver d;
+    const Row row{4100, 501, kHost, 0, true, false, false};
+    d.rows(g, kBase, 7, kGuest, &row, 1);
+    SbeHeader h;
+    h.gen = 7, h.seq = 1, h.publication = 1'000'000;
+    Entry e = entry(4100, 100, 200, 20);
+    uint8_t bytes[kMaxSbe];
+    d.sbe(bytes, encode_sbe(h, &e, 1, bytes));
+    double at = 1000;
+    d.draw(g, kBase, 5000, at);
+    uint8_t id = 0;
+    auto line = [&](Kind kind, uint8_t at_id, uint64_t t_ms) {
+      ShowLine l;
+      l.kind = kind, l.gen = 7, l.guid = 4100, l.id = at_id, l.t_ms = t_ms, l.rate = 1000;
+      assert(set_path(l, 0, "Flood/Show"));
+      d.line(l, at);
+    };
+    for (uint64_t k = 0; k <= Driver::kAddsPerFrame; ++k) // Stamped now: on time.
+      line(Kind::show, ++id, 1000);
+    line(Kind::set, id, 1000);
+    d.draw(g, kBase, 5016, at);
+    assert(d.counts.shows == Driver::kAddsPerFrame && d.counts.sets == 0 && d.counts.late == 0);
+    d.draw(g, kBase, 5032, at = 1050);
+    assert(d.counts.shows == Driver::kAddsPerFrame + 1 && d.counts.sets == 1 && d.counts.unknown == 0);
+    assert(d.counts.late == 1);
+    for (double now = 5048; now < 6000; now += 16) {
+      for (uint64_t k = 0; k < Driver::kAddsPerFrame; ++k)
+        line(Kind::show, ++id, 0); // Stamped 0: due at once.
+      d.draw(g, kBase, now, at);
+    }
+    assert(d.counts.shows == Driver::kAddsPerSecond && d.counts.lines_refused > 0);
+    d.draw(g, kBase, 6000, at); // The next second.
+    assert(d.counts.shows == Driver::kAddsPerSecond + Driver::kAddsPerFrame);
+  }
   // The log's event lines: one per copy released, converged onto the stream again or snapped (a convergence that
   // starts more than 2 m away, here after a warp), kept until taken.
   {
@@ -2701,6 +2735,9 @@ int main() {
     uint64_t handles = 0, host_frames = 0, next_host = 1000, next_guest = 6000; // The pose clock is never 0.
     double worst_moving = 0, worst_rest = 0, worst_turn = 0, worst_after = 0, worst_60 = 0;
     size_t moving = 0, rest = 0, snaps = 0, late = 0, unknown = 0, not_drawn = 0, refused = 0, extrapolated = 0;
+    // Shows due in one of her frames and in one second as Driver::draw counts it (its AddShow caps), at most.
+    size_t frame_shows = 0, second_shows = 0, most_frame = 0, most_second = 0;
+    double second = -1e9; // Her clock, ms.
     for (uint64_t t = 1000; t <= kEnd; t += 1000) {
       if (t >= next_host) { // The host's frame: a pose every frame, SBE and the Shows every other one.
         next_host += kFrame;
@@ -2800,12 +2837,10 @@ int main() {
         std::copy(c.quat, c.quat + 4, own.quat);
         bool snapped = false;
         const State st = c.copy.step(cue, own, has ? &d : nullptr, g / 1000.0, out, snapped);
-        const Mode mo = mode(st);
-        if (!mo.cmc_on && c.cmc) // The CMC out of SB's manager, taken once (slot 0x350, false).
-          c.cap.took_cmc(c.cmc), c.cmc = false;
-        if (mo.speed_override)
+        if (root_stream(st)) {
+          if (c.cmc) // The CMC out of SB's manager, taken once (slot 0x350, false).
+            c.cap.cmc = true, c.cmc = false;
           c.cap.took_speed(c.speed), c.speed = 1;
-        if (mo.root_stream) {
           std::copy(out.loc, out.loc + 3, c.loc);
           std::copy(out.quat, out.quat + 4, c.quat);
         }
@@ -2831,6 +2866,9 @@ int main() {
         snaps += snapped || d.snap;
         extrapolated += d.extrapolated;
       }
+      if (g / 1000.0 >= second + 1000)
+        second = g / 1000.0, second_shows = 0;
+      frame_shows = 0;
       for (const Timeline::Due *due; (due = timeline.front(at));) {
         const ShowLine l = due->line;
         timeline.pop();
@@ -2840,7 +2878,9 @@ int main() {
         worst_after = std::max(worst_after, at - double(l.t_ms));
         assert(at >= double(l.t_ms)); // Never before the copy is drawn at that host time.
         applied.push_back({int(l.guid - 4100), l.kind, l.id, l.t_ms});
-        if (!mode(c.copy.state()).owner_shows) {
+        if (l.kind == Kind::show)
+          most_frame = std::max(most_frame, ++frame_shows), most_second = std::max(most_second, ++second_shows);
+        if (!root_stream(c.copy.state())) {
           ++not_drawn;
         } else if (l.kind == Kind::show) {
           Live &live = c.lines.start(l.id, u); // AddShow on a new handle: its stage and player slot.
@@ -2877,12 +2917,14 @@ int main() {
     }
     std::printf("pilot_test: two worlds, 50 s: copy within %.2f cm of the host moving (%zu frames), %.3f cm at rest "
                 "(%zu), %.2f deg, %.1f cm against the host 60 ms earlier; %zu snaps, %zu extrapolated; %zu of %zu "
-                "lines applied in order, at most %.1f ms after their stamp, %zu late, %zu in flight\n",
+                "lines applied in order, at most %.1f ms after their stamp, %zu late, %zu in flight; Shows due at most "
+                "%zu in a frame, %zu in a second\n",
                 worst_moving, moving, worst_rest, rest, worst_turn, worst_60, snaps, extrapolated, applied.size(),
-                sent.size(), worst_after, late, in_flight);
+                sent.size(), worst_after, late, in_flight, most_frame, most_second);
     assert(worst_moving < 30 && worst_rest < 5 && moving > 4000 && rest > 2000 && worst_turn < 5 && snaps == 0);
     assert(worst_60 > 30);
     assert(late == 0 && unknown == 0 && not_drawn == 0 && refused == 0 && worst_after < 34 && applied.size() > 500);
+    assert(most_frame <= Driver::kAddsPerFrame && most_second <= Driver::kAddsPerSecond); // The caps hold none back.
     // The host is lost: each copy put back once, every live replay stopped, then local, its mode no longer asking for
     // the AI hold (Simulate dispels 2000101; fight_engine_test covers that).
     size_t live = 0;
@@ -2898,7 +2940,7 @@ int main() {
       Drawn out;
       bool snapped = false;
       assert(c.copy.step(gone, own, nullptr, (kEnd + kOffset) / 1000.0, out, snapped) == State::local);
-      c.ai = mode(c.copy.state()).ai_held;
+      c.ai = c.copy.state() != State::local;
       assert(c.live.empty() && !c.ai && c.cmc && c.speed == 0 && !c.cap.cmc && !c.cap.speed);
     }
   }

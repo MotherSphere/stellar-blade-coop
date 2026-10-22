@@ -468,6 +468,8 @@ public:
   static constexpr size_t kSamples = 16; // About 500 ms at 30 Hz: more than the ghost's draw delay.
   static constexpr double kExtrapolateMs = 150, kGapMs = 250, kWarpMs = 100;
   static constexpr float kWarpCm = 300, kSnapCm = 300;
+  // cm/s. A blend over one 33 ms SBE period stays under kWarpCm in 33 ms (9091 cm/s); a faster one is a peer's stamps.
+  static constexpr float kMaxSpeed = 10000;
 
   void clear() { count_ = newest_ = 0, has_last_ = false; }
   // One entry stamped with its message's publication (µs); false when it is not newer than the newest.
@@ -529,6 +531,9 @@ public:
     const double span_s = (ms(b) - ms(a)) / 1000;
     for (int i = 0; moving && i < 3; ++i)
       out.vel[i] = float((sb.root[4 + i] - sa.root[4 + i]) / span_s);
+    const float still[3] = {}, v = distance(out.vel, still);
+    for (float &f : out.vel) // Bounded along its direction (kMaxSpeed).
+      f = v > kMaxSpeed ? f / v * kMaxSpeed : f;
     // A held copy stands still: no speed, or its legs would run in place.
     out.speed = moving ? float(sa.speed + std::min(alpha, 1.0) * (sb.speed - sa.speed)) : 0;
     out.flags = base.flags;
@@ -565,22 +570,9 @@ private:
 // SB's parallel manager, its root and Shows the owner's. released: still frozen, but SB moves it (its own Down, Groggy,
 // Airborne or takedown). converging: back from released (or from local) onto the stream over kConvergeMs.
 enum class State : uint8_t { local, piloted, released, converging };
-struct Mode {
-  bool ai_held;        // Our BlockAI on it (Simulate).
-  bool cmc_on;         // Its CMC in SB's parallel manager (only if it was before we took it, Capture).
-  bool root_stream;    // Its root written every frame from the stream.
-  bool owner_shows;    // The owner's Shows replayed on it.
-  bool speed_override; // char+0xC68/+0xC6C ours.
-};
-constexpr Mode mode(State s) {
-  switch (s) {
-  case State::piloted:
-  case State::converging: return Mode{true, false, true, true, true};
-  case State::released: return Mode{true, true, false, false, false};
-  case State::local: break;
-  }
-  return Mode{false, true, false, false, false};
-}
+// Its root written every frame from the stream, its CMC out of SB's manager, its speed ours and the owner's Shows
+// replayed on it.
+constexpr bool root_stream(State s) { return s == State::piloted || s == State::converging; }
 
 // One pair this side draws, from the pair table (fight::drawn()): the host's GUID, our copy's, its owner and epoch, and
 // what the logic side read on the copy: our BlockAI held (state 39), a release (Down, Groggy, Airborne or a takedown
@@ -615,7 +607,7 @@ public:
 
   State state() const { return state_; }
   // own: where the copy stands (read this frame); target: the stream's pose at the draw time, null before any sample.
-  // out takes the pose to write when mode(state).root_stream; snapped is set on a convergence that snapped instead.
+  // out takes the pose to write when root_stream(state); snapped is set on a convergence that snapped instead.
   State step(const Cues &c, const Pose &own, const Drawn *target, double now, Drawn &out, bool &snapped) {
     snapped = false;
     if (!c.eligible || !target) {
@@ -746,44 +738,33 @@ private:
 // What the game thread changed on one drawn copy, to put back as it was (R31). The BlockAI is Simulate's (it dispels
 // 2000101 itself); BattleMode_5s expires by itself.
 struct Capture {
-  bool cmc = false, cmc_was = false; // Its CMC taken out of SB's manager; whether it was in it before (cmc+0x10cd).
-  bool vel = false;                  // Its CMC's Velocity written by us.
-  bool speed = false;                // char+0xC68 set by us...
-  uint8_t speed_was = 0;             // ... and its value before.
-  // A later take (SB turned the CMC back on, a second write) keeps the value from before our first one.
-  void took_cmc(bool was) {
-    if (!cmc)
-      cmc = true, cmc_was = was;
-  }
+  bool cmc = false;      // Its CMC taken out of SB's manager, where it was (cmc+0x10cd).
+  bool vel = false;      // Its CMC's Velocity written by us.
+  bool speed = false;    // char+0xC68 set by us...
+  uint8_t speed_was = 0; // ... and its value before.
+  // A later write keeps the value from before our first one.
   void took_speed(uint8_t was) {
     if (!speed)
       speed = true, speed_was = was;
   }
 };
-// u.still() zeroes the CMC's Velocity, so neither SB's movement nor the AnimBP's IsMoving starts from the stream's;
-// u.cmc_on() returns the CMC to SB's manager (slot 0x350, true), only if it was in it; u.speed(old) writes char+0xC68.
-template <class Undo> void give_cmc(Capture &c, Undo &&u) {
-  if (c.vel)
-    u.still();
-  if (c.cmc && c.cmc_was)
-    u.cmc_on();
-  c.cmc = c.vel = false;
-}
-template <class Undo> void give_speed(Capture &c, Undo &&u) {
-  if (c.speed)
-    u.speed(c.speed_was);
-  c.speed = false;
-}
 // Puts one copy back, once (a second call does nothing): each live replay stopped (u.stop(live)), then the CMC (its
 // Velocity first), then char+0xC68. Session end, unpair, host loss, fight off, same_place off and the first fault.
+// u.still() zeroes the CMC's Velocity, so neither SB's movement nor the AnimBP's IsMoving starts from the stream's;
+// u.cmc_on() returns the CMC to SB's manager (slot 0x350, true); u.speed(old) writes char+0xC68.
 template <class Undo> void restore(Capture &c, Lines &lines, Undo &&u) {
   lines.each([&](const Live &l) {
     if (!l.skipped)
       u.stop(l);
   });
   lines.clear();
-  give_cmc(c, u);
-  give_speed(c, u);
+  if (c.vel)
+    u.still();
+  if (c.cmc)
+    u.cmc_on();
+  if (c.speed)
+    u.speed(c.speed_was);
+  c = Capture();
 }
 
 // The owner's side of one pair's lines. diff() takes this frame's player[0] of each of the pair's stages, keyed by
@@ -864,17 +845,19 @@ constexpr char kShowRoot[] = "/Game/Art/Show/"; // SB's show root prefix (DAT_14
 // Form 1's roots: the Show roots in the binary's strings.
 constexpr std::string_view kShowRoots[] = {"/Game/Art/Show/", "/Game/Art/FX/Show/", "/Game/DLC_1/Art/Show/"};
 
-// R33's path rule: at most kMaxPath characters of [A-Za-z0-9_/.], no "..". Form 0 (under SB's show root) has no
-// leading '/'; form 1 (as given) starts with one of kShowRoots and holds more than it.
+// R33's path rule: at most kMaxPath characters of [A-Za-z0-9_/.], no "..", no empty segment ("//", "/." or a trailing
+// '/': UE's CreatePackage stops the game on a package name with "//"). Form 0 (under SB's show root) has no leading '/'
+// or '.'; form 1 (as given) starts with one of kShowRoots and holds more than it.
 inline bool path_ok(uint8_t form, std::string_view p) {
-  if (p.empty() || p.size() > kMaxPath || p.find("..") != std::string_view::npos || form > 1)
+  if (p.empty() || p.size() > kMaxPath || p.find("..") != std::string_view::npos || form > 1 ||
+      p.find("//") != std::string_view::npos || p.find("/.") != std::string_view::npos || p.back() == '/')
     return false;
   for (char c : p)
     if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '/' ||
           c == '.'))
       return false;
   if (form == 0)
-    return p[0] != '/';
+    return p[0] != '/' && p[0] != '.';
   for (std::string_view root : kShowRoots)
     if (p.size() > root.size() && p.substr(0, root.size()) == root)
       return true;
@@ -1767,6 +1750,14 @@ public:
     const bool ok = l.kind != Kind::invalid && p && takes(owner(*p), from(), l.gen, l.oe) && timeline_.push(l, at);
     ++(ok ? counts.lines : counts.lines_refused);
   }
+  // AddShow loads a Show it has not loaded yet synchronously, on the game thread, and her stamps can make any number of
+  // lines due at once: draw() makes at most kAddsPerFrame calls a frame and kAddsPerSecond a second, and the lines
+  // behind keep their order for a later frame (Timeline::kLines bounds them). A Show held back more than kLateMs past
+  // its stamp counts as late.
+  // ponytail: one budget for all her lines; a budget per pair if one enemy's flood should not delay the others'.
+  // ponytail: calls are counted, not timed: past about 8 ms a load (the log's "AddShow up to"), the per-frame cap is
+  // the only bound. A budget in AddShow's measured time if real loads are that slow.
+  static constexpr uint64_t kAddsPerFrame = 2, kAddsPerSecond = 60;
   // One frame at now (our clock, ms), drawing at at (the owner's clock, ms: the ghost's draw time; NaN without one).
   template <class Game> void draw(Game &g, uint64_t base, double now, double at) {
     if (latched_ || !holding()) // Nothing held: no line either (forget() drops a pair's), and nothing to read.
@@ -1795,8 +1786,14 @@ public:
       }
       ok[i] = drive(g, read, base, s.reg, p, found[i], now, at) && limit_ == PilotTest::replay;
     }
+    const uint64_t frame = adds_;
+    if (now >= second_ + 1000 || now < second_)
+      second_ = now, second_adds_ = adds_;
     for (const Timeline::Due *due; (due = timeline_.front(at));) {
-      const Timeline::Due d = *due;
+      if (due->line.kind == Kind::show && (adds_ - frame >= kAddsPerFrame || adds_ - second_adds_ >= kAddsPerSecond))
+        break;
+      Timeline::Due d = *due;
+      d.late = d.late || at - double(d.line.t_ms) > Timeline::kLateMs;
       timeline_.pop();
       Pair *p = pair(d.line.guid);
       const size_t i = p ? size_t(p - pairs_) : 0;
@@ -1971,7 +1968,7 @@ private:
     p.battle = has && (d.flags & kBattle) && st != State::local;
     p.skill = has && (d.flags & kSkill);
     p.exec = c.exec;
-    if (!mode(st).root_stream || limit_ == PilotTest::freeze)
+    if (!root_stream(st) || limit_ == PilotTest::freeze)
       return put_back(g, reg, p, &f), false;
     if (d.snap || snapped)
       ++counts.snaps, event("snapped", p.row.hguid);
@@ -1992,7 +1989,7 @@ private:
     }
     if (parallel) {
       ++(p.cap.cmc ? counts.cmc_reenabled : counts.cmc_out);
-      p.cap.took_cmc(true);
+      p.cap.cmc = true;
       g.cmc(f.cmc, false);
     }
     if (limit_ == PilotTest::cmc) { // Nothing written: the drift probe reads where the game leaves the copy at rest.
@@ -2039,6 +2036,7 @@ private:
         return;
       }
       g.main_actor(s.reg, live.handle, f->fsb + kFsbGuid);
+      ++adds_;
       live.slot = g.add(s.reg, live.handle, l.path, l.path_len, l.form, float(l.rate) / 1000, l.gate, l.b4d);
       if (live.slot < 0) {
         g.stop(s.reg, live.handle);
@@ -2167,6 +2165,8 @@ private:
 
   Pair pairs_[kMaxEnemies];
   Timeline timeline_;
+  uint64_t adds_ = 0, second_adds_ = 0; // AddShow's calls: all of them, and before the second that began at second_.
+  double second_ = 0;                   // Our clock, ms.
   Paths paths_;        // dedupe()'s names of the copies' own Shows.
   uint64_t base_ = 0;  // The game's image base, as draw() had it.
   uint32_t gen_ = 0;
