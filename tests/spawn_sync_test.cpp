@@ -485,6 +485,12 @@ int main() {
     const size_t spawned = w.created.size(), stale = g.counts.stale;
     take({"SBF12 spawn 1 1 7001 0 900 600 0 0 0"}, kGraceMs + 4 * kHaveAgainMs + 100);
     assert(w.created.size() == spawned && g.counts.stale == stale + 1);
+    // Once the host's enemy is gone too, its drop line blocks the key, and her next round leaves it out.
+    take({"SBF12 drop 1 1 7001 0"}, kGraceMs + 4 * kHaveAgainMs + 200);
+    w.lines();
+    take({}, kGraceMs + 5 * kHaveAgainMs + 300);
+    round = w.lines();
+    assert(has(round, "SBF12 have 1 1 ") && !has(round, " 7001:0") && blocks(g, SpawnKey{7001, 0}));
     // Her own epoch moves (a camp rest of hers): what she answered is void (7080, refused, leaves her rounds), and a
     // round goes once she is settled again; 7011, created, is one of her enemies now.
     epoch(ep, w, 0xA1, 1, 30000);

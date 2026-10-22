@@ -392,9 +392,8 @@ public:
     died_ = 0;
     // A Monster of ours dying while stage 1 does not follow it (unpaired, or our lethal claim waits for the host's
     // answer): answered as a refused key, so our rounds keep naming it once it left the map, and the host, whose enemy
-    // may live on, does not send it back. One the host's dead killed is blocked, and round() leaves it out. Never an
-    // extra's key, which no block holds. ponytail: one the host kills later on its own side stays named, and draws a
-    // stale drop each round until the epoch moves.
+    // may live on, does not send it back. One the host's dead killed is blocked, and round() leaves it out, as it does
+    // once the host's drop shows the host lacks it too (take()). Never an extra's key, which no block holds.
     for (size_t i = 0; i < n; ++i) {
       const Mine &m = mine[i];
       if (m.dying && m.monster && !m.paired && !is_extra(m.key.spawn) && !was_made(m.key) &&
@@ -486,7 +485,9 @@ private:
   // that zone, not followed by stage 1 and not despawned in this epoch. A refused spawn counts as answered, so our
   // rounds name it and the host stops asking; one again() names does not, so the host asks again (once we are nearer,
   // have room, or hold the extra's own enemy, which the same answer may bring). A drop refused as busy (our fight with
-  // it, or a takedown) stays ours, so our next round names it and the host asks again.
+  // it, or a takedown) stays ours, so our next round names it and the host asks again. A drop of a key we answered
+  // and hold no actor of (refused, or our own kill stage 1 did not follow) is stale but blocks the key, as the host
+  // lacks it too.
   template <class Io>
   void take(const Message &m, bool shared, const float *eve, bool eve_ok, const Mine *mine, size_t n, uint64_t now,
             Io &io) {
@@ -523,6 +524,8 @@ private:
     }
     const Mine *x = fight::find(mine, n, k);
     if (!x || x->dying || x->paired || listed(gone_at_, gone_, k)) {
+      if (!x && was_made(k) && !out(k, io)) // The host lacks it too: blocked, so our rounds leave it out.
+        block(k);
       ++counts.stale;
       return;
     }
