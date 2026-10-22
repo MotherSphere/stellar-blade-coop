@@ -190,10 +190,11 @@ While the menu, the chat box, the code box, the host's question or the co-op sav
 the mod checks every 250 ms that the keyboard focus is still on its UI. When something else has kept the focus for 1 s
 (one of the game's screens, another mod, a window switch that does not give the focus back), the mod does what
 `coop ui reset` does: the menu and the boxes close, an open host's question is answered with Deny, the co-op saves'
-question closes as Decide later, the mouse cursor goes, and the game gets its keys back at once. Nothing shows on
-screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its
-input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`. The watchdog has not been
-tested in game yet.
+question closes as Decide later, the mouse cursor goes, and the game gets its keys back at once. One difference: if you
+already chose co-op and the copies are being made, that choice stays, and the result shows as a notice when the copy
+ends. Nothing else shows on screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op
+UI closed, the game has its input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`.
+The watchdog has not been tested in game yet.
 
 - The Steam overlay (Shift+Tab) should leave the focus where it was and then not trip the watchdog (not tested in
   game yet).
@@ -1645,8 +1646,7 @@ status_overlay=off
 Rules:
 
 - `F10` is refused because it opens the console (as does `~`). Function keys do not depend on the keyboard layout.
-- Names and values ignore case, a UTF-8 BOM (Notepad) is accepted, and lines starting with `#` are comments. Only the
-  first 16384 bytes are read.
+- Names and values ignore case, a UTF-8 BOM (Notepad) is accepted, and lines starting with `#` are comments.
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all the keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F7`,

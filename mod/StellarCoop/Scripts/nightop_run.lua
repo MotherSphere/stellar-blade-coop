@@ -421,9 +421,7 @@ function Run.new(o)
         local score,secs=C.best(text,s.def.id)
         r.best=score and {score=score,s=secs} or nil
         if not C.better(score,secs,s.score,s.time) then return end
-        -- settings_file.set refuses a best line only when it would land past the bytes the file is read to.
-        local new,e=C.write(text,s.def.id,s.score,s.time),
-            'the file is over '..require('settings_file').LIMIT..' bytes'
+        local new,e=C.write(text,s.def.id,s.score,s.time)
         if new then
             local ok,wrote=pcall(records.write,new)
             e=not ok and wrote or wrote~=true and 'the write failed' or nil

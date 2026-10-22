@@ -9,19 +9,19 @@
 -- (it makes or refreshes the copies, then switches the save name, at the title only) and shows the pass's steps until
 -- saves=coop; a pass that ends without the switch, or a request with no answer in 2 s, shows why, with only the solo
 -- choices left. An unread status is no answer. A solo choice after a request asks "saves main", which withdraws a
--- switch still to come. The title left closes it as Decide later; a pass under way is followed on, its result said as a
--- notice. With always, no question: "saves coop" once a visit, its result a notice. With off, nothing: the manual co-op
--- slot that StellarCoopSlot.txt names is the only co-op save (main.lua's shared enemies notice says how to switch in a
--- session on your own save). While the question is open the game ignores its keys (the kit's input; main.lua's binds
--- hand it up, down, select, back and a left click, and an XInput pad's D-pad, left stick, A and B through the native
--- part), a shade over the whole screen takes the mouse so no click reaches the title menu under it, and the game's
--- input comes back 150 ms after it closes. While the game uses the co-op copies (saves=coop), a CO-OP SAVES badge shows
--- at the top right of the title screen, whatever auto_coop_save says. On another game build (a game update) the co-op
--- saves are off: with ask or always, a notice says so once a Lua load at the title. A friend's invite accepted at the
--- title waits for a save (the link's held invite): the question's first line says so, and once a visit it asks again
--- when such an invite comes after an answer without co-op. With a manual co-op slot (StellarCoopSlot.txt) once the game
--- uses the co-op copies, a notice says once a Lua load which files co-op no longer needs; nothing is moved. No engine
--- call here: the kit makes them.
+-- switch still to come. The title left or the focus watchdog closes it as Decide later; a pass under way is followed
+-- on, its result said as a notice. With always, no question: "saves coop" once a visit, its result a notice. With off,
+-- nothing: the manual co-op slot that StellarCoopSlot.txt names is the only co-op save (main.lua's shared enemies
+-- notice says how to switch in a session on your own save). While the question is open the game ignores its keys (the
+-- kit's input; main.lua's binds hand it up, down, select, back and a left click, and an XInput pad's D-pad, left stick,
+-- A and B through the native part), a shade over the whole screen takes the mouse so no click reaches the title menu
+-- under it, and the game's input comes back 150 ms after it closes. While the game uses the co-op copies (saves=coop),
+-- a CO-OP SAVES badge shows at the top right of the title screen, whatever auto_coop_save says. On another game build
+-- (a game update) the co-op saves are off: with ask or always, a notice says so once a Lua load at the title. A
+-- friend's invite accepted at the title waits for a save (the link's held invite): the question's first line says so,
+-- and once a visit it asks again when such an invite comes after an answer without co-op. With a manual co-op slot
+-- (StellarCoopSlot.txt) once the game uses the co-op copies, a notice says once a Lua load which files co-op no longer
+-- needs; nothing is moved. No engine call here: the kit makes them.
 local T=require('ui_text')
 local Chat=require('chat')
 local SF=require('settings_file')
@@ -287,8 +287,12 @@ function Saves.new(o)
             kit.input(false,'saves')
         end
     end
-    -- coop ui reset: closed as Decide later.
-    function self.close() if open then answer('later') end end
+    -- coop ui reset: closed as Decide later. keep (the focus watchdog, which the player did not ask for): a pass under
+    -- way is followed on instead, as when the title is left.
+    function self.close(keep)
+        if keep and phase=='wait' then return close() end
+        if open then answer('later') end
+    end
     -- coop off: nothing more (kit.stop gives the game its input back). Not coop ui off: always still asks then.
     function self.stop() stopped,open,back_at,phase=true,false,nil,nil end
     return self

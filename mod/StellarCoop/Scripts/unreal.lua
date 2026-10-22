@@ -43,6 +43,12 @@ function U.find(path)
     end
     return object
 end
+-- The player controller while it is one: UEHelpers keeps its last one while that address is valid, and after a map
+-- change the address may hold another object (an input mode set on that one is a native fault).
+function U.controller()
+    local pc=U.valid(require('UEHelpers').GetPlayerController())
+    return pc and pc:IsA(U.find('/Script/Engine.PlayerController')) and pc or nil
+end
 function U.address(object) return U.value_of(object):GetAddress() end
 function U.hex(object) return string.format('0x%x',U.address(object)) end
 -- A word of the component table (native/src/pose_table.h): printable ASCII, '_' for any other byte, at most max bytes

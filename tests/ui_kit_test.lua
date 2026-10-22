@@ -788,7 +788,7 @@ pc=object('Actor')
 k=kit()
 for _=1,60 do k.slow(true) end
 assert(#constructed==0 and #viewport==0)
--- No hit group (the HUD only): the root lets every hit through, as the spike's.
+-- No hit group (the HUD only): the root lets every hit through.
 reset()
 k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
 k.add('card',{x=96,y=96,w=760,h=210,shown=true},function(b) b.panel(0,0,760,210) end)

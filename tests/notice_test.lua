@@ -2,8 +2,8 @@
 -- line 120 cm above her, turned to the camera, wrapped at 40 columns (the shared fight's longest on two lines); in
 -- Latin-1 only (the engine's default font): a notice whose words go past it in English, '?' for what is left past it;
 -- hidden during our own photo mode, the queue kept;
--- spawned again once invalid; the first engine error turns it off with one line, and no engine call follows; so does
--- coop off, which hides it first.
+-- spawned again once invalid; a frame with a stale player controller skipped; the first engine error turns it off with
+-- one line, and no engine call follows; so does coop off, which hides it first.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -48,11 +48,15 @@ local eve=object({IsA=function(_,class) calls=calls+1; return class.path=='/Scri
 eve=setmetatable({},{__index=eve,__newindex=function(_,key) error('the notice wrote '..key..' on EVE',2) end})
 local menu=object({IsA=function() calls=calls+1; return false end}) -- The title screen's pawn.
 local player,camera=eve,{X=100,Y=100,Z=300}
+-- stale: the controller UEHelpers keeps holds another object (its address reused after a map change).
+local stale=false
 package.loaded.UEHelpers={
     GetPlayer=function() calls=calls+1; return player end,
     GetPlayerController=function()
         calls=calls+1
-        return {PlayerCameraManager={GetCameraLocation=function() calls=calls+1; return camera end}}
+        if stale then return object({IsA=function() calls=calls+1; return false end}) end
+        return object({IsA=function(_,class) calls=calls+1; return class.path=='/Script/Engine.PlayerController' end,
+            PlayerCameraManager=object({GetCameraLocation=function() calls=calls+1; return camera end})})
     end,
 }
 StaticFindObject=function(path)
@@ -169,6 +173,14 @@ assert(calls==0 and actor.hidden,'Veiled: no engine call')
 n.veil(false); n.tick(); assert(not actor.hidden and label.text=='photo','The head notice again')
 clock=clock+3.9; n.tick(); assert(label.text=='photo','Its full 4 s')
 clock=clock+0.1; n.tick(); assert(label.text=='queued')
+clock=clock+4; n.tick(); assert(actor.hidden==true)
+
+-- A stale controller: that frame is skipped, the line stays on and turns again once the controller is one.
+n.say('stale'); n.tick(); assert(label.text=='stale' and not actor.hidden)
+stale=true
+assert(n.tick()==nil and n.tick()==nil,'Skipped, not off')
+stale=false
+camera={X=-50,Y=0,Z=0}; n.tick(); assert(math.abs(label.rot.Yaw-180)<1e-9 and label.text=='stale')
 clock=clock+4; n.tick(); assert(actor.hidden==true)
 
 -- A line whose level went away is spawned again, with its text.

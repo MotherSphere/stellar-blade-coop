@@ -172,10 +172,10 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
 - `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its input back` in
   `UE4SS.log`: something took the keyboard focus from the mod's UI for 1 s (one of the game's screens, another mod, a
   window switch), so the mod closed it as `coop ui reset` does and gave the game its keys back. Who is `menu`, `chat`,
-  `code`, `ask` (the host's question, answered with Deny) or `saves` (the co-op saves' question, closed as Decide
-  later). A click of the middle or a side mouse button does this too. Open the menu again. If it closes this way with
-  nothing else on screen, send `UE4SS.log` with a note of what you did just before. See
-  [usage.md: Focus watchdog](usage.md#focus-watchdog).
+  `code`, `ask` (the host's question, answered with Deny) or `saves` (the co-op saves' question, closed as Decide later;
+  a copy already under way keeps going and its result shows as a notice). A click of the middle or a side mouse button
+  does this too. Open the menu again. If it closes this way with nothing else on screen, send `UE4SS.log` with a note of
+  what you did just before. See [usage.md: Focus watchdog](usage.md#focus-watchdog).
 - No watchdog line: the menu also closes when the game pauses or shows the mouse cursor for one of its own screens
   (EVE dies, a shop opens, your friend's photo mode pauses your game). The chat box closes the same way, and what you
   typed is lost.

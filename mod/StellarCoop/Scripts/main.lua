@@ -39,14 +39,12 @@
 -- in coop-settings.txt: your friend's photo mode pauses your game, yours pauses theirs; during your own, the notices,
 -- and as set the ghost and its name tag, stay out of the shot), with coop freeze <seconds>|off to test the pause alone,
 -- and photo_pause=scenery, SB's photo mode without its full pause (experimental); coop ui reset (the menu and the
--- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop ui test
--- [game], the UI-layer spike (ui.lua: a small widget on screen for 5 s and its checks in the log; a test tool, left out
--- of the usage line); coop race look on|off, your EVE drawn as a Doro and the ghost too, and coop race probe doro, a
--- Doro playing each of its clips (doro.lua; test tools, left out of the usage line; both start on a co-op save only);
--- coop race record <name>|cp|save [laps]|cancel|start <name>|quit, Doro races on a track you record (race.lua; race_key
--- drops a checkpoint while you record; start on a co-op save only). coop off stops everything until the game restarts.
--- An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or
--- closes the menu.
+-- chat's box closed, the game's input back) and coop ui off (the co-op UI gone until the mod reloads); coop race look
+-- on|off, your EVE drawn as a Doro and the ghost too, and coop race probe doro, a Doro playing each of its clips
+-- (doro.lua; test tools, left out of the usage line; both start on a co-op save only); coop race record <name>|cp|save
+-- [laps]|cancel|start <name>|quit, Doro races on a track you record (race.lua; race_key drops a checkpoint while you
+-- record; start on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read by the
+-- native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -118,9 +116,9 @@ local notice=require('notice').new()
 local kit,menu,box,hud,saves_ui,code_box,approval
 -- coop ui reset and the focus watchdog: the menu, the chat's box and the code box closed, an open host's question
 -- denied, the co-op saves' question closed as Decide later, the game's input given back now and the menu's mouse
--- cursor put back; why, when given, logged.
+-- cursor put back. With why (the watchdog's): it is logged, and a co-op saves pass under way is kept.
 local function ui_reset(why)
-    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(); kit.reset()
+    menu.close(); box.close(); code_box.close(); approval.close(); saves_ui.close(why~=nil); kit.reset()
     if why then log(why) end
 end
 -- A notice: into the chat's feed while the UI's root is up, else on the line above EVE (notice.lua), the fallback when
@@ -205,9 +203,7 @@ local night=require('nightop_run').new({log=function(m) print('[StellarCoop][NR]
 local group,travel=nil,nil
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
--- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
-local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end
-local ui=require('ui').new(ui_log)
+local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
 -- The Doro look and probe (doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
@@ -288,7 +284,6 @@ end
 -- untouched game changes nothing. SB reads it as each photo mode opens, so a change applies from the next. The first
 -- engine error, or a set that does not take (another game build), stops it for this Lua load. coop off sets 0 again
 -- unless 0 was the last value matched, and logs a line when no player controller lets it.
-local UE=require('UEHelpers')
 local PAUSE_METHOD='SB.PhotoMode.PauseMethod'
 local pause={synced=nil,failed=false} -- The method last matched (read or set); off for this load.
 local function photo_pause(want,why)
@@ -296,9 +291,7 @@ local function photo_pause(want,why)
     local ok,result=pcall(function()
         local library=U.find('/Script/Engine.Default__KismetSystemLibrary')
         if library:GetConsoleVariableIntValue(PAUSE_METHOD)==want then return true end
-        local pc=U.valid(UE.GetPlayerController())
-        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
-        if pc and not pc:IsA(U.find('/Script/Engine.PlayerController')) then pc=nil end
+        local pc=U.controller()
         if not pc then return false end -- Not yet: tried again in 250 ms.
         library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)
         local now=library:GetConsoleVariableIntValue(PAUSE_METHOD)
@@ -563,7 +556,7 @@ local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
     -- (7.6): the co-op UI gone until the mod reloads, the notice line above EVE and the ghost's name tag back (the
     -- co-op saves' question with it; auto_coop_save=always still asks at the title).
-    ui=function(sub,arg,extra)
+    ui=function(sub,arg)
         if (sub=='reset' or sub=='off') and arg==nil then
             if not kit then return false,'the co-op UI needs the Steam link' end
             if sub=='off' then -- The host's question waits for its 30 s: no answer from a UI that is gone.
@@ -573,10 +566,7 @@ local commands={
             ui_reset()
             return true,'co-op UI reset: menu and chat closed, the game has its input back'
         end
-        if sub~='test' or (arg~=nil and arg~='game') or extra~=nil then
-            return false,'Use: coop ui test [game] | reset | off'
-        end
-        return ui.test(arg=='game')
+        return false,'Use: coop ui reset | off'
     end,
     -- The look and the ghost's Doro mode go on together; off ends both, whether the look is on or not, on any save.
     -- The look and the probe start on a co-op save only: the look writes to the player actor.
@@ -609,7 +599,6 @@ local commands={
         off=true
         if puppet.active() then puppet.toggle() end
         notice.stop()
-        ui.stop()
         if menu then menu.stop() end
         if box then box.stop() end
         if saves_ui then saves_ui.stop() end
@@ -774,7 +763,6 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
-    ui.tick() -- Likewise for coop ui test.
     -- The open and close tweens, the game's input back after a close, the chat box focused again, the partner's marker
     -- (each frame, from the ghost's place just set).
     if kit then

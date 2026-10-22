@@ -44,7 +44,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui_model.lua` | The menu's rows and settings, with no engine call |
 | `ui_text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
-| `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD, and the `coop ui test` spike |
+| `ui.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
 | `keybind.lua` | The key settings' grammar and their clash check |
 | `settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
 | `nightop.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
@@ -158,11 +158,11 @@ The kit makes its root focusable (`bIsFocusable`) before it adds it to the viewp
 itself. Every 250 ms while the UI holds the input, it reads `HasAnyUserFocus` or `HasFocusedDescendants` on the root.
 The watchdog arms at the first yes since the input was taken; armed, 1 s of no fires it once. `main.lua` then runs the
 same function as `coop ui reset`: the menu, the chat box and the code box closed, an open host's question denied (which
-fails closed), the co-op saves' question closed as Decide later, the input given back at once and the menu's cursor put
-back. One log line names the holder; nothing shows on screen. A root that never had the focus 2 s after a take leaves
-the watchdog unarmed, with one log line a Lua load. The Steam overlay should keep Slate's focus where it was and then
-not fire the watchdog (not tested in game yet). The game, another mod, or a middle or side mouse button moving the
-focus does.
+fails closed), the co-op saves' question closed as Decide later (a copy pass already asked for keeps running and is
+followed on, where `coop ui reset` withdraws it), the input given back at once and the menu's cursor put back. One log
+line names the holder; nothing shows on screen. A root that never had the focus 2 s after a take leaves the watchdog
+unarmed, with one log line a Lua load. The Steam overlay should keep Slate's focus where it was and then not fire the
+watchdog (not tested in game yet). The game, another mod, or a middle or side mouse button moving the focus does.
 
 ### Line breaks
 
