@@ -10,6 +10,15 @@
 -- that took its actor's place; a pawn that is no SBCharacter, or a mesh of another class (also after list), shows
 -- nothing; the next Lua load sweeps what the file names, once; no SpawnActor call ever takes another class than
 -- /Script/Engine.Actor.
+-- show also takes a distance (by default 1.6 times the mesh's bounding sphere radius, 6 m at least, or 6 m when its
+-- bounds are unread), a height and a scale; move places the shown mesh again from where EVE stands, without a new
+-- actor; skin sets every material slot to the statue's or the Hydra's material and default puts the mesh's own back,
+-- the skin kept across play, move and a new show. The free camera: show and play turn it on, cam toggles it and sets
+-- its speed; on, a plain actor with one CameraComponent where the game's camera was is the view target, and the
+-- controller ignores move and look input; each frame the keys (QWERTY and AZERTY, Shift 4 times as fast, a hitch capped
+-- at 0.1 s) and the mouse move and turn it, and nothing reads a key while the co-op menu is open; off, coop off, a map
+-- change, its first error and the next Lua load put the view back on EVE and both ignore flags as they were, and remove
+-- its actor.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -29,8 +38,8 @@ local invalid=object({destroyed=true})
 local function class(path) return object({path=path,MakeTransform=function() return 'identity' end}) end
 local assets,loads,by_path={},{},{}
 local packages={} -- A class that shows only once LoadAsset loaded its Blueprint's package: package path -> class.
-local player
-package.loaded.UEHelpers={GetPlayer=function() return player end}
+local player,controller
+package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return controller end}
 StaticFindObject=function(path)
     if by_path[path] then return by_path[path] end
     if path:find('^/Script/') then return class(path) end
@@ -102,10 +111,11 @@ local character_table=object({GetFullName=function() return 'DataTable '..TABLE 
     IsA=function(_,c) return c.path=='/Script/Engine.DataTable' end,
     ForEachRow=function(_,f) for _,r in ipairs(ROWS) do f(r[1],r[2]) end end})
 assets[TABLE]=character_table
--- A display's component: its calls in order, as words. broken: PlayAnimation raises it.
-local broken
+-- A display's component: its calls in order, as words. broken: PlayAnimation raises it. A mesh's has next_bounds as
+-- its Bounds and three material slots, its own materials 'own 0' to 'own 2'. no_camera: no CameraComponent is added.
+local broken,next_bounds,no_camera
 local function component(actor,kind)
-    local c=object({calls={},actor=actor,kind=kind})
+    local c=object({calls={},actor=actor,kind=kind,Bounds=next_bounds,slots={[0]='own 0','own 1','own 2'}})
     local function said(...)
         local words={...}
         for k,w in ipairs(words) do if math.type(w)=='float' then words[k]=string.format('%g',w) end end
@@ -122,6 +132,10 @@ local function component(actor,kind)
     function c:SetPosition(at,notifies) assert(notifies==false,'Never notifies'); said('at',at) end
     function c:K2_DestroyComponent() self.destroyed=true end
     function c:IsA(k) return k.path==self.kind end
+    function c:SetFieldOfView(v) said('fov',v) end
+    function c:GetNumMaterials() return 3 end
+    function c:GetMaterial(i) return self.slots[i] end
+    function c:SetMaterial(i,m) assert(math.type(i)=='integer' and i>=0 and i<3); self.slots[i]=m end
     return c
 end
 local spawned,spawn_classes={},{}
@@ -132,8 +146,10 @@ function world:SpawnActor(c,at,rot)
     local a=object({components={},destroys=0})
     function a:SetActorEnableCollision(on) self.collision=on end
     function a:AddComponentByClass(k,manual,transform,deferred)
-        assert((k.path=='/Script/Engine.SkeletalMeshComponent' or k.path=='/Script/Engine.StaticMeshComponent')
+        assert((k.path=='/Script/Engine.SkeletalMeshComponent' or k.path=='/Script/Engine.StaticMeshComponent'
+            or k.path=='/Script/Engine.CameraComponent')
             and manual==false and transform=='identity' and deferred==false)
+        if no_camera and k.path=='/Script/Engine.CameraComponent' then return nil end
         local added=component(self,k.path)
         self.components[#self.components+1]=added
         return added
@@ -146,12 +162,13 @@ function world:SpawnActor(c,at,rot)
     spawned[n]=a
     return a
 end
--- EVE: her main mesh at her feet, turned as her actor minus 90 degrees, her actor facing +Y.
-local eve=object({Mesh=object({K2_GetComponentLocation=function() return {X=10,Y=20,Z=-87} end,
-    K2_GetComponentRotation=function() return {Pitch=0,Yaw=0,Roll=0} end})})
+-- EVE: her main mesh at her feet (eve_at), turned as her actor (eve_yaw) minus 90 degrees, her actor facing +Y.
+local eve_at,eve_yaw={X=10,Y=20,Z=-87},90
+local eve=object({Mesh=object({K2_GetComponentLocation=function() return eve_at end,
+    K2_GetComponentRotation=function() return {Pitch=0,Yaw=eve_yaw-90,Roll=0} end})})
 function eve:IsA(k) return k.path=='/Script/SB.SBCharacter' end
 function eve:GetWorld() return world end
-function eve:K2_GetActorRotation() return {Pitch=0,Yaw=90,Roll=0} end
+function eve:K2_GetActorRotation() return {Pitch=0,Yaw=eve_yaw,Roll=0} end
 player=eve
 local stored -- coop-leviathan.txt's line.
 local store={save=function(line) stored=line; return true end,load=function() return stored end,
@@ -160,8 +177,11 @@ local logs={}
 local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
 local function close(a,b) return math.abs(a-b)<1e-6 end
-local lv=L.new({log=log,store=store})
-local USE='Use: coop leviathan [list] | show [body|a|b|tentacle|statue] | play [<clip>] | off'
+local menu_open=false
+local lv=L.new({log=log,store=store,blocked=function() return menu_open end})
+local USE='Use: coop leviathan [list] | show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>] [<scale>] | '
+    ..'move <distance m>|auto [<height m>] | skin statue|hydra|default | cam [<m/s>] | play [<clip>] | off'
+local NO_CAM=', no free camera (no player controller)' -- Until the camera's part below.
 
 -- list: a line per asset of LIST, then the rows that name it and the count. Nothing spawned.
 local ok,why=lv.command()
@@ -205,26 +225,32 @@ local _,again=lv.command('list')
 assert(last()=='list CharacterTable not read: not found' and again:find('CharacterTable not read; ',1,true),again)
 assets[TABLE],character_table.destroyed=character_table,nil
 -- Anything else: its usage line.
-for _,bad in ipairs({{'list','x'},{'show','huge'},{'show','body','x'},{'off','x'},{'play','a','b'},{'on'}}) do
+for _,bad in ipairs({{'list','x'},{'show','huge'},{'show','body','x'},{'off','x'},{'play','a','b'},{'on'},
+        {'show','-1'},{'show','body','10','1e9'},{'show','body','10','0','0'},{'move'},
+        {'move','x'},{'move','10','up'},{'move','10','0','1'},{'skin'},{'skin','gold'},{'skin','hydra','x'},
+        {'cam','0'},{'cam','fast'},{'cam','10','x'}}) do
     local done,said=lv.command(table.unpack(bad))
     assert(not done and said==USE,said)
 end
 assert(#spawned==0)
 
--- show: one plain Actor 6 m ahead of EVE, facing her, collision off, the body's mesh at scale 1 in the single-node
--- mode; the file names it; then each clip of its skeleton twice in turn (the blend space for 3 s), logged.
+-- show: one plain Actor 6 m ahead of EVE (its bounds unread), facing her, collision off, the body's mesh at scale 1 in
+-- the single-node mode; the file names it; then each clip of its skeleton twice in turn (the blend space for 3 s),
+-- logged. No player controller: no free camera, said.
 logs={}
 clock=100
 ok,why=lv.command('show')
-assert(ok and why=='Leviathan body shown 6 m ahead, 3 clips in turn; [LV] lines in this log.',why)
-assert(last()=='show body: CH_M_NA_10, 3 clips on skeleton CH_M_NA_10_Skeleton',last())
+assert(ok and why=='Leviathan body shown 6 m ahead, 0 m up, scale 1, 3 clips in turn'..NO_CAM..'; [LV] lines in this '
+    ..'log.',why)
+assert(last()=='show body: CH_M_NA_10, 3 clips on skeleton CH_M_NA_10_Skeleton, 6 m ahead, 0 m up, scale 1',last())
+assert(logs[#logs-1]:find('^show body: bounds unread %(.*%), 6 m ahead$'),logs[#logs-1])
 local a=spawned[1]
 local m=a.components[1]
 assert(#spawned==1 and #a.components==1 and a.collision==false)
 assert(close(a.spawned_at.X,10) and close(a.spawned_at.Y,620) and a.spawned_at.Z==-87,'600 cm ahead of her')
 assert(a.spawned_rot.Yaw==180 and close(m.at.Y,620) and m.rot.Yaw==180,'Facing her')
 assert(m.kind=='/Script/Engine.SkeletalMeshComponent'
-    and table.concat(m.calls,'|')=='mesh CH_M_NA_10|scale 1|collision 0|mode 1',table.concat(m.calls,'|'))
+    and table.concat(m.calls,'|')=='mesh CH_M_NA_10|scale 1|collision 0|mode 1|scale 1',table.concat(m.calls,'|'))
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_1\t'..path('CH_M_NA_10'),stored)
 m.calls={}
 local function tick_at(t) clock=t; return lv.tick() end
@@ -248,25 +274,26 @@ assert(table.concat(m.calls,'|')=='play M_Leviathan_BattleIdle01 true|rate 1|at 
 -- play: a clip held looping, named by its end, else by any part, in any case; play alone: the cycle goes on.
 m.calls={}
 ok,why=lv.command('play','LIGHTNINGBALL')
-assert(ok and why=='Leviathan body holds M_Leviathan_LightningBall1_1 looping; coop leviathan play goes back to the '
-    ..'cycle.',why)
+assert(ok and why=='Leviathan body holds M_Leviathan_LightningBall1_1 looping'..NO_CAM..'; coop leviathan play goes '
+    ..'back to the cycle.',why)
 tick_at(114); assert(last()=='play M_Leviathan_LightningBall1_1 looping',last())
 tick_at(500); tick_at(900)
 assert(table.concat(m.calls,'|')=='play M_Leviathan_LightningBall1_1 true|rate 1|at 0',table.concat(m.calls,'|'))
-assert(select(2,lv.command('play','battle')):find(' holds IdleRun_BS_Battle looping;',1,true),'Its end first')
+assert(select(2,lv.command('play','battle')):find(' holds IdleRun_BS_Battle looping,',1,true),'Its end first')
 ok,why=lv.command('play','catch')
 assert(not ok and why=='no clip of the shown body ends with or holds catch','Another skeleton\'s clip: not this one')
 ok,why=lv.command('play')
-assert(ok and why=='Leviathan body back to its cycle.')
+assert(ok and why=='Leviathan body back to its cycle'..NO_CAM..'.',why)
 tick_at(901); assert(last()=='show body step 2/3 M_Leviathan_LightningBall1_1 1.50 s twice',last())
 -- A second show replaces the first: the tentacle, its own clips; bashleft is the clip that ends so.
 logs={}
 ok,why=lv.command('show','tentacle')
 assert(ok and logs[1]=='removed (replaced)' and a.destroyed and #spawned==2,logs[1])
-assert(last()=='show tentacle: M_LeviathanTentacleA, 3 clips on skeleton M_LeviathanTentacleA_Skeleton',last())
+assert(last()=='show tentacle: M_LeviathanTentacleA, 3 clips on skeleton M_LeviathanTentacleA_Skeleton, 6 m ahead, 0 '
+    ..'m up, scale 1',last())
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_2\t'..path('M_LeviathanTentacleA'),stored)
-assert(select(2,lv.command('play','bashleft')):find(' holds M_LeviathanTentacleA_BashLeft looping;',1,true))
-assert(select(2,lv.command('play','BashLeft_1')):find(' holds M_LeviathanTentacleA_BashLeft_1 looping;',1,true))
+assert(select(2,lv.command('play','bashleft')):find(' holds M_LeviathanTentacleA_BashLeft looping,',1,true))
+assert(select(2,lv.command('play','BashLeft_1')):find(' holds M_LeviathanTentacleA_BashLeft_1 looping,',1,true))
 tick_at(902); assert(last()=='play M_LeviathanTentacleA_BashLeft_1 looping',last())
 -- off: gone, the file cleared; then nothing to remove.
 ok,why=lv.command('off')
@@ -278,9 +305,9 @@ assert(select(2,lv.command('play'))=='no Leviathan is shown: coop leviathan show
 ok,why=lv.command('show','statue')
 local s=spawned[3].components[1]
 assert(ok and s.kind=='/Script/Engine.StaticMeshComponent'
-    and table.concat(s.calls,'|')=='static C_Reviathan|scale 1|collision 0',table.concat(s.calls,'|'))
-assert(last()=='show statue: C_Reviathan, 0 clips on skeleton -',last())
-assert(tick_at(904)==nil and tick_at(999)==nil and #s.calls==3,'Nothing to play')
+    and table.concat(s.calls,'|')=='static C_Reviathan|scale 1|collision 0|scale 1',table.concat(s.calls,'|'))
+assert(last()=='show statue: C_Reviathan, 0 clips on skeleton -, 6 m ahead, 0 m up, scale 1',last())
+assert(tick_at(904)==nil and tick_at(999)==nil and #s.calls==4,'Nothing to play')
 assert(not lv.command('play','idle'))
 -- A missing mesh: its actor destroyed at once, the earlier display gone too.
 ok,why=pcall(lv.command,'show','b')
@@ -390,6 +417,295 @@ local refused=newest()
 assert(not ok and why:find('Leviathan_A is missing on this PC',1,true) and refused.destroyed
     and #refused.components==0,why)
 la.IsA=isa
+
+-- Placement: the distance from the mesh's bounds once its scale is set (1.6 radii, 6 m at least), its radius and its
+-- centre's height logged; a distance, a height and a scale given; auto with a height.
+lv.command('off')
+next_bounds={SphereRadius=5000,Origin={X=0,Y=0,Z=-87+3000}}
+logs={}
+ok,why=lv.command('show')
+local big=newest()
+assert(ok and why:find('Leviathan body shown 80 m ahead, 0 m up, scale 1, ',1,true),why)
+assert(logged('show body: bounding sphere radius 50 m, centre 30 m above its root'))
+assert(close(big.components[1].at.X,10) and close(big.components[1].at.Y,20+8000) and big.components[1].at.Z==-87)
+next_bounds={SphereRadius=100,Origin={X=0,Y=0,Z=0}}
+assert(select(2,lv.command('show')):find(' shown 6 m ahead,',1,true),'6 m at least')
+ok,why=lv.command('show','body','20','5','2')
+local placed=newest().components[1]
+assert(ok and why:find('Leviathan body shown 20 m ahead, 5 m up, scale 2, ',1,true),why)
+assert(close(placed.at.Y,20+2000) and placed.at.Z==-87+500 and placed.rot.Yaw==180,'20 m ahead, 5 m up, facing her')
+assert(table.concat(placed.calls,'|')=='mesh CH_M_NA_10|scale 1|collision 0|mode 1|scale 2',
+    table.concat(placed.calls,'|'))
+next_bounds={SphereRadius=2500,Origin={X=0,Y=0,Z=0}}
+ok,why=lv.command('show','auto','10')
+assert(ok and why:find(' shown 40 m ahead, 10 m up, scale 1, ',1,true) and newest().components[1].at.Z==-87+1000,why)
+ok,why=lv.command('show','30')
+assert(ok and why:find('Leviathan body shown 30 m ahead, 0 m up, ',1,true),'A distance alone: the body')
+next_bounds=nil
+-- move: the same actor placed again from where EVE stands now and the way she faces; auto takes its radius.
+lv.command('show','auto')
+local moved,moved_path=newest()
+local before=#spawned
+eve_at,eve_yaw={X=1000,Y=0,Z=0},0
+ok,why=lv.command('move','30','10')
+local mm=moved.components[1]
+assert(ok and why=='Leviathan body moved 30 m ahead of EVE, 10 m up.' and #spawned==before and not moved.destroyed,why)
+assert(close(mm.at.X,4000) and close(mm.at.Y,0) and mm.at.Z==1000 and mm.rot.Yaw==90,'Ahead of her, facing her')
+assert(last()=='move body: 30 m ahead, 10 m up' and stored==moved_path..'\t'..path('CH_M_NA_10'),last())
+ok,why=lv.command('move','auto')
+assert(ok and why=='Leviathan body moved 6 m ahead of EVE, 0 m up.' and close(mm.at.X,1600) and mm.at.Z==0,why)
+eve_at,eve_yaw={X=10,Y=20,Z=-87},90
+lv.command('off')
+ok,why=lv.command('move','10')
+assert(not ok and why=='no Leviathan is shown: coop leviathan show first')
+
+-- skin: every slot to the material, default back to the mesh's own; kept across play, move and a new show; a missing
+-- material changes nothing; with nothing shown, kept for the next show.
+local function material(p)
+    local o=object({key=p:match('[^.]+$')})
+    o.GetFullName=function() return 'MaterialInstanceConstant '..p end
+    o.IsA=function(_,c) return c.path=='/Script/Engine.MaterialInterface' or c.path=='/Script/CoreUObject.Object' end
+    assets[p]=o
+    return o
+end
+material(L.SKINS.statue)
+local hydra=material(L.SKINS.hydra)
+local function slots(c)
+    local t={}
+    for i=0,2 do t[#t+1]=type(c.slots[i])=='string' and c.slots[i] or c.slots[i].key end
+    return table.concat(t,',')
+end
+lv.command('show')
+local dm=newest().components[1]
+ok,why=lv.command('skin','hydra')
+assert(ok and why=='Leviathan body skin hydra on its 3 material slots.' and last()=='skin hydra: 3 slots, '
+    ..'MI_M_NA_09_V03_Tentacle',why)
+assert(slots(dm)=='MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle',slots(dm))
+lv.command('play','battle')
+lv.command('move','12')
+tick_at(5000)
+assert(slots(dm)=='MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle','Kept')
+ok,why=lv.command('skin','default')
+assert(ok and slots(dm)=='own 0,own 1,own 2' and last()=='skin default: 3 slots, its own',slots(dm))
+lv.command('skin','statue')
+assert(slots(dm)=='C_Reviathan_MI,C_Reviathan_MI,C_Reviathan_MI')
+lv.command('show','tentacle')
+local tm=newest().components[1]
+assert(slots(tm)=='C_Reviathan_MI,C_Reviathan_MI,C_Reviathan_MI' and logged('skin statue: 3 slots, C_Reviathan_MI'),
+    'A new show keeps the last skin')
+hydra.destroyed,assets[L.SKINS.hydra]=true,nil
+ok,why=pcall(lv.command,'skin','hydra')
+assert(not ok and why:find('MI_M_NA_09_V03_Tentacle is missing on this PC',1,true)
+    and slots(tm)=='C_Reviathan_MI,C_Reviathan_MI,C_Reviathan_MI',why)
+lv.command('show','tentacle')
+assert(slots(newest().components[1])=='C_Reviathan_MI,C_Reviathan_MI,C_Reviathan_MI','Still the statue\'s')
+hydra=material(L.SKINS.hydra)
+lv.command('off')
+ok,why=lv.command('skin','default')
+assert(ok and why=='Leviathan skin default for the next show.')
+lv.command('show')
+assert(slots(newest().components[1])=='own 0,own 1,own 2')
+lv.command('off')
+
+-- The free camera. The player controller: stacked move and look ignore counts, its view target, the keys held (down),
+-- the mouse's delta, each key and mouse read counted.
+local down,mouse,keys_broken={},{x=0,y=0},nil
+local PC_PATH='/Game/Map.Map:PersistentLevel.SBPlayerController_0'
+local pc=object({move_n=0,look_n=0,reads=0,mouse_reads=0})
+function pc:GetFullName() return 'SBPlayerController '..PC_PATH end
+function pc:IsA(k) return k.path=='/Script/Engine.PlayerController' end
+pc.PlayerCameraManager=object({GetCameraLocation=function() return {X=100,Y=200,Z=300} end,
+    GetCameraRotation=function() return {Pitch=-10,Yaw=45,Roll=0} end,GetFOVAngle=function() return 80 end})
+function pc:SetViewTargetWithBlend(a,blend,f,e,lock)
+    assert(f==0 and e==0 and lock==false)
+    self.view,self.blend=a,blend
+end
+function pc:GetViewTarget() return self.view end
+function pc:K2_GetPawn() return player end
+function pc:SetIgnoreMoveInput(b) self.move_n=math.max(self.move_n+(b and 1 or -1),0) end
+function pc:SetIgnoreLookInput(b) self.look_n=math.max(self.look_n+(b and 1 or -1),0) end
+function pc:IsMoveInputIgnored() return self.move_n>0 end
+function pc:IsLookInputIgnored() return self.look_n>0 end
+function pc:ResetIgnoreMoveInput() self.move_n=0 end
+function pc:ResetIgnoreLookInput() self.look_n=0 end
+function pc:IsInputKeyDown(k)
+    self.reads=self.reads+1
+    if keys_broken then error(keys_broken,0) end
+    return down[k.KeyName:ToString()]==true
+end
+function pc:GetInputMouseDelta(x,y)
+    self.mouse_reads=self.mouse_reads+1
+    x.DeltaX,y.DeltaY=mouse.x,mouse.y
+end
+controller=pc
+local function back(why)
+    return pc.view==eve and pc.blend==0.3 and pc.move_n==0 and pc.look_n==0,why
+end
+-- show turns it on: a plain Actor with one CameraComponent where the game's camera is, with its field of view, the view
+-- target; move and look input ignored; the file holds it beside the display, with the flags from before.
+clock=6000
+logs={}
+ok,why=lv.command('show','body','20','5','2')
+assert(ok and why=='Leviathan body shown 20 m ahead, 5 m up, scale 2, 3 clips in turn, free camera on; [LV] lines in '
+    ..'this log.',why)
+local camera,camera_path=newest()
+local display_path='/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)
+local lens=camera.components[1]
+assert(lens.kind=='/Script/Engine.CameraComponent' and #camera.components==1 and camera.collision==false)
+assert(camera.spawned_at.X==100 and camera.spawned_at.Y==200 and camera.spawned_at.Z==300
+    and camera.spawned_rot.Yaw==45 and camera.spawned_rot.Pitch==-10 and table.concat(lens.calls,'|')=='fov 80')
+assert(pc.view==camera and pc.blend==0.3 and pc.move_n==1 and pc.look_n==1)
+assert(stored==display_path..'\t'..path('CH_M_NA_10')..'\t'..camera_path..'\t'..PC_PATH..'\t0\t0',stored)
+assert(logged('cam on at 100 200 300 yaw 45.0 pitch -10.0, 10 m/s; before: move ignored 0, look ignored 0'))
+-- The keys move it along its view at 10 m/s: W (or Z) forward, Space (or E) up, Shift 4 times as fast; the mouse turns
+-- it, 2.5 degrees a unit; a hitch counts as 0.1 s.
+local function fly(t) clock=t; return lv.tick() end
+local function near(x,y,z) return close(lens.at.X,x) and close(lens.at.Y,y) and close(lens.at.Z,z) end
+local p,y=math.rad(-10),math.rad(45)
+down={W=true}
+assert(fly(6000.05)==nil)
+local x0,y0,z0=100+50*math.cos(p)*math.cos(y),200+50*math.cos(p)*math.sin(y),300+50*math.sin(p)
+assert(near(x0,y0,z0) and lens.rot.Yaw==45 and lens.rot.Pitch==-10,lens.at.X)
+down={Z=true,SpaceBar=true,LeftShift=true}
+fly(6000.1)
+x0,y0,z0=x0+200*math.cos(p)*math.cos(y),y0+200*math.cos(p)*math.sin(y),z0+200*math.sin(p)+200
+assert(near(x0,y0,z0),'AZERTY forward, up, 4 times as fast')
+down={E=true}
+fly(6005)
+assert(near(x0,y0,z0+100),'A hitch: 0.1 s')
+z0=z0+100
+down,mouse={},{x=2,y=-4}
+fly(6005.05)
+assert(near(x0,y0,z0) and close(lens.rot.Yaw,50) and close(lens.rot.Pitch,-20),lens.rot.Pitch)
+mouse={x=0,y=0}
+-- Nothing reads a key or the mouse while the co-op menu is open; the camera stays.
+menu_open,down=true,{W=true}
+local reads,mouse_reads=pc.reads,pc.mouse_reads
+fly(6005.1)
+assert(pc.reads==reads and pc.mouse_reads==mouse_reads and near(x0,y0,z0),'The menu open')
+menu_open,down=false,{}
+-- 1 s in, its view target logged once.
+fly(6001.5+5)
+assert(logged('cam view target Actor '..camera_path),'The view target')
+-- cam <m/s>: its speed.
+ok,why=lv.command('cam','20')
+assert(ok and why=='Free camera speed 20 m/s, 4 times that with Shift.' and last()=='cam speed 20 m/s',why)
+down={S=true}
+local t=6006.55
+fly(t)
+assert(near(x0-100*math.cos(math.rad(-20))*math.cos(math.rad(50)),y0-100*math.cos(math.rad(-20))*math.sin(math.rad(50)),
+    z0-100*math.sin(math.rad(-20))),'Back at 20 m/s')
+down={}
+assert(lv.command('cam','10'))
+-- move and skin leave it as it is.
+local count=#spawned
+assert(lv.command('move','25') and lv.command('skin','statue') and #spawned==count and pc.view==camera)
+lv.command('skin','default')
+-- cam: off, the view back on EVE with a 0.3 s blend, both flags back, its actor gone, the file the display's alone.
+ok,why=lv.command('cam')
+assert(ok and why=='Free camera off: the view is back on EVE.' and back() and camera.destroyed,why)
+assert(last()=='cam off (coop leviathan cam): move ignored 0, look ignored 0',last())
+assert(stored==display_path..'\t'..path('CH_M_NA_10'),stored)
+ok,why=lv.command('cam')
+camera,camera_path=newest()
+assert(ok and why:find('^Free camera on: W or Z, S, A or Q, D move it') and pc.view==camera and pc.move_n==1,why)
+-- play keeps it on, and turns it on when it is off.
+ok,why=lv.command('play','battle')
+assert(ok and why=='Leviathan body holds IdleRun_BS_Battle looping; coop leviathan play goes back to the cycle.',why)
+lv.command('cam')
+ok,why=lv.command('play')
+assert(ok and why=='Leviathan body back to its cycle, free camera on.' and pc.view==newest(),why)
+lv.command('cam')
+-- The flags as they were: move input ignored by the game before stays ignored; one the game added meanwhile goes.
+pc.move_n,pc.look_n=1,1
+lv.command('cam')
+assert(pc.move_n==2 and pc.look_n==2 and stored:find('\t1\t1$'),stored)
+lv.command('cam')
+assert(pc.move_n==1 and pc.look_n==1,'Ignored before, ignored after')
+pc.move_n,pc.look_n=0,0
+lv.command('cam')
+pc.move_n,pc.look_n=2,2
+lv.command('cam')
+assert(back(),'Not ignored before: not after')
+-- off: the display and the camera.
+lv.command('cam')
+camera=newest()
+ok,why=lv.command('off')
+assert(ok and why=='Leviathan removed. Free camera off: the view is back on EVE.' and back() and camera.destroyed
+    and stored==nil,why)
+-- cam alone, without a display; no EVE: none.
+ok,why=lv.command('cam')
+assert(ok and pc.view==newest() and stored=='\t\t'..select(2,newest())..'\t'..PC_PATH..'\t0\t0',stored)
+lv.command('cam')
+player=nil
+ok,why=lv.command('cam')
+assert(not ok and why=='no free camera: no EVE in the world' and back())
+player=eve
+-- A camera that cannot be made: the show stands and says so, its actor gone, nothing of the controller changed.
+no_camera=true
+ok,why=lv.command('show')
+assert(ok and why:find(', no free camera %(.*the camera could not be added%); ') and newest().destroyed
+    and back() and stored=='/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)..'\t'..path('CH_M_NA_10'),why)
+no_camera=false
+lv.command('off')
+-- coop off.
+lv.command('show')
+camera=newest()
+lv.stop()
+assert(back() and camera.destroyed and stored==nil and last()=='cam off (coop off): move ignored 0, look ignored 0',
+    last())
+-- A map change: with the display, both go; the camera alone goes too.
+lv.command('show')
+camera=newest()
+fly(7000)
+map='/Game/Art/BG/WorldMap/Level_P/B07'
+ok,why=fly(7000.1)
+assert(ok==true and why=='Leviathan body removed: map change.' and back() and camera.destroyed and stored==nil,why)
+map='/Game/Art/BG/WorldMap/Level_P/E04'
+lv.command('cam')
+camera=newest()
+map='/Game/Art/BG/WorldMap/Level_P/B07'
+ok,why=fly(7000.2)
+assert(ok==true and why=='Free camera off: map change.' and back() and camera.destroyed and stored==nil,why)
+map='/Game/Art/BG/WorldMap/Level_P/E04'
+-- Its first error: the camera off, the display stays.
+lv.command('show')
+camera=newest()
+keys_broken='no input'
+ok,why=fly(7000.3)
+assert(ok==false and why=='Free camera off on an error: no input' and back() and camera.destroyed,why)
+assert(stored=='/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)..'\t'..path('CH_M_NA_10'),stored)
+keys_broken=nil
+assert(fly(7000.4)==nil and lv.command('off'))
+-- The mouse unread: said once, the arrows turn it, 90 degrees a second.
+pc.GetInputMouseDelta=function() error('no out values',0) end
+lv.command('cam')
+lens=newest().components[1]
+down={Right=true,Up=true}
+fly(7000.5)
+assert(close(lens.rot.Yaw,54) and close(lens.rot.Pitch,-1),lens.rot.Yaw)
+assert(logged('cam: the mouse cannot be read (no out values); the arrow keys turn the camera'))
+mouse_reads=#logs
+fly(7000.6)
+assert(#logs==mouse_reads,'Said once')
+down={}
+lv.command('cam')
+-- The next Lua load: the display swept, the camera's actor too, the controller given back, the file cleared; a file
+-- whose controller is gone only sweeps.
+local old=L.new({log=log,store=store})
+old.command('show')
+camera,camera_path=newest()
+local display=spawned[#spawned-1]
+by_path[camera_path],by_path['/Game/Map.Map:PersistentLevel.Actor_'..(#spawned-1)],by_path[PC_PATH]=camera,display,pc
+assert(pc.view==camera and pc.move_n==1)
+L.new({log=log,store=store}).restore()
+assert(back() and camera.destroys==1 and display.destroys==1 and stored==nil)
+assert(last()=='restore: the display of an earlier Lua load destroyed; the free camera of an earlier Lua load off: '
+    ..'move ignored 0, look ignored 0',last())
+stored='\t\t/Game/Map.Map:PersistentLevel.Actor_99\t/Game/Gone.Gone:PersistentLevel.PC_0\t0\t0'
+L.new({log=log,store=store}).restore()
+assert(stored==nil and last()=='restore: the free camera of an earlier Lua load off: its controller is gone',last())
+controller=nil
 
 -- Never another class than a plain Actor: here, and in the sources, which name no achievement, reward, item, quest,
 -- save, possession, console command, spawn or destroy call of their own (race/doro.lua's spawn and remove do both).

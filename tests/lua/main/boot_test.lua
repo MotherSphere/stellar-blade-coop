@@ -13,7 +13,8 @@
 -- reach the Doro look (restored and ticked every frame, ended by coop off), coop race reaches the Doro race
 -- (race/run.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on the kit,
 -- race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop leviathan reaches
--- cut/leviathan.lua (show on the co-op save slot only; restored and ticked every frame, ended by coop off),
+-- cut/leviathan.lua with all five words after it (show and cam on the co-op save slot only, cam's speed on any;
+-- restored and ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
@@ -520,6 +521,17 @@ coop('leviathan','play','smash')
 assert(lv.cmds[3][1]=='play' and lv.cmds[3][2]=='smash' and last()=='[StellarCoop] OK: lv play\n',last())
 coop('leviathan','off')
 assert(lv.cmds[4][1]=='off' and lv.cmds[4][2]==nil and last()=='[StellarCoop] OK: lv off\n',last())
+-- The free camera: on or off on a co-op save only, its speed anywhere; show takes four words after it.
+coop('leviathan','cam')
+assert(#lv.cmds==4 and last():find('^%[StellarCoop%] STOP: coop leviathan cam runs only on a co%-op save'),last())
+coop('leviathan','cam','20')
+assert(lv.cmds[5][1]=='cam' and lv.cmds[5][2]=='20' and last()=='[StellarCoop] OK: lv cam\n',last())
+status_text=COOP
+coop('leviathan','cam')
+coop('leviathan','show','body','20','5','2')
+assert(lv.cmds[6][1]=='cam' and table.concat(lv.cmds[7],' ')=='show body 20 5 2',table.concat(lv.cmds[7],' '))
+status_text=plain
+assert(lv.o.blocked()==false,'Nothing open: the free camera reads its keys')
 lv.r,lv.t,lv.says=lv.restores,lv.ticks,{true,'Leviathan b removed: map change.'}
 loops[1].f()
 assert(lv.restores==lv.r+1 and lv.ticks==lv.t+1,'Both each frame')

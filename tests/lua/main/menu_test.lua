@@ -32,8 +32,10 @@ kit_language='fr-FR'; key('F5'); kit_language=nil
 assert(last()=='[StellarCoop] STOP: the co-op menu does not open while the game is paused or shows a menu\n'
     and fed()=="Le menu co-op ne s'ouvre pas quand le jeu est en pause ou affiche un menu.",chat_calls[#chat_calls])
 kit_paused=false
+assert(lv.o.blocked()==false)
 key('F5')
 assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_sounds]=='open')
+assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
 assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
     ..'Options||normal\nHELP||disabled\nWrite a bug report||normal\nClose||normal',screen())

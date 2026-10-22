@@ -933,9 +933,9 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
   per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
-`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), and `coop leviathan show` (below),
-run on any save. `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies
-run.
+`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), and `coop leviathan show` and
+`coop leviathan cam` (below), run on any save. `coop fight pilot` runs on any save too, since same place only moves
+enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`
 
@@ -951,17 +951,61 @@ of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4
   each CharacterTable row whose name, or one of its name fields such as `Type` or `RefAppearance`, contains `NA_10`
   or `eviathan` (Leviathan, and Reviathan as the statue spells it), with the row's character ID and `MeshScale`, and
   the number of rows it read.
-- `coop leviathan show [body|a|b|tentacle|statue]` puts one mesh 6 m in front of EVE, facing her. `body` (the
-  default) is `CH_M_NA_10`, `a` and `b` are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and
-  `statue` is `C_Reviathan`, a static mesh from the game's secret room assets. The mesh plays each animation made for
-  its skeleton twice, one after another, and starts over after the last, with a log line for each. A blend space plays
-  at input 0, 3 s twice. A second `show` replaces the first. It runs only on a [co-op save](#co-op-saves).
+- `coop leviathan show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>] [<scale>]` puts one mesh in front
+  of EVE, facing her, and turns on the [free camera](#free-camera). `body` (the default) is `CH_M_NA_10`, `a` and `b`
+  are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and `statue` is `C_Reviathan`, a static
+  mesh from the game's secret room assets. The distance is in metres, up to 5000. `auto`, the default, is 1.6 times
+  the radius of the mesh's bounding sphere, and at least 6 m; it is 6 m when the bounds cannot be read. The log line
+  `show body: bounding sphere radius 50 m, centre 30 m above its root` gives that radius and the height of the mesh's
+  middle above the point it stands on. The height, 0 by default, lifts the mesh above EVE's feet (a negative one
+  lowers it). The scale goes from 0.01 to 100, 1 by default. A number first is a distance for the body:
+  `coop leviathan show 40 15` shows the body 40 m away and 15 m up. The mesh plays each animation made for its
+  skeleton twice, one after another, and starts over after the last, with a log line for each. A blend space plays at
+  input 0, 3 s twice. A second `show` replaces the first and keeps the last skin. It runs only on a
+  [co-op save](#co-op-saves).
+- `coop leviathan move <distance m>|auto [<height m>]` puts the shown mesh that far in front of where EVE stands now,
+  facing her, at that height (0 by default). It is the same mesh, with its animation, scale and skin: walk EVE to
+  another spot, then move it there.
+- `coop leviathan skin statue|hydra|default` sets every material slot of the shown mesh to one material. The
+  Leviathan's only material, `Default` in its folder, is a grey placeholder. `statue` is the secret room statue's
+  material (`C_Reviathan_MI`), `hydra` the Hydra's tentacle material (`MI_M_NA_09_V03_Tentacle`), and `default` puts
+  the mesh's own materials back. The skin stays through `play` and `move`, and the next `show` uses it. The log line
+  gives the number of slots set.
 - `coop leviathan play <name>` holds one animation of the shown mesh in a loop, for screenshots. The name is matched
   in any case against the end of the animation names, then anywhere in them: `coop leviathan play lightningball` plays
-  `M_Leviathan_LightningBall1_1`. `coop leviathan play` alone goes back to the cycle.
-- `coop leviathan off` removes the mesh. `coop off`, a map change and its first error remove it too. While it is
-  shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if this one could not. The
-  next `show` tries again first, and shows nothing new while the old mesh cannot be removed.
+  `M_Leviathan_LightningBall1_1`. `coop leviathan play` alone goes back to the cycle. Both turn the free camera on.
+- `coop leviathan off` removes the mesh and turns the free camera off. `coop off`, a map change and its first error
+  remove it too. While it is shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if
+  this one could not. The next `show` tries again first, and shows nothing new while the old mesh cannot be removed.
+
+#### Free camera
+
+The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off
+(on a co-op save only, like `show`). It starts where the game's camera is and blends there in 0.3 s. EVE keeps
+standing where she was: while the camera is on, the game ignores the move and look input of her controller.
+
+| Key | Free camera |
+| --- | --- |
+| W or Z | Forward, where the camera looks |
+| S | Back |
+| A or Q | Left |
+| D | Right |
+| Space or E | Up |
+| Left Ctrl or C | Down |
+| Left Shift, held | 4 times as fast |
+| Mouse, or the arrow keys | Turn |
+
+The keys cover QWERTY and AZERTY. The speed is 10 m/s; `coop leviathan cam <m/s>` sets another one, from 0.1 to 500,
+until the next Lua load. If the mouse cannot be read, the log says so once and only the arrow keys turn the camera.
+No key moves the camera while the co-op menu, the chat box or another co-op box is open.
+
+The game's HUD stays on screen: hide it in the game's own settings before you film. Only walking and the game's camera
+turn are blocked, so a key the game binds to another action still reaches EVE where she stands.
+
+`coop leviathan cam` again, `coop leviathan off`, `coop off`, a map change and the camera's first error turn it off:
+the view goes back to EVE, her controller ignores move and look input again only if it did before, and the camera is
+removed. While it is on, `coop-leviathan.txt` also holds the camera's path and the player controller's, so
+the next Lua load (Ctrl+R) does the same if this one could not.
 
 ### Shared enemies (experimental)
 
@@ -1544,9 +1588,9 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again) and the Leviathan display (`coop leviathan`). Afterwards only `coop status` and `coop report` answer. Every
-other command answers `STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The
-race key does nothing.
+drawn again) and the Leviathan display and its free camera (`coop leviathan`; the view goes back to EVE). Afterwards
+only `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
+restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 
@@ -1987,7 +2031,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path and the names of the parts the look hid, so the next Lua load (Ctrl+R) can show her again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
-| `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh: its actor's object path and the mesh's, so the next Lua load (Ctrl+R) can remove it |
+| `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh or its free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path and whether its move and look input were ignored before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
 it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,

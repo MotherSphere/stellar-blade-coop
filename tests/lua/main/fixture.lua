@@ -285,12 +285,12 @@ package.loaded['race.doro']={new=function(o)
         restore=function() dr.restores=dr.restores+1 end,
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
 end}
--- coop leviathan's read and display (cut/leviathan.lua; leviathan_test tests it): what new got (log, store), its
--- commands, restores, ticks and stops, what a tick says.
+-- coop leviathan's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got (log,
+-- store, blocked), its commands, restores, ticks and stops, what a tick says.
 lv={}
 package.loaded['cut.leviathan']={new=function(o)
     lv.o=o
-    return {command=function(sub,a,extra) lv.cmds[#lv.cmds+1]={sub,a,extra}; return true,'lv '..tostring(sub) end,
+    return {command=function(...) lv.cmds[#lv.cmds+1]={...}; return true,'lv '..tostring((...)) end,
         restore=function() lv.restores=lv.restores+1 end,
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
         stop=function() lv.stops=lv.stops+1 end}

@@ -46,12 +46,13 @@
 -- <name>|cp|save [laps]|cancel|start <name>|quit, Doro races on a track you record (race/run.lua; race_key drops a
 -- checkpoint while you record; start on a co-op save only), driven as a car from GO (race/drive.lua), with coop race
 -- drive [probe|off|feed impulse|struct|<name> <value>] to probe and tune the driving (a test tool, left out of the
--- usage line; the probe on a co-op save only); coop leviathan [list]|show [body|a|b|tentacle|statue]|play [<clip>]|off,
--- a read of the cut Naytiba 10's assets and a display of it playing its clips (cut/leviathan.lua; a test tool, left
--- out of the usage line; show on a co-op save only). coop off stops everything until the game restarts. An XInput pad,
--- read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the
--- menu. The console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all
--- but coop ui and coop off, which stay here.
+-- usage line; the probe on a co-op save only); coop leviathan [list]|show [body|a|b|tentacle|statue]
+-- [<distance m>|auto] [<height m>] [<scale>]|move <distance m>|auto [<height m>]|skin statue|hydra|default|cam
+-- [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing its clips and a free camera
+-- to film it (cut/leviathan.lua; a test tool, left out of the usage line; show and cam on a co-op save only). coop
+-- off stops everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the
+-- co-op saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in
+-- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -201,10 +202,15 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- coop leviathan's read and display (cut/leviathan.lua), logging [LV] lines. coop-leviathan.txt lets the next Lua load
--- remove a display this one left.
+-- coop leviathan's read, display and free camera (cut/leviathan.lua), logging [LV] lines. coop-leviathan.txt lets the
+-- next Lua load remove a display this one left and give the player controller back. The free camera reads no key while
+-- the co-op menu or one of its boxes is open.
 local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
-    store=link and link.store('coop-leviathan.txt')})
+    store=link and link.store('coop-leviathan.txt'),
+    blocked=function()
+        return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
+            or saves_ui.is_open())
+    end})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
@@ -375,14 +381,14 @@ end
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
-local function run(name,a,b,c,d)
+local function run(name,a,b,c,d,e)
     local command=commands[name or '']
     if not command then log(USAGE); return false,USAGE end
     if off and command~=commands.status and command~=commands.report then
         report(false,OFF)
         return false,OFF
     end
-    local ran,ok,message=pcall(command,a,b,c,d)
+    local ran,ok,message=pcall(command,a,b,c,d,e)
     if not ran then ok,message=false,ok end
     report(ok,message)
     return ok,message
@@ -463,9 +469,9 @@ local function pad_event(what)
 end
 RegisterConsoleCommandHandler('coop',function(_,parameters)
     typed_at=os.clock()
-    local name,a,b,c,d=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5]
+    local name,a,b,c,d,e=parameters[1],parameters[2],parameters[3],parameters[4],parameters[5],parameters[6]
     if name=='mark' then a=table.concat(parameters,' ',2) end -- Its text, whatever the number of words.
-    ExecuteInGameThread(function() run(name,a,b,c,d) end)
+    ExecuteInGameThread(function() run(name,a,b,c,d,e) end)
     return true
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')

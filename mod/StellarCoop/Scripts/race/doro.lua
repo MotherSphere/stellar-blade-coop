@@ -8,7 +8,8 @@
 -- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
 -- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
 -- The probe (coop race probe doro): a Doro 3 m ahead of EVE plays each clip in turn, with a log line a step.
--- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/leviathan.lua's coop leviathan).
+-- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/leviathan.lua's coop leviathan);
+-- attach, spawn, sweep and remove also make and remove its free camera, a plain actor with one CameraComponent.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of,each,text,find,address=U.valid,U.value_of,U.each,U.text,U.find,U.address
@@ -26,6 +27,7 @@ Doro.ASSETS={mesh=asset('CH_NPC_Dororong'),
     meet3=asset('Animation/event/MV_Nikke_Dororong_1stMeet/MV_Nikke_Dororong_1stMeet_dororong_03')}
 local MESH,ANIM,STATIC='/Script/Engine.SkeletalMesh','/Script/Engine.AnimationAsset','/Script/Engine.StaticMesh'
 local SKINNED,SOLID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.StaticMeshComponent'
+local CAMERA='/Script/Engine.CameraComponent'
 local SCALE=1.5 -- The game's own: CharacterTable N_Dororong, MeshScale. About 59 cm tall.
 local KEEP_RELATIVE=0 -- EAttachmentRule::KeepRelative
 local RUN,MAX_RATE=500,1.8 -- cm/s: the blend spaces' full-run sample, which is EVE's run; the fastest play rate.
@@ -168,15 +170,23 @@ function Doro.resolve(path,class)
     end
     return a and a:IsA(find(class or ANIM)) and a or nil
 end
+local function name_of(look)
+    return look and (look.camera and 'the camera' or look.path:match('[^.]+$')) or 'the Doro'
+end
 -- A Doro component on actor, hung on parent when given (KeepRelative: where the parent is), else the actor's root.
 -- look: another mesh, {path=<its object path>, static=true for a StaticMesh}, at scale 1, a static one with no
--- animation mode. Returns the display {mesh=<component>}; raises, with no component left, when it cannot be made.
+-- animation mode; or {camera=true}, a CameraComponent alone. Returns the display {mesh=<component>}; raises, with no
+-- component left, when it cannot be made.
 function Doro.attach(actor,parent,look)
-    local static,name=look and look.static,look and look.path:match('[^.]+$') or 'the Doro'
-    local mesh=assert(Doro.resolve(look and look.path or Doro.ASSETS.mesh,static and STATIC or MESH),
-        (look and name or 'the Doro mesh')..' is missing on this PC')
     local identity=find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform({X=0,Y=0,Z=0},
         {Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
+    if look and look.camera then
+        return {mesh=assert(valid(actor:AddComponentByClass(find(CAMERA),false,identity,false)),
+            'the camera could not be added')}
+    end
+    local static,name=look and look.static,name_of(look)
+    local mesh=assert(Doro.resolve(look and look.path or Doro.ASSETS.mesh,static and STATIC or MESH),
+        (look and name or 'the Doro mesh')..' is missing on this PC')
     local c=valid(actor:AddComponentByClass(find(static and SOLID or SKINNED),false,identity,false))
     assert(c,name..' could not be added')
     local ok,why=pcall(function()
@@ -199,7 +209,7 @@ end
 -- with nothing left, when it fails.
 function Doro.spawn(world,at,rotation,look)
     local actor=valid(world:SpawnActor(find('/Script/Engine.Actor'),at,rotation))
-    assert(actor,(look and look.path:match('[^.]+$') or 'the Doro')..' could not be spawned')
+    assert(actor,name_of(look)..' could not be spawned')
     local ok,d=pcall(function()
         actor:SetActorEnableCollision(false,false)
         local d=Doro.attach(actor,nil,look)
@@ -215,13 +225,19 @@ function Doro.spawn(world,at,rotation,look)
     return d
 end
 -- A Doro an earlier Lua load spawned (Ctrl+R), by its actor's path: gone, and true, only while that actor's root still
--- shows Doro's mesh (mesh: that other mesh's object path), so never another object found at that path.
+-- shows Doro's mesh (mesh: that other mesh's object path; 'camera': a free camera's root, a CameraComponent), so never
+-- another object found at that path.
 function Doro.sweep(p,mesh)
     local doro=p and valid(StaticFindObject(p))
     local root=doro and valid(doro:K2_GetRootComponent())
-    local shows=root and (root:IsA(find(SKINNED)) and valid(root.SkeletalMesh)
-        or root:IsA(find(SOLID)) and valid(root.StaticMesh))
-    if shows and path_of(shows)==(mesh or Doro.ASSETS.mesh) then
+    local shows
+    if mesh=='camera' then shows=root and root:IsA(find(CAMERA))
+    else
+        shows=root and (root:IsA(find(SKINNED)) and valid(root.SkeletalMesh)
+            or root:IsA(find(SOLID)) and valid(root.StaticMesh))
+        shows=shows and path_of(shows)==(mesh or Doro.ASSETS.mesh)
+    end
+    if shows then
         doro:K2_DestroyActor()
         return true
     end
