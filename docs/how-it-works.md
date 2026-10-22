@@ -129,8 +129,9 @@ through XInput, a polling API that takes nothing from the game.
   is read, and the held state counts as released: XInput answers whatever window has the focus.
 - `pad.h` turns the reads into events: up, down, left and right from the D-pad or the left stick (pressed at 50 % of
   its range, released under 30 %), a D-pad diagonal read as up or down and the stick along its main axis (up or down
-  when both are equal), up and down repeating after 400 ms then every 120 ms, A for select, B for back, and View held
-  1000 ms for the menu, once a hold. A ring of 8 holds them; a full ring drops the newest.
+  when both are equal; an axis already pressed stays until the other is more than 10 % larger, so a stick held near
+  45 degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for
+  back, and View held 1000 ms for the menu, once a hold. A ring of 8 holds them; a full ring drops the newest.
 - The DLL links no Lua, so each event travels as a result count. Lua calls `select('#', native_pad(0,0,0,0,0,0,0))`:
   `coop_pad`, called as a Lua C function, returns n, and Lua hands back the top n of the 7 arguments on its stack. n is
   the event, 1 to 7, or 0 when the ring is empty. `main.lua` takes at most 8 events a frame and routes them as the keys
