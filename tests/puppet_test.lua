@@ -770,6 +770,11 @@ remote_file=remote_text(604,her_parts()):gsub('generation 604\n','')
 count=count+1
 local read,refused,why=pcall(ghost.remote,604,count,'loopback')
 assert(read and refused==false and why=='The remote table could not be read.',tostring(refused))
+-- Read again at each call with that count (her same table sent again makes no new one), said once.
+assert(ghost.remote(604,count,'loopback')==nil,'Said once')
+remote_file=remote_text(604,her_parts())
+ok,message=ghost.remote(604,count,'loopback')
+assert(ok and message=='Ghost 603 removed (a new table).',tostring(message))
 
 -- A table given up is tried again with a new EVE, even with no ghost left to remove.
 send(605,her_parts())
@@ -888,6 +893,13 @@ camera_fails=false
 box.RelativeScale3D.Z=8.75
 ghost.place()
 assert(not tag.turns,'Turned no more on that ghost')
+-- The tag still hides for a photo and shows again after it.
+ghost.photo(false,true)
+ghost.place()
+assert(tag.visible==false,'Veiled after a failed turn')
+ghost.photo(false,false)
+ghost.place()
+assert(tag.visible==true and not tag.turns,'Shown again, still not turned')
 -- No offset, the root exactly where her mesh is.
 root=actor.parts[1]
 box.RelativeScale3D.Z=9
