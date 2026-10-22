@@ -47,17 +47,27 @@ first backs up the files it replaces into `~/StellarCoop-install-backups`.
 
 ### Update
 
+StellarCoop runs on game build 24463856 only. After a game update, `coop status` shows
+`engine=off reason=build stamp ...` (or `reason=code bytes differ`), and the ghost, the co-op saves and every other
+feature that reads the game's memory stay off until a StellarCoop version supports the new build. To stop Steam from
+updating the game in the background, right-click Stellar Blade in your Steam library, then Properties, Updates, and set
+Automatic updates to Wait until I launch the game (older Steam clients: Only update this game when I launch it). Steam
+still installs a waiting update when you start the game, so check for a new StellarCoop version first. Both players
+need the same game build.
+
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
 `Version mismatch: that game runs protocol ..., build ...; yours runs ...`.
 
 1. Close the game.
-2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed a
-   setting, by hand or in the menu's Options, and any log you still want to send. The zip has no
-   `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
+2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed a setting,
+   by hand or in the menu's Options, `coop-records.txt` for your best challenge runs, every `coop-night-*.txt` (your
+   Night Operation shop points, which no save holds), every `coop-track-*.txt` (your Doro race tracks), and any log you
+   still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
-4. Install the new zip with install steps 2 to 4, and put `coop-settings.txt` back into the new folder. A file from
-   version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in Options > Combat.
+4. Install the new zip with install steps 2 to 4, and put the `coop-*.txt` files from step 2 back into the new folder.
+   A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
+   Options > Combat.
 5. Do install step 5, with your status key if you changed it.
 
 ## Keys and settings
@@ -65,9 +75,14 @@ together. Two games with different protocols cannot link, and the player who tri
 - `F5` opens the co-op menu. Its first row, Host a session, opens a session and the Steam invite dialog, where you
   pick your friend. The session is friends-only unless Options sets Who can join to Invited only or With a code (see
   below). While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
-  ZQSD) move, Enter selects and Esc goes back. See [usage.md](docs/usage.md#co-op-menu).
+  ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
+  page with the same session rows. See [usage.md](docs/usage.md#co-op-menu).
+- On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
+  and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
+  [usage.md](docs/usage.md#controller).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
+- `F9` sets a checkpoint while you record a Doro race track. See [usage.md](docs/usage.md#doro-races).
 - `Enter`, during a session, opens the chat box. See [usage.md](docs/usage.md#session-chat).
 
 Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
@@ -90,9 +105,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
 
 - `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
   `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` takes the same keys, or `none` (the
-  default); a key set there hosts at once, without the menu. If two actions share one key, all four keys go back to
-  their defaults. A file written before the menu existed has no `menu_key` line: the menu then opens on that file's
-  `host_key`, and no key hosts at once.
+  default); a key set there hosts at once, without the menu. `race_key` (`F9`) takes the same keys, or `none`. If two
+  actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
+  `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
 - `who_can_join`: `friends` (the default: your Steam friends can join from their friends list), `code` (anyone with
   your join code can join; a player who is not your Steam friend waits for your answer) or `private` (only the
   friends you invite can join). It counts for the next session you host.
@@ -101,9 +116,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
 - `send_rate`: poses sent to your friend per second, from 10 to 60 (60 by default), at most one per game frame. The
   ghost you see moves at your friend's rate, so both of you need the new value. A file made by an older version that
   still says 20, the old default, is changed to 60 when the mod loads, once; any other value stays.
-- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are off by default. The file
-  names them only in a comment, so add a line such as `cloth=on` to turn one on.
-  - `cloth`: her ponytail swings as cloth. Off, it stays rigid.
+- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. `cloth` is on by default, `dyes` and
+  `effects` are off. The file names them only in a comment, so add a line such as `dyes=on` or `cloth=off`.
+  - `cloth`: her ponytail moves as cloth, as in solo. Off, it stays rigid.
   - `dyes`: her hair colour and other material variants. Off, each part has its mesh's own colours.
   - `effects`: her attack and skill effects (19 of EVE's effects, at most 4 at a time).
   - `dyes=off` and `effects=off` each also stop your game from sending your own, so the ghost of you in your friend's
@@ -115,7 +130,7 @@ If the mod rejects a value, that setting keeps its default, and `UE4SS.log` give
 `[StellarCoop] settings:`. The `[StellarCoop] keys:` line lists the keys in use, and the `[StellarCoop] look:` line
 what the ghost shows. Delete the file to get the defaults back.
 
-The three looks have not been tried in game yet. Back up your saves before you turn one on (see "Saves and Steam
+The three looks have not been tried in game yet. Back up your saves before you play with one on (see "Saves and Steam
 Cloud"). If the game crashes or the ghost looks wrong, turn that look off again.
 
 With the console, `coop look <cloth|dyes|effects> <on|off>` turns one look on or off until the mod reloads (game start
@@ -145,8 +160,10 @@ cloud. Then restore your backup.
 
 ## Co-op saves
 
-`coop fight`, `coop no` and `coop recruiter` run only on a co-op save, a copy of your save, and never on your own
-saves. The ghost, the keys and the Steam link work on any save. Nothing is copied back to your own saves.
+`coop fight`, `coop nightop`, `coop challenge`, `coop no` and `coop recruiter` run only on a co-op save, a copy of your
+save, and never on your own saves (`coop nightop stop` and `coop challenge stop` work on any save). The ghost, the keys
+and the Steam link work on any save. Nothing is copied back to your own saves. Items bought in Night Operation's shop
+(`coop nightop buy`) go into the co-op save you play, never into your own saves.
 
 The mod makes the copies itself, in the save folder above: `StellarBladeCoop00.sav` to `StellarBladeCoop04.sav`, one
 for each of your saves `StellarBladeSave00.sav` to `StellarBladeSave04.sav`. Once the game uses the copies, Continue,
@@ -155,8 +172,11 @@ Load Game and every save the game makes go to them.
 On the title screen, once the mod's on-screen UI has loaded (a few seconds), the mod asks how to play. If you choose
 Continue or Load Game before it shows, the game loads your own save, and the question comes back at the next title
 screen. Up and down arrows (or W, Z and S) move, Enter selects, Esc is Decide later, and a left click selects the
-choice under the mouse. A controller cannot answer it: after 60 s with no key, the question closes as Decide later. To
-play with a controller only, set `auto_coop_save` to `always` or `off`.
+choice under the mouse. On a controller, the D-pad or the left stick moves, A selects and B is Decide later. For 1 s
+after the question shows, Enter, Space, A and a click do nothing, so a press meant for the title screen does not
+answer it. The mod reads XInput controllers (Xbox controllers, the Steam Deck, any controller under Steam Input); a
+DualSense needs Steam Input on for Stellar Blade (see [usage.md](docs/usage.md#controller)). With no answer for 60 s,
+the question closes as Decide later.
 
 - Convert and play co-op (Play co-op once copies exist): the mod copies your saves, then switches the game to the
   copies. Before the first copies, it backs up every `StellarBlade*.sav` of your account into
@@ -258,17 +278,19 @@ Protection history. Without the DLL the Steam link does not start, and `UE4SS.lo
 
 Close the game first.
 
-- Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs and
-  `coop-settings.txt`, so first copy out what you want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`,
-  remove that line.
+- Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs,
+  `coop-settings.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`) and the Doro race
+  tracks (`coop-track-*.txt`), so first copy out what you want to keep. If you added a `StellarCoop` line to
+  `Mods/mods.txt`, remove that line.
 - Installed with `tools/install.py` (Linux), from the StellarCoop repository: `python3 tools/install.py --uninstall`
   (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is not in the
   script's default folder). It backs up the whole folder into `~/StellarCoop-install-backups`, then removes it. It
   removes only a folder it installed (one with `install-manifest.txt`); delete a folder copied from the zip by hand, as
   above. It never edits `mods.txt`, but it reports a line there that still names StellarCoop, for you to remove.
 
-Your saves stay, and so do the co-op copies, `StellarCoopSaves.txt`, the backups in `StellarCoopBackups` and
-`StellarCoopSlot.txt`. The game ignores them without the mod. To keep a co-op character, see "Co-op saves" above.
+Your saves stay, and so do the co-op copies, `StellarCoopSaves.txt`, the shared quests' records
+(`StellarCoopQuests0N.txt`), the backups in `StellarCoopBackups` and `StellarCoopSlot.txt`. The game ignores them
+without the mod. To keep a co-op character, see "Co-op saves" above.
 
 ## Which logs to send
 
@@ -281,6 +303,12 @@ that do.
 - `Mods/StellarCoop/coop-link.old.log`
 - `ue4ss/UE4SS.log`
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
+- `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
 which may include your Windows user name. They contain no passwords. You can read them before you send them.
+
+When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
+for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
+`UE4SS.log` (see [usage.md](docs/usage.md#coop-mark)), so the four logs line up step by step. The text of each mark
+stays in the logs you send.

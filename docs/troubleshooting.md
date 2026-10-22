@@ -28,8 +28,8 @@ StellarCoop is an experimental pre-release, played in only a few sessions betwee
 - `Native tick unavailable`: the DLL loaded but its per-frame entry did not. Without it no pose is read or drawn, so
   no ghost shows, and the loopback, record and replay refuse to start.
 - A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. `F10` is never allowed, and
-  two actions on one key put all four keys back to their defaults: `F5` (menu), `none` (host), `F6` (status) and `F8`
-  (leave). See [usage.md](usage.md#coop-settingstxt).
+  two actions on one key put all five keys back to their defaults: `F5` (menu), `none` (host), `F6` (status), `F8`
+  (leave) and `F9` (race checkpoint). See [usage.md](usage.md#coop-settingstxt).
 - `keys: <key> is also bound by a mod loaded earlier; both run`: another mod uses the same key. Pick another key.
 
 ### `Co-op: waiting for Steam.` or `Co-op: the Steam link stopped; coop status says why.`
@@ -121,16 +121,103 @@ go back.
 
 ### A look misbehaves
 
-The cloth, dyes and effects looks have not been tested in game yet. If the game crashes or the ghost looks wrong with
-one on, turn it off in `coop-settings.txt` (or with `coop look <look> off`). An `effects off: fault ...` line means a
-fault turned effects off until the game restarts; the ghost stays, without effects.
+The cloth, dyes and effects looks have not been tested in game yet, and cloth is on by default. If the game crashes or
+the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `effects=off`) in `coop-settings.txt`,
+Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
+effects off until the game restarts; the ghost stays, without effects.
+
+### EVE is invisible, or only a Doro shows
+
+During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and draws a
+Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show her again. If she stays hidden:
+
+- Type `coop race look off`. While the look is still on, it answers `OK: Doro look off (coop race look off): <n> parts
+  shown again, tick option <t> back.` If it answers `The Doro look is off already.`, go on to Ctrl+R.
+- Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE again at its
+  first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`. This covers a look
+  stopped by a Lua error, and an off that failed (`Doro look off (...): ...; <error>` in the log keeps the file for
+  this).
+- Restart the game if neither works. The look's changes are in memory only, and no save holds them.
+
+A Doro left standing alone where a race was (at a checkpoint or the start line) goes at the next Lua load too:
+`[StellarCoop][DR] race: <n> display Doros an earlier Lua load left destroyed`.
+
+While your look is on, your friend sees your ghost with no body unless their game takes part in the race (see
+[how-it-works.md](how-it-works.md#the-doro-look)).
+
+### EVE does not speed up or stop after a race
+
+During a [Doro race](usage.md#doro-races), the race sets four values of EVE's movement to 0 so it can drive her (see
+[Driving](usage.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
+sliding or does not move with the stick after a race or `coop race drive probe`:
+
+- Type `coop race drive off` if the probe still runs.
+- Press Ctrl+R. The next Lua load reads `coop-drive.txt`, which the race keeps while it drives, and writes the values
+  back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
+- Restart the game if neither works. The values are in memory only, and no save holds them.
 
 ### The game ignores its keys after the co-op menu or the chat
 
-Open the console (F10 or `~`) and type `coop ui reset`: the menu, the chat box and the code box close, an open
-host's question is answered with Deny, and the game gets its keys back. Without the console, press Ctrl+R or restart the game. `UI off until the mod reloads: <why>` in `UE4SS.log`
-means that the on-screen UI hit an engine error and turned itself off; notices then show on the line above EVE.
-`coop ui off` turns the UI off the same way by hand.
+Open the console (F10 or `~`) and type `coop ui reset`: the menu, the chat box and the code box close, an open host's
+question is answered with Deny, and the game gets its keys back. Without the console, press Ctrl+R or restart the game.
+`UI off until the mod reloads: <why>` in `UE4SS.log` means that the on-screen UI hit an engine error and turned itself
+off; notices then show on the line above EVE. `coop ui off` turns the UI off the same way by hand.
+
+### No co-op line hint at a camp phone booth
+
+- Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the last
+  scan found on that map. With no `booths:` line at all, no scan has run yet: the on-screen UI is off
+  (`UI off until the mod reloads`, or `coop ui off`), `coop off` ran, or the native part is not loaded.
+  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer and wait 4 s.
+  `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 4 s later.
+- Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
+  opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
+- The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
+  `coop ui reset` in the console (F10 or `~`) closes them all.
+- `booths: slow scan <ms> ms (<n> found)`: one scan took 5 ms or more on that PC. The scan runs on the game thread, so
+  that frame took as much longer. If the line comes back, send `UE4SS.log` (see
+  [Which logs to send](#which-logs-to-send)).
+
+### The co-op menu or the chat box closed by itself
+
+- `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op UI closed, the game has its input back` in
+  `UE4SS.log`: something took the keyboard focus from the mod's UI for 1 s (one of the game's screens, another mod, a
+  window switch), so the mod closed it as `coop ui reset` does and gave the game its keys back. Who is `menu`, `chat`,
+  `code`, `ask` (the host's question, answered with Deny) or `saves` (the co-op saves' question, closed as Decide later;
+  a copy already under way keeps going and its result shows as a notice). A click of the middle or a side mouse button
+  does this too. Open the menu again. If it closes this way with nothing else on screen, send `UE4SS.log` with a note of
+  what you did just before. See [usage.md: Focus watchdog](usage.md#focus-watchdog).
+- No watchdog line: the menu also closes when the game pauses or shows the mouse cursor for one of its own screens
+  (EVE dies, a shop opens, your friend's photo mode pauses your game). The chat box closes the same way, and what you
+  typed is lost.
+
+### The controller does nothing in the co-op menu
+
+Look at the `pad:` lines in `coop-link.log`:
+
+- `pad: no XInput pad`: the mod sees no XInput controller. A DualSense read by the game's own PlayStation support is
+  not one: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties, Controller), restart the
+  game, and look for `pad: XInput pads connected: 0` (or another slot number).
+- `pad: no XInput in System32: no controller in the co-op menu`: Windows' `xinput1_4.dll` and `xinput9_1_0.dll` were
+  not found in System32. The mod never loads them from the game folder, where other tools put their own
+  `xinput1_3.dll`.
+- `Native pad unavailable (no controller in the co-op menu)` in `UE4SS.log`: `StellarCoop.dll` is older than the
+  scripts. Install the whole folder of one version again.
+- `pad: XInput pads connected: ...` and still nothing: hold View for a full second, in a world with the game's HUD
+  shown. The mod reads the controller only while the game's window is in front. If the menu cannot open, the same
+  `STOP:` line as for F5 shows. The host's question takes no controller input, and in the chat box and the code box
+  only B acts (it closes them).
+
+### Turn the spawn filter off
+
+The spawn filter (`spawn_filter`, the guest's own setting, off by default) has not been tested in game. If the game
+misbehaves with it on (a crash, a door or a zone event that waits for enemies that never come), close the game, set
+`spawn_filter=off` in the guest's `coop-settings.txt` and start again. `coop off` puts the game's pointer back at once,
+until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: the `spawn filter` lines name each
+enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stats:` lines count `filter <n> seen, <n>
+refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
+or the page would not become writable), and every spawn went on as with it off. See
+[usage.md: Spawn filter](usage.md#spawn-filter-experimental).
 
 ### Screen notices stopped
 
@@ -205,6 +292,35 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   host's game, whose copy had more HP left. If it happens often, the guest can set `guest_kills=confirmed` in
   `coop-settings.txt`: the guest's copies then keep 1 HP until the host's game kills its own.
 
+### Quests are not shared
+
+Shared quests are experimental and off by default, and both players need Options > Saves > Shared quests
+(experimental) set to On. The `quests=` line of `coop status` says what is missing (see
+[usage.md: Shared quests](usage.md#shared-quests-experimental)):
+
+- `quests=off`, and `shared quests: off (experimental)` in `UE4SS.log` at load: shared quests are off in your game.
+- `quests=waiting mode=on why=friend`: no friend is linked. `why=save`: you play your own save; quit to the title
+  screen and load a co-op save. `why=game`: the game's world or quest data is not loaded yet.
+- `partner=off`: your friend's side is off. Their setting is off, they play their own save, or theirs stopped.
+- The notice `You are behind <name> on <quest>`: the host moved that quest while you stood in another zone, or while
+  your copy of it stood at another point. Play it in your own game until it stands where the host's stands; the next
+  step made together is then shared.
+- `coop quests status` lists what each quest that waits waits for. In `coop-quests.log`:
+  - `<quest> ... refused: <why>`, then `<quest> unsynced for the session: the game refused its step`: a check before
+    the game's call found that quest other than the host's line said, and the mod leaves it alone until the next
+    session.
+  - `acquire off until the next load`: after a load, a complete or failed quest was missing from the game's quest map,
+    so the guest's game starts no quest until its next load.
+  - `blocked: the host's line names no task her quest has in progress`: the two games built that quest's tasks
+    differently.
+  - `bad host line (...)` or `bad guest line (...)`, and after 16 of them `ignored until the session ends`: lines that
+    did not parse or did not fit the quest table.
+  - `<number> is no shared quest here`: the two games do not use the same quest table (another build of the mod or of
+    the game).
+- `quests=stopped`: stopped for this run. `coop-link.log` has `shared quests fault ... in <where>` or a
+  `quests: ...; off for this run` line. A reason that starts with `implausible` means a value in the game's memory did
+  not look as expected on this game build; `tick on SB's logic thread` means the pass ran on the game's logic thread.
+
 ### Same place does not start, or stops
 
 Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
@@ -255,13 +371,18 @@ moves it.
 
 ### A shared boss differs between the two games
 
-Shared bosses (`bosses=on` in the host's settings) are experimental and not tested in game yet. With same place on, the
-guest's copy of a boss follows the host's through the lines in
+Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
+With same place on, the guest's copy of a boss follows the host's through the lines in
 [how-it-works.md: Shared bosses](how-it-works.md#shared-bosses). Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
   logs `fight bstart sent <key> hguid=<n>` when its boss enters battle mode.
+- Her copy stays in battle mode after the host's fight: her game logs `fight battle off <key> hguid=<n>` when it takes
+  the copy out of battle mode, 10 s after the host's last bstart, or at once when the pair ends. A gap of over 2 s with
+  no line from the host (a paused host game) is not counted in those 10 s. Without that line her copy is still paired
+  and drawn, and the host's game still sends a bstart each second: the host's boss is still in battle mode. Leaving
+  battle mode does not take arena walls down; the game's own events for that boss do.
 - Her copy's HP stops at a phase threshold while the host's boss fights on: look for `fight phase hguid=<n>` lines.
   `fight phase hguid=<n> the game refused a row` means the game refused a phase effect on her frozen copy. Her game
   tries again at the host's next line (every second in battle mode) and logs the refusal once until a line goes
@@ -288,6 +409,75 @@ guest's copy of a boss follows the host's through the lines in
   and the host fights that summon alone.
 - The `fight stats:` lines in `coop-fight.log` add `bosses: <n> summons made, <n> bstart, <n> phase rows (<n>
   refused), <n> finish guards` on the guest's side and `bosses: <n> summons sent` on the host's.
+
+### A kill or an achievement did not count
+
+A shared enemy dies in your game only if you took part in its fight ([usage.md: Shared
+enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit, that never targeted
+you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy stays alive at full HP,
+and its kill, loot and achievements do not reach your save. Fight it yourself to get them. As the guest, while same
+spawns run (within 100 m of each other in one zone), the host's next drop line removes that copy a few seconds later
+instead, without a kill. The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the
+host's says `fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count
+them as `not taken part`. With `kill_credit=fought` the 30 m do not count, and they never count while your EVE is down.
+A `kill_credit=all` line from 0.4.0-beta.1 reads as `together`. A `fight last player <key> set by a mirrored crowd
+control` line means that a knockdown the other player started made the game record your EVE as that enemy's last player.
+The mod then stops counting that record for this enemy, so only your hit or the 30 m make its kill yours.
+
+### Travel to the host does not start
+
+In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: no read
+of the camps this save has activated` in `UE4SS.log`. The mod cannot yet read which camps your save has activated, and
+the game's fast travel does not check it ([Following the host](usage.md#following-the-host)). The rest of this section
+applies once that read exists.
+
+Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
+`[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in
+`coop-link.log` as `travel refused <camp>: <why>`.
+
+- `You cannot travel now. Try again in a moment.`: something of the moment held it back: your EVE down, a respawn or
+  another travel under way, the game paused, in photo mode or in a menu (the co-op menu too), a Night Operation run, a
+  cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
+  last travel. The log line names which.
+- `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
+  the camps it sent could be used (`travel: <camp> is not activated in this save` for a camp you have not found), or
+  the game refused each one (`travel: SB refused <camp>`).
+- `The travel did not start. UE4SS.log says why.`: the host's game is on the title screen (`none title`), no answer
+  came from the host's game in 10 s, the native part gave no result in 5 s or refused the call
+  (`the native part refused: <why>`), or the warp never started 10 s after the game took the call (`refused:stuck`).
+  After a warp that never started, the travel stays off on that map until you change map. A fault turns the travel off
+  until the game restarts (`travel off: fault ...` in `coop-link.log`).
+- No notice at all: `follow_host=off`, `follow_key=none` (use `coop travel host`), you are the host, your own save is
+  loaded, or the host is within 150 m of you on your map. Press F7 and read the `travel refused:` line.
+- A second F7 within 2.5 s is refused in the log only (`one request to the host each 2.5 s`).
+
+### A revive is not offered
+
+The revive is experimental and off by default. Each player's own `revive` setting decides for their own EVE, and your
+friend's `<name> is down` notice shows whatever that setting says. The downed player's `UE4SS.log` has a
+`[StellarCoop][GR] revive waits: <why>` line each time the reason changes:
+
+- `revive=off`: turn on Options > Session > Friend can revive me before the fight.
+- `friend not alive`, `friend on another map` or `friend far`: your friend's EVE must stand within 2 m of yours across,
+  and 1 m up or down, for 3 s with no gap. A body that fell into a pit or below the map cannot be reached.
+- `boss fight`: no revive during a boss fight on your side, nor in the 10 s after the host's last boss start.
+- `no shared fight`: the revive needs shared enemies running, with both players on co-op saves.
+- `a respawn or a warp is under way`: you pressed the death screen's respawn first.
+- `no death screen`, `the game is not standalone`, `no warp read`, `no SB player controller` or
+  `a coop no probe rule is set in this game run`: the game is not in a state the revive supports; respawn at a camp.
+- `revive off for this run: <why>`: a Lua error turned the revive off until the next Lua load.
+
+After a call, the `revive result` line gives the life state, HP and death screen before and after. If the death screen
+stays up over a living EVE, the mod hides it.
+
+### Stuck at a doorway with the solid partner
+
+With `collide=on`, your friend's ghost stops your EVE. It lets her through after 2 s of contact, until you are 50 cm
+apart, so wait 2 s and walk on. If the ghost still blocks a door, a ladder or a ledge, or a dodge stops at it, turn
+Options > Ghost > Solid partner off (`collide=off`): it applies at once. `coop status` shows `collide=on solid=<0|1>
+changes=...`, and each contact writes a `Solid partner contact:` line in `UE4SS.log`; send both with a bug report. A
+`Solid partner off on this ghost: <why>` line means the capsule could not be built or failed. That ghost then has no
+collision until it is built again (a level change or a new outfit).
 
 ### Same spawns do not start, or enemies appear and vanish
 
@@ -321,6 +511,12 @@ Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
 `coop fight spawn probe` checks the reads on one PC: each shared enemy in your zone gets a `fight spawns probe <key>`
 line in `coop-link.log` saying whether same spawns would handle it. For a report, keep `coop-link.log` and
 `coop-fight.log` from both PCs.
+
+An enemy that the host's game lacks still appears for a moment on the guest's screen after her death or a camp rest,
+then vanishes: that is same spawns with the spawn filter off, its default. With `spawn_filter=on` on her PC it stays
+away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
+`coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
+[usage.md: Spawn filter](usage.md#spawn-filter-experimental)).
 
 ### `Co-op saves off for this load: <why>`
 
@@ -357,9 +553,10 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
-ghost <x> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the ghost and of the co-op
-menu, chat and partner HUD. To see what the marker and the arrow cost, compare a minute with them on against a minute
-with Options > Partner > HP marker and Off-screen arrow set to Off.
+ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the
+ghost, of the Doro look, of a Doro race and of the co-op menu, chat and partner HUD. To see what the marker and the
+arrow cost, compare a minute with them on against a minute with Options > Partner > HP marker and Off-screen arrow set
+to Off.
 
 A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.
 
@@ -374,8 +571,14 @@ that do.
 - `Mods/StellarCoop/coop-link.old.log`
 - `ue4ss/UE4SS.log`
 - `Mods/StellarCoop/nightop-probe.txt`, only if you ran the Night Operation probe (`coop no`)
+- `Mods/StellarCoop/coop-quests.log`, only if shared quests were on
 
 They contain your Steam ID and Steam name, the other player's Steam ID and Steam name, lobby IDs and folder paths,
 which may include your Windows user name. They contain no passwords. You can read them before you send them.
+
+When you test with a friend, the player who leads the test types `coop mark <step>` in the console before each step,
+for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
+`UE4SS.log` (see [usage.md](usage.md#coop-mark)), so the four logs line up step by step. The text of each mark stays
+in the logs you send.
 
 This list is the same as in [INSTALL.md](../INSTALL.md#which-logs-to-send).

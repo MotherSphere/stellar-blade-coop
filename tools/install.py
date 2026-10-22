@@ -182,13 +182,13 @@ def main(argv=None):
     mods = args.game / 'SB/Binaries/Win64/ue4ss/Mods'
     if not args.zip and not mods.is_dir(): sys.exit(f'No UE4SS Mods folder at {mods}')
     if args.uninstall: return uninstall(mods / 'StellarCoop', args.dry_run)
-    for test in sorted((ROOT / 'tests').glob('*_test.lua')):
+    for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
         subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
     checks = sanitizers()
-    for test in sorted((ROOT / 'tests').glob('*_test.py')):
+    for test in sorted((ROOT / 'tests/tools').glob('*_test.py')):
         subprocess.run([sys.executable, test], cwd=ROOT, check=True)
-    for test in sorted((ROOT / 'tests').glob('*_test.cpp')):  # Platform-free native code, run on this machine.
-        exe = ROOT / 'build/host' / test.stem
+    for test in sorted((ROOT / 'tests/native').rglob('*_test.cpp')):  # Platform-free native code, run on this machine.
+        exe = ROOT / 'build/host' / '_'.join(test.relative_to(ROOT / 'tests/native').with_suffix('').parts)
         subprocess.run(['c++', '-std=c++17', '-Wall', '-Wextra', '-Werror', *checks, '-I', ROOT / 'native/src', test,
                         '-o', exe], check=True)
         subprocess.run([exe], check=True)
