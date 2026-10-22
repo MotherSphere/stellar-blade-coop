@@ -1,15 +1,19 @@
-# StellarCoop
+# Stellar Blade Online
 
-StellarCoop is a co-op mod for Stellar Blade on PC. Two players link their games over Steam, and each one sees the
-other's EVE in their own world.
+Stellar Blade Online is an online co-op mod for Stellar Blade on PC. Two players link their games over Steam, and each
+one sees the other's EVE in their own world. It was called StellarCoop until October 2026: the mod's folder, its DLL,
+its `coop` console commands and this repository keep that name.
 
-Status: v0.1.1, an experimental pre-release. It runs on Stellar Blade's Steam build 24463856 only. The ghost co-op was
-first played between two PCs on 2026-10-17, one on Linux with Proton and one on Windows, between Belgium and Brazil at
-about 240 ms ping. Longer sessions, level changes and the optional looks have not been tested between two PCs. The
-co-op menu, the chat and the partner HUD have not been tested in game yet.
+Status: v0.5.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
+first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at about 240 ms
+ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and same place (each
+enemy in the same spot on both screens). The 0.5 additions have not been tested between two PCs yet: shared quests, the
+friend's revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run and its
+challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
+and its free camera ran in game on one PC on 2026-10-22.
 
-StellarCoop is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through the Steam
-client that the game already runs, so the mod needs no other program and no server of its own.
+Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
+the Steam client that the game already runs, so the mod needs no other program and no server of its own.
 
 ## Features
 
@@ -47,6 +51,10 @@ client that the game already runs, so the mod needs no other program and no serv
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
   [docs/usage.md](docs/usage.md#doro-races)).
+- `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
+  a display-only model in front of EVE, with a free camera for filming (see
+  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan)). It cannot be fought: the game has no entry for it
+  in its character table.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night
@@ -67,7 +75,7 @@ the guest make together in the guest's game too, through the game's own quest fu
 This project found Night Operation in the game files: a multiplayer wave-survival mode that Shift Up prototyped and cut
 before release. Its recruiter was meant to stand next to Roxanne in Xion's Scrap Market. The plan is to bring the mode
 back for friends over Steam, started from the recruiter's Join choice, for up to six players; the Steam link holds two
-today. StellarCoop never contacts the cut mode's online services (Shift Up's servers).
+today. The mod never contacts the cut mode's online services (Shift Up's servers).
 
 `coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
 a score, on a co-op save. With no Steam session it is a solo run. In a session the host types it, and both games get
@@ -106,15 +114,15 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 ## Requirements
 
 - Stellar Blade on Steam (PC), game build 24463856. [INSTALL.md: Update](INSTALL.md#update) says how to keep Steam
-  from updating the game before StellarCoop supports the new build.
+  from updating the game before the mod supports the new build.
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same StellarCoop protocol (12 in this version) and the same game build.
+- To play together, both players need the same mod protocol (12 in this version) and the same game build.
 
 ## Disclaimer
 
-StellarCoop is an unofficial fan mod. It is not affiliated with or endorsed by SHIFT UP or Sony Interactive
+Stellar Blade Online is an unofficial fan mod. It is not affiliated with or endorsed by SHIFT UP or Sony Interactive
 Entertainment. Stellar Blade and its assets belong to their owners. This repository contains no game files; the mod
 runs on your own copy of the game.
 
@@ -137,12 +145,12 @@ The adapted parts are:
 
 `mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
 death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
-`session/group.lua`. StellarCoop contains no file from Survival Protocol.
+`session/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE) © 2026 StellarCoop contributors
+[GPL-3.0-or-later](LICENSE) © 2026 Stellar Blade Online contributors
 
-StellarCoop is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+Stellar Blade Online is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
 License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
 version.
