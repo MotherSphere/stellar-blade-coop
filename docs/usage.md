@@ -14,7 +14,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F5 | Open or close the [co-op menu](#co-op-menu); its first row hosts a session. Within 3 m of a camp phone booth, open the [co-op line](#co-op-line) instead | (none) |
 | View held 1 s, on a [controller](#controller) | Open or close the co-op menu, or the co-op line at a booth | (none) |
 | F6 | Show the status: one line on screen (see [Notices](#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
-| F7 | As the guest, travel to the camp nearest the host ([Following the host](#following-the-host)), or cancel the travel that `follow_host=always` is about to start | `coop travel host` |
+| F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) | `coop travel host` |
 | F8 | Leave the session | `coop leave` |
 | F9 | While you record a [Doro race](#doro-races) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
 | Enter | During a session, open the [chat](#session-chat) box, then send a line; Esc closes the box | (none) |
@@ -712,7 +712,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop allow <SteamID>` / `coop deny <SteamID>` | Let in or refuse the player who is not your Steam friend and waits for your answer |
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
-| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](#following-the-host)) |
+| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |

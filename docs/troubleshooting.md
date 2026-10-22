@@ -415,10 +415,10 @@ The mod then stops counting that record for this enemy, so only your hit or the 
 
 ### Travel to the host does not start
 
-In this version the travel never starts: `UE4SS.log` says `travel refused: no read of the camps this save has
-activated`, and no offer shows. The mod cannot yet read which camps your save has activated, and the game's fast travel
-does not check it ([Following the host](usage.md#following-the-host)). The rest of this section applies once that read
-exists.
+In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: no read
+of the camps this save has activated` in `UE4SS.log`. The mod cannot yet read which camps your save has activated, and
+the game's fast travel does not check it ([Following the host](usage.md#following-the-host)). The rest of this section
+applies once that read exists.
 
 Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
 `[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in
