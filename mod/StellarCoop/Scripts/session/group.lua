@@ -21,7 +21,7 @@
 -- of ours is in battle; our revive of her when her vitals go from down to alive while our EVE stands within 3 m of her
 -- ghost. Her revive setting reaches no line, so the down notice shows whatever it says.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
--- with the same lines (main.lua runs it on a co-op save only).
+-- with the same lines (commands/session.lua runs it on a co-op save only).
 -- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
 -- plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
