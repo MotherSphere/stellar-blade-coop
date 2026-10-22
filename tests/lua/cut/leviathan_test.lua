@@ -3,10 +3,13 @@
 -- rows that name it, by row name or name field, with their ID and MeshScale; a table it cannot read said so) and
 -- spawns nothing; show spawns one plain /Script/Engine.Actor 6 m ahead of EVE, facing her, with collision off and one
 -- mesh component (a static one for the statue), writes coop-leviathan.txt and plays each clip of the mesh's skeleton
--- twice in turn, a log line a step; a second show replaces the first; play holds one clip (by suffix, else anywhere in
--- its name, any case) and play alone resumes the cycle; off, coop off, a map change, no EVE and its first error remove
--- it and clear the file (kept when the removal fails), with no call on an object that took its actor's place; the next
--- Lua load sweeps what the file names, once; no SpawnActor call ever takes another class than /Script/Engine.Actor.
+-- twice in turn, a log line a step, a clip the engine collected found again without counting as a Doro reload; a
+-- second show replaces the first; play holds one clip (by suffix, else anywhere in its name, any case) and play alone
+-- resumes the cycle; off, coop off, a map change, no EVE and its first error remove it and clear the file (kept when
+-- the removal fails, and swept by the next show, which shows nothing new while that fails), with no call on an object
+-- that took its actor's place; a pawn that is no SBCharacter, or a mesh of another class (also after list), shows
+-- nothing; the next Lua load sweeps what the file names, once; no SpawnActor call ever takes another class than
+-- /Script/Engine.Actor.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -225,9 +228,18 @@ assert(m.kind=='/Script/Engine.SkeletalMeshComponent'
 assert(stored=='/Game/Map.Map:PersistentLevel.Actor_1\t'..path('CH_M_NA_10'),stored)
 m.calls={}
 local function tick_at(t) clock=t; return lv.tick() end
+local function newest() local k=#spawned; return spawned[k],'/Game/Map.Map:PersistentLevel.Actor_'..k end
 assert(tick_at(100)==nil and last()=='show body step 1/3 M_Leviathan_BattleIdle01 2.00 s twice',last())
 assert(tick_at(103.9)==nil and #m.calls==3,'4 s: the clip twice')
+-- A clip collected meanwhile is found again, and not counted as a reload of the Doro look's minute line.
+local Doro=require('race.doro')
+local ball=assets[path('M_Leviathan_LightningBall1_1')]
+ball.destroyed=true
+assets[path('M_Leviathan_LightningBall1_1')]=object({key=ball.key,GetFullName=ball.GetFullName,IsA=ball.IsA,
+    Skeleton=body_sk,SequenceLength=1.5})
+Doro.reloads.n=0
 tick_at(104); assert(last()=='show body step 2/3 M_Leviathan_LightningBall1_1 1.50 s twice',last())
+assert(Doro.reloads.n==0,Doro.reloads.n)
 tick_at(107); assert(last()=='show body step 3/3 IdleRun_BS_Battle 3.00 s twice',last())
 tick_at(112.9); tick_at(113); assert(last()=='show body step 1/3 M_Leviathan_BattleIdle01 2.00 s twice',last())
 assert(table.concat(m.calls,'|')=='play M_Leviathan_BattleIdle01 true|rate 1|at 0|'
@@ -274,8 +286,10 @@ assert(not lv.command('play','idle'))
 ok,why=pcall(lv.command,'show','b')
 assert(not ok and why:find('Leviathan_B is missing on this PC',1,true) and spawned[4].destroyed,why)
 assert(spawned[3].destroyed and stored==nil and lv.tick()==nil)
--- No EVE: nothing spawned.
+-- No EVE, or a pawn that is no SBCharacter: nothing spawned.
 player=nil
+assert(select(2,lv.command('show'))=='no EVE in the world' and #spawned==4)
+player=object({IsA=function() return false end})
 assert(select(2,lv.command('show'))=='no EVE in the world' and #spawned==4)
 player=eve
 
@@ -303,13 +317,26 @@ spawned[8].components[1].calls={}
 ok,why=tick_at(1003)
 assert(ok==true and why=='Leviathan body removed: its actor is gone.' and not spawned[8].destroyed
     and #spawned[8].components[1].calls==0 and stored==nil,why)
--- A removal that fails keeps the file: the next Lua load tries again.
+-- A removal that fails keeps the file: the next Lua load tries again, and so does the next show, which shows nothing
+-- new while it still fails, so the file never loses it.
 lv.command('show')
-local stuck=spawned[#spawned]
+local stuck,stuck_path=newest()
+local kept,destroy=stuck_path..'\t'..path('CH_M_NA_10'),stuck.K2_DestroyActor
+by_path[stuck_path]=stuck
 stuck.K2_DestroyActor=function() error('busy',0) end
+ok,why=lv.command('show','tentacle')
+assert(not ok and why=='the Leviathan shown before could not be removed: busy' and last()=='removed (replaced): busy'
+    and newest()==stuck and stored==kept,why)
+assert(not lv.command('show','tentacle') and newest()==stuck and stored==kept,'Refused again')
+stuck.K2_DestroyActor=destroy
+ok,why=lv.command('show','tentacle')
+local tentacle,tentacle_path=newest()
+assert(ok and stuck.destroys==1 and stored==tentacle_path..'\t'..path('M_LeviathanTentacleA'),why)
+tentacle.K2_DestroyActor=function() error('busy',0) end
 ok,why=lv.command('off')
-assert(ok and stored~=nil and last()=='removed (coop leviathan off): busy' and lv.tick()==nil,last())
-stuck.destroyed,stored=true,nil
+assert(ok and stored==tentacle_path..'\t'..path('M_LeviathanTentacleA')
+    and last()=='removed (coop leviathan off): busy' and lv.tick()==nil,last())
+tentacle.destroyed,stored=true,nil
 -- Its first error removes it.
 lv.command('show')
 local erred=spawned[#spawned]
@@ -321,7 +348,6 @@ broken=nil
 
 -- The next Lua load (Ctrl+R): the display the file names is destroyed at its first tick (or show), once, and the
 -- file cleared.
-local function newest() local k=#spawned; return spawned[k],'/Game/Map.Map:PersistentLevel.Actor_'..k end
 lv.command('show')
 local left,left_path=newest()
 by_path[left_path]=left
@@ -353,6 +379,17 @@ local bare=L.new({log=log})
 bare.restore()
 local before=#spawned
 assert(bare.command('show') and #spawned==before+1 and bare.command('off'))
+-- A mesh of another class than show needs is refused, also once list met it as any Object: Leviathan_A as a
+-- StaticMesh never reaches SetSkeletalMesh.
+local la=assets[path('Leviathan_A')]
+local isa=la.IsA
+la.IsA=function(_,c) return c.path=='/Script/CoreUObject.Object' or c.path=='/Script/Engine.StaticMesh' end
+lv.command('list')
+ok,why=pcall(lv.command,'show','a')
+local refused=newest()
+assert(not ok and why:find('Leviathan_A is missing on this PC',1,true) and refused.destroyed
+    and #refused.components==0,why)
+la.IsA=isa
 
 -- Never another class than a plain Actor: here, and in the sources, which name no achievement, reward, item, quest,
 -- save, possession, console command, spawn or destroy call of their own (race/doro.lua's spawn and remove do both).

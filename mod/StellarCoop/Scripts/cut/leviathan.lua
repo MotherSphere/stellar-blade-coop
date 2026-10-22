@@ -90,14 +90,16 @@ function Leviathan.new(o)
     local self={}
     local shown -- {d=<Doro.spawn's>, name=, map=, clips=, k=<cycle step>, next=<os.clock of the next>, held=<clip>}
     local restored=false
-    -- The display an earlier Lua load left (its actor's path and mesh, tab-separated): destroyed while it still is one,
-    -- then the file cleared. Once, on the game thread (the first tick, or show).
+    -- The display the file names (its actor's path and mesh, tab-separated) destroyed while it still is one: pcall's
+    -- ok, and true when it was.
+    local function sweep(line) return pcall(Doro.sweep,line:match('^([^\t]*)\t(.*)$')) end
+    -- The display an earlier Lua load left, then the file cleared. Once, on the game thread (the first tick, or show).
     function self.restore()
         if restored then return end
         restored=true
         local line=store.load()
         if not line then return end
-        local ok,gone=pcall(Doro.sweep,line:match('^([^\t]*)\t(.*)$'))
+        local ok,gone=sweep(line)
         store.clear()
         log('restore: '..(not ok and tostring(gone) or gone and 'the display of an earlier Lua load destroyed'
             or 'nothing left'))
@@ -159,6 +161,14 @@ function Leviathan.new(o)
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
         if shown then remove('replaced') end
+        -- A display whose removal failed is still in the file: it goes first, else no new one, so the file never loses
+        -- it and the next Lua load can still sweep it.
+        local line=store.load()
+        if line then
+            local ok,why=sweep(line)
+            if not ok then return false,'the Leviathan shown before could not be removed: '..tostring(why) end
+            store.clear()
+        end
         local e=Leviathan.LIST[Leviathan.MESHES[which]]
         local body=valid(eve.Mesh)
         local at,yaw=value_of(body:K2_GetComponentLocation()),math.rad(value_of(eve:K2_GetActorRotation()).Yaw)

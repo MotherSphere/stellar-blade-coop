@@ -97,7 +97,7 @@ fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
     display=function(text) if text==nil then withdrawn[#withdrawn+1]='display' end; return true end,
-    store=function() return 'store' end,
+    store=function(name) return 'store '..name end,
     remote=function() return 3,1,'loopback' end,
     remote_table=function() return nil end,
     request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,

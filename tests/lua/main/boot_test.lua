@@ -153,9 +153,10 @@ coop('race','start','quest')
 assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs only on a co-op save (INSTALL.md: Co-op '
     ..'saves); now no slot status\n',last())
 assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
-assert(ra.o.store=='store','coop-race-doros.txt through the link')
-assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store' and dv.o.settings.drift_keys[1]
-    =='Gamepad_RightTrigger','The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
+assert(ra.o.store=='store coop-race-doros.txt','coop-race-doros.txt through the link')
+assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store coop-drive.txt'
+    and dv.o.settings.drift_keys[1]=='Gamepad_RightTrigger',
+    'The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
 -- coop race drive reaches race/run.lua on any slot; its probe on a co-op save only.
 coop('race','drive','top','2600')
 assert(ra.cmds[#ra.cmds][1]=='drive' and ra.cmds[#ra.cmds][2]=='top' and ra.cmds[#ra.cmds][3]=='2600')
@@ -264,12 +265,7 @@ end
 -- Its night line goes through link.night; the partner's name is link.friend's; the shop's wallet is a link.store file.
 assert(nr.o.send('h 1 42 ask')==true and fake_link.nights[#fake_link.nights]=='h 1 42 ask')
 assert(nr.o.friend()=='Kaanta')
-do
-    local real_store=fake_link.store
-    fake_link.store=function(name) return 'store '..name end
-    assert(nr.o.store('coop-night-7-4.txt')=='store coop-night-7-4.txt')
-    fake_link.store=real_store
-end
+assert(nr.o.store('coop-night-7-4.txt')=='store coop-night-7-4.txt')
 -- Its shop words reach it, on the co-op save.
 coop('nightop','buy','2','3','4')
 assert(nr.runs[#nr.runs][1]=='buy' and nr.runs[#nr.runs][2]=='2' and nr.runs[#nr.runs][3]=='3'
@@ -465,7 +461,7 @@ kit_opts.log('UI built'); assert(last()=='[StellarCoop][UI] UI built\n',last())
 -- coop race look on|off and coop race probe doro: test tools, out of the usage line (USAGE in fixture.lua). The look
 -- and the ghost's Doro mode go on together, the ghost's refusal said after; off ends both, the look on or not, on any
 -- save. The look and the probe start on a co-op save only.
-assert(dr.store=='store' and dr.log,'coop-look.txt through the link')
+assert(dr.store=='store coop-look.txt' and dr.log,'coop-look.txt through the link')
 coop('race','look','on')
 assert(#dr.calls==0 and not dr.ghost and last()=='[StellarCoop] STOP: coop race look runs only on a co-op save '
     ..'(INSTALL.md: Co-op saves); now no slot status\n',last())
@@ -509,7 +505,7 @@ dr.says=nil
 assert(notice_stops==0)
 -- coop leviathan: a test tool, out of the usage line. list, play and off reach cut/leviathan.lua on any save, show on a
 -- co-op save only. Each frame its restore (done once, inside it) and its tick, whose message is reported.
-assert(lv.o.store=='store' and lv.o.log,'coop-leviathan.txt through the link')
+assert(lv.o.store=='store coop-leviathan.txt' and lv.o.log,'coop-leviathan.txt through the link')
 lv.o.log('list mesh CH_M_NA_10: missing')
 assert(last()=='[StellarCoop][LV] list mesh CH_M_NA_10: missing\n',last())
 coop('leviathan')
@@ -522,6 +518,8 @@ assert(lv.cmds[2][1]=='show' and lv.cmds[2][2]=='b' and last()=='[StellarCoop] O
 status_text=plain
 coop('leviathan','play','smash')
 assert(lv.cmds[3][1]=='play' and lv.cmds[3][2]=='smash' and last()=='[StellarCoop] OK: lv play\n',last())
+coop('leviathan','off')
+assert(lv.cmds[4][1]=='off' and lv.cmds[4][2]==nil and last()=='[StellarCoop] OK: lv off\n',last())
 lv.r,lv.t,lv.says=lv.restores,lv.ticks,{true,'Leviathan b removed: map change.'}
 loops[1].f()
 assert(lv.restores==lv.r+1 and lv.ticks==lv.t+1,'Both each frame')

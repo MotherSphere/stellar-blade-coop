@@ -145,24 +145,28 @@ local function same(o,path)
     return o and path_of(o)==path and o or nil
 end
 Doro.same=same
--- Assets found or loaded again after the engine collected them (a clip nothing played for a while): their count and
--- ms, for the look's minute line.
+-- Doro's own assets (under DIR) found or loaded again after the engine collected them (a clip nothing played for a
+-- while): their count and ms, for the look's minute line. Another mesh's (coop leviathan's) are not counted.
 Doro.reloads={n=0,ms=0}
 local cache={}
 -- An asset by its object path: in memory already, else loaded (LoadAsset, synchronous); nil when neither gives one of
--- that class. A cached one is used again only while it is still that object (partner/puppet.lua's rule).
+-- that class. A cached one is used again only while it is still that object (partner/puppet.lua's rule), and its
+-- class is checked at each call: coop leviathan list caches a path as any Object before show asks for a mesh.
 function Doro.resolve(path,class)
-    if same(cache[path],path) then return cache[path] end
-    local started,again=os.clock(),cache[path]~=nil
-    local a=valid(StaticFindObject(path))
+    local a=same(cache[path],path)
     if not a then
-        local ok,loaded=pcall(LoadAsset,path)
-        a=ok and valid(loaded) or nil
+        local started,again=os.clock(),cache[path]~=nil
+        a=valid(StaticFindObject(path))
+        if not a then
+            local ok,loaded=pcall(LoadAsset,path)
+            a=ok and valid(loaded) or nil
+        end
+        if again and path:sub(1,#DIR)==DIR then
+            Doro.reloads.n,Doro.reloads.ms=Doro.reloads.n+1,Doro.reloads.ms+(os.clock()-started)*1000
+        end
+        cache[path]=a
     end
-    if a and not a:IsA(find(class or ANIM)) then a=nil end
-    if again then Doro.reloads.n,Doro.reloads.ms=Doro.reloads.n+1,Doro.reloads.ms+(os.clock()-started)*1000 end
-    cache[path]=a
-    return a
+    return a and a:IsA(find(class or ANIM)) and a or nil
 end
 -- A Doro component on actor, hung on parent when given (KeepRelative: where the parent is), else the actor's root.
 -- look: another mesh, {path=<its object path>, static=true for a StaticMesh}, at scale 1, a static one with no

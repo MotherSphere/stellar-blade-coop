@@ -9,7 +9,7 @@ dofile('tests/lua/main/fixture.lua')
 -- world or our HUD goes, and at coop off.
 settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
 load_main(true)
-assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store'
+assert(kit_opts.scale==100 and kit_opts.sounds==true and kit_opts.store=='store coop-ui.txt'
     and type(kit_opts.log)=='function',
     'The kit gets the settings, the UI log and its own path store')
 assert(menu_view and #menu_view.rows==15,'The menu is added before the first slow')

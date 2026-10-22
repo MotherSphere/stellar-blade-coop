@@ -946,9 +946,11 @@ of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4
 
 - `coop leviathan` or `coop leviathan list` only reads. It logs one line for each mesh, skeleton, animation, blend
   space and Blueprint class it looks for: `missing`, or the object's class, with the skeleton of a mesh or an
-  animation and the parent class of a Blueprint class. Then it logs each CharacterTable row whose name, or one of its
-  name fields such as `Type` or `RefAppearance`, contains `NA_10` or `eviathan` (Leviathan, and Reviathan as the
-  statue spells it), with the row's character ID and `MeshScale`, and the number of rows it read.
+  animation and the parent class of a Blueprint class. Two more `list asset` lines give the same for
+  `M_Leviathan_Despawn`, from the game's despawn shows, and for `Default` in the Leviathan's folder. Then it logs
+  each CharacterTable row whose name, or one of its name fields such as `Type` or `RefAppearance`, contains `NA_10`
+  or `eviathan` (Leviathan, and Reviathan as the statue spells it), with the row's character ID and `MeshScale`, and
+  the number of rows it read.
 - `coop leviathan show [body|a|b|tentacle|statue]` puts one mesh 6 m in front of EVE, facing her. `body` (the
   default) is `CH_M_NA_10`, `a` and `b` are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and
   `statue` is `C_Reviathan`, a static mesh from the game's secret room assets. The mesh plays each animation made for
@@ -958,7 +960,8 @@ of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4
   in any case against the end of the animation names, then anywhere in them: `coop leviathan play lightningball` plays
   `M_Leviathan_LightningBall1_1`. `coop leviathan play` alone goes back to the cycle.
 - `coop leviathan off` removes the mesh. `coop off`, a map change and its first error remove it too. While it is
-  shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if this one could not.
+  shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if this one could not. The
+  next `show` tries again first, and shows nothing new while the old mesh cannot be removed.
 
 ### Shared enemies (experimental)
 
@@ -1984,6 +1987,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path and the names of the parts the look hid, so the next Lua load (Ctrl+R) can show her again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh: its actor's object path and the mesh's, so the next Lua load (Ctrl+R) can remove it |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
 it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,

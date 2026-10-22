@@ -488,9 +488,9 @@ LoopInGameThreadWithDelay(1,function()
     local looked=os.clock()
     ok,message=doro.tick() -- After the native tick: EVE's mesh is where this frame draws her.
     if message then report(ok,message) end
-    ok,message=leviathan.tick()
-    if message then report(ok,message) end
     looked=os.clock()-looked
+    ok,message=leviathan.tick() -- Outside the doro column of the frame time line.
+    if message then report(ok,message) end
     local raced=os.clock()
     if link and race.armed() then inbox() end
     ok,message=race.tick() -- After the look: its Doros and HUD from where EVE is drawn this frame.
