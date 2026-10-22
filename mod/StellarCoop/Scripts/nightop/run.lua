@@ -1,5 +1,5 @@
--- coop nightop: Night Operation's run on a co-op save (main.lua checks the slot), on the game thread. Five timed
--- waves of the game's base monsters come at EVE where she stands. coop challenge runs the challenges of
+-- coop nightop: Night Operation's run on a co-op save (commands/nightop.lua checks the slot), on the game thread. Five
+-- timed waves of the game's base monsters come at EVE where she stands. coop challenge runs the challenges of
 -- nightop/challenges.lua the same way, solo only, each with its best run in coop-records.txt. nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
 -- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the

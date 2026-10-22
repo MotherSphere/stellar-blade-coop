@@ -13,14 +13,15 @@
 -- host), and keeps who waited in this lobby (the menu's Remove row).
 -- coop-settings.txt's shared_enemies, fight_chars, guest_kills, enemy_hp_scale, enemy_balance_scale, kill_credit,
 -- same_place, aggro, same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale (Phase 11, experimental) are
--- main.lua's coop fight; its photo_sync,
--- photo_freeze_max, photo_ghost and photo_name_tag the synced photo mode's (main.lua, and the native part through
--- coop-state.txt), photo_pause main.lua's own; its auto_coop_save the co-op saves' (session/saves.lua), which also read
--- saves() here; its shared_quests and quest_deny main.lua's coop quests (Phase 12, experimental), which reads quests()
--- and quest_notes() here; its revive and cutscene_wait session/group.lua's (the friend's revive, the wait during the
--- host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the guest's travel to the camp
--- nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid partner); its drift_keys the
--- Doro races' driving (race/drive.lua). The co-op menu (ui/menu.lua) changes the file, one line at a time (D-UI4).
+-- commands/fight.lua's coop fight (main.lua's loop asks it on or off); its photo_sync, photo_freeze_max, photo_ghost
+-- and photo_name_tag the synced photo mode's (main.lua, and the native part through coop-state.txt), photo_pause
+-- main.lua's own; its auto_coop_save the co-op saves' (session/saves.lua), which also read saves() here; its
+-- shared_quests and quest_deny commands/fight.lua's coop quests (Phase 12, experimental); main.lua's loop, which asks
+-- it on or off, reads quests() and quest_notes() here; its revive and cutscene_wait session/group.lua's (the friend's
+-- revive, the wait during the host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the
+-- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
+-- partner); its drift_keys the Doro races' driving (race/drive.lua). The co-op menu (ui/menu.lua) changes the file, one
+-- line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -186,10 +187,10 @@ local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
 -- file written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
 -- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
--- seconds; ui_scale one of percent; the scales a number from 1 to 4, digits with a decimal point or none (main.lua
--- sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only, at most 200 bytes
--- (the native part's request limit; it names the entries that are no shared quest); drift_keys a list of Unreal key
--- names (race/drive.lua reads them with IsInputKeyDown), at most 4, empty for none.
+-- seconds; ui_scale one of percent; the scales a number from 1 to 4, digits with a decimal point or none
+-- (commands/fight.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and commas only,
+-- at most 200 bytes (the native part's request limit; it names the entries that are no shared quest); drift_keys a list
+-- of Unreal key names (race/drive.lua reads them with IsInputKeyDown), at most 4, empty for none.
 local function setting(name,text)
     if name=='drift_keys' then
         local keys,why={},'use none, or at most 4 Unreal key names separated by spaces, such as Gamepad_RightTrigger B'
