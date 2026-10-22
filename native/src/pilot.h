@@ -1750,6 +1750,11 @@ public:
     const bool ok = l.kind != Kind::invalid && p && takes(owner(*p), from(), l.gen, l.oe) && timeline_.push(l, at);
     ++(ok ? counts.lines : counts.lines_refused);
   }
+  // AddShow loads a Show it has not loaded yet synchronously, on the game thread, and her stamps can make any number of
+  // lines due at once: draw() makes at most kAddsPerFrame calls a frame and kAddsPerSecond a second, and the lines
+  // behind keep their order for a later frame (Timeline::kLines bounds them).
+  // ponytail: one budget for all her lines; a budget per pair if one enemy's flood should not delay the others'.
+  static constexpr uint64_t kAddsPerFrame = 4, kAddsPerSecond = 60;
   // One frame at now (our clock, ms), drawing at at (the owner's clock, ms: the ghost's draw time; NaN without one).
   template <class Game> void draw(Game &g, uint64_t base, double now, double at) {
     if (latched_ || !holding()) // Nothing held: no line either (forget() drops a pair's), and nothing to read.
@@ -1778,7 +1783,12 @@ public:
       }
       ok[i] = drive(g, read, base, s.reg, p, found[i], now, at) && limit_ == PilotTest::replay;
     }
+    const uint64_t frame = adds_;
+    if (now >= second_ + 1000 || now < second_)
+      second_ = now, second_adds_ = adds_;
     for (const Timeline::Due *due; (due = timeline_.front(at));) {
+      if (due->line.kind == Kind::show && (adds_ - frame >= kAddsPerFrame || adds_ - second_adds_ >= kAddsPerSecond))
+        break;
       const Timeline::Due d = *due;
       timeline_.pop();
       Pair *p = pair(d.line.guid);
@@ -2022,6 +2032,7 @@ private:
         return;
       }
       g.main_actor(s.reg, live.handle, f->fsb + kFsbGuid);
+      ++adds_;
       live.slot = g.add(s.reg, live.handle, l.path, l.path_len, l.form, float(l.rate) / 1000, l.gate, l.b4d);
       if (live.slot < 0) {
         g.stop(s.reg, live.handle);
@@ -2150,6 +2161,8 @@ private:
 
   Pair pairs_[kMaxEnemies];
   Timeline timeline_;
+  uint64_t adds_ = 0, second_adds_ = 0; // AddShow's calls: all of them, and before the second that began at second_.
+  double second_ = 0;                   // Our clock, ms.
   Paths paths_;        // dedupe()'s names of the copies' own Shows.
   uint64_t base_ = 0;  // The game's image base, as draw() had it.
   uint32_t gen_ = 0;
