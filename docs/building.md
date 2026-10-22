@@ -74,19 +74,21 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`main`; `core/`: `keybind`, `link`, `settings_file`; `nightop/`: `challenges`, `probe`, `recruiter`,
-  `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`,
-  `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`: `kit`,
-  `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture
-  test, any write to the fake EVE fails the test. `main_test` also covers `coop fight pilot` (its `test target` and boss
-  tests included), the `same_place` and `aggro` settings and rows, the `same_spawns`, `enemy_extra`, `bosses` and
-  `boss_hp_scale` settings and rows, `coop fight spawn probe`, the same place and same spawns notices in both languages,
-  and `coop quests` with the `shared_quests` and `quest_deny` settings, the menu's row and the shared quests' notices.
-  It also covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the
-  two boxes, never to the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu, the focus
-  watchdog's reset, and the `spawn_filter` setting with the `filter` word it adds. `ui/kit_test` covers the menu's mouse
-  cursor, the focus put back after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at a
-  row's end.
+- Lua tests (`core/`: `keybind`, `link`, `settings_file`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`,
+  `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`,
+  `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`:
+  `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with
+  fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The
+  `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers
+  `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the `spawn_filter` setting
+  with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and
+  `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row; `main/fight_notices_test`
+  the same place and same spawns notices in both languages; `main/quests_test` `coop quests` with the `shared_quests`
+  and `quest_deny` settings and the shared quests' notices; `main/input_test` the controller's events from a fake
+  `coop_pad` (routed to the menu, the co-op saves' question and the two boxes, never to the host's question; at most 8 a
+  frame; an older DLL without it), the mouse in the menu and the focus watchdog's reset. `ui/kit_test` covers the menu's
+  mouse cursor, the focus put back after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at
+  a row's end.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
