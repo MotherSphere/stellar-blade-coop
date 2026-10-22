@@ -85,10 +85,11 @@ end
 
 -- One frame. s is the caller's table, kept for the race (heading in radians; asked: the speed the last frame asked
 -- for; vz1, vz2: the last two vertical speeds on the ground; drift, stumble, air, held). input: stick {x, y} (world,
--- length 1 at most: GetLastMovementInputVector), drift (the key held), v {x, y, z} (her velocity, read back), falling,
--- root (root motion or a game move holds her) and yaw (her actor's, degrees: the heading at the first frame and after
--- a hold). P: D.values'. dt in seconds. Returns {heading (degrees; nil: write no yaw), vx, vy (the velocity to give
--- her; nil: none), launch ({x, y, z}: launch her instead), stumble (one started this frame), stumbling, drifting}.
+-- length 1 at most: GetLastMovementInputVector), drift (the key held), v {x, y, z} (her velocity, read back; z from
+-- her height between frames, since her movement keeps its own at 0 on the ground), falling, root (root motion or a
+-- game move holds her) and yaw (her actor's, degrees: the heading at the first frame and after a hold). P: D.values'.
+-- dt in seconds. Returns {heading (degrees; nil: write no yaw), vx, vy (the velocity to give her; nil: none), launch
+-- ({x, y, z}: launch her instead), stumble (one started this frame), stumbling, drifting}.
 function D.step(s,input,P,dt)
     if input.root then -- The game moves her: nothing written; the next frame starts from her yaw and velocity.
         s.held,s.asked,s.vz1,s.vz2=true,nil,nil,nil

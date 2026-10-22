@@ -121,12 +121,15 @@ function Drive.new(o)
         return true
     end
     -- The drift keys (settings.drift_keys): any one held. Each change is logged; a read that fails is said once and
-    -- the keys are left out until the mod reloads (the drift then comes from steering alone).
+    -- the keys are left out until the mod reloads (the drift then comes from steering alone). No player controller
+    -- this frame only skips this frame.
     local function drift(d)
         local names=o.settings and o.settings.drift_keys or {}
         if keys_failed or not names[1] then return false end
+        local pc=valid(UE.GetPlayerController())
+        -- UEHelpers keeps the last one while its address is valid: after a map change it may be another object.
+        if not (pc and pc:IsA(find('/Script/Engine.PlayerController'))) then return false end
         local ok,down=pcall(function()
-            local pc=assert(valid(UE.GetPlayerController()),'no player controller')
             local any=false
             for _,name in ipairs(names) do
                 fkeys[name]=fkeys[name] or {KeyName=FName(name)}
@@ -145,10 +148,14 @@ function Drive.new(o)
         return false
     end
     -- The velocity to the movement component: the difference as an impulse (Z left to the game), or a write of its
-    -- Velocity with her own vertical speed.
+    -- Velocity with her own vertical speed. The impulse an earlier frame left unused (her movement did not tick: photo
+    -- mode with photo_pause=scenery runs the world but not SB's logic) is dropped first, so impulses never pile up.
     local function give(d,vx,vy,v)
         if (d.feed or feed)=='struct' then d.move.Velocity={X=vx,Y=vy,Z=v.Z}
-        else d.move:AddImpulse({X=vx-v.X,Y=vy-v.Y,Z=0},true) end
+        else
+            d.move:ClearAccumulatedForces()
+            d.move:AddImpulse({X=vx-v.X,Y=vy-v.Y,Z=0},true)
+        end
     end
     -- The probe's first 6 s: 1500 cm/s straight ahead along her yaw at the start, 3 s through each feed, logged each
     -- frame; then the model drives as in a race until coop race drive off.
@@ -182,11 +189,16 @@ function Drive.new(o)
         local dt=d.t and t-d.t or 0
         d.t=t
         if dt<=0 then return d.look end -- Paused, or her time not moved since the last frame.
+        -- Her vertical speed from her height: on the ground her movement keeps its Velocity.Z at 0
+        -- (MaintainHorizontalGroundVelocity at the end of each walking step), so a climb shows only in her place.
+        local z=value_of(e:K2_GetActorLocation()).Z
+        local vz=d.z and (z-d.z)/dt or 0
+        d.z=z
         dt=math.min(dt,MAX_DT)
         local v=value_of(e:GetVelocity())
         local stick=value_of(e:GetLastMovementInputVector())
         local yaw=value_of(e:K2_GetActorRotation()).Yaw
-        local input={stick={x=stick.X,y=stick.Y},drift=drift(d),v={x=v.X,y=v.Y,z=v.Z},falling=d.move:IsFalling()==true,
+        local input={stick={x=stick.X,y=stick.Y},drift=drift(d),v={x=v.X,y=v.Y,z=vz},falling=d.move:IsFalling()==true,
             root=e:IsPlayingRootMotion()==true,yaw=yaw}
         local out=d.probe and d.probe.phase~='free' and probe_out(d,t,v) or M.step(d.state,input,d.P,dt)
         if out.launch then e:LaunchCharacter({X=out.launch.x,Y=out.launch.y,Z=out.launch.z},true,true)
@@ -198,7 +210,7 @@ function Drive.new(o)
         if t>=d.said_at then -- Once a second: her speed, the speed asked, her yaw read against the heading written.
             d.said_at=t+1
             log(('drive v=%.0f vz=%.0f asked=%.0f yaw=%.1f heading=%s air=%d root=%d drift=%d stumble=%d'):format(
-                math.sqrt(v.X*v.X+v.Y*v.Y),v.Z,d.state.asked or 0,yaw,out.heading and ('%.1f'):format(out.heading)
+                math.sqrt(v.X*v.X+v.Y*v.Y),vz,d.state.asked or 0,yaw,out.heading and ('%.1f'):format(out.heading)
                 or '-',input.falling and 1 or 0,input.root and 1 or 0,out.drifting and 1 or 0,out.stumbling and 1 or 0))
         end
         return d.look

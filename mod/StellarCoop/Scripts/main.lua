@@ -641,9 +641,14 @@ end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
     doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
+    pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
+    local steered=os.clock()
+    ok,message=race.steer() -- Before the native tick: the pose it captures has the yaw the driving writes.
+    if message then report(ok,message) end
+    steered=os.clock()-steered
     if native_tick then native_tick() end
     local placed=os.clock()
     ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
@@ -657,7 +662,7 @@ LoopInGameThreadWithDelay(1,function()
     if link and race.armed() then inbox() end
     ok,message=race.tick() -- After the look: its Doros and HUD from where EVE is drawn this frame.
     if message then report(ok,message) end
-    raced=os.clock()-raced
+    raced=os.clock()-raced+steered
     ok,message=notice.tick()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.

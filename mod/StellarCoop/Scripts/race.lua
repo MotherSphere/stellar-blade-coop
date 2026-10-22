@@ -365,9 +365,9 @@ function Race.new(o)
             kit.show('race_arrow',true)
         end
     end
-    -- The driving: on at GO with the race's values (the host's, from his drive line), each frame meanwhile, off once
-    -- our own result is in or the race left the race phase (a false start). Once it went off by itself (her EVE gone),
-    -- not again in this start.
+    -- The driving: on at GO with the race's values (the host's, from his drive line), off once our own result is in or
+    -- the race left the race phase (a false start); self.steer drives each frame meanwhile. Once it went off by itself
+    -- (her EVE gone), not again in this start.
     local function sync_drive(r)
         local m=r.m
         if m.phase=='race' and not (m.me.ms or m.me.why) then
@@ -377,15 +377,14 @@ function Race.new(o)
                 if not ok then error('no driving: '..why,0) end
                 puppet.drive(m.track.drive.top)
             end
-            if drive.racing() then look.drive(drive.tick()) end
         elseif drive.racing() then
             log(drive.off('race '..(m.me.ms and 'fin' or m.me.why or m.phase)))
             look.drive(nil)
         end
     end
     -- One frame of the race: the model from EVE's feet and her lines (and the loopback guest's), our lines to the
-    -- native part, the events, the driving, the Doros, the HUD. A race that ends here (quit, map, coop off) sends its
-    -- line first.
+    -- native part, the events, the driving on or off, the Doros, the HUD. A race that ends here (quit, map, coop off)
+    -- sends its line first.
     local function frame(r)
         local now=clock()
         local e=eve()
@@ -537,7 +536,9 @@ function Race.new(o)
         if not link then return false,'the race needs the native part' end
         if sub=='drive' then
             if a=='probe' and race then return false,'a race is armed: coop race quit leaves it' end
-            return drive.command(a,extra)
+            local ok,why=drive.command(a,extra)
+            if not drive.active() then pcall(look.drive,nil) end -- The probe off: the look walks again.
+            return ok,why
         end
         if extra~=nil then return false,USE end
         if sub=='record' and a then return record(a) end
@@ -579,7 +580,10 @@ function Race.new(o)
             log('race '..l.id..' from the host refused: not a co-op save')
             return tell(function(w) return w.race.declined.save:format(her_name(w)) end)
         end
-        if drive.active() then log(drive.off('the host started a race')) end -- Her movement whole until GO.
+        if drive.active() then -- Her movement whole until GO, and the look out of the probe's driving.
+            log(drive.off('the host started a race'))
+            pcall(look.drive,nil)
+        end
         local me=puppet.me()
         r=new_race('guest',R.guest(),{map=me and me.map,with=true})
         r.inbox[1]=text
@@ -598,23 +602,26 @@ function Race.new(o)
         store.clear()
         log(('race: %d display Doros an earlier Lua load left destroyed'):format(n))
     end
-    -- Each frame, after the ghost and the look are placed. A first error ends the race: false, why. With no race, the
-    -- drive probe's frame; its error ends it.
+    -- Each frame before the native tick, so that the pose it captures and the look have the yaw the driving writes
+    -- this frame: the race's driving from GO to our result, or the drive probe's. Its first error ends the race (as a
+    -- frame's) or the probe: false, why.
+    function self.steer()
+        if not drive.active() then return end
+        local ok,e=pcall(function() look.drive(drive.tick()) end)
+        if ok then return end
+        if race then return fail(e) end
+        local message=drive.off('error')
+        pcall(look.drive,nil)
+        return false,'the drive probe stopped on an error: '..why_of(e)..'; '..message
+    end
+    -- Each frame, after the ghost and the look are placed. A first error ends the race: false, why.
     function self.tick()
         if not swept then
             swept=true
             pcall(sweep)
-            pcall(drive.restore)
         end
         local r=race
-        if not r then
-            if not drive.active() then return end
-            local ok,e=pcall(function() look.drive(drive.tick()) end)
-            if ok then return end
-            local message=drive.off('error')
-            pcall(look.drive,nil)
-            return false,'the drive probe stopped on an error: '..why_of(e)..'; '..message
-        end
+        if not r then return end
         local ok,e=pcall(frame,r)
         if not ok then return fail(e) end
     end

@@ -242,17 +242,22 @@ package.loaded.doro={new=function(o)
         restore=function() dr.restores=dr.restores+1 end,
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
 end}
--- The races' driving (drive.lua; drive_test tests it): what drive.new got. A global, as nr.
-dv={}
-package.loaded.drive={new=function(o) dv.o=o; return {name='drive'} end}
+-- The races' driving (drive.lua; drive_test tests it): what drive.new got, its restores. A global, as nr.
+dv={restores=0}
+package.loaded.drive={new=function(o)
+    dv.o=o
+    return {name='drive',restore=function() dv.restores=dv.restores+1 end}
+end}
 -- The Doro race (race.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks, slows,
--- stops and keys, whether it is armed, what a tick or the key answers, a stop that raises, its HUD. A global, as nr.
+-- stops and keys, whether it is armed, what a tick or the key answers, a stop that raises, its HUD; its steers and the
+-- native ticks made before the last one. A global, as nr.
 ra={}
 package.loaded.race={new=function(o)
     ra.o=o
     return {command=function(sub,a,extra) ra.cmds[#ra.cmds+1]={sub,a,extra}; return true,'race '..tostring(sub) end,
         receive=function(text) ra.received[#ra.received+1]=text end,
         tick=function() ra.ticks=ra.ticks+1; if ra.says then return table.unpack(ra.says) end end,
+        steer=function() ra.steers,ra.steered_at=ra.steers+1,ticks end,
         slow=function() ra.slows=ra.slows+1 end,
         stop=function() ra.stops=ra.stops+1; if ra.raise then error(ra.raise,0) end end,
         key=function() ra.keys=ra.keys+1; return ra.key_ok,ra.key_why end,
@@ -405,6 +410,7 @@ local function load_main(with_native)
     nr.o,nr.runs,nr.ticks,nr.stops=nil,{},0,{}
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
+    ra.steers,ra.steered_at,dv.restores=0,nil,0
     ui_log,ui_tests,ui_ticks,ui_stops=nil,{},0,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil
@@ -525,6 +531,7 @@ assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load
 loops[1].f(); loops[1].f()
 assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ui_ticks==2 and ra.ticks==2,
     'The native tick, the notices, the probe, the recruiter, the UI spike and the race run every frame')
+assert(ra.steers==2 and ra.steered_at==1,'The driving each frame, before the native tick: the pose has its yaw')
 -- coop race: its words to race.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot only;
 -- race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot check
 -- and the kit's pause.
@@ -866,10 +873,10 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
     and printed[lines+4]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited,ui_ticked=notice_ticks,probe_ticks,rc_ticks,ui_ticks
-dr.t,ra.t=dr.ticks,ra.ticks
+dr.t,ra.t,ra.s=dr.ticks,ra.ticks,ra.steers
 loops[1].f(); assert(ticks==7 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
-assert(ra.ticks==ra.t,'No race tick after coop off')
+assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 assert(ui_ticks==ui_ticked,'No UI spike tick after coop off')
 coop('ui','test'); assert(#ui_tests==2 and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
@@ -890,6 +897,7 @@ load_main(true)
 coop('host'); assert(last():find('coop off is active until the game restarts',1,true),last())
 loops[1].f(); assert(ticks==1,'Still the native tick alone: a pause tag held before the reload goes')
 assert(dr.restores==1 and dr.ticks==0,'An EVE an earlier load left hidden is restored, coop off or not')
+assert(dv.restores==1 and ra.steers==0,'Her movement an earlier load left driving too')
 loops[2].f(); assert(#states==0,'Nor a world state')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'

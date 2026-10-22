@@ -1,16 +1,19 @@
 -- drive.lua over a fake EVE, movement component and player controller: on keeps the four values (the file first) and
--- zeroes them; each frame the model's velocity as an impulse (Z at 0) or a Velocity write, the yaw, a launch over a
--- crest; nothing while the world's time stands still, nor under root motion; the drift keys (a change logged, a read
--- that fails said once); a stance push undone at the next 250 ms; off writes the values back on that EVE only, and
+-- zeroes them; each frame the model's velocity as an impulse (Z at 0, the unused one cleared first) or a Velocity
+-- write, the yaw, a launch over a crest (her climb from her height: her movement keeps Velocity.Z at 0 on the ground);
+-- nothing while the world's time stands still, nor under root motion; the drift keys (a change logged, a read that
+-- fails said once, no controller this frame skips this frame only); a stance push undone at the next 250 ms; off writes the values back on that EVE only, and
 -- clears the file; a failing write keeps it; the next Lua load's restore; the probe's two feeds and its free drive;
 -- and coop race drive's words.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function fname(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 FName=fname
 local SBC={type=function() return 'UObject' end,IsValid=function() return true end,path='/Script/SB.SBCharacter'}
+local PCC={type=function() return 'UObject' end,IsValid=function() return true end}
 local by_path={}
 StaticFindObject=function(path)
     if path=='/Script/SB.SBCharacter' then return SBC end
+    if path=='/Script/Engine.PlayerController' then return PCC end
     return by_path[path]
 end
 local function uobj(o)
@@ -20,8 +23,8 @@ local function uobj(o)
 end
 -- EVE and her movement: the four values (the engine's and SB's), what each call did.
 local function make_eve(name)
-    local e=uobj({velocity={X=0,Y=0,Z=0},stick={X=0,Y=0,Z=0},yaw=0,time=10,root=false,impulses={},yaws={},
-        launches={}})
+    local e=uobj({velocity={X=0,Y=0,Z=0},at={X=0,Y=0,Z=0},stick={X=0,Y=0,Z=0},yaw=0,time=10,root=false,impulses={},
+        yaws={},launches={},clears=0})
     -- Its properties behind a metatable: with locked set, a write raises.
     local props={MaxAcceleration=2048,GroundFriction=8,BrakingDecelerationWalking=0,BrakingFrictionFactor=2}
     local m=setmetatable(uobj({falling=false}),{__index=props,__newindex=function(t,k,v)
@@ -29,9 +32,11 @@ local function make_eve(name)
         props[k]=v
     end})
     function m:IsFalling() return self.falling end
+    function m:ClearAccumulatedForces() e.clears=e.clears+1 end
     function m:AddImpulse(v,change)
         assert(change==true,'A velocity change')
         e.impulses[#e.impulses+1]=v
+        assert(e.clears==#e.impulses,'The unused impulse cleared just before')
     end
     function m:GetFullName() return 'SBCharacterMovementComponent /Game/Map.Map:PersistentLevel.'..name..'.Move' end
     e.CharacterMovement=m
@@ -39,6 +44,7 @@ local function make_eve(name)
     function e:IsA(c) return c==SBC end
     function e:GetGameTimeSinceCreation() return self.time end
     function e:GetVelocity() return self.velocity end
+    function e:K2_GetActorLocation() return self.at end
     function e:GetLastMovementInputVector() return self.stick end
     function e:IsPlayingRootMotion() return self.root end
     function e:K2_GetActorRotation() return {Pitch=0,Yaw=self.yaw,Roll=0} end
@@ -56,7 +62,8 @@ local function make_eve(name)
 end
 local eve=make_eve('EVE_1')
 local down={}
-local pc=uobj({IsInputKeyDown=function(_,key) return down[key.KeyName:ToString()]==true end})
+local pc=uobj({IsInputKeyDown=function(_,key) return down[key.KeyName:ToString()]==true end,
+    IsA=function(_,c) return c==PCC end})
 package.loaded.UEHelpers={GetPlayer=function() return eve end,GetPlayerController=function() return pc end}
 local Drive=require('drive')
 local M=require('drive_model')
@@ -90,13 +97,13 @@ eve.stick={X=1,Y=0,Z=0}
 local look=d.tick()
 assert(#eve.impulses==0 and #eve.yaws==0,'First frame: her time only')
 eve.time=eve.time+0.1
-eve.velocity={X=500,Y=0,Z=-3}
+eve.velocity={X=500,Y=0,Z=-3} -- Her Velocity.Z is not her climb: she stands at the same height.
 look=d.tick()
-local step=M.step({heading=0},{stick={x=1,y=0},v={x=500,y=0,z=-3},yaw=0},M.values(M.DEFAULTS),0.1)
+local step=M.step({heading=0},{stick={x=1,y=0},v={x=500,y=0,z=0},yaw=0},M.values(M.DEFAULTS),0.1)
 local i=eve.impulses[1]
 assert(#eve.impulses==1 and close(i.X,step.vx-500) and close(i.Y,0) and i.Z==0,i.X)
 assert(eve.yaws[1]==0 and look.top==2200 and look.stumble==false)
-assert(find('^drive v=500 vz=%-3 asked=%d+ yaw=0%.0 heading=0%.0 air=0 root=0 drift=0 stumble=0$'),logs[#logs])
+assert(find('^drive v=500 vz=0 asked=%d+ yaw=0%.0 heading=0%.0 air=0 root=0 drift=0 stumble=0$'),logs[#logs])
 -- Paused (her time not moved): nothing written, the same look.
 assert(d.tick()==look and #eve.impulses==1 and #eve.yaws==1)
 -- Under root motion (a dodge): nothing written, not even the yaw.
@@ -109,12 +116,18 @@ eve.time,move.falling,eve.velocity=eve.time+0.1,true,{X=1500,Y=0,Z=400}
 d.tick()
 assert(#eve.impulses==1 and #eve.yaws==2)
 move.falling=false
--- A crest: a launch in place of the impulse.
+-- A crest: on the ground her Velocity.Z stays 0, as the game's; her height climbs 500 then 520 cm/s and then 100: a
+-- launch in place of the impulse. The same climb in her Velocity.Z alone, at her height, launches nothing.
+for _,vz in ipairs({0,500,520,100}) do
+    eve.time,eve.velocity,eve.at=eve.time+1/60,{X=1500,Y=0,Z=0},{X=0,Y=0,Z=eve.at.Z+vz/60}
+    d.tick()
+end
+assert(#eve.launches==1 and close(eve.launches[1].Z,500) and find('^drive crest: launched at 500 cm/s up$'))
 for _,vz in ipairs({0,500,520,100}) do
     eve.time,eve.velocity=eve.time+1/60,{X=1500,Y=0,Z=vz}
     d.tick()
 end
-assert(#eve.launches==1 and close(eve.launches[1].Z,500) and find('^drive crest: launched at 500 cm/s up$'))
+assert(#eve.launches==1,'Her height only')
 -- The Velocity write in place of impulses: her own vertical speed kept.
 local impulses=#eve.impulses
 assert(d.command('feed','struct'))
@@ -123,9 +136,20 @@ d.tick()
 assert(#eve.impulses==impulses and move.Velocity and move.Velocity.Z==-7 and move.Velocity.X>1400,'Velocity written')
 assert(d.command('feed','impulse'))
 
--- 3. The drift keys: held, the model drifts; each change logged; a failing read said once, then no key.
+-- 3. The drift keys: held, the model drifts; each change logged; a failing read said once, then no key. No player
+-- controller, or another object where UEHelpers kept it: no key this frame, and the keys are read again the next.
 down.B=true
 eve.time,eve.velocity,eve.stick=eve.time+1/60,{X=1500,Y=0,Z=0},{X=1,Y=0,Z=0}
+local real_pc=pc
+for _,other in ipairs({false,uobj({IsA=function() return false end,IsInputKeyDown=function() error('no such call') end})})
+do
+    pc=other or nil
+    eve.time=eve.time+1/60
+    d.tick()
+    assert(not find('^drive key B down$') and not find('cannot be read'),logs[#logs])
+end
+pc=real_pc
+eve.time=eve.time+1/60
 d.tick()
 assert(find('^drive key B down$'))
 eve.time=eve.time+1

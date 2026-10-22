@@ -832,26 +832,33 @@ at a rate that falls with speed, adds speed along the heading with a throttle th
 decays the speed across the heading by a grip, which drops during a drift (the drift keys, read with the player
 controller's `IsInputKeyDown`, or hard steering at speed).
 
-In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in
-`CalcVelocity`, with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint
-scales) only set the top speed. With `MaxAcceleration`, `GroundFriction`, `BrakingDecelerationWalking` and
-`BrakingFrictionFactor` at 0, `CalcVelocity` neither accelerates, brakes nor turns the velocity, and the component
-moves EVE with the velocity it has. Each frame the race gives it the model's velocity: by default through
-`AddImpulse` with the difference from `GetVelocity()` and a vertical part of 0, or through a write of its `Velocity`.
-The next frame starts from the velocity the component made of it, so walls, slopes and landings act on the model. The
-yaw goes to EVE with `K2_SetActorRotation`, and the pose stream carries it to your friend. Over a crest, the race calls
-`LaunchCharacter` with the climb's vertical speed instead.
+In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in `CalcVelocity`,
+with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint scales) only set the
+top speed. With `MaxAcceleration`, `GroundFriction`, `BrakingDecelerationWalking` and `BrakingFrictionFactor` at 0,
+`CalcVelocity` neither accelerates, brakes nor turns the velocity, and the component moves EVE with the velocity it has.
+Each frame the race gives it the model's velocity: by default through `AddImpulse` with the difference from
+`GetVelocity()` and a vertical part of 0, or through a write of its `Velocity`. Before each impulse,
+`ClearAccumulatedForces` drops any impulse an earlier frame left unused. In photo mode with `photo_pause=scenery` the
+world's time runs while SB's logic stands still; if her movement stands still with it, the impulses would otherwise add
+up. The next frame starts from the velocity the component made of it, so walls, slopes and landings act on the model.
+The yaw goes to EVE with `K2_SetActorRotation`, and the pose stream carries it to your friend. The driving runs each
+frame before the native tick, so the pose it captures and the Doro look both have the yaw written that frame.
+
+On the ground SB's walking step ends by setting `Velocity.Z` to 0 (the engine's `MaintainHorizontalGroundVelocity`), so
+the model takes EVE's vertical speed from her height between frames. Over a crest (on the ground at over 900 cm/s, a
+climb held two frames that drops by more than 250 cm/s in one), the race calls `LaunchCharacter` with the climb's
+vertical speed instead of giving a velocity.
 
 The model steps by EVE's world time (`GetGameTimeSinceCreation`): when it has not moved since the last frame (the
 pause menu), nothing is written, since impulses would pile up. Under root motion (`IsPlayingRootMotion`: a dodge) the
 model holds and writes nothing, and starts again from her yaw and velocity. Every 250 ms the race sets back to 0 any of
 the four values the game wrote (a stance change).
 
-Before the four values change, `coop-drive.txt` gets EVE's object path and their old values. Our result, a quit, a
-DNF, `coop off`, a map change and the race's first error write them back, on that EVE only while she is still the
-object they came from, and delete the file. A Lua load that finds the file writes the values back at its first tick.
-No SB code found writes `MaxAcceleration` or `GroundFriction`, so the values from before the race are the ones to put
-back; the 250 ms check catches a write the search missed.
+Before the four values change, `coop-drive.txt` gets EVE's object path and their old values. Our result, a quit, a DNF,
+`coop off`, a map change and the race's first error write them back, on that EVE only while she is still the object they
+came from, and delete the file. A Lua load that finds the file writes the values back at its first tick, even with
+`coop off` still in force. No SB code found writes `MaxAcceleration` or `GroundFriction`, so the values from before the
+race are the ones to put back; the 250 ms check catches a write the search missed.
 
 ### Race lines
 

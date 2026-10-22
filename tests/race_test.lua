@@ -140,8 +140,11 @@ local function side(o)
             return {top=s.drive.P.top,stumble=false}
         end,
         slow=function() s.drive.slows=s.drive.slows+1 end,
-        restore=function() s.drive.restored=(s.drive.restored or 0)+1 end,
-        command=function(a,b) s.drive.said={a,b}; return true,'drive '..tostring(a) end}
+        command=function(a,b)
+            s.drive.said={a,b}
+            if a=='off' then s.drive.on=false end
+            return true,'drive '..tostring(a)
+        end}
     s.look_api={log=function(m) s.logs[#s.logs+1]='look: '..m end,
         drive=function(d) if s.look.on then s.look.drive=d end end,
         on=function()
@@ -193,18 +196,22 @@ local function at_distance(points,d)
     return points[#points]
 end
 local function put(s,p) s.eve.at={X=p.x,Y=p.y,Z=p.z} end
--- The frames: each side gets the lines the other sent the frame before (her inbox, as main.lua reads coop-chat.txt),
--- moves (s.move), ticks; every 250 ms each side's slow. A side with echo gets its own lines back (the loopback).
+-- The frames: each side steers (main.lua's order: the driving before the native tick), gets the lines the other sent
+-- the frame before (her inbox, as main.lua reads coop-chat.txt), moves (s.move), ticks; every 250 ms each side's slow.
+-- A side with echo gets its own lines back (the loopback).
 local FRAME=1/30
 local function step(list)
     clock=clock+FRAME
     for _,s in ipairs(list) do
+        player=s.eve
+        local _,why=s.race.steer()
+        if why then s.errors[#s.errors+1]=why end
         local lines=s.inbox
         s.inbox={}
         for _,line in ipairs(lines) do s.race.receive(line) end
         if s.move then s.move(s) end
         player=s.eve
-        local _,why=s.race.tick()
+        _,why=s.race.tick()
         if why then s.errors[#s.errors+1]=why end
         for k=s.read+1,#s.logs do -- Its GO, as its own clock had it.
             if s.logs[k]:find('^race %d+ go$') then s.go_at=clock end
@@ -398,7 +405,9 @@ assert(kit.shown.race_panel)
 A.move=racer(0,{CPS[1],{x=500,y=0,z=0},CPS[2],{x=12000,y=6000,z=0},CPS[4],CPS[3],CPS[4]})
 run({A},function() return A.go_at end)
 assert(table.concat(kit.sounds,' ')=='move move move select',table.concat(kit.sounds,' '))
-assert(A.drive.on=='race' and A.drive.P.top==2600 and A.look.drive.top==2600,'Driving from GO, alone too')
+assert(A.drive.on=='race' and A.drive.P.top==2600 and A.drive.ticks==0,'Driving from GO, alone too')
+step({A}) -- Its first frame: the next one's steer, before the native tick.
+assert(A.drive.ticks==1 and A.look.drive.top==2600)
 assert(kit.shown.race_banner and kit.groups.race_banner.view.text.text=='GO!')
 assert(#A.sent==0,'Alone: no line')
 step({A})
@@ -695,13 +704,16 @@ assert(find(G.logs,'^race %d+ from the host not answered: Night Operation is run
 run({H,G},function() return has(H.told,'Kaanta did not answer. You race alone.') end,400)
 H.race.command('quit')
 step({H,G})
--- Her drive probe ends when the host's race comes: her movement is hers until GO.
+-- Her drive probe ends when the host's race comes: her movement is hers until GO, her look out of its driving.
 H,G=pair()
 G.drive_api.on({top=2200},'probe')
+G.look.on=true
+step({G})
+assert(G.look.drive.top==2200)
 player=H.eve
 H.race.command('start','quest')
 frames({H,G},4)
-assert(G.race.armed() and not G.drive.on and G.drive.why=='the host started a race')
+assert(G.race.armed() and not G.drive.on and G.drive.why=='the host started a race' and G.look.drive==nil)
 H.race.command('quit')
 step({H,G})
 -- The session's host never arms as a guest, whatever line comes.
@@ -807,9 +819,9 @@ do
     assert(S.errors[1]=='the race stopped on an error until the mod reloads: no velocity',S.errors[1])
     assert(not S.drive.on and S.drive.why=='race error' and S.ghost.top==nil)
 end
--- 14b. The drive probe, with no race: coop race drive reaches drive.lua; no race starts while it runs; each frame
--- drives it and gives the look its values, every 250 ms its check; its error ends it, and so does coop off. The first
--- frame restores what an earlier Lua load's drive left, once.
+-- 14b. The drive probe, with no race: coop race drive reaches drive.lua; no race starts while it runs; each frame's
+-- steer drives it and gives the look its values, every 250 ms its check; its error ends it, and so do coop race drive
+-- off (the look out of its driving) and coop off.
 do
     local S=side()
     S.files[FILE]=TEXT
@@ -828,12 +840,18 @@ do
     assert(not ok and message=='the drive probe runs: coop race drive off ends it')
     S.look.on=true
     S.race.tick()
-    assert(S.drive.ticks==1 and S.look.drive.top==2200 and S.drive.restored==1)
-    S.race.tick()
+    assert(S.drive.ticks==0,'Not in the race\'s tick')
+    S.race.steer()
+    assert(S.drive.ticks==1 and S.look.drive.top==2200)
     S.race.slow()
-    assert(S.drive.restored==1 and S.drive.slows==1,'Restored once')
+    assert(S.drive.slows==1)
+    ok,message=S.race.command('drive','off')
+    assert(ok and not S.drive.on and S.look.drive==nil,'The look walks again')
+    S.drive_api.on({top=2200},'probe')
+    S.race.steer()
+    assert(S.look.drive.top==2200)
     S.drive.error='no stick'
-    local _,why=S.race.tick()
+    local _,why=S.race.steer()
     assert(why=='the drive probe stopped on an error: no stick; drive off (error)' and not S.drive.on,tostring(why))
     assert(S.look.drive==nil)
     S.drive.error=nil
