@@ -145,6 +145,17 @@ A Doro left standing alone where a race was (at a checkpoint or the start line) 
 While your look is on, your friend sees your ghost with no body unless their game takes part in the race (see
 [how-it-works.md](how-it-works.md#the-doro-look)).
 
+### EVE does not speed up or stop after a race
+
+During a [Doro race](usage.md#doro-races), the race sets four values of EVE's movement to 0 so it can drive her (see
+[Driving](usage.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
+sliding or does not move with the stick after a race or `coop race drive probe`:
+
+- Type `coop race drive off` if the probe still runs.
+- Press Ctrl+R. The next Lua load reads `coop-drive.txt`, which the race keeps while it drives, and writes the values
+  back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
+- Restart the game if neither works. The values are in memory only, and no save holds them.
+
 ### The game ignores its keys after the co-op menu or the chat
 
 Open the console (F10 or `~`) and type `coop ui reset`: the menu, the chat box and the code box close, an open
