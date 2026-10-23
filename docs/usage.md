@@ -970,15 +970,27 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
-`coop leviathan cam` when it turns the camera on, `coop lion`, `coop lion intro` and `coop lion control` (below) run on
-any save. `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
+`coop leviathan cam` when it turns the camera on (and the same two in `coop gardener` and `coop tendril`), `coop lion`,
+`coop lion intro` and `coop lion control` (below) run on any save. `coop fight pilot` runs on any save too, since same
+place only moves enemies while shared enemies run.
 
-### Cut enemy preview: `coop leviathan`
+### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 
-The game's files hold an enemy that has not been seen in the game: Naytiba 10, the Leviathan, in
-`/Game/Art/Character/Monster/CH_M_NA_10/`. `coop leviathan` is a test command for it, left out of the usage line. It
-never spawns an enemy or a character. What it shows is a plain actor with one mesh and collision off, like the Doros
-of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4SS.log` as `[StellarCoop][LV]`.
+The game's files hold enemies that have not been seen in the game. These test commands, left out of the usage line,
+show three of them:
+
+- `coop leviathan`: Naytiba 10, the Leviathan, in `/Game/Art/Character/Monster/CH_M_NA_10/`.
+- `coop gardener`: Naytiba 1, the Gardener, in `/Game/Art/Character/Monster/CH_M_NA_01/`. It is an artillery Naytiba
+  about 20 m tall at scale 1, with its own textures. The prologue shows its mesh far away as scenery; its fight and its
+  Data Bank entry were cut.
+- `coop tendril`: Naytiba 6, the Tendril, in `/Game/Art/Character/Monster/CH_M_NA_06/`. It is a prototype mesh
+  (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
+
+The three commands take the same words, described below with `coop leviathan`, and share one display and one
+[free camera](#free-camera). One creature is shown at a time: a `show` of another one removes the first, and its answer
+starts with `Leviathan removed: one cut Naytiba is shown at a time.` (or the Gardener or the Tendril). They never spawn
+an enemy or a character. What they show is a plain actor with one mesh and collision off, like the Doros of a race, so
+nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `[StellarCoop][LV]`.
 
 - `coop leviathan` or `coop leviathan list` only reads. It logs one line for each mesh, skeleton, animation, blend
   space and Blueprint class it looks for: `missing`, or the object's class, with the skeleton of a mesh or an
@@ -1016,9 +1028,30 @@ of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4
   remove it too. While it is shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if
   this one could not. The next `show` tries again first, and shows nothing new while the old mesh cannot be removed.
 
+`coop gardener` and `coop tendril` differ in these points:
+
+- `show` has one mesh, `body`: `CH_M_NA_01` for the Gardener, `CH_M_NA_06_test` for the Tendril. Its `auto` height
+  puts the mesh's lowest point at EVE's feet, since both stand on the ground, and its root at her feet when the bounds
+  cannot be read. At scale 1, `auto` puts the Gardener about 23 m away and the Tendril about 12 m away.
+- `list` reads their own folders. For the Gardener: its mesh and skeleton, 29 animations and blend spaces, 4 Blueprint
+  classes, its projectile class, the `M_Gardener_SingleShot_1`, `M_Gardener_MultipleShot_1` and `M_Gardener_ToxicBeam`
+  shows from `/Game/Art/Show/CH_M_NA_01_Gardener/Skill/` and `Default` in its folder. Its CharacterTable rows are those
+  that contain `NA_01` or `Gardener`. For the Tendril: its mesh, skeleton, 44 animations and blend spaces, 2 Blueprint
+  classes and its physics asset, and the rows that contain `NA_06` or `Tendril`. No row of the game's CharacterTable
+  contains any of these words (read offline on 2026-10-23), so both lists report 0 rows.
+- `play` matches their own animation names: `coop gardener play toxic_beam` plays `Mon_Gardener_S_03_Toxic_Beam`,
+  `coop gardener play hide` plays `Mon_Gardener_C_Hide` and `coop gardener play unhide` plays `Mon_Gardener_C_UnHide`.
+  `coop tendril play whipattack` plays `M_Tendril_WhipAttack`; its left and right versions need their `_l` or `_r`.
+- `skin`: the Gardener has only `default`, its own textures. The Tendril has `hydra` and `default`. Its `default` is the
+  engine's grey, since its one material slot is empty. Each creature keeps its own last skin for its next `show`.
+- `move`, `skin` and `play` act on the shown mesh only when it is that command's creature: with the Gardener shown,
+  `coop tendril move 20` answers `no Tendril is shown: coop tendril show first`. `off` of any of the three removes the
+  shown mesh, whichever it is, and turns the free camera off.
+
 #### Free camera
 
-The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off.
+The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off
+(`coop gardener cam` and `coop tendril cam` do the same with the same camera).
 Turning it on needs a co-op save, like `show`; turning it off works on any save. It starts where the game's camera is
 and blends there in 0.3 s. EVE keeps standing where she was: while the camera is on, the game ignores the move input
 of her controller. Its look input stays on, and the free camera turns with the controller, so the mouse and a
@@ -1714,9 +1747,9 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again), the Leviathan display and its free camera (`coop leviathan`; the view goes back as it was) and what
-`coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living Lion stays).
-Afterwards only `coop status` and `coop report` answer. Every other command answers
+drawn again), the cut Naytiba display and its free camera (`coop leviathan`, `coop gardener` and `coop tendril`; the
+view goes back as it was) and what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
+lines; a living Lion stays). Afterwards only `coop status` and `coop report` answer. Every other command answers
 `STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
@@ -2219,7 +2252,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
-| `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh or its free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
+| `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
 so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
