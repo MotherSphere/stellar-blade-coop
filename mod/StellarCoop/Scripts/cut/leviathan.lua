@@ -12,10 +12,11 @@
 -- shows the command's own creature.
 -- list only reads: which assets resolve, each mesh's and clip's skeleton, each class's super class, and the
 -- CharacterTable rows that name it. show puts one mesh ahead of EVE, facing her (by default at 1.6 times its bounding
--- sphere radius, 6 m at least, and lifted so its lowest point is 5 m above her feet for the Leviathan, at her feet for
--- the others), and plays each clip of its skeleton twice in turn; play holds one; move places it again from where EVE
--- stands; skin sets every material slot to one material. off removes it, and so do coop off, a map change, its first
--- error and the next Lua load (coop-leviathan.txt, read at the first tick).
+-- sphere radius, at least its creature's ahead: 6 m, 3 m for the Orcal and Enya statues; lifted so its lowest point is
+-- 5 m above her feet for the Leviathan, at her feet for the others), and plays each clip of its skeleton twice in turn;
+-- play holds one; move places it again from where EVE stands; skin sets every material slot to one material. off
+-- removes it, and so do coop off, a map change, its first error and the next Lua load (coop-leviathan.txt, read at the
+-- first tick).
 -- The free camera, for filming it: show and play turn it on, cam toggles it. A plain actor with one CameraComponent is
 -- the view target, placed where the game's camera was, and flies from the keys each frame (none read while the co-op
 -- menu or one of its boxes is open); the player controller ignores move and look input meanwhile, so EVE stays where
@@ -137,9 +138,10 @@ add(TD,'clip',DIR..'Animation/','M_Tendril_ChopAttack M_Tendril_DiagonalAttack_L
 add(TD,'clip',DIR..'Animation/BlendSpace/','Airborne_BS IdleRun_BS_Peaceful LockOn_BS')
 add(TD,'class',DIR..'Blueprints/','CH_M_NA_06_Blueprint CH_M_NA_06_AnimBP')
 add(TD,'asset',DIR,'CH_M_NA_06_test_PhysicsAsset')
--- The early Mann (/Game/Art/Character/NPC/Mann/), not the shipped one (CH_NPC_Mann_01): his own mesh, about 3.5 m tall,
--- skeleton and clips, all on CH_NPC_Mann_Skeleton (NPC_Maan is the files' spelling). Mesh/CH_NPC_Mann_SK, a 2-bone
--- placeholder, is left out. His word is his Blueprint's name: N_Mann rows are the shipped Mann's.
+-- The early Mann (/Game/Art/Character/NPC/Mann/), not the shipped one (CH_NPC_Mann_01/CH_NPC_Mann_Body): his own mesh,
+-- about 3.5 m tall, skeleton and clips, all on CH_NPC_Mann_Skeleton (NPC_Maan is the files' spelling).
+-- Mesh/CH_NPC_Mann_SK, a 2-bone placeholder, is left out. His word is his Blueprint's name: N_Mann rows are the shipped
+-- Mann's.
 DIR='/Game/Art/Character/NPC/Mann/'
 local MN=creature('mann',{title='Mann',meshes={'body'},skins={},words={'ch_npc_mann_blueprint'},ahead=600,lift=0,
     scale=1})
