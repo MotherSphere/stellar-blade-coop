@@ -5,7 +5,12 @@
 // hashes otherwise, no singleton, an empty map, fields out of range, a chain that loops or leaves the elements, no
 // element for the key, a value byte that is no bool) writes nothing; a pass sets a wanted gate, keeps its value from
 // before, writes nothing more while it holds, sets it again after the game built the map again, puts the old value
-// back once unwanted, and reads nothing for a gate neither wanted nor ours.
+// back once unwanted, and reads nothing for a gate neither wanted nor ours. The worker's side (Asks): the gates are
+// wanted only on a co-op save, slow motion only with no friend linked; an off, a Lua load and a refusal clear the ask;
+// a state from before the ask is never logged nor taken for a refusal (a pass that has not read the ask yet, its
+// writes already out included); the first pass that read it is logged even when its state is the same, so a re-ask
+// after a refusal is refused again from that pass only; a map built again with no other change says the gates were set
+// again.
 #include "game/debug_keys.h"
 
 #include <cassert>
@@ -105,6 +110,25 @@ void ran(Mem &m) { // Both gate functions ran once: their statics hold their key
   m.set<uint32_t>(va(kStatics[kFly]), kHashes[kFly]);
   m.set<uint32_t>(va(kStatics[kSlowmo]), kHashes[kSlowmo]);
 }
+// The worker's debug_pass and the game thread's debug_tick in one place: the want handed over with the last ask's
+// number, a game pass on it (when one is wanted or ours, as debug_tick), and what the worker reads back.
+struct Threads {
+  Mem m;
+  Gates gates;
+  Asks asks;
+  uint8_t want = 0;
+  uint32_t sent = 0, read = 0;
+  uint16_t state = 0;
+  uint64_t writes = 0;
+  void hand(bool coop_save, bool linked) { want = asks.want(coop_save, linked), sent = asks.count; }
+  void pass() {
+    if (!want && !gates.holding())
+      return;
+    gates.step(m, kBase, {(want & 1) != 0, (want & 2) != 0});
+    state = pack(gates), writes = gates.writes, read = sent;
+  }
+  Asks::Seen see() { return asks.see(state, writes, read); }
+};
 Map shipped(int32_t size) {
   Map map;
   map.size = size;
@@ -218,6 +242,93 @@ int main() {
   m.set<uint64_t>(va(kSingleton), kSingle);
   gates.step(m, kBase, {false, false});
   assert(!gates.ours[kFly] && m.u8(map.value(kHashes[kFly])) == 0);
+
+  // The worker's side. The want: nothing off a co-op save, slow motion only with no friend linked.
+  {
+    Asks asks;
+    asks.ask(kFly, true), asks.ask(kSlowmo, true);
+    assert(asks.want(false, false) == 0 && asks.want(true, true) == 1 && asks.want(true, false) == 3);
+    asks.ask(kFly, false);
+    assert(asks.want(true, false) == 2 && "Off: its ask cleared");
+    asks.asked = 0; // A Lua load (worker.inc).
+    assert(asks.want(true, false) == 0);
+  }
+  // The first ask: the state from before it is not logged ("gate fly: off" before the "on"), even once the game thread
+  // has stored its next state and writes but not yet the number it read; then that pass's "on, ours".
+  {
+    Threads t;
+    shipped(8).lay(t.m);
+    ran(t.m);
+    t.asks.ask(kFly, true);
+    assert(t.see().log == 0 && "Asked, not handed over yet");
+    t.hand(true, false);
+    assert(t.want == 1 && t.see().log == 0 && "Handed over, no pass yet");
+    t.pass();
+    const uint32_t read = t.read;
+    t.read = 0; // Its number not stored yet.
+    Asks::Seen seen = t.see();
+    assert(seen.log == 0 && !seen.again && "Its writes are out: no line yet, and no set again");
+    t.read = read;
+    seen = t.see();
+    assert(seen.log == 1 && seen.refused == 0 && t.state == 0xc0 && t.writes == 1);
+    assert(t.see().log == 0 && "Logged once");
+    t.hand(true, false), t.pass();
+    assert(t.see().log == 0 && "Held: nothing new");
+    // Asked again while on: the pass that read it is logged though its state is the same.
+    t.asks.ask(kFly, true);
+    assert(t.see().log == 0);
+    t.hand(true, false), t.pass();
+    assert(t.see().log == 1 && t.state == 0xc0);
+    // The game builds its map again: set again, said once with no gate line.
+    shipped(8).lay(t.m);
+    t.pass();
+    seen = t.see();
+    assert(seen.log == 0 && seen.again && t.writes == 2 && !t.see().again);
+    // Off a co-op save: the gate goes back and its change is logged; nothing more is read.
+    t.hand(false, false), t.pass();
+    assert(t.see().log == 1 && t.state == 0 && t.m.writes == 3 && !t.gates.holding());
+    // Back on a co-op save with slow motion asked while a friend is linked: fly set again; slow motion's state from the
+    // pass that read its ask, off, logged; then on once the link ends.
+    t.asks.ask(kSlowmo, true);
+    t.hand(true, true), t.pass();
+    assert(t.want == 1 && t.see().log == 3 && t.state == 0xc0);
+    t.hand(true, false), t.pass();
+    assert(t.see().log == 2 && t.state == 0xc0c0);
+    // A Lua load: the asks cleared, both gates back, the change logged.
+    t.asks.asked = 0;
+    t.hand(true, false), t.pass();
+    assert(t.see().log == 3 && t.state == 0 && !t.gates.holding());
+    // Asked, then a Lua load before any pass read it: the ask is dropped, so the pass that reads a later ask logs only
+    // that one's gate.
+    t.asks.ask(kFly, true);
+    t.asks.asked = 0;
+    t.hand(true, false), t.pass();
+    assert(t.want == 0 && t.see().log == 0);
+    t.asks.ask(kSlowmo, true);
+    t.hand(true, false), t.pass();
+    assert(t.see().log == 2 && t.state == 0xc000);
+  }
+  // A refusal clears the ask; a re-ask is refused again only from the pass that read it, not from the state before.
+  {
+    Threads t;
+    shipped(8).lay(t.m);
+    ran(t.m);
+    t.m.set<uint32_t>(kElems + 1 * kElementSize, 0x0000000cu); // No element for the fly key.
+    t.asks.ask(kFly, true);
+    t.hand(true, false), t.pass();
+    Asks::Seen seen = t.see();
+    assert(seen.log == 1 && seen.refused == 1 && Why(t.state & 0x3f) == Why::no_key && t.asks.asked == 0);
+    t.hand(true, false);
+    assert(t.want == 0 && "Not asked again until the player asks");
+    t.asks.ask(kFly, true);
+    seen = t.see();
+    assert(seen.log == 0 && seen.refused == 0 && t.asks.asked == 1 && "The old refusal is not said again");
+    t.hand(true, false);
+    assert(t.want == 1);
+    t.pass();
+    seen = t.see();
+    assert(seen.log == 1 && seen.refused == 1 && t.asks.asked == 0 && t.m.writes == 0);
+  }
   std::puts("debug_keys_test ok");
   return 0;
 }

@@ -1493,7 +1493,9 @@ back once the gate is no longer wanted: `off`, `coop off`, the next Lua load (th
 session token changes) or a save that is not a co-op one. Slow motion is wanted only while no friend is linked, since
 time dilation is local. If the game builds the map again (its values back to false), the next pass sets the gate again
 and the log says `gates set again`. A missing key, a static that holds another key or a map out of range refuses the
-gate on screen, with no write.
+gate on screen, with no write. The worker numbers each ask and hands the number over with the gates it wants; the game
+thread hands back the number its last pass read. A gate's state is logged, and a refusal said, only from the first pass
+that read its ask, so a state left from before the ask never reaches the log or the screen.
 
 With the flight gate on, the character tick starts a flight while the key is held in the air (the falling movement
 mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActionEnableRemainTime`, 3 s, and no

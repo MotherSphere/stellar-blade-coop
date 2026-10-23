@@ -134,4 +134,74 @@ struct Gates {
   bool holding() const { return ours[kFly] || ours[kSlowmo]; }
 };
 
+// The game thread's state for the worker: a byte a gate, bit 7 on, bit 6 ours, the low bits its Why.
+inline uint16_t pack(const Gates &gates) {
+  uint16_t packed = 0;
+  for (uint8_t g = 0; g < kGates; ++g)
+    packed |= uint16_t((gates.on[g] ? 0x80 : 0) | (gates.ours[g] ? 0x40 : 0) | uint8_t(gates.why[g])) << (8 * g);
+  return packed;
+}
+
+// The worker's side (glue/tick/debug_worker.inc): Lua's asks, the gates it hands the game thread and what of that
+// thread's state it logs. Each ask is numbered; the worker hands the game thread the number of the last ask behind the
+// gates it wants, and the game thread hands back the number its last pass read. A gate asked on waits for a pass that
+// read its ask: the passes before it hold a state from before the ask, which is never logged nor taken for a refusal.
+// That pass's state is logged even when it is the same as before, so a refusal is said again.
+struct Asks {
+  uint8_t asked = 0;              // Bit g: gate g asked on. Cleared by its off, a Lua load, its refusal and the fault.
+  uint32_t count = 0;             // Asks so far.
+  uint32_t pending[kGates] = {};  // The ask a gate's next state waits for, 0 for none.
+  uint16_t logged = 0;            // The game thread's state as last logged.
+  uint64_t writes = 0;            // Its writes as last logged.
+
+  void ask(Gate g, bool on) {
+    const uint8_t bit = uint8_t(1u << g);
+    if (!on) {
+      asked &= uint8_t(~bit);
+      return;
+    }
+    asked |= bit;
+    pending[g] = ++count;
+  }
+  // The gates the game thread sets: the asks while on a co-op save, slow motion only with no friend linked (its time
+  // dilation is this game's alone).
+  uint8_t want(bool coop_save, bool linked) const {
+    return coop_save ? uint8_t((asked & 1) | (linked ? 0 : asked & 2)) : 0;
+  }
+  // What to log of the game thread's state, its writes and the ask its last pass read: the gates whose state to log
+  // (bit g), whether the gates were set again with no other change (the game built its map again), and the gates
+  // refused (each one's ask cleared: not asked again until the player asks).
+  struct Seen {
+    uint8_t log = 0, refused = 0;
+    bool again = false;
+  };
+  Seen see(uint16_t state, uint64_t now_writes, uint32_t read) {
+    Seen r;
+    bool waiting = false;
+    for (uint8_t g = 0; g < kGates; ++g) {
+      const uint8_t bit = uint8_t(1u << g), now = uint8_t(state >> (8 * g)), was = uint8_t(logged >> (8 * g));
+      if (!(asked & bit))
+        pending[g] = 0; // Off, a Lua load or the fault before a pass read the ask.
+      if (pending[g] && read < pending[g]) {
+        waiting = true;
+        continue;
+      }
+      if (now == was && !pending[g])
+        continue;
+      pending[g] = 0;
+      r.log |= bit;
+      logged = uint16_t((logged & ~(0xff << (8 * g))) | now << (8 * g));
+      if (refused(Why(now & 0x3f))) {
+        asked &= uint8_t(~bit);
+        r.refused |= bit;
+      }
+    }
+    if (r.log || !waiting) { // A waiting gate's writes may be in now_writes already: its own line counts them.
+      r.again = !r.log && now_writes != writes;
+      writes = now_writes;
+    }
+    return r;
+  }
+};
+
 } // namespace coop::debug
