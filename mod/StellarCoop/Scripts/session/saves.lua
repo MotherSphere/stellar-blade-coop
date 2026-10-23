@@ -21,7 +21,8 @@
 -- friend's invite accepted at the title waits for a save (the link's held invite): the question's first line says so,
 -- and once a visit it asks again when such an invite comes after an answer without co-op. With a manual co-op slot
 -- (StellarCoopSlot.txt) once the game uses the co-op copies, a notice says once a Lua load which files co-op no longer
--- needs; nothing is moved. No engine call here: the kit makes them.
+-- needs; nothing is moved. The question waits while the first-launch guide (ui/guide.lua) is open or still to open.
+-- No engine call here: the kit makes them.
 local T=require('ui.text')
 local Chat=require('session.chat')
 local SF=require('core.settings_file')
@@ -39,7 +40,8 @@ local function exists(path)
 end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place: auto_coop_save, ui_language),
 -- theme=ui.THEME, say=function(text,en) (a notice, en: the same in English), log=function(line),
--- exists=function(path) and env=function(name) (io.open's and os.getenv's unless said: the tests' fakes)}.
+-- exists=function(path) and env=function(name) (io.open's and os.getenv's unless said: the tests' fakes),
+-- wait=function() -> true while the question waits (the guide's waiting), or nil}.
 function Saves.new(o)
     local kit,link,settings,log=o.kit,o.link,o.settings,o.log
     local has,env=o.exists or exists,o.env or os.getenv
@@ -221,7 +223,7 @@ function Saves.new(o)
                 elseif kit.off() then
                     visit,reasked=true,reasked or invited
                     log('co-op saves: the question cannot show (the co-op UI is off): your own saves')
-                elseif kit.whole() then
+                elseif kit.whole() and not (o.wait and o.wait()) then
                     visit,reasked,copies,phase,cursor,back_at,idle=true,reasked or invited,any_copy(info),'ask',1,nil,0
                     pick()
                     open,ready_at=true,os.clock()+ARM

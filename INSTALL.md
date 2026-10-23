@@ -31,8 +31,9 @@ repository.
 4. Copy the whole `StellarCoop` folder (the one that holds `enabled.txt`) into the Mods folder. The result must be
    `SB/Binaries/Win64/ue4ss/Mods/StellarCoop/Scripts/main.lua`, with `StellarCoop.dll` and `enabled.txt` next to
    `Scripts/`.
-5. Start the game. On the title screen the mod asks whether to play on co-op saves (see "Co-op saves" below). Choose
-   Decide later until you have backed up your saves (see "Saves and Steam Cloud"). Load a save and press `F6`.
+5. Start the game. On the title screen the mod first opens its guide (Esc closes it), then asks whether to play on
+   co-op saves (see "Co-op saves" below). Choose Decide later until you have backed up your saves (see "Saves and
+   Steam Cloud"). Load a save and press `F6`.
    `Co-op: not in a session.` appears at the top left of the screen (or above EVE, in the first seconds after a load).
    `UE4SS.log` gets the same text in a line that contains `[StellarCoop] OK:`.
    If no line appears, close the game and look in `UE4SS.log` for lines with `[StellarCoop]`. `Native part not loaded`
@@ -312,3 +313,8 @@ When you test with a friend, the player who leads the test types `coop mark <ste
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
 `UE4SS.log` (see [usage.md](docs/usage.md#coop-mark)), so the four logs line up step by step. The text of each mark
 stays in the logs you send.
+
+## License
+
+`Assets/MotherSphere.png` is not covered by the GPL in `LICENSE`. It is the Mother Sphere art shown in the guide, by
+timediffer24 (https://x.com/timediffer24), given to this project.

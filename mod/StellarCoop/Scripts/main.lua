@@ -373,7 +373,7 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -411,10 +411,19 @@ if settings then
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     local Join=require('session.join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
+    -- The first-launch guide (ui/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op saves'
+    -- question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for it. It
+    -- never opens over another co-op panel (busy).
+    local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
+        busy=function()
+            return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
+        end})
+    o.guide=guide
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
-        version=VERSION,chat=box,code=code_box})
-    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box})
-    saves_ui=require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,log=log})
+        version=VERSION,chat=box,code=code_box,guide=guide})
+    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
+    saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
+        log=log,wait=guide.waiting}))
 end
 -- Enter with nothing open asks for the chat's box (chat_asked, os.clock), which opens 0.1 s later unless a coop command
 -- came from the console around then (typed_at): UE4SS calls our Enter bind whatever has the keyboard, so that Enter was

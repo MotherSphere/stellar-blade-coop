@@ -59,6 +59,7 @@ The main page shows the rows that fit your session:
 | Join with a code | Outside a session | Closes the menu and opens the [code box](#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
 | Options | Always | Opens the settings, below |
+| Guide | Always | Closes the menu and opens the [guide](#guide) on its first page |
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
 
@@ -170,12 +171,12 @@ To change a key, select its row, then press the new key: `F1` to `F12` except `F
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
-The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, the
-shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel and notices,
-and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that the game ships.
-So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in
-English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so
-do the error messages from the coop commands, shown in the menu or the code box.
+The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
+notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
+and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
+the game ships. So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps
+them all in English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in
+English, and so do the error messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -457,10 +458,35 @@ guest's rest works as in solo play.
 - A revive refills the recovery items, as a camp respawn does, and the enemies keep their HP. A death resets the zone,
   a boss fight included, which is why no revive runs during a boss fight.
 
+## Guide
+
+The guide has nine pages on what the mod adds, with the Mother Sphere art by timediffer24 on the left. At the mod's
+first run it opens on the title screen once the on-screen UI has loaded, and the [co-op saves](#co-op-saves) question
+waits until it closes. You can open it again from the co-op menu's Guide row or with `coop guide`, on the title screen
+or in the world, but not while the game is paused or shows one of its own screens, and not while the co-op saves'
+question, the host's question, the chat box or the code box is open.
+
+| Key | In the guide |
+| --- | --- |
+| Left arrow, A or Q | Previous page |
+| Right arrow or D | Next page |
+| Up arrow, W or Z; D-pad or left stick up | Up |
+| Down arrow or S; D-pad or left stick down | Down |
+| Enter or Space; A | Select |
+| Esc; B | Close |
+| Mouse | The row under the mouse takes the focus; a left click selects it |
+
+The rows are Next, Back, Don't show again and Close. For 1 s after the guide opens, Enter, Space, A and a click do
+nothing. Don't show again, or a close on the last page, writes `coop-guide.txt` in the mod folder, and while that file
+exists the guide does not open by itself. Delete it to see the guide at the next start. With no key for 3 minutes the
+guide closes, so a controller the mod cannot read does not keep you on it. If the art does not load, `UE4SS.log` says
+why and the guide shows without it.
+
 ## Co-op saves
 
 On the title screen, once the on-screen UI has loaded (a few seconds), the mod asks whether to play on co-op copies of
-your saves, while the game uses your own saves (`auto_coop_save=ask`, the default).
+your saves, while the game uses your own saves (`auto_coop_save=ask`, the default). At the mod's first run the
+[guide](#guide) comes first.
 [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves) lists the choices; [saves.md](saves.md#co-op-saves) has the files
 and the rules.
 
@@ -807,8 +833,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
+| `coop guide` | Open the [guide](#guide) on its first page, on the title screen or in the world |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
-| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads |
+| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel, the guide and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
@@ -2017,6 +2044,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | --- | --- | --- |
 | `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
+| `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](#guide) does not open by itself |
 | `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [night-operation.md](night-operation.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
