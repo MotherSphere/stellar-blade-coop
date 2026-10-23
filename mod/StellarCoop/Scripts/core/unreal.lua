@@ -19,6 +19,13 @@ function U.valid(object)
     object=U.value_of(object)
     return object~=nil and U.kind(object)~=nil and object:IsValid() and object or nil
 end
+-- A TWeakObjectPtr property's object (UE4SS gives the pointer, whose Get() reads it), or nil.
+function U.weak(v)
+    v=U.value_of(v)
+    local kind=U.kind(v)
+    if kind and kind:find('Weak',1,true) then v=v:Get() end
+    return U.valid(v)
+end
 -- Arrays arrive as converted Lua lists or TArray userdata; elements may be wrapped.
 function U.each(array,callback)
     array=U.value_of(array)

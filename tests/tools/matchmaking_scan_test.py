@@ -12,17 +12,18 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = 'mod/StellarCoop/Scripts'
 NATIVE = ('native/src', 'tests/wine')
 # The one guarded CreateSBZoneEvent per file that has one, and what each file may hold of the rationed calls and names.
-SITES = {'nightop/probe.lua', 'nightop/recruiter.lua'}
+SITES = {'cut/scene.lua', 'nightop/probe.lua', 'nightop/recruiter.lua'}
 ADD_ROWS = {'nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
 # coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point), and
 # the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
 # answer and the header). coop lion: its one CreateActor (its spawn choke point) and its header, which also names SB's
-# AddRow (the native part calls it) and UE4SS's (never called).
+# AddRow (the native part calls it) and UE4SS's (never called). coop scene: its guarded call (kind 6, its two theater
+# rows only), its header, its three log lines and one refusal.
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
-            'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4},
+            'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scene.lua': 6},
             'AddRow': {'nightop/probe.lua': 3, 'cut/lion.lua': 2},
             'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 1,
                                'session/group.lua': 7, 'cut/lion.lua': 2}}
@@ -102,7 +103,7 @@ def scan_of(files):
 
 N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/link/core.h', 'tests/wine/smoke.cpp'
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/session/group.lua'
-NS, LI = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/lion.lua'
+NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/lion.lua', f'{SCRIPTS}/cut/scene.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
 
@@ -121,7 +122,8 @@ GROUP = padded('session/group.lua',
 SHOP = padded('nightop/shop.lua',
               "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
 LION = padded('cut/lion.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")
-CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION,
+SCENE = padded('cut/scene.lua', GUARDED.replace('NightOp', 'Scene'))
+CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, SC: SCENE,
          M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n'}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
@@ -151,6 +153,8 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L1', 'L5'}, {M: GUARDED}),
           ({'L1', 'L5'}, {R: RECRUITER.replace(GUARDED.replace('NightOp', 'Recruiter'), '')}),
           ({'L1', 'L5'}, {R: None}),
+          ({'L1', 'L5'}, {SC: None}),
+          ({'L1'}, {SC: SCENE.replace('Scene.allowed(kind,name)', 'Scene.allowed(6,name)')}),
           ({'L1'}, {R: RECRUITER.replace('Recruiter.allowed(kind,name)', 'Recruiter.allowed(15,name)')}),
           ({'L1', 'L5'}, {M: 'bpl.CreateSBZoneEvent(bpl,15,n)\n'}),
           ({'L1', 'L5'}, {M: 'bpl: CreateSBZoneEvent(15,n)\n'}),

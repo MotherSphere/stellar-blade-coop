@@ -169,7 +169,8 @@ with tempfile.TemporaryDirectory() as tmp:
                *(f'Scripts/{name}.lua'
                  for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
                               'commands/session', 'core/keybind', 'core/link', 'core/settings_file', 'core/unreal',
-                              'core/ue4ss_settings', 'cut/leviathan', 'cut/lion', 'cut/wear', 'main',
+                              'core/ue4ss_settings', 'cut/leviathan', 'cut/lion', 'cut/scene', 'cut/wear',
+                              'main',
                               'nightop/challenges',
                               'nightop/probe',
                               'nightop/recruiter', 'nightop/recruiter_text', 'nightop/run', 'nightop/shop',
