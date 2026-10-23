@@ -573,7 +573,8 @@ function Link.new(folder,fs)
             now[line]=true
             if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=')
                 and not line:find('^life=')
-                and not line:find('^night=') then -- nightop/run.lua logs each night line itself.
+                and not line:find('^night=') -- nightop/run.lua logs each night line itself.
+                and not line:find('^lion=') then -- Its spawns= moves with every enemy; cut/lion.lua logs what it reads.
                 new[#new+1]=line
             end
             if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.

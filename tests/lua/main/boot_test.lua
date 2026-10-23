@@ -14,7 +14,8 @@
 -- (race/run.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on the kit,
 -- race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop leviathan reaches
 -- cut/leviathan.lua with all six words after it (show and cam turning the camera on, on the co-op save slot only; cam
--- turning it off and cam's speed on any; restored and ticked every frame, ended by coop off),
+-- turning it off and cam's speed on any; restored and ticked every frame, ended by coop off), coop lion reaches
+-- cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
@@ -544,6 +545,29 @@ loops[1].f()
 assert(lv.restores==lv.r+1 and lv.ticks==lv.t+1,'Both each frame')
 assert(last()=='[StellarCoop] OK: Leviathan b removed: map change.\n',last())
 lv.says=nil
+-- coop lion: out of the usage line too. The words that spawn (none, intro, control) reach cut/lion.lua on a co-op save
+-- only, rows and brain on any. Its asks are native requests and its status the link's. Each frame its tick, whose
+-- message is reported.
+li.o.log('tables: 8/8 found'); assert(last()=='[StellarCoop][LI] tables: 8/8 found\n',last())
+assert(li.o.status()==status_text,'The native status, as the link reads it')
+assert(li.o.ask('lion rows SkillTable=0x10000') and asked[#asked]=='lion rows SkillTable=0x10000',asked[#asked])
+for _,words in ipairs({{},{'intro'},{'control'}}) do
+    coop('lion',table.unpack(words))
+    assert(#li.cmds==0 and last():find('^%[StellarCoop%] STOP: coop lion'..(words[1] and ' '..words[1] or '')
+        ..' runs only on a co%-op save'),last())
+end
+coop('lion','rows'); assert(li.cmds[1][1]=='rows' and last()=='[StellarCoop] OK: li rows\n',last())
+coop('lion','brain','lurker'); assert(li.cmds[2][1]=='brain' and li.cmds[2][2]=='lurker' and li.cmds[2][3]==nil)
+status_text=COOP
+coop('lion'); coop('lion','intro'); coop('lion','control'); coop('lion','control','x')
+assert(#li.cmds==6 and li.cmds[3][1]==nil and li.cmds[4][1]=='intro' and li.cmds[5][1]=='control'
+    and li.cmds[6][2]=='x','On a co-op save: each word reaches it, an extra one to be refused there')
+status_text=plain
+li.t,li.says=li.ticks,{true,'M_LionC 50020 is here, 9.8 m from EVE: lion 1 in the [LI] lines.'}
+loops[1].f()
+assert(li.ticks==li.t+1 and last()=='[StellarCoop] OK: M_LionC 50020 is here, 9.8 m from EVE: lion 1 in the [LI] '
+    ..'lines.\n',last())
+li.says=nil
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
 -- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
 assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui.text').en)=='Kaanta'
@@ -591,6 +615,7 @@ assert(gr.stops==1,'off gives back a death screen the revive hid')
 assert(dr.calls[#dr.calls]=='stop','off ends the Doro look and probe')
 assert(ra.stops==1,'off ends the race')
 assert(lv.stops==1,'off removes the Leviathan display')
+assert(li.stops==1,'off ends what coop lion does')
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
@@ -615,14 +640,15 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
     and printed[lines+4]=='[StellarCoop] STOP: coop off is active until the game restarts\n','A key asks nothing after coop off')
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
-dr.t,ra.t,ra.s,lv.t=dr.ticks,ra.ticks,ra.steers,lv.ticks
-loops[1].f(); assert(ticks==8 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+dr.t,ra.t,ra.s,lv.t,li.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks
+loops[1].f(); assert(ticks==9 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
+assert(li.ticks==li.t,'No Lion tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==9 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==10 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')

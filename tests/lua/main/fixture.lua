@@ -314,6 +314,15 @@ package.loaded['cut.leviathan']={new=function(o)
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
+-- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
+-- tick says.
+li={}
+package.loaded['cut.lion']={new=function(o)
+    li.o=o
+    return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
+        tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
+        stop=function() li.stops=li.stops+1 end}
+end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
@@ -502,6 +511,7 @@ function load_main(with_native,no_folder,source)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
+    li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}

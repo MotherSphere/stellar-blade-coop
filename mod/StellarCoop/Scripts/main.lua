@@ -50,7 +50,9 @@
 -- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
 -- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
 -- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
--- turning the camera on, on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
+-- turning the camera on, on a co-op save only); coop lion [intro]|rows|control|brain skulling|lurker, the cut Lion
+-- spawned as an enemy to fight, its table rows added through the native part (cut/lion.lua; left out of the usage line;
+-- the words that spawn on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
 -- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
 -- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui
 -- and coop off, which stay here.
@@ -233,6 +235,9 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
             or saves_ui.is_open())
     end})
+-- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back.
+local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
@@ -338,7 +343,7 @@ end
 -- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
 local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
-    group=function() return group end,travel=function() return travel end,
+    lion=lion,group=function() return group end,travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
@@ -389,6 +394,8 @@ local commands={
         if not stopped then log('doro: '..tostring(e)) end
         stopped,e=pcall(leviathan.stop)
         if not stopped then log('leviathan: '..tostring(e)) end
+        stopped,e=pcall(lion.stop)
+        if not stopped then log('lion: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -529,6 +536,8 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     looked=os.clock()-looked
     ok,message=leviathan.tick() -- Outside the doro column of the frame time line.
+    if message then report(ok,message) end
+    ok,message=lion.tick()
     if message then report(ok,message) end
     local raced=os.clock()
     if link and race.armed() then inbox() end
