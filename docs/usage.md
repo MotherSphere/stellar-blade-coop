@@ -1124,10 +1124,10 @@ What to expect:
   1455 shield in its row). It is a boss to the game, so the boss bar shows once it targets EVE. The game has no name
   text for it and writes `<M_LionC>` on the bar; while a Lion lives, `coop lion` changes that to `Lion` (checked once a
   second, since the game writes the name again at each boss bind).
-- The skills keep the Behemoth's short moves (the claws' 0.9 and 1.4 m steps, the turns' rotation, the jump attacks'
-  short leaps toward EVE, the roar's 1.6 m) and drop its long ones: the side steps' 11 m, the back jumps' 9.5 and 6.3 m,
-  the turns' Behemoth root motion and the high jump's Behemoth curves. In 0.6.0-beta.1 those pushed the Lion across the
-  ground with no clip to match.
+- The skills keep the Behemoth's short moves (the claws' 0.9 and 1.4 m steps, the turns' rotation, the roar's 1.6 m) and
+  drop the others: the side steps' 11 m, the back jumps' 9.5 and 6.3 m, the turns' Behemoth root motion, the high jump's
+  Behemoth curves and the 4.3 m of pushes in its hit, and the low jump's two moves, which carry the body to EVE from
+  wherever it stands. In 0.6.0-beta.1 those moves pushed the Lion across the ground with no clip to match.
 - EVE's link attack on it plays the generic link: the Lion reacts with its own `Hit_Sword_Normal_LinkAttack1` clip.
   In 0.6.0-beta.1 its row kept the Behemoth's link flag, which picks EVE's Behemoth link, whose reaction clip the Lion
   does not have.

@@ -326,9 +326,10 @@ int main() {
       assert(!std::strstr(patched(r, 0x138), "_RM"));
   }
   // The Behemoth's long moves are gone from the steps that carried them (SideStep's 11 m, the back jumps' 9.5 and 6.3
-  // m, JumpAttackHigh's jump on Behemoth curves), the turns keep only their turn, and the claws keep the donor's
-  // short moves (no patch).
+  // m, JumpAttackHigh's jump on Behemoth curves and its Hit's 4.3 m of pushes, JumpAttackLow's moves to a spot EVE
+  // sets), the turns keep only their turn, and the claws keep the donor's short moves (no patch).
   for (const char *step : {"M_LionC_SideStepLeft_Cast1", "M_LionC_SideStepRight_Cast1", "M_LionC_JumpAttackHigh_Cast1",
+                           "M_LionC_JumpAttackHigh_Hit1", "M_LionC_JumpAttackLow_Cast1", "M_LionC_JumpAttackLow_Hit1",
                            "M_LionC_BackJumpToAttack_Finish1", "M_LionC_AttackToBackJump_Finish1"})
     assert(patched(kRecipe[row_index(step, Table::step)], 0x138) &&
            !*patched(kRecipe[row_index(step, Table::step)], 0x138));

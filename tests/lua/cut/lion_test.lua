@@ -120,11 +120,12 @@ do
             else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
         end
     end
-    assert(n==78 and #L.ROWS==78 and #patches==204,n..' rows, '..#patches..' patches')
+    assert(n==78 and #L.ROWS==78 and #patches==207,n..' rows, '..#patches..' patches')
     assert(L.IN.added=='78/78' and L.IN.char=='2/2' and L.IN.skills=='15/15' and L.IN.stance=='1/1')
 end
 -- The read-back covers the link flag (Common, not the Behemoth's) and the moves the generator cut: the side step's 11 m
--- slide gone, the turn's Behemoth root motion gone and its turn kept, the claws' short moves left as the donor's.
+-- slide gone, the turn's Behemoth root motion gone and its turn kept, the low jump's moves to EVE and the high jump's
+-- 4.3 m of Hit pushes gone, the claws' short moves left as the donor's.
 do
     local function check(name,field)
         for _,r in ipairs(L.ROWS) do
@@ -137,6 +138,9 @@ do
     assert(check('M_LionC','LinkSkillRandomActiveStepFlagArray')=='Common')
     assert(check('M_LionC_Lurker','LinkSkillRandomActiveStepFlagArray')=='Common')
     assert(check('M_LionC_SideStepLeft_Cast1','SelfMoveAliasArray')=='')
+    for _,step in ipairs({'JumpAttackLow_Cast1','JumpAttackLow_Hit1','JumpAttackHigh_Hit1'}) do
+        assert(check('M_LionC_'..step,'SelfMoveAliasArray')=='',step)
+    end
     assert(check('M_LionC_TurnAttackLeft_Cast1','SelfMoveAliasArray')=='M_Behemoth_TurnAttackLeft_Move1')
     assert(check('M_LionC_ClawAttackLeft_Cast1','SelfMoveAliasArray')==nil)
     assert(#L.LOADS==30 and L.LOADS[1]=='/Game/Art/Show/CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1.'
@@ -638,8 +642,8 @@ ok,why=lion.tick()
 assert(ok and why=='M_LionC 50020 is here, 10.0 m from EVE: lion 2 in the [LI] lines.',tostring(why))
 assert(logged('^lion 1 %(50020%) recycled: SB moved its body back for this spawn$'),'The old follow ended')
 assert(lines[#lines-1]=='spawn 50020: CreateActor returned; body '..LION_CLASS..' 10.0 m from EVE, 0.0 m from the '
-    ..'spot, after 0.3 s; controller SBAIController; EventSpawnId 0; a body SB reused (456 m from the spot at the call)',
-    lines[#lines-1])
+    ..'spot, after 0.3 s; controller SBAIController; EventSpawnId 0; a body SB reused (456 m from the spot at the '
+    ..'call)',lines[#lines-1])
 at(1511.3); lion.tick()
 assert(last():find('^lion 2 %(50020%): 10%.0 m, '),last())
 for i=mark+1,#lines do assert(not lines[i]:find('^lion 1 %(50020%): '),'Followed once, as lion 2') end

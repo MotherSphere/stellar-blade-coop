@@ -85,14 +85,21 @@ struct Row {
 //   JumpAttackHigh: RL_Arm, not Jump01 (it names a shape the data lacks in Mon_Lion_Attack_Jump_02)
 //   BackJumpToAttack: RL_Arm, not Jump01 (it names a shape the data lacks in Mon_Lion_Attack_Rotation_Back)
 //   AttackToBackJump: RL_Arm, not Head (it names a shape the data lacks in Mon_Lion_Attack_Back_Dash)
-// The donor moves the steps drop (an asset timed to a Behemoth clip, or over 300 cm):
+// The donor moves the steps drop (an asset timed to a Behemoth clip, a move its target sets, or moves
+// over 300 cm in all on a step):
 //   M_LionC_TurnAttackLeft_Cast1 drops M_Behemoth_TurnAttackLeft_Move_RM (root motion asset)
 //   M_LionC_TurnAttackRight_Cast1 drops M_Behemoth_TurnAttackRight_Move_RM (root motion asset)
+//   M_LionC_JumpAttackLow_Cast1 drops M_Behemoth_JumpAttackLow_Move1 (Static move set by MovePositionType_Target)
+//   M_LionC_JumpAttackLow_Hit1 drops M_Behemoth_JumpAttackLow_Move2 (Static move set by MovePositionType_Target)
 //   M_LionC_JumpAttackHigh_Cast1 drops M_Behemoth_JumpAttackHigh_Move1 (curve asset)
-//   M_LionC_BackJumpToAttack_Finish1 drops M_Behemoth_SmashBackflip_Move2 (moves 953 cm)
-//   M_LionC_BackJumpToAttack_Finish1 drops M_Behemoth_SmashBackflip_Move3 (moves 635 cm)
-//   M_LionC_AttackToBackJump_Finish1 drops M_Behemoth_SmashBackflip_Move2 (moves 953 cm)
-//   M_LionC_AttackToBackJump_Finish1 drops M_Behemoth_SmashBackflip_Move3 (moves 635 cm)
+//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move2 (moves 110 cm of the step's 427)
+//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move3 (moves 206 cm of the step's 427)
+//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move4 (moves 105 cm of the step's 427)
+//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move5 (moves 7 cm of the step's 427)
+//   M_LionC_BackJumpToAttack_Finish1 drops M_Behemoth_SmashBackflip_Move2 (moves 953 cm of the step's 1588)
+//   M_LionC_BackJumpToAttack_Finish1 drops M_Behemoth_SmashBackflip_Move3 (moves 635 cm of the step's 1588)
+//   M_LionC_AttackToBackJump_Finish1 drops M_Behemoth_SmashBackflip_Move2 (moves 953 cm of the step's 1588)
+//   M_LionC_AttackToBackJump_Finish1 drops M_Behemoth_SmashBackflip_Move3 (moves 635 cm of the step's 1588)
 //   M_LionC_SideStepLeft_Cast1 drops M_Behemoth_SideStepLeft_Move1 (moves 1100 cm)
 //   M_LionC_SideStepRight_Cast1 drops M_Behemoth_SideStepRight_Move1 (moves 1100 cm)
 constexpr TableInfo kTables[kTableCount] = {
@@ -217,11 +224,13 @@ constexpr Patch kPatches[] = {
     {0x018, Kind::f32, 1.13f, nullptr},                                      // Duration
     {0x034, Kind::name, 0, "M_LionC_JumpAttackLow_Hit1"},                    // NextStepAlias
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_JumpAttackLow_1"}, // ShowPath
+    {0x138, Kind::names, 0, ""},                                             // SelfMoveAliasArray
     // M_LionC_JumpAttackLow_Hit1
     {0x018, Kind::f32, 0.1f, nullptr},                       // Duration
     {0x034, Kind::name, 0, "M_LionC_JumpAttackLow_Finish1"}, // NextStepAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_RL_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x138, Kind::names, 0, ""}, // SelfMoveAliasArray
     // M_LionC_JumpAttackLow_Finish1
     {0x018, Kind::f32, 0.97f, nullptr}, // Duration
     // M_LionC_JumpAttackLow
@@ -236,6 +245,7 @@ constexpr Patch kPatches[] = {
     {0x034, Kind::name, 0, "M_LionC_JumpAttackHigh_Finish1"}, // NextStepAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_RL_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x138, Kind::names, 0, ""}, // SelfMoveAliasArray
     // M_LionC_JumpAttackHigh_Finish1
     {0x018, Kind::f32, 2.4f, nullptr}, // Duration
     // M_LionC_JumpAttackHigh
@@ -445,52 +455,52 @@ constexpr Row kRecipe[] = {
     {Table::step, "M_LionC_RunAttackRight_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200703, 61, 3},
     {Table::step, "M_LionC_RunAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200704, 64, 1},
     {Table::skill, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 65, 1},
-    {Table::step, "M_LionC_JumpAttackLow_Cast1", "M_Behemoth_JumpAttackLow_Cast1", 500200802, 66, 3},
-    {Table::step, "M_LionC_JumpAttackLow_Hit1", "M_Behemoth_JumpAttackLow_Hit1", 500200803, 69, 3},
-    {Table::step, "M_LionC_JumpAttackLow_Finish1", "M_Behemoth_JumpAttackLow_Finish1", 500200804, 72, 1},
-    {Table::skill, "M_LionC_JumpAttackLow", "M_Behemoth_JumpAttackLow", 5002008, 73, 1},
-    {Table::step, "M_LionC_JumpAttackHigh_Cast1", "M_Behemoth_JumpAttackHigh_Cast1", 500200902, 74, 4},
-    {Table::step, "M_LionC_JumpAttackHigh_Hit1", "M_Behemoth_JumpAttackHigh_Hit1", 500200903, 78, 3},
-    {Table::step, "M_LionC_JumpAttackHigh_Finish1", "M_Behemoth_JumpAttackHigh_Finish1", 500200904, 81, 1},
-    {Table::skill, "M_LionC_JumpAttackHigh", "M_Behemoth_JumpAttackHigh", 5002009, 82, 1},
-    {Table::step, "M_LionC_BackJumpToAttack_Cast1", "M_Behemoth_SmashBackflip_Cast1", 500201002, 83, 3},
-    {Table::step, "M_LionC_BackJumpToAttack_Hit1", "M_Behemoth_SmashBackflip_Hit1", 500201003, 86, 3},
-    {Table::step, "M_LionC_BackJumpToAttack_Finish1", "M_Behemoth_SmashBackflip_Finish1", 500201004, 89, 2},
-    {Table::skill, "M_LionC_BackJumpToAttack", "M_Behemoth_SmashBackflip", 5002010, 91, 1},
-    {Table::step, "M_LionC_AttackToBackJump_Cast1", "M_Behemoth_SmashBackflip_Cast1", 500201102, 92, 3},
-    {Table::step, "M_LionC_AttackToBackJump_Hit1", "M_Behemoth_SmashBackflip_Hit1", 500201103, 95, 3},
-    {Table::step, "M_LionC_AttackToBackJump_Finish1", "M_Behemoth_SmashBackflip_Finish1", 500201104, 98, 2},
-    {Table::skill, "M_LionC_AttackToBackJump", "M_Behemoth_SmashBackflip", 5002011, 100, 1},
-    {Table::step, "M_LionC_Roar_Cast1", "M_Behemoth_Roar1_Cast1", 500201202, 101, 4},
-    {Table::step, "M_LionC_Roar_Hit1", "M_Behemoth_Roar1_Hit1", 500201203, 105, 2},
-    {Table::step, "M_LionC_Roar_Finish1", "M_Behemoth_Roar1_Finish1", 500201204, 107, 1},
-    {Table::skill, "M_LionC_Roar", "M_Behemoth_Roar1", 5002012, 108, 1},
-    {Table::step, "M_LionC_SideStepLeft_Cast1", "M_Behemoth_SideStepLeft_Cast1", 500201302, 109, 3},
-    {Table::skill, "M_LionC_SideStepLeft", "M_Behemoth_SideStepLeft", 5002013, 112, 1},
-    {Table::step, "M_LionC_SideStepRight_Cast1", "M_Behemoth_SideStepRight_Cast1", 500201402, 113, 3},
-    {Table::skill, "M_LionC_SideStepRight", "M_Behemoth_SideStepRight", 5002014, 116, 1},
-    {Table::command, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 117, 1},
-    {Table::command, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 118, 1},
-    {Table::command, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 119, 1},
-    {Table::command, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 120, 1},
-    {Table::command, "M_LionC_TurnAttackLeft", "M_Behemoth_TurnAttackLeft", 5002004, 121, 1},
-    {Table::command, "M_LionC_TurnAttackRight", "M_Behemoth_TurnAttackRight", 5002005, 122, 1},
-    {Table::command, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 123, 1},
-    {Table::command, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 124, 1},
-    {Table::command, "M_LionC_JumpAttackLow", "M_Behemoth_JumpAttackLow", 5002008, 125, 1},
-    {Table::command, "M_LionC_JumpAttackHigh", "M_Behemoth_JumpAttackHigh", 5002009, 126, 1},
-    {Table::command, "M_LionC_BackJumpToAttack", "M_Behemoth_SmashBackflip", 5002010, 127, 1},
-    {Table::command, "M_LionC_AttackToBackJump", "M_Behemoth_SmashBackflip", 5002011, 128, 1},
-    {Table::command, "M_LionC_Roar", "M_Behemoth_Roar1", 5002012, 129, 1},
-    {Table::command, "M_LionC_SideStepLeft", "M_Behemoth_SideStepLeft", 5002013, 130, 1},
-    {Table::command, "M_LionC_SideStepRight", "M_Behemoth_SideStepRight", 5002014, 131, 1},
-    {Table::anim, "M_LionC_Peaceful", "M_Behemoth_Peaceful", 500200, 132, 14},
-    {Table::anim, "M_LionC_Battle", "M_Behemoth_Battle", 500201, 146, 16},
-    {Table::stance, "M_LionC_Default", "M_Behemoth_Default", 500200, 162, 6},
-    {Table::dead, "M_LionC", "M_Behemoth", 0, 168, 11},
-    {Table::appearance, "M_LionC", "M_Behemoth", 50020, 179, 1},
-    {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 180, 12},
-    {Table::character, "M_LionC", "M_Behemoth", 50020, 192, 12},
+    {Table::step, "M_LionC_JumpAttackLow_Cast1", "M_Behemoth_JumpAttackLow_Cast1", 500200802, 66, 4},
+    {Table::step, "M_LionC_JumpAttackLow_Hit1", "M_Behemoth_JumpAttackLow_Hit1", 500200803, 70, 4},
+    {Table::step, "M_LionC_JumpAttackLow_Finish1", "M_Behemoth_JumpAttackLow_Finish1", 500200804, 74, 1},
+    {Table::skill, "M_LionC_JumpAttackLow", "M_Behemoth_JumpAttackLow", 5002008, 75, 1},
+    {Table::step, "M_LionC_JumpAttackHigh_Cast1", "M_Behemoth_JumpAttackHigh_Cast1", 500200902, 76, 4},
+    {Table::step, "M_LionC_JumpAttackHigh_Hit1", "M_Behemoth_JumpAttackHigh_Hit1", 500200903, 80, 4},
+    {Table::step, "M_LionC_JumpAttackHigh_Finish1", "M_Behemoth_JumpAttackHigh_Finish1", 500200904, 84, 1},
+    {Table::skill, "M_LionC_JumpAttackHigh", "M_Behemoth_JumpAttackHigh", 5002009, 85, 1},
+    {Table::step, "M_LionC_BackJumpToAttack_Cast1", "M_Behemoth_SmashBackflip_Cast1", 500201002, 86, 3},
+    {Table::step, "M_LionC_BackJumpToAttack_Hit1", "M_Behemoth_SmashBackflip_Hit1", 500201003, 89, 3},
+    {Table::step, "M_LionC_BackJumpToAttack_Finish1", "M_Behemoth_SmashBackflip_Finish1", 500201004, 92, 2},
+    {Table::skill, "M_LionC_BackJumpToAttack", "M_Behemoth_SmashBackflip", 5002010, 94, 1},
+    {Table::step, "M_LionC_AttackToBackJump_Cast1", "M_Behemoth_SmashBackflip_Cast1", 500201102, 95, 3},
+    {Table::step, "M_LionC_AttackToBackJump_Hit1", "M_Behemoth_SmashBackflip_Hit1", 500201103, 98, 3},
+    {Table::step, "M_LionC_AttackToBackJump_Finish1", "M_Behemoth_SmashBackflip_Finish1", 500201104, 101, 2},
+    {Table::skill, "M_LionC_AttackToBackJump", "M_Behemoth_SmashBackflip", 5002011, 103, 1},
+    {Table::step, "M_LionC_Roar_Cast1", "M_Behemoth_Roar1_Cast1", 500201202, 104, 4},
+    {Table::step, "M_LionC_Roar_Hit1", "M_Behemoth_Roar1_Hit1", 500201203, 108, 2},
+    {Table::step, "M_LionC_Roar_Finish1", "M_Behemoth_Roar1_Finish1", 500201204, 110, 1},
+    {Table::skill, "M_LionC_Roar", "M_Behemoth_Roar1", 5002012, 111, 1},
+    {Table::step, "M_LionC_SideStepLeft_Cast1", "M_Behemoth_SideStepLeft_Cast1", 500201302, 112, 3},
+    {Table::skill, "M_LionC_SideStepLeft", "M_Behemoth_SideStepLeft", 5002013, 115, 1},
+    {Table::step, "M_LionC_SideStepRight_Cast1", "M_Behemoth_SideStepRight_Cast1", 500201402, 116, 3},
+    {Table::skill, "M_LionC_SideStepRight", "M_Behemoth_SideStepRight", 5002014, 119, 1},
+    {Table::command, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 120, 1},
+    {Table::command, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 121, 1},
+    {Table::command, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 122, 1},
+    {Table::command, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 123, 1},
+    {Table::command, "M_LionC_TurnAttackLeft", "M_Behemoth_TurnAttackLeft", 5002004, 124, 1},
+    {Table::command, "M_LionC_TurnAttackRight", "M_Behemoth_TurnAttackRight", 5002005, 125, 1},
+    {Table::command, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 126, 1},
+    {Table::command, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 127, 1},
+    {Table::command, "M_LionC_JumpAttackLow", "M_Behemoth_JumpAttackLow", 5002008, 128, 1},
+    {Table::command, "M_LionC_JumpAttackHigh", "M_Behemoth_JumpAttackHigh", 5002009, 129, 1},
+    {Table::command, "M_LionC_BackJumpToAttack", "M_Behemoth_SmashBackflip", 5002010, 130, 1},
+    {Table::command, "M_LionC_AttackToBackJump", "M_Behemoth_SmashBackflip", 5002011, 131, 1},
+    {Table::command, "M_LionC_Roar", "M_Behemoth_Roar1", 5002012, 132, 1},
+    {Table::command, "M_LionC_SideStepLeft", "M_Behemoth_SideStepLeft", 5002013, 133, 1},
+    {Table::command, "M_LionC_SideStepRight", "M_Behemoth_SideStepRight", 5002014, 134, 1},
+    {Table::anim, "M_LionC_Peaceful", "M_Behemoth_Peaceful", 500200, 135, 14},
+    {Table::anim, "M_LionC_Battle", "M_Behemoth_Battle", 500201, 149, 16},
+    {Table::stance, "M_LionC_Default", "M_Behemoth_Default", 500200, 165, 6},
+    {Table::dead, "M_LionC", "M_Behemoth", 0, 171, 11},
+    {Table::appearance, "M_LionC", "M_Behemoth", 50020, 182, 1},
+    {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 183, 12},
+    {Table::character, "M_LionC", "M_Behemoth", 50020, 195, 12},
 };
 // ---- End of the generated part ----
 

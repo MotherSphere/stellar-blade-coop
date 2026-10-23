@@ -1361,12 +1361,15 @@ The native part adds 78 rows to 8 tables. Each one is a copy of a shipped Behemo
   Lion attack collision group (`Mon_Lion_Attack_L_Arm_Collision`, `R_Arm` or `RL_Arm`). The generator checked each group
   against the Large blueprint's collision data and the sockets the attack's clip moves. The roar's first step is shorter
   than the Behemoth's (1.332 s, not 1.6 s), so its action assist check moves to 1.266 s, the same 0.066 s before the
-  step ends. A step keeps the Behemoth's moves (`SelfMoveAliasArray`, rows of CharacterMoveTable) of at most 3 m that
-  name no asset, and drops the others, which pushed the Lion with no clip to match: the side steps' 11 m, the back
-  jumps' 9.5 and 6.3 m, the turns' root motion (`CH_M_NA_46/Animation/RootMotionData/M_Behemoth_TurnAttack*_RM`) and
-  the high jump's Behemoth curves. At each new step of the chain the game moves the playing Show to its next stage and
-  never matches the Show's step IDs: `FSBSkillPresentationObject` queues each step row and reads its ID only for its
-  log. So the Lion Shows' step IDs of 0 do not matter.
+  step ends. A step keeps the Behemoth's moves (`SelfMoveAliasArray`, rows of CharacterMoveTable) that name no asset,
+  move by their own Forward, Right and Up values (`MovePositionType_Self`) and add up to at most 3 m on the step. It
+  drops the others, which pushed the Lion with no clip to match: the side steps' 11 m, the back jumps' 9.5 and 6.3 m,
+  the turns' root motion (`CH_M_NA_46/Animation/RootMotionData/M_Behemoth_TurnAttack*_RM`), the high jump's Behemoth
+  curves and its Hit's four pushes (4.3 m in 0.84 s), and the low jump's two `MoveTransformType_Static` moves with
+  `MovePositionType_Target`. Those take Forward 200 and 100 as a spot set from EVE, not as a distance, so they carried
+  the body across the whole gap in 0.5 s and 0.1 s. At each new step of the chain the game moves the playing Show to its
+  next stage and never matches the Show's step IDs: `FSBSkillPresentationObject` queues each step row and reads its ID
+  only for its log. So the Lion Shows' step IDs of 0 do not matter.
 - The stance `M_LionC_Default` (500200), which lists the 15 commands. It leaves out the Behemoth's `MinimumHP_60p` start
   effect, which holds HP at 60% until a phase skill the Lion lacks. Two anim sets (500200 and 500201) name the Lion's
   run clips and drop the Behemoth's shield-break clip, which the Lion has no copy of. `Custom_Anim4`, the clip of the
@@ -1388,8 +1391,8 @@ A generator kept outside the repository writes the data part of `lion/rows.h` fr
 tables and the pak listing. It refuses a taken ID or name (in any case, as the game compares names) and a missing donor,
 Show, clip, blueprint or tree, including a clip that the Show of a step outside the kit plays when a Lion step goes to
 it (a perfect parry's result) and the clip EVE's link Show for each link flag plays on the Lion. It also refuses a
-field the SDK does not place where its patch writes, an action assist check after its step's end, and a move kept on
-a step that names an asset or moves more than 3 m.
+field the SDK does not place where its patch writes, an action assist check after its step's end, and a step that
+keeps a move naming an asset or ending at a spot its target sets, or moves that add up to over 3 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and

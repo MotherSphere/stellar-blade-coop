@@ -87,11 +87,14 @@ local KIT={{'ClawAttackLeft',{0.8,0.2,2.067},'L_Arm'},{'ClawAttackRight',{0.8,0.
     {'BackJumpToAttack',{1.2,0.1,0.9},'RL_Arm'},{'AttackToBackJump',{1.15,0.2,2.25},'RL_Arm'},
     {'Roar',{1.332,1.268,1.533},nil,1.266},{'SideStepLeft',{2.0}},{'SideStepRight',{2.0}}}
 local STEPS={'_Cast1','_Hit1','_Finish1'}
--- The steps whose donor moves the generator cut (a move over 3 m, or on the Behemoth's root motion or curves, slid the
--- Lion with no clip to match), with the moves each keeps ('' none).
+-- The steps whose donor moves the generator cut, with the moves each keeps ('' none). It cuts a move on the Behemoth's
+-- root motion or curves, a move to a spot its target sets (JumpAttackLow's two carry the body from wherever it stands
+-- to EVE), and every move of a step whose moves add up to over 3 m (JumpAttackHigh's Hit pushes 4.3 m in 0.84 s): all
+-- slid the Lion with no clip to match.
 local MOVES={TurnAttackLeft_Cast1='M_Behemoth_TurnAttackLeft_Move1',
-    TurnAttackRight_Cast1='M_Behemoth_TurnAttackRight_Move1',JumpAttackHigh_Cast1='',BackJumpToAttack_Finish1='',
-    AttackToBackJump_Finish1='',SideStepLeft_Cast1='',SideStepRight_Cast1=''}
+    TurnAttackRight_Cast1='M_Behemoth_TurnAttackRight_Move1',JumpAttackLow_Cast1='',JumpAttackLow_Hit1='',
+    JumpAttackHigh_Cast1='',JumpAttackHigh_Hit1='',BackJumpToAttack_Finish1='',AttackToBackJump_Finish1='',
+    SideStepLeft_Cast1='',SideStepRight_Cast1=''}
 local commands={}
 for i,k in ipairs(KIT) do
     local skill,id,d='M_LionC_'..k[1],5002000+i-1,k[2]
@@ -156,9 +159,10 @@ local function count(t)
     return n..'/'..n
 end
 Lion.IN={added=count(),char=count('CharacterTable'),skills=count('SkillTable'),stance=count('CharacterStanceTable')}
--- The loaded line's 30 paths: each Lion Show, then the clip its one anim key plays (8 Shows name it as
--- AnimSequence'...', which UE's ResolveName strips). StaticFindObject finds only what is in memory and costs about 4 ms
--- a call here (core/unreal.lua): LOOKS paths a second, each looked for until first seen.
+-- The loaded line's 30 paths: each Lion Show, then the clip its one anim key plays. 8 Shows name it as
+-- AnimSequence'...': UE 4.26's ResolveName would strip that, but SB's load path was not traced in the exe, so whether
+-- those 8 clips load is part of what this line tests. StaticFindObject finds only what is in memory and costs about 4
+-- ms a call here (core/unreal.lua): LOOKS paths a second, each looked for until first seen.
 local CLIPS={ClawAttackLeft='M_LionC_ClawAttackLeft',ClawAttackRight='M_LionC_ClawAttackRight',
     ClawAttackChaseLeft='M_LionA_ClawAttackChaseLeft',ClawAttackChaseRight='M_LionA_ClawAttackChaseRight',
     TurnAttackLeft='Mon_Lion_Attack_Turn_Left',TurnAttackRight='Mon_Lion_Attack_Turn_Right',
