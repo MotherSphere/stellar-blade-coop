@@ -116,8 +116,25 @@ do
             else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
         end
     end
-    assert(n==78 and #L.ROWS==78 and #patches==195,n..' rows, '..#patches..' patches')
+    assert(n==78 and #L.ROWS==78 and #patches==204,n..' rows, '..#patches..' patches')
     assert(L.IN.added=='78/78' and L.IN.char=='2/2' and L.IN.skills=='15/15' and L.IN.stance=='1/1')
+end
+-- The read-back covers the link flag (Common, not the Behemoth's) and the moves the generator cut: the side step's 11 m
+-- slide gone, the turn's Behemoth root motion gone and its turn kept, the claws' short moves left as the donor's.
+do
+    local function check(name,field)
+        for _,r in ipairs(L.ROWS) do
+            if r.name==name and (r.table=='CharacterTable' or r.table=='SkillActiveStepTable') then
+                for _,c in ipairs(r.checks) do if c[1]==field then return c[3] end end
+                return nil
+            end
+        end
+    end
+    assert(check('M_LionC','LinkSkillRandomActiveStepFlagArray')=='Common')
+    assert(check('M_LionC_Lurker','LinkSkillRandomActiveStepFlagArray')=='Common')
+    assert(check('M_LionC_SideStepLeft_Cast1','SelfMoveAliasArray')=='')
+    assert(check('M_LionC_TurnAttackLeft_Cast1','SelfMoveAliasArray')=='M_Behemoth_TurnAttackLeft_Move1')
+    assert(check('M_LionC_ClawAttackLeft_Cast1','SelfMoveAliasArray')==nil)
 end
 
 -- The lion line in each of its forms (lion/rows.h's status_line).

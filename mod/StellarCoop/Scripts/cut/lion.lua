@@ -73,6 +73,11 @@ local KIT={{'ClawAttackLeft',{0.8,0.2,2.067},'L_Arm'},{'ClawAttackRight',{0.8,0.
     {'BackJumpToAttack',{1.2,0.1,0.9},'RL_Arm'},{'AttackToBackJump',{1.15,0.2,2.25},'RL_Arm'},
     {'Roar',{1.332,1.268,1.533},nil,1.266},{'SideStepLeft',{2.0}},{'SideStepRight',{2.0}}}
 local STEPS={'_Cast1','_Hit1','_Finish1'}
+-- The steps whose donor moves the generator cut (a move over 3 m, or on the Behemoth's root motion or curves, slid the
+-- Lion with no clip to match), with the moves each keeps ('' none).
+local MOVES={TurnAttackLeft_Cast1='M_Behemoth_TurnAttackLeft_Move1',
+    TurnAttackRight_Cast1='M_Behemoth_TurnAttackRight_Move1',JumpAttackHigh_Cast1='',BackJumpToAttack_Finish1='',
+    AttackToBackJump_Finish1='',SideStepLeft_Cast1='',SideStepRight_Cast1=''}
 local commands={}
 for i,k in ipairs(KIT) do
     local skill,id,d='M_LionC_'..k[1],5002000+i-1,k[2]
@@ -83,6 +88,7 @@ for i,k in ipairs(KIT) do
         if s==1 then c[#c+1]={'ShowPath','n','CH_M_NA_02_Lion/Skill/'..skill..'_1'} end
         if s==1 and k[4] then c[#c+1]={'ActionAssistCheckDelay','f',k[4]} end
         if s==2 and k[3] then c[#c+1]={'AttackCollisionGroupArray','s',GROUP:format(k[3])} end
+        if MOVES[k[1]..STEPS[s]] then c[#c+1]={'SelfMoveAliasArray','N',MOVES[k[1]..STEPS[s]]} end
         row('SkillActiveStepTable',skill..STEPS[s],id*100+s+1,c)
     end
     row('SkillTable',skill,id,{{'FirstSkillActiveAlias','n',skill..'_Cast1'}})
@@ -119,7 +125,10 @@ end
 row('CharacterAppearanceTable','M_LionC',50020,
     {{'CharacterAssetPath','n','/Game/Art/Character/Monster/CH_M_NA_02/BluePrints/CH_M_NA_02_BluePrint_Large'}})
 for _,c in ipairs({{'M_LionC_Lurker',50021,'M_LesserLurker_AI'},{'M_LionC',50020,'M_Skulling_AI_Test'}}) do
-    row('CharacterTable',c[1],c[2],{{'Type','s','M_LionC'},{'Flag','n','Lion'},{'DefaultEffectArray','N','Rank_Elite'},
+    -- The link flag Common: EVE's link Show for it plays the anim sets' Hit_Sword_Normal_LinkAttack1 on the Lion; the
+    -- Behemoth's flag played a Behemoth clip the Lion lacks.
+    row('CharacterTable',c[1],c[2],{{'Type','s','M_LionC'},{'Flag','n','Lion'},
+        {'LinkSkillRandomActiveStepFlagArray','N','Common'},{'DefaultEffectArray','N','Rank_Elite'},
         {'DeadAlias','n','M_LionC'},{'DespawnShow','s','Despawn/M_LionA_Despawn'},
         {'DefaultStanceAlias','n','M_LionC_Default'},
         {'BehaviorTreeRes','s','/Game/GameDesign/Combat/BehaviorTree/Monster/'..c[3]},{'RefAppearance','n','M_LionC'},
