@@ -9,10 +9,8 @@ local G={}
 G.en={
     pages={
         {title='Welcome to Stellar Blade Online',
-         body='Stellar Blade Online connects two copies of Stellar Blade over Steam. Each player stays in their '
-            .."own game. Your friend's EVE appears in your world and moves as they do in their game.\nA session "
-            ..'holds 2 players for now. The goal is 100 players.\nYou can open this guide again from the co-op menu '
-            ..'(F5).'},
+         body="Stellar Blade Online lets a friend's EVE join your world over Steam. A session holds 2 players for "
+            ..'now. The goal is 100 players.\nOpen this guide again at any time from the co-op menu (F5).'},
         {title='Play together',
          body='Press F5 in the world to open the co-op menu (hold View on a controller). Its first row, Host a '
             ..'session, opens the Steam invite window.\nSomeone who is not on your Steam friends list can join with '
@@ -42,14 +40,13 @@ G.en={
             ..'handles like a car and speeds up over time. R2 or the B key drifts. Steering hard at speed drifts '
             ..'too. The ranking shows at the end.'},
         {title='Leviathan and the free camera',
-         body='Leviathan is a Naytiba cut from the game. Its model and animations are still in the game files. On '
-            ..'a co-op save, coop leviathan show places it in front of you and starts a free camera for filming. '
-            ..'coop leviathan off removes both.\nW A S D or Z Q S D: fly\nSpace or E: up\nCtrl or C: down\nShift: '
-            ..'faster\nMouse: look around'},
-        {title='Settings and languages',
+         body='Leviathan is a Naytiba cut from the game. On a co-op save, coop leviathan show places it in front '
+            ..'of you and starts a free camera for filming. coop leviathan off removes both.\nW A S D or Z Q S D: '
+            ..'fly\nSpace or E: up\nCtrl or C: down\nShift: faster\nMouse: look around'},
+        {title='Settings',
          body='The Options page of the co-op menu sets the keys, the partner HUD, who can join, the co-op saves, '
-            .."the combat rules, the menu's size and its sounds. The values are stored in coop-settings.txt.\nThe "
-            .."mod's text follows your game language. It covers the 23 languages the game ships with."},
+            .."the combat rules, the menu's size and its sounds. The values are stored in coop-settings.txt.\nSet "
+            ..'Menu language to English to read the mod in English.'},
         {title='Help',
          body='Ask questions or find a co-op partner on the Discord: discord.gg/tvFApEEVfj\nTo report a bug, close '
             ..'the game. Before you start it again, send coop-report.txt, coop-link.log and UE4SS.log.\nMother '
