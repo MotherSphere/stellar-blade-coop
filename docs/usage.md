@@ -812,6 +812,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
+| `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -1155,6 +1156,46 @@ A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; 
 line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
 part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
+### Cut hairs and suits: `coop wear`
+
+The game's files hold two hairs and four suits that no item gives. `coop wear` puts them on your EVE by setting the
+meshes of her own hair and body components. It changes what is drawn and nothing else: your equipment, inventory, saves
+and quests are never read or written, so the game's menus still show what you equipped and the next save keeps it. It
+runs on any save and has not been tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][WR]`.
+
+| Name | Part | Mesh | What it is |
+| --- | --- | --- | --- |
+| `nyaaa` | Hair | `EVE_HR_14` | A bob cut with a lace headband and mechanical cat ears (Nyaaa, a hair whose name and description are in the game's text, with no item) |
+| `rabbit` | Hair | `EVE_HR_15` | A bob cut with long mechanical rabbit ears (Mecha Rabbit, the same) |
+| `gothic` | Suit | `CH_P_EVE_IberisCos` | Gothic Rose (`BS_1000`), the gothic dress of Iberis, Lily's late colleague |
+| `rider` | Suit | `CH_P_EVE_03_Body` | Daily Rider (`BS_Leather_Jean2`), an earlier build of Daily Biker |
+| `diving2` | Suit | `CH_P_EVE_01_TypeB` | Planet Diving Suit (5th) V2 (`BS_Blue_Suit_Var2`) |
+| `golden` | Suit | `CH_P_EVE_InnerSuit1` | Golden Skin Suit (`BS_102_1`), with the placeholder materials of the asset |
+
+The meshes are in `/Game/Art/Character/PC/`, the hairs under `00_HR/`. Each suit has an EquipmentTable row and no item.
+
+- `coop wear` lists what is worn and the names.
+- `coop wear <name>` puts one on. A hair and a suit can be worn together. A second hair or suit replaces the first. A
+  hair also gets its own physics asset and its own animation Blueprint, which moves its ears and strands. On the part
+  it changes, a slot where the game put a material of its own (your hair colour) shows the cut mesh's material.
+- `coop wear off` gives the game's hair and suit back. `coop wear off hair` and `coop wear off suit` give one back.
+
+A suit changes the body mesh alone. EVE's animations, face, ponytail and body collision stay as the game set them. The
+ponytail keeps the colour and the cloth collision of what you equipped, so its strands may pass through a long dress.
+
+The game can put its own meshes on again: after its wardrobe, a map load, a cutscene or photo mode. Once a second, while
+the game is neither paused nor showing one of its screens, `coop wear` looks at the worn parts. A part that shows a mesh
+of the game's again takes that look as the one to give back, then gets the cut one again, with a `re-applied` line in
+the log. An outfit you pick in the wardrobe while a suit is worn therefore shows after `coop wear off suit`.
+
+The look lasts until `coop wear off`, `coop off`, a Lua reload (Ctrl+R) or a game restart. While one is worn,
+`coop-wear.txt` holds your EVE's own look, so the next Lua load gives it back if this one could not.
+
+Your friend sees it. The capture reads the mesh of each part of your EVE every second. The ghost then loads the same
+hair or suit from your friend's own game files, so nothing more is needed on that PC. The Gothic Rose dress has 385
+bones, where the other suits here have 159 to 203. The capture and the ghost take up to 1024 bones a part, so the ghost
+wears the dress on its own mesh, not the base suit. A cut mesh shows its own materials on both screens, with the `dyes`
+look on or off.
 
 ### Shared enemies (experimental)
 
@@ -1748,9 +1789,10 @@ Night Operation poller, a recruiter (despawned if one was requested, in Xion), t
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
 drawn again), the cut Naytiba display and its free camera (`coop leviathan`, `coop gardener` and `coop tendril`; the
-view goes back as it was) and what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
-lines; a living Lion stays). Afterwards only `coop status` and `coop report` answer. Every other command answers
-`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
+view goes back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
+lines; a living Lion stays) and the `coop wear` look (your EVE's own hair and suit come back). Afterwards only
+`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
+restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 
@@ -2253,6 +2295,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
+| `coop-wear.txt` | Lua | While `coop wear` puts a look on: your EVE's object path and, for her hair and her suit, the worn mesh's path and her own look (the mesh's path, the hair's animation Blueprint class, the hair's physics asset and the materials the game set on its slots), so the next Lua load (Ctrl+R) can give it back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
 so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
