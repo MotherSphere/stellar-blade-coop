@@ -313,3 +313,8 @@ When you test with a friend, the player who leads the test types `coop mark <ste
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
 `UE4SS.log` (see [usage.md](docs/usage.md#coop-mark)), so the four logs line up step by step. The text of each mark
 stays in the logs you send.
+
+## License
+
+`Assets/MotherSphere.png` is not covered by the GPL in `LICENSE`. It is the Mother Sphere art shown in the guide, by
+timediffer24 (https://x.com/timediffer24), given to this project.

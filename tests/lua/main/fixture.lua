@@ -118,6 +118,8 @@ fake_link={
     changes=function() return {'link=host lobby=7'} end,
     mode=function() return link_mode end,
     saves=function() return saves_info end,
+    read_file=function(name) return link_files[name] end,
+    write_file=function(name,text) link_files[name]=text; return true end,
     fight=function() fight_reads=fight_reads+1; return fight_text end,
     pilot=function() pilot_reads=pilot_reads+1; return pilot_text end,
     chatting=function() return chatting end,
@@ -139,8 +141,6 @@ fake_link={
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     paks=function() return paks_v end,
-    read_file=function(name) return link_files[name] end,
-    write_file=function(name,text) link_files[name]=text; return true end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
     -- shows the real defaults, On for the three that pinned() reads as off).
     settings_text=function() return settings_text end,

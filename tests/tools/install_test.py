@@ -165,16 +165,16 @@ with tempfile.TemporaryDirectory() as tmp:
     files = install.package('v', dll)
     shipped = {'enabled.txt', 'StellarCoop.dll', 'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt',
                'Assets/MotherSphere.png',
+               *(f'Scripts/{name}.lua' for name in ('commands/guide', 'ui/guide', 'ui/guide_text')),
                *(f'Scripts/{name}.lua'
-                 for name in ('commands/cut', 'commands/fight', 'commands/guide', 'commands/nightop',
-                              'commands/partner', 'commands/race', 'commands/session', 'core/keybind', 'core/link',
-                              'core/settings_file', 'core/unreal', 'cut/leviathan', 'main', 'nightop/challenges',
-                              'nightop/probe', 'nightop/recruiter',
+                 for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
+                              'commands/session', 'core/keybind', 'core/link', 'core/settings_file', 'core/unreal',
+                              'cut/leviathan', 'main', 'nightop/challenges', 'nightop/probe', 'nightop/recruiter',
                               'nightop/recruiter_text', 'nightop/run', 'nightop/shop', 'nightop/waves',
                               'partner/capture', 'partner/hud', 'partner/puppet', 'race/doro', 'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
-                              'session/group', 'session/join', 'session/saves', 'session/travel', 'ui/guide',
-                              'ui/guide_text', 'ui/kit', 'ui/menu', 'ui/model', 'ui/notice', 'ui/text', 'version'))}
+                              'session/group', 'session/join', 'session/saves', 'session/travel', 'ui/kit', 'ui/menu',
+                              'ui/model', 'ui/notice', 'ui/text', 'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]

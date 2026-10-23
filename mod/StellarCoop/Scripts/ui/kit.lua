@@ -132,13 +132,13 @@ function Ui.kit(opts)
         return x and U.text(x:GetFullName())==w.name and x or nil
     end
     -- The root's path for the next Lua load's sweep (Ctrl+R), with ' input' while the game's input is ours and
-    -- ' cursor' while the menu shows the mouse cursor: that load gives the input back and hides the cursor (the
-    -- ignore-input flag lives in the game's viewport and the cursor in its player controller, which a Lua reload
-    -- keeps).
+    -- ' cursor' while we show the mouse cursor (' cursor shown' when the game showed it before, as the title menu
+    -- does): that load gives the input back and puts the cursor back as it was (the ignore-input flag lives in the
+    -- game's viewport and the cursor in its player controller, which a Lua reload keeps).
     local function keep()
         if built then
             store.save(built.root.name:match('^%S+ (.+)$')..(inputting and ' input' or '')..(cursor~=nil and ' cursor'
-                or ''))
+                or '')..(cursor and ' shown' or ''))
         end
     end
     -- The game's input (UI-DESIGN 7.5): on, the game ignores its keys and mouse (SetInputMode_UIOnlyEx with our root
@@ -524,14 +524,14 @@ function Ui.kit(opts)
         end
         return false
     end
-    -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up. That load's menu open, the game's
-    -- input is given back first and the mouse cursor hidden (or once there is a player controller: input(false) tries
-    -- again).
+    -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up. That load's menu or guide open, the
+    -- game's input is given back first and the mouse cursor put back as that load found it (or once there is a player
+    -- controller: input(false) tries again).
     local function sweep()
         local left=store.load()
         store.clear()
         if not left then return false end
-        if left:find(' cursor',1,true) then cursor=false end
+        if left:find(' cursor',1,true) then cursor=left:find(' cursor shown',1,true)~=nil end
         if left:find(' input',1,true) then inputting=true; input_mode(false) end
         local x=valid(StaticFindObject(left:match('^%S+')))
         if x and U.text(x:GetFullName()):find('^UserWidget ') and x:IsInViewport() then

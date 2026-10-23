@@ -1,22 +1,23 @@
 -- The first-launch guide (ui/guide_text.lua's nine pages) on the Uplink kit (ui/kit.lua): the Mother Sphere art on the
 -- left, the page's title and body on the right, Page n of 9 with a dot a page, four rows (Next, Back, Don't show again
 -- and Close) and the game's key hints.
--- It opens by itself once a Lua load on the title screen while coop-guide.txt is missing beside coop-settings.txt
--- (the mod's first run), before the co-op saves' question, which waits while waiting() says so; and at any time from
--- the co-op menu's Guide row and with coop guide, on the title screen or in the game world (there not while the game
--- is paused or shows a menu). Don't show again, or a close on the last page, writes coop-guide.txt (one line, through
--- the link), and from then on it no longer opens by itself. While it is open the game ignores its keys (the kit's
--- input, with the mouse cursor shown), and main.lua hands it the co-op saves' question's keys through front(): up and
--- down move between the rows (past one that cannot run: Back on the first page, Next on the last), left and right
--- turn the page, Enter, Space or A runs the row (from 1 s after it shows, as the question), Esc or B closes; the row
--- the mouse moves onto takes the focus, and a left click runs the row under it. The game's input comes back 150 ms
--- after a close. It closes by itself when the place it opened in goes (the title left, a map change), the kit's root
--- hides or turns off, the game pauses in the world, or after 3 minutes with no key (a pad that is not XInput cannot
--- answer); the host's question (session/join.lua) closes it as it opens, as it does the menu. The art, by timediffer24
--- and given to this project (not covered by the GPL), is Assets\MotherSphere.png in the mod folder, imported once
--- with the engine's ImportFileAsTexture2D (again only once the engine freed it: a root built again drops the old
--- image); an import that fails is logged once and the guide shows without it. That import is its only engine call:
--- the kit makes the others.
+-- It opens by itself once a Lua load on the title screen while coop-guide.txt is missing beside coop-settings.txt (the
+-- mod's first run), before the co-op saves' question, which waits while waiting() says so; and at any time from the
+-- co-op menu's Guide row and with coop guide, on the title screen or in the game world (there not while the game is
+-- paused or shows a menu); never while another co-op panel is open (busy), whose input it would take and then give to
+-- the game as it closes, so the first run's waits. Don't show again, or a close on the last page, writes coop-guide.txt
+-- (one line, through the link), and from then on it no longer opens by itself. While it is open the game ignores its
+-- keys (the kit's input, with the mouse cursor shown), and main.lua hands it the co-op saves' question's keys through
+-- front(): up and down move between the rows (past one that cannot run: Back on the first page, Next on the last), left
+-- and right turn the page, Enter, Space or A runs the row (from 1 s after it shows, as the question), Esc or B closes;
+-- the row the mouse moves onto takes the focus, and a left click runs the row under it. The game's input comes back
+-- 150 ms after a close. It closes by itself when the place it opened in goes (the title left, a map change), the kit's
+-- root hides or turns off, the game pauses in the world, or after 3 minutes with no key (a pad that is not XInput
+-- cannot answer); the host's question (session/join.lua) closes it as it opens, as it does the menu. The art, by
+-- timediffer24 and given to this project (not covered by the GPL), is Assets\MotherSphere.png in the mod folder,
+-- imported once with the engine's ImportFileAsTexture2D (again only once the engine freed it: a root built again drops
+-- the old image); an import that fails is logged once and the guide shows without it. That import is its only engine
+-- call: the kit makes the others.
 local U=require('core.unreal')
 local G=require('ui.guide_text')
 local T=require('ui.text')
@@ -52,7 +53,8 @@ function Guide.rows(body)
     return rows
 end
 -- o: {kit=ui.kit's, link= (read_file, write_file), settings= (main.lua's: ui_language), theme=ui.THEME,
--- log=function(line), folder= the mod folder (main.lua's)}.
+-- log=function(line), folder= the mod folder (main.lua's), busy=function() -> true while another co-op panel is open,
+-- or nil}.
 function Guide.new(o)
     local kit,link,settings,log=o.kit,o.link,o.settings,o.log
     local self={}
@@ -147,6 +149,7 @@ function Guide.new(o)
         log('guide: closed on page '..page..' ('..why..')')
     end
     local function show(why)
+        if o.busy and o.busy() then return false,'the guide does not open while another co-op panel is open' end
         local culture=kit.language()
         words,hint=G.pick(culture,settings.ui_language),T.pick(culture,settings.ui_language).hint
         open,place,page,cursor,back_at,idle,hover,ready_at=true,here,1,1,nil,0,false,os.clock()+ARM
@@ -214,8 +217,7 @@ function Guide.new(o)
                 tried=true
                 log('guide: it cannot show (the co-op UI is off)')
             elseif kit.whole() then
-                tried=true
-                show('first run: no coop-guide.txt')
+                tried=(show('first run: no coop-guide.txt')) -- Not over another panel: tried again at the next slow.
             end
         end
         draw() -- The kit may have built its root again meanwhile: on change only.

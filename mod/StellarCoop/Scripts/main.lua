@@ -412,8 +412,12 @@ if settings then
     local Join=require('session.join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
     -- The first-launch guide (ui/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op saves'
-    -- question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for it.
-    local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder})
+    -- question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for it. It
+    -- never opens over another co-op panel (busy).
+    local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
+        busy=function()
+            return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
+        end})
     o.guide=guide
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
         version=VERSION,chat=box,code=code_box,guide=guide})

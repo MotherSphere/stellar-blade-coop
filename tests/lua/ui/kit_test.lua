@@ -929,7 +929,8 @@ pc=real
 k.input(false); k.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==2,'Still given back once the kit is off')
 -- Ctrl+R with the menu open: the old load's input mode and mouse cursor stay in the game, so its path says so and the
--- new load gives the input back and hides the cursor as it sweeps the root (or later, with no player controller yet).
+-- new load gives the input back and puts the cursor back as it found it, as it sweeps the root (or later, with no
+-- player controller yet).
 -- A record from before the cursor: the input only.
 reset()
 k=kit()
@@ -964,6 +965,20 @@ reloaded.slow(true)
 pc.bShowMouseCursor=true
 reloaded.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==4 and pc.bShowMouseCursor==true,'An older record: the cursor untouched')
+-- The guide on the title screen, whose menu shows the mouse cursor: the record says the cursor was shown, and the next
+-- load leaves it shown as it gives the input back.
+reset()
+k=kit()
+up(k)
+root_path=saved
+k.slow(true,true)
+pc.bShowMouseCursor=true
+k.input(true,'guide',true)
+assert(saved==root_path..' input cursor shown','The cursor shown before: said')
+registry[root_path]=viewport[1]
+reloaded=kit()
+reloaded.slow(true,true)
+assert(#viewport==0 and count(LIB..'SetInputMode_GameAndUIEx')==1 and pc.bShowMouseCursor==true,'Shown again')
 -- At the title (the co-op saves' question), given back as GameAndUIEx with no widget, no mouse lock and the cursor
 -- kept, so the title menu keeps its mouse; GameOnly when the engine refuses it (the kit stays on); in a world GameOnly.
 reset()

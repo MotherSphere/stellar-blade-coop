@@ -68,7 +68,7 @@ G.fr={
             .."première ligne, Héberger une session, ouvre la fenêtre d'invitation Steam.\nUne personne absente de "
             .."votre liste d'amis Steam peut rejoindre avec un code. Avant d'héberger, réglez Qui peut rejoindre sur "
             ..'Avec un code dans les Options. Envoyez-lui ensuite le code de 7 caractères donné par Copier mon code. '
-            .."Vous l'acceptez à son arrivée.\nF6 : état\nF8 : quitter la session\nEnter : discussion\nÀ une cabine "
+            .."Vous l'acceptez à son arrivée.\nF6 : état\nF8 : quitter la session\nEntrée : discussion\nÀ une cabine "
             ..'téléphonique de camp, F5 ouvre la ligne co-op au lieu du menu.'},
         {title='Sauvegardes co-op',
          body="Les ennemis partagés, les quêtes partagées, l'opération nocturne, les courses de Doro et Leviathan "
@@ -100,7 +100,7 @@ G.fr={
         {title='Leviathan et la caméra libre',
          body='Leviathan est un Naytiba retiré du jeu. Sur une sauvegarde co-op, coop leviathan show le place devant '
             ..'vous et lance une caméra libre pour filmer. coop leviathan off retire les deux.\nW A S D ou Z Q S D : '
-            ..'voler\nSpace ou E : monter\nCtrl ou C : descendre\nShift : plus vite\nSouris : regarder autour'},
+            ..'voler\nSpace ou E : monter\nCtrl ou C : descendre\nMaj : plus vite\nSouris : regarder autour'},
         {title='Réglages',
          body="La page Options du menu co-op règle les touches, l'affichage du partenaire, qui peut rejoindre, les "
             ..'sauvegardes co-op, les règles de combat, la taille du menu et ses sons. Les valeurs sont enregistrées '
@@ -275,7 +275,7 @@ G.es={
             ..'opción, Crear una sesión, abre la ventana de invitaciones de Steam.\nAlguien que no esté en tu lista '
             ..'de amigos de Steam puede unirse con un código. Antes de crear la sesión, ajusta Quién puede unirse a '
             ..'Con un código en las Opciones. Luego envíale el código de 7 caracteres que da Copiar mi código. '
-            ..'Cuando se una, tendrás que aceptarlo.\nF6: estado\nF8: salir de la sesión\nEnter: chat\nEn una cabina '
+            ..'Cuando se una, tendrás que aceptarlo.\nF6: estado\nF8: salir de la sesión\nIntro: chat\nEn una cabina '
             ..'telefónica de campamento, F5 abre la línea co-op en lugar del menú.'},
         {title='Partidas co-op',
          body='Los enemigos compartidos, las misiones compartidas, la operación nocturna, las carreras de Doro y '
@@ -306,7 +306,7 @@ G.es={
         {title='Leviathan y la cámara libre',
          body='Leviathan es un Naytiba eliminado del juego. En una partida co-op, coop leviathan show lo coloca '
             ..'delante de ti y activa una cámara libre para grabar. coop leviathan off quita las dos cosas.\nW A S D '
-            ..'o Z Q S D: volar\nSpace o E: subir\nCtrl o C: bajar\nShift: más rápido\nRatón: mirar alrededor'},
+            ..'o Z Q S D: volar\nSpace o E: subir\nCtrl o C: bajar\nMayús: más rápido\nRatón: mirar alrededor'},
         {title='Ajustes',
          body='La página Opciones del menú co-op ajusta las teclas, el HUD del compañero, quién puede unirse, las '
             ..'partidas co-op, las reglas de combate, el tamaño del menú y sus sonidos. Los valores se guardan en '
@@ -930,7 +930,7 @@ G.sv={
         {title='Leviathan och den fria kameran',
          body='Leviathan är en Naytiba som togs bort ur spelet. På en co-op-sparfil placerar coop leviathan show den '
             ..'framför dig och startar en fri kamera för filmning. coop leviathan off tar bort båda.\nW A S D eller '
-            ..'Z Q S D: flyg\nSpace eller E: upp\nCtrl eller C: ner\nShift: snabbare\nMus: se dig omkring'},
+            ..'Z Q S D: flyg\nSpace eller E: upp\nCtrl eller C: ner\nSkift: snabbare\nMus: se dig omkring'},
         {title='Inställningar',
          body='Sidan Alternativ i co-op-menyn ställer in tangenterna, medspelarens HUD, vem som kan gå med, '
             ..'co-op-sparfilerna, stridsreglerna, menyns storlek och dess ljud. Värdena sparas i '

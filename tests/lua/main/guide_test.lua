@@ -2,8 +2,8 @@
 -- fake kit; ui/guide_test tests the guide alone): at the mod's first run it opens on the title screen before the co-op
 -- saves' question, which shows once it closes; coop-guide.txt stops it; the keys (arrows, W A S D and Z Q S D, Enter,
 -- Space, Esc), the mouse and the pad go to it while it is open, and the game's input comes back after; the co-op
--- menu's Guide row and coop guide open it in the world, where menu_key and View held do nothing while it is open; the
--- art imported from the mod folder; coop ui reset and coop off.
+-- menu's Guide row and coop guide open it in the world, where menu_key and View held do nothing while it is open, but
+-- never over another co-op panel; the art imported from the mod folder; coop ui reset and coop off.
 dofile('tests/lua/main/fixture.lua')
 local MAIN={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
 local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end -- 1 up ... 7 View held.
@@ -53,6 +53,9 @@ quarter(); assert(kit_shown.saves)
 coop('ui','reset')
 load_main(true)
 kit_ready=true; quarter(); assert(not kit_shown.guide and kit_shown.saves,'coop-guide.txt there: the question at once')
+coop('guide')
+assert(not kit_shown.guide and kit_holder=='saves' and last()==
+    '[StellarCoop] STOP: the guide does not open while another co-op panel is open\n','Not over the question')
 coop('ui','reset')
 
 -- The pad at the title: down and up move, A runs the row (from 1 s), B closes, View held does nothing; the mouse:
@@ -104,6 +107,9 @@ quarter()
 coop('guide'); assert(kit_shown.guide and page()=='Page 1 of 9' and last()=='[StellarCoop] OK: guide open\n')
 coop('guide'); assert(last()=='[StellarCoop] OK: the guide is open\n')
 coop('ui','reset'); assert(not kit_shown.guide and logged('guide: closed on page 1 (coop ui reset)'))
+key('F5'); to('Join with a code'); key('RETURN')
+coop('guide'); assert(kit_shown.code and not kit_shown.guide and kit_holder=='code','Nor over the code box')
+coop('ui','reset')
 coop('guide','x'); assert(last()=='[StellarCoop] STOP: Use: coop guide\n')
 kit_paused=true
 coop('guide'); assert(last()=='[StellarCoop] STOP: the guide does not open while the game is paused or shows a menu\n')

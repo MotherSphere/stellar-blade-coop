@@ -171,12 +171,12 @@ To change a key, select its row, then press the new key: `F1` to `F12` except `F
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
-The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, the
-shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel and notices,
-and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that the game ships.
-So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in
-English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so
-do the error messages from the coop commands, shown in the menu or the code box.
+The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
+notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
+and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
+the game ships. So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps
+them all in English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in
+English, and so do the error messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -463,7 +463,8 @@ guest's rest works as in solo play.
 The guide has nine pages on what the mod adds, with the Mother Sphere art by timediffer24 on the left. At the mod's
 first run it opens on the title screen once the on-screen UI has loaded, and the [co-op saves](#co-op-saves) question
 waits until it closes. You can open it again from the co-op menu's Guide row or with `coop guide`, on the title screen
-or in the world, but not while the game is paused or shows one of its own screens.
+or in the world, but not while the game is paused or shows one of its own screens, and not while the co-op saves'
+question, the host's question, the chat box or the code box is open.
 
 | Key | In the guide |
 | --- | --- |

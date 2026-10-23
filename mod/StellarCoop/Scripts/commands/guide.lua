@@ -1,6 +1,6 @@
 -- coop guide: the first-launch guide (ui/guide.lua) opened on its first page, on the title screen or in the game world,
--- as the co-op menu's Guide row opens it. main.lua builds it with new(o) at each Lua load and merges it into its command
--- table. o: main.lua's, whose guide (ui/guide.lua's) main.lua sets once the UI is built, with the Steam link only.
+-- as the co-op menu's Guide row opens it. main.lua builds it with new(o) at each Lua load and merges it into its
+-- command table. o: main.lua's, whose guide (ui/guide.lua's) it sets once the UI is built, with the Steam link only.
 local Guide={}
 function Guide.new(o)
     local self={}

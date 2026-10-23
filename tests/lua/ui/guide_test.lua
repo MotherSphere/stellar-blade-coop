@@ -59,7 +59,7 @@ end
 assert(count==#codes and count==22,count)
 -- Each translated string keeps what its English holds of the console commands, file names, keys, the Discord address
 -- and the names (KEEP, as written), and the keys B, C, E, Space, Ctrl, Shift and Enter as whole words, or under the
--- name OWN gives one in that language (its keyboard's, as ui/text.lua writes Strg, Maiusc and Invio).
+-- name OWN gives one in that language (its keyboard's, as ui/text.lua writes Strg, Maiusc, Invio, Maj or Intro).
 local KEEP={'coop nightop start','coop nightop shop','coop nightop buy <n>','coop challenge','coop race record <name>',
     'coop race save','coop race start <name>','coop leviathan show','coop leviathan off','coop-settings.txt',
     'coop-report.txt','coop-link.log','UE4SS.log','discord.gg/tvFApEEVfj','F5','F6','F8','F9','F10','~','R2','View',
@@ -67,7 +67,8 @@ local KEEP={'coop nightop start','coop nightop shop','coop nightop buy <n>','coo
     'timediffer24'}
 local KEYS={'B','C','E','Space','Ctrl','Shift','Enter'}
 local OWN={de={Space='Leertaste',Ctrl='Strg'},it={Space='Spazio',Shift='Maiusc',Enter='Invio'},no={Space='Mellomrom'},
-    ru={Space='Пробел'},['zh-Hans']={Space='空格键'}}
+    ru={Space='Пробел'},['zh-Hans']={Space='空格键'},fr={Shift='Maj',Enter='Entrée'},es={Shift='Mayús',Enter='Intro'},
+    sv={Shift='Skift'}}
 local function kept(t,en,at,own)
     for k,v in pairs(en) do
         local mine=t[k]
@@ -83,6 +84,21 @@ local function kept(t,en,at,own)
 end
 for name,t in pairs(G) do if type(t)=='table' and name~='en' then kept(t,G.en,name..'.',OWN[name] or {}) end end
 assert(not pcall(kept,{pages={{body='F9: E'}}},{pages={{body='F10: E'}}},'',{}),'A lost key fails')
+-- Where ui/text.lua names Shift, Ctrl or Enter its own way (its keys line, its chat hint), that language's guide never
+-- uses the English name (Shift Up, the studio, aside).
+local function all(t,out)
+    for _,v in pairs(t) do if type(v)=='table' then all(v,out) else out[#out+1]=v end end
+    return out
+end
+for name,t in pairs(G) do
+    if type(t)=='table' and name~='en' then
+        local text=table.concat(all(t,{}),'\n'):gsub('Shift Up','')
+        for key,where in pairs({Shift=T[name].keys,Ctrl=T[name].keys,Enter=T[name].chat.hint}) do
+            local word='%f[%w]'..key..'%f[%W]'
+            assert(where:find(word) or not text:find(word),name..': '..key..', which ui/text.lua names its own way')
+        end
+    end
+end
 -- The pick: the game's culture, English with ui_language=english, for a culture with no table and for a word a table
 -- lacks (a page, or a page's body).
 assert(G.pick('fr-FR')==G.fr and G.pick('fr-FR','english')==G.en and G.pick(nil)==G.en and G.pick('xx-YY')==G.en)

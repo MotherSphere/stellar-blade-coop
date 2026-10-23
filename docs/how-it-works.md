@@ -51,7 +51,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `ui/menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui/model.lua` | The menu's rows and settings, with no engine call |
 | `ui/guide.lua` | The first-launch guide: its pages, keys, mouse and pad, `coop-guide.txt`, and the Mother Sphere art imported from `Assets/MotherSphere.png` at run time (`ImportFileAsTexture2D`) |
-| `ui/guide_text.lua` | The guide's words and its menu row's, in English, with an empty table for each other language |
+| `ui/guide_text.lua` | The guide's words and its menu row's, in the same languages as `ui/text.lua` |
 | `ui/text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
 | `ui/kit.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
 | `core/keybind.lua` | The key settings' grammar and their clash check |
@@ -117,9 +117,9 @@ The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
 ## The co-op UI's input
 
-The co-op menu, the co-op saves' question, the host's question, the chat box and the code box take the game's input
-while they are open. The kit (`ui/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's text
-field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
+The co-op menu, the guide, the co-op saves' question, the host's question, the chat box and the code box take the game's
+input while they are open. The kit (`ui/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's
+text field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
 stands still. The menu's keys are UE4SS key binds, which read the keyboard and the mouse buttons whatever has the focus.
 When the UI closes, the kit gives the input back 150 ms later, so the key that closed it never reaches the game (Esc
 would open the pause menu): `SetInputMode_GameOnly` in a world, and at the title `SetInputMode_GameAndUIEx` with no
@@ -148,21 +148,23 @@ through XInput, a polling API that takes nothing from the game.
   `coop_pad`, called as a Lua C function, returns n, and Lua hands back the top n of the 7 arguments on its stack. n is
   the event, 1 to 7, or 0 when the ring is empty. `main.lua` takes at most 8 events a frame and routes them as the keys
   route theirs: the open menu gets the six navigation words and View closes it, the co-op saves' question gets up,
-  down, select and back, the chat box and the code box get back only (it closes them), the host's question gets none,
-  and with nothing open, in a world with the HUD shown, View opens the menu through the same path as `menu_key`.
+  down, select and back (the guide gets them first while it is open), the chat box and the code box get back only (it
+  closes them), the host's question gets none, and with nothing open, in a world with the HUD shown, View opens the
+  menu through the same path as `menu_key`.
 - The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
 
 ### Mouse
 
-While the menu holds the input, the kit sets the player controller's `bShowMouseCursor` after the input mode and keeps
-the value it found. That value goes back when the input goes back, when a text box takes the input, at `coop ui reset`
-and at `coop off`. A Ctrl+R with the menu open leaves ` cursor` beside ` input` in `coop-ui.txt`, and the next Lua load
-hides the cursor as it gives the input back. The check that keeps the menu closed while one of the game's screens shows
-the cursor ignores the cursor while it is the menu's. Every 100 ms the menu asks its 15 drawn rows whether the mouse is
-over them (`IsHovered`), and a row the mouse moved onto takes the focus. The `LEFT_MOUSE_BUTTON` bind selects the row
-under the mouse and `RIGHT_MOUSE_BUTTON` goes back. Slate gives a click that none of the mod's widgets takes to the
-game's viewport, with the keyboard focus, so while the UI holds the input either button has the kit focus its root (or
-the box's field) again 50 ms later.
+While the menu or the guide holds the input, the kit sets the player controller's `bShowMouseCursor` after the input
+mode and keeps the value it found. That value goes back when the input goes back, when a text box takes the input, at
+`coop ui reset` and at `coop off`. A Ctrl+R with the menu or the guide open leaves ` cursor` beside ` input` in
+`coop-ui.txt` (` cursor shown` when the cursor was already shown, as on the title screen), and the next Lua load puts
+that value back as it gives the input back. The check that keeps the menu closed while one of the game's screens shows
+the cursor ignores the cursor while it is the menu's or the guide's. Every 100 ms the menu asks its 15 drawn rows
+whether the mouse is over them (`IsHovered`), and a row the mouse moved onto takes the focus. The `LEFT_MOUSE_BUTTON`
+bind selects the row under the mouse and `RIGHT_MOUSE_BUTTON` goes back. Slate gives a click that none of the mod's
+widgets takes to the game's viewport, with the keyboard focus, so while the UI holds the input either button has the kit
+focus its root (or the box's field) again 50 ms later.
 
 ### Focus watchdog
 
