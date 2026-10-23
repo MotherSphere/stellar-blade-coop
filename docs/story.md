@@ -111,14 +111,75 @@ The rules, so that a line means the same thing in any save:
 Verified: `python -I tools/gvas.py selftest`, `python -I tools/story.py selftest`, `tests/story_test.py` (a save
 written the way the game writes it — EVAS, GVAS, CRC-32 — read back; a moved zone, a reset zone and reordered zones
 keep the digest and produce no diff; a quest state, a task value, a mission flag, an env object and a world object each
-show as one line; the command line's snapshot, digest and diff), and the two real saves above. Not verified in game:
-nothing of this has run against a live game yet.
+show as one line; the command line's snapshot, digest and diff), and the two real saves above.
+
+## The live dump
+
+`coop story [dump|find]` prints the same lines from the save object the running game holds, read only
+(`mod/StellarCoop/Scripts/story.lua`). It writes `StellarCoopStory.txt` in the mod folder: a header, one comment per
+save-shaped object found, a `# stage:` line, then the sorted lines, so `python tools/story.py compare SAVE DUMP` reads
+it as it reads any dump. The file is rewritten after every stage (quests, the mission records, each zone, the world
+actors), so a run that ends in a crash still says how far it got. `coop-story.txt` in the mod folder asks for a dump
+(`find` for the listing instead) once a world is loaded, for when the console is out of reach; the dump is identical
+whichever way it is asked for.
+
+What reading the live object took, all of it found by running it in the test copy:
+
+- UE4SS hands containers and their elements over wrapped (`RemoteUnrealParam`/`LocalUnrealParam`), so every key and
+element is opened with `:get()` before use; a `TMap` is walked instead of asked `Find`, so a key of the wrong type can
+never reach the game thread.
+- A struct value is its own `UStruct`: its fields come from `ForEachProperty` on the value itself, not from
+`GetClass():ForEachProperty` (which lists the class's own properties, none). A `TArray` is never asked for its class:
+`GetClass` on one faults the game (the first attempt crashed it with an access violation).
+- The save stores an enum's name where the running game holds its number. The number is turned back into the name with
+the game's own `UEnum` (`StaticFindObject('/Script/SB.ESBObjectState')`, `GetNameByValue`), field by field and for
+`RecordTaskGroupMap`'s keys (`ESBQuestMissionType`).
+- A `TArray`'s `ForEach` counts from 1; the save's element names count from 0, so a leaf under an array keeps the
+save's `[0]`, `[1]`. The zone event items' own prefixes do not: they are one higher than the save's (see During play).
+- An `FName` leaf is a userdata too; it is printed as text, not walked into.
+
+Result, test copy on 2026-10-23 (`StellarBladeSave00.sav`, 647,849 bytes, digest `b71a70c8…`, loaded by Continue):
+the dump was asked for at the title, before the load, so it ran as soon as the world reported loaded. It found three
+save-shaped objects, dumped the largest in 6.0 s, and wrote 1,532 lines whose digest is `b71a70c8…` —
+`python tools/story.py compare` printed `the same`, no line only in the dump, none only in the save.
+
+That object is a full mirror only at load and around a save. A dump taken two minutes later in the same session found
+one save-shaped object with 946 lines (130 of the 199 zones, 534 of the 950 mission-record lines, and a few records the
+file does not have); another session's dumps 25 to 30 s after the load found 865 and 1,373 lines as the game replaced
+the object mid-session. So the file stays the fuller source, and the live object shows what the game has in hand at that
+moment: the live-not-yet-saved state gap, now with a way to look at it.
+
+### During play
+
+The same test copy, played on 2026-10-23, says what that gap looks like from inside a session:
+
+- Asked for twice, 25 s apart, with nothing done between the two, the dump was identical both times (946 lines). A
+  partial object is a stable snapshot, so two dumps can be diffed to see what changed: sort their ` = ` lines and
+  `comm` them (`tools/story.py diff` reads two saves, not two dumps).
+- The game autosaved at 04:40:17 (647,849 to 1,976,427 bytes; the new save carries 10,443 story lines where the loaded
+  one had 1,532). A dump asked for 32 s later found **three** `SBSaveGame` objects and merged them: 10,800 lines in
+  15.3 s. `tools/story.py compare` then found the quests and the mission records identical, and two kinds of
+  difference:
+  - `zone Zone_DED10 item N`, 63 lines each way: the live array index is 1 where the save's is 0, and `SaveType`
+    prints as `1` where the save names `ESBZoneObjSaveType_Save`;
+  - the world-actor stage, 4,757 lines only in the dump and 4,400 only in the save: its maps print as pointers
+    (`ElementInfoMap = TMap: 0000000D4B194028`) where the save lists their elements, `Location` and `Rotation` are not
+    filtered although they are volatile, and its actor index is 1 where the save's is 0.
+- 73 s after that dump the game held one object again, with the same 946 lines as before the save: the objects the game
+  fills exist only for about a minute around a save.
+
+So the dump is exact for the quests, the mission records and the zones' env state at load, and it covers the whole
+object only in that minute after a save. The world-actor stage — which appears only once a save carries it — does not
+match yet, and the zone event items are off by one index. Both are in this file's language, not the game's: the live
+`TArray`'s `ForEach` counts from 1 and a live map has to be walked to be printed.
 
 ## Gaps
 
-- **Live, not-yet-saved state.** The tool reads files. A door opened, a trigger entered or a quest task finished since
-  the last autosave is only in memory, and finding it needs a live dump of the game's own objects (the game thread,
-  UE4SS, as `coop saves probe` does for the slot fields).
+- **Live, not-yet-saved state.** A door opened, a trigger entered or a quest task finished since the last autosave is
+  only in memory. `coop story dump` reads that memory, but the save object matches the file in full only at load and
+  in the minute after a save: after that the game replaces it with a partial one (see
+  [The live dump](#the-live-dump)), so a change made during play has to be found by diffing two dumps taken close
+  together, not by comparing one dump with the file.
 - **Which env aliases are what.** The save says an env object is called `SD_10_EnvS_067` and where it stands, not
   whether it is a door, a lift, a console or scenery. That needs the live actor's class and name behind the alias.
 - **Cutscenes and level transitions.** No structure here names them. `TheaterStorage.LevelSeqPlayingSet` moves when
@@ -134,9 +195,11 @@ nothing of this has run against a live game yet.
 
 ## Next, in order
 
-1. **A live dump, read only.** A `coop` command that finds the game's save object in a loaded world and prints the same
-   lines to the mod folder, next to the file's: do they match, and what does a door opening look like between two
-   dumps? Needs the game.
+1. **A live dump, read only.** Done: `coop story [dump|find]` ([The live dump](#the-live-dump)), and at load its
+   digest is the file's. Two dumps during play are known to be comparable (they are identical when nothing happens),
+   and the full object is there only in the minute after a save. Still to see: what a door opening, a trigger or a
+   quest task looks like between two dumps taken in that minute; the world-actor stage and the item indices have to
+   match the save first.
 2. **Host to guest, logging only.** The host sends its story lines (or the delta since the last save) on every save and
    area change; the guest writes them to its log and changes nothing. A chapter played with the bot measures what a
    real session produces, which decides whether delta or whole-state is the right unit.

@@ -10,7 +10,9 @@
 -- arrow (partner.lua; the ghost's name tag is their fallback); the co-op saves' question on the title screen
 -- (saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native part's
 -- copies and save name by hand; and
--- coop where, a line of coordinates to compare between the two PCs; coop no [heal|rule|spawnpt|actor], the Night
+-- coop where, a line of coordinates to compare between the two PCs; coop story [dump|find], the save object the game
+-- holds and its story lines, read only (story.lua; plan step 5, to compare with tools/story.py);
+-- coop no [heal|rule|spawnpt|actor], the Night
 -- Operation probe of the T6 test only (nightop.lua), on a co-op save only; coop recruiter [off], the cut Night
 -- Operation recruiter on a Xion guard near Roxanne (recruiter.lua), on a co-op save only; coop fight
 -- on|off|status|probe|test|record|replay, the shared enemies of Phase 11 (experimental: on only with shared_enemies=on
@@ -90,7 +92,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | where | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | story [dump|find] | off'
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
     return n and n<=max and n or nil
@@ -125,6 +127,10 @@ local nightop=require('nightop').new(function(m) print('[StellarCoop][NO] '..tos
     function(line) return ask(line)() end,function() return link and link.status() end)
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
+-- The live story dump (plan step 5, read only): coop story [dump|find], a test tool that writes
+-- StellarCoopStory.txt in the mod folder, in the lines tools/story.py prints from a save (tools/story.py compare).
+local story_dump=require('story').new({log=function(m) print('[StellarCoop][ST] '..tostring(m)..'\n') end,
+    folder=folder})
 -- coop ui test: the UI-layer spike, on demand only; it needs neither the native part nor a save slot.
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end
 local ui=require('ui').new(ui_log)
@@ -267,6 +273,12 @@ local commands={
             return false,'Use: coop saves probe | convert | coop | main'
         end
         return ask('saves '..sub)()
+    end,
+    -- The live story dump (plan step 5): the save object the running game holds, read only, as the lines tools/story.py
+    -- prints from a save file; find lists the story-shaped classes and objects instead, for when it is somewhere else.
+    story=function(sub,extra)
+        if extra~=nil then return false,'Use: coop story [dump|find]' end
+        return story_dump.run(sub)
     end,
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
     -- (7.6): the co-op UI gone until the mod reloads, the notice line above EVE and the ghost's name tag back (the
@@ -534,6 +546,10 @@ if link then
             approval.slow(shown) -- After the chat's: it waits while the box is open.
             hud.slow()
             saves_ui.slow(world==true,title==true)
+            -- A story dump asked for by coop-story.txt in the mod folder (story.lua, plan step 5, read only): once per
+            -- request, in a loaded world, and named in the log.
+            local dumped,dump_message=story_dump.poll(world==true)
+            if dump_message then report(dumped,dump_message) end
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
         end
         local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
