@@ -291,9 +291,10 @@ struct Peer {
   // name with their hashes, from the pak lines her last paks line ended (named: some came, or she loads no .pak mod;
   // mod_names=off on her side sends none), and the pak lines since then; the status lines comparing them with ours,
   // made when her paks line came; how many of our lines (pak lines, then the paks line) she got, sent again from the
-  // first after each hello of hers, like the photo line.
-  bool has_paks = false, pak_named = false;
-  uint64_t paks_count = 0, paks_hash = 0;
+  // first after a hello of hers, like the photo line, but at most once each kHelloAgainMs (paks_again: one is due, from
+  // paks_next): a hello each pass would resend up to kMaxMods + 1 reliable lines each pass.
+  bool has_paks = false, pak_named = false, paks_again = false;
+  uint64_t paks_count = 0, paks_hash = 0, paks_next = 0;
   std::map<std::string, uint64_t> pak_list, pak_in;
   std::string mods_status;
   size_t paks_at = 0;
@@ -1408,7 +1409,8 @@ private:
       }
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
-      peer.paks_at = 0;        // The same for our pak lines and paks line; hers start again too.
+      if (peer.paks_at)        // The same for our pak lines and paks line (send_paks); hers start again too.
+        peer.paks_again = true;
       peer.pak_in.clear();
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
@@ -1580,19 +1582,26 @@ private:
   }
 
   // Our pak lines (none with mod_names=off), then the paks line that ends them, to each friend past the handshake from
-  // the first she has not got; a refused send goes again at the next pass.
+  // the first she has not got (from the first again once a resend her hello asked for is due); a refused send goes
+  // again at the next pass.
   void send_paks() {
     if (!paks_on_)
       return;
     const size_t named = names_ ? pak_lines_.size() : 0;
     const std::string end = paks_line(paks_count_, paks_hash_);
-    for (auto &p : peers_)
+    for (auto &p : peers_) {
+      if (p.paks_again && now_ >= p.paks_next) {
+        p.paks_again = false;
+        p.paks_at = 0;
+        p.paks_next = now_ + kHelloAgainMs;
+      }
       while (p.compatible && p.accepted && p.paks_at <= named) {
         const std::string &line = p.paks_at < named ? pak_lines_[p.paks_at] : end;
         if (send(p, line.data(), line.size(), kReliable) != kResultOk)
           break;
         ++p.paks_at;
       }
+    }
   }
   // The status lines of her mod containers against ours: "mods_missing=", "mods_other=" and "mods_extra=", each
   // mods_list() of kModsLine bytes at most.

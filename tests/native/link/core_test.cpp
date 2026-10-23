@@ -2325,6 +2325,17 @@ int main() {
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)}); // Her session may be new: ours goes again.
     w.tick();
     assert(sent_to(kFriend, paks_line(2, 77)) == 2);
+    // A hello each pass: ours goes again at most once each kHelloAgainMs, so a flood of hellos cannot fill her queue
+    // with our up to kMaxMods + 1 lines each pass; the last one asked for goes when the wait is over.
+    for (int pass = 0; pass < 100; ++pass) { // 5 s.
+      F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+      w.tick();
+    }
+    assert(sent_to(kFriend, paks_line(2, 77)) == 2);
+    w.to(w.now + kHelloAgainMs / 2); // kHelloAgainMs after the one sent above, her last hello 5 s ago: not lost.
+    assert(sent_to(kFriend, paks_line(2, 77)) == 3);
+    w.tick();
+    assert(sent_to(kFriend, paks_line(2, 77)) == 3 && !saw("Kaanta silent for 10 s: lost"));
     // Her pak lines past the handshake, more than kMaxMods: the first kMaxMods names are kept once her paks line ends
     // them, and the status lists hers we lack (all of them: we gave no names) within 400 bytes, the count first.
     for (size_t i = 0; i < kMaxMods + 10; ++i)

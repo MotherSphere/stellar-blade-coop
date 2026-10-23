@@ -114,10 +114,12 @@ For the host:
 
 ### The ghost wears the base suit, or a part is missing
 
-A part falls back to the base suit when your PC cannot load its mesh (a DLC you do not own), when its path is outside
-the game's character folders, or when its bones differ. A part with no fallback is left out. The `Ghost ... built` line
-in `UE4SS.log` counts both and names each part drawn on the base suit. `coop basesuit` may also be on: run it again to
-go back.
+Only the body and the hair have a base-suit fallback. One of them falls back when your PC cannot load its mesh (a DLC
+you do not own, a mod you lack), when its path is outside the game's character folders and none of your CNS packs
+declares it, or when its bones differ. Any other part whose mesh has other bones is drawn on that mesh, its bones
+matched by name; one that cannot be loaded is left out, with the parts that follow it. The `Ghost ... built` line in
+`UE4SS.log` counts the parts on the base suit and those left out, and gives each one's reason, such as `missing` or
+`not declared by your CNS packs`. `coop basesuit` may also be on: run it again to go back.
 
 ### A look misbehaves
 

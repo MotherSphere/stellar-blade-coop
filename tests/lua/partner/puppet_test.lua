@@ -593,14 +593,14 @@ assert(ghost.status():find(' source=replay collide=off$'),ghost.status())
 
 -- A new generation, every fallback reason: part 0 has no path ('-'), the hair is missing (a DLC this PC lacks), the
 -- blade has another bone count and no fallback: it is drawn on that mesh after all, its bones by name, so its scabbard
--- stays too (a head replacer this PC lacks still shows a head).
+-- stays too (a head replacer this PC lacks still shows a head). Only the body and hair count on the base suit.
 loads={}
 meshes[TWO_BLADE].bones={'Root','Tip'}
 ok,message=send(501,her_parts({body='-',hair=NIER,blade=TWO_BLADE}))
 assert(ok and message=='Ghost 500 removed (a new table).' and actor.destroyed and displays[#displays]=='withdrawn',message)
 assert(stored==nil)
 ok,message=build()
-assert(ok and message:find('^Ghost 501 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 3 on the base suit, '
+assert(ok and message:find('^Ghost 501 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 2 on the base suit, '
     ..'0 left out'),message)
 assert(message:find('; CharacterMesh0: %- missing, drawn as '..BASE_BODY:gsub('%p','%%%0')..' %(3 of 4 bones follow%)'),message)
 assert(message:find('; SBHair: '..NIER:gsub('%p','%%%0')..' missing, drawn as '..BASE_HAIR:gsub('%p','%%%0')..' %(2 of 3 bones follow%)'),message)
@@ -797,6 +797,8 @@ charmed[7]={name='Charm',parent=4,socket='SC_Tip',path=BLADE,names={'Root'},plac
 send(603,charmed)
 ok,message=build()
 assert(ok and message:find('^Ghost 603 built: 5 parts %(3 leaders%), .*, 2 left out'),message)
+assert(message:find('; SBSkeletalMeshComponent_7: /Game/Art/Character/Weapon/Gone/Gone%.Gone missing, left out'),
+    message)
 actor=spawned[#spawned]
 local charm=actor.parts[#actor.parts]
 assert(charm.mesh==meshes[BLADE] and charm.attached.parent==actor.parts[1] and charm.attached.socket=='SC_Tip')
@@ -1710,11 +1712,12 @@ assert(not actor.capsule and not actor.destroyed and stand(74,500)==nil,'Said on
 link.mate=nil
 
 -- Mods. A path outside the game's own folders is looked up, loaded or fetched only when our CNS packs declare that
--- exact path: her suit (a body of the same bones, outside the cooked registry, so LoadAsset misses it and GetAsset loads
--- it), its material (in the registry) and her ponytail's collision are declared; her ATOOL hair, her ears and a second
--- material are not. The hair falls back to the base hair, the ears are left out, the material keeps the default. With
--- dyes off, a mod's mesh still takes its declared materials. Her cloth line's collision goes on her ponytail, in a step
--- of its own. The outfits not shown are said once a generation, rebuilds included.
+-- exact path: her suit (a body of the same bones, outside the cooked registry, so LoadAsset misses it and GetAsset
+-- loads it), its material (in the registry) and her ponytail's collision are declared; her ATOOL hair, her ears, a
+-- second material and the collision named from her suit are not. The hair falls back to the base hair, the ears are
+-- left out, the material keeps the default, each with its reason. With dyes off, a mod's mesh still takes its declared
+-- materials. Her cloth line's collision goes on her ponytail, in a step of its own. The outfits not shown are said once
+-- a generation, rebuilds included.
 local SUIT,SUIT_MAT='/Game/OutfitMods/FooSuit/SK_Foo.SK_Foo','/Game/OutfitMods/FooSuit/MI_Foo.MI_Foo'
 local HACK,PA='/Game/OutfitMods/FooSuit/MI_Hack.MI_Hack','/Game/OutfitMods/FooSuit/PA_Tail.PA_Tail'
 local ATOOL,EARS='/Game/Mods/HD-ATOOL_P/hair/SK_Hair.SK_Hair','/Game/OutfitMods/Ears/SK_Ears.SK_Ears'
@@ -1753,7 +1756,7 @@ ok,message=build()
 assert(ok and message:find('^Ghost 900 built: 4 parts %(2 leaders%), %d+ loaded in %d+ ms, 1 on the base suit, 2 left '
     ..'out; look: cloth parts 1; '),message)
 local function seen(list,path) for _,p in ipairs(list) do if p==path then return true end end return false end
-for _,path in ipairs({ATOOL,EARS,HACK}) do
+for _,path in ipairs({ATOOL,EARS,HACK,Puppet.collision_path(SUIT)}) do
     assert(not (seen(finds,path) or seen(loads,path) or seen(gets,path)),'Never looked up or loaded: '..path)
 end
 assert(seen(finds,SUIT) and seen(loads,SUIT) and seen(gets,SUIT),'Her suit: memory, LoadAsset, then GetAsset')
@@ -1768,6 +1771,7 @@ local function plain(p) return p:gsub('%p','%%%0') end
 assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs, drawn as '..plain(BASE_HAIR)),message)
 assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs, default kept'),
     message)
+assert(message:find('; SBAccSlot1: '..plain(EARS)..' not declared by your CNS packs, left out'),message)
 assert(message:find('; mod assets: '..plain(SUIT)..' by GetAsset, '..plain(SUIT_MAT)..' by LoadAsset, '..plain(PA)
     ..' by GetAsset; mod parts not shown: Mods/HD%-ATOOL_P, Cat_Ears %('),message)
 local MODS='Kaanta wears parts from mods your game cannot load: HD-ATOOL_P, Cat_Ears. They show on the base suit or '
@@ -1808,6 +1812,14 @@ for _,bad in ipairs({strict:gsub('\ncloth 3 ','\ncloth 2 '),strict:gsub('\nmod 4
     ok,message=ghost.remote(904,count,'peer')
     assert(ok==false and message=='The remote table could not be read.',bad)
 end
+-- Her cloth line's collision not declared, nor the one named from her suit: her ponytail keeps its own, said with why.
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit'}
+finds,loads,gets={},{},{}
+send(905,modded(),'peer')
+ok,message=build()
+assert(ok and message:find('; SBPonytail: outfit collision not used %('..plain(PA)
+    ..' not declared by your CNS packs%)'),message)
+assert(not (seen(finds,PA) or seen(loads,PA) or seen(gets,PA)),'Never looked up or loaded: '..PA)
 cns={}
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.

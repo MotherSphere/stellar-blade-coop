@@ -271,9 +271,9 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         if mod then counts.mods[#counts.mods+1]=path..' '..(asset and by or 'missing') end
         return asset
     end
-    -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision): the game's own resolved as
-    -- any; a mod's only when one of your own CNS packs declares that exact path, else never looked up or loaded (nil,
-    -- and why).
+    -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision, the one named from her body):
+    -- the game's own resolved as any; a mod's only when one of your own CNS packs declares that exact path, else never
+    -- looked up or loaded (nil, and why).
     local function fetch(path,counts,class)
         if Capture.base_path(path) then return resolve(path,counts,class) end
         if not files.cns_assets()[path] then return nil,'not declared by your CNS packs' end
@@ -341,10 +341,12 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         local function collide(target,part)
             local ok,why=pcall(function()
                 for k,name in ipairs(COLLISION_BONES) do target.AdditiveMasterBoneArray[k]=FName(name) end
-                local asset=part.cloth and fetch(part.cloth,counts,PHYSICS_ASSET) -- Each cached by its own step.
-                    or g.collision and resolve(g.collision,counts,PHYSICS_ASSET)
+                local asset,refused -- Each cached by its own step.
+                if part.cloth then asset,refused=fetch(part.cloth,counts,PHYSICS_ASSET) end
+                if not asset and g.collision then asset=fetch(g.collision,counts,PHYSICS_ASSET) end
                 if not asset then
-                    error(tostring(part.cloth or g.collision or 'her body mesh\'s collision name')..' missing',0)
+                    error(tostring(part.cloth or g.collision or 'her body mesh\'s collision name')..' '
+                        ..(refused or 'missing'),0)
                 end
                 target.OverrideClothPhysicsAsset=asset
             end)
@@ -414,7 +416,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         local function keep(part,target,mesh,based,remap)
             if part.i==0 and look.cloth then -- Her outfit's ponytail collision, from her body as drawn: its own step.
                 g.collision=Puppet.collision_path(mesh:GetFullName():match('^%S+ (.+)$'))
-                if g.collision then soon(function() resolve(g.collision,counts,PHYSICS_ASSET) end) end
+                if g.collision then soon(function() fetch(g.collision,counts,PHYSICS_ASSET) end) end
             end
             local lead=part.lead and g.parts[part.lead]
             if lead then
@@ -441,15 +443,17 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             missed(part)
         end
         -- A part on its fallback's mesh, for a leader with its remap; left out when that one is missing too. mesh: the
-        -- fallback's, resolved in this frame already (a leader's own mesh, with other bones).
+        -- fallback's, resolved in this frame already (a leader's own mesh, with other bones: not counted on the base
+        -- suit).
         local function on_base(part,base,why,mesh)
             mesh=mesh or resolve(base,counts)
             if not mesh then return left_out(part) end
-            if base~=part.path then missed(part) end
+            local based=base~=part.path
+            if based then missed(part) end
             local target=add(mesh,part)
             if part.lead then
                 notes[#notes+1]=string.format('%s: %s %s, drawn as %s',part.name,part.path or '-',why,base)
-                return keep(part,target,mesh,true)
+                return keep(part,target,mesh,based)
             end
             -- Each of the fallback's bones takes her bone of the same name, else keeps its reference pose.
             local of,remap,follow={},{},0
@@ -461,10 +465,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
             notes[#notes+1]=string.format('%s: %s %s, drawn as %s (%d of %d bones follow)',part.name,part.path or '-',why,
                 base,follow,#remap)
-            keep(part,target,mesh,true,remap)
+            keep(part,target,mesh,based,remap)
         end
         -- One part's step: the table's mesh, then its dyes a step each; else its fallback's (a step of its own when the
-        -- table's was resolved in this one); left out with neither, or when its leader was.
+        -- table's was resolved in this one); left out with neither (its mesh's reason said), or when its leader was.
         local function dress(part)
             if part.lead and not g.parts[part.lead] then return left_out(part) end
             local base,why=fallback(part),'missing'
@@ -491,7 +495,9 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 end
                 if base then return soon(function() on_base(part,base,why) end) end
             end
-            if base then on_base(part,base,why) else left_out(part) end
+            if base then return on_base(part,base,why) end
+            if part.path then notes[#notes+1]=string.format('%s: %s %s, left out',part.name,part.path,why) end
+            left_out(part)
         end
         for _,part in ipairs(t.parts) do
             -- The collision her cloth line names, in a step of its own before its part's.
