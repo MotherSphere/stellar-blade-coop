@@ -114,6 +114,7 @@ ln.tick()
 assert(said[1]=='Quinn: Quinn line 1' and #said==1,said[1])
 clock=101.2; ln.tick(); assert(#said==1,'Not yet')
 clock=101.231; ln.tick(); assert(said[2]=='Quinn: Quinn line 2' and #said==2)
+clock=100+6.754+0.9; ln.tick(); assert(#said==3,'The second bark not before the 1 s gap ends')
 clock=100+6.754+1; ln.tick()
 assert(#said==4 and said[4]=='Quinn: Quinn line 4','The second bark 1 s after the first ends')
 -- A hitch: what is due is said at once, in order; the scene ends after its last sequence.
