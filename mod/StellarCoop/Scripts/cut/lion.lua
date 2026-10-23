@@ -19,7 +19,8 @@
 -- single-node clip on its mesh would replace the anim instance SB plays its skills on while its AI runs. So coop lion
 -- spawns at once, and coop lion intro first plays Mon_LionC_Scene01_Appearance (the cut boss intro's clip) on a display
 -- copy (race/doro.lua's plain actor with the Large mesh, as cut/leviathan.lua shows its meshes), then spawns the Lion
--- where the copy's root ended and removes the copy once the body is found.
+-- where the copy's root ended and removes the copy as soon as the body shows. A map change during the entrance spawns
+-- nothing.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Doro=require('race.doro')
@@ -271,8 +272,9 @@ function Lion.new(o)
             tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count())))
     end
     -- A spawn's search (job.id, job.spot, job.before, job.class, job.display): at each of FINDS, the new body nearest
-    -- the spot. Found with no controller before ADOPT: looked at again then. Found: its default controller when it has
-    -- none, S1 (with when it was first seen), the entrance line, followed from then on.
+    -- the spot. Seen: the entrance copy removed at once, so the two never stand together. Found with no controller
+    -- before ADOPT: looked at again then. Found: its default controller when it has none, S1 (with when it was first
+    -- seen), the entrance line, followed from then on.
     local function search(j,now)
         local best,best_m=nil,nil
         for a,c in pairs(bodies(j.class)) do
@@ -283,6 +285,10 @@ function Lion.new(o)
         end
         local after=now-j.called
         j.seen=best and (j.seen or after)
+        if best and j.display then
+            pcall(Doro.remove,j.display)
+            j.display=nil
+        end
         if best and best.InteractionState==0 and not valid(best.Controller) and after<ADOPT then
             j.at=j.called+ADOPT
             return
@@ -311,9 +317,7 @@ function Lion.new(o)
         log(string.format('spawn %d: CreateActor returned; body %s %s m from EVE, %.1f m from the spot, after %.1f s; '
             ..'controller %s%s; EventSpawnId %s',j.id,class_of(best),from and string.format('%.1f',from) or '?',best_m,
             j.seen,ctl and class_of(ctl) or 'none',adopted,read and tostring(key) or '?'))
-        if j.display then
-            pcall(Doro.remove,j.display)
-        elseif j.id~=CONTROL then
+        if not j.intro and j.id~=CONTROL then
             log('entrance: skipped (off by default: the Lion AnimBP has no montage slot, and a clip on its mesh would '
                 ..'replace the anim instance SB plays its skills on; coop lion intro plays it on a display copy before '
                 ..'the spawn)')
@@ -346,8 +350,15 @@ function Lion.new(o)
         return {X=at.X+AHEAD*math.cos(yaw),Y=at.Y+AHEAD*math.sin(yaw),Z=at.Z+UP},feet.Z
     end
     -- coop lion intro's end: the Lion spawned where the copy's root is now (its bone 0, on the spot's height), or at
-    -- the spot when that is unread or more than ROOT_FAR away; the copy stays on its last frame until the search ends.
+    -- the spot when that is unread or more than ROOT_FAR away; the copy stays on its last frame until the body shows.
+    -- A map change meanwhile: no spawn (the spot is the old map's).
     local function intro_done(j,now)
+        local eve=her()
+        if not eve or U.map_of(eve)~=j.map then
+            pcall(Doro.remove,j.display)
+            log('entrance: the map changed during it: no spawn')
+            return false,'The map changed during the Lion\'s entrance: no spawn.'
+        end
         local ok,p=pcall(function()
             return value_of(j.display.mesh:GetSocketLocation(j.display.mesh:GetBoneName(0)))
         end)

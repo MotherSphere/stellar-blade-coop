@@ -8,9 +8,11 @@
 -- on, key 0. Rows already in are read back without an ask. The body is the new one nearest the spot, given its default
 -- controller when it still has none 1.5 s after the call, then followed: a line a second, its death and its body's
 -- despawn with the spawn counts; none after 5 s stops. coop lion intro plays the entrance on a display copy first and
--- spawns where its root ended (at the spot when that is too far), removing the copy once the body is found; a copy that
--- cannot be made spawns at once. A second command waits while one runs (brain does not); coop off ends the job and the
--- copy. Never AddRow, RemoveRow or a call from a coroutine.
+-- spawns where its root ended (at the spot when that is too far), removing the copy as soon as the body shows; a map
+-- change during it spawns nothing; a copy that cannot be made spawns at once. A second command waits while one runs
+-- (brain does not); coop off ends the job and the copy. Never AddRow, RemoveRow or a call from a coroutine, and the
+-- source names no save, quest, item, reward, achievement, possession, console, destroy or row call, and no spawn but
+-- its one CreateActor and its one SpawnDefaultController.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -474,7 +476,7 @@ assert(ok==false and why=='The map changed while the Lion rows were asked: no sp
 world.GetFullName=map
 
 -- coop lion intro: the entrance on a display copy at the spot (on EVE's feet, facing her), then the Lion where its
--- root ended, the copy removed once the body is found.
+-- root ended, the copy removed as soon as the body shows (before its controller), so the two never stand together.
 lion_status(ROWS_IN:format(1,'6'))
 root={X=1300,Y=0,Z=-500}
 at(1100)
@@ -493,7 +495,7 @@ assert(lion.tick()==nil and calls[4][1]==50020 and calls[4][2].X==1300 and calls
 assert(lines[#lines-1]=='entrance: played on a display copy for 13.0 s; its root ended 3.0 m from the spot: the Lion '
     ..'spawns there',lines[#lines-1])
 assert(not copy.destroyed,'The copy holds its last frame until the body shows')
-at(1113.3); assert(lion.tick()==nil and not copy.destroyed)
+at(1113.3); assert(lion.tick()==nil and copy.destroyed and not chars[#chars].Controller,'Gone once the body shows')
 at(1114.5)
 ok,why=lion.tick()
 assert(ok and copy.destroyed and not last():find('^entrance: skipped'),last())
@@ -503,6 +505,14 @@ at(1200); assert(lion.command('intro'))
 at(1213); lion.tick()
 assert(calls[5][2].X==1000 and logged('its root ended 30%.0 m from the spot, too far: the Lion spawns at the spot$'))
 at(1214.5); assert(lion.tick())
+-- A map change during the entrance: no spawn at the old map's spot, the copy removed.
+at(1250); assert(lion.command('intro'))
+copy=actors[#actors]
+world.GetFullName=function() return 'World /Game/Maps/B07.B07' end
+at(1263); ok,why=lion.tick()
+assert(ok==false and why=='The map changed during the Lion\'s entrance: no spawn.' and #calls==5,tostring(why))
+assert(copy.destroyed and logged('^entrance: the map changed during it: no spawn$'),'Said why')
+world.GetFullName=map
 assets[MESH],mesh_asset.destroyed=nil,true -- Collected, and not found again.
 at(1300)
 assert(lion.command('intro') and calls[6][1]==50020,'At once')
@@ -516,4 +526,24 @@ lion.stop()
 assert(copy.destroyed and last()=='coop off: the entrance ended; 3 Lion bodies no longer followed (they stay)',last())
 at(1413); assert(lion.tick()==nil and #calls==6,'Nothing after coop off')
 assert(lion.command('rows'),'A new command after coop off would run (main.lua refuses it)')
+
+-- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
+-- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
+-- and remove make and drop the display copy).
+do
+    local f=assert(io.open('mod/StellarCoop/Scripts/cut/lion.lua','rb'))
+    local src=f:read('a')
+    f:close()
+    local allowed,seen={ServerRequest_CreateActor=true,SpawnDefaultController=true},{}
+    for call in src:gmatch('[:.]([%a_][%w_]*)%s*%(') do
+        if allowed[call] then seen[call]=(seen[call] or 0)+1
+        else
+            for _,word in ipairs({'Achiev','Reward','Item','Quest','Save','ExecuteConsoleCommand','Possess','Spawn',
+                'CreateActor','Destroy','AddRow','RemoveRow','EmptyTable'}) do
+                assert(not call:find(word),'cut/lion: '..call)
+            end
+        end
+    end
+    assert(seen.ServerRequest_CreateActor==1 and seen.SpawnDefaultController==1,'One spawn call, one controller')
+end
 print('lion_test: ok')
