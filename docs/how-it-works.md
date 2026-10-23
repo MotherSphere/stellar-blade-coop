@@ -39,6 +39,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
 | `commands/cut.lua` | `coop leviathan`, with the co-op save check before `show` and before `cam` turns the camera on |
+| `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
@@ -49,6 +50,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `session/booth.lua` | The camp phone booths near EVE, for the co-op line |
 | `ui/menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui/model.lua` | The menu's rows and settings, with no engine call |
+| `ui/guide.lua` | The first-launch guide: its pages, keys, mouse and pad, `coop-guide.txt`, and the Mother Sphere art imported from `Assets/MotherSphere.png` at run time (`ImportFileAsTexture2D`) |
+| `ui/guide_text.lua` | The guide's words and its menu row's, in English, with an empty table for each other language |
 | `ui/text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
 | `ui/kit.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
 | `core/keybind.lua` | The key settings' grammar and their clash check |

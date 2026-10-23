@@ -115,6 +115,7 @@ function Ui.kit(opts)
     local store=opts.store or {save=function() end,load=function() end,clear=function() end}
     local self,order,by,cache,found={},{},{},{},{} -- cache: asset name to {o=, full=} or false (not in this build).
     local built,pending,off,said,hidden,swept,lost,holder=nil,nil,false,nil,false,false,0,nil
+    local pointing=false -- The holder asked for the mouse cursor (the guide's, input's mouse).
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
     local titled=false -- The title screen shows (slow's title): the input given back there is the title menu's.
@@ -144,10 +145,10 @@ function Ui.kit(opts)
     -- focused, the menu's keys being UE4SS binds, which read the keyboard whatever has focus; or with a text box and
     -- its keyboard focus, the chat's); off, the game's again: GameOnly in a world; at the title GameAndUIEx with no
     -- mouse capture, so the title menu keeps its mouse cursor (GameOnly when the engine refuses it). The menu (holder
-    -- nil) also shows the mouse cursor, after its input mode; the value found goes back once another holder takes the
-    -- input or it is given back. With no player controller (a map loads) or no root: nothing, and the change still due
-    -- (input tries again). inputting changes before the engine call: a refused call is not tried again by the fault it
-    -- raises.
+    -- nil), and a holder that asks for it (the guide), also show the mouse cursor, after the input mode; the value
+    -- found goes back once a holder that does not ask takes the input, or it is given back. With no player controller
+    -- (a map loads) or no root: nothing, and the change still due (input tries again). inputting changes before the
+    -- engine call: a refused call is not tried again by the fault it raises.
     local function input_mode(on,field)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
@@ -163,7 +164,7 @@ function Ui.kit(opts)
             end
         end
         watch=on and {at=os.clock()} or nil
-        if on and holder==nil then
+        if on and (holder==nil or pointing) then
             if cursor==nil then cursor=pc.bShowMouseCursor==true end
             pc.bShowMouseCursor=true
         elseif cursor~=nil then
@@ -278,8 +279,8 @@ function Ui.kit(opts)
             local w=image(x,y,width,height,nil,color)
             if g.hit then w.v,w.on=VISIBLE,VISIBLE; w.o:SetVisibility(VISIBLE) end
         end
-        -- An image by asset name (nil: flat colour; missing: none, never a white square): show(on), tint(c), and
-        -- turn(degrees, clockwise) around pivot (its own size's fraction; its centre unless said).
+        -- An image by asset name (nil: flat colour; missing: none, never a white square): show(on), tint(c),
+        -- turn(degrees, clockwise) around pivot (its own size's fraction; its centre unless said) and texture(t).
         function b.image(x,y,width,height,tex,tint,pivot)
             tint=tint or THEME.white
             local w=image(x,y,width,height,tex,tint,nil,false)
@@ -289,6 +290,12 @@ function Ui.kit(opts)
                 tint=function(c) if c~=tint then tint=c; upd(w,function(x2) x2:SetColorAndOpacity(c) end) end end,
                 turn=function(a)
                     if a~=angle then angle=a; upd(w,function(x2) x2:SetRenderTransformAngle(a) end) end
+                end,
+                -- A texture made at run time (the guide's art): true once its brush has it; a refused call only
+                -- returns false, the kit stays on.
+                texture=function(t)
+                    local x2=alive(w)
+                    return x2~=nil and pcall(function() x2:SetBrushFromTexture(t,true) end)
                 end}
         end
         -- Dots of the HUD's gauges ('big': its 15-unit dots, 'small': the 10-unit ones), cols by rows, tiled, lit over
@@ -784,13 +791,14 @@ function Ui.kit(opts)
         end
     end
     -- The game's input for who: nil, the menu's (on our root), or a group's name, its field's (the chat box, with its
-    -- keyboard focus). On (only while the root is up) or off; each once. Only who holds it gives it back: the menu's
-    -- late give-back (150 ms after its close) never takes the chat's that opened meanwhile, nor the reverse. Off while
-    -- still due is tried again at each call, the kit off too: the game never stays deaf.
-    function self.input(on,who)
+    -- keyboard focus); mouse: the mouse cursor shown, as for the menu. On (only while the root is up) or off; each
+    -- once. Only who holds it gives it back: the menu's late give-back (150 ms after its close) never takes the chat's
+    -- that opened meanwhile, nor the reverse. Off while still due is tried again at each call, the kit off too: the
+    -- game never stays deaf.
+    function self.input(on,who,mouse)
         if on==true then
             if off or not self.ready() or (inputting and holder==who) then return end
-            holder=who
+            holder,pointing=who,mouse==true
             local g=who and built.groups[who]
             run(input_mode,true,g and g.field)
         elseif inputting and holder==who then

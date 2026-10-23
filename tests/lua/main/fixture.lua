@@ -69,8 +69,18 @@ cv.kismet={type=function() return 'UObject' end,IsValid=function() return true e
         cv.value=cv.set or tonumber(command:match('^SB%.PhotoMode%.PauseMethod (%d)$'))
     end}
 package.loaded.UEHelpers={GetPlayerController=function() return cv.pc end}
+-- The engine's rendering library (the guide's art): ImportFileAsTexture2D gives art.texture (nil: none), each call's
+-- world and path kept in art.imports.
+art={imports={},texture={type=function() return 'UObject' end,IsValid=function() return true end,
+    GetFullName=function() return 'Texture2D /Engine/Transient.Texture2D_0' end}}
+art.library={type=function() return 'UObject' end,IsValid=function() return true end,
+    ImportFileAsTexture2D=function(_,world,path)
+        art.imports[#art.imports+1]={world,path}
+        return art.texture
+    end}
 StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
+    if path=='/Script/Engine.Default__KismetRenderingLibrary' then return art.library end
     if path=='/Script/Engine.PlayerController' then return cv.class end
     assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
     local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
@@ -91,6 +101,9 @@ pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and ho
 chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
 saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= line, the Steam ID.
+-- Our own files beside coop-settings.txt (link.read_file, link.write_file): coop-guide.txt there unless a test removes
+-- it, so the guide does not open by itself at the title.
+link_files={['coop-guide.txt']='The co-op guide opens by itself on the title screen while this file is missing.\n'}
 -- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
 link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
 fake_link={
@@ -126,6 +139,8 @@ fake_link={
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     paks=function() return paks_v end,
+    read_file=function(name) return link_files[name] end,
+    write_file=function(name,text) link_files[name]=text; return true end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
     -- shows the real defaults, On for the three that pinned() reads as off).
     settings_text=function() return settings_text end,
@@ -339,7 +354,12 @@ kit_shown={} -- Each group shown or not, as the kit keeps it.
 function builder(group)
     local b={}
     function b.panel(x,y,w,h) b.bottom,b.right=y+h,x+w end
-    local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
+    local function gauge()
+        local g={set=function() end,tint=function() end,turn=function() end}
+        g.show=function(on) g.on=on end
+        g.texture=function(t) g.t=t; return true end -- The guide's art.
+        return g
+    end
     for _,kind in ipairs({'image','dots','hp','shield','cubes','bar','shade'}) do b[kind]=gauge end
     function b.text(_,_,s)
         local t={s=s,on=true}

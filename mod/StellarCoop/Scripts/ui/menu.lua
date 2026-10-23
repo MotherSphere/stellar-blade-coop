@@ -6,7 +6,8 @@
 -- click goes back. Its rows run the console commands (Host and Invite close it first: the Steam overlay takes the
 -- focus); Leave and Remove <name> (a player let in who is not our Steam friend) ask for a second Select; Copy my code
 -- shows our join code and asks the native part to copy it; Chat (in a session) and Join with a code close it and open
--- the chat's box or the code box (session/join.lua). A setting changed on the Options page rewrites its own line of
+-- the chat's box or the code box (session/join.lua); Guide closes it and opens the first-launch guide (ui/guide.lua),
+-- and menu_key does nothing while that is open. A setting changed on the Options page rewrites its own line of
 -- coop-settings.txt (core/link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, but the name
 -- tag, at the next load; a key row takes the next F-key pressed (capture), checked against the other keys. Each 250 ms
 -- while open: the status line, the rows of the session's state and, unless a row said something, the newest notice (the
@@ -19,6 +20,7 @@
 local M=require('ui.model')
 local Link=require('core.link')
 local T=require('ui.text')
+local G=require('ui.guide_text')
 local Join=require('session.join')
 local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
@@ -30,14 +32,14 @@ local ROW={} -- Options rows by setting name.
 for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=, run=function(name,
 -- arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=, chat=session/chat.lua's view or
--- nil, code=session/join.lua's code box}.
+-- nil, code=session/join.lua's code box, guide=ui/guide.lua's}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
     -- The drawn slot under the mouse at the last look (nil: none; false: not looked at since the menu opened), and
     -- when the next look is due.
     local hover,hover_at=false,0
-    local values,words={},T.en
+    local values,words,guide_words={},T.en,G.en
     -- Scaled from its left middle: centred on the 2160-unit screen, all of it stays on screen up to ui_scale=150. As
     -- wide as the host's question and the co-op saves' question; a row's value in its last 600 units, so a value of up
     -- to 26 columns of Bold 40 and a label of up to 34 fit side by side (ui/text_test.lua checks every word).
@@ -102,7 +104,8 @@ function Menu.new(o)
             if not row then w.set('','','normal')
             elseif row.head then w.set(words.head[row.head],'','disabled')
             else
-                local label,v=words.row[row.id or row.key],row.key and value(row) or ''
+                local label,v=row.id=='guide' and guide_words.row or words.row[row.id or row.key],
+                    row.key and value(row) or ''
                 if row.id=='copy' then v=ctx.code elseif row.id=='remove' then label=label:format(stranger(ctx)) end
                 w.set(label,v,row==current and 'focus' or 'normal')
             end
@@ -131,7 +134,10 @@ function Menu.new(o)
             o.puppet.rebuild('look')
         end
         if key=='ui_scale' then kit.scale(s.ui_scale) elseif key=='ui_sounds' then kit.sounds(s.ui_sounds)
-        elseif key=='ui_language' then words=T.pick(kit.language(),s.ui_language) end
+        elseif key=='ui_language' then
+            local culture=kit.language()
+            words,guide_words=T.pick(culture,s.ui_language),G.pick(culture,s.ui_language)
+        end
     end
     -- A setting's new value: its line rewritten in the file as it is now (D-UI4), then in effect or, for the one read
     -- at a load only, said so.
@@ -157,7 +163,9 @@ function Menu.new(o)
     -- phone booth within reach (booth.near's {id, class, d}), which opens the co-op line; nil, the main page.
     function self.toggle(at)
         if open then return self.close() end
-        words=T.pick(kit.language(),settings.ui_language)
+        if o.guide and o.guide.is_open() then return end -- Its keys are the guide's.
+        local culture=kit.language()
+        words,guide_words=T.pick(culture,settings.ui_language),G.pick(culture,settings.ui_language)
         if kit.off() then return false,OFF,words.refused.off,T.en.refused.off end
         if not (world and kit.ready()) then
             return false,'the co-op menu opens in the game world only',words.refused.world,T.en.refused.world
@@ -225,6 +233,10 @@ function Menu.new(o)
             elseif action=='join_code' then
                 self.close()
                 return o.code.open()
+            elseif action=='guide' then
+                self.close()
+                local ok,message=o.guide.open()
+                return o.log((ok and 'menu: ' or 'menu: no guide: ')..message)
             elseif action=='remove' then
                 local ok,message=o.run('remove',ctx.stranger.id)
                 if not ok then note=message end

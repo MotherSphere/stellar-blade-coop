@@ -31,8 +31,9 @@ repository.
 4. Copy the whole `StellarCoop` folder (the one that holds `enabled.txt`) into the Mods folder. The result must be
    `SB/Binaries/Win64/ue4ss/Mods/StellarCoop/Scripts/main.lua`, with `StellarCoop.dll` and `enabled.txt` next to
    `Scripts/`.
-5. Start the game. On the title screen the mod asks whether to play on co-op saves (see "Co-op saves" below). Choose
-   Decide later until you have backed up your saves (see "Saves and Steam Cloud"). Load a save and press `F6`.
+5. Start the game. On the title screen the mod first opens its guide (Esc closes it), then asks whether to play on
+   co-op saves (see "Co-op saves" below). Choose Decide later until you have backed up your saves (see "Saves and
+   Steam Cloud"). Load a save and press `F6`.
    `Co-op: not in a session.` appears at the top left of the screen (or above EVE, in the first seconds after a load).
    `UE4SS.log` gets the same text in a line that contains `[StellarCoop] OK:`.
    If no line appears, close the game and look in `UE4SS.log` for lines with `[StellarCoop]`. `Native part not loaded`

@@ -147,6 +147,9 @@ The adapted parts are:
 death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
 `session/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
 
+Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the GPL.
+It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run.
+
 ## License
 
 [GPL-3.0-or-later](LICENSE) © 2026 Stellar Blade Online contributors

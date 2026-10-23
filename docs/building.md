@@ -287,13 +287,14 @@ sorted order. Anyone with the repository can rebuild a release and compare its `
 ```
 mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
+  Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the GPL)
   Scripts/                  the Lua side (see how-it-works.md)
     main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
     commands/               the coop console commands' handlers, by feature, merged into main.lua's command table
     core/                   the files shared with the native part, settings, keys, UE4SS helpers
     partner/                the friend's EVE: capture, the drawn model, its HUD marker
     session/                hosting and joining, co-op saves, chat, revive, follow, the camp booths
-    ui/                     the on-screen kit, the co-op menu and its model, notices, the 23 languages' text
+    ui/                     the on-screen kit, the co-op menu and its model, the guide, notices, the 23 languages' text
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
     race/                   Doro races: the run, the track model, the Doro look, the driving
     cut/                    coop leviathan: a read and a display of the cut Naytiba 10

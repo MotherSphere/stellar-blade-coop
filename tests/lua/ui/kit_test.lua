@@ -7,6 +7,7 @@
 -- map change, its freed assets looked up again, the old handles never touching an address that holds another object;
 -- no rebuild storm; the root an earlier Lua load left swept; the first engine error, in a build's own update too,
 -- turning the kit off (off(): the notice line above EVE is the fallback); a look that cannot be had only degrading;
+-- an image's texture made at run time, refused without turning the kit off; the mouse cursor for a group that asks;
 -- nothing while the world is hidden or after coop off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
@@ -1008,6 +1009,19 @@ k.input(true); k.input(false); assert(pc.bShowMouseCursor==true,'The value found
 assert(k.paused()==true,'Not ours: a game screen')
 pc.bShowMouseCursor=false
 k.input(true); k.reset(); assert(pc.bShowMouseCursor==false,'coop ui reset')
+-- A group that asks for it (the guide, in a world) shows it too; one that takes the input from it without asking hides
+-- it again.
+k.input(true,'guide',true); assert(pc.bShowMouseCursor==true and k.paused()==false,'The guide asks: shown')
+k.input(true,'chat'); assert(pc.bShowMouseCursor==false,'The chat took it from the guide: hidden')
+k.input(false,'chat')
+-- An image's texture made at run time (the guide's art): its brush takes it, matched (true); a refused call only
+-- returns false, the kit stays on.
+local made,dot=object('Texture2D'),nil
+for _,o in ipairs(of('Image')) do if stores[o].brush.ResourceObject==asset('link') then dot=o end end
+assert(dot and k.view('card').dot.texture(made)==true and stores[dot].brush.ResourceObject==made)
+raise['Image.SetBrushFromTexture']='refused'
+assert(k.view('card').dot.texture(made)==false and not k.off() and k.view('card'),'Refused: false, the kit on')
+raise['Image.SetBrushFromTexture']=nil
 k.input(true); k.stop(); assert(pc.bShowMouseCursor==false,'coop off')
 -- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
 -- (nil when unread); nothing once off, where the language is the last one read (the fallback notices keep it), and

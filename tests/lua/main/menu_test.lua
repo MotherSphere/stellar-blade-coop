@@ -38,7 +38,7 @@ assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_soun
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
 assert(screen()=='SESSION||disabled\nHost a session||focus\nJoin a friend||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
-    ..'Options||normal\nHELP||disabled\nWrite a bug report||normal\nClose||normal',screen())
+    ..'Options||normal\nHELP||disabled\nGuide||normal\nWrite a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
 assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
