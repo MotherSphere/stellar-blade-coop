@@ -158,6 +158,12 @@ def run(*argv):
 
 story.selftest()
 
+# 0. The fixture tests/story_dump_test.lua mirrors: this tool's sample and the file's lines agree, so the Lua dump's
+#    test pins the two implementations to the same text.
+sample_file = Path(__file__).resolve().parent / 'story_sample.txt'
+assert story.lines(story.story(story.sample())) == sample_file.read_text(encoding='utf-8').splitlines(), \
+    'tests/story_sample.txt does not match tools/story.py sample()'
+
 with tempfile.TemporaryDirectory() as folder:
     folder = Path(folder)
     first = save(folder / 'first.sav')
@@ -194,7 +200,21 @@ with tempfile.TemporaryDirectory() as folder:
         '~ zone Zone_SD_10 object SD_10_EffVol_007 activate: ESBObject_Disable -> ESBObject_Enable'], changes
     assert story.digest(story.read(first)) != story.digest(story.read(later))
 
-    # 3. The command line: a snapshot narrowed by a prefix, a digest, a diff, and the usage.
+    # 3. A dump as the game's side writes it: comments skipped, the same lines give the same digest, and a changed
+    #    line and a missing one each show in compare (exit 1).
+    rows = story.lines(story.story(story.read(first)))
+    dump = folder / 'dump.txt'
+    dump.write_text('# a game-side dump\n' + '\n'.join(rows) + '\n\n', encoding='utf-8')
+    code, out = run('digest-lines', dump)
+    assert code == 0 and out == [story.digest(story.read(first))], out
+    code, out = run('compare', first, dump)
+    assert code == 0 and out[0].startswith('save ') and out[-1] == 'the same', out
+    dump.write_text('\n'.join(rows[1:] + ['zone Zone_SD_10 state = ESBObject_Disable']) + '\n', encoding='utf-8')
+    code, out = run('compare', first, dump)
+    assert code == 1 and '+ zone Zone_SD_10 state = ESBObject_Disable' in out, out
+    assert [line for line in out if line.startswith('- ')], out
+
+    # 4. The command line: a snapshot narrowed by a prefix, a digest, a diff, and the usage.
     code, lines = run('snapshot', first, 'quest ')
     assert code == 0 and lines and all(line.startswith('quest ') for line in lines), lines
     code, lines = run('digest', first)

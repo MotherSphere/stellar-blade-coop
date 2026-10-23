@@ -4,6 +4,8 @@
   python -I tools/story.py snapshot SAVE [PREFIX]  every story line, sorted (only keys starting with PREFIX)
   python -I tools/story.py diff OLD NEW            the lines that differ, were added or were removed
   python -I tools/story.py digest SAVE             one SHA-256 over the sorted lines, to compare two players' worlds
+  python -I tools/story.py digest-lines FILE       the same over a file of lines (a game-side dump; # comments skipped)
+  python -I tools/story.py compare SAVE FILE       a save's lines against a dump's: both digests and what differs
   python -I tools/story.py selftest                a built save read back
 
 What is in it (mapped from the New Game save at the first beach, 2026-10-23; docs/story.md has the evidence): quests,
@@ -224,6 +226,28 @@ def diff(old, new):
     return out
 
 
+def dump_lines(path):
+    """A file of story lines as the game's side writes them: sorted, comments (#) and blank lines skipped."""
+    with open(path, 'rb') as file:
+        data = file.read()
+    if b'\0' in data:
+        raise ValueError(f'{path} is not a text dump (it holds NUL bytes): a save is read with snapshot or diff')
+    text = data.decode('utf-8', 'replace').splitlines()
+    return sorted(line.rstrip() for line in text if line.strip() and not line.startswith('#'))
+
+
+def lines_digest(rows):
+    return hashlib.sha256('\n'.join(rows).encode('utf-8')).hexdigest()
+
+
+def compare(properties, rows):
+    """(save lines, the lines only in the dump, the lines only in the save, both digests) for a save and a dump."""
+    mine = lines(story(properties))
+    added = [line for line in rows if line not in set(mine)]
+    removed = [line for line in mine if line not in set(rows)]
+    return mine, added, removed, lines_digest(mine), lines_digest(rows)
+
+
 def read(path):
     return gvas.read(path)[1]
 
@@ -314,6 +338,8 @@ def selftest():
 
 
 def main(argv):
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')  # A name with an odd byte prints, never crashes on a console's code page.
     if argv[:1] == ['selftest']:
         return selftest()
     if len(argv) in (2, 3) and argv[0] == 'snapshot':
@@ -327,6 +353,30 @@ def main(argv):
     if len(argv) == 2 and argv[0] == 'digest':
         print(digest(read(argv[1])))
         return 0
+    if len(argv) == 2 and argv[0] == 'digest-lines':
+        try:
+            print(lines_digest(dump_lines(argv[1])))
+        except ValueError as error:
+            print(f'story: {error}')
+            return 2
+        return 0
+    if len(argv) == 3 and argv[0] == 'compare':
+        try:
+            mine, added, removed, theirs, ours = compare(read(argv[1]), dump_lines(argv[2]))
+        except ValueError as error:
+            print(f'story: {error}')
+            return 2
+        print(f'save {theirs}  {len(mine)} lines')
+        print(f'dump {ours}  {len(mine) + len(added) - len(removed)} lines')
+        if not added and not removed:
+            print('the same')
+            return 0
+        for line in added:
+            print(f'+ {line}')
+        for line in removed:
+            print(f'- {line}')
+        print(f'{len(added)} only in the dump, {len(removed)} only in the save')
+        return 1
     print(__doc__)
     return 2
 

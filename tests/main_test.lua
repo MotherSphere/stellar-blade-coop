@@ -291,7 +291,7 @@ local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | al
     ..'status | report | where | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | no [heal|rule|spawnpt|actor] | recruiter [off] | fight on|off|status|probe|test|record|replay | '
-    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | off'
+    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main | story [dump|find] | off'
 
 local function load_main(with_native)
     native_ok=with_native
@@ -384,6 +384,9 @@ for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh','2'},{'off'}}) do
     coop('saves',table.unpack(bad))
     assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main\n',last())
 end
+-- coop story: a test tool on the game itself, so it asks the native part nothing; a bad argument is refused.
+coop('story','everything')
+assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop story [dump|find]\n',last())
 -- Join codes and the host's answers: coop join <code> in either case, with or without the dash, as the native part
 -- takes it; coop copy; coop allow, deny and remove with a SteamID only.
 asked={}
