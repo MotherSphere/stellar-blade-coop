@@ -135,10 +135,10 @@ function NightOp.new(log,ask,status)
         local before=rows(dt)
         local row={ZoneEventAlias1=find_name(HEAL)}
         for k,v in pairs(NightOp.ROW) do row[k]=v end
-        -- UE4SS 3.0.1's UDataTable::AddRow (UE4SS.dll 0x1803aed60) never calls SB's vtable: it frees a row of the
-        -- same name (RemoveRowInternal: DestroyStruct, Free), then Mallocs, copies and adds to RowMap. SB's own AddRow
-        -- (vtable +0x2b0) also fills the ID and index maps; they never see this row, and a freed row would stay in
-        -- them. Hence a new name only (the FindRow above), and never a Lua RemoveRow or EmptyTable on an SB table.
+        -- UE4SS 3.0.1's row add (UE4SS.dll 0x1803aed60) never calls SB's vtable: it frees a row of the same name
+        -- (RemoveRowInternal: DestroyStruct, Free), then Mallocs, copies and adds to RowMap. SB's own add (vtable
+        -- +0x2b0) also fills the ID and index maps; they never see this row, and a freed row would stay in them.
+        -- Hence a new name only (the FindRow above), and never a Lua RemoveRow or EmptyTable on an SB table.
         dt:AddRow(RULE,row)
         -- A raw RowMap insert with an FName field is unproven on this engine: what the rule would read is checked
         -- first, and any doubt stops before the rule is set.
