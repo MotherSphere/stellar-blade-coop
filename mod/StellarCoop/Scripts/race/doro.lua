@@ -57,7 +57,8 @@ local KICK_PER,KICK_MAX,LAND_HZ,LAND_DAMP=50,15,6,0.35
 local LEAN_SIGN,NOSE_SIGN=1,1
 
 -- The animation for one frame, from s: speed (horizontal, cm/s), vz (vertical, cm/s), falling (nil: read from vz),
--- sprint (nil for the ghost, which has none: read from speed), emote ('win', 'lose' or nil), now (s), and drive while
+-- sprint (nil for the ghost, which has none: read from speed), root (a root-motion move of the game carries EVE, such
+-- as her dash), emote ('win', 'lose' or nil), now (s), and drive while
 -- a race drives ({top (cm/s), yaw (the Doro's, degrees), stumble}). state is the caller's table, kept between frames.
 -- Returns {asset=<key of ASSETS>, loop=, input=<blend space input or nil>, rate=, at=<position to set or nil>, and
 -- while driving tilt={lean, pitch} in degrees}. Take-off plays Evade's hop from 0 to 0.5 s, a longer fall holds 0.5 s
@@ -69,6 +70,10 @@ local function pick(state,s)
     elseif now>state.now then state.v=state.v+(s.speed-state.v)*(1-math.exp((state.now-now)/SMOOTH)) end
     state.now=now
     local falling=s.falling
+    -- EVE's dash (Shift) is a root-motion move that the game can flag as falling (in game, 2026-10-23: Doro hopped and
+    -- froze in Evade's held pose mid-dash). Unless she really goes up or down fast, it is a run on all fours.
+    if s.root and falling and math.abs(s.vz or 0)<=AIR and not state.air then falling=false end
+    if s.root then state.sprint_at=now end
     if falling==nil then
         if not state.air then falling=math.abs(s.vz)>AIR
         else
@@ -558,9 +563,21 @@ function Doro.new(o)
         local at,rot=value_of(l.body:K2_GetComponentLocation()),value_of(l.body:K2_GetComponentRotation())
         local v=value_of(l.eve:GetVelocity())
         local speed,sprint=math.sqrt(v.X*v.X+v.Y*v.Y),l.eve:IsSprint()==true
+        local root_ok,root=pcall(function() return l.eve:IsPlayingRootMotion()==true end)
+        local falling=l.move:IsFalling()==true
         local d=l.drive
-        local c=Doro.pick(l.state,{speed=speed,vz=v.Z,falling=l.move:IsFalling()==true,sprint=sprint,emote=l.emote,
-            now=now,drive=d and {top=d.top,yaw=rot.Yaw,stumble=d.stumble}})
+        local c=Doro.pick(l.state,{speed=speed,vz=v.Z,falling=falling,sprint=sprint,root=root_ok and root,
+            emote=l.emote,now=now,drive=d and {top=d.top,yaw=rot.Yaw,stumble=d.stumble}})
+        -- Each change of clip, at most 20 lines a minute: what EVE did when Doro changed (a dash, a jump, a fall).
+        if c.asset~=l.said_asset then
+            l.said_asset=c.asset
+            if now>=(l.said_reset or 0) then l.said_reset,l.said_n=now+60,0 end
+            if l.said_n<20 then
+                l.said_n=l.said_n+1
+                log(string.format('look clip %s: v=%.0f vz=%.0f falling=%d root=%d sprint=%d',c.asset,speed,v.Z,
+                    falling and 1 or 0,(root_ok and root) and 1 or 0,sprint and 1 or 0))
+            end
+        end
         l.doro.mesh:K2_SetWorldLocationAndRotation({X=at.X,Y=at.Y,Z=at.Z},
             Doro.tilted({Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},c.tilt),false,{},false)
         Doro.apply(l.doro,c)

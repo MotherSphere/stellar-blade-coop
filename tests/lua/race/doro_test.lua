@@ -265,6 +265,18 @@ c=Doro.pick({},{speed=300,vz=0,falling=false,sprint=false,emote='win',now=0})
 assert(c.asset=='two' and c.input==300,'Moving: no emote')
 c=Doro.pick({},{speed=0,vz=500,falling=true,sprint=false,emote='win',now=0})
 assert(c.asset=='evade' and c.loop==false and c.at==0,'In the air: no emote')
+-- EVE's dash: a root-motion move the game flags as falling, with no real vertical speed, runs on all fours; a jump
+-- with root motion (a fast vertical speed) still hops.
+c=Doro.pick({},{speed=1248,vz=30,falling=true,sprint=false,root=true,now=0})
+assert(c.asset=='four' and c.loop==true and c.rate==1.8,'A dash is no jump: '..tostring(c.asset))
+c=Doro.pick({},{speed=600,vz=700,falling=true,sprint=false,root=true,now=0})
+assert(c.asset=='evade' and c.at==0,'A root-motion jump still hops')
+local dash={}
+Doro.pick(dash,{speed=1200,vz=0,falling=true,sprint=false,root=true,now=0})
+c=Doro.pick(dash,{speed=500,vz=0,falling=false,sprint=false,now=0.2})
+assert(c.asset=='four','On all fours for 0.3 s after the dash, as after a sprint')
+c=Doro.pick(dash,{speed=500,vz=0,falling=false,sprint=false,now=0.6})
+assert(c.asset=='two','Two legs again')
 
 -- While a race drives: all fours from 60% of the top speed (1320 of 2200), two legs again under 55% (1210); the play
 -- rate up to 3; the stumble's tired hop at twice its speed, from its start; a lean into the bend from the speed and the
@@ -437,7 +449,9 @@ clock=100.1
 eve.sprint=true
 root.calls={}
 look.tick()
-assert(root.calls[1]=='play four true' and #logs==lines,'All fours; no speed line before a second')
+assert(root.calls[1]=='play four true' and #logs==lines+1
+    and last()=='look clip four: v=500 vz=0 falling=0 root=0 sprint=1',
+    'All fours, said once; no speed line before a second')
 clock=101
 look.tick()
 assert(last()=='speed v=500 sb=512 sprint=1',last())
