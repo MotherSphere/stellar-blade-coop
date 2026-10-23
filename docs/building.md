@@ -74,12 +74,12 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `leviathan`; `main/`: `boot`,
-  `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`,
-  `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`,
-  `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`:
-  `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the
-  capture test, any write to the fake EVE fails the test. The
+- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `leviathan`, `lion`; `main/`:
+  `boot`, `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`: `challenges`,
+  `probe`, `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`:
+  `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`;
+  `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In
+  the capture test, any write to the fake EVE fails the test. The
   `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers
   `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the `spawn_filter` setting
   with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and
@@ -93,9 +93,9 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-    and the boss tests included), Night Operation's night line (its round trip, its refusals and a fuzz seed), and the
-    join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check
-    turns away);
+    and the boss tests included; `lion rows` with its 8 table words and bad addresses), Night Operation's night line
+    (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby ids, loose typing, malformed
+    codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
@@ -113,6 +113,12 @@ build/host/pose_codec_test
     write, the manifest, the backup before the first copy, torn reads and failed writes, and the requests and the
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
+  - `lion_rows_test`: the Lion's rows against fake memory laid out like the pinned build: the recipe (unique names and
+    IDs, every patch inside its struct, the steps, skills, commands and stance pointing at the new rows, the
+    CharacterTable rows last), a whole run (each row built from its donor with the game's lazy-init flag and parsed
+    arrays reset, its ID and patches, AddRow given the new name), the refusals that call no AddRow (a missing donor, a
+    taken ID or name, a wrong vtable, AddRow slot or row size), a later run skipping the rows already in, FName's number
+    split, the read-back through the game's lookups by ID, the answer word, the `lion=` status line and the log lines;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken
@@ -297,7 +303,7 @@ mod/StellarCoop/            the UE4SS mod folder
     ui/                     the on-screen kit, the co-op menu and its model, the guide, notices, the 23 languages' text
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
     race/                   Doro races: the run, the track model, the Doro look, the driving
-    cut/                    coop leviathan: a read and a display of the cut Naytiba 10
+    cut/                    coop leviathan, a display of the cut Naytiba 10; coop lion, the cut Lion as an enemy
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
@@ -330,6 +336,7 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
+| `lion/rows.h` | `coop lion`'s 78 rows (its data part written by a generator outside the repository), their build and AddRow call, the read-back, the answer word, the `lion=` line and the log lines |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
@@ -352,5 +359,5 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook. `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's rows through the game's AddRow (`glue/tick/lion_game.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

@@ -812,6 +812,50 @@ int main() {
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
 
+  // coop lion's rows: one <Table>=0x<address> word for each of the 8 tables, in any order, each once; the addresses
+  // in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request fits Lua's 512-byte
+  // request file. Anything off is refused.
+  const auto lion = [](const std::vector<std::string> &words) {
+    std::string text = "lion rows";
+    for (const std::string &w : words)
+      text += " " + w;
+    return text;
+  };
+  std::vector<std::string> words;
+  for (size_t i = 0; i < kLionTableCount; ++i) {
+    char word[64];
+    std::snprintf(word, sizeof word, "%s=0x%llx", kLionTables[i], 0x1f4a2b3c0000ull + 0x100 * i);
+    words.push_back(word);
+  }
+  Request li = parse_request(lion(words) + "\r\n");
+  assert(li.command == Command::lion);
+  for (size_t i = 0; i < kLionTableCount; ++i)
+    assert(li.tables[i] == 0x1f4a2b3c0000ull + 0x100 * i);
+  std::vector<std::string> shuffled(words.rbegin(), words.rend());
+  shuffled[0] = "SkillActiveStepTable=0x1F4A2B3C0700"; // Upper-case digits too.
+  li = parse_request(lion(shuffled));
+  assert(li.command == Command::lion && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
+  std::vector<std::string> tables_longest;
+  for (size_t i = 0; i < kLionTableCount; ++i)
+    tables_longest.push_back(std::string(kLionTables[i]) + "=0x00007ffffffefff8");
+  assert(lion(tables_longest).size() + 2 <= 512 && parse_request(lion(tables_longest)).command == Command::lion);
+  const auto with = [&words](size_t i, const std::string &w) {
+    std::vector<std::string> v = words;
+    v[i] = w;
+    return v;
+  };
+  std::vector<std::string> tables7(words.begin(), words.end() - 1), tables9 = words;
+  tables9.push_back(words[0]);
+  for (const std::string &bad :
+       {lion(tables7), lion(tables9), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
+        lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
+        lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
+        lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
+        lion(with(2, "EffectTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
+        lion(with(2, "CharacterDeadTable=-0x1f4a2b3c0200")), lion(words) + " extra", std::string("lion rows"),
+        std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10)})
+    assert(parse_request(bad).command == Command::none);
+
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
   assert(connect_lobby(L"SB-Win64-Shipping.exe -DistributionPlatform=Steam +connect_lobby 109775241234567890") ==
          109775241234567890ull);

@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan`, with the co-op save check before `show` and before `cam` turns the camera on |
+| `commands/cut.lua` | `coop leviathan`, with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -68,15 +68,17 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan`: reads the cut Naytiba 10's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's, and flies a free camera to film it |
+| `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the `coop leviathan` display and free camera, a Doro race (with the incoming lines while one is armed), the
-notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
-the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your
-friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines
-in and out, Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's
-rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+Doro look, the `coop leviathan` display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming
+lines while one is armed), the notice line, the previews' follow-ups, the UI's open and close animations, the game's
+input given back after the menu or the chat box closes, the controller's events, the row under the mouse (every 100 ms
+while the menu is open), and your friend's marker and gauges. The other runs every 250 ms: link status changes, session
+start, notices to show, chat lines in and out, Night Operation's run, the race's session and map checks, the UI's root
+and its focus watchdog, the menu's rows and status line, the phone booth scan, the chat's feed, your friend's card, the
+capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -1340,6 +1342,135 @@ A race calls no achievement, reward, item, quest or save function and no console
 is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/doro.lua`, `race/model.lua`,
 `race/run.lua`, `race/drive.lua` and `race/drive_model.lua`.
 
+## The cut Lion
+
+`coop lion` spawns the cut Naytiba 02, the Lion, as an enemy to fight (plan A of the Lion study; not tested in game
+yet). Its assets ship in `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh
+with its fur cloth, 138 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and
+41 Shows. No table row names it. Three files do the work: `cut/lion.lua` (Lua), `lion/rows.h` (the rows and their build,
+free of Windows, tested on the build machine) and `glue/tick/lion_game.inc` (the game's calls).
+
+### The rows
+
+The native part adds 78 rows to 8 tables. Each one is a copy of a shipped Behemoth row with a few fields changed:
+
+- 15 skills (IDs 5002000 to 5002014) with their 15 commands and 41 steps (a skill's ID times 100, plus 2, 3 or 4). Each
+  first step names the skill's Lion Show, and each step lasts as long as that Show's own step. Each Hit step names a
+  Lion attack collision group (`Mon_Lion_Attack_L_Arm_Collision`, `R_Arm` or `RL_Arm`). The generator checked each group
+  against the Large blueprint's collision data and the sockets the attack's clip moves. The roar's first step is shorter
+  than the Behemoth's (1.332 s, not 1.6 s), so its action assist check moves to 1.266 s, the same 0.066 s before the
+  step ends.
+- The stance `M_LionC_Default` (500200), which lists the 15 commands. It leaves out the Behemoth's `MinimumHP_60p` start
+  effect, which holds HP at 60% until a phase skill the Lion lacks. Two anim sets (500200 and 500201) name the Lion's
+  run clips and drop the Behemoth's shield-break clip, which the Lion has no copy of. `Custom_Anim4`, the clip of the
+  second just-parry result that 7 of the 12 attacks go to on a perfect parry, names the Lion's one just-parry clip
+  (`Animation/Result_Hit_JustParry`), as 153 of the game's anim sets do.
+- The dead row (the Lion's death Show, then the `M_LionA_Despawn` dissolve) and the appearance row (50020, the Large
+  blueprint).
+- Two CharacterTable rows, added last: `M_LionC` (50020, the tree `M_Skulling_AI_Test`) and `M_LionC_Lurker` (50021,
+  `M_LesserLurker_AI`). Both trees pick skills by their AISkillFlag (MeleeAttack, which leaves the side steps out), not
+  by name, so the Lion's commands need no tree of their own. The rows keep the Behemoth's actor type (BossMonster, so
+  the boss bar binds it), rank, tribe and stats. Their `Name` stays empty.
+
+A generator kept outside the repository writes the data part of `lion/rows.h` from the offline reader's dumps of the
+tables and the pak listing. It refuses a taken ID or name (in any case, as the game compares names) and a missing donor,
+Show, clip, blueprint or tree, including a clip that the Show of a step outside the kit plays when a Lion step goes to
+it (a perfect parry's result). It also refuses a field the SDK does not place where its patch writes, and an action
+assist check after its step's end.
+
+The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
+(the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 8 tables by
+their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
+
+```
+lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> CharacterDeadTable=0x<address>
+CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
+SkillTable=0x<address> SkillActiveStepTable=0x<address>
+```
+
+It is one line in `coop-request.txt`. Each of the 8 words comes once, in any order. Each address has 1 to 16 hex digits,
+is plausible and is 8-aligned; anything else gets `unknown request`. No console word reaches an address. The native part
+trusts none before it checks the table's vtable (`0x146402e10`), its AddRow slot and its row size.
+
+The game thread adds the rows in `coop_tick` only while the cached net mode is 0 and no logic task is in flight (logic
+`+0x5c0` is 0, the same check as same-place enemies' force target): no lock guards the tables, and the logic thread
+reads them. A shut gate tries again at the next frame and refuses after 300 frames. For each row not added yet, the
+native part initializes a block of its own from the row struct, copies the donor row into it (CopyScriptStruct), writes
+the ID and the patches, resets the game's lazy-init flag (row `+8`) and the arrays the game parses from the row's JSON
+strings, then calls AddRow through the table's vtable with the new name. A row goes in once a game run and never again,
+so AddRow's own RemoveRow never frees a row that a living Lion reads. The first refusal stops the run before any later
+row. The CharacterTable rows come last, so a refused run leaves no Lion to spawn; asking again skips the rows already
+in. These calls run under their own SEH latch.
+
+Then the native part reads the rows back through the game's own lookups by ID and writes the `lion=` line of
+`coop-status.txt`:
+
+```
+lion=off
+lion=waiting added=<n>/78 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=78/78 asks=<a> spawns=<s> char=<k>/2 skills=<k>/15 stance=<k>/1
+lion=refused added=<n>/78 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/78 asks=<a> spawns=<s> where=<text>
+```
+
+`asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
+`+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
+the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
+so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
+back through `FindRow` by field name (independent of the SDK's offsets) and spawns only when every value matches and the
+line says `char=2/2 skills=15/15 stance=1/1`.
+
+### The spawn
+
+The spawn is one call, `nightop/run.lua`'s, with key 0:
+`ServerRequest_CreateActor(<charId>, <location>, (0, <yaw>, 0), false, true, 0, 0, 0, None, false)`. Cheat on lets it
+take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 50021 after `coop lion brain lurker`;
+`coop lion control` spawns 50110 (M_Antlion). The place is 10 m ahead of EVE and 1 m up, facing her. Key 0 is
+EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
+the spot, looked for at 0.3, 1, 2, 3.5 and 5 s (`FindAllOf` walks every object). One that still has no controller 1.5 s
+after the call gets its default one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from
+`InteractionState` and `Controller`, as `nightop/run.lua` reads it.
+
+`coop lion intro` first plays `Mon_LionC_Scene01_Appearance` (13 s, the clip of the cut boss intro
+`DesertedCity_LionBossIntro`) on a display copy: `race/doro.lua`'s plain actor with the `CH_M_NA_02_Large` mesh at the
+blueprint's scale (1.5), on EVE's feet at the spot, facing her. At the clip's end the Lion spawns where the copy's bone
+0 stands, at the spot's height. When that is more than 20 m from the spot, it spawns at the spot. The copy goes as soon
+as the body shows, before the body's controller is checked, so the two never stand together. A map change during the
+entrance spawns nothing. The clip does not play on the Lion itself: `CH_M_NA_02_AnimBP` has no slot node, so a montage
+would not show; a single-node clip would replace the anim instance the game plays the Lion's skills on while its AI
+runs. The copy is in no file, so a Lua reload during its 13 s leaves it until the map changes.
+
+### What stays out
+
+- Quests: a key-0 actor has no EventSpawn row, so no EventOnSpawning, EventOnBattle or EventOnDead runs. The one Lion
+  quest task in the game's data, `EQ_DownTown_Quest_05_T01`, goes through spawn point 71, not an alias. Quest or
+  condition tasks that count kills by tribe or actor type were not checked.
+- Saves: an actor with no EventSpawn row is not in zone storage, so a save should not bring a Lion back (not checked in
+  game). The rows are never written anywhere. The command spawns only on a co-op save.
+- Achievements: a kill by EVE counts for the two Kill rows that take any enemy (`Kill_Character` and
+  `Trophy_KillCharacter`), as any Naytiba kill does. It unlocks no album entry. On a boss bind and a boss kill, the game
+  hands the row name to an achievement container through obfuscated code; whether that keeps anything was not
+  established.
+- Co-op: shared enemies pair by spawn key, and a key-0 actor has none, so the Lion stays in the game of the player who
+  typed the command. Sharing one would need a key range of its own, a host spawn through `NewActor` in the shared
+  fight's job, a guest rule in same spawns, a `kBosses` row and a protocol bump.
+
+### Open questions
+
+Only the game can settle these:
+
+- whether the game's lookups by ID see the rows and the read-back matches on this build;
+- whether the stance's command list builds the Lion's command set and `M_Skulling_AI_Test` runs on it;
+- whether the Lion Shows play through the table steps (their own step IDs are 0, where shipped Shows carry their rows'
+  IDs);
+- whether the attack collision groups land on EVE and the anim sets' paths make the Lion walk rather than slide;
+- what the boss bar shows as its name (the game has no Lion name text), where the lock-on marker sits, whether its feet
+  meet the ground and whether its hit sounds play;
+- what a key-0 death does to the spawn manager's counter;
+- each AddRow runs the game's table-changed handling over the whole table, so 78 of them in one frame may cause a short
+  hitch, not measured.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
@@ -1395,6 +1526,8 @@ claim the host accepts):
   items that a camp respawn refills too. The cutscene wait is a pause, and the solid partner changes no game state.
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
+- A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
+  that player's, like any Naytiba's.
 
 ## Safety design
 
@@ -1454,6 +1587,9 @@ drops the input.
   request, on a co-op save, for a camp of her own table that her game already knows by name, under its own SEH latch:
   a fault turns it off until the game restarts. The revive calls the game's respawn on the downed player's own EVE,
   once per death, at the death screen only. No address, pointer or name index goes over the network for either.
+- `coop lion` adds [the Lion's 78 rows](#the-rows) to the game's tables through the game's own AddRow, on the game
+  thread with no logic task in flight, after a check of each table's vtable, AddRow slot and row size, under their own
+  SEH latch. No shipped row changes, no row is added twice and nothing is written to disk.
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
   because the native part keeps the flag.
 - The DLL pins itself in memory, so a Lua reload that frees the script's libraries never unloads code the worker is

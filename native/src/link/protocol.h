@@ -36,6 +36,7 @@
 #include <string_view>
 #include <vector>
 
+#include "game/memory.h" // plausible: the lion rows request's addresses
 #include "game/pak_list.h"
 
 namespace coop {
@@ -524,12 +525,21 @@ inline uint64_t code_lobby(std::string_view text) {
 // spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the follow
 // (session/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
-// thread, glue/tick.cpp: an index above 0, both within 32 bits); and "mark" or "mark <text>" (a numbered line in both
-// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty).
+// thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
+// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); and for coop lion (cut/lion.lua) "lion rows
+// <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
+// kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their
+// fixed paths, so no console argument reaches an address, and the native part trusts none before it checked the
+// table's vtable and row size (lion/rows.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark
+  remove, copy, quests, camps, travel, mark, lion
 };
+// The tables the Lion's rows go into (lion/rows.h's Table, in this order), as their assets are named.
+constexpr size_t kLionTableCount = 8;
+constexpr const char *kLionTables[kLionTableCount] = {
+    "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
+    "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable"};
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
@@ -580,6 +590,7 @@ struct Request {
   std::string alias;            // travel: the camp's alias (for the log), and its FName.
   uint32_t index = 0, number = 0;
   std::string text;             // mark: its text, or empty.
+  std::array<uint64_t, kLionTableCount> tables{}; // lion rows: the tables' addresses, in kLionTables' order.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -699,6 +710,31 @@ inline Request parse_quests(const std::string &text) {
   r.deny = deny;
   return r;
 }
+// What follows "lion rows ". Command::none when anything is off.
+inline Request parse_lion(const std::string &text) {
+  std::string w[kLionTableCount];
+  if (!split(text, w, kLionTableCount, nullptr))
+    return Request();
+  Request r;
+  for (const std::string &word : w) {
+    const size_t eq = word.find("=0x");
+    const auto *name = eq == std::string::npos ? std::end(kLionTables)
+                                               : std::find(std::begin(kLionTables), std::end(kLionTables),
+                                                           std::string_view(word).substr(0, eq));
+    const std::string_view hex = eq == std::string::npos ? std::string_view() : std::string_view(word).substr(eq + 3);
+    if (name == std::end(kLionTables) || r.tables[size_t(name - kLionTables)] || hex.empty() || hex.size() > 16 ||
+        hex.find_first_not_of("0123456789abcdefABCDEF") != std::string_view::npos)
+      return Request();
+    uint64_t v = 0;
+    for (char c : hex)
+      v = v << 4 | uint64_t(c <= '9' ? c - '0' : (c | 0x20) - 'a' + 10);
+    if (!game::plausible(v))
+      return Request();
+    r.tables[size_t(name - kLionTables)] = v;
+  }
+  r.command = Command::lion;
+  return r;
+}
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
     text.pop_back();
@@ -706,6 +742,8 @@ inline Request parse_request(std::string text) {
     return parse_fight(text.substr(6));
   if (text.rfind("quests ", 0) == 0)
     return parse_quests(text.substr(7));
+  if (text.rfind("lion rows ", 0) == 0)
+    return parse_lion(text.substr(10));
   Request r;
   std::string f[4];
   if (text == "host" || text == "host code" || text == "host private") {

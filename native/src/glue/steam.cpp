@@ -484,6 +484,7 @@ std::string status_text() {
   return head + cns_line + coop::pose::status() + "\n" +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
+         coop::pose::lion_status() + "\n" +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }
@@ -577,6 +578,10 @@ bool step() {
       break;
     case coop::Command::travel: // The follow's call: the game thread's.
       event(coop::pose::ask_travel(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::lion: // coop lion's rows: the game thread's too.
+      event(coop::pose::ask_lion(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::freeze: {
