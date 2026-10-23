@@ -114,10 +114,11 @@ build/host/pose_codec_test
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `lion_rows_test`: the Lion's rows against fake memory laid out like the pinned build: the recipe (unique names and
     IDs, every patch inside its struct, the steps, skills, commands and stance pointing at the new rows, the
-    CharacterTable rows last), a whole run (each row built from its donor with the game's lazy-init flag and parsed
-    arrays reset, its ID and patches, AddRow given the new name), the refusals that call no AddRow (a missing donor, a
-    taken ID or name, a wrong vtable, AddRow slot or row size), a later run skipping the rows already in, FName's number
-    split, the read-back through the game's lookups by ID, the answer word, the `lion=` status line and the log lines;
+    CharacterTable rows last with the link flag Common, the steps without the Behemoth's long moves and root motion), a
+    whole run (each row built from its donor with the game's lazy-init flag and parsed arrays reset, its ID and patches,
+    AddRow given the new name), the refusals that call no AddRow (a missing donor, a taken ID or name, a wrong vtable,
+    AddRow slot or row size), a later run skipping the rows already in, FName's number split, the read-back through the
+    game's lookups by ID, the answer word, the `lion=` status line and the log lines;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken

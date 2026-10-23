@@ -1,6 +1,7 @@
 // The Lion's rows on the build machine against fake memory laid out like the pinned build: the recipe itself (names
 // and IDs unique, every patch inside its struct and past its header, the step chains, skills, commands and stance
-// pointing at the new rows, the CharacterTable rows last); a whole run (the table checks, each row built from its
+// pointing at the new rows, the CharacterTable rows last with the link flag Common, the steps' moves without the
+// Behemoth's long ones and root motion); a whole run (the table checks, each row built from its
 // donor with SB's lazy-init flag and Transient arrays reset, its ID, its patches read back from the pool, AddRow given
 // the new name); a missing donor, a taken ID, a taken name, a wrong vtable (even with SB's AddRow in its slot), AddRow
 // slot or row size, and no FName for a row's, a donor's, a patch's or a list item's text, refusing without calling
@@ -316,7 +317,25 @@ int main() {
       assert(!std::strcmp(patched(r, 0x3a8), "M_LionC_Default") && !std::strcmp(patched(r, 0x298), "M_LionC") &&
              !std::strcmp(patched(r, 0x420), "M_LionC") && has(Table::dead, "M_LionC") &&
              has(Table::appearance, "M_LionC") && has(Table::stance, "M_LionC_Default"));
+    // The link flag: the Behemoth's "Behemoth" picks EVE's link Show whose target clip the Lion lacks; "Common" plays
+    // the anim sets' Hit_Sword_Normal_LinkAttack1, which it has.
+    if (r.table == Table::character)
+      assert(patched(r, 0x60) && !std::strcmp(patched(r, 0x60), "Common"));
+    // The moves a step keeps (SelfMoveAliasArray, +0x138): none of the Behemoth's root motion.
+    if (r.table == Table::step && patched(r, 0x138))
+      assert(!std::strstr(patched(r, 0x138), "_RM"));
   }
+  // The Behemoth's long moves are gone from the steps that carried them (SideStep's 11 m, the back jumps' 9.5 and 6.3
+  // m, JumpAttackHigh's jump on Behemoth curves and its Hit's 4.3 m of pushes, JumpAttackLow's moves to a spot EVE
+  // sets), the turns keep only their turn, and the claws keep the donor's short moves (no patch).
+  for (const char *step : {"M_LionC_SideStepLeft_Cast1", "M_LionC_SideStepRight_Cast1", "M_LionC_JumpAttackHigh_Cast1",
+                           "M_LionC_JumpAttackHigh_Hit1", "M_LionC_JumpAttackLow_Cast1", "M_LionC_JumpAttackLow_Hit1",
+                           "M_LionC_BackJumpToAttack_Finish1", "M_LionC_AttackToBackJump_Finish1"})
+    assert(patched(kRecipe[row_index(step, Table::step)], 0x138) &&
+           !*patched(kRecipe[row_index(step, Table::step)], 0x138));
+  assert(!std::strcmp(patched(kRecipe[row_index("M_LionC_TurnAttackLeft_Cast1", Table::step)], 0x138),
+                      "M_Behemoth_TurnAttackLeft_Move1"));
+  assert(!patched(kRecipe[row_index("M_LionC_ClawAttackLeft_Cast1", Table::step)], 0x138));
   {
     const Row &stance = kRecipe[row_index("M_LionC_Default", Table::stance)];
     std::string commands = patched(stance, 0x90);
@@ -393,6 +412,10 @@ int main() {
     assert(Game::field<int32_t>(stance, 0x90 + 8) == 15);
     const Game::Add &dead = g.adds[row_index("M_LionC", Table::dead)];
     assert(g.list_field(dead, 0x10, Kind::strings) == "CH_M_NA_02_Lion/Basic/M_Lion_Dead");
+    // The side step's move list emptied (no data, no count), the link flag one FName.
+    const Game::Add &side = g.adds[row_index("M_LionC_SideStepLeft_Cast1", Table::step)];
+    assert(Game::field<uint64_t>(side, 0x138) == 0 && Game::field<int32_t>(side, 0x138 + 8) == 0);
+    assert(g.list_field(g.adds[kRows - 1], 0x60, Kind::names) == "Common");
     assert(g.string_field(g.adds[kRows - 1], 0x3e8) ==
            "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test");
     assert(g.string_field(g.adds[kRows - 2], 0x3e8) ==

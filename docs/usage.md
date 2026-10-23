@@ -824,7 +824,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
-| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command, untested in game): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
+| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its first test it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) (test commands, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
@@ -1149,8 +1149,16 @@ What to expect:
 - The Lion has 15 skills made from the Behemoth's: two claws, two chasing claws, two turning attacks, two running
   attacks, two jumping attacks, two back jumps, a roar and two side steps. Both trees pick the skills flagged
   MeleeAttack, which leaves the side steps out. Its stats, rank (Elite) and hostility are the Behemoth's (37840 HP and
-  1455 shield in its row). It is a boss to the game, so the boss bar shows once it targets EVE. What the bar shows as
-  its name is not checked yet: the game has no name text for it.
+  1455 shield in its row). It is a boss to the game, so the boss bar shows once it targets EVE. The game has no name
+  text for it and writes `<M_LionC>` on the bar; while a Lion lives, `coop lion` changes that to `Lion` (checked once a
+  second, since the game writes the name again at each boss bind).
+- The skills keep the Behemoth's short moves (the claws' 0.9 and 1.4 m steps, the turns' rotation, the roar's 1.6 m) and
+  drop the others: the side steps' 11 m, the back jumps' 9.5 and 6.3 m, the turns' Behemoth root motion, the high jump's
+  Behemoth curves and the 4.3 m of pushes in its hit, and the low jump's two moves, which carry the body to EVE from
+  wherever it stands. In 0.6.0-beta.1 those moves pushed the Lion across the ground with no clip to match.
+- EVE's link attack on it plays the generic link: the Lion reacts with its own `Hit_Sword_Normal_LinkAttack1` clip.
+  In 0.6.0-beta.1 its row kept the Behemoth's link flag, which picks EVE's Behemoth link, whose reaction clip the Lion
+  does not have.
 - Its rows give it its own death animation (7 s), then a dissolve (15 s). It drops nothing.
 - It should not come back from a save: a Lion alive when you load a save or change maps is gone. No command removes one:
   it goes when it dies or with the map.
@@ -1175,7 +1183,10 @@ The log lines, in `UE4SS.log` unless marked:
 | `rows read back through FindRow: 78/78 match` | Every changed field reads as written |
 | `rows already in (78/78; ...): not added again` | A later `coop lion` in the same game run |
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
-| `lion 1 (50020): 12.1 m, battle 1, state 0, controller yes, spawn count 7` | Once a second while it lives: its distance to EVE, battle mode, state, controller and the game's spawn counter |
+| `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), battle mode, state, controller and the game's spawn counter |
+| `loaded: shows 3/15, clips 2/15 (Show seen, its clip not yet: Roar)` | Which of the Lion's 15 skill presentations (Shows) and their clips the game has loaded so far; first said once all 30 were looked for (about 15 s), then at each change |
+| `boss name: <M_LionC> -> Lion` | The boss bar's name set to Lion |
+| `lion 1 (50020) recycled: SB moved its body back for this spawn` | The game reused a Lion body it had sent far away for the next spawn; that spawn's line ends with `a body SB reused` |
 | `lion 1 (50020) dead after 143 s (InteractionState 3, no controller); body gone after 22.4 s` | Its death and its body's despawn |
 | `lion 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
 | `entrance: ...` | What `coop lion intro` played, or why the entrance was skipped |
@@ -1184,6 +1195,17 @@ A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; 
 line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
 part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
+
+In the first test (0.6.0-beta.1, 2026-10-23) the Lion moved and its attacks hit, but it stayed in its idle pose. The
+cause is not known yet. To find it, fight a Lion for at least 30 s, then run `coop lion control` in the same game run
+and watch whether the Antlion animates. Note whether the Lion's attacks showed claw trails (the Show ran) or growls
+(its clip played: the growls are in the clip). The lines then tell the cases apart:
+
+- `loaded: shows 0/15` after attacks: the game never played a Lion Show on that body.
+- A Show seen and its clip not: the Show ran, but its clip did not load.
+- Both seen, `anim alpha 0.00/0.00` during attacks: the clip loaded, but the animation blueprint never blended it in.
+- `anim alpha` above 0 during attacks: the Lion does animate.
+- An Antlion that does not animate either: the spawn call is at fault, not the Lion's rows.
 ### Cut hairs and suits: `coop wear`
 
 The game's files hold two hairs and four suits that no item gives. `coop wear` puts them on your EVE by setting the
