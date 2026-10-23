@@ -91,7 +91,8 @@ T.en={
         world='The co-op menu opens in the game world only.',
         paused='The co-op menu does not open while the game is paused or shows a menu.'},
     -- The ghost's notices (partner/puppet.lua): her name, her map, yours.
-    ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.'},
+    ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.',
+        mods='%s wears parts from mods your game cannot load: %s. They show on the base suit or are left out.'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -294,7 +295,10 @@ T.fr={
     refused={off="Le menu co-op est coupé (l'interface s'est arrêtée, voir UE4SS.log) : utilisez les commandes coop.",
         world="Le menu co-op ne s'ouvre que dans le monde du jeu.",
         paused="Le menu co-op ne s'ouvre pas quand le jeu est en pause ou affiche un menu."},
-    ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',away='%s est dans %s, vous êtes dans %s.'},
+    ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',
+        away='%s est dans %s, vous êtes dans %s.',
+        mods='%s porte des pièces de mods que votre jeu ne peut pas charger : %s. Elles sont remplacées par la tenue '
+            ..'de base ou omises.'},
     fight={on='Ennemis partagés actifs : %d ennemis liés.',one='Ennemis partagés actifs : 1 ennemi lié.',
         scale="PV des ennemis %d %%, équilibre %d %% (réglage de l'hôte).",
         off='Ennemis partagés coupés. coop-link.log dit pourquoi.',
@@ -474,7 +478,8 @@ T.ar={
     refused={off='قائمة اللعب التعاوني متوقفة (توقفت الواجهة، ويذكر UE4SS.log السبب): استخدم أوامر coop.',
         world='لا تُفتح قائمة اللعب التعاوني إلا في عالم اللعبة.',
         paused='لا تُفتح قائمة اللعب التعاوني أثناء إيقاف اللعبة مؤقتًا أو عند عرض قائمة.'},
-    ghost={failed='فشل الشبح 3 مرات: يذكر UE4SS.log السبب.',away='يوجد %s في %s، وأنت في %s.'},
+    ghost={failed='فشل الشبح 3 مرات: يذكر UE4SS.log السبب.',away='يوجد %s في %s، وأنت في %s.',
+        mods='يرتدي %s أجزاء من تعديلات لا تحمّلها لعبتك: %s. تظهر بالزي الأساسي أو تُحذف.'},
     fight={on='مشاركة الأعداء مفعّلة: تم ربط %d من الأعداء.',one='مشاركة الأعداء مفعّلة: تم ربط عدو واحد.',
         scale='نقاط صحة الأعداء %d%%، والتوازن %d%% (إعداد المضيف).',
         off='توقفت مشاركة الأعداء. يذكر coop-link.log السبب.',
@@ -644,7 +649,8 @@ T.da={
     refused={off='Co-op-menuen er slået fra (brugerfladen stoppede, se UE4SS.log): brug coop-kommandoerne.',
         world='Co-op-menuen kan kun åbnes i spilverdenen.',
         paused='Co-op-menuen kan ikke åbnes, mens spillet er sat på pause eller viser en menu.'},
-    ghost={failed='Spøgelset fejlede 3 gange: årsagen står i UE4SS.log.',away='%s er i %s, du er i %s.'},
+    ghost={failed='Spøgelset fejlede 3 gange: årsagen står i UE4SS.log.',away='%s er i %s, du er i %s.',
+        mods='%s bærer dele fra mods, som dit spil ikke kan indlæse: %s. De vises som basisdragten eller udelades.'},
     fight={on='Delte fjender slået til: %d fjender forbundet.',one='Delte fjender slået til: 1 fjende forbundet.',
         scale='Fjendernes HP %d %%, balance %d %% (værtens indstilling).',
         off='Delte fjender slået fra. coop-link.log forklarer hvorfor.',
@@ -822,7 +828,9 @@ T.de={
         world='Das Koop-Menü öffnet sich nur in der Spielwelt.',
         paused='Das Koop-Menü öffnet sich nicht, solange das Spiel pausiert ist oder ein Menü zeigt.'},
     ghost={failed='Geist: 3 Fehlversuche. Der Grund steht in UE4SS.log.',
-        away='%s ist in %s, du bist in %s.'},
+        away='%s ist in %s, du bist in %s.',
+        mods='%s trägt Teile aus Mods, die dein Spiel nicht laden kann: %s. Sie erscheinen als Basisanzug oder '
+            ..'fehlen.'},
     fight={on='Gemeinsame Gegner aktiv: %d Gegner verbunden.',one='Gemeinsame Gegner aktiv: 1 Gegner verbunden.',
         scale='LP der Gegner %d %%, Gleichgewicht %d %% (Einstellung des Hosts).',
         off='Gemeinsame Gegner aus. Der Grund steht in coop-link.log.',
@@ -1007,7 +1015,8 @@ T.es={
         world='El menú co-op solo se abre en el mundo del juego.',
         paused='El menú co-op no se abre con el juego en pausa o con un menú abierto.'},
     ghost={failed='No se pudo crear el fantasma tras 3 intentos: el motivo está en UE4SS.log.',
-        away='%s está en %s; tú estás en %s.'},
+        away='%s está en %s; tú estás en %s.',
+        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el traje base o se omiten.'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',
         scale='PS de enemigos %d %%, equilibrio %d %% (ajuste del anfitrión).',
@@ -1190,7 +1199,8 @@ T['es-MX']={
         world='El menú co-op solo se abre en el mundo del juego.',
         paused='El menú co-op no se abre si el juego está en pausa o muestra un menú.'},
     ghost={failed='No se pudo crear el fantasma tras 3 intentos: la razón está en UE4SS.log.',
-        away='%s está en %s; tú estás en %s.'},
+        away='%s está en %s; tú estás en %s.',
+        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el atuendo base o se omiten.'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',
         scale='Salud enemiga %d%%, equilibrio %d%% (configuración del anfitrión).',
@@ -1372,7 +1382,8 @@ T.fi={
         world='Co-op-valikko avautuu vain pelimaailmassa.',
         paused='Co-op-valikko ei avaudu, kun peli on tauolla tai näyttää valikkoa.'},
     ghost={failed='Haamu epäonnistui 3 kertaa: syy on UE4SS.log-tiedostossa.',
-        away='%s on alueella %s, sinä alueella %s.'},
+        away='%s on alueella %s, sinä alueella %s.',
+        mods='%s käyttää osia modeista, joita pelisi ei voi ladata: %s. Ne näkyvät perusasuna tai jäävät pois.'},
     fight={on='Jaetut viholliset päällä: %d vihollista yhdistetty.',
         one='Jaetut viholliset päällä: 1 vihollinen yhdistetty.',
         scale='Vihollisten HP %d %%, tasapaino %d %% (isännän asetus).',
@@ -1556,7 +1567,9 @@ T.it={
         world='Il menu co-op si apre solo nel mondo di gioco.',
         paused='Il menu co-op non si apre mentre il gioco è in pausa o mostra un menu.'},
     ghost={failed='Creazione del fantasma fallita 3 volte: il motivo è in UE4SS.log.',
-        away='%s è in %s, tu sei in %s.'},
+        away='%s è in %s, tu sei in %s.',
+        mods='%s indossa parti di mod che il tuo gioco non può caricare: %s. Appaiono con la tuta base o vengono '
+            ..'omesse.'},
     fight={on='Nemici condivisi attivi: %d nemici collegati.',one='Nemici condivisi attivi: 1 nemico collegato.',
         scale="PS dei nemici %d %%, equilibrio %d %% (impostazione dell'host).",
         off='Nemici condivisi disattivati. Il motivo è in coop-link.log.',
@@ -1732,7 +1745,8 @@ T.ja={
     refused={off='協力プレイメニューは使えません（UIが停止。UE4SS.logを参照）。coopコマンドを使ってください。',
         world='協力プレイメニューはゲームプレイ中にのみ開けます。',
         paused='一時停止中やメニュー表示中は協力プレイメニューを開けません。'},
-    ghost={failed='ゴーストの生成に3回失敗しました。理由はUE4SS.logにあります。',away='%sは%sにいます（自分は%s）。'},
+    ghost={failed='ゴーストの生成に3回失敗しました。理由はUE4SS.logにあります。',away='%sは%sにいます（自分は%s）。',
+        mods='%sの衣装に、読み込めないMODのパーツがあります：%s。基本スーツで表示するか、省きます。'},
     fight={on='敵の共有：オン。%d体の敵をリンク中。',one='敵の共有：オン。1体の敵をリンク中。',
         scale='敵のHP%d%%、バランス%d%%（ホストの設定）。',
         off='敵の共有：オフ。理由はcoop-link.logにあります。',
@@ -1885,7 +1899,8 @@ T.ko={
     refused={off='코옵 메뉴가 꺼져 있습니다(UI가 멈춤, UE4SS.log 참고). coop 명령어를 사용하세요.',
         world='코옵 메뉴는 게임 월드 안에서만 열립니다.',
         paused='게임이 일시 정지 중이거나 메뉴가 열려 있으면 코옵 메뉴가 열리지 않습니다.'},
-    ghost={failed='고스트 생성에 3번 실패했습니다. 이유는 UE4SS.log에 있습니다.',away='%s 위치: %s, 내 위치: %s.'},
+    ghost={failed='고스트 생성에 3번 실패했습니다. 이유는 UE4SS.log에 있습니다.',away='%s 위치: %s, 내 위치: %s.',
+        mods='%s 의상에 불러올 수 없는 모드 부품이 있습니다: %s. 기본 슈트로 보이거나 빠집니다.'},
     fight={on='적 공유 켜짐: 적 %d마리 연결.',one='적 공유 켜짐: 적 1마리 연결.',
         scale='적 생명력 %d%%, 균형 %d%%(호스트 설정).',
         off='적 공유 꺼짐. 이유는 coop-link.log 참고.',
@@ -2047,7 +2062,9 @@ T.nl={
     refused={off="Het co-opmenu staat uit (de interface is gestopt, zie UE4SS.log): gebruik de coop-commando's.",
         world='Het co-opmenu opent alleen in de gamewereld.',
         paused='Het co-opmenu opent niet als de game gepauzeerd is of een menu toont.'},
-    ghost={failed='Geest 3 keer mislukt: de reden staat in UE4SS.log.',away='%s is in %s, jij bent in %s.'},
+    ghost={failed='Geest 3 keer mislukt: de reden staat in UE4SS.log.',away='%s is in %s, jij bent in %s.',
+        mods='%s draagt delen uit mods die jouw game niet kan laden: %s. Ze verschijnen als het basispak of '
+            ..'ontbreken.'},
     fight={on='Gedeelde vijanden aan: %d vijanden gekoppeld.',one='Gedeelde vijanden aan: 1 vijand gekoppeld.',
         scale='HP vijanden %d %%, balans %d %% (instelling van de host).',
         off='Gedeelde vijanden uit. coop-link.log zegt waarom.',
@@ -2226,7 +2243,9 @@ T.no={
     refused={off='Co-op-menyen er slått av (grensesnittet stoppet, se UE4SS.log): bruk coop-kommandoene.',
         world='Co-op-menyen åpnes bare i spillverdenen.',
         paused='Co-op-menyen åpnes ikke mens spillet er satt på pause eller viser en meny.'},
-    ghost={failed='Spøkelset mislyktes 3 ganger: årsaken står i UE4SS.log.',away='%s er i %s, du er i %s.'},
+    ghost={failed='Spøkelset mislyktes 3 ganger: årsaken står i UE4SS.log.',away='%s er i %s, du er i %s.',
+        mods='%s har på seg deler fra modder spillet ditt ikke kan laste inn: %s. De vises som basisdrakten eller '
+            ..'utelates.'},
     fight={on='Delte fiender slått på: %d fiender koblet sammen.',one='Delte fiender slått på: 1 fiende koblet sammen.',
         scale='Fiende-HP %d %%, balanse %d %% (vertens innstilling).',
         off='Delte fiender slått av. coop-link.log sier hvorfor.',
@@ -2401,7 +2420,8 @@ T.pl={
     refused={off='Menu co-op jest wyłączone (interfejs przestał działać, patrz UE4SS.log): użyj komend coop.',
         world='Menu co-op otwiera się tylko w świecie gry.',
         paused='Menu co-op nie otwiera się, gdy gra jest wstrzymana lub wyświetla menu.'},
-    ghost={failed='Duch: 3 nieudane próby, powód jest w UE4SS.log.',away='%s jest na mapie %s, ty na mapie %s.'},
+    ghost={failed='Duch: 3 nieudane próby, powód jest w UE4SS.log.',away='%s jest na mapie %s, ty na mapie %s.',
+        mods='%s nosi części z modów, których twoja gra nie może wczytać: %s. Widać je jako strój bazowy albo wcale.'},
     fight={on='Wspólni wrogowie: włączono, połączono %d wrogów.',one='Wspólni wrogowie: włączono, połączono 1 wroga.',
         scale='PŻ wrogów %d%%, równowaga %d%% (ustawienie hosta).',
         off='Wspólni wrogowie: wyłączono. coop-link.log podaje powód.',
@@ -2578,7 +2598,9 @@ T.pt={
         world='O menu co-op só abre no mundo do jogo.',
         paused='O menu co-op não abre com o jogo em pausa ou com um menu aberto.'},
     ghost={failed='Não foi possível criar o fantasma após 3 tentativas: a razão está no UE4SS.log.',
-        away='%s está na zona %s, tu estás na zona %s.'},
+        away='%s está na zona %s, tu estás na zona %s.',
+        mods='%s usa peças de mods que o teu jogo não consegue carregar: %s. Aparecem com o fato base ou ficam de '
+            ..'fora.'},
     fight={on='Inimigos partilhados ativados: %d inimigos ligados.',
         one='Inimigos partilhados ativados: 1 inimigo ligado.',
         scale='PV dos inimigos %d %%, equilíbrio %d %% (definição do anfitrião).',
@@ -2756,7 +2778,9 @@ T['pt-BR']={
     refused={off='O menu co-op está desativado (a interface parou, veja UE4SS.log): use os comandos coop.',
         world='O menu co-op só abre no mundo do jogo.',
         paused='O menu co-op não abre com o jogo pausado ou com um menu aberto.'},
-    ghost={failed='O fantasma falhou 3 vezes: o motivo está no UE4SS.log.',away='%s está em %s, você está em %s.'},
+    ghost={failed='O fantasma falhou 3 vezes: o motivo está no UE4SS.log.',away='%s está em %s, você está em %s.',
+        mods='%s usa peças de mods que o seu jogo não consegue carregar: %s. Elas aparecem com o traje base ou ficam '
+            ..'de fora.'},
     fight={on='Inimigos compartilhados ativados: %d inimigos vinculados.',
         one='Inimigos compartilhados ativados: 1 inimigo vinculado.',
         scale='PV dos inimigos %d %%, equilíbrio %d %% (configuração do anfitrião).',
@@ -2937,7 +2961,8 @@ T.ru={
         world='Меню кооператива открывается только в игровом мире.',
         paused='Меню кооператива не открывается, пока игра на паузе или открыто меню.'},
     ghost={failed='Призрак не удалось создать 3 раза подряд: причина в UE4SS.log.',
-        away='%s в локации %s, вы в локации %s.'},
+        away='%s в локации %s, вы в локации %s.',
+        mods='Моды партнера (%s) не загружаются: %s. Эти части в базовом костюме или скрыты.'},
     fight={on='Общие враги включены. Связано врагов: %d.',one='Общие враги включены. Связан 1 враг.',
         scale='ОЗ врагов %d%%, устойчивость %d%% (настройка хоста).',
         off='Общие враги выключены. Причина в coop-link.log.',
@@ -3110,7 +3135,8 @@ T.sv={
     refused={off='Co-op-menyn är av (gränssnittet stoppades, se UE4SS.log): använd coop-kommandona.',
         world='Co-op-menyn öppnas bara i spelvärlden.',
         paused='Co-op-menyn öppnas inte när spelet är pausat eller visar en meny.'},
-    ghost={failed='Spöket misslyckades 3 gånger: orsaken står i UE4SS.log.',away='%s är i %s, du är i %s.'},
+    ghost={failed='Spöket misslyckades 3 gånger: orsaken står i UE4SS.log.',away='%s är i %s, du är i %s.',
+        mods='%s bär delar från moddar som ditt spel inte kan läsa in: %s. De visas som basdräkten eller utelämnas.'},
     fight={on='Delade fiender på: %d fiender länkade.',one='Delade fiender på: 1 fiende länkad.',
         scale='Fiendernas hälsa %d %%, balans %d %% (värdens inställning).',
         off='Delade fiender av. coop-link.log säger varför.',
@@ -3280,7 +3306,8 @@ T.th={
     refused={off='เมนู co-op ปิดอยู่ (UI หยุดทำงาน ดู UE4SS.log): ใช้คำสั่ง coop แทน',
         world='เมนู co-op เปิดได้เฉพาะในโลกของเกม',
         paused='เมนู co-op เปิดไม่ได้ขณะเกมหยุดชั่วคราวหรือกำลังแสดงเมนู'},
-    ghost={failed='สร้างร่างจำลองไม่สำเร็จ 3 ครั้ง ดูสาเหตุใน UE4SS.log',away='%s อยู่ที่ %s ส่วนคุณอยู่ที่ %s'},
+    ghost={failed='สร้างร่างจำลองไม่สำเร็จ 3 ครั้ง ดูสาเหตุใน UE4SS.log',away='%s อยู่ที่ %s ส่วนคุณอยู่ที่ %s',
+        mods='%s ใช้ม็อดที่โหลดไม่ได้: %s ชุดบางส่วนจะดูต่างไป'},
     fight={on='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู %d ตัว',one='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู 1 ตัว',
         scale='HP ศัตรู %d%% บาลานซ์ %d%% (ค่าของโฮสต์)',
         off='ปิดศัตรูร่วมแล้ว ดูสาเหตุใน coop-link.log',
@@ -3442,7 +3469,9 @@ T.tr={
         world='Co-op menüsü yalnızca oyun dünyasında açılır.',
         paused='Oyun duraklatılmışken ya da bir menü açıkken co-op menüsü açılmaz.'},
     ghost={failed='Hayalet 3 kez oluşturulamadı: nedeni UE4SS.log dosyasında.',
-        away='%s şu an %s haritasında, sen %s haritasındasın.'},
+        away='%s şu an %s haritasında, sen %s haritasındasın.',
+        mods='%s, oyununun yükleyemediği modlardan parçalar giyiyor: %s. Bunlar temel kıyafetle görünür ya da hiç '
+            ..'görünmez.'},
     fight={on='Ortak düşmanlar açık: %d düşman bağlandı.',one='Ortak düşmanlar açık: 1 düşman bağlandı.',
         scale='Düşman canı %%%d, denge %%%d (ev sahibinin ayarı).',
         off='Ortak düşmanlar kapandı. Nedeni coop-link.log dosyasında.',
@@ -3610,7 +3639,8 @@ T['zh-Hans']={
     refused={off='合作菜单已关闭（界面已停止，见UE4SS.log）：请使用coop命令。',
         world='合作菜单只能在游戏世界中打开。',
         paused='游戏暂停或显示菜单时，无法打开合作菜单。'},
-    ghost={failed='幽灵生成失败3次：原因见UE4SS.log。',away='%s在%s，你在%s。'},
+    ghost={failed='幽灵生成失败3次：原因见UE4SS.log。',away='%s在%s，你在%s。',
+        mods='%s穿着来自你的游戏无法加载的模组的部件：%s。这些部件以基础服装显示或不显示。'},
     fight={on='共享敌人已启用：已关联%d个敌人。',one='共享敌人已启用：已关联1个敌人。',
         scale='敌人生命%d%%，平衡%d%%（房主的设置）。',
         off='共享敌人已关闭。原因见coop-link.log。',
@@ -3748,7 +3778,8 @@ T['zh-Hant']={
     refused={off='合作選單已關閉（使用者介面已停止，請見UE4SS.log）：請使用coop指令。',
         world='合作選單只能在遊戲世界中開啟。',
         paused='遊戲暫停或顯示選單時，無法開啟合作選單。'},
-    ghost={failed='幻影生成失敗3次：原因記錄在UE4SS.log。',away='%s在%s，你在%s。'},
+    ghost={failed='幻影生成失敗3次：原因記錄在UE4SS.log。',away='%s在%s，你在%s。',
+        mods='%s穿著來自你的遊戲無法載入的模組的部件：%s。這些部件以基礎服裝顯示或不顯示。'},
     fight={on='共享敵人已開啟：已連結%d個敵人。',one='共享敵人已開啟：已連結1個敵人。',
         scale='敵人生命值%d%%，平衡%d%%（主機設定）。',
         off='共享敵人已關閉。原因請見coop-link.log。',
@@ -3824,6 +3855,22 @@ local culture=require('nightop.recruiter_text').culture
 local function fallback(t,en)
     for k,v in pairs(t) do if type(v)=='table' and type(en[k])=='table' then fallback(v,en[k]) end end
     return setmetatable(t,{__index=en})
+end
+-- A notice naming mods (main.lua's about her .pak mods, partner/puppet.lua's about her outfit's parts): fmt with name
+-- and the last part ('/'-separated) of each of the first two of list.names ({n=, names=}) that fit the feed's 200 bytes
+-- (session/chat.lua), then (+n) for the others.
+function T.mods(fmt,name,list)
+    local room,shown=200-#fmt:format(name,''),{}
+    for i=1,math.min(2,#list.names) do
+        local short=list.names[i]:match('[^/]*$')
+        local text=table.concat(shown,', ')..(i>1 and ', ' or '')..short
+        local rest=list.n-i
+        if #text+(rest>0 and #(' (+'..rest..')') or 0)>room then break end
+        shown[i]=short
+    end
+    local text,rest=table.concat(shown,', '),list.n-#shown
+    if rest>0 then text=text..(text~='' and ' ' or '')..'(+'..rest..')' end
+    return fmt:format(name,text)
 end
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(name,setting)

@@ -1,8 +1,10 @@
 -- EVE's capture with fake UE4SS objects that only read (any write to EVE or her components fails, and so does any Set*
 -- call): the table's text, names made safe and the map lowercased, a part hung from no lower part placed from her main
 -- mesh, the generation (a new mesh bumps it, a new socket keeps it, a placement that drifts never republishes), the 2 s
--- wait, the menu pawn, the native part's caps; with dyes on, her overridden materials (a dynamic one as its parent);
--- with effects on, the Niagara layout by reflection and the listed systems in memory, looked up one a tick.
+-- wait, the menu pawn, the native part's caps and pose size (the last leaders left out); with dyes on, her overridden
+-- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
+-- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
+-- its materials with dyes off, and her cloth's collision line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -168,25 +170,53 @@ tick(); step(2)
 assert(published[#published]:find('^generation 100004\n'))
 
 -- The native part's caps: at most 16 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
--- with its followers; her main mesh outside them, no table at all.
+-- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 113 bytes of
+-- header, effect slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table at all.
+local X='/Game/Art/Character/X/'
 local many={body}
-for k=1,20 do many[#many+1]=her('Extra'..k,'/Game/X/X'..k..'.X'..k,{parent=body,bones=1}) end
+for k=1,20 do many[#many+1]=her('Extra'..k,X..'X'..k..'.X'..k,{parent=body,bones=1}) end
 player=eve_of('EVE3',many)
 tick()
 ok,message=step(2)
 t=published[#published]
 assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npart ',''))==16,tostring(message))
 assert(t:find(' Extra15 ',1,true) and not t:find(' Extra16 ',1,true),t)
-local zero=her('Zero','/Game/X/Zero.Zero',{parent=body})
-local huge=her('Huge','/Game/X/Huge.Huge',{parent=body,bones=1025})
-local full=her('Full','/Game/X/Full.Full',{parent=body,bones=1024})
-local on_zero=her('OnZero','/Game/X/OnZero.OnZero',{leader=zero,parent=zero})
+local zero=her('Zero',X..'Zero.Zero',{parent=body})
+local huge=her('Huge',X..'Huge.Huge',{parent=body,bones=1025})
+local full=her('Full',X..'Full.Full',{parent=body,bones=900}) -- 903 bones with hers: 113 + 2 + 16254 bytes.
+local on_zero=her('OnZero',X..'OnZero.OnZero',{leader=zero,parent=zero})
 player=eve_of('EVE4',{body,zero,huge,full,on_zero})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 2 parts, 1027 bone names, '),tostring(message))
-assert(t:find('\npart 1 - 0 - 1 1024 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
+assert(ok and message:find('^Capture %d+: 2 parts, 903 bone names, .* ms$'),tostring(message))
+assert(t:find('\npart 1 - 0 - 1 900 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
+-- One bone more is over: the last leader goes with its follower, and the leader before it, if a pose is still over.
+local tail=her('Tail',X..'Tail.Tail',{parent=body,bones=1})
+local on_tail=her('OnTail',X..'OnTail.OnTail',{leader=tail,parent=tail})
+local on_full=her('OnFull',X..'OnFull.OnFull',{leader=full,parent=full})
+player=eve_of('EVE4b',{body,full,tail,on_full,on_tail})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: 3 parts, 903 bone names, .*; 1 leaders left out, over the pose size$'),
+    tostring(message))
+assert(t:find('\npart 2 1 1 - 1 0 OnFull ',1,true) and not t:find('Tail',1,true),t)
+full.state.bones=1024
+player=eve_of('EVE4c',{body,tail,full,on_tail})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: 3 parts, 4 bone names, .*; 1 leaders left out, over the pose size$'),
+    tostring(message))
+assert(t:find(' Tail ',1,true) and t:find(' OnTail ',1,true) and not t:find('Full',1,true),t)
+body.state.bones=904 -- Her main mesh alone is over: no table.
+player=eve_of('EVE4d',{body,tail})
+tick()
+local count_before=#published
+step(2); step(1)
+assert(#published==count_before,'Her main mesh over the pose size: no table')
+body.state.bones=3
 body.state.bones=0
 player=eve_of('EVE5',{body,blade})
 tick()
@@ -346,4 +376,73 @@ super.ForEachProperty=function(_,f) f(property('Asset',0x1008)) end
 capture=Capture.new(function() return true end,looks)
 ok,message=tick()
 assert(ok==false and message:find('^Effects not captured: the Asset offset 0x1008 is outside '),tostring(message))
+
+-- The game's own folders (table.h's first family) against a mod's: only the first are sent untagged.
+local B=Capture.base_path
+for _,good in ipairs({BODY,HAIR,FACE,'/Game/DLC_12/Art/Character/PC/X/X.X','/Game/Art/Character/A/B/C/D.D'}) do
+    assert(B(good),good)
+end
+for _,bad in ipairs({'/Game/Art/Character/X.X','/Game/Art/Character/PC/X-1/X.X','/Game/DLC_123/Art/Character/P/X.X',
+    '/Game/Art/Character//PC/X.X','/Game/Art/Character/PC/X/X.Y','/Game/Art/Character/PC/X/X','/Game/OutfitMods/F/F.F',
+    '/Game/Art/CharacterX/PC/X.X','/game/art/character/pc/x/x.x','/Game/Art/Character/PC/'..('x'):rep(240)..'/X.X',
+    '/Game/Art/Character/PC/X/X.X:Sub',42}) do
+    assert(not B(bad),tostring(bad))
+end
+-- A mod's tag: the UniqueFitID our CNS packs give its path, else its first two folders (or its one); none for the
+-- game's own or a path outside /Game.
+local SUIT,ATOOL='/Game/OutfitMods/FooSuit/Meshes/SK_Foo.SK_Foo','/Game/Mods/HD-ATOOL_P/data/cha/Eve/hair/P_2.P_2'
+local cns={[SUIT]='Foo_Suit',['/Game/Mods/X/T.T']='-'}
+assert(Capture.label(SUIT,cns)=='Foo_Suit' and Capture.label(SUIT,{})=='OutfitMods/FooSuit' and Capture.label(SUIT)==
+    'OutfitMods/FooSuit')
+assert(Capture.label(ATOOL,cns)=='Mods/HD-ATOOL_P' and Capture.label('/Game/Mods/X/T.T',cns)=='Mods/X')
+assert(Capture.label('/Game/One/A.A')=='One' and Capture.label(BODY,cns)==nil and Capture.label('/Engine/X/X.X')==nil)
+assert(Capture.label('/Game/'..('m'):rep(70)..'/n/A.A')==('m'):rep(64),'A word: 64 bytes at most')
+
+-- Parts on mods' meshes, dyes off: tagged after their materials (sent all the same: CNS puts an outfit's materials on
+-- at run time) and cloth; the game's own parts send none. Her ponytail's cloth collision goes on its own line, on any
+-- part, and another asset there is a new generation.
+local suit=her('Suit',SUIT,{parent=body,bones=2})
+local tail_part=her('SBPonytail',ATOOL,{leader=suit,parent=suit})
+local MOD_MAT='/Game/OutfitMods/FooSuit/MI_Foo.MI_Foo'
+raw[suit].OverrideMaterials=slots(2,{nil,material(MOD_MAT)})
+raw[body].OverrideMaterials=slots(1,{skin})
+local PA='/Game/OutfitMods/FooSuit/PA_Tail.PA_Tail'
+local function physics(path) return object(path,{GetFullName=function() return 'PhysicsAsset '..path end}) end
+raw[tail_part].OverrideClothPhysicsAsset=physics(PA)
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,{},
+    function() return cns end)
+player=eve_of('EVE9',{body,suit,tail_part})
+tick()
+ok,message=step(2)
+assert(ok and message:find('^Capture 100001: 3 parts, 5 bone names, .* ms$'),tostring(message))
+t=published[1]
+local function plain(p) return (p:gsub('%p','%%%0')) end
+assert(t:find(' Suit '..SUIT..'\nplace 1 [^\n]*\nmaterial 1 1 '..plain(MOD_MAT)..'\nmod 1 Foo_Suit\nnames 1 '),t)
+assert(t:find(' SBPonytail '..plain(ATOOL)..'\nplace 2 [^\n]*\ncloth 2 '..plain(PA)..'\nmod 2 Mods/HD%-ATOOL_P\n$'),t)
+assert(not t:find('\nmaterial 0 ') and not t:find('\nmod 0 '),'The game\'s own part: no materials, no tag')
+assert(step(1)==nil,'Nothing changed')
+raw[tail_part].OverrideClothPhysicsAsset=physics('/Game/OutfitMods/FooSuit/PA_Other.PA_Other')
+ok,message=step(1)
+assert(ok and message:find('^Capture 100002: ') and published[2]:find('\ncloth 2 /Game/OutfitMods/FooSuit/PA_Other%.'),
+    tostring(message))
+-- A cloth asset with a path of 256 bytes would refuse the whole table: left out.
+raw[tail_part].OverrideClothPhysicsAsset=physics('/Game/'..('p'):rep(246)..'/P.P')
+step(1)
+assert(not published[3]:find('\ncloth '),published[3])
+-- mod_names=off: no path outside the game's own folders goes, nor a tag. Her suit and its ponytail go as '-' (the
+-- friend draws fallbacks), its material and cloth asset are left out; the game's own parts go as before.
+raw[tail_part].OverrideClothPhysicsAsset=physics(PA)
+raw[body].OverrideMaterials=slots(1,{skin})
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,{dyes=true},
+    function() return cns end,true)
+player=eve_of('EVE10',{body,suit,tail_part})
+tick()
+ok,message=step(2)
+t=published[1]
+assert(ok and t:find(' CharacterMesh0 '..plain(BODY)..'\nmaterial 0 0 '..plain(SKIN)..'\nnames 0 '),t)
+assert(t:find('\npart 1 %- 0 %- 1 2 Suit %-\nplace 1 [^\n]*\nnames 1 ') and t:find('\npart 2 1 1 %- 1 0 SBPonytail %-\n'),t)
+assert(not t:find('OutfitMods',1,true) and not t:find('ATOOL',1,true) and not t:find('\nmod ') and not t:find('\ncloth '),
+    t)
 print('capture_test ok')

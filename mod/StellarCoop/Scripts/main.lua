@@ -118,7 +118,9 @@ if link then
     link.display(nil)
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
-local capture=require('partner.capture').new(link and link.components or nil,look)
+-- With mod_names=off, no mod's path goes in the capture either.
+local capture=require('partner.capture').new(link and link.components or nil,look,link and link.cns_assets or nil,
+    settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
 -- host's question: with the Steam link.
@@ -752,21 +754,9 @@ if link then
             end
         end
     end
-    -- A notice naming mods (a list of core/link.lua's mods()): fmt with her name and the file names (no folders) of
-    -- the first two mods that fit the feed's 200 bytes (session/chat.lua), then (+n) for the others.
-    local function mods_notice(fmt,name,list)
-        local room,shown=200-#fmt:format(name,''),{}
-        for i=1,math.min(2,#list.names) do
-            local short=list.names[i]:match('[^/]*$')
-            local text=table.concat(shown,', ')..(i>1 and ', ' or '')..short
-            local rest=list.n-i
-            if #text+(rest>0 and #(' (+'..rest..')') or 0)>room then break end
-            shown[i]=short
-        end
-        local text,rest=table.concat(shown,', '),list.n-#shown
-        if rest>0 then text=text..(text~='' and ' ' or '')..'(+'..rest..')' end
-        return fmt:format(name,text)
-    end
+    -- A notice naming mods (a list of core/link.lua's mods()): the file names (no folders) of the first two that fit,
+    -- then (+n) for the others (ui/text.lua's T.mods).
+    local mods_notice=T.mods
     -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
     -- With their names (her mod_names=on), it names those she uses and we lack, then those we have in another version,
     -- since parts of her outfit from them look different here; with neither, or without names, the two counts.

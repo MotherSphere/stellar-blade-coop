@@ -15,7 +15,9 @@
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
 -- them in place(), within their budget; with collide on, the solid partner's capsule and the rules that open it.
 -- Doro mode: its Doro on part 0 with its keepers (gone with it) and every part hidden until it goes off, and the race's
--- emote on it.
+-- emote on it. Mods: a path outside the game's own folders looked up or loaded only when our CNS packs declare it
+-- (GetAsset for one LoadAsset misses), its materials with dyes off, the cloth line's collision, the outfits not shown
+-- said once a generation; a leader with other bones and no fallback drawn on its own mesh by name.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -96,10 +98,12 @@ meshes[COLLISION].GetFullName=function() return 'PhysicsAsset '..COLLISION end
 meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
 meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
 local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
+local finds,gets,unregistered={},{},{} -- Their /Game paths, GetAsset's; assets LoadAsset misses (a mod's added ones).
 local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
 LoadAsset=function(path)
     ue4ss()
     loads[#loads+1]=path
+    if unregistered[path] then return invalid end
     if meshes[path] then meshes[path].resolved_at=frame end
     return meshes[path] or invalid
 end
@@ -327,12 +331,21 @@ StaticFindObject=function(path)
     if found_by_path[path] then return found_by_path[path] end
     if path:find('^/Game/') then
         lookups=lookups+1
+        finds[#finds+1]=path
         if not in_memory[path] then return invalid end
         meshes[path].resolved_at=frame
         return meshes[path]
     end
     local c=object(path,{path=path})
     if path=='/Script/Engine.Default__KismetMathLibrary' then c.MakeTransform=function() return 'identity' end end
+    if path=='/Script/AssetRegistry.Default__AssetRegistryHelpers' then
+        c.GetAsset=function(_,data) -- An asset data with its path only: loaded by that path, in the registry or not.
+            local asked=data.ObjectPath:ToString()
+            gets[#gets+1]=asked
+            if meshes[asked] then meshes[asked].resolved_at=frame end
+            return meshes[asked] or invalid
+        end
+    end
     return c
 end
 
@@ -357,6 +370,8 @@ local function remote_text(generation,parts,map)
             p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')
         if i>1 then lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1') end
         for _,m in ipairs(p.materials or {}) do lines[#lines+1]=string.format('material %d %d %s',i-1,m[1],m[2]) end
+        if p.cloth then lines[#lines+1]=string.format('cloth %d %s',i-1,p.cloth) end
+        if p.label then lines[#lines+1]=string.format('mod %d %s',i-1,p.label) end
         if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
     end
     return table.concat(lines,'\n')..'\n'
@@ -364,7 +379,9 @@ end
 local remote_file,displays,stored,requests,said,said_en=nil,{},nil,{},{},{} -- said_en: the English given with each.
 local friend_name='Kaanta' -- Her Steam name, as the link gives it.
 local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
+local cns={} -- The assets our CNS packs declare, path to outfit (core/link.lua's cns_assets()).
 local link={remote_table=function() return remote_file end,store=function() return store end,
+    cns_assets=function() return cns end,
     display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
     friend=function() return friend_name,true,false end,
     request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
@@ -575,14 +592,16 @@ assert(math.abs(root.at.X-100)<1e-6 and math.abs(root.at.Y)<1e-6,'No offset off 
 assert(ghost.status():find(' source=replay collide=off$'),ghost.status())
 
 -- A new generation, every fallback reason: part 0 has no path ('-'), the hair is missing (a DLC this PC lacks), the
--- blade has another bone count and no fallback: it is left out, and its scabbard with it.
+-- blade has another bone count and no fallback: it is drawn on that mesh after all, its bones by name, so its scabbard
+-- stays too (a head replacer this PC lacks still shows a head).
 loads={}
 meshes[TWO_BLADE].bones={'Root','Tip'}
 ok,message=send(501,her_parts({body='-',hair=NIER,blade=TWO_BLADE}))
 assert(ok and message=='Ghost 500 removed (a new table).' and actor.destroyed and displays[#displays]=='withdrawn',message)
 assert(stored==nil)
 ok,message=build()
-assert(ok and message:find('^Ghost 501 built: 4 parts %(2 leaders%), %d+ loaded in %d+ ms, 2 on the base suit, 2 left out'),message)
+assert(ok and message:find('^Ghost 501 built: 6 parts %(3 leaders%), %d+ loaded in %d+ ms, 3 on the base suit, '
+    ..'0 left out'),message)
 assert(message:find('; CharacterMesh0: %- missing, drawn as '..BASE_BODY:gsub('%p','%%%0')..' %(3 of 4 bones follow%)'),message)
 assert(message:find('; SBHair: '..NIER:gsub('%p','%%%0')..' missing, drawn as '..BASE_HAIR:gsub('%p','%%%0')..' %(2 of 3 bones follow%)'),message)
 assert(table.concat(loads,' ')==table.concat({BASE_BODY,NIER,BASE_HAIR,TWO_BLADE},' '),table.concat(loads,' '))
@@ -593,10 +612,17 @@ assert(actor.parts[1].added_at==meshes[BASE_BODY].resolved_at and actor.parts[3]
 local destroyed=0
 for _,p in ipairs(actor.parts) do destroyed=destroyed+(p.destroyed and 1 or 0) end
 assert(destroyed==1,'The blade on 2 bones was added, found wrong and destroyed, never re-pointed')
+local blade_again=actor.parts[6]
+assert(actor.parts[5].destroyed and blade_again.mesh==meshes[TWO_BLADE] and not blade_again.destroyed)
+assert(blade_again.added_at==actor.parts[5].added_at,'Drawn again in the same frame, on the mesh it had')
+assert(actor.parts[7].calls.SetMasterPoseComponent==blade_again,'Its scabbard follows it')
+assert(message:find('; SBSkeletalMeshComponent_7: '..TWO_BLADE:gsub('%p','%%%0')..' has 2 bones, not 1, drawn as '
+    ..TWO_BLADE:gsub('%p','%%%0')..' %(1 of 2 bones follow%)'),message)
 assert(actor.parts[1].mesh==meshes[BASE_BODY] and actor.parts[1].calls.SetForcedLOD==1)
 d=displays[#displays]:gsub('0x%x+','0xX')
-assert(d=='display 501\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 4\nremap 0 0 1 -1 2\ndrive 2 0xX 0xX 0xX 3\nremap 2 0 -1 1\n',d)
-assert(ghost.status():find('^ghost=on parts=4 leaders=2 basesuit=0 left_out=2 table=501 '),ghost.status())
+assert(d=='display 501\nmailbox 0xX 0xX\ndrive 0 0xX 0xX 0xX 4\nremap 0 0 1 -1 2\ndrive 2 0xX 0xX 0xX 3\n'
+    ..'remap 2 0 -1 1\ndrive 4 0xX 0xX 0xX 2\nremap 4 0 -1\n',d)
+assert(ghost.status():find('^ghost=on parts=6 leaders=3 basesuit=0 left_out=0 table=501 '),ghost.status())
 
 -- The other two reasons: part 0's path is not a skeletal mesh, the hair's mesh has other bones than hers.
 ok,message=send(502,her_parts({body=STATIC,hair=LONG_HAIR}))
@@ -766,7 +792,7 @@ build()
 assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another class there')
 
 -- A built part whose parent part was left out hangs on part 0, at its socket.
-local charmed=her_parts({blade=TWO_BLADE})
+local charmed=her_parts({blade='/Game/Art/Character/Weapon/Gone/Gone.Gone'}) -- Missing, and no fallback.
 charmed[7]={name='Charm',parent=4,socket='SC_Tip',path=BLADE,names={'Root'},place='0 0 0 1 2 0 0 1 1 1'}
 send(603,charmed)
 ok,message=build()
@@ -1682,6 +1708,107 @@ ok,message=stand(73,500)
 assert(ok==false and message:find('^Solid partner off on this ghost: '),tostring(message))
 assert(not actor.capsule and not actor.destroyed and stand(74,500)==nil,'Said once, never tried again')
 link.mate=nil
+
+-- Mods. A path outside the game's own folders is looked up, loaded or fetched only when our CNS packs declare that
+-- exact path: her suit (a body of the same bones, outside the cooked registry, so LoadAsset misses it and GetAsset loads
+-- it), its material (in the registry) and her ponytail's collision are declared; her ATOOL hair, her ears and a second
+-- material are not. The hair falls back to the base hair, the ears are left out, the material keeps the default. With
+-- dyes off, a mod's mesh still takes its declared materials. Her cloth line's collision goes on her ponytail, in a step
+-- of its own. The outfits not shown are said once a generation, rebuilds included.
+local SUIT,SUIT_MAT='/Game/OutfitMods/FooSuit/SK_Foo.SK_Foo','/Game/OutfitMods/FooSuit/MI_Foo.MI_Foo'
+local HACK,PA='/Game/OutfitMods/FooSuit/MI_Hack.MI_Hack','/Game/OutfitMods/FooSuit/PA_Tail.PA_Tail'
+local ATOOL,EARS='/Game/Mods/HD-ATOOL_P/hair/SK_Hair.SK_Hair','/Game/OutfitMods/Ears/SK_Ears.SK_Ears'
+mesh(SUIT,{'Root','Bip001','Bip001-Pelvis'})
+mesh(ATOOL,{'Bip001-Head','Hair_01'})
+mesh(EARS,{'Root'})
+for path,class in pairs({[SUIT_MAT]='MaterialInterface',[HACK]='MaterialInterface',[PA]='PhysicsAsset'}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,c) return c.path=='/Script/Engine.'..class end
+    meshes[path].GetFullName=function() return class..' '..path end
+end
+unregistered[SUIT],unregistered[PA]=true,true
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit',[PA]='Foo_Suit',['/Game/Mods/DekCNS_P/T/T_A.T_A']='-'}
+local function modded(generation)
+    return {
+        {name='CharacterMesh0',path=SUIT,names={'Root','Bip001','Bip001-Pelvis'},materials={{0,SUIT_MAT},{1,HACK}},
+            label='Foo_Suit'},
+        {name='Mesh_Face',lead=0,parent=0,path=FACE},
+        {name='SBHair',parent=0,socket='Bip001-Head',path=ATOOL,names={'Bip001-Head','Hair_01'},
+            label='Mods/HD-ATOOL_P'},
+        {name='SBPonytail',lead=2,parent=2,path=PONY,cloth=PA},
+        {name='SBAccSlot1',parent=0,path=EARS,names={'Root'},label='Cat_Ears'},
+        {name='Charm',lead=4,parent=4,path=PONY}, -- Follows the ears: left out with them, said once.
+    },generation
+end
+player=eve
+look={cloth=true}
+ghost=new(nil,true,look)
+ghost.toggle()
+finds,loads,gets={},{},{}
+local said_before=#said
+send(900,modded(),'peer')
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 900 built: 4 parts %(2 leaders%), %d+ loaded in %d+ ms, 1 on the base suit, 2 left '
+    ..'out; look: cloth parts 1; '),message)
+local function seen(list,path) for _,p in ipairs(list) do if p==path then return true end end return false end
+for _,path in ipairs({ATOOL,EARS,HACK}) do
+    assert(not (seen(finds,path) or seen(loads,path) or seen(gets,path)),'Never looked up or loaded: '..path)
+end
+assert(seen(finds,SUIT) and seen(loads,SUIT) and seen(gets,SUIT),'Her suit: memory, LoadAsset, then GetAsset')
+assert(not seen(gets,SUIT_MAT) and seen(loads,SUIT_MAT),'In the registry: LoadAsset finds it')
+assert(seen(gets,PA),'Her collision too')
+actor=spawned[#spawned]
+root,face,hair,pony=table.unpack(actor.parts)
+assert(root.mesh==meshes[SUIT] and hair.mesh==meshes[BASE_HAIR] and pony.cloth and #actor.parts==4)
+assert(#root.dyes==1 and root.dyes[1].slot==0 and root.dyes[1].material==meshes[SUIT_MAT],'Dyes off: hers all the same')
+assert(pony.OverrideClothPhysicsAsset==meshes[PA],'Her cloth line\'s collision, not the one named from her body')
+local function plain(p) return p:gsub('%p','%%%0') end
+assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs, drawn as '..plain(BASE_HAIR)),message)
+assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs, default kept'),
+    message)
+assert(message:find('; mod assets: '..plain(SUIT)..' by GetAsset, '..plain(SUIT_MAT)..' by LoadAsset, '..plain(PA)
+    ..' by GetAsset; mod parts not shown: Mods/HD%-ATOOL_P, Cat_Ears %('),message)
+local MODS='Kaanta wears parts from mods your game cannot load: HD-ATOOL_P, Cat_Ears. They show on the base suit or '
+    ..'are left out.'
+assert(#said==said_before+1 and said[#said]==MODS and said_en[#said]==MODS,tostring(said[#said]))
+-- The same generation built again: not said again. A new one: said again, in the player's language.
+ghost.rebuild('look')
+build()
+assert(#said==said_before+1,'Once a generation')
+words=Words.fr
+send(901,modded(),'peer')
+build()
+assert(#said==said_before+2 and said[#said]:find('^Kaanta porte des pièces de mods ') and said_en[#said]==MODS,
+    said[#said])
+words=Words.en
+-- basesuit asks for the base suit: nothing said for it.
+ghost.basesuit()
+send(902,{modded()[1],modded()[2]},'peer')
+build()
+assert(#said==said_before+2,'basesuit: not said')
+ghost.basesuit()
+-- No CNS pack declares her suit: on the base body, said; never looked up.
+cns={}
+finds,loads,gets={},{},{}
+send(903,{modded()[1],modded()[2]},'peer')
+ok,message=build()
+assert(spawned[#spawned].parts[1].mesh==meshes[BASE_BODY] and not seen(finds,SUIT) and not seen(gets,SUIT),message)
+assert(said[#said]=='Kaanta wears parts from mods your game cannot load: Foo_Suit. They show on the base suit or are '
+    ..'left out.',said[#said])
+-- The table read stays strict about them too: a cloth or mod line of another part, the two in the other order, twice.
+local strict=remote_text(904,modded())
+for _,bad in ipairs({strict:gsub('\ncloth 3 ','\ncloth 2 '),strict:gsub('\nmod 4 ','\nmod 3 '),
+    strict:gsub('\nmod 0 Foo_Suit\n','\nmod 0 Foo_Suit\nmod 0 x\n'),
+    strict:gsub('\ncloth 3 ([^\n]*)\n','\ncloth 3 %1\ncloth 3 %1\n'),
+    (strict:gsub('(\ncloth 3 [^\n]*)','\nmod 3 x%1'))}) do
+    remote_file=bad
+    count=count+1
+    ok,message=ghost.remote(904,count,'peer')
+    assert(ok==false and message=='The remote table could not be read.',bad)
+end
+cns={}
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
 local part=cloth_part(object('Owner'))

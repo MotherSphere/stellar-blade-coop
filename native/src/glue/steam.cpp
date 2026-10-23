@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -266,7 +267,9 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 // SB\Binaries\Win64 and its folders 8 levels down (4096 files at most; the engine mounts paks at any depth), read once
 // at start: a header line names them, and each friend gets their count and hash, and our mod containers by name. The
 // CNS packs among the files (.dekcns.json under ~mods, kMaxCnsPacks read, kMaxCnsBytes each) are counted with their
-// outfits for the log and the status's cns= line.
+// outfits for the log and the status's cns= line, and the assets they declare (cns_assets) go to coop-cns.txt, a
+// "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
+// partner/puppet.lua loads when a friend's table names one, and the outfits partner/capture.lua tags her parts with.
 coop::Paks game_paks;
 std::vector<coop::PakMod> game_mods;
 std::string cns_line; // "cns=<packs> <outfits>\n", or empty without CNS packs.
@@ -282,15 +285,22 @@ void log_paks() {
   std::vector<coop::PakFile> paks;
   size_t packs = 0;
   uint64_t outfits = 0;
+  std::map<std::string, std::string> assets;
   for (auto &f : files) {
     paks.push_back({f.name, f.size});
     if (packs < coop::kMaxCnsPacks && coop::cns_pack(f.name)) {
       bool exists = false;
       ++packs;
-      outfits += coop::cns_outfits(
-          coop::pose::read_file(dir + L"\\Content\\Paks\\" + wide(f.name), exists, coop::kMaxCnsBytes));
+      const std::string json =
+          coop::pose::read_file(dir + L"\\Content\\Paks\\" + wide(f.name), exists, coop::kMaxCnsBytes);
+      outfits += coop::cns_outfits(json);
+      coop::cns_assets(json, assets);
     }
   }
+  std::string declared;
+  for (const auto &[path, fit] : assets)
+    declared += path + " " + fit + "\n";
+  write_text(folder + L"coop-cns.txt", declared);
   game_paks = coop::digest(paks);
   game_mods = coop::mods(paks);
   std::string names = game_paks.names.size() > 1000 ? game_paks.names.substr(0, 1000) + "..." : game_paks.names;
@@ -299,7 +309,8 @@ void log_paks() {
   append(utc_stamp() + " " + header_lines.back());
   if (packs) {
     cns_line = "cns=" + std::to_string(packs) + " " + std::to_string(outfits) + "\n";
-    header_lines.push_back("cns " + std::to_string(packs) + " packs, " + std::to_string(outfits) + " outfits");
+    header_lines.push_back("cns " + std::to_string(packs) + " packs, " + std::to_string(outfits) + " outfits, " +
+                           std::to_string(assets.size()) + " assets");
     append(utc_stamp() + " " + header_lines.back());
   }
 }
@@ -752,7 +763,7 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt"})
+                               L"coop-night.txt", L"coop-cns.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   write_header();
   log_paks();

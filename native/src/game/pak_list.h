@@ -2,8 +2,8 @@
 // different .pak mods get a warning (never a refusal: enemies that differ already stay unshared by the per-pair
 // checks), and as a list of mod containers by name, so each player can be told which mods the other has and they lack.
 // glue/steam.cpp lists the files under SB/Content/Paks once at start; this file only filters and digests them, and
-// counts the outfits of CNS packs (the Custom Nanosuit System by Dekita: .dekcns.json files under ~mods), so
-// tests/native/game/pak_list_test.cpp checks it on the build machine. No Windows types.
+// counts the outfits of CNS packs (the Custom Nanosuit System by Dekita: .dekcns.json files under ~mods) and lists the
+// assets they declare, so tests/native/game/pak_list_test.cpp checks it on the build machine. No Windows types.
 #pragma once
 
 #include <algorithm>
@@ -39,8 +39,9 @@ struct PakMod {
 };
 // The containers sent to a friend and kept of hers, at most; a name's bytes, at most.
 constexpr size_t kMaxMods = 256, kMaxModName = 100;
-// CNS packs read at start, at most, and the bytes read of each.
-constexpr size_t kMaxCnsPacks = 256, kMaxCnsBytes = 1 << 20;
+// CNS packs read at start, at most, and the bytes read of each; the assets they declare kept, at most, and the bytes
+// of a path (pose/table.h's kMaxPath) and of an outfit's name (its kMaxWord).
+constexpr size_t kMaxCnsPacks = 256, kMaxCnsBytes = 1 << 20, kMaxCnsAssets = 8192, kMaxCnsPath = 255, kMaxCnsFit = 64;
 
 namespace paks_detail {
 inline std::string lower(std::string text) {
@@ -189,6 +190,51 @@ inline uint32_t cns_outfits(std::string_view json) {
     n += i < json.size() && json[i] == ':';
   }
   return n;
+}
+
+// The assets a pack's text declares, added to assets (path to outfit, the first one kept, kMaxCnsAssets at most): each
+// "/Game/..." string that is the value of an OutfitPaths, Mesh, Materials, PonyPhysics, Textures or Value key (in an
+// array under it too), 1 to kMaxCnsPath bytes of '!' to '~', with the UniqueFitID given last before it (its outfit's,
+// which a pack gives first) as a word: '!' to '~', any other byte '_', at most kMaxCnsFit bytes, "-" for none. Only
+// these strings: an OutfitImage or AnimationBP path never. A bounded scan, not a parser: strings with their escapes,
+// keys (a string a ':' follows) and // and /* */ comments, which real packs carry, are told apart; nothing else is.
+// ponytail: the key just before a string decides, so a Materials array of objects would need its inner key added.
+inline void cns_assets(std::string_view json, std::map<std::string, std::string> &assets) {
+  static const std::string_view kDeclare[] = {"OutfitPaths", "Mesh", "Materials", "PonyPhysics", "Textures", "Value"};
+  std::string_view key;
+  std::string fit = "-";
+  for (size_t at = 0; at < json.size(); ++at) {
+    if (json[at] == '/' && at + 1 < json.size() && (json[at + 1] == '/' || json[at + 1] == '*')) {
+      const bool line = json[at + 1] == '/';
+      at = line ? json.find('\n', at) : json.find("*/", at + 2);
+      if (at == std::string_view::npos)
+        return;
+      at += line ? 0 : 1;
+      continue;
+    }
+    if (json[at] != '"')
+      continue;
+    size_t end = at + 1;
+    while (end < json.size() && json[end] != '"')
+      end += json[end] == '\\' ? 2 : 1;
+    if (end >= json.size())
+      return;
+    const std::string_view text = json.substr(at + 1, end - at - 1);
+    at = end;
+    const size_t next = json.find_first_not_of(" \t\r\n", end + 1);
+    if (next != std::string_view::npos && json[next] == ':') {
+      key = text;
+    } else if (key == "UniqueFitID") {
+      fit = text.empty() ? "-" : std::string(text.substr(0, kMaxCnsFit));
+      for (char &c : fit)
+        c = c < '!' || c > '~' ? '_' : c;
+    } else if (std::find(std::begin(kDeclare), std::end(kDeclare), key) != std::end(kDeclare) &&
+               text.substr(0, 6) == "/Game/" && text.size() <= kMaxCnsPath &&
+               std::all_of(text.begin(), text.end(), [](char c) { return c >= '!' && c <= '~'; }) &&
+               assets.size() < kMaxCnsAssets) {
+      assets.emplace(text, fit);
+    }
+  }
 }
 
 } // namespace coop

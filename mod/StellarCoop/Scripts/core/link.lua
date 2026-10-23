@@ -150,7 +150,8 @@ ui_language=game
 chat=on
 # Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
 # under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
-# are and one hash of them.
+# are and one hash of them, and the parts of your outfit from a mod's own folder reach your friend's ghost of you as
+# the base suit or not at all.
 mod_names=on
 # Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
 # the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
@@ -677,6 +678,22 @@ function Link.new(folder,fs)
     -- Our CNS packs (the Custom Nanosuit System's .dekcns.json files under ~mods) in words, 'CNS detected (<n> packs,
     -- <m> outfits)', from the status's cns= line; nil without one.
     function self.cns() return cns end
+    -- The assets our CNS packs declare, from coop-cns.txt (the native part writes it once at its start, a
+    -- '<path> <outfit>' line each): path to outfit ('-' for none), read once found, {} until then. partner/puppet.lua
+    -- loads a mod's asset a friend's table names only when it is here; partner/capture.lua tags her parts with these
+    -- outfits.
+    local declared=nil
+    function self.cns_assets()
+        if declared then return declared end
+        local text=fs.read(path('coop-cns.txt'))
+        if not text then return {} end
+        declared={}
+        for line in text:gmatch('[^\n]+') do
+            local asset,fit=line:match('^(%S+) (%S+)$')
+            if asset then declared[asset]=fit end
+        end
+        return declared
+    end
     -- The shared quests' line ("quests=on mode=on role=guest partner=on", "quests=waiting mode=on why=save",
     -- "quests=off", "quests=stopped"; native quest/engine.h's Worker::status()), from the start of its own line; nil
     -- without one.

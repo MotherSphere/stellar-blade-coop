@@ -1,11 +1,14 @@
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
-// the mesh path rule (material paths too), the capture's effect lines and the display's effect boxes, and mutated
-// tables, which must re-format to the same bytes whenever they are accepted.
+// the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth and mod lines, the
+// capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to the same bytes
+// whenever they are accepted.
 #include "pose/table.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <random>
+#include <regex>
 #include <string>
 
 using namespace coop::pose;
@@ -18,13 +21,15 @@ const std::string kBody = "/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.
                   kMods = "/Game/Mods/HD-ATOOL_P/data/cha/Eve/hair/CH_P_EVE_Hair_PonyTail_2.CH_P_EVE_Hair_PonyTail_2",
                   kSkin = "/Game/Art/Character/PC/CH_P_EVE_52/MI_EVE_52_Skin.MI_EVE_52_Skin",
                   kTypeB = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeB.MI_EVE_HR_01_TypeB",
-                  kTail = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_Tail_TypeB.MI_EVE_HR_01_Tail_TypeB";
+                  kTail = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_Tail_TypeB.MI_EVE_HR_01_Tail_TypeB",
+                  kCloth = "/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB_PonytailPhysicsAsset."
+                           "CH_P_EVE_52_TypeB_PonytailPhysicsAsset";
 const std::string kSbt = "SBT " + std::to_string(coop::kProtocol) + "\n";
 
 // EVE as Lua captures her, cut down: the body, the face following it, the hair (a leader on the head socket) with the
-// ponytail following it, hidden, and the blade. The blade's mesh comes from a mod, so it travels as '-'. The body and
-// the hair are dyed; the hair's slot 1 material comes from a mod, so it does not travel at all. Two of Lua's effect
-// systems were found: entries 1 and 19.
+// ponytail following it, hidden, with its cloth's collision, and the blade. The blade's mesh comes from a mod's own
+// folder: it travels with its label. The body and the hair are dyed; the hair's slot 1 material sits in no folder, so
+// it does not travel at all. Two of Lua's effect systems were found: entries 1 and 19.
 const std::string kLocal = "generation 100001\n"
                            "map /game/art/bg/worldmap/level_p/e04\n"
                            "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n"
@@ -36,20 +41,22 @@ const std::string kLocal = "generation 100001\n"
                            "part 2 - 0 Bip001-Head 1 2 SBHair " + kNikke + "\n"
                            "place 2 0 0 0.70710678 0.70710678 1.5 -2 0.25 1 1 1\n"
                            "material 2 0 " + kTypeB + "\n"
-                           "material 2 1 /Game/Mods/X.X\n"
+                           "material 2 1 /Game/X.X\n"
                            "material 2 3 " + kTail + "\n"
                            "names 2 Bip001-Head Hair_01\n"
                            "read 2 0x1200 0xc1a55 0xae7\n"
                            "part 3 2 2 - 0 0 SBPonytail " + kNier + "\n"
                            "place 3 0 0 0 1 0 0 0 1 1 1\n"
+                           "cloth 3 " + kCloth + "\n"
                            "part 4 - 0 SC_SwordingPoint 1 1 SBSkeletalMeshComponent_7 " + kMods + "\n"
                            "place 4 0 0 0 -1 10.25 0 1e-05 1 1 1\n"
+                           "mod 4 Mods/HD-ATOOL_P\n"
                            "names 4 Root\n"
                            "read 4 0x1400 0xc1a55 0xae8\n"
                            "effects 0xC0FF 0x2f8\n"
                            "effect 1 0x5000\n"
                            "effect 19 0x5100\n";
-// Its wire form: no read or effect lines, floats as %.9g, the mod's mesh path as '-', its material left out.
+// Its wire form: no read or effect lines, floats as %.9g, the material in no folder left out.
 const std::string kWire = kSbt +
                           "generation 100001\n"
                           "map /game/art/bg/worldmap/level_p/e04\n"
@@ -65,8 +72,10 @@ const std::string kWire = kSbt +
                           "names 2 Bip001-Head Hair_01\n"
                           "part 3 2 2 - 0 0 SBPonytail " + kNier + "\n"
                           "place 3 0 0 0 1 0 0 0 1 1 1\n"
-                          "part 4 - 0 SC_SwordingPoint 1 1 SBSkeletalMeshComponent_7 -\n"
+                          "cloth 3 " + kCloth + "\n"
+                          "part 4 - 0 SC_SwordingPoint 1 1 SBSkeletalMeshComponent_7 " + kMods + "\n"
                           "place 4 0 0 0 -1 10.25 0 9.99999975e-06 1 1 1\n"
+                          "mod 4 Mods/HD-ATOOL_P\n"
                           "names 4 Root\n";
 
 // The text with its first 'from' replaced: from must be there, so each case can only fail for its own defect.
@@ -87,7 +96,8 @@ bool same(const Table &a, const Table &b, bool addresses) {
         (addresses && (p.object != q.object || p.cls != q.cls || p.mesh != q.mesh)))
       return false;
     if (l.name != m.name || l.path != m.path || l.socket != m.socket || l.lead != m.lead || l.parent != m.parent ||
-        l.shown != m.shown || l.names != m.names || l.materials != m.materials)
+        l.shown != m.shown || l.names != m.names || l.materials != m.materials || l.cloth != m.cloth ||
+        l.label != m.label)
       return false;
     for (int k = 0; k < 10; ++k)
       if (l.place[k] != m.place[k])
@@ -105,7 +115,7 @@ Table wire_table(const std::string &text) {
 
 // The table with part 4's path replaced.
 std::string blade(const std::string &path) {
-  return with(kWire, "SBSkeletalMeshComponent_7 -\n", "SBSkeletalMeshComponent_7 " + path + "\n");
+  return with(kWire, "SBSkeletalMeshComponent_7 " + kMods + "\n", "SBSkeletalMeshComponent_7 " + path + "\n");
 }
 } // namespace
 
@@ -122,10 +132,11 @@ int main() {
   assert(hair.socket == "Bip001-Head" && hair.parent == 0 && hair.lead == -1 && hair.path == kNikke && hair.shown);
   assert(hair.names == (std::vector<std::string>{"Bip001-Head", "Hair_01"}) && hair.place[2] == 0.70710678f);
   assert(tail.lead == 2 && tail.parent == 2 && tail.socket.empty() && !tail.shown && tail.path == kNier);
-  assert(local->look[4].path.empty() && local->look[4].place[3] == -1 && local->look[4].place[9] == 1);
+  assert(local->look[4].path == kMods && local->look[4].place[3] == -1 && local->look[4].place[9] == 1);
+  assert(tail.cloth == kCloth && tail.label.empty() && local->look[4].label == "Mods/HD-ATOOL_P" && hair.cloth.empty());
   using Materials = std::vector<std::pair<uint8_t, std::string>>;
   assert(local->look[0].materials == (Materials{{2, kSkin}}) && local->look[1].materials.empty());
-  assert(hair.materials == (Materials{{0, kTypeB}, {3, kTail}})); // The mod's slot 1 dropped, the hair's own kept.
+  assert(hair.materials == (Materials{{0, kTypeB}, {3, kTail}})); // Slot 1 dropped, the hair's own kept.
   assert(local->fx.cls == 0xc0ff && local->fx.asset == 0x2f8 && local->fx.assets[1] == 0x5000 &&
          local->fx.assets[19] == 0x5100);
   for (size_t k = 0; k <= kMaxEffectAssets; ++k)
@@ -198,7 +209,7 @@ int main() {
            with(kWire, n0, "names 0 Root Bip001 Bip001-Pelvis \n"),                              // a trailing space
            with(kWire, kSbt, kSbt + "\n"),                                                       // an empty line
            with(kWire, "part 1 0 0 -", "part 1 0 0 "),                                           // an empty socket
-           with(kWire, "SBSkeletalMeshComponent_7 -\n", "SBSkeletalMeshComponent_7 \n"),         // an empty path
+           with(kWire, "SBSkeletalMeshComponent_7 " + kMods, "SBSkeletalMeshComponent_7 "),       // an empty path
            with(kWire, kSbt, "SBT " + std::to_string(coop::kProtocol) + "\r\n"),                 // CRLF
            kWire.substr(0, kWire.size() - 1),                                                    // cut short
            blade(long_path),                                                                     // over 64 KiB
@@ -230,6 +241,22 @@ int main() {
                 "Hair_01\nmaterial 2 3 " + kTail + "\n"),                                       // after names
            with(kWire, "place 1" + flat, "material 1 0 " + kSkin + "\nplace 1" + flat),           // before place
            with(kWire, "place 1" + flat, "place 1" + flat + materials_17),                       // 17 on one part
+           with(kWire, "cloth 3 ", "cloth 2 "),                                                  // cloth index
+           with(kWire, "cloth 3 " + kCloth, "cloth 3"),                                          // cloth: no path
+           with(kWire, "cloth 3 " + kCloth, "cloth 3 " + kCloth + " x"),                         // cloth: a word more
+           with(kWire, "cloth 3 " + kCloth, "cloth 3 /" + std::string(255, 'x')),                // cloth path of 256
+           with(kWire, "cloth 3 " + kCloth + "\n", "cloth 3 " + kCloth + "\ncloth 3 " + kCloth + "\n"), // twice
+           with(with(kWire, "cloth 3 " + kCloth + "\n", ""), "place 3" + flat,
+                "cloth 3 " + kCloth + "\nplace 3" + flat),                                       // before place
+           with(kWire, "material 2 0 ", "cloth 2 " + kCloth + "\nmaterial 2 0 "),                // before a material
+           with(kWire, "mod 4 ", "mod 3 "),                                                      // mod index
+           with(kWire, "mod 4 Mods/HD-ATOOL_P", "mod 4"),                                        // mod: no label
+           with(kWire, "mod 4 Mods/HD-ATOOL_P", "mod 4 Mods HD-ATOOL_P"),                        // mod: a word more
+           with(kWire, "mod 4 Mods/HD-ATOOL_P", "mod 4 " + std::string(65, 'm')),                // label over 64
+           with(kWire, "mod 4 Mods/HD-ATOOL_P\n", "mod 4 Mods/HD-ATOOL_P\nmod 4 x\n"),          // twice
+           with(with(kWire, "mod 4 Mods/HD-ATOOL_P\n", ""), "names 4 Root\n",
+                "names 4 Root\nmod 4 Mods/HD-ATOOL_P\n"),                                       // after names
+           with(kWire, "cloth 3 " + kCloth + "\n", "mod 3 x\ncloth 3 " + kCloth + "\n"),        // mod before cloth
            kWire + "effects 0xC0FF 0x2f8\n",                                                     // effects on the wire
            kWire + "effects 0xC0FF 0x2f8\neffect 1 0x5000\n",                                   // and an effect
        })
@@ -291,7 +318,7 @@ int main() {
   const std::string p255_material = "/Game/Art/Character/" + std::string(33, 'F') + "/" + std::string(100, 'M') + "." +
                                     std::string(100, 'M');
   assert(wire_table(with(kWire, kTail, p255_material)).look[2].materials[1].second == p255_material);
-  auto dropped = wire_table(with(kWire, "material 2 0 " + kTypeB, "material 2 0 /Game/Mods/X.X"));
+  auto dropped = wire_table(with(kWire, "material 2 0 " + kTypeB, "material 2 0 /Game/X.X"));
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
@@ -300,49 +327,73 @@ int main() {
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
 
-  // The mesh path rule: base, NieR (DLC_1) and NIKKE (DLC_2) meshes, the base sword, 255 bytes.
+  // The mesh path rule. The game's folders: base, NieR (DLC_1) and NIKKE (DLC_2) meshes, the base sword, 255 bytes. A
+  // mod's: any folders under /Game, '-' in a name, 255 bytes too; the Lua gate decides whether one loads.
   const std::string folder = "/Game/Art/Character/" + std::string(33, 'F') + "/", asset = std::string(100, 'A');
-  const std::string p255 = folder + asset + "." + asset;
-  assert(p255.size() == 255);
+  const std::string p255 = folder + asset + "." + asset, mod255 = "/Game/" + std::string(47, 'M') + p255.substr(53);
+  assert(p255.size() == 255 && mod255.size() == 255);
   const std::string sword = "/Game/Art/Character/Weapon/Sword/CH_W_Sword_01/CH_W_Sword_01.CH_W_Sword_01",
                     dlc_12 = "/Game/DLC_12/Art/Character/PC/X/X.X";
-  for (const std::string &good : {kBody, kFace, kNikke, kNier, p255, sword, dlc_12})
+  for (const std::string &good : {
+           kBody, kFace, kNikke, kNier, p255, sword, dlc_12, kMods, mod255,
+           std::string("/Game/OutfitMods/FooSuit/Meshes/SK_Foo-Suit.SK_Foo-Suit"),
+           std::string("/Game/Mods/DekCNS_P/Textures/Eyes/T_EVE_EyeIris_Heart.T_EVE_EyeIris_Heart"),
+           std::string("/Game/Mods/Art/Character/PC/X/X.X"),
+           std::string("/Game/Art/Character/X.X"), // Folders Art and Character: a mod's form.
+           std::string("/Game/DLC_123/Art/Character/PC/X/X.X"),
+           std::string("/Game/Art/Character/PC/X-1/X.X"),
+           std::string("/Game/Art/CharacterX/PC/X/X.X"),
+           std::string("/Game/-/-.-"),
+       })
     assert(path_allowed(good));
   for (const std::string &bad : {
-           kMods,
-           std::string("/Game/Mods/Art/Character/PC/X/X.X"),
            std::string("/Game/Art/Character/PC/../../Mods/X/X.X"),
            std::string("/Game/Art/Character/PC/..X/X.X"),
            std::string("/Game/Art/Character/PC//X/X.X"),
            std::string("/Game/Art/Character//PC/X.X"),
+           std::string("/Game//X/X.X"),
            std::string("/Game/Art/Character/PC\\X/X.X"),
            "/Game/Art/Character/" + std::string(34, 'F') + "/" + asset + "." + asset, // 256 bytes
+           "/Game/" + std::string(48, 'M') + p255.substr(53),                          // a mod's, 256 bytes
            std::string("/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.CH_P_EVE_08"), // not its own asset
            std::string("/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB"),             // a package, no object
+           std::string("/Game/Mods/DekCNS_P/ModActor.ModActor_C"),                          // a Blueprint class
+           std::string("/Game/Mods/X/X.X:PersistentLevel"),                                 // a sub-object
            std::string("/Game/Art/Character/PC/X/X.X:Sub"),
            std::string("/Game/Art/Character/PC/X/X.X.X"),
-           std::string("/Game/Art/Character/X.X"), // no folder
+           std::string("/Game/X.X"), // no folder
            std::string("/Game/Art/Character/PC/X/.X"),
            std::string("/Game/Art/Character/PC/X/"),
-           std::string("/Game/DLC_123/Art/Character/PC/X/X.X"),
-           std::string("/Game/DLC_/Art/Character/PC/X/X.X"),
-           std::string("/Game/DLC_1Art/Character/PC/X/X.X"),
-           std::string("/Game/Art/Character/PC/X-1/X.X"),
+           std::string("/Game/Mods/HD+ATOOL/X.X"),
+           std::string("/Game/Mods/HD ATOOL/X.X"),
+           std::string("/Game/Mods/\xc3\xa9/X.X"),
            std::string("/game/art/character/pc/x/x.x"),
            std::string("Game/Art/Character/PC/X/X.X"),
-           std::string("/Game/Art/CharacterX/PC/X/X.X"),
+           std::string("/Engine/Mods/X/X.X"),
+           std::string("/Script/Engine.Actor"),
            std::string("-"),
            std::string(),
        }) {
     assert(!path_allowed(bad));
     // In a table, a refused path is no refusal: the part is drawn on a fallback.
-    if (!bad.empty()) {
+    if (!bad.empty() && std::all_of(bad.begin(), bad.end(), [](char c) { return c > ' ' && c <= '~'; })) {
       auto t = parse_table(blade(bad), false);
-      assert(t && t->look[4].path.empty() && format_table(*t) == kWire);
+      assert(t && t->look[4].path.empty() && format_table(*t) == blade("-"));
     }
   }
   assert(wire_table(blade(kNier)).look[4].path == kNier);
   assert(wire_table(blade("/" + std::string(60000, 'x'))).look[4].path.empty()); // Long, under 64 KiB.
+  // The cloth line: a path the rule refuses is dropped, the line with it; a 64-byte label is read.
+  auto no_cloth = wire_table(with(kWire, "cloth 3 " + kCloth, "cloth 3 /Game/X.X"));
+  assert(no_cloth.look[3].cloth.empty() && format_table(no_cloth) == with(kWire, "cloth 3 " + kCloth + "\n", ""));
+  assert(wire_table(with(kWire, "cloth 3 " + kCloth, "cloth 3 " + kMods)).look[3].cloth == kMods);
+  const std::string label_64(64, '~');
+  assert(wire_table(with(kWire, "mod 4 Mods/HD-ATOOL_P", "mod 4 " + label_64)).look[4].label == label_64);
+  // Both on one part, in their order, on a leader too.
+  const std::string both = with(kWire, "names 2 ", "cloth 2 " + kCloth + "\nmod 2 Hair\nnames 2 ");
+  auto on_hair = wire_table(both);
+  assert(on_hair.look[2].cloth == kCloth && on_hair.look[2].label == "Hair" && format_table(on_hair) == both);
+  assert(same_layout(*wire, on_hair) && same_layout(*wire, no_cloth)); // Never the layout.
 
   // Under 64 KiB as read but over it as the wire form (".1" comes back as "0.100000001"): refused, as a peer could
   // not read it back. The same table with floats that do not grow passes.
@@ -468,13 +519,37 @@ int main() {
     assert(!t->fx.assets[0] && (t->fx.cls ? t->fx.asset >= 0x100 && t->fx.asset <= 0x1000 && t->fx.asset % 8 == 0
                                           : !t->fx.asset && t->fx.assets == decltype(t->fx.assets){}));
     for (const Look &l : t->look) {
-      assert(l.path.empty() || path_allowed(l.path));
+      assert((l.path.empty() || path_allowed(l.path)) && (l.cloth.empty() || path_allowed(l.cloth)));
+      assert(l.label.size() <= kMaxWord);
       for (const auto &[slot, path] : l.materials)
         assert(slot < kMaxSlots && path_allowed(path));
     }
   }
   std::printf("pose_table: fuzz accepted %zu of 200000 mutated tables, each re-formatted to the same bytes\n",
               accepted);
+
+  // The path rule alone, fuzzed: mutated paths of both families pass exactly when a second reading of the rule does
+  // (/Game, one or more folders, the asset, then '.' and the asset's name again; names of A-Z a-z 0-9 _ -; 255 bytes).
+  const std::regex rule(R"(/Game(/[A-Za-z0-9_-]+)+/([A-Za-z0-9_-]+)\.\2)");
+  const std::string seeds[] = {kBody, kMods, kNikke, p255, mod255, "/Game/A/B.B", "/Game/Mods/DekCNS_P/T/T_X.T_X"};
+  const std::string path_bytes = "/.-_aZ09:\\ ";
+  size_t passed = 0;
+  for (int round = 0; round < 100000; ++round) {
+    std::string path = seeds[size_t(round) % (sizeof seeds / sizeof seeds[0])];
+    for (int edits = 1 + any(rng) % 3; edits--;) {
+      const size_t at = size_t(any(rng) * 256 + any(rng)) % (path.size() + 1);
+      const char c = any(rng) % 8 ? path_bytes[size_t(any(rng)) % path_bytes.size()] : char(any(rng));
+      if (any(rng) % 3 == 0 && at < path.size())
+        path.erase(at, 1);
+      else
+        path.insert(path.begin() + long(at), c);
+    }
+    const bool allowed = path_allowed(path);
+    assert(allowed == (path.size() <= kMaxPath && std::regex_match(path, rule)));
+    passed += allowed;
+  }
+  std::printf("pose_table: fuzz passed %zu of 100000 mutated paths, each as a second reading of the rule says\n",
+              passed);
 
   // The display file too: an accepted one drives part 0 and remote leaders only, each on the remote bones or on a remap
   // as long as its mesh's bones, every entry a remote bone or -1.

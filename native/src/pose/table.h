@@ -11,6 +11,11 @@
 //   part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 //   place <i> qx qy qz qw tx ty tz sx sy sz           i >= 1 only: its transform relative to its parent
 //   material <i> <slot> <path>                        0 to 16, slots 0 to 63 strictly rising: a material it overrides
+//   cloth <i> <path>                                  optional: the PhysicsAsset its cloth collides with (her
+//                                                     ponytail's OverrideClothPhysicsAsset, a CNS outfit's PonyPhysics)
+//   mod <i> <label>                                   optional, a word: on a mod's mesh, the outfit it comes from (its
+//                                                     CNS UniqueFitID, else the path's first two folders), for the
+//                                                     viewer's notice when that mod is not installed there
 //   names <i> <bone>...                               leaders only: one per bone, in the mesh's order
 //   read <i> 0x<object> 0x<class> 0x<mesh>            leaders only, in the capture file only
 //   then, in the capture file only, after the last part:
@@ -21,8 +26,9 @@
 // A leader has lead '-' and 1 to kMaxBones bones; part 0 is one, hung from nothing. A follower names a leader before
 // it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it. A word is 1
 // to 64 bytes of '!' to '~'. The path alone may be longer: then it, like any path path_allowed refuses, reads as '-',
-// and the viewer draws a fallback mesh instead of loading what a peer named. A material's path is 1 to 255 bytes, and
-// one path_allowed refuses is dropped: the viewer keeps the mesh's own material for that slot.
+// and the viewer draws a fallback mesh instead of loading what a peer named. A material's or cloth's path is 1 to 255
+// bytes, and one path_allowed refuses is dropped: the viewer keeps the mesh's own material for that slot, or the
+// collision named from the body.
 #pragma once
 
 #include <algorithm>
@@ -53,6 +59,7 @@ struct Look {
   float place[10]{};              // Relative to the parent: rotation xyzw, translation xyz, scale xyz. Not part 0's.
   std::vector<std::string> names; // A leader's bones.
   std::vector<std::pair<uint8_t, std::string>> materials; // Overridden slots and their paths, slots rising.
+  std::string cloth, label;                                // Empty without a cloth or mod line.
 };
 
 struct Table {
@@ -88,28 +95,18 @@ inline size_t pose_size(const Table &t) {
   return t.eve.empty() || t.eve.size() > 255 || size > kMaxPose ? 0 : size;
 }
 
-// A mesh the viewer may load: /Game/[DLC_<1 or 2 digits>/]Art/Character/<folder>/.../<asset>.<asset>, each name of
-// A-Z a-z 0-9 _, at most 255 bytes. So no '..', '//', '\', /Game/Mods or other content, and the object is the
-// package's own asset, the form LoadAsset finds in the asset registry.
+// A mesh, material or cloth asset a peer may name: /Game/<folder>/.../<asset>.<asset>, each name of A-Z a-z 0-9 _ -,
+// at most 255 bytes. So no '..', '//', '\' or sub-object, and the object is the package's own asset, which a Blueprint
+// class (X.X_C) never is. Two families pass: the game's own, /Game/[DLC_<1 or 2 digits>/]Art/Character/... with no '-'
+// (partner/capture.lua's Capture.base_path), which the viewer loads as before, and any other, an added-asset mod's
+// (/Game/OutfitMods/<Mod>/..., /Game/Mods/HD-ATOOL_P/...), which partner/puppet.lua looks up only when the viewer's own
+// CNS packs declare that path. This rule is syntax only, and cannot tell a map from a mesh: the Lua gate and the class
+// check after loading decide what is used.
 inline bool path_allowed(std::string_view path) {
-  auto skip = [&](std::string_view prefix) {
-    if (path.substr(0, prefix.size()) != prefix)
-      return false;
-    path.remove_prefix(prefix.size());
-    return true;
-  };
-  if (path.size() > kMaxPath || !skip("/Game/"))
+  const std::string_view root = "/Game/";
+  if (path.size() > kMaxPath || path.substr(0, root.size()) != root)
     return false;
-  if (skip("DLC_")) {
-    size_t digits = 0;
-    while (digits < path.size() && path[digits] >= '0' && path[digits] <= '9')
-      ++digits;
-    path.remove_prefix(digits);
-    if (digits < 1 || digits > 2 || !skip("/"))
-      return false;
-  }
-  if (!skip("Art/Character/"))
-    return false;
+  path.remove_prefix(root.size());
   size_t slash = path.rfind('/'), dot = path.find('.');
   if (slash == std::string_view::npos || dot == std::string_view::npos || dot < slash)
     return false;
@@ -117,9 +114,10 @@ inline bool path_allowed(std::string_view path) {
   if (asset.empty() || path.substr(dot + 1) != asset)
     return false;
   for (size_t at = 0; at < dot; ++at) { // Folders and asset: names between single slashes.
-    char c = path[at];
-    if (c == '/' ? at == 0 || path[at - 1] == '/'
-                 : !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+    const char c = path[at];
+    const bool name =
+        (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+    if (c == '/' ? at == 0 || path[at - 1] == '/' : !name)
       return false;
   }
   return true;
@@ -252,6 +250,13 @@ inline std::string format_table(const Table &t) {
       word(path);
       s += '\n';
     }
+    for (const std::string *text : {&l.cloth, &l.label})
+      if (!text->empty()) {
+        s += text == &l.cloth ? "cloth" : "mod";
+        integer(int64_t(i));
+        word(*text);
+        s += '\n';
+      }
     if (t.eve[i].leader) {
       s += "names";
       integer(int64_t(i));
@@ -346,6 +351,17 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
       last = int64_t(slot);
       if (path_allowed((*f)[3]))
         look.materials.emplace_back(uint8_t(slot), (*f)[3]);
+    }
+    if ((f = in.take("cloth", 3))) {
+      if (!index_is(*f, i) || (*f)[2].size() > kMaxPath)
+        return std::nullopt;
+      if (path_allowed((*f)[2]))
+        look.cloth = (*f)[2];
+    }
+    if ((f = in.take("mod", 3))) {
+      if (!index_is(*f, i) || (*f)[2].size() > kMaxWord)
+        return std::nullopt;
+      look.label = (*f)[2];
     }
     if (part.leader) {
       if (!(f = in.take("names", 2 + bones)) || !index_is(*f, i))

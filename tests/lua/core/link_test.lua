@@ -214,6 +214,16 @@ assert(link.cns()=='CNS detected (9 packs, 242 outfits)')
 files[STATUS]='mod=v\npeer=2 name=x cns=1 1\ncns=1\ncns=x 2\n'
 link.changes()
 assert(link.cns()==nil,'Not from a peer line, nor a line of another shape')
+-- The assets they declare (coop-cns.txt): none until the native part wrote the file, then read once, path to outfit.
+local CNS='C:\\Mod\\coop-cns.txt'
+assert(next(link.cns_assets())==nil,'No file yet: none, and read again next time')
+files[CNS]='/Game/OutfitMods/Foo/SK_Foo.SK_Foo Foo_Suit\n/Game/Mods/DekCNS_P/T/T_A.T_A -\nbad line here\n'
+local declared=link.cns_assets()
+assert(declared['/Game/OutfitMods/Foo/SK_Foo.SK_Foo']=='Foo_Suit' and declared['/Game/Mods/DekCNS_P/T/T_A.T_A']=='-')
+assert(declared.bad==nil and declared['line']==nil,'A line of three words is none')
+files[CNS]='/Game/X/X.X X\n'
+assert(link.cns_assets()==declared and link.cns_assets()['/Game/X/X.X']==nil,'Read once a Lua load')
+files[CNS]=nil
 -- The shared quests' line (Phase 12) and their notes, from the start of their own lines only. The first notes call
 -- only primes the count (a reload never shows old ones); then each new note once, in order, its zone for kind zone
 -- only. A note of another shape, or in a peer's name, is none.

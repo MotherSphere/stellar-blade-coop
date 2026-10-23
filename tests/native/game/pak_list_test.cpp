@@ -1,5 +1,6 @@
 // The pak list's filter and digest on the build machine: the base game's files left out, mods in any folder and any
-// case counted, the order of the listing and the case of a name changing nothing, a size or a name changing the hash.
+// case counted, the order of the listing and the case of a name changing nothing, a size or a name changing the hash;
+// CNS packs, their outfits and the assets they declare.
 #include "game/pak_list.h"
 
 #include <cassert>
@@ -107,5 +108,70 @@ int main() {
   // The words in other places are no keys: a value, a description, an unclosed name, the end of the text.
   assert(cns_outfits("{\"DisplayName\": \"UniqueFitID\", \"Description\": \"the \\\"UniqueFitID\\\" field\"}") == 0);
   assert(cns_outfits("{\"UniqueFitIDs\": 1, \"UniqueFitID\"") == 0 && cns_outfits("\"UniqueFitID\"  ") == 0);
+
+  // The assets a pack declares: each /Game string under OutfitPaths, Mesh, Materials, PonyPhysics, Textures or Value,
+  // with the outfit it sits in; never an image, an AnimBP, a name or a string under another key.
+  const std::string pack = R"([
+    // A comment with "OutfitPaths": ["/Game/Commented/A.A"] in it, and an odd quote: "
+    {
+        "UniqueFitID": "Foo Suit\u00e9",
+        "DisplayName": "/Game/Not/Asset.Asset",
+        "OutfitImage": "/Game/OutfitMods/Foo/T_Icon.T_Icon",
+        "OutfitPaths": ["/Game/OutfitMods/Foo/SK_Foo.SK_Foo", "/Game/OutfitMods/Foo/SK_Foo_NH.SK_Foo_NH"],
+        "AnimationBP": "/Game/OutfitMods/Foo/ABP_Foo.ABP_Foo_C",
+        /* "Mesh": "/Game/Commented/B.B" */
+        "OutfitDatas": [{"Mesh" : "/Game/OutfitMods/Foo/SK_Foo_B.SK_Foo_B",
+                         "Materials": ["/Game/OutfitMods/Foo/MI_A.MI_A"],
+                         "Parameters": [{"ParamName": "Tex", "Value": "/Game/OutfitMods/Foo/T_A.T_A"}, {"Value": 0.5}],
+                         "PonyPhysics": "/Game/OutfitMods/Foo/PA_Tail.PA_Tail"}],
+        "UserConfigs": {"TextureOptions": [{"OptionNames": ["/Game/Not/Name.Name"],
+                        "Textures": ["/Game/Mods/DekCNS_P/Textures/Eyes/T_Iris.T_Iris", "/Game/With Space/X.X"]}]},
+        "Description": "a \"quoted\" word, then a path: /Game/Not/Text.Text",
+    },
+    {"PonyPhysics": "/Game/Art/Character/PC/CH_P_EVE_08/PA.PA", "UniqueFitID": "",
+     "Mesh": "/Game/OutfitMods/Foo/SK_Foo.SK_Foo"},
+    {"Mesh": "/Game/Esc\"aped.X", "Value": "/Engine/Not/Game.Game", "Mesh": "/Game/OutfitMods/Bar/SK_Bar.SK_Bar"}
+  ])";
+  std::map<std::string, std::string> declared;
+  cns_assets(pack, declared);
+  const std::map<std::string, std::string> expected = {
+      {"/Game/OutfitMods/Foo/SK_Foo.SK_Foo", "Foo_Suit\\u00e9"},
+      {"/Game/OutfitMods/Foo/SK_Foo_NH.SK_Foo_NH", "Foo_Suit\\u00e9"},
+      {"/Game/OutfitMods/Foo/SK_Foo_B.SK_Foo_B", "Foo_Suit\\u00e9"},
+      {"/Game/OutfitMods/Foo/MI_A.MI_A", "Foo_Suit\\u00e9"},
+      {"/Game/OutfitMods/Foo/T_A.T_A", "Foo_Suit\\u00e9"},
+      {"/Game/OutfitMods/Foo/PA_Tail.PA_Tail", "Foo_Suit\\u00e9"},
+      {"/Game/Mods/DekCNS_P/Textures/Eyes/T_Iris.T_Iris", "Foo_Suit\\u00e9"},
+      {"/Game/Art/Character/PC/CH_P_EVE_08/PA.PA", "Foo_Suit\\u00e9"}, // Before its own (empty) UniqueFitID.
+      {"/Game/Esc\\\"aped.X", "-"},                                    // As written: no path rule passes it.
+      {"/Game/OutfitMods/Bar/SK_Bar.SK_Bar", "-"},
+  };
+  assert(declared == expected);
+  // The first outfit naming a path keeps it; a UniqueFitID's bytes outside '!' to '~' as '_', 64 at most.
+  cns_assets("[{\"UniqueFitID\": \"" + std::string(70, 'x') + "\", \"Mesh\": \"/Game/OutfitMods/Bar/SK_Bar.SK_Bar\","
+             "\"OutfitPaths\": [\"/Game/M/Tab\tbed.X\", \"/Game/M/N.N\"]}]",
+             declared);
+  assert(declared.at("/Game/OutfitMods/Bar/SK_Bar.SK_Bar") == "-");
+  assert(declared.at("/Game/M/N.N") == std::string(64, 'x'));
+  assert(!declared.count("/Game/M/Tab\tbed.X") && declared.size() == expected.size() + 1);
+  cns_assets("{\"UniqueFitID\": \"Su\xc3\xa9t\", \"Mesh\": \"/Game/U/U.U\"}", declared);
+  assert(declared.at("/Game/U/U.U") == "Su__t");
+  // Paths of 255 bytes at most; kMaxCnsAssets at most; a text cut short (in a string, a comment) ends the scan.
+  std::map<std::string, std::string> edge;
+  const std::string p255 = "/Game/" + std::string(249, 'p'), p256 = p255 + "p";
+  cns_assets("{\"Mesh\": \"" + p255 + "\", \"Mesh\": \"" + p256 + "\"}", edge);
+  assert(edge.size() == 1 && edge.count(p255));
+  for (const char *cut : {"{\"Mesh\": \"/Game/A/B.B", "{\"Mesh\": /* \"/Game/A/B.B\"", "// \"Mesh\": \"/Game/A/B.B\"",
+                          "{\"Mesh", "\"", "\"Mesh\": \"/Game/A/\\"}) {
+    std::map<std::string, std::string> none;
+    cns_assets(cut, none);
+    assert(none.empty());
+  }
+  std::string many_paths = "{\"OutfitPaths\": [";
+  for (size_t k = 0; k < kMaxCnsAssets + 10; ++k)
+    many_paths += "\"/Game/M/A" + std::to_string(k) + ".A" + std::to_string(k) + "\",";
+  std::map<std::string, std::string> full;
+  cns_assets(many_paths + "]}", full);
+  assert(full.size() == kMaxCnsAssets);
   std::printf("pak_list_test: ok\n");
 }
