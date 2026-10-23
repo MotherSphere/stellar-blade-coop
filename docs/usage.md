@@ -822,6 +822,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
+| `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command, untested in game): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
@@ -1196,6 +1197,67 @@ hair or suit from your friend's own game files, so nothing more is needed on tha
 bones, where the other suits here have 159 to 203. The capture and the ghost take up to 1024 bones a part, so the ghost
 wears the dress on its own mesh, not the base suit. A cut mesh shows its own materials on both screens, with the `dyes`
 look on or off.
+
+### Cut scenes: `coop scene`
+
+The game's files hold scenes that no cutscene trigger plays. `coop scene` plays two of them through the game's own
+cutscene player, its theater. The camera follows the scene's cameras while your input and the HUD are locked, and other
+characters are hidden. It has not been tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][SC]`.
+
+| Name | Scene | Where it plays |
+| --- | --- | --- |
+| `emil` | Emil's farewell (`/Game/DLC_1/Art/Cinema/MV_DLC_Ending_E03`), 48 s from an ending of the first DLC: EVE, the drone, a blockout Emil made of a vehicle mesh and grey shapes, 15 Stellar Tear cans and the scene's own cameras. It has no sound; Emil's five lines show as subtitles | The Wasteland, within 50 m of Emil's spot (11348, 22974, 418) |
+| `orcal` | Orcal's monologue from the 2022 trailer (`/Game/Cinematics/Trailer_2022/Trailer_Resource_2022_Theater`), 39 s in his room, with his Korean voice and one Korean subtitle line that the game has no translation for | Xion, within 50 m of Orcal's room (34095, -1075, -34663) |
+
+- `coop scene` lists the scenes and where each plays. Any save.
+- `coop scene <name>` plays one. It runs only on a [co-op save](#co-op-saves), with EVE on the scene's map within 50 m
+  of its spot (`coop where` prints where you stand) and not while a cutscene of the game plays. The scene moves EVE to
+  its own spot.
+- `coop scene stop` ends the scene. The game gives the camera, your input and the HUD back as after a skipped
+  cutscene. Any save.
+
+`coop off` ends a scene the same way, and so does the next Lua load (Ctrl+R) for a scene an earlier load left playing.
+
+The game starts a cutscene from a row of its theater table. Two unused test rows, `LYC02GO_E_Theater_002` (play) and
+`LYC02GO_E_Theater_003` (stop), point at a theater that is not in the game's files, and only a zone of a map that does
+not ship uses them. `coop scene` checks both rows, sets their theater path in memory and asks the game to run the
+first. Emil's farewell has no theater of its own, so it borrows the take of the game's Emil farewell
+(`MV_Nier_Emil_GoodBye_WLA`): that take plays E03 while `coop scene emil` runs and its own scene again once E03 ends.
+The rows keep the new path until the game exits. Nothing is written to a game file or a save. Neither scene holds a
+quest event, and the trailer's own triggers, which add quests before they play, are not used.
+
+The scene's subtitles are in Korean and Japanese, under keys that the game's translations do not have. `coop scene
+emil` registers them for the game's language with the five lines Emil says in the shipped farewell
+(`Seq_Subtitle_Nier_Emil_GoodBye_01_01` to `_05` of `StringTable_Seq`), which say the same thing. The Korean and the
+Japanese rows show at the same times; if the game draws both, each line shows twice.
+
+Not known before a test in game:
+
+- whether the game plays a theater asked from the mod's Lua and whether it plays E03 from the borrowed take (if not,
+  the log says that the game's own farewell plays instead);
+- in Xion, a second Orcal may show if the game's Orcal stands in his room: the scene moves him onto its own and makes
+  him visible;
+- whether the game's skip prompt shows (it should);
+- whether a camera fade stays at the end. E03 fades to black in its last half second; a fade left after the scene is
+  cleared, with a line in the log.
+
+Do not save while a scene plays (the pause menu is locked anyway).
+
+The 2022 Adam trailer (`Trailer_Adam_2022_Theater`) is left out. Its Adam and Lily exist only during one story step,
+so they would be missing. Its first shot moves 374 pieces of the Xion hyperdrive room and keeps 336 material changes
+until the area reloads, its master sequence moves four spawn points and three director events in it run code that has
+not been read.
+
+The log lines, in `UE4SS.log`:
+
+| Line | What it answers |
+| --- | --- |
+| `rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> MV_Nier_Emil_GoodBye_WLA; read back` | Both rows name the scene's theater |
+| `take: MV_Nier_Emil_GoodBye_WLA take 1 MV_Nier_Emil_GoodBye_WLA -> MV_DLC_Ending_E03; read back` | `emil`: the farewell's take plays E03 |
+| `text: game language fr; 10 keys registered, each reads its GoodBye_01 line` | `emil`: the subtitles in your language (a `STOP: text:` line says why not) |
+| `play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 3.2 m from the stage` | The game was asked to play it |
+| `playing: MV_DLC_Ending_E03, 1.0 s after the call` | The game plays it |
+| `Emil's farewell ended after 48 s. (the farewell take back on its own sequence)` | Its end and what was put back |
 
 ### Shared enemies (experimental)
 

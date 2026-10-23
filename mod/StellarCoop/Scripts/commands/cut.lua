@@ -2,9 +2,10 @@
 -- film them (cut/leviathan.lua; test tools, left out of the usage line): show and cam turning the camera on (not off,
 -- not its speed) on a co-op save only, as coop race probe doro. coop lion, the cut Lion spawned as an enemy to fight
 -- (cut/lion.lua, left out of the usage line too): the words that spawn (none, intro, control) on a co-op save only;
--- rows and brain on any. main.lua builds it with new(o) at each Lua load and merges it into its command table. o:
--- main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion (cut/lion.lua's) and wear
--- (cut/wear.lua's).
+-- rows and brain on any. coop scene, two cut scenes through the game's theater (cut/scene.lua): a scene's name on a
+-- co-op save only; the list and stop on any. main.lua builds it with new(o) at each Lua load and merges it into its
+-- command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion
+-- (cut/lion.lua's), wear (cut/wear.lua's) and scene (cut/scene.lua's).
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -26,6 +27,13 @@ function Cut.new(o)
             if not ok then return false,why end
         end
         return lion.command(sub,a,b)
+    end
+    function self.scene(sub,extra)
+        if o.scene.SCENES[sub] then
+            local ok,why=coop_slot('coop scene '..sub)
+            if not ok then return false,why end
+        end
+        return o.scene.command(sub,extra)
     end
     return self
 end

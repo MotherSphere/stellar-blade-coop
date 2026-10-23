@@ -65,6 +65,9 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop wear` puts EVE in two cut hairs (mechanical cat ears and rabbit ears) and four cut suits, Gothic Rose among
   them, by changing the meshes drawn. Your equipment and saves stay as they are, and your friend's ghost of you shows
   the look too (see [docs/usage.md](docs/usage.md#cut-hairs-and-suits-coop-wear)).
+- `coop scene` plays two scenes cut from the game through its own cutscene player, each at its place in the world:
+  Emil's farewell from an ending of the first DLC and Orcal's monologue from the 2022 trailer. It writes nothing to a
+  save and has not been tried in game yet (see [docs/usage.md](docs/usage.md#cut-scenes-coop-scene)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
