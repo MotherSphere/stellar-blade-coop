@@ -130,9 +130,14 @@ def quests(out, props):
             # complete one, so the lines come from it alone.
             for task_index, task in entries(at(group, 'AllChildTaskList')):
                 fields(out, f'{gprefix} task {key_of(task_index, task_index, task, tasks)}', task, TASK)
+    # The save holds a finished quest's alias as a name in older saves, and as the whole quest struct (QuestAlias,
+    # QuestState 3, its task groups) in the saves this game now writes; both name the same line.
     for done, label in (('CompleteQuestList', 'complete'), ('FailedQuestList', 'failed')):
-        for _, alias in entries(at(quest, done)):
-            if isinstance(alias, str):
+        for _, entry in entries(at(quest, done)):
+            alias = entry if isinstance(entry, str) else None
+            if alias is None and isinstance(entry, dict):
+                alias = at(entry, 'QuestAlias')
+            if isinstance(alias, str) and alias:
                 out[f'quest {alias} {label}'] = True
 
 

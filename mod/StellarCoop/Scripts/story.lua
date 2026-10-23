@@ -4,8 +4,10 @@
 -- dump, StellarCoopStory.txt in the mod folder.
 --
 -- coop story [dump]: for every live object with the save's structures (DataMap_SBQuest, GamePlayProgressRecordData,
--- DataMap_SBEnv), the quests, the mission records and the zones, keyed by the game's aliases as tools/story.py keys
--- them (a repeated alias gets #2; a map whose integer keys move, WorldObjectStorageMap, is keyed by UniqueKey).
+-- DataMap_SBEnv), the quests, the mission records, the zones and the world actors, keyed by the game's aliases as
+-- tools/story.py keys them (a repeated alias gets #2; a map whose integer keys move, WorldObjectStorageMap, is keyed by
+-- UniqueKey). A live TMap is walked entry by entry and printed as the save writes it, its keys named through their
+-- enum (ElementInfoMap[Element_Fire]); positions and the physics constraints the save does not keep stay out.
 -- coop story find: what it found instead of the lines — every class whose name mentions the story, its live instances,
 -- and each save-shaped object's property names — for when the game's save object is somewhere else than expected.
 -- coop-story.txt in the mod folder asks for either one while a world is loaded (poll), if the console is out of reach.
@@ -21,7 +23,11 @@ local U=require('unreal')
 
 local Story={}
 -- Fields never story state, as tools/story.py has them.
-local VOLATILE={ActorLocation=true,ActorRotation=true,QuestMarkerLocation=true,LastUpdateTimestamp=true}
+local VOLATILE={ActorLocation=true,ActorRotation=true,Location=true,Rotation=true,QuestMarkerLocation=true,
+    LastUpdateTimestamp=true,
+    -- Live only: the save does not store a world actor's physics constraints (the big save's 16 such lines had none in
+    -- the file), so the field stays out like a position.
+    PhysicsConstraintStateMap=true}
 local ALIASES={'ZoneAlias','EnvAlias','TriggerAlias','QuestAlias','TaskGroupAlias','TaskAlias',
     'CharacterDataAlias','UniqueKey','WorldAlias','ObjectName','RecordGroupName','DataAlias','Alias'}
 -- (field in the save, name in the line, the enum its byte means). The save stores an enum's name; the running game
@@ -40,9 +46,13 @@ local OBJECT={{'Activate','activate','ESBObjectState'},{'EffectVolumeDeadCount',
 -- The enum a field's byte means, by the field's name, for the leaves the dump has not mapped field by field.
 local FIELD_ENUM={ZoneObjectState='ESBObjectState',EnvActivate='ESBObjectState',EnvActiveState='ESBZoneEnvActiveState',
     ObjectState='ESBObjectState',TriggerActivate='ESBObjectState',Activate='ESBObjectState',
-    TaskGroupState='ESBQuestTaskGroupState',TaskState='ESBQuestTaskState'}
+    SaveType='ESBZoneObjectSaveType',TaskGroupState='ESBQuestTaskGroupState',TaskState='ESBQuestTaskState'}
 -- RecordTaskGroupMap's keys are an ESBQuestMissionType byte: the save names them, the game holds the number.
 local MISSION_ENUM='ESBQuestMissionType'
+-- A live map whose keys are an enum: the save writes the value's name (ElementInfoMap[Element_Fire]). The enum's own
+-- name is tried in turn; the first that knows the number names the key, and a map not listed keeps its numbers.
+local MAP_KEY_ENUMS={ElementInfoMap={'ESBElementType','ESBElement','ESBElements','ESBEnvElementType',
+    'ESBObjectElementType','ESBDamageElement','ESBElementalType'}}
 -- What a class name may mention to be worth listing in find: the story's own vocabulary.
 local HINTS={'Save','Quest','Mission','Zone','Story','Progress','Theater','Env','Subsystem'}
 local MAX_CLASSES,MAX_INSTANCES,MAX_DEPTH=400,24,4
@@ -107,6 +117,15 @@ local function enum_name(enum,value)
     if not ok then return nil end
     local printed=text(name)
     return printed~='None' and printed or nil
+end
+-- The first of several candidate enums that names a value: the map key enums' names are not all in the save's own
+-- vocabulary, so they are tried in turn and an unknown one costs nothing.
+local function name_of_enum(enums,value)
+    for _,enum in ipairs(enums or {}) do
+        local printed=enum_name(enum,value)
+        if printed then return printed end
+    end
+    return nil
 end
 -- What the enum lookup found, in one line, for the log: the object, and the name it gives value 1.
 local function enum_state(enum)
@@ -262,6 +281,24 @@ local function leaves(out,prefix,node,path,depth,name)
         if printed~=nil and printed~='None' then out[#out+1]=prefix..' '..label..' = '..printed end
     end
     local function under(key) return path=='' and key or (path..'.'..key) end
+    -- A live TMap: the save writes its entries as path[key], so they are printed that way, key by key. A map with no
+    -- entries contributes nothing (the save does not store it), where printing the container itself gave a pointer.
+    if U.kind(node)=='TMap' then
+        local at=0
+        pcall(function()
+            node:ForEach(function(key,value)
+                at=at+1
+                local raw=unwrap(key)
+                local label=type(raw)=='number' and name_of_enum(MAP_KEY_ENUMS[name],math.floor(raw)) or nil
+                if label==nil then label=text(raw) end
+                if type(label)~='string' or label=='' or label:find('Struct: 0x') or label:find('^Class:') then
+                    label=tostring(at-1)
+                end
+                leaves(out,prefix,unwrap(value),path..'['..label..']',depth+1)
+            end)
+        end)
+        return
+    end
     if kind=='table' then
         local count=#node
         local pairs_form=count>0 and type(node[1])=='table' and #node[1]==2 and node[1][1]~=nil
@@ -323,6 +360,19 @@ end
 local ZONE_LISTS={{'ZoneEnvStorageList','env',ENV},{'ZoneNpcStorageList','npc',NPC},
     {'ZoneTriggerStorageList','trigger',TRIGGER}}
 
+-- The alias of a finished quest: an FName in the save, and in the live object sometimes a small struct holding it.
+local function quest_alias(element)
+    local value=alias_of(element)
+    if value then return value end
+    element=unwrap(element)
+    local names=property_names(element)
+    for _,key in ipairs(names or {}) do
+        local printed=text(field(element,key))
+        if printed and printed~='None' and printed:match('^[%a_][%w_]*$') then return printed end
+    end
+    return nil
+end
+
 local function collect_quests(out,properties)
     local quest=map_get(field(properties,'DataMap_SBQuest'),'Quest')
     if quest==nil then return 0 end
@@ -333,18 +383,18 @@ local function collect_quests(out,properties)
     end)
     local seen,lines={},0
     each(field(quest,'ProgressQuestList'),function(index,element)
-        local alias=key_of(index,index,element,seen)
+        local alias=key_of(index-1,index-1,element,seen)
         local prefix='quest '..alias
         add(out,prefix,element,QUEST)
         if tracked[alias:gsub('#%d+$','')] then out[#out+1]=prefix..' tracked = True'
         else out[#out+1]=prefix..' tracked = False' end
         local groups={}
         each(field(element,'QuestTaskGroupList'),function(group_index,group)
-            local group_alias=key_of(group_index,group_index,group,groups)
+            local group_alias=key_of(group_index-1,group_index-1,group,groups)
             local gprefix=prefix..' group '..group_alias
             add(out,gprefix,group,TASK_GROUP)
             local tasks={}
-            each(field(group,'AllChildTaskList'),function(task_index,task)
+            each(field(group,'AllChildTaskList'),function(task_index,task) -- A map keyed by TaskAlias, not a list.
                 add(out,gprefix..' task '..key_of(task_index,task_index,task,tasks),task,TASK)
             end)
         end)
@@ -352,7 +402,7 @@ local function collect_quests(out,properties)
     end)
     for _,done in ipairs({{'CompleteQuestList','complete'},{'FailedQuestList','failed'}}) do
         each(field(quest,done[1]),function(_,alias)
-            local value=text(alias)
+            local value=quest_alias(alias)
             if value then out[#out+1]='quest '..value..' '..done[2]..' = True' end
         end)
     end
@@ -383,7 +433,7 @@ local function collect_zone(out,element)
     for _,spec in ipairs(ZONE_LISTS) do
         local seen={}
         each(field(element,spec[1]),function(index,item)
-            local item_prefix=prefix..' '..spec[2]..' '..key_of(index,index,item,seen)
+            local item_prefix=prefix..' '..spec[2]..' '..key_of(index-1,index-1,item,seen)
             add(out,item_prefix,item,spec[3])
             add(out,item_prefix,field(item,'InteractData'),{{'bInteracted','interacted'}})
             if spec[2]=='env' then
@@ -401,7 +451,7 @@ local function collect_zone(out,element)
     for _,spec in ipairs({{'ZoneEventItemStorageList','item'},{'ZoneEventActorStorageList','actor'}}) do
         local seen={}
         each(field(element,spec[1]),function(index,item)
-            leaves(out,prefix..' '..spec[2]..' '..key_of(index,index,item,seen),item,'',1)
+            leaves(out,prefix..' '..spec[2]..' '..key_of(index-1,index-1,item,seen),item,'',1)
         end)
     end
     return alias
@@ -413,7 +463,7 @@ local function collect_worlds(out,properties)
         if alias then
             local seen={}
             each(field(world,'ZoneEventActorStorageList'),function(index,item)
-                leaves(out,'world '..alias..' actor '..key_of(index,index,item,seen),item,'',1)
+                leaves(out,'world '..alias..' actor '..key_of(index-1,index-1,item,seen),item,'',1)
             end)
         end
     end)

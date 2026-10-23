@@ -173,6 +173,39 @@ ok2,message2=story4.poll(true)
 assert(ok2 and message2:find('story-shaped classes',1,true),tostring(message2))
 assert(state4.rows and table.concat(state4.rows,'\n'):find('# object',1,true),'a find names the objects')
 
+-- 1c. A live TMap is walked entry by entry (the save writes ElementInfoMap[Element_Fire].ElementAmount, not the
+-- container's address), the keys are named by the enum they hold, a zone's event items are named from 0 as the save
+-- names them, and the physics constraints the save does not store stay out.
+local function live_map(pairs)
+    return {type=function() return 'TMap' end,
+        ForEach=function(_,callback) for _,pair in ipairs(pairs) do callback(pair[1],pair[2]) end end}
+end
+StaticFindObject=function(path)
+    if path=='/Script/SB.ESBZoneObjectSaveType' then
+        return {type=function() return 'UEnum' end,GetNameByValue=function(_,value)
+            return {ToString=function() return value==1 and 'ESBZoneObjSaveType_Save' or 'None' end} end}
+    end
+end
+local live_actor={
+    ZoneEventActorName='EActor_1',SaveType=1,
+    ElementInfoMap=live_map({{'Element_Fire',{ElementAmount=0.0,MaxAmount=-1.0}}}),
+    PhysicsConstraintStateMap=live_map({{'Door_FRConst',false}}),
+}
+local live_props={
+    DataMap_SBEnv={{'Env',{WorldContainerList={{WorldAlias='W',ZoneEventActorStorageList={live_actor}}},
+        ZoneContainerList={{ZoneAlias='Zone_Z',ZoneObjectState='ESBObject_Enable',ZoneEnvStorageList={},
+            ZoneNpcStorageList={},ZoneTriggerStorageList={},WorldObjectStorageMap={},
+            ZoneEventItemStorageList={{EventSpawnAlias='DED10_E_ItemS_096',SaveType=1,bGetStorage=false}}}}}}},
+}
+local live_lines=Story.lines(live_props)
+local joined=table.concat(live_lines,'\n')
+assert(joined:find('world W actor 0 ElementInfoMap[Element_Fire].ElementAmount = 0.0',1,true),joined)
+assert(joined:find('world W actor 0 SaveType = ESBZoneObjSaveType_Save',1,true),joined)
+assert(joined:find('zone Zone_Z item 0 SaveType = ESBZoneObjSaveType_Save',1,true),joined)
+assert(joined:find('zone Zone_Z item 0 bGetStorage = False',1,true),joined)
+assert(not joined:find('PhysicsConstraintStateMap',1,true),joined)
+assert(not joined:find('TMap: 0x',1,true),joined)
+
 -- 6. Bad arguments are refused, and nothing is written.
 story,written,logged=harness({SBSaveGame={save_object()}})
 ok,message=story.run('everything')
