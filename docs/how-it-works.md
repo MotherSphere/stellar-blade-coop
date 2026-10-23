@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan`, with the co-op save check before `show` and before `cam` turns the camera on |
+| `commands/cut.lua` | `coop leviathan` (with the co-op save check before `show` and before `cam` turns the camera on) and `coop wear` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -68,15 +68,17 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan`: reads the cut Naytiba 10's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's, and flies a free camera to film it |
+| `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
 Doro look, the `coop leviathan` display and free camera, a Doro race (with the incoming lines while one is armed), the
-notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
-the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your
-friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines
-in and out, Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's
-rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+notice line, the previews' follow-ups, the `coop wear` check (once a second), the UI's open and close animations, the
+game's input given back after the menu or the chat box closes, the controller's events, the row under the mouse (every
+100 ms while the menu is open), and your friend's marker and gauges. The other runs every 250 ms: link status changes,
+session start, notices to show, chat lines in and out, Night Operation's run, the race's session and map checks, the
+UI's root and its focus watchdog, the menu's rows and status line, the phone booth scan, the chat's feed, your friend's
+card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
