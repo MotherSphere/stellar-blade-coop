@@ -283,7 +283,8 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   (another enemy at that spawn point), `maxhp` (another difficulty or New Game+ in one of the two games) or
   `duplicate`.
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
-  `paks` line at the top; compare the two lists.
+  `paks` line at the top; compare the two lists. When both players have `mod_names=on`, the `mods_missing=`,
+  `mods_other=` and `mods_extra=` lines in `coop status` name the differences already.
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
   state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
   takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).

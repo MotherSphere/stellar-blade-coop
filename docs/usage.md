@@ -902,7 +902,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 12). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 13). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -1137,10 +1137,19 @@ enemies get linked after none (the host counts none until the friend's side is o
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
-When your friend's game loads other `.pak` mods than yours, a notice says so once a session, for example
-`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` The mod compares the
-`.pak` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`), by name and size;
-`coop-link.log` lists yours at its start. It is a warning only.
+When your friend's game loads other `.pak` mods than yours, a notice says so once a session. The mod compares the
+`.pak`, `.ucas` and `.utoc` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`),
+by name and size; `coop-link.log` lists yours at its start. With the names of your friend's mods (their `mod_names=on`,
+the default), it names those they use and you lack, and those you both have in another version, up to two file names
+each, then `(+n)` for the others:
+
+- `Kaanta uses mods you don't have: lily_hair_p, hd-atool_p (+1). Parts of their outfit from them look different here.`
+- `Kaanta uses other versions of mods you have: menu_p. Parts of their outfit from them may look different here.`
+
+Without names (their `mod_names=off`), or when only you have mods they lack, it gives the counts instead:
+`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` It is a warning only.
+`coop status` lists the three groups in full (`mods_missing=`, `mods_other=`, `mods_extra=`). With `mod_names=off`
+in `coop-settings.txt`, your game sends only the count and the hash of your mods, never their names.
 
 The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
 game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
@@ -1736,6 +1745,10 @@ ui_sounds=on
 ui_language=game
 # The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
 chat=on
+# Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
+# under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
+# are and one hash of them.
+mod_names=on
 # Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
 # the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
 # and her map on it. While partner_bar shows her name, the name tag above her ghost hides.
@@ -1790,6 +1803,7 @@ status_overlay=off
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
+| `mod_names` | `on` or `off`: the names of your `.pak` mods go to your friend, for the [notice](#shared-enemies-experimental) of the mods one of you lacks; off sends their count and hash only; no menu row | `on` |
 | `partner_bar` | `on` or `off`: the [marker](#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
@@ -1930,6 +1944,7 @@ a Steam name or a chat line shows as `?`.
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
+| Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](#shared-enemies-experimental) |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 | Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](#shared-quests-experimental) |
@@ -1955,7 +1970,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=12 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=13 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code

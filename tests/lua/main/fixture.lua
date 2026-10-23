@@ -85,6 +85,7 @@ link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 mate_v=nil -- link.mate(): her vitals.
 paks_v=nil -- link.paks(): her .pak mods against ours.
+mods_v,cns_v=nil,nil -- link.mods(): her mod containers against ours by name; link.cns(): our CNS packs in words.
 friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
@@ -126,6 +127,8 @@ fake_link={
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     paks=function() return paks_v end,
+    mods=function() return mods_v end,
+    cns=function() return cns_v end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
     -- shows the real defaults, On for the three that pinned() reads as off).
     settings_text=function() return settings_text end,
@@ -136,9 +139,10 @@ fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title,cut)
+    state=function(world,rate,photo,sync,max,title,cut,names)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         gr.cuts[#gr.cuts+1]=cut
+        state_names[#state_names+1]=names
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -468,6 +472,7 @@ function load_main(with_native,no_folder)
     end
     pd.q,pd.calls,kit_lost={},0,nil
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
+    state_names={} -- link.state's mod_names argument, each call.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
@@ -520,6 +525,14 @@ function paks_tick(v)
     local n,out=#said,{}
     loops[2].f()
     for i=n+1,#said do if said[i]:find('.pak',1,true) then out[#out+1]=said[i] end end
+    return table.concat(out,'|')
+end
+-- One loop with link.paks() and link.mods() as given: the notices about mods said, in the menu's words.
+function mods_tick(paks,mods)
+    paks_v,mods_v=paks,mods
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do if said[i]:find('mod',1,true) then out[#out+1]=said[i] end end
     return table.concat(out,'|')
 end
 function key(k,modifier) press(k,modifier); flush() end

@@ -2303,6 +2303,7 @@ int main() {
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
     const std::string paks = "SBC" + std::to_string(kProtocol) + " paks ";
+    F.inbox.push_back({kFriend, pak_line({"~mods/early", 1, 1})}); // Before the handshake too: no name kept.
     F.inbox.push_back({kFriend, paks_line(1, 5)});
     const size_t logged = events.size();
     w.tick();
@@ -2313,6 +2314,7 @@ int main() {
     w.tick();
     assert(sent_to(kFriend, paks_line(2, 77)) == 1 && w.status().find("\npaks=differ 2 1\n") != std::string::npos);
     assert(saw("Kaanta loads 1 .pak mods, not the same as ours (2 here)"));
+    assert(w.status().find("\nmods_") == std::string::npos); // A .pak mod and no name: her mod_names=off.
     F.inbox.push_back({kFriend, paks_line(1, 5)}); // The same again: no new log line.
     w.tick();
     assert(sent_to(kFriend, paks) == 1 && count("Kaanta loads") == 1);
@@ -2323,6 +2325,84 @@ int main() {
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)}); // Her session may be new: ours goes again.
     w.tick();
     assert(sent_to(kFriend, paks_line(2, 77)) == 2);
+    // Her pak lines past the handshake, more than kMaxMods: the first kMaxMods names are kept once her paks line ends
+    // them, and the status lists hers we lack (all of them: we gave no names) within 400 bytes, the count first.
+    for (size_t i = 0; i < kMaxMods + 10; ++i)
+      F.inbox.push_back({kFriend, pak_line({"~mods/m" + std::to_string(1000 + i), 1, i})});
+    F.inbox.push_back({kFriend, paks_line(300, 9)});
+    for (int pass = 0; pass < 20; ++pass) // 16 messages a pass.
+      w.tick();
+    const std::string status = w.status();
+    const size_t at = status.find("\nmods_missing=256 ~mods/m1000,~mods/m1001,");
+    assert(at != std::string::npos && status.find("\nmods_other=0\nmods_extra=0\n") != std::string::npos);
+    const size_t end = status.find('\n', at + 1);
+    assert(end - at - 1 <= std::string("mods_missing=256 ").size() + kModsLine && status.find("~mods/m1255") > end);
+    assert(saw("Kaanta has mods we lack (256 ~mods/m1000,") && saw("and mods we have in another version (0)"));
+  }
+
+  // Mod containers by name (protocol 13) between two Links: each side's pak lines go reliable on channel 0 before its
+  // paks line, in order, once past the handshake; the paks line ends the list, and the status then compares hers with
+  // ours by name (mods_missing=, mods_other=, mods_extra=), and the log names hers we lack once a change. mod_names=off
+  // sends the paks line alone, again, and the other side forgets the names; on sends them again.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    const std::vector<PakMod> ours = {{"logicmods/menu_p", 3, 11}, {"~mods/a_p", 1, 22}, {"~mods/b_p", 2, 33}};
+    const std::vector<PakMod> hers = {
+        {"~mods/a_p", 1, 22}, {"~mods/b_p", 2, 34}, {"~mods/c_p", 5, 44}, {"~mods/d_p", 6, 55}};
+    t.a.paks(2, 77, ours);
+    t.b.paks(3, 78, hers);
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto passes = [&t] {
+      for (int i = 0; i < 3; ++i)
+        t.tick(t.a, 50), t.tick(t.b, 50);
+    };
+    passes();
+    std::vector<std::string> out;
+    for (auto &s : F.sent)
+      if (s.to == kFriend && s.text.rfind("SBC" + std::to_string(kProtocol) + " pak", 0) == 0) {
+        assert(s.flags == kReliable && s.channel == kChannel);
+        out.push_back(s.text);
+      }
+    assert((out ==
+            std::vector<std::string>{pak_line(ours[0]), pak_line(ours[1]), pak_line(ours[2]), paks_line(2, 77)}));
+    assert(t.a.status(Counters{}).find("\npaks=differ 2 3\nmods_missing=2 ~mods/c_p,~mods/d_p\nmods_other=1 "
+                                       "~mods/b_p\nmods_extra=1 logicmods/menu_p\n") != std::string::npos);
+    assert(t.b.status(Counters{}).find("\npaks=differ 3 2\nmods_missing=1 logicmods/menu_p\nmods_other=1 "
+                                       "~mods/b_p\nmods_extra=2 ~mods/c_p,~mods/d_p\n") != std::string::npos);
+    const auto lacks = [] {
+      return std::count_if(events.begin(), events.end(), [](const std::string &e) {
+        return e == "A: Kaanta has mods we lack (2 ~mods/c_p,~mods/d_p) and mods we have in another version (1 "
+                    "~mods/b_p)";
+      });
+    };
+    assert(lacks() == 1 && saw("B: Me has mods we lack (1 logicmods/menu_p)"));
+    const std::string pak = "SBC" + std::to_string(kProtocol) + " pak ";
+    assert(sent_to(kMe, pak) == 4 && sent_to(kMe, paks_line(3, 78)) == 1);
+    // B's mod_names=off: her paks line alone, again; A keeps her count and hash, no names. Unchanged: nothing sent.
+    t.b.mod_names(false);
+    passes();
+    t.b.mod_names(false);
+    passes();
+    assert(sent_to(kMe, pak) == 4 && sent_to(kMe, paks_line(3, 78)) == 2);
+    std::string status = t.a.status(Counters{});
+    assert(status.find("\npaks=differ 2 3\n") != std::string::npos && status.find("\nmods_") == std::string::npos);
+    // On again: her names come back, and the log says hers we lack again.
+    t.b.mod_names(true);
+    passes();
+    assert(sent_to(kMe, pak) == 8 && sent_to(kMe, paks_line(3, 78)) == 3 && lacks() == 2);
+    assert(t.a.status(Counters{}).find("\nmods_missing=2 ~mods/c_p,~mods/d_p\n") != std::string::npos);
+    // The same list again after her next hello: no new log line.
+    inbox(0, kChannel).push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    passes();
+    assert(sent_to(kFriend, paks_line(2, 77)) == 2 && lacks() == 2);
   }
 
   // Vitals between two Links: ours go unreliable on change, at most one each 100 ms, and each second; hers show as the

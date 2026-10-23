@@ -123,4 +123,11 @@ link_mode='none'; loops[2].f()
 coop('off'); assert(toggles==4 and not active)
 link_mode='host'; loops[2].f(); assert(toggles==4 and not active,'No toggle after coop off')
 link_mode='none'
+-- mod_names=off reaches the state (names=0: the native part sends no pak line); on by default.
+settings_text='mod_names=off\n'
+load_main(true)
+loops[2].f(); assert(state_names[#state_names]==false)
+settings_text=''
+load_main(true)
+loops[2].f(); assert(state_names[#state_names]==true)
 io.stdout:write('settings_test ok\n')

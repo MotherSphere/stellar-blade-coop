@@ -344,7 +344,7 @@ Platform-free headers, tested on the build machine:
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
-| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash |
+| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs and their outfits |
 
 The Windows side:
 

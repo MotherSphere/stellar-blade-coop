@@ -110,7 +110,10 @@ T.en={
         maxhp="Shared enemies: some enemies have another max HP in %s's game (another difficulty or New Game+). They "
             ..'stay unshared.',
         host_down='Shared enemies: %s is down. Once they respawn, the enemies you share go back to full health.',
-        paks='%s loads other .pak mods than you (%d there, %d here). Enemies that differ stay unshared.'},
+        paks='%s loads other .pak mods than you (%d there, %d here). Enemies that differ stay unshared.',
+        mods_missing="%s uses mods you don't have: %s. Parts of their outfit from them look different here.",
+        mods_other='%s uses other versions of mods you have: %s. Parts of their outfit from them may look different '
+            ..'here.'},
     -- Same place's notices (main.lua): how many enemies it moves, and why it went off (off with host or stopped; %s
     -- in host: her name, or fight.friend).
     pilot={on='Same place: %d enemies piloted.',one='Same place: 1 enemy piloted.',off='Same place off: %s',
@@ -311,7 +314,11 @@ T.fr={
         host_down='Ennemis partagés : %s est à terre. Après sa réapparition, vos ennemis partagés reviennent à pleine '
             ..'santé.',
         paks="%s n'a pas les mêmes mods .pak que vous (%d en face, %d ici). Les ennemis qui diffèrent ne sont pas "
-            ..'partagés.'},
+            ..'partagés.',
+        mods_missing="%s utilise des mods que vous n'avez pas : %s. Les parties de sa tenue qui en viennent "
+            .."s'affichent autrement ici.",
+        mods_other="%s a d'autres versions de vos mods : %s. Les parties de sa tenue qui en viennent peuvent "
+            .."s'afficher autrement ici."},
     pilot={on='Même position : %d ennemis pilotés.',one='Même position : 1 ennemi piloté.',
         off='Même position coupée : %s',host="la partie de %s l'a désactivée.",
         stopped="arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi."},
@@ -484,7 +491,9 @@ T.ar={
         maxhp='مشاركة الأعداء: لبعض الأعداء صحة قصوى مختلفة في لعبة %s (صعوبة أخرى أو لعبة جديدة +) فلا '
             ..'تُشارك.',
         host_down='مشاركة الأعداء: %s على الأرض. عند عودته، يستعيد الأعداء المشتركون صحتهم كاملة.',
-        paks='يحمّل %s تعديلات .pak مختلفة عنك (%d لديه، %d لديك). لن تتم مشاركة الأعداء المختلفين.'},
+        paks='يحمّل %s تعديلات .pak مختلفة عنك (%d لديه، %d لديك). لن تتم مشاركة الأعداء المختلفين.',
+        mods_missing='يستخدم %s تعديلات ليست لديك: %s. يظهر جزء من زيه بشكل مختلف هنا.',
+        mods_other='لدى %s إصدارات أخرى من تعديلاتك: %s. قد يظهر جزء من زيه بشكل مختلف هنا.'},
     pilot={on='تطابق المواضع: يتم التحكم في %d من الأعداء.',one='تطابق المواضع: يتم التحكم في عدو واحد.',
         off='تطابق المواضع متوقف: %s',host='أوقفته لعبة %s.',
         stopped='أوقفه خطأ حتى إعادة تشغيل اللعبة. يذكر coop-link.log السبب.'},
@@ -654,7 +663,9 @@ T.da={
         maxhp='Delte fjender: nogle fjender har en anden maks. HP hos %s (anden sværhedsgrad eller Nyt spil +). '
             ..'De deles ikke.',
         host_down='Delte fjender: %s er faldet. Når værten er genoplivet, har jeres delte fjender fuld HP igen.',
-        paks='%s har andre .pak-mods end dig (%d der, %d her). Fjender, der afviger, deles ikke.'},
+        paks='%s har andre .pak-mods end dig (%d der, %d her). Fjender, der afviger, deles ikke.',
+        mods_missing='%s bruger mods, du ikke har: %s. Dele af dragten fra dem ser anderledes ud her.',
+        mods_other='%s bruger andre versioner af dine mods: %s. Dele af dragten fra dem kan se anderledes ud her.'},
     pilot={on='Samme position: %d fjender styret.',one='Samme position: 1 fjende styret.',
         off='Samme position slået fra: %s',host='spillet hos %s slog den fra.',
         stopped='stoppet af en fejl, indtil spillet genstartes. coop-link.log forklarer hvorfor.'},
@@ -831,7 +842,9 @@ T.de={
             ..'Spiel +). Diese werden nicht geteilt.',
         host_down='Gemeinsame Gegner: %s ist am Boden. Nach der Wiederbelebung haben eure gemeinsamen Gegner '
             ..'wieder volle LP.',
-        paks='%s lädt andere .pak-Mods als du (%d dort, %d hier). Abweichende Gegner werden nicht geteilt.'},
+        paks='%s lädt andere .pak-Mods als du (%d dort, %d hier). Abweichende Gegner werden nicht geteilt.',
+        mods_missing='%s nutzt Mods, die du nicht hast: %s. Teile des Outfits daraus sehen hier anders aus.',
+        mods_other='%s nutzt andere Versionen deiner Mods: %s. Teile des Outfits daraus können hier anders aussehen.'},
     pilot={on='Gleiche Position: %d Gegner gesteuert.',one='Gleiche Position: 1 Gegner gesteuert.',
         off='Gleiche Position aus: %s',host='im Spiel des Hosts (%s) ausgeschaltet.',
         stopped='durch einen Fehler bis zum Neustart des Spiels gestoppt. Der Grund steht in coop-link.log.'},
@@ -1015,7 +1028,10 @@ T.es={
             ..'o Partida nueva +). No se comparten.',
         host_down='Enemigos compartidos: %s ha caído. Cuando reaparezca, los enemigos que compartís recuperan '
             ..'todos sus PS.',
-        paks='Mods .pak distintos entre %s y tú (%d allí, %d aquí). Los enemigos que difieren no se comparten.'},
+        paks='Mods .pak distintos entre %s y tú (%d allí, %d aquí). Los enemigos que difieren no se comparten.',
+        mods_missing='%s usa mods que no tienes: %s. Las partes de su traje que vienen de ellos se ven distintas aquí.',
+        mods_other='%s usa otras versiones de tus mods: %s. Las partes de su traje que vienen de ellos pueden verse '
+            ..'distintas aquí.'},
     pilot={on='Misma posición: %d enemigos controlados.',one='Misma posición: 1 enemigo controlado.',
         off='Misma posición desactivada: %s',host='la partida de %s la ha desactivado.',
         stopped='detenida por un error hasta que se reinicie el juego. coop-link.log indica el motivo.'},
@@ -1195,7 +1211,11 @@ T['es-MX']={
             ..'o Partida nueva+). No se comparten.',
         host_down='Enemigos compartidos: %s cayó. Cuando reaparezca, los enemigos que comparten recuperan toda su '
             ..'salud.',
-        paks='%s carga otros mods .pak que tú (%d allá, %d aquí). Los enemigos que difieren no se comparten.'},
+        paks='%s carga otros mods .pak que tú (%d allá, %d aquí). Los enemigos que difieren no se comparten.',
+        mods_missing='%s usa mods que no tienes: %s. Las partes de su atuendo que vienen de ellos se ven diferentes '
+            ..'aquí.',
+        mods_other='%s usa otras versiones de tus mods: %s. Las partes de su atuendo que vienen de ellos pueden '
+            ..'verse diferentes aquí.'},
     pilot={on='Misma posición: %d enemigos controlados.',one='Misma posición: 1 enemigo controlado.',
         off='Misma posición desactivada: %s',host='la partida de %s la desactivó.',
         stopped='detenida por un error hasta que reinicies el juego. coop-link.log dice por qué.'},
@@ -1374,7 +1394,11 @@ T.fi={
             ..'Uusi peli+). Niitä ei jaeta.',
         host_down='Jaetut viholliset: %s on kaatunut. Kun hän palaa henkiin, jaettujen vihollisten HP palautuu '
             ..'täyteen.',
-        paks='%s käyttää eri .pak-modeja kuin sinä (%d siellä, %d täällä). Eroavia vihollisia ei jaeta.'},
+        paks='%s käyttää eri .pak-modeja kuin sinä (%d siellä, %d täällä). Eroavia vihollisia ei jaeta.',
+        mods_missing='%s käyttää modeja, joita sinulla ei ole: %s. Niistä tulevat asun osat näyttävät täällä '
+            ..'erilaisilta.',
+        mods_other='%s käyttää eri versioita modeistasi: %s. Niistä tulevat asun osat voivat näyttää täällä '
+            ..'erilaisilta.'},
     pilot={on='Sama sijainti: %d vihollista ohjauksessa.',one='Sama sijainti: 1 vihollinen ohjauksessa.',
         off='Sama sijainti pois: %s',host='%s on poistanut sen käytöstä.',
         stopped='virhe pysäytti sen pelin uudelleenkäynnistykseen asti. Syy on coop-link.log-tiedostossa.'},
@@ -1551,7 +1575,10 @@ T.it={
             ..'Restano non condivisi.',
         host_down='Nemici condivisi: %s è a terra. Quando torna in gioco, i nemici che condividete recuperano '
             ..'tutti i PS.',
-        paks='Mod .pak diverse tra te e %s (%d là, %d qui). I nemici diversi restano non condivisi.'},
+        paks='Mod .pak diverse tra te e %s (%d là, %d qui). I nemici diversi restano non condivisi.',
+        mods_missing='%s usa mod che non hai: %s. Le parti della sua tenuta che ne derivano qui appaiono diverse.',
+        mods_other='%s usa altre versioni delle tue mod: %s. Le parti della sua tenuta che ne derivano qui possono '
+            ..'apparire diverse.'},
     pilot={on='Stessa posizione: %d nemici pilotati.',one='Stessa posizione: 1 nemico pilotato.',
         off='Stessa posizione disattivata: %s',host="%s l'ha disattivata.",
         stopped='fermata da un errore fino al riavvio del gioco. Il motivo è in coop-link.log.'},
@@ -1722,7 +1749,9 @@ T.ja={
         maxhp='敵の共有：%sのゲームでは最大HPが違う敵がいます（難易度やニューゲーム+の違い）。'
             ..'その敵は共有されません。',
         host_down='敵の共有：%sが戦闘不能。復活すると共有中の敵のHPは全回復します。',
-        paks='%sとは.pak MODが違います（相手%d個、自分%d個）。違う敵は共有されません。'},
+        paks='%sとは.pak MODが違います（相手%d個、自分%d個）。違う敵は共有されません。',
+        mods_missing='%sはあなたにないMODを使用中：%s。相手の衣装の一部がこちらでは違って見えます。',
+        mods_other='%sはあなたのMODの別バージョンを使用中：%s。相手の衣装の一部が違って見えることがあります。'},
     pilot={on='敵の位置同期：%d体の敵を操作中。',one='敵の位置同期：1体の敵を操作中。',off='敵の位置同期：オフ。%s',
         host='%sのゲームでオフになりました。',
         stopped='エラーのためゲームを再起動するまで停止。理由はcoop-link.logにあります。'},
@@ -1873,7 +1902,9 @@ T.ko={
         maxhp='적 공유: 일부 적의 최대 생명력이 %s의 게임과 다릅니다(다른 난이도 또는 새로운 게임+). 이 적은 '
             ..'공유되지 않습니다.',
         host_down='적 공유: %s 쪽이 쓰러졌습니다. 부활하면 공유 중인 적의 생명력이 모두 회복됩니다.',
-        paks='%s 쪽과 .pak 모드가 다릅니다(그쪽 %d개, 이쪽 %d개). 서로 다른 적은 공유되지 않습니다.'},
+        paks='%s 쪽과 .pak 모드가 다릅니다(그쪽 %d개, 이쪽 %d개). 서로 다른 적은 공유되지 않습니다.',
+        mods_missing='%s 쪽이 이쪽에 없는 모드를 씁니다: %s. 그 모드로 된 의상 부분은 여기서 다르게 보입니다.',
+        mods_other='%s 쪽이 다른 버전의 모드를 씁니다: %s. 그 모드로 된 의상 부분은 여기서 다르게 보일 수 있습니다.'},
     pilot={on='적 위치 동기화: 적 %d마리 조종 중.',one='적 위치 동기화: 적 1마리 조종 중.',off='적 위치 동기화 꺼짐: %s',
         host='%s의 게임에서 꺼졌습니다.',stopped='오류로 게임을 다시 시작할 때까지 중지됨. 이유는 coop-link.log 참고.'},
     spawns={host='스폰 동기화 켜짐: 한 구역에서 나와 %s의 거리가 100m 이내인 곳에서는 그쪽 게임에 내 게임과 같은 '
@@ -2034,7 +2065,10 @@ T.nl={
         maxhp='Gedeelde vijanden: sommige vijanden hebben een andere max. HP in de game van %s (ander spelniveau of '
             ..'Nieuwe game +). Die worden niet gedeeld.',
         host_down='Gedeelde vijanden: %s is geveld. Zodra die terugkeert, krijgen de gedeelde vijanden weer volle HP.',
-        paks='%s laadt andere .pak-mods dan jij (%d daar, %d hier). Vijanden die verschillen worden niet gedeeld.'},
+        paks='%s laadt andere .pak-mods dan jij (%d daar, %d hier). Vijanden die verschillen worden niet gedeeld.',
+        mods_missing='%s gebruikt mods die jij niet hebt: %s. Delen van de outfit daaruit zien er hier anders uit.',
+        mods_other='%s gebruikt andere versies van jouw mods: %s. Delen van de outfit daaruit kunnen er hier anders '
+            ..'uitzien.'},
     pilot={on='Zelfde plek: %d vijanden aangestuurd.',one='Zelfde plek: 1 vijand aangestuurd.',
         off='Zelfde plek uit: %s',host='de game van %s heeft het uitgezet.',
         stopped='gestopt door een fout tot de game opnieuw start. coop-link.log zegt waarom.'},
@@ -2210,7 +2244,10 @@ T.no={
         maxhp='Delte fiender: noen fiender har annen maks HP i spillet til %s (annen vanskelighetsgrad eller Nytt '
             ..'spill+). De deles ikke.',
         host_down='Delte fiender: %s er nede. Etter gjenopplivingen får de delte fiendene full HP igjen.',
-        paks='%s laster andre .pak-modder enn deg (%d der, %d her). Fiender som avviker, deles ikke.'},
+        paks='%s laster andre .pak-modder enn deg (%d der, %d her). Fiender som avviker, deles ikke.',
+        mods_missing='%s bruker modder du ikke har: %s. Deler av antrekket fra dem ser annerledes ut her.',
+        mods_other='%s bruker andre versjoner av moddene dine: %s. Deler av antrekket fra dem kan se annerledes ut '
+            ..'her.'},
     pilot={on='Samme posisjon: %d fiender styres.',one='Samme posisjon: 1 fiende styres.',
         off='Samme posisjon slått av: %s',
         host='spillet til %s slo den av.',
@@ -2382,7 +2419,9 @@ T.pl={
         maxhp='Wspólni wrogowie: %s ma w grze wrogów z innymi maks. PŻ (inny poziom trudności lub Nowa gra +). '
             ..'Ci wrogowie nie są wspólni.',
         host_down='Wspólni wrogowie: %s ginie. Gdy się odrodzi, wasi wspólni wrogowie odzyskają pełne PŻ.',
-        paks='Różne mody .pak: %s ma %d, ty masz %d. Wrogowie, którzy się różnią, nie są wspólni.'},
+        paks='Różne mody .pak: %s ma %d, ty masz %d. Wrogowie, którzy się różnią, nie są wspólni.',
+        mods_missing='%s używa modów, których nie masz: %s. Części stroju z tych modów wyglądają tu inaczej.',
+        mods_other='%s używa innych wersji twoich modów: %s. Części stroju z tych modów mogą tu wyglądać inaczej.'},
     pilot={on='Ta sama pozycja: sterowanie %d wrogami.',one='Ta sama pozycja: sterowanie 1 wrogiem.',
         off='Ta sama pozycja wyłączona: %s',host='zrobiła to gra po drugiej stronie (%s).',
         stopped='zatrzymał ją błąd do restartu gry. coop-link.log podaje powód.'},
@@ -2559,7 +2598,10 @@ T.pt={
             ..'+). Não são partilhados.',
         host_down='Inimigos partilhados: %s está no chão. Quando reaparecer, os inimigos partilhados recuperam '
             ..'todos os PV.',
-        paks='%s usa mods .pak diferentes dos teus (%d lá, %d aqui). Os inimigos que diferem não são partilhados.'},
+        paks='%s usa mods .pak diferentes dos teus (%d lá, %d aqui). Os inimigos que diferem não são partilhados.',
+        mods_missing='%s usa mods que não tens: %s. As partes da roupa que vêm deles aparecem diferentes aqui.',
+        mods_other='%s usa outras versões dos teus mods: %s. As partes da roupa que vêm deles podem aparecer '
+            ..'diferentes aqui.'},
     pilot={on='Mesma posição: %d inimigos controlados.',one='Mesma posição: 1 inimigo controlado.',
         off='Mesma posição desativada: %s',host='o outro jogo (%s) desativou-a.',
         stopped='parada por um erro até o jogo reiniciar. O coop-link.log diz porquê.'},
@@ -2734,7 +2776,10 @@ T['pt-BR']={
             ..'Jogo +). Esses não são compartilhados.',
         host_down='Inimigos compartilhados: %s caiu. Quando voltar, os inimigos compartilhados recuperam todos os PV.',
         paks='%s não tem os mesmos mods .pak que você (%d lá, %d aqui). Os inimigos diferentes não são '
-            ..'compartilhados.'},
+            ..'compartilhados.',
+        mods_missing='%s usa mods que você não tem: %s. As partes do traje que vêm deles aparecem diferentes aqui.',
+        mods_other='%s usa outras versões dos seus mods: %s. As partes do traje que vêm deles podem aparecer '
+            ..'diferentes aqui.'},
     pilot={on='Mesma posição: %d inimigos controlados.',one='Mesma posição: 1 inimigo controlado.',
         off='Mesma posição desativada: %s',host='o jogo de %s a desativou.',
         stopped='parada por um erro até o jogo reiniciar. O coop-link.log diz o motivo.'},
@@ -2907,7 +2952,9 @@ T.ru={
         map='Общие враги ждут, пока вы и %s не окажетесь в одной локации.',
         maxhp='В игре партнера (%s) у части врагов другой макс. ОЗ (сложность или "Новая игра +"). Они не общие.',
         host_down='Общие враги: %s не в строю. Когда хост возродится, общие враги восстановят все ОЗ.',
-        paks='У партнера (%s) другие моды .pak (там %d, здесь %d). Отличающиеся враги не будут общими.'},
+        paks='У партнера (%s) другие моды .pak (там %d, здесь %d). Отличающиеся враги не будут общими.',
+        mods_missing='У партнера (%s) моды, которых у вас нет: %s. Часть костюма здесь выглядит иначе.',
+        mods_other='У партнера (%s) другие версии ваших модов: %s. Костюм может выглядеть иначе.'},
     pilot={on='Общие позиции включены. Синхронизировано врагов: %d.',
         one='Общие позиции включены. Синхронизирован 1 враг.',off='Общие позиции выключены: %s',
         host='так решила игра партнера (%s).',
@@ -3080,7 +3127,10 @@ T.sv={
         maxhp='Delade fiender: vissa fiender har en annan maxhälsa i spelet hos %s (annan svårighetsgrad eller '
             ..'Nytt spel +). De förblir odelade.',
         host_down='Delade fiender: %s har fallit. Vid återupplivning får era delade fiender full hälsa igen.',
-        paks='%s laddar andra .pak-moddar än du (%d där, %d här). Fiender som skiljer sig förblir odelade.'},
+        paks='%s laddar andra .pak-moddar än du (%d där, %d här). Fiender som skiljer sig förblir odelade.',
+        mods_missing='%s använder moddar som du inte har: %s. Delar av dräkten från dem ser annorlunda ut här.',
+        mods_other='%s använder andra versioner av dina moddar: %s. Delar av dräkten från dem kan se annorlunda ut '
+            ..'här.'},
     pilot={on='Samma position: %d fiender styrs.',one='Samma position: 1 fiende styrs.',off='Samma position av: %s',
         host='spelet hos %s stängde av den.',
         stopped='ett fel stoppade den tills spelet startas om. coop-link.log säger varför.'},
@@ -3243,7 +3293,9 @@ T.th={
         map='ศัตรูร่วมรอจนกว่าคุณกับ %s จะอยู่แผนที่เดียวกัน',
         maxhp='ศัตรูที่ HP สูงสุดต่างจากเกม %s (ความยาก/เกมใหม่ +) จะไม่แชร์',
         host_down='ศัตรูร่วม: %s ล้มลง เมื่อฟื้นคืนชีพ ศัตรูร่วมจะกลับมามี HP เต็ม',
-        paks='%s ใช้ม็อด .pak ต่างจากคุณ (เขา %d, คุณ %d) ศัตรูที่ต่างกันจะไม่แชร์'},
+        paks='%s ใช้ม็อด .pak ต่างจากคุณ (เขา %d, คุณ %d) ศัตรูที่ต่างกันจะไม่แชร์',
+        mods_missing='%s ใช้ม็อดที่คุณไม่มี: %s ชุดบางส่วนจะดูต่างไป',
+        mods_other='%s ใช้ม็อดคนละเวอร์ชัน: %s ชุดบางส่วนอาจดูต่างไป'},
     pilot={on='ตำแหน่งเดียวกัน: ควบคุมศัตรู %d ตัว',one='ตำแหน่งเดียวกัน: ควบคุมศัตรู 1 ตัว',
         off='ปิดตำแหน่งเดียวกัน: %s',host='เกมของ %s ปิดฟีเจอร์นี้',
         stopped='เกิดข้อผิดพลาด หยุดจนกว่าจะรีสตาร์ตเกม ดูใน coop-link.log'},
@@ -3408,7 +3460,11 @@ T.tr={
         maxhp='Ortak düşmanlar: bazı düşmanların maksimum canı seninle %s arasında farklı (başka zorluk ya da Yeni '
             ..'Oyun +). Bunlar paylaşılmaz.',
         host_down='Ortak düşmanlar: %s yere düştü. O yeniden doğunca ortak düşmanların canı tamamen dolar.',
-        paks='%s senden farklı .pak modları yüklüyor (onda %d, sende %d). Farklı olan düşmanlar paylaşılmaz.'},
+        paks='%s senden farklı .pak modları yüklüyor (onda %d, sende %d). Farklı olan düşmanlar paylaşılmaz.',
+        mods_missing='%s sende olmayan modlar kullanıyor: %s. Kıyafetinin bu modlardan gelen kısımları burada farklı '
+            ..'görünür.',
+        mods_other='%s sendeki modların başka sürümlerini kullanıyor: %s. Kıyafetinin bu modlardan gelen kısımları '
+            ..'burada farklı görünebilir.'},
     pilot={on='Aynı konum: %d düşman yönlendiriliyor.',one='Aynı konum: 1 düşman yönlendiriliyor.',
         off='Aynı konum devre dışı: %s',host='%s tarafından kapatıldı.',
         stopped='bir hata yüzünden oyun yeniden başlayana dek durdu. Nedeni coop-link.log dosyasında.'},
@@ -3568,7 +3624,9 @@ T['zh-Hans']={
         map='共享敌人等待中：需要你和%s在同一地图。',
         maxhp='共享敌人：部分敌人在%s的游戏中生命上限不同（难度不同或新游戏+），这些敌人不共享。',
         host_down='共享敌人：%s已倒地。对方重生后，共享的敌人将恢复全部生命。',
-        paks='%s加载的.pak模组与你不同（对方%d个，你%d个）。不同的敌人不共享。'},
+        paks='%s加载的.pak模组与你不同（对方%d个，你%d个）。不同的敌人不共享。',
+        mods_missing='%s使用了你没有的模组：%s。其服装中来自这些模组的部分在这里看起来不同。',
+        mods_other='%s使用了你已有模组的其他版本：%s。其服装中来自这些模组的部分在这里可能看起来不同。'},
     pilot={on='同步位置：已操控%d个敌人。',one='同步位置：已操控1个敌人。',off='同步位置已关闭：%s',
         host='%s的游戏关闭了此功能。',stopped='因错误停止，重启游戏前不会恢复。原因见coop-link.log。'},
     spawns={host='同步刷怪已启用：你和%s在同一区域内相距100米以内时，对方游戏中的普通敌人与你的相同。',
@@ -3705,7 +3763,9 @@ T['zh-Hant']={
         map='共享敵人等待中：須與%s位於同一張地圖。',
         maxhp='共享敵人：部分敵人在%s的遊戲中最大生命值不同（難度不同或新遊戲+），不會共享。',
         host_down='共享敵人：%s已倒地。對方重生後，共享的敵人會回復至滿生命值。',
-        paks='%s載入的.pak模組與你不同（對方%d個，你%d個）。不同的敵人不會共享。'},
+        paks='%s載入的.pak模組與你不同（對方%d個，你%d個）。不同的敵人不會共享。',
+        mods_missing='%s使用了你沒有的模組：%s。其服裝中來自這些模組的部分在這裡看起來不同。',
+        mods_other='%s使用了你已有模組的其他版本：%s。其服裝中來自這些模組的部分在這裡可能看起來不同。'},
     pilot={on='敵人位置同步：已操控%d個敵人。',one='敵人位置同步：已操控1個敵人。',off='敵人位置同步已關閉：%s',
         host='%s的遊戲關閉了此功能。',stopped='因錯誤而停止，重新啟動遊戲前不會恢復。原因請見coop-link.log。'},
     spawns={host='敵人生成同步已開啟：在同一區域內，你與%s相距100公尺以內時，對方遊戲中的一般敵人會與你的相同。',

@@ -752,16 +752,42 @@ if link then
             end
         end
     end
+    -- A notice naming mods (a list of core/link.lua's mods()): fmt with her name and the file names (no folders) of
+    -- the first two mods that fit the feed's 200 bytes (session/chat.lua), then (+n) for the others.
+    local function mods_notice(fmt,name,list)
+        local room,shown=200-#fmt:format(name,''),{}
+        for i=1,math.min(2,#list.names) do
+            local short=list.names[i]:match('[^/]*$')
+            local text=table.concat(shown,', ')..(i>1 and ', ' or '')..short
+            local rest=list.n-i
+            if #text+(rest>0 and #(' (+'..rest..')') or 0)>room then break end
+            shown[i]=short
+        end
+        local text,rest=table.concat(shown,', '),list.n-#shown
+        if rest>0 then text=text..(text~='' and ' ' or '')..'(+'..rest..')' end
+        return fmt:format(name,text)
+    end
     -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
+    -- With their names (her mod_names=on), it names those she uses and we lack, then those we have in another version,
+    -- since parts of her outfit from them look different here; with neither, or without names, the two counts.
     local paks_said=false
     local function paks_notice()
-        local paks=link.paks()
+        local paks,mods=link.paks(),link.mods()
         if link.mode()=='none' then paks_said=false
         elseif paks and not paks.same and not paks_said then
             paks_said=true
-            tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
+            local missing,other=mods and mods.missing.n>0,mods and mods.other.n>0
+            if missing then
+                tell(function(w) return mods_notice(w.fight.mods_missing,her_name(w),mods.missing) end)
+            end
+            if other then tell(function(w) return mods_notice(w.fight.mods_other,her_name(w),mods.other) end) end
+            if not missing and not other then
+                tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
+            end
         end
     end
+    -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
+    local cns_said=false
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
@@ -818,6 +844,10 @@ if link then
         pilot_notices()
         quest_notices()
         paks_notice()
+        if not cns_said and link.cns() then
+            cns_said=true
+            log(link.cns())
+        end
         local mode=link.mode()
         if mode then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
@@ -833,7 +863,7 @@ if link then
             puppet.collide(settings.collide) -- The solid partner, as the co-op menu last set it.
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (session/group.lua).
             local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
-                settings.photo_freeze_max,title,group.cut())
+                settings.photo_freeze_max,title,group.cut(),settings.mod_names)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown

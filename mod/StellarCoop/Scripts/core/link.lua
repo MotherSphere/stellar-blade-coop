@@ -20,8 +20,9 @@
 -- it on or off, reads quests() and quest_notes() here; its revive and cutscene_wait session/group.lua's (the friend's
 -- revive, the wait during the host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
--- partner); its drift_keys the Doro races' driving (race/drive.lua). The co-op menu (ui/menu.lua) changes the file, one
--- line at a time (D-UI4).
+-- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
+-- coop-state.txt: names=0 keeps the names of our .pak mods from the friend). The co-op menu (ui/menu.lua) changes the
+-- file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -147,6 +148,10 @@ ui_sounds=on
 ui_language=game
 # The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
 chat=on
+# Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
+# under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
+# are and one hash of them.
+mod_names=on
 # Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
 # the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
 # and her map on it. While partner_bar shows her name, the name tag above her ghost hides.
@@ -168,10 +173,10 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='off',who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',
-    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off'}
+    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off',mod_names='on'}
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true} -- On or off.
+    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true} -- On or off.
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -400,10 +405,11 @@ function Link.new(folder,fs)
     -- peer=,frozen=}; mate: her vitals; life: our life state and HP (life()); ping: the first peer's RTT in ms;
     -- loopback: coop loopback runs; rejoined: a rejoin got her lobby back and waits for the handshake (kept across
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
-    -- .pak mods against ours (paks()); quests: the shared quests' line; noted: their notes listed; noted_shown: the
-    -- last note number handed out.
+    -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); cns: our CNS packs
+    -- (cns()); quests: the shared quests' line; noted: their notes listed; noted_shown: the last note number handed
+    -- out.
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
-    local mate,life,ping,loopback,rejoined,saves,paks=nil,nil,nil,false,false,{},nil
+    local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
     local quests,noted,noted_shown=nil,nil,nil
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
@@ -452,12 +458,14 @@ function Link.new(folder,fs)
     -- coop-state.txt: whether a save is loaded (held invites wait for one) or else the title screen is shown
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, session/group.lua's), photo_sync and
-    -- photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut). Written when
-    -- its text changes, and remembered only once written, so a failed write is tried again; returns the line it wrote.
+    -- photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
+    -- with mod_names=off (names false: the native part then sends no pak line). Written when its text changes, and
+    -- remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate,photo_now,sync,max,title,cut)
-        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s',
-            world and '1' or title and 'title' or '0',rate,photo_now,sync,max,cut and ' cut=1' or '')
+    function self.state(world,rate,photo_now,sync,max,title,cut,names)
+        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s',
+            world and '1' or title and 'title' or '0',rate,photo_now,sync,max,cut and ' cut=1' or '',
+            names==false and ' names=0' or '')
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line
@@ -548,7 +556,7 @@ function Link.new(folder,fs)
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
-        mate,life,ping,loopback,saves,paks=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil
+        mate,life,ping,loopback,saves,paks,mods,cns=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil,nil
         quests,noted=nil,nil
         camps_asked,camps_answer=nil,nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
@@ -599,6 +607,15 @@ function Link.new(folder,fs)
             if qn then noted[#noted+1]={n=tonumber(qn),kind=kind,id=id,alias=alias,zone=zone~='-' and zone or nil} end
             local same,ours_n,hers_n=line:match('^paks=(%a+) (%d+) (%d+)$')
             if same then paks={same=same=='same',ours=tonumber(ours_n),hers=tonumber(hers_n)} end
+            local kind,count,list=line:match('^mods_(%a+)=(%d+) ?([^ ]*)$')
+            if kind=='missing' or kind=='other' or kind=='extra' then
+                mods=mods or {}
+                local names={}
+                for name in list:gmatch('[^,]+') do names[#names+1]=name end
+                mods[kind]={n=tonumber(count),names=names}
+            end
+            local packs,outfits=line:match('^cns=(%d+) (%d+)$')
+            if packs then cns=string.format('CNS detected (%s packs, %s outfits)',packs,outfits) end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
             if mine then photo={mine=mine,peer=peer,frozen=frozen=='1'} end
             local linked,lost,name=line:match('^friend=([01]) ([01]) (.*)$')
@@ -648,6 +665,18 @@ function Link.new(folder,fs)
     -- Her .pak mods against ours, once her game said them: {same=, ours=, hers=} (the counts beyond the base game's
     -- paks), or nil.
     function self.paks() return paks end
+    -- Her mod containers against ours by name, once her game sent their names (the mods_ lines): {missing=, other=,
+    -- extra=}, hers we lack, one name with another version, ours she lacks, each {n=how many, names=the first ones
+    -- (as many as the native part's line holds), each its path from SB/Content/Paks in lower case, without the
+    -- extension}; nil without them (her mod_names=off, or no friend).
+    function self.mods()
+        if not mods then return nil end
+        for _,kind in ipairs({'missing','other','extra'}) do mods[kind]=mods[kind] or {n=0,names={}} end
+        return mods
+    end
+    -- Our CNS packs (the Custom Nanosuit System's .dekcns.json files under ~mods) in words, 'CNS detected (<n> packs,
+    -- <m> outfits)', from the status's cns= line; nil without one.
+    function self.cns() return cns end
     -- The shared quests' line ("quests=on mode=on role=guest partner=on", "quests=waiting mode=on why=save",
     -- "quests=off", "quests=stopped"; native quest/engine.h's Worker::status()), from the start of its own line; nil
     -- without one.

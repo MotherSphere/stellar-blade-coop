@@ -390,4 +390,61 @@ link_mode,kit_language='guest','fr-FR'
 assert(paks_tick({same=false,ours=0,hers=3})=="Kaanta n'a pas les mêmes mods .pak que vous (3 en face, 0 ici). Les "
     ..'ennemis qui diffèrent ne sont pas partagés.')
 link_mode,kit_language='none',nil
+paks_tick(nil)
+-- Her mods by name (protocol 13, link.mods()): once a session, a notice for the mods she uses and we lack, then one for
+-- those we have in another version, each with the file names (no folders) of the first two that fit the feed's 200
+-- bytes and (+n) for the others, which counts the names the native line left out too. With neither (only ours she
+-- lacks), or without names (her mod_names=off), the two counts as above. In French too, with its English beside.
+local function list(n,...) return {n=n,names={...}} end
+local NONE,DIFFER=list(0),{same=false,ours=2,hers=4}
+local MISSING=" uses mods you don't have: %s. Parts of their outfit from them look different here."
+local OTHER=' uses other versions of mods you have: %s. Parts of their outfit from them may look different here.'
+link_mode='host'
+assert(mods_tick(DIFFER,{missing=list(3,'~mods/a_p','logicmods/b/b_p'),
+    other=list(1,'logicmods/hd-atool_p/hd-atool_p'),extra=NONE})
+    ==('Kaanta'..MISSING:format('a_p, b_p (+1)')..'|Kaanta'..OTHER:format('hd-atool_p')))
+assert(mods_tick(DIFFER,{missing=list(1,'~mods/a_p'),other=NONE,extra=NONE})=='','Once a session')
+link_mode='none'; assert(mods_tick(nil,nil)=='')
+link_mode='guest'
+assert(mods_tick(DIFFER,{missing=list(1,'~mods/a_p'),other=NONE,extra=list(2,'~mods/x','~mods/y')})
+    =='Kaanta'..MISSING:format('a_p'))
+link_mode='none'; mods_tick(nil,nil); link_mode='host'
+assert(mods_tick(DIFFER,{missing=NONE,other=list(4,'~mods/a','~mods/b','~mods/c','~mods/d'),extra=NONE})
+    =='Kaanta'..OTHER:format('a, b (+2)'))
+link_mode='none'; mods_tick(nil,nil); link_mode='host'
+assert(mods_tick({same=false,ours=2,hers=1},{missing=NONE,other=NONE,extra=list(1,'~mods/x')})==PAKS,'Ours only')
+link_mode='none'; mods_tick(nil,nil); link_mode='host'
+assert(mods_tick({same=false,ours=2,hers=1},nil)==PAKS,'No names')
+link_mode='none'; mods_tick(nil,nil); link_mode='host'
+assert(mods_tick({same=true,ours=2,hers=2},{missing=list(1,'a'),other=NONE,extra=NONE})=='','The same hash: nothing')
+-- Long names: only those that fit the 200 bytes, else the count alone (a 64-byte name leaves no room for a 100-byte
+-- mod name).
+local long=('a'):rep(100)
+link_mode='none'; mods_tick(nil,nil); link_mode='host'
+local said_long=mods_tick(DIFFER,{missing=list(3,'~mods/'..long,'~mods/'..long..'b'),other=NONE,extra=NONE})
+assert(said_long=='Kaanta'..MISSING:format(long..' (+2)') and #said_long<=200,said_long)
+friend_name=('W'):rep(64)
+link_mode='none'; mods_tick(nil,nil); link_mode='host'
+said_long=mods_tick(DIFFER,{missing=list(3,'~mods/'..long),other=NONE,extra=NONE})
+assert(said_long==friend_name..MISSING:format('(+3)') and #said_long<=200,said_long)
+friend_name='Kaanta'
+link_mode,kit_language='none','fr-FR'; mods_tick(nil,nil); link_mode='guest'
+assert(mods_tick(DIFFER,{missing=list(2,'~mods/a_p','~mods/b_p'),other=NONE,extra=NONE})
+    =="Kaanta utilise des mods que vous n'avez pas : a_p, b_p. Les parties de sa tenue qui en viennent s'affichent "
+        ..'autrement ici.')
+local at=#said
+while not said[at]:find('mods',1,true) do at=at-1 end -- Before the fake link's own notices.
+assert(said_en[at]=='Kaanta'..MISSING:format('a_p, b_p'),tostring(said_en[at]))
+link_mode,kit_language='none',nil
+mods_tick(nil,nil)
+-- Our CNS packs (link.cns(), in words): in the log once a Lua load, and in coop status before the ghost's part.
+cns_v='CNS detected (9 packs, 242 outfits)'
+loops[2].f(); loops[2].f()
+local _,cns_logs=table.concat(printed,'|'):gsub('%[StellarCoop%] CNS detected %(9 packs, 242 outfits%)\n','')
+assert(cns_logs==1,cns_logs)
+coop('status'); assert(last():find(' | CNS detected (9 packs, 242 outfits) | ghost=',1,true),last())
+cns_v=nil
+coop('status'); assert(not last():find('CNS',1,true),last())
+-- mod_names reaches the state each pass (on by default; settings_test.lua has it off).
+assert(state_names[#state_names]==true)
 io.stdout:write('fight_test ok\n')

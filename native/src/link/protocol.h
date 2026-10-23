@@ -8,7 +8,9 @@
 //   SBC<protocol> photo <0|1|s|c> <both|notice> (the synced photo mode: ours, and whether she may pause our game for
 //   it; c: the host's cutscene plays),
 //   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
-//   SBC<protocol> paks <count> <hash> (game/pak_list.h: the .pak mods her game loads, for a warning when they differ),
+//   SBC<protocol> pak <hash> <name> (game/pak_list.h: one mod container her game loads, by name, with its hash in 16
+//   hex digits; up to kMaxMods of them, unless her mod_names=off), then SBC<protocol> paks <count> <hash> (the .pak
+//   mods her game loads, for a warning when they differ; it ends her list of pak lines),
 //   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
 //   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
 //   none <why>.
@@ -34,8 +36,10 @@
 #include <string_view>
 #include <vector>
 
+#include "game/pak_list.h"
+
 namespace coop {
-constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -47,9 +51,11 @@ constexpr int kProtocol = 12; // Bump on any wire change. 1 was the first link (
                               // show lines on channel 2, which a protocol-10 guest would count malformed, leaving its
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
                               // 2, and on channel 0 the photo line's c (the host's cutscene), the night line (Night
-                              // Operation for two), the mark line and the race lines. An older peer (6: v0.1.1, 7:
-                              // v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1) is told why: the lobby
-                              // tag, then the hello's reject, name both.
+                              // Operation for two), the mark line and the race lines; 13 adds the pak lines (the mod
+                              // containers by name) before the paks line, which a protocol-12 peer would count invalid.
+                              // An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
+                              // v0.4.0-beta.1, 12: v0.5.0-beta.1) is told why: the lobby tag, then the hello's reject,
+                              // name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -160,7 +166,9 @@ inline Life life_of(const Vitals &v) {
                                                                                       : Life::unknown;
 }
 
-enum class Kind { invalid, hello, accept, reject, ping, pong, photo, say, vitals, paks, camps_ask, camps, night, mark, race };
+enum class Kind {
+  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race
+};
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
 // metres (0 to kMaxCampM), or with none and why (kCampsWhy). World and aliases: letters, digits and '_', kMaxAlias at
@@ -184,11 +192,12 @@ inline bool camps_why(std::string_view w) { return w == "title" || w == "loading
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
-                         // 's' or 'c', then 1 for both. paks: the count of .pak mods, their hash. camps?, camps: id.
-                         // mark: its number, from 1.
-  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. camps:
-                         // the host's world, or "none". night: the payload, night_ok(). mark: chat_clean() to
-                         // kMaxMark, maybe empty. race: the text after "race ", printable ASCII.
+                         // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
+                         // their hash. camps?, camps: id. mark: its number, from 1.
+  std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
+                         // the container's name, mod_name_ok(). camps: the host's world, or "none". night: the
+                         // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
+                         // "race ", printable ASCII.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
   std::vector<Camp> camps; // camps: nearest first.
@@ -232,6 +241,15 @@ inline std::string vit_line(const Vitals &v) {
 // handshake.
 constexpr uint64_t kMaxPaks = 100000;
 inline std::string paks_line(uint32_t count, uint64_t hash) { return versioned("paks", count, hash); }
+// One of our mod containers (game/pak_list.h's mods()), reliable, before the paks line: its hash in 16 lower-case hex
+// digits, then its name (mod_name_ok(), so the line stays within kMaxMessage).
+inline std::string pak_line(const PakMod &mod) {
+  static const char digits[] = "0123456789abcdef";
+  std::string hex(16, '0');
+  for (int i = 15; i >= 0; --i)
+    hex[static_cast<size_t>(i)] = digits[(mod.hash >> (4 * (15 - i))) & 15];
+  return "SBC" + std::to_string(kProtocol) + " pak " + hex + " " + mod.name;
+}
 // The follow's camps lines, reliable (link/core.h relays them between Lua and the friend).
 inline std::string camps_ask_line(uint64_t id) {
   return "SBC" + std::to_string(kProtocol) + " camps? " + std::to_string(id);
@@ -277,7 +295,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF12" for the shared fight, "SBQ12" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF13" for the shared fight, "SBQ13" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
@@ -293,6 +311,21 @@ inline bool number(std::string_view text, uint64_t &out) {
     if (value > (UINT64_MAX - digit) / 10)
       return false;
     value = value * 10 + digit;
+  }
+  out = value;
+  return true;
+}
+
+// Exactly 16 lower-case hex digits.
+inline bool hex64(std::string_view text, uint64_t &out) {
+  if (text.size() != 16)
+    return false;
+  uint64_t value = 0;
+  for (char c : text) {
+    const int digit = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
+    if (digit < 0)
+      return false;
+    value = value << 4 | static_cast<uint64_t>(digit);
   }
   out = value;
   return true;
@@ -347,6 +380,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && (f[1] == "ping" || f[1] == "pong")) {
     if (number(f[2], m.a) && number(f[3], m.b))
       m.kind = f[1] == "ping" ? Kind::ping : Kind::pong;
+  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "pak") {
+    if (hex64(f[2], m.a) && mod_name_ok(f[3])) {
+      m.kind = Kind::pak;
+      m.text = f[3];
+    }
   } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "paks") {
     if (number(f[2], m.a) && m.a <= kMaxPaks && number(f[3], m.b))
       m.kind = Kind::paks;
@@ -741,7 +779,7 @@ inline Request parse_request(std::string text) {
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
 // coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s|c> sync=<both|notice|off> max=<0|30..3600>",
-// then " cut=<0|1>" or nothing (0).
+// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1).
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
@@ -751,9 +789,10 @@ struct State {
   Sync sync = Sync::off; // photo_sync, off until Lua says.
   uint32_t max = 600;    // photo_freeze_max: the longest pause the friend's photo mode holds us in, in s; 0: no cap.
   bool cut = false;      // The guest's cutscene_wait=on with the host's ghost on her map: the host's 'c' pauses us.
+  bool names = true;     // mod_names: our mod containers go to the friend by name (the pak lines), on until Lua says.
 };
-// One trailing \n or \r\n, at most 64 bytes; anything else is refused and changes nothing.
-constexpr size_t kMaxState = 64;
+// One trailing \n or \r\n, at most kMaxState bytes; anything else is refused and changes nothing.
+constexpr size_t kMaxState = 80;
 inline bool parse_state(const std::string &text, State &out) {
   if (text.size() > kMaxState)
     return false;
@@ -762,11 +801,17 @@ inline bool parse_state(const std::string &text, State &out) {
     line.resize(line.size() - 2);
   else if (!line.empty() && line.back() == '\n')
     line.pop_back();
-  std::string f[6];
+  std::string f[7];
   uint64_t rate = 0, max = 0;
-  const bool six = split(line, f, 6, nullptr);
-  if ((six ? f[5] != "cut=0" && f[5] != "cut=1" : !split(line, f, 5, nullptr)) ||
-      (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
+  size_t n = 7, at = 5; // Its words: five, then cut= and names= if there, in this order.
+  while (n >= 5 && !split(line, f, n, nullptr))
+    --n;
+  bool cut = false, names = true;
+  if (at < n && (f[at] == "cut=0" || f[at] == "cut=1"))
+    cut = f[at++] == "cut=1";
+  if (at < n && (f[at] == "names=0" || f[at] == "names=1"))
+    names = f[at++] == "names=1";
+  if (n < 5 || at != n || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
       f[1].rfind("rate=", 0) != 0 || !number(std::string_view(f[1]).substr(5), rate) || rate < 10 || rate > 60 ||
       (f[2] != "photo=0" && f[2] != "photo=1" && f[2] != "photo=s" && f[2] != "photo=c") ||
       (f[3] != "sync=both" && f[3] != "sync=notice" && f[3] != "sync=off") || f[4].rfind("max=", 0) != 0 ||
@@ -778,7 +823,8 @@ inline bool parse_state(const std::string &text, State &out) {
   out.photo = f[2][6];
   out.sync = f[3] == "sync=both" ? Sync::both : f[3] == "sync=notice" ? Sync::notice : Sync::off;
   out.max = static_cast<uint32_t>(max);
-  out.cut = six && f[5] == "cut=1";
+  out.cut = cut;
+  out.names = names;
   return true;
 }
 
