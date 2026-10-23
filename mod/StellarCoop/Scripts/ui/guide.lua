@@ -1,5 +1,6 @@
 -- The first-launch guide (ui/guide_text.lua's nine pages) on the Uplink kit (ui/kit.lua): the Mother Sphere art on the
--- left, the page's title and body on the right, Page n of 9, and four rows: Next, Back, Don't show again and Close.
+-- left, the page's title and body on the right, Page n of 9 with a dot a page, four rows (Next, Back, Don't show again
+-- and Close) and the game's key hints.
 -- It opens by itself once a Lua load on the title screen while coop-guide.txt is missing beside coop-settings.txt
 -- (the mod's first run), before the co-op saves' question, which waits while waiting() says so; and at any time from
 -- the co-op menu's Guide row and with coop guide, on the title screen or in the game world (there not while the game
@@ -35,6 +36,9 @@ Guide.ART={x=818,y=478,w=824,h=1204}
 Guide.MOST=1.25
 local P,A=Guide.PANEL,Guide.ART
 local TX=A.x+A.w+48 -- The text column's left; it ends 48 units inside the panel.
+-- The page dots: the panel rails' HUD dot (Hp_Dot_12) a page, DOT units square, STEP apart, at the right end of the
+-- page line, the current page's in Beta blue and the others dim; a missing texture leaves the page line alone.
+local DOT,STEP=20,32
 Guide.WIDE,Guide.BODY,Guide.TITLE,Guide.LABEL=74,14,41,57
 local WIDE,BODY=Guide.WIDE,Guide.BODY
 local ROWS={'next','back','never','close'}
@@ -65,6 +69,8 @@ function Guide.new(o)
         v.art.show(false) -- Until its texture is in.
         for i=1,BODY do v.body[i]=b.text(TX,P.y+124+(i-1)*46,'','body') end
         v.page=b.text(TX,P.y+788,'','status',o.theme.grey)
+        v.dots={}
+        for i=1,COUNT do v.dots[i]=b.image(P.x+P.w-48-DOT-(COUNT-i)*STEP,P.y+802,DOT,DOT,'small',o.theme.dim) end
         for i=1,#ROWS do v.rows[i]=b.row(TX-24,P.y+860+(i-1)*76,P.x+P.w-24-(TX-24)) end
         v.hints=b.hints(TX,P.y+1192,400,{{'move',''},{'enter',''},{'escape',''}})
         return v
@@ -115,6 +121,7 @@ function Guide.new(o)
         local lines=Guide.rows(p.body)
         for i,t in ipairs(v.body) do t.set(lines[i] or '') end
         v.page.set(words.page:format(page,COUNT))
+        for i,d in ipairs(v.dots) do d.tint(i==page and o.theme.beta or o.theme.dim) end
         for i,r in ipairs(v.rows) do
             r.set(words[ROWS[i]],'',not usable(ROWS[i]) and 'disabled' or i==cursor and 'focus' or 'normal')
         end

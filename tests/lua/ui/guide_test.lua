@@ -1,14 +1,14 @@
 -- The first-launch guide (ui/guide.lua and ui/guide_text.lua) on a fake kit, a fake link and fake engine objects, as
 -- saves_test fakes them: every page and label in English, the other languages present and empty (or complete) with
 -- English for what they lack, every page within its rows and columns in every language; the panel on screen at every
--- ui_scale; at the title once a Lua load while coop-guide.txt is missing, once the kit has its whole look (waiting()
--- meanwhile, which the co-op saves' question reads), never in a world by itself; the keys (rows, pages, select from
--- 1 s, Esc), the mouse (hover every 100 ms, a click on the row under it) and the game's input given back 150 ms after
--- a close; Don't show again and a close on the last page writing coop-guide.txt; open() from the menu and coop guide
--- and its refusals; its own closes (the place left, the kit hidden or off, the game paused, 3 minutes with no key);
--- the art imported once with ImportFileAsTexture2D, set again on a new root, imported again once freed, a failure
--- logged once with the guide shown without it; coop off; and front(), the pair main.lua routes the co-op saves'
--- question's keys and loops through.
+-- ui_scale; the key hints and a dot a page, the current one lit; at the title once a Lua load while coop-guide.txt is
+-- missing, once the kit has its whole look (waiting() meanwhile, which the co-op saves' question reads), never in a
+-- world by itself; the keys (rows, pages, select from 1 s, Esc), the mouse (hover every 100 ms, a click on the row
+-- under it) and the game's input given back 150 ms after a close; Don't show again and a close on the last page writing
+-- coop-guide.txt; open() from the menu and coop guide and its refusals; its own closes (the place left, the kit hidden
+-- or off, the game paused, 3 minutes with no key); the art imported once with ImportFileAsTexture2D, set again on a new
+-- root, imported again once freed, a failure logged once with the guide shown without it; coop off; and front(), the
+-- pair main.lua routes the co-op saves' question's keys and loops through.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('ui.guide_text')
 local T=require('ui.text')
@@ -135,8 +135,9 @@ local function builder()
     function b.panel(x,y,w,h) b.box={x=x,y=y,w=w,h=h} end
     function b.shade(x,y,w,h,color) b.shade_box={x=x,y=y,w=w,h=h,color=color} end
     function b.image(x,y,w,h,tex,tint)
-        local i={x=x,y=y,w=w,h=h,tex=tex,tint=tint,on=true}
+        local i={x=x,y=y,w=w,h=h,tex=tex,c=tint,on=true}
         i.show=function(on) i.on=on end
+        i.tint=function(c) i.c=c end
         i.texture=function(t) if state.refuse then return false end i.t=t; return true end
         return i
     end
@@ -194,7 +195,8 @@ local FOLDER='C:\\Games\\SB\\Binaries\\Win64\\ue4ss\\Mods\\StellarCoop'
 local guide
 local function new() -- A new Lua load: a new guide, nothing imported yet.
     calls,built,holder,inputting,mousing,logs,import.calls={},{},nil,false,false,{},{}
-    guide=Guide.new({kit=kit,link=link,settings=settings,theme={shade='shade',white='white',grey='grey'},
+    guide=Guide.new({kit=kit,link=link,settings=settings,
+        theme={shade='shade',white='white',grey='grey',beta='beta',dim='dim'},
         log=function(line) logs[#logs+1]=line end,folder=FOLDER})
     return guide
 end
@@ -210,6 +212,14 @@ end
 local function rows() local out={}; for _,r in ipairs(view().rows) do out[#out+1]=r.l..'|'..r.st end
     return table.concat(out,' ') end
 local function focus() for _,r in ipairs(view().rows) do if r.st=='focus' then return r.l end end end
+local function lit() -- The page dots lit in Beta blue, the others dim.
+    local out={}
+    for i,d in ipairs(view().dots) do
+        assert(d.c=='beta' or d.c=='dim',d.c)
+        if d.c=='beta' then out[#out+1]=i end
+    end
+    return table.concat(out,' ')
+end
 local function since(n) return table.concat(calls,'|',n+1) end
 local function quarter(world,title) clock=clock+0.25; return guide.slow(world,title) end
 local function title() return quarter(false,true) end
@@ -219,8 +229,9 @@ local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) th
 
 -- 2. The group: over the whole screen, scaled from its centre up to 125 %, hidden until it shows, taking the mouse; the
 -- shade larger than any screen at ui_scale 75; the art at its own ratio, the text column right of it, the rows and the
--- key hints inside the panel; at every ui_scale the panel on a 16:10 screen (3456 by 2160) 48 units from its edges,
--- and under the co-op saves' badge (96 units high from y=96, scaled from its top: uncapped, 240 at 150 %).
+-- key hints inside the panel; nine page dots in a row at the right end of the page line, dim, after the longest page
+-- line (Mideum 30, about 16 units a column); at every ui_scale the panel on a 16:10 screen (3456 by 2160) 48 units from
+-- its edges, and under the co-op saves' badge (96 units high from y=96, scaled from its top: uncapped, 240 at 150 %).
 new()
 local place,b=built.guide.place,built.guide.b
 assert(place.hit and not place.shown and place.pivot.X==0.5 and place.pivot.Y==0.5 and place.w==3840
@@ -231,7 +242,7 @@ local v,P=view(),b.box
 assert(P.x==Guide.PANEL.x and P.w==Guide.PANEL.w)
 local art=v.art
 assert(math.abs(art.w/art.h-821/1200)<0.002 and art.x>=P.x+24 and art.y>=P.y+24 and art.y+art.h<=P.y+P.h-24)
-assert(art.tex==nil and art.on==false and art.tint=='white','Flat white, hidden until its texture is in')
+assert(art.tex==nil and art.on==false and art.c=='white','Flat white, hidden until its texture is in')
 local right=P.x+P.w-24
 assert(v.title.x>art.x+art.w and v.body[1].x==v.title.x and #v.body==Guide.BODY and v.title.style=='title'
     and v.body[1].style=='body')
@@ -239,6 +250,15 @@ assert(v.body[#v.body].y+46<=v.page.y and v.page.y+40<=v.rows[1].y,'Body, page l
 for _,r in ipairs(v.rows) do assert(r.x>art.x+art.w and r.x+r.w==right and r.w-36-24>=Guide.LABEL*23) end
 assert(v.rows[#v.rows].y+76<=v.hints.y and v.hints.y+66<=P.y+P.h-22,'The key hints inside the panel')
 assert(v.hints.keys=='move enter escape' and v.hints.x+3*v.hints.cell<=right)
+assert(#v.dots==#G.en.pages and lit()=='','A dim dot a page')
+for i,d in ipairs(v.dots) do
+    assert(d.tex=='small' and d.w==d.h and d.y==v.dots[1].y and (i==1 or d.x>v.dots[i-1].x+d.w),'Dot '..i)
+    assert(d.y>=v.page.y and d.y+d.h<=v.page.y+40,'Dot '..i..' by the page line')
+end
+assert(v.dots[#v.dots].x+v.dots[1].w<=right-24,'The dots inside the text column')
+for name in pairs(R.TEXT) do
+    assert(v.page.x+Chat.columns(G.pick(name).page:format(9,9))*16+24<=v.dots[1].x,name..'.page: over the dots')
+end
 assert(Guide.WIDE*18<=right+24-48-v.title.x and Guide.TITLE*32<=right+24-48-v.title.x,'The columns fit')
 for pct=75,150,5 do
     local k=math.min(pct/100,place.most)
@@ -263,7 +283,7 @@ assert(logged('guide: open (first run: no coop-guide.txt)'))
 local page1=Guide.rows(G.en.pages[1].body)
 assert(screen()==table.concat({G.en.pages[1].title,table.concat(page1,'\n'),'Page 1 of 9','Next|focus',
     'Back|disabled',"Don't show again|normal",'Close|normal'},'\n'),screen())
-assert(v.hints[1].s=='Move' and v.hints[2].s=='Select' and v.hints[3].s=='Close')
+assert(v.hints[1].s=='Move' and v.hints[2].s=='Select' and v.hints[3].s=='Close' and lit()=='1')
 assert(#import.calls==1 and import.calls[1].world==pc and import.calls[1].path==FOLDER..'\\Assets\\MotherSphere.png',
     'Imported from the mod folder')
 assert(art.t==import.last and art.on==true,'The art shown')
@@ -271,8 +291,9 @@ assert(art.t==import.last and art.on==true,'The art shown')
 -- 4. The keys: right and left turn the page (not past either end); up and down move between the rows past one that
 -- cannot run; select from 1 s after it shows.
 local n=#calls
-key('left'); assert(v.page.s=='Page 1 of 9' and #calls==n,'No page before the first')
+key('left'); assert(v.page.s=='Page 1 of 9' and #calls==n and lit()=='1','No page before the first')
 key('right'); assert(v.page.s=='Page 2 of 9' and v.title.s=='Play together' and calls[#calls]=='sound change')
+assert(lit()=='2','The second dot lit')
 assert(rows()=="Next|focus Back|normal Don't show again|normal Close|normal")
 key('left'); assert(v.page.s=='Page 1 of 9' and rows()=="Next|focus Back|disabled Don't show again|normal Close|normal")
 key('down'); assert(focus()=="Don't show again" and calls[#calls]=='sound move','Past Back on page 1')
@@ -309,6 +330,7 @@ clock=clock+0.1; guide.tick(clock)
 for _=2,8 do key('select') end
 assert(v.page.s=='Page 9 of 9' and v.title.s=='Help' and rows()=="Next|disabled Back|normal Don't show again|normal "
     ..'Close|focus',rows())
+assert(lit()=='9','The last dot lit')
 assert(v.body[#Guide.rows(G.en.pages[9].body)].s=='Mother Sphere art by timediffer24.','The credit on its own row')
 key('select')
 assert(not guide.is_open() and calls[#calls-1]=='show guide false tween' and calls[#calls]=='sound close')
