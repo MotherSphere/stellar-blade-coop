@@ -134,8 +134,10 @@ never reach the game thread.
 - The save stores an enum's name where the running game holds its number. The number is turned back into the name with
 the game's own `UEnum` (`StaticFindObject('/Script/SB.ESBObjectState')`, `GetNameByValue`), field by field and for
 `RecordTaskGroupMap`'s keys (`ESBQuestMissionType`).
-- A `TArray`'s `ForEach` counts from 1; the save's element names count from 0, so a leaf under an array keeps the
-save's `[0]`, `[1]`. The zone event items' own prefixes do not: they are one higher than the save's (see During play).
+- A `TArray`'s `ForEach` counts from 1 and the save's element names count from 0, so every list's fallback name is
+its index minus one (`item 0` in both). A map that is not mapped field by field is walked entry by entry and printed
+the way the save writes it, `ElementInfoMap[Element_Fire].ElementAmount`; its key is named through the enum it holds
+(`ESBElementType`), and an empty map prints nothing where it used to print its address.
 - An `FName` leaf is a userdata too; it is printed as text, not walked into.
 
 Result, test copy on 2026-10-23 (`StellarBladeSave00.sav`, 647,849 bytes, digest `b71a70c8…`, loaded by Continue):
@@ -160,18 +162,58 @@ The same test copy, played on 2026-10-23, says what that gap looks like from ins
   one had 1,532). A dump asked for 32 s later found **three** `SBSaveGame` objects and merged them: 10,800 lines in
   15.3 s. `tools/story.py compare` then found the quests and the mission records identical, and two kinds of
   difference:
-  - `zone Zone_DED10 item N`, 63 lines each way: the live array index is 1 where the save's is 0, and `SaveType`
-    prints as `1` where the save names `ESBZoneObjSaveType_Save`;
-  - the world-actor stage, 4,757 lines only in the dump and 4,400 only in the save: its maps print as pointers
-    (`ElementInfoMap = TMap: 0000000D4B194028`) where the save lists their elements, `Location` and `Rotation` are not
-    filtered although they are volatile, and its actor index is 1 where the save's is 0.
+  - `zone Zone_DED10 item N`, 63 lines each way: the live array index was 1 where the save's is 0, and `SaveType`
+    printed as `1` where the save names `ESBZoneObjSaveType_Save`;
+  - the world-actor stage, 4,757 lines only in the dump and 4,400 only in the save: its maps printed as pointers
+    (`ElementInfoMap = TMap: 0000000D4B194028`) where the save lists their elements, `Location` and `Rotation` were not
+    filtered although they are volatile, and its actor index was 1 where the save's is 0.
+  Both were fixed the same night (below); the lines stayed as an example of the gap, not of the current dump.
 - 73 s after that dump the game held one object again, with the same 946 lines as before the save: the objects the game
   fills exist only for about a minute around a save.
 
+A second session the same night (the game as host of the loop bot, `StellarBladeCoop00.sav` loaded, 648,105 bytes) put
+numbers on both sides of that window. Two dumps 25 s apart with nothing done were identical (949 lines with the three
+header lines), so the partial object is steady. An 8 s walk forward then made the game autosave (648,080 bytes at
+06:07:16); a dump asked for 16 s later found three `SBSaveGame` objects, merged them into 1,532 lines in 6.6 s, and
+`tools/story.py compare` with the new file printed `the same` — the same digest, `b71a70c8…`, and the same count. So a
+change made during play reaches the live dump when the game writes its save (the walk's autosave, here), and the full
+mirror is exact at that moment; before the write, a change is only in the partial object and the save is the only
+complete copy. What no run has shown yet is a story line moving between two dumps with no save in between.
+
 So the dump is exact for the quests, the mission records and the zones' env state at load, and it covers the whole
-object only in that minute after a save. The world-actor stage — which appears only once a save carries it — does not
-match yet, and the zone event items are off by one index. Both are in this file's language, not the game's: the live
-`TArray`'s `ForEach` counts from 1 and a live map has to be walked to be printed.
+object only in that minute after a save.
+
+### The whole object, matched
+
+On the night of 2026-10-23 the dump was asked for at the title of the game holding the first save's 1.9 MB autosave
+(`StellarBladeSave00.sav`, 1,984,213 bytes), so it ran as the world came up. The first run reproduced the two
+world-actor and item differences above: 4,824 lines only in the dump, 4,465 only in the save. The causes and the
+fixes:
+
+- **Maps were printed as containers.** A live `TMap` has no fields, so `ElementInfoMap`, `MeshInfoMap` and two more
+  printed as `TMap: 0x…`. They are now walked entry by entry and printed as the save writes them
+  (`ElementInfoMap[Element_Fire].ElementAmount`); an empty map prints nothing. The key is the enum's name
+  (`ESBElementType` gives `Element_Fire`).
+- **Lists were named from 1.** Every list's fallback name is now the save's 0-based index, so the zone event items
+  (`item 0`, `item 1`, …) and the world actors (`actor 0`, …) match.
+- **Positions leaked in.** `Location` and `Rotation` are now filtered like `ActorLocation`, and so is
+  `PhysicsConstraintStateMap`, which the save never stores (16 live entries of `False` had no line in the file).
+- **`SaveType` was a number.** The enum's own name is `ESBZoneObjectSaveType` (not `ESBZoneObjSaveType`), and 1 is
+  `ESBZoneObjSaveType_Save`; the dump names it now.
+- **Finished quests.** The save now writes `CompleteQuestList` entries as whole quest structs, not names, and
+  `tools/story.py` skipped anything that was not a string, so the file hid two completed quests the live object had.
+  It reads `QuestAlias` from a struct now (tests/story_test.py covers both shapes).
+
+Result on the same save: the dump wrote 10,430 lines in 15.6 s and `tools/story.py compare` printed `the same` — the
+same digest, `faeb83f9…`, 10,430 lines, no line only in the dump and none only in the save. The whole object is now a
+full mirror at load and around a save, world actors included.
+
+`coop story find` was tried in game too (typed into the UE4SS console, F10). It wrote its listing — each class, its
+live objects, the save's fields and which of the three story structures it has — but `FindAllOf('Class')` failed in
+this build (`FindAllOf(Class) failed: listed 5 known names instead`), so it reported only the five names it knows
+(`SBGameInstance`, `SBQuestManager`, `SBSaveGame`, `SBSaveManager`, `SBZoneManager`): a class it does not know is not
+found. The listing named one live `SBSaveGame` with 130 zones at that point, and the quests, mission records and env
+maps among its fields.
 
 ## Gaps
 
@@ -197,9 +239,12 @@ match yet, and the zone event items are off by one index. Both are in this file'
 
 1. **A live dump, read only.** Done: `coop story [dump|find]` ([The live dump](#the-live-dump)), and at load its
    digest is the file's. Two dumps during play are known to be comparable (they are identical when nothing happens),
-   and the full object is there only in the minute after a save. Still to see: what a door opening, a trigger or a
-   quest task looks like between two dumps taken in that minute; the world-actor stage and the item indices have to
-   match the save first.
+   and the full object is there only in the minute after a save: a walk that made the game autosave was followed, 16 s
+   later, by a dump whose digest was that new save's. A partial object also drops whole parts of the save: two minutes
+   after a load it had 166 of the 299 env entries and 528 of the 950 mission-record lines, so a change made during play
+   is invisible until the next save writes it. Still to see: what a door opening, a trigger or a quest task looks like
+   between two dumps taken before the save writes it (so far every walk that crossed a trigger also made the game
+   autosave). The dump now matches the whole object, world actors included (see [The whole object, matched](#the-whole-object-matched)).
 2. **Host to guest, logging only.** The host sends its story lines (or the delta since the last save) on every save and
    area change; the guest writes them to its log and changes nothing. A chapter played with the bot measures what a
    real session produces, which decides whether delta or whole-state is the right unit.
