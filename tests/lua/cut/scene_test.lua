@@ -5,10 +5,13 @@
 -- for the game's language with StringTable_Seq's GoodBye_01 lines (a text fault is logged and never stops the scene),
 -- then fires the Play row once; orcal points the rows at its own theater, with no take and no text. The observer is
 -- looked for once a second: seen, then gone, the scene ends with the take put back and a fade cleared; never seen in
--- 10 s, it fails with the take put back; the game's own farewell playing instead is said. coop scene stop fires the
--- Stop row, coop off fires it and puts the take back at once; a new Lua load stops an earlier load's scene and puts
--- the take back, walking no object while no scene's sequence is in memory. The only zone events are the two rows' kind
--- 6, and the source names no save, quest, warp, item, row or spawn call.
+-- 10 s, it fails with the take put back; the game's own farewell playing instead is said; a finished observer not yet
+-- collected no longer plays. A CreateSBZoneEvent that raises puts the take back. coop scene stop fires the Stop row,
+-- and nothing while that row is no longer the row we know; coop off fires it and puts the take back at once; a new Lua
+-- load stops an earlier load's scene and puts the take back, firing nothing for a sequence in memory that no observer
+-- plays and walking no object while no scene's sequence is in memory. A text fault, a key that does not read its line
+-- among them, is tried again at the next emil. The only zone events are the two rows' kind 6, and the source names no
+-- save, quest, warp, item, row or spawn call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -92,13 +95,15 @@ local event_table=object({IsA=function(_,c) return c.path=='/Script/Engine.DataT
     AddRow=function() error('never AddRow') end,RemoveRow=function() error('never RemoveRow') end})
 
 -- The theater observers; the Play row starts one for the sequence its theater's take plays (silent: none), the Stop
--- row ends those of its theater. honoured=false: the farewell plays its own sequence whatever its take says.
-local observers,events,silent,honoured={},{},false,true
+-- row ends those of its theater. honoured=false: the farewell plays its own sequence whatever its take says. raise: the
+-- call raises that.
+local observers,events,silent,honoured,raise={},{},false,true,nil
 local function observe(seq,theater)
     local p=object({playing=true,IsPlaying=function(self) return self.playing end})
     observers[#observers+1]=object({Player=p,Sequence=seq,SequenceName=fname(seq.path:match('[^.]+$')),theater=theater})
 end
 local zone=object({CreateSBZoneEvent=function(_,kind,name)
+    if raise then error(raise) end
     events[#events+1]=kind..' '..name:ToString()
     local theater=rows[name:ToString()].TheaterAssetPath
     if name:ToString()==PLAY and not silent then
@@ -114,8 +119,9 @@ FindAllOf=function(class)
     return observers
 end
 
--- The text libraries: the game in French, StringTable_Seq's GoodBye_01 lines, each registration as given.
-local lang,len_off,table_has='fr',0,true
+-- The text libraries: the game in French, StringTable_Seq's GoodBye_01 lines, each registration as given (misread: the
+-- key that reads another line).
+local lang,len_off,table_has,misread='fr',0,true,nil
 local GOODBYE={}
 for n=1,5 do GOODBYE['Seq_Subtitle_Nier_Emil_GoodBye_01_0'..n]='fr line '..n end
 local polyglots={}
@@ -132,7 +138,7 @@ local libraries={
         PolyglotDataToText=function(_,d)
             polyglots[#polyglots+1]=d
             assert(d.Category==0 and d.Namespace=='' and d.bIsMinimalPatch==false and d.CachedText.empty,'As asked')
-            return FText(d.LocalizedStrings[lang] or d.NativeString)
+            return FText(d.Key==misread and 'another line' or d.LocalizedStrings[lang] or d.NativeString)
         end}),
 }
 names[SEQ_TABLE],names[PLAY],names[STOP]=true,true,true
@@ -246,12 +252,13 @@ end
 ok,why=sc.command('orcal')
 assert(ok==false and why=="Emil's farewell is under way: coop scene stop ends it",why)
 assert(select(2,sc.command()):find("; Emil's farewell is under way.",1,true))
--- Once a second: seen, then gone (its end), the take back and the fade it left cleared.
+-- Once a second: seen, then done (its end; the observer lingers until collected), the take back and the fade it left
+-- cleared.
 finds=0
 at(100.5); assert(sc.tick()==nil and finds==0,'Not before 1 s')
 at(101); assert(sc.tick()==nil and last()=='playing: MV_DLC_Ending_E03, 1.0 s after the call',last())
 at(149); assert(sc.tick()==nil and finds==2)
-observers={}
+observers[1].Player.playing=false
 manager.FadeAmount=1
 at(150)
 ok,why=sc.tick()
@@ -271,6 +278,11 @@ assert(ok and rows[PLAY].TheaterAssetPath==ORCAL and rows[STOP].TheaterAssetPath
 assert(#lines==2 and last()=='play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 30.0 m from the stage',
     last())
 at(201); sc.tick(); assert(last()=='playing: Trailer_Resource_2022_CameraSample1, 1.0 s after the call',last())
+rows[STOP].ControlType=0 -- No longer the row we know: no zone event, the scene still followed.
+ok,why=sc.command('stop')
+assert(ok==false and why=='No stop: LYC02GO_E_Theater_003 ControlType reads 0, not 1',why)
+assert(events[#events]=='6 '..PLAY,events[#events])
+rows[STOP].ControlType=1
 at(210)
 ok,why=sc.command('stop')
 assert(ok and why=="Orcal's monologue from the 2022 trailer: stop asked; the game gives the camera, input and HUD back "
@@ -308,6 +320,13 @@ at(420); assert(sc.command('emil')); assert(sc.command('stop'))
 at(421); ok,why=sc.tick(); assert(ok and why=="Emil's farewell stopped before it showed.",tostring(why))
 silent=false
 manager.FadeAmount=0
+-- A CreateSBZoneEvent that raises: refused with the take put back, nothing followed.
+raise='no zone'
+at(430); ok,why=sc.command('emil')
+assert(ok==false and why=='CreateSBZoneEvent failed (no zone): nothing plays',why)
+assert(take.TemplateSequence==farewell_seq,'The take put back')
+raise=nil
+at(431); assert(sc.tick()==nil)
 
 -- coop off: the Stop row, the take back at once, nothing followed after.
 at(500); assert(sc.command('emil') and take.TemplateSequence==e03)
@@ -331,13 +350,18 @@ assert(last()=="restore: Emil's farewell of an earlier Lua load stopped; the far
     last())
 n=#lines
 again.restore(); assert(#lines==n,'Once')
+local e=#events -- E03 in memory, no observer plays it: one walk, no Stop row, no line.
+finds=0
+new().restore()
+assert(finds==1 and #events==e and #lines==n,'Nothing to stop')
 loaded[E03],loaded[ORCAL_SEQ]=nil,nil
 finds=0
 local fresh=new()
 fresh.restore()
 assert(finds==0 and #lines==n,'No walk, no line')
 
--- Text faults are logged and never stop the scene: a widened source, then a table that lacks the lines.
+-- Text faults are logged, never stop the scene and are tried again at the next emil: a widened source, a table that
+-- lacks the lines (then has them), a key that does not read its line.
 len_off=4
 local t=new()
 at(700); assert(t.command('emil') and #polyglots==10)
@@ -351,6 +375,21 @@ assert(logged('STOP: text: game language fr; Seq_Subtitle_Nier_Emil_GoodBye_01_0
     ..'not registered'))
 t.stop()
 table_has=true
+lines={}
+at(810); assert(t.command('emil') and #polyglots==20)
+assert(logged('text: game language fr; 10 keys registered, each reads its GoodBye_01 line'))
+t.stop()
+at(820); assert(t.command('emil') and #polyglots==20,'Then once')
+t.stop()
+misread='891614504FCD4510914FA2B9DA51FE06'
+t=new()
+at(900); assert(t.command('emil') and #polyglots==30)
+assert(logged('STOP: text: game language fr; 10 keys registered, but 891614504FCD4510914FA2B9DA51FE06 does not read '
+    ..'its line'))
+t.stop()
+misread=nil
+at(910); assert(t.command('emil') and #polyglots==40,'Again')
+t.stop()
 
 -- The source names no save, quest, warp, item, reward, achievement, spawn, destroy, console or row call; it fires
 -- CreateSBZoneEvent at one place.

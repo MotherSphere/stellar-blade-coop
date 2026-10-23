@@ -307,9 +307,11 @@ function Scene.new(o)
             did,stop=swap()
             if not did then return false,stop..': nothing was played' end
             log('take: '..did)
-            if not texted then -- A text fault never stops the scene: its lines stay Korean and Japanese.
-                texted=true
+            -- A text fault never stops the scene: its lines stay Korean and Japanese, and the next emil tries again
+            -- (StringTable_Seq may load later).
+            if not texted then
                 local fine,said=pcall(register_text)
+                texted=fine and not said:find('^STOP')
                 log(fine and said or 'STOP: text: '..why(said)..': the lines stay Korean and Japanese')
             end
         end

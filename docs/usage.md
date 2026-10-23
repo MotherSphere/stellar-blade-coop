@@ -1229,7 +1229,8 @@ quest event, and the trailer's own triggers, which add quests before they play, 
 The scene's subtitles are in Korean and Japanese, under keys that the game's translations do not have. `coop scene
 emil` registers them for the game's language with the five lines Emil says in the shipped farewell
 (`Seq_Subtitle_Nier_Emil_GoodBye_01_01` to `_05` of `StringTable_Seq`), which say the same thing. The Korean and the
-Japanese rows show at the same times; if the game draws both, each line shows twice.
+Japanese rows show at the same times; if the game draws both, each line shows twice. When the registration fails (a
+`STOP: text:` line), the next `coop scene emil` tries again.
 
 Not known before a test in game:
 
@@ -1238,8 +1239,8 @@ Not known before a test in game:
 - in Xion, a second Orcal may show if the game's Orcal stands in his room: the scene moves him onto its own and makes
   him visible;
 - whether the game's skip prompt shows (it should);
-- whether a camera fade stays at the end. E03 fades to black in its last half second; a fade left after the scene is
-  cleared, with a line in the log.
+- whether a camera fade stays at the end. E03 opens on black and is clear from 3.7 s, then fades out from 43.0 s and is
+  fully black from 47.8 s to its end at 48.3 s. A fade left after the scene is cleared, with a line in the log.
 
 Do not save while a scene plays (the pause menu is locked anyway).
 
