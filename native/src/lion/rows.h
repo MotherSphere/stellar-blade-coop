@@ -641,6 +641,8 @@ private:
     const NameParts p = split_number(text);
     return g.name(text, p.len, p.number);
   }
+
+public: // For the test's pool and FName cases, which the recipe's own data never reaches.
   // The pool's next 8-aligned n bytes, or 0 when they do not fit.
   static uint64_t take(uint64_t &pool, uint64_t end, size_t n) {
     const uint64_t at = (pool + 7) & ~uint64_t(7);
@@ -728,6 +730,7 @@ private:
     return Why::none;
   }
 
+private:
   bool added_[kRows] = {};
   uint32_t count_ = 0;
 };

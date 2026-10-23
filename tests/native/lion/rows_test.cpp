@@ -2,9 +2,11 @@
 // and IDs unique, every patch inside its struct and past its header, the step chains, skills, commands and stance
 // pointing at the new rows, the CharacterTable rows last); a whole run (the table checks, each row built from its
 // donor with SB's lazy-init flag and Transient arrays reset, its ID, its patches read back from the pool, AddRow given
-// the new name); a missing donor, a taken ID, a taken name, a wrong vtable, AddRow slot or row size refusing without
-// calling AddRow, and a later run skipping the rows already in; FName's number split; the read-back through SB's
-// lookups by ID; the answer word, the status line and the log lines.
+// the new name); a missing donor, a taken ID, a taken name, a wrong vtable (even with SB's AddRow in its slot), AddRow
+// slot or row size, and no FName for a row's, a donor's, a patch's or a list item's text, refusing without calling
+// AddRow, and a later run skipping the rows already in; the pool's bound and a list item's FName length; FName's number
+// split; the read-back through SB's lookups by ID (nothing found is no match); the answer word, the status line and the
+// log lines.
 #include "lion/rows.h"
 
 #include <cassert>
@@ -75,6 +77,7 @@ struct Game {
   int constructs = 0, copies = 0;
   uint64_t skill_override = 0; // A registry that gives another row for one skill ID.
   uint32_t skill_override_id = 0;
+  std::set<std::string> no_name; // Texts the game makes no FName for.
 
   Game() {
     const uint64_t vtable = rebased(kTableVtable); // SB's UDataTable vtable, in the image.
@@ -120,7 +123,7 @@ struct Game {
   }
   uint64_t name(const char *text, size_t len, uint32_t number) {
     const std::string s(text, len);
-    if (s == "None" && !number)
+    if ((s == "None" && !number) || no_name.count(s))
       return 0;
     auto it = interned.find({s, number});
     if (it == interned.end()) {
@@ -409,6 +412,11 @@ int main() {
     const Answer again = b.run(g, kBase, g.tables, g.block);
     assert(again.state == State::rows && again.added == kRows && g.adds.size() == kRows);
   }
+  {
+    Game g; // No row added: SB's lookups find nothing, and nothing found is no match (0 == 0 counts no row).
+    const Builder::ReadBack rb = Builder::read_back(g, g.tables);
+    assert(rb.character == 0 && rb.skills == 0 && rb.stance == 0);
+  }
 
   // ---- Refusals: nothing handed to AddRow for the refused row or any after it; a later run goes on ----
   {
@@ -459,6 +467,51 @@ int main() {
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::table && a.row == kRows - 2 && g.adds.empty()); // CharacterTable, checked first.
     assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/78 added");
+  }
+  {
+    Game g; // Another vtable whose AddRow slot holds SB's AddRow: still not SB's UDataTable.
+    const uint64_t other = g.mem.alloc(0x400);
+    g.mem.put<uint64_t>(other + kAddRowSlot, rebased(kAddRow));
+    g.mem.put<uint64_t>(g.tables[size_t(Table::stance)], other);
+    Builder b;
+    const Answer a = b.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::refused && a.why == Why::table && a.row == row_index("M_LionC_Default", Table::stance));
+    assert(g.adds.empty() && g.constructs == 0);
+  }
+  {
+    // No FName for a row's name, its donor's, an FName patch's text or a list item's: that row refused, none after it.
+    const auto refused_at = [](const char *text, size_t row) {
+      Game g;
+      g.no_name.insert(text);
+      Builder b;
+      const Answer a = b.run(g, kBase, g.tables, g.block);
+      assert(a.state == State::refused && a.why == Why::fname && a.row == row && a.added == row &&
+             g.adds.size() == row);
+      assert(describe(a).find(": the game made no FName; ") != std::string::npos);
+    };
+    refused_at("M_LionC_TurnAttackLeft_Cast1", row_index("M_LionC_TurnAttackLeft_Cast1", Table::step));
+    refused_at("M_Behemoth_Roar1_Hit1", row_index("M_LionC_Roar_Hit1", Table::step));
+    refused_at("M_LionC_ClawAttackLeft_Hit1", 0); // Row 0's NextStepAlias, before row 1 is named so.
+    refused_at("Rank_Elite", kRows - 2);          // M_LionC_Lurker's DefaultEffectArray.
+  }
+  {
+    // The pool's bound and a list item's FName length, which the recipe's own texts stay inside: refused, and nothing
+    // written past the block (the fake write asserts it).
+    Game g;
+    const std::string text(kPoolBytes, 'x'), item(200, 'y'); // text: 2 bytes a character, twice the pool.
+    std::string many;                                        // 600 FNames of 8 bytes: past the pool.
+    for (int k = 0; k < 600; ++k)
+      many += k ? "|N" : "N";
+    const uint64_t end = g.block + kBlock;
+    uint64_t pool = g.block + kRowBytes;
+    assert(Builder::patch(g, g.block, Patch{0x10, Kind::string, 0, text.c_str()}, pool, end) == Why::pool);
+    assert(pool == g.block + kRowBytes);
+    assert(Builder::patch(g, g.block, Patch{0x10, Kind::strings, 0, text.c_str()}, pool, end) == Why::pool);
+    assert(Builder::patch(g, g.block, Patch{0x10, Kind::names, 0, many.c_str()}, pool, end) == Why::pool);
+    assert(Builder::patch(g, g.block, Patch{0x10, Kind::names, 0, item.c_str()}, pool, end) == Why::fname);
+    pool = g.block + kRowBytes; // One that fits: its UTF-16 text and NUL at the pool's start.
+    assert(Builder::patch(g, g.block, Patch{0x10, Kind::string, 0, "fits"}, pool, end) == Why::none);
+    assert(pool == g.block + kRowBytes + 10 && g.mem.get<uint64_t>(g.block + 0x10) == g.block + kRowBytes);
   }
   {
     Game g; // A row struct of another size; an unreadable table.
