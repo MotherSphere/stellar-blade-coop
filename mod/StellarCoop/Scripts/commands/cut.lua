@@ -1,10 +1,10 @@
--- coop leviathan, coop gardener and coop tendril, a read and a display of three cut Naytibas with a free camera to
--- film them (cut/leviathan.lua; test tools, left out of the usage line): show and cam turning the camera on (not off,
--- not its speed) on a co-op save only, as coop race probe doro. coop lion, the cut Lion spawned as an enemy to fight
--- (cut/lion.lua, left out of the usage line too): the words that spawn (none, intro, control) on a co-op save only;
--- rows and brain on any. main.lua builds it with new(o) at each Lua load and merges it into its command table. o:
--- main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion (cut/lion.lua's) and wear
--- (cut/wear.lua's).
+-- coop leviathan, coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop enya, a read and a display of
+-- cut models with a free camera to film them (cut/leviathan.lua; test tools, left out of the usage line): show and cam
+-- turning the camera on (not off, not its speed) on a co-op save only, as coop race probe doro. coop lion, the cut Lion
+-- spawned as an enemy to fight (cut/lion.lua, left out of the usage line too): the words that spawn (none, intro,
+-- control) on a co-op save only; rows and brain on any. main.lua builds it with new(o) at each Lua load and merges it
+-- into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion
+-- (cut/lion.lua's) and wear (cut/wear.lua's).
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion

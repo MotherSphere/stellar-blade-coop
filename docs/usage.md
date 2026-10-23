@@ -971,7 +971,8 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
-`coop leviathan cam` when it turns the camera on (and the same two in `coop gardener` and `coop tendril`), `coop lion`,
+`coop leviathan cam` when it turns the camera on (and the same two in the six other
+[viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`,
 `coop lion intro` and `coop lion control` (below) run on any save. `coop fight pilot` runs on any save too, since same
 place only moves enemies while shared enemies run.
 
@@ -988,8 +989,10 @@ show three of them:
   (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
 
 The three commands take the same words, described below with `coop leviathan`, and share one display and one
-[free camera](#free-camera). One creature is shown at a time: a `show` of another one removes the first, and its answer
-starts with `Leviathan removed: one cut Naytiba is shown at a time.` (or the Gardener or the Tendril). They never spawn
+[free camera](#free-camera) with four more commands for
+[other cut models](#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya). One model is shown at a time: a
+`show` of another one removes the first, and its answer starts with
+`Leviathan removed: one cut model is shown at a time.` (or the name of the other model). They never spawn
 an enemy or a character. What they show is a plain actor with one mesh and collision off, like the Doros of a race, so
 nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `[StellarCoop][LV]`.
 
@@ -1046,13 +1049,35 @@ nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `
 - `skin`: the Gardener has only `default`, its own textures. The Tendril has `hydra` and `default`. Its `default` is the
   engine's grey, since its one material slot is empty. Each creature keeps its own last skin for its next `show`.
 - `move`, `skin` and `play` act on the shown mesh only when it is that command's creature: with the Gardener shown,
-  `coop tendril move 20` answers `no Tendril is shown: coop tendril show first`. `off` of any of the three removes the
-  shown mesh, whichever it is, and turns the free camera off.
+  `coop tendril move 20` answers `no Tendril is shown: coop tendril show first`. `off` of any of the viewer commands
+  removes the shown mesh, whichever it is, and turns the free camera off.
+
+#### Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+
+Four more test commands use the same viewer, words and free camera for cut models that are not Naytibas. None of them
+has been tried in game yet.
+
+| Command | `show` words | What it shows |
+| --- | --- | --- |
+| `coop mann` | `body` | The early Mann, `CH_NPC_Mann` in `/Game/Art/Character/NPC/Mann/`, about 3.5 m tall, with his 4 animations: 3 idles and a run. The shipped Mann uses another mesh, `CH_NPC_Mann_01`. |
+| `coop nier` | `square` (the default), `squareb`, `cylinder`, `cylinderb`, `cylinderc`, `sphere`, `sphereb` | The NieR collaboration's three cut machines, `CH_M_NA_951` to `CH_M_NA_953` in `/Game/DLC_1/Art/Character/Monster/`, with their TypeB and TypeC variants: blockout shapes of 32 to 810 vertices with no material, drawn in the engine's grey |
+| `coop orcal` | `test1` (the default), `test2`, `native` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall) and `XionElder_Native_Preview` |
+| `coop enya` | `mech` (the default), `enya05` | Enya prototypes in `/Game/Art/Character/NPC/CH_NPC_Enya/Temp/`: `CH_NPC_Enya_Mech` and `Enya_05`, 1.6 and 1.7 m tall |
+
+- Only the early Mann plays animations. The NieR machines have none: their blend spaces hold no samples, so `list`
+  reads them as `list asset` lines and nothing plays them. The Orcal and Enya meshes have one bone each, in a fixed
+  pose.
+- `auto` puts each model's lowest point at EVE's feet, 1.6 times its bounding sphere radius away and at least 6 m
+  (3 m for the Orcal and Enya statues).
+- `skin` takes `default` only.
+- `list` reads each command's meshes, skeletons, Blueprint classes and physics assets (the NieR blend spaces too), then
+  the CharacterTable rows that contain `CH_NPC_Mann_Blueprint`, `NA_95`, `OrcalTest`, `Enya_Mech` or `Enya_05`. A
+  plain `Mann` would match the shipped Mann's rows.
 
 #### Free camera
 
 The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off
-(`coop gardener cam` and `coop tendril cam` do the same with the same camera).
+(`cam` of the other viewer commands does the same with the same camera).
 Turning it on needs a co-op save, like `show`; turning it off works on any save. It starts where the game's camera is
 and blends there in 0.3 s. EVE keeps standing where she was: while the camera is on, the game ignores the move input
 of her controller. Its look input stays on, and the free camera turns with the controller, so the mouse and a
@@ -1788,8 +1813,8 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again), the cut Naytiba display and its free camera (`coop leviathan`, `coop gardener` and `coop tendril`; the
-view goes back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
+drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view
+goes back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
 lines; a living Lion stays) and the `coop wear` look (your EVE's own hair and suit come back). Afterwards only
 `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
 restarts`, and so do the menu, host and leave keys. The race key does nothing.

@@ -302,7 +302,7 @@ mod/StellarCoop/            the UE4SS mod folder
     ui/                     the on-screen kit, the co-op menu and its model, the guide, notices, the 23 languages' text
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
     race/                   Doro races: the run, the track model, the Doro look, the driving
-    cut/                    coop leviathan, gardener and tendril (cut Naytibas); coop lion; coop wear
+    cut/                    the cut model viewer (coop leviathan and six more); coop lion; coop wear
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side

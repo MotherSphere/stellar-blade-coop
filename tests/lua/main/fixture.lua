@@ -304,14 +304,14 @@ package.loaded['race.doro']={new=function(o)
         restore=function() dr.restores=dr.restores+1 end,
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
 end}
--- coop leviathan's, coop gardener's and coop tendril's read, display and free camera (cut/leviathan.lua;
--- leviathan_test tests it): what new got (log, store, blocked), its commands (each with its creature's word as who),
--- restores, ticks and stops, what a tick says, whether its free camera is on.
+-- The cut model viewer's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got
+-- (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a tick
+-- says, whether its free camera is on.
 lv={}
 package.loaded['cut.leviathan']={new=function(o)
     lv.o=o
     local commands={}
-    for _,who in ipairs({'leviathan','gardener','tendril'}) do
+    for _,who in ipairs({'leviathan','gardener','tendril','mann','nier','orcal','enya'}) do
         commands[who]=function(...) lv.cmds[#lv.cmds+1]={who=who,...}; return true,'lv '..tostring((...)) end
     end
     return {commands=commands,

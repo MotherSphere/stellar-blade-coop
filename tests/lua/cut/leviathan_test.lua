@@ -27,6 +27,9 @@
 -- Gardener, the Hydra's for the Tendril, kept for that creature's next show only); showing one removes another
 -- creature's display and says so, move and play of another creature leave it as it is, off from any creature's
 -- command removes it, a failed removal is named by the creature its mesh belongs to.
+-- coop mann, coop nier, coop orcal and coop enya: the early Mann plays the clips of his skeleton; a NieR machine (a
+-- word a mesh) and a prototype statue play none, the NieR blend spaces listed as assets and never played; a statue
+-- whose lowest point is below its root stands with that point at EVE's feet.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -832,10 +835,10 @@ controller=nil
 -- coop gardener and coop tendril: the same viewer with their own meshes, clips, defaults and skins, and one display
 -- between the three. new gives one command a creature, coop leviathan's also as command; no LIST names a path twice.
 local cmds=L.new({log=log})
-assert(cmds.command==cmds.commands.leviathan and cmds.commands.gardener and cmds.commands.tendril)
+assert(cmds.command==cmds.commands.leviathan)
 local n_cmds=0
-for _ in pairs(cmds.commands) do n_cmds=n_cmds+1 end
-assert(n_cmds==3,n_cmds)
+for name in pairs(cmds.commands) do n_cmds=n_cmds+1; assert(L.CREATURES[name],name) end
+assert(n_cmds==7,n_cmds)
 for name,who in pairs(L.CREATURES) do
     local seen={}
     for _,e in ipairs(who.LIST) do assert(not seen[e.path],name..': '..e.path); seen[e.path]=true end
@@ -885,7 +888,7 @@ logs={}
 ok,why=gardener('show')
 local g,g_path=newest()
 local gm=g.components[1]
-assert(ok and why=='Leviathan removed: one cut Naytiba is shown at a time. Gardener body shown 23.2 m ahead, 2.2 m up, '
+assert(ok and why=='Leviathan removed: one cut model is shown at a time. Gardener body shown 23.2 m ahead, 2.2 m up, '
     ..'scale 1, 4 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
 assert(logs[1]=='removed (replaced by the Gardener)' and lev_shown.destroyed,logs[1])
 assert(close(gm.at.Y,20+1.6*1453) and gm.at.Z==-87+216 and gm.rot.Yaw==180,'Ahead of her, on the ground')
@@ -939,7 +942,7 @@ gardener('show')
 ok,why=tendril('show')
 local t,t_path=newest()
 local tm2=t.components[1]
-assert(ok and why=='Gardener removed: one cut Naytiba is shown at a time. Tendril body shown 11.6 m ahead, 0.2 m up, '
+assert(ok and why=='Gardener removed: one cut model is shown at a time. Tendril body shown 11.6 m ahead, 0.2 m up, '
     ..'scale 1, 3 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
 assert(last()=='show body: CH_M_NA_06_test, 3 clips on skeleton CH_M_NA_06_test_Skeleton, 11.6 m ahead, 0.2 m up, '
     ..'scale 1',last())
@@ -974,6 +977,54 @@ assert(not ok and why=='the Gardener shown before could not be removed: busy'
 stuck_g.K2_DestroyActor=g_destroy
 L.new({log=log,store=store}).restore()
 assert(stuck_g.destroys==1 and stored==nil and last()=='restore: the display of an earlier Lua load destroyed',last())
+
+-- coop mann: his own clips in turn; 1.6 radii is under 6 m, and his lowest point, 11 cm under his root, at EVE's feet.
+local mann,nier,orcal,enya=lv.commands.mann,lv.commands.nier,lv.commands.orcal,lv.commands.enya
+local m_sk=asset('CH_NPC_Mann_Skeleton',{'/Script/Engine.Skeleton'},nil,'mann')
+asset('CH_NPC_Mann',MESH,{Skeleton=m_sk,ExtendedBounds={SphereRadius=220,Origin={X=0,Y=0,Z=168},
+    BoxExtent={X=67,Y=109,Z=179}}},'mann')
+asset('NPC_Mann_P_Idle',SEQ,{Skeleton=m_sk,SequenceLength=28.33},'mann')
+asset('NPC_Maan_P_Think',SEQ,{Skeleton=m_sk,SequenceLength=15.67},'mann')
+ok,why=mann('show')
+assert(ok and why=='Mann body shown 6 m ahead, 0.1 m up, scale 1, 2 clips in turn'..NO_CAM..'; [LV] lines in this log.',
+    why)
+assert(stored==select(2,newest())..'\t'..path('CH_NPC_Mann','mann') and newest().components[1].at.Z==-87+11,stored)
+tick_at(9000); assert(last()=='show body step 1/2 NPC_Mann_P_Idle 28.33 s twice',last())
+assert(select(2,mann('play','think')):find(' holds NPC_Maan_P_Think looping',1,true))
+-- coop nier: a word a mesh, no clip, its blend space a listed asset of its skeleton that is never played.
+local NIER_USE='Use: coop nier [list] | show [square|squareb|cylinder|cylinderb|cylinderc|sphere|sphereb] '
+    ..'[<distance m>|auto] [<height m>|auto] [<scale>] | move <distance m>|auto [<height m>|auto] | skin default | '
+    ..'cam [<m/s>] | play [<clip>] | off'
+assert(L.CREATURES.nier.USE==NIER_USE,L.CREATURES.nier.USE)
+for _,bad in ipairs({{'show','body'},{'show','cube'},{'skin','hydra'}}) do
+    assert(select(2,nier(table.unpack(bad)))==NIER_USE)
+end
+local n_sk=asset('CH_M_NA_951_Skeleton',{'/Script/Engine.Skeleton'},nil,'nier')
+asset('CH_M_NA_951_TypeB',MESH,{Skeleton=n_sk},'nier')
+asset('Base_BS_1D',BS,{Skeleton=n_sk},'nier')
+ok,why=nier('list')
+assert(ok and why==string.format('NieR machine list: 3 of %d assets found, 0 CharacterTable rows name it; [LV] lines '
+    ..'in this log.',#L.CREATURES.nier.LIST) and logged('list asset Base_BS_1D: BlendSpace'),why)
+ok,why=nier('show','squareb','10')
+local sq=newest().components[1]
+assert(ok and why=='Mann removed: one cut model is shown at a time. NieR machine squareb shown 10 m ahead, 0 m up, '
+    ..'scale 1, 0 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
+tick_at(9100); tick_at(9200)
+assert(table.concat(sq.calls,'|')=='mesh CH_M_NA_951_TypeB|scale 1|collision 0|mode 1|scale 1',
+    table.concat(sq.calls,'|'))
+assert(select(2,nier('play','base'))=='no clip of the shown squareb ends with or holds base')
+-- coop orcal: a statue 1.27 m deep under its root stands on EVE's feet, 3 m ahead; coop enya's off removes it.
+asset('XionElder_Native_Preview',MESH,{Skeleton=asset('XionElder_Native_Preview_Skeleton',{'/Script/Engine.Skeleton'},
+    nil,'orcal'),ExtendedBounds={SphereRadius=110,Origin={X=0,Y=0,Z=-24},BoxExtent={X=60,Y=60,Z=103}}},'orcal')
+ok,why=orcal('show','native')
+assert(ok and why=='NieR machine removed: one cut model is shown at a time. Orcal prototype native shown 3 m ahead, '
+    ..'1.3 m up, scale 1, 0 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
+assert(close(newest().components[1].at.Y,20+300) and newest().components[1].at.Z==-87+127)
+ok,why=enya('list')
+assert(ok and why=='Enya prototype list: 0 of 6 assets found, 0 CharacterTable rows name it; [LV] lines in this log.',
+    why)
+ok,why=enya('off')
+assert(ok and why=='Orcal prototype removed.' and newest().destroyed and stored==nil,why)
 
 -- Never another class than a plain Actor: here, and in the sources, which name no achievement, reward, item, quest,
 -- save, possession, console command, spawn or destroy call of their own (race/doro.lua's spawn and remove do both).

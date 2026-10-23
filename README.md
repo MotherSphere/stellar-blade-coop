@@ -57,7 +57,9 @@ the Steam client that the game already runs, so the mod needs no other program a
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see
   [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). None of them can be
-  fought: the game has no entry for them in its character table.
+  fought: the game has no entry for them in its character table. `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+  show the early Mann model, the NieR collaboration's three cut machines and prototype statues of Orcal and Enya the
+  same way.
 - `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
   its model, animations and attacks but no table row, so the mod adds the 78 rows it needs to the game's tables in
   memory. `coop lion intro` plays its entrance first. It writes nothing to a save, and only your game has it (see

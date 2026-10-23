@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan`, `coop gardener` and `coop tendril`, with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -67,13 +67,13 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
-| `cut/leviathan.lua` | `coop leviathan`, `coop gardener` and `coop tendril`: one table of three cut Naytibas (10, 1 and 6: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
+| `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
 | `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the cut Naytiba display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
+Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
 while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the UI's open and
 close animations, the game's input given back after the menu or the chat box closes, the controller's events, the row
 under the mouse (every 100 ms while the menu is open), and your friend's marker and gauges. The other runs every 250 ms:
