@@ -1,13 +1,19 @@
--- coop leviathan: the cut Naytiba 10, the Leviathan (/Game/Art/Character/Monster/CH_M_NA_10/, found in pakchunk0's
--- index, not seen in game), shown with race/doro.lua's display parts: a plain actor with one mesh component, collision
--- off, the engine's single-node instance playing its clips. No SB character, no table row, no AI, nothing that can
--- die, so nothing of it reaches a quest, an achievement or a save; its Blueprint classes are looked up, never spawned.
+-- coop leviathan, coop gardener and coop tendril: three cut Naytibas whose files are in pakchunk0's index but which the
+-- game never shows. Naytiba 10, the Leviathan (/Game/Art/Character/Monster/CH_M_NA_10/); Naytiba 1, the Gardener
+-- (CH_M_NA_01/), an artillery Naytiba about 20 m tall at scale 1, in the shipped prologue as distant scenery only;
+-- Naytiba 6, the Tendril (CH_M_NA_06/CH_M_NA_06_test), a prototype whose one material slot is empty. Shown with
+-- race/doro.lua's display parts: a plain actor with one mesh component, collision off, the engine's single-node
+-- instance playing its clips. No SB character, no table row, no AI, nothing that can die, so nothing of it reaches a
+-- quest, an achievement or a save; their Blueprint classes are looked up, never spawned. The three take the same words
+-- (CREATURES holds what differs) and share one display and one free camera: showing one creature removes another's
+-- display and says so; off removes the display whichever creature it shows; move, skin and play act on it only when it
+-- shows the command's own creature.
 -- list only reads: which assets resolve, each mesh's and clip's skeleton, each class's super class, and the
 -- CharacterTable rows that name it. show puts one mesh ahead of EVE, facing her (by default at 1.6 times its bounding
--- sphere radius, 6 m at least, and lifted so its lowest point is 5 m above her feet), and plays each clip of its
--- skeleton twice in turn; play holds one; move places it again from where EVE stands; skin sets every material slot to
--- one material. off removes it, and so do coop off, a map change, its first error and the next Lua load
--- (coop-leviathan.txt, read at the first tick).
+-- sphere radius, 6 m at least, and lifted so its lowest point is 5 m above her feet for the Leviathan, at her feet for
+-- the others), and plays each clip of its skeleton twice in turn; play holds one; move places it again from where EVE
+-- stands; skin sets every material slot to one material. off removes it, and so do coop off, a map change, its first
+-- error and the next Lua load (coop-leviathan.txt, read at the first tick).
 -- The free camera, for filming it: show and play turn it on, cam toggles it. A plain actor with one CameraComponent is
 -- the view target, placed where the game's camera was, and flies from the keys each frame (none read while the co-op
 -- menu or one of its boxes is open); the player controller ignores move and look input meanwhile, so EVE stays where
@@ -19,18 +25,14 @@ local U=require('core.unreal')
 local Doro=require('race.doro')
 local valid,value_of,text,find=U.valid,U.value_of,U.text,U.find
 local Leviathan={}
-local DIR='/Game/Art/Character/Monster/CH_M_NA_10/'
+local MONSTER='/Game/Art/Character/Monster/'
 local OBJECT,ANIM='/Script/CoreUObject.Object','/Script/Engine.AnimationAsset'
 local TABLE='/Game/Local/Data/CharacterTable.CharacterTable'
 -- SBCharacterTableProperty's fields that hold names (its export: M_Hydra's Type M_Hydra, DespawnShow
 -- Despawn/M_Hydra_Despawn, RefAppearance M_Hydra), read beside the row's own name.
 local FIELDS={'Type','Flag','DeadAlias','DespawnShow','DefaultStanceAlias','BehaviorTreeRes','DefaultDetectAIAlias',
     'NarrowDetectAIAlias','RefAppearance'}
-local AHEAD=600 -- cm in front of EVE: the least of the automatic distance, and all of it when the bounds are unread.
 local AUTO=1.6 -- The automatic distance in bounding sphere radii.
--- cm: the automatic height puts the mesh's lowest point this far above EVE's feet (its root, when the bounds are
--- unread). A starting value, tuned in game.
-local LIFT=500
 local FAR=5000 -- m: the farthest distance and height show and move take.
 local BLEND=0.3 -- s: the view's blend into and out of the free camera.
 local SPEED,FAST=1000,4 -- cm/s: the free camera's speed (coop leviathan cam <m/s> sets it), times FAST with Shift.
@@ -41,42 +43,98 @@ local PC,MATERIAL='/Script/Engine.PlayerController','/Script/Engine.MaterialInte
 -- The free camera's keys, Unreal key names (QWERTY and AZERTY both), read with IsInputKeyDown.
 local KEYS={forward={'W','Z'},back={'S'},left={'A','Q'},right={'D'},up={'SpaceBar','E'},down={'LeftControl','C'},
     fast={'LeftShift'},turn_left={'Left'},turn_right={'Right'},look_up={'Up'},look_down={'Down'}}
-local USE='Use: coop leviathan [list] | show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>|auto] '
-    ..'[<scale>] | move <distance m>|auto [<height m>|auto] | skin statue|hydra|default | cam [<m/s>] | '
-    ..'play [<clip>] | off'
--- What list reads, in order: {kind, object path}. A class's path is its Blueprint's with _C.
-Leviathan.LIST={}
-local function add(kind,dir,names)
+-- The Hydra's tentacles' material (its folder also has MI_M_NA_09_V03_Upper): a skin of the Leviathan and the Tendril.
+local HYDRA=MONSTER..'CH_M_NA_09/Materials/MI_M_NA_09_V03_Tentacle.MI_M_NA_09_V03_Tentacle'
+-- The creatures, by console word. Each: title (its messages), meshes (show's words, in order: the first is the
+-- default and each one's rank is its entry's in LIST, filled by add), static (the word of a StaticMesh), skins (skin's
+-- words and materials, in order; default, the mesh's own, comes last), words (what names it in a CharacterTable row,
+-- lower case), ahead (cm: the least of the automatic distance, and all of it when the bounds are unread), lift (cm:
+-- the automatic height puts the mesh's lowest point this far above EVE's feet, its root when the bounds are unread;
+-- starting values, tuned in game) and scale (show's default). creature adds LIST (what list reads, in order: {kind,
+-- object path}), MESHES (word -> rank), SKINS (word -> material path, default false) and USE (its usage line).
+Leviathan.CREATURES={}
+local function creature(name,c)
+    c.name,c.LIST,c.MESHES,c.SKINS=name,{},{},{default=false}
+    for k,word in ipairs(c.meshes) do c.MESHES[word]=k end
+    local skins={}
+    for _,s in ipairs(c.skins) do c.SKINS[s[1]],skins[#skins+1]=s[2],s[1] end
+    skins[#skins+1]='default'
+    c.USE='Use: coop '..name..' [list] | show ['..table.concat(c.meshes,'|')..'] [<distance m>|auto] [<height m>|auto] '
+        ..'[<scale>] | move <distance m>|auto [<height m>|auto] | skin '..table.concat(skins,'|')..' | cam [<m/s>] | '
+        ..'play [<clip>] | off'
+    Leviathan.CREATURES[name]=c
+    return c
+end
+-- names' entries added to c's LIST. A class's path is its Blueprint's with _C.
+local function add(c,kind,dir,names)
     for name in names:gmatch('%S+') do
-        Leviathan.LIST[#Leviathan.LIST+1]={kind=kind,path=dir..name..'.'..name..(kind=='class' and '_C' or '')}
+        c.LIST[#c.LIST+1]={kind=kind,path=dir..name..'.'..name..(kind=='class' and '_C' or '')}
     end
 end
-add('mesh',DIR,'CH_M_NA_10 Leviathan_A Leviathan_B M_LeviathanTentacleA')
-add('mesh','/Game/Art/BG/Actor/SecretRoom/','C_Reviathan') -- The secret room's statue, a StaticMesh.
-add('skeleton',DIR,'CH_M_NA_10_Skeleton Leviathan_A_Skeleton Leviathan_B_Skeleton M_LeviathanTentacleA_Skeleton')
-add('clip',DIR..'Animation/','M_Leviathan_BashLeft1_1 M_Leviathan_BashRight1_1 M_Leviathan_BattleIdle01 '
+local DIR=MONSTER..'CH_M_NA_10/'
+local LV=creature('leviathan',{title='Leviathan',meshes={'body','a','b','tentacle','statue'},static='statue',
+    -- The secret room statue's material, then the Hydra's.
+    skins={{'statue','/Game/Art/BG/Actor/SecretRoom/C_Reviathan_MI.C_Reviathan_MI'},{'hydra',HYDRA}},
+    words={'na_10','eviathan'},ahead=600,lift=500,scale=1}) -- eviathan: Leviathan, and the statue's Reviathan.
+add(LV,'mesh',DIR,'CH_M_NA_10 Leviathan_A Leviathan_B M_LeviathanTentacleA')
+add(LV,'mesh','/Game/Art/BG/Actor/SecretRoom/','C_Reviathan') -- The secret room's statue, a StaticMesh.
+add(LV,'skeleton',DIR,'CH_M_NA_10_Skeleton Leviathan_A_Skeleton Leviathan_B_Skeleton M_LeviathanTentacleA_Skeleton')
+add(LV,'clip',DIR..'Animation/','M_Leviathan_BashLeft1_1 M_Leviathan_BashRight1_1 M_Leviathan_BattleIdle01 '
     ..'M_Leviathan_BattleIdle02 M_Leviathan_Catch_1 M_Leviathan_LightningBall1_1 M_Leviathan_SmashLeft1_1 '
     ..'M_Leviathan_SmashRight1_1 M_LeviathanTentacleA_BashLeft M_LeviathanTentacleA_BashLeft_1 '
     ..'M_LeviathanTentacleA_BashRight M_LeviathanTentacleA_BashRight_1 M_LeviathanTentacleA_Battleidle01 '
     ..'M_LeviathanTentacleA_Smash M_LeviathanTentacleA_Smash_1 M_LeviathanTentacleA_SwingLeft_1 '
     ..'M_LeviathanTentacleA_SwingRight_1 M_LeviathanTentacleB_Catch M_LeviathanTentacleB_CatchHit '
     ..'M_LeviathanTentacleB_Swing')
-add('clip',DIR..'Animation/BlendSpace/','IdleRun_BS_Battle TentacleA_IdleRun_BS_Peaceful')
-add('clip',DIR,'CH_M_NA_10_Anim')
-add('clip','/Game/Art/Character/PC/CH_P_EVE_01/Animation/','Hit_Leviathan_GrabSuccess') -- EVE's own.
-add('class',DIR..'Blueprints/','CH_M_NA_10_Blueprint CH_M_NA_10_AnimBP CH_M_NA_10_TentacleA_Blueprint '
+add(LV,'clip',DIR..'Animation/BlendSpace/','IdleRun_BS_Battle TentacleA_IdleRun_BS_Peaceful')
+add(LV,'clip',DIR,'CH_M_NA_10_Anim')
+add(LV,'clip','/Game/Art/Character/PC/CH_P_EVE_01/Animation/','Hit_Leviathan_GrabSuccess') -- EVE's own.
+add(LV,'class',DIR..'Blueprints/','CH_M_NA_10_Blueprint CH_M_NA_10_AnimBP CH_M_NA_10_TentacleA_Blueprint '
     ..'CH_M_NA_10_TentacleA_AnimBP CH_M_NA_10_TentacleB_Blueprint CH_M_NA_10_TentacleB_AnimBP '
     ..'CH_M_NA_10_Tentacle_AnimBP')
-add('class','/Game/GameDesign/Level/BluePrintActor/Matrix_XI/','ME_Area04_SecretRoom_Leviathan')
-add('asset','/Game/Art/Show/Despawn/','M_Leviathan_Despawn')
-add('asset',DIR,'Default')
--- show's meshes: LIST's first five.
-Leviathan.MESHES={body=1,a=2,b=3,tentacle=4,statue=5}
--- skin's materials: the secret room statue's, the Hydra's tentacles' (its folder also has MI_M_NA_09_V03_Upper);
--- default is the mesh's own.
-Leviathan.SKINS={statue='/Game/Art/BG/Actor/SecretRoom/C_Reviathan_MI.C_Reviathan_MI',
-    hydra='/Game/Art/Character/Monster/CH_M_NA_09/Materials/MI_M_NA_09_V03_Tentacle.MI_M_NA_09_V03_Tentacle',
-    default=false}
+add(LV,'class','/Game/GameDesign/Level/BluePrintActor/Matrix_XI/','ME_Area04_SecretRoom_Leviathan')
+add(LV,'asset','/Game/Art/Show/Despawn/','M_Leviathan_Despawn')
+add(LV,'asset',DIR,'Default')
+Leviathan.LIST,Leviathan.SKINS=LV.LIST,LV.SKINS -- coop leviathan's, as before the other creatures.
+-- The Gardener: its own textured materials, so no other skin. Every clip below is on CH_M_NA_01_Skeleton (the pak's
+-- files, read offline 2026-10-23); the CharacterAppearanceTable names it M_Gardener (50010), the CharacterTable not.
+DIR=MONSTER..'CH_M_NA_01/'
+local GD=creature('gardener',{title='Gardener',meshes={'body'},skins={},words={'na_01','gardener'},ahead=600,lift=0,
+    scale=1})
+add(GD,'mesh',DIR,'CH_M_NA_01')
+add(GD,'skeleton',DIR,'CH_M_NA_01_Skeleton')
+add(GD,'clip',DIR..'Animation/','Mon_Gardener_B_BattleStart Mon_Gardener_B_Idle01 Mon_Gardener_B_Idle02 '
+    ..'Mon_Gardener_B_Tower_01 Mon_Gardener_B_Tower_02 Mon_Gardener_B_Tower_03 Mon_Gardener_B_Tower_04 '
+    ..'Mon_Gardener_B_Turn_L Mon_Gardener_B_Turn_R Mon_Gardener_C_Appear Mon_Gardener_C_Hide Mon_Gardener_C_Ready '
+    ..'Mon_Gardener_C_UnHide Mon_Gardener_P_Idle01 Mon_Gardener_P_Spawn01 Mon_Gardener_S_01_Grenade '
+    ..'Mon_Gardener_S_02_Grenade Mon_Gardener_S_02_Multiple_Grenade Mon_Gardener_S_03_Toxic_Beam CH_M_NA_01_IDLE '
+    ..'CH_M_NA_01_RotateHead CH_M_NA_01_SPAWN CH_M_NA_01_SPAWN2 CH_M_NA_01_SPAWN3 CH_M_NA_01_SPAWN3_plus')
+add(GD,'clip',DIR..'Animation/BlendSpace/','Airborne_BS IdleRun_BS_Battle IdleRun_BS_Peaceful')
+add(GD,'clip',DIR,'CH_M_NA_01_Anim')
+add(GD,'class',DIR..'Blueprints/','CH_M_NA_01_BluePrint CH_M_NA_01_BluePrint1_SEQ CH_M_NA_01_AnimBP '
+    ..'CH_M_NA_01_AnimBP_OLD')
+add(GD,'class',DIR..'Projectile/','M_Gardener_SingleShot_1_Projectile1')
+add(GD,'asset','/Game/Art/Show/CH_M_NA_01_Gardener/Skill/','M_Gardener_SingleShot_1 M_Gardener_MultipleShot_1 '
+    ..'M_Gardener_ToxicBeam')
+add(GD,'asset',DIR,'Default')
+-- The Tendril: no material in its files (the engine's grey), so the Hydra's tentacles lend one. Every clip below is on
+-- CH_M_NA_06_test_Skeleton; nothing of the game names it.
+DIR=MONSTER..'CH_M_NA_06/'
+local TD=creature('tendril',{title='Tendril',meshes={'body'},skins={{'hydra',HYDRA}},words={'na_06','tendril'},
+    ahead=600,lift=0,scale=1})
+add(TD,'mesh',DIR,'CH_M_NA_06_test')
+add(TD,'skeleton',DIR,'CH_M_NA_06_test_Skeleton')
+add(TD,'clip',DIR..'Animation/','M_Tendril_ChopAttack M_Tendril_DiagonalAttack_L M_Tendril_DiagonalAttack_R '
+    ..'M_Tendril_Move_Back M_Tendril_RushAttack M_Tendril_SwingAttack_L M_Tendril_SwingAttack_R '
+    ..'M_Tendril_TraceAttackSlow M_Tendril_WhipAttack M_Tendril_WhipAttack_L M_Tendril_WhipAttack_R '
+    ..'M_Tendrill_TurnAttack Idle Walk Run Run_Start Run_End Side_Walk_L Side_Walk_R TurnL_90 TurnL_180 TurnL_S_180 '
+    ..'TurnR_90 TurnR_180 TurnR_S_180 Parry Dead Result_Hit_Airborne Result_Hit_KnockBack Result_State_Airborne_S '
+    ..'Result_State_Airborne_L Result_State_Airborne_E Result_State_Groggy_S Result_State_Groggy_L '
+    ..'Result_State_Groggy_E Result_State_KnockDown_Bw_S Result_State_KnockDown_Bw_L Result_State_KnockDown_Bw_E '
+    ..'Result_State_KnockDown_Fw_S Result_State_KnockDown_Fw_L Result_State_KnockDown_Fw_E')
+add(TD,'clip',DIR..'Animation/BlendSpace/','Airborne_BS IdleRun_BS_Peaceful LockOn_BS')
+add(TD,'class',DIR..'Blueprints/','CH_M_NA_06_Blueprint CH_M_NA_06_AnimBP')
+add(TD,'asset',DIR,'CH_M_NA_06_test_PhysicsAsset')
 
 local function name_of(path) return path:match('[^.]+$') end
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
@@ -130,11 +188,11 @@ local function length_of(a)
     local ok,t=pcall(function() return tonumber(value_of(a.SequenceLength)) end)
     return ok and t and t>0 and t or 3
 end
--- The clips of LIST on the skeleton of mesh (an entry of LIST), in order: {path, name, seconds}; and that skeleton.
-local function clips_of(mesh)
+-- The clips of who's LIST on the skeleton of mesh (an entry of it), in order: {path, name, seconds}; and that skeleton.
+local function clips_of(who,mesh)
     local skeleton,out=skeleton_of(resolve(mesh)),{}
     if not skeleton then return out end
-    for _,e in ipairs(Leviathan.LIST) do
+    for _,e in ipairs(who.LIST) do
         local a=e.kind=='clip' and resolve(e)
         if a and a:IsA(find(ANIM)) and skeleton_of(a)==skeleton then
             out[#out+1]={path=e.path,name=name_of(e.path),seconds=length_of(a)}
@@ -151,6 +209,13 @@ local function bounds_of(e,scale)
     local r=assert(tonumber(value_of(b.SphereRadius)),'no SphereRadius')
     return {r=r*scale,z=o.Z*scale,low=(o.Z-x.Z)*scale}
 end
+-- The creature one of whose meshes is at path p; the Leviathan when none is (an older coop-leviathan.txt).
+local function owner(p)
+    for _,who in pairs(Leviathan.CREATURES) do
+        for k=1,#who.meshes do if who.LIST[k].path==p then return who end end
+    end
+    return LV
+end
 
 -- o: log (the [LV] lines), store (coop-leviathan.txt through link.store; nil without the native part: no sweep at the
 -- next Lua load), blocked (true while the co-op menu or one of its boxes takes the keys: the free camera reads none).
@@ -162,11 +227,12 @@ function Leviathan.new(o)
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local blocked=o.blocked or function() return false end
     local self={}
-    local shown -- {d=<Doro.spawn's>, name=, map=, clips=, k=<cycle step>, next=<os.clock of the next>, held=<clip>,
-    -- radius=, low=<bounds_of's r and low, nil when unread>, own=<its slots' materials before the first skin>}
+    local shown -- {who=<its creature>, d=<Doro.spawn's>, name=, map=, clips=, k=<cycle step>, next=<os.clock of the
+    -- next>, held=<clip>, radius=, low=<bounds_of's r and low, nil when unread>, own=<its slots' materials before the
+    -- first skin>}
     local cam -- {d=<Doro.spawn's>, pc=, pc_path=, map=, was={move=, look=, view=}, at=, yaw=, pitch=, t=, since=,
     -- said=}
-    local skin='default' -- The last skin set: a new show keeps it.
+    local skins={} -- Each creature's last skin set, by its word, default when none: a new show keeps it.
     local speed=SPEED
     local restored,look_failed=false,false
     local fkeys={}
@@ -386,11 +452,11 @@ function Leviathan.new(o)
         if ran and ok then return ', free camera on' end
         return ', no free camera ('..tostring(ran and why or ok)..')'
     end
-    -- One line per entry of LIST, then the CharacterTable rows whose name or name fields hold NA_10 or eviathan
-    -- (Leviathan, and the statue's Reviathan), with their ID and MeshScale, and a count.
-    local function list()
+    -- One line per entry of who's LIST, then the CharacterTable rows whose name or name fields hold one of its words
+    -- (the Leviathan's NA_10 or eviathan), with their ID and MeshScale, and a count.
+    local function list(who)
         local found=0
-        for _,e in ipairs(Leviathan.LIST) do
+        for _,e in ipairs(who.LIST) do
             local x=resolve(e)
             local line='list '..e.kind..' '..name_of(e.path)..': '
             if not x then line=line..'missing'
@@ -411,6 +477,9 @@ function Leviathan.new(o)
             local ok,v=pcall(function() local x=value_of(row[field]); return type(x)=='number' and x or text(x) end)
             return ok and tostring(v) or '?'
         end
+        local function names(line)
+            for _,w in ipairs(who.words) do if line:lower():find(w,1,true) then return true end end
+        end
         local ok,why=pcall(function()
             local dt=Doro.resolve(TABLE,'/Script/Engine.DataTable')
             if not dt then error('not found',0) end
@@ -419,7 +488,7 @@ function Leviathan.new(o)
                 local words={'list row '..text(key)}
                 for _,f in ipairs(FIELDS) do words[#words+1]=f..'='..read(row,f) end
                 local line=table.concat(words,' ')
-                if line:lower():find('na_10',1,true) or line:lower():find('eviathan',1,true) then
+                if names(line) then
                     named=named+1
                     log(line..' ID='..read(row,'ID')..' MeshScale='..read(row,'MeshScale'))
                 end
@@ -427,16 +496,15 @@ function Leviathan.new(o)
         end)
         log(ok and string.format('list CharacterTable rows=%d named=%d',rows,named)
             or 'list CharacterTable not read: '..tostring(why))
-        return true,string.format('Leviathan list: %d of %d assets found, %s; [LV] lines in this log.',found,
-            #Leviathan.LIST,ok and named..' CharacterTable rows name it' or 'CharacterTable not read')
+        return true,string.format('%s list: %d of %d assets found, %s; [LV] lines in this log.',who.title,found,
+            #who.LIST,ok and named..' CharacterTable rows name it' or 'CharacterTable not read')
     end
     -- Every material slot of the shown mesh to the skin's material, or back to the mesh's own (read before the first
     -- skin). Returns the slot count; raises when the material is missing.
     local function paint(s,name)
-        local mesh=s.d.mesh
+        local mesh,path=s.d.mesh,s.who.SKINS[name]
         local n=math.floor(tonumber(value_of(mesh:GetNumMaterials())) or 0)
-        local material=name~='default' and assert(Doro.resolve(Leviathan.SKINS[name],MATERIAL),
-            name_of(Leviathan.SKINS[name])..' is missing on this PC')
+        local material=name~='default' and assert(Doro.resolve(path,MATERIAL),name_of(path)..' is missing on this PC')
         if material and not s.own then
             s.own={}
             for i=0,n-1 do s.own[i]=mesh:GetMaterial(i) end
@@ -444,42 +512,47 @@ function Leviathan.new(o)
         if s.own then
             for i=0,n-1 do mesh:SetMaterial(i,material or s.own[i]) end
         end
-        log(string.format('skin %s: %d slots, %s',name,n,material and name_of(Leviathan.SKINS[name]) or 'its own'))
+        log(string.format('skin %s: %d slots, %s',name,n,material and name_of(path) or 'its own'))
         return n
     end
-    -- s placed dist m ahead of where EVE stands and up m above her feet, facing her; each 'auto' for its default.
-    -- Returns both in cm.
+    -- s placed dist m ahead of where EVE stands and up m above her feet, facing her; each 'auto' for its creature's
+    -- default. Returns both in cm.
     local function place(s,eve,dist,up)
-        local cm=dist=='auto' and (s.radius and math.max(AHEAD,AUTO*s.radius) or AHEAD) or dist*100
-        local up_cm=up=='auto' and LIFT-(s.low or 0) or up*100
+        local ahead=s.who.ahead
+        local cm=dist=='auto' and (s.radius and math.max(ahead,AUTO*s.radius) or ahead) or dist*100
+        local up_cm=up=='auto' and s.who.lift-(s.low or 0) or up*100
         local at,rot=spot(eve,cm,up_cm)
         s.d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},true)
         return cm,up_cm
     end
-    -- The shown display while its actor is still the one spawned; else none, removed as a tick would, with no call on
-    -- it.
-    local function current()
+    -- The shown display while its actor is still the one spawned, when it shows who; else none, a display whose actor
+    -- is gone removed as a tick would, with no call on it.
+    local function current(who)
         if shown and not Doro.same(shown.d.actor,shown.d.path) then remove('its actor is gone') end
-        return shown
+        return shown and shown.who==who and shown or nil
     end
-    -- A second show replaces the first. dist: m, or 'auto'; up: m, or 'auto'. The last skin set and the free camera on.
-    local function show(which,dist,up,scale)
+    -- A second show replaces the first, another creature's too (said). dist: m, or 'auto'; up: m, or 'auto'. who's last
+    -- skin set and the free camera on.
+    local function show(who,which,dist,up,scale)
         self.restore()
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
-        if shown then remove('replaced') end
+        local other=shown and shown.who~=who and shown.who.title
+        if shown then remove(other and 'replaced by the '..who.title or 'replaced') end
         -- A display whose removal failed is still in the file: it goes first, else no new one, so the file never loses
         -- it and the next Lua load can still sweep it.
         local f=fields()
         if f[1]~='' then
             local ok,why=pcall(Doro.sweep,f[1],f[2])
-            if not ok then return false,'the Leviathan shown before could not be removed: '..tostring(why) end
+            if not ok then
+                return false,'the '..owner(f[2]).title..' shown before could not be removed: '..tostring(why)
+            end
             keep(1,'','')
         end
-        local e=Leviathan.LIST[Leviathan.MESHES[which]]
-        local at,rot=spot(eve,AHEAD,0)
-        local d=Doro.spawn(eve:GetWorld(),at,rot,{path=e.path,static=which=='statue'})
-        local s={d=d,name=which,map=U.map_of(eve),clips={},k=0,next=0}
+        local e=who.LIST[who.MESHES[which]]
+        local at,rot=spot(eve,who.ahead,0)
+        local d=Doro.spawn(eve:GetWorld(),at,rot,{path=e.path,static=which==who.static})
+        local s={who=who,d=d,name=which,map=U.map_of(eve),clips={},k=0,next=0}
         shown=s
         keep(1,d.path,e.path)
         d.mesh:SetRelativeScale3D({X=scale,Y=scale,Z=scale})
@@ -491,48 +564,51 @@ function Leviathan.new(o)
                 which,m(b.r),m(b.z),m(b.low)))
         else
             log(string.format('show %s: bounds unread (%s), %s m ahead, its root %s m up',which,
-                read and 'radius 0' or tostring(b),m(AHEAD),m(LIFT)))
+                read and 'radius 0' or tostring(b),m(who.ahead),m(who.lift)))
         end
         local cm,up_cm=place(s,eve,dist,up)
+        local skin=skins[who.name] or 'default'
         if skin~='default' then
             local ok,why=pcall(paint,s,skin)
             if not ok then log('skin '..skin..' not set: '..tostring(why)) end
         end
-        local clips,skeleton=clips_of(e)
+        local clips,skeleton=clips_of(who,e)
         s.clips=clips
         log(string.format('show %s: %s, %d clips on skeleton %s, %s m ahead, %s m up, scale %g',which,name_of(e.path),
             #clips,name_of(skeleton or '-'),m(cm),m(up_cm),scale))
-        return true,string.format('Leviathan %s shown %s m ahead, %s m up, scale %g, %d clips in turn%s; [LV] lines in '
-            ..'this log.',which,m(cm),m(up_cm),scale,#clips,with_cam())
+        return true,(other and other..' removed: one cut Naytiba is shown at a time. ' or '')
+            ..string.format('%s %s shown %s m ahead, %s m up, scale %g, %d clips in turn%s; [LV] lines in this log.',
+            who.title,which,m(cm),m(up_cm),scale,#clips,with_cam())
     end
+    local function none(who) return 'no '..who.title..' is shown: coop '..who.name..' show first' end
     -- The shown display placed again from where EVE stands now: dist m (or 'auto') ahead, up m (or 'auto') up.
-    local function move(dist,up)
-        local s=current()
-        if not s then return false,'no Leviathan is shown: coop leviathan show first' end
+    local function move(who,dist,up)
+        local s=current(who)
+        if not s then return false,none(who) end
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
         local cm,up_cm=place(s,eve,dist,up)
         log(string.format('move %s: %s m ahead, %s m up',s.name,m(cm),m(up_cm)))
-        return true,string.format('Leviathan %s moved %s m ahead of EVE, %s m up.',s.name,m(cm),m(up_cm))
+        return true,string.format('%s %s moved %s m ahead of EVE, %s m up.',who.title,s.name,m(cm),m(up_cm))
     end
-    local function set_skin(name)
-        local s=current()
+    local function set_skin(who,name)
+        local s=current(who)
         if not s then
-            skin=name
-            return true,'Leviathan skin '..name..' for the next show.'
+            skins[who.name]=name
+            return true,who.title..' skin '..name..' for the next show.'
         end
         local n=paint(s,name)
-        skin=name
-        return true,string.format('Leviathan %s skin %s on its %d material slots.',s.name,name,n)
+        skins[who.name]=name
+        return true,string.format('%s %s skin %s on its %d material slots.',who.title,s.name,name,n)
     end
     -- The clip whose name ends with want, else holds it (any case), held looping; none: the cycle again. The free
     -- camera on.
-    local function play(want)
-        local s=shown
-        if not s then return false,'no Leviathan is shown: coop leviathan show first' end
+    local function play(who,want)
+        local s=shown and shown.who==who and shown
+        if not s then return false,none(who) end
         if not want then
             s.held,s.next=nil,0
-            return true,'Leviathan '..s.name..' back to its cycle'..with_cam()..'.'
+            return true,who.title..' '..s.name..' back to its cycle'..with_cam()..'.'
         end
         want=want:lower()
         local pick=nil
@@ -540,60 +616,67 @@ function Leviathan.new(o)
         for _,c in ipairs(s.clips) do if not pick and c.name:lower():find(want,1,true) then pick=c end end
         if not pick then return false,'no clip of the shown '..s.name..' ends with or holds '..want end
         s.held,s.next=pick,0
-        return true,'Leviathan '..s.name..' holds '..pick.name..' looping'..with_cam()
-            ..'; coop leviathan play goes back to the cycle.'
+        return true,who.title..' '..s.name..' holds '..pick.name..' looping'..with_cam()
+            ..'; coop '..who.name..' play goes back to the cycle.'
     end
     -- cam: the free camera on or off; cam <m/s>: its speed.
-    local function cam_command(a)
+    local function cam_command(who,a)
         if a then
             speed=tonumber(a)*100
             log('cam speed '..m(speed)..' m/s')
             return true,'Free camera speed '..m(speed)..' m/s, '..FAST..' times that with Shift.'
         end
-        if cam then return cam_off('coop leviathan cam') end
+        if cam then return cam_off('coop '..who.name..' cam') end
         local ok,why=cam_on()
         if not ok then return false,'no free camera: '..tostring(why) end
         return true,'Free camera on: W or Z, S, A or Q, D move it, Space or E up, LeftControl or C down, Shift '..FAST
-            .." times faster, the mouse or the arrow keys turn it; coop leviathan cam again gives the game's camera "
-            ..'back.'
+            ..' times faster, the mouse or the arrow keys turn it; coop '..who.name.." cam again gives the game's "
+            ..'camera back.'
     end
     -- A distance or a height word: 'auto' when none or auto, else m within lo..hi; nil when it is not that.
     local function where(x,lo,hi) return (x==nil or x=='auto') and 'auto' or num(x,lo,hi) end
     -- show's words: [mesh] [distance m|auto] [height m|auto] [scale]; nil when they are not that.
-    local function show_words(a,b,c,d,e)
-        local which='body'
-        if Leviathan.MESHES[a] then which,a,b,c,d=a,b,c,d,e end
-        local dist,up,scale=where(a,0,FAR),where(b,-FAR,FAR),c==nil and 1 or num(c,0.01,100)
+    local function show_words(who,a,b,c,d,e)
+        local which=who.meshes[1]
+        if who.MESHES[a] then which,a,b,c,d=a,b,c,d,e end
+        local dist,up,scale=where(a,0,FAR),where(b,-FAR,FAR),c==nil and who.scale or num(c,0.01,100)
         if d==nil and dist and up and scale then return which,dist,up,scale end
     end
     -- Is the free camera on (commands/cut.lua: turning it off is never refused).
     function self.filming() return cam~=nil end
-    function self.command(sub,a,b,c,d,e)
+    -- One creature's console words. off removes the display whichever creature it shows.
+    local function command(who,sub,a,b,c,d,e)
         if sub=='show' then
-            local which,dist,up,scale=show_words(a,b,c,d,e)
-            if which then return show(which,dist,up,scale) end
+            local which,dist,up,scale=show_words(who,a,b,c,d,e)
+            if which then return show(who,which,dist,up,scale) end
         elseif c==nil and d==nil then
             if b==nil then
-                if (sub==nil or sub=='list') and a==nil then return list() end
-                if sub=='play' then return play(a) end
-                if sub=='skin' and Leviathan.SKINS[a]~=nil then return set_skin(a) end
-                if sub=='cam' and (a==nil or num(a,0.1,500)) then return cam_command(a) end
+                if (sub==nil or sub=='list') and a==nil then return list(who) end
+                if sub=='play' then return play(who,a) end
+                if sub=='skin' and who.SKINS[a]~=nil then return set_skin(who,a) end
+                if sub=='cam' and (a==nil or num(a,0.1,500)) then return cam_command(who,a) end
                 if sub=='off' and a==nil then
-                    if not shown and not cam then return true,'No Leviathan is shown.' end
+                    if not shown and not cam then return true,'No '..who.title..' is shown.' end
                     local said={}
                     if shown then
-                        remove('coop leviathan off')
-                        said[1]='Leviathan removed.'
+                        said[1]=shown.who.title..' removed.'
+                        remove('coop '..who.name..' off')
                     end
-                    if cam then said[#said+1]=select(2,cam_off('coop leviathan off')) end
+                    if cam then said[#said+1]=select(2,cam_off('coop '..who.name..' off')) end
                     return true,table.concat(said,' ')
                 end
             end
             local dist,up=a~=nil and where(a,0,FAR),where(b,-FAR,FAR)
-            if sub=='move' and dist and up then return move(dist,up) end
+            if sub=='move' and dist and up then return move(who,dist,up) end
         end
-        return false,USE
+        return false,who.USE
     end
+    -- Each creature's command, by its word (commands/cut.lua makes coop leviathan, coop gardener and coop tendril).
+    self.commands={}
+    for name,who in pairs(Leviathan.CREATURES) do
+        self.commands[name]=function(sub,a,b,c,d,e) return command(who,sub,a,b,c,d,e) end
+    end
+    self.command=self.commands.leviathan -- coop leviathan's, as before the other creatures.
     -- EVE on another map (or none) removes it, and so does its actor no longer being the one spawned, with no call on
     -- it. Then a held clip, played once; else, once the last clip played twice, the next of the cycle, logged.
     local function step(now)
@@ -624,11 +707,11 @@ function Leviathan.new(o)
         if shown then
             local ok,why=pcall(step,now)
             if not (ok and not why) then
-                local name=shown.name
+                local name=shown.who.title..' '..shown.name
                 remove(ok and why or 'error: '..tostring(why))
                 cam_off(ok and why or 'error')
-                if ok then return true,'Leviathan '..name..' removed: '..why..'.' end
-                return false,'Leviathan '..name..' removed on an error: '..tostring(why)
+                if ok then return true,name..' removed: '..why..'.' end
+                return false,name..' removed on an error: '..tostring(why)
             end
         end
         if not cam then return end

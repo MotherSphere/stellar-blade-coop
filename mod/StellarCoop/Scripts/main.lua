@@ -50,10 +50,11 @@
 -- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
 -- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
 -- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
--- turning the camera on, on a co-op save only); coop lion [intro]|rows|control|brain skulling|lurker, the cut Lion
--- spawned as an enemy to fight, its table rows added through the native part (cut/lion.lua; left out of the usage line;
--- the words that spawn on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
--- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
+-- turning the camera on, on a co-op save only); coop gardener and coop tendril, the same words for the cut Naytibas 1
+-- and 6, one of the three shown at a time; coop lion [intro]|rows|control|brain skulling|lurker, the cut Lion spawned
+-- as an enemy to fight, its table rows added through the native part (cut/lion.lua; left out of the usage line; the
+-- words that spawn on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read by
+-- the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
 -- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui
 -- and coop off, which stay here.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
@@ -179,10 +180,11 @@ local function ask(line)
         return link.request(line)
     end
 end
--- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop leviathan show and coop
--- leviathan cam turning its free camera on run only on a co-op save (D2, N9): the native part's slot=coop, from the
--- start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
--- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop lion's words that spawn, show
+-- and cam turning the free camera on in coop leviathan, coop gardener and coop tendril run only on a co-op save
+-- (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts one), for a co-op
+-- copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other
+-- command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -226,9 +228,9 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- coop leviathan's read, display and free camera (cut/leviathan.lua), logging [LV] lines. coop-leviathan.txt lets the
--- next Lua load remove a display this one left and give the player controller back. The free camera reads no key while
--- the co-op menu or one of its boxes is open.
+-- The cut Naytiba viewer of coop leviathan, coop gardener and coop tendril (cut/leviathan.lua): its read, display and
+-- free camera, logging [LV] lines. coop-leviathan.txt lets the next Lua load remove a display this one left and give
+-- the player controller back. The free camera reads no key while the co-op menu or one of its boxes is open.
 local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
@@ -517,7 +519,7 @@ end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
     doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
-    leviathan.restore() -- Likewise for a Leviathan display an earlier load left.
+    leviathan.restore() -- Likewise for a cut Naytiba display an earlier load left.
     pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()

@@ -10,7 +10,7 @@ ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves wit
 enemy in the same spot on both screens). The 0.5 additions have not been tested between two PCs yet: shared quests, the
 friend's revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run and its
 challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
-and its free camera ran in game on one PC on 2026-10-22.
+and its free camera ran in game on one PC on 2026-10-22; `coop gardener` and `coop tendril` have not run in game yet.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -52,9 +52,10 @@ the Steam client that the game already runs, so the mod needs no other program a
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
   [docs/usage.md](docs/usage.md#doro-races)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
-  a display-only model in front of EVE, with a free camera for filming (see
-  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan)). It cannot be fought: the game has no entry for it
-  in its character table.
+  a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
+  for two more cut Naytibas, the Gardener and the Tendril (see
+  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). None of them can be
+  fought: the game has no entry for them in its character table.
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night

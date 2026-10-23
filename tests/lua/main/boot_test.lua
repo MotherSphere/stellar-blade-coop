@@ -14,8 +14,9 @@
 -- (race/run.lua: its start on the co-op save slot only; ticked every frame and every 250 ms, its HUD on the kit,
 -- race_key's checkpoint on F9, ended by coop off; coop nightop start refused while it is armed), coop leviathan reaches
 -- cut/leviathan.lua with all six words after it (show and cam turning the camera on, on the co-op save slot only; cam
--- turning it off and cam's speed on any; restored and ticked every frame, ended by coop off), coop lion reaches
--- cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off),
+-- turning it off and cam's speed on any; restored and ticked every frame, ended by coop off), coop gardener and coop
+-- tendril reach it too, each as its own creature's command, coop lion reaches cut/lion.lua (the words that spawn on
+-- the co-op save slot only; ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
@@ -539,6 +540,20 @@ lv.filming=true
 coop('leviathan','cam')
 assert(lv.cmds[9][1]=='cam' and lv.cmds[9][2]==nil and last()=='[StellarCoop] OK: lv cam\n','Off on any save')
 lv.filming=nil
+-- coop gardener and coop tendril reach the same viewer as their own creature's command, under the same rule.
+assert(lv.cmds[9].who=='leviathan')
+coop('gardener','show')
+assert(#lv.cmds==9 and last():find('^%[StellarCoop%] STOP: coop gardener show runs only on a co%-op save'),last())
+coop('tendril','cam')
+assert(#lv.cmds==9 and last():find('^%[StellarCoop%] STOP: coop tendril cam runs only on a co%-op save'),last())
+coop('tendril','play','whip')
+assert(lv.cmds[10].who=='tendril' and table.concat(lv.cmds[10],' ')=='play whip'
+    and last()=='[StellarCoop] OK: lv play\n',last())
+status_text=COOP
+coop('gardener','show','body','auto','0','2')
+assert(lv.cmds[11].who=='gardener' and table.concat(lv.cmds[11],' ')=='show body auto 0 2',
+    table.concat(lv.cmds[11],' '))
+status_text=plain
 assert(lv.o.blocked()==false,'Nothing open: the free camera reads its keys')
 lv.r,lv.t,lv.says=lv.restores,lv.ticks,{true,'Leviathan b removed: map change.'}
 loops[1].f()
