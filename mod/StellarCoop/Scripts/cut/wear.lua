@@ -5,17 +5,18 @@
 -- SBHair, a leader of its own (its own skeleton, an AnimBP of KawaiiPhysics nodes) hung on the body's Bip001-Head
 -- socket. A suit sets the body's mesh only (SetSkeletalMesh with a new pose, as SB's SetMeshInfo does): its skeleton
 -- is the body's own (CH_P_EVE_01_Skeleton), so her AnimBP, her followers' links and the physics asset her hits use stay
--- as the game set them; a suit mesh's post-process AnimBP comes with it. A hair also sets SBHair's AnimBP class and
--- physics asset, as its EquipmentTable row would. Each material slot the game overrides on that component (her hair
--- colour) is set to the new mesh's own material, so the cut asset shows as made. Never NotifyBP_SetMesh, ApplyMeshInfo
--- or SetOverrideClothPhysicsAsset: the ponytail keeps the collision of the suit the game put on, and the hair the
--- ponytail and colour the game gave it.
--- Before the first change on a part, the game's own look of it (mesh, the hair's AnimBP class and physics asset, the
--- overridden materials) goes into coop-wear.txt (link.store), so coop wear off, coop off and the next Lua load (Ctrl+R,
--- at the first tick) give it back. The game puts its own meshes on again at times (its wardrobe, a map load, a
--- cutscene, photo mode): once a second, unless the game is paused or shows one of its screens (its wardrobe among
--- them), a part whose mesh is no longer the one worn takes the game's new look as the one to give back, then the worn
--- one again, logged. A new EVE (a map load) is the same: her parts get the worn look once she is in the world.
+-- as the game set them; a suit mesh's post-process AnimBP comes with it. A hair also sets SBHair's AnimBP class (the
+-- AnimAssetPath of a hair's EquipmentTable row) and its physics asset as the component's override: the cut hair meshes
+-- have none of their own, the game's do, and the table has no physics column. Each material slot the game overrides on
+-- that component (her hair colour) is set to the new mesh's own material, so the cut asset shows as made. Never
+-- NotifyBP_SetMesh, ApplyMeshInfo or SetOverrideClothPhysicsAsset: the ponytail keeps the collision of the suit the
+-- game put on, and the hair the ponytail and colour the game gave it.
+-- Before the first change on a part, the game's own look of it (mesh, the hair's AnimBP class and physics asset
+-- override, the overridden materials) goes into coop-wear.txt (link.store), so coop wear off, coop off and the next Lua
+-- load (Ctrl+R, at the first tick) give it back. The game puts its own meshes on again at times (its wardrobe, a map
+-- load, a cutscene, photo mode): once a second, unless the game is paused or shows one of its screens (its wardrobe
+-- among them), a part whose mesh is no longer the one worn takes the game's new look as the one to give back, then the
+-- worn one again, logged. A new EVE (a map load) is the same: her parts get the worn look once she is in the world.
 -- Allowed on any save: nothing of it is saved. The friend's ghost follows (the capture reads each part's mesh path
 -- every second, and these paths are in /Game/Art/Character, which the link takes).
 local UE=require('UEHelpers')
@@ -136,10 +137,10 @@ local function apply(c,a,own)
     end
     return n,put
 end
--- The game's own look back on c: its mesh, a hair's AnimBP class and physics asset (the mesh's own when it had no
--- override: a nil one cannot be passed), each overridden material (the object itself while it still is the one read,
--- else its base asset). Returns what could not be put back, as words; raises when the mesh cannot be loaded or a call
--- fails.
+-- The game's own look back on c: its mesh, a hair's AnimBP class and physics asset override (none when it had none:
+-- SetPhysicsAsset(nil) clears it, as UE4SS passes nil as a null object, so this mesh and any hair the game puts on
+-- later use their own physics asset), each overridden material (the object itself while it still is the one read, else
+-- its base asset). Returns what could not be put back, as words; raises when the mesh cannot be loaded or a call fails.
 -- ponytail: a dynamic material the engine collected since (its next GC, about a minute) comes back as the asset it was
 -- made from, so a colour SB drives at run time stays still until SB sets that slot again.
 local function give_back(c,own,is_hair)
@@ -149,8 +150,9 @@ local function give_back(c,own,is_hair)
     if is_hair then
         local anim=own.anim~='' and class_of(own.anim)
         if anim then c:SetAnimClass(anim) elseif own.anim~='' then missed[#missed+1]=name_of(own.anim) end
-        local physics=own.physics~='' and Doro.resolve(own.physics,PHYSICS) or valid(mesh.PhysicsAsset)
-        if physics then c:SetPhysicsAsset(physics,false) end
+        local physics=own.physics~='' and Doro.resolve(own.physics,PHYSICS) or nil
+        if own.physics~='' and not physics then missed[#missed+1]=name_of(own.physics) end
+        c:SetPhysicsAsset(physics,false)
     end
     for _,m in ipairs(own.materials) do
         local material=m.object and Doro.same(m.object,m.path) or Doro.resolve(m.base,MATERIAL)
@@ -264,7 +266,7 @@ function Wear.new(o)
     -- The game's own look back on each part asked (nil: both) that still shows the worn mesh; a part the game set
     -- again meanwhile, or whose EVE is gone, has it already. Returns the words for each part.
     local function take_off(which,why)
-        local said={}
+        local said,failed={},false
         for _,part in ipairs(PARTS) do
             local p=(which==nil or which==part) and worn[part]
             if p then
@@ -273,6 +275,7 @@ function Wear.new(o)
                 local result
                 if c and mesh_of(c)==p.look.mesh then
                     local ok,missed=pcall(give_back,c,p.own,part=='hair')
+                    failed=failed or not ok
                     result=ok and name_of(p.own.mesh)..' back'..(#missed>0 and ' ('..table.concat(missed,', ')
                         ..' not found)' or '') or 'not given back: '..tostring(missed)
                 else
@@ -282,7 +285,7 @@ function Wear.new(o)
                 said[#said+1]=part..' '..result
             end
         end
-        if said[1] then keep() end
+        if said[1] and not failed then keep() end -- Else the next Lua load tries again.
         return said
     end
     -- Once a second while a look is worn and the game is not paused: each part on EVE (a new EVE's own component after
@@ -309,10 +312,12 @@ function Wear.new(o)
                         name_of(now)))
                 else
                     worn[part]=nil
-                    if a and saved~=false then pcall(give_back,c,own,part=='hair') end
-                    keep()
-                    log(string.format('%s not re-applied (the game had set %s): %s; worn no more',p.name,name_of(now),
-                        tostring(n)))
+                    local back,missed=true,nil
+                    if a and saved~=false then back,missed=pcall(give_back,c,own,part=='hair') end
+                    if back then keep() end -- Else the next Lua load tries again.
+                    log(string.format('%s not re-applied (the game had set %s): %s; worn no more%s',p.name,
+                        name_of(now),tostring(n),back and '' or '; the game\'s look not given back: '
+                        ..tostring(missed)))
                 end
             end
         end

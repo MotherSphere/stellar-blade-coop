@@ -8,10 +8,12 @@
 -- meanwhile is left as the game set it; while the game is paused nothing is put on again; then, once a second at most,
 -- a part whose mesh the game set takes that look as the one to give back (a slot still holding a material wear put
 -- there keeps the game's earlier one) and the worn look again, logged; a new EVE (a map load) gets the worn look; a
--- failing call puts the game's look back; a check's first error takes every look off; the next Lua load gives back what
--- the file names (a material as the asset it was made from), once, and leaves a part the game set again; coop off gives
--- everything back. The face and ponytails (the body's followers) never get a call, and nothing reads or calls anything
--- on EVE but her main mesh, her components, her class and her path: never her equipment.
+-- failing call, on wear or when the look goes on again, puts the game's look back; a hair with no physics asset
+-- override gets none back; a look of the game's that cannot be put back stays in the file, and the next Lua load gives
+-- it back; a check's first error takes every look off; the next Lua load gives back what the file names (a material as
+-- the asset it was made from), once, and leaves a part the game set again; coop off gives everything back. The face and
+-- ponytails (the body's followers) never get a call, and nothing reads or calls anything on EVE but her main mesh, her
+-- components, her class and her path: never her equipment.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -126,7 +128,9 @@ local function part(eve_name,name,fields)
         if raise then error(raise,0) end
         self.AnimClass=k; said(name,'anim',short(k))
     end
-    function c:SetPhysicsAsset(a,force) self.PhysicsAssetOverride=a; said(name,'physics',short(a),tostring(force)) end
+    function c:SetPhysicsAsset(a,force) -- nil (UE4SS's null) clears the override.
+        self.PhysicsAssetOverride=a; said(name,'physics',a and short(a) or 'none',tostring(force))
+    end
     function c:SetMaterial(i,m)
         assert(math.type(i)=='integer' and i>=0)
         for k=#self.OverrideMaterials+1,i do self.OverrideMaterials[k]=invalid end
@@ -140,7 +144,8 @@ local ALLOWED={Mesh=true,K2_GetComponentsByClass=true,IsA=true,GetFullName=true,
 local function eve_of(name,body_mesh)
     local e=object()
     local parts={part(name,'CharacterMesh0',{SkeletalMesh=body_mesh or eve08}),
-        part(name,'Mesh_Face',{SkeletalMesh=asset(p('CH_P_EVE_Head/CH_P_EVE_Face_Jali3'),{'/Script/Engine.SkeletalMesh'})}),
+        part(name,'Mesh_Face',{SkeletalMesh=asset(p('CH_P_EVE_Head/CH_P_EVE_Face_Jali3'),
+            {'/Script/Engine.SkeletalMesh'})}),
         part(name,'SBHair',{SkeletalMesh=hr07,AnimClass=hr07_anim,PhysicsAssetOverride=hr07_phys,
             OverrideMaterials={colour(name)}}),
         part(name,'SBPonytail',{SkeletalMesh=asset(p('CH_P_EVE_Hair/CH_P_EVE_Hair_PonyTail_2'),
@@ -345,6 +350,52 @@ assert(since(n)=='save|SBHair mesh EVE_HR_14 true|SBHair mesh CH_P_EVE_Hair07 tr
 assert(last()=='wear nyaaa failed: no class; CH_P_EVE_Hair07 back',last())
 ok,why=wr4.command()
 assert(why:find('^Worn: hair none, suit none%.'),why)
+-- A failing call when the worn look goes on again: the game's new look back, and the file goes.
+wr4.command('nyaaa')
+eve.hair.SkeletalMesh,eve.hair.anim_raises=hr07,'no class'
+n=#calls
+clock=clock+1; wr4.tick()
+assert(since(n)=='save|SBHair mesh EVE_HR_14 true|SBHair mesh CH_P_EVE_Hair07 true|SBHair anim EVE_HR_07_AnimBP_C|'
+    ..'SBHair physics CH_P_EVE_Hair07_PhysicsAsset false|SBHair material 0 MaterialInstanceDynamic_0|clear',since(n))
+assert(last()=='nyaaa not re-applied (the game had set CH_P_EVE_Hair07): no class; worn no more',last())
+-- A hair with no physics asset override (her Blueprint sets none on SBHair, and the game's hairs carry their own): the
+-- file holds none, and off clears the one wear set, so a hair the game puts on later uses its own.
+eve.hair.PhysicsAssetOverride=nil
+wr4.command('nyaaa')
+assert(fields()[5]=='' and eve.hair.PhysicsAssetOverride==hr14_phys,stored)
+n=#calls
+ok,why=wr4.command('off')
+assert(since(n)=='SBHair mesh CH_P_EVE_Hair07 true|SBHair anim EVE_HR_07_AnimBP_C|SBHair physics none false|SBHair '
+    ..'material 0 MaterialInstanceDynamic_0|clear' and eve.hair.PhysicsAssetOverride==nil,since(n))
+-- off when the game's hair cannot be loaded again: the file keeps it, and the next Lua load gives it back.
+wr4.command('nyaaa')
+hr07.destroyed=true
+n=#calls
+ok,why=wr4.command('off')
+assert(ok and why:find('^Worn no more: hair not given back: .*CH_P_EVE_Hair07 cannot be loaded%.$') and since(n)=='',
+    why)
+assert(fields()[2]==hr14.at_path and fields()[3]==hr07.at_path,stored)
+hr07.destroyed=false
+W.new({log=log,store=store}).restore()
+assert(since(n)=='SBHair mesh CH_P_EVE_Hair07 true|SBHair anim EVE_HR_07_AnimBP_C|SBHair physics none false|SBHair '
+    ..'material 0 MI_EVE_HR_07_TypeB|clear',since(n))
+-- A failing call when the worn look goes on again, on a hair of the game's that cannot be loaded again by its path: the
+-- file keeps it, for the next Lua load.
+local hr09=mesh('00_HR/EVE_HR_09/EVE_HR_09',{material('00_HR/EVE_HR_09/Materials/MI_EVE_HR_09')})
+assets[hr09.at_path]=nil
+wr4.command('nyaaa')
+eve.hair.SkeletalMesh,eve.hair.anim_raises=hr09,'no class'
+n=#calls
+clock=clock+1; wr4.tick()
+assert(since(n)=='save|SBHair mesh EVE_HR_14 true' and fields()[2]==hr14.at_path and fields()[3]==hr09.at_path,
+    since(n))
+assert(last():find('^nyaaa not re%-applied %(the game had set EVE_HR_09%): no class; worn no more; the game\'s look '
+    ..'not given back: .*EVE_HR_09 cannot be loaded$'),last())
+assets[hr09.at_path]=hr09
+n=#calls
+W.new({log=log,store=store}).restore()
+assert(since(n)=='SBHair mesh EVE_HR_09 true|SBHair anim EVE_HR_07_AnimBP_C|SBHair physics none false|SBHair '
+    ..'material 0 MI_EVE_HR_07_TypeB|clear',since(n))
 
 -- A map load: a new EVE gets the worn look once she is in the world; the old one gets no call.
 wr4.command('gothic')
