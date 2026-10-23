@@ -7,8 +7,8 @@
 -- VisibilityBasedAnimTickOption is 0, so her pose, notifies and root-motion moves still run while she is not drawn.
 -- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
 -- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
--- The look also hides the drone that follows EVE (an SB character of the game's, through SetActorHiddenInGame, only
--- when it is shown) and shows it again on the same ways out; it writes nothing else on it.
+-- The look also hides the drone that follows EVE (an SB character of the game's: bHiddenInGame on its main mesh only,
+-- when it does not have it) and shows it again on the same ways out; it writes nothing else on it.
 -- Each Doro carries hidden keepers that hold its clips, so the engine never unloads one in the middle of a race.
 -- The probe (coop race probe doro): a Doro 3 m ahead of EVE plays each clip in turn, with a log line a step.
 -- resolve, attach, spawn, sweep, remove, apply and same also show another mesh (cut/leviathan.lua's coop leviathan);
@@ -151,8 +151,9 @@ local function same(o,path)
 end
 Doro.same=same
 -- Doro's own assets (under DIR) found or loaded again after the engine collected them: their count and ms, for the
--- look's minute line. Another mesh's (coop leviathan's) are not counted. Each Doro's keepers (attach) hold every clip
--- while it stands, so this stays 0 then; a Doro made after none stood for a while loads them again, at its making.
+-- look's minute line. Another mesh's (coop leviathan's) are not counted. A Doro made after none stood for a while loads
+-- them again, at its making, so the look sets both to 0 once its Doro is made; its keepers (attach) then hold every
+-- clip while it stands, and this stays 0.
 Doro.reloads={n=0,ms=0}
 local cache={}
 -- An asset by its object path: in memory already, else loaded (LoadAsset, synchronous); nil when neither gives one of
@@ -300,27 +301,26 @@ local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')
 local function flags(c)
     return string.format('visible=%d hidden=%d',c.bVisible==true and 1 or 0,c.bHiddenInGame==true and 1 or 0)
 end
-local DRONE_NEAR=3000 -- cm from EVE: the drone flies a few metres from her.
--- The drone that follows EVE: one FindAllOf (it walks every object: once a second at most, only while no drone is
--- held). The nearest SB character but her whose movement is in drone mode (USBCharacterMovementComponent's
--- bCustomFlyMoveDroneMode), within DRONE_NEAR, shown or not. Returns it and its distance (nil when none), and how many
--- characters but her stand that near, for the log.
+-- The drone's Blueprint class (an SBCharacter's), and how near EVE it is looked for: it flies a few metres from her.
+local DRONE,DRONE_NEAR='CH_Drone_BP_C',3000 -- cm
+local function apart(a,b) -- cm between two actors
+    local p,q=value_of(a:K2_GetActorLocation()),value_of(b:K2_GetActorLocation())
+    return math.sqrt((p.X-q.X)^2+(p.Y-q.Y)^2+(p.Z-q.Z)^2)
+end
+-- The drone that follows EVE: the nearest object of exactly that class (FindAllOf may give subclasses) within
+-- DRONE_NEAR, shown or not; nil when none. Also how many there are in all, for the log. FindAllOf walks every object
+-- (25 to 40 ms in game), so the look calls this at look on and once each time the drone it holds goes, never on a
+-- timer.
 local function drone_near(eve)
-    local at,me=value_of(eve:K2_GetActorLocation()),address(eve)
-    local best,best_d,near=nil,nil,0
-    each(FindAllOf('SBCharacter') or {},function(_,c)
+    local best,best_d,n=nil,nil,0
+    each(FindAllOf(DRONE) or {},function(_,c)
         c=valid(c)
-        if not c or address(c)==me then return end
-        local ok,d,flying=pcall(function()
-            local p=value_of(c:K2_GetActorLocation())
-            return math.sqrt((p.X-at.X)^2+(p.Y-at.Y)^2+(p.Z-at.Z)^2),
-                valid(c.CharacterMovement).bCustomFlyMoveDroneMode==true
-        end)
-        if not ok or d>DRONE_NEAR then return end
-        near=near+1
-        if flying and (not best_d or d<best_d) then best,best_d=c,d end
+        local ok,d=pcall(function() return text(c:GetClass():GetFName())==DRONE and apart(c,eve) end)
+        if not ok or not d then return end
+        n=n+1
+        if d<=DRONE_NEAR and (not best_d or d<best_d) then best,best_d=c,d end
     end)
-    return best,best_d,near
+    return best,n
 end
 -- The probe's steps: 3 s each unless said. Clips with no notify first, then sound states, footsteps, held frames.
 local PROBE={{name='turn_90l',asset='turn',loop=true,rate=1},{name='meet_01',asset='meet1',loop=true,rate=1},
@@ -342,16 +342,16 @@ function Doro.new(o)
     local restored,yaw_said=false,false
     local probe -- While the probe runs.
     -- coop-look.txt's line: EVE's path, the old tick option, the Doro's path, the hidden parts' names, then the drone's
-    -- path once it is hidden (the one field that starts with '/'), tab-separated.
+    -- path once the look hides it (from the fourth field on, the one that starts with '/'), tab-separated.
     local function line(l)
         local f={l.path,tostring(l.tick),l.doro.path}
         for _,p in ipairs(l.parts) do f[#f+1]=p.name end
-        f[#f+1]=l.drone_path
+        if l.drone_hid then f[#f+1]=l.drone_path end
         return table.concat(f,'\t')
     end
     -- The file an earlier Lua load left (its look was on): its Doro destroyed, EVE's listed parts shown and her tick
-    -- option back, the drone it hid shown if it still is an SB character there and hidden, then the file cleared. On
-    -- the game thread (the first tick, or look on), never while the Lua state loads.
+    -- option back, the drone it hid shown if it still is an SB character there whose main mesh is hidden, then the file
+    -- cleared. On the game thread (the first tick, or look on), never while the Lua state loads.
     function self.restore()
         if restored then return end
         restored=true
@@ -379,8 +379,9 @@ function Doro.new(o)
         if not ok then errors[#errors+1]=tostring(why) end
         ok,why=pcall(function()
             local d=drone and her(valid(StaticFindObject(drone)))
-            if d and d.bHidden==true then
-                d:SetActorHiddenInGame(false)
+            local m=d and valid(d.Mesh)
+            if m and m.bHiddenInGame==true then
+                m:SetHiddenInGame(false,false)
                 also=' and the drone'
             end
         end)
@@ -419,9 +420,10 @@ function Doro.new(o)
         end)
         local also=''
         try(function()
-            local d=l.drone and same(l.drone,l.drone_path)
-            if d and d.bHidden==true then
-                d:SetActorHiddenInGame(false)
+            local d=l.drone_hid and same(l.drone,l.drone_path)
+            local m=d and valid(d.Mesh)
+            if m and m.bHiddenInGame==true then
+                m:SetHiddenInGame(false,false)
                 also=' and the drone'
             end
         end)
@@ -429,35 +431,38 @@ function Doro.new(o)
         return #errors==0,string.format('Doro look off (%s): %d parts%s shown again, tick option %s back%s.',why,shown,
             also,l.tick,#errors>0 and '; '..table.concat(errors,'; ') or '')
     end
-    -- The drone that follows EVE hidden while the look is on: at look on, then every second. One the game shows again
-    -- is hidden again (counted with the parts); while none is held (none yet, or the one held is gone), drone_near
-    -- looks for one, which can spawn or stream in later. Its path goes into coop-look.txt before it is hidden, and it
-    -- is hidden only when shown: one the game hides is left alone until the game shows it. No shown drone found is
-    -- said once a look.
+    -- The drone that follows EVE hidden while the look is on. drone_near looks for it at look on, and once more each
+    -- time the one held goes; none found, it is not looked for again this look (said once). The one held, shown or not,
+    -- is checked at look on and every second: when the game shows its main mesh, the look hides it with
+    -- SetHiddenInGame, as it does EVE's parts, after its path went into coop-look.txt the first time; a later hide is
+    -- counted with the parts. Only that mesh: the drone's spot light (EVE's light in the dark) and its effects hang on
+    -- other components and keep working. A mesh the game hid is left alone until the game shows it.
     local function drone(l)
-        local held=l.drone and same(l.drone,l.drone_path)
-        if held then
-            if held.bHidden~=true then
-                held:SetActorHiddenInGame(true)
-                l.rehid=l.rehid+1
+        local d=l.drone and same(l.drone,l.drone_path)
+        if not d then
+            if l.drone==false then return end
+            local n
+            d,n=drone_near(l.eve)
+            if not d then
+                l.drone=false
+                return log(string.format('look drone none within %d m (%d in the world)',DRONE_NEAR//100,n))
             end
-            return
-        end
-        local d,cm,near=drone_near(l.eve)
-        if not d or d.bHidden==true then
-            if not l.drone_said then
-                l.drone_said=true
-                log(string.format('look drone none: %d characters within %d m, none a shown drone',near,
-                    DRONE_NEAR//100))
+            l.drone,l.drone_path,l.drone_hid=d,path_of(d),false
+            if valid(d.Mesh).bHiddenInGame==true then
+                log(string.format('look drone %s at %.1f m hidden by the game: hidden when it shows',
+                    text(d:GetFName()),apart(d,l.eve)/100))
             end
-            return
         end
-        l.drone_path=path_of(d)
-        local saved,save_why=store.save(line(l))
-        if saved==false then error(save_why,0) end
-        l.drone=d
-        d:SetActorHiddenInGame(true)
-        log(string.format('look drone hid %s at %.1f m',text(d:GetFName()),cm/100))
+        local m=valid(d.Mesh)
+        if m.bHiddenInGame==true then return end
+        if l.drone_hid then l.rehid=l.rehid+1
+        else
+            l.drone_hid=true -- In the line from here on.
+            local saved,save_why=store.save(line(l))
+            if saved==false then error(save_why,0) end
+            log(string.format('look drone hid %s at %.1f m',text(d:GetFName()),apart(d,l.eve)/100))
+        end
+        m:SetHiddenInGame(true,false)
     end
     function self.on()
         self.restore()
@@ -471,6 +476,7 @@ function Doro.new(o)
         local at,rot=value_of(body:K2_GetComponentLocation()),value_of(body:K2_GetComponentRotation())
         -- The Doro first: if it cannot be made, nothing of EVE was touched.
         local d=Doro.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll})
+        Doro.reloads.n,Doro.reloads.ms=0,0 -- What its making loaded is no reload during the look.
         local now=os.clock()
         look={eve=eve,body=body,doro=d,state={},parts={},rehid=0,retick=0,check_at=now+0.25,speed_at=now,
             minute_at=now+60,drone_at=now+1}

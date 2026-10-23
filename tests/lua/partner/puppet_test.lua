@@ -14,8 +14,8 @@
 -- with dyes on, the table's materials on the parts drawn on their own mesh, each resolved and set in one frame; with
 -- effects on, the listed systems, the slot boxes beside the mailbox, and the effects started, moved and stopped from
 -- them in place(), within their budget; with collide on, the solid partner's capsule and the rules that open it.
--- them in place(), within their budget; Doro mode, its Doro on part 0 with its keepers (gone with it) and every part
--- hidden until it goes off, and the race's emote on it.
+-- Doro mode: its Doro on part 0 with its keepers (gone with it) and every part hidden until it goes off, and the race's
+-- emote on it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end

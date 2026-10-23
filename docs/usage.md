@@ -709,16 +709,17 @@ faces where it is heading (so it shows its side in a drift), leans into bends, d
 tired hop when it hits a wall. Your friend's Doro does the same from their ghost's movement, except the tired hop.
 
 To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. It
-also hides the drone that follows EVE, within 30 m of her, while the game shows it. The race's end, `coop race quit`,
-`coop off`, a map change and the look's first error undo these changes. While the look is on, `coop-look.txt` holds
-what it changed, so the next Lua load (Ctrl+R) undoes them when this one could not. If EVE or the drone stays hidden,
-see [troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+also hides the body of the drone that follows EVE, when it is within 30 m of her as the look starts. The drone's light
+and signals keep working. The race's end, `coop race quit`, `coop off`, a map change and the look's first error undo
+these changes. While the look is on, `coop-look.txt` holds what it changed, so the next Lua load (Ctrl+R) undoes them
+when this one could not. If EVE or the drone stays hidden, see
+[troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
 
 Each Doro keeps its animations loaded while it stands. The first Doro of a race loads them all at once, so it can take
 a moment to appear, and none loads during the race. While the look is on, `UE4SS.log` has a line once a minute,
 `[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>`. `reload`
-counts the Doro animations loaded again, which froze the Doro for a moment when EVE sprinted in 0.5.0-beta.1. It should
-read 0.
+counts the Doro animations loaded again since the look's Doro appeared, and `reload_ms` the total time they took. In
+0.5.0-beta.1 these loads froze the Doro for a moment when EVE sprinted. It should read 0.
 
 While the look is on, your friend's game receives your EVE's parts as hidden. In a race their game joined, they see
 your ghost as a Doro. Otherwise your ghost on their screen shows its name and marker but no body until the look ends.
@@ -2044,7 +2045,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation.md](night-operation.md#the-reward-shop)) |
 | `coop-race.txt` | Lua | Your [Doro race](#doro-races) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
-| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path and the names of the parts the look hid, so the next Lua load (Ctrl+R) can show her again |
+| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh or its free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |

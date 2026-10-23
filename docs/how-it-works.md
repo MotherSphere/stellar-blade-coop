@@ -1088,9 +1088,8 @@ Whether every story scene, dialogue and boss intro runs through a theater observ
 
 A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines,
 `race/doro.lua` for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two
-reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line), and it reads one SB property,
-`bCustomFlyMoveDroneMode`, to find the drone (see [The Doro look](#the-doro-look)); the rest are engine functions. The
-native part only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
+reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native
+part only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
 
 ### The display Doro
 
@@ -1142,37 +1141,44 @@ features that write to the player actor. The look writes two things on her, and 
   only while she is drawn, so a hidden EVE would stop her pose, her animation notifies and the root-motion moves of
   dodges and ledges.
 - The drone that follows EVE is an SB character of its own, so hiding EVE's parts left it flying beside the Doro. The
-  look hides it with `SetActorHiddenInGame(true)`, only when the game shows it, and writes nothing else on it. It finds
-  the drone with one `FindAllOf('SBCharacter')`: the nearest character other than EVE whose movement component has
-  `bCustomFlyMoveDroneMode` set, within 30 m of her. It looks at look on and then once a second while it holds no
-  drone, since one can spawn or stream in later; once it holds one, it only checks that one's `bHidden`. A drone the
-  game hid is left alone until the game shows it. The log says `[StellarCoop][DR] look drone hid <name> at <m> m`, or
-  once per look `[StellarCoop][DR] look drone none: <n> characters within 30 m, none a shown drone`.
+  look sets `bHiddenInGame` on the drone's main mesh (`CharacterMesh0`) through `SetHiddenInGame`, only when the mesh
+  does not have it, and writes nothing else on the drone. The actor itself stays shown: hiding it would also turn off
+  its spot light, which lights EVE's way in dark places, and its guide ray and wait signal. The look finds the drone
+  with one `FindAllOf('CH_Drone_BP_C')`, the drone's Blueprint class: the nearest one of exactly that class within 30 m
+  of EVE, whether the game shows it or not. `FindAllOf` walks every object on the game thread (25 to 40 ms in game), so
+  it runs at look on and once more each time the drone the look holds goes, and never on a timer. If it finds none, it
+  does not look again until the next look on. Once a second the look checks the held drone's mesh, and hides it if the
+  game showed it. A mesh the game hid is left alone until the game shows it. The log says
+  `[StellarCoop][DR] look drone hid <name> at <m> m` when it hides the drone the first time,
+  `[StellarCoop][DR] look drone <name> at <m> m hidden by the game: hidden when it shows` when the game had hidden it,
+  or `[StellarCoop][DR] look drone none within 30 m (<n> in the world)`.
 
-Before it changes anything, the look writes `coop-look.txt`: EVE's object path, the old tick option, its Doro's path
-and the names of the parts it hides. Before it hides the drone, it writes the file again with the drone's object path
-added at the end. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns off), hides again any
-listed part the game showed, and sets the tick option back to 0. Once a second it hides the drone again if the game
-showed it. The log names each flag change the game made (`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`)
-and gives the counts once a minute:
+Before it changes anything, the look writes `coop-look.txt`: EVE's object path, the old tick option, its Doro's path and
+the names of the parts it hides. Before it hides the drone's mesh the first time, it writes the file again with the
+drone's object path added at the end. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns
+off), hides again any listed part the game showed, and sets the tick option back to 0. Once a second it hides the drone
+again if the game showed it. The log names each flag change the game made
+(`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`) and gives the counts once a minute:
 
 ```
 [StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>
 ```
 
 `rehid` counts the parts and the drone hidden again, `retick` the tick option set back, and `reload` the Doro assets
-loaded again after the collector unloaded them, with the time it took in `reload_ms`. With the keepers (see
-[The display Doro](#the-display-doro)), `reload` reads 0 once the first Doro is made.
+loaded again after the collector unloaded them, with the total time those loads took in `reload_ms`. The loads at the
+making of the look's own Doro are not counted: the counter starts at 0 once that Doro stands. Its keepers (see
+[The display Doro](#the-display-doro)) then hold every clip, so `reload` reads 0 for the whole look.
 
 Turning the look off destroys its Doro, clears `bHiddenInGame` on the listed parts only, puts the tick option back,
-shows the drone it hid if that actor is still there and hidden, and deletes the file. That runs at the race's end, on
-`coop race look off` and `coop off`, after a map change and at the look's first error, after which the look stays off
-until the mod reloads. If one of those steps fails, the file stays. A Lua load that finds `coop-look.txt` (after
-Ctrl+R, or a Lua state that stopped) uses it at its first game-thread tick: it destroys the Doro named there if that
-actor still shows Doro's mesh, clears `bHiddenInGame` on the listed parts that still have it, puts the tick option
-back, shows the drone named there if the object at that path is still a hidden SB character, and deletes the file.
-The log says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with `and the drone` after `parts` when it
-showed the drone.
+clears it on the drone's mesh if the look hid that mesh, the drone is still there and the mesh still has it, and deletes
+the file. That runs at the race's end, on `coop race look off` and `coop off`, after a map change and at the look's
+first error, after which the look stays off until the mod reloads. If one of those steps fails, the file stays. A Lua
+load that finds `coop-look.txt` (after Ctrl+R, or a Lua state that stopped) uses it at its first game-thread tick: it
+destroys the Doro named there if that actor still shows Doro's mesh, clears `bHiddenInGame` on the listed parts that
+still have it, puts the tick option back, clears `bHiddenInGame` on the main mesh of the drone named there if the object
+at that path is still an SB character and its mesh still has it, and deletes the file. The log says
+`[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with `and the drone` after `parts` when it showed the
+drone.
 
 The capture is unchanged, and it counts a part with `bHiddenInGame` as hidden. While the look is on, your friend's game
 therefore receives every part of your EVE as hidden, and draws your ghost with no body unless its Doro mode is on.
@@ -1350,10 +1356,11 @@ drops the input.
 - The [Doro look](#the-doro-look) and a race's [driving](#driving) are the only writes to the player actor. The look
   writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
   `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
-  after a map change and at its first error. It also hides the drone that follows EVE with `SetActorHiddenInGame`,
-  records it in the same file first, and shows it again on the same exits. The driving sets four values of her movement
-  component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it changes the
-  values, and puts them back on the same exits. The next Lua load undoes either from its file when this one could not.
+  after a map change and at its first error. It also sets `bHiddenInGame` on the main mesh of the drone that follows
+  EVE, records the drone in the same file first, and clears it again on the same exits. The driving sets four values of
+  her movement component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it
+  changes the values, and puts them back on the same exits. The next Lua load undoes either from its file when this one
+  could not.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
