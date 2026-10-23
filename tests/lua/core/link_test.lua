@@ -185,6 +185,45 @@ assert(link.paks().same and link.paks().ours==3)
 files[STATUS]='mod=v\npeer=2 name=x paks=differ 1 2\npaks=odd\n'
 link.changes()
 assert(link.paks()==nil,'Not from a peer line, nor a line of another shape')
+-- Her mod containers against ours by name (protocol 13: mods_missing=, mods_other=, mods_extra=, each a count then
+-- the first names separated by commas), from the start of their own lines; a line not sent reads as none; nil without
+-- any (her mod_names=off), nil again once they go.
+assert(link.mods()==nil)
+files[STATUS]='mod=v\npaks=differ 2 3\nmods_missing=3 ~mods/a_p,logicmods/b/b_p\nmods_other=1 ~mods/c_p\n'
+    ..'mods_extra=0\nlast=#9 x\n'
+link.changes()
+local mods=link.mods()
+assert(mods.missing.n==3 and #mods.missing.names==2 and mods.missing.names[1]=='~mods/a_p'
+    and mods.missing.names[2]=='logicmods/b/b_p')
+assert(mods.other.n==1 and mods.other.names[1]=='~mods/c_p' and mods.extra.n==0 and #mods.extra.names==0)
+files[STATUS]='mod=v\nmods_extra=2 a,b\n'
+link.changes()
+mods=link.mods()
+assert(mods.extra.n==2 and mods.extra.names[2]=='b' and mods.missing.n==0 and #mods.other.names==0)
+files[STATUS]='mod=v\npeer=2 name=x mods_missing=1 a\nmods_odd=1 a\nmods_missing=x a\nmods_other=1 a b\n'
+link.changes()
+assert(link.mods()==nil,'Not from a peer line, nor a line of another shape')
+files[STATUS]='mod=v\npaks=same 1 1\n'
+link.changes()
+assert(link.mods()==nil)
+-- Our CNS packs (cns=<packs> <outfits>), in words, from the start of their own line; nil without one.
+assert(link.cns()==nil)
+files[STATUS]='mod=v\ncns=9 242\nlast=#9 x\n'
+link.changes()
+assert(link.cns()=='CNS detected (9 packs, 242 outfits)')
+files[STATUS]='mod=v\npeer=2 name=x cns=1 1\ncns=1\ncns=x 2\n'
+link.changes()
+assert(link.cns()==nil,'Not from a peer line, nor a line of another shape')
+-- The assets they declare (coop-cns.txt): none until the native part wrote the file, then read once, path to outfit.
+local CNS='C:\\Mod\\coop-cns.txt'
+assert(next(link.cns_assets())==nil,'No file yet: none, and read again next time')
+files[CNS]='/Game/OutfitMods/Foo/SK_Foo.SK_Foo Foo_Suit\n/Game/Mods/DekCNS_P/T/T_A.T_A -\nbad line here\n'
+local declared=link.cns_assets()
+assert(declared['/Game/OutfitMods/Foo/SK_Foo.SK_Foo']=='Foo_Suit' and declared['/Game/Mods/DekCNS_P/T/T_A.T_A']=='-')
+assert(declared.bad==nil and declared['line']==nil,'A line of three words is none')
+files[CNS]='/Game/X/X.X X\n'
+assert(link.cns_assets()==declared and link.cns_assets()['/Game/X/X.X']==nil,'Read once a Lua load')
+files[CNS]=nil
 -- The shared quests' line (Phase 12) and their notes, from the start of their own lines only. The first notes call
 -- only primes the count (a reload never shows old ones); then each new note once, in order, its zone for kind zone
 -- only. A note of another shape, or in a peer's name, is none.
@@ -322,6 +361,12 @@ assert(keys==6 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='non
 assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n',1,true),'A new file names the race key')
 assert(Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n',1,true),'A new file names the drift keys')
 assert(Link.DEFAULT:find('\nmenu_key=F5\nhost_key=none\n',1,true),'A new file names the menu key, and no host key')
+-- mod_names: on by default, in a new file too; off or on as written, anything else refused.
+assert(s.mod_names==true and Link.DEFAULT:find('\nmod_names=on\n',1,true))
+local ms,mnotes=Link.parse_settings('mod_names=off\n'); assert(#mnotes==0 and ms.mod_names==false)
+ms,mnotes=Link.parse_settings('mod_names=no\n')
+assert(mnotes[1]=="settings: line 1: 'no' is not allowed for mod_names (use on or off); mod_names stays on"
+    and ms.mod_names)
 -- The menu's own: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game or english; a new file names them.
 assert(s.ui_scale==100 and math.type(s.ui_scale)=='integer' and s.ui_sounds==true and s.ui_language=='game')
 assert(Link.DEFAULT:find('\nui_scale=100\nui_sounds=on\nui_language=game\n',1,true))
@@ -786,6 +831,13 @@ assert(link.state(false,60,'c','notice',3600,true,true)=='world=title rate=60 ph
     and #files[STATE_FILE]<=64)
 assert(link.state(true,60,'0','both',600,nil,false)=='world=1 rate=60 photo=0 sync=both max=600')
 assert(link.state(true,60,'0','both',600,nil,true)=='world=1 rate=60 photo=0 sync=both max=600 cut=1')
+-- mod_names=off: names=0 after the rest (the native part sends no pak line); on (true or not given) adds nothing. The
+-- longest line within the native part's 80 bytes.
+assert(link.state(true,60,'0','both',600,nil,true,false)=='world=1 rate=60 photo=0 sync=both max=600 cut=1 names=0')
+assert(link.state(true,60,'0','both',600,nil,false,false)=='world=1 rate=60 photo=0 sync=both max=600 names=0')
+assert(link.state(true,60,'0','both',600,nil,false,true)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(false,60,'c','notice',3600,true,true,false)
+    =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0' and #files[STATE_FILE]<=80)
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
@@ -1159,6 +1211,8 @@ ghost.clear()
 local real=require('core.link').files
 local scratch=os.tmpname()
 assert(real.write(scratch,'menu_key=F5\n')==true and real.read(scratch)=='menu_key=F5\n','A plain write')
+assert(real.read(scratch,4)=='menu' and real.read(scratch,64)=='menu_key=F5\n','A read with a limit')
+assert(real.write(scratch,'') and real.read(scratch,4)=='' and real.read(scratch)=='','An empty file reads empty')
 os.remove(scratch)
 local full=io.open('/dev/full','wb')
 if full then

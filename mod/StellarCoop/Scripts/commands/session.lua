@@ -78,10 +78,12 @@ function Session.new(o)
         end
         return ask('saves '..sub)()
     end
+    -- The native part's status on one line, our CNS packs in words when there are some, then the ghost's.
     function self.status()
         local text=link and link.status()
         if not text then return false,'no Steam link status yet; '..puppet.status() end
-        return true,text:gsub('[\r\n]+',' | ')..puppet.status()
+        local cns=link.cns()
+        return true,text:gsub('[\r\n]+',' | ')..(cns and cns..' | ' or '')..puppet.status()
     end
     return self
 end

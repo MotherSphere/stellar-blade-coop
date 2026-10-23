@@ -118,7 +118,9 @@ if link then
     link.display(nil)
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
-local capture=require('partner.capture').new(link and link.components or nil,look)
+-- With mod_names=off, no mod's path goes in the capture either.
+local capture=require('partner.capture').new(link and link.components or nil,look,link and link.cns_assets or nil,
+    settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
 -- host's question: with the Steam link.
@@ -140,6 +142,25 @@ local T=require('ui.text')
 local function words() return T.pick(kit and kit.language(),settings and settings.ui_language) end
 -- A notice that build(words) puts together: in the menu's words, and in English for the line above EVE.
 local function tell(build) say(build(words()),build(T.en)) end
+-- UE4SS-settings.ini (core/ue4ss_settings.lua), two folders above the mod's, read only: each key there that UE4SS
+-- reads as on is logged now, and its notice said once this Lua load as soon as one can show (the 250 ms loop below,
+-- with the Steam link only). A file that cannot be read, or is too large, gets a log line and no notice.
+local ue4ss_notes={}
+do
+    local root=folder and folder:match('^(.*)[\\/][^\\/]+[\\/][^\\/]+$')
+    if root then
+        local S=require('core.ue4ss_settings')
+        local text,why=require('core.link').files.read(root..'\\UE4SS-settings.ini',S.LIMIT+1)
+        local on
+        if text then on,why=S.check(text) end
+        if not on then log('UE4SS-settings.ini not checked: '..tostring(why)) end
+        for _,k in ipairs(on or {}) do
+            log('UE4SS-settings.ini: '..k.key..(k.value and ' = '..k.value or ' missing (UE4SS then uses its default, '
+                ..'on)')..'. '..T.en.ue4ss[k.word])
+            ue4ss_notes[#ue4ss_notes+1]=k.word
+        end
+    end
+end
 local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
@@ -761,16 +782,30 @@ if link then
             end
         end
     end
+    -- A notice naming mods (a list of core/link.lua's mods()): the file names (no folders) of the first two that fit,
+    -- then (+n) for the others (ui/text.lua's T.mods).
+    local mods_notice=T.mods
     -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
+    -- With their names (her mod_names=on), it names those she uses and we lack, then those we have in another version,
+    -- since parts of her outfit from them look different here; with neither, or without names, the two counts.
     local paks_said=false
     local function paks_notice()
-        local paks=link.paks()
+        local paks,mods=link.paks(),link.mods()
         if link.mode()=='none' then paks_said=false
         elseif paks and not paks.same and not paks_said then
             paks_said=true
-            tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
+            local missing,other=mods and mods.missing.n>0,mods and mods.other.n>0
+            if missing then
+                tell(function(w) return mods_notice(w.fight.mods_missing,her_name(w),mods.missing) end)
+            end
+            if other then tell(function(w) return mods_notice(w.fight.mods_other,her_name(w),mods.other) end) end
+            if not missing and not other then
+                tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
+            end
         end
     end
+    -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
+    local cns_said=false
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
@@ -827,6 +862,10 @@ if link then
         pilot_notices()
         quest_notices()
         paks_notice()
+        if not cns_said and link.cns() then
+            cns_said=true
+            log(link.cns())
+        end
         local mode=link.mode()
         if mode then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
@@ -842,13 +881,18 @@ if link then
             puppet.collide(settings.collide) -- The solid partner, as the co-op menu last set it.
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (session/group.lua).
             local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
-                settings.photo_freeze_max,title,group.cut())
+                settings.photo_freeze_max,title,group.cut(),settings.mod_names)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
+            -- UE4SS-settings.ini's notices, once: in the feed once the UI is up, or above EVE once a save is loaded.
+            if ue4ss_notes[1] and (kit.ready() or world==true) then
+                for _,word in ipairs(ue4ss_notes) do tell(function(w) return w.ue4ss[word] end) end
+                ue4ss_notes={}
+            end
             local dropped,who=kit.lost() -- The focus watchdog fired: as coop ui reset, nothing said on screen.
             if dropped then
                 ui_reset('focus watchdog: '..who..' lost the focus for 1 s: co-op UI closed, the game has its input '

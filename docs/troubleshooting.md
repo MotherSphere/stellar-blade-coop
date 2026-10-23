@@ -114,10 +114,12 @@ For the host:
 
 ### The ghost wears the base suit, or a part is missing
 
-A part falls back to the base suit when your PC cannot load its mesh (a DLC you do not own), when its path is outside
-the game's character folders, or when its bones differ. A part with no fallback is left out. The `Ghost ... built` line
-in `UE4SS.log` counts both and names each part drawn on the base suit. `coop basesuit` may also be on: run it again to
-go back.
+Only the body and the hair have a base-suit fallback. One of them falls back when your PC cannot load its mesh (a DLC
+you do not own, a mod you lack), when its path is outside the game's character folders and none of your CNS packs
+declares it, or when its bones differ. Any other part whose mesh has other bones is drawn on that mesh, its bones
+matched by name; one that cannot be loaded is left out, with the parts that follow it. The `Ghost ... built` line in
+`UE4SS.log` counts the parts on the base suit and those left out, and gives each one's reason, such as `missing` or
+`not declared by your CNS packs`. `coop basesuit` may also be on: run it again to go back.
 
 ### A look misbehaves
 
@@ -222,6 +224,15 @@ refused`. `spawn filter refused: ...` with no key means the filter never started
 or the page would not become writable), and every spawn went on as with it off. See
 [usage.md: Spawn filter](usage.md#spawn-filter-experimental).
 
+### The game crashes when EVE lets go of a crate
+
+Look in `UE4SS.log` for a `[StellarCoop] UE4SS-settings.ini:` line. With `HookBeginPlay` on in
+`ue4ss/UE4SS-settings.ini`, the game can crash when EVE lets go of a movable crate; with `bUseUObjectArrayCache` on, it
+can stutter and crash at startup. Close the game, set `HookBeginPlay = 0` and `bUseUObjectArrayCache = false` (the
+Stellar Blade UE4SS 1.3 values), and start it again. The usual cause is another mod's `UE4SS-settings.ini` copied over
+the 1.3 one. See [INSTALL.md: Other mods](../INSTALL.md#other-mods). `UE4SS-settings.ini not checked: <why>` means the
+mod could not read the file, so check the two lines by hand.
+
 ### Screen notices stopped
 
 `Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line above EVE. That line stays off
@@ -283,7 +294,8 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   (another enemy at that spawn point), `maxhp` (another difficulty or New Game+ in one of the two games) or
   `duplicate`.
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
-  `paks` line at the top; compare the two lists.
+  `paks` line at the top; compare the two lists. When both players have `mod_names=on`, the `mods_missing=`,
+  `mods_other=` and `mods_extra=` lines in `coop status` name the differences already.
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
   state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
   takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).

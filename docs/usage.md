@@ -315,7 +315,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (13) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
@@ -929,7 +929,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 12). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 13). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -1164,10 +1164,20 @@ enemies get linked after none (the host counts none until the friend's side is o
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
-When your friend's game loads other `.pak` mods than yours, a notice says so once a session, for example
-`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` The mod compares the
-`.pak` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`), by name and size;
-`coop-link.log` lists yours at its start. It is a warning only.
+When your friend's game loads other `.pak` mods than yours, a notice says so once a session. The mod compares the
+`.pak`, `.ucas` and `.utoc` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`),
+by name and size; `coop-link.log` lists yours at its start. With the names of your friend's mods (their `mod_names=on`,
+the default), it names those they use and you lack, and those you both have in another version, up to two file names
+each, then `(+n)` for the others:
+
+- `Kaanta uses mods you don't have: lily_hair_p, hd-atool_p (+1). Parts of their outfit from them look different here.`
+- `Kaanta uses other versions of mods you have: menu_p. Parts of their outfit from them may look different here.`
+
+Without names (their `mod_names=off`), or when only you have mods they lack, it gives the counts instead:
+`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` It is a warning only.
+`coop status` lists the three groups in full (`mods_missing=`, `mods_other=`, `mods_extra=`). With `mod_names=off`
+in `coop-settings.txt`, your game sends only the count and the hash of your mods, never their names, and your capture
+leaves out every path from a mod's own folder (see [Mods and CNS outfits](#mods-and-cns-outfits)).
 
 The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
 game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
@@ -1763,6 +1773,11 @@ ui_sounds=on
 ui_language=game
 # The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
 chat=on
+# Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
+# under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
+# are and one hash of them, and the parts of your outfit from a mod's own folder reach your friend's ghost of you as
+# the base suit or not at all.
+mod_names=on
 # Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
 # the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
 # and her map on it. While partner_bar shows her name, the name tag above her ghost hides.
@@ -1817,6 +1832,7 @@ status_overlay=off
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
+| `mod_names` | `on` or `off`: the names of your `.pak` mods go to your friend, for the [notice](#shared-enemies-experimental) of the mods one of you lacks; off sends their count and hash only, and no path from a mod's own folder goes in your capture (see [Mods and CNS outfits](#mods-and-cns-outfits)); no menu row | `on` |
 | `partner_bar` | `on` or `off`: the [marker](#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
@@ -1868,15 +1884,17 @@ The three looks have not been tested in game yet. Back up your saves before you 
   pinned at the scalp; the bones that the poses carry only anchor it. Without cloth, the ghost's ponytail follows those
   bones rigidly and looks like one long block. With cloth on, your game runs the same simulation on the ghost's
   ponytail: a follower part whose mesh has clothing assets is drawn as a SkeletalMeshComponent whose cloth simulates on
-  its leader's bones, only while the ghost is on screen. It collides with her outfit as in solo: it takes the outfit's
-  ponytail collision asset (`<body mesh>_PonytailPhysicsAsset`). If your PC lacks that asset, the build line says
-  `outfit collision not used` and the cloth keeps the clothing asset's own collision. Nothing more goes over the
-  network. Each PC simulates the ghost it draws, so only the viewer's setting counts, and the strands follow the same
-  rules as on her screen without being the same strands. If the cloth part fails, the ponytail is a plain part, with a
-  note in the log.
+  its leader's bones, only while the ghost is on screen. It collides with her outfit as in solo: it takes the collision
+  asset her ponytail uses (her capture's `cloth` line, a CNS outfit's `PonyPhysics` among them), else the outfit's
+  ponytail collision asset (`<body mesh>_PonytailPhysicsAsset`). If your PC lacks both, the build line says
+  `outfit collision not used` and the cloth keeps the clothing asset's own collision. Only that asset's path goes over
+  the network, whatever the setting. Each PC simulates the ghost it draws, so only the viewer's setting counts, and the
+  strands follow the same rules as on her screen without being the same strands. If the cloth part fails, the ponytail
+  is a plain part, with a note in the log.
 - `dyes`: her hair colour and other material variants. Her capture also names each part's overridden materials (a
   material made at run time is sent as the asset it was made from), and the ghost puts on each one your PC has, by the
-  same path rule as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours.
+  same rules as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours, except a
+  part on a mod's mesh, which takes its materials either way (see [Mods and CNS outfits](#mods-and-cns-outfits)).
 - `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
   playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
   starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
@@ -1884,6 +1902,56 @@ The three looks have not been tested in game yet. Back up your saves before you 
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
+
+## Mods and CNS outfits
+
+Your friend's ghost loads the meshes their capture names. What your game can draw depends on where a mod puts its
+files.
+
+A replacer mod puts its files at the path of a game asset, under `/Game/Art/Character/` or
+`/Game/DLC_<n>/Art/Character/`. Your game loads its own file at that path: the mod's version if you have the same mod,
+the original if you do not. A leader part (one with bones of its own) whose mesh here has other bones than theirs is
+drawn on your mesh with each of its bones following theirs of the same name. A head replacer you lack still shows a
+head that way: the original head, moved by the bones the two share.
+
+An added-asset mod puts new assets in a folder of its own. CNS outfits use `/Game/OutfitMods/<name>/`, and `HD-ATOOL_P`
+uses `/Game/Mods/HD-ATOOL_P/`. Your game looks up a mesh, a material or a ponytail collision asset from such a folder
+only when one of your own CNS packs names that exact path. A pack names every `/Game/...` path it gives under
+`OutfitPaths`, `Mesh`, `Materials`, `PonyPhysics`, `Textures` and `Value`. The native part reads your
+`*.dekcns.json` files under `SB/Content/Paks/~mods` once at start and writes those paths to `coop-cns.txt`. With the
+same CNS outfit installed on both PCs, the ghost wears it. A path that none of your packs names is never looked up or
+loaded, even when the file is there: a mod that comes without a CNS pack, such as `HD-ATOOL_P`, always falls back.
+
+A part that cannot be drawn on its own mesh falls back: the body to the base suit `CH_P_EVE_08`, the hair to
+`EVE_HR_01`, and any other part is left out with the parts that follow it. When such a part comes from a mod's folder,
+a notice names the outfit, in the menu's language, once each time their capture changes (an outfit change, or a load
+in their game):
+
+`Kaanta wears parts from mods your game cannot load: Foo_Suit, HD-ATOOL_P. They show on the base suit or are left out.`
+
+The name is the outfit's `UniqueFitID` in your friend's CNS pack, else the last of the first two folders of the path
+(`HD-ATOOL_P` for `/Game/Mods/HD-ATOOL_P/...`). Up to two names fit, then `(+n)` for the others. `coop basesuit`
+gives no notice.
+
+A part on a mod's mesh sends its overridden materials even with `dyes=off`: CNS sets an outfit's materials when it
+puts the outfit on, so the mesh's own are not the outfit's. Her ponytail's collision asset goes too (the `cloth` look
+uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
+
+A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
+asset through that registry. When `LoadAsset` finds nothing for a path your packs name, the ghost tries
+`AssetRegistryHelpers:GetAsset`, which loads by path (the way UE4SS's BPModLoaderMod loads mod actors). This step has
+not been tested in game yet. The `Ghost ... built` log line says how each mod asset came:
+`mod assets: <path> by GetAsset` (or `by LoadAsset`, `in memory`, `missing`), and which outfits were not shown:
+`mod parts not shown: <names>`. A path your packs do not name shows as `<path> not declared by your CNS packs`.
+
+With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path outside the game's own folders: your
+friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
+reaches them.
+
+Not carried: CNS material settings (colours, sliders, texture options, toggles), shape keys and face morphs,
+accessories that are static meshes, actors attached to EVE, and parts past 16. A pose holds about 900 leader bones in
+all. When her parts have more, the capture leaves out the last leader parts and their followers until the pose fits,
+and its log line ends with `<n> leaders left out, over the pose size`.
 
 ## Solid partner (experimental)
 
@@ -1957,6 +2025,7 @@ a Steam name or a chat line shows as `?`.
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
+| Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](#shared-enemies-experimental) |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 | Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](#shared-quests-experimental) |
@@ -1982,7 +2051,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=12 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=13 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
@@ -2063,6 +2132,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
+| `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): the only paths from a mod's folder the ghost loads |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
@@ -2078,11 +2148,11 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh or its free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 
-Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
-it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,
-state, chat and night line files, `coop-race.txt`, and any stale request or report. The chat files and
-`coop-race.txt` are also deleted when a session ends and when the game exits. A run without `coop no` writes no probe
-file, so `nightop-probe.old.txt` can be older than the previous run.
+Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
+so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
+chat and night line files, `coop-race.txt`, and any stale request or report, and writes `coop-cns.txt` again. The chat
+files and `coop-race.txt` are also deleted when a session ends and when the game exits. A run without `coop no` writes
+no probe file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.

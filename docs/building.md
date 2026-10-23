@@ -74,8 +74,8 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`core/`: `keybind`, `link`, `settings_file`; `cut/`: `leviathan`; `main/`: `boot`, `fight`,
-  `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`,
+- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `leviathan`; `main/`: `boot`,
+  `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`,
   `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`,
   `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`:
   `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the
@@ -345,7 +345,7 @@ Platform-free headers, tested on the build machine:
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
-| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash |
+| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
 
 The Windows side:
 

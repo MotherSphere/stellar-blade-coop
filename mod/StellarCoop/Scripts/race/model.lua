@@ -6,7 +6,7 @@
 local Dm=require('race.drive_model')
 local R={}
 -- Bounds: |x| and |y|, |z|, a time in ms, a race id; checkpoints in a track, laps; a checkpoint's radius and its
--- default; a track file's and a line's bytes (the link's 512 less "SBC12 race "). 12 checkpoints on one cps line make
+-- default; a track file's and a line's bytes (the link's 512 less "SBC13 race "). 12 checkpoints on one cps line make
 -- 400 bytes on the link at the bounds.
 R.XY,R.Z,R.MS,R.ID=2000000,500000,3600000,0xFFFFFFFF
 R.MIN_CPS,R.MAX_CPS,R.PER_LINE,R.MAX_LAPS=2,64,12,9
@@ -187,7 +187,7 @@ function R.run(r,a,b,ms)
     return ev
 end
 
--- The race lines, without the link's "SBC12 race " (id: the host's race number):
+-- The race lines, without the link's "SBC13 race " (id: the host's race number):
 --   track <id> <n> <laps> <grid x y z yaw> <map>   host: a race is armed, n checkpoints follow
 --   cps <id> <first> <x y z r>...                  host: 1 to 12 checkpoints, from the first'th
 --   drive <id> <top> <accel> <brake> <coast> <grip> <drift_grip> <turn_slow> <turn_fast> <drift_angle>
