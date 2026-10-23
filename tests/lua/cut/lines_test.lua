@@ -29,11 +29,11 @@ local entries={}
 local culture='en'
 local by_path,loads={},{}
 StaticFindObject=function(path) return by_path[path] or object({destroyed=true}) end
+-- UE4SS's LoadAsset looks its argument up in the asset registry by object path (<package>.<asset>): a package path
+-- finds nothing and loads nothing.
 LoadAsset=function(path)
     loads[#loads+1]=path
-    if path=='/Game/Local/Localize/StringTable_Seq' and not table_unloadable then
-        by_path[TABLE],names[TABLE]=object(),true
-    end
+    if path==TABLE and not table_unloadable then by_path[TABLE],names[TABLE]=object(),true end
 end
 local calls={}
 by_path['/Script/Engine.Default__KismetStringTableLibrary']=object({
@@ -96,7 +96,7 @@ up=true
 -- StringTable_Seq not in memory and not loadable: refused, nothing said.
 table_unloadable=true
 ok,why=ln.command('quinn')
-assert(not ok and why=='Quinn: StringTable_Seq is not loaded' and loads[1]=='/Game/Local/Localize/StringTable_Seq',why)
+assert(not ok and why=='Quinn: StringTable_Seq is not loaded' and loads[1]==TABLE,why)
 table_unloadable=nil
 -- English: loaded at the first scene, every line read at the start, the speaker's tags dropped; then each line at its
 -- time, the three barks 1 s apart.
@@ -200,13 +200,13 @@ local seq_loads=0
 local load=LoadAsset
 LoadAsset=function(path)
     load(path)
-    local name=path:match('[^/]+$')
-    if path:find(SH,1,true) then
+    local package,name=path:match('^(.-)%.([^./]+)$')
+    if package and package:find(SH,1,true) and package:match('[^/]+$')==name then
         seq_loads=seq_loads+1
-        by_path[path..'.'..name]=object()
+        by_path[path]=object()
         for k=0,4 do
             if not (name=='EnvObj_DED05_SkyHall_LilyEscape_08' and k==3) then
-                by_path[path..'.'..name..SECTION..k]=object({Data={Message=fstring(name..' '..k)}})
+                by_path[path..SECTION..k]=object({Data={Message=fstring(name..' '..k)}})
             end
         end
     end

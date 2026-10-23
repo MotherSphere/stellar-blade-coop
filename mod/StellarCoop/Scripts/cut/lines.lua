@@ -15,7 +15,7 @@
 local U=require('core.unreal')
 local valid,value_of,text,find=U.valid,U.value_of,U.text,U.find
 local Lines={}
-local TABLE='/Game/Local/Localize/StringTable_Seq' -- Its package; the table is <package>.StringTable_Seq.
+local TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'
 local STRINGS,TEXTS='/Script/Engine.Default__KismetStringTableLibrary','/Script/Engine.Default__KismetTextLibrary'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 -- A subtitle section's place under its sequence (every Sky Hall sequence has one theater track, _0).
@@ -106,13 +106,15 @@ local function duration(t)
     t=math.floor(t+0.5)
     return t>=60 and string.format('%d min %d s',t//60,t%60) or t..' s'
 end
--- StringTable_Seq's id, its package loaded first when it is not in memory (the game loads it for every subtitle).
+-- StringTable_Seq's id, loaded first when it is not in memory (the game loads it for every subtitle). LoadAsset takes
+-- an object path (<package>.<asset>): UE4SS looks it up in the asset registry, where a package path finds nothing.
 -- Raises when it cannot be had.
 local function table_id()
-    local path=TABLE..'.StringTable_Seq'
-    if not valid(StaticFindObject(path)) then pcall(LoadAsset,TABLE) end
-    local id=FName(path,EFindName.FNAME_Find)
-    if not valid(StaticFindObject(path)) or id:GetComparisonIndex()==0 then error('StringTable_Seq is not loaded',0) end
+    if not valid(StaticFindObject(TABLE)) then pcall(LoadAsset,TABLE) end
+    local id=FName(TABLE,EFindName.FNAME_Find)
+    if not valid(StaticFindObject(TABLE)) or id:GetComparisonIndex()==0 then
+        error('StringTable_Seq is not loaded',0)
+    end
     return id
 end
 -- A key's text in the game's language, and whether it is the table's own source (Korean) while the game is in another
@@ -123,10 +125,10 @@ local function entry(id,key,korean)
     local t=text(find(TEXTS):TextFromStringTable(id,key))
     return t,not korean and t==text(strings:GetTableEntrySourceString(id,key))
 end
--- The text of section n of a Sky Hall sequence, its package loaded first; nil when the section is not found.
+-- The text of section n of a Sky Hall sequence, loaded first by its object path; nil when the section is not found.
 local function section_text(seq,n)
     local path=seq..'.'..name_of(seq)
-    if not valid(StaticFindObject(path)) then pcall(LoadAsset,seq) end
+    if not valid(StaticFindObject(path)) then pcall(LoadAsset,path) end
     local s=valid(StaticFindObject(path..SECTION..n))
     return s and text(value_of(s.Data).Message) or nil
 end
