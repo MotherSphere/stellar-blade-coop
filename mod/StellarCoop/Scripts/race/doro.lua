@@ -2,8 +2,8 @@
 -- component hung on a given parent (the ghost's main mesh), with collision off. No SB character, no table row, no AI,
 -- nothing that can die, so nothing of it reaches a quest, an achievement or a save. Doro's own anim Blueprint is never
 -- used: the engine's single-node instance plays its blend spaces and clips (SetAnimationMode 1), driven by Doro.pick.
--- The look (Doro.new): your EVE drawn as a Doro. It is the one place the mod writes to the player actor: while it is
--- on, EVE's mesh components carry bHiddenInGame (only those that did not already) and her main mesh's
+-- The look (Doro.new): your EVE drawn as a Doro. Like coop wear (cut/wear.lua), it writes to the player actor: while
+-- it is on, EVE's mesh components carry bHiddenInGame (only those that did not already) and her main mesh's
 -- VisibilityBasedAnimTickOption is 0, so her pose, notifies and root-motion moves still run while she is not drawn.
 -- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
 -- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.

@@ -6,6 +6,8 @@ local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan=o.coop_slot,o.leviathan
     local self={}
+    -- coop wear (cut/wear.lua, o.wear): every word to it, on any save, as nothing of it is saved.
+    function self.wear(...) return o.wear.command(...) end
     function self.leviathan(sub,a,b,c,d,e)
         if sub=='show' or sub=='cam' and a==nil and not leviathan.filming() then
             local ok,why=coop_slot('coop leviathan '..sub)

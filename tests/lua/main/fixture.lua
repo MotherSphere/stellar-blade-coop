@@ -314,6 +314,16 @@ package.loaded['cut.leviathan']={new=function(o)
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
+-- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
+-- stops, what a tick says.
+wr={}
+package.loaded['cut.wear']={new=function(o)
+    wr.o=o
+    return {command=function(...) wr.cmds[#wr.cmds+1]={...}; return true,'wr '..tostring((...)) end,
+        restore=function() wr.restores=wr.restores+1 end,
+        tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
+        stop=function() wr.stops=wr.stops+1 end}
+end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
@@ -465,7 +475,7 @@ package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
+    ..'on|off] | wear [<name>|off [hair|suit]] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
@@ -502,6 +512,7 @@ function load_main(with_native,no_folder,source)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
+    wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
