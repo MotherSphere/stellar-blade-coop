@@ -338,6 +338,15 @@ package.loaded['cut.wear']={new=function(o)
         tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
         stop=function() wr.stops=wr.stops+1 end}
 end}
+-- coop lines (cut/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and stops, what
+-- a tick says.
+ln={}
+package.loaded['cut.lines']={new=function(o)
+    ln.o=o
+    return {command=function(...) ln.cmds[#ln.cmds+1]={...}; return true,'ln '..tostring((...)) end,
+        tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
+        stop=function() ln.stops=ln.stops+1 end}
+end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
@@ -489,7 +498,7 @@ package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | wear [<name>|off [hair|suit]] | no [heal|rule|spawnpt|actor] | '
+    ..'on|off] | wear [<name>|off [hair|suit]] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
@@ -529,6 +538,7 @@ function load_main(with_native,no_folder,source)
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
+    ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}

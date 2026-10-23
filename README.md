@@ -67,6 +67,10 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop wear` puts EVE in two cut hairs (mechanical cat ears and rabbit ears) and four cut suits, Gothic Rose among
   them, by changing the meshes drawn. Your equipment and saves stay as they are, and your friend's ghost of you shows
   the look too (see [docs/usage.md](docs/usage.md#cut-hairs-and-suits-coop-wear)).
+- `coop lines` shows the subtitles of four scenes cut before they were voiced in the chat's feed, timed as the game's
+  sequences give them: the first meeting with Adam, Quest_Sub_015 with Mann and Orcal's last message, Quinn and Sky
+  Hall. The text comes from your game, which has most of them in English and Korean only, so other languages show the
+  Korean (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS

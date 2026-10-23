@@ -57,7 +57,8 @@
 -- everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op
 -- saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in Scripts/commands/
 -- (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here. coop wear
--- [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
+-- [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua); coop
+-- lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save (cut/lines.lua).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -174,7 +175,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -248,6 +249,9 @@ local drive=require('race.drive').new({log=doro.log,store=link and link.store('c
 -- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them).
 local wear=require('cut.wear').new({log=function(m) print('[StellarCoop][WR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-wear.txt'),paused=function() return kit~=nil and kit.paused(true) end})
+-- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles, in the chat's feed only.
+local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
+    say=function(text) return box~=nil and box.say(text) end,ready=function() return kit~=nil and kit.ready() end})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
@@ -352,7 +356,7 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
     lion=lion,group=function() return group end,travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
-o.wear=wear
+o.wear,o.lines=wear,cut_lines
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -406,6 +410,8 @@ local commands={
         if not stopped then log('leviathan: '..tostring(e)) end
         stopped,e=pcall(lion.stop)
         if not stopped then log('lion: '..tostring(e)) end
+        stopped,e=pcall(cut_lines.stop)
+        if not stopped then log('lines: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -549,6 +555,8 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=leviathan.tick() -- Outside the doro column of the frame time line.
     if message then report(ok,message) end
     ok,message=lion.tick()
+    if message then report(ok,message) end
+    ok,message=cut_lines.tick()
     if message then report(ok,message) end
     local raced=os.clock()
     if link and race.armed() then inbox() end

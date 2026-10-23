@@ -813,6 +813,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -1221,6 +1222,35 @@ hair or suit from your friend's own game files, so nothing more is needed on tha
 bones, where the other suits here have 159 to 203. The capture and the ghost take up to 1024 bones a part, so the ghost
 wears the dress on its own mesh, not the base suit. A cut mesh shows its own materials on both screens, with the `dyes`
 look on or off.
+
+### Cut scene lines: `coop lines`
+
+The game's files hold the subtitles of scenes that were cut before they were voiced. `coop lines <name>` shows one of
+these scenes in the chat's feed, line by line, at the times its level sequences give, with the speaker's name before
+each line. Nothing else plays: no camera, character or sound. It runs on any save and writes nothing. It has not been
+tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
+
+| Name | Scene | Lines | Length |
+| --- | --- | --- | --- |
+| `adam` | The first meeting with Adam in the Tetrapod (he replaces EVE's nerve module and makes the Hall of Records deal), then the drone on the arrival at Eidos 7 | 49 | 3 min 7 s |
+| `warrior` | Quest_Sub_015, a side quest after Raven's attack on Xion: Mann in the empty Presence Chamber, then Orcal's recorded last message | 47 (2 more have no text in the game) | 3 min 47 s |
+| `quinn` | Quinn, a Xion engineer who insists he is human, in three short barks | 10 | 27 s |
+| `skyhall` | Sky Hall, an earlier route where Lily leads EVE and Adam through a temple toward the Great Desert | 37 | 1 min 29 s |
+
+- `coop lines` lists the scenes, and the one running.
+- `coop lines <name>` starts one. A second `coop lines <name>` replaces it.
+- `coop lines stop` ends it. `coop off`, a Lua reload (Ctrl+R) and the co-op UI going off end it too.
+
+The words come from your game when the scene starts: the mod holds only each line's start time and its key in the game's
+`StringTable_Seq`, or for Sky Hall its subtitle section in the test sequence. The game has the `adam` and `warrior`
+lines in English and Korean, and Quinn's in Japanese too. In its other languages the game itself gives the Korean text,
+its source language, so the lines show in Korean and the command's answer says how many do. Getting English there would
+mean switching the whole game's language or copying the lines into the mod, and `coop lines` does neither. The Sky Hall
+lines are Korean placeholder text in every language, most with the speaker's name inside.
+
+The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
+only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the
+feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is paused.
 
 ### Shared enemies (experimental)
 
@@ -1815,7 +1845,8 @@ Night Operation poller, a recruiter (despawned if one was requested, in Xion), t
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
 drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view
 goes back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
-lines; a living Lion stays) and the `coop wear` look (your EVE's own hair and suit come back). Afterwards only
+lines; a living Lion stays), the `coop wear` look (your EVE's own hair and suit come back) and a `coop lines` scene.
+Afterwards only
 `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
 restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
