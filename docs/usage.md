@@ -1065,11 +1065,14 @@ in memory and spawns it as an enemy to fight. It is a test command, left out of 
   first value that differs, with no spawn. It runs only on a [co-op save](#co-op-saves).
 - `coop lion intro` first plays the Lion's entrance from the cut boss intro (`Mon_LionC_Scene01_Appearance`, 13 s) on a
   copy of its mesh where it will stand, then spawns the Lion where the copy's root ended (at the 10 m spot when that is
-  more than 20 m away) and removes the copy once the Lion is there. The copy is a display only, like the Doros of a
-  race: it cannot fight or be hit. A copy that cannot be made skips the entrance and spawns at once. Co-op save only.
+  more than 20 m away) and removes the copy as soon as the Lion is there. The copy is a display only, like the Doros of
+  a race: it cannot fight or be hit. A copy that cannot be made skips the entrance and spawns at once. A map change
+  during the entrance spawns nothing. Co-op save only.
 - `coop lion rows` adds the rows and reads them back, with no spawn. Any save.
 - `coop lion control` spawns an Antlion (M_Antlion, 50110), a shipped Naytiba, through the same call and with no rows.
-  If the Antlion comes and the Lion does not, the rows are at fault rather than the call. Co-op save only.
+  If the Antlion comes and the Lion does not, the rows are at fault rather than the call. Co-op save only. The native
+  part reads the game's spawn counter only once rows were asked in the game run, so run `coop lion rows` first if the
+  Antlion's lines should carry it; before that they show `spawn count ?`.
 - `coop lion brain skulling|lurker` picks the behaviour tree of the next Lions until the mod reloads. `skulling`, the
   default, spawns 50020 (row M_LionC, tree M_Skulling_AI_Test); `lurker` spawns 50021 (row M_LionC_Lurker, the Lesser
   Lurker's tree). Any save.

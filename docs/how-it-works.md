@@ -1415,8 +1415,9 @@ lion=fault added=<n>/78 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
-`+0x198`), read every 250 ms once a first request came, `?` until then. It moves whenever any enemy spawns or goes, so
-`core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
+`+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
+the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
+so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
 back through `FindRow` by field name (independent of the SDK's offsets) and spawns only when every value matches and the
 line says `char=2/2 skills=15/15 stance=1/1`.
 
@@ -1434,10 +1435,11 @@ after the call gets its default one (`SpawnDefaultController`, as `nightop/run.l
 `coop lion intro` first plays `Mon_LionC_Scene01_Appearance` (13 s, the clip of the cut boss intro
 `DesertedCity_LionBossIntro`) on a display copy: `race/doro.lua`'s plain actor with the `CH_M_NA_02_Large` mesh at the
 blueprint's scale (1.5), on EVE's feet at the spot, facing her. At the clip's end the Lion spawns where the copy's bone
-0 stands, at the spot's height. When that is more than 20 m from the spot, it spawns at the spot. The copy goes once the
-body is found. It does not play on the Lion itself: `CH_M_NA_02_AnimBP` has no slot node, so a montage would not show; a
-single-node clip would replace the anim instance the game plays the Lion's skills on while its AI runs. The copy is in
-no file, so a Lua reload during its 13 s leaves it until the map changes.
+0 stands, at the spot's height. When that is more than 20 m from the spot, it spawns at the spot. The copy goes as soon
+as the body shows, before the body's controller is checked, so the two never stand together. A map change during the
+entrance spawns nothing. The clip does not play on the Lion itself: `CH_M_NA_02_AnimBP` has no slot node, so a montage
+would not show; a single-node clip would replace the anim instance the game plays the Lion's skills on while its AI
+runs. The copy is in no file, so a Lua reload during its 13 s leaves it until the map changes.
 
 ### What stays out
 
