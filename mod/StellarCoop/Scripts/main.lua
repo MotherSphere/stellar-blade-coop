@@ -180,10 +180,11 @@ local function ask(line)
         return link.request(line)
     end
 end
--- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop leviathan show and coop
--- leviathan cam turning its free camera on run only on a co-op save (D2, N9): the native part's slot=coop, from the
--- start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
--- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop lion's words that spawn, show
+-- and cam turning the free camera on in coop leviathan, coop gardener and coop tendril run only on a co-op save
+-- (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts one), for a co-op
+-- copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam link and every other
+-- command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -227,9 +228,9 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- coop leviathan's read, display and free camera (cut/leviathan.lua), logging [LV] lines. coop-leviathan.txt lets the
--- next Lua load remove a display this one left and give the player controller back. The free camera reads no key while
--- the co-op menu or one of its boxes is open.
+-- The cut Naytiba viewer of coop leviathan, coop gardener and coop tendril (cut/leviathan.lua): its read, display and
+-- free camera, logging [LV] lines. coop-leviathan.txt lets the next Lua load remove a display this one left and give
+-- the player controller back. The free camera reads no key while the co-op menu or one of its boxes is open.
 local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
@@ -518,7 +519,7 @@ end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
     doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
-    leviathan.restore() -- Likewise for a Leviathan display an earlier load left.
+    leviathan.restore() -- Likewise for a cut Naytiba display an earlier load left.
     pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
