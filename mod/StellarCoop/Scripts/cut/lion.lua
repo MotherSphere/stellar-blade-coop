@@ -9,12 +9,17 @@
 -- of EVE and 1 m up, facing her, for a fixed CharacterTable ID only: 50020 (M_LionC, the Skulling test tree), 50021
 -- after coop lion brain lurker (M_LionC_Lurker, the Lesser Lurker tree), or for coop lion control 50110 (M_Antlion, a
 -- shipped Naytiba, which tells a broken call from broken rows). Its body is the new character nearest the spot (of the
--- Large blueprint's class for the Lion), given its default controller when it has none, then followed: a line a second
--- while it lives, its death (InteractionState and Controller, as run.lua reads them) and its body's despawn, with the
--- spawn manager's counter (the lion line's spawns=) before, while it lives and after. Never called here: UE4SS's AddRow
--- or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The
--- Lion goes when it dies or with the map; the rows stay for the game run, and a later coop lion only reads them back.
--- coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion to the game.
+-- Large blueprint's class for the Lion), or a body SB sent far away and moved back there (it reuses one: a Lion at 466
+-- m came back for the next spawn on 2026-10-23), given its default controller when it has none, then followed: a line a
+-- second while it lives (distance, place, the anim graph's speed, a skill running, the custom anim alphas the AnimBP
+-- blends a Show's clip by), its death (InteractionState and Controller, as run.lua reads them) and its body's despawn,
+-- with the spawn manager's counter (the lion line's spawns=) before, while it lives and after. While a Lion lives, two
+-- more: which of its 15 Shows and their clips have loaded (the in-game test of a Lion that attacks with no animation),
+-- and the boss bar's name, which the game shows as <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Never
+-- called here: UE4SS's AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save,
+-- quest or inventory call. The Lion goes when it dies or with the map; the rows stay for the game run, and a later coop
+-- lion only reads them back. coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion
+-- to the game.
 -- The entrance: the Lion's AnimBP (CH_M_NA_02_AnimBP) has no montage slot, so a montage would not show, and a
 -- single-node clip on its mesh would replace the anim instance SB plays its skills on while its AI runs. So coop lion
 -- spawns at once, and coop lion intro first plays Mon_LionC_Scene01_Appearance (the cut boss intro's clip) on a display
@@ -51,10 +56,19 @@ local NEAR=30 -- m: a new body farther than this from the spot is not the one sp
 -- at 1 s at the earliest), so the game's own controller has time to come first.
 local ADOPT=1.5
 local FOLLOW,GONE=1,60 -- s: a line a second while it lives; a body still there this long after its death is let go.
+-- m: a body that stood farther than this from the spot at the call and stands within NEAR of it after is one SB moved
+-- back for this spawn (no enemy runs the difference in 5 s).
+local FAR=100
 local MASK=0xFFFFFFFF
 local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker'
 local GROUP='[{"CollisionGroupName":"Mon_Lion_Attack_%s_Collision", "DelayTime":0}]'
 local DEAD='CH_M_NA_02_Lion/Basic/M_Lion_Dead'
+-- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0, through FText::FromStringTable on the
+-- row's Name), the text it shows for the Lion, and ours. FindAllOf('TextBlock') walks every object: the live blocks
+-- found (under /Engine/Transient, not a widget class's template) are kept, and looked for again at most every BOSS_LOOK
+-- s while none is held.
+local BOSS_TEXT,BOSS_SHOWN,BOSS_NAME,BOSS_LOOK='TextBlock_BossName','^<M_LionC[%w_]*>$','Lion',10
+local LIVE='/Engine/Transient'
 
 -- The rows as the native part writes them (lion/rows.h's generated recipe; tests/lua/cut/lion_test.lua checks this
 -- list against it): {table=, name=, id=<nil in the dead table>, checks={{field, kind, value}}}. kind: f a float, n an
@@ -142,6 +156,23 @@ local function count(t)
     return n..'/'..n
 end
 Lion.IN={added=count(),char=count('CharacterTable'),skills=count('SkillTable'),stance=count('CharacterStanceTable')}
+-- The loaded line's 30 paths: each Lion Show, then the clip its one anim key plays (8 Shows name it as
+-- AnimSequence'...', which UE's ResolveName strips). StaticFindObject finds only what is in memory and costs about 4 ms
+-- a call here (core/unreal.lua): LOOKS paths a second, each looked for until first seen.
+local CLIPS={ClawAttackLeft='M_LionC_ClawAttackLeft',ClawAttackRight='M_LionC_ClawAttackRight',
+    ClawAttackChaseLeft='M_LionA_ClawAttackChaseLeft',ClawAttackChaseRight='M_LionA_ClawAttackChaseRight',
+    TurnAttackLeft='Mon_Lion_Attack_Turn_Left',TurnAttackRight='Mon_Lion_Attack_Turn_Right',
+    RunAttackLeft='M_LionC_RunAttackLeft',RunAttackRight='M_LionC_RunAttackRight',
+    JumpAttackLow='Mon_Lion_Attak_Jump_01',JumpAttackHigh='Mon_Lion_Attack_Jump_02',
+    BackJumpToAttack='Mon_Lion_Attack_Rotation_Back',AttackToBackJump='Mon_Lion_Attack_Back_Dash',
+    Roar='Mon_Lion_Attack_Roar_01',SideStepLeft='Mon_Lion_SideStep_Left',SideStepRight='Mon_Lion_SideStep_Right'}
+local LOOKS=2
+Lion.LOADS={}
+for _,k in ipairs(KIT) do
+    local show='M_LionC_'..k[1]..'_1'
+    Lion.LOADS[#Lion.LOADS+1]='/Game/Art/Show/CH_M_NA_02_Lion/Skill/'..show..'.'..show
+    Lion.LOADS[#Lion.LOADS+1]=DIR..'Animation/'..CLIPS[k[1]]..'.'..CLIPS[k[1]]
+end
 
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
@@ -210,6 +241,9 @@ function Lion.new(o)
     local job=nil -- The command under way: {what=<for a busy refusal>, step=f(job, now), at=<os.clock when due>, ...}.
     local followed={} -- The bodies spawned this Lua load and not let go: {n=, id=, obj=, path=, since=, before=, ...}.
     local spawned,next_follow=0,0
+    local seen,looked,looks,loaded_said={},0,0,nil -- The loaded line's paths seen, cursor, lookups and last line.
+    local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
+    local failed={} -- The last error of the loaded line and of the boss name, each said once.
     local function lion_line() return Lion.parse(status and status()) end
     local her=N.her
     -- The 8 tables by name, and those missing.
@@ -276,20 +310,80 @@ function Lion.new(o)
         end
         local eve=her()
         local read,battle=pcall(function() return c:IsBattle()==true end)
-        log(string.format('%s: %s m, battle %s, state %s, controller %s, spawn count %s',name,
-            eve and string.format('%.1f',metres(location(c),location(eve))) or '?',read and (battle and 1 or 0) or '?',
+        local function num(fmt,read_it) -- A number read off the body, or ? when the call fails.
+            local fine,v=pcall(read_it)
+            v=fine and tonumber(value_of(v))
+            return v and string.format(fmt,v) or '?'
+        end
+        local skill_read,skill=pcall(function() return c:IsRunningSkill()==true end)
+        local at_read,at=pcall(function() return xyz(location(c)) end)
+        log(string.format('%s: %s m, xyz %s, speed %s, skill %s, anim alpha %s/%s, battle %s, state %s, controller %s, '
+            ..'spawn count %s',name,eve and string.format('%.1f',metres(location(c),location(eve))) or '?',
+            at_read and at or '?',num('%.0f',function() return c:GetSBSpeedForAnimGraph() end),
+            skill_read and (skill and 'yes' or 'no') or '?',
+            num('%.2f',function() return c:GetCurrentCustomAnimAlpha(0) end),
+            num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),read and (battle and 1 or 0) or '?',
             tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count())))
+    end
+    -- While a Lion lives, once a second: LOOKS of the 30 paths (each Show, then its clip) not seen yet, and the loaded
+    -- line once each path was looked for (0/15 then says none loaded) or one was seen, and whenever it changes. A Show
+    -- seen means the game played it on a Lion (it loads a Show when a step names it); its clip seen means the Show's
+    -- anim key loaded it. A Show seen without its clip is named.
+    local function look_loaded()
+        local paths,tries=Lion.LOADS,0
+        for _=1,#paths do
+            if tries==LOOKS then break end
+            looked=looked%#paths+1
+            if not seen[paths[looked]] then
+                tries,looks=tries+1,looks+1
+                if valid(StaticFindObject(paths[looked])) then seen[paths[looked]]=true end
+            end
+        end
+        local shows,clips,without=0,0,{}
+        for i,k in ipairs(KIT) do
+            local show,clip=seen[paths[2*i-1]],seen[paths[2*i]]
+            shows,clips=shows+(show and 1 or 0),clips+(clip and 1 or 0)
+            if show and not clip then without[#without+1]=k[1] end
+        end
+        local line=string.format('loaded: shows %d/%d, clips %d/%d',shows,#KIT,clips,#KIT)
+            ..(without[1] and ' (Show seen, its clip not yet: '..table.concat(without,', ')..')' or '')
+        if (shows>0 or clips>0 or looks>=#paths) and line~=loaded_said then
+            loaded_said=line
+            log(line)
+        end
+    end
+    -- While a Lion lives, once a second: the boss bar's name as BOSS_NAME where it reads <M_LionC> (SB writes it again
+    -- at its next boss bind, and this puts it back).
+    local function boss_name(now)
+        local held=false
+        for _,t in ipairs(boss) do held=held or valid(t)~=nil end
+        if not held and now>=next_boss then
+            next_boss,boss=now+BOSS_LOOK,{}
+            U.each(FindAllOf('TextBlock') or {},function(_,t)
+                t=valid(t)
+                if t and text(t:GetFName())==BOSS_TEXT and text(t:GetFullName()):find(LIVE,1,true) then
+                    boss[#boss+1]=t
+                end
+            end)
+        end
+        for _,t in ipairs(boss) do
+            local shown=valid(t) and text(t:GetText())
+            if shown and shown:find(BOSS_SHOWN) then
+                t:SetText(FText(BOSS_NAME))
+                log(string.format('boss name: %s -> %s',shown,BOSS_NAME))
+            end
+        end
     end
     -- A spawn's search (job.id, job.spot, job.before, job.class, job.display): at each of FINDS, the new body nearest
     -- the spot. Seen: the entrance copy removed at once, so the two never stand together. Found with no controller
     -- before ADOPT: looked at again then. Found: its default controller when it has none, S1 (with when it was first
     -- seen), the entrance line, followed from then on.
     local function search(j,now)
-        local best,best_m=nil,nil
+        local best,best_m,best_a=nil,nil,nil
         for a,c in pairs(bodies(j.class)) do
-            if not j.taken[a] then
+            if not j.taken[a] or j.taken[a]>FAR then
                 local ok,d=pcall(function() return metres(location(c),j.spot) end)
-                if ok and d<=NEAR and (not best_m or d<best_m) then best,best_m=c,d end
+                if ok and d<=NEAR and (not best_m or d<best_m) then best,best_m,best_a=c,d,a end
             end
         end
         local after=now-j.called
@@ -323,17 +417,24 @@ function Lion.new(o)
         local read,key=pcall(key_of,best)
         local eve=her()
         local from=eve and metres(location(best),location(eve))
+        local reused=j.taken[best_a] and string.format('; a body SB reused (%.0f m from the spot at the call)',
+            j.taken[best_a]) or ''
+        for _,f in ipairs(j.taken[best_a] and {table.unpack(followed)} or {}) do
+            if f.address==best_a then
+                let_go(f,string.format('lion %d (%d) recycled: SB moved its body back for this spawn',f.n,f.id))
+            end
+        end
         log(string.format('spawn %d: CreateActor returned; body %s %s m from EVE, %.1f m from the spot, after %.1f s; '
-            ..'controller %s%s; EventSpawnId %s',j.id,class_of(best),from and string.format('%.1f',from) or '?',best_m,
-            j.seen,ctl and class_of(ctl) or 'none',adopted,read and tostring(key) or '?'))
+            ..'controller %s%s; EventSpawnId %s%s',j.id,class_of(best),from and string.format('%.1f',from) or '?',
+            best_m,j.seen,ctl and class_of(ctl) or 'none',adopted,read and tostring(key) or '?',reused))
         if not j.intro and j.id~=CONTROL then
             log('entrance: skipped (off by default: the Lion AnimBP has no montage slot, and a clip on its mesh would '
                 ..'replace the anim instance SB plays its skills on; coop lion intro plays it on a display copy before '
                 ..'the spawn)')
         end
         spawned=spawned+1
-        followed[#followed+1]={n=spawned,id=j.id,obj=best,path=path_of(best),since=now,before=j.before,
-            alive=spawn_count()}
+        followed[#followed+1]={n=spawned,id=j.id,obj=best,path=path_of(best),address=best_a,since=now,
+            before=j.before,alive=spawn_count()}
         if not followed[2] then next_follow=now+FOLLOW end -- Its first line a second from now.
         return true,string.format('%s %d is here, %s m from EVE: lion %d in the [LI] lines.',Lion.IDS[j.id],j.id,
             from and string.format('%.1f',from) or '?',spawned)
@@ -342,7 +443,11 @@ function Lion.new(o)
     local function spawn(j,at,now)
         local eve=assert(her(),'no EVE in the world')
         j.spot,j.class=at,j.id==CONTROL and 'SBCharacter' or CLASS
-        j.taken=bodies(j.class)
+        j.taken={} -- The bodies there before the call, each with its distance to the spot (m; 0 when unread).
+        for a,c in pairs(bodies(j.class)) do
+            local ok,d=pcall(function() return metres(location(c),at) end)
+            j.taken[a]=ok and d or 0
+        end
         j.before=spawn_count()
         local yaw=U.yaw_to(at,location(eve))
         create(j.id,at,yaw)
@@ -545,6 +650,16 @@ function Lion.new(o)
             for _,f in ipairs({table.unpack(followed)}) do
                 local fine,e=pcall(follow_one,f,now)
                 if not fine then let_go(f,string.format('lion %d no longer followed: %s',f.n,why(e))) end
+            end
+            local lives=false
+            for _,f in ipairs(followed) do lives=lives or (f.id~=CONTROL and not f.dead) end
+            if lives then
+                for word,f in pairs({loaded=look_loaded,['boss name']=boss_name}) do
+                    local fine,e=pcall(f,now)
+                    e=not fine and string.format('%s: unread (%s)',word,why(e))
+                    if e and e~=failed[word] then log(e) end
+                    failed[word]=e
+                end
             end
         end
         return ok,message

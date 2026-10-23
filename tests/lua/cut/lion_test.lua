@@ -5,9 +5,13 @@
 -- before the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows stop it),
 -- reads every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn
 -- call: 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing EVE, cheat
--- on, key 0. Rows already in are read back without an ask. The body is the new one nearest the spot, given its default
--- controller when it still has none 1.5 s after the call, then followed: a line a second, its death and its body's
--- despawn with the spawn counts; none after 5 s stops. coop lion intro plays the entrance on a display copy first and
+-- on, key 0. Rows already in are read back without an ask. The body is the new one nearest the spot (or one SB sent far
+-- away and moved back, whose old follow ends as recycled), given its default controller when it still has none 1.5 s
+-- after the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as
+-- ?), its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the loaded line
+-- (two of the 30 Show and clip paths a second, each until seen; said once all were looked for, then at each change) and
+-- the boss name (only the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back;
+-- FindAllOf at most every 10 s while none is held). coop lion intro plays the entrance on a display copy first and
 -- spawns where its root ended (at the spot when that is too far), removing the copy as soon as the body shows; a map
 -- change during it spawns nothing; a copy that cannot be made spawns at once. A second command waits while one runs
 -- (brain does not); coop off ends the job and the copy. Never AddRow, RemoveRow or a call from a coroutine, and the
@@ -135,6 +139,9 @@ do
     assert(check('M_LionC_SideStepLeft_Cast1','SelfMoveAliasArray')=='')
     assert(check('M_LionC_TurnAttackLeft_Cast1','SelfMoveAliasArray')=='M_Behemoth_TurnAttackLeft_Move1')
     assert(check('M_LionC_ClawAttackLeft_Cast1','SelfMoveAliasArray')==nil)
+    assert(#L.LOADS==30 and L.LOADS[1]=='/Game/Art/Show/CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1.'
+        ..'M_LionC_ClawAttackLeft_1' and L.LOADS[26]=='/Game/Art/Character/Monster/CH_M_NA_02/Animation/'
+        ..'Mon_Lion_Attack_Roar_01.Mon_Lion_Attack_Roar_01','Each Show, then its clip')
 end
 
 -- The lion line in each of its forms (lion/rows.h's status_line).
@@ -185,6 +192,10 @@ local function body(cls,at)
     b.K2_GetActorLocation=function(self) return {X=self.at.X,Y=self.at.Y,Z=self.at.Z} end
     b.GetFullName=function() return cls..' /Game/Maps/E04.E04:PersistentLevel.'..cls..'_'..n end
     b.IsBattle=function(self) engine(); return self.battle==true end
+    b.speed,b.skill,b.alpha=0,false,{0,0}
+    b.GetSBSpeedForAnimGraph=function(self) engine(); return self.speed end
+    b.IsRunningSkill=function(self) engine(); return self.skill end
+    b.GetCurrentCustomAnimAlpha=function(self,i) engine(); return assert(self.alpha[i+1]) end
     b.SpawnDefaultController=function(self)
         engine()
         self.Controller=object({GetFullName=function() return 'SBAIController /Game/Maps/E04.E04:Ctl_'..n end})
@@ -192,8 +203,13 @@ local function body(cls,at)
     chars[#chars+1]=b
     return b
 end
+local widgets,text_finds={},0 -- The TextBlocks FindAllOf('TextBlock') gives, and how many times it was asked.
 FindAllOf=function(cls)
     engine()
+    if cls=='TextBlock' then
+        text_finds=text_finds+1
+        return widgets
+    end
     finds=finds+1
     local out={}
     for _,c in ipairs(chars) do if not c.destroyed and (cls=='SBCharacter' or c.class==cls) then out[#out+1]=c end end
@@ -233,8 +249,12 @@ local mesh_asset=object({IsA=is('/Script/Engine.SkeletalMesh'),key='mesh',
 local clip_asset=object({IsA=is('/Script/Engine.AnimSequence','/Script/Engine.AnimationAsset'),SequenceLength=13.0,
     key='clip',GetFullName=function() return 'AnimSequence '..CLIP end})
 local assets={[MESH]=mesh_asset,[CLIP]=clip_asset}
+local load_finds=0 -- StaticFindObject calls on the loaded line's paths.
+local loads={}
+for _,p in ipairs(L.LOADS) do loads[p]=true end
 StaticFindObject=function(path)
     engine()
+    if loads[path] then load_finds=load_finds+1 end
     if path:find('^/Script/') then return class(path) end
     local t=path:match('^/Game/Local/Data/(%a+)%.%a+$')
     if t then return present[t] and tables[t] or invalid end
@@ -373,11 +393,67 @@ assert(last():find('^entrance: skipped %(off by default: the Lion AnimBP has no 
 -- Followed: a line a second while it lives, the first a second after it was found.
 at(202.49); n=#lines; lion.tick(); assert(#lines==n,'Not yet')
 at(202.5)
-assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, battle 0, state 0, controller yes, spawn count 7',last())
-lion1.battle=true
+assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 0, skill no, anim alpha 0.00/0.00, '
+    ..'battle 0, state 0, controller yes, spawn count 7',last())
+assert(load_finds==2,'Two loaded-line lookups a second')
+lion1.battle,lion1.speed,lion1.skill,lion1.alpha=true,212.6,true,{0.5,1}
 at(203); n=#lines; lion.tick(); assert(#lines==n,'One a second')
 at(203.5); lion.tick()
-assert(last()=='lion 1 (50020): 10.0 m, battle 1, state 0, controller yes, spawn count 7',last())
+assert(last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 213, skill yes, anim alpha 0.50/1.00, battle 1, '
+    ..'state 0, controller yes, spawn count 7',last())
+-- A read that fails is a ?, the line still said.
+local speed_of=lion1.GetSBSpeedForAnimGraph
+lion1.GetSBSpeedForAnimGraph=function() error('no such function') end
+at(204.5); lion.tick()
+assert(last():find(', speed %?, skill yes,'),last())
+lion1.GetSBSpeedForAnimGraph,lion1.speed=speed_of,0
+-- The loaded line: two of the 30 paths a second, each until first seen; once all were looked for, 0/15 says none
+-- loaded; then each change. A Show seen without its clip is named.
+for t=205.5,216.5 do at(t); lion.tick() end
+assert(load_finds==30 and last()=='loaded: shows 0/15, clips 0/15',last())
+assets[L.LOADS[1]]=object({key='show'})
+at(217.5); lion.tick()
+assert(load_finds==32 and last()=='loaded: shows 1/15, clips 0/15 (Show seen, its clip not yet: ClawAttackLeft)',
+    last())
+assets[L.LOADS[2]]=object({key='clip'})
+local said_at=nil
+for t=218.5,240.5 do
+    at(t); lion.tick()
+    if not said_at and last()=='loaded: shows 1/15, clips 1/15' then said_at=t end
+end
+assert(said_at,'The clip found on the next pass')
+assert(not logged('loaded: shows 2/'),'A seen path is not looked for again, nor counted twice')
+assets[L.LOADS[1]],assets[L.LOADS[2]]=nil,nil
+-- The boss name: the live TextBlock_BossName (under /Engine/Transient) reading <M_LionC> reads Lion; a widget class's
+-- template of it and another TextBlock stay as they are. FindAllOf('TextBlock') again only once no block is held, at
+-- most every 10 s: with none found, it ran at 202.5, 212.5, 222.5 and 232.5.
+local function block(name,path,shown)
+    return object({name=name,shown=shown,GetFName=function(self) return fname(self.name) end,
+        GetFullName=function(self) return 'TextBlock '..path..'.'..self.name end,
+        GetText=function(self) engine(); return fname(self.shown) end,
+        SetText=function(self,t) engine(); self.shown=t.text end})
+end
+FText=function(t) return {text=t} end
+local live=block('TextBlock_BossName','/Engine/Transient.GameEngine_0:WB_MainHUD_Master_C_0.WidgetTree','<M_LionC>')
+local template=block('TextBlock_BossName','/Game/UI/WB_BossHP.WB_BossHP_C:WidgetTree','<M_LionC>')
+local other=block('TextBlock_Title','/Engine/Transient.GameEngine_0:WB_MainHUD_Master_C_0.WidgetTree','<M_LionC>')
+widgets={template,other,live}
+local tf=text_finds
+assert(tf==4,'Every 10 s while none is held: '..tf)
+at(241.5); lion.tick(); assert(text_finds==tf and live.shown=='<M_LionC>','Not before 242.5')
+at(242.5); lion.tick()
+assert(text_finds==tf+1 and live.shown=='Lion' and template.shown=='<M_LionC>' and other.shown=='<M_LionC>')
+assert(last()=='boss name: <M_LionC> -> Lion',last())
+n=#lines
+at(243.5); lion.tick()
+assert(text_finds==tf+1 and #lines==n+1,'Held: no new walk, nothing to set, only the follow line')
+live.shown='<M_LionC>' -- The game's next boss bind writes it again.
+at(244.5); lion.tick()
+assert(live.shown=='Lion' and last()=='boss name: <M_LionC> -> Lion',last())
+live.destroyed=true -- The HUD made again: the held block gone.
+widgets={}
+at(251.5); lion.tick(); assert(text_finds==tf+1,'At most every 10 s')
+at(252.5); lion.tick(); assert(text_finds==tf+2,'Looked for again once none is held')
 -- Its death, then its body's despawn: D1 and D2.
 lion1.InteractionState,lion1.Controller=3,nil
 at(344.5); n=#lines; lion.tick(); assert(#lines==n,'Dead: no line until its body goes')
@@ -543,6 +619,30 @@ lion.stop()
 assert(copy.destroyed and last()=='coop off: the entrance ended; 3 Lion bodies no longer followed (they stay)',last())
 at(1413); assert(lion.tick()==nil and #calls==6,'Nothing after coop off')
 assert(lion.command('rows'),'A new command after coop off would run (main.lua refuses it)')
+
+-- A body SB sent far away and moved back for the next spawn (a Lion at 466 m came back on 2026-10-23) is that spawn's,
+-- and its old follow ends as recycled; a body near the spot before the call is still never taken (the Antlion above).
+lion=new()
+lion_status(ROWS_IN:format(1,'6'))
+on_create=spawns_lion
+at(1500); assert(lion.command())
+at(1500.3); lion.tick()
+at(1501.5); assert(lion.tick())
+local first=chars[#chars]
+first.at={X=46600,Y=0,Z=200} -- Sent away.
+on_create=function(_,p) first.at={X=p.X,Y=p.Y,Z=p.Z} end -- Moved back for the call, no new body.
+local mark=#lines
+at(1510); assert(lion.command())
+at(1510.3)
+ok,why=lion.tick()
+assert(ok and why=='M_LionC 50020 is here, 10.0 m from EVE: lion 2 in the [LI] lines.',tostring(why))
+assert(logged('^lion 1 %(50020%) recycled: SB moved its body back for this spawn$'),'The old follow ended')
+assert(lines[#lines-1]=='spawn 50020: CreateActor returned; body '..LION_CLASS..' 10.0 m from EVE, 0.0 m from the '
+    ..'spot, after 0.3 s; controller SBAIController; EventSpawnId 0; a body SB reused (456 m from the spot at the call)',
+    lines[#lines-1])
+at(1511.3); lion.tick()
+assert(last():find('^lion 2 %(50020%): 10%.0 m, '),last())
+for i=mark+1,#lines do assert(not lines[i]:find('^lion 1 %(50020%): '),'Followed once, as lion 2') end
 
 -- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
 -- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
