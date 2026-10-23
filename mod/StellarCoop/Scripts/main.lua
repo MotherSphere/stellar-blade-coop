@@ -50,10 +50,11 @@
 -- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
 -- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
 -- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
--- turning the camera on, on a co-op save only); coop lion [intro]|rows|control|brain skulling|lurker, the cut Lion
--- spawned as an enemy to fight, its table rows added through the native part (cut/lion.lua; left out of the usage line;
--- the words that spawn on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
--- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
+-- turning the camera on, on a co-op save only); coop gardener and coop tendril, the same words for the cut Naytibas 1
+-- and 6, one of the three shown at a time; coop lion [intro]|rows|control|brain skulling|lurker, the cut Lion spawned
+-- as an enemy to fight, its table rows added through the native part (cut/lion.lua; left out of the usage line; the
+-- words that spawn on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read by
+-- the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
 -- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui
 -- and coop off, which stay here.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
