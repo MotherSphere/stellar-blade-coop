@@ -1,14 +1,14 @@
 -- The first-launch guide (ui/guide.lua and ui/guide_text.lua) on a fake kit, a fake link and fake engine objects, as
--- saves_test fakes them: every page and label in English, the other languages present and empty (or complete) with
--- English for what they lack, every page within its rows and columns in every language; the panel on screen at every
--- ui_scale; the key hints and a dot a page, the current one lit; at the title once a Lua load while coop-guide.txt is
--- missing, once the kit has its whole look (waiting() meanwhile, which the co-op saves' question reads), never in a
--- world by itself; the keys (rows, pages, select from 1 s, Esc), the mouse (hover every 100 ms, a click on the row
--- under it) and the game's input given back 150 ms after a close; Don't show again and a close on the last page writing
--- coop-guide.txt; open() from the menu and coop guide and its refusals; its own closes (the place left, the kit hidden
--- or off, the game paused, 3 minutes with no key); the art imported once with ImportFileAsTexture2D, set again on a new
--- root, imported again once freed, a failure logged once with the guide shown without it; coop off; and front(), the
--- pair main.lua routes the co-op saves' question's keys and loops through.
+-- saves_test fakes them: every page and label in English, the other languages present and complete with English's
+-- commands, keys, names and placeholders (English for what one lacks), every page within its rows and columns in every
+-- language; the panel on screen at every ui_scale; the key hints and a dot a page, the current one lit; at the title
+-- once a Lua load while coop-guide.txt is missing, once the kit has its whole look (waiting() meanwhile, which the
+-- co-op saves' question reads), never in a world by itself; the keys (rows, pages, select from 1 s, Esc), the mouse
+-- (hover every 100 ms, a click on the row under it) and the game's input given back 150 ms after a close; Don't show
+-- again and a close on the last page writing coop-guide.txt; open() from the menu and coop guide and its refusals; its
+-- own closes (the place left, the kit hidden or off, the game paused, 3 minutes with no key); the art imported once
+-- with ImportFileAsTexture2D, set again on a new root, imported again once freed, a failure logged once with the guide
+-- shown without it; coop off; and front(), the pair main.lua routes the co-op saves' question's keys and loops through.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('ui.guide_text')
 local T=require('ui.text')
@@ -30,8 +30,7 @@ assert(G.en.pages[1].title=='Welcome to Stellar Blade Online' and G.en.pages[9].
 assert(G.en.pages[9].body:find('discord.gg/tvFApEEVfj',1,true) and G.en.pages[9].body:find('coop-report.txt',1,true)
     and G.en.pages[9].body:find('\nMother Sphere art by timediffer24.$'),'The last page credits the art')
 assert(G.en.pages[5].body:find('coop nightop buy <n>',1,true) and G.en.pages[8].body:find('coop-settings.txt',1,true))
--- A table for each language ui/text.lua has, and no other; each empty until translated, else with G.en's keys at every
--- level and its placeholders.
+-- A table for each language ui/text.lua has, and no other; each with G.en's keys at every level and its placeholders.
 local function specs(s)
     local list={}
     for p in s:gmatch('%%.') do if p~='%%' then list[#list+1]=p end end
@@ -54,15 +53,42 @@ for name,t in pairs(G) do
     if type(t)=='table' then
         count=count+1
         assert(type(T[name])=='table','G.'..name..': not a language of ui/text.lua')
-        if name~='en' and next(t) then same(t,G.en,name..'.') end
+        if name~='en' then same(t,G.en,name..'.') end
     end
 end
 assert(count==#codes and count==22,count)
+-- Each translated string keeps what its English holds of the console commands, file names, keys, the Discord address
+-- and the names (KEEP, as written), and the keys B, C, E, Space, Ctrl, Shift and Enter as whole words, or under the
+-- name OWN gives one in that language (its keyboard's, as ui/text.lua writes Strg, Maiusc and Invio).
+local KEEP={'coop nightop start','coop nightop shop','coop nightop buy <n>','coop challenge','coop race record <name>',
+    'coop race save','coop race start <name>','coop leviathan show','coop leviathan off','coop-settings.txt',
+    'coop-report.txt','coop-link.log','UE4SS.log','discord.gg/tvFApEEVfj','F5','F6','F8','F9','F10','~','R2','View',
+    'W A S D','Z Q S D','Stellar Blade Online','Steam','Discord','EVE','Leviathan','Naytiba','Shift Up','Mother Sphere',
+    'timediffer24'}
+local KEYS={'B','C','E','Space','Ctrl','Shift','Enter'}
+local OWN={de={Space='Leertaste',Ctrl='Strg'},it={Space='Spazio',Shift='Maiusc',Enter='Invio'},no={Space='Mellomrom'},
+    ru={Space='Пробел'},['zh-Hans']={Space='空格键'}}
+local function kept(t,en,at,own)
+    for k,v in pairs(en) do
+        local mine=t[k]
+        if type(v)=='table' then kept(mine,v,at..k..'.',own)
+        else
+            for _,s in ipairs(KEEP) do assert(not v:find(s,1,true) or mine:find(s,1,true),at..k..': '..s) end
+            for _,key in ipairs(KEYS) do
+                local word='%f[%w]'..key..'%f[%W]'
+                assert(not v:find(word) or mine:find(word) or own[key] and mine:find(own[key],1,true),at..k..': '..key)
+            end
+        end
+    end
+end
+for name,t in pairs(G) do if type(t)=='table' and name~='en' then kept(t,G.en,name..'.',OWN[name] or {}) end end
+assert(not pcall(kept,{pages={{body='F9: E'}}},{pages={{body='F10: E'}}},'',{}),'A lost key fails')
 -- The pick: the game's culture, English with ui_language=english, for a culture with no table and for a word a table
 -- lacks (a page, or a page's body).
 assert(G.pick('fr-FR')==G.fr and G.pick('fr-FR','english')==G.en and G.pick(nil)==G.en and G.pick('xx-YY')==G.en)
-assert(G.pick('de-DE').pages[4].title==G.en.pages[4].title and G.pick('de-DE').next=='Next','Empty: English')
 local had=G.it
+G.it={}
+assert(G.pick('it-IT').pages[4].title==G.en.pages[4].title and G.pick('it-IT').next=='Next','Empty: English')
 G.it={pages={{title='Benvenuto'}},next='Avanti'}
 local it=G.pick('it-IT')
 assert(it.pages[1].title=='Benvenuto' and it.pages[1].body==G.en.pages[1].body and it.pages[2]==G.en.pages[2]
