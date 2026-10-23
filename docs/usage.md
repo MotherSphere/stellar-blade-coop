@@ -821,6 +821,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
+| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command, untested in game): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -968,9 +969,9 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
   per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
-`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), and `coop leviathan show` and
-`coop leviathan cam` when it turns the camera on (below), run on any save. `coop fight pilot` runs on any save too,
-since same place only moves enemies while shared enemies run.
+`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
+`coop leviathan cam` when it turns the camera on, `coop lion`, `coop lion intro` and `coop lion control` (below) run on
+any save. `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`
 
@@ -1050,6 +1051,74 @@ that camera is gone. If the game moved the view to another camera meanwhile (a d
 controller ignores move and look input again only if it did before, and the camera is removed. While it is on,
 `coop-leviathan.txt` also holds the camera's path, the player controller's and the view's from before, so the next Lua
 load (Ctrl+R) does the same if this one could not.
+
+### Cut boss: `coop lion`
+
+The game's files hold a boss that was cut before release: Naytiba 02, the Lion, in
+`/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
+ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 78 rows it lacks to the game's tables
+in memory and spawns it as an enemy to fight. It is a test command, left out of the usage line. Its lines go to
+`UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-link.log` as `lion rows ...`.
+
+- `coop lion` spawns a Lion 10 m in front of EVE and 1 m up, facing her. The first time in a game run it asks the native
+  part to add the rows and waits for the answer, 30 s at most. Each time it reads every row back first and stops at the
+  first value that differs, with no spawn. It runs only on a [co-op save](#co-op-saves).
+- `coop lion intro` first plays the Lion's entrance from the cut boss intro (`Mon_LionC_Scene01_Appearance`, 13 s) on a
+  copy of its mesh where it will stand, then spawns the Lion where the copy's root ended (at the 10 m spot when that is
+  more than 20 m away) and removes the copy once the Lion is there. The copy is a display only, like the Doros of a
+  race: it cannot fight or be hit. A copy that cannot be made skips the entrance and spawns at once. Co-op save only.
+- `coop lion rows` adds the rows and reads them back, with no spawn. Any save.
+- `coop lion control` spawns an Antlion (M_Antlion, 50110), a shipped Naytiba, through the same call and with no rows.
+  If the Antlion comes and the Lion does not, the rows are at fault rather than the call. Co-op save only.
+- `coop lion brain skulling|lurker` picks the behaviour tree of the next Lions until the mod reloads. `skulling`, the
+  default, spawns 50020 (row M_LionC, tree M_Skulling_AI_Test); `lurker` spawns 50021 (row M_LionC_Lurker, the Lesser
+  Lurker's tree). Any save.
+
+While a command waits for its rows, its body or its entrance, another `coop lion` answers that it is busy.
+
+Try it in an open, flat area such as the Great Desert, with open ground 10 m in front of EVE, away from story events,
+quest areas and Behemoths.
+
+What to expect:
+
+- The Lion has 15 skills made from the Behemoth's: two claws, two chasing claws, two turning attacks, two running
+  attacks, two jumping attacks, two back jumps, a roar and two side steps. Both trees pick the skills flagged
+  MeleeAttack, which leaves the side steps out. Its stats, rank (Elite) and hostility are the Behemoth's (37840 HP and
+  1455 shield in its row). It is a boss to the game, so the boss bar shows once it targets EVE. What the bar shows as
+  its name is not checked yet: the game has no name text for it.
+- Its rows give it its own death animation (7 s), then a dissolve (15 s). It drops nothing.
+- It should not come back from a save: a Lion alive when you load a save or change maps is gone. No command removes one:
+  it goes when it dies or with the map.
+- No quest event runs for it. A kill counts toward the two achievement counters that take any enemy, as any Naytiba kill
+  does. It unlocks no album entry.
+- The rows stay in memory until the game exits. A second `coop lion` only reads them back. Nothing is written to a game
+  file or a save.
+- Only your game has the Lion. In a session your friend does not see it, and her ghost on your screen is no target for
+  it. If she types `coop lion`, she gets her own Lion in her game.
+
+The entrance is off by default because the Lion's animation blueprint has no montage slot: a montage played on it would
+not show; a clip played straight on its mesh would replace the animation instance that the game plays the Lion's skills
+on while its AI runs.
+
+The log lines, in `UE4SS.log` unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `tables: 8/8 found: CharacterTable=0x...` | The 8 tables found, with the addresses sent to the native part |
+| `lion rows: 78/78 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 5002000-5002014 15/15, stance 500200 1/1` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need |
+| `rows read back through FindRow: 78/78 match` | Every changed field reads as written |
+| `rows already in (78/78; ...): not added again` | A later `coop lion` in the same game run |
+| `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
+| `lion 1 (50020): 12.1 m, battle 1, state 0, controller yes, spawn count 7` | Once a second while it lives: its distance to EVE, battle mode, state, controller and the game's spawn counter |
+| `lion 1 (50020) dead after 143 s (InteractionState 3, no controller); body gone after 22.4 s` | Its death and its body's despawn |
+| `lion 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
+| `entrance: ...` | What `coop lion intro` played, or why the entrance was skipped |
+
+A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/78 added`) and ends with a `STOP:`
+line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
+part can wait for a game state that never comes and refuse after 300 frames. See
+[how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
 
 ### Shared enemies (experimental)
 
@@ -1642,9 +1711,10 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again) and the Leviathan display and its free camera (`coop leviathan`; the view goes back as it was). Afterwards
-only `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
-restarts`, and so do the menu, host and leave keys. The race key does nothing.
+drawn again), the Leviathan display and its free camera (`coop leviathan`; the view goes back as it was) and what
+`coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living Lion stays).
+Afterwards only `coop status` and `coop report` answer. Every other command answers
+`STOP: coop off is active until the game restarts`, and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 
