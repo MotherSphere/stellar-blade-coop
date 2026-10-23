@@ -455,7 +455,9 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
 -- (q; 0 once empty), its event; calls: how often it was called; missing: an older DLL without it.
 pd={q={},calls=0,missing=false}
-function load_main(with_native,no_folder)
+-- source: the chunk name main.lua gets instead of its path in the repository, as UE4SS gives it ('@<path>'), which sets
+-- the mod folder.
+function load_main(with_native,no_folder,source)
     native_ok=with_native
     package.loadlib=function(_,name)
         if not native_ok then return nil,'no dll' end
@@ -488,9 +490,9 @@ function load_main(with_native,no_folder)
     kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
     fake_link.Q={notes={}}
     local chunk
-    if no_folder then -- A chunk name with no Scripts folder in it: the mod folder unknown.
+    if no_folder or source then -- no_folder: a chunk name with no Scripts folder in it, the mod folder unknown.
         local f=assert(io.open('mod/StellarCoop/Scripts/main.lua','rb'))
-        chunk=assert(load(f:read('a'),'=main.lua'))
+        chunk=assert(load(f:read('a'),source or '=main.lua'))
         f:close()
     else chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua')) end
     chunk()

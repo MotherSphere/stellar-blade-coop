@@ -222,6 +222,15 @@ refused`. `spawn filter refused: ...` with no key means the filter never started
 or the page would not become writable), and every spawn went on as with it off. See
 [usage.md: Spawn filter](usage.md#spawn-filter-experimental).
 
+### The game crashes when EVE lets go of a crate
+
+Look in `UE4SS.log` for a `[StellarCoop] UE4SS-settings.ini:` line. With `HookBeginPlay` on in
+`ue4ss/UE4SS-settings.ini`, the game can crash when EVE lets go of a movable crate; with `bUseUObjectArrayCache` on, it
+can stutter and crash at startup. Close the game, set `HookBeginPlay = 0` and `bUseUObjectArrayCache = false` (the
+Stellar Blade UE4SS 1.3 values), and start it again. The usual cause is another mod's `UE4SS-settings.ini` copied over
+the 1.3 one. See [INSTALL.md: Other mods](../INSTALL.md#other-mods). `UE4SS-settings.ini not checked: <why>` means the
+mod could not read the file, so check the two lines by hand.
+
 ### Screen notices stopped
 
 `Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line above EVE. That line stays off

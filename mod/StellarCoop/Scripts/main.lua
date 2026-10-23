@@ -142,6 +142,25 @@ local T=require('ui.text')
 local function words() return T.pick(kit and kit.language(),settings and settings.ui_language) end
 -- A notice that build(words) puts together: in the menu's words, and in English for the line above EVE.
 local function tell(build) say(build(words()),build(T.en)) end
+-- UE4SS-settings.ini (core/ue4ss_settings.lua), two folders above the mod's, read only: each key there that UE4SS
+-- reads as on is logged now, and its notice said once this Lua load as soon as one can show (the 250 ms loop below,
+-- with the Steam link only). A file that cannot be read, or is too large, gets a log line and no notice.
+local ue4ss_notes={}
+do
+    local root=folder and folder:match('^(.*)[\\/][^\\/]+[\\/][^\\/]+$')
+    if root then
+        local S=require('core.ue4ss_settings')
+        local text,why=require('core.link').files.read(root..'\\UE4SS-settings.ini',S.LIMIT+1)
+        local on
+        if text then on,why=S.check(text) end
+        if not on then log('UE4SS-settings.ini not checked: '..tostring(why)) end
+        for _,k in ipairs(on or {}) do
+            log('UE4SS-settings.ini: '..k.key..(k.value and ' = '..k.value or ' missing (UE4SS then uses its default, '
+                ..'on)')..'. '..T.en.ue4ss[k.word])
+            ue4ss_notes[#ue4ss_notes+1]=k.word
+        end
+    end
+end
 local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
@@ -860,6 +879,11 @@ if link then
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
+            -- UE4SS-settings.ini's notices, once: in the feed once the UI is up, or above EVE once a save is loaded.
+            if ue4ss_notes[1] and (kit.ready() or world==true) then
+                for _,word in ipairs(ue4ss_notes) do tell(function(w) return w.ue4ss[word] end) end
+                ue4ss_notes={}
+            end
             local dropped,who=kit.lost() -- The focus watchdog fired: as coop ui reset, nothing said on screen.
             if dropped then
                 ui_reset('focus watchdog: '..who..' lost the focus for 1 s: co-op UI closed, the game has its input '

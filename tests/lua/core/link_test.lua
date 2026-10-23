@@ -1211,6 +1211,8 @@ ghost.clear()
 local real=require('core.link').files
 local scratch=os.tmpname()
 assert(real.write(scratch,'menu_key=F5\n')==true and real.read(scratch)=='menu_key=F5\n','A plain write')
+assert(real.read(scratch,4)=='menu' and real.read(scratch,64)=='menu_key=F5\n','A read with a limit')
+assert(real.write(scratch,'') and real.read(scratch,4)=='' and real.read(scratch)=='','An empty file reads empty')
 os.remove(scratch)
 local full=io.open('/dev/full','wb')
 if full then

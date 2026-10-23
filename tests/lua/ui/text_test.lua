@@ -71,7 +71,7 @@ end
 -- put them together.
 local function notices(w)
     local lines={}
-    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','travel'}) do
+    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','travel','ue4ss'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
