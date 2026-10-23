@@ -590,6 +590,10 @@ bool step() {
       request.clear();
       break;
     }
+    case coop::Command::gate: // coop fly and coop slowmo: the game thread's.
+      event(coop::pose::ask_gate(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
@@ -717,6 +721,9 @@ bool step() {
     // to pause); a fault's line goes on screen.
     std::string said = coop::pose::freeze_pass(
         loaded && !switched_off && link->photo_freeze() && coop::pose::lua_state().world, GetTickCount64());
+    if (loaded && !said.empty())
+      link->notice(said);
+    said = coop::pose::debug_pass(linked, coop_marker, GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
     // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the

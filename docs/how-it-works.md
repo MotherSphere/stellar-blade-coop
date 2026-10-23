@@ -1473,6 +1473,33 @@ Only the game can settle these:
 - each AddRow runs the game's table-changed handling over the whole table, so 78 of them in one frame may cause a short
   hitch, not measured.
 
+## Developer flight and slow motion
+
+`coop fly` and `coop slowmo` switch on two developer gates that the game ships off (`game/debug_keys.h`, run by
+`glue/tick/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
+one function (`0x1423c9ea0`) and the time-control key (R1) only through another (`0x1423c9f90`), and each passes its key
+on only while its gate reads true. A gate is one bool in a settings singleton of the game's, not a UObject: the pointer
+at `0x147032540` (the globals block's `+0x18`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
+`Strihash_DEPRECATED` of the gate's name (`UseFlyingActionKey` `0x1147F83C`, `UseTimeControlKey` `0x43812976`), which
+its constructor fills with false. The cheat command meant for them, `USBCheatManager::SBSetCustomBool`, does nothing in
+the shipping build, and the character's own `SetCustomBool` writes another map, so no Lua call reaches them.
+
+Every 250 ms while a gate is wanted, the game thread looks its key up as the game's lookup (`0x14261db60`) does and
+writes 1 into the value byte of the element it finds. It first checks that the gate function's own copy of the key (a
+static that function fills at its first call, at `0x1471082ec` and `0x1471082f4`) holds the same key, that the map's
+counts and buckets are in range and that the byte reads 0 or 1. It never inserts an element. The reads go through
+`ReadProcessMemory`, and the one write runs under the gates' own SEH latch. The value read before the first write goes
+back once the gate is no longer wanted: `off`, `coop off`, the next Lua load (the worker clears the asks when Lua's
+session token changes) or a save that is not a co-op one. Slow motion is wanted only while no friend is linked, since
+time dilation is local. If the game builds the map again (its values back to false), the next pass sets the gate again
+and the log says `gates set again`. A missing key, a static that holds another key or a map out of range refuses the
+gate on screen, with no write.
+
+With the flight gate on, the character tick starts a flight while the key is held in the air (the falling movement
+mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActionEnableRemainTime`, 3 s, and no
+cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
+`TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks

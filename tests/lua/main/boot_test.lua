@@ -19,7 +19,8 @@
 -- reaches cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off), coop
 -- wear reaches cut/wear.lua with all its words on any slot (restored and ticked every frame, waiting while the game is
 -- paused, ended by coop off), coop lines reaches cut/lines.lua with all its words on any slot (its lines into the
--- chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
+-- chat's feed only while the kit's root is up; ticked every frame, ended by coop off), coop fly and coop slowmo ask the
+-- native part (on from the co-op save slot only),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
@@ -627,6 +628,23 @@ loops[1].f()
 assert(ln.ticks==ln.t+1 and last()=='[StellarCoop] STOP: Quinn stopped: the co-op UI\'s feed cannot show its lines.\n',
     last())
 ln.says=nil
+-- coop fly and coop slowmo: on asked of the native part on a co-op save only, off on any; anything else their usage.
+for _,name in ipairs({'fly','slowmo'}) do
+    local n=#asked
+    coop(name,'on')
+    assert(#asked==n and last():find('^%[StellarCoop%] STOP: coop '..name..' on runs only on a co%-op save'),last())
+    coop(name,'off')
+    assert(asked[#asked]==name..' off' and last()=='[StellarCoop] OK: asked the native part: '..name..' off\n',last())
+    status_text=COOP
+    coop(name,'on')
+    assert(asked[#asked]==name..' on',asked[#asked])
+    status_text=plain
+    n=#asked
+    for _,bad in ipairs({{},{'On'},{'on','x'},{'toggle'}}) do
+        coop(name,table.unpack(bad))
+        assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop '..name..' on|off\n',last())
+    end
+end
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
 -- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
 assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui.text').en)=='Kaanta'

@@ -71,6 +71,9 @@ the Steam client that the game already runs, so the mod needs no other program a
   sequences give them: the first meeting with Adam, Quest_Sub_015 with Mann and Orcal's last message, Quinn and Sky
   Hall. The text comes from your game, which has most of them in English and Korean only, so other languages show the
   Korean (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
+- `coop fly` and `coop slowmo` switch on the developer flight (R2 or Z in the air) and slow motion (R1) that the game
+  ships turned off, on a co-op save (see
+  [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS

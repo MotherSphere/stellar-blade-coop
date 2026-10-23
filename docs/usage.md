@@ -824,6 +824,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command, untested in game): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
+| `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) (test commands, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -973,9 +974,9 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
-[viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`,
-`coop lion intro` and `coop lion control` (below) run on any save. `coop fight pilot` runs on any save too, since same
-place only moves enemies while shared enemies run.
+[viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
+`coop lion control`, `coop fly on` and `coop slowmo on` (below) run on any save. `coop fight pilot` runs on any save
+too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 
@@ -1251,6 +1252,33 @@ lines are Korean placeholder text in every language, most with the speaker's nam
 The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
 only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the
 feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is paused.
+
+### Debug flight and slow motion: `coop fly` and `coop slowmo`
+
+The game's code holds two developer tools that it ships switched off: a flight move and a slow-motion key. Each one
+waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
+command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
+the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
+native part and run on a [co-op save](#co-op-saves) only. They have not been tried in game yet.
+
+- `coop fly on`: hold R2 (Z on the keyboard) while EVE is in the air after a jump, and she flies until you release it.
+  Flight time comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's own
+  values. During a flight the face buttons dodge up, down, left and right. How it looks is unknown: the game may have
+  no animation left for it and show EVE in a fall pose.
+- `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
+  keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
+- `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is
+  not a co-op one, both wait until you are back on one. Nothing of it is saved: the game builds these settings again
+  at each start.
+
+The keys are the game's own and keep their other uses. R2 is also Interact and the fishing reel, Z walks forward on an
+AZERTY keyboard and R1 opens the Burst skills. So with `coop fly on`, walking forward in the air on AZERTY flies, and
+with `coop slowmo on` holding R1 for a Burst skill slows time. Flight can carry EVE past places the game expects her to
+reach on foot, and the next save keeps where she is: hence the co-op saves only.
+
+The native part's lines go to `coop-link.log`: `coop fly on: UseFlyingActionKey set at the game thread's next pass`,
+then `gate fly: on, ours, 1 writes` once the setting is set. When the game's memory does not hold the setting the way
+the pinned build does, the native part writes nothing, logs why and says `coop fly refused: ...` on screen.
 
 ### Shared enemies (experimental)
 
@@ -1843,12 +1871,12 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view
-goes back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
-lines; a living Lion stays), the `coop wear` look (your EVE's own hair and suit come back) and a `coop lines` scene.
-Afterwards only
-`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
-restarts`, and so do the menu, host and leave keys. The race key does nothing.
+drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
+back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
+Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene and the game's
+developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back). Afterwards only
+`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
+and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 

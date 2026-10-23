@@ -527,6 +527,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     capture_text = display_text = "\x01";
     rebuild();
     ++freeze_unsure; // Our pause tag is removed unless it is still wanted.
+    debug_asked = 0; // And SB's developer gates go back to the game's values.
     event("new Lua session: capture and ghost dropped");
   }
   take_capture();
