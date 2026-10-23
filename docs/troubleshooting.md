@@ -170,7 +170,8 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
 - Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the last
   scan found on that map. With no `booths:` line at all, no scan has run yet: the on-screen UI is off
   (`UI off until the mod reloads`, or `coop ui off`), `coop off` ran, or the native part is not loaded.
-  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer and wait 4 s.
+  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer, stop and wait 4 s. No scan runs while
+  EVE runs or sprints.
   `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 4 s later.
 - Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.

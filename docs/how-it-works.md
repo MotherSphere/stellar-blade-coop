@@ -78,12 +78,14 @@ The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the le
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
 `session/booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4
-s, and only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps
-each booth's `EnvActorName` and position, and no booth is read between scans. Each scan is timed: `UE4SS.log` gets
-`booths: <n> on <map> (<ms> ms)` when the count or the map changes, and `booths: slow scan <ms> ms (<n> found)` for a
-scan of 5 ms or more. The menu key opens the line when the nearest booth is within 3 m of EVE. Nothing in the game
-changes: the mod edits no table row, spawns nothing and fires no zone event, and the booth's travel and save stay the
-game's.
+s, and only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. `FindAllOf`
+walks every object, so a scan holds the game thread: 63 to 79 ms on the Great Desert in 0.5.0-beta.1, a freeze that
+showed most while EVE ran. A scan that is due therefore waits while EVE moves faster than 3 m/s (her run is 5 m/s) and
+runs once she walks or stops. A scan keeps each booth's `EnvActorName` and position, and no booth is read between scans.
+Each scan is timed: `UE4SS.log` gets `booths: <n> on <map> (<ms> ms)` when the count or the map changes, and
+`booths: slow scan <ms> ms (<n> found)` for a scan of 5 ms or more. The menu key opens the line when the nearest booth
+is within 3 m of EVE. Nothing in the game changes: the mod edits no table row, spawns nothing and fires no zone event,
+and the booth's travel and save stay the game's.
 
 ### Files shared by Lua and the native part
 
