@@ -179,6 +179,12 @@ with tempfile.TemporaryDirectory() as folder:
     assert state['zone Zone_SD_10 object SD_10_EffVol_007 activate'] == 'ESBObject_Disable', state
     assert not [key for key in state if 'ActorLocation' in key or key.endswith('bZoneReset')], state
 
+    # 0b. A finished quest held as its whole struct, as this game's newer saves write it: the alias still names the
+    #     line, next to the older saves' plain name.
+    struct_done = {'DataMap_SBQuest': [['Quest', {'CompleteQuestList': [
+        {'QuestAlias': 'Quest_Epic_00', 'QuestState': 3}]}]]}
+    assert story.story(struct_done)['quest Quest_Epic_00 complete'] is True, story.story(struct_done)
+
     # 1. What did not change the story at all: moved, reset, and the zones listed the other way round.
     again = save(folder / 'again.sav', quest_state=1, quest_value=0, achievement=False,
                  env_activate='ESBObject_Disable', interacted=False, reset=False,
