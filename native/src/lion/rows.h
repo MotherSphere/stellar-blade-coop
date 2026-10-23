@@ -541,8 +541,9 @@ inline uint32_t rows_of(Table t) {
 
 // rows.h's Game: the glue's (glue/tick/lion_game.inc) or a test's. read (the tables' headers only, false when
 // unmapped) and write (the block only); name(text, len, number): FName's MakeWithNumber with FNAME_Add, as a word
-// (ComparisonIndex, then Number in the high half; 0 is None); find(table, name): the row by name (FUN_141aa8760), or
-// 0; id_name(table, id): the row name the table's ID map holds for id (FUN_141a2ce50), or 0; construct(struct, row):
+// (ComparisonIndex, then Number in the high half; 0 is None); find(table, name): the row by name in the table's
+// RowMap, whatever its row struct (not SB's FindRow FUN_141aa8760, which knows CharacterTable's only), or 0;
+// id_name(table, id): the row name the table's ID map holds for id (FUN_141a2ce50), or 0; construct(struct, row):
 // InitializeStruct (the struct's vtable +0x2a8); copy(struct, dest, src): CopyScriptStruct; add(add_row, table, name,
 // row): the AddRow the table's slot holds. For the read-back: character(id) and skill(id), SB's own row lookups by ID
 // through its table registry (FUN_141a9de20, FUN_141a9d900), and stance(id), the stance's row name by ID

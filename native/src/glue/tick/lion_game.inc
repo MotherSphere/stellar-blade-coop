@@ -5,25 +5,30 @@ namespace {
 // ---- The Lion's rows (lion/rows.h), the game thread's calls ----
 // SB's functions on the pinned build (the Lion study, plan A): InitializeStruct through the row struct's vtable +0x2a8
 // and CopyScriptStruct (0x1429d8830), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
-// pause's kMakeName); a table's row by name (FUN_141aa8760) and its ID map's row name (FUN_141a2ce50), both read-only;
-// AddRow through the table's vtable slot +0x2b0, once lion/rows.h saw it hold 0x14417ba30. For the read-back, the
-// registry's own lookups by ID: FUN_141a9de20 (CharacterTable), FUN_141a9d900 (SkillTable) and FUN_141a2cef0 (a
+// pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
+// that TMap's find 0x140e8c5f0, and its ID map's row name (FUN_141a2ce50), both read-only; AddRow through the table's
+// vtable slot +0x2b0, once lion/rows.h saw it hold 0x14417ba30. Not SB's FindRow (FUN_141aa8760): it is
+// FindRow<FSBCharacterTableProperty>, null for a table whose row struct is no child of that struct, as the other 7
+// tables' are not (FSBTablePropertyBase's other children); the TMap find is its untyped second half. For the read-back,
+// the registry's own lookups by ID: FUN_141a9de20 (CharacterTable), FUN_141a9d900 (SkillTable) and FUN_141a2cef0 (a
 // stance's row name, the registry's table 10), on the registry at fight::kTables +0x20, read and never made (its getter
 // allocates when null). All of them run in coop_tick only while the gate holds: the build pinned, coop off not on, the
 // cached net mode 0 and no logic task in flight (logic +0x5c0 == 0, as stage 3b's force target waits for it), so no
 // logic task starts and reads a map AddRow grows before our call returns, and SB's game-thread HUD reads CharacterTable
 // on this thread only. A shut gate tries again at the next frame and gives up after lion::kGateTicks frames, with why.
 // The Lion's own SEH latch: its first fault ends the Lion's calls for the run and leaves the rest of the mod running.
-constexpr uint64_t kCopyStruct = 0x1429d8830, kFindRow = 0x141aa8760, kIdName = 0x141a2ce50,
+constexpr uint64_t kCopyStruct = 0x1429d8830, kMapFind = 0x140e8c5f0, kIdName = 0x141a2ce50,
                    kCharacterById = 0x141a9de20, kSkillById = 0x141a9d900, kStanceName = 0x141a2cef0;
 constexpr size_t kInitializeSlot = 0x2a8;
+// RowMap, a TMap<FName, uint8 *>: its TSet's elements first, 0x18 bytes each ({FName, row, hash next, hash index}).
+constexpr size_t kRowMap = 0x30, kRowPair = 0x18, kPairRow = 8;
 constexpr int32_t kStanceTable = 10;
 constexpr size_t kSpawnCount = 0x198; // The spawn manager's counter (fight::kSpawnManager's +0x198), for the log.
 constexpr uint64_t kLionCountMs = 250;
 using Initialize = void (*)(void *row_struct, void *row, int32_t count);
 using CopyStruct = void (*)(void *row_struct, void *dest, const void *src, int32_t count);
-using FindRow = void *(*)(void *table, uint64_t name);                // The FName by value; null when absent.
-using IdName = uint64_t *(*)(void *table, uint64_t *out, int32_t id); // *out 0 when the ID is free.
+using MapFind = int32_t *(*)(const void *map, int32_t *index, uint64_t name); // The FName by value; *index -1: absent.
+using IdName = uint64_t *(*)(void *table, uint64_t *out, int32_t id);         // *out 0 when the ID is free.
 using AddRow = void (*)(void *table, uint64_t name, const void *row);
 using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
@@ -66,7 +71,9 @@ struct WinLionGame {
     return out;
   }
   uint64_t find(uint64_t table, uint64_t name) {
-    return reinterpret_cast<uintptr_t>(game_function<FindRow>(kFindRow)(reinterpret_cast<void *>(table), name));
+    int32_t index = -1;
+    game_function<MapFind>(kMapFind)(reinterpret_cast<const void *>(table + kRowMap), &index, name);
+    return index < 0 ? 0 : at<uintptr_t>(at<uintptr_t>(table + kRowMap) + uint64_t(index) * kRowPair + kPairRow);
   }
   uint64_t id_name(uint64_t table, uint32_t id) {
     uint64_t out = 0;
@@ -129,10 +136,14 @@ __declspec(noinline) lion::Answer lion_body(lion::Why &why, uint32_t &mode) {
   }
   return a;
 }
-__declspec(noinline) void lion_count_body() {
-  const uintptr_t manager = at<uintptr_t>(base + (fight::kSpawnManager - game::kImageBase));
-  if (game::plausible(manager))
-    lion_spawns = at<int32_t>(manager + kSpawnCount);
+// The spawn manager's counter, for the log only: through safe_read, so a bad read leaves the last value and never
+// reaches the latch that gates the rows.
+void lion_count() {
+  uint64_t manager = 0;
+  int32_t n = 0;
+  if (safe_read(base + (fight::kSpawnManager - game::kImageBase), &manager, 8) && game::plausible(manager) &&
+      safe_read(manager + kSpawnCount, &n, 4))
+    lion_spawns = n;
 }
 void lion_finish(lion::Answer a) {
   lion_pending = false;
@@ -141,7 +152,7 @@ void lion_finish(lion::Answer a) {
 }
 // Each frame on the pinned build until the latch: a new ask taken, a waiting one tried (refused at once after coop
 // off, and after kGateTicks shut frames), and once a first ask came the spawn manager's counter every 250 ms. A fault
-// closes the latch and answers the ask with it.
+// in the rows' calls closes the latch and answers the ask with it.
 void lion_tick() {
   bool got = false;
   if (lion_m.try_lock()) {
@@ -184,15 +195,7 @@ void lion_tick() {
   }
   if (const uint64_t now = GetTickCount64(); lion_taken && !blocked && now >= lion_next_count) {
     lion_next_count = now + kLionCountMs;
-    __try {
-      lion_count_body();
-    } __except (fault_filter(GetExceptionInformation(), lion_fault_code, lion_fault_rva, lion_fault_address)) {
-      lion_faulted = true;
-    }
-    if (lion_faulted) {
-      a = lion::Answer(), a.state = lion::State::fault;
-      lion_finish(a);
-    }
+    lion_count();
   }
 }
 } // namespace
