@@ -1357,10 +1357,14 @@ The native part adds 78 rows to 8 tables. Each one is a copy of a shipped Behemo
 - 15 skills (IDs 5002000 to 5002014) with their 15 commands and 41 steps (a skill's ID times 100, plus 2, 3 or 4). Each
   first step names the skill's Lion Show, and each step lasts as long as that Show's own step. Each Hit step names a
   Lion attack collision group (`Mon_Lion_Attack_L_Arm_Collision`, `R_Arm` or `RL_Arm`). The generator checked each group
-  against the Large blueprint's collision data and the sockets the attack's clip moves.
+  against the Large blueprint's collision data and the sockets the attack's clip moves. The roar's first step is shorter
+  than the Behemoth's (1.332 s, not 1.6 s), so its action assist check moves to 1.266 s, the same 0.066 s before the
+  step ends.
 - The stance `M_LionC_Default` (500200), which lists the 15 commands. It leaves out the Behemoth's `MinimumHP_60p` start
   effect, which holds HP at 60% until a phase skill the Lion lacks. Two anim sets (500200 and 500201) name the Lion's
-  run clips and drop the two Behemoth clips the Lion has no copy of.
+  run clips and drop the Behemoth's shield-break clip, which the Lion has no copy of. `Custom_Anim4`, the clip of the
+  second just-parry result that 7 of the 12 attacks go to on a perfect parry, names the Lion's one just-parry clip
+  (`Animation/Result_Hit_JustParry`), as 153 of the game's anim sets do.
 - The dead row (the Lion's death Show, then the `M_LionA_Despawn` dissolve) and the appearance row (50020, the Large
   blueprint).
 - Two CharacterTable rows, added last: `M_LionC` (50020, the tree `M_Skulling_AI_Test`) and `M_LionC_Lurker` (50021,
@@ -1369,8 +1373,10 @@ The native part adds 78 rows to 8 tables. Each one is a copy of a shipped Behemo
   the boss bar binds it), rank, tribe and stats. Their `Name` stays empty.
 
 A generator kept outside the repository writes the data part of `lion/rows.h` from the offline reader's dumps of the
-tables and the pak listing. It refuses a taken ID or name and a missing donor, Show, clip, blueprint or tree. It also
-refuses a field the SDK does not place where its patch writes.
+tables and the pak listing. It refuses a taken ID or name (in any case, as the game compares names) and a missing donor,
+Show, clip, blueprint or tree, including a clip that the Show of a step outside the kit plays when a Lion step goes to
+it (a perfect parry's result). It also refuses a field the SDK does not place where its patch writes, and an action
+assist check after its step's end.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and

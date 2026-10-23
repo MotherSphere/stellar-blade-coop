@@ -62,14 +62,15 @@ local DEAD='CH_M_NA_02_Lion/Basic/M_Lion_Dead'
 Lion.ROWS={}
 local function row(t,name,id,checks) Lion.ROWS[#Lion.ROWS+1]={table=t,name=name,id=id,checks=checks} end
 -- The v1 kit in its rows' order: the skill, its steps' durations (s), its Hit step's collision group (none: no Hit
--- collision). IDs 5002000 on; a step's ID is its skill's times 100 plus 2, 3, 4.
+-- collision) and, for a Cast step shorter than its donor's, its action assist check (s, as far before its end as the
+-- donor's). IDs 5002000 on; a step's ID is its skill's times 100 plus 2, 3, 4.
 local KIT={{'ClawAttackLeft',{0.8,0.2,2.067},'L_Arm'},{'ClawAttackRight',{0.8,0.2,2.067},'R_Arm'},
     {'ClawAttackChaseLeft',{0.7,0.3,2.067},'L_Arm'},{'ClawAttackChaseRight',{0.7,0.3,2.067},'R_Arm'},
     {'TurnAttackLeft',{0.58,0.32,1.6},'L_Arm'},{'TurnAttackRight',{0.58,0.32,1.6},'R_Arm'},
     {'RunAttackLeft',{0.83,0.42,1.68},'R_Arm'},{'RunAttackRight',{0.83,0.42,1.68},'L_Arm'},
     {'JumpAttackLow',{1.13,0.1,0.97},'RL_Arm'},{'JumpAttackHigh',{1.96,0.64,2.4},'RL_Arm'},
     {'BackJumpToAttack',{1.2,0.1,0.9},'RL_Arm'},{'AttackToBackJump',{1.15,0.2,2.25},'RL_Arm'},
-    {'Roar',{1.332,1.268,1.533}},{'SideStepLeft',{2.0}},{'SideStepRight',{2.0}}}
+    {'Roar',{1.332,1.268,1.533},nil,1.266},{'SideStepLeft',{2.0}},{'SideStepRight',{2.0}}}
 local STEPS={'_Cast1','_Hit1','_Finish1'}
 local commands={}
 for i,k in ipairs(KIT) do
@@ -79,6 +80,7 @@ for i,k in ipairs(KIT) do
         local c={{'Duration','f',d[s]}}
         if s<#d then c[#c+1]={'NextStepAlias','n',skill..STEPS[s+1]} end
         if s==1 then c[#c+1]={'ShowPath','n','CH_M_NA_02_Lion/Skill/'..skill..'_1'} end
+        if s==1 and k[4] then c[#c+1]={'ActionAssistCheckDelay','f',k[4]} end
         if s==2 and k[3] then c[#c+1]={'AttackCollisionGroupArray','s',GROUP:format(k[3])} end
         row('SkillActiveStepTable',skill..STEPS[s],id*100+s+1,c)
     end
@@ -97,7 +99,9 @@ for k,set in ipairs({'Peaceful','Battle'}) do
         ..'ShortMoveToIdle_R')
     to('Animation/Mon_B_Lion_Run_L_Turn','RunTurn_L WalkTurn_L')
     to('Animation/Mon_B_Lion_Run_R_Turn','RunTurn_R WalkTurn_R')
-    to('','Custom_Anim3 Custom_Anim4') -- The Behemoth's shield-break and second just-parry clips: none for the Lion.
+    to('','Custom_Anim3') -- The Behemoth's shield-break clip: none for the Lion.
+    -- The second just parry's (a perfect parry on the Hits of ScratchLeft and TurnAttackLeft): the Lion's one clip.
+    to('Animation/Result_Hit_JustParry','Custom_Anim4')
     row('CharacterAnimSetTable','M_LionC_'..set,500199+k,c)
 end
 row('CharacterStanceTable','M_LionC_Default',500200,{{'CommandArray','N',table.concat(commands,'|')},

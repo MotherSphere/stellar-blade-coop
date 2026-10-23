@@ -114,7 +114,7 @@ do
             else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
         end
     end
-    assert(n==78 and #L.ROWS==78 and #patches==194,n..' rows, '..#patches..' patches')
+    assert(n==78 and #L.ROWS==78 and #patches==195,n..' rows, '..#patches..' patches')
     assert(L.IN.added=='78/78' and L.IN.char=='2/2' and L.IN.skills=='15/15' and L.IN.stance=='1/1')
 end
 
