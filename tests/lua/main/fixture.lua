@@ -304,14 +304,14 @@ package.loaded['race.doro']={new=function(o)
         restore=function() dr.restores=dr.restores+1 end,
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
 end}
--- coop leviathan's, coop gardener's and coop tendril's read, display and free camera (cut/leviathan.lua;
--- leviathan_test tests it): what new got (log, store, blocked), its commands (each with its creature's word as who),
--- restores, ticks and stops, what a tick says, whether its free camera is on.
+-- The cut model viewer's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got
+-- (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a tick
+-- says, whether its free camera is on.
 lv={}
 package.loaded['cut.leviathan']={new=function(o)
     lv.o=o
     local commands={}
-    for _,who in ipairs({'leviathan','gardener','tendril'}) do
+    for _,who in ipairs({'leviathan','gardener','tendril','mann','nier','orcal','enya'}) do
         commands[who]=function(...) lv.cmds[#lv.cmds+1]={who=who,...}; return true,'lv '..tostring((...)) end
     end
     return {commands=commands,
@@ -348,6 +348,15 @@ package.loaded['cut.scene']={new=function(o)
         restore=function() sc.restores=sc.restores+1 end,
         tick=function() sc.ticks=sc.ticks+1; if sc.says then return table.unpack(sc.says) end end,
         stop=function() sc.stops=sc.stops+1 end}
+end}
+-- coop lines (cut/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and stops, what
+-- a tick says.
+ln={}
+package.loaded['cut.lines']={new=function(o)
+    ln.o=o
+    return {command=function(...) ln.cmds[#ln.cmds+1]={...}; return true,'ln '..tostring((...)) end,
+        tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
+        stop=function() ln.stops=ln.stops+1 end}
 end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
@@ -500,7 +509,7 @@ package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | '
+    ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
@@ -542,6 +551,7 @@ function load_main(with_native,no_folder,source)
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
+    ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}

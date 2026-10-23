@@ -50,15 +50,17 @@
 -- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
 -- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
 -- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
--- turning the camera on, on a co-op save only); coop gardener and coop tendril, the same words for the cut Naytibas 1
--- and 6, one of the three shown at a time; coop lion [intro]|rows|control|brain skulling|lurker, the cut Lion spawned
--- as an enemy to fight, its table rows added through the native part (cut/lion.lua; left out of the usage line; the
--- words that spawn on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read by
--- the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
--- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui
--- and coop off, which stay here. coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only
--- and on any save (cut/wear.lua). coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater
--- (cut/scene.lua; a scene on a co-op save only).
+-- turning the camera on, on a co-op save only); coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop
+-- enya, the same words for the cut Naytibas 1 and 6 and four cut models, one of them shown at a time; coop lion
+-- [intro]|rows|control|brain skulling|lurker, the cut Lion spawned as an enemy to fight, its table rows added through
+-- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only). coop off stops
+-- everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op
+-- saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in Scripts/commands/
+-- (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here. coop wear
+-- [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua). coop
+-- scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op save
+-- only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save
+-- (cut/lines.lua).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -175,7 +177,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -183,7 +185,7 @@ local function ask(line)
     end
 end
 -- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop lion's words that spawn, show
--- and cam turning the free camera on in coop leviathan, coop gardener and coop tendril, and a scene of coop scene run
+-- and cam turning the free camera on in coop leviathan and the other viewer commands, and a scene of coop scene run
 -- only on a co-op save (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts
 -- one), for a co-op copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam
 -- link and every other command are never locked to it.
@@ -230,7 +232,7 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- The cut Naytiba viewer of coop leviathan, coop gardener and coop tendril (cut/leviathan.lua): its read, display and
+-- The cut model viewer of coop leviathan and the other viewer commands (cut/leviathan.lua): its read, display and
 -- free camera, logging [LV] lines. coop-leviathan.txt lets the next Lua load remove a display this one left and give
 -- the player controller back. The free camera reads no key while the co-op menu or one of its boxes is open.
 local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
@@ -251,6 +253,9 @@ local wear=require('cut.wear').new({log=function(m) print('[StellarCoop][WR] '..
     store=link and link.store('coop-wear.txt'),paused=function() return kit~=nil and kit.paused(true) end})
 -- coop scene (cut/scene.lua), logging [SC] lines: two cut scenes through two of SB's theater rows.
 local scene=require('cut.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end})
+-- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles, in the chat's feed only.
+local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
+    say=function(text) return box~=nil and box.say(text) end,ready=function() return kit~=nil and kit.ready() end})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
@@ -355,7 +360,7 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
     lion=lion,group=function() return group end,travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
-o.wear,o.scene=wear,scene
+o.wear,o.scene,o.lines=wear,scene,cut_lines
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -411,6 +416,8 @@ local commands={
         if not stopped then log('lion: '..tostring(e)) end
         stopped,e=pcall(scene.stop) -- The Stop row: the game's camera, input and HUD back.
         if not stopped then log('scene: '..tostring(e)) end
+        stopped,e=pcall(cut_lines.stop)
+        if not stopped then log('lines: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -557,6 +564,8 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=lion.tick()
     if message then report(ok,message) end
     ok,message=scene.tick()
+    if message then report(ok,message) end
+    ok,message=cut_lines.tick()
     if message then report(ok,message) end
     local raced=os.clock()
     if link and race.armed() then inbox() end

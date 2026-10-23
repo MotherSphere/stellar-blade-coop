@@ -57,7 +57,9 @@ the Steam client that the game already runs, so the mod needs no other program a
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see
   [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). None of them can be
-  fought: the game has no entry for them in its character table.
+  fought: the game has no entry for them in its character table. `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+  show the early Mann model, the NieR collaboration's three cut machines and prototype statues of Orcal and Enya the
+  same way.
 - `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
   its model, animations and attacks but no table row, so the mod adds the 78 rows it needs to the game's tables in
   memory. `coop lion intro` plays its entrance first. It writes nothing to a save, and only your game has it (see
@@ -68,6 +70,13 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop scene` plays two scenes cut from the game through its own cutscene player, each at its place in the world:
   Emil's farewell from an ending of the first DLC and Orcal's monologue from the 2022 trailer. It writes nothing to a
   save and has not been tried in game yet (see [docs/usage.md](docs/usage.md#cut-scenes-coop-scene)).
+- `coop lines` shows the subtitles of four scenes cut before they were voiced in the chat's feed, timed as the game's
+  sequences give them: the first meeting with Adam, Quest_Sub_015 with Mann and Orcal's last message, Quinn and Sky
+  Hall. The text comes from your game, which has most of them in English and Korean only, so other languages show the
+  Korean (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
+- `coop fly` and `coop slowmo` switch on the developer flight (R2 or Z in the air) and slow motion (R1) that the game
+  ships turned off, on a co-op save (see
+  [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS

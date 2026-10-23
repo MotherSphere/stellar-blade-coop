@@ -813,6 +813,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -824,6 +825,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command, untested in game): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
+| `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) (test commands, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -972,9 +974,10 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
-`coop leviathan cam` when it turns the camera on (and the same two in `coop gardener` and `coop tendril`), `coop lion`,
-`coop lion intro` and `coop lion control` (below) run on any save. `coop fight pilot` runs on any save too, since same
-place only moves enemies while shared enemies run.
+`coop leviathan cam` when it turns the camera on (and the same two in the six other
+[viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
+`coop lion control`, a scene of `coop scene`, `coop fly on` and `coop slowmo on` (below) run on any save.
+`coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 
@@ -989,8 +992,10 @@ show three of them:
   (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
 
 The three commands take the same words, described below with `coop leviathan`, and share one display and one
-[free camera](#free-camera). One creature is shown at a time: a `show` of another one removes the first, and its answer
-starts with `Leviathan removed: one cut Naytiba is shown at a time.` (or the Gardener or the Tendril). They never spawn
+[free camera](#free-camera) with four more commands for
+[other cut models](#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya). One model is shown at a time: a
+`show` of another one removes the first, and its answer starts with
+`Leviathan removed: one cut model is shown at a time.` (or the name of the other model). They never spawn
 an enemy or a character. What they show is a plain actor with one mesh and collision off, like the Doros of a race, so
 nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `[StellarCoop][LV]`.
 
@@ -1047,13 +1052,35 @@ nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `
 - `skin`: the Gardener has only `default`, its own textures. The Tendril has `hydra` and `default`. Its `default` is the
   engine's grey, since its one material slot is empty. Each creature keeps its own last skin for its next `show`.
 - `move`, `skin` and `play` act on the shown mesh only when it is that command's creature: with the Gardener shown,
-  `coop tendril move 20` answers `no Tendril is shown: coop tendril show first`. `off` of any of the three removes the
-  shown mesh, whichever it is, and turns the free camera off.
+  `coop tendril move 20` answers `no Tendril is shown: coop tendril show first`. `off` of any of the viewer commands
+  removes the shown mesh, whichever it is, and turns the free camera off.
+
+#### Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+
+Four more test commands use the same viewer, words and free camera for cut models that are not Naytibas. None of them
+has been tried in game yet.
+
+| Command | `show` words | What it shows |
+| --- | --- | --- |
+| `coop mann` | `body` | The early Mann, `CH_NPC_Mann` in `/Game/Art/Character/NPC/Mann/`, about 3.5 m tall, with his 4 animations: 3 idles and a run. The shipped Mann uses another mesh, `CH_NPC_Mann_Body` in `CH_NPC_Mann_01/`. |
+| `coop nier` | `square` (the default), `squareb`, `cylinder`, `cylinderb`, `cylinderc`, `sphere`, `sphereb` | The NieR collaboration's three cut machines, `CH_M_NA_951` to `CH_M_NA_953` in `/Game/DLC_1/Art/Character/Monster/`, with their TypeB and TypeC variants: blockout shapes of 32 to 810 vertices with no material, drawn in the engine's grey |
+| `coop orcal` | `test1` (the default), `test2`, `native` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall) and `XionElder_Native_Preview` |
+| `coop enya` | `mech` (the default), `enya05` | Enya prototypes in `/Game/Art/Character/NPC/CH_NPC_Enya/Temp/`: `CH_NPC_Enya_Mech` and `Enya_05`, 1.6 and 1.7 m tall |
+
+- Only the early Mann plays animations. The NieR machines have none: their blend spaces hold no samples, so `list`
+  reads them as `list asset` lines and nothing plays them. The Orcal and Enya meshes have one bone each, in a fixed
+  pose.
+- `auto` puts each model's lowest point at EVE's feet, 1.6 times its bounding sphere radius away and at least 6 m
+  (3 m for the Orcal and Enya statues).
+- `skin` takes `default` only.
+- `list` reads each command's meshes, skeletons, Blueprint classes and physics assets (the NieR blend spaces too), then
+  the CharacterTable rows that contain `CH_NPC_Mann_Blueprint`, `NA_95`, `OrcalTest`, `Enya_Mech` or `Enya_05`. A
+  plain `Mann` would match the shipped Mann's rows.
 
 #### Free camera
 
 The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off
-(`coop gardener cam` and `coop tendril cam` do the same with the same camera).
+(`cam` of the other viewer commands does the same with the same camera).
 Turning it on needs a co-op save, like `show`; turning it off works on any save. It starts where the game's camera is
 and blends there in 0.3 s. EVE keeps standing where she was: while the camera is on, the game ignores the move input
 of her controller. Its look input stays on, and the free camera turns with the controller, so the mouse and a
@@ -1259,6 +1286,62 @@ The log lines, in `UE4SS.log`:
 | `play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 3.2 m from the stage` | The game was asked to play it |
 | `playing: MV_DLC_Ending_E03, 1.0 s after the call` | The game plays it |
 | `Emil's farewell ended after 48 s. (the farewell take back on its own sequence)` | Its end and what was put back |
+
+### Cut scene lines: `coop lines`
+
+The game's files hold the subtitles of scenes that were cut before they were voiced. `coop lines <name>` shows one of
+these scenes in the chat's feed, line by line, at the times its level sequences give, with the speaker's name before
+each line. Nothing else plays: no camera, character or sound. It runs on any save and writes nothing. It has not been
+tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
+
+| Name | Scene | Lines | Length |
+| --- | --- | --- | --- |
+| `adam` | The first meeting with Adam in the Tetrapod (he replaces EVE's nerve module and makes the Hall of Records deal), then the drone on the arrival at Eidos 7 | 49 | 3 min 7 s |
+| `warrior` | Quest_Sub_015, a side quest after Raven's attack on Xion: Mann in the empty Presence Chamber, then Orcal's recorded last message | 47 (2 more have no text in the game) | 3 min 47 s |
+| `quinn` | Quinn, a Xion engineer who insists he is human, in three short barks | 10 | 27 s |
+| `skyhall` | Sky Hall, an earlier route where Lily leads EVE and Adam through a temple toward the Great Desert | 37 | 1 min 29 s |
+
+- `coop lines` lists the scenes, and the one running.
+- `coop lines <name>` starts one. A second `coop lines <name>` replaces it.
+- `coop lines stop` ends it. `coop off`, a Lua reload (Ctrl+R) and the co-op UI going off end it too.
+
+The words come from your game when the scene starts: the mod holds only each line's start time and its key in the game's
+`StringTable_Seq`, or for Sky Hall its subtitle section in the test sequence. The game has the `adam` and `warrior`
+lines in English and Korean, and Quinn's in Japanese too. In its other languages the game itself gives the Korean text,
+its source language, so the lines show in Korean and the command's answer says how many do. Getting English there would
+mean switching the whole game's language or copying the lines into the mod, and `coop lines` does neither. The Sky Hall
+lines are Korean placeholder text in every language, most with the speaker's name inside.
+
+The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
+only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the
+feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is paused.
+
+### Debug flight and slow motion: `coop fly` and `coop slowmo`
+
+The game's code holds two developer tools that it ships switched off: a flight move and a slow-motion key. Each one
+waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
+command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
+the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
+native part and run on a [co-op save](#co-op-saves) only. They have not been tried in game yet.
+
+- `coop fly on`: hold R2 (Z on the keyboard) while EVE is in the air after a jump, and she flies until you release it.
+  Flight time comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's own
+  values. During a flight the face buttons dodge up, down, left and right. How it looks is unknown: the game may have
+  no animation left for it and show EVE in a fall pose.
+- `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
+  keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
+- `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is
+  not a co-op one, both wait until you are back on one. Nothing of it is saved: the game builds these settings again
+  at each start.
+
+The keys are the game's own and keep their other uses. R2 is also Interact and the fishing reel, Z walks forward on an
+AZERTY keyboard and R1 opens the Burst skills. So with `coop fly on`, walking forward in the air on AZERTY flies, and
+with `coop slowmo on` holding R1 for a Burst skill slows time. Flight can carry EVE past places the game expects her to
+reach on foot, and the next save keeps where she is: hence the co-op saves only.
+
+The native part's lines go to `coop-link.log`: `coop fly on: UseFlyingActionKey set at the game thread's next pass`,
+then `gate fly: on, ours, 1 writes` once the setting is set. When the game's memory does not hold the setting the way
+the pinned build does, the native part writes nothing, logs why and says `coop fly refused: ...` on screen.
 
 ### Shared enemies (experimental)
 
@@ -1851,11 +1934,12 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again), the cut Naytiba display and its free camera (`coop leviathan`, `coop gardener` and `coop tendril`; the
-view goes back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log
-lines; a living Lion stays) and the `coop wear` look (your EVE's own hair and suit come back). Afterwards only
-`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
-restarts`, and so do the menu, host and leave keys. The race key does nothing.
+drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
+back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
+Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene and the game's
+developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back). Afterwards only
+`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
+and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 

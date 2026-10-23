@@ -128,6 +128,14 @@ bool frozen();
 // The coop freeze request (the solo tests): on, our pause tag held for ms, until coop freeze off, coop off or the
 // world it paused is gone (a load); or off. On the pinned build only. Returns the line for the log.
 std::string ask_freeze(bool on, uint64_t ms, uint64_t now_ms);
+// SB's developer gates (game/debug_keys.h), worker thread. The coop fly or coop slowmo request (Command::gate): on
+// until off, coop off or the next Lua load; refused off the pinned build, after coop off and after the gates' fault.
+// Returns the line for the log.
+std::string ask_gate(const coop::Request &request);
+// Every pass after the link's tick: hands the game thread the gates to set (the asks, on a co-op save, slow motion with
+// no friend linked; marker: the slot StellarCoopSlot.txt names), logs what its passes did and returns a line for the
+// player's screen (a refusal, a fault), or empty.
+std::string debug_pass(bool linked, int marker, uint64_t now_ms);
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <count>",
 // " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on"

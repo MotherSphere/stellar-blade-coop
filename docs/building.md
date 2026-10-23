@@ -74,15 +74,15 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `leviathan`, `lion`, `scene`,
-  `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`:
-  `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`;
-  `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`,
-  `travel`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the
-  engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua`
-  first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers `coop fight pilot` (its `test target` and boss
-  tests included), `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the
-  `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows
+- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `leviathan`, `lines`, `lion`,
+  `scene`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`;
+  `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`,
+  `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`,
+  `join`, `saves`, `travel`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those
+  that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
+  `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers `coop fight pilot` (its
+  `test target` and boss tests included), `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it
+  adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows
   `main/menu_test` covers with the `shared_quests` row; `main/fight_notices_test` the same place and same spawns notices
   in both languages; `main/quests_test` `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices; `main/input_test` the controller's events from a fake `coop_pad` (routed to the menu, the co-op
@@ -92,9 +92,9 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-    and the boss tests included; `lion rows` with its 8 table words and bad addresses), Night Operation's night line
-    (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby ids, loose typing, malformed
-    codes, and the share of one-character typos the check turns away);
+    and the boss tests included; `lion rows` with its 8 table words and bad addresses; `fly` and `slowmo` on or off),
+    Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby
+    ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
@@ -239,6 +239,12 @@ build/host/pose_codec_test
     Show held back by those two caps, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
+  - `debug_keys_test`: `coop fly`'s and `coop slowmo`'s gates against fake memory laid out like the pinned build: the
+    keys' hash, the lookup through inline and allocated buckets and along a chain of collisions, each refusal with no
+    write, and the passes (a gate set with its old value kept, set again after the game built its map again, its old
+    value back once unwanted, nothing read while neither gate is wanted or ours); the worker's side: no gate wanted off
+    a co-op save, slow motion only with no friend linked, the asks cleared by `off`, a Lua load and a refusal, and a
+    gate's state logged from the first pass that read its ask, never from an earlier one;
   - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
     diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
     stick's thresholds, View held 1 s, a disconnect,
@@ -302,7 +308,7 @@ mod/StellarCoop/            the UE4SS mod folder
     ui/                     the on-screen kit, the co-op menu and its model, the guide, notices, the 23 languages' text
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
     race/                   Doro races: the run, the track model, the Doro look, the driving
-    cut/                    coop leviathan, gardener and tendril (cut Naytibas); coop lion; coop wear; coop scene
+    cut/                    the cut model viewer (coop leviathan and six more); coop lion, wear, scene and lines
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
@@ -348,6 +354,7 @@ Platform-free headers, tested on the build machine:
 | `fight/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
 | `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `game/photo_freeze.h` | The synced photo mode's pause |
+| `game/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back |
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
@@ -358,5 +365,5 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's rows through the game's AddRow (`glue/tick/lion_game.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates (`glue/tick/debug_game.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

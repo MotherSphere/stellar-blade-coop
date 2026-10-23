@@ -601,6 +601,14 @@ int main() {
   for (const char *bad : {"freeze", "freeze 0", "freeze 3601", "freeze -1", "freeze 1.5", "freeze on", "freeze  10",
                           "freeze 10 x", "freeze off now", "freezeoff", "freeze 99999999999999999999"})
     assert(parse_request(bad).command == Command::none);
+  // coop fly and coop slowmo: a gate on or off, nothing else.
+  Request g = parse_request("fly on\n");
+  assert(g.command == Command::gate && g.gate == 0 && !g.off);
+  g = parse_request("slowmo off\r\n");
+  assert(g.command == Command::gate && g.gate == 1 && g.off);
+  assert(parse_request("fly off").off && parse_request("slowmo on").gate == 1 && !parse_request("slowmo on").off);
+  for (const char *bad : {"fly", "fly On", "fly on now", "flyon", "slowmo", "slowmo 1", "fly  on", "slow on"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

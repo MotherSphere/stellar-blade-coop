@@ -517,7 +517,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // "fight pilot test exec" (the first frozen copy this side draws loses its balance, for a takedown) and "fight pilot
 // test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
 // for the synced photo mode's solo tests "freeze
-// <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for the co-op saves (save/slot.h,
+// <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
+// (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
@@ -533,7 +534,7 @@ inline uint64_t code_lobby(std::string_view text) {
 // table's vtable and row size (lion/rows.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion
+  remove, copy, quests, camps, travel, mark, lion, gate
 };
 // The tables the Lion's rows go into (lion/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 8;
@@ -561,7 +562,8 @@ struct Request {
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
-  bool off = false;                      // loopback off, record off, replay off, freeze off.
+  bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off.
+  uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -800,6 +802,10 @@ inline Request parse_request(std::string text) {
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
+  } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
+    r.command = Command::gate;
+    r.gate = text[0] == 's' ? 1 : 0;
+    r.off = text.back() == 'f';
   } else if (text == "loopback off" || text == "freeze off") {
     r.command = text[0] == 'l' ? Command::loopback : Command::freeze;
     r.off = true;

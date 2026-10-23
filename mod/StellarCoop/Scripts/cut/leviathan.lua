@@ -1,19 +1,22 @@
 -- coop leviathan, coop gardener and coop tendril: three cut Naytibas whose files are in pakchunk0's index but which the
 -- game never shows. Naytiba 10, the Leviathan (/Game/Art/Character/Monster/CH_M_NA_10/); Naytiba 1, the Gardener
 -- (CH_M_NA_01/), an artillery Naytiba about 20 m tall at scale 1, in the shipped prologue as distant scenery only;
--- Naytiba 6, the Tendril (CH_M_NA_06/CH_M_NA_06_test), a prototype whose one material slot is empty. Shown with
+-- Naytiba 6, the Tendril (CH_M_NA_06/CH_M_NA_06_test), a prototype whose one material slot is empty. coop mann, coop
+-- nier, coop orcal and coop enya: four more cut models, the early Mann with his idle clips, the NieR collaboration's
+-- three blockout machines, and Orcal's and Enya's prototype statues (1-bone meshes, nothing to play). Shown with
 -- race/doro.lua's display parts: a plain actor with one mesh component, collision off, the engine's single-node
 -- instance playing its clips. No SB character, no table row, no AI, nothing that can die, so nothing of it reaches a
--- quest, an achievement or a save; their Blueprint classes are looked up, never spawned. The three take the same words
+-- quest, an achievement or a save; their Blueprint classes are looked up, never spawned. All take the same words
 -- (CREATURES holds what differs) and share one display and one free camera: showing one creature removes another's
 -- display and says so; off removes the display whichever creature it shows; move, skin and play act on it only when it
 -- shows the command's own creature.
 -- list only reads: which assets resolve, each mesh's and clip's skeleton, each class's super class, and the
 -- CharacterTable rows that name it. show puts one mesh ahead of EVE, facing her (by default at 1.6 times its bounding
--- sphere radius, 6 m at least, and lifted so its lowest point is 5 m above her feet for the Leviathan, at her feet for
--- the others), and plays each clip of its skeleton twice in turn; play holds one; move places it again from where EVE
--- stands; skin sets every material slot to one material. off removes it, and so do coop off, a map change, its first
--- error and the next Lua load (coop-leviathan.txt, read at the first tick).
+-- sphere radius, at least its creature's ahead: 6 m, 3 m for the Orcal and Enya statues; lifted so its lowest point is
+-- 5 m above her feet for the Leviathan, at her feet for the others), and plays each clip of its skeleton twice in turn;
+-- play holds one; move places it again from where EVE stands; skin sets every material slot to one material. off
+-- removes it, and so do coop off, a map change, its first error and the next Lua load (coop-leviathan.txt, read at the
+-- first tick).
 -- The free camera, for filming it: show and play turn it on, cam toggles it. A plain actor with one CameraComponent is
 -- the view target, placed where the game's camera was, and flies from the keys each frame (none read while the co-op
 -- menu or one of its boxes is open); the player controller ignores move and look input meanwhile, so EVE stays where
@@ -135,6 +138,59 @@ add(TD,'clip',DIR..'Animation/','M_Tendril_ChopAttack M_Tendril_DiagonalAttack_L
 add(TD,'clip',DIR..'Animation/BlendSpace/','Airborne_BS IdleRun_BS_Peaceful LockOn_BS')
 add(TD,'class',DIR..'Blueprints/','CH_M_NA_06_Blueprint CH_M_NA_06_AnimBP')
 add(TD,'asset',DIR,'CH_M_NA_06_test_PhysicsAsset')
+-- The early Mann (/Game/Art/Character/NPC/Mann/), not the shipped one (CH_NPC_Mann_01/CH_NPC_Mann_Body): his own mesh,
+-- about 3.5 m tall, skeleton and clips, all on CH_NPC_Mann_Skeleton (NPC_Maan is the files' spelling).
+-- Mesh/CH_NPC_Mann_SK, a 2-bone placeholder, is left out. His word is his Blueprint's name: N_Mann rows are the shipped
+-- Mann's.
+DIR='/Game/Art/Character/NPC/Mann/'
+local MN=creature('mann',{title='Mann',meshes={'body'},skins={},words={'ch_npc_mann_blueprint'},ahead=600,lift=0,
+    scale=1})
+add(MN,'mesh',DIR,'CH_NPC_Mann')
+add(MN,'skeleton',DIR,'CH_NPC_Mann_Skeleton')
+add(MN,'clip',DIR..'Animation/','NPC_Mann_P_Idle NPC_Maan_P_Relax NPC_Maan_P_Think Proto_Lockon_Run_Forward')
+add(MN,'class',DIR..'Blueprints/','CH_NPC_Mann_Blueprint CH_NPC_Mann_Blueprint_Seq CH_NPC_Mann_AnimBP')
+add(MN,'asset',DIR,'CH_NPC_Mann_PhysicsAsset')
+add(MN,'asset',DIR..'Mat/','CH_NPC_Mann_Mat')
+-- The NieR collaboration's three machines (/Game/DLC_1/Art/Character/Monster/CH_M_NA_951 to 953): blockout primitives
+-- of 3 bones whose slots hold no material (the engine's grey). They have no clip: their blend spaces hold no sample, so
+-- they are listed as assets, never played. One command, a word a mesh.
+DIR='/Game/DLC_1/Art/Character/Monster/CH_M_NA_95'
+local NR=creature('nier',{title='NieR machine',meshes={'square','squareb','cylinder','cylinderb','cylinderc','sphere',
+    'sphereb'},skins={},words={'na_95'},ahead=600,lift=0,scale=1})
+local NIER={{'1_NierSquareHorn/','CH_M_NA_951 CH_M_NA_951_TypeB'},
+    {'2_NierCylinder/','CH_M_NA_952 CH_M_NA_952_TypeB CH_M_NA_952_TypeC'},
+    {'3_NierSphere/','CH_M_NA_953 CH_M_NA_953_TypeB'}}
+for _,f in ipairs(NIER) do add(NR,'mesh',DIR..f[1],f[2]) end
+for k,f in ipairs(NIER) do
+    local d,n=DIR..f[1],'CH_M_NA_95'..k
+    add(NR,'skeleton',d,n..'_Skeleton')
+    add(NR,'class',d..'Blueprints/',n..'_Blueprint '..n..'_AnimBP')
+    add(NR,'asset',d,'Base_BS_1D Base_BS_2D')
+    add(NR,'asset',d..'Animation/BlendSpace/','IdleRun_BS_Peaceful IdleRun_BS_Battle LockOn_BS Groggy_BS Down_BS '
+        ..'Airborne_BS')
+end
+-- Orcal's prototype statues (/Game/Art/Character/NPC/CH_NPC_XionElder/): OrcalTest_01 and _02, about 1 m tall in the
+-- Xion Elder's materials (one slot empty), and the Native_Ver preview, which reaches 1.3 m below its root. Each is a
+-- 1-bone mesh in a fixed pose, so none has a clip. PreviewMesh/CH_NPC_XE_testmesh (no skeleton in its file) is left
+-- out.
+DIR='/Game/Art/Character/NPC/CH_NPC_XionElder/'
+local OR=creature('orcal',{title='Orcal prototype',meshes={'test1','test2','native'},skins={},words={'orcaltest'},
+    ahead=300,lift=0,scale=1})
+add(OR,'mesh',DIR..'OrcalTest/','OrcalTest_01 OrcalTest_02')
+add(OR,'mesh',DIR..'Native_Ver/Temp/','XionElder_Native_Preview')
+add(OR,'skeleton',DIR..'OrcalTest/','OrcalTest_02_Skeleton')
+add(OR,'skeleton',DIR..'Native_Ver/Temp/','XionElder_Native_Preview_Skeleton')
+add(OR,'class',DIR..'Blueprints/','CH_NPC_XionElder_AnimBP_Temp CH_NPC_XionElder_Blueprint_Seq_Temp')
+add(OR,'asset',DIR..'OrcalTest/','OrcalTest_01_PhysicsAsset OrcalTest_02_PhysicsAsset')
+add(OR,'asset',DIR..'Native_Ver/Temp/','XionElder_Native_Preview_PhysicsAsset')
+-- Enya's prototype statues (/Game/Art/Character/NPC/CH_NPC_Enya/Temp/): the mech body (MI_NPC_Enya_Mech) and Enya_05
+-- in her materials (one slot empty), 1.6 and 1.7 m tall, 1-bone meshes in a fixed pose.
+DIR='/Game/Art/Character/NPC/CH_NPC_Enya/Temp/'
+local EN=creature('enya',{title='Enya prototype',meshes={'mech','enya05'},skins={},words={'enya_mech','enya_05'},
+    ahead=300,lift=0,scale=1})
+add(EN,'mesh',DIR,'CH_NPC_Enya_Mech Enya_05')
+add(EN,'skeleton',DIR,'CH_NPC_Enya_Mech_Skeleton test_Skeleton')
+add(EN,'asset',DIR,'CH_NPC_Enya_Mech_PhysicsAsset test_PhysicsAsset')
 
 local function name_of(path) return path:match('[^.]+$') end
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
@@ -576,7 +632,7 @@ function Leviathan.new(o)
         s.clips=clips
         log(string.format('show %s: %s, %d clips on skeleton %s, %s m ahead, %s m up, scale %g',which,name_of(e.path),
             #clips,name_of(skeleton or '-'),m(cm),m(up_cm),scale))
-        return true,(other and other..' removed: one cut Naytiba is shown at a time. ' or '')
+        return true,(other and other..' removed: one cut model is shown at a time. ' or '')
             ..string.format('%s %s shown %s m ahead, %s m up, scale %g, %d clips in turn%s; [LV] lines in this log.',
             who.title,which,m(cm),m(up_cm),scale,#clips,with_cam())
     end
@@ -671,7 +727,8 @@ function Leviathan.new(o)
         end
         return false,who.USE
     end
-    -- Each creature's command, by its word (commands/cut.lua makes coop leviathan, coop gardener and coop tendril).
+    -- Each creature's command, by its word (commands/cut.lua makes coop leviathan, coop gardener, coop tendril, coop
+    -- mann, coop nier, coop orcal and coop enya).
     self.commands={}
     for name,who in pairs(Leviathan.CREATURES) do
         self.commands[name]=function(sub,a,b,c,d,e) return command(who,sub,a,b,c,d,e) end

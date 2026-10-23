@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan`, `coop gardener` and `coop tendril`, with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly` and `coop slowmo`, with the co-op save check before `on` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -67,20 +67,21 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
-| `cut/leviathan.lua` | `coop leviathan`, `coop gardener` and `coop tendril`: one table of three cut Naytibas (10, 1 and 6: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
+| `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
 | `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
+| `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the cut Naytiba display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
-while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the UI's open and
-close animations, the game's input given back after the menu or the chat box closes, the controller's events, the row
-under the mouse (every 100 ms while the menu is open), and your friend's marker and gauges. The other runs every 250 ms:
-link status changes, session start, notices to show, chat lines in and out, Night Operation's run, the race's session
-and map checks, the UI's root and its focus watchdog, the menu's rows and status line, the phone booth scan, the chat's
-feed, your friend's card, the capture and the remote table.
+Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
+while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines`
+scene's due lines, the UI's open and close animations, the game's input given back after the menu or the chat box
+closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker
+and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out,
+Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and
+status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -1472,6 +1473,35 @@ Only the game can settle these:
 - what a key-0 death does to the spawn manager's counter;
 - each AddRow runs the game's table-changed handling over the whole table, so 78 of them in one frame may cause a short
   hitch, not measured.
+
+## Developer flight and slow motion
+
+`coop fly` and `coop slowmo` switch on two developer gates that the game ships off (`game/debug_keys.h`, run by
+`glue/tick/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
+one function (`0x1423c9ea0`) and the time-control key (R1) only through another (`0x1423c9f90`), and each passes its key
+on only while its gate reads true. A gate is one bool in a settings singleton of the game's, not a UObject: the pointer
+at `0x147032540` (the globals block's `+0x18`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
+`Strihash_DEPRECATED` of the gate's name (`UseFlyingActionKey` `0x1147F83C`, `UseTimeControlKey` `0x43812976`), which
+its constructor fills with false. The cheat command meant for them, `USBCheatManager::SBSetCustomBool`, does nothing in
+the shipping build, and the character's own `SetCustomBool` writes another map, so no Lua call reaches them.
+
+Every 250 ms while a gate is wanted, the game thread looks its key up as the game's lookup (`0x14261db60`) does and
+writes 1 into the value byte of the element it finds. It first checks that the gate function's own copy of the key (a
+static that function fills at its first call, at `0x1471082ec` and `0x1471082f4`) holds the same key, that the map's
+counts and buckets are in range and that the byte reads 0 or 1. It never inserts an element. The reads go through
+`ReadProcessMemory`, and the one write runs under the gates' own SEH latch. The value read before the first write goes
+back once the gate is no longer wanted: `off`, `coop off`, the next Lua load (the worker clears the asks when Lua's
+session token changes) or a save that is not a co-op one. Slow motion is wanted only while no friend is linked, since
+time dilation is local. If the game builds the map again (its values back to false), the next pass sets the gate again
+and the log says `gates set again`. A missing key, a static that holds another key or a map out of range refuses the
+gate on screen, with no write. The worker numbers each ask and hands the number over with the gates it wants; the game
+thread hands back the number its last pass read. A gate's state is logged, and a refusal said, only from the first pass
+that read its ask, so a state left from before the ask never reaches the log or the screen.
+
+With the flight gate on, the character tick starts a flight while the key is held in the air (the falling movement
+mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActionEnableRemainTime`, 3 s, and no
+cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
+`TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
 
 ## Achievements
 
