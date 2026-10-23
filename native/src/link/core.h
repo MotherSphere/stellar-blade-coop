@@ -962,7 +962,8 @@ private:
         notice("No join code to copy.");
       }
       break;
-    // The pose path's, the shared fight's, the photo pause's, the saves' and the shared quests': the caller's.
+    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests' and the Lion's: the
+    // caller's.
     case Command::off:
     case Command::loopback:
     case Command::record:
@@ -973,6 +974,7 @@ private:
     case Command::saves:
     case Command::quests:
     case Command::travel:
+    case Command::lion:
       break;
     case Command::none:
       event("unknown request");
