@@ -4,13 +4,15 @@ Stellar Blade Online is an online co-op mod for Stellar Blade on PC. Two players
 one sees the other's EVE in their own world. It was called StellarCoop until October 2026: the mod's folder, its DLL,
 its `coop` console commands and this repository keep that name.
 
-Status: v0.5.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
+Status: v0.6.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
 first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at about 240 ms
 ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and same place (each
 enemy in the same spot on both screens). The 0.5 additions have not been tested between two PCs yet: shared quests, the
 friend's revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run and its
 challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
-and its free camera ran in game on one PC on 2026-10-22; `coop gardener` and `coop tendril` have not run in game yet.
+and its free camera ran in game on one PC on 2026-10-22. None of the 0.6 additions has run in game yet: the first-launch
+guide, the .pak mod list and CNS outfits over the link, the UE4SS settings warning, `coop lion`, `coop wear`,
+`coop gardener` and `coop tendril`. 0.6 uses link protocol 13, so both players need 0.6.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -56,6 +58,20 @@ the Steam client that the game already runs, so the mod needs no other program a
   for two more cut Naytibas, the Gardener and the Tendril (see
   [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). None of them can be
   fought: the game has no entry for them in its character table.
+- `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
+  its model, animations and attacks but no table row, so the mod adds the 78 rows it needs to the game's tables in
+  memory. `coop lion intro` plays its entrance first. It writes nothing to a save, and only your game has it (see
+  [docs/usage.md](docs/usage.md#cut-boss-coop-lion)).
+- `coop wear` puts EVE in two cut hairs (mechanical cat ears and rabbit ears) and four cut suits, Gothic Rose among
+  them, by changing the meshes drawn. Your equipment and saves stay as they are, and your friend's ghost of you shows
+  the look too (see [docs/usage.md](docs/usage.md#cut-hairs-and-suits-coop-wear)).
+- At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
+  co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
+- Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
+  outfit shows on your ghost of them when your own CNS packs declare its files (see
+  [docs/usage.md](docs/usage.md#mods-and-cns-outfits)).
+- If `UE4SS-settings.ini` has `HookBeginPlay` or `bUseUObjectArrayCache` on, a notice says so: the first can crash the
+  game when EVE lets go of a movable crate (see [docs/troubleshooting.md](docs/troubleshooting.md)).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night
