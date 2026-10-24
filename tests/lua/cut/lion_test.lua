@@ -282,6 +282,12 @@ local function body(cls,at)
         return object({GetFullName=function() return kind..' /Game/Maps/E04.E04:AnimInstance_'..n end,
             SetBlendSpaceInput=function(_,v) engine(); m.input=v.X end})
     end
+    m.SetSkeletalMesh=function(self,mesh,reinit) -- A mesh marked works takes an AnimBP (the base Lion mesh's case).
+        engine()
+        assert(reinit==true)
+        self.SkeletalMesh=mesh
+        if mesh.works then self.refuse_all=false end
+    end
     m.PlayAnimation=function(self,asset,loop)
         engine()
         assert(asset==drive_bs and loop==true,'The stand-in loops the battle idle-run blend space')
@@ -840,12 +846,28 @@ at(1600.3); lion.tick()
 at(1601.5); assert(lion.tick())
 at(1602.5); lion.tick()
 assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built none, '
-    ..'CH_M_NA_46_AnimBP_C built none; stand%-in: the single%-node instance plays IdleRun_BS_ by speed; mesh: anim '
-    ..'instance AnimSingleNodeInstance, anim class CH_M_NA_46_AnimBP_C, .*, mode 1,'),'The stand-in line')
+    ..'CH_M_NA_46_AnimBP_C built none; other meshes: CH_M_NA_02 does not load; CH_M_NA_02_small does not load; '
+    ..'stand%-in: the single%-node instance plays IdleRun_BS_ by speed; mesh: anim instance AnimSingleNodeInstance, '
+    ..'anim class CH_M_NA_46_AnimBP_C, .*, mode 1,'),'The stand-in line')
 lone.speed=900; at(1602.6); lion.tick(); assert(lone.Mesh.input==600,tostring(lone.Mesh.input))
 lone.speed=212; at(1602.7); lion.tick(); assert(lone.Mesh.input==212,tostring(lone.Mesh.input))
 lone.Mesh.mode=0; at(1602.8); lion.tick()
 lone.speed=100; at(1602.9); lion.tick(); assert(lone.Mesh.input==212,'No input once out of single-node mode')
+-- The base Lion mesh takes the AnimBP: the body gets it (and its 1.5 scale stays on the component), no stand-in.
+lion=new()
+lion_status(ROWS_IN:format(1,'6'))
+assets[DIR..'CH_M_NA_02.CH_M_NA_02']=object({works=true,GetFName=function() return fname('CH_M_NA_02') end})
+at(1700); assert(lion.command())
+local swapped=chars[#chars]
+swapped.Mesh.no_instance,swapped.Mesh.refuse_all=true,true
+at(1700.3); lion.tick()
+at(1701.5); assert(lion.tick())
+at(1702.5); lion.tick()
+assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built none, '
+    ..'CH_M_NA_46_AnimBP_C built none; other meshes: CH_M_NA_02: its own class built one; mesh: anim instance '
+    ..'CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, .*, mode 0, leader none, anim set sync true, mesh '
+    ..'CH_M_NA_02,'),'The other mesh line')
+assert(swapped.Mesh.mode==0 and swapped.Mesh.input==nil,'An AnimBP, no stand-in')
 
 -- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
 -- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn

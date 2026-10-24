@@ -1203,6 +1203,7 @@ The log lines, in `UE4SS.log` unless marked:
 | `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, hand moved 0 cm, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), how far its left front paw (`Bip001-L-Hand`) moved in its own frame since the last line (0 cm while it runs or attacks: its pose does not play), battle mode, state, controller and the game's spawn counter |
 | `lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton CH_M_NA_46_Skeleton, mesh skeleton CH_M_NA_46_Skeleton, mode 0, leader none, anim set sync true, mesh CH_M_NA_02_Large, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations true, actor dilation 1.0, sequencer anim mode false` | Its mesh as the engine ticks it, before its first line and at each change: the animation instance class (`none` when it has none), the mesh's anim class, that class's target skeleton, the mesh's skeleton, its animation mode (0: animation blueprint, 1: single node), the component it copies its pose from (`MasterPoseComponent`), SB's `bInitAnimSetSyncData` (the character's animation set read), its mesh asset, the mesh's tick, `bPauseAnims`, `GlobalAnimRateScale`, `bNoSkeletonUpdate`, `VisibilityBasedAnimTickOption`, `bEnableUpdateRateOptimizations`, the actor's `CustomTimeDilation` and SB's `bSequencerAnimMode`; `?` for a field that does not read |
 | `lion 1 (50020) had no anim instance: its own class built none, ...; stand-in: the single-node instance plays IdleRun_BS_ by speed; mesh: ...` | When no AnimBP builds one: the engine's single-node instance loops the Lion's battle idle-run blend space, its speed input set each frame from the anim graph speed (600 cm/s at most), so the Lion stands, walks and runs. Its skills play no clip with it |
+| `...; other meshes: CH_M_NA_02: its own class built one; ...` | When no AnimBP builds an instance on the Large mesh: the body's mesh swapped for the Lion's base mesh, then its small one (same skeleton; the component keeps its 1.5 scale), each followed by the Lion's AnimBP, before the stand-in. The entrance copy line ends with the same test |
 | `lion 2 (50110) rebuild test: its own class built one; mesh: ...` | The control Antlion's first line: its instance rebuilt with its own class (written into `AnimClass`, mode 1 then 0), which says whether that rebuild works on a shipped Naytiba's body |
 | `entrance copy AnimBP test: its own class built none, CH_M_NA_02_AnimBP_C built one` | `coop lion intro`, before the spawn: the same tries on the entrance copy, a plain actor's mesh rather than an SBCharacter's. An instance there means the Lion's AnimBP is sound and the Lion's body refuses it |
 | `lion 1 (50020) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built one; mesh: ...` | Its mesh had no animation instance. Once a body (never for the control Antlion), the mod asks the engine to build one: with the mesh's own anim class, then the Lion's AnimBP, then the Behemoth's (same skeleton), each class found by its path, written into the mesh's `AnimClass` and followed by a switch to single-node mode and back. The line says what each try gave, then the mesh line |
@@ -1220,15 +1221,12 @@ part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
 
 In the tests of 2026-10-23 and 2026-10-24 the Lion fought like a boss, but its body stayed on the first frame of its
-idle pose. The mesh line read `anim instance none` with the right anim class, the AnimBP mode and the Lion's mesh, so
-the body played nothing (`anim alpha` 0.00/0.00, `hand moved 0 cm`). The control Antlion, spawned by the same call, had
-its own instance and moved: the fault is the Lion's, not the spawn call's. Writing the Lion's AnimBP class, then the
-Behemoth's (same skeleton, shipped), into the mesh and switching its mode built no instance either, so the engine
-refuses any AnimBP on this body, not one AnimBP. The mesh line now adds the component it copies its pose from and SB's
-animation-set flag, for comparison with the Antlion's. Until an AnimBP plays, `coop lion` gives the Lion a stand-in: the
-engine's single-node instance loops its idle-run blend space at its speed, so it stands, walks and runs, but its attacks
-show no clip. The next test, in one game run: `coop lion intro` (its `entrance copy AnimBP test` line), then
-`coop lion control` (its `rebuild test` line).
+idle pose: its mesh had no animation instance. The rebuild (the class written into `AnimClass`, mode 1 then 0) built the
+control Antlion's instance again, but built none for the Lion's AnimBP or the Behemoth's on the Lion's Large mesh, even
+on the entrance copy, a plain actor's mesh. So the Large mesh asset refuses AnimBPs. `coop lion` now swaps the body's
+mesh for the Lion's base mesh (`CH_M_NA_02`), then its small one, and builds the Lion's AnimBP on it. Only when that
+fails too, the stand-in (the single-node instance looping the idle-run blend space at the Lion's speed) plays, with no
+skill clips.
 
 ### Cut hairs and suits: `coop wear`
 

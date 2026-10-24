@@ -79,6 +79,12 @@ local BONE='Bip001-L-Hand'
 -- (speed 0 to 600 cm/s), its input set each frame from the anim graph speed. A stand-in until an AnimBP plays: no skill
 -- clip shows with it.
 local DRIVE_BS=DIR..'Animation/BlendSpace/IdleRun_BS_.IdleRun_BS_'
+-- The Lion's two other meshes (the base and small blueprints'), same skeleton: on 2026-10-24 no AnimBP built an
+-- instance on CH_M_NA_02_Large even on the entrance copy, a plain actor, while the rebuild worked on the Antlion. So
+-- the body's mesh is swapped for one of these (its component keeps the Large blueprint's 1.5 scale) and the Lion's
+-- AnimBP tried again, before the stand-in.
+local OTHER_MESHES={{name='CH_M_NA_02',path=DIR..'CH_M_NA_02.CH_M_NA_02'},
+    {name='CH_M_NA_02_small',path=DIR..'CH_M_NA_02_small.CH_M_NA_02_small'}}
 local DRIVE_MAX=600
 local BEHEMOTH='/Game/Art/Character/Monster/CH_M_NA_46/BluePrints/'
 local ANIM_CLASSES={
@@ -304,6 +310,30 @@ function Lion.new(o)
         end
         return table.concat(said,', ')
     end
+    -- Each of OTHER_MESHES in turn on m, then the Lion's AnimBP (give_anim's tries), until m has an instance. Returns
+    -- what each mesh gave, as words; m keeps the last mesh tried.
+    local function other_mesh(m)
+        local said={}
+        for _,o in ipairs(OTHER_MESHES) do
+            local mesh=valid(StaticFindObject(o.path))
+            if not mesh then
+                pcall(LoadAsset,o.path)
+                mesh=valid(StaticFindObject(o.path))
+            end
+            if not mesh then said[#said+1]=o.name..' does not load'
+            else
+                local fine,e=pcall(function()
+                    m:SetSkeletalMesh(mesh,true)
+                    -- The Lion's AnimBP first, not the class tried last on the Large mesh.
+                    local lion=valid(StaticFindObject(ANIM_CLASSES[1].class))
+                    if lion then m.AnimClass=lion end
+                end)
+                said[#said+1]=o.name..': '..(fine and give_anim(m) or 'SetSkeletalMesh failed ('..why(e)..')')
+                if valid(m:GetAnimInstance()) and m:GetAnimationMode()==0 then break end
+            end
+        end
+        return table.concat(said,'; ')
+    end
     -- The stand-in when give_anim built nothing: the single-node instance playing DRIVE_BS. True once it has one.
     local function drive_start(m)
         local bs=valid(StaticFindObject(DRIVE_BS))
@@ -363,6 +393,10 @@ function Lion.new(o)
             f.given=true
             local fine,e=pcall(give_anim,valid(c.Mesh))
             e=fine and e or 'not given ('..why(e)..')'
+            if not valid(valid(c.Mesh):GetAnimInstance()) then
+                local swapped,w=pcall(other_mesh,valid(c.Mesh))
+                e=e..'; other meshes: '..(swapped and w or 'failed ('..why(w)..')')
+            end
             if not valid(valid(c.Mesh):GetAnimInstance()) then
                 local ran,driven=pcall(drive_start,valid(c.Mesh))
                 f.drive=ran and driven and c or nil
@@ -546,6 +580,10 @@ function Lion.new(o)
         -- The copy is a plain actor's mesh, not an SBCharacter's: whether the Lion's AnimBP (or the Behemoth's) builds
         -- an instance there tells a refused AnimBP from a refusing body. It is removed once the Lion shows.
         local tested,t=pcall(give_anim,j.display.mesh)
+        if tested and not valid(j.display.mesh:GetAnimInstance()) then
+            local swapped,w=pcall(other_mesh,j.display.mesh)
+            t=t..'; other meshes: '..(swapped and w or 'failed ('..why(w)..')')
+        end
         log('entrance copy AnimBP test: '..(tested and t or 'failed ('..why(t)..')'))
         spawn(j,at,now)
     end
