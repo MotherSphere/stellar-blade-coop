@@ -1632,7 +1632,7 @@ constexpr Patch kPatches[] = {
     {0x088, Kind::u8, 1, nullptr},                           // bCheckTargetExists
     {0x0b4, Kind::name, 0, "M_LionC_ClawAttackLeft_Target"}, // TargetFilterAlias
     {0x100, Kind::name, 0, "M_LionC_ClawAttackLeft_Cast1"},  // FirstSkillActiveAlias
-    {0x124, Kind::f32, 6.0f, nullptr},                       // CoolTime
+    {0x124, Kind::f32, 3.0f, nullptr},                       // CoolTime
     {0x140, Kind::f32, 1.0f, nullptr},                       // AttackDamageRate
     {0x144, Kind::f32, 1.0f, nullptr},                       // ShieldAttackDamageRate
     {0x14c, Kind::u8, 1, nullptr},                           // Cancelable
@@ -1693,7 +1693,7 @@ constexpr Patch kPatches[] = {
     {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
     {0x0b4, Kind::name, 0, "M_LionC_ClawAttackRight_Target"}, // TargetFilterAlias
     {0x100, Kind::name, 0, "M_LionC_ClawAttackRight_Cast1"},  // FirstSkillActiveAlias
-    {0x124, Kind::f32, 6.0f, nullptr},                        // CoolTime
+    {0x124, Kind::f32, 3.0f, nullptr},                        // CoolTime
     {0x140, Kind::f32, 1.0f, nullptr},                        // AttackDamageRate
     {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
     {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
