@@ -301,9 +301,13 @@ function P.hud(o)
         local map
         where,map=P.where(mine and mine.map,puppet.her_map())
         local info,color,grey,state='',theme.grey,false,nil
+        -- Her death and revive state (glue/tick/revive.inc): down or spectating shows as DOWN even while her vitals
+        -- still read (her game keeps her at 1 HP), which is the state a revive ends.
+        local rev=link.revive and link.revive()
+        local her_down=session and rev and (rev.partner=='down' or rev.partner=='spectating')
         if lost then info,grey,state=words.lost,true,'lost'
         elseif not new then info,grey='—',true
-        elseif new.life>=3 and new.life<=5 or new.hp==0 and new.max_hp>0 then
+        elseif her_down or new.life>=3 and new.life<=5 or new.hp==0 and new.max_hp>0 then
             info,color,state=words.down,theme.error,'down'
         elseif where=='elsewhere' then info=words.elsewhere:format(map)
         elseif settings.card_details~=false then

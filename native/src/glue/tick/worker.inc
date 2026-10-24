@@ -678,8 +678,12 @@ void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bo
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
 // before this pass's peer(), and the link already checked the handshake.
 void peer_receive(const uint8_t *data, size_t size) {
-  if (peer_open())
-    wire_receive(data, size, clock_us());
+  if (peer_open()) {
+    if (size >= 3 && !std::memcmp(data, "SBV", 3))
+      revive_receive(data, size, GetTickCount64()); // Her death and revive state, not a pose (revive/core.h).
+    else
+      wire_receive(data, size, clock_us());
+  }
 }
 
 std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_t loss_percent) {

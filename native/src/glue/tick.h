@@ -26,8 +26,20 @@ coop::State lua_state();
 bool worker_stream();
 // Worker, every pass after the link's tick: whether a friend passed the handshake both ways, and how to reach her.
 void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool));
-// Worker, from the link's channel-1 receive (a handshaken lobby member only): her table or pose.
+// Worker, from the link's channel-1 receive (a handshaken lobby member only): her table or pose, and her death and
+// revive state (SBV, revive/core.h).
 void peer_receive(const uint8_t *data, size_t size);
+void revive_receive(const uint8_t *data, size_t size, uint64_t now_ms);
+// Worker, every pass while the link is up (revive/local.h): reads our EVE's HP, MinimumHP, life state and place, runs
+// the rules over her last SBV line, writes the 1 HP floor (stat 107) and a revive's HP, and sends our SBV line when its
+// state changes or every 2 s. linked: a friend passed the handshake; send: how our channel-1 lines go.
+bool revive_pass(uint64_t now_ms, bool linked, bool (*send)(const uint8_t *, size_t, bool));
+// Worker: the friend's revive's native half, on with revive=on (session/group.lua) and off as it turns off: the 1 HP
+// floor goes on or comes off now. Returns the line for the log.
+std::string ask_revive_hold(bool on);
+// coop-status.txt's revive part: "revive=<alive|down|spectating|dead> used=<0|1> partner=<state|none> dist=<cm>
+// hold=<0|1>", or revive=off before the first pass.
+std::string revive_status();
 // Worker thread. Each returns the line for the log: what was asked, or why not. The loopback and the replay never run
 // together, and either takes over from a linked friend until it is off; turning either off removes the remote table,
 // so the ghost goes with it.

@@ -410,6 +410,7 @@ coop::Api api;
 std::unique_ptr<coop::Link> link;
 bool chat_was = false;    // A chat session held at the last pass.
 uint64_t next_vitals = 0; // Our vitals are read every 100 ms in a chat session (500 after a read over 1 ms).
+uint64_t next_revive = 0; // Death and revive (revive/local.h): its reads and writes every 100 ms while the link is up.
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
 bool loaded = false, streaming = false; // streaming: the loopback, a recording, a replay or a friend: a pass each 5 ms.
@@ -534,6 +535,10 @@ bool step() {
       break;
     case coop::Command::fight:
       event(coop::pose::ask_fight(coop::parse_request(request), coop_marker));
+      request.clear();
+      break;
+    case coop::Command::revive: // The friend's revive's native half: the 1 HP floor on or off (revive/local.h).
+      event(coop::pose::ask_revive_hold(coop::parse_request(request).hold));
       request.clear();
       break;
     case coop::Command::quests:
@@ -694,6 +699,17 @@ bool step() {
       if (api.user_handle())
         link->send_binary(d, n, reliable);
     });
+    // Death and revive: our EVE's 1 HP floor and a revive's HP are written from this worker (revive/local.h's comment
+    // says why that is safe), and our state goes to her on channel 1.
+    if (const uint64_t now = GetTickCount64(); now >= next_revive) {
+      coop::pose::revive_pass(now, linked, [](const uint8_t *d, size_t n, bool reliable) {
+        if (!api.user_handle())
+          return false;
+        link->send_binary(d, n, reliable);
+        return true;
+      });
+      next_revive = now + 100;
+    }
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))
       written = text;

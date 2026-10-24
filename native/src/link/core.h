@@ -810,6 +810,8 @@ private:
     if (asked && (r.command == Command::leave || !(create_call_ || join_call_))) // A busy host or join changes nothing.
       cancel_rejoin(std::string(asked) + " asked");
     switch (r.command) {
+    case Command::revive: // glue/steam.cpp answers it before the link (revive hold on|off).
+      break;
     case Command::host:
       if (host_ && lobby_) {
         api_.invite_dialog(friends_, lobby_);

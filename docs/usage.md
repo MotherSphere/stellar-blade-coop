@@ -432,6 +432,12 @@ usual.
 The revive also needs shared enemies running (`shared_enemies=on`, both on co-op saves), your friend alive on your map,
 no boss fight on your side and no respawn under way. Only the downed player's setting counts.
 
+With the native part loaded, `revive=on` also runs a native half: your EVE's `MinimumHP` (stat 107) is held one above
+its own value, so a lethal hit leaves her at 1 HP instead of running the game's death, and a revive sets her HP back to
+half her maximum. That state is on the engine line, as `revive=<alive|down|spectating|dead> used=<0|1>
+partner=<state|none> dist=<cm> hold=<0|1>`; `hold=1` says the floor is on. The in-game notices for that half are not in
+this build yet.
+
 ### Camp rests in a shared area
 
 Either player can rest at a camp. While both play in one zone within 100 m of each other with same spawns on, only the

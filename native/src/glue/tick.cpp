@@ -97,6 +97,7 @@
 #include "pose/record.h"
 #include "pose/stream.h"
 #include "quest/engine.h"
+#include "revive/local.h"
 #include "save/slot.h"
 
 #include "glue/tick/pose_game.inc"
@@ -108,6 +109,7 @@
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
+#include "glue/tick/revive.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/quests_worker.inc"
