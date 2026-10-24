@@ -254,7 +254,9 @@ function pc:ServerRequest_CreateActor(...)
 end
 local made=0
 -- The Lion AnimBP's class, as the mesh names it and as StaticFindObject finds it once loaded.
-local anim_bp=object({GetFName=function() return fname('CH_M_NA_02_AnimBP_C') end})
+local skeleton=object({GetFName=function() return fname('CH_M_NA_46_Skeleton') end})
+local anim_bp=object({GetFName=function() return fname('CH_M_NA_02_AnimBP_C') end,TargetSkeleton=skeleton})
+local behemoth_bp=object({GetFName=function() return fname('CH_M_NA_46_AnimBP_C') end,TargetSkeleton=skeleton})
 local function body(cls,at)
     made=made+1
     local b=object({class=cls,at={X=at.X,Y=at.Y,Z=at.Z},InteractionState=0,BroadcastSpawnInfo={EventSpawnId=0}})
@@ -272,7 +274,7 @@ local function body(cls,at)
     b.K2_GetActorRotation=function(self) return {Pitch=0,Yaw=self.yaw,Roll=0} end
     local m=object({bPauseAnims=false,GlobalAnimRateScale=1,bNoSkeletonUpdate=false,VisibilityBasedAnimTickOption=0,
         bEnableUpdateRateOptimizations=true,ticking=true,AnimClass=anim_bp,inits=0,mode=0,
-        SkeletalMesh=object({GetFName=function() return fname('CH_M_NA_02_Large') end})})
+        SkeletalMesh=object({GetFName=function() return fname('CH_M_NA_02_Large') end,Skeleton=skeleton})})
     m.GetAnimInstance=function(self)
         if self.no_instance then return nil end
         return object({GetFullName=function() return 'CH_M_NA_02_AnimBP_C /Game/Maps/E04.E04:AnimInstance_'..n end})
@@ -281,10 +283,11 @@ local function body(cls,at)
     m.SetAnimationMode=function(self,mode) engine(); self.mode=mode end
     m.IsComponentTickEnabled=function(self) engine(); return self.ticking end
     m.SetComponentTickEnabled=function(self,on) engine(); self.ticking=on end
-    m.SetAnimInstanceClass=function(self,c)
+    m.SetAnimInstanceClass=function(self,c) -- A class in refuse builds no instance (the in-game Lion AnimBP's case).
         engine()
-        assert(c==anim_bp,'The Lion AnimBP class')
-        self.AnimClass,self.no_instance,self.inits=c,false,self.inits+1
+        assert(c==anim_bp or c==behemoth_bp,'An AnimBP class found by its path')
+        self.inits=self.inits+1
+        if c~=self.refuse then self.AnimClass,self.no_instance=c,false end
     end
     m.GetSocketLocation=function(_,bone)
         engine()
@@ -510,13 +513,14 @@ assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, spe
 -- Its mesh line once before it (then at each change), each field as read; a field that does not read is a ?. With no
 -- anim instance (the 2026-10-24 test) it gets one once: the AnimBP mode, then SetAnimInstanceClass with the Lion
 -- AnimBP's class, here found once LoadAsset loaded its package (the mesh's own anim class read none).
-local MESH_LINE='lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0, '
-    ..'mesh CH_M_NA_02_Large, tick true, pause false, rate 1, no skeleton update false, visibility tick 0, '
+local REST='mesh CH_M_NA_02_Large, tick true, pause false, rate 1, no skeleton update false, visibility tick 0, '
     ..'rate optimizations true, actor dilation 1, sequencer anim mode ?'
-assert(lines[#lines-2]==MESH_LINE:gsub('anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0',
-    'anim instance none, anim class none, mode 2'),lines[#lines-2])
-assert(lines[#lines-1]=='lion 1 (50020) had no anim instance: SetAnimInstanceClass(CH_M_NA_02_AnimBP_C) called; '
-    ..MESH_LINE:gsub('^lion 1 %(50020%) ',''),lines[#lines-1])
+local MESH_LINE='lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton '
+    ..'CH_M_NA_46_Skeleton, mesh skeleton CH_M_NA_46_Skeleton, mode 0, '..REST
+assert(lines[#lines-2]=='lion 1 (50020) mesh: anim instance none, anim class none, its skeleton ?, mesh skeleton '
+    ..'CH_M_NA_46_Skeleton, mode 2, '..REST,lines[#lines-2])
+assert(lines[#lines-1]=='lion 1 (50020) had no anim instance: SetAnimationMode(0) built none, '
+    ..'SetAnimInstanceClass(CH_M_NA_02_AnimBP_C) built one; '..MESH_LINE:gsub('^lion 1 %(50020%) ',''),lines[#lines-1])
 assert(lion1.Mesh.inits==1 and lion1.Mesh.mode==0,'Given once, in the AnimBP mode')
 lion1.Mesh.inits,LoadAsset=0,load_asset
 assert(load_finds==2,'Two loaded-line lookups a second')
@@ -543,15 +547,20 @@ lion1.Mesh.ticking,lion1.Mesh.bPauseAnims,lion1.Mesh.GlobalAnimRateScale,lion1.C
 ok,why=lion.command('unfreeze')
 assert(ok and why=='unfreeze on 1 Lion: see its mesh and hand moved lines ([LI] lines).',tostring(why))
 assert(last()=='lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: '
-    ..'anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0, mesh CH_M_NA_02_Large, tick true, '
-    ..'pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations false, '
-    ..'actor dilation 1.0, sequencer anim mode ?',last())
+    ..'anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton CH_M_NA_46_Skeleton, mesh '
+    ..'skeleton CH_M_NA_46_Skeleton, mode 0, mesh CH_M_NA_02_Large, tick true, pause false, rate 1.0, no skeleton '
+    ..'update false, visibility tick 0, rate optimizations false, actor dilation 1.0, sequencer anim mode ?',last())
 assert(lion1.Mesh.inits==0,'No new anim instance without init')
 at(206.5); n=#lines; lion.tick(); assert(#lines==n+1 and last():find('^lion 1 %(50020%): '),'No second mesh line')
+-- init with the Lion AnimBP building nothing (as in game): the Behemoth's is tried next.
 lion1.Mesh.SetComponentTickEnabled=function() error('no tick') end
+lion1.Mesh.no_instance,lion1.Mesh.refuse=true,anim_bp
+assets['/Game/Art/Character/Monster/CH_M_NA_46/BluePrints/CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP_C']=behemoth_bp
 ok,why=lion.command('unfreeze','init')
-assert(ok and lion1.Mesh.inits==1 and last():find('unfreeze: tick failed %(no tick%), pause, .*dilation, init; mesh:'),
-    last())
+assert(ok and lion1.Mesh.inits==2 and last():find('unfreeze: tick failed %(no tick%), pause, .*dilation, init: '
+    ..'SetAnimationMode%(0%) built none, SetAnimInstanceClass%(CH_M_NA_02_AnimBP_C%) built none, '
+    ..'SetAnimInstanceClass%(CH_M_NA_46_AnimBP_C%) built one; mesh: anim instance CH_M_NA_02_AnimBP_C, anim class '
+    ..'CH_M_NA_46_AnimBP_C,'),last())
 lion1.Mesh.SetComponentTickEnabled=function(self,on) self.ticking=on end
 -- The loaded line: two of the 40 paths a second, each until first seen; once all were looked for, 0/20 says none
 -- loaded; then each change. A Show seen without its clip is named.
