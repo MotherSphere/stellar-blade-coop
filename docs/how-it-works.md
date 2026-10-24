@@ -87,13 +87,15 @@ status line, the phone booth scan, the chat's feed, your friend's card, the capt
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
-`session/booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4
-s, and only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. `FindAllOf`
-walks every object, so a scan holds the game thread: 63 to 79 ms on the Great Desert in 0.5.0-beta.1, a freeze that
-showed most while EVE ran. A scan that is due therefore waits while EVE moves faster than 3 m/s (her run is 5 m/s) and
-runs once she walks or stops. A scan keeps each booth's `EnvActorName` and position, and no booth is read between scans.
+`session/booth.lua` looks for them again: both classes at once after a map change, then at most every 4 s, and only
+while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan asks the engine for
+the actors of each class (`GetAllActorsOfClass`, which reads its class hash). Up to 0.6.0-beta.1 it used `FindAllOf`,
+which walks every object: 60 to 79 ms on the game thread at each scan, a freeze every 4 s. The class objects are found by
+path once a map while they are in memory; one that is not is looked up again 30 s later. The fast route is checked once
+a Lua load against `FindAllOf` on the player controller, and if this UE4SS cannot use it, scans walk as before. A scan
+that is due still waits while EVE moves faster than 3 m/s (her run is 5 m/s) and runs once she walks or stops. A scan keeps each booth's `EnvActorName` and position, and no booth is read between scans.
 Each scan is timed: `UE4SS.log` gets `booths: <n> on <map> (<ms> ms)` when the count or the map changes, and
-`booths: slow scan <ms> ms (<n> found)` for a scan of 5 ms or more. The menu key opens the line when the nearest booth
+`booths: slow scan <ms> ms (<n> found, <route>)` for a scan of 5 ms or more. The menu key opens the line when the nearest booth
 is within 3 m of EVE. Nothing in the game changes: the mod edits no table row, spawns nothing and fires no zone event,
 and the booth's travel and save stay the game's.
 
@@ -1145,7 +1147,10 @@ rest resets only the resting player's own game.
 ## Cutscene wait
 
 Each game looks once a second, while linked, for the game's theater observers (`SBTheaterLevelSequenceObserver`). A
-cutscene plays while one of them has a valid sequence player whose `IsPlaying()` is true. The log says
+cutscene plays while one of them has a valid sequence player whose `IsPlaying()` is true. Finding the observers walks
+every object (25 to 80 ms on the game thread), so the walk runs only while a level sequence actor plays (those actors
+come from the engine's class hash, a fraction of a millisecond), and the observer found is kept while it plays. Up to
+0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log says
 `cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's reflection
 data, so Lua cannot read it.
 

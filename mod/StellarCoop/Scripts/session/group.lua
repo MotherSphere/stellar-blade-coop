@@ -211,13 +211,32 @@ function G.new(o)
             end
         end
     end
-    -- The cutscene's name while one plays, else nil.
+    -- The cutscene's name while one plays, else nil. The observer found playing is kept while it lives. A theater plays
+    -- through a level sequence actor, whose class's actors come from the engine's class hash (core/unreal.lua's
+    -- actors_of): only while one of them plays are the theater observers walked for (FindAllOf walks every object,
+    -- 25 to 80 ms in game: once a second while linked, that was a frozen frame each second). A gate that raises walks.
+    local observer=nil
+    local function name_of(ob)
+        local player=ob and weak(ob.Player)
+        return player and player:IsPlaying()==true and U.text(ob.SequenceName) or nil
+    end
     local function theater()
+        local kept=name_of(U.valid(observer))
+        if kept then return kept end
+        local read,any=pcall(function()
+            local list=U.actors_of(U.find('/Script/LevelSequence.LevelSequenceActor'),'LevelSequenceActor',N.her())
+            for _,a in ipairs(list) do
+                local player=U.valid(a.SequencePlayer)
+                if player and player:IsPlaying()==true then return true end
+            end
+            return false
+        end)
+        if read and not any then return nil end
         local name=nil
         U.each(FindAllOf('SBTheaterLevelSequenceObserver') or {},function(_,ob)
             ob=not name and U.valid(ob)
-            local player=ob and weak(ob.Player)
-            if player and player:IsPlaying()==true then name=U.text(ob.SequenceName) end
+            name=name_of(ob)
+            if name then observer=ob end
         end)
         return name
     end

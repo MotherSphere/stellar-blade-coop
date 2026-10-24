@@ -5,13 +5,17 @@
 -- after 4 s and at once on a new map; a due scan put off while EVE moves faster than 3 m/s, never on a new map; near (2.9 m in, 3 m in, 3.1 m out in 3D, another map, the nearest of two, the
 -- position copied at the scan); a booth whose name read raises and an invalid one skipped; a scan that raises (one
 -- line, nothing near, the next try 4 s later); the count line once per change and the slow-scan line, byte-exact;
--- FindAllOf absent; and the only game calls made, all reads: nothing in the game is granted or changed.
+-- FindAllOf absent; each class found by its path once a map (again 30 s after it was not in memory); and the only game
+-- calls made, all reads: nothing in the game is granted or changed. With no player controller (as here) the class hash
+-- is never tried and each scan walks with FindAllOf (core/unreal.lua's actors_of).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
+package.loaded.UEHelpers={GetPlayerController=function() return nil end}
 local B=require('session.booth')
 local CAMP,PHONE='Env_Camp_TeleportMachine_C','Env_Camp_TeleportMachine_Standalone_C'
 local XION,WASTE='/game/art/bg/worldmap/level_p/e04','/game/art/bg/worldmap/level_p/e03'
 assert(#B.CLASSES==2 and B.CLASSES[1]==CAMP and B.CLASSES[2]==PHONE)
-assert(B.NEAR==3 and B.EVERY==4 and B.SLOW==5 and B.PACE==300)
+assert(B.NEAR==3 and B.EVERY==4 and B.SLOW==5 and B.PACE==300 and B.RETRY==30)
+assert(B.PATHS[CAMP]=='/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C')
 
 local clock,cost=0,0.001 -- os.clock in seconds; what one scan costs (the first class's FindAllOf adds it).
 os.clock=function() return clock end
@@ -64,6 +68,13 @@ FindAllOf=function(class)
     if class==CAMP then clock=clock+cost end
     return #list>0 and list or nil
 end
+local loaded -- class -> false while its class object is not in memory
+StaticFindObject=function(path)
+    local class=path:match('%.([%w_]+)$')
+    record('class '..class)
+    if loaded[class]==false then return nil end
+    return {type=function() return 'UClass' end,IsValid=function() return true end}
+end
 setmetatable(_G,{__index=function(_,key)
     if key=='FindAllOf' then return nil end
     record('global '..tostring(key)) -- Seen by the last check even when a pcall hides the error.
@@ -78,7 +89,7 @@ local function off(dx,dy,dz) return {X=P.X+dx,Y=P.Y+(dy or 0),Z=P.Z+(dz or 0)} e
 local function eve(at,map) return {at=at,map=map or XION} end
 local lines
 local function fresh(camps,phones)
-    world,broken={[CAMP]=camps or {},[PHONE]=phones or {}},{}
+    world,broken,loaded={[CAMP]=camps or {},[PHONE]=phones or {}},{},{}
     lines,clock,cost={},0,0.001
     reset()
     return B.new(function(m) lines[#lines+1]=m end)
@@ -93,7 +104,8 @@ assert(#calls==0 and #lines==0 and b.near(nil)==nil)
 -- The first tick scans both classes once, in order, and reads each booth once.
 local me=eve(off(120,160,210)) -- 2.9 m in 3D (2.0 m on the ground).
 b.tick(100,me)
-assert(#calls==4 and calls[1]=='FindAllOf '..CAMP and calls[4]=='FindAllOf '..PHONE,table.concat(calls,','))
+assert(#calls==6 and calls[1]=='class '..CAMP and calls[2]=='FindAllOf '..CAMP and calls[5]=='class '..PHONE
+    and calls[6]=='FindAllOf '..PHONE,table.concat(calls,','))
 assert(count('Xion_10_EnvS_016:K2_GetActorLocation')==1 and count('Xion_10_EnvS_016:EnvActorName')==1)
 assert(#lines==1 and lines[1]=='booths: 1 on '..XION..' (1.0 ms)',lines[1])
 local near=b.near(me)
@@ -117,12 +129,13 @@ reset()
 b.tick(103.999,me)
 assert(scans()==0)
 b.tick(104,me)
-assert(scans()==1 and count('FindAllOf '..PHONE)==1 and #lines==1)
+assert(scans()==1 and count('FindAllOf '..PHONE)==1 and #lines==1 and count('class '..CAMP)==0,'Kept on its map')
 -- A new map scans at once; the next scan waits 4 s from there.
 world={[CAMP]={booth('WLA_10_EnvS_007',P)},[PHONE]={booth('WLA_10_EnvS_191',off(5000))}}
 reset()
 b.tick(104.5,eve(P,WASTE))
 assert(scans()==1 and #lines==2 and lines[2]=='booths: 2 on '..WASTE..' (1.0 ms)',lines[2])
+assert(count('class '..CAMP)==1 and count('class '..PHONE)==1,'Found again on a new map')
 b.tick(108.4,eve(P,WASTE))
 assert(scans()==1)
 b.tick(108.5,eve(P,WASTE))
@@ -194,27 +207,42 @@ for i,line in ipairs(want) do assert(lines[i]==line,lines[i]) end
 b=fresh({booth('A',P)},{booth('B',off(1000))})
 cost=0.005
 b.tick(100,me)
-assert(#lines==2 and lines[1]=='booths: 2 on '..XION..' (5.0 ms)' and lines[2]=='booths: slow scan 5.0 ms (2 found)',
-    table.concat(lines,'|'))
+assert(#lines==2 and lines[1]=='booths: 2 on '..XION..' (5.0 ms)'
+    and lines[2]=='booths: slow scan 5.0 ms (2 found, walk)',table.concat(lines,'|'))
 b=fresh({booth('A',P)},{booth('B',off(1000))})
 cost=0.0049
 b.tick(100,me)
 assert(#lines==1 and lines[1]=='booths: 2 on '..XION..' (4.9 ms)',table.concat(lines,'|'))
 
+-- A class not in memory: none of its booths, no list of it, looked up again 30 s later only (the scans between ask
+-- nothing of it).
+b=fresh({booth('A',P)},{booth('B',off(1000))})
+loaded[PHONE]=false
+b.tick(100,me)
+assert(count('FindAllOf '..PHONE)==0 and lines[1]=='booths: 1 on '..XION..' (1.0 ms)',lines[1])
+reset()
+for t=104,128,4 do b.tick(t,me) end
+assert(count("class "..PHONE)==0 and count("FindAllOf "..PHONE)==0 and scans()==7,table.concat(calls,","))
+loaded[PHONE]=nil
+b.tick(132,me)
+assert(count('class '..PHONE)==1 and count('FindAllOf '..PHONE)==1 and lines[2]=='booths: 2 on '..XION..' (1.0 ms)',
+    tostring(lines[2]))
+
 -- No FindAllOf in this UE4SS: an empty list, no error.
 b=fresh({booth('A',P)})
 FindAllOf=nil
 b.tick(100,me)
-assert(#calls==0 and #lines==1 and lines[1]=='booths: 0 on '..XION..' (0.0 ms)' and b.near(me)==nil,lines[1])
+assert(#calls==2 and #lines==1 and lines[1]=='booths: 0 on '..XION..' (0.0 ms)' and b.near(me)==nil,lines[1])
 
 -- Over the whole run, the only game calls were FindAllOf on the two classes, the location read and the name read (and
 -- each kind happened): nothing is granted or changed.
 local seen={}
 for _,c in ipairs(every) do
     local kind=c=='FindAllOf '..CAMP and 'camp' or c=='FindAllOf '..PHONE and 'phone'
+        or (c=='class '..CAMP or c=='class '..PHONE) and 'class'
         or c:match(':K2_GetActorLocation$') and 'location' or c:match(':EnvActorName$') and 'name'
     assert(kind,'game call '..c)
     seen[kind]=true
 end
-assert(seen.camp and seen.phone and seen.location and seen.name)
+assert(seen.camp and seen.phone and seen.location and seen.name and seen.class)
 print('booth_test ok')

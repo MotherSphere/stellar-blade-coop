@@ -9,8 +9,8 @@
 -- both sides: the wait once per death, the revived line after a revive, her down once per death of hers on our map
 -- outside a boss fight while we are up, and our revive of her only while our EVE stands within 3 m of her ghost. coop
 -- revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines.
--- The host's cutscene: SB's theater observers read once a second while linked, a cutscene while one has a valid player
--- that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
+-- The host's cutscene: SB's theater observers read once a second while linked (walked for only while a level sequence
+-- actor plays, the one found kept while it plays), a cutscene while one has a valid player that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
 -- with cutscene_wait=on, the host on her map and our read not off for the run; the notice once a pause for it, from the
 -- photo line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -50,13 +50,17 @@ local kismet=uobject('KismetSystemLibrary /Script/Engine.Default__KismetSystemLi
     assert(p==pc,'standalone is asked of our controller')
     return W.standalone
 end})
+local sequence_class=uobject('Class /Script/LevelSequence.LevelSequenceActor',{})
 StaticFindObject=function(path)
+    if path=='/Script/LevelSequence.LevelSequenceActor' then return sequence_class end
     assert(path=='/Script/Engine.Default__KismetSystemLibrary',path)
     return kismet
 end
 FindAllOf=function(name)
     W.finds[name]=(W.finds[name] or 0)+1
     if name=='WB_MainHUD_Master_C' then return W.huds end
+    if name=='PlayerController' then return nil end -- None: core/unreal.lua's actors_of walks.
+    if name=='LevelSequenceActor' then return W.sequences end
     if name=='SBTheaterLevelSequenceObserver' then
         if W.theater_error then error(W.theater_error,0) end
         return W.observers
@@ -70,6 +74,12 @@ local function observer(name,player)
 end
 local scene=uobject('LevelSequencePlayer /Engine/Transient.LevelSequencePlayer_0',
     {IsPlaying=function() return W.scene end})
+local idle=uobject('LevelSequencePlayer /Engine/Transient.LevelSequencePlayer_1',{IsPlaying=function() return false end})
+-- The level sequence actors: an idle one, and the theater's while W.scene says its player plays.
+local function sequences()
+    return {uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Idle',{SequencePlayer=idle}),
+        uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Theater',{SequencePlayer=scene})}
+end
 package.loaded['nightop.probe']={her=function() return W.eve end,controller=function() return pc end}
 local G=require('session.group')
 
@@ -353,27 +363,36 @@ for _,state in ipairs({3,4,5}) do
 end
 
 -- The host's cutscene, read once a second while linked: 'c' in place of its own '0' only; a guest's game reads it too
--- (for its own guards) and sends nothing; off with no valid playing player, or not linked.
+-- (for its own guards) and sends nothing; off with no valid playing player, or not linked. No level sequence actor
+-- playing: no observer walk. One playing: one walk, then the observer found is kept while it plays (no walk at all).
 g=world(function(w)
-    w.mode,w.life,w.scene='host',{state=1,hp=1600},true
-    w.observers={observer('Theater_Idle',nil),observer('Mann_Entrance',scene)}
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},false
+    w.observers,w.sequences={observer('Theater_Idle',nil),observer('Mann_Entrance',scene)},sequences()
 end)
-run(g,0.25)
+run(g,2.25)
+assert(not g.cutscene_playing() and (W.finds.SBTheaterLevelSequenceObserver or 0)==0
+    and W.finds.LevelSequenceActor==3,'Gated: '..tostring(W.finds.SBTheaterLevelSequenceObserver))
+W.scene=true
+run(g,1)
 assert(g.cutscene_playing() and g.photo('0')=='c' and g.photo('1')=='1' and g.photo('s')=='s')
 assert(logged('cutscene on: Mann_Entrance'),table.concat(W.logs,'|'))
 run(g,2)
-assert(W.finds.SBTheaterLevelSequenceObserver==3,'Once a second: '..W.finds.SBTheaterLevelSequenceObserver)
+assert(W.finds.SBTheaterLevelSequenceObserver==1 and W.finds.LevelSequenceActor==4,'Kept: '
+    ..W.finds.SBTheaterLevelSequenceObserver)
 W.scene=false
 run(g,1)
-assert(not g.cutscene_playing() and g.photo('0')=='0' and logged('cutscene off'))
+assert(not g.cutscene_playing() and g.photo('0')=='0' and logged('cutscene off')
+    and W.finds.SBTheaterLevelSequenceObserver==1)
 W.scene,W.mode=true,'guest'
 run(g,1)
 assert(g.cutscene_playing() and g.photo('0')=='0','A guest sends no cutscene')
 W.linked=false
 run(g,1)
-assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==5,'Not linked')
+assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==1,'Not linked')
 -- A read that fails: one line, and no cutscene for the run.
-g=world(function(w) w.mode,w.life,w.theater_error='host',{state=1,hp=1600},'no such property' end)
+g=world(function(w)
+    w.mode,w.life,w.theater_error,w.scene,w.sequences='host',{state=1,hp=1600},'no such property',true,sequences()
+end)
 run(g,3)
 assert(not g.cutscene_playing() and logged('cutscene off for this run: no such property')
     and W.finds.SBTheaterLevelSequenceObserver==1)
@@ -389,7 +408,9 @@ W.her_map,W.mode=W.map,'host'
 assert(g.cut()==false)
 W.mode,W.her_map='guest',nil
 assert(g.cut()==false)
-g=world(function(w) w.life,w.theater_error={state=1,hp=1600},'no such property' end)
+g=world(function(w)
+    w.life,w.theater_error,w.scene,w.sequences={state=1,hp=1600},'no such property',true,sequences()
+end)
 assert(g.cut()==true)
 run(g,1)
 assert(g.cut()==false and logged('cutscene off for this run'))
