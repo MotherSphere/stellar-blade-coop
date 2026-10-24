@@ -257,6 +257,7 @@ local made=0
 local skeleton=object({GetFName=function() return fname('CH_M_NA_46_Skeleton') end})
 local anim_bp=object({GetFName=function() return fname('CH_M_NA_02_AnimBP_C') end,TargetSkeleton=skeleton})
 local behemoth_bp=object({GetFName=function() return fname('CH_M_NA_46_AnimBP_C') end,TargetSkeleton=skeleton})
+local drive_bs=object({GetFName=function() return fname('IdleRun_BS_') end})
 local function body(cls,at)
     made=made+1
     local b=object({class=cls,at={X=at.X,Y=at.Y,Z=at.Z},InteractionState=0,BroadcastSpawnInfo={EventSpawnId=0}})
@@ -270,23 +271,32 @@ local function body(cls,at)
     b.GetCurrentCustomAnimAlpha=function(self,i) engine(); return assert(self.alpha[i+1]) end
     -- Its mesh: the engine switches the mesh line reads (and unfreeze sets), and BONE's socket, b.hand in the body's
     -- frame (yaw b.yaw).
-    b.yaw,b.hand,b.CustomTimeDilation=0,{X=120,Y=40,Z=-80},1
+    b.yaw,b.hand,b.CustomTimeDilation,b.bInitAnimSetSyncData=0,{X=120,Y=40,Z=-80},1,true
     b.K2_GetActorRotation=function(self) return {Pitch=0,Yaw=self.yaw,Roll=0} end
     local m=object({bPauseAnims=false,GlobalAnimRateScale=1,bNoSkeletonUpdate=false,VisibilityBasedAnimTickOption=0,
         bEnableUpdateRateOptimizations=true,ticking=true,AnimClass=anim_bp,inits=0,mode=0,
         SkeletalMesh=object({GetFName=function() return fname('CH_M_NA_02_Large') end,Skeleton=skeleton})})
-    m.GetAnimInstance=function(self)
+    m.GetAnimInstance=function(self) -- The single-node instance in mode 1, else the AnimBP's; its blend space input.
         if self.no_instance then return nil end
-        return object({GetFullName=function() return 'CH_M_NA_02_AnimBP_C /Game/Maps/E04.E04:AnimInstance_'..n end})
+        local kind=self.mode==1 and 'AnimSingleNodeInstance' or 'CH_M_NA_02_AnimBP_C'
+        return object({GetFullName=function() return kind..' /Game/Maps/E04.E04:AnimInstance_'..n end,
+            SetBlendSpaceInput=function(_,v) engine(); m.input=v.X end})
+    end
+    m.PlayAnimation=function(self,asset,loop)
+        engine()
+        assert(asset==drive_bs and loop==true,'The stand-in loops the battle idle-run blend space')
+        self.mode,self.no_instance=1,false
     end
     m.GetAnimationMode=function(self) engine(); return self.mode end
-    -- The AnimBP mode builds an instance of AnimClass, unless it is the class in refuse (the in-game Lion AnimBP case).
+    -- The single-node mode builds its instance; the AnimBP mode one of AnimClass, unless it is the class in refuse or
+    -- refuse_all is set (the in-game Lion's case: no AnimBP at all).
     m.SetAnimationMode=function(self,mode)
         engine()
         self.mode=mode
-        if mode==0 and self.AnimClass and self.AnimClass~=self.refuse then
+        if mode==1 then self.no_instance=false
+        elseif self.AnimClass and not self.refuse_all and self.AnimClass~=self.refuse then
             self.no_instance,self.inits=false,self.inits+1
-        end
+        else self.no_instance=true end
     end
     m.IsComponentTickEnabled=function(self) engine(); return self.ticking end
     m.SetComponentTickEnabled=function(self,on) engine(); self.ticking=on end
@@ -518,9 +528,9 @@ assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, spe
 local REST='mesh CH_M_NA_02_Large, tick true, pause false, rate 1, no skeleton update false, visibility tick 0, '
     ..'rate optimizations true, actor dilation 1, sequencer anim mode ?'
 local MESH_LINE='lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton '
-    ..'CH_M_NA_46_Skeleton, mesh skeleton CH_M_NA_46_Skeleton, mode 0, '..REST
+    ..'CH_M_NA_46_Skeleton, mesh skeleton CH_M_NA_46_Skeleton, mode 0, leader none, anim set sync true, '..REST
 assert(lines[#lines-2]=='lion 1 (50020) mesh: anim instance none, anim class none, its skeleton ?, mesh skeleton '
-    ..'CH_M_NA_46_Skeleton, mode 2, '..REST,lines[#lines-2])
+    ..'CH_M_NA_46_Skeleton, mode 2, leader none, anim set sync true, '..REST,lines[#lines-2])
 assert(lines[#lines-1]=='lion 1 (50020) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built '
     ..'one; '..MESH_LINE:gsub('^lion 1 %(50020%) ',''),lines[#lines-1])
 assert(lion1.Mesh.inits==1 and lion1.Mesh.mode==0,'Given once, in the AnimBP mode')
@@ -550,7 +560,8 @@ ok,why=lion.command('unfreeze')
 assert(ok and why=='unfreeze on 1 Lion: see its mesh and hand moved lines ([LI] lines).',tostring(why))
 assert(last()=='lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: '
     ..'anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton CH_M_NA_46_Skeleton, mesh '
-    ..'skeleton CH_M_NA_46_Skeleton, mode 0, mesh CH_M_NA_02_Large, tick true, pause false, rate 1.0, no skeleton '
+    ..'skeleton CH_M_NA_46_Skeleton, mode 0, leader none, anim set sync true, mesh CH_M_NA_02_Large, tick true, '
+    ..'pause false, rate 1.0, no skeleton '
     ..'update false, visibility tick 0, rate optimizations false, actor dilation 1.0, sequencer anim mode ?',last())
 assert(lion1.Mesh.inits==0,'No new anim instance without init')
 at(206.5); n=#lines; lion.tick(); assert(#lines==n+1 and last():find('^lion 1 %(50020%): '),'No second mesh line')
@@ -805,6 +816,27 @@ assert(lines[#lines-1]=='spawn 50020: CreateActor returned; body '..LION_CLASS..
 at(1511.3); lion.tick()
 assert(last():find('^lion 2 %(50020%): 10%.0 m, '),last())
 for i=mark+1,#lines do assert(not lines[i]:find('^lion 1 %(50020%): '),'Followed once, as lion 2') end
+
+-- No AnimBP builds an instance (the 2026-10-24 test, the Behemoth's included): the single-node stand-in loops the
+-- Lion's battle idle-run blend space, its input set each frame from the speed (600 at most), until the mesh leaves the
+-- single-node mode.
+lion=new()
+lion_status(ROWS_IN:format(1,'6'))
+on_create=spawns_lion
+assets[DIR..'Animation/BlendSpace/IdleRun_BS_.IdleRun_BS_']=drive_bs
+at(1600); assert(lion.command())
+local lone=chars[#chars]
+lone.Mesh.no_instance,lone.Mesh.refuse_all=true,true
+at(1600.3); lion.tick()
+at(1601.5); assert(lion.tick())
+at(1602.5); lion.tick()
+assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built none, '
+    ..'CH_M_NA_46_AnimBP_C built none; stand%-in: the single%-node instance plays IdleRun_BS_ by speed; mesh: anim '
+    ..'instance AnimSingleNodeInstance, anim class CH_M_NA_46_AnimBP_C, .*, mode 1,'),'The stand-in line')
+lone.speed=900; at(1602.6); lion.tick(); assert(lone.Mesh.input==600,tostring(lone.Mesh.input))
+lone.speed=212; at(1602.7); lion.tick(); assert(lone.Mesh.input==212,tostring(lone.Mesh.input))
+lone.Mesh.mode=0; at(1602.8); lion.tick()
+lone.speed=100; at(1602.9); lion.tick(); assert(lone.Mesh.input==212,'No input once out of single-node mode')
 
 -- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
 -- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn

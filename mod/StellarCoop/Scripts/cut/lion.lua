@@ -75,6 +75,11 @@ local BONE='Bip001-L-Hand'
 -- pass), while the control Antlion has its own instance. So each class goes into AnimClass by a property write, and a
 -- mode change (single node, then AnimBP) makes the engine clear the instance and build it again: the mesh's own class
 -- first, then the Lion's found by its path, then the Behemoth's (same skeleton, CH_M_NA_46_Skeleton, shipped).
+-- When no AnimBP builds an instance: the engine's single-node instance playing the Lion's battle idle-run blend space
+-- (speed 0 to 600 cm/s), its input set each frame from the anim graph speed. A stand-in until an AnimBP plays: no skill
+-- clip shows with it.
+local DRIVE_BS=DIR..'Animation/BlendSpace/IdleRun_BS_.IdleRun_BS_'
+local DRIVE_MAX=600
 local BEHEMOTH='/Game/Art/Character/Monster/CH_M_NA_46/BluePrints/'
 local ANIM_CLASSES={
     {name='CH_M_NA_02_AnimBP_C',class=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP_C',
@@ -254,8 +259,8 @@ function Lion.new(o)
             v=value_of(v)
             return v==nil and '?' or tostring(v)
         end
-        return string.format('anim instance %s, anim class %s, its skeleton %s, mesh skeleton %s, mode %s, mesh %s, '
-            ..'tick %s, pause %s, rate %s, '
+        return string.format('anim instance %s, anim class %s, its skeleton %s, mesh skeleton %s, mode %s, '
+            ..'leader %s, anim set sync %s, mesh %s, tick %s, pause %s, rate %s, '
             ..'no skeleton update %s, visibility tick %s, rate optimizations %s, actor dilation %s, '
             ..'sequencer anim mode %s',
             read(function() local a=valid(m:GetAnimInstance()); return a and class_of(a) or 'none' end),
@@ -263,6 +268,8 @@ function Lion.new(o)
             read(function() return named(valid(m.AnimClass).TargetSkeleton) end),
             read(function() return named(valid(m.SkeletalMesh).Skeleton) end),
             read(function() return m:GetAnimationMode() end),
+            read(function() local l=valid(U.weak(m.MasterPoseComponent)); return l and path_of(l) or 'none' end),
+            read(function() return c.bInitAnimSetSyncData end),
             read(function() local a=valid(m.SkeletalMesh); return a and text(a:GetFName()) or 'none' end),
             read(function() return m:IsComponentTickEnabled() end),read(function() return m.bPauseAnims end),
             read(function() return m.GlobalAnimRateScale end),read(function() return m.bNoSkeletonUpdate end),
@@ -296,6 +303,16 @@ function Lion.new(o)
             if c then try(a.name,c) else said[#said+1]=a.name..' does not load' end
         end
         return table.concat(said,', ')
+    end
+    -- The stand-in when give_anim built nothing: the single-node instance playing DRIVE_BS. True once it has one.
+    local function drive_start(m)
+        local bs=valid(StaticFindObject(DRIVE_BS))
+        if not bs then
+            pcall(LoadAsset,DRIVE_BS)
+            bs=assert(valid(StaticFindObject(DRIVE_BS)),'IdleRun_BS_ does not load')
+        end
+        m:PlayAnimation(bs,true)
+        return valid(m:GetAnimInstance())~=nil
     end
     -- BONE in the body's own frame (cm, yaw only): it moves when the mesh plays anything, and not when its actor moves.
     local function hand(c)
@@ -338,9 +355,15 @@ function Lion.new(o)
         if not f.given and f.id~=CONTROL and state:find('^anim instance none,') then
             f.given=true
             local fine,e=pcall(give_anim,valid(c.Mesh))
+            e=fine and e or 'not given ('..why(e)..')'
+            if not valid(valid(c.Mesh):GetAnimInstance()) then
+                local ran,driven=pcall(drive_start,valid(c.Mesh))
+                f.drive=ran and driven and c or nil
+                e=e..'; stand-in: '..(not ran and 'failed ('..why(driven)..')' or driven
+                    and 'the single-node instance plays IdleRun_BS_ by speed' or 'no single-node instance either')
+            end
             f.mesh=mesh_state(c)
-            log(string.format('%s had no anim instance: %s; mesh: %s',name,fine and e or 'not given ('..why(e)..')',
-                f.mesh))
+            log(string.format('%s had no anim instance: %s; mesh: %s',name,e,f.mesh))
         end
         local hand_read,p=pcall(hand,c)
         local moved=hand_read and f.hand and string.format('%.0f cm',metres(p,f.hand)*100) or '?'
@@ -711,6 +734,20 @@ function Lion.new(o)
                 ok,message=false,'coop lion stopped on an error: '..why(done)
             elseif done~=nil then ok,message=done,said end
             if ok~=nil and job==j then job=nil end
+        end
+        -- The stand-ins: each frame, their blend space input from the anim graph speed.
+        for _,f in ipairs(followed) do
+            if f.drive and not f.dead then
+                pcall(function()
+                    local m=f.drive.Mesh
+                    if m:GetAnimationMode()~=1 then -- Out of single-node mode (unfreeze init built an AnimBP): done.
+                        f.drive=nil
+                        return
+                    end
+                    local speed=tonumber(value_of(f.drive:GetSBSpeedForAnimGraph())) or 0
+                    m:GetAnimInstance():SetBlendSpaceInput({X=math.min(DRIVE_MAX,math.max(0,speed)),Y=0,Z=0})
+                end)
+            end
         end
         if followed[1] and now>=next_follow then
             next_follow=now+FOLLOW
