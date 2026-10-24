@@ -1201,7 +1201,8 @@ The log lines, in `UE4SS.log` unless marked:
 | `rows already in (220/220; ...): not added again` | A later `coop lion` in the same game run |
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
 | `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, hand moved 0 cm, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), how far its left front paw (`Bip001-L-Hand`) moved in its own frame since the last line (0 cm while it runs or attacks: its pose does not play), battle mode, state, controller and the game's spawn counter |
-| `lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations true, actor dilation 1.0, sequencer anim mode false` | Its mesh as the engine ticks it, before its first line and at each change: the animation instance class (`none` when it has none), the mesh's tick, `bPauseAnims`, `GlobalAnimRateScale`, `bNoSkeletonUpdate`, `VisibilityBasedAnimTickOption`, `bEnableUpdateRateOptimizations`, the actor's `CustomTimeDilation` and SB's `bSequencerAnimMode`; `?` for a field that does not read |
+| `lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0, mesh CH_M_NA_02_Large, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations true, actor dilation 1.0, sequencer anim mode false` | Its mesh as the engine ticks it, before its first line and at each change: the animation instance class (`none` when it has none), the mesh's anim class, its animation mode (0: animation blueprint), its mesh asset, the mesh's tick, `bPauseAnims`, `GlobalAnimRateScale`, `bNoSkeletonUpdate`, `VisibilityBasedAnimTickOption`, `bEnableUpdateRateOptimizations`, the actor's `CustomTimeDilation` and SB's `bSequencerAnimMode`; `?` for a field that does not read |
+| `lion 1 (50020) had no anim instance: SetAnimInstanceClass(CH_M_NA_02_AnimBP_C) called; mesh: ...` | Its mesh had no animation instance, so it was given one with the Lion's AnimBP (once a body), and its mesh line after that |
 | `lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: ...` | What `coop lion unfreeze` set (a failed one with its reason) and the mesh line after it |
 | `loaded: shows 3/20, clips 2/20 (Show seen, its clip not yet: Roar)` | Which of the Lion's 20 skill presentations (Shows) and their clips the game has loaded so far; first said once all 40 were looked for (about 20 s), then at each change |
 | `boss name: <M_LionC> -> Lion` | The boss bar's name set to Lion |
@@ -1215,18 +1216,13 @@ line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded 
 part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
 
-In the first two tests (2026-10-23 and 2026-10-24) the Lion moved and its attacks hit, but its body stayed on the first
-frame of its idle pose after the entrance. The second test's lines: all 20 Shows loaded at the spawn, but 1 of their 20
-clips at most. `anim alpha` read 0.00/0.00 the whole fight, `skill yes` during its attacks and `speed 900` while it ran.
-So its mesh played neither its skills nor its run: the whole pose is still, not only the skills. The entrance is not the
-cause: it plays on a separate copy that is removed when the Lion shows.
-
-The next test, in one game run:
-
-1. `coop lion` without `intro`, then read its `mesh:` line and watch `hand moved` while it runs and attacks.
-2. `coop lion unfreeze`. If `hand moved` goes above 0, the switch the mesh line showed off is the cause.
-3. If it is still 0, `coop lion unfreeze init`, which may break its skills.
-4. `coop lion control`: whether the Antlion animates tells a fault of the spawn call from one of the Lion's rows.
+In the first three tests (2026-10-23 and 2026-10-24) the Lion fought like a boss, but its body stayed on the first
+frame of its idle pose. The third test's mesh line read `anim instance none`: the body's mesh had no animation instance,
+so it played neither its run nor its skills (`anim alpha` 0.00/0.00, `hand moved 0 cm`, at most 1 of 20 skill clips
+loaded). The mesh, the tick and the other switches were all as they should be. `coop lion` now gives a body with no
+animation instance one, with the Lion's AnimBP (`CH_M_NA_02_AnimBP_C`), and logs a `had no anim instance` line. In the
+next test, `hand moved` above 0 and an `anim alpha` above 0 during attacks say that it animates. If it still does not,
+`coop lion control` tells a fault of the spawn call from one of the Lion's rows.
 
 ### Cut hairs and suits: `coop wear`
 

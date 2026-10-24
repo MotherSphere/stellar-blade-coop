@@ -253,6 +253,8 @@ function pc:ServerRequest_CreateActor(...)
     if on_create then on_create(a[1],a[2]) end
 end
 local made=0
+-- The Lion AnimBP's class, as the mesh names it and as StaticFindObject finds it once loaded.
+local anim_bp=object({GetFName=function() return fname('CH_M_NA_02_AnimBP_C') end})
 local function body(cls,at)
     made=made+1
     local b=object({class=cls,at={X=at.X,Y=at.Y,Z=at.Z},InteractionState=0,BroadcastSpawnInfo={EventSpawnId=0}})
@@ -269,13 +271,21 @@ local function body(cls,at)
     b.yaw,b.hand,b.CustomTimeDilation=0,{X=120,Y=40,Z=-80},1
     b.K2_GetActorRotation=function(self) return {Pitch=0,Yaw=self.yaw,Roll=0} end
     local m=object({bPauseAnims=false,GlobalAnimRateScale=1,bNoSkeletonUpdate=false,VisibilityBasedAnimTickOption=0,
-        bEnableUpdateRateOptimizations=true,ticking=true,AnimClass='CH_M_NA_02_AnimBP_C',inits=0})
-    m.GetAnimInstance=function()
+        bEnableUpdateRateOptimizations=true,ticking=true,AnimClass=anim_bp,inits=0,mode=0,
+        SkeletalMesh=object({GetFName=function() return fname('CH_M_NA_02_Large') end})})
+    m.GetAnimInstance=function(self)
+        if self.no_instance then return nil end
         return object({GetFullName=function() return 'CH_M_NA_02_AnimBP_C /Game/Maps/E04.E04:AnimInstance_'..n end})
     end
+    m.GetAnimationMode=function(self) engine(); return self.mode end
+    m.SetAnimationMode=function(self,mode) engine(); self.mode=mode end
     m.IsComponentTickEnabled=function(self) engine(); return self.ticking end
     m.SetComponentTickEnabled=function(self,on) engine(); self.ticking=on end
-    m.SetAnimInstanceClass=function(self,c) engine(); assert(c==self.AnimClass); self.inits=self.inits+1 end
+    m.SetAnimInstanceClass=function(self,c)
+        engine()
+        assert(c==anim_bp,'The Lion AnimBP class')
+        self.AnimClass,self.no_instance,self.inits=c,false,self.inits+1
+    end
     m.GetSocketLocation=function(_,bone)
         engine()
         assert(bone:ToString()=='Bip001-L-Hand',bone:ToString())
@@ -474,6 +484,15 @@ assert(last()=='spawn 50020 (M_LionC) at 1000,0,200, 10.0 m from EVE, yaw 180.0;
 lion_status(ROWS_IN:format(1,'7'))
 at(200.29); assert(lion.tick()==nil)
 local lion1=chars[#chars]
+-- Spawned as in the 2026-10-24 test: no anim instance, no anim class, the single-node mode; the AnimBP class is found
+-- only once its package is loaded.
+lion1.Mesh.no_instance,lion1.Mesh.AnimClass,lion1.Mesh.mode=true,nil,2
+local ANIM_CLASS=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP_C'
+local load_asset=LoadAsset
+LoadAsset=function(p)
+    if p==DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP' then assets[ANIM_CLASS]=anim_bp end
+    return invalid
+end
 at(200.3); assert(lion.tick()==nil and lion1.Controller==nil,'Seen with no controller: the game may still give one')
 at(201.49); assert(lion.tick()==nil)
 at(201.5)
@@ -488,10 +507,18 @@ at(202.49); n=#lines; lion.tick(); assert(#lines==n,'Not yet')
 at(202.5)
 assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 0, skill no, anim alpha 0.00/0.00, '
     ..'hand moved ?, battle 0, state 0, controller yes, spawn count 7',last())
--- Its mesh line once before it (then at each change), each field as read; a field that does not read is a ?.
-local MESH_LINE='lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, tick true, pause false, rate 1, no skeleton '
-    ..'update false, visibility tick 0, rate optimizations true, actor dilation 1, sequencer anim mode ?'
-assert(lines[#lines-1]==MESH_LINE,lines[#lines-1])
+-- Its mesh line once before it (then at each change), each field as read; a field that does not read is a ?. With no
+-- anim instance (the 2026-10-24 test) it gets one once: the AnimBP mode, then SetAnimInstanceClass with the Lion
+-- AnimBP's class, here found once LoadAsset loaded its package (the mesh's own anim class read none).
+local MESH_LINE='lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0, '
+    ..'mesh CH_M_NA_02_Large, tick true, pause false, rate 1, no skeleton update false, visibility tick 0, '
+    ..'rate optimizations true, actor dilation 1, sequencer anim mode ?'
+assert(lines[#lines-2]==MESH_LINE:gsub('anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0',
+    'anim instance none, anim class none, mode 2'),lines[#lines-2])
+assert(lines[#lines-1]=='lion 1 (50020) had no anim instance: SetAnimInstanceClass(CH_M_NA_02_AnimBP_C) called; '
+    ..MESH_LINE:gsub('^lion 1 %(50020%) ',''),lines[#lines-1])
+assert(lion1.Mesh.inits==1 and lion1.Mesh.mode==0,'Given once, in the AnimBP mode')
+lion1.Mesh.inits,LoadAsset=0,load_asset
 assert(load_finds==2,'Two loaded-line lookups a second')
 lion1.battle,lion1.speed,lion1.skill,lion1.alpha=true,212.6,true,{0.5,1}
 at(203); n=#lines; lion.tick(); assert(#lines==n,'One a second')
@@ -516,8 +543,9 @@ lion1.Mesh.ticking,lion1.Mesh.bPauseAnims,lion1.Mesh.GlobalAnimRateScale,lion1.C
 ok,why=lion.command('unfreeze')
 assert(ok and why=='unfreeze on 1 Lion: see its mesh and hand moved lines ([LI] lines).',tostring(why))
 assert(last()=='lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: '
-    ..'anim instance CH_M_NA_02_AnimBP_C, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, '
-    ..'rate optimizations false, actor dilation 1.0, sequencer anim mode ?',last())
+    ..'anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, mode 0, mesh CH_M_NA_02_Large, tick true, '
+    ..'pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations false, '
+    ..'actor dilation 1.0, sequencer anim mode ?',last())
 assert(lion1.Mesh.inits==0,'No new anim instance without init')
 at(206.5); n=#lines; lion.tick(); assert(#lines==n+1 and last():find('^lion 1 %(50020%): '),'No second mesh line')
 lion1.Mesh.SetComponentTickEnabled=function() error('no tick') end

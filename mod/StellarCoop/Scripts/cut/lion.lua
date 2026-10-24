@@ -18,7 +18,8 @@
 -- before, while it lives and after. While a Lion lives, two more: which of its 20 Shows and their clips have loaded
 -- (the in-game test of a Lion that attacks with no animation), and the boss bar's name, which the game shows as
 -- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. coop lion unfreeze puts those switches back to their
--- running values on each living Lion (the test of a body whose pose stays on frame 1). Never called here: UE4SS's
+-- running values on each living Lion (the test of a body whose pose stays on frame 1); a body whose mesh has no anim
+-- instance is given one with the Lion's AnimBP (the 2026-10-24 finding). Never called here: UE4SS's
 -- AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call.
 -- The Lion goes when it dies or with the map; the rows stay for the game run, and a later coop lion only reads them
 -- back. coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion to the game.
@@ -67,6 +68,10 @@ local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker | unf
 -- The bone whose place in the body's own frame the follow line compares from one second to the next: a frozen pose
 -- keeps it still while the body runs and attacks (the in-game test of 2026-10-24: frame 1 of its idle, alphas 0).
 local BONE='Bip001-L-Hand'
+-- The Lion's AnimBP, which all three of its blueprints name: the test of 2026-10-24 found the body's mesh with no anim
+-- instance at all (anim instance none), so nothing it plays shows. Its class, and the package that loads it.
+local ANIM_CLASS=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP_C'
+local ANIM_PACKAGE=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP'
 -- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0, through FText::FromStringTable on the
 -- row's Name), the text it shows for the Lion, and ours. FindAllOf('TextBlock') walks every object: the live blocks
 -- found (under /Engine/Transient, not a widget class's template) are kept, and looked for again at most every BOSS_LOOK
@@ -239,14 +244,35 @@ function Lion.new(o)
             v=value_of(v)
             return v==nil and '?' or tostring(v)
         end
-        return string.format('anim instance %s, tick %s, pause %s, rate %s, no skeleton update %s, visibility tick %s, '
-            ..'rate optimizations %s, actor dilation %s, sequencer anim mode %s',
+        return string.format('anim instance %s, anim class %s, mode %s, mesh %s, tick %s, pause %s, rate %s, '
+            ..'no skeleton update %s, visibility tick %s, rate optimizations %s, actor dilation %s, '
+            ..'sequencer anim mode %s',
             read(function() local a=valid(m:GetAnimInstance()); return a and class_of(a) or 'none' end),
+            read(function() local a=valid(m.AnimClass); return a and text(a:GetFName()) or 'none' end),
+            read(function() return m:GetAnimationMode() end),
+            read(function() local a=valid(m.SkeletalMesh); return a and text(a:GetFName()) or 'none' end),
             read(function() return m:IsComponentTickEnabled() end),read(function() return m.bPauseAnims end),
             read(function() return m.GlobalAnimRateScale end),read(function() return m.bNoSkeletonUpdate end),
             read(function() return m.VisibilityBasedAnimTickOption end),
             read(function() return m.bEnableUpdateRateOptimizations end),
             read(function() return c.CustomTimeDilation end),read(function() return c.bSequencerAnimMode end))
+    end
+    -- The mesh's anim class, or the Lion's AnimBP class (loaded first when it is not yet); raises when neither is
+    -- there.
+    local function anim_class(m)
+        local c=valid(m.AnimClass)
+        if c then return c end
+        c=valid(StaticFindObject(ANIM_CLASS))
+        if not c then
+            pcall(LoadAsset,ANIM_PACKAGE)
+            c=valid(StaticFindObject(ANIM_CLASS))
+        end
+        return assert(c,'CH_M_NA_02_AnimBP_C does not load')
+    end
+    -- A mesh with no anim instance gets one: the AnimBP mode, then SetAnimInstanceClass with anim_class's class.
+    local function give_anim(m)
+        m:SetAnimationMode(0) -- EAnimationMode::AnimationBlueprint.
+        m:SetAnimInstanceClass(anim_class(m))
     end
     -- BONE in the body's own frame (cm, yaw only): it moves when the mesh plays anything, and not when its actor moves.
     local function hand(c)
@@ -284,6 +310,14 @@ function Lion.new(o)
         local state=mesh_state(c)
         if state~=f.mesh then log(string.format('%s mesh: %s',name,state)) end
         f.mesh=state
+        -- Once a body, the anim instance it lacks: SetAnimInstanceClass, then its mesh line again.
+        if not f.given and state:find('^anim instance none,') then
+            f.given=true
+            local fine,e=pcall(give_anim,valid(c.Mesh))
+            f.mesh=mesh_state(c)
+            log(string.format('%s had no anim instance: %s; mesh: %s',name,
+                fine and 'SetAnimInstanceClass(CH_M_NA_02_AnimBP_C) called' or 'not given ('..why(e)..')',f.mesh))
+        end
         local hand_read,p=pcall(hand,c)
         local moved=hand_read and f.hand and string.format('%.0f cm',metres(p,f.hand)*100) or '?'
         f.hand=hand_read and p or nil
@@ -591,8 +625,8 @@ function Lion.new(o)
     -- coop lion unfreeze [init]: on each living Lion, every engine switch that can hold a mesh's pose put back to its
     -- running value (component tick, anim pause, the rate scale, skeleton updates, the visibility-based and
     -- rate-optimized ticking, the actor's time dilation), then its mesh line again; init also builds its anim instance
-    -- again (SetAnimInstanceClass with its own class), which SB's skills may not survive: last. The follow line's hand
-    -- moved says whether the pose moves after it.
+    -- again (give_anim), which SB's skills may not survive: last. The follow line's hand moved says whether the pose
+    -- moves after it.
     local function unfreeze(init)
         local n=0
         for _,f in ipairs(followed) do
@@ -611,7 +645,7 @@ function Lion.new(o)
                 try('visibility',function() m.VisibilityBasedAnimTickOption=0 end) -- AlwaysTickPoseAndRefreshBones.
                 try('optimizations',function() m.bEnableUpdateRateOptimizations=false end)
                 try('dilation',function() c.CustomTimeDilation=1.0 end)
-                if init then try('init',function() m:SetAnimInstanceClass(m.AnimClass) end) end
+                if init then try('init',function() give_anim(m) end) end
                 f.mesh=mesh_state(c)
                 log(string.format('lion %d (%d) unfreeze: %s; mesh: %s',f.n,f.id,table.concat(done,', '),f.mesh))
                 n=n+1
