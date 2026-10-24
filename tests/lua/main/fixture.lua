@@ -82,6 +82,9 @@ StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
     if path=='/Script/Engine.Default__KismetRenderingLibrary' then return art.library end
     if path=='/Script/Engine.PlayerController' then return cv.class end
+    if path:find('^/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine') then -- The booth classes (in memory).
+        return {type=function() return 'UClass' end,IsValid=function() return true end}
+    end
     assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
     local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
     return {type=function() return 'UObject' end,IsValid=function() return true end,
@@ -187,10 +190,12 @@ veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 
 her_anchor,markers=nil,{} -- puppet.anchor(); puppet.marker's arguments (the name tag left to the UI marker).
 her_map_v='/game/e04' -- puppet.her_map(): her map, from her table (yours is /game/e04).
 -- The camp phone booths (session/booth.lua for real): FindAllOf of the two booth classes gives bt.world's booths of
--- that class (none by default, so every case scans an empty world) and counts the calls in bt.scans; any other class
--- raises. bt.me: puppet.me().
+-- that class (none by default, so every case scans an empty world) and counts the calls in bt.scans; PlayerController
+-- gives none (core/unreal.lua's actors_of then walks, never deciding on the class hash); any other class raises.
+-- bt.me: puppet.me().
 bt={world={},scans=0,me={at={X=0,Y=0,Z=0},map='/game/e04'}}
 FindAllOf=function(class)
+    if class=='PlayerController' then return nil end
     assert(class=='Env_Camp_TeleportMachine_C' or class=='Env_Camp_TeleportMachine_Standalone_C',class)
     bt.scans=bt.scans+1
     local list={}

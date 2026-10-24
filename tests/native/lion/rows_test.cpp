@@ -370,11 +370,14 @@ int main() {
   }
   // A move of the Lion's own clip travel: the low jump's leap, up to 615.5 cm toward EVE (LocalAxis 6 at +0x3a,
   // InsideTargetOrSelf 3 at +0x3b, SelfToTarget 2 at +0x60, ForwardValue +0x94), stopping 150 cm short of her
-  // (LimitApproachDistance +0xb0), where its paws land at their peak.
+  // (LimitApproachDistance +0xb0), where its paws land at their peak. Its skill's range starts 30 cm past that stop
+  // (NearDistance +0x20), so the leap never starts with EVE already inside it.
   {
     const Row &leap = kRecipe[row_index("M_LionC_JumpAttackLow_Move1", Table::move)];
     assert(value(leap, 0x3a) == 6 && value(leap, 0x3b) == 3 && value(leap, 0x60) == 2 && value(leap, 0x94) == 615.5f &&
            value(leap, 0xb0) == 150.0f);
+    const Row &range = kRecipe[row_index("M_LionC_JumpAttackLow_Target", Table::filter)];
+    assert(value(range, 0x20) == 180.0f && value(range, 0x24) == 490.0f);
   }
 
   // ---- FName's number split, as UE 4.26's ParseNumber ----

@@ -12,14 +12,18 @@
 -- is the new character nearest the spot (of the Large blueprint's class for the Lion), or a body SB sent far away and
 -- moved back there (it reuses one: a Lion at 466 m came back for the next spawn on 2026-10-23), given its default
 -- controller when it has none, then followed: a line a second while it lives (distance, place, the anim graph's speed,
--- a skill running, the custom anim alphas the AnimBP blends a Show's clip by), its death (InteractionState and
+-- a skill running, the custom anim alphas the AnimBP blends a Show's clip by, how far a paw moved in the body's own
+-- frame, with its mesh's engine switches before the first line and at each change), its death (InteractionState and
 -- Controller, as run.lua reads them) and its body's despawn, with the spawn manager's counter (the lion line's spawns=)
--- before, while it lives and after. While a Lion lives, two more: which of its 20 Shows and their clips have loaded
--- (the in-game test of a Lion that attacks with no animation), and the boss bar's name, which the game shows as
--- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Never called here: UE4SS's AddRow or RemoveRow (a raw
--- RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The Lion goes when it dies
--- or with the map; the rows stay for the game run, and a later coop lion only reads them back. coop off ends what this
--- file does (a wait, a search, the lines) and leaves a living Lion to the game.
+-- before, while it lives and after. While a Lion lives, one more: the boss bar's name, which the game shows as
+-- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Nothing looks its Shows or clips up: a StaticFindObject
+-- of one took about 30 ms here, a 50 ms frame each second (the frame rate check of 2026-10-24). coop lion unfreeze puts those switches back to their
+-- running values on each living Lion (the test of a body whose pose stays on frame 1); a body whose mesh has no anim
+-- instance runs the Lion's AnimBP on a hidden Behemoth mesh that the Lion's mesh copies (LEADER_MESH says why), or a
+-- single-node stand-in when that fails. Never called here: UE4SS's
+-- AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call.
+-- The Lion goes when it dies or with the map; the rows stay for the game run, and a later coop lion only reads them
+-- back. coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion to the game.
 -- The entrance: the Lion's AnimBP (CH_M_NA_02_AnimBP) has no montage slot, so a montage would not show, and a
 -- single-node clip on its mesh would replace the anim instance SB plays its skills on while its AI runs. So coop lion
 -- spawns at once, and coop lion intro first plays Mon_LionC_Scene01_Appearance (the cut boss intro's clip) on a display
@@ -61,7 +65,36 @@ local FOLLOW,GONE=1,60 -- s: a line a second while it lives; a body still there 
 -- back for this spawn (no enemy runs the difference in 5 s).
 local FAR=100
 local MASK=0xFFFFFFFF
-local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker'
+local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker | unfreeze [init]'
+-- The bone whose place in the body's own frame the follow line compares from one second to the next: a frozen pose
+-- keeps it still while the body runs and attacks (the in-game test of 2026-10-24: frame 1 of its idle, alphas 0).
+local BONE='Bip001-L-Hand'
+-- The Lion's AnimBP, which all three of its blueprints name: the test of 2026-10-24 found the body's mesh with no anim
+-- instance at all (anim instance none), so nothing it plays shows. Its class, and the package that loads it.
+-- On 2026-10-24 SetAnimationMode(0), which builds the instance in AnimBP mode, left it none, and UE4SS raised a null
+-- UObject on SetAnimInstanceClass with any class (by the mesh's AnimClass or by path: its class parameter does not
+-- pass), while the control Antlion has its own instance. So each class goes into AnimClass by a property write, and a
+-- mode change (single node, then AnimBP) makes the engine clear the instance and build it again: the mesh's own class
+-- first, then the Lion's found by its path, then the Behemoth's (same skeleton, CH_M_NA_46_Skeleton, shipped).
+-- When no AnimBP builds an instance: the engine's single-node instance playing the Lion's battle idle-run blend space
+-- (speed 0 to 600 cm/s), its input set each frame from the anim graph speed. A stand-in until an AnimBP plays: no skill
+-- clip shows with it.
+local DRIVE_BS=DIR..'Animation/BlendSpace/IdleRun_BS_.IdleRun_BS_'
+local DRIVE_MAX=600
+-- Why no AnimBP builds an instance on the Lion (2026-10-24, the eighth test): its three meshes hang Bip001 under Root,
+-- but CH_M_NA_46_Skeleton, which the Behemoth's update gave a Base bone, hangs it under Base. UE 4.26 builds an AnimBP
+-- instance only for a mesh whose bone hierarchy matches its skeleton's (USkeleton::IsCompatibleMesh); the single-node
+-- instance has no such check, so the entrance and the stand-in play. The leader: the body's own mesh component gets
+-- the Behemoth's mesh (CH_M_NA_46, same skeleton, Base included), hidden, with the Lion's AnimBP, which SB's skills and
+-- moves play on as on any monster; a new component on the body draws the Lion's mesh and copies that pose by bone name
+-- (SetMasterPoseComponent).
+local LEADER_MESH={name='CH_M_NA_46',path='/Game/Art/Character/Monster/CH_M_NA_46/CH_M_NA_46.CH_M_NA_46'}
+local BEHEMOTH='/Game/Art/Character/Monster/CH_M_NA_46/BluePrints/'
+local ANIM_CLASSES={
+    {name='CH_M_NA_02_AnimBP_C',class=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP_C',
+        package=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP'},
+    {name='CH_M_NA_46_AnimBP_C',class=BEHEMOTH..'CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP_C',
+        package=BEHEMOTH..'CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP'}}
 -- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0, through FText::FromStringTable on the
 -- row's Name), the text it shows for the Lion, and ours. FindAllOf('TextBlock') walks every object: the live blocks
 -- found (under /Engine/Transient, not a widget class's template) are kept, and looked for again at most every BOSS_LOOK
@@ -86,18 +119,6 @@ local function count(t)
     return n..'/'..n
 end
 Lion.IN={added=count(),char=count('CharacterTable'),skills=count('SkillTable'),stance=count('CharacterStanceTable')}
--- The loaded line's paths: each Lion Show of the kit, then the clip its first anim key plays (the phase-2 roar plays
--- the roar's Show). 9 Shows name their clip as AnimSequence'...': UE 4.26's ResolveName would strip that, but SB's load
--- path was not traced in the exe, so whether those clips load is part of what this line tests. StaticFindObject finds
--- only what is in memory and costs about 4 ms a call here (core/unreal.lua): LOOKS paths a second, each looked for
--- until first seen.
-Lion.SHOWS=DATA_ROWS.SHOWS
-local LOOKS=2
-Lion.LOADS={}
-for _,s in ipairs(Lion.SHOWS) do
-    Lion.LOADS[#Lion.LOADS+1]='/Game/Art/Show/CH_M_NA_02_Lion/Skill/'..s[2]..'.'..s[2]
-    Lion.LOADS[#Lion.LOADS+1]=DIR..'Animation/'..s[3]..'.'..s[3]
-end
 
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
@@ -173,9 +194,22 @@ function Lion.new(o)
     local job=nil -- The command under way: {what=<for a busy refusal>, step=f(job, now), at=<os.clock when due>, ...}.
     local followed={} -- The bodies spawned this Lua load and not let go: {n=, id=, obj=, path=, since=, before=, ...}.
     local spawned,next_follow=0,0
-    local seen,looked,looks,loaded_said={},0,0,nil -- The loaded line's paths seen, cursor, lookups and last line.
+    -- The frame time while a command runs or a Lion lives (UGameplayStatics' world delta, read each frame), and what
+    -- this file's tick costs (os.clock is wall time in the game's CRT), its longest tick, and what the last once-a-second
+    -- pass took by part (parts): the follow line's frame part, and the spawn's before line to compare with. gs: the
+    -- GameplayStatics default object; ctx: its world context (EVE).
+    local perf,gs,ctx={frames=0,sum=0,worst=0,lua=0,tick=0},nil,nil
+    local parts='none yet'
+    local function perf_take() -- The frame part since the last take, then the counters back to 0.
+        local said=(perf.frames>0 and string.format('frame %.1f ms (worst %.1f), ',perf.sum/perf.frames*1000,
+            perf.worst*1000) or 'frame ? ms, ')..string.format('lion Lua %.1f ms/s, longest tick %.1f ms (last pass: %s)',
+            perf.lua,perf.tick,parts)
+        perf.frames,perf.sum,perf.worst,perf.lua,perf.tick=0,0,0,0,0
+        return said
+    end
+    local frame_said='frame ? ms, lion Lua 0.0 ms/s' -- The last second's, for each follow line of that second.
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
-    local failed={} -- The last error of the loaded line and of the boss name, each said once.
+    local failed={} -- The boss name's last error, said once.
     local function lion_line() return Lion.parse(status and status()) end
     local her=N.her
     -- The 12 tables by name, and those missing.
@@ -223,6 +257,136 @@ function Lion.new(o)
         log(string.format('lion %d spawn count: before %s, alive %s, %s %s',f.n,counted(f.before),counted(f.alive),
             f.dead and 'after death' or 'after',counted(spawn_count())))
     end
+    -- The body's mesh, as the engine ticks it: what could keep its pose still while its logic runs. A field that
+    -- cannot be read is a ?.
+    local function named(o) local a=valid(o); return a and text(a:GetFName()) or 'none' end
+    local function mesh_state(c)
+        local m=valid(c.Mesh)
+        if not m then return 'no mesh' end
+        local function read(get)
+            local fine,v=pcall(get)
+            if not fine then return '?' end
+            v=value_of(v)
+            return v==nil and '?' or tostring(v)
+        end
+        return string.format('anim instance %s, anim class %s, its skeleton %s, mesh skeleton %s, mode %s, '
+            ..'leader %s, anim set sync %s, mesh %s, tick %s, pause %s, rate %s, '
+            ..'no skeleton update %s, visibility tick %s, rate optimizations %s, actor dilation %s, '
+            ..'sequencer anim mode %s',
+            read(function() local a=valid(m:GetAnimInstance()); return a and class_of(a) or 'none' end),
+            read(function() local a=valid(m.AnimClass); return a and text(a:GetFName()) or 'none' end),
+            read(function() return named(valid(m.AnimClass).TargetSkeleton) end),
+            read(function() return named(valid(m.SkeletalMesh).Skeleton) end),
+            read(function() return m:GetAnimationMode() end),
+            read(function() local l=valid(U.weak(m.MasterPoseComponent)); return l and path_of(l) or 'none' end),
+            read(function() return c.bInitAnimSetSyncData end),
+            read(function() local a=valid(m.SkeletalMesh); return a and text(a:GetFName()) or 'none' end),
+            read(function() return m:IsComponentTickEnabled() end),read(function() return m.bPauseAnims end),
+            read(function() return m.GlobalAnimRateScale end),read(function() return m.bNoSkeletonUpdate end),
+            read(function() return m.VisibilityBasedAnimTickOption end),
+            read(function() return m.bEnableUpdateRateOptimizations end),
+            read(function() return c.CustomTimeDilation end),read(function() return c.bSequencerAnimMode end))
+    end
+    -- A mesh with no anim instance gets one: with its own anim class, then each of ANIM_CLASSES (found by path, its
+    -- package loaded first when it is not yet), the class written into AnimClass, then SetAnimationMode 1 and 0, until
+    -- the mesh has an instance. Returns what each try gave, as words (an error's first line only).
+    local function give_anim(m,own_only)
+        local said={}
+        local function has() return valid(m:GetAnimInstance())~=nil end
+        local function try(name,c)
+            local fine,e=pcall(function()
+                if c then m.AnimClass=c end
+                m:SetAnimationMode(1) -- EAnimationMode::AnimationSingleNode, then AnimationBlueprint: a rebuild.
+                m:SetAnimationMode(0)
+            end)
+            said[#said+1]=name..' '..(not fine and 'failed ('..why(e):match('^[^\n]*')..')' or has() and 'built one'
+                or 'built none')
+        end
+        try('its own class',nil)
+        for _,a in ipairs(own_only and {} or ANIM_CLASSES) do
+            if has() then break end
+            local c=valid(StaticFindObject(a.class))
+            if not c then
+                pcall(LoadAsset,a.package)
+                c=valid(StaticFindObject(a.class))
+            end
+            if c then try(a.name,c) else said[#said+1]=a.name..' does not load' end
+        end
+        return table.concat(said,', ')
+    end
+    -- An object by path, its package loaded first when it is not yet; raises when it does not load.
+    local function load(path,name)
+        local o=valid(StaticFindObject(path))
+        if not o then
+            pcall(LoadAsset,path)
+            o=valid(StaticFindObject(path))
+        end
+        return assert(o,name..' does not load')
+    end
+    -- The leader (see LEADER_MESH): the body's mesh component takes the Behemoth's mesh and the Lion's AnimBP, then is
+    -- drawn in no pass (main, depth, shadow) but stays in the scene, so the engine still counts it as rendered and SB's
+    -- OnlyTickPoseWhenRendered keeps ticking it (the 2026-10-24 test, with it hidden, found transitions stiff); its
+    -- cloth is not simulated. A new component on the body, attached to it with no offset (so with its place and 1.5
+    -- scale), draws the Lion's mesh in SB's character light channel and copies its pose. Returns the new component;
+    -- raises, the Lion's mesh back and no new component left, when anything fails.
+    local function lead(c)
+        local m=valid(c.Mesh)
+        local lion_mesh=assert(valid(m.SkeletalMesh),'no Lion mesh on the body')
+        local leader_mesh=load(LEADER_MESH.path,LEADER_MESH.name)
+        local class=load(ANIM_CLASSES[1].class,ANIM_CLASSES[1].name)
+        m:SetSkeletalMesh(leader_mesh,true)
+        m.AnimClass=class
+        m:SetAnimationMode(1)
+        m:SetAnimationMode(0)
+        if not valid(m:GetAnimInstance()) then
+            m:SetSkeletalMesh(lion_mesh,true) -- Never a Behemoth drawn as the Lion: its own mesh back.
+            error('the Lion AnimBP builds no instance on '..LEADER_MESH.name..' either',0)
+        end
+        local f
+        local made,e=pcall(function()
+            local identity=load('/Script/Engine.Default__KismetMathLibrary','KismetMathLibrary'):MakeTransform(
+                {X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
+            local skinned=load('/Script/Engine.SkeletalMeshComponent','SkeletalMeshComponent')
+            f=assert(valid(c:AddComponentByClass(skinned,true,identity,false)),'no component for the Lion mesh')
+            f:SetCollisionEnabled(0)
+            f:K2_AttachToComponent(m,FName('None'),0,0,0,false) -- EAttachmentRule::KeepRelative, all three.
+            f:SetMasterPoseComponent(m,true)
+            f:SetSkeletalMesh(lion_mesh,true)
+            f:SetLightingChannels(true,true,false) -- As the body's mesh: SB lights its characters in channel 1.
+            m:SetRenderInMainPass(false)
+            m.bRenderInDepthPass=false
+            m:SetCastShadow(false)
+            m.bDisableClothSimulation=true
+        end)
+        if not made then
+            if f then pcall(function() f:K2_DestroyComponent(c) end) end
+            pcall(function()
+                m:SetRenderInMainPass(true)
+                m.bRenderInDepthPass=true
+                m:SetCastShadow(true)
+                m:SetSkeletalMesh(lion_mesh,true)
+            end)
+            error(e,0)
+        end
+        return f
+    end
+    -- The stand-in when give_anim built nothing: the single-node instance playing DRIVE_BS. True once it has one.
+    local function drive_start(m)
+        local bs=valid(StaticFindObject(DRIVE_BS))
+        if not bs then
+            pcall(LoadAsset,DRIVE_BS)
+            bs=assert(valid(StaticFindObject(DRIVE_BS)),'IdleRun_BS_ does not load')
+        end
+        m:PlayAnimation(bs,true)
+        return valid(m:GetAnimInstance())~=nil
+    end
+    -- BONE in the body's own frame (cm, yaw only): it moves when the mesh plays anything, and not when its actor moves.
+    local function hand(c)
+        local p=value_of(valid(c.Mesh):GetSocketLocation(FName(BONE)))
+        local at,yaw=location(c),math.rad(value_of(c:K2_GetActorRotation()).Yaw)
+        local x,y=p.X-at.X,p.Y-at.Y
+        return {X=x*math.cos(yaw)+y*math.sin(yaw),Y=y*math.cos(yaw)-x*math.sin(yaw),Z=p.Z-at.Z}
+    end
     local function follow_one(f,now)
         local ok,c=pcall(Doro.same,f.obj,f.path)
         local name=string.format('lion %d (%d)',f.n,f.id)
@@ -249,40 +413,48 @@ function Lion.new(o)
         end
         local skill_read,skill=pcall(function() return c:IsRunningSkill()==true end)
         local at_read,at=pcall(function() return xyz(location(c)) end)
-        log(string.format('%s: %s m, xyz %s, speed %s, skill %s, anim alpha %s/%s, battle %s, state %s, controller %s, '
-            ..'spawn count %s',name,eve and string.format('%.1f',metres(location(c),location(eve))) or '?',
+        local state=mesh_state(c)
+        if state~=f.mesh then log(string.format('%s mesh: %s',name,state)) end
+        f.mesh=state
+        -- Once a body, the anim instance it lacks: SetAnimInstanceClass, then its mesh line again.
+        -- The control Antlion, once: the same rebuild with its own class, which tells whether the rebuild works on a
+        -- shipped Naytiba's body (its instance is built again; it is never given the Lion's classes).
+        if f.id==CONTROL and not f.given then
+            f.given=true
+            local fine,e=pcall(give_anim,valid(c.Mesh),true)
+            f.mesh=mesh_state(c)
+            log(string.format('%s rebuild test: %s; mesh: %s',name,fine and e or 'failed ('..why(e)..')',f.mesh))
+        end
+        if not f.given and f.id~=CONTROL and state:find('^anim instance none,') then
+            f.given=true
+            local fine,e=pcall(give_anim,valid(c.Mesh))
+            e=fine and e or 'not given ('..why(e)..')'
+            if not valid(valid(c.Mesh):GetAnimInstance()) then
+                local led,l=pcall(lead,c)
+                f.lead=led or nil
+                e=e..'; leader: '..(led and 'the Lion AnimBP runs on a hidden '..LEADER_MESH.name..', the Lion mesh '
+                    ..'copies its pose' or 'failed ('..why(l)..')')
+            end
+            if not valid(valid(c.Mesh):GetAnimInstance()) then
+                local ran,driven=pcall(drive_start,valid(c.Mesh))
+                f.drive=ran and driven and c or nil
+                e=e..'; stand-in: '..(not ran and 'failed ('..why(driven)..')' or driven
+                    and 'the single-node instance plays IdleRun_BS_ by speed' or 'no single-node instance either')
+            end
+            f.mesh=mesh_state(c)
+            log(string.format('%s had no anim instance: %s; mesh: %s',name,e,f.mesh))
+        end
+        local hand_read,p=pcall(hand,c)
+        local moved=hand_read and f.hand and string.format('%.0f cm',metres(p,f.hand)*100) or '?'
+        f.hand=hand_read and p or nil
+        log(string.format('%s: %s m, xyz %s, speed %s, skill %s, anim alpha %s/%s, hand moved %s, battle %s, state %s, '
+            ..'controller %s, spawn count %s, %s',name,
+            eve and string.format('%.1f',metres(location(c),location(eve))) or '?',
             at_read and at or '?',num('%.0f',function() return c:GetSBSpeedForAnimGraph() end),
             skill_read and (skill and 'yes' or 'no') or '?',
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(0) end),
-            num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),read and (battle and 1 or 0) or '?',
-            tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count())))
-    end
-    -- While a Lion lives, once a second: LOOKS of the 40 paths (each Show, then its clip) not seen yet, and the loaded
-    -- line once each path was looked for (0/20 then says none loaded) or one was seen, and whenever it changes. A Show
-    -- seen means the game played it on a Lion (it loads a Show when a step names it); its clip seen means the Show's
-    -- anim key loaded it. A Show seen without its clip is named.
-    local function look_loaded()
-        local paths,tries=Lion.LOADS,0
-        for _=1,#paths do
-            if tries==LOOKS then break end
-            looked=looked%#paths+1
-            if not seen[paths[looked]] then
-                tries,looks=tries+1,looks+1
-                if valid(StaticFindObject(paths[looked])) then seen[paths[looked]]=true end
-            end
-        end
-        local shows,clips,without=0,0,{}
-        for i,k in ipairs(Lion.SHOWS) do
-            local show,clip=seen[paths[2*i-1]],seen[paths[2*i]]
-            shows,clips=shows+(show and 1 or 0),clips+(clip and 1 or 0)
-            if show and not clip then without[#without+1]=k[1] end
-        end
-        local line=string.format('loaded: shows %d/%d, clips %d/%d',shows,#Lion.SHOWS,clips,#Lion.SHOWS)
-            ..(without[1] and ' (Show seen, its clip not yet: '..table.concat(without,', ')..')' or '')
-        if (shows>0 or clips>0 or looks>=#paths) and line~=loaded_said then
-            loaded_said=line
-            log(line)
-        end
+            num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),moved,read and (battle and 1 or 0) or '?',
+            tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count()),frame_said))
     end
     -- While a Lion lives, once a second: the boss bar's name as BOSS_NAME where it reads <M_LionC> (SB writes it again
     -- at its next boss bind, and this puts it back).
@@ -356,6 +528,7 @@ function Lion.new(o)
                 let_go(f,string.format('lion %d (%d) recycled: SB moved its body back for this spawn',f.n,f.id))
             end
         end
+        log('before the spawn: '..perf_take()) -- While the command ran, the Lion not there yet: to compare with.
         log(string.format('spawn %d: CreateActor returned; body %s %s m from EVE, %.1f m from the spot, after %.1f s; '
             ..'controller %s%s; EventSpawnId %s%s',j.id,class_of(best),from and string.format('%.1f',from) or '?',
             best_m,j.seen,ctl and class_of(ctl) or 'none',adopted,read and tostring(key) or '?',reused))
@@ -416,6 +589,7 @@ function Lion.new(o)
         end
         log(string.format('entrance: played on a display copy for %.1f s; %s: the Lion spawns %s',now-j.played,said,
             at==j.spot and 'at the spot' or 'there'))
+
         spawn(j,at,now)
     end
     -- The display copy at the spot, on EVE's feet, facing her, playing the clip once; then intro_done when it ends.
@@ -549,6 +723,42 @@ function Lion.new(o)
         if not ok then return false,'No spawn: '..why(e) end
         return true,'Antlion 50110 asked: [LI] lines follow.'
     end
+    -- coop lion unfreeze [init]: on each living Lion, every engine switch that can hold a mesh's pose put back to its
+    -- running value (component tick, anim pause, the rate scale, skeleton updates, the visibility-based and
+    -- rate-optimized ticking, the actor's time dilation), then its mesh line again; init also builds its anim instance
+    -- again (give_anim), which SB's skills may not survive: last. The follow line's hand moved says whether the pose
+    -- moves after it.
+    local function unfreeze(init)
+        local n=0
+        for _,f in ipairs(followed) do
+            local ok,c=pcall(Doro.same,f.obj,f.path)
+            local m=ok and c and not f.dead and valid(c.Mesh)
+            if m then
+                local done={}
+                local function try(word,set)
+                    local fine,e=pcall(set)
+                    done[#done+1]=fine and word or word..' failed ('..why(e)..')'
+                end
+                try('tick',function() m:SetComponentTickEnabled(true) end)
+                try('pause',function() m.bPauseAnims=false end)
+                try('rate',function() m.GlobalAnimRateScale=1.0 end)
+                try('skeleton',function() m.bNoSkeletonUpdate=false end)
+                try('visibility',function() m.VisibilityBasedAnimTickOption=0 end) -- AlwaysTickPoseAndRefreshBones.
+                try('optimizations',function() m.bEnableUpdateRateOptimizations=false end)
+                try('dilation',function() c.CustomTimeDilation=1.0 end)
+                if init then
+                    local fine,e=pcall(give_anim,m)
+                    done[#done+1]='init: '..(fine and e or 'failed ('..why(e)..')')
+                end
+                f.mesh=mesh_state(c)
+                log(string.format('lion %d (%d) unfreeze: %s; mesh: %s',f.n,f.id,table.concat(done,', '),f.mesh))
+                n=n+1
+            end
+        end
+        if n==0 then return false,'No living Lion followed: coop lion spawns one.' end
+        return true,string.format('unfreeze on %d Lion%s: see its mesh and hand moved lines ([LI] lines).',n,
+            n>1 and 's' or '')
+    end
     -- brain sets the ID of the next spawns, even while a command runs; the others wait for it.
     function self.command(sub,a,extra)
         if extra~=nil then return false,USE end
@@ -558,6 +768,7 @@ function Lion.new(o)
             return true,string.format('coop lion spawns %d (%s, the %s tree) until the mod reloads.',brain,
                 Lion.IDS[brain],a=='lurker' and 'Lesser Lurker' or 'Skulling test')
         end
+        if sub=='unfreeze' and (a==nil or a=='init') then return unfreeze(a=='init') end
         if a~=nil or not (sub==nil or sub=='intro' or sub=='rows' or sub=='control') then return false,USE end
         if job then return false,'coop lion is busy ('..job.what..'): try again in a few seconds' end
         if sub=='rows' then return start(false,true) end
@@ -569,6 +780,14 @@ function Lion.new(o)
     function self.tick()
         local now=os.clock()
         local ok,message
+        if job or followed[1] then
+            local fine,dt=pcall(function()
+                if not valid(ctx) then ctx=her() end
+                gs=gs or valid(StaticFindObject('/Script/Engine.Default__GameplayStatics'))
+                return tonumber(value_of(gs:GetWorldDeltaSeconds(ctx)))
+            end)
+            if fine and dt then perf.frames,perf.sum,perf.worst=perf.frames+1,perf.sum+dt,math.max(perf.worst,dt) end
+        end
         if job and now>=job.at then
             local j=job
             local ran,done,said=pcall(j.step,j,now)
@@ -578,23 +797,55 @@ function Lion.new(o)
             elseif done~=nil then ok,message=done,said end
             if ok~=nil and job==j then job=nil end
         end
+        -- The leaders, dead ones included (their death plays on it): AlwaysTickPoseAndRefreshBones each frame, in case
+        -- the engine stops counting a mesh drawn in no pass as rendered. Only while the body is still the one met.
+        -- The stand-ins: each frame, their blend space input from the anim graph speed.
+        for _,f in ipairs(followed) do
+            if f.lead then
+                pcall(function()
+                    local c=Doro.same(f.obj,f.path)
+                    if not c then return end
+                    local m=c.Mesh
+                    if m.VisibilityBasedAnimTickOption~=0 then m.VisibilityBasedAnimTickOption=0 end
+                end)
+            end
+            if f.drive and not f.dead then
+                pcall(function()
+                    if not Doro.same(f.drive,f.path) then return end
+                    local m=f.drive.Mesh
+                    if m:GetAnimationMode()~=1 then -- Out of single-node mode (unfreeze init built an AnimBP): done.
+                        f.drive=nil
+                        return
+                    end
+                    local speed=tonumber(value_of(f.drive:GetSBSpeedForAnimGraph())) or 0
+                    m:GetAnimInstance():SetBlendSpaceInput({X=math.min(DRIVE_MAX,math.max(0,speed)),Y=0,Z=0})
+                end)
+            end
+        end
         if followed[1] and now>=next_follow then
             next_follow=now+FOLLOW
+            frame_said=perf_take()
+            local took={}
+            local t=os.clock()
             for _,f in ipairs({table.unpack(followed)}) do
                 local fine,e=pcall(follow_one,f,now)
                 if not fine then let_go(f,string.format('lion %d no longer followed: %s',f.n,why(e))) end
             end
+            took[1]=string.format('follow %.1f ms',(os.clock()-t)*1000)
             local lives=false
             for _,f in ipairs(followed) do lives=lives or (f.id~=CONTROL and not f.dead) end
             if lives then
-                for word,f in pairs({loaded=look_loaded,['boss name']=boss_name}) do
-                    local fine,e=pcall(f,now)
-                    e=not fine and string.format('%s: unread (%s)',word,why(e))
-                    if e and e~=failed[word] then log(e) end
-                    failed[word]=e
-                end
+                t=os.clock()
+                local fine,e=pcall(boss_name,now)
+                took[2]=string.format('boss name %.1f ms',(os.clock()-t)*1000)
+                e=not fine and string.format('boss name: unread (%s)',why(e))
+                if e and e~=failed.boss then log(e) end
+                failed.boss=e
             end
+            parts=table.concat(took,', ')
         end
+        local spent=(os.clock()-now)*1000
+        perf.lua,perf.tick=perf.lua+spent,math.max(perf.tick,spent)
         return ok,message
     end
     -- coop off: the job ended (an entrance copy removed), the bodies no longer followed. A living Lion stays: it is the

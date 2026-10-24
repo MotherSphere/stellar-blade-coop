@@ -824,7 +824,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
-| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its first test it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
+| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its tests it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) (test commands, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
@@ -1139,6 +1139,11 @@ lines go to `UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-li
 - `coop lion brain skulling|lurker` picks the behaviour tree of the next Lions until the mod reloads. `skulling`, the
   default, spawns 50020 (row M_LionC, tree M_Skulling_AI_Test); `lurker` spawns 50021 (row M_LionC_Lurker, the Lesser
   Lurker's tree). Any save.
+- `coop lion unfreeze` sets, on each living Lion, every engine switch that can keep a mesh's pose still back to its
+  running value: the mesh's tick, its animation pause, its rate scale, its skeleton updates, its visibility-based and
+  rate-optimized ticking and the actor's time dilation. It then logs the mesh line again. `coop lion unfreeze init`
+  also builds the Lion's animation instance again (`SetAnimInstanceClass` with its own class). The game's skills may
+  not survive that, so try it last. Any save.
 
 While a command waits for its rows, its body or its entrance, another `coop lion` answers that it is busy.
 
@@ -1163,7 +1168,10 @@ What to expect:
   blocked and perfect-parried.
 - Each move follows its animation: the Lion travels as far as its feet show, when they show it. A move toward EVE
   stops short of her, where the next blow lands, so a leap does not carry the Lion past her when she stands closer than
-  the leap's length. Leaps are estimates, since the feet are off the ground. The two running attacks and one chasing
+  the leap's length. A skill that leaps before its first blow starts only when EVE stands at least 30 cm past where
+  that leap stops (8.3 m for the high jump, 1.8 m for the low jump), so the Lion does not back off before it strikes.
+  The two claw chains and the dash chain would have no range left that way: their first steps go up to EVE instead.
+  Leaps are estimates, since the feet are off the ground. The two running attacks and one chasing
   claw look for EVE to the side and keep the Lion's heading; the other skills turn it toward her. Each skill's range is
   the reach of its first hit toward EVE plus what its moves close before it, and a skill whose moves take the Lion 3 m
   or more one way needs that much open ground to start. It walks at 2 m/s and runs at 9 m/s, the Behemoth's pace. Its
@@ -1195,8 +1203,15 @@ The log lines, in `UE4SS.log` unless marked:
 | `rows read back through FindRow: 220/220 authored rows, 2974 fields as written (2083 differ from the template row)` | Every field the native part wrote reads as written; 2083 of them hold a value the shipped row it started from did not, and the other 891 restate that row's value |
 | `rows already in (220/220; ...): not added again` | A later `coop lion` in the same game run |
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
-| `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), battle mode, state, controller and the game's spawn counter |
-| `loaded: shows 3/20, clips 2/20 (Show seen, its clip not yet: Roar)` | Which of the Lion's 20 skill presentations (Shows) and their clips the game has loaded so far; first said once all 40 were looked for (about 20 s), then at each change |
+| `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, hand moved 0 cm, battle 1, state 1, controller yes, spawn count -5, frame 16.7 ms (worst 24.1), lion Lua 0.4 ms/s, longest tick 0.3 ms (last pass: follow 0.2 ms, boss name 0.0 ms)` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), how far its left front paw (`Bip001-L-Hand`) moved in its own frame since the last line (0 cm while it runs or attacks: its pose does not play), battle mode, state, controller, the game's spawn counter, and over the last second the mean and worst frame time, the time this file's tick took and its longest single tick (to tell the Lion's cost from the mod's: a longest tick near the worst frame is the mod's), and what the last once-a-second pass took by part |
+| `before the spawn: frame 16.4 ms (worst 19.0), lion Lua 0.1 ms/s, longest tick 0.1 ms (last pass: none yet)` | The same frame part while the command waited, before the Lion was there: compare it with the follow lines |
+| `lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton CH_M_NA_46_Skeleton, mesh skeleton CH_M_NA_46_Skeleton, mode 0, leader none, anim set sync true, mesh CH_M_NA_02_Large, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations true, actor dilation 1.0, sequencer anim mode false` | Its mesh as the engine ticks it, before its first line and at each change: the animation instance class (`none` when it has none), the mesh's anim class, that class's target skeleton, the mesh's skeleton, its animation mode (0: animation blueprint, 1: single node), the component it copies its pose from (`MasterPoseComponent`), SB's `bInitAnimSetSyncData` (the character's animation set read), its mesh asset, the mesh's tick, `bPauseAnims`, `GlobalAnimRateScale`, `bNoSkeletonUpdate`, `VisibilityBasedAnimTickOption`, `bEnableUpdateRateOptimizations`, the actor's `CustomTimeDilation` and SB's `bSequencerAnimMode`; `?` for a field that does not read |
+| `lion 1 (50020) had no anim instance: its own class built none, ...; stand-in: the single-node instance plays IdleRun_BS_ by speed; mesh: ...` | When no AnimBP builds one: the engine's single-node instance loops the Lion's battle idle-run blend space, its speed input set each frame from the anim graph speed (600 cm/s at most), so the Lion stands, walks and runs. Its skills play no clip with it |
+| `...; leader: the Lion AnimBP runs on a hidden CH_M_NA_46, the Lion mesh copies its pose; mesh: ...` | When no AnimBP builds an instance on the Lion's mesh: the body's mesh component takes the Behemoth's mesh (whose bones hang as the skeleton's do) with the Lion's AnimBP, drawn in no pass (no main pass, depth or shadow) so the engine still ticks it, and a new component draws the Lion's mesh and copies that pose bone by bone. SB's skills and moves then play as on any monster. If that fails too, the Lion gets its mesh back and the stand-in plays |
+| `lion 2 (50110) rebuild test: its own class built one; mesh: ...` | The control Antlion's first line: its instance rebuilt with its own class (written into `AnimClass`, mode 1 then 0), which says whether that rebuild works on a shipped Naytiba's body |
+| `entrance copy AnimBP test: its own class built none, CH_M_NA_02_AnimBP_C built one` | `coop lion intro`, before the spawn: the same tries on the entrance copy, a plain actor's mesh rather than an SBCharacter's. An instance there means the Lion's AnimBP is sound and the Lion's body refuses it |
+| `lion 1 (50020) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built one; mesh: ...` | Its mesh had no animation instance. Once a body (never for the control Antlion), the mod asks the engine to build one: with the mesh's own anim class, then the Lion's AnimBP, then the Behemoth's (same skeleton), each class found by its path, written into the mesh's `AnimClass` and followed by a switch to single-node mode and back. The line says what each try gave, then the mesh line |
+| `lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: ...` | What `coop lion unfreeze` set (a failed one with its reason) and the mesh line after it |
 | `boss name: <M_LionC> -> Lion` | The boss bar's name set to Lion |
 | `lion 1 (50020) recycled: SB moved its body back for this spawn` | The game reused a Lion body it had sent far away for the next spawn; that spawn's line ends with `a body SB reused` |
 | `lion 1 (50020) dead after 143 s (InteractionState 3, no controller); body gone after 22.4 s` | Its death and its body's despawn |
@@ -1208,16 +1223,14 @@ line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded 
 part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
 
-In the first test (0.6.0-beta.1, 2026-10-23) the Lion moved and its attacks hit, but it stayed in its idle pose. The
-cause is not known yet. To find it, fight a Lion for at least 30 s, then run `coop lion control` in the same game run
-and watch whether the Antlion animates. Note whether the Lion's attacks showed claw trails (the Show ran) or growls
-(its clip played: the growls are in the clip). The lines then tell the cases apart:
+In the tests of 2026-10-23 and 2026-10-24 the Lion fought like a boss, but its body stayed on the first frame of its
+idle pose: its mesh had no animation instance. The cause: the Lion's three meshes hang the `Bip001` bone under `Root`,
+while the skeleton they share with the Behemoth (`CH_M_NA_46_Skeleton`) hangs it under a `Base` bone added later. UE
+4.26 builds an animation blueprint's instance only for a mesh whose bones match its skeleton's hierarchy, so neither the
+Lion's AnimBP nor the Behemoth's ran on any Lion mesh, while the single-node instance (the entrance, the stand-in) has
+no such check. `coop lion` now runs the Lion's AnimBP on a hidden Behemoth mesh and draws the Lion's mesh on top,
+copying its pose bone by bone, so its skills and moves animate through the game's own system.
 
-- `loaded: shows 0/20` after attacks: the game never played a Lion Show on that body.
-- A Show seen and its clip not: the Show ran, but its clip did not load.
-- Both seen, `anim alpha 0.00/0.00` during attacks: the clip loaded, but the animation blueprint never blended it in.
-- `anim alpha` above 0 during attacks: the Lion does animate.
-- An Antlion that does not animate either: the spawn call is at fault, not the Lion's rows.
 ### Cut hairs and suits: `coop wear`
 
 The game's files hold two hairs and four suits that no item gives. `coop wear` puts them on your EVE by setting the

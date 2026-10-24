@@ -179,8 +179,9 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
 - The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
   `coop ui reset` in the console (F10 or `~`) closes them all.
-- `booths: slow scan <ms> ms (<n> found)`: one scan took 5 ms or more on that PC. The scan runs on the game thread, so
-  that frame took as much longer. If the line comes back, send `UE4SS.log` (see
+- `booths: slow scan <ms> ms (<n> found, <route>)`: one scan took 5 ms or more on that PC. The scan runs on the game
+  thread, so that frame took as much longer. `class hash` is the fast route; `walk` means this UE4SS could not use it
+  and each scan walks every object. If the line comes back, send `UE4SS.log` (see
   [Which logs to send](#which-logs-to-send)).
 
 ### The co-op menu or the chat box closed by itself

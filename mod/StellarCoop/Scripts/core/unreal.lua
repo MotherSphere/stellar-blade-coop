@@ -40,7 +40,8 @@ function U.text(name)
     name=U.value_of(name)
     return type(name)=='string' and name or name:ToString()
 end
--- StaticFindObject costs about 4 ms a call in this build: each path is looked up once while its object lives.
+-- StaticFindObject finds an object in memory at once, but a path that is not in memory cost 4 to 35 ms a call in game
+-- (2026-10-24, more as the session loads more): each path is looked up once while its object lives.
 local found={}
 function U.find(path)
     local object=U.valid(found[path])
@@ -55,6 +56,37 @@ end
 function U.controller()
     local pc=U.valid(require('UEHelpers').GetPlayerController())
     return pc and pc:IsA(U.find('/Script/Engine.PlayerController')) and pc or nil
+end
+-- The actors of class cls (a class object; name, its short name) in ctx's world, subclasses included, through
+-- UGameplayStatics::GetAllActorsOfClass, which reads the engine's class hash in a fraction of a millisecond, where
+-- FindAllOf walks every object (25 to 80 ms in game, a frozen frame). Proven once a Lua load: the hash must give at
+-- least one PlayerController when FindAllOf gives one (UE4SS fills the out array); until then, and for good if it
+-- does not, each call walks with FindAllOf(name) as before. Returns the list and the route ('class hash' or 'walk').
+local hash_ok=nil
+local function hashed(cls,ctx)
+    local out,list={},{}
+    U.find('/Script/Engine.Default__GameplayStatics'):GetAllActorsOfClass(ctx,cls,out)
+    U.each(out,function(_,a) a=U.valid(a); if a then list[#list+1]=a end end)
+    return list
+end
+function U.actors_of(cls,name,ctx)
+    if hash_ok==nil and ctx then
+        local walked=0
+        U.each(FindAllOf and FindAllOf('PlayerController') or {},function(_,pc)
+            if U.valid(pc) then walked=walked+1 end
+        end)
+        if walked>0 then
+            local ok,list=pcall(hashed,U.find('/Script/Engine.PlayerController'),ctx)
+            hash_ok=ok and #list>0
+        end
+    end
+    if hash_ok and ctx then
+        local ok,list=pcall(hashed,cls,ctx)
+        if ok then return list,'class hash' end
+    end
+    local list={}
+    U.each(FindAllOf and FindAllOf(name) or {},function(_,a) a=U.valid(a); if a then list[#list+1]=a end end)
+    return list,'walk'
 end
 function U.address(object) return U.value_of(object):GetAddress() end
 function U.hex(object) return string.format('0x%x',U.address(object)) end
