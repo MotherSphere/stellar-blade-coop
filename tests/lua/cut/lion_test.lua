@@ -126,7 +126,7 @@ do
             else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
         end
     end
-    assert(n==220 and #L.ROWS==220 and #patches==2974,n..' rows, '..#patches..' patches')
+    assert(n==220 and #L.ROWS==220 and #patches==2976,n..' rows, '..#patches..' patches')
     assert(L.IN.added=='220/220' and L.IN.char=='2/2' and L.IN.skills=='21/21' and L.IN.stance=='2/2')
 end
 -- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each
@@ -176,7 +176,7 @@ do
             assert(not f.StartEffect:find('MinimumHP_60p'),r.name)
         end
     end
-    assert(changed==2083,'Fields that differ from the template: '..changed) -- The other 891 restate its value.
+    assert(changed==2085,'Fields that differ from the template: '..changed) -- The other 891 restate its value.
     for _,name in ipairs({'M_LionC','M_LionC_Lurker'}) do
         local c=row('CharacterTable',name).field
         assert(c.LinkSkillRandomActiveStepFlagArray=='Common' and c.StanceAliasArray=='M_LionC_Phase2' and
@@ -492,7 +492,7 @@ ok,why=lion.tick()
 assert(ok and why=='Lion rows in: 220/220 added, SB finds them by ID (char 2/2, skills 21/21, stance 2/2) and they '
     ..'read back as written; coop lion spawns one.',tostring(why))
 assert(lines[#lines-1]=='rows answer: lion='..ROWS_IN:format(1,'6') and last()=='rows read back through FindRow: '
-    ..'220/220 authored rows, 2974 fields as written (2083 differ from the template row)',last())
+    ..'220/220 authored rows, 2976 fields as written (2085 differ from the template row)',last())
 assert(#calls==0 and #asked==1,'Rows only: no spawn')
 
 -- coop lion with the rows in: no ask, the read-back, the spawn call, then the body after 0.3 s.

@@ -1406,9 +1406,10 @@ names none.
 - A move that heads toward where its skill expects EVE (within 60 degrees) goes along the line to her and stops short of
   her: `MovePositionType_InsideTargetOrSelf` with `MoveDirectionAxis_SelfToTarget`, the shape of the shipped lunges of
   Elder phase 2, Scarlet, Raven and Tachy. It goes its clip's length, or less when EVE is nearer, and stops
-  `LimitApproachDistance` short of her: where the next strike lands at its peak (150 cm for the low jump's paws, 800 cm
-  for the high jump's, which land 8 m ahead of the root inside the clip). That these moves stop short comes from the
-  shipped rows (Scarlet's Airspin: 2000 cm with a 200 cm limit), not from the game's code. 43 moves are of this kind;
+  `LimitApproachDistance` short of her: where the next strike lands at its peak, rounded down to 10 cm so the strike
+  never lands short (150 cm for the low jump's paws, 800 cm for the high jump's, which land 8 m ahead of the root
+  inside the clip; the paws reach 893 cm during that hit). That these moves stop short comes from the shipped rows
+  (Scarlet's Airspin: 2000 cm with a 200 cm limit), not from the game's code. 43 moves are of this kind;
   the other 10 keep their travel along the Lion's own axes (the side steps, steps and jumps back or sideways, the roars'
   step forward). The side steps keep only their sideways travel (14.2 and 15.9 m), as the forward part is the method's
   error there. BackJumpToAttack has no move: its first step's travel is the net of two opposite flight estimates (-924
@@ -1427,6 +1428,16 @@ names none.
   behind, the roar in a 120-degree arc up to 7 m ahead. Each way the moves take the Lion 3 m or more gets the shortest
   shipped space check (`Valid_Move_*`) that covers it, or the longest of that way when none does (the side steps' 14.2
   and 15.9 m, and the high jump and three chains that go past 18 m forward).
+- A skill with a move toward EVE before its first hit only starts when she stands past that move's stop: its filter's
+  `NearDistance` is the stop plus 30 cm (the shortest travel that gets a move), rounded up to 10 cm. Seven skills get
+  one: the low jump 180 cm, the high jump 830 cm, RushAttack 310 cm, the chasing claws 440 and 230 cm, the run attacks
+  130 and 140 cm. Without it a skill could start with EVE inside the stop, and the lunge would hold or step back while
+  the strike passed her. SB's own monster skills set no `NearDistance` beside such a limit (none of the 12 whose first
+  such move has one, of 200 or 300 cm), and their ranges reach at least that far; the Lion's leaps stop farther out (up
+  to 8 m). Where the stop plus 30 cm passes the skill's range (ClawAttackChain, ClawAttackChain2 and DashAttackChain,
+  whose first strikes land at 360 to 430 cm against ranges of 340 to 440 cm), the moves before the first hit get no
+  limit and go up to EVE, as the first such move does in 74 of SB's 86 monster skills that have one, and the filter
+  keeps no `NearDistance`.
 - Two anim sets (500200 and 500201) name the Lion's run clips and its `Result_*` reactions, and no shield break, which
   the Lion has no clip for.
 - Two stances. `M_LionC_Default` (500200, phase 1) lists 17 commands; `M_LionC_Phase2` (500201) lists all 21. Both walk
@@ -1444,19 +1455,20 @@ names none.
   `M_LesserLurker_AI`). Both trees pick skills by their AISkillFlag (MeleeAttack), not by name, which leaves out the
   side steps (MoveAttack) and the phase-2 roar.
 
-The generator writes the data part of `lion/rows.h` and the whole of `cut/lion_rows.lua` from the offline reader's
-dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip measurements. It
-refuses a taken ID or name (in any case, as the game compares names), a missing template, a field the SDK does not
-place where its patch writes, and a template value the recipe does not set. It also refuses a value naming a Behemoth
-row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands,
-stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint,
-tree and sound set. Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or
-0.05 s late at most), and each collision group must exist with every socket tracked for the clip playing. A move toward
-where its skill expects EVE must stop short of her, a skill that looks for EVE off its front may not turn toward her
-while it moves, no range may pass its first hit's reach plus what its moves close, and each way the moves take the
-Lion 3 m or more needs a space check that way, no shorter than that travel while a longer one ships. Anim sets must
-name clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows
-play a clip the Lion has, and no move may travel over 17 m.
+The generator writes the data part of `lion/rows.h` and the whole of `cut/lion_rows.lua` from the offline reader's dumps
+of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip measurements. It refuses a
+taken ID or name (in any case, as the game compares names), a missing template, a field the SDK does not place where its
+patch writes, and a template value the recipe does not set. It also refuses a value naming a Behemoth row or asset other
+than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands, stances, moves,
+target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint, tree and sound
+set. Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or 0.05 s late at
+most), and each collision group must exist with every socket tracked for the clip playing. A move toward where its skill
+expects EVE must stop short of her, a skill whose move before its first hit stops short of her needs a range that starts
+30 cm or more past that stop and ends past its start, a skill that looks for EVE off its front may not turn toward her
+while it moves, no range may pass its first hit's reach plus what its moves close, and each way the moves take the Lion
+3 m or more needs a space check that way, no shorter than that travel while a longer one ships. Anim sets must name
+clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows play a
+clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and

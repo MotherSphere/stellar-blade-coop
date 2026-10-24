@@ -1168,7 +1168,10 @@ What to expect:
   blocked and perfect-parried.
 - Each move follows its animation: the Lion travels as far as its feet show, when they show it. A move toward EVE
   stops short of her, where the next blow lands, so a leap does not carry the Lion past her when she stands closer than
-  the leap's length. Leaps are estimates, since the feet are off the ground. The two running attacks and one chasing
+  the leap's length. A skill that leaps before its first blow starts only when EVE stands at least 30 cm past where
+  that leap stops (8.3 m for the high jump, 1.8 m for the low jump), so the Lion does not back off before it strikes.
+  The two claw chains and the dash chain would have no range left that way: their first steps go up to EVE instead.
+  Leaps are estimates, since the feet are off the ground. The two running attacks and one chasing
   claw look for EVE to the side and keep the Lion's heading; the other skills turn it toward her. Each skill's range is
   the reach of its first hit toward EVE plus what its moves close before it, and a skill whose moves take the Lion 3 m
   or more one way needs that much open ground to start. It walks at 2 m/s and runs at 9 m/s, the Behemoth's pace. Its
