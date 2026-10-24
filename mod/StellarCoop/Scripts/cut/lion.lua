@@ -323,9 +323,11 @@ function Lion.new(o)
         return assert(o,name..' does not load')
     end
     -- The leader (see LEADER_MESH): the body's mesh component takes the Behemoth's mesh and the Lion's AnimBP, then is
-    -- hidden; a new component on the body, attached to it with no offset (so with its place and 1.5 scale), draws the
-    -- Lion's mesh and copies its pose. Returns the new component; raises when the AnimBP builds no instance there
-    -- either.
+    -- drawn in no pass (main, depth, shadow) but stays in the scene, so the engine still counts it as rendered and SB's
+    -- OnlyTickPoseWhenRendered keeps ticking it (the 2026-10-24 test, with it hidden, found transitions stiff); its
+    -- cloth is not simulated. A new component on the body, attached to it with no offset (so with its place and 1.5
+    -- scale), draws the Lion's mesh in SB's character light channel and copies its pose. Returns the new component;
+    -- raises, the Lion's mesh back and no new component left, when anything fails.
     local function lead(c)
         local m=valid(c.Mesh)
         local lion_mesh=assert(valid(m.SkeletalMesh),'no Lion mesh on the body')
@@ -339,16 +341,32 @@ function Lion.new(o)
             m:SetSkeletalMesh(lion_mesh,true) -- Never a Behemoth drawn as the Lion: its own mesh back.
             error('the Lion AnimBP builds no instance on '..LEADER_MESH.name..' either',0)
         end
-        local identity=load('/Script/Engine.Default__KismetMathLibrary','KismetMathLibrary'):MakeTransform(
-            {X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
-        local skinned=load('/Script/Engine.SkeletalMeshComponent','SkeletalMeshComponent')
-        local f=assert(valid(c:AddComponentByClass(skinned,true,identity,false)),'no component for the Lion mesh')
-        f:SetCollisionEnabled(0)
-        f:K2_AttachToComponent(m,FName('None'),0,0,0,false) -- EAttachmentRule::KeepRelative, all three.
-        f:SetMasterPoseComponent(m,true)
-        f:SetSkeletalMesh(lion_mesh,true)
-        m:SetVisibility(false,false)
-        m.VisibilityBasedAnimTickOption=0 -- Hidden, it must still tick and refresh its bones for the copy.
+        local f
+        local made,e=pcall(function()
+            local identity=load('/Script/Engine.Default__KismetMathLibrary','KismetMathLibrary'):MakeTransform(
+                {X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
+            local skinned=load('/Script/Engine.SkeletalMeshComponent','SkeletalMeshComponent')
+            f=assert(valid(c:AddComponentByClass(skinned,true,identity,false)),'no component for the Lion mesh')
+            f:SetCollisionEnabled(0)
+            f:K2_AttachToComponent(m,FName('None'),0,0,0,false) -- EAttachmentRule::KeepRelative, all three.
+            f:SetMasterPoseComponent(m,true)
+            f:SetSkeletalMesh(lion_mesh,true)
+            f:SetLightingChannels(true,true,false) -- As the body's mesh: SB lights its characters in channel 1.
+            m:SetRenderInMainPass(false)
+            m.bRenderInDepthPass=false
+            m:SetCastShadow(false)
+            m.bDisableClothSimulation=true
+        end)
+        if not made then
+            if f then pcall(function() f:K2_DestroyComponent(c) end) end
+            pcall(function()
+                m:SetRenderInMainPass(true)
+                m.bRenderInDepthPass=true
+                m:SetCastShadow(true)
+                m:SetSkeletalMesh(lion_mesh,true)
+            end)
+            error(e,0)
+        end
         return f
     end
     -- The stand-in when give_anim built nothing: the single-node instance playing DRIVE_BS. True once it has one.
@@ -412,7 +430,7 @@ function Lion.new(o)
             e=fine and e or 'not given ('..why(e)..')'
             if not valid(valid(c.Mesh):GetAnimInstance()) then
                 local led,l=pcall(lead,c)
-                f.lead=led and valid(c.Mesh) or nil
+                f.lead=led or nil
                 e=e..'; leader: '..(led and 'the Lion AnimBP runs on a hidden '..LEADER_MESH.name..', the Lion mesh '
                     ..'copies its pose' or 'failed ('..why(l)..')')
             end
@@ -796,16 +814,21 @@ function Lion.new(o)
             elseif done~=nil then ok,message=done,said end
             if ok~=nil and job==j then job=nil end
         end
-        -- The leaders: SB sets their tick option back to OnlyTickPoseWhenRendered, which a hidden mesh never is.
+        -- The leaders, dead ones included (their death plays on it): AlwaysTickPoseAndRefreshBones each frame, in case
+        -- the engine stops counting a mesh drawn in no pass as rendered. Only while the body is still the one met.
         -- The stand-ins: each frame, their blend space input from the anim graph speed.
         for _,f in ipairs(followed) do
-            if f.lead and not f.dead then
+            if f.lead then
                 pcall(function()
-                    if f.lead.VisibilityBasedAnimTickOption~=0 then f.lead.VisibilityBasedAnimTickOption=0 end
+                    local c=Doro.same(f.obj,f.path)
+                    if not c then return end
+                    local m=c.Mesh
+                    if m.VisibilityBasedAnimTickOption~=0 then m.VisibilityBasedAnimTickOption=0 end
                 end)
             end
             if f.drive and not f.dead then
                 pcall(function()
+                    if not Doro.same(f.drive,f.path) then return end
                     local m=f.drive.Mesh
                     if m:GetAnimationMode()~=1 then -- Out of single-node mode (unfreeze init built an AnimBP): done.
                         f.drive=nil

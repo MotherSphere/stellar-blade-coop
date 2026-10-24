@@ -286,7 +286,8 @@ local function body(cls,at)
         engine()
         assert(reinit==true)
         self.SkeletalMesh=mesh
-        if mesh.works then self.refuse_all=false end
+        if mesh.works then self.refuse_all=false
+        elseif self.mode==0 then self.refuse_all,self.no_instance=true,true end -- A Lion mesh drops the AnimBP's.
     end
     m.PlayAnimation=function(self,asset,loop)
         engine()
@@ -880,11 +881,15 @@ led.AddComponentByClass=function(_,cls,manual,t,deferred)
     end
     function follower:SetSkeletalMesh(x,reinit)
         assert(reinit==true)
+        if follower_fails then error('no mesh for it') end
         self.calls[#self.calls+1]='mesh '..x:GetFName():ToString()
     end
+    function follower:SetLightingChannels(a,b,c) self.calls[#self.calls+1]=('light %s %s %s'):format(a,b,c) end
+    function follower:K2_DestroyComponent(owner) assert(owner==led); self.destroyed=true end
     return follower
 end
-led.Mesh.SetVisibility=function(self,on,propagate) engine(); assert(propagate==false); self.shown=on end
+led.Mesh.SetRenderInMainPass=function(self,on) engine(); self.main=on end
+led.Mesh.SetCastShadow=function(self,on) engine(); self.shadow=on end
 at(1700.3); lion.tick()
 at(1701.5); assert(lion.tick())
 at(1702.5); lion.tick()
@@ -892,21 +897,41 @@ assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none,
     ..'CH_M_NA_46_AnimBP_C built none; leader: the Lion AnimBP runs on a hidden CH_M_NA_46, the Lion mesh copies its '
     ..'pose; mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, .*, mode 0, leader none, '
     ..'anim set sync true, mesh CH_M_NA_46,'),'The leader line')
-assert(table.concat(follower.calls,'|')=='collision 0|attach|lead|mesh CH_M_NA_02_Large',
+assert(table.concat(follower.calls,'|')=='collision 0|attach|lead|mesh CH_M_NA_02_Large|light true true false',
     table.concat(follower.calls,'|'))
-assert(led.Mesh.shown==false and led.Mesh.VisibilityBasedAnimTickOption==0 and led.Mesh.input==nil,
-    'Hidden, ticking, no stand-in')
+assert(led.Mesh.main==false and led.Mesh.bRenderInDepthPass==false and led.Mesh.shadow==false
+    and led.Mesh.bDisableClothSimulation==true and led.Mesh.input==nil,'Drawn in no pass, no cloth, no stand-in')
 led.Mesh.VisibilityBasedAnimTickOption=3
 at(1702.6); lion.tick(); assert(led.Mesh.VisibilityBasedAnimTickOption==0,'Ticking again the next frame')
+-- A failure after the AnimBP built (here the Lion mesh on the new component): the component goes, the body's mesh
+-- is drawn again with the Lion's mesh, and the stand-in plays.
+lion=new()
+lion_status(ROWS_IN:format(1,'6'))
+at(1800); assert(lion.command())
+led=chars[#chars]
+led.Mesh.no_instance,led.Mesh.refuse_all=true,true
+led.AddComponentByClass=chars[#chars-1].AddComponentByClass
+led.Mesh.SetRenderInMainPass,led.Mesh.SetCastShadow=chars[#chars-1].Mesh.SetRenderInMainPass,
+    chars[#chars-1].Mesh.SetCastShadow
+follower_fails=true
+at(1800.3); lion.tick()
+at(1801.5); assert(lion.tick())
+at(1802.5); lion.tick()
+assert(logged('^lion 1 %(50020%) had no anim instance: .*; leader: failed %(no mesh for it%); stand%-in: the '
+    ..'single%-node instance plays IdleRun_BS_ by speed;'),'The rollback line')
+assert(follower.destroyed and led.Mesh.main==true and led.Mesh.shadow==true and led.Mesh.bRenderInDepthPass==true
+    and led.Mesh.SkeletalMesh:GetFName():ToString()=='CH_M_NA_02_Large','The Lion drawn again, the component gone')
+follower_fails=nil
 
 -- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
 -- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
--- and remove make and drop the display copy).
+-- and remove make and drop the display copy); its one destroy call drops the component it added itself, when the
+-- leader fails.
 do
     local f=assert(io.open('mod/StellarCoop/Scripts/cut/lion.lua','rb'))
     local src=f:read('a')
     f:close()
-    local allowed,seen={ServerRequest_CreateActor=true,SpawnDefaultController=true},{}
+    local allowed,seen={ServerRequest_CreateActor=true,SpawnDefaultController=true,K2_DestroyComponent=true},{}
     for call in src:gmatch('[:.]([%a_][%w_]*)%s*%(') do
         if allowed[call] then seen[call]=(seen[call] or 0)+1
         else
@@ -916,6 +941,7 @@ do
             end
         end
     end
-    assert(seen.ServerRequest_CreateActor==1 and seen.SpawnDefaultController==1,'One spawn call, one controller')
+    assert(seen.ServerRequest_CreateActor==1 and seen.SpawnDefaultController==1 and seen.K2_DestroyComponent==1,
+        'One spawn call, one controller, one destroy of its own component')
 end
 print('lion_test: ok')
